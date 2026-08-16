@@ -4,7 +4,7 @@
 
 ## Резюме
 
-Восстановить обязательные contract и architecture gates на Windows без green-wash. Сначала устраняются платформенные дефекты тестовой обвязки (`/dev/null`, `os.geteuid`, `\` против `/`) через узкие RED-first oracles. Затем отдельно классифицируются реальные архитектурные сигналы: устаревшие inventories и raw coord-topology predicate. После принятия WP01/WP02 полный architecture packet выявил ещё четыре остаточных baseline-класса; они вынесены в WP03, а локальная готовность до их закрытия остаётся `false`. Cross-repo E2E остаётся отдельным fail-closed состоянием и не считается пройденным без доступа к canonical репозиторию.
+Восстановить обязательные contract и architecture gates на Windows без green-wash. Сначала устраняются платформенные дефекты тестовой обвязки (`/dev/null`, `os.geteuid`, `\` против `/`) через узкие RED-first oracles. Затем отдельно классифицируются реальные архитектурные сигналы: устаревшие inventories и raw coord-topology predicate. После принятия WP01/WP02 полный architecture packet выявил четыре Windows-stable класса, закрытые targeted-GREEN в WP03, а его полный run выявил ещё четыре residual/root-cause группы; они вынесены в WP04–WP05. WP06 выполняет окончательную локальную приёмку, а до неё готовность остаётся `false`. Cross-repo E2E остаётся отдельным fail-closed состоянием и не считается пройденным без доступа к canonical репозиторию.
 
 ## Technical Context
 
@@ -25,7 +25,7 @@ _Технический контекст_
 **Performance Goals**: targeted-цикл до полного gate; полный architecture run запускается один раз после зелёного targeted packet
 
 **Constraints**: без blanket skip/allowlist growth; без credentials; без записи в глобальную Beads DB; внешний E2E доступ не подменяется
-**Scale/Scope**: один contract portability defect, минимум семь collection-sensitive файлов, topology remediation, четыре подтверждённых остаточных Windows/baseline-класса и полный итоговый architecture suite
+**Scale/Scope**: один contract portability defect, минимум семь collection-sensitive файлов, topology remediation, четыре WP03 Windows/baseline-класса, четыре follow-up residual/root-cause группы и полный итоговый architecture suite
 
 ## Проверка charter
 
@@ -136,7 +136,7 @@ _Карта implementation concerns_
 - **Правило**: targeted запуск с `--confcutdir`, незавершённый timeout и partial
   collection — только диагностические доказательства; `local_ready=true` возможен
   лишь после полного запуска без failure/error.
-- **Зависимости**: IC-03.
+- **Зависимости**: IC-03, WP04 и WP05.
 - **Риск**: новый failure возвращается в owning WP через отдельный RED/GREEN, а не
   маскируется в acceptance artifact.
 
@@ -144,9 +144,9 @@ _Карта implementation concerns_
 
 ### Local acceptance
 
-До WP03 текущий snapshot считается `implementation_complete=true`, но
+До WP06 текущий snapshot считается `implementation_complete=true`, но
 `local_ready=false`: полный contract зелёный, а architecture run содержит
-подтверждённые residual-классы и не может быть объявлен pass. После WP03 на
+подтверждённые residual-классы и не может быть объявлен pass. После WP06 на
 окончательном неизменённом SHA выполняются полные contract/architecture suites,
 статические проверки, collection oracle, code map parity/hash/coverage и clean-tree
 check. Если обнаружен новый дефект, он возвращается в owning concern; после

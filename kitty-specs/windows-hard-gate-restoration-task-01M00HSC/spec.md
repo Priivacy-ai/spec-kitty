@@ -4,7 +4,7 @@
 
 **Создано**: 2026-08-14
 
-**Статус**: Replanned — ожидает выполнения WP03 и повторной локальной приёмки
+**Статус**: Replanned — WP03 targeted-GREEN завершён; ожидаются WP04–WP06 и повторная локальная приёмка
 **Целевая аудитория**: сопровождающий Spec Kitty, который проверяет готовность изменения на Windows 10+
 
 ## Пользовательские сценарии и проверка
@@ -83,6 +83,12 @@ node-id у параметризованной POSIX-проверки. CLI width 
 штатным запуском и не считается дефектом: его красный результат воспроизводится
 только при урезанном окружении без корневой `tests/conftest.py`.
 
+Полный architecture run после GREEN WP03 дополнительно выявил четыре группы,
+вынесенные в последовательные WP04–WP05: raw повторный вывод mission anchor в
+`status_transition`, Windows-разделители в диагностике checkout grammar,
+устаревший exact token authority allowlist и несогласованный с CRLF checkout
+SHA-256 code-map lock. До закрытия этих групп `local_ready` остаётся `false`.
+
 **Независимая проверка**: для каждого реального класса существует отдельный RED,
 узкий GREEN и mutation/negative oracle; после этого полный `tests/contract` и
 `tests/architectural` повторяются на новом неизменённом SHA.
@@ -145,4 +151,4 @@ node-id у параметризованной POSIX-проверки. CLI width 
 - **SC-005**: code map JSON/HTML имеет одинаковые nodes/edges/references, а `.lock` совпадает с фактическими SHA-256.
 - **SC-006**: при недоступном canonical E2E repo `implementation_complete=true` допустим, но `e2e_ready=false` и `release_ready=false`; ложный публикационный pass невозможен.
 - **SC-007**: локальная ветка остаётся clean после commit, полный handoff указывает worktree, branch, commits и все gate counts.
-- **SC-008**: четыре подтверждённых остаточных класса закрыты отдельным RED/GREEN/mutation evidence; после WP03 полный contract и architecture run имеют `0 failed`, `0 errors`, а `local_ready` отражает этот exact SHA.
+- **SC-008**: все подтверждённые residual-классы закрыты отдельным RED/GREEN/mutation evidence; после WP06 полный contract и architecture run имеют `0 failed`, `0 errors`, а `local_ready` отражает этот exact SHA.

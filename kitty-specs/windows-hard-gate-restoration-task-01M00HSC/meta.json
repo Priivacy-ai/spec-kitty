@@ -31,5 +31,7 @@
   "purpose_tldr": "Contract и architecture gates должны стабильно завершаться на Windows без ослабления fail-closed проверок.",
   "slug": "windows-hard-gate-restoration-task-01M00HSC",
   "target_branch": "codex/setup-plan-hard-gates",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-15T18:22:32.584009+00:00"
 }
