@@ -191,6 +191,16 @@ def test_stale_reviewer_role_at_for_review_still_allows(tmp_path: Path) -> None:
     feature_dir = _feature_dir(tmp_path)
     # A prior review cycle stamped role="reviewer" (resolved binding), then the
     # WP was reworked back to for_review by the implementer.
+    #
+    # All three events below are anchored to real "now" (never a hard-coded
+    # absolute literal) so the whole test is a single timestamp kind. The
+    # `_uid(...)` event ids are lexically ordered (A2 < A3 < A4), which is
+    # the reducer's tie-break on `(at, event_id)` -- so even if two
+    # `now_utc_iso()` calls land in the same instant, append order is still
+    # preserved. Mixing a hard-coded literal here with `_transition(...,
+    # at=now_utc_iso())` below is exactly the #3157-class flakiness this
+    # test must not reintroduce (see
+    # tests/architectural/test_no_absolute_event_timestamp_mixture.py).
     append_event(
         feature_dir,
         _transition(
@@ -198,7 +208,7 @@ def test_stale_reviewer_role_at_for_review_still_allows(tmp_path: Path) -> None:
             from_lane=Lane.FOR_REVIEW,
             to_lane=Lane.IN_REVIEW,
             actor="reviewer-old",
-            at="2026-08-01T10:00:00+00:00",
+            at=now_utc_iso(),
         ),
     )
     append_annotations_atomic_verified(
@@ -207,7 +217,7 @@ def test_stale_reviewer_role_at_for_review_still_allows(tmp_path: Path) -> None:
             InnerStateChanged(
                 event_id=_uid("A3"),
                 wp_id="WP01",
-                at="2026-08-01T10:00:01+00:00",
+                at=now_utc_iso(),
                 actor="reviewer-old",
                 delta=WPInnerStateDelta(role="reviewer"),
             )
