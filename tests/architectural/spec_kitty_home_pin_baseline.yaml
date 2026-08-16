@@ -19,6 +19,9 @@ tombstones:
 - - sync/test_body_upload_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( home ) )
+- - sync/test_daemon_publish_consent_3030.py
+  - _isolated_home
+  - monkeypatch . setenv ( , str ( home ) )
 - - sync/test_legacy_queue_precondition_3030.py
   - test_a_credentials_read_failure_is_not_evidence
   - monkeypatch . setenv ( , str ( tmp_path / ) )

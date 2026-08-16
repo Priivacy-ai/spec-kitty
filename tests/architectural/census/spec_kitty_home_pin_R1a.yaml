@@ -178,13 +178,6 @@ rows:
   kind: fixture
   home_partition: B1
 - key:
-  - sync/test_daemon_publish_consent_3030.py
-  - _isolated_home
-  - monkeypatch . setenv ( , str ( home ) )
-  lineno: 82
-  kind: fixture
-  home_partition: A
-- key:
   - sync/test_ws_publish_consent_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )

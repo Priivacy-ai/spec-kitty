@@ -68,7 +68,7 @@ CARVE_OUT = "acme-holdings-carve-out"
 
 
 @pytest.fixture(autouse=True)
-def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _isolated_home(canonical_home: None, monkeypatch: pytest.MonkeyPatch) -> None:
     """Per-test consent index and queue; machine-global arming neutralised.
 
     ``SPEC_KITTY_ENABLE_SAAS_SYNC`` is arming and never a grant (``consent.py``
@@ -77,10 +77,9 @@ def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     and a machine-global store, and a shared home is how one case's grant answers
     another's question.
     """
-    home = tmp_path / "home"
-    home.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    del canonical_home  # R1b (#3121): per-test home isolation provided by the canonical SPEC_KITTY_HOME owner
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    # Retained: no autouse restores SPEC_KITTY_SAAS_URL, and these daemon-publish tests need it.
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://app.spec-kitty.ai")
     manager = SimpleNamespace(
         get_current_session=lambda: SimpleNamespace(
