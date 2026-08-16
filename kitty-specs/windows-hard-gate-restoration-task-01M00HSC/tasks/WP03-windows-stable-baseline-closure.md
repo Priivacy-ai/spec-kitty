@@ -26,7 +26,7 @@ history:
 - at: '2026-08-15T00:00:00Z'
   actor: codex
   action: Пакет добавлен после независимой классификации residual architecture failures
-agent_profile: python-pedro
+agent_profile: reviewer-renata
 authoritative_surface: tests/architectural/
 create_intent: []
 execution_mode: code_change
@@ -40,7 +40,7 @@ owned_files:
 - tests/architectural/test_mission_exit_baseline.py
 - tests/review/test_pre_review_gate_engine.py
 - tests/contract/test_machine_facing_canonical_fields.py
-role: implementer
+role: reviewer
 tags:
 - windows
 - architecture
