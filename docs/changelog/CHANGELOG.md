@@ -193,6 +193,22 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Machines that never ran the layout migration silently captured zero sync
+  events while reporting success — now they capture for real (`#3425`;
+  `#3497`).** Before, an un-migrated machine defaulted to a legacy capture
+  layout where live event/body writes were refused deep in the stack and
+  swallowed — a **silent zero-capture** that never surfaced to the operator. A
+  `#3293` regression compounded this by also refusing authenticated hosts
+  entirely. Now a fresh root resolves to project-only capture *before* any
+  legacy persist; a legacy-with-data root auto-migrates through the canonical
+  `migrate_journal`/`project_store_migration` engines under a deterministic,
+  crash-safe migration id (re-entry never bricks the root); the live emit path
+  completes its cutover via a resolve-before-unit-of-work seam so both emitter
+  swallow sites are observable instead of silent (never-raises contract kept
+  intact); and credential parsing is restored as a pure auth signal (never a
+  physical-store selector), so an already-authenticated host stops being
+  refused.
+
 - **A reviewer running a different agent profile than the implementer can now
   claim a completed work package for review — the false "WP already claimed for
   review by `<implementer>`" refusal is gone (`#3455`).** Before, claiming a WP
