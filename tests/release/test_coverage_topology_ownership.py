@@ -26,11 +26,15 @@ model in ``tests.architectural._gate_coverage`` (its public ``cov_targets``
 relation): every emitter this guard detects is a model-recognised coverage job.
 The step-level artifact detail the model deliberately does not carry (upload
 artifact names, ``--cov-report=xml:`` filenames, the aggregator's download
-``pattern`` and ``find`` glob) is read through a structured ``yaml.safe_load`` of
-the same workflow file — the identical structured parse the model itself uses,
-not a regex hand-parse of raw YAML text. The consumer globs are discovered live
-from the aggregator's own steps, so the guard tracks the real aggregator instead
-of a hand-maintained mirror.
+``pattern`` and ``find`` glob) is read through the model's own
+``load_spliced_workflow`` reader of the same workflow file — the identical
+structured parse the model itself uses, with reusable ``uses:`` delegation
+inlined (mission #3447) so a caller job such as ``kernel-tests`` (which
+delegates to ``module-kernel.yml``) is seen with its delegate's
+``--cov-report=xml:`` and upload steps. A raw ``yaml.safe_load`` would miss that
+delegated emitter entirely; a regex hand-parse of raw YAML text is likewise
+avoided. The consumer globs are discovered live from the aggregator's own steps,
+so the guard tracks the real aggregator instead of a hand-maintained mirror.
 """
 
 from __future__ import annotations
@@ -42,7 +46,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 
 from tests.architectural import _gate_coverage as gc
 
@@ -171,8 +174,16 @@ def _discover_report_file_globs(jobs: dict[str, Any]) -> tuple[str, ...]:
 
 
 def load_coverage_topology(path: Path = _CI_QUALITY_PATH) -> CoverageTopology:
-    """Parse the emit/consume coverage topology out of a workflow file."""
-    data: dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8"))
+    """Parse the emit/consume coverage topology out of a workflow file.
+
+    Loads through :func:`gc.load_spliced_workflow` (NOT a raw ``yaml.safe_load``)
+    so a reusable-workflow caller job (``uses: ./.github/workflows/<file>``,
+    mission #3447) is seen with its delegate's ``--cov-report=xml:`` and upload
+    steps inlined — otherwise a delegated emitter like ``kernel-tests`` (which
+    delegates to ``module-kernel.yml``) would be invisible and silently dropped
+    from the coverage-ownership guard.
+    """
+    data: dict[str, Any] = gc.load_spliced_workflow(path)
     jobs: dict[str, Any] = data["jobs"]
     emitters = [
         CoverageEmitter(
@@ -251,6 +262,31 @@ def test_coverage_emitters_are_present(topology: CoverageTopology) -> None:
     parsed_jobs = {emitter.job for emitter in topology.emitters}
     missing = sorted(_REQUIRED_EMITTER_JOBS - parsed_jobs)
     assert not missing, f"expected coverage emitters not parsed: {missing}"
+
+
+def test_reusable_delegated_emitter_is_spliced_and_detected(
+    topology: CoverageTopology,
+) -> None:
+    """A ``uses:`` caller job's delegated emitter is detected (mission #3447).
+
+    ``kernel-tests`` in ``ci-quality.yml`` carries no inline ``run:`` steps — it
+    delegates to ``module-kernel.yml`` via ``uses:``. Its ``coverage-kernel.xml``
+    emitter and ``kernel-test-reports`` upload live in the reusable workflow.
+    This pins that :func:`load_coverage_topology` loads through
+    ``load_spliced_workflow`` so the delegate is inlined; a regression to a raw
+    ``yaml.safe_load`` would drop ``kernel-tests`` from the emitter set and red
+    :func:`test_coverage_emitters_are_present` for the wrong (obscure) reason.
+    """
+    kernel = next(
+        (e for e in topology.emitters if e.job == "kernel-tests"),
+        None,
+    )
+    assert kernel is not None, (
+        "kernel-tests emitter not parsed — reusable-workflow delegation to "
+        "module-kernel.yml was not spliced (load_spliced_workflow bypassed?)"
+    )
+    assert "coverage-kernel.xml" in kernel.report_filenames
+    assert "kernel-test-reports" in kernel.upload_names
 
 
 def test_detected_emitters_are_model_recognised_coverage_jobs(
