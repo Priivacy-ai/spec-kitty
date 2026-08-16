@@ -54,6 +54,9 @@ import dataclasses
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from charter.bundle import CHARTER_YAML
+from charter.provenance import is_built_in_pack_path, to_portable_source_path
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -63,9 +66,10 @@ if TYPE_CHECKING:
 MIGRATION_ID = "3.2.7_heal_provenance_paths"
 TARGET_VERSION = "3.2.6rc2"
 
+#: Not a charter-bundle path (that authority is ``charter.bundle.CHARTER_YAML``,
+#: imported above for :func:`_charter_yaml_path`) -- this is the unrelated
+#: top-level ``.kittify/agent_profiles_manifest.json`` sidecar's own dirname.
 _KITTIFY_DIRNAME = ".kittify"
-_CHARTER_SUBDIR = "charter"
-_CHARTER_YAML_FILENAME = "charter.yaml"
 _MANIFEST_FILENAME = "agent_profiles_manifest.json"
 
 #: Catalog reference kind excluded from healing -- mirrors C-PRV-6's excluded
@@ -79,7 +83,13 @@ _EXCLUDED_CATALOG_KIND = "template_set"
 
 
 def _charter_yaml_path(project_path: Path) -> Path:
-    return project_path / _KITTIFY_DIRNAME / _CHARTER_SUBDIR / _CHARTER_YAML_FILENAME
+    # The ``charter.*`` mypy override (pyproject.toml [[tool.mypy.overrides]])
+    # sets follow_imports="skip" for intra-package imports, which erases
+    # CHARTER_YAML's declared ``Path`` type to Any at this call site.
+    # Annotating recovers the real type without a suppression comment (mirrors
+    # charter/bundle.py's own compute_bundle_content_hash precedent).
+    charter_yaml_path: Path = project_path / CHARTER_YAML
+    return charter_yaml_path
 
 
 def _manifest_path(project_path: Path) -> Path:
@@ -113,8 +123,6 @@ def _catalog_ref_is_healable(ref: Any) -> bool:
     if not isinstance(source_path, str) or not source_path or not Path(source_path).is_absolute():
         return False
 
-    from doctrine.provenance import is_built_in_pack_path  # noqa: PLC0415 -- lazy (C-002)
-
     return is_built_in_pack_path(source_path)
 
 
@@ -129,7 +137,6 @@ def _heal_catalog(project_path: Path, charter_path: Path, dry_run: bool) -> list
         return []
 
     from charter.charter_yaml_io import load_charter_yaml, update_charter_yaml_section  # noqa: PLC0415
-    from doctrine.provenance import to_portable_source_path  # noqa: PLC0415
 
     changes: list[str] = []
     document = load_charter_yaml(charter_path)
@@ -159,8 +166,6 @@ def _manifest_entry_is_healable(entry: NativeAgentProfile) -> bool:
     if not source_path or not Path(source_path).is_absolute():
         return False
 
-    from doctrine.provenance import is_built_in_pack_path  # noqa: PLC0415 -- lazy (C-002)
-
     return is_built_in_pack_path(source_path)
 
 
@@ -181,7 +186,6 @@ def _heal_manifest(project_path: Path, dry_run: bool) -> list[str]:
     if not healable:
         return []
 
-    from doctrine.provenance import to_portable_source_path  # noqa: PLC0415
     from specify_cli.tool_surface.profiles.manifest import ProfileManifest  # noqa: PLC0415
 
     changes: list[str] = []
