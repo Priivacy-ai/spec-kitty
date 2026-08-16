@@ -605,7 +605,19 @@ def test_start_review_allows_second_reviewer_when_holder_binding_less(tmp_path: 
     feature_dir = _feature_dir(tmp_path)
     append_event(
         feature_dir,
-        _event("01DDDD0000000000000000004D", from_lane=Lane.FOR_REVIEW, to_lane=Lane.IN_REVIEW, actor="reviewer-a"),
+        _event(
+            "01DDDD0000000000000000004D",
+            from_lane=Lane.FOR_REVIEW,
+            to_lane=Lane.IN_REVIEW,
+            actor="reviewer-a",
+            # Anchored to real "now" (not `_event`'s hard-coded default) so
+            # this test's whole event log is now()-stamped, matching the
+            # `start_review_status` call below -- avoids mixing an absolute
+            # literal with a real-clock event in the same test function
+            # (FR-014 / #3157-class flakiness; see
+            # tests/architectural/test_no_absolute_event_timestamp_mixture.py).
+            at=now_utc_iso(),
+        ),
     )
     # NOTE: deliberately NO role annotation -> current_role is None.
 
