@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage'
-description: 'Collapses the two divergent pack manifests (counts vs enumerated) onto one canonical pack-manifest schema for every pack type, splits authored lineage/identity from generated constituents, and delegates parent-pack resolution to the existing extends resolver.'
+description: 'Unifies the two divergent pack manifests (counts vs enumerated) onto one canonical pack-manifest schema for every pack type, splitting authored lineage from generated constituents.'
 status: Accepted
 date: '2026-08-16'
 related:

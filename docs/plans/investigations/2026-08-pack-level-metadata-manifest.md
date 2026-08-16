@@ -1,6 +1,6 @@
 ---
 title: 'Pack-level metadata manifest: constituent parts + lineage'
-description: 'Design corroboration for a single pack-level manifest recording each pack''s enumerated constituents and its parent/lineage (incl. charter-pack ↔ doctrine-pack binding) — a consolidation of two divergent existing manifests, not a new format.'
+description: 'Corroborates one pack-level manifest recording each pack''s enumerated constituents and parent/lineage — a consolidation of two divergent existing manifests, not a new format.'
 doc_status: proposed
 updated: '2026-08-16'
 related:

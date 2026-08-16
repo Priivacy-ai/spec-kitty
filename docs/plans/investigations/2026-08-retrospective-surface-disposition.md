@@ -1,6 +1,6 @@
 ---
 title: 'Retrospective-learning surface: disposition and sequencing'
-description: 'Planner disposition for the retrospect-surface blind spot (#1239/#2267/#3072) — milestone-hygiene the two orphans now, then mint one lightweight epic spined on the dual-schema reconciliation.'
+description: 'Planner disposition for the retrospect-surface blind spot (#1239/#2267/#3072): milestone the two orphans now, then mint one lightweight epic on the dual-schema reconciliation.'
 doc_status: proposed
 updated: '2026-08-15'
 related:
