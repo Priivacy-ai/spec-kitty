@@ -182,3 +182,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-13 | [Gate outcomes carry a typed severity; an operator-configured error-handling strategy decides the CLI effect](2026-08-13-6-gate-outcomes-carry-severity-operator-strategy-decides-effect.md) |
 | 2026-08-13 | [Mission-Type Roster Layering Is the Availability Slice, Not the Kind-Promotion Slice](2026-08-13-1-mission-type-roster-layering-seam.md) |
 | 2026-08-15 | [Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract](2026-08-15-1-handoff-packet-intake-contract.md) |
+| 2026-08-16 | [Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage](2026-08-16-1-pack-metadata-manifest-unification.md) |
