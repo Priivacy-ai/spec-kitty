@@ -1900,7 +1900,9 @@ def test_wp04_coord_router_entry_matches_exact_live_token() -> None:
         if key.rel_path == "src/specify_cli/agent_tasks_ports.py"
         and key.enclosing_qualname == "RealCoordCommitRouter.feature_write_dir"
     ]
-    assert len(target) == 1, f"expected one pinned coord router entry, got {target}"
+    assert len(target) == 1, (  # golden-count: cardinality-is-contract
+        f"expected one pinned coord router entry, got {target}"
+    )
     assert target[0] in live, (
         "the coord router allowlist entry must match the exact live call-site token; "
         f"stored={target[0]!r}, live={list(live)!r}"
