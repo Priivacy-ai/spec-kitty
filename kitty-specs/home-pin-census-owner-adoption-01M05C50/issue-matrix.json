@@ -13,7 +13,7 @@
       "wp": "WP01"
     },
     "#3497": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "The SPEC_KITTY_HOME isolation pin #3497 added (test_sync_status_drain_blockers.py) is legitimate and necessary (whole-home-scoped layout record); verified by 4-lens research. Adopted via canonical_home owner rather than removed \u2014 no defect in #3497.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,8 +21,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
     }
   },
   "schema_version": 1
