@@ -19,6 +19,28 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **A pack — built-in, org, fetched, or a charter bundle — now has one canonical
+  `pack-manifest.yaml` schema instead of two divergent formats (mission
+  `pack-metadata-manifest-unification-01M052PT`; closes `#3500`, `#3501`, `#3502`,
+  `#3503`, slice of keystone `#2467`; ADR `2026-08-16-1`).** Before, org packs'
+  `pack-manifest.yaml` stored per-kind `artifact_counts` (no lineage, and never
+  written for the built-in pack every pack extends), while charter bundles'
+  `synthesis-manifest.yaml` enumerated `constituents[]` in an unrelated shape —
+  two formats that could drift, with neither covering the reference pack. Now the
+  unified schema (enumerated `constituents:[{kind,id,path,content_hash}]`, stored
+  `artifact_counts` retired for a derived `counts_by_kind` view, charter-only
+  fields in an optional `charter:` profile block) is defined and the built-in pack
+  emits it: a generated manifest (265 constituents, wired into `spec-kitty doctrine
+  regenerate-graph`) plus new authored `packs/built-in/pack.yaml` + `pack.md`
+  carrying a stable, immutable ULID `pack_id` and declared `parent_pack` /
+  `accompanies_doctrine_pack` lineage edges, resolved exclusively through the
+  existing `org_extends.resolve_extends_order` (no second lineage walker —
+  enforced by a non-vacuous architectural ratchet). `pack_version` is
+  derive-else-fallback: authored in `pack.yaml` when present, else generated, so
+  fetched/org packs keep genuine fetch-time provenance. This slice lands the
+  schema, models, and the built-in-pack writer; org/fetched/charter manifest
+  writers and the `pack_id` resolver cutover are fast-follow, and the broader
+  "compound packs" slice of `#2467` remains future work.
 - **A new `spk-run-verdict-capture` skill so every agent harness records a WP
   review verdict the same way (`#3121`).** The sole authority for a verdict is the
   `review_result` event in `status.events.jsonl` (the `review-cycle-N.md` render
