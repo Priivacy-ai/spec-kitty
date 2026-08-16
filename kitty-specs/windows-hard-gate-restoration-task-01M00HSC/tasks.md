@@ -2,7 +2,7 @@
 
 ## Обзор
 
-Работа разделена на последовательные пакеты без параллельного ownership. Первый устраняет Windows portability и collection defects в test/gate harness. Второй на уже честном oracle классифицирует реальные architecture drifts, исправляет topology boundary и синхронизирует code map. Третий пакет закрыл свои четыре Windows-stable класса, но полный architecture packet на его SHA выявил четыре новые группы residual/root-cause. Они вынесены в WP04–WP05, после чего WP06 повторит полную локальную приёмку и оформит handoff. Внешний E2E остаётся отдельным release-gate.
+Работа разделена на последовательные пакеты без параллельного ownership. Первый устраняет Windows portability и collection defects в test/gate harness. Второй на уже честном oracle классифицирует реальные architecture drifts, исправляет topology boundary и синхронизирует code map. Третий пакет закрыл свои четыре Windows-stable класса, но полный architecture packet на его SHA выявил четыре новые группы residual/root-cause. Они вынесены в WP04–WP05; финальный прогон выявил один дополнительный реальный cardinality residual, поэтому он закрывается отдельным WP07 перед повторной приёмкой WP06. Внешний E2E остаётся отдельным release-gate.
 
 ## Индекс подзадач
 
@@ -40,6 +40,10 @@
 | T030 | Классифицировать новые residuals и не скрывать их текущим пакетом | WP06 | Нет |
 | T031 | Обновить acceptance matrix и hard-gate result | WP06 | Нет |
 | T032 | Дополнить tracers и подготовить SHA-bound handoff | WP06 | Нет |
+| T033 | Воспроизвести 25-й convert-site и доказать его происхождение из WP04 | WP07 | Нет |
+| T034 | Явно пометить только проверенный cardinality-only assertion | WP07 | Нет |
+| T035 | Убить marker mutation и выполнить targeted GREEN без изменения ceiling | WP07 | Нет |
+| T036 | Передать новый immutable SHA в повторный WP06 acceptance | WP07 | Нет |
 
 ## WP01 — Windows portability и collection closure
 
@@ -258,7 +262,7 @@ green-wash.
 
 **Prompt**: `tasks/WP06-final-local-acceptance-and-handoff.md`
 
-**Зависимости**: WP04 и WP05 approved.
+**Зависимости**: WP07 approved; WP07 последовательно зависит от WP04 и WP05.
 
 ### Результат
 
@@ -288,12 +292,67 @@ handoff.
   нулевой collection error.
 - Отсутствующий внешний E2E не превращать в `e2e_ready` или `release_ready`.
 
+## WP07 — Закрытие cardinality residual после полного architecture gate
+
+**Приоритет**: P1
+
+**Prompt**: `tasks/WP07-golden-count-residual-closure.md`
+
+**Зависимости**: WP04 и WP05 approved; блокирует повторный WP06.
+
+### Результат
+
+Единственный failure полного architecture gate классифицирован как новый
+cardinality-only site, добавленный WP04: assertion проверяет ровно одну
+конкретную live authority-запись. На строке assertion появляется узкий
+`golden-count: cardinality-is-contract` marker; baseline ceiling не
+увеличивается, другие sites и allowlists не меняются. Marker mutation снова
+делает recurrence guard красным.
+
+### Подзадачи
+
+- [ ] T033 Воспроизвести полный residual и сравнить список convert-sites с
+  merge-base/WP03 (WP07)
+- [ ] T034 Добавить marker только на assertion WP04, не меняя проверяемую
+  authority-семантику (WP07)
+- [ ] T035 Временно снять marker, получить ожидаемый RED, восстановить его и
+  прогнать targeted gate, Ruff, py_compile и diff-check (WP07)
+- [ ] T036 Зафиксировать provenance, новый SHA и handoff для повторного WP06
+  полного contract/architecture gate (WP07)
+
+### Owned files
+
+- `tests/architectural/test_resolution_authority_gates.py`
+
+### Ограничения
+
+- Не повышать `tests/architectural` ceiling с 24 до 25.
+- Не добавлять wildcard/blanket allowlist и не помечать соседние assertions.
+- Не менять production code, authority token, codemap или E2E/release status.
+- Изменение выполняется последовательно после approved WP04; rationale о
+  handoff ownership сохраняется в activity/handoff WP07.
+
+### Проверки
+
+- RED до marker показывает 25 non-escaped convert-sites и failure recurrence
+  guard; положительный control подтверждает, что marker читается на нужной
+  физической строке.
+- GREEN после marker показывает 24 non-escaped convert-sites и targeted
+  `test_convert_sites_do_not_exceed_frozen_baseline` проходит.
+- Mutation снятия marker снова красная; после восстановления полный WP06 gate
+  запускается на новом immutable SHA.
+
+### Параллельность
+
+WP07 не параллелен с WP06 и не меняет другие архитектурные поверхности.
+
 ## Общая готовность
 
 - Оба пакета соблюдают отдельный RED commit до implementation commit.
 - Никакой blanket skip, count-floor reduction, wildcard allowlist или operator exception не добавлен.
 - Contract и architecture suites на окончательном SHA имеют `0 failed`, `0 errors`;
-  до WP06 acceptance matrix честно показывает `local_ready=false`.
+  до завершения WP07/WP06 acceptance matrix честно показывает
+  `local_ready=false`.
 - External E2E отсутствие доступа допускает `implementation_complete=true`, но оставляет `e2e_ready=false` и `release_ready=false`.
 - Handoff указывает exact SHA, после которого файлы не менялись.
 - Beads не используется до отдельного исправления task-local resolver; глобальная DB не изменяется.

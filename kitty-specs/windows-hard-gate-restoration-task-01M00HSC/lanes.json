@@ -39,7 +39,8 @@
       "wp_ids": [
         "WP01",
         "WP03",
-        "WP04"
+        "WP04",
+        "WP07"
       ],
       "write_scope": [
         "src/specify_cli/coordination/status_transition.py",
@@ -73,6 +74,7 @@
       ],
       "predicted_surfaces": [
         "api",
+        "artifact-rendering",
         "legacy-cleanup",
         "tracker-integration"
       ],
@@ -103,12 +105,12 @@
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-08-16T03:42:38.514253+00:00",
+  "computed_at": "2026-08-16T05:47:56.035203+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP06"
   ],
-  "planning_commit_sha": "ecaaf269c575dc7c8d04536eed796a5810e70a92",
+  "planning_commit_sha": "3eb04ff0f4a01a979a035373fc7be711e0662d12",
   "collapse_report": {
     "events": [
       {
@@ -124,16 +126,22 @@
         "evidence": "overlapping globs: 'tests/architectural/test_no_write_side_rederivation.py' vs 'tests/architectural/test_no_write_side_rederivation.py', 'tests/architectural/test_resolution_authority_gates.py' vs 'tests/architectural/test_resolution_authority_gates.py'"
       },
       {
+        "wp_a": "WP01",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/architectural/test_resolution_authority_gates.py' vs 'tests/architectural/test_resolution_authority_gates.py'"
+      },
+      {
         "wp_a": "WP02",
         "wp_b": "WP05",
         "rule": "write_scope_overlap",
         "evidence": "overlapping globs: 'tests/architectural/test_topology_resolution_boundary.py' vs 'tests/architectural/test_topology_resolution_boundary.py', 'docs/codemap/codemap.lock' vs 'docs/codemap/codemap.lock'"
       }
     ],
-    "total_merges": 3,
+    "total_merges": 4,
     "independent_wps_collapsed": 0,
     "by_rule": {
-      "write_scope_overlap": 3
+      "write_scope_overlap": 4
     }
   }
 }
