@@ -23,7 +23,7 @@ history:
 - at: '2026-08-16T03:33:31Z'
   actor: codex
   action: Follow-up создан после полного architecture gate WP03; diagnostic path и lock hash вынесены отдельно от resolver boundary.
-agent_profile: python-pedro
+agent_profile: reviewer-renata
 authoritative_surface: tests/architectural/
 create_intent: []
 execution_mode: code_change
@@ -31,7 +31,7 @@ model: ''
 owned_files:
 - tests/architectural/test_topology_resolution_boundary.py
 - docs/codemap/codemap.lock
-role: implementer
+role: reviewer
 tags:
 - windows
 - diagnostics
@@ -79,3 +79,7 @@ coordination note, но не заявляет этот файл как пара�
 - Lock совпадает с каноническими LF-нормализованными представлениями и не маскирует semantic drift.
 - Нет изменений frozen seed или wildcard allowlist.
 - Lane clean, evidence и SHA-bound handoff подготовлены для WP06.
+
+## Activity Log
+
+- 2026-08-16T04:26:54Z – codex – shell_pid=7652 – WP05 GREEN: RED cb3c2f02f воспроизвёл два Windows diagnostic path failure и raw-byte lock mismatch; GREEN 6cc416c42 добавил только .as_posix() для repo-relative diagnostic key, CRLF→LF normalization в lock oracle и фактические codemap fingerprints. Shared WP04 test file изменён последовательно с coordination note. Проверки: WP05-owned architecture files 39/39; mutation .as_posix() и raw-byte hash убиты; JSON↔HTML parity; Ruff, py_compile, diff-check; lock independent LF oracle; JSON/HTML semantic diff отсутствует.
