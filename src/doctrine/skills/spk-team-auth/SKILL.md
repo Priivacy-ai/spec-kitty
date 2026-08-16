@@ -19,5 +19,9 @@ or auth failures in sync/tracker workflows.
 
 ## Local Dev Note
 
-When testing hosted auth from the CLI on this computer, set
-`SPEC_KITTY_ENABLE_SAAS_SYNC=1`.
+When testing hosted auth from the CLI on this computer, opt into hosted mode
+with `SPEC_KITTY_ENABLE_SAAS_SYNC=1`. Prefer writing it once into
+`.kittify/.kitty.env` (repo-scoped) or `${SPEC_KITTY_HOME}/.kitty.env`
+(machine-wide) over a per-shell `export` — a shell export arms every project
+that shell subsequently touches, not just the one you're testing. Run
+`spec-kitty doctor env-file` to confirm which tier is active.

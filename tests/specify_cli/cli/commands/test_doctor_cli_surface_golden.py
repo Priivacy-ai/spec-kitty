@@ -8,14 +8,18 @@ every subsequent extraction WP.
 It pins, independently of the implementation source:
 
 * the exact set of registered subcommand names (set-equality, order-free);
-  20 as of mission-type-guard-registry-01KZY2FG WP02, which added the
-  ``mission-type`` subcommand (FR-007 mission-type resolution health audit)
-  on top of the 19 prior names (19 as of review-cycle-verdict-seam-rebuild-
-  01KZ2W7W WP08, which added the ``review-cycle-reconcile`` subcommand
-  (FR-008 stranded-record reconciliation) on top of the 18 prior names (17
-  names as of runtime-state-birth-cutover-all-paths-01KYH654 WP05's
-  ``cutover`` addition: 16 de-godding names from #2059 + ``contracts`` from
-  #2441));
+  23 as of operator-config-ergonomics-01M04YK8, which added the
+  ``provenance`` (WP03, C-PRV-5 leak-check), ``channel`` (WP05, C-CHN-3 rc
+  release-channel report), and ``env-file`` (WP06, T019 ``.kitty.env`` health
+  report) subcommands -- each registered via the ``doctor.py`` auto-discovery
+  seam (T015) rather than a hand-written ``@app.command`` shell in this file --
+  on top of the 20 names as of mission-type-guard-registry-01KZY2FG WP02, which
+  added ``mission-type`` (FR-007 mission-type resolution health audit) on top
+  of the 19 names as of review-cycle-verdict-seam-rebuild-01KZ2W7W WP08's
+  ``review-cycle-reconcile`` addition (FR-008 stranded-record reconciliation)
+  on top of the 18 prior names (17 names as of
+  runtime-state-birth-cutover-all-paths-01KYH654 WP05's ``cutover`` addition:
+  16 de-godding names from #2059 + ``contracts`` from #2441);
 * each subcommand's option flags + arity (flag/value/multi);
 * each subcommand's ``--help`` body (whitespace-normalized snapshot);
 * the documented exit-code contracts, including the three load-bearing names
@@ -55,6 +59,9 @@ _apply_short_help_options(app)
 
 # --- Frozen contract: the 17 subcommand names (cli-surface-contract.md) -------
 # 16 de-godding names (#2059) + ``contracts`` (#2441, Contract Registry validator).
+# operator-config-ergonomics adds ``provenance`` (WP03), ``channel`` (WP05), and
+# ``env-file`` (WP06) on top of main's ``mission-type`` (mission-type-guard-registry
+# WP02): 23 total.
 
 FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
     {
@@ -78,6 +85,9 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "coordination",
         "cutover",
         "review-cycle-reconcile",
+        "provenance",
+        "channel",
+        "env-file",
     }
 )
 
@@ -125,6 +135,9 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     },
     "cutover": {"--json": "flag"},
     "review-cycle-reconcile": {"--mission": "value", "--json": "flag"},
+    "provenance": {"--json": "flag"},
+    "channel": {"--json": "flag"},
+    "env-file": {"--json": "flag"},
 }
 
 # Golden ``--help`` snapshots (whitespace-normalized) per subcommand.
@@ -487,6 +500,47 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor review-cycle-reconcile --json',
         'Options',
         '--mission TEXT Scope to a single mission (mission_id / mid8 / slug)',
+        '--json Machine-readable JSON output',
+        '--help -h Show this message and exit.',
+    ],
+    'provenance': [
+        'Usage: doctor provenance [OPTIONS]',
+        'Flag committed absolute built-in-pack source_path leaks (C-PRV-5).',
+        "Scans .kittify/charter/charter.yaml's catalog and",
+        '.kittify/agent_profiles_manifest.json for a source_path that should',
+        'be a ${SPEC_KITTY_PACKS_ROOT}/built-in/... token but is not, and',
+        'prints a heal hint for each. Read-only -- never mutates state.',
+        'Examples:',
+        'spec-kitty doctor provenance',
+        'spec-kitty doctor provenance --json',
+        'Options',
+        '--json Machine-readable JSON output',
+        '--help -h Show this message and exit.',
+    ],
+    'channel': [
+        'Usage: doctor channel [OPTIONS]',
+        'Report the active release channel (stable vs. prerelease-opt-in).',
+        'Reads SPEC_KITTY_PRERELEASE (default OFF — stable channel). Never',
+        'mutates state.',
+        'Examples:',
+        'spec-kitty doctor channel',
+        'spec-kitty doctor channel --json',
+        'Options',
+        '--json Machine-readable JSON output',
+        '--help -h Show this message and exit.',
+    ],
+    'env-file': [
+        'Usage: doctor env-file [OPTIONS]',
+        'Report ``.kitty.env`` operator env-file health (presence/tier/ignore).',
+        'Reads the repo- and home-tier ``.kitty.env`` files and the',
+        'config.yaml ``env_file`` pointer, and reports which governed vars',
+        'are set and from which tier -- names/presence only for anything not',
+        'on the printable-var allowlist (C-SEC-1), values never leaked.',
+        'Read-only -- never mutates state.',
+        'Examples:',
+        'spec-kitty doctor env-file',
+        'spec-kitty doctor env-file --json',
+        'Options',
         '--json Machine-readable JSON output',
         '--help -h Show this message and exit.',
     ],

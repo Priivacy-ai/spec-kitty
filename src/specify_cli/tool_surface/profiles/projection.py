@@ -17,6 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from charter.profiles import AgentProfile, AgentProfileRepository
+from doctrine.provenance import to_portable_source_path
 
 from specify_cli.invocation.org_profiles import resolve_activated_org_profiles
 
@@ -31,7 +32,6 @@ from ..findings import (
     make_finding,
 )
 from ..model import NativeAgentProfile
-from ._paths import relativize_under_root
 from .manifest import PROJECTION_VERSION, hash_file as hash_source_file
 from .renderers import ProfileRenderer, get_renderer, native_name_violation
 
@@ -51,9 +51,21 @@ def _profile_urn(profile: AgentProfile) -> str:
 
 
 def _manifest_source_path(source_path: Path | None, project_root: Path) -> str | None:
+    """Return the manifest-stored SOURCE provenance string for *source_path*.
+
+    Routed through the shared portable-provenance normalizer
+    (:func:`doctrine.provenance.to_portable_source_path`, C-PRV-1/2/6): a
+    built-in-pack profile source becomes a
+    ``${SPEC_KITTY_PACKS_ROOT}/built-in/...`` token, an in-tree (project/org)
+    source becomes repo-relative, anything else stays absolute. This is the
+    manifest half of the normalizer's two call sites -- the OUTPUT path
+    (``manifest.py``'s ``output_path`` field, via :func:`relativize_under_root`)
+    is a distinct, deliberately-excluded carrier and must stay repo-relative
+    only (contracts/provenance-and-channel.md C-PRV-6).
+    """
     if source_path is None:
         return None
-    return relativize_under_root(source_path, project_root)
+    return to_portable_source_path(source_path, project_root=project_root)
 
 
 def _source_hash(source_path: Path | None) -> str | None:

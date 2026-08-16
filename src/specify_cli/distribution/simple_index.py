@@ -118,8 +118,14 @@ class SimpleIndexProvider:
         self._package_prefix = package_prefix
         self._timeout_s = timeout_s
 
-    def get_latest(self, package: str) -> LatestVersionResult:
+    def get_latest(self, package: str, *, prerelease: bool = False) -> LatestVersionResult:
         """Query the simple index for *package* and return the highest version.
+
+        Args:
+            package: The package name to query.
+            prerelease: When True (rc-channel opt-in, C-CHN-2), the highest
+                version considered includes pre-releases. Default False
+                mirrors the pre-WP05 behaviour byte-for-byte (C-CHN-1).
 
         Never raises. Failures return ``version=None, source="none"`` with a
         fixed-vocabulary error token.
@@ -146,7 +152,7 @@ class SimpleIndexProvider:
                 if not versions:
                     return LatestVersionResult(version=None, source="none", error="parse_error")
 
-                best = _highest_version(versions)
+                best = _highest_version(versions, include_prerelease=prerelease)
                 if best is None:
                     return LatestVersionResult(version=None, source="none", error="parse_error")
 
@@ -270,14 +276,21 @@ def _parse_version_stem(stem: str) -> str | None:
     return None
 
 
-def _highest_version(versions: list[str]) -> str | None:
-    """Return the highest **stable** sanitised version string.
+def _highest_version(versions: list[str], *, include_prerelease: bool = False) -> str | None:
+    """Return the highest sanitised version string.
 
     Mirrors ``PyPIProvider`` (which reads PyPI's maintainer-designated stable
-    ``info.version``): pre-releases are excluded so a private index publishing
-    ``2.0.0rc1`` alongside ``1.9.0`` does not nag users onto a release
-    candidate. Falls back to the highest pre-release only when **no** stable
-    version exists on the index. Returns ``None`` if nothing parses.
+    ``info.version``): by default (``include_prerelease=False``) pre-releases
+    are excluded so a private index publishing ``2.0.0rc1`` alongside
+    ``1.9.0`` does not nag users onto a release candidate. Falls back to the
+    highest pre-release only when **no** stable version exists on the index.
+
+    ``include_prerelease=True`` is the rc-channel opt-in path (T022,
+    C-CHN-2): the highest version overall is returned, pre-release or not —
+    PEP 440 ordering already ranks a final release above any of its own
+    release candidates, so a genuinely-newer stable release still wins.
+
+    Returns ``None`` if nothing parses.
     """
     best_stable_str: str | None = None
     best_stable_ver: Version | None = None
@@ -296,4 +309,6 @@ def _highest_version(versions: list[str]) -> str | None:
         if not parsed.is_prerelease and (best_stable_ver is None or parsed > best_stable_ver):
             best_stable_ver = parsed
             best_stable_str = raw
+    if include_prerelease:
+        return best_any_str
     return best_stable_str if best_stable_str is not None else best_any_str

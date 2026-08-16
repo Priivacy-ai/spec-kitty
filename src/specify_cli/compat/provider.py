@@ -115,16 +115,42 @@ class LatestVersionProvider(Protocol):
     encoded as ``LatestVersionResult(version=None, source="none", error="<token>")``.
     """
 
-    def get_latest(self, package: str) -> LatestVersionResult:
+    def get_latest(self, package: str, *, prerelease: bool = False) -> LatestVersionResult:
         """Return the latest published version for *package*.
 
         Args:
             package: The PyPI package name to query (e.g. ``"spec-kitty-cli"``).
+            prerelease: When True (rc-channel opt-in, C-CHN-2), the highest
+                version considered includes PEP 440 pre-releases. Default
+                False reports the latest **stable** release only (C-CHN-1) —
+                byte-identical to the pre-WP05 behaviour.
 
         Returns:
             A :class:`LatestVersionResult`.  Never raises.
         """
         ...  # pragma: no cover
+
+
+def _highest_including_prerelease(stable_version: str, payload: object) -> str | None:
+    """Return the highest version across ``payload["releases"]``, rc's included.
+
+    T022 (C-CHN-2) helper: reuses ``simple_index._highest_version`` as the
+    single source of truth for "highest version, pre-releases included" so
+    the PyPI-JSON path and the PEP 503 simple-index path never drift.
+    Deferred import — ``simple_index`` imports from this module at load time,
+    so a module-level import here would be circular.
+
+    Falls back to *stable_version* when ``releases`` is absent/malformed or
+    nothing in it parses.
+    """
+    from specify_cli.distribution.simple_index import _highest_version
+
+    candidates = [stable_version]
+    releases = payload.get("releases") if isinstance(payload, dict) else None
+    if isinstance(releases, dict):
+        candidates.extend(v for v in releases if isinstance(v, str))
+    highest = _highest_version(candidates, include_prerelease=True)
+    return highest if highest is not None else stable_version
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +179,7 @@ class PyPIProvider:
         self._timeout_s = timeout_s
         self._package_name_default = package_name_default
 
-    def get_latest(self, package: str) -> LatestVersionResult:
+    def get_latest(self, package: str, *, prerelease: bool = False) -> LatestVersionResult:
         """Query ``https://pypi.org/pypi/{package}/json`` and return the version.
 
         Security properties enforced:
@@ -166,6 +192,12 @@ class PyPIProvider:
 
         Args:
             package: PyPI package name to look up.
+            prerelease: When True (rc-channel opt-in, C-CHN-2), compute the
+                highest version from ``payload["releases"]`` (PEP 440
+                pre-releases included) instead of the maintainer-designated
+                stable ``info.version``. Default False is byte-identical to
+                the pre-WP05 behaviour (C-CHN-1) — the default-off consumer
+                guarantee this WP exists to protect.
 
         Returns:
             A :class:`LatestVersionResult` describing the outcome.  Never raises.
@@ -200,7 +232,14 @@ class PyPIProvider:
                 if not _VERSION_RE.match(raw_version):
                     return LatestVersionResult(version=None, source="none", error="parse_error")
 
-                return LatestVersionResult(version=raw_version, source="pypi", error=None)
+                if not prerelease:
+                    return LatestVersionResult(version=raw_version, source="pypi", error=None)
+
+                chosen = _highest_including_prerelease(raw_version, payload)
+                if chosen is None or not _VERSION_RE.match(chosen):
+                    return LatestVersionResult(version=None, source="none", error="parse_error")
+
+                return LatestVersionResult(version=chosen, source="pypi", error=None)
 
         except httpx.TimeoutException:
             return LatestVersionResult(version=None, source="none", error="timeout")
@@ -220,11 +259,12 @@ class NoNetworkProvider:
     No ``httpx`` client is constructed by this class.
     """
 
-    def get_latest(self, package: str) -> LatestVersionResult:  # noqa: ARG002
+    def get_latest(self, package: str, *, prerelease: bool = False) -> LatestVersionResult:  # noqa: ARG002
         """Return a no-network sentinel result.
 
         Args:
             package: Ignored; present for Protocol compatibility.
+            prerelease: Ignored; present for Protocol compatibility.
 
         Returns:
             ``LatestVersionResult(version=None, source="none", error=None)``.
@@ -245,6 +285,11 @@ class FakeLatestVersionProvider:
             available" without an error (or with one if *error* is also set).
         error: If given, the returned result carries this error token and
             ``source="none"``.
+        prerelease_version: Optional distinct version returned when the
+            caller passes ``prerelease=True`` (T025 — lets a test observe
+            that the channel bool was actually threaded through). Falls back
+            to *version* when unset, so existing single-version callers are
+            unaffected.
     """
 
     def __init__(
@@ -252,23 +297,32 @@ class FakeLatestVersionProvider:
         version: str | None = None,
         *,
         error: str | None = None,
+        prerelease_version: str | None = None,
     ) -> None:
         self._version = version
         self._error = error
+        self._prerelease_version = prerelease_version
 
-    def get_latest(self, package: str) -> LatestVersionResult:  # noqa: ARG002
+    def get_latest(self, package: str, *, prerelease: bool = False) -> LatestVersionResult:  # noqa: ARG002
         """Return the pre-configured result.
 
         Args:
             package: Ignored; present for Protocol compatibility.
+            prerelease: When True and ``prerelease_version`` was supplied at
+                construction, that version is returned instead of *version*.
 
         Returns:
             The :class:`LatestVersionResult` configured at construction time.
         """
         if self._error is not None:
             return LatestVersionResult(version=None, source="none", error=self._error)
-        if self._version is not None:
-            return LatestVersionResult(version=self._version, source="pypi", error=None)
+        effective_version = (
+            self._prerelease_version
+            if prerelease and self._prerelease_version is not None
+            else self._version
+        )
+        if effective_version is not None:
+            return LatestVersionResult(version=effective_version, source="pypi", error=None)
         return LatestVersionResult(version=None, source="none", error=None)
 
 
