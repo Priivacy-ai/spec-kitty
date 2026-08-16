@@ -73,8 +73,10 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
         "runtime/",
         # Built-in doctrine data relocated to a top-level packs/built-in pack root,
         # force-included in the wheel as a site-packages sibling of ``doctrine``
-        # (mission relocate-builtin-doctrine-packs).
-        "packs/",
+        # (mission relocate-builtin-doctrine-packs). Scoped to ``packs/built-in/``:
+        # only the PUBLIC product doctrine ships. Maintainer-only org packs such as
+        # ``packs/internal/`` must never appear in the wheel.
+        "packs/built-in/",
     )
 
     with zipfile.ZipFile(wheel_path) as zf:
@@ -84,6 +86,13 @@ def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) ->
         assert any(file_path.startswith(p) for p in known_prefixes), (
             f"File outside known package directories: {file_path}"
         )
+
+    # Explicit boundary: the internal (maintainer-only) org pack must not ship.
+    leaked_internal = [f for f in all_files if f.startswith("packs/internal/")]
+    assert not leaked_internal, (
+        "Maintainer-only packs/internal/ leaked into the consumer wheel: "
+        f"{leaked_internal}"
+    )
 
 
 @pytest.mark.slow

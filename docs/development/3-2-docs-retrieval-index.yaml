@@ -2876,6 +2876,38 @@ pages:
     - {slug: "3-lineage-delegates-never-re-walks", text: "3. Lineage delegates, never re-walks", level: 3}
     - {slug: "bridge-is-a-migration-tactic-not-a-destination", text: "Bridge is a migration tactic, not a destination", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
+  - path: "docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md"
+    title: "ADR: Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release"
+    divio_type: "none"
+    abstract: "Inverts built-in doctrine ownership: content is authored in spec-kitty-open-packs, and CI re-vendors it into the core wheel at release so consumers see no change."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-status-quo-built-in-in-core", text: "A — Status quo (built-in in core)", level: 3}
+    - {slug: "b-invert-with-ci-re-vendor", text: "B — Invert with CI re-vendor", level: 3}
+    - {slug: "c-published-data-dependency", text: "C — Published data dependency", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md"
+    title: "ADR: spec-kitty-internal Is One Public Org Pack, Consumed via the Org Tier, Never Force-Shipped"
+    divio_type: "none"
+    abstract: "The internal maintainer pack is one public artifact (open-packs catalog #16), consumed as an org-tier pack and kept out of the core wheel — not secret, just not shipped."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-distinct-private-pack", text: "A — Distinct private pack", level: 3}
+    - {slug: "b-one-public-org-pack-not-force-shipped", text: "B — One public org pack, not force-shipped", level: 3}
+    - {slug: "c-ship-it-like-built-in", text: "C — Ship it like built-in", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"

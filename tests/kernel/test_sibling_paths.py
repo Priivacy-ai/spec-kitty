@@ -126,9 +126,10 @@ def build_post_relocation_wheel_shaped_site_packages(tmp_path: Path) -> tuple[Pa
       generic ``"*/missions"`` wildcard sibling pattern would still match,
       one ancestor level up from ``repository.py``'s own file, before ever
       considering the real data;
-    * the real data at ``site-packages/packs/built-in/missions`` (``packs/``
+    * the real data at ``site-packages/packs/built-in/missions`` (``packs/built-in``
       ships as a site-packages-level sibling of every top-level package, per
-      the root ``pyproject.toml``'s ``force-include = {"packs" = "packs"}``).
+      the root ``pyproject.toml``'s
+      ``force-include = {"packs/built-in" = "packs/built-in"}``).
 
     A caller-level test using this fixture only passes if the resolver finds
     the SECOND location -- proving both that the real (relocated) data

@@ -1,0 +1,25 @@
+pack_name: spec-kitty-internal
+source_kind: local_path
+source_ref: packs/internal
+layer_index: 1
+provenance_marker: org
+nodes:
+  - id: spk-internal-glossary
+    kind: glossary_packs
+    title: "Spec Kitty Internal Glossary (maintainer/engineering terms)"
+    body_path: glossary_packs/spk-internal.glossary-pack.yaml
+  - id: landing-contributor-prs
+    kind: procedures
+    title: "Landing Contributor PRs (maintainer runbook)"
+    body_path: procedures/landing-contributor-prs.procedure.yaml
+edges:
+  # Reference-not-duplicate: the landing runbook refines built-in doctrine that
+  # already ships publicly, rather than re-authoring it. Targets are
+  # fully-qualified <kind>:<id> DRG URNs (singular kind), verified present in
+  # packs/built-in/.
+  - source: landing-contributor-prs
+    target: "procedure:red-main-release-discipline"
+    relation: refines
+  - source: landing-contributor-prs
+    target: "tactic:pr-agent-worktree-isolation"
+    relation: refines

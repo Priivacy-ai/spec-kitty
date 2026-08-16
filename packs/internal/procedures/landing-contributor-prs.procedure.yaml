@@ -1,0 +1,111 @@
+schema_version: "1.0"
+id: landing-contributor-prs
+name: Landing Contributor PRs
+purpose: >
+  The maintainer workflow for taking a contributor PR from "open with red CI" to
+  "merge-ready": claimed, rebased onto current upstream/main, every red check
+  adjudicated, fixes folded onto the contributor branch, evidence posted, and
+  landing-order constraints stated — so the operator can merge without
+  re-deriving the adjudication. Distilled from docs/development/how-to/pr-landing.md.
+entry_condition: >
+  A contributor (or older maintainer) PR is open, typically with red or stale CI,
+  and has been assigned to a maintainer for a landing pass. The maintainer is NOT
+  the operator; the deliverable of this procedure is a merge-ready PR, never a merge.
+exit_condition: >
+  The PR is rebased onto current upstream/main, green (or its remaining reds are
+  documented as pre-existing known-P0 with proof of green-on-base), un-drafted,
+  carries a full evidence trail in its comment thread, and names any landing-order
+  constraints. Hand-off is posted; the operator merges.
+steps:
+  - title: Claim before touching
+    description: >
+      Post a claim comment on the PR before any rebase or review work: what you are
+      picking up, in which landing queue, and what you plan to do. Prevents duplicated
+      maintainer effort and surprise commits on the contributor's branch.
+    actor: agent
+
+  - title: One isolated worktree per PR
+    description: >
+      Check the PR branch out into its own dedicated worktree. Never share a worktree
+      across PRs or mix a landing pass with hand-edits — concurrent work in one
+      worktree silently reverts changes. See built-in tactic pr-agent-worktree-isolation.
+    actor: agent
+    on_failure: >
+      If a worktree is stale or points at a missing gitdir, create a fresh standalone
+      checkout rather than reusing the broken one.
+
+  - title: Rebase onto current upstream/main first
+    description: >
+      Fetch and rebase the PR branch onto the latest upstream/main before classifying
+      any failure, so you never adjudicate reds that main already fixed or introduced.
+    actor: agent
+
+  - title: Classify every red check
+    description: >
+      For each failing check decide: (a) pre-existing known-P0 red honestly on main —
+      leave red, prove green-on-base; (b) CI-environment-only failure (auth, sync
+      toggles) — not the PR's fault; (c) stale-install false red — reinstall and
+      re-run; or (d) genuinely caused by this PR — must be fixed. Only red-on-branch
+      AND green-on-base failures are the PR's to fold.
+    actor: agent
+    on_failure: >
+      If you cannot attribute a failure, reproduce it on the merge-base before
+      treating it as the PR's; never green-wash a category-1 known-P0 red.
+
+  - title: Fold remediation commits onto the contributor branch
+    description: >
+      Apply fixes (rebase resolution, test corrections, bounded campsite cleanup) as
+      commits on the contributor's branch, preserving their authorship. Keep folds
+      in-scope; do not open-ended refactor.
+    actor: agent
+
+  - title: Red-first verification for bugfix PRs
+    description: >
+      For a bugfix, confirm the test is RED against the unpatched code before the fix,
+      then green after — proving the test captures the defect rather than passing
+      vacuously.
+    actor: agent
+
+  - title: Review beyond CI and run an adversarial squad where warranted
+    description: >
+      Review intent, risk, and API-surface impact beyond what CI covers. For
+      architectural or API-surface PRs, deploy an adversarial squad so independent
+      doctrine lenses converge on findings one reviewer would miss.
+    actor: agent
+
+  - title: Push with discipline
+    description: >
+      Push folds to the contributor's fork remote (over SSH where HTTPS auth fails).
+      Never force-push to origin/main; never push directly to a protected branch.
+    actor: agent
+    on_failure: >
+      If a force-push is required and blocked by the classifier, hand it to the
+      operator rather than working around protection.
+
+  - title: Post the remediation summary
+    description: >
+      Post a full evidence trail in the PR thread: what was rebased, each red's
+      classification, folds applied, verification performed, and any landing-order
+      constraints. This is what lets the operator merge without re-deriving.
+    actor: agent
+
+  - title: Hand off — the operator merges
+    description: >
+      Un-draft the PR and hand off. The maintainer never merges; the operator merges
+      once the evidence trail and constraints are posted.
+    actor: human
+
+  - title: Follow-up hygiene
+    description: >
+      Close claim comments, note follow-up issues for any deferred debt, and leave the
+      landing queue in a state the next maintainer can read.
+    actor: agent
+references:
+  - type: procedure
+    id: red-main-release-discipline
+    reason: >
+      Red-classification and green-on-base rules for adjudicating CI failures during
+      a landing pass. Source prose: docs/development/how-to/pr-landing.md.
+  - type: tactic
+    id: pr-agent-worktree-isolation
+    reason: One isolated worktree per PR; never mix a landing pass with hand-edits.
