@@ -154,6 +154,26 @@ def write_snapshot(
     return result
 
 
+def _manifest_artifact_counts(local_path: Path) -> dict[str, int]:
+    """Per-kind counts for a snapshot manifest via the unified derived-view seam.
+
+    Retiring the stored per-kind ``artifact_counts`` block (IC-03 / T006) is a
+    *transitional* move: the canonical source is now the derived view
+    (``pack_manifest.counts_by_kind`` over a manifest's ``constituents``), with
+    the stored block kept as the migration fallback. A fetched/assembled
+    snapshot carries no ``constituents`` yet, so
+    :func:`~specify_cli.doctrine.pack_manifest.resolve_counts` returns the
+    stored on-disk count (``constituents is None`` → stored fallback) — the
+    persisted output is unchanged. The block is retained (not dropped) because
+    the pinned reader ``pack_assembler._has_recognisable_pack_manifest``
+    requires the ``artifact_counts`` key; removing it here would regress that
+    consumer (NFR-002).
+    """
+    from .pack_manifest import resolve_counts
+
+    return resolve_counts(None, _count_artifacts(local_path))
+
+
 def write_pack_manifest(
     local_path: Path,
     result: FetchResult,
@@ -173,7 +193,7 @@ def write_pack_manifest(
         "fetched_at": _iso_now(),
         "source_type": source_type,
         "source_url": _strip_credentials(source_url),
-        "artifact_counts": _count_artifacts(local_path),
+        "artifact_counts": _manifest_artifact_counts(local_path),
     }
     manifest_path.write_text(
         yaml.safe_dump(payload, sort_keys=True), encoding="utf-8"

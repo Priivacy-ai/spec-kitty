@@ -202,6 +202,35 @@ def load_yaml(path: Path) -> SynthesisManifest:
     return manifest
 
 
+def hash_manifest_payload(
+    data: Mapping[str, Any], *, exclude_keys: frozenset[str]
+) -> str:
+    """Single canonical manifest hasher — SHA-256 of ``canonical_yaml(payload)``.
+
+    The **one** manifest-hashing primitive, shared by both the charter
+    ``SynthesisManifest`` (via :func:`compute_manifest_hash`) and the unified
+    ``PackManifest`` (``specify_cli.doctrine.pack_manifest``). Keeping the SHA
+    here — the module's existing designated raw-SHA owner — means no second
+    hasher is ever introduced (RR-SF2 / T005).
+
+    Every key in ``exclude_keys`` is dropped before serialization so callers
+    can omit self / provenance fields (``manifest_hash``, and the volatile
+    ``generated_at`` / ``generated_by`` for the pack manifest) from the digest.
+    """
+    filtered = {k: v for k, v in data.items() if k not in exclude_keys}
+    return hashlib.sha256(canonical_yaml(filtered)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+
+
+def hash_content_bytes(raw: bytes) -> str:
+    """SHA-256 hex digest of raw artifact bytes (single sanctioned hasher).
+
+    Callers are responsible for any normalization (e.g. LF line-ending
+    normalization for cross-platform-stable ``content_hash`` values) before
+    passing bytes here, so this stays a thin, auditable owner of the raw SHA.
+    """
+    return hashlib.sha256(raw).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+
+
 def compute_manifest_hash(manifest_or_data: SynthesisManifest | Mapping[str, Any]) -> str:
     """Compute the canonical manifest self-hash.
 
@@ -217,8 +246,7 @@ def compute_manifest_hash(manifest_or_data: SynthesisManifest | Mapping[str, Any
             {**manifest_or_data, "manifest_hash": "0" * 64}
         ).model_dump(mode="python")
 
-    data_without_hash = {k: v for k, v in data.items() if k != "manifest_hash"}
-    return hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+    return hash_manifest_payload(data, exclude_keys=frozenset({"manifest_hash"}))
 
 
 def finalize_manifest(manifest: SynthesisManifest) -> SynthesisManifest:
@@ -370,6 +398,9 @@ __all__ = [
     "dump_yaml",
     "load_yaml",
     "finalize_manifest",
+    "compute_manifest_hash",
+    "hash_manifest_payload",
+    "hash_content_bytes",
     "verify",
     "verify_manifest_hash",
 ]

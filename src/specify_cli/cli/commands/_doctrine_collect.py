@@ -78,14 +78,50 @@ _ORG_ARTIFACT_DIRS: tuple[str, ...] = (
 )
 
 
-def _resolve_pack_version(snapshot_path: Path) -> tuple[str, str | None, bool]:
-    """Return ``(pack_version, fetched_at, is_git_pack)`` for an org snapshot.
+def _read_authored_pack_version(pack_root: Path) -> str | None:
+    """Read ``pack_version`` from an authored ``pack.yaml`` sibling, if any.
 
-    For git-managed snapshots, ``pack_version`` is the ``git describe --tags
-    --always`` output; ``fetched_at`` is ``None``.  For non-git snapshots, the
-    version + timestamp are read from ``pack-manifest.yaml`` when present.
-    Falls back to ``"unknown"`` if neither source yields a value.
+    IC-06 / FR-008 (pack-metadata-manifest-unification-01M052PT, WP04):
+    mirrors :func:`specify_cli.doctrine.pack_assembler._read_authored_pack_version`
+    (duplicated rather than imported to keep this collect-layer module's
+    import discipline — collect → model/render/shared, never reaching into
+    the assembler — intact). Returns ``None`` when no authored descriptor
+    exists, it fails to parse, or it carries no ``pack_version`` field —
+    callers fall back to the generated value (derive-else-fallback).
     """
+    descriptor = pack_root / "pack.yaml"
+    if not descriptor.is_file():
+        return None
+    try:
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        data = yaml.load(descriptor.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+    if not isinstance(data, dict):
+        return None
+    version = data.get("pack_version")
+    return str(version) if version else None
+
+
+def _resolve_pack_version(snapshot_path: Path) -> tuple[str, str | None, bool]:
+    """Return ``(pack_version, fetched_at, is_git_pack)`` for a pack snapshot.
+
+    Derive-else-fallback (IC-06/FR-008): an authored ``pack.yaml`` sibling's
+    ``pack_version`` (the built-in pack) wins when present; ``fetched_at`` is
+    ``None`` in that case (authored data carries no fetch provenance). Else,
+    for git-managed snapshots, ``pack_version`` is the ``git describe --tags
+    --always`` output; ``fetched_at`` is ``None``.  For non-git snapshots
+    with no authored descriptor, the version + timestamp are read from
+    ``pack-manifest.yaml`` when present (fetched/org packs — genuine
+    fetch-time provenance, unchanged). Falls back to ``"unknown"`` if none of
+    these sources yields a value.
+    """
+    authored_version = _read_authored_pack_version(snapshot_path)
+    if authored_version is not None:
+        return authored_version, None, False
+
     import subprocess as _sp
 
     is_git_pack = (snapshot_path / ".git").exists()

@@ -251,6 +251,10 @@ def regenerate_graph(
         write_reference_graph_with_overlay,
     )
     from charter.drg import DRGValidationError
+    from specify_cli.doctrine.builtin_manifest import (
+        builtin_manifest_is_fresh,
+        generate_builtin_manifest,
+    )
 
     doctrine_root = _doctrine_root()
 
@@ -269,9 +273,11 @@ def regenerate_graph(
                     detail="; ".join(exc.errors),
                 )
                 raise typer.Exit(1) from exc
+            # Freshness covers BOTH the DRG fragments and the generated
+            # pack-manifest.yaml — either drifting registers as stale.
             fresh = _read_graph_source(generated_dir) == _read_graph_source(
                 doctrine_root
-            )
+            ) and builtin_manifest_is_fresh(doctrine_root)
         _emit_regen_result(
             status="fresh" if fresh else "stale",
             path=doctrine_root,
@@ -289,6 +295,10 @@ def regenerate_graph(
             detail="; ".join(exc.errors),
         )
         raise typer.Exit(1) from exc
+
+    # Regenerate the built-in pack manifest in the same deterministic pass so
+    # the shipped DRG fragments and the constituent inventory never drift apart.
+    generate_builtin_manifest(doctrine_root)
 
     _emit_regen_result(status="written", path=doctrine_root, json_output=json_output)
     raise typer.Exit(0)

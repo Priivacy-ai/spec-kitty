@@ -94,6 +94,7 @@ _CORPUS_DATA_ROOTS = (
 _CORPUS_MARKED_MODULES = frozenset(
     {
         "tests/charter/synthesizer/test_manifest.py",
+        "tests/architectural/test_pack_manifest_no_author_edit.py",
         "tests/contract/test_example_round_trip.py",
         "tests/doctrine/agent_profiles/test_doctrine_daphne_canonical_structure.py",
         "tests/doctrine/agent_profiles/test_profile_resolution.py",
