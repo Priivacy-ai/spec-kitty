@@ -37,7 +37,7 @@ from specify_cli.status.store import StoreError
 from specify_cli.sync.emitter import CapturedFailure
 from tests.unit.migration._backfill_fixture import build_mission
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.fast]
 
 runner = CliRunner()
 

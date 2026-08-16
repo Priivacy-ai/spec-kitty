@@ -47,7 +47,7 @@ from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.layout_generation import LayoutMode
 from specify_cli.sync.project_store import ProjectSyncStore
 
-pytestmark = pytest.mark.integration
+pytestmark = pytest.mark.fast
 
 OWNER = "eeeeeeee-0000-0000-0000-000000000005"
 
