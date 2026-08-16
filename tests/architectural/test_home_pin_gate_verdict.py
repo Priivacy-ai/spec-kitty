@@ -52,6 +52,10 @@ from specify_cli.contracts.anchoring import (
     enclosing_qualname,
 )
 from tests.architectural import _home_pin_gate as gate
+from tests.architectural._home_pin_scan import (
+    TOMBSTONE_MANIFEST_PATH,
+    load_tombstone_keys,
+)
 
 pytestmark = pytest.mark.architectural
 
@@ -65,12 +69,16 @@ END_SHA = "5d49d31ed6505627d98d8f95d8502c9bf6a2f5ac"
 #: an artefact that omits it is publishing a chosen window rather than every attempted one.
 VOID_START_SHA = "709a59534a1b8aac7e55a1cf6f5d2106a32c31ea"
 
-#: **The published non-zero floor for limb (g).** Measured on this lane:
-#: ``git diff --stat 5d49d31ed HEAD -- tests/`` shows only WP01's two *new* files, so all **40**
-#: end-SHA member files are byte-identical here and all 40 keys recompute. The floor sits below
-#: that with headroom for a legitimate file move, and exists so the limb **cannot degrade to zero
-#: silently** — a content-addressed recomputation over an empty set is a green that proves nothing.
-KEYS_CHECKED_FLOOR = 30
+#: **The published non-zero floor for limb (g)** — over the keys that actually *recompute* live,
+#: never over mere file-presence. Originally 30, when all **40** end-SHA member files were
+#: byte-identical to END_SHA and all 40 keys recomputed. Re-pinned to **20** on 2026-08-16 for
+#: #3121 R1b (PR #3510): the provable-class convergence adjudicated **14** of the 40 members away
+#: (converged onto ``canonical_home``, recorded in the tombstone manifest), so their sites were
+#: removed from the tree on purpose and **26** members now recompute live. The floor sits below 26
+#: with headroom for further legitimate convergence, and its role sharpens under tombstoning: it is
+#: the count of *live-recomputed* keys, so mass-tombstoning to dodge the mismatch check erodes this
+#: number until the limb reds — the gate **cannot** be bought off by tombstoning the population away.
+KEYS_CHECKED_FLOOR = 20
 
 _ADMISSIBLE_VERDICTS = frozenset({"proceed", "proceed-degraded"})
 
@@ -413,7 +421,9 @@ def test_f_void_is_a_precondition_and_not_a_band() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _key_still_present(path: Path, published: tuple[str, ...]) -> bool:
+def _key_still_present(
+    path: Path, published: tuple[str, ...], *, tests_root: Path = TESTS_ROOT
+) -> bool:
     """True when ``published``'s ``(qualname, token_line)`` pair occurs anywhere in ``path``.
 
     Searched rather than indexed by line number, and that distinction is the whole point.
@@ -429,13 +439,52 @@ def _key_still_present(path: Path, published: tuple[str, ...]) -> bool:
     a fabricated ``(qualname, token_line)`` pair occurs at no line of the real file.
     """
     source = path.read_text(encoding="utf-8")
-    if published[0] != path.relative_to(TESTS_ROOT).as_posix():
+    if published[0] != path.relative_to(tests_root).as_posix():
         return False
     return any(
         enclosing_qualname(source, lineno) == published[1]
         for lineno, token_line in code_tokens_by_line(source).items()
         if token_line == published[2]
     )
+
+
+def _recompute_report(
+    sites_at_end: list[dict[str, Any]],
+    tombstoned: frozenset[tuple[str, ...]],
+    *,
+    tests_root: Path = TESTS_ROOT,
+) -> tuple[set[tuple[str, ...]], dict[str, tuple[str, ...]]]:
+    """Split the published end-SHA keys into ``(recomputed, mismatches)`` against ``tests_root``.
+
+    A key **recomputes** when its ``(qualname, token_line)`` pair is still found in its file
+    (:func:`_key_still_present`). A key that no longer recomputes is a **mismatch** — *unless* it is
+    **tombstoned**: an R1b (#3121) member the census has adjudicated away, whose pin was removed
+    from the tree on purpose and recorded in the tombstone manifest. A tombstoned key's absence is
+    expected, so it is neither a recompute nor a mismatch. Keys whose file is missing entirely are
+    skipped; the live-recompute floor in :func:`test_g_published_end_sha_keys_recompute_in_this_tree`
+    guards against that eroding the check to a vacuous green.
+
+    The anti-forgery property is preserved and sharpened: a fabricated ``(qualname, token_line)``
+    pair occurs at no line of a real file, so it lands in ``mismatches`` unless it is tombstoned —
+    and tombstoning is itself guarded (the census fails closed if a tombstoned key is still a live
+    pin, and cannot exceed the removals the manifest records) while the floor bounds how far the
+    live set may shrink. Tombstoning to dodge this limb therefore costs a real, recorded removal.
+    """
+    recomputed: set[tuple[str, ...]] = set()
+    mismatches: dict[str, tuple[str, ...]] = {}
+    for row in sites_at_end:
+        path = tests_root / str(row["relpath"])
+        if not path.is_file():
+            continue
+        published = tuple(str(part) for part in row["key"])
+        if _key_still_present(path, published, tests_root=tests_root):
+            recomputed.add(published)
+        elif published not in tombstoned:
+            mismatches[f"{row['relpath']}:{row['lineno']}"] = (
+                path.relative_to(tests_root).as_posix(),
+                *composite_key_from_file(path, row["lineno"]),
+            )
+    return recomputed, mismatches
 
 
 def test_g_published_end_sha_keys_recompute_in_this_tree() -> None:
@@ -445,28 +494,22 @@ def test_g_published_end_sha_keys_recompute_in_this_tree() -> None:
     see :func:`_key_still_present` for the upstream edit that proved the difference. The line
     number is retained solely to report *what* sits there when a key does go missing.
 
-    This limb kills a fabricated end-SHA operand set: forging it now costs a real
-    ``(qualname, token_line)`` pair that must occur somewhere in a real file in this repository.
+    Since #3121 R1b (PR #3510) the population can legitimately *shrink*: a member converged onto
+    ``canonical_home`` has its pin removed and is recorded in the tombstone manifest, so its
+    published key no longer recomputes **by design**. Limb (g) excuses exactly the tombstoned keys
+    (:func:`_recompute_report`) and holds the floor over the keys that still recompute live — so a
+    fabricated end-SHA operand still costs a real ``(qualname, token_line)`` pair in a real file,
+    and tombstoning the population away to dodge the check reds the floor instead.
     """
     document = load_verdict(REPO_ROOT)
-    mismatches: dict[str, tuple[str, ...]] = {}
-    checked: set[tuple[str, ...]] = set()
-    for row in document["sites_at_end"]:
-        path = TESTS_ROOT / str(row["relpath"])
-        if not path.is_file():
-            continue
-        published = tuple(str(part) for part in row["key"])
-        checked.add(published)
-        if not _key_still_present(path, published):
-            mismatches[f"{row['relpath']}:{row['lineno']}"] = (
-                path.relative_to(TESTS_ROOT).as_posix(),
-                *composite_key_from_file(path, row["lineno"]),
-            )
+    tombstoned = load_tombstone_keys(REPO_ROOT / TOMBSTONE_MANIFEST_PATH)
+    recomputed, mismatches = _recompute_report(document["sites_at_end"], tombstoned)
     assert mismatches == {}, f"published keys that do not recompute from this tree: {mismatches}"
-    assert len(checked) >= KEYS_CHECKED_FLOOR, (
-        f"only {len(checked)} of the published end-SHA keys were checkable against this tree, "
-        f"below the published floor of {KEYS_CHECKED_FLOOR} — the limb has degraded toward the "
-        "vacuous green it exists to prevent"
+    assert len(recomputed) >= KEYS_CHECKED_FLOOR, (
+        f"only {len(recomputed)} of the published end-SHA keys recompute live against this tree, "
+        f"below the floor of {KEYS_CHECKED_FLOOR} — the limb has degraded toward the vacuous green "
+        "it exists to prevent (a tombstone excuses an absent key, so the floor is what keeps the "
+        "live population from being tombstoned away to nothing)"
     )
 
 
@@ -496,3 +539,40 @@ def test_g_control_a_forged_key_is_caught(tmp_path: Path) -> None:
     assert recomputed != (module.name, "anchor", "a forged token line")
     assert recomputed[0] == module.name
     assert recomputed[1].endswith("anchor")
+
+
+def _absent_site(tmp_path: Path) -> tuple[list[dict[str, Any]], tuple[str, ...]]:
+    """A real file plus one published key that does **not** recompute against it.
+
+    The file exists (so the missing-file skip does not apply), but the published token line sits at
+    no line of it — the exact shape of a member whose home pin was converged away.
+    """
+    module = tmp_path / "converged.py"
+    module.write_text("def anchor():\n    return None\n", encoding="utf-8")
+    key = ("converged.py", "anchor", "monkeypatch . setenv ( , str ( tmp_path / ) )")
+    row = [{"relpath": "converged.py", "lineno": 1, "key": list(key)}]
+    return row, key
+
+
+def test_g_control_a_tombstoned_absent_key_is_excused(tmp_path: Path) -> None:
+    """The R1b path: an absent key that **is** tombstoned is expected, not a forgery.
+
+    Without this excuse, converging a member (removing its pin) would red limb (g) forever — the
+    very failure PR #3510 folds. The excused key is neither a mismatch nor a live recompute.
+    """
+    rows, key = _absent_site(tmp_path)
+    recomputed, mismatches = _recompute_report(rows, frozenset({key}), tests_root=tmp_path)
+    assert mismatches == {}, f"a tombstoned absent key must be excused, got {mismatches}"
+    assert recomputed == set(), "a tombstoned absent key does not count toward the live floor"
+
+
+def test_g_control_a_non_tombstoned_absent_key_still_reds(tmp_path: Path) -> None:
+    """The anti-abuse teeth: the excuse is scoped to the manifest, nothing wider.
+
+    The same absent site, with an **empty** tombstone set, is reported as a mismatch. A forged or
+    genuinely-missing key cannot dodge the check unless it is a recorded tombstone.
+    """
+    rows, _key = _absent_site(tmp_path)
+    recomputed, mismatches = _recompute_report(rows, frozenset(), tests_root=tmp_path)
+    assert mismatches, "an absent key that is not tombstoned must still be reported"
+    assert recomputed == set()
