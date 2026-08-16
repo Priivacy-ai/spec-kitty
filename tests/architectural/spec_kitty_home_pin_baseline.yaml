@@ -7,3 +7,6 @@ tombstones:
 - - delivery/test_body_queue_purge_differential_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
+- - delivery/test_per_project_report_3030.py
+  - _home
+  - monkeypatch . setenv ( , str ( home ) )
