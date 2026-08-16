@@ -19,6 +19,14 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **A new `spk-run-verdict-capture` skill so every agent harness records a WP
+  review verdict the same way (`#3121`).** The sole authority for a verdict is the
+  `review_result` event in `status.events.jsonl` (the `review-cycle-N.md` render
+  is non-authoritative); the skill documents the deterministic CLI seam
+  (`spec-kitty agent tasks move-task <WP> --to approved|planned
+  --review-feedback-file`) and its verdict vocabulary, and `spk-run-review-wp`
+  now references it.
+
 - **An agent working the mission lifecycle — hitting a merge-gate rejection,
   an issue-matrix verdict, or an undrained SaaS sync — previously had to
   already know the mechanics, because they lived only in a maintainer's
@@ -192,6 +200,24 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   (R1b), so `Refs #3121` rather than `Closes`.
 
 ### 🐛 Fixed
+
+- **The `SPEC_KITTY_HOME` pin census (`arch-adversarial (arch_shard_3)`) was red
+  on main because a legitimate new isolation pin (`#3497`) landed after the R1a
+  freeze, and the "shrink-only" ratchet — as landed — could not actually shrink
+  (`#3509`, `#3121`).** The acute red is fixed by the design-sanctioned owner
+  adoption (the drifting test requests the exempt `canonical_home` fixture and
+  drops its own `setenv`), with no edit to any frozen artefact. Beyond that, R1b's
+  tombstone burn-down is now wired end to end: `t023` subtracts the tombstoned
+  set from the anchor, and the production regeneration command
+  (`_home_pin_scan.render_baseline`) emits tombstones from a new auditable
+  manifest (`tests/architectural/census/spec_kitty_home_pin_tombstones.yaml`) and
+  freezes the key-set hash over `census ∪ tombstones`. Regeneration fails closed
+  if a tombstoned member's pin is still in the tree, and the ratchet still bites
+  (a spurious pin reds; a tombstone over a live pin reds). On that seam the
+  provable class was converged onto the canonical owner — census `40 → 26` — with
+  the ~23 genuinely-different seams documented out of scope (`#3121`'s confirmed
+  thesis: a name collision, not a duplicated seam). The subsystem is a no-op while
+  the manifest is empty (committed artefacts byte-identical).
 
 - **Machines that never ran the layout migration silently captured zero sync
   events while reporting success — now they capture for real (`#3425`;
