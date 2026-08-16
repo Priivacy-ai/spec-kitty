@@ -555,7 +555,11 @@ def test_t024_a_real_row_removal_reds_even_with_a_tombstone_covering_the_hash() 
     assert plain.unexpected == frozenset({victim}), str(plain)
     assert not plain.census_hash_ok and not plain.ok, str(plain)
 
-    tombstoned = verdict.with_tombstones(baseline_text(), frozenset({victim}))
+    # Merge with any tombstones R1b has already recorded (with_tombstones is a pure setter), so the
+    # union stays pinned to the frozen 40-key set and the hash-restore arm holds at any census size.
+    tombstoned = verdict.with_tombstones(
+        baseline_text(), verdict.tombstone_keys(baseline_text()) | frozenset({victim})
+    )
     with_tombstone = verdict.evaluate(TESTS_ROOT, reduced, tombstoned, E)
     assert with_tombstone.census_hash_ok, "the tombstone was supposed to restore the hash limb"
     assert with_tombstone.unexpected == frozenset({victim}), str(with_tombstone)
@@ -829,8 +833,12 @@ def test_t026_home_partition_agrees_with_m4_on_the_named_join_key() -> None:
     join = anchor_join_keys()
     partitions = _repo_rooted_partitions()
     labels = m4_labels()
+    # R1b (#3121): a tombstoned member is adjudicated away — legitimately absent from the census
+    # partitions but still in the anchor and in M4. Its M4 label must not read as "matched no member",
+    # so exclude the converged-away members' labels from the expected set (they left the live class).
+    tombstoned_labels = {join[key] for key in tombstoned_keys() if key in join}
     matched = {key for key in partitions if join[key] in labels}
-    unmatched = set(labels) - {join[key] for key in partitions}
+    unmatched = set(labels) - {join[key] for key in partitions} - tombstoned_labels
 
     assert unmatched == set(), f"M4 rows matched no census member: {sorted(unmatched)}"
     assert disagreeing_keys(partitions, labels, join) == frozenset(), (
