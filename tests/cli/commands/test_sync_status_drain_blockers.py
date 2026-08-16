@@ -74,13 +74,29 @@ def test_drain_blocked_counts_zero_when_all_ready() -> None:
     assert "Drain Blockers" not in output
 
 
-def test_queue_get_drain_blocked_counts_persists_through_drain_round_trip(tmp_path: Path) -> None:
+def test_queue_get_drain_blocked_counts_persists_through_drain_round_trip(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """``get_drain_blocked_counts`` reflects what's currently durable on disk.
 
     Drives the real queue (not a mock) to prove the JSON scan that powers
     ``sync status`` works against the actual SQLite envelope shape that
     ``EventEmitter._emit`` writes.
+
+    The machine layout-generation record this test drives directly
+    (``begin_cutover`` / ``publish_project_only``) is scoped to
+    ``SPEC_KITTY_HOME`` as a WHOLE, not to this test's project UUID (see
+    ``layout_generation.LayoutGenerationAuthority`` — the record lives at
+    ``<runtime_root>/projects/.layout-generation.json``). Without pinning
+    ``SPEC_KITTY_HOME`` to this test's own ``tmp_path``, it shares the
+    per-worker home other ``tests/cli`` and ``tests/sync`` cases reuse across
+    the whole pytest session; an earlier test that auto-resolves the machine
+    layout to ``PROJECT_ONLY`` would make this test's own ``begin_cutover``
+    call fail with "layout is already project-only". Pin the home explicitly
+    (matching ``tests/sync/test_layout_cutover.py``'s ``_isolate`` pattern) so
+    this test always starts from a fresh LEGACY record.
     """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     store = ProjectSyncStore("aaaaaaaa-0000-0000-8000-000000000107")
     authority = store.layout_generation()
     authority.begin_cutover("status-drain-blockers")
