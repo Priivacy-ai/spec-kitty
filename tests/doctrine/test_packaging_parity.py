@@ -55,8 +55,9 @@ def _expected_pack_paths() -> set[str]:
     tree** — specifically the VCS inventory that hatchling's ``force-include``
     ships.
 
-    ``pyproject.toml`` uses ``force-include = { "packs" = "packs" }``, so the
-    wheel/sdist auto-ship the ENTIRE tracked ``packs/`` tree; hatchling's
+    ``pyproject.toml`` uses ``force-include = { "packs/built-in" = "packs/built-in" }``
+    (scoped so maintainer-only org packs such as ``packs/internal/`` never ship),
+    so the wheel/sdist auto-ship the tracked ``packs/built-in/`` tree; hatchling's
     VCS-respecting selection rule ships exactly the git-tracked, non-ignored
     files (e.g. the ``__pycache__/*.pyc`` under ``packs/built-in`` is
     ``.gitignore``-d and never shipped). ``git ls-files`` reproduces that same

@@ -189,15 +189,21 @@ artifacts = [
 # ancestor walk (`kernel.sibling_paths.resolve_installed_sibling`, which
 # `resolve_pack_root("built-in")` now delegates to since #3091/#3204) expects:
 # it walks up from an installed module to the ancestor holding `packs/built-in`.
-force-include = { "packs" = "packs" }
+#
+# SCOPED TO `packs/built-in` ON PURPOSE: only the public product doctrine ships to
+# consumers. Other repo-local packs (e.g. `packs/internal/`, the maintainer-only
+# org-tier pack) must NOT be force-included into the wheel. Guarded by
+# tests/cross_cutting/packaging/test_packaging_safety.py.
+force-include = { "packs/built-in" = "packs/built-in" }
 
 [tool.hatch.build.targets.sdist]
 include = [
     "src/**/*",
     # Relocated built-in doctrine packs — a top-level tree that `src/**/*` excludes.
     # Without this the sdist ships ZERO built-in doctrine content (mission
-    # relocate-builtin-doctrine-packs-01KYT87F, WP05 / NFR-002).
-    "packs/**",
+    # relocate-builtin-doctrine-packs-01KYT87F, WP05 / NFR-002). Scoped to
+    # `packs/built-in/**` so the maintainer-only `packs/internal/` pack never ships.
+    "packs/built-in/**",
     "src/doctrine/curation/imports/**/*",
     "README.md",
     "LICENSE",

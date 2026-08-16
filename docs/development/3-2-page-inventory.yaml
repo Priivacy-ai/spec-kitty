@@ -992,6 +992,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none

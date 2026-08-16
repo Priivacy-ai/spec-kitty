@@ -183,3 +183,5 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-13 | [Mission-Type Roster Layering Is the Availability Slice, Not the Kind-Promotion Slice](2026-08-13-1-mission-type-roster-layering-seam.md) |
 | 2026-08-15 | [Own a Tool-Agnostic, Versioned, Optional Handoff-Packet Intake Contract](2026-08-15-1-handoff-packet-intake-contract.md) |
 | 2026-08-16 | [Unify Pack Metadata on a Single Manifest — Enumerated Constituents + Delegated Lineage](2026-08-16-1-pack-metadata-manifest-unification.md) |
+| 2026-08-16 | [Open-packs Is the Source of Truth for Built-in Doctrine; CI Re-vendors It Into the Core Release](2026-08-16-2-open-packs-is-source-of-truth-for-built-in-doctrine.md) |
+| 2026-08-16 | [spec-kitty-internal Is One Public Org Pack, Consumed via the Org Tier, Never Force-Shipped](2026-08-16-3-spec-kitty-internal-is-a-public-org-pack-not-force-shipped.md) |
