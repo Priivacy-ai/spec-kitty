@@ -21,12 +21,12 @@ history:
 - at: '2026-08-16T05:44:20Z'
   actor: codex
   action: Новый residual полного architecture gate вынесен в отдельный follow-up до повторного WP06.
-agent_profile: python-pedro
+agent_profile: reviewer-renata
 authoritative_surface: tests/architectural/test_resolution_authority_gates.py
 execution_mode: code_change
 owned_files:
 - tests/architectural/test_resolution_authority_gates.py
-role: implementer
+role: reviewer
 agent: codex
 model: ''
 tags:
