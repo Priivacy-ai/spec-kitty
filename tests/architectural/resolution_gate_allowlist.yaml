@@ -87,7 +87,7 @@ coord_authority:
   line: 322
   rationale: "WP11 FR-003 predicate-widen SANCTION: legitimate coord-owned write helper that RETURNS the resolved dir to callers which then commit_artifact/commit_status it (same by-design shape as decisions/emit.py) - the caller-level write indicator is outside this scanner's function-granularity trace; PERMANENT fixture, never remove"
   file: src/specify_cli/agent_tasks_ports.py
-  token: "write_dir : Path = resolve_feature_dir_for_mission ("
+  token: "write_dir = resolve_feature_dir_for_mission ("
 - qualname: reconcile_status
   line: 765
   rationale: "WP11 FR-003 predicate-widen SANCTION: legitimate coord-owned write helper - the resolved feature_dir feeds a STATUS-WRITE leg (emit_status_transition_transactional via TransitionRequest) that MUST stay coord-aware (C-001/#2155 analog per the KEEP-coord-aware comment at the call site); the write indicator lives in the callee, not this function body; PERMANENT fixture, never remove"
