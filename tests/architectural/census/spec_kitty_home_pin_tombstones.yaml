@@ -25,3 +25,12 @@ tombstones:
       usefixtures; the local _isolated_home autouse fixture pinned the identical tmp_path/"home"
       and did nothing else load-bearing. Ablation-certified provable member (arm-2 RED / in P).
     evidence: "kitty/fix-home-pin-census-owner-adoption-3121 R1b op1"
+  - key:
+      - delivery/test_per_project_report_3030.py
+      - _home
+      - monkeypatch . setenv ( , str ( home ) )
+    reason: >-
+      Converged onto the canonical SPEC_KITTY_HOME owner (canonical_home) via module-level
+      usefixtures; the local _home autouse fixture set the identical tmp_path/"home" and did
+      nothing else load-bearing. Provable-class member (pure home pin).
+    evidence: "kitty/fix-home-pin-census-owner-adoption-3121 R1b op2"

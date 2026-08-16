@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
 
@@ -15,7 +14,7 @@ from specify_cli.sync.consent import record_project_opt_in, record_project_opt_o
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.queue import LegacyQueueMigrationRequiredError, default_queue_db_path
 
-pytestmark = [pytest.mark.fast]
+pytestmark = [pytest.mark.fast, pytest.mark.usefixtures("canonical_home")]
 
 PROJECT = "aaaaaaaa-0000-0000-0000-000000000001"
 OTHER = "bbbbbbbb-0000-0000-0000-000000000002"
@@ -41,10 +40,9 @@ def _event(
     )
 
 
-@pytest.fixture(autouse=True)
-def _home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    home = tmp_path / "home"
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+# R1b (#3121): home isolation is provided by the canonical SPEC_KITTY_HOME owner
+# (``canonical_home``) via the module-level ``usefixtures`` mark above, replacing a local ``_home``
+# autouse fixture that pinned the identical ``tmp_path/"home"``.
 
 
 @pytest.fixture

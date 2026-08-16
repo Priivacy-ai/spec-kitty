@@ -108,13 +108,6 @@ rows:
   kind: fixture
   home_partition: A
 - key:
-  - delivery/test_per_project_report_3030.py
-  - _home
-  - monkeypatch . setenv ( , str ( home ) )
-  lineno: 47
-  kind: fixture
-  home_partition: A
-- key:
   - delivery/test_purge_all_body_uploads_3030.py
   - _isolated_home
   - monkeypatch . setenv ( , str ( tmp_path / ) )
