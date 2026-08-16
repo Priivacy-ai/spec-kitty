@@ -53,8 +53,12 @@ _CLAUDEIGNORE_FILENAME = ".claudeignore"
 _ENV_FILE_IGNORE_ENTRY = ".kittify/.kitty.env"
 _ENV_FILE_CONFIG_KEY = "env_file"
 _ENV_FILE_CONFIG_PREFIX = f"{_ENV_FILE_CONFIG_KEY}:"
-_LOCATOR_ENV_VAR = "SPEC_KITTY_HOME"
-_DEFAULT_ENV_FILE_TEMPLATE = f"${{{_LOCATOR_ENV_VAR}}}/{_ENV_FILENAME}"
+# The SPEC_KITTY_HOME locator name is spelled inline (never bound to a module
+# constant) per the home-pin census SC-002b inert sub-form: a
+# ``NAME = "SPEC_KITTY_HOME"`` binding is forbidden tree-wide
+# (isolated-home-pin-guard-r1a). As a fragment of this larger template literal
+# it is not an assignment-bound pin.
+_DEFAULT_ENV_FILE_TEMPLATE = f"${{SPEC_KITTY_HOME}}/{_ENV_FILENAME}"
 
 #: All governed vars this facet reports tier/presence for -- the union of
 #: the provision migration's printable-operator and secret-template
@@ -108,7 +112,7 @@ def _home_env_path(repo_root: Path) -> tuple[Path, str]:
     source = "config.yaml env_file key" if pointer else "default (${SPEC_KITTY_HOME}/.kitty.env)"
     raw = pointer or _DEFAULT_ENV_FILE_TEMPLATE
     environ = dict(os.environ)
-    environ.setdefault(_LOCATOR_ENV_VAR, str(get_runtime_state_root()))
+    environ.setdefault("SPEC_KITTY_HOME", str(get_runtime_state_root()))
     expanded = expand_env_template(raw, inject_defaults=True, environ=environ)
     return Path(expanded), source
 
