@@ -56,15 +56,15 @@ _CONFIG_YAML_RELATIVE = Path(_KITTIFY_DIR_NAME) / "config.yaml"
 _ENV_FILE_CONFIG_KEY = "env_file"
 _ENV_FILE_CONFIG_PREFIX = f"{_ENV_FILE_CONFIG_KEY}:"
 
-#: The locator variable itself -- a ``.kitty.env`` may never redefine the
-#: variable that located it (C-LDR-4 / FR-004a locator-recursion guard).
-_LOCATOR_ENV_VAR = "SPEC_KITTY_HOME"
-
 #: The one ``${SPEC_KITTY_HOME}`` expansion the ``env_file`` config-pointer
 #: key introduces (data-model.md "ConfigPointer"); used both as the literal
 #: default raw template and to build the ``env_file:`` line a fresh
-#: ``config.yaml`` documents.
-_DEFAULT_ENV_FILE_TEMPLATE = f"${{{_LOCATOR_ENV_VAR}}}/{_KITTY_ENV_FILENAME}"
+#: ``config.yaml`` documents. The ``SPEC_KITTY_HOME`` locator name is spelled
+#: inline (never bound to a module constant) per the home-pin census SC-002b
+#: inert sub-form -- a ``NAME = "SPEC_KITTY_HOME"`` binding is forbidden
+#: tree-wide (isolated-home-pin-guard-r1a); as a fragment of this larger
+#: template literal it is not an assignment-bound pin.
+_DEFAULT_ENV_FILE_TEMPLATE = f"${{SPEC_KITTY_HOME}}/{_KITTY_ENV_FILENAME}"
 
 #: ``KEY=VALUE`` key grammar (T006): a bare shell-identifier. A line whose
 #: key doesn't match this is malformed and is skipped + debug-logged, never
@@ -176,14 +176,17 @@ def _read_tier(path: Path) -> dict[str, str]:
         raise OperatorEnvFileUnreadableError(path, exc) from exc
 
     parsed = parse_env_file(text)
-    if _LOCATOR_ENV_VAR in parsed:
+    # Drop any SPEC_KITTY_HOME line: the locator that found this file may never
+    # be redefined by it (C-LDR-4 / FR-004a). `.pop` in one statement keeps the
+    # locator name to a single inline spelling (home-pin census SC-002b forbids
+    # binding it to a constant).
+    if parsed.pop("SPEC_KITTY_HOME", None) is not None:
         warnings.warn(
-            f"{path} defines {_LOCATOR_ENV_VAR}; ignoring that line "
+            f"{path} defines SPEC_KITTY_HOME; ignoring that line "
             "(the locator that finds this file cannot be redefined by it).",
             UserWarning,
             stacklevel=3,
         )
-        del parsed[_LOCATOR_ENV_VAR]
     return parsed
 
 
@@ -234,7 +237,7 @@ def _resolve_home_tier_path(repo_root: Path | None, environ: Mapping[str, str]) 
     """
     raw = _read_config_env_file_pointer(repo_root) or _DEFAULT_ENV_FILE_TEMPLATE
     effective_environ = dict(environ)
-    effective_environ.setdefault(_LOCATOR_ENV_VAR, str(get_runtime_state_root()))
+    effective_environ.setdefault("SPEC_KITTY_HOME", str(get_runtime_state_root()))
     expanded = expand_env_template(raw, inject_defaults=True, environ=effective_environ)
     return Path(expanded)
 
