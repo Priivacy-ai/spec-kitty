@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "mission_slug": "operator-config-ergonomics-01M04YK8",
+  "mission_id": "01M04YK8VYHH8G1J31C58F8K2H",
+  "mission_branch": "kitty/mission-operator-config-ergonomics-01M04YK8",
+  "target_branch": "fix/operator-config-ergonomics",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/org_pack_config.py",
+        "src/kernel/env_expand.py",
+        "src/kernel/paths.py",
+        "tests/architectural/test_kernel_env_expand_no_upward_import.py",
+        "tests/doctrine/test_org_pack_delegation.py",
+        "tests/kernel/test_env_expand.py",
+        "tests/kernel/test_packs_root_default.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/specify_cli/__init__.py",
+        "src/specify_cli/bootstrap/__init__.py",
+        "src/specify_cli/bootstrap/env_file.py",
+        "tests/architectural/test_bootstrap_import_purity.py",
+        "tests/specify_cli/bootstrap/test_env_file_loader.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/compiler.py",
+        "src/doctrine/provenance.py",
+        "src/specify_cli/cli/commands/_provenance_doctor.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "src/specify_cli/tool_surface/profiles/_paths.py",
+        "src/specify_cli/tool_surface/profiles/projection.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_7_heal_provenance_paths.py",
+        "tests/architectural/test_no_absolute_pack_paths.py",
+        "tests/charter/test_portable_provenance.py",
+        "tests/doctrine/test_provenance_normalizer.py",
+        "tests/specify_cli/upgrade/migrations/test_heal_provenance.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_env_file_doctor.py",
+        "src/specify_cli/core/secret_redaction.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_8_provision_kitty_env.py",
+        "tests/specify_cli/cli/commands/test_env_file_doctor.py",
+        "tests/specify_cli/core/test_secret_redaction.py",
+        "tests/specify_cli/upgrade/migrations/test_provision_kitty_env.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_channel_doctor.py",
+        "src/specify_cli/cli/commands/upgrade.py",
+        "src/specify_cli/compat/planner.py",
+        "src/specify_cli/compat/provider.py",
+        "src/specify_cli/core/channel.py",
+        "src/specify_cli/core/upgrade_probe.py",
+        "src/specify_cli/distribution/simple_index.py",
+        "tests/specify_cli/cli/commands/test_channel_doctor.py",
+        "tests/specify_cli/compat/test_channel_aware_latest.py",
+        "tests/specify_cli/distribution/test_prerelease_channel.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "docs/adr/3.x/2026-08-16-1-operator-config-env-expansion-seam.md",
+        "docs/adr/3.x/2026-08-16-2-rc-release-channel.md",
+        "docs/api/configuration.md",
+        "docs/api/environment-variables.md",
+        "docs/architecture/team-kitty-saas.md",
+        "docs/guides/how-to/installation/install-and-upgrade.md",
+        "docs/guides/project-sync-consent.md",
+        "docs/operations/internal-hosted-readiness.md",
+        "docs/operations/sync-drain.md",
+        "src/doctrine/skills/spk-team-auth/SKILL.md",
+        "src/doctrine/skills/spk-team-sync/SKILL.md",
+        "src/doctrine/skills/spk-team-tracker/SKILL.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-08-16T10:16:21.816412+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "a6a133b74f565c6518c32c64701c8c0ebd502d72"
+}
