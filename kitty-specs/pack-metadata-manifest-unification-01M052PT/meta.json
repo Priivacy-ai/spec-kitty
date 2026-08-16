@@ -14,5 +14,6 @@
   "target_branch": "feat/pack-metadata-manifest-unification",
   "topology": "coord",
   "vcs": "git",
-  "vcs_locked_at": "2026-08-16T12:55:04.484584+00:00"
+  "vcs_locked_at": "2026-08-16T12:55:04.484584+00:00",
+  "status_phase": "1"
 }
