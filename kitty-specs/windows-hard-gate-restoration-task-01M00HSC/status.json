@@ -118,7 +118,10 @@
         "T018": "done",
         "T019": "done",
         "T020": "done"
-      }
+      },
+      "tracker_refs": [
+        "#3438"
+      ]
     },
     "WP04": {
       "actor": "user",
