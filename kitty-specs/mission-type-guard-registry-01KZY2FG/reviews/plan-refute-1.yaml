@@ -1,0 +1,93 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true               # flipped after yaml self-check passed
+phase: plan
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      Counted plan.md's own Project Structure section directly (lines 544-570): 6 production
+      files (runtime_bridge_cores.py, runtime_bridge_composition.py, runtime_bridge.py,
+      runtime_bridge_io.py, doctor.py, _mission_type_audit.py) and 4 test files
+      (test_bridge_cores.py, test_bridge_composition.py, test_doctor_mission_type.py,
+      test_doctor_cli_surface_golden.py) = 10 total, versus PR Shape's stated "5 production
+      files + 2 test files + the golden-contract test" = 8; the two missing files are exactly
+      the two brand-new ones (_mission_type_audit.py, test_doctor_mission_type.py) as claimed.
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >
+      Grepped src/specify_cli/cli/commands/_identity_audit.py directly: classify_mission is
+      imported at line 50 (`from specify_cli.status import classify_mission`), audit_repo and
+      summarize are imported at lines 214/220/229 inside run_identity_audit, not defined in
+      this file; grepped src/specify_cli/status/identity_audit.py and confirmed IdentityState
+      (line 67), classify_mission (103), audit_repo (185), summarize (234) are all defined
+      there — tracer-approach.md's claim that these were confirmed as part of
+      "_identity_audit.py's report-builder pattern" is inaccurate as stated.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >
+      wc -l confirms src/specify_cli/cli/commands/_identity_audit.py is 346 lines (contains
+      only CLI-glue helpers, imports the domain pieces) and src/specify_cli/status/identity_audit.py
+      is 361 lines (contains the actual State-dataclass/classifier/walker/summarizer shape);
+      re-read plan.md's Seam & Module Placement (lines 210-214, "mirrors _identity_audit.py's
+      structure 1:1") against Scale/Scope line 47 ("~150-line shape") and Charter Check line 65
+      ("_identity_audit.py:44-254", ~210 lines) and confirmed the plan's own two citations of
+      the same file disagree with each other and with the real 346-line file, while attributing
+      a two-module architectural shape to the wrong single file.
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: >
+      Confirmed runtime_bridge_cores.py's imports are stdlib + runtime.next.decision only (lines
+      70-77) matching its zero-dependency-leaf docstring; confirmed UnknownMissionTypeError is a
+      ValueError subclass at src/charter/mission_type_profiles.py:193 carrying mission_type_id;
+      confirmed the raise UnknownMissionTypeError(...) call plan.md cites is real, at line 799,
+      inside _resolve_action_slot's `if mission is None:` branch — exactly the branch plan.md's
+      own FR-008 classifier text describes reusing read-only. No code-level cross-reference
+      comment exists in the plan between the two exception classes, as claimed.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >
+      Confirmed in .github/workflows/ci-quality.yml: 'src/runtime/next/*' is in the
+      critical_paths array at line 3489, --fail-under=90 at line 3517, integration-tests-next
+      job (--cov=src/runtime/next) at lines 2886/2927 feeds the diff-coverage job (needs:
+      integration-tests-next at line 3419); plan.md's Gate Set table (lines 505-521) has no row
+      for this gate despite its stated purpose being "an explicit reason for every listed gate
+      NOT included," and every IC-01-04 production file lives under src/runtime/next/.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >
+      Read plan.md's Commit 1 text (lines 447-459) and confirmed it says the test "currently
+      passes by asserting the BUG's own output" while labeled "(RED, FR-010)", with the
+      genuinely-red assertion deferred to "the tasks phase"; read directive_034 lines 16-18/
+      20-22/24-25 verbatim and confirmed it requires proving red-first against unfixed code and
+      explicitly invalidates tests that only pass post-fix, not "both forms are acceptable" as
+      plan.md claims; read charter.md lines 591-604 (C-011) and confirmed it requires the ATDD
+      test itself to be RED on planning_base_branch, which Commit 1 as pinned does not satisfy.
+  - id: PLAN-VERIFY-004
+    verdict: confirmed
+    reason: >
+      Confirmed in ci-quality.yml: the Contextive glossary step (lines 848-869) is step-level
+      `if: always()` and path-filters on 'src/specify_cli/**' among others — this mission
+      changes doctor.py and _mission_type_audit.py under that path, so the real check executes,
+      not skipped; the doctrine-schema-freshness step (lines 653-656) sits in the always-on
+      `lint` job with no path filter; arch-adversarial (lines 2144-2147) is `if: (always())`
+      with no needs-edge serialization to a merge-time run — plan.md's "Not applicable" /
+      "covered ... at merge time" wording (Gate Set lines 516-517) mischaracterizes all three
+      as skipped or merge-time-only when they execute on this PR's own CI run.
+  - id: PLAN-VERIFY-005
+    verdict: confirmed
+    reason: >
+      Grepped src/ for runtime_bridge_cores imports and confirmed only two production
+      importers exist: runtime_bridge_composition.py:88 and runtime_bridge.py:162 (both cited
+      correctly); confirmed plan.md's IC-01 bullet (Seam & Module Placement, lines 118-126)
+      describes making evaluate_guards a tolerant wrapper with no docstring/comment addition
+      warning future callers to prefer evaluate_guards_strict, matching the finding's claim.
+  - id: PLAN-VERIFY-006
+    verdict: confirmed
+    reason: >
+      Grepped CLAUDE.md and spec.md for "3284"/"3283" — zero matches in both files; CLAUDE.md's
+      actual known-P0-reds list at line 237 cites #2736, #2772, #1834, not #3284; plan.md's
+      Baseline & Reflexivity section (lines 362-365) verbatim claims "#3284 (the known-red-main
+      tracking issue CLAUDE.md and spec.md both already reference)" — a falsifiable provenance
+      claim that is directly contradicted by both cited documents' actual content.

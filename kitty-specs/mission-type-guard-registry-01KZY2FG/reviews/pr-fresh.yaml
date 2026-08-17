@@ -1,0 +1,52 @@
+# review-findings/v1 — fresh sweep over the PR-CONTRACT-003 fix itself
+# (e892780f7 on kitty/mission-mission-type-guard-registry-01KZY2FG-lane-b), independent of the
+# anchored verification in pr.verify.yaml. Findings a fix introduces are real findings; this fix
+# broadened an exception handler, the single most dangerous shape in this repo, so it got the
+# most scrutiny. No findings resulted — checks performed are listed below per instruction (an
+# empty sweep is a real result, not an absence of one).
+#
+# Checks performed:
+#   1. except Exception scope: read the full widened try block in classify_mission_type
+#      (src/specify_cli/cli/commands/_mission_type_audit.py:199-220). Only Exception subclasses
+#      are caught; KeyboardInterrupt/SystemExit are BaseException, not Exception, so they still
+#      propagate. Nothing inside the try block calls typer.Exit or any other CLI-exit primitive
+#      that could be silently absorbed. Judgement: correct trade for this command's contract —
+#      doctor mission-type is read-only diagnostics over kitty-specs/, mirrors the existing
+#      doctor identity orphan-on-corrupt-metadata posture, and a genuine bug in
+#      canonical_mission_type_key or MissionTypeRepository.get is NOT swallowed silently: it
+#      surfaces as an explicit `error` state carrying str(exc) verbatim, visible in both the
+#      human table (styled red) and --json output, and gate-able via --fail-on error (verified
+#      empirically, see pr.verify.yaml). This is surface-not-suppress, not silent success.
+#   2. error-state cannot be mistaken for success: confirmed `error` is one of the six explicit
+#      MissionTypeStateLabel members and one of the six _ALL_STATES used to zero-fill
+#      summarize_mission_types's counts dict (counted separately from the other five states, not
+#      folded into any of them). Confirmed --fail-on error empirically triggers
+#      fail_on_triggered=True / exit 1 with the real exception message intact (see pr.verify.yaml
+#      for the exact repro). An audit that reports `error` but exits 0 would reintroduce #3386's
+#      own defect inside its fix; that did not happen.
+#   3. Removed import (MissionMetaReadError from specify_cli.core.paths): grepped
+#      src/specify_cli/cli/commands/_mission_type_audit.py for any remaining reference — none.
+#      MissionMetaReadError is a RuntimeError subclass, so it was already caught by `except
+#      Exception`; no behavior depended on distinguishing it from any other exception type in
+#      this file (the removed narrow `except (OSError, MissionMetaReadError)` branch and the new
+#      broad `except Exception` both route to the same MissionTypeState(state="error", ...)
+#      construction). No other module imports MissionMetaReadError from this file (it is not
+#      re-exported), so the removal has no external blast radius.
+#   4. Complexity / lint: `ruff check` on the changed file -> "All checks passed!" (mccabe
+#      ceiling 15 enforced by ruff config, not exceeded). `mypy --strict` on the changed file ->
+#      "Success: no issues found in 1 source file". No new `# noqa` or `# type: ignore` added by
+#      the diff (confirmed by reading the full diff; only a docstring update, the widened
+#      try/except, and the import removal).
+#   5. Scope creep: diff touches only classify_mission_type's body/docstring and the one now-dead
+#      import; audit_mission_types, summarize_mission_types, _compute_fail_on, and the CLI-glue
+#      functions are byte-identical across 15ca2324a..e892780f7 outside this hunk. No unrelated
+#      refactors.
+#   6. Other callers of classify_mission_type: grepped src/ and tests/ — the only production
+#      caller is audit_mission_types's for-loop (the one already covered by the RED/GREEN test);
+#      no other code path assumes classify_mission_type can raise.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-sweep-post-fix
+mission: mission-type-guard-registry-01KZY2FG
+findings: []

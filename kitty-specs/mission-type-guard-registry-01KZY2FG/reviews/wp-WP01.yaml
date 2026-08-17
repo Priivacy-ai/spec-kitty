@@ -1,0 +1,122 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP01
+cycle: 1
+mission: mission-type-guard-registry-01KZY2FG
+verdict: approved
+gates_observed:
+  tsc: pass
+  tests: pass
+  coverage: unknown
+feedback: []
+
+# --- Reviewer evidence (reviewer-renata profile; directives 001, 024, 030, 032,
+# 041, 051; tactics code-review-incremental, reverse-speccing,
+# test-scaffolding-as-design-smell applied) ---
+#
+# 1. RED-first, verified by reverting (the check that matters most).
+#    Used a throwaway `git worktree add /tmp/wp01review/red 784f657da` (T001+T002
+#    landed, T003-T006 not yet) and ran, via
+#    /home/jeroennouws/dev/SK-missions/3386/.venv/bin/python -m pytest:
+#      - tests/runtime/test_bridge_cores.py::test_plan_review_guard_target_shape -> FAILED
+#        (AssertionError: ['Not all work packages are approved or done'] == [] fails,
+#        left has 1 item)
+#      - test_plan_research_guard_absent_and_present -> FAILED (assert [] == ['Required
+#        artifact missing: research.md'])
+#      - test_plan_guard_specify_and_plan_branches_direct_dispatch -> FAILED
+#        (AttributeError: no `_evaluate_plan_guards`)
+#      - test_plan_guard_fail_closed_else_branch -> FAILED (same AttributeError)
+#      - test_evaluate_guards_strict_raises_for_unregistered_mission_family -> FAILED
+#        (AttributeError: no `UnregisteredMissionFamilyError`)
+#      - test_check_cli_guards_propagates_unregistered_mission_family_error -> FAILED
+#        (same AttributeError)
+#      - tests/runtime/test_bridge_composition.py::
+#        test_check_composed_action_guard_warns_for_unregistered_mission_family -> FAILED
+#        (assert ['Not all work packages are approved or done'] == [])
+#      - tests/runtime/test_bridge_io.py::
+#        test_gather_artifact_presence_reads_research_md_presence -> FAILED
+#        (assert 'research.md' in frozenset())
+#    All 8 pinned assertions failed for the exact reason each test's own docstring
+#    claims -- no false-red-by-typo. `test_evaluate_guards_tolerant_wrapper_degrades_
+#    for_unregistered_mission_family` was correctly NOT claimed as RED (it does not
+#    exist until e0a04bcea, added post-implementation as verification coverage, not
+#    an ATDD pin -- confirmed via `git show <commit> -- test_bridge_cores.py | grep
+#    '^+def test_'` across all four commits).
+#    Then checked out a second worktree at e0a04bcea (final commit) and ran
+#    tests/runtime/test_bridge_cores.py + test_bridge_composition.py + test_bridge_io.py
+#    in full: 122 passed, 0 failed. RED->GREEN confirmed mechanically, not from prose.
+#
+# 2/3. Silent success + strict/tolerant split. Confirmed via diff and grep
+#    (`grep -rn "evaluate_guards(" src/`) that BOTH real production call sites now
+#    call `evaluate_guards_strict` directly: runtime_bridge.py:803 (no try/except --
+#    raises loudly, per T006) and runtime_bridge_composition.py:486-492 (try/except
+#    UnregisteredMissionFamilyError -> logger.warning(... mission ...) -> return []).
+#    The tolerant `evaluate_guards` wrapper at runtime_bridge_cores.py:609-625 is not
+#    called from any production path -- only from its own definition and doc comments
+#    -- so no new silent-swallow site was introduced in a live call chain. The
+#    WARNING log includes the offending family value (verified in source and
+#    exercised by the passing `..._warns_for_unregistered_mission_family` test).
+#
+# 4. Mock-retarget adjudication: LEGITIMATE, verified line-by-line and empirically.
+#    Diffed tests/runtime/test_bridge_composition.py: exactly 3 lines changed, each
+#    `monkeypatch.setattr(cores_seam, "evaluate_guards", ...)` ->
+#    `monkeypatch.setattr(cores_seam, "evaluate_guards_strict", ...)`. Every
+#    assertion in those 3 tests (`failures == ["boom"]`,
+#    `captured["wp_advance_ready"] is True`, `captured["wp_advance_ready"] is None`)
+#    is byte-identical before/after. Confirmed this is load-bearing, not cosmetic:
+#    reverted only the retarget (sed the 3 lines back to `evaluate_guards`) in the
+#    green worktree and re-ran the 3 tests -- all 3 FAILED (real `evaluate_guards_
+#    strict` ran unmocked and produced real guard output instead of the stubbed
+#    values/captured kwargs). This proves the old mock target would silently stop
+#    intercepting after T005's implementation change (the call path genuinely moved),
+#    so retargeting was necessary for the tests to keep testing anything real, not a
+#    way to dodge coverage.
+#
+# 5. Source vs generated: only src/runtime/next/{runtime_bridge.py,
+#    runtime_bridge_composition.py,runtime_bridge_cores.py,runtime_bridge_io.py} and
+#    tests/runtime/{test_bridge_cores.py,test_bridge_composition.py,test_bridge_io.py}
+#    touched (git diff --stat). No mission-step template, ~/.claude, ~/.hermes, or
+#    ~/.local paths touched.
+#
+# 6. Contracts: no doctrine schema, mission-step-contract, orchestrator-api,
+#    spec_kitty_events, or spec_kitty_tracker files in the diff.
+#
+# 7. Shard/patch-target hygiene: all new tests inherit each file's module-level
+#    `pytestmark = [pytest.mark.unit, pytest.mark.fast]` (no orphan marker); all
+#    seams use `monkeypatch.setattr`, matching existing convention -- no
+#    `unittest.mock.patch()` target introduced.
+#
+# 8. Scope discipline: `git diff --stat d12a98f81..lane-a` file list matches WP01's
+#    `owned_files` exactly (4 src + 3 test files, no more, no less). Checked hunk
+#    locations in runtime_bridge_cores.py (`git diff ... | grep '^@@'`): @@ -348,32
+#    +348,6 @@ and @@ -566,6 +540,91 @@ -- both well clear of the ~248-323
+#    RequirementMappingFacts/_evaluate_requirement_mapping region PR #3395 is
+#    concurrently editing. No gratuitous edits in that region; no merge-conflict risk
+#    introduced there.
+#
+# 9. Baseline honesty (713->730 delta): CORRECTLY ATTRIBUTED. Ran the T007 regression
+#    command (`tests/next/ tests/specify_cli/next/
+#    tests/integration/test_custom_mission_runtime_walk.py -q`) in two throwaway
+#    worktrees: at d12a98f81 (WP01's own base commit, before any WP01 commit) it
+#    already reports 730 passed; at e0a04bcea (WP01's final commit) it is also 730
+#    passed, identical. Since WP01 owns none of those three test paths and adds no
+#    tests there, the +17 delta from the plan-time baseline (713, captured at
+#    7deadff0a4f3dfd2744b5e1e35680c0d70f4565e, pre-#3346-rebase) is fully present
+#    before WP01's first commit -- it is pre-existing #3346-rebase drift, not
+#    WP01's own regression or an inflated count. Also ran `mypy --strict` and
+#    `ruff check` on the four touched src files at both the base and final commits:
+#    ruff clean at final; the single mypy --strict error
+#    (`_internal_runtime/schema.py:30`) is present byte-identical at both commits --
+#    pre-existing, untouched by this diff.
+#
+# DISCLOSED CONCERN (SC-004 vs mock-target staleness): adjudicated as (a), a genuine
+# plan gap the implementation handled correctly, not a license taken too far. plan.md
+# (:396-397) and spec.md's SC-004 text both frame the "pass unmodified" guarantee
+# explicitly around *assertion-value* stability ("zero assertion-value edits"); mock
+# *target* staleness is a direct, mechanical consequence of the strict/tolerant split
+# the plan itself designed (IC-03/IC-04) -- the plan never anticipated that its own
+# call-path change would strand a mock target, so SC-004's wording is silent on it by
+# omission, not by a considered decision to forbid it. The implementer's commit
+# message (22d017849) names this gap explicitly rather than quietly retargeting and
+# staying silent, and the change is minimal and verified load-bearing (see finding 4
+# above) -- exactly the narrow, disclosed scope a genuine gap-fill should take.

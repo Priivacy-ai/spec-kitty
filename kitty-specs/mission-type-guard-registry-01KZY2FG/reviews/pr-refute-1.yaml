@@ -1,0 +1,52 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: pr
+batch: 1
+verdicts:
+  - id: PR-BOUNDARY-001
+    verdict: refuted
+    reason: >
+      Read _mission_type_audit.py's _classify_present_key (lane-b tip
+      15ca2324) directly — "resolved" requires repo.get(key) is not None,
+      and repo = MissionTypeRepository.default() loads ONLY
+      packs/built-in/missions/mission_types/ (verified exactly 4 files:
+      documentation/plan/research/software-dev.yaml, the same 4 keys
+      _GUARD_TABLES already covers); an activated custom type outside those
+      4 fails repo.get() and classifies "activated-unresolvable", not
+      "resolved" — directly contradicted by existing_mission_types'
+      own docstring the finding cites ("does not by itself mean the type
+      will resolve end to end... resolution still hard-fails"), so the
+      finding's central "resolved custom mission type" scenario cannot
+      occur in the current code; the residual "5th built-in YAML ships"
+      risk is real but entirely inert today and squarely inside C-003's
+      binding Option-A scope decision plus Key Entities' explicit framing
+      of _GUARD_TABLES as a closed 4-family set by design, not a defect.
+  - id: PR-CONTRACT-002
+    verdict: refuted
+    reason: >
+      git grep for "evaluate_guards(" across src/ at lane-a tip e0a04bce
+      confirms zero production call sites for the tolerant
+      runtime_bridge_cores.evaluate_guards wrapper — both real entry
+      points (_check_cli_guards at runtime_bridge.py:803 and
+      _check_composed_action_guard at runtime_bridge_composition.py:487)
+      call evaluate_guards_strict directly, with the composed path's own
+      try/except already emitting logger.warning(...) at line 489 exactly
+      per FR-004, so the "parallel silent-degrade path" the finding
+      describes is unreachable from any current production caller; the
+      function's own docstring (cores.py:615-620) already explicitly warns
+      future contributors against new production use, contradicting the
+      "undocumented"/"zero discoverability" characterization.
+  - id: PR-CONTRACT-003
+    verdict: confirmed
+    reason: >
+      Read classify_mission_type (lines 173-220) and audit_mission_types
+      (lines 228-262) at lane-b tip 15ca2324 directly — the try/except
+      wraps only load_meta_fail_closed, the _classify_present_key/
+      _classify_absent_key calls execute after the try block exits
+      unguarded, and the for-loop's classify_mission_type call (line 260)
+      has no surrounding try/except either; canonical_mission_type_key and
+      MissionTypeRepository.get are confirmed pure/exception-free today so
+      this is not a live crash, but the Edge Cases "never crash the whole
+      audit run" isolation contract is structurally unenforced, not
+      guaranteed, matching the finding's own framing.

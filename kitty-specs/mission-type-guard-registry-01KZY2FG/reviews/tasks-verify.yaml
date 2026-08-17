@@ -1,0 +1,26 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: tasks.md's PR Shape section now separates T004-T006's ~10-line/3-file edits from T003's own new production surface in runtime_bridge_cores.py (dict + documented exception class + 2 new functions + 1 rewritten function), explicitly sized at ~40-60 lines/5 symbols, matching the finding's own evidence-derived estimate.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: The "~300-line" figure is replaced with "~600-700 lines" explicitly reconciled against the two named precedents' combined 707 lines (wc -l verified) and WP02's own "do not treat either precedent as a target" guidance, closing the contradiction the finding identified.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: T001 step 2's text now states only the absent-artifact assertion is genuinely RED and the present-artifact assertion passes at base for the wrong reason; independently re-derived from runtime_bridge_cores.py — evaluate_guards(mission_family="plan", step_id="research") falls through _evaluate_software_dev_guards's bare `return []` regardless of research.md presence, confirming the fixer's corrected claim.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: WP01 now owns tests/runtime/test_bridge_io.py and T001 step 4 adds a disk-backed test calling the real gather_artifact_presence against research.md; independently confirmed _PRESENCE_FILE_TAGS in runtime_bridge_io.py currently omits "research.md" and the precedent test pattern (test_gather_artifact_presence_reads_file_presence) exists to mirror, so the new assertion is genuinely RED today and closes the revert-detection gap.
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: T001 step 3 adds direct-call tests against the not-yet-existing _evaluate_plan_guards for specify/plan/fail-closed-else, plus a full-dispatch companion to prove registration; independently confirmed _evaluate_plan_guards does not exist in current cores.py (AttributeError-RED holds) and that evaluate_guards's specify/plan branches at base coincidentally match post-fix output via the software-dev fallthrough, exactly as the fix states — all 5 branches of User Story 2's guard now have RED-first coverage.
+  - id: TASKS-VERIFY-004
+    status: resolved
+    reason: T008 step 6 adds test_nfr_004_timing_200_missions mirroring the doctor-identity precedent's test_nfr_002_timing_200_missions (independently confirmed to exist with a synthetic 200-mission fixture and an elapsed-time assertion); T012 and Review Guidance now require this automated test as primary evidence, demoting the manual timing check to a belt-and-suspenders note, closing the missing-regression-gate finding.
+  - id: TASKS-VERIFY-005
+    status: resolved
+    reason: Both WP01 and WP02 Review Guidance sections now include concrete, copy-pasteable git-worktree + selective-checkout + pytest -k recipes covering every T001/T002/T008 assertion by name (verified the -k patterns' substrings match the actual test names introduced), replacing the prior prose-only reviewer instruction.

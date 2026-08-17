@@ -1,0 +1,171 @@
+schema: wp-verdict/v1
+complete: true
+wp: WP02
+cycle: 1
+mission: mission-type-guard-registry-01KZY2FG
+verdict: approved
+gates_observed:
+  tsc: pass
+  tests: pass
+  coverage: unknown
+feedback: []
+
+# --- Reviewer evidence (reviewer-renata profile; directives 001, 024, 030, 032,
+# 041, 051 applied; tactics code-review-incremental, reverse-speccing,
+# test-scaffolding-as-design-smell applied) ---
+#
+# 1. RED-first, verified by reverting (the check that matters most).
+#    `git worktree add --detach /tmp/wp02-review/red-52149ca37 52149ca37` and ran, via
+#    /home/jeroennouws/dev/SK-missions/3386/.venv/bin/python -m pytest with
+#    PYTHONPATH pointed at the worktree's own src/:
+#      pytest tests/specify_cli/cli/commands/test_doctor_mission_type.py -q
+#      -> 16 failed, 0 passed (15 assertion/collection failures against the
+#      not-yet-registered `mission-type` command; the NFR-004 timing test fails
+#      to collect with `ModuleNotFoundError: No module named
+#      'specify_cli.cli.commands._mission_type_audit'`). All 16 fail for the
+#      reason each test's own docstring/target claims -- no false-red-by-typo.
+#    Then `git worktree add --detach /tmp/wp02-review/final-15ca2324a 15ca2324a`
+#    and ran the same file plus the golden-contract file:
+#      pytest tests/specify_cli/cli/commands/test_doctor_mission_type.py
+#      tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py -q
+#      -> 65 passed, 0 failed.
+#    RED(16/16 fail)->GREEN(65/65 pass) confirmed mechanically in throwaway
+#    worktrees, not from prose. Worktrees removed after use
+#    (`git worktree remove --force`); primary checkout untouched
+#    (`git status --short` before/after identical: only the pre-existing
+#    charter-metadata/synthesis-manifest/task-frontmatter dirt + untracked
+#    `_rnd/`).
+#
+# 2. Silent success / six-state classifier: genuinely distinguishable and
+#    genuinely computed, not defaulted. Read
+#    src/specify_cli/cli/commands/_mission_type_audit.py:150-207
+#    (`_classify_present_key`/`_classify_absent_key`/`classify_mission_type`):
+#    each of the six states is reached via a distinct, mutually exclusive
+#    branch keyed on (a) key presence, (b) value type, (c) registration in
+#    `existing_mission_types`, (d) loadability via
+#    `MissionTypeRepository.get`. Exercised in
+#    tests/specify_cli/cli/commands/test_doctor_mission_type.py:58-156
+#    (`_build_taxonomy_repo` + `test_mission_type_json_classifies_every_
+#    taxonomy_state`): one real fixture mission per state in a SINGLE repo,
+#    asserting each maps to its own distinct label with a zero-filled summary
+#    (resolved=1, activated-unresolvable=1, unknown=1, typeless=2,
+#    legacy-key-only=1, error=1) -- `unknown` and `activated-unresolvable` are
+#    never conflated (both require registration lookups against different
+#    real backing stores: `.kittify/config.yaml` activation vs. an actual
+#    loadable doctrine YAML). The FR-008 boundary case (blank `mission_type`
+#    beats a real legacy `mission` value -> `typeless`, never falling through)
+#    is a dedicated fixture (`007-blank-wins-over-legacy`) plus two direct
+#    classifier-level unit tests (null value, non-string `42` value) at
+#    test_doctor_mission_type.py:196-220. `error` classifies via a genuinely
+#    malformed `meta.json` (`{not valid json`), not a stub.
+#
+# 3. `validate_meta` prohibition (C-004, spec.md:291): confirmed no roster
+#    check was added. `git diff faa049dcf..lane-b | grep -n
+#    "validate_meta\|write_meta"` returns only the test file's unrelated
+#    local helper `_write_meta` (a meta.json fixture writer, not
+#    `specify_cli.mission_metadata.validate_meta`). The implementation module
+#    never imports `mission_metadata` at all.
+#
+# 4. `--fail-on` semantics: coherent and matches `doctor identity`'s
+#    established contract exactly (_mission_type_audit.py:270-280
+#    `_compute_fail_on`; doctor.py:486-536 `mission_type` command body is a
+#    byte-for-byte structural copy of `identity`'s, including its
+#    `locate_project_root` try/except shell). Verified via tests:
+#    no `--fail-on` -> exit 0 regardless of findings
+#    (test_mission_type_no_fail_on_exits_zero_regardless_of_findings);
+#    `--fail-on unknown` with a match -> exit 1, `fail_on_triggered: true`
+#    (test_mission_type_fail_on_unknown_exits_nonzero); `--fail-on unknown`
+#    with no matches -> exit 0
+#    (test_mission_type_fail_on_state_with_no_matches_exits_zero). The
+#    `--json`+not-found-mission error path
+#    (test_mission_type_mission_scope_not_found_exits_1) prints a rich-styled
+#    message and raises `typer.Exit(1)` rather than emitting JSON on that one
+#    branch -- but this is byte-identical to `_identity_audit.py`'s own
+#    `_scope_to_mission`/"Mission not found" precedent (same
+#    console.print+typer.Exit(1) shape, same known limitation already living
+#    in the reviewed `identity` surface), so it is not a WP02-introduced
+#    regression; no bare traceback anywhere on either path.
+#
+# 5. Golden-contract minimality: confirmed minimal.
+#    `git diff faa049dcf..lane-b --
+#    tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py` is
+#    exactly 4 hunks (docstring count/history line, `FROZEN_SUBCOMMANDS`
+#    +1 entry, `EXPECTED_OPTIONS` +1 entry, `EXPECTED_HELP` +1 entry) --
+#    39 lines, nothing else moved; `test_subcommand_option_contract` (the
+#    function carrying the 2 pre-existing `unused-ignore` mypy errors) has
+#    zero hunks touching it. Help-text transcription verified by actually
+#    invoking the command in the final worktree
+#    (`CliRunner().invoke(app, ["mission-type", "--help"])` against
+#    lane-b's own `doctor.py`/`_mission_type_audit.py`) and diffing the
+#    real output against `EXPECTED_HELP["mission-type"]`: identical content
+#    (usage line, docstring body incl. the six bulleted states, Examples
+#    block, and all three options + `--help`) -- not aspirational text.
+#
+# 6. Scope: `git diff --name-only faa049dcf..lane-b` returns exactly the 4
+#    files in WP02's `owned_files` frontmatter
+#    (kitty-specs/mission-type-guard-registry-01KZY2FG/tasks/WP02-doctor-
+#    mission-type-command.md:34-38) -- no more, no less.
+#    `grep -E "runtime_bridge|test_bridge_"` over that file list returns
+#    nothing: WP01's `src/runtime/next/runtime_bridge*.py` and
+#    `tests/runtime/test_bridge_*.py` are untouched.
+#
+# 7. Charter gates on the two new/changed src files
+#    (_mission_type_audit.py, doctor.py), run against the final worktree:
+#      - `mypy --strict`: "Success: no issues found in 2 source files".
+#      - `ruff check` (project's full configured ruleset, incl. C90/mccabe
+#        and TID251 banned-api): "All checks passed!" on all 4 owned files
+#        (2 src + 2 test) -- confirms complexity <=15 (no 16-branch
+#        classifier) and no banned imports.
+#      - The one `# type: ignore[assignment]` at
+#        _mission_type_audit.py:325 is a byte-identical copy of
+#        `_identity_audit.py`'s own established `counts_dict: dict[str, int]
+#        = summary["counts"]  # type: ignore[assignment]` idiom (same
+#        `dict[str, object]` narrowing gap) -- not a new suppression
+#        pattern, and mypy --strict's clean pass confirms it is load-bearing
+#        (not an unused-ignore). No blanket `# noqa`/`# type: ignore`
+#        anywhere else in the diff; the two `# noqa: E402` module-import
+#        comments match the pre-existing convention already used for every
+#        other doctor.py command cluster import (identity/topology/etc.).
+#      - State-name/error-string literals repeat >=3x within
+#        _mission_type_audit.py (e.g. "typeless", "resolved") without full
+#        constant-hoisting, but this exactly mirrors `identity_audit.py`'s
+#        own pre-existing pattern for its four states -- and WP02 actually
+#        improves on precedent by adding `_ALL_STATES` as a single
+#        zero-fill source of truth (identity's summarize function has no
+#        equivalent). Not filed as a finding: no gate (ruff/mypy) flags it,
+#        and it is consistent with, not worse than, the matched precedent.
+#      - `patch()` targets: all new tests use `monkeypatch.setattr` against
+#        real module attributes (`doctor_mod.locate_project_root`), not
+#        string-path `unittest.mock.patch()`, matching project convention.
+#      - Confirmed both pre-existing conditions independently, at
+#        `faa049dcf` in a throwaway worktree: `mypy --strict
+#        src/runtime/next/_internal_runtime/schema.py` ->
+#        `schema.py:30: error: Class cannot subclass "StructuredError"
+#        (has type "Any")`; `mypy --strict
+#        tests/.../test_doctor_cli_surface_golden.py` -> 2 `unused-ignore`
+#        errors at lines 513/516 (inside `test_subcommand_option_contract`,
+#        confirmed untouched by WP02 per point 5). Both present byte-for-byte
+#        at base -- not WP02 findings.
+#
+# 8. NFR-004 performance claim: adjudicated as FAIR, and the CI-enforced
+#    gate is the right one. Ran `audit_mission_types` directly against a
+#    fresh 200-mission synthetic tree in the final worktree: 3 runs at
+#    0.0038s/0.0028s/0.0027s -- comfortably under the claimed ~0.014s and the
+#    2.0s budget (function-level, matching `test_nfr_004_timing_200_missions`'s
+#    own shape, itself modeled on `test_nfr_002_timing_200_missions`'s
+#    precedent). Independently timed full-CLI wall-clock on the REAL
+#    370-mission `kitty-specs/` tree (primary checkout's real tree, lane-b's
+#    src via PYTHONPATH, 5 runs each after discarding one-off system-load
+#    outliers): bare `--help` median ~1.42s, `doctor identity --json` median
+#    ~1.53s, `doctor mission-type --json` median ~1.63s -- all three within
+#    ~200ms of each other, i.e. dominated by shared Typer/Python-import
+#    startup cost, not by the mission-type audit logic (which is
+#    ~0.003s of that budget per the function-level measurement above). This
+#    independently reproduces the implementer's own relative-comparison
+#    argument (their absolute numbers, ~2.4-2.5s across all three, differ
+#    from mine by a constant offset attributable to machine/cache state, but
+#    the near-equal spread across bare-help/identity/mission-type holds).
+#    The 2.0s function-level budget, CI-enforced via the automated timing
+#    test, is therefore the correct gate; a full-CLI wall-clock gate would
+#    conflate shared CLI-startup cost the mission-type command does not
+#    control.

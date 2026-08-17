@@ -1,0 +1,59 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: PR-BOUNDARY-001
+    lens: cross-lane-coherence
+    severity: 3
+    title: "_GUARD_TABLES's registered-family set has no structural coupling to the built-in mission-type catalog that drives doctor mission-type's 'resolved' state — the two taxonomies agree today only by coincidence"
+    evidence:
+      - artifact: "spec.md § C-001, NFR-002, FR-003/FR-004 (cross-references FR-007)"
+      - artifact: "spec.md § FR-008 ('resolved' state definition)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:586 (_GUARD_TABLES literal dict, exactly 4 hardcoded entries: research/documentation/software-dev/plan)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:575 (UnregisteredMissionFamilyError docstring — cross-references only charter.mission_type_profiles.UnknownMissionTypeError, never doctor mission-type or its 'resolved' state)"
+      - code: "src/specify_cli/cli/commands/_mission_type_audit.py:19-22 ('resolved' = present + activated in charter + \"has a loadable definition in the built-in doctrine bundle\", resolved via MissionTypeRepository.default())"
+      - code: "packs/built-in/missions/mission_types/ (documentation.yaml, plan.yaml, research.yaml, software-dev.yaml — exactly the 4 files MissionTypeRepository.default() loads, and exactly _GUARD_TABLES's 4 keys, today)"
+    claim: >
+      WP01's `_GUARD_TABLES` (runtime_bridge_cores.py:586) is a hand-maintained literal
+      dict of exactly four mission-family entries. WP02's `resolved` classification
+      (_mission_type_audit.py's `_classify_present_key`, via `MissionTypeRepository.default()`)
+      is computed dynamically from whatever YAML files exist under
+      `packs/built-in/missions/mission_types/` at run time. Today both sets happen to be
+      identical (the same four built-in mission types), so `mission_family fed into WP01's
+      guard evaluation is ctx.mission_type` and WP02's `resolved` bucket currently agree
+      by coincidence, not by construction: there is no test, assertion, or code-level
+      cross-reference tying `_GUARD_TABLES`'s membership to the built-in mission-type
+      catalog (`doctrine.missions.mission_type_repository.builtin_mission_type_ids()`),
+      which the rest of the codebase treats as the canonical accessor for "which built-in
+      mission types exist" and enforces with dedicated parity tests elsewhere (e.g.
+      `tests/doctrine/missions/test_builtin_mission_type_ids.py`,
+      `tests/charter/test_action_grain.py:203`,
+      `tests/doctrine/drg/test_cross_grain_integrity.py:106`, all of which assert
+      `set(x) == set(builtin_mission_type_ids())`). No equivalent assertion exists for
+      `_GUARD_TABLES`. The day a fifth built-in mission-type YAML ships (a low-friction,
+      expected kind of change per the existing `builtin_mission_type_ids` /
+      `m_3_2_0rc35_activate_builtin_mission_types` migration infrastructure) without a
+      matching `_GUARD_TABLES` entry, `spec-kitty doctor mission-type --json` will report
+      that mission type as `resolved` (fully healthy) while its guard evaluation silently
+      neutral-degrades on the composed path (empty guard list, no failures ever surfaced)
+      with only a WARNING-level log line — exactly the "resolved gives false confidence
+      that guards will evaluate correctly" scenario, and exactly the silent-taxonomy-
+      disagreement class issue #3386 itself describes. Neither module's docstrings mention
+      the other subsystem's existence or this coupling risk, so a maintainer adding a
+      built-in mission type has no signal in the code (only in spec.md, which is not
+      re-read at every future PR) that `_GUARD_TABLES` needs a matching update.
+    remediation: >
+      Either (a) derive `_GUARD_TABLES`'s registered-family check from
+      `doctrine.missions.mission_type_repository.builtin_mission_type_ids()` so the two
+      can never drift silently, or (b) if a deliberate hand-authored subset is intended
+      (some built-in types may not need bespoke guard tables), add an explicit
+      architectural test asserting the *relationship* — e.g. that every id in
+      `builtin_mission_type_ids()` either has a `_GUARD_TABLES` entry or is documented as
+      an intentional composed-path-tolerant exception — plus a code comment on both
+      `_GUARD_TABLES` and `_mission_type_audit.py`'s `resolved` docstring cross-referencing
+      the other subsystem and stating explicitly that "resolved" (doctor mission-type) does
+      not imply "registered" (guard-table dispatch), so guard neutral-degrade is a distinct
+      possible outcome for a resolved-but-unregistered custom or newly-added built-in type.

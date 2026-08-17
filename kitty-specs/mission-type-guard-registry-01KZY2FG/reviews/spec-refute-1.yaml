@@ -1,0 +1,47 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >
+      Direct word-for-word comparison of spec.md's "quoted verbatim" blockquote (lines 20-24)
+      against the only accessible antecedent, the readiness probe's Option A text (lines
+      286-295), shows real compression/paraphrase (e.g. "artifact-checks elsewhere" vs.
+      "artifact-checks for specify/plan, TBD for research"; differing closing sentences), so the
+      "quoted verbatim" framing is unverifiable against any recorded source.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >
+      The readiness probe (lines 215-225) shows the author's own independent recheck produced a
+      different figure (~29/17) explicitly qualified as "close enough... to trust its direction,"
+      not a second matching corroboration of the exact 15/27 figure, so spec.md's "independently
+      corroborated twice" table cell overstates the probe's own epistemic status.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >
+      Verified in code that _check_cli_guards (runtime_bridge.py:698) and
+      _check_composed_action_guard (runtime_bridge_composition.py:486) both end with the
+      identical `return _cores.evaluate_guards(snapshot)`, and evaluate_guards
+      (runtime_bridge_cores.py:351) takes only a snapshot with no path-identifying parameter;
+      FR-005's Independent Test literally only requires unit-testing "the registry lookup
+      function used by the legacy path," so the spec does not concretely specify the call-site
+      restructuring needed to make C-001 and C-002 both true for the same unregistered family.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >
+      Verified tests/runtime/test_bridge_cores.py never calls _check_cli_guards or
+      _check_composed_action_guard (only evaluate_guards directly), and every
+      _check_composed_action_guard call in tests/runtime/test_bridge_composition.py
+      (lines 600, 632, 661) monkeypatches cores_seam.evaluate_guards to a stub, while
+      tests/next/test_runtime_bridge_unit.py, tests/next/test_occurrence_gate_next_loop.py, and
+      tests/specify_cli/next/test_runtime_bridge_composition.py do call the real unmocked
+      delegates but are not named in NFR-001's verification method.
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: >
+      Read runtime_bridge.py lines 670-698 directly: `def _check_cli_guards` is on line 680
+      (678-679 are blank), so the spec's "678-698" citation in User Story 3 and FR-005 is off by
+      2 lines at the start, exactly as claimed.

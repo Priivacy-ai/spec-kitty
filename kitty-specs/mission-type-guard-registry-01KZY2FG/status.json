@@ -1,0 +1,35 @@
+{
+  "event_count": 4,
+  "last_event_id": "01KZYSGPCNTW403Z79CWXYGCD4",
+  "materialized_at": "2026-08-14T00:07:27.893399+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-type-guard-registry-01KZY2FG",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "implement-command",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01KZYSGPCNTW403Z79CWXYGCD4",
+      "last_transition_at": "2026-08-14T00:07:27.893399+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01KZYMZHR4DH8BWWFN4SW7XJ8F",
+      "last_transition_at": "2026-08-13T22:48:11.780135+00:00"
+    }
+  }
+}
