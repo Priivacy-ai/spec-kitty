@@ -199,7 +199,11 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     call (``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` must
     propagate, DEC-005/NFR-001). ``resolve_org_roots`` returns ``[]`` when
     no org packs are configured, so this is a no-op for the common case
-    (NFR-005/SC-007).
+    (NFR-005/SC-007). ``quiet=True``: this helper backs a resolution hot
+    path (``mission run <key>``) that may run many times per invocation --
+    an unparseable config.yaml with no readable org intent must not spam a
+    UserWarning per call (see load_pack_registry's docstring). A genuinely
+    declared-but-broken org pack still raises a loud UserWarning regardless.
     """
     package_missions = (
         Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
@@ -210,7 +214,7 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_missions],
-        org_roots=list(resolve_org_roots(repo_root)),
+        org_roots=list(resolve_org_roots(repo_root, quiet=True)),
     )
 
 

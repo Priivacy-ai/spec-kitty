@@ -252,7 +252,12 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     ``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` are deliberately
     raised and must propagate (DEC-005, NFR-001). With no org packs
     configured, ``resolve_org_roots`` returns ``[]`` and this is a verified
-    no-op (NFR-005/SC-007).
+    no-op (NFR-005/SC-007). ``quiet=True``: this helper backs a resolution
+    hot path (``spec-kitty next``, query-mode) that may run many times per
+    invocation -- an unparseable config.yaml with no readable org intent
+    must not spam a UserWarning per call (see load_pack_registry's
+    docstring). A genuinely declared-but-broken org pack still raises a
+    loud UserWarning regardless.
     """
     import specify_cli  # noqa: PLC0415
 
@@ -265,7 +270,7 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_root],
-        org_roots=list(resolve_org_roots(repo_root)),
+        org_roots=list(resolve_org_roots(repo_root, quiet=True)),
     )
 
 

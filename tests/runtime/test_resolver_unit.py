@@ -1339,7 +1339,17 @@ class TestOrgTierResolution:
         built-in templates through the production lane, with zero org roots
         contributed (``load_pack_registry``'s pre-existing fail-soft,
         exercised through the new org tier -- not a new try/except added by
-        this WP)."""
+        this WP).
+
+        Regression guard (pre-merge lens, mission
+        ``up-org-template-fsm-01M06F9K``): resolution is a hot path that may
+        run many times per invocation. A project with no readable org-pack
+        intent (this config can't even be parsed) must see ZERO new warning
+        output -- NFR-005/SC-007 requires byte-identical behaviour, explicitly
+        including "same log output, no new warnings", for a project with no
+        org pack configured. Before the fix this asserted the opposite
+        (``pytest.warns(UserWarning)``), codifying the regression as
+        expected."""
         project = tmp_path / "project"
         kittify = project / ".kittify"
         kittify.mkdir(parents=True)
@@ -1359,10 +1369,56 @@ class TestOrgTierResolution:
                 "specify_cli.runtime.resolver.get_package_asset_root",
                 return_value=pkg_root,
             ),
-            pytest.warns(UserWarning),
+            warnings.catch_warnings(record=True) as caught,
         ):
+            warnings.simplefilter("always")
             result = resolve_template("spec-template.md", project, "software-dev")
 
+        assert caught == []
+        assert result.tier == ResolutionTier.PACKAGE_DEFAULT
+        assert result.path == pkg_template
+
+    def test_declared_but_broken_org_pack_still_warns(self, tmp_path: Path) -> None:
+        """Positive case for the fix above: a config that DOES declare
+        ``doctrine.org.packs`` but fails schema validation (two packs
+        sharing the same ``name``) is a genuinely misconfigured org pack --
+        the operator demonstrably opted in and deserves to know it's
+        broken. Unlike the unparseable-file case above, that signal must
+        remain a loud ``UserWarning`` through this same resolution hot
+        path."""
+        project = tmp_path / "project"
+        kittify = project / ".kittify"
+        kittify.mkdir(parents=True)
+        (kittify / "config.yaml").write_text(
+            "doctrine:\n"
+            "  org:\n"
+            "    packs:\n"
+            "      - name: acme\n"
+            "        local_path: /tmp/acme-one\n"
+            "      - name: acme\n"
+            "        local_path: /tmp/acme-two\n",
+            encoding="utf-8",
+        )
+
+        pkg_root = tmp_path / "pkg"
+        pkg_template = _create_file(pkg_root / "software-dev" / "templates" / "spec-template.md")
+
+        with (
+            patch(
+                "specify_cli.runtime.resolver.get_kittify_home",
+                return_value=tmp_path / "no_home",
+            ),
+            patch(
+                "specify_cli.runtime.resolver.get_package_asset_root",
+                return_value=pkg_root,
+            ),
+            warnings.catch_warnings(record=True) as caught,
+        ):
+            warnings.simplefilter("always")
+            result = resolve_template("spec-template.md", project, "software-dev")
+
+        assert len(caught) == 1
+        assert "Invalid doctrine.org config" in str(caught[0].message)
         assert result.tier == ResolutionTier.PACKAGE_DEFAULT
         assert result.path == pkg_template
 
