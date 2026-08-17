@@ -271,6 +271,22 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   the chain is dropped on its own without erasing the others. Projects with no org
   pack are unaffected — every path is byte-identical without one.
 
+- **An organisation doctrine pack authored exactly per the official guide — DRG
+  content under `drg/`, no root-level `*.graph.yaml` — silently delivered zero
+  action-scoped doctrine: every directive, tactic, procedure, styleguide and
+  toolguide dropped to `0` for every mission type while the command still reported
+  success (`#3401`; closes `#3384`).** Before, the org-layer load called
+  `load_graph_or_dir(<root>)` unconditionally, which raises on a directory that has
+  no root-level graph even when a guide-compliant `drg/*.graph.yaml` fragment sits
+  right beside it — and that error was swallowed, so the pack's entire action grain
+  vanished behind a single log line. Now a pack whose graph lives under `drg/`
+  actually loads it; a pack with no loadable graph at all degrades cleanly to "no
+  org DRG layer" (the same guard the project layer already applied) instead of
+  zeroing everything; and malformed org content — invalid YAML or schema-invalid, at
+  the root graph _or_ under `drg/` — surfaces as a distinguishable failure instead of
+  collapsing to an empty bundle with only a warning. Applies to every root in the
+  org-pack chain (`#3525`), not just the first.
+
 - **The `SPEC_KITTY_HOME` pin census (`arch-adversarial (arch_shard_3)`) was red
   on main because a legitimate new isolation pin (`#3497`) landed after the R1a
   freeze, and the "shrink-only" ratchet — as landed — could not actually shrink
