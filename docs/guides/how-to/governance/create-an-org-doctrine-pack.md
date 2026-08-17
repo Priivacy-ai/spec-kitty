@@ -63,7 +63,7 @@ my-pack/
 ├── procedures/                 # *.procedure.yaml — operational procedures
 ├── agent_profiles/             # *.agent.yaml — agent personas
 ├── mission_step_contracts/     # *.step-contract.yaml — mission step contracts
-├── drg/                        # *.graph.yaml — DRG graph extension fragments
+├── drg/                        # fragment.yaml — a single OrgDRGFragment (nodes/edges)
 └── org-charter.yaml            # optional: org governance policy
 ```
 
@@ -151,10 +151,20 @@ above as a bridge, not a durable authoring target.
 ### DRG extensions
 
 If your pack contributes typed graph relations (for example, a new directive that scopes
-to a specific mission action), add a fragment under `drg/`:
+to a specific mission action), declare them in a single `drg/fragment.yaml` — the
+`OrgDRGFragment` shape that `spec-kitty doctrine org init` scaffolds. An org pack's DRG
+is read only from `drg/fragment.yaml`; a `drg/*.graph.yaml` fragment is **not** consumed
+and `doctrine org validate` now rejects it (`drg_root_graph_missing`):
 
 ```yaml
-# drg/010-security.graph.yaml
+# drg/fragment.yaml
+# pydantic_model: charter.drg.OrgDRGFragment
+# expect: valid
+pack_name: acme-security
+source_kind: local_path
+source_ref: .
+layer_index: 1
+provenance_marker: org
 nodes: []   # nodes are inferred from the artifact files
 edges:
   - source: action:software-dev/implement
@@ -174,9 +184,9 @@ with an `unresolved_edge_endpoint` conflict naming the token; there is no
 `urn:` prefix form.
 
 DRG fragments are **additive only**. They may add new edges and nodes but must not
-remove or modify built-in graph state. Multiple fragment files in `drg/` merge in
-alphabetical filename order, so name them with numeric prefixes when ordering matters
-(`010-`, `020-`, ...).
+remove or modify built-in graph state. An org pack contributes a single
+`drg/fragment.yaml`; its edges are appended to the resolved graph in the order the pack
+is listed under `organisation_packs:` (the `layer_index` the loader assigns).
 
 ---
 
