@@ -18,15 +18,21 @@ FR-008 states, based on ``meta.json``'s ``mission_type`` (and legacy
 
 ``resolved``
     ``mission_type`` is a present, non-blank string, is activated in the
-    project charter, AND has a loadable definition in the built-in doctrine
-    bundle.
+    project charter, AND resolves through the project's layered mission-type
+    roster (project > org > built-in) — the SAME
+    :func:`~charter.missions.resolve_layered_mission_types` factory the
+    runtime's ``_resolve_action_slot`` uses, NOT the built-in-only
+    ``MissionTypeRepository.default()`` (which would misreport a
+    legitimately-resolvable org- or project-pack custom type as
+    ``activated-unresolvable``).
 
 ``activated-unresolvable``
     ``mission_type`` is a present, non-blank string and is activated in the
-    project charter, but has no loadable profile/definition on disk. Mirrors
-    the exact branch ``_resolve_action_slot`` hits at
-    ``charter/mission_type_profiles.py``'s ``raise UnknownMissionTypeError(...)``
-    (line 799) — this is the read-only classification twin of that raise.
+    project charter, but does not resolve in any layer of that roster. Mirrors
+    the exact branch ``_resolve_action_slot`` hits when
+    ``resolve_layered_mission_types(...).get(mission_type)`` is ``None`` — its
+    ``raise UnknownMissionTypeError(...)`` — as the read-only classification
+    twin of that raise.
 
 ``unknown``
     ``mission_type`` is a present, non-blank string but is not activated/
@@ -50,16 +56,17 @@ FR-008 states, based on ``meta.json``'s ``mission_type`` (and legacy
     posture).
 
 Performance (NFR-004): the full audit over a typical ``kitty-specs/`` tree
-must complete in under 2 seconds. ``existing_mission_types`` and
-``MissionTypeRepository.default()`` are each resolved ONCE per audit run
-(in :func:`audit_mission_types`), not once per mission, to avoid N redundant
-``.kittify/config.yaml`` reads across the tree.
+must complete in under 2 seconds. ``existing_mission_types`` and the layered
+mission-type roster (:func:`_resolve_layered_roster`) are each resolved ONCE
+per audit run (in :func:`audit_mission_types`), not once per mission, to avoid
+N redundant ``.kittify/config.yaml`` reads across the tree.
 """
 
 from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
@@ -69,7 +76,7 @@ from rich.table import Table
 
 from charter.mission_type_key import canonical_mission_type_key
 from charter.mission_type_profiles import existing_mission_types
-from charter.missions import MissionTypeRepository
+from charter.missions import MissionTemplateRepository, resolve_layered_mission_types
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import load_meta_fail_closed
 from specify_cli.core.utils import safe_is_dir
@@ -140,24 +147,56 @@ class MissionTypeState:
 
 
 # ---------------------------------------------------------------------------
+# Resolution
+# ---------------------------------------------------------------------------
+
+
+def _resolve_layered_roster(repo_root: Path) -> Mapping[str, object]:
+    """Resolve the project's layered mission-type roster (project > org >
+    built-in) — the SAME :func:`~charter.missions.resolve_layered_mission_types`
+    factory the runtime's ``_resolve_action_slot`` uses.
+
+    Using the built-in-only ``MissionTypeRepository.default()`` here would
+    misreport a mission whose ``mission_type`` is a legitimately-resolvable
+    org- or project-pack custom type as ``activated-unresolvable`` — it loads
+    fine at runtime but is absent from the built-in bundle — a false positive
+    that ``--fail-on activated-unresolvable`` would turn into a spurious CI
+    failure. Resolved ONCE per audit run (NFR-004), not once per mission.
+    """
+    from charter.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
+
+    pack_context = PackContext.from_config(repo_root)
+    mission_types_dirs = (MissionTemplateRepository.default_missions_root() / "mission_types",)
+    roster: Mapping[str, object] = resolve_layered_mission_types(
+        mission_types_dirs, pack_context
+    )
+    return roster
+
+
+# ---------------------------------------------------------------------------
 # Classifier
 # ---------------------------------------------------------------------------
 
 
 def _classify_present_key(
-    raw_val: object, *, registered: list[str], repo: MissionTypeRepository
+    raw_val: object, *, registered: list[str], roster: Mapping[str, object]
 ) -> tuple[str | None, MissionTypeStateLabel]:
     """Classify a mission whose ``meta.json`` HAS a ``mission_type`` key.
 
     A present-but-blank/null/non-string value classifies as ``typeless``
     without ever consulting the legacy ``mission`` key (FR-008).
+
+    ``resolved`` vs ``activated-unresolvable`` keys off membership in the
+    layered mission-type *roster* (project > org > built-in), NOT the
+    built-in-only repository — mirroring the runtime's own
+    ``resolve_layered_mission_types(...).get(mission_type) is None`` branch.
     """
     key = canonical_mission_type_key(raw_val) if isinstance(raw_val, str) else None
     if key is None:
         return None, "typeless"
     if key not in registered:
         return key, "unknown"
-    if repo.get(key) is not None:
+    if key in roster:
         return key, "resolved"
     return key, "activated-unresolvable"
 
@@ -171,7 +210,7 @@ def _classify_absent_key(raw_legacy: object) -> tuple[str | None, MissionTypeSta
 
 
 def classify_mission_type(
-    feature_dir: Path, *, registered: list[str], repo: MissionTypeRepository
+    feature_dir: Path, *, registered: list[str], roster: Mapping[str, object]
 ) -> MissionTypeState:
     """Classify a single mission directory into one of the six FR-008 states.
 
@@ -189,8 +228,9 @@ def classify_mission_type(
         feature_dir: Absolute path to a mission directory.
         registered: The project's activated mission-type IDs, computed ONCE
             per audit run by the caller (NFR-004).
-        repo: The built-in doctrine mission-type repository, resolved ONCE
-            per audit run by the caller (NFR-004).
+        roster: The layered mission-type roster (project > org > built-in),
+            resolved ONCE per audit run by the caller (NFR-004). Membership
+            distinguishes ``resolved`` from ``activated-unresolvable``.
 
     Returns:
         A :class:`MissionTypeState` for the mission.
@@ -202,7 +242,7 @@ def classify_mission_type(
         if "mission_type" in raw:
             raw_val = raw["mission_type"]
             resolved_key, state = _classify_present_key(
-                raw_val, registered=registered, repo=repo
+                raw_val, registered=registered, roster=roster
             )
             mission_type_raw = raw_val if isinstance(raw_val, str) else None
         else:
@@ -254,8 +294,8 @@ def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
     resolver would make the audit blind to exactly the missions it exists to
     audit, mirroring the resolver's own documented rationale for exempting
     ``identity_audit.py`` rather than folding it in.
-    ``registered`` and the doctrine repository are each resolved ONCE before
-    the loop (NFR-004) rather than per mission.
+    ``registered`` and the layered mission-type roster are each resolved ONCE
+    before the loop (NFR-004) rather than per mission.
 
     Args:
         repo_root: Path to the repository root (contains ``kitty-specs/``).
@@ -273,7 +313,7 @@ def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
         return []
 
     registered = existing_mission_types(repo_root)
-    repo = MissionTypeRepository.default()
+    roster = _resolve_layered_roster(repo_root)
 
     for entry in entries:
         try:
@@ -282,7 +322,7 @@ def audit_mission_types(repo_root: Path) -> list[MissionTypeState]:
             continue  # unstattable entry: same skip as "not a directory"
         if not is_mission_dir:
             continue  # skip README.md, templates, etc.
-        states.append(classify_mission_type(entry, registered=registered, repo=repo))
+        states.append(classify_mission_type(entry, registered=registered, roster=roster))
 
     return states
 
@@ -319,13 +359,23 @@ def _scope_to_mission(
 def _compute_fail_on(
     fail_on: str | None, all_states: list[MissionTypeState]
 ) -> tuple[set[str], bool]:
-    """Parse ``--fail-on`` states and determine whether the gate is triggered."""
-    fail_on_states: set[str] = (
-        {s.strip() for s in fail_on.split(",") if s.strip()} if fail_on else set()
-    )
-    fail_on_triggered = bool(
-        fail_on_states and any(s.state in fail_on_states for s in all_states)
-    )
+    """Parse ``--fail-on`` states and determine whether the gate is triggered.
+
+    Rejects any token that is not one of the six FR-008 state names via
+    :class:`typer.BadParameter` (exit code 2), so a misspelled state — e.g.
+    ``--fail-on unkown`` — fails loudly instead of silently matching nothing
+    and exiting 0 (a vacuous-green CI gate).
+    """
+    if not fail_on:
+        return set(), False
+    fail_on_states = {s.strip() for s in fail_on.split(",") if s.strip()}
+    unknown = sorted(fail_on_states - set(_ALL_STATES))
+    if unknown:
+        raise typer.BadParameter(
+            f"unknown --fail-on state(s): {', '.join(unknown)}; "
+            f"valid states are: {', '.join(_ALL_STATES)}"
+        )
+    fail_on_triggered = any(s.state in fail_on_states for s in all_states)
     return fail_on_states, fail_on_triggered
 
 

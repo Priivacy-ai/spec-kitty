@@ -195,52 +195,44 @@ def test_mission_type_mission_entry_has_documented_fields(
 
 def test_classify_mission_type_null_value_is_typeless(tmp_path: Path) -> None:
     from specify_cli.cli.commands._mission_type_audit import classify_mission_type
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
 
     d = tmp_path / "kitty-specs" / "001-null"
     _write_meta(d, {"mission_type": None, "mission": "software-dev"})
 
-    state = classify_mission_type(
-        d, registered=["software-dev"], repo=MissionTypeRepository.default()
-    )
+    state = classify_mission_type(d, registered=["software-dev"], roster={})
     assert state.state == "typeless"
     assert state.mission_type_raw is None
 
 
 def test_classify_mission_type_non_string_value_is_typeless(tmp_path: Path) -> None:
     from specify_cli.cli.commands._mission_type_audit import classify_mission_type
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
 
     d = tmp_path / "kitty-specs" / "001-non-string"
     _write_meta(d, {"mission_type": 42, "mission": "software-dev"})
 
-    state = classify_mission_type(
-        d, registered=["software-dev"], repo=MissionTypeRepository.default()
-    )
+    state = classify_mission_type(d, registered=["software-dev"], roster={})
     assert state.state == "typeless"
     assert state.mission_type_raw is None
 
 
 def test_classify_mission_type_missing_meta_json_is_typeless(tmp_path: Path) -> None:
     from specify_cli.cli.commands._mission_type_audit import classify_mission_type
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
 
     d = tmp_path / "kitty-specs" / "001-no-meta"
     d.mkdir(parents=True)
 
-    state = classify_mission_type(d, registered=[], repo=MissionTypeRepository.default())
+    state = classify_mission_type(d, registered=[], roster={})
     assert state.state == "typeless"
 
 
 def test_classify_mission_type_to_dict_shape(tmp_path: Path) -> None:
     from specify_cli.cli.commands._mission_type_audit import classify_mission_type
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
 
     d = tmp_path / "kitty-specs" / "001-resolved"
     _write_meta(d, {"mission_type": "software-dev"})
 
     state = classify_mission_type(
-        d, registered=["software-dev"], repo=MissionTypeRepository.default()
+        d, registered=["software-dev"], roster={"software-dev": object()}
     )
     payload = state.to_dict()
     assert payload["slug"] == "001-resolved"
@@ -248,6 +240,30 @@ def test_classify_mission_type_to_dict_shape(tmp_path: Path) -> None:
     assert payload["mission_type_raw"] == "software-dev"
     assert payload["resolved_key"] == "software-dev"
     assert payload["error"] is None
+
+
+def test_classify_present_key_resolves_non_builtin_type_via_roster() -> None:
+    """Finding 1 (#3402 landing): an activated org-/project-pack custom mission
+    type that resolves in the LAYERED roster but is absent from the built-in
+    bundle must classify as ``resolved`` — not ``activated-unresolvable``. The
+    built-in-only repository would have misreported it, redding a valid
+    ``--fail-on activated-unresolvable`` gate.
+    """
+    from specify_cli.cli.commands._mission_type_audit import _classify_present_key
+
+    org_type = "org-custom-mission-type"
+    # Roster mirrors resolve_layered_mission_types' output: the custom type is
+    # present (project > org > built-in), even though it is not a built-in.
+    resolved_key, state = _classify_present_key(
+        org_type, registered=[org_type], roster={org_type: object()}
+    )
+    assert state == "resolved"
+    assert resolved_key == org_type
+
+    # Absent from every layer of the roster → the activated-unresolvable twin of
+    # _resolve_action_slot's UnknownMissionTypeError.
+    _, missing_state = _classify_present_key(org_type, registered=[org_type], roster={})
+    assert missing_state == "activated-unresolvable"
 
 
 def test_classify_mission_type_classification_helper_exception_is_error_not_crash(
@@ -260,7 +276,6 @@ def test_classify_mission_type_classification_helper_exception_is_error_not_cras
     let the exception propagate out of ``classify_mission_type``.
     """
     import specify_cli.cli.commands._mission_type_audit as mission_type_audit_mod
-    from doctrine.missions.mission_type_repository import MissionTypeRepository
 
     d = tmp_path / "kitty-specs" / "001-boom"
     _write_meta(d, {"mission_type": "software-dev"})
@@ -271,7 +286,7 @@ def test_classify_mission_type_classification_helper_exception_is_error_not_cras
     monkeypatch.setattr(mission_type_audit_mod, "canonical_mission_type_key", _boom)
 
     state = mission_type_audit_mod.classify_mission_type(
-        d, registered=["software-dev"], repo=MissionTypeRepository.default()
+        d, registered=["software-dev"], roster={}
     )
     assert state.state == "error"
     assert state.error is not None
@@ -312,6 +327,36 @@ def test_audit_mission_types_classification_error_does_not_abort_run(
     assert by_slug["002-boom"].state == "error"
     assert by_slug["002-boom"].error is not None
     assert "classifier exploded" in (by_slug["002-boom"].error or "")
+
+
+def test_audit_mission_types_resolves_org_pack_type_via_layered_roster(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Finding 1 (#3402 landing): ``audit_mission_types`` must classify an
+    activated non-built-in (org/project pack) mission type as ``resolved`` by
+    consulting the LAYERED roster (``resolve_layered_mission_types`` — the same
+    factory the runtime's ``_resolve_action_slot`` uses), not the built-in-only
+    ``MissionTypeRepository.default()``. Patching the layered resolver proves
+    the wiring: were the audit still built-in-only, this patch would be inert
+    and the type would misreport as ``activated-unresolvable``.
+    """
+    import specify_cli.cli.commands._mission_type_audit as mission_type_audit_mod
+
+    org_type = "org-custom-mission-type"
+    specs = tmp_path / "kitty-specs"
+    _write_meta(specs / "001-org-custom", {"mission_type": org_type})
+    _write_config(tmp_path, [org_type])
+
+    def _fake_layered(mission_types_dirs: object, pack_context: object) -> dict[str, object]:
+        return {org_type: object()}
+
+    monkeypatch.setattr(
+        mission_type_audit_mod, "resolve_layered_mission_types", _fake_layered
+    )
+
+    states = mission_type_audit_mod.audit_mission_types(tmp_path)
+    by_slug = {s.slug: s for s in states}
+    assert by_slug["001-org-custom"].state == "resolved"
 
 
 # ---------------------------------------------------------------------------
@@ -421,6 +466,29 @@ def test_mission_type_fail_on_state_with_no_matches_exits_zero(
     assert result.exit_code == 0
     doc = json.loads(result.output)
     assert doc["fail_on_triggered"] is False
+
+
+def test_mission_type_fail_on_rejects_unknown_state(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Finding 2 (#3402 landing): a misspelled --fail-on state (e.g. ``unkown``)
+    must fail loudly — exit 2 (typer.BadParameter / click UsageError) — NOT
+    silently match nothing and exit 0, which would be a vacuous-green CI gate.
+    """
+    import specify_cli.cli.commands.doctor as doctor_mod
+    from typer.testing import CliRunner
+
+    from specify_cli.cli.commands.doctor import app
+
+    repo_root = _build_taxonomy_repo(tmp_path)
+    monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: repo_root)
+
+    runner = CliRunner()
+    result = runner.invoke(app, ["mission-type", "--json", "--fail-on", "unkown"])
+
+    # Exit 2 is click's UsageError convention — distinct from the old vacuous
+    # 0 (nothing matched) and from a legitimate --fail-on trigger (1).
+    assert result.exit_code == 2, result.output
 
 
 def test_mission_type_mission_scope(
