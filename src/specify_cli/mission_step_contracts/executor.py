@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
 
-from charter._drg_helpers import load_validated_graph
+from charter._drg_helpers import OrgDRGFragmentError, load_validated_graph, probe_org_root
 from charter.drg import (
     ArtifactKind,
     DRGGraph,
@@ -25,7 +25,6 @@ from charter.drg import (
     NodeKind,
     ResolvedContext,
     filter_graph_by_activation,
-    load_graph_or_dir,
     resolve_context,
     resolve_existing_org_roots,
     resolve_org_dirs,
@@ -312,13 +311,25 @@ class StepContractExecutor:
         same class of problem).
 
         #3525 Fold B — per-root degrade: each root in *org_roots* is
-        independently probed (via ``load_graph_or_dir``, the same loader
-        ``load_validated_graph`` uses internally for each root) BEFORE the
-        chain-wide merge, so a malformed pack #2 drops ONLY pack #2 (one
-        WARNING) while pack #1 -- and every other healthy root -- still
-        contributes. This replaces the pre-fix all-or-nothing degrade, which
-        collapsed the ENTIRE org tier the moment any single configured root
-        failed to load.
+        independently probed BEFORE the chain-wide merge, so a malformed
+        pack #2 drops ONLY pack #2 (one WARNING) while pack #1 -- and every
+        other healthy root -- still contributes. This replaces the pre-fix
+        all-or-nothing degrade, which collapsed the ENTIRE org tier the
+        moment any single configured root failed to load.
+
+        Landing fold (#3401 x #3525): the pre-probe calls
+        ``charter._drg_helpers.probe_org_root``, NOT ``load_graph_or_dir``
+        directly, so it reads a root exactly as ``load_validated_graph``
+        will (root graph AND ``drg/`` fragment) and catches both
+        ``DRGLoadError`` and the module-private ``OrgDRGFragmentError`` that
+        a malformed ``drg/`` fragment raises. A root-only probe
+        misclassified two shapes: a valid root graph with a malformed
+        sibling ``drg/`` fragment read as healthy here but still raised
+        uncaught out of the chain-wide merge below (erasing every other
+        pack's contribution along with it -- not an isolated per-root
+        degrade at all); and a guide-compliant ``drg/``-only pack (no root
+        graph) read as unhealthy here even though the real load handles it
+        fine.
 
         This degrade is deliberately narrow: when *org_roots* is empty (no
         org pack configured, or none exists on disk), any ``DRGLoadError``
@@ -337,8 +348,8 @@ class StepContractExecutor:
         healthy_roots: list[Path] = []
         for root in org_roots:
             try:
-                load_graph_or_dir(root)
-            except DRGLoadError as exc:
+                probe_org_root(root)
+            except (DRGLoadError, OrgDRGFragmentError) as exc:
                 logger.warning(
                     "Org pack DRG at %s failed to load (%s: %s); composing this "
                     "step with the remaining doctrine layers, without this "

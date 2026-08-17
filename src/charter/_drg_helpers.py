@@ -223,6 +223,36 @@ def _load_org_layer(org_root: Path) -> DRGGraph | None:
     )
 
 
+def probe_org_root(org_root: Path) -> None:
+    """Probe *org_root* exactly as :func:`load_validated_graph` will load it.
+
+    Loads both the root-level graph AND the ``drg/`` fragment (via
+    :func:`_load_org_layer`), raising :class:`~doctrine.drg.loader.DRGLoadError`
+    or :class:`OrgDRGFragmentError` if the pack is malformed and returning
+    ``None`` otherwise (including the "no graph anywhere" case, which is a
+    healthy no-op, not an error).
+
+    Consumers that pre-filter an org chain to "healthy" roots before calling
+    :func:`load_validated_graph` (e.g. the mission-step executor's per-pack
+    degrade in
+    ``specify_cli.mission_step_contracts.executor._load_graph_degrading_malformed_org_pack``)
+    MUST probe via this function, not ``load_graph_or_dir(org_root)``
+    directly. Probing only the root level misclassifies two shapes that the
+    real load classifies differently:
+
+    - A pack with a valid root graph AND a malformed ``drg/`` fragment reads
+      as healthy under a root-only probe, but :func:`_load_org_layer` still
+      raises :class:`OrgDRGFragmentError` when it later loads the ``drg/``
+      fragment during the real merge -- so an "isolated to this root" degrade
+      built on a root-only probe is not actually isolated.
+    - A guide-compliant pack whose DRG content lives ONLY under ``drg/`` (no
+      root-level graph) reads as unhealthy under a root-only probe (``load_graph_or_dir``
+      raises ``DRGLoadError: No DRG graph files found``) even though
+      :func:`_load_org_layer` loads it just fine.
+    """
+    _load_org_layer(org_root)
+
+
 def _resolve_org_root(_repo_root: Path) -> Path | None:
     """Return the configured org doctrine snapshot path, or ``None`` if absent.
 
@@ -328,5 +358,7 @@ def load_validated_graph(
 
 
 __all__ = [
+    "OrgDRGFragmentError",
     "load_validated_graph",
+    "probe_org_root",
 ]
