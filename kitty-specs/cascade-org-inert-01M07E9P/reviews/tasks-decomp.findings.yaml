@@ -1,0 +1,30 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: cascade-org-inert-01M07E9P
+note: >
+  DEVIATION FROM STANDARD PROTOCOL (same reason as spec/plan phases — recorded in
+  reviews/spec-refute-1.yaml). Applied directly by the phase agent during and after drafting
+  tasks.md + the three WP prompt files.
+findings: []
+checks_applied:
+  - "Single-concern WPs: WP01=FR-003 (rebaseline), WP02=FR-001 (cascade), WP03=FR-002 (context) —
+    one FR each, no WP straddling two FRs."
+  - "PR-sized / reviewable in one sitting: 7 subtasks (WP01), 9 subtasks (WP02), 5 subtasks (WP03)
+    -- all small parameter-threading changes across a handful of files each; the whole mission's
+    combined diff (single PR, per spec-kitty's default) spans 7 files total, well within a normal
+    single-sitting review."
+  - "No padding, no vacuous tasks: every subtask maps to either a concrete code change (with
+    file:line) or a concrete test requirement tied to a named AC — none are generic placeholders."
+  - "Descriptions concrete enough to implement without re-deriving the plan: each WP prompt file
+    embeds the exact file paths, function names, and line numbers from plan.md/spec.md directly,
+    plus the 'Read first' pointers -- an implementer does not need to re-read plan.md's prose to
+    find where to start."
+  - "CAUGHT AND FIXED during this review pass: WP02's T011 and WP03's T020 initially only tested
+    the multi-pack/no-org-pack cases (FR-001 AC2/AC4, FR-002 AC2/AC4) and silently omitted an
+    explicit test for the single-healthy-org-pack baseline case (FR-001 AC1, FR-002 AC1) -- a real
+    coverage gap, not a decomposition-size problem, but caught during decomp review because it
+    showed up as 'a subtask whose description undersells what it needs to prove.' Expanded both
+    T011 and T020 to explicitly include the AC1 baseline assertion; see reviews/tasks-cover.findings.yaml
+    for the full cover-lens framing of the same finding."

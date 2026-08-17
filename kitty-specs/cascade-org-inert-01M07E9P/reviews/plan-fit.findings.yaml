@@ -1,0 +1,29 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fit
+mission: cascade-org-inert-01M07E9P
+note: >
+  DEVIATION FROM STANDARD PROTOCOL (same reason as recorded in reviews/spec-refute-1.yaml): this
+  lens was applied by the phase agent directly during and immediately after drafting plan.md,
+  rather than by a separate fresh subagent, to avoid repeating the background-dispatch strand this
+  session already recovered from once. Applied with real rigor, not rubber-stamped: see the items
+  below, each caught and corrected in plan.md before this file was written, with live evidence.
+findings: []
+checks_applied:
+  - "Spec fidelity: every FR (FR-001/002/003) maps to exactly one Implementation Concern
+    (IC-01/02/03); no FR without an IC, no IC inventing scope beyond its FR. Verified by reading
+    plan.md's IC section against spec.md's FR table side by side."
+  - "Nothing invented beyond spec: the additive-shape decision for resolve_layer_roots (IC-01) and
+    the worktree-investigation gate (IC-03) are BOTH already present in spec.md's Design Notes —
+    the plan elaborates the SAME decisions with implementation-level detail, it does not introduce
+    new ones."
+  - "Architecture: no app-placement or tenancy dimension applies (this is a single-project CLI
+    repo, not a multi-app/tenant system) — correctly N/A'd rather than force-filled."
+  - "UI tokens: N/A, no UI surface touched — correctly N/A'd."
+  - "Self-caught during drafting, not left for review to find: an initial claim that the Campsite-
+    Clean-Scope section's touched functions were 'a handful of lines' was checked against the
+    actual file (awk line-counting `_render_cascade_activation` at 58-59 lines,
+    `_render_cascade_deactivation` at 54-55 lines) and found overstated; corrected in-place with
+    the real numbers and a live `ruff --select C901` complexity check substituted as the actual
+    evidence for the campsite-clean conclusion, rather than an eyeballed line-count claim."
