@@ -86,13 +86,22 @@ class Indexer:
         errors: List of errors encountered during scanning
     """
 
-    def __init__(self, manifest_registry: ManifestRegistry):
+    def __init__(self, manifest_registry: ManifestRegistry, repo_root: Path | None = None):
         """Initialize Indexer with manifest registry.
 
         Args:
             manifest_registry: ManifestRegistry instance for loading manifests
+            repo_root: Project root, threaded through every
+                ``manifest_registry.load_manifest(mission_type, repo_root=...)``
+                call so a configured org-pack ``expected-artifacts.yaml``
+                override (#3525 Fold C) is honored by the dossier
+                completeness index, not just the governance gate. Optional
+                and defaults to ``None`` -- the pre-fold behavior (no org
+                lookup, built-in manifest tree only) for every caller that
+                does not supply it.
         """
         self.manifest_registry = manifest_registry
+        self._repo_root = repo_root
         self.artifacts: list[ArtifactRef] = []
         self.errors: list[dict] = []
 
@@ -120,7 +129,7 @@ class Indexer:
                 self.artifacts.append(artifact)
 
         # Load manifest
-        manifest = self.manifest_registry.load_manifest(mission_type)
+        manifest = self.manifest_registry.load_manifest(mission_type, repo_root=self._repo_root)
 
         # Build MissionDossier
         dossier = MissionDossier(
@@ -173,7 +182,7 @@ class Indexer:
         """
         relative_path = str(file_path.relative_to(feature_dir))
         artifact_key = self._derive_artifact_key(file_path, mission_type)
-        manifest = self.manifest_registry.load_manifest(mission_type)
+        manifest = self.manifest_registry.load_manifest(mission_type, repo_root=self._repo_root)
 
         # Try to classify (with fallback for unreadable files)
         try:
@@ -352,7 +361,7 @@ class Indexer:
             return []  # No manifest, can't detect missing
 
         # Load manifest to access ExpectedArtifactSpec objects
-        manifest = self.manifest_registry.load_manifest(dossier.mission_type)
+        manifest = self.manifest_registry.load_manifest(dossier.mission_type, repo_root=self._repo_root)
         if not manifest:
             return []
 
@@ -404,7 +413,7 @@ class Indexer:
             Stable artifact key (e.g., 'input.spec.main')
         """
         # Load manifest to check if file matches any known spec
-        manifest = self.manifest_registry.load_manifest(mission_type)
+        manifest = self.manifest_registry.load_manifest(mission_type, repo_root=self._repo_root)
 
         if manifest:
             for specs in manifest.required_always + sum(manifest.required_by_step.values(), []) + manifest.optional_always:

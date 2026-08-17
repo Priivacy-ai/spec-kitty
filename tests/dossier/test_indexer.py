@@ -683,3 +683,102 @@ class TestUnparseableWPHandling:
         assert wp.is_present is False  # fail-closed, no churning raw-byte hash
         assert wp.content_hash_sha256 == ""
         assert wp.error_reason and "invalid" in wp.error_reason
+
+
+class TestIndexerOrgAwareManifest:
+    """#3525 Fold C: ``ManifestRegistry.load_manifest`` already builds the
+    org-pack override branch, but no production caller passed ``repo_root``
+    -- so an org ``expected-artifacts.yaml`` override changed governance-gate
+    behaviour but never reached the dossier completeness index. ``Indexer``
+    now accepts an optional ``repo_root`` at construction and threads it
+    through every ``load_manifest`` call site.
+    """
+
+    def setup_method(self):
+        ManifestRegistry.clear_cache()
+
+    def teardown_method(self):
+        ManifestRegistry.clear_cache()
+
+    def _write_org_pack_config(self, repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
+        config_dir = repo_root / ".kittify"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        lines: list[str] = []
+        if packs:
+            lines += ["doctrine:", "  org:", "    packs:"]
+            for name, local_path in packs:
+                lines.append(f"      - name: {name}")
+                lines.append(f"        local_path: {local_path}")
+        (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def _write_org_manifest(self, org_root: Path, mission_type: str, data: dict) -> None:
+        from ruamel.yaml import YAML
+
+        target_dir = org_root / mission_type
+        target_dir.mkdir(parents=True, exist_ok=True)
+        yaml = YAML()
+        yaml.default_flow_style = False
+        with (target_dir / "expected-artifacts.yaml").open("w") as fh:
+            yaml.dump(data, fh)
+
+    def test_org_override_changes_required_artifact_set(self, tmp_path: Path) -> None:
+        """Red-first (#3525 Fold C): an org-pack ``expected-artifacts.yaml``
+        override registered in ``.kittify/config.yaml`` must change what the
+        dossier indexer reports as missing -- not just what the governance
+        gate reports. Pre-fix, ``Indexer`` never passed ``repo_root`` to
+        ``load_manifest``, so this org-required artifact never appeared as
+        ``missing`` in the indexed dossier even though it was genuinely
+        absent from disk.
+        """
+        repo_root = tmp_path / "project"
+        repo_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        self._write_org_manifest(
+            org_root,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "org-1",
+                "required_always": [
+                    {
+                        "artifact_key": "policy.org-required",
+                        "artifact_class": "policy",
+                        "path_pattern": "org-policy.md",
+                        "blocking": True,
+                    }
+                ],
+            },
+        )
+        self._write_org_pack_config(repo_root, packs=[("acme", org_root)])
+
+        (repo_root / "spec.md").write_text("# Spec\n", encoding="utf-8")
+
+        dossier = Indexer(ManifestRegistry(), repo_root=repo_root).index_feature(
+            repo_root, "software-dev"
+        )
+
+        assert dossier.manifest is not None
+        assert dossier.manifest.get("manifest_version") == "org-1"
+        ghost = next(
+            (a for a in dossier.artifacts if a.artifact_key == "policy.org-required"),
+            None,
+        )
+        assert ghost is not None, "org-required artifact must surface as a missing (ghost) artifact"
+        assert ghost.is_present is False
+        assert ghost.required_status == "required"
+
+    def test_no_repo_root_stays_byte_identical(self, tmp_path: Path) -> None:
+        """The no-org path (``repo_root`` omitted at construction) must
+        produce a dossier identical to before this fold -- the built-in
+        manifest only, no org lookup attempted."""
+        (tmp_path / "spec.md").write_text("# Spec\n", encoding="utf-8")
+
+        with_repo_root_none = Indexer(ManifestRegistry()).index_feature(tmp_path, "software-dev")
+        ManifestRegistry.clear_cache()
+        explicit_none = Indexer(ManifestRegistry(), repo_root=None).index_feature(tmp_path, "software-dev")
+
+        assert with_repo_root_none.manifest == explicit_none.manifest
+        assert [a.artifact_key for a in with_repo_root_none.artifacts] == [
+            a.artifact_key for a in explicit_none.artifacts
+        ]
