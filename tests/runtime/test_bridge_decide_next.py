@@ -9,9 +9,9 @@ phase helper stay <=15 (the WP09 headline: the module's last ``# noqa:
 C901`` is gone).
 
 End-to-end behavior (side-effect order/content across the 29 ``Decision``
-sites) stays proven by the WP01 parity oracle (``test_bridge_parity.py``)
-and the WP02 compat guard (``test_bridge_compat_surface.py``); this file is
-the phase-local unit layer FR-006 asks for, mirroring the
+sites) stays proven by the WP01 parity oracle (``test_bridge_parity.py``); the
+WP02 re-export compat guard that also covered it was retired in #3285. This
+file is the phase-local unit layer FR-006 asks for, mirroring the
 ``test_bridge_decision_builder.py`` / ``test_bridge_composition.py``
 stub-based pattern from WP07/WP08.
 """

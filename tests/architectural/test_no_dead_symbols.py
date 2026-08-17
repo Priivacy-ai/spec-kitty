@@ -927,10 +927,11 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset(
 # (``tests/integration/test_identity_coord_read.py::
 # test_answer_flow_get_mission_type_reads_primary_type``, which
 # monkeypatches ``next_cmd._runtime_bridge_module`` and asserts the
-# patched fake is actually invoked). The whole surface is independently
-# guarded end-to-end by ``tests/runtime/test_bridge_compat_surface.py``
-# (behavioral sentinel + static AST re-export guard covering these same
-# three canonical entries). Tracker: #2531 (runtime-bridge-degod), #2559.
+# patched fake is actually invoked). The dedicated behavioral-sentinel +
+# static AST re-export guard that once covered this surface end-to-end was
+# retired in #3285; the live regression test cited above remains the
+# authoritative proof for these three canonical entries. Tracker: #2531
+# (runtime-bridge-degod), #2559.
 
 _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset()
 

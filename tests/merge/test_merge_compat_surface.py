@@ -9,9 +9,9 @@ per seam file. Both were real, unique coverage (not duplicated by
 ``tests/specify_cli/cli/commands/test_merge_cli_golden.py``, which only pins
 public commands) but re-broke per-seam instead of failing loudly next to the
 shim. This module is the single consolidated guard, shaped after
-``tests/runtime/test_bridge_compat_surface.py`` / ``test_mission_shim_reexports.py``.
+``test_mission_shim_reexports.py``.
 
-Per the codebase convention (``test_bridge_compat_surface.py:132-138``) this
+Per the codebase convention for consolidated compat-surface guards this
 guard is self-contained -- no cross-family shared helper module.
 """
 

@@ -7,9 +7,9 @@ Three independent concerns, all in-memory / no I/O (NFR-003, SC-004):
    per-file native-delegate assertion for the tracked guard/parse symbols
    (``_check_cli_guards`` / ``_check_composed_action_guard`` / the tracked
    parse helpers) was RETIRED in the #2557 dev-assist cleanup: that invariant
-   is covered family-wide by the frozen
-   ``test_bridge_compat_surface.py::test_guard_b_identity_reexport_for_
-   relocated_symbols``, so duplicating it here was redundant. This file now
+   was then covered family-wide by a dedicated frozen bridge compat-surface
+   guard (itself later retired in #3285), so duplicating it here was redundant.
+   This file now
    retains only the UNTRACKED parse-family identity check — the five helpers
    nothing patches ARE plain re-exports and DO satisfy the identity check
    (unique coverage the family guard's ``_``-private inventory does not track).
