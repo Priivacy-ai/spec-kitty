@@ -299,16 +299,79 @@ def test_legacy_warning_remediation_command_generates_charter_yaml(
     assert (tmp_path / ".kittify" / "charter" / "charter.yaml").exists()
 
 
-def test_legacy_bundle_detection_costs_at_most_one_additional_exists_call(
+def test_missing_charter_source_detail_costs_exactly_one_exists_call(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """NFR-001: legacy-bundle detection adds at most one filesystem existence check.
+    """NFR-001, per-consumer: THIS mission's F1/F2 detail costs one charter.md probe.
 
-    We count ``Path.exists()`` invocations against the exact ``charter.md``
-    path during a full ``run_charter_preflight`` call and assert the count
-    is at most one -- pinning the "single additional Path.exists() check"
-    budget as an automated assertion, not just a review note.
+    This is the assertion that actually guards NFR-001 for the feature this
+    mission adds. The integration-level test below counts every probe made
+    during a whole ``run_charter_preflight`` run, so it necessarily also
+    counts probes owned by *other* features (see its docstring) and cannot
+    tell a regression in our code apart from an unrelated new caller
+    upstream. Pinning ``_missing_charter_source_detail`` directly keeps the
+    budget enforceable no matter what else main grows.
+    """
+    from specify_cli.charter_runtime.freshness.computer import (
+        _missing_charter_source_detail,
+    )
+
+    charter_md_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    charter_md_path.parent.mkdir(parents=True, exist_ok=True)
+    charter_md_path.write_text("# legacy prose\n", encoding="utf-8")
+
+    real_exists = Path.exists
+    call_count = 0
+
+    def counting_exists(self: Path) -> bool:
+        nonlocal call_count
+        if self == charter_md_path:
+            call_count += 1
+        return real_exists(self)
+
+    monkeypatch.setattr(Path, "exists", counting_exists, raising=True)
+
+    detail = _missing_charter_source_detail(tmp_path)
+
+    assert "charter.md" in detail, detail
+    assert call_count == 1, (
+        f"_missing_charter_source_detail probed charter.md {call_count} times; "
+        "NFR-001 budgets exactly one."
+    )
+
+
+def test_legacy_bundle_detection_costs_at_most_one_probe_per_consumer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NFR-001, integration: charter.md is probed once per legitimate consumer.
+
+    Counts ``Path.exists()`` invocations against the exact ``charter.md``
+    path during a full ``run_charter_preflight`` call.
+
+    The budget is TWO, not one, and the second probe is not ours. Two
+    independently-shipped features each legitimately probe ``charter.md``
+    exactly once on this path:
+
+    1. ``freshness.computer._missing_charter_source_detail`` -- this
+       mission's F1-vs-F2 ``detail`` for the ``missing`` state (FR-005),
+       pinned to exactly one probe by the per-consumer test above.
+    2. ``preflight.runner._is_legacy_charter_bundle`` -- landed separately
+       on main (``#3498``, same issue ``#2831``) to select advisory warning
+       copy, and its own docstring likewise budgets "exactly one additional
+       filesystem existence check".
+
+    They are NOT redundant and must not be collapsed into one probe: (1)
+    treats ``charter.md`` OR any of the four legacy bundle YAMLs as "you
+    have a charter", while (2) is deliberately ``charter.md``-only. Feeding
+    (2) from (1) would fire the legacy-bundle advisory for a project
+    carrying, say, a lone ``references.yaml`` and no ``charter.md`` --
+    a behaviour change to main's code, not a landing fix.
+
+    So the ceiling is one-per-consumer. A regression that makes either
+    consumer chatty still fails: this test catches a third probe appearing,
+    and the per-consumer test above catches ours growing to two.
     """
     init_git_repo(tmp_path)
     seed_charter(tmp_path)
@@ -332,7 +395,11 @@ def test_legacy_bundle_detection_costs_at_most_one_additional_exists_call(
     )
 
     assert result.passed is True
-    assert call_count <= 1
+    assert call_count <= 2, (
+        f"charter.md was probed {call_count} times; NFR-001 budgets one probe "
+        "per legitimate consumer and only two are sanctioned (see docstring). "
+        "A third means a new caller appeared -- trace it, do not raise this."
+    )
 
 
 # ---------------------------------------------------------------------------
