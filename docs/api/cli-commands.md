@@ -1164,6 +1164,8 @@ _Project health diagnostics_
 │ identity                Report mission-identity health across kitty-specs/.  │
 │ topology                Report each mission's STORED topology across         │
 │                         kitty-specs/.                                        │
+│ mission-type            Report mission-type resolution health across         │
+│                         kitty-specs/.                                        │
 │ sparse-checkout         Detect and optionally remediate legacy               │
 │                         sparse-checkout state.                               │
 │ shim-registry           Check for overdue compatibility shims in the shim    │
@@ -1431,6 +1433,40 @@ _Project health diagnostics_
 │ --allow-dirty                      Allow --fix when relevant git paths are   │
 │                                    already dirty                             │
 │ --help               -h            Show this message and exit.               │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor mission-type
+
+```
+ Usage: spec-kitty doctor mission-type [OPTIONS]
+
+ Report mission-type resolution health across kitty-specs/.
+
+ Classifies every mission into one of six states (FR-008):
+
+ \b
+ - resolved: mission_type present, activated, and loadable
+ - activated-unresolvable: activated but has no loadable profile on disk
+ - unknown: mission_type present but not activated/registered anywhere
+ - typeless: no mission_type key (or a blank/null/non-string value)
+ - legacy-key-only: only the retired `mission` key is present
+ - error: meta.json unreadable or malformed
+
+ Examples:
+     spec-kitty doctor mission-type
+     spec-kitty doctor mission-type --json
+     spec-kitty doctor mission-type --mission 083-foo
+     spec-kitty doctor mission-type --fail-on unknown,activated-unresolvable
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json                   Emit structured JSON output (suitable for CI)       │
+│ --mission          TEXT  Scope report to a single mission slug               │
+│ --fail-on          TEXT  Exit non-zero if any mission is in the given        │
+│                          state(s). Comma-separated list of: resolved,        │
+│                          activated-unresolvable, unknown, typeless,          │
+│                          legacy-key-only, error.                             │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3480,15 +3516,18 @@ _Inspect mission types for this project._
  --decision-id "input:review" --result success --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --agent                TEXT  Agent name (required for advancing mode)        │
-│ --result               TEXT  Result of previous step:                        │
-│                              success|failed|blocked. If omitted, returns     │
-│                              current state without advancing (query mode).   │
-│ --mission              TEXT  Mission slug                                    │
-│ --json                       Output JSON decision only                       │
-│ --answer               TEXT  Answer to a pending decision                    │
-│ --decision-id          TEXT  Decision ID (required if multiple pending)      │
-│ --help         -h            Show this message and exit.                     │
+│ --agent                   TEXT  Agent name (required for advancing mode)     │
+│ --result                  TEXT  Result of previous step:                     │
+│                                 success|failed|blocked. If omitted, returns  │
+│                                 current state without advancing (query       │
+│                                 mode).                                       │
+│ --mission                 TEXT  Mission slug                                 │
+│ --json                          Output JSON decision only                    │
+│ --answer                  TEXT  Answer to a pending decision                 │
+│ --decision-id             TEXT  Decision ID (required if multiple pending)   │
+│ --owned-checkout          PATH  Explicit checkout root owned by this         │
+│                                 invocation                                   │
+│ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

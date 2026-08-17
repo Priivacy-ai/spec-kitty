@@ -789,6 +789,18 @@ _Mission lifecycle commands for AI agents_
 │                                                            Operator escape   │
 │                                                            hatch; never used │
 │                                                            by automation.    │
+│ --owned-checkout                        PATH               Explicitly        │
+│                                                            declare a         │
+│                                                            checkout root     │
+│                                                            owned by this     │
+│                                                            invocation. The   │
+│                                                            path must be the  │
+│                                                            primary checkout  │
+│                                                            or a validated    │
+│                                                            linked worktree   │
+│                                                            of the resolved   │
+│                                                            primary           │
+│                                                            repository.       │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
