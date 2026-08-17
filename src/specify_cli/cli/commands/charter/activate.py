@@ -250,6 +250,14 @@ def _activate_cascade_target(
     ``org_roots`` is empty/``None`` (no org packs, or none in the chain),
     exactly one attempt is made with the original *layer_roots* -- byte-for-
     byte the pre-T008 call shape (FR-001 AC4 no-org-pack regression).
+
+    R2-002 (pr-correctness.findings.yaml): when every candidate fails, the
+    raised error aggregates every candidate's failure reason rather than
+    surfacing only the last one. With a single candidate (the common
+    no-org-pack / single-org-pack case) this is still byte-identical to
+    raising that one exception directly -- aggregation only changes the
+    multi-candidate "none of them worked" diagnostic, never the control
+    flow or the success path.
     """
     candidate_layer_roots: list[dict[str, Path] | None] = (
         [{**(layer_roots or {}), "org": root} for root in org_roots]
@@ -269,7 +277,13 @@ def _activate_cascade_target(
             return
         except ValueError as exc:
             failures.append(exc)
-    raise failures[-1]
+    if len(failures) == 1:
+        raise failures[-1]
+    joined = "; ".join(f"org root {i + 1}/{len(failures)}: {exc}" for i, exc in enumerate(failures))
+    raise ValueError(
+        f"No candidate org root could activate {kind_token}:{config_id} "
+        f"({len(failures)} candidates tried): {joined}"
+    ) from failures[-1]
 
 
 def _render_cascade_activation(

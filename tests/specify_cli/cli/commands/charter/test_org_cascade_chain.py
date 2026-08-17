@@ -539,3 +539,64 @@ class TestMalformedOrgPackLoudFailure:
             # load_graph_or_dir's contract for a pack with no graph
             # fragment) -- acceptable per spec's Out of Scope / C-006.
             assert result.exception is not None
+
+
+# ---------------------------------------------------------------------------
+# R2-002 (pr-correctness.findings.yaml) — _activate_cascade_target must not
+# discard every failure but the last when no org-root candidate succeeds.
+# ---------------------------------------------------------------------------
+
+
+class _FakeManagerMultiFail:
+    """Stand-in for ``CharterPackManager`` whose ``.activate`` raises a
+    distinct, caller-supplied ``ValueError`` on each successive call --
+    one per org-root candidate ``_activate_cascade_target`` tries."""
+
+    def __init__(self, messages: list[str]) -> None:
+        self._messages = list(messages)
+        self.calls = 0
+
+    def activate(self, ctx_project, kind_token, config_id, *, cascade, layer_roots):
+        message = self._messages[self.calls]
+        self.calls += 1
+        raise ValueError(message)
+
+
+class TestActivateCascadeTargetFailureAggregation:
+    """When every candidate org root fails, the raised error must name every
+    candidate's failure reason, not just the last one -- previously
+    ``raise failures[-1]`` silently discarded every earlier candidate's
+    reason, which could point an operator diagnosing a multi-org-pack
+    "Unknown ID" report at the wrong root."""
+
+    def test_all_candidates_fail_aggregates_every_reason(self) -> None:
+        manager = _FakeManagerMultiFail(
+            ["Unknown directive ID 'x' in pack1", "structural issue in pack2"]
+        )
+        org_roots = [Path("/org1"), Path("/org2")]
+
+        with pytest.raises(ValueError) as excinfo:
+            activate_mod._activate_cascade_target(
+                manager, None, "directive", "x", None, org_roots
+            )
+
+        message = str(excinfo.value)
+        assert "Unknown directive ID 'x' in pack1" in message, message
+        assert "structural issue in pack2" in message, message
+        assert manager.calls == 2
+
+    def test_single_candidate_failure_is_unchanged(self) -> None:
+        """No org roots configured (or effectively a single-candidate
+        chain): the raised exception is the sole candidate's own error,
+        byte-identical to the pre-fix behaviour -- aggregation only changes
+        the diagnostic once there are 2+ candidates (FR-001 AC4 no-org-pack
+        regression, preserved)."""
+        manager = _FakeManagerMultiFail(["Unknown directive ID 'x'"])
+
+        with pytest.raises(ValueError) as excinfo:
+            activate_mod._activate_cascade_target(
+                manager, None, "directive", "x", None, None
+            )
+
+        assert str(excinfo.value) == "Unknown directive ID 'x'"
+        assert manager.calls == 1
