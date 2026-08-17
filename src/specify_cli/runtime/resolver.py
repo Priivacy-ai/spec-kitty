@@ -214,7 +214,7 @@ def _package_default_path(
     subdir: str,
     name: str,
 ) -> Path | None:
-    """Resolve package defaults (tier 5) through charter's sole doctrine door.
+    """Resolve package defaults (tier 6) through charter's sole doctrine door.
 
     FR-003 / T019 — **construction-contract mapping, recorded here as the
     call site the WP asked to document.**
@@ -246,11 +246,11 @@ def _package_default_path(
     alongside the resolution entry point, so repeated tier-6 lookups still
     reuse one repository.
 
-    Note this module keeps its own tiers 1-4 (a second, parallel filesystem
+    Note this module keeps its own tiers 1-5 (a second, parallel filesystem
     implementation with known semantic drift from ``doctrine/resolver.py``);
     that is named, pre-existing deferred debt and explicitly out of FR-003's
-    scope. Only the tier-5 hop is charter-mediated, which is why the factory
-    exposes a tier-5-only entry point at all.
+    scope. Only the tier-6 hop is charter-mediated, which is why the factory
+    exposes a tier-6-only entry point at all.
     """
     from charter.resolver import DoctrineService  # noqa: PLC0415 — lazy: keeps the charter import off module load
 
