@@ -191,13 +191,26 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
     construction here so this module does not depend on a private
     surface. Both implementations point ``builtin_roots`` at the
     packaged missions directory so built-in keys resolve identically.
+
+    Also mirrors the runtime bridge's ``org_roots`` population (FR-008,
+    DEC-006 site 3 -- the third, independently-duplicated production
+    wiring site that backs ``mission run <key>``): sourced via the lazy
+    ``charter.drg.resolve_org_roots`` facade, no ``try/except`` around the
+    call (``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` must
+    propagate, DEC-005/NFR-001). ``resolve_org_roots`` returns ``[]`` when
+    no org packs are configured, so this is a no-op for the common case
+    (NFR-005/SC-007).
     """
     package_missions = (
         Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
     )
+
+    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_missions],
+        org_roots=list(resolve_org_roots(repo_root)),
     )
 
 

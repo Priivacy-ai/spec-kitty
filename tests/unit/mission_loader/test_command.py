@@ -594,3 +594,69 @@ def test_default_discovery_context_is_built_when_none_supplied(
     result = run_custom_mission("ok-mission", "tracked-slug", repo_root)
     assert result.exit_code == 0
     assert result.envelope["mission_key"] == "ok-mission"
+
+
+def test_org_tier_mission_discovered_via_third_wiring_site(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DEC-006 / User Story 3 Acceptance Scenario 4: this module's own,
+    independently-duplicated `_build_discovery_context` (the "third wiring
+    site" the originating research missed) populates `org_roots` and
+    discovers a mission there -- proving `mission run <key>` sees the org
+    tier, not just the generic `spec-kitty next` engine.
+
+    Uses the REAL discovery context (no `discovery_context=` override) so
+    `resolve_org_roots` actually runs through this module's own code path,
+    not a test-injected shortcut.
+    """
+    from runtime.next._internal_runtime.discovery import discover_missions_with_warnings
+    from specify_cli.mission_loader import command as command_mod
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    org_root = tmp_path / "org-pack"
+    _write_mission(org_root, "missions", "org-custom-mission", _VALID_BODY)
+
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True)
+    (config_dir / "config.yaml").write_text(
+        "doctrine:\n"
+        "  org:\n"
+        "    packs:\n"
+        "      - name: acme\n"
+        f"        local_path: {org_root}\n",
+        encoding="utf-8",
+    )
+
+    # Isolate the user-home tier so it cannot leak a real mission in.
+    monkeypatch.setenv("HOME", str(tmp_path / "fake-home"))
+    (tmp_path / "fake-home").mkdir(exist_ok=True)
+
+    # Unit-level proof: this module's own _build_discovery_context (not an
+    # injected override) resolves the org root and surfaces the mission at
+    # tier "org".
+    ctx = command_mod._build_discovery_context(repo_root)
+    assert org_root in ctx.org_roots
+    discovered = discover_missions_with_warnings(ctx).missions
+    match = next(d for d in discovered if d.key == "org-custom-mission")
+    assert match.precedence_tier == "org"
+    assert match.selected is True
+
+    # End-to-end proof: run_custom_mission (no discovery_context override)
+    # succeeds using this same org-tier mission.
+    fake_run_dir = tmp_path / "runs" / "org-run"
+    fake_run_dir.mkdir(parents=True)
+
+    from runtime.next import runtime_bridge
+
+    monkeypatch.setattr(
+        runtime_bridge,
+        "get_or_start_run",
+        lambda **_: _FakeRunRef(run_id="org-run", run_dir=str(fake_run_dir)),
+    )
+
+    result = run_custom_mission("org-custom-mission", "org-tracked-slug", repo_root)
+    assert result.exit_code == 0, result.envelope
+    assert result.envelope["result"] == "success"
+    assert result.envelope["mission_key"] == "org-custom-mission"
