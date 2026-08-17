@@ -41,6 +41,7 @@ from charter.drg import (
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     filter_graph_by_activation,
+    resolve_existing_org_roots,
     resolve_org_dirs,
 )
 from charter.mission_steps import MissionStepContract, MissionStepContractRepository
@@ -288,12 +289,11 @@ def _activated_msc_urns(
     exactly as before — single ``repo_root`` argument, no org-roots
     threading — so existing overrides are unaffected.
     """
-    if graph_loader is not None:
-        graph = graph_loader(repo_root)
-    else:
-        from doctrine.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
-
-        graph = load_validated_graph(repo_root, org_roots=resolve_existing_org_roots(repo_root))
+    graph = (
+        graph_loader(repo_root)
+        if graph_loader is not None
+        else load_validated_graph(repo_root, org_roots=resolve_existing_org_roots(repo_root))
+    )
     pack = (pack_resolver or _resolve_pack_context)(repo_root)
     if pack is not None:
         graph = filter_graph_by_activation(graph, pack)

@@ -28,7 +28,10 @@ from ruamel.yaml.error import YAMLError
 from charter.schemas import DoctrineSelectionConfig
 
 __all__ = [
-    "_enumerate_org_pack_paths",
+    # `_enumerate_org_pack_paths` retired from __all__ (#3520 chain fold): its
+    # only cross-module callers (the executor + action-bundle first-match loops)
+    # were deleted when the DRG became chain-aware; it stays a module-internal
+    # (still used by the helpers below).
     "_iter_org_charter_docs",
     "_load_doctrine_selection",
     "_missing_pack_diagnostic",
