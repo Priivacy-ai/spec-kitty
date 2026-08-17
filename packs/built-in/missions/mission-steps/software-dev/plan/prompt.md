@@ -115,8 +115,9 @@ spec-kitty charter context --action plan --json
 
 ## Visual Communication (recommended)
 
-For non-trivial architecture, data/control flow, boundaries, migrations, or
-risky interactions, load `spk-doctrine-show-me` and use the smallest diagram
+Apply the visual doctrine for non-trivial architecture, data/control flow,
+boundaries, migrations, or risky interactions. Load `spk-doctrine-show-me` and
+use the smallest diagram
 that materially reduces prose. Prefer Mermaid in Markdown; use PlantUML when
 richer layout, mature C4 support, or its DSL earns the added rendering cost.
 Apply C4 progressive zoom for architecture and stop at the first level that

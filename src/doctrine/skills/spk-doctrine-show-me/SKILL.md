@@ -27,20 +27,13 @@ states, relationships, and boundaries needed for the current decision. Label
 relationships and preserve source paths or identifiers that make the visual
 checkable against code and artifacts.
 
-## Use Spec Kitty's Diagram Sources
+## Load Spec Kitty's Diagram Doctrine
 
-Prefer Mermaid for inline Markdown. Use PlantUML for richer layout control,
-standalone sources, mature C4 support, or the workshop/stickies DSL. Read only
-the guide needed for the selected notation:
-
-- `packs/built-in/toolguides/MERMAID_DIAGRAMMING.md`
-- `packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md`
-- `src/doctrine/templates/diagrams/` for project-owned themes and examples
-
-For architecture, apply `USE_C4_MODEL_TECHNIQUES`; zoom progressively and stop
-when the question is answered. Before sharing an architecture diagram, apply
-the `architecture-diagram-review-checklist` tactic: title, audience, legend
-when needed, typed/described elements, and labelled unidirectional relationships.
+Prefer Mermaid inline; use PlantUML when richer layout, C4 support, or its DSL
+earns the rendering cost. Read `references/spec-kitty-diagram-sources.md`, then
+load only the needed toolguide, directive, or tactic through `spec-kitty charter
+context --include ...`. It maps portable commands to the canonical Mermaid and
+PlantUML guides, C4 directive, diagram-review tactic, and bundled theme assets.
 
 In specification, visualize actor flows, concepts, rules, and lifecycle states;
 do not smuggle implementation choices into product requirements. In planning,
@@ -56,22 +49,24 @@ consume structured data instead of scraping ANSI output:
 spec-kitty agent tasks status --json --mission <handle>
 ```
 
-Render the canonical flow in this order:
+Keep lifecycle truth distinct from the current status display projection:
 
 ```text
-Planned → Doing → For Review → Approved → Done
+planned → claimed → in_progress → for_review → in_review → approved → done
+Display: Planned → Doing → For Review → Approved → Done
 ```
 
-Fold `claimed`, `in_progress`, and `in_review` into **Doing**; mark claimed and
-in-review entries rather than inventing extra columns. Surface blocked,
-canceled, stale, stalled-review, and stale-verdict items in a warning section.
-On narrow screens, stack the same five groups vertically instead of squeezing a
-wide table.
+For the five-group display only, fold `claimed`, `in_progress`, and `in_review`
+into **Doing** and mark claimed/review entries. Read blocked/canceled from
+`work_packages[].lane`, stale from `work_packages[].is_stale`, and review
+warnings from `stalled_wps` and `stale_verdicts`; show them off-board. On narrow
+screens, stack the same groups vertically.
 
 Show **Done progress** (`done_count / total_wps`) separately from **Weighted readiness**
 (`progress_percentage`). Never label weighted readiness as completed
-work. End with the exact next action from status output, normally
-`spec-kitty next --agent <name> --mission <handle>`.
+work. JSON has no `next_action`: reproduce the human hint from `mission_slug` as
+`spec-kitty next --agent <your-name> --mission <mission_slug>`, with the caller
+supplying the agent. That command—not status—selects the exact workflow action.
 
 ## Origin and Attribution
 

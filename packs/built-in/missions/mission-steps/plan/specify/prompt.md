@@ -33,6 +33,13 @@ Produce a plan specification that a stakeholder could read cold and
 understand: what problem is being planned for, why it matters now, who has
 to agree, and what boundaries constrain an acceptable plan.
 
+## Visual Communication (recommended)
+
+Apply the visual doctrine when stakeholder relationships, decision boundaries,
+dependencies, or a non-trivial sequence is clearer visually. Load
+`spk-doctrine-show-me` and add the smallest useful diagram. Keep it focused on
+the planning problem; do not introduce implementation architecture.
+
 ## What to Do
 
 1. **State the problem.** In 1-3 sentences, name the decision-shaped problem
