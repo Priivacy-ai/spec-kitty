@@ -36,7 +36,13 @@ from specify_cli.retrospective import (
     RetrospectiveActor,
 )
 from specify_cli.retrospective.lifecycle_events import Actor as LifecycleActor
-from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_gen_record, read_record
+from specify_cli.retrospective.reader import (
+    FINDING_CATEGORIES,
+    SchemaError,
+    YAMLParseError,
+    read_gen_record,
+    read_record,
+)
 from specify_cli.retrospective.schema import (
     ActorRef,
     GenActor,
@@ -528,11 +534,13 @@ def synthesize_cmd(
             _err_console.print(f"[red]Error:[/red] {msg}")
             raise typer.Exit(3) from missing_record_exc
     except (YAMLParseError, SchemaError) as exc:
+        gen_exc: Exception | None = None
         try:
             generator_record = read_gen_record(retro_file)
             record = None
-        except (FileNotFoundError, YAMLParseError, SchemaError):
+        except (FileNotFoundError, YAMLParseError, SchemaError) as gen_error:
             generator_record = None
+            gen_exc = gen_error
         else:
             outcome = "retrospective_synthesized"
             if generator_record.proposals:
@@ -542,12 +550,24 @@ def synthesize_cmd(
                     "so synthesize will run as an empty dry-run batch."
                 )
         if generator_record is None:
-            msg = f"Retrospective record malformed: {exc}"
+            # #3533: report the GENERATOR reader's diagnosis, not the Pydantic one.
+            # A record written by `retrospect create` is generator-shaped, so the
+            # nested-schema reader ALWAYS fails on it and its ~100 field errors
+            # describe a schema the file was never meant to satisfy. The generator
+            # reader's message is one line and names the offending field, e.g.
+            # "not_helpful[0].category is invalid" — the only actionable half.
+            # Surfacing the wrong one has twice led readers to conclude the tool
+            # contradicts itself when a single enum value was wrong.
+            detail = str(gen_exc) if gen_exc is not None else str(exc)
+            if gen_exc is not None and "category is invalid" in detail:
+                allowed = ", ".join(sorted(FINDING_CATEGORIES))
+                detail = f"{detail}\nAllowed finding categories: {allowed}"
+            msg = f"Retrospective record malformed: {detail}"
             if json_only:
-                _err_console.print_json(json.dumps({"error": "record_malformed", "detail": str(exc)}))
+                _err_console.print_json(json.dumps({"error": "record_malformed", "detail": detail}))
             else:
                 _err_console.print(f"[red]Error:[/red] {msg}")
-            raise typer.Exit(3) from exc
+            raise typer.Exit(3) from (gen_exc if gen_exc is not None else exc)
     except OSError as exc:
         msg = f"I/O error reading retrospective: {exc}"
         if json_only:

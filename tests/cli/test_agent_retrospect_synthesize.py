@@ -740,3 +740,49 @@ def test_json_out_writes_file(tmp_path: Path) -> None:
     envelope = json.loads(out_file.read_text())
     assert envelope["schema_version"] == "1"
     assert envelope["command"] == "agent.retrospect.synthesize"
+
+
+def test_invalid_category_reports_generator_diagnosis_not_pydantic_wall(tmp_path: Path) -> None:
+    """#3533: one bad enum value must not surface ~100 errors for the other schema.
+
+    A record written by ``retrospect create`` is generator-shaped, so the nested
+    Pydantic reader always rejects it. When the generator reader ALSO rejects it,
+    the actionable message is the generator's one-liner naming the field -- not
+    the Pydantic error list, which describes a schema the file never targeted.
+    Reporting the wrong one twice led readers to conclude the tool contradicts
+    itself when a single category value was wrong.
+    """
+    root = tmp_path
+    retro_path = _write_generator_retrospective(root)
+    retro_path.write_text(
+        retro_path.read_text(encoding="utf-8").replace(
+            "category: process", "category: terminus"
+        ),
+        encoding="utf-8",
+    )
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.locate_project_root",
+            return_value=root,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.resolve_mission_handle",
+            return_value=_make_resolved_mission(tmp_path=root),
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["retrospect", "synthesize", "--mission", FAKE_SLUG],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 3, result.output
+    # The generator reader's precise diagnosis is what reaches the operator.
+    assert "not_helpful[0].category is invalid" in result.output, result.output
+    # And the allow-list, because it is otherwise only a frozenset in reader.py.
+    assert "Allowed finding categories:" in result.output, result.output
+    assert "review_loop" in result.output, result.output
+    # The Pydantic wall for the schema this file never targeted must NOT appear.
+    assert "extra_forbidden" not in result.output, result.output
+    assert "Field required" not in result.output, result.output
