@@ -46,14 +46,18 @@ def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     ``charter``, and reaches ``doctrine`` only through the ``charter.drg``
     proxy (runtime must reach doctrine through charter — never directly;
     see ``tests/architectural/test_runtime_charter_doctrine_boundary.py``).
-    Existence-filtering mirrors every other ``resolve_org_roots`` consumer
-    (e.g. ``charter.doctrine_service_builder._self_resolve_existing_org_roots``):
-    a stale/never-fetched ``local_path`` config entry degrades to "no org
+    Delegates to the shared
+    :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots` primitive
+    (#3525 Fold A) rather than re-implementing the filter comprehension —
+    the same primitive every other "does this org root exist" consumer now
+    routes onto (e.g.
+    ``charter.doctrine_service_builder._self_resolve_existing_org_roots``): a
+    stale/never-fetched ``local_path`` config entry degrades to "no org
     contribution" for this call rather than raising.
     """
-    from charter.drg import resolve_org_roots  # noqa: PLC0415
+    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
 
-    return [root for root in resolve_org_roots(repo_root) if root.exists()]
+    return resolve_existing_org_roots(repo_root)
 
 
 class ArtifactClassEnum(StrEnum):
