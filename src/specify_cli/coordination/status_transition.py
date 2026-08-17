@@ -25,7 +25,10 @@ from specify_cli.coordination.status_service import (
     read_event_stream_log,
     wp_lane_actor_from_events,
 )
-from specify_cli.coordination.transaction import BookkeepingTransaction
+from specify_cli.coordination.transaction import (
+    BookkeepingTransaction,
+    BookkeepingWorktreeMissing,
+)
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
@@ -42,6 +45,7 @@ from specify_cli.status.models import (
     Lane,
     StatusEvent,
     TransitionRequest,
+    WPInnerStateDelta,
     actor_identity_str,
 )
 from specify_cli.status.reducer import reduce as _reduce_events
@@ -988,6 +992,70 @@ def _deferred_resolved_binding_fan_out(
         _emit._resolved_binding_fan_out(annotation, mission_slug)
 
     return emit
+
+
+def emit_inner_state_changed_transactional(
+    feature_dir: Path,
+    wp_id: str,
+    delta: WPInnerStateDelta,
+    *,
+    actor: str,
+    mission_slug: str,
+    at: str | None = None,
+    repo_root: Path | None = None,
+    operation: str | None = None,
+    capability: GuardCapability = GuardCapability.STANDARD,
+) -> InnerStateChanged:
+    """Persist an inner-state annotation on the same durable status surface."""
+    request = TransitionRequest(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        actor=actor,
+        repo_root=repo_root,
+    )
+    identity = _identity_for_request(request)
+
+    def _uncommitted_emit() -> InnerStateChanged:
+        return _emit.emit_inner_state_changed(
+            feature_dir,
+            wp_id,
+            delta,
+            actor=actor,
+            mission_slug=mission_slug,
+            at=at,
+            repo_root=repo_root,
+        )
+
+    if identity.coordination_branch is None:
+        return _uncommitted_emit()
+
+    annotation = _annotate(
+        wp_id,
+        delta,
+        actor=actor,
+        at=at or now_utc_iso(),
+        event_id=_emit._generate_ulid(),
+    )
+    transaction_mission_id = identity.mission_id or f"legacy-{mission_slug}"
+    try:
+        with BookkeepingTransaction.acquire(
+            repo_root=identity.repo_root,
+            mission_anchor_root=identity.mission_anchor_root,
+            mission_id=transaction_mission_id,
+            mission_slug=mission_slug,
+            mid8=identity.mid8,
+            destination_ref=identity.destination_ref,
+            operation=operation or f"inner-state annotation {wp_id}",
+            capability=capability,
+        ) as txn:
+            txn.append_events([annotation])
+            txn.defer_outbound(
+                _deferred_resolved_binding_fan_out(annotation, mission_slug)
+            )
+    except BookkeepingWorktreeMissing:
+        return _uncommitted_emit()
+    return annotation
 
 
 def _defer_dossier_sync(

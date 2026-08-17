@@ -81,6 +81,7 @@ __all__ = [
     "declared_read_surface",
     "mission_context_for",
     "placement_seam",
+    "resolve_create_time_write_target",
     "resolve_action_context",
     "resolve_artifact_surface",
     # resolve_context_for_mission: demoted — no cross-module src/ from-import
@@ -2194,6 +2195,27 @@ def coord_read_dir_for(
     if resolved.surface_kind is not TopologySurface.COORD:
         return None
     return resolved.path
+
+
+def resolve_create_time_write_target(planning_branch: str) -> CommitTarget:
+    """Return the explicit target used before mission identity is readable.
+
+    Mission creation derives ``planning_branch`` only after exact-checkout
+    ownership validation. During that bootstrap interval no mission metadata
+    exists for placement resolution, so this pure seam carries the already
+    authoritative short branch into commit routing.
+    """
+    if (
+        not planning_branch
+        or planning_branch != planning_branch.strip()
+        or planning_branch.startswith("refs/heads/")
+    ):
+        raise ActionContextError(
+            "CREATE_TIME_TARGET_INVALID",
+            "Create-time planning branch must be a non-empty short branch name "
+            "without the 'refs/heads/' prefix.",
+        )
+    return CommitTarget(ref=planning_branch)
 
 
 def placement_seam(

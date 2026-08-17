@@ -7,7 +7,7 @@ command ``create()`` is a thin wrapper around this function.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 import contextlib
 import logging
 import re
@@ -25,6 +25,7 @@ from mission_runtime import (
     MissionTopology,
     placement_seam,
     resolve_create_time_write_target,
+    resolve_write_target_or_degrade,
 )
 from specify_cli.core.checkout_ownership import (
     OwnershipClaim,
@@ -38,10 +39,20 @@ from specify_cli.core.mission_payload import (
     default_mission_display_name,
     default_mission_purpose_context,
 )
-from specify_cli.core.paths import is_worktree_context, locate_project_root
+from specify_cli.core.paths import (
+    get_main_repo_root,
+    is_worktree_context,
+    locate_project_root,
+    resolve_mission_creation_root,
+)
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
-from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
+from specify_cli.lanes.branch_naming import (
+    is_lane_branch,
+    is_mission_branch,
+    mission_dir_name,
+    resolve_mid8,
+)
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
 logger = logging.getLogger(__name__)
@@ -178,6 +189,7 @@ def _commit_feature_file(
     mission_slug: str,
     artifact_type: str,
     repo_root: Path,
+    planning_branch: str,
     *,
     worktree_root: Path | None = None,
     create_time_target: CommitTarget | None = None,
@@ -215,8 +227,11 @@ def _commit_feature_file(
     seam_target = (
         create_time_target
         if create_time_target is not None
-        else placement_seam(repo_root, mission_slug).write_target(
-            MissionArtifactKind.SPEC
+        else resolve_write_target_or_degrade(
+            get_main_repo_root(repo_root),
+            mission_slug,
+            MissionArtifactKind.SPEC,
+            degrade_ref=planning_branch,
         )
     )
     safe_commit(
@@ -227,6 +242,20 @@ def _commit_feature_file(
         paths=(file_path,),
         capability=GuardCapability.STANDARD,
     )
+
+
+def _is_safe_external_creation_worktree(
+    cwd: Path,
+    resolved_root: Path,
+    current_branch: str,
+) -> bool:
+    """Return whether ``cwd`` is a caller-owned, non-mission worktree."""
+    checkout_root = resolved_root.resolve()
+    if cwd != checkout_root and checkout_root not in cwd.parents:
+        return False
+    if WORKTREES_DIR in checkout_root.parts:
+        return False
+    return not (is_lane_branch(current_branch) or is_mission_branch(current_branch))
 
 
 # ---------------------------------------------------------------------------
@@ -480,10 +509,10 @@ def _create_mission_core_impl(
     resolved_root = repo_root
 
     if owned_checkout is None:
-        if not allow_worktree_context and is_worktree_context(cwd):
-            raise MissionCreationError("Cannot create missions from inside a worktree. Run from the project root checkout.")
         if resolved_root is None:
             resolved_root = locate_project_root()
+        if resolved_root is not None:
+            resolved_root = resolve_mission_creation_root(resolved_root, cwd)
     else:
         if resolved_root is None:
             resolved_root = locate_project_root()
@@ -500,6 +529,19 @@ def _create_mission_core_impl(
     if resolved_root is None:
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
+    in_worktree = is_worktree_context(cwd)
+    checkout_root = resolved_root.resolve()
+    if (
+        owned_checkout is None
+        and not allow_worktree_context
+        and in_worktree
+        and cwd != checkout_root
+        and checkout_root not in cwd.parents
+    ):
+        raise MissionCreationError(
+            "Cannot create missions from inside a worktree. Run from the project root checkout."
+        )
+
     effective_root = (
         ownership_claim.claimed_checkout
         if ownership_claim is not None
@@ -513,6 +555,15 @@ def _create_mission_core_impl(
     current_branch = get_current_branch(effective_root)
     if not current_branch or current_branch == "HEAD":
         raise MissionCreationError("Must be on a branch to create missions (detached HEAD detected).")
+    if (
+        owned_checkout is None
+        and not allow_worktree_context
+        and in_worktree
+        and not _is_safe_external_creation_worktree(cwd, resolved_root, current_branch)
+    ):
+        raise MissionCreationError(
+            "Cannot create missions from inside a worktree. Run from the project root checkout."
+        )
 
     # ------------------------------------------------------------------
     # 3. Resolve planning branch
@@ -717,6 +768,7 @@ def _create_mission_core_impl(
             mission_slug_formatted,
             "meta",
             resolved_root,
+            planning_branch,
             worktree_root=effective_root,
             create_time_target=create_time_target,
         )
@@ -742,6 +794,7 @@ def _create_mission_core_impl(
                 mission_slug_formatted,
                 "meta",
                 resolved_root,
+                planning_branch,
                 worktree_root=effective_root,
                 create_time_target=create_time_target,
             )

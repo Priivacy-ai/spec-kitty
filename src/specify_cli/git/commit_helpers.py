@@ -1249,10 +1249,13 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
             from specify_cli.sync.local_commit import emit_local_commit  # noqa: PLC0415
 
             emit_local_commit(
-                repo_root=repo_root,
+                # LocalCommit is checkout-local runtime state.  A commit made
+                # from a caller-owned linked worktree must not write its
+                # sync-state frame into the canonical primary checkout.
+                repo_root=worktree_root,
                 git_hash=new_sha,
                 mission_id=_derive_mission_id(mission_specs_files),
-                build_id=_get_current_build_id(repo_root),
+                build_id=_get_current_build_id(worktree_root),
                 changed_files=mission_specs_files,
                 committed_at=now_utc_iso(),
             )

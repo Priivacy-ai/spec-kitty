@@ -32,6 +32,7 @@ import typer
 
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
+from specify_cli.core.paths import resolve_mission_creation_root
 from specify_cli.diagnostics import mark_invocation_succeeded
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
@@ -525,7 +526,7 @@ def create_mission(
     # ``mission._switch_to_start_branch`` patch targets the tests rely on.
     from specify_cli.cli.commands.agent import mission as _mission
 
-    repo_root = _mission.locate_project_root()
+    repo_root = resolve_mission_creation_root(_mission.locate_project_root())
     command_checkout = owned_checkout.resolve() if owned_checkout is not None else repo_root
 
     _resolve_start_branch_phase(
