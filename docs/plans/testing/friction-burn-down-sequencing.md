@@ -35,7 +35,7 @@ Companion sequencing note to the [test-suite friction audit](test-suite-friction
 
 ## What actually remains (the real, narrow scope)
 
-1. **Golden-count classifier toll (CT5 / [#3458](https://github.com/Priivacy-ai/spec-kitty/issues/3458), P2)** — the live toll.
+1. **Golden-count classifier toll (CT5 / [#3458](https://github.com/Priivacy-ai/spec-kitty/issues/3458), P2 — the front-loadable facet of [#2853](https://github.com/Priivacy-ai/spec-kitty/issues/2853))** — the live toll.
    `test_golden_count_ban.py::classify_golden_count` defaults an ambiguous `len(x)==N` to
    `convert`, forcing a `# golden-count: cardinality-is-contract` annotation for **zero real
    catches** (PR #3456: 0 catches, 2 forced). This is the one systemic manual-toll engine the
@@ -81,8 +81,8 @@ INTERNALERROR), **#2979 / #3241 / #3189 / #3265 / #3463** (coverage-integrity ga
 - `_baselines.yaml` **count**-keyed ratchets — semantically meaningful burn-down accounting.
 - `test_dogfood_corpus_backfilled` (#2917) — corpus drift, resolve by re-running the backfill, never by relaxing the predicate (ADR 2026-07-17-1).
 
-## Stale-open trackers to close / rescope (operator decision)
+## Tracker reconciliation (done 2026-08-17)
 
-- **[#2633](https://github.com/Priivacy-ai/spec-kitty/issues/2633) (P0)** — its sentinel-retirement half is **done** (`177e06269`); only deleting the `runtime_bridge` delegates remains, and those have **live production callers** (~14 modules) — a caller-repoint refactor gated on the 3.3.0 delegate cut, **not** test friction. Rescope to the delegate deletion or downgrade from P0.
-- **[#2631](https://github.com/Priivacy-ai/spec-kitty/issues/2631)** — FR-016 parity-suite harm audit; the CT4/CT6 targets are gone. Verify any residual, else close.
-- **[#2853](https://github.com/Priivacy-ai/spec-kitty/issues/2853) (P1)** — the two-guard `composite_key` re-key is **done**; only the golden-count/CT7 residual (WP-1/WP-2 above) remains. Rescope the body to that residual.
+- **[#2633](https://github.com/Priivacy-ai/spec-kitty/issues/2633)** — **rescoped P0 → P2, retitled.** Its sentinel-retirement half is done (`177e06269` / #3285 deleted `test_bridge_compat_surface.py`); the remainder is deleting the 34 `runtime_bridge` delegates + repointing ~14 **live production callers** — a refactor gated on the 3.3.0 delegate cut, not test friction, not release-blocking.
+- **[#2631](https://github.com/Priivacy-ai/spec-kitty/issues/2631)** — **NOT stale; left P3.** It is a bounded `*parity*`/`*equivalence*` discriminator audit over suites that still exist (`test_execution_context_parity`, `test_bridge_parity`, …). Only its dependency on the sentinel retirement resolved (noted on-issue); the audit stands.
+- **[#2853](https://github.com/Priivacy-ai/spec-kitty/issues/2853) (P1)** — **NOT the `composite_key` issue; left P1.** It targets the **frozen-absolute-baseline family** (count/set/hash pins), a different axis from the file:line drift that `composite_key` (CT1) already fixed. **WP-1 below (#3458) is one facet of it**, not its closure; the broader ask (source-derived sets, warning-not-fail, run gates in the fast/local suite) remains open.
