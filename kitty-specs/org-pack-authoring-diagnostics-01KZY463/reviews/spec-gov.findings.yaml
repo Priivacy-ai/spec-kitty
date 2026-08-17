@@ -1,0 +1,93 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+#
+# Severity rubric (verbatim, per adversarial-squad instructions):
+# | # | Name     | Meaning                                                                          |
+# |---|----------|-----------------------------------------------------------------------------------|
+# | 1 | nit      | Wording/style; no effect on implementation                                        |
+# | 2 | minor    | Small gap; implementation would still come out right                              |
+# | 3 | moderate | Ambiguity or gap likely to cause rework inside one work package                   |
+# | 4 | high     | Would produce a wrong implementation: untestable/vacuous AC, FR without coverage,  |
+# |   |          | contradicts existing code, tenancy/permission gap                                 |
+# | 5 | critical | Charter or scope violation, breaks a stability contract, a production-safety      |
+# |   |          | breach, or a security/credential hazard                                           |
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: SPEC-GOV-001
+    lens: Scope-boundary fidelity against in-flight/proposed work (mission-derived)
+    severity: 4
+    title: >-
+      Clarification Q1/A1 misstates ADR 2026-08-13-1's status as "Proposed"/unratified —
+      the PR's actual current head shows it "Accepted"
+    evidence:
+      - artifact: "spec.md § Clarifications, Session 2026-08-13, Q1/A1 (lines 14-16)"
+      - artifact: >-
+          spec.md quote: "...but that ADR is status Proposed, unratified, carries no
+          target mission and no date, and is one of six ADRs bundled into PR #3378..."
+      - code: >-
+          docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md,
+          fetched directly from PR #3378's current head commit
+          (`gh api repos/Priivacy-ai/spec-kitty/contents/...?ref=37a38274553f868de31cf77e900a3f2418f632bf`):
+          frontmatter `status: Accepted`, body `**Status:** Accepted`, `**Date:** 2026-08-13`,
+          `**Deciders:** Operator (ATDD)`. `gh pr view 3378` confirms `state: OPEN` (unmerged),
+          consistent with the spec, but the per-ADR status claim is wrong.
+      - code: >-
+          The other five ADRs bundled in the same PR (2026-08-13-2 through -6, the *gate*
+          ADRs) genuinely are `status: Proposed` — confirmed via
+          `gh pr diff 3378 | grep '^+status:'`. The PR body's own summary line ("All gate
+          ADRs are Proposed — this is for design review, not implementation") refers to
+          those five gate ADRs; ADR 2026-08-13-1 (the one this spec cites) is explicitly
+          not one of them and is the one ADR in the batch already marked Accepted by the
+          operator, dated the same day as this spec.
+    claim: >-
+      The spec's central justification for Constraint C-001 (proceed on the legacy
+      `MissionStepContract`/`step_contracts.py` surface rather than anticipate the
+      `MissionStep` unification) rests on characterizing ADR `2026-08-13-1` as
+      "unratified" with "no ... date" — both false on the current PR head. The ADR is
+      `status: Accepted`, dated, and decided by the Operator. This is a materially
+      different governance state than "nothing binds until an ADR is ratified" (the
+      spec's own framing, quoted verbatim in A1): the retirement-in-favor-of-`MissionStep`
+      decision **is** ratified; only the actual code migration (tracked separately, and
+      correctly noted as unmerged/not yet implemented) has not landed. The "negligible
+      sunk cost if retired later" fallback argument in A1 may still independently justify
+      proceeding, but the spec currently states a false premise ("nothing binds") as the
+      reason, which a plan-phase author or reviewer could not distinguish from the true,
+      narrower state ("bound in principle, not yet implemented") without re-deriving it
+      themselves — exactly the citation-drift risk this spec otherwise takes pains to
+      catch (cf. its own snapshot.py correction). Left as written, a future reader citing
+      this spec's Q1/A1 as "the ADR isn't ratified" would be repeating a false claim this
+      review has now falsified directly against the PR.
+    remediation: >-
+      Re-verify `gh pr view 3378` / `gh api .../contents/docs/adr/3.x/2026-08-13-1-...md`
+      at plan-phase start (status can still change before merge) and correct A1's wording
+      to state accurately that ADR 2026-08-13-1 is `Accepted` (ratified as a design
+      decision, by the Operator, dated 2026-08-13) but its retirement of
+      `step_contracts.py`/`MissionStepContract` has **not yet been implemented** (PR #3378
+      is docs-only and unmerged, so no migration has landed and `MissionStepContract`
+      remains the operative on-disk model today). Keep the "fix now, small sunk cost if
+      later superseded" conclusion if the plan author still judges it correct under the
+      accurate premise, but do not describe the retirement decision itself as unratified
+      or dateless — it is neither. Also correct C-001's rationale text (currently silent on
+      the ADR's real status) to reference "Accepted-but-unimplemented" rather than
+      implying no decision exists yet.
+# Ledger lens (no finding): cross-checked spec.md's "Ledger Note" section against the
+# actual SPEC-KITTY-LEDGER.md — found at the SK-missions workspace root (shared across
+# sibling mission checkouts; this checkout's own repo root has none, by design, since the
+# ledger is workspace-level, not per-checkout). Grepped for org.pack / org-doctrine-pack /
+# step.contract / pack validate / snapshot.py / AssetRepository — zero matches beyond
+# unrelated mentions of sibling mission names (SK-09/SK-10 reference mission
+# org-pack-drg-root-graph-guard-01KZY0QT by name only, not this mission's defect
+# surfaces). The spec's claim of "zero existing ledger entries" for this mission's
+# subject, and its deferral of entry-writing to the retrospective per the ledger's own
+# instructions, is accurate.
+#
+# Other lenses with no findings: Scope (properly bounded to the four verified defects,
+# no drift into #3384's _drg_helpers.py territory — confirmed no overlap in #3384's own
+# spec.md); Terminology (grep for "feature" in spec.md returns zero hits; no feature*
+# param/route/field/flag/command proposed); Public-repo (nothing quotes private/customer
+# detail — all citations are public spec-kitty file paths and public GitHub issue/PR
+# numbers); Directive standing-order #2 campsite-cleaning (correctly scoped as "for the
+# plan phase, not actioned here").

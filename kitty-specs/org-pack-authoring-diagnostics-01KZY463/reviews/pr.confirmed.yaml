@@ -1,0 +1,62 @@
+schema: review-findings/v1
+phase: pr
+group: confirmed
+complete: true
+# R2->R3 outcome. Evidence chain: pr-boundary/pr-contract/pr-tests.findings.yaml
+# -> pr.merged.yaml -> pr-refute-1.yaml (259a579f3). Fixed OUTSIDE the squad by a
+# fresh dispatch; code phases are report-only (no R4/R5 inside the squad).
+raw_total: 4
+confirmed_count: 3
+refuted_count: 1
+max_confirmed_severity: 3
+blocks_merge_presentation: false
+findings:
+  - id: PR-M-001
+    severity: 3
+    lens: silent-success
+    location: src/specify_cli/doctrine/pack_validator.py:_check_profile_skipped_diagnostics
+    finding: >-
+      AgentProfileRepository is constructed and .skipped_profiles() called with no exception
+      handling; a raise propagates uncaught through validate_pack() and both CLI entry
+      points, yielding a raw traceback instead of the promised {"ok": ...} JSON.
+    refutation_verdict: >-
+      CONFIRMED. The raise path is real, not monkeypatch-only: __init__ resolves
+      built_in_dir() through the fail-closed seam pinned by
+      tests/doctrine/test_pack_root_resolver.py; the sibling _load_built_in_ids_per_kind
+      already guards that exact seam for a stripped test environment; neither CLI entry
+      point wraps validate_pack() in try/except.
+    fix: Guard the call, surface the failure as a validation issue rather than a crash, and test the raising path.
+  - id: PR-M-002
+    severity: 3
+    lens: seam
+    location: src/specify_cli/doctrine/pack_validator.py:858-860
+    finding: >-
+      Hand-constructs AgentProfileRepository instead of the canonical DoctrineService
+      construction seam every other consumer uses - a second construction path
+      DIRECTIVE_044 exists to close.
+    refutation_verdict: >-
+      CONFIRMED. DoctrineService(org_roots=[pack_dir]).agent_profiles reduces to the
+      identical call; no layering inversion (specify_cli->doctrine is already pervasive
+      in-file); this is the only Repository() construction in the file.
+    fix: Construct via DoctrineService.
+  - id: PR-M-004
+    severity: 1
+    lens: sonar
+    location: src/specify_cli/doctrine/pack_validator.py
+    finding: '"*.graph.yaml" appears 4x (was 2x on origin/main), crossing CLAUDE.md Sonar S1192 >=3x.'
+    refutation_verdict: CONFIRMED. Count verified by direct grep on-branch vs origin/main; all four are the same DRG-graph-glob concept.
+    fix: Hoist to a named module constant.
+refuted:
+  - id: PR-M-003
+    severity: 2
+    lens: vacuous
+    finding: Three negative-assertion tests unfalsifiable w.r.t. their own subject.
+    refutation_verdict: >-
+      REFUTED. The identical shape was examined and accepted twice with stated reasoning -
+      WP02-003 (filed sev 1, "optional comment, no code change") and WP04's revert_test
+      ("vacuously true either way... matches AC-2/AC-3's documented shape", approved with
+      findings: []). Re-litigates settled ground with an identical proposed remedy. Each
+      test is paired with a falsifiable positive-fire test that carries the regression pin.
+    preserved_because: >-
+      A refuted finding's reason is the most perishable artifact a squad produces. Recorded
+      so the next reviewer does not re-file it.

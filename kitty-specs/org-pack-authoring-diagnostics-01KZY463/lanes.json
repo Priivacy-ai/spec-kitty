@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "mission_slug": "org-pack-authoring-diagnostics-01KZY463",
+  "mission_id": "01KZY463BQ0NJTE1RSG2XWTSBM",
+  "mission_branch": "kitty/mission-org-pack-authoring-diagnostics-01KZY463",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/guides/how-to/governance/create-an-org-doctrine-pack.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "src/specify_cli/doctrine/pack_assembler.py",
+        "src/specify_cli/doctrine/pack_validator.py",
+        "tests/cli/test_doctrine_org_commands.py",
+        "tests/doctrine/test_agent_profile_model_field.py",
+        "tests/specify_cli/doctrine/test_pack_assembler.py",
+        "tests/specify_cli/doctrine/test_pack_validator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-13T23:16:05.158311+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/doctrine/pack_validator.py' vs 'src/specify_cli/doctrine/pack_validator.py', 'tests/specify_cli/doctrine/test_pack_validator.py' vs 'tests/specify_cli/doctrine/test_pack_validator.py'; WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/doctrine/pack_validator.py' vs 'src/specify_cli/doctrine/pack_validator.py', 'tests/specify_cli/doctrine/test_pack_validator.py' vs 'tests/specify_cli/doctrine/test_pack_validator.py'"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 2
+    }
+  }
+}

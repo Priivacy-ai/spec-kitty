@@ -1,0 +1,114 @@
+schema: review-refutation/v1
+phase: pr
+round: 1
+complete: true
+verdicts:
+  - id: PR-M-001
+    verdict: confirmed
+    severity_adjusted: 3
+    reasoning: >-
+      The raise path is real, not monkeypatch-only. AgentProfileRepository.__init__
+      (src/doctrine/agent_profiles/repository.py:256, _default_built_in_dir) calls
+      doctrine.pack_paths.built_in_dir(ArtifactKind.AGENT_PROFILE), which resolves
+      through doctrine.pack_paths._resolve_built_in -> kernel.paths.get_built_in_pack_root,
+      documented to raise SiblingPathNotFound (translated to PackRootNotFound) fail-closed
+      when neither the SPEC_KITTY_PACKS_ROOT override nor the ancestor walk locates
+      packs/built-in/. This exact fail-closed contract is independently pinned by
+      tests/doctrine/test_pack_root_resolver.py ("No env, no editable, no installed ->
+      PackRootNotFound; never a src/doctrine path") — it is a documented, tested failure
+      mode of the seam this constructor calls, not a contrived scenario. The sibling
+      function _load_built_in_ids_per_kind, a few lines below in this same file, calls the
+      identical built_in_dir() seam and explicitly guards it with
+      "except (PackRootNotFound, BuiltInContentDirNotAvailable)", captioned "Best-effort:
+      when the built-in doctrine root cannot be located (stripped test environment)" —
+      i.e. the module's own author already treats this as a real, reachable condition
+      worth guarding elsewhere in the identical file. Independently, WP03's own reviewer
+      (reviews/wp03.review.yaml, runtime_parity section) inspected this exact call site
+      and wrote, unprompted by this squad: "a genuine exception during repository load
+      ... would propagate and crash validate_pack() rather than silently reporting a
+      clean pack — confirmed by inspection." That is a second, independent confirmation
+      the crash path is real, from a reviewer who was not testing for it. Verified
+      directly that neither pack_validate (doctrine.py:370) nor org_validate (doctrine.py:972)
+      wraps its validate_pack() call in try/except, so nothing catches the raise between
+      the seam and the Typer command boundary. Confirmed no test in
+      TestProfileSkippedDiagnostics (test_pack_validator.py:829-1010) forces the
+      constructor or skipped_profiles() to raise. Severity 3 stands: an uncaught traceback
+      in place of the documented {"ok": ...} JSON contract on a CLI entry point is a real
+      user-facing defect, independent of AC-2/AC-3's separate per-file skip diagnostics
+      (which are a different, already-guarded failure surface inside _load_layer).
+  - id: PR-M-002
+    verdict: confirmed
+    severity_adjusted: 3
+    reasoning: >-
+      Verified DIRECTIVE_044 (packs/built-in/directives/044-canonical-sources-and-unification.directive.yaml)
+      Rule 2: "when a split-brain surface is found — the same concept implemented or
+      stored in more than one location — consolidate to one canonical surface authority.
+      Do NOT add the same behavior to every copy (parity)." Verified DoctrineService
+      (src/doctrine/service.py:22-33, .agent_profiles property at :143-150) exposes
+      exactly the object this call site needs: DoctrineService(org_roots=[pack_dir]).agent_profiles
+      reduces to AgentProfileRepository(org_dirs=[pack_dir/"agent_profiles"],
+      project_dir=None, active_languages=None) — the identical call pack_validator.py
+      hand-rolls at :858-860. Checked for a layering objection: pack_validator.py already
+      imports doctrine.* pervasively (ArtifactKind, pack_paths, org_pack_loader) and
+      specify_cli -> doctrine is the allowed downward direction (doctrine_service_factory.py
+      already constructs DoctrineService from specify_cli); doctrine.service and
+      doctrine.agent_profiles.repository are both in-layer siblings under src/doctrine, so
+      routing through DoctrineService introduces no import cycle and no layering
+      inversion. Checked for in-file precedent that might excuse this as consistent with
+      existing style: grepped pack_validator.py for other Repository(...) construction —
+      this is the *only* one; every other doctrine.* import in the file (confirmed at
+      lines 82-84 and throughout) is a pure model/loader function, never a stateful
+      repository construction. This is a genuinely new second construction path, not a
+      continuation of prior practice, and no ruling or per-WP review discusses or excuses
+      it (wp03.review.yaml's runtime_parity section describes the construction but never
+      raises the seam-choice question — it was examining AC-4 dedup, not DIRECTIVE_044).
+      Severity 3 stands per the directive's own "red-line violation" framing for
+      split-brain surfaces.
+  - id: PR-M-003
+    verdict: refuted
+    reasoning: >-
+      The technical observation is accurate — independently reproduced two of the three
+      claims via the WPs' own recorded revert tests without needing a fresh mutation: WP04's
+      revert_test.result (reviews/wp04.review.yaml) already shows
+      test_pack_root_graph_present_suppresses_diagnostic and
+      test_neither_root_graph_nor_drg_dir_no_diagnostic PASSING under a disabled check,
+      captioned by that reviewer as "vacuously true either way — matches AC-2/AC-3's
+      documented vacuous-pass shape" — and that WP was still verdict: approved with
+      findings: [] on this exact point. WP02-003 (reviews/wp02.review.yaml) independently
+      hit the identical shape (test_nested_asset_manifest_valid_passes passing under
+      revert because ValidationResult exposes no positive scan-count signal) and filed it
+      formally, with reasoning: "This is structural, not a defect... No code change
+      required. Optional: add a one-line comment," at severity 1, and that WP was also
+      approved. This is precisely the "re-litigates something a per-WP reviewer already
+      examined and accepted with stated reasoning" case: two independent per-WP reviewers,
+      working on two different WPs, hit the same structural shape and both concluded —
+      with stated technical reasoning, not merely an oversight — that a negative-assertion
+      test paired with a solid positive-fire test is not a defect, at most an optional
+      comment. PR-M-003 supplies no new technical content beyond what WP02/WP04 already
+      adjudicated; it proposes the identical remedy (a one-line comment) that WP02-003
+      already established as optional and non-blocking. Elevating the same accepted
+      pattern to a fresh PR-level severity-2 finding, across three instances of one
+      already-settled shape, does not survive scrutiny as an independent defect. Refuted
+      on the strength of prior, reasoned, per-WP acceptance — not because the tests
+      couldn't be improved, but because "add a comment, optionally" was already the
+      disposition and is not worth re-raising as a new finding.
+  - id: PR-M-004
+    verdict: confirmed
+    severity_adjusted: 1
+    reasoning: >-
+      Verified the count directly: `grep -n '"\*\.graph\.yaml"' src/specify_cli/doctrine/pack_validator.py`
+      on this branch returns exactly 4 hits (lines 542, 664, 666, 1107); the same grep
+      against `git show origin/main:src/specify_cli/doctrine/pack_validator.py` returns
+      exactly 2 (lines 506, 989) — confirming this diff's own two new call sites inside
+      _check_drg_root_graph_missing (664, 666) are what tip the module over the CLAUDE.md
+      Sonar >=3x threshold. Checked whether the four occurrences are genuinely the same
+      concept per S1192's intent (a coincidentally-identical string used for unrelated
+      purposes would not qualify): all four are the identical glob applied to detect the
+      presence of a DRG graph-fragment file — three scan drg_dir, one (line 666) scans
+      pack_dir, but all four ask the same semantic question ("does this directory contain
+      a *.graph.yaml file") for the one canonical DRG-graph file-pattern in the module.
+      This is not a case of an incidentally-shared literal serving two unrelated meanings;
+      it is the textbook S1192 shape. Severity 1 (nit, non-blocking, cosmetic) matches the
+      original filing — trivial to hoist, no behavior change, not worth more.
+confirmed_count: 3
+max_confirmed_severity: 3

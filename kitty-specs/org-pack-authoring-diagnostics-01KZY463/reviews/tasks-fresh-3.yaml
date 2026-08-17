@@ -1,0 +1,59 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: TASKS-FRESH3-001
+    lens: fresh
+    severity: 2
+    title: "Round-3 open-PR recheck (18→19) landed in plan.md but not synced into WP04's own Risks section"
+    evidence:
+      - artifact: "WP04 § Risks, 'Open-PR collision — doctrine.py'"
+      - code: "kitty-specs/org-pack-authoring-diagnostics-01KZY463/tasks/WP04-drg-root-graph-diagnostic-fr004.md:506"
+      - artifact: "plan.md § Chokepoint, 'Open-PR write-scope check'"
+      - code: "kitty-specs/org-pack-authoring-diagnostics-01KZY463/plan.md:620-621"
+    claim: >
+      This round's diff added a correction to plan.md's Chokepoint section: the first
+      `gh pr list` verification found 18 open PRs, but "a later live re-check (same day,
+      during this fix round) returned 19" — the extra PR #3395, confirmed harmless. WP04's
+      own Risks section, edited in this same round, still reads "re-verified 2026-08-14
+      against 18 open PRs" and does not mention the 19-PR recheck or PR #3395 at all. The
+      two documents now assert different counts for the same verification event. plan.md
+      itself frames the count as non-load-bearing ("the specific enumerated overlaps ...
+      not the total count, are the load-bearing claims"), so this does not change any
+      conclusion — no overlap exists on `pack_validator.py`/`pack_assembler.py` either way —
+      but it is a literal, verifiable inconsistency between two sibling artifacts left by an
+      edit that updated one and not the other, exactly the class of accumulated seam a third
+      revision pass risks.
+    remediation: >
+      Update WP04's Risks § "Open-PR collision — doctrine.py" to cite the same 19-PR recheck
+      and PR #3395 (or drop the specific count and reference plan.md's Chokepoint section by
+      name only, so the two documents can't drift again), matching plan.md's own framing that
+      the enumerated overlaps, not the raw count, are what's load-bearing.
+
+  - id: TASKS-FRESH3-002
+    lens: fresh
+    severity: 2
+    title: "New profile_skipped / drg_root_graph_missing category values are never added to ValidationIssue's own enumerated docstring"
+    evidence:
+      - code: "src/specify_cli/doctrine/pack_validator.py:99-113 (ValidationIssue docstring's 'Valid values' list)"
+      - artifact: "WP03 § Subtask T010 (helper adds category=\"profile_skipped\")"
+      - artifact: "WP04 § Subtask T018 (helper adds category=\"drg_root_graph_missing\")"
+    claim: >
+      `ValidationIssue`'s class docstring enumerates every valid `category` string
+      (`schema_invalid`, `duplicate_id`, `drg_dangling_edge`, `asset_path_escape`, etc.) as
+      the authoritative reference for what values the field can take — this is the exact
+      mechanism plan.md's own "Contract Movement" section leans on to argue no schema
+      regeneration is triggered. Both WP03 (`profile_skipped`) and WP04
+      (`drg_root_graph_missing`) add a new category value consumed by `pack validate`'s real
+      output, but neither WP's steps, Files list, or Definition of Done instructs updating
+      this docstring enumeration. An implementer following the WPs literally as written
+      leaves the class's own documented contract silently out of date with its actual
+      behavior — the same "doc/code disagreement is a doc defect" the charter's Documentation
+      structure section calls binding for user-facing docs, applied here to a code-level
+      contract comment other maintainers rely on to know what categories exist.
+    remediation: >
+      Add one line to WP03's T010 and WP04's T018 steps instructing the implementer to add
+      `profile_skipped` / `drg_root_graph_missing` to `ValidationIssue`'s docstring "Valid
+      values" list alongside the new helper, so the enumeration stays authoritative.

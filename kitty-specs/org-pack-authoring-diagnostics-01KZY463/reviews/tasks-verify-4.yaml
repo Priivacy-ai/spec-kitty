@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: unresolved
+    remaining_severity: 2
+    reason: >-
+      WP04's Risks "Open-PR collision" paragraph was updated to cite the 19-PR recheck and
+      PR #3395 (confirmed live via gh pr list: 19 open PRs including #3395), matching plan.md,
+      but three paragraphs later in that same Risks section, WP04:545 still reads "any of the
+      18 currently-open PRs" — a residual stale count the fix round missed, so the section now
+      self-contradicts (19 vs 18) rather than only disagreeing with plan.md.
+  - id: TASKS-FRESH3-002
+    status: resolved
+    reason: >-
+      WP03's T010 gained step 6 and WP04's T018 gained step 7, each instructing the implementer
+      to add profile_skipped / drg_root_graph_missing to ValidationIssue's docstring "Valid
+      values" list in the exact backtick/em-dash bullet format the live docstring
+      (pack_validator.py:95-114) actually uses; the renumbered commit steps (T010 step 7, T018
+      step 9) and all cross-references to the new step numbers (WP03:369,373; WP04:415,476,500)
+      are internally consistent with no orphaned or duplicate step numbers.

@@ -1,0 +1,65 @@
+schema: review-findings/v1
+phase: pr
+group: boundary
+complete: true
+findings:
+  - id: PR-BOUNDARY-001
+    severity: 3
+    lens: seam
+    location: src/specify_cli/doctrine/pack_validator.py:858-860
+    finding: >-
+      _check_profile_skipped_diagnostics hand-constructs
+      doctrine.agent_profiles.repository.AgentProfileRepository directly
+      (`AgentProfileRepository(org_dirs=[pack_dir / "agent_profiles"])`)
+      instead of going through the canonical repository-construction seam,
+      doctrine.service.DoctrineService (which src/specify_cli already uses
+      pervasively for this exact purpose, e.g. specify_cli/doctrine_service_factory.py
+      and every DoctrineService-consuming CLI command). This is a second,
+      independent construction path for the same object graph — exactly the
+      "parallel copies / parity fixes to non-canonical surfaces" class
+      DIRECTIVE_044 (Canonical Sources and Unification) exists to close, and
+      it is also the profile's own directive #044. It is not a raw
+      cross-package layering violation (specify_cli -> doctrine is an allowed
+      direction per doctrine_service_factory.py's stated C-005 rule, and other
+      pack_validator.py call sites already import model/loader functions from
+      doctrine.* at module and function scope), but a *validator* module
+      newly reaches past that seam to build a stateful, I/O-performing
+      repository object itself, rather than asking the canonical aggregation
+      point for one. If AgentProfileRepository's constructor signature or
+      default resolution (built_in_dir, active_languages) changes in a future
+      mission, DoctrineService.agent_profiles is the one call site anyone
+      will think to update; this second, hand-rolled call site can silently
+      drift without a build break, since no test asserts the two stay in
+      sync.
+    evidence: >-
+      src/specify_cli/doctrine/pack_validator.py:858-860 constructs
+      AgentProfileRepository directly inside _check_profile_skipped_diagnostics.
+      Contrast src/doctrine/service.py:142-150, DoctrineService.agent_profiles,
+      which builds the functionally identical object
+      (`AgentProfileRepository(org_dirs=self._org_dirs("agent_profiles"),
+      project_dir=self._project_dir("agent_profiles"),
+      active_languages=self._active_languages)` — for
+      `DoctrineService(org_roots=[pack_dir])` this reduces to org_dirs=[pack_dir
+      / "agent_profiles"], project_dir=None, active_languages=None, i.e. the
+      exact call pack_validator.py hand-rolls). Every other doctrine.* import
+      already present in pack_validator.py (lines 82-84, 174-182, 537-538,
+      766, 1097-1101, 1229) is a pure model or loader function, never a
+      Repository construction; grepping src/specify_cli for direct
+      `AgentProfileRepository(` construction shows it otherwise happens only
+      in CLI-command / registry-level code (cli/commands/profiles_cmd.py:81,
+      invocation/registry.py:80, tool_surface/profiles/projection.py:115),
+      never inside a validator helper. The test that pins this call
+      (tests/specify_cli/doctrine/test_pack_validator.py,
+      test_helper_calls_repository_skipped_profiles_directly) patches
+      `doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles`
+      directly, confirming the bypass is deliberate rather than incidental.
+    fix: >-
+      Obtain the repository via doctrine.service.DoctrineService(org_roots=[pack_dir]).agent_profiles
+      (or the equivalent construction seam) instead of importing and
+      instantiating AgentProfileRepository inline, so pack_validator.py has
+      exactly one place — the canonical service — that knows how to build a
+      doctrine repository, matching DIRECTIVE_044. If DoctrineService's
+      shape genuinely does not fit a single-pack-as-sole-org-source
+      validation use case, that gap belongs in DoctrineService itself (a
+      documented single-pack convenience constructor), not a second
+      freestanding construction path in a validator module.

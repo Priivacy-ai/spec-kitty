@@ -1,0 +1,97 @@
+schema: wp-review/v1
+wp_id: WP02
+complete: true
+verdict: approved
+findings:
+  - id: WP02-001
+    severity: 2
+    lens: baseline
+    location: kitty-specs/org-pack-authoring-diagnostics-01KZY463/tasks/WP02-asset-recursion-fr003.md:74-115 (T003)
+    finding: >
+      T003's Definition of Done bullet ("T003's baseline captured and recorded before any
+      functional edit landed") is not evidenced anywhere in the reviewable surface. The
+      four-file baseline run is not present in any of the three commits' messages
+      (bfb152524, 9e8f3687c, e46c029fc all carry a bare one-line subject, no trailer), no
+      new file was added under kitty-specs/.../reviews/ or tracer-tooling-friction.md
+      recording it, and grep for the literal baseline result across the mission directory
+      finds nothing.
+    evidence: >
+      `git log 5960f75d6..e46c029fc --format="%H %B"` shows three commits, each with a
+      one-line subject and empty body. `grep -rn "50 passed" kitty-specs/org-pack-authoring-diagnostics-01KZY463/`
+      returns no matches. `git diff --stat 5960f75d6..e46c029fc` touches only
+      pack_validator.py and test_pack_validator.py — no scratch/tracer file was added.
+    fix: >
+      Record the four-file baseline output (or a summary + where it was run) in a commit
+      trailer on the T006 implementation commit, or as a note in tracer-tooling-friction.md,
+      so a later reviewer does not have to independently reconstruct it. (Reviewer note: the
+      underlying baseline was independently reproduced this review — see revert_test/related
+      evidence below — and is accurate: 50 passed, 5 skipped, 0 failed at 07b12685c. This is
+      a process/evidence gap, not a functional defect.)
+  - id: WP02-002
+    severity: 2
+    lens: complexity
+    location: kitty-specs/org-pack-authoring-diagnostics-01KZY463/tasks/WP02-asset-recursion-fr003.md:117-160 (T004)
+    finding: >
+      T004's Definition of Done bullet ("T004's campsite check performed and its outcome
+      ... recorded") is likewise not evidenced anywhere — no commit trailer, tracer note, or
+      scratch file records whether `validate_pack()`'s complexity was measured and why no
+      extraction was performed. The WP's own Reviewer Guidance calls this out explicitly:
+      "an implementer silently skipping this subtask is a finding."
+    evidence: >
+      Same commit/tracer/mission-directory search as WP02-001 turns up nothing for
+      "campsite" evidence tied to this WP. Independently measuring the claim: `uv run ruff
+      check src/specify_cli/doctrine/pack_validator.py --select C901 --config
+      "lint.mccabe.max-complexity=5"` reports `validate_pack` at complexity 9 (well under the
+      binding ceiling of 15) — so no extraction was in fact warranted, and T004's implicit
+      conclusion is correct, just unrecorded.
+    fix: >
+      Record the campsite-check outcome ("validate_pack() measured at complexity 9,
+      comfortably under the 15 ceiling; FR-003's one-clause _scan_files widening does not
+      touch validate_pack()'s body; no extraction warranted") in a commit trailer or tracer
+      note, per the WP's own Definition of Done.
+  - id: WP02-003
+    severity: 1
+    lens: revert-discipline
+    location: tests/specify_cli/doctrine/test_pack_validator.py:756 (test_nested_asset_manifest_valid_passes, AC-2)
+    finding: >
+      AC-2's test_nested_asset_manifest_valid_passes still passes when the _scan_files fix
+      is reverted — it is not, on its own, revert-discriminating coverage of the recursion
+      widening. This is structural, not a defect: ValidationResult exposes only
+      errors/advisories (no positive scan-count signal), so a valid nested manifest that is
+      never scanned at all (pre-fix) also produces zero errors, identically to a valid
+      manifest that IS scanned and found clean (post-fix). The real regression pin is AC-1's
+      test_nested_asset_manifest_violation_is_caught, which correctly reds under revert (see
+      revert_test below). AC-4's test_no_assets_directory_is_a_noop also passes under
+      revert, but that is by design per the WP's own text (it pins the pre-existing,
+      untouched `if not type_dir.is_dir(): continue` guard, orthogonal to the recursion
+      change) and this review's item 4 confirms it proves the guard path, not merely
+      absence-of-crash.
+    evidence: >
+      With _scan_files's `directory.name in {"styleguides", "assets"}` reverted to
+      `directory.name == "styleguides"` (isolated edit, restored after the run —
+      `git status --porcelain -uno` clean before and after): `uv run pytest
+      tests/specify_cli/doctrine/test_pack_validator.py -k "test_nested_asset_manifest_violation_is_caught
+      or test_nested_asset_manifest_valid_passes or test_no_assets_directory_is_a_noop" -q`
+      => `1 failed, 2 passed, 28 deselected`. Only test_nested_asset_manifest_violation_is_caught
+      failed (`assert True is False`); the other two passed.
+    fix: >
+      No code change required. Optional: add a one-line comment on
+      test_nested_asset_manifest_valid_passes noting it is a no-false-positive check paired
+      with AC-1's regression pin, not an independent revert-sensitive test, so a future
+      reader doesn't mistake it for red-first coverage on its own.
+revert_test:
+  performed: true
+  result: >
+    Isolated, serialized revert of src/specify_cli/doctrine/pack_validator.py's _scan_files
+    (restored `if directory.name == "styleguides":` in place of
+    `if directory.name in {"styleguides", "assets"}:`, then restored the fix and confirmed
+    `git status --porcelain -uno` clean before and after). Running the three new tests
+    against the reverted code: `1 failed, 2 passed, 28 deselected`.
+    FAILED: TestAssetManifestValidation::test_nested_asset_manifest_violation_is_caught
+    (AC-1, the claimed red-first test) with `assert True is False` — matches the
+    implementer's claimed red-first failure verbatim. PASSED under revert (expected, not a
+    defect — see WP02-003): test_nested_asset_manifest_valid_passes (AC-2, a no-false-positive
+    happy-path test that ValidationResult's errors/advisories-only surface cannot make
+    revert-discriminating on its own) and test_no_assets_directory_is_a_noop (AC-4, pins the
+    pre-existing untouched directory-guard, orthogonal to the recursion widening by the WP's
+    own design).
