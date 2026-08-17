@@ -223,6 +223,22 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **An organisation doctrine pack you registered, validated, and activated
+  delivered none of its step contracts, artifact requirements, or graph nodes to
+  `spec-kitty` at runtime — it does now (`#3520`; closes `#3516`).** Before, the
+  runtime consumers (the step-contract executor and its review gate bindings, the
+  mission-type governance profile, runtime dispatch, and mission-load validation)
+  all resolved doctrine from the built-in pack plus the project tier only — they
+  had the org-tier parameter but the callers never passed it, so an org pack was
+  silently inert past activation. Now a shared `resolve_org_dirs` helper threads
+  the org tier through each of them, an org `expected-artifacts.yaml` can override
+  the governance artifact slot, and a configured-but-broken org pack warns (a
+  dropped path or a malformed manifest) instead of failing silently. Projects with
+  no org pack are unaffected — every path is byte-identical without one. Known
+  limitation: the org `expected-artifacts.yaml` override reaches the governance
+  gate but not yet the dossier completeness-index path (that consumer is
+  project-scoped today; tracked as a follow-up).
+
 - **The `SPEC_KITTY_HOME` pin census (`arch-adversarial (arch_shard_3)`) was red
   on main because a legitimate new isolation pin (`#3497`) landed after the R1a
   freeze, and the "shrink-only" ratchet — as landed — could not actually shrink
