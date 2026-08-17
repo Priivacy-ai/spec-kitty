@@ -1,0 +1,23 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH2-001
+    status: resolved        # resolved | unresolved
+    reason: >
+      Read the current arch-adversarial row in plan.md (line 551) and confirmed it no
+      longer claims the job carries "not a docs-only/non-docs-only path distinction";
+      it now scopes that claim to the job-level if: gate only and separately states the
+      run step applies a second, diff-content-based docs_scoped narrowing — verified
+      myself against the live .github/workflows/ci-quality.yml: job def at line 2144,
+      if: condition at line 2147 (no path filter, only pr:deferred/pr:skip-ci label
+      opt-outs), "Detect docs-only PR" step at 2201, "Run architectural + adversarial
+      suite" step at 2228 with the docs_scoped-only marker selection at line 2241 versus
+      the full unnarrowed selection at line 2258; and confirmed via grep that
+      tests/architectural/test_shared_package_boundary.py:11 and
+      test_pyproject_shape.py:13 both carry only pytestmark = pytest.mark.architectural,
+      no docs_scoped marker, matching the row's claim that they'd be skipped on a
+      hypothetical docs-only PR while correctly noting this mission's actual PR touches
+      src/runtime/next/* and src/specify_cli/cli/commands/* so is never docs-only and
+      both tests do run.

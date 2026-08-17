@@ -1,0 +1,40 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      Read plan.md:71-78 (Charter Check "Locality of change" bullet) — it now
+      reads "the file set is bounded to the six production files and four
+      test files named in Project Structure below," matching PR Shape
+      (plan.md:526-527, "6 production files + 4 test files") and the
+      Project Structure manifest (plan.md:581-599), which lists exactly six
+      production files (runtime_bridge_cores.py, runtime_bridge_composition.py,
+      runtime_bridge.py, runtime_bridge_io.py, doctor.py,
+      _mission_type_audit.py); the three sections now agree and no stale
+      5-file figure remains.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      Read plan.md:551 (Gate Set arch-adversarial row) — the "non-docs-only"
+      qualifier is gone, replaced with "runs ... on every push of this PR
+      regardless of which paths changed ... the only opt-outs are the
+      pr:deferred/pr:skip-ci PR labels, not a docs-only/non-docs-only path
+      distinction"; independently re-derived from .github/workflows/ci-quality.yml
+      that the arch-adversarial job definition is at line 2144 and its `if:`
+      condition (gated only by the two PR-label contains() checks, no path
+      filter) is at line 2147, both matching the plan's cited line numbers
+      and quoted condition text exactly.
+  - id: PLAN-FRESH-003
+    status: resolved
+    reason: >-
+      Read plan.md:553 (PR diff-coverage row) — citation now reads
+      "ci-quality.yml:3516-3517"; independently confirmed against
+      .github/workflows/ci-quality.yml that line 3515 is
+      `--compare-branch=origin/${{ github.base_ref }}`, line 3516 is
+      `--fail-under=90`, and line 3517 is `--include "${critical_paths[@]}"`,
+      so the tightened 3516-3517 range now matches exactly the two quoted
+      flags (--fail-under=90, --include) and excludes the unquoted
+      --compare-branch line.

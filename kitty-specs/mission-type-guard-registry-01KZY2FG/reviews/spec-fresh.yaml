@@ -1,0 +1,42 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: SPEC-FRESH-001
+    lens: fresh-eyes-citation-audit
+    severity: 3
+    title: "FR-004's new WARNING-level citation (runtime_bridge.py:2239/2249/2268) does not support the 'existing degrade-logging convention' claim it makes"
+    evidence:
+      - artifact: "spec.md § Requirements → FR-004 (also echoed in § Success Criteria → SC-004... SC-002)"
+      - code: "src/runtime/next/runtime_bridge.py:2239-2246 — logger.warning(...) immediately followed by `raise` (a loud read-path-error re-raise inside answer_decision_via_runtime, not a degrade)"
+      - code: "src/runtime/next/runtime_bridge.py:2249-2257 — logger.warning(...) immediately followed by `raise MissionRuntimeError(...)` (mission-not-found, also a loud raise, not a degrade)"
+      - code: "src/runtime/next/runtime_bridge.py:2268-2273 — logger.warning(...) inside an unrelated except block for a sync-emitter snapshot-seed failure; unrelated to mission_family/guard evaluation"
+      - code: "src/runtime/next/runtime_bridge.py:348-354 — the file's actual degrade-and-continue WARNING precedent (`logger.warning('DecisionGitLog construction failed ... falling back to plain emitter.')` then `return emitter`) — not the lines FR-004 cites"
+    claim: >
+      FR-004 (new in this R4 fix round) requires the composed-path neutral-degrade log line to be
+      emitted "at WARNING level or above (matching the existing degrade-logging convention at
+      runtime_bridge.py:2239/2249/2268, not DEBUG or lower)". All three cited lines are
+      logger.warning() calls inside `answer_decision_via_runtime`, a function unrelated to guard
+      evaluation or mission_family dispatch. Two of the three (2239, 2249) precede an immediate
+      `raise` — i.e. they are loud-failure logging, the opposite of a "degrade" (log-and-continue)
+      convention — and the third (2268) logs a sync-emitter seeding failure, also unrelated to
+      mission_family. A grep across src/runtime, src/specify_cli/next, and src/charter for any
+      logger.warning tied to "unknown"/"unregistered"/"fallback"/"degrade" mission-type handling
+      turns up nothing — there is no pre-existing "degrade-logging convention" for this specific
+      scenario anywhere in the codebase today. The one genuine WARNING-level degrade-and-continue
+      precedent in the same file is at lines 348-354 (DecisionGitLog fallback), which the fix round
+      did not cite. This is a fresh, self-introduced stale/fabricated citation: it asserts a
+      corroborated precedent (the kind of overclaim DIRECTIVE_048 exists to catch) that does not
+      exist as described, in a mission whose whole premise is fixing *silent* misbehavior by
+      insisting on precise, verified claims.
+    remediation: >
+      Either (a) drop the "matching the existing degrade-logging convention at
+      runtime_bridge.py:2239/2249/2268" clause entirely and let FR-004 stand on its own
+      (WARNING-level-or-above is a fine requirement without a fabricated precedent), or (b) replace
+      the citation with the one real precedent that fits the "log then continue/degrade" shape —
+      runtime_bridge.py:348-354 (`DecisionGitLog construction failed ... falling back to plain
+      emitter`) — and drop the 2239/2249/2268 references, since none of the three describe a
+      degrade.

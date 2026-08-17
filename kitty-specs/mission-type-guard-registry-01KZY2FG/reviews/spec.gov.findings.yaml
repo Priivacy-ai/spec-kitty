@@ -1,0 +1,72 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: SPEC-GOV-001
+    lens: directive (DIRECTIVE_048 version-governance) / verbatim-quote verification
+    severity: 3
+    title: "The 'operator scope decision' blockquote is labeled 'quoted verbatim' but does not match verbatim any accessible antecedent source"
+    evidence:
+      - artifact: "spec.md § Clarifications, Session 2026-08-13 — operator scope decision, lines 12-24 (the blockquote is attributed 'to the operator, dated 2026-08-13' and introduced as 'quoted verbatim below')"
+      - artifact: "/home/jeroennouws/dev/SK-missions/_readiness/3386-mission-type-guard-registry.md, Open Question 1, Option A recommendation text, lines 286-295 — the only accessible written antecedent for this decision"
+    claim: >
+      The spec explicitly asserts this is a verbatim quotation of a binding operator decision.
+      The only accessible written record of the underlying options is the readiness probe's
+      "Open Question 1" Option A recommendation. Comparing word-for-word, the spec's blockquote
+      is a paraphrase/compression of that text, not an identical copy: it opens differently
+      ("Registry + plan table + doctor." vs. "Scope to the guard-table registry + `plan` table +
+      `doctor mission-type` only (Recommended)."), drops detail present in the probe (the probe's
+      parenthetical on plan's guard table reads "empty for `review`, artifact-checks for
+      `specify`/`plan`, TBD for `research` — design phase's call"; the spec's reads "empty
+      `review`, artifact-checks elsewhere"), and closes with different rationale wording (probe:
+      "matches charter `DIRECTIVE_024` (locality of change) and the smallest-viable-diff default,
+      and avoids committing to fix an unverified-count set of sites mid-mission"; spec: "Matches
+      the issue's own PR sizing and the charter's locality-of-change default"). A repo-wide grep
+      for the spec's exact opening phrase ("Registry + plan table + doctor") returns only the
+      spec.md line itself — no other file in the SK-missions tree contains this text, so there is
+      no accessible artifact substantiating that the operator typed these particular words. The
+      decision's *substance* is faithfully preserved (this is not a misrepresentation of what was
+      decided), but the "quoted verbatim" framing makes a precision claim that cannot currently be
+      checked against any recorded source, which is exactly the "confidently wrong, not merely
+      lower-quality" citation risk DIRECTIVE_048 (required, not advisory) exists to prevent —
+      doubly so because C-003 leans on this exact blockquote as the sole cited authority bounding
+      the mission's entire scope.
+    remediation: >
+      Either (a) attach or reference the actual primary-source artifact that substantiates the
+      verbatim claim (e.g., a saved operator message, session transcript pointer, or timestamped
+      log entry distinct from the readiness probe's own recommendation prose), or (b) if no such
+      artifact exists, reword the Clarifications heading/lead-in to say the decision is
+      "paraphrased from the operator's Option-A selection" (not "quoted verbatim"), and cite the
+      readiness probe's Option A text as the substantive source of record instead of implying an
+      independent, separately-authored operator quotation.
+  - id: SPEC-GOV-002
+    lens: directive (canonical-source accuracy) / verified-figures table
+    severity: 2
+    title: "'independently corroborated twice in the probe' overstates how the 15-of-27 write_meta figure was actually checked"
+    evidence:
+      - artifact: "spec.md § Clarifications, 'Numbers corrected from the source GitHub issue' table, row 5 (the '12 of 30' / '15 of 27 (56%)' row)"
+      - artifact: "/home/jeroennouws/dev/SK-missions/_readiness/3386-mission-type-guard-registry.md, Resolved ambiguity #4, lines 215-225"
+    claim: >
+      The spec's table states the 15-of-27 (56%) figure is "corrected figure, independently
+      corroborated twice in the probe." The probe itself, read directly, shows only one precise
+      enumeration of that exact figure (a subagent's grep-derived "27 real call sites, 15 passing
+      `validate=False`"); the probe author's own independent recheck produced a *different* count
+      ("29 call-adjacent lines / 17 with validate=False nearby") which the probe explicitly
+      qualifies as "close enough... to trust its direction" — not a second, matching corroboration
+      of the exact 15/27 figure. "Independently corroborated twice" reads as two sources
+      converging on the same number; what actually happened is one precise count plus one rough,
+      non-identical count that confirms only the direction (majority of call sites skip
+      validation), which the probe itself is careful to phrase as "trust its direction," not
+      "confirmed the figure." This does not change C-004's conclusion (both counts agree that a
+      majority, not a minority, of `write_meta` call sites skip validation, so the anti-roster-check
+      reasoning holds either way) — hence minor rather than moderate/high.
+    remediation: >
+      Reword the table cell to match the probe's own epistemic status, e.g. "corrected figure per
+      one direct enumeration (27 sites, 15 skipping validation), direction independently
+      re-checked by a second, rougher grep (~29/17) — both agree a majority skip validation" —
+      or simply drop "independently corroborated twice" and cite it as "verified by direct
+      enumeration; direction cross-checked independently" so the precision claim matches what the
+      probe actually recorded.

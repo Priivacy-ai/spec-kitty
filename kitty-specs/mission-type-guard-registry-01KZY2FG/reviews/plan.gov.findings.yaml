@@ -1,0 +1,64 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: PLAN-GOV-001
+    lens: "Directive (Standing Order 8 mission hygiene / self-consistency) + Scope"
+    severity: 2
+    title: '"PR Shape" file-count rationale undercounts the actual touched-file set by two files'
+    evidence:
+      - artifact: "plan.md § PR Shape (line ~493)"
+      - artifact: "plan.md § Project Structure (Source Code / tests trees, lines ~544-570)"
+      - code: "kitty-specs/mission-type-guard-registry-01KZY2FG/plan.md (no external code — internal cross-section inconsistency)"
+    claim: >
+      The "PR Shape" section states the touched-file set as "5 production files + 2 test
+      files + the golden-contract test" (8 files total) to justify the one-PR-for-the-whole-
+      mission decision. The plan's own "Project Structure" section lists 6 production files
+      (runtime_bridge_cores.py, runtime_bridge_composition.py, runtime_bridge.py,
+      runtime_bridge_io.py, doctor.py, and the new _mission_type_audit.py) and 4 test files
+      actually created/modified (test_bridge_cores.py, test_bridge_composition.py, the new
+      test_doctor_mission_type.py, and test_doctor_cli_surface_golden.py) — 10 files total.
+      In both cases the two newly-created files (_mission_type_audit.py and
+      test_doctor_mission_type.py) are the ones missing from the "PR Shape" tally, as if only
+      modified-existing files were counted and the two brand-new files were dropped. This is
+      an internal inconsistency in the binding plan document; it does not change the
+      qualitative conclusion (the file set is still small either way) but a reviewer or
+      implementer citing "PR Shape" as the authoritative scope-size statement would work from
+      a wrong count.
+    remediation: >
+      Correct the "PR Shape" section's file-count parenthetical to "6 production files + 4
+      test files (including the golden-contract test)" (or otherwise reconcile it with the
+      Project Structure section's actual file list) before tasks-phase authoring, so the
+      stated rationale for "one PR" matches the plan's own file manifest.
+
+  - id: PLAN-GOV-002
+    lens: Tracer files seeded (mission tracer quality) / citation accuracy
+    severity: 1
+    title: tracer-approach.md misattributes classify_mission/audit_repo to "_identity_audit.py's report-builder pattern"
+    evidence:
+      - artifact: "kitty-specs/mission-type-guard-registry-01KZY2FG/tracer-approach.md (§ How the plan was produced, second bullet)"
+      - code: "src/specify_cli/cli/commands/_identity_audit.py:44-346 (no classify_mission/audit_repo/IdentityState/summarize definitions in this file — only imported and called, e.g. line 50 `from specify_cli.status import classify_mission`, lines 214/220/229 for audit_repo/summarize)"
+      - code: "src/specify_cli/status/identity_audit.py:67 (class IdentityState), :103 (def classify_mission), :185 (def audit_repo), :234 (def summarize) — the actual owning module"
+    claim: >
+      tracer-approach.md states it confirmed "doctor identity's command shape (doctor.py:396-444)
+      and _identity_audit.py's report-builder pattern (run_identity_audit, _build_identity_json,
+      _compute_fail_on, classify_mission, audit_repo)" by reading "the full ~260-line
+      implementation." In fact classify_mission, audit_repo, IdentityState, and summarize are
+      defined in the separate domain-layer module src/specify_cli/status/identity_audit.py, not
+      in _identity_audit.py (the CLI-command sibling only imports and calls them). Plan.md
+      itself gets this right in the Seam & Module Placement section ("not the
+      specify_cli/status/identity_audit.py domain-layer split... this is the smallest-viable-
+      diff shape"), so the imprecision is confined to the tracer file's narrative and does not
+      propagate into the actual design — but a tracer file exists specifically to be a
+      trustworthy first-hand verification record, and this one slightly overstates what was
+      verified about a single file's contents.
+    remediation: >
+      Minor edit to tracer-approach.md's second bullet to say the report-builder pattern was
+      confirmed "across _identity_audit.py (CLI report-builder: run_identity_audit,
+      _build_identity_json, _compute_fail_on) and its domain-layer collaborator
+      specify_cli/status/identity_audit.py (classify_mission, audit_repo, IdentityState,
+      summarize)" — matching the split plan.md's own Seam & Module Placement section already
+      documents correctly. No plan.md change needed.

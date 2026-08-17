@@ -1,0 +1,84 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: mission-type-guard-registry-01KZY2FG
+findings:
+  - id: TASKS-DECOMP-001
+    lens: One-PR diff readability — WP01 diff-size claim
+    severity: 3
+    title: "tasks.md's PR Shape section undercounts WP01's Commit-3 (T003-T006) production diff"
+    evidence:
+      - artifact: "tasks.md § PR Shape — carried forward from plan.md"
+      - code: "kitty-specs/mission-type-guard-registry-01KZY2FG/tasks.md:132-134 (\"a ~10-line production change in 4 files plus one new ~5-way guard function\")"
+      - artifact: "tasks/WP01-guard-table-registry-and-plan-guards.md § T003"
+      - code: "kitty-specs/mission-type-guard-registry-01KZY2FG/tasks/WP01-guard-table-registry-and-plan-guards.md:219-262 (T003's 5 numbered steps)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:351-374 (current evaluate_guards, the function T003 rewrites)"
+      - code: "src/charter/mission_type_profiles.py:193-205 (UnknownMissionTypeError — the sibling exception T003's own docstring is required to cross-reference, shown here as evidence of this codebase's typical size for a ValueError-with-rationale-docstring: 13 lines)"
+    claim: >
+      tasks.md's PR Shape section characterizes the whole WP01+WP02 diff as "a ~10-line
+      production change in 4 files plus one new ~5-way guard function" (referring to WP01).
+      Read against WP01's own T003 steps, this undercounts what Commit 3 actually adds to
+      ONE file (runtime_bridge_cores.py), which is not "~10 lines" in "4 files" — it is: (1) a
+      new `_GUARD_TABLES` dict (step 1), (2) a new `UnregisteredMissionFamilyError` exception
+      class carrying a mandated cross-reference docstring to
+      `charter.mission_type_profiles.UnknownMissionTypeError` (step 2 — this codebase's own
+      analogous exception at mission_type_profiles.py:193-205 runs 13 lines, giving a concrete
+      size anchor), (3) a new `evaluate_guards_strict` function (step 3), (4) a new
+      `_evaluate_plan_guards` 5-way if/elif function with a docstring citing
+      `_evaluate_documentation_guards`'s `accept` case by line number (step 4 — this is the "one
+      new ~5-way guard function" tasks.md does account for), and (5) a rewritten `evaluate_guards`
+      with a new docstring note (PLAN-VERIFY-005, step 5). Only item (4) is covered by the "one
+      new ~5-way guard function" phrase; items (1), (2), (3) and (5) are new/changed production
+      surface in the *same* file that the "~10-line production change in 4 files" clause does not
+      appear to include (that clause reads as covering only T004/T005/T006's small, genuinely
+      ~1-8-line edits to runtime_bridge_io.py / runtime_bridge_composition.py / runtime_bridge.py).
+      A realistic implementation of T003's 5 steps (dict + documented exception class + 2 new
+      functions + 1 rewritten function) lands closer to 40-60 new/changed lines in
+      runtime_bridge_cores.py alone — several times the "~10-line" figure, once T003 is included
+      rather than only T004-T006. The PR Shape section's own reviewability conclusion ("small
+      enough to review in one sitting") may still be correct, but it is resting on a diff-size
+      estimate that a reviewer reading only tasks.md (not WP01's T003 detail) would materially
+      underestimate.
+    remediation: >
+      Rephrase tasks.md's PR Shape paragraph to size Commit 3 by its actual new-symbol count
+      (one dict, one exception class, two new functions, one rewritten function, all in
+      runtime_bridge_cores.py) rather than folding it into the same "~10-line" figure that
+      describes T004-T006's file-level edits, OR explicitly state both numbers separately (e.g.
+      "T004-T006: ~10 lines across 3 files; T003: ~50 new/changed lines in one file, five new/
+      changed symbols") so a reviewer sizing the PR from tasks.md alone is not surprised by the
+      actual Commit-3 diff.
+
+  - id: TASKS-DECOMP-002
+    lens: One-PR diff readability — WP02 "~300-line" sibling-module claim
+    severity: 3
+    title: "tasks.md's \"~300-line\" estimate for _mission_type_audit.py contradicts WP02's own sizing guidance"
+    evidence:
+      - artifact: "tasks.md § PR Shape — carried forward from plan.md"
+      - code: "kitty-specs/mission-type-guard-registry-01KZY2FG/tasks.md:132-134 (\"one new CLI command + one new ~300-line sibling module\")"
+      - artifact: "tasks/WP02-doctor-mission-type-command.md § Context & Constraints, Canonical precedent"
+      - code: "kitty-specs/mission-type-guard-registry-01KZY2FG/tasks/WP02-doctor-mission-type-command.md:92-97 (\"do not treat either single precedent file's line count as a target; the combined scale is the two files' roles folded together, at their combined LOC order of magnitude, not a 1:1 mirror of either one alone\")"
+      - code: "src/specify_cli/status/identity_audit.py (361 lines, wc -l verified)"
+      - code: "src/specify_cli/cli/commands/_identity_audit.py (346 lines, wc -l verified)"
+    claim: >
+      tasks.md's PR Shape section commits to a concrete estimate — "one new ~300-line sibling
+      module" — for `_mission_type_audit.py`. WP02's own prompt (Context & Constraints §Canonical
+      precedent) explicitly instructs the implementer NOT to treat either precedent file's line
+      count as a target, and to expect the combined module to land at the two precedent files'
+      "combined LOC order of magnitude" because it merges both files' roles (domain-layer
+      classifier: `IdentityState`/`classify_mission`/`audit_repo`/`summarize`, PLUS CLI-glue:
+      `run_identity_audit`/`_build_identity_json`/`_compute_fail_on`) into one file. The two named
+      precedents are 361 and 346 lines (707 combined, verified by `wc -l` against the current
+      checkout). Folding boilerplate/import overlap might shrink the combined total somewhat, but
+      WP02's own guidance ("do not treat either single precedent file's line count as a target")
+      is a direct signal that the true figure is expected to exceed a single precedent's own
+      line count (361), let alone tasks.md's "~300" estimate — i.e. WP02's own sizing language
+      contradicts the number tasks.md uses to justify one-PR reviewability.
+    remediation: >
+      Either drop the specific "~300-line" figure from tasks.md's PR Shape paragraph and replace
+      it with WP02's own framing ("combined LOC order of magnitude of the two precedent modules,
+      ~600-700 lines"), or reconcile the two numbers explicitly (state why ~300 is still expected
+      despite the combined-precedent guidance, e.g. citing specific boilerplate/import overlap
+      that would be eliminated) so the one-PR-review-sitting conclusion in tasks.md is not resting
+      on a smaller number than WP02's own prompt anticipates.
