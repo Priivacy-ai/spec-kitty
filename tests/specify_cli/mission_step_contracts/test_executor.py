@@ -1010,3 +1010,223 @@ def test_well_formed_org_pack_drg_contributes_without_warning(
 
     assert [step.step_id for step in result.steps] == ["alpha", "beta", "gamma"]
     assert not [record for record in caplog.records if record.levelno == logging.WARNING]
+
+
+# ---------------------------------------------------------------------------
+# #3525 Fold B — the load-bearing chain fix (N=2 org packs, not just pack #1)
+# ---------------------------------------------------------------------------
+#
+# The problem: org-tier doctrine resolution already worked for a CHAIN of N
+# org packs at every seam EXCEPT the DRG graph merge, which took only pack #1
+# (first-match-wins). Pack #2's ``mission_step_contract`` loaded into the
+# repository (chain-correct overlay) but its graph nodes / ``delegates_to``
+# edges were absent from the DRG (first-only) -- the executor even disagreed
+# with itself: repo half sees pack #2's contract, DRG half doesn't know its
+# delegation target exists. This section proves the fix at the executor
+# level (the primitive-level proof lives in
+# ``tests/charter/test_org_pack_chain_drg_merge.py``).
+
+PACK_B_ACTION = "plan"
+PACK_B_CONTRACT_ID = "org-fixture-plan"
+PACK_B_DIRECTIVE_STEM = "org-tier-fixture-directive-b"
+PACK_B_DIRECTIVE_URN = f"directive:{PACK_B_DIRECTIVE_STEM}"
+PACK_B_ACTION_URN = f"action:{ORG_FIXTURE_MISSION}/{PACK_B_ACTION}"
+PACK_B_PACK_NAME = "org-fixture-pack-b"
+
+
+def write_second_org_pack_fixture(org_root_b: Path) -> None:
+    """Second org pack (#3525 chain fixture): a DISTINCT ``(mission, action)``
+    step contract + DRG fragment, registered as pack #2 in declaration order.
+
+    Mirrors :func:`write_org_tier_step_contract_fixture`'s shape but targets
+    a different action than pack A's fixture so both packs' contributions
+    are independently observable -- neither shadows the other at the
+    repository layer, and (pre-fix) only pack A's DRG contribution was ever
+    visible to the executor.
+    """
+    directives_dir = org_root_b / "directives"
+    directives_dir.mkdir(parents=True, exist_ok=True)
+    (directives_dir / f"{PACK_B_DIRECTIVE_STEM}.directive.yaml").write_text(
+        f"id: {PACK_B_DIRECTIVE_STEM}\n",
+        encoding="utf-8",
+    )
+    _write_yaml(
+        org_root_b / "mission_step_contracts" / f"{PACK_B_CONTRACT_ID}.step-contract.yaml",
+        {
+            "schema_version": "1.0",
+            "id": PACK_B_CONTRACT_ID,
+            "mission": ORG_FIXTURE_MISSION,
+            "action": PACK_B_ACTION,
+            "steps": [
+                {
+                    "id": "plan_gate",
+                    "description": "Run the pack-B plan gate",
+                    "delegates_to": {
+                        "kind": "directive",
+                        "candidates": [PACK_B_DIRECTIVE_STEM],
+                    },
+                }
+            ],
+            "gates": [],
+        },
+    )
+    _write_yaml(
+        org_root_b / f"{PACK_B_DIRECTIVE_STEM}.graph.yaml",
+        {
+            "schema_version": "1.0",
+            "generated_at": "2026-08-17T00:00:00Z",
+            "generated_by": "test",
+            "nodes": [
+                {
+                    "urn": PACK_B_ACTION_URN,
+                    "kind": "action",
+                    "label": "Pack B plan action",
+                },
+                {
+                    "urn": PACK_B_DIRECTIVE_URN,
+                    "kind": "directive",
+                    "label": "Pack B fixture directive",
+                },
+            ],
+            "edges": [
+                {
+                    "source": PACK_B_ACTION_URN,
+                    "target": PACK_B_DIRECTIVE_URN,
+                    "relation": "scope",
+                }
+            ],
+        },
+    )
+
+
+def write_two_pack_org_config(
+    repo_root: Path,
+    org_root_a: Path,
+    org_root_b: Path,
+    *,
+    pack_a_name: str = ORG_FIXTURE_PACK_NAME,
+    pack_b_name: str = PACK_B_PACK_NAME,
+) -> None:
+    """Register TWO org packs, in declaration order A then B (#3525 chain fixture)."""
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.yaml").write_text(
+        "\n".join(
+            [
+                "doctrine:",
+                "  org:",
+                "    packs:",
+                f"      - name: {pack_a_name}",
+                f"        local_path: {org_root_a}",
+                f"      - name: {pack_b_name}",
+                f"        local_path: {org_root_b}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_chain_two_org_packs_executor_self_consistency(tmp_path: Path) -> None:
+    """Executor self-consistency (#3525 Fold B): repo loads pack #2's
+    contract AND its ``delegates_to`` target resolves in the DRG.
+
+    Red-first: on the pre-fix executor, ``_enumerate_org_pack_paths`` break-
+    on-first picks pack A (declared first) as the sole DRG ``org_root``, so
+    pack B's DRG fragment (its ``plan`` action node + directive) never loads.
+    The repository half still discovers pack B's contract fine (chain-
+    correct overlay), so pre-fix this assertion set fails specifically on
+    ``resolved_delegations`` / ``unresolved_candidates`` -- not on contract
+    discovery -- which is the exact "executor disagrees with itself" shape
+    described by the fold.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root_a = tmp_path / "org-pack-a"
+    org_root_b = tmp_path / "org-pack-b"
+    write_org_tier_step_contract_fixture(org_root_a)
+    write_second_org_pack_fixture(org_root_b)
+    write_two_pack_org_config(repo_root, org_root_a, org_root_b)
+
+    executor = StepContractExecutor(
+        repo_root=repo_root,
+        invocation_executor=_FakeInvocationExecutor(),
+    )
+
+    # Repository half: both packs' contracts are discoverable -- already
+    # chain-correct pre-fix (repository overlay is later-declared-wins
+    # across N packs). This assertion documents the baseline; it is not the
+    # regression this test exists to catch.
+    assert executor._contracts.get_by_action(ORG_FIXTURE_MISSION, ORG_FIXTURE_ACTION) is not None
+    assert executor._contracts.get_by_action(ORG_FIXTURE_MISSION, PACK_B_ACTION) is not None
+
+    # DRG half: pack #2's contribution. This is the load-bearing assertion
+    # that was broken pre-fix (first-match-wins dropped pack B's DRG
+    # fragment entirely, so its delegation candidate could never resolve).
+    result = executor.execute(
+        StepContractExecutionContext(
+            repo_root=repo_root,
+            mission=ORG_FIXTURE_MISSION,
+            action=PACK_B_ACTION,
+            actor="pytest",
+            profile_hint="implementer-fixture",
+        )
+    )
+    assert result.contract_id == PACK_B_CONTRACT_ID
+    assert [d.urn for d in result.steps[0].resolved_delegations] == [PACK_B_DIRECTIVE_URN]
+    assert result.steps[0].unresolved_candidates == ()
+
+
+def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Per-root degrade (#3525 Fold B): a malformed pack #2 drops ONLY pack
+    #2 (WARNING) -- pack #1's DRG contribution must still be present.
+
+    Before this fold, ``_load_graph_degrading_malformed_org_pack`` degraded
+    all-or-nothing on a single ``org_root``: with two packs configured and
+    only the SECOND malformed, the pre-fix code (which resolves only the
+    first existing root as ``org_root``) never even attempts to load pack
+    B's DRG, so this specific failure mode was structurally untestable
+    pre-fix -- the fix is what makes "attempt both, isolate the bad one"
+    possible at all.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root_a = tmp_path / "org-pack-a"
+    write_org_tier_step_contract_fixture(org_root_a)
+
+    # Pack B: registered, directory exists, but carries no *.graph.yaml/
+    # graph.yaml at its root -- same malformed shape as
+    # ``test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing``.
+    org_root_b = tmp_path / "malformed-org-pack-b"
+    (org_root_b / "drg").mkdir(parents=True)
+    (org_root_b / "drg" / "fragment.yaml").write_text("kind: directives\n", encoding="utf-8")
+
+    write_two_pack_org_config(repo_root, org_root_a, org_root_b)
+
+    with caplog.at_level(
+        logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
+    ):
+        result = StepContractExecutor(
+            repo_root=repo_root,
+            invocation_executor=_FakeInvocationExecutor(),
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission=ORG_FIXTURE_MISSION,
+                action=ORG_FIXTURE_ACTION,
+                actor="pytest",
+                profile_hint="implementer-fixture",
+            )
+        )
+
+    # Pack A still contributes despite pack B being malformed.
+    assert [d.urn for d in result.steps[0].resolved_delegations] == [ORG_FIXTURE_DIRECTIVE_URN]
+    assert result.steps[0].unresolved_candidates == ()
+
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
+    message = warnings[0].getMessage()
+    assert str(org_root_b) in message
+    assert "DRGLoadError" in message or "No DRG graph files found" in message
