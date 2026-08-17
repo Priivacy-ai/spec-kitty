@@ -724,14 +724,38 @@ def test_non_builtin_tier_sidecar_pair_warns(
     "mission_type", ["plan", "research", "documentation", MISSION_TYPE_SOFTWARE_DEV]
 )
 def test_builtin_sidecar_pairs_stay_silent(
-    mission_type: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    mission_type: str,
+    tmp_path: Path,
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """FR-011, User Story 4 Acceptance Scenario 2 (negative half, T035 --
     the main correctness risk per plan.md's IC-06 risk note): all four
     built-in mission directories already legitimately ship both
     ``mission.yaml`` and ``mission-runtime.yaml``. The new sidecar
     diagnostic MUST NOT fire for any of them -- exercised individually for
-    all four, not just one representative."""
+    all four, not just one representative.
+
+    ``_runtime_template_key``'s global tier is ``DiscoveryContext.user_home``
+    (``runtime/next/_internal_runtime/discovery.py``), which defaults to the
+    *ambient* ``Path.home()`` -- not the ``SPEC_KITTY_HOME``-scoped override
+    the bootstrap tests use. The per-worker isolated HOME the root conftest
+    sets up (``tests/conftest.py``'s ``_isolated_worker_home``) is stable for
+    the lifetime of the worker process, not reset between tests, so a stray
+    ``~/.kittify/missions/<mission>/`` tier left by *any* other test that ran
+    earlier in the same process is still visible here and would make this
+    test observe a real (if accidental) non-built-in tier -- exactly the
+    condition the diagnostic exists to report, just not the one this test
+    means to exercise. Give the test its own definitely-empty HOME so the
+    global tier is guaranteed absent, matching the pattern already used by
+    ``tests/sync/test_*`` (``monkeypatch.setenv("HOME", ...)`` /
+    ``"USERPROFILE"`` for Windows) rather than relying on process-wide
+    isolation to also mean per-test isolation."""
+    isolated_home = tmp_path / "isolated-home"
+    isolated_home.mkdir()
+    monkeypatch.setenv("HOME", str(isolated_home))
+    monkeypatch.setenv("USERPROFILE", str(isolated_home))
+
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
 
