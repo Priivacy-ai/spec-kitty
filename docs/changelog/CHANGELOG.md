@@ -19,6 +19,19 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **`spec-kitty doctor mission-type` reports whether every mission's
+  `mission_type` actually resolves, so a broken or unregistered type is visible
+  before it misbehaves (mission `mission-type-guard-registry`; `#3402`,
+  `#3386`).** Modelled on `doctor identity`, it walks every mission under
+  `kitty-specs/` and classifies each into one of six distinguishable states —
+  `resolved`, `activated-unresolvable`, `unknown`, `typeless`,
+  `legacy-key-only`, or `error` — and supports `--json` for machine output and
+  `--fail-on <state,...>` for CI gating (e.g.
+  `--fail-on unknown,activated-unresolvable` exits non-zero when any mission
+  sits in those states). Before, a mission whose type failed to resolve gave no
+  signal until the runtime silently applied the wrong rules; now the condition
+  is inspectable on demand.
+
 - **A pack — built-in, org, fetched, or a charter bundle — now has one canonical
   `pack-manifest.yaml` schema instead of two divergent formats (mission
   `pack-metadata-manifest-unification-01M052PT`; closes `#3500`, `#3501`, `#3502`,
@@ -222,6 +235,21 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   (R1b), so `Refs #3121` rather than `Closes`.
 
 ### 🐛 Fixed
+
+- **A mission running under a non–software-dev workflow no longer gets blocked
+  by a guard about objects its workflow does not have — for example a `plan`
+  mission's `review` step demanding "Not all work packages are approved or done"
+  when a `plan` mission has no work packages at all (mission
+  `mission-type-guard-registry`; `#3402`, `#3386`).** Before, runtime guard
+  dispatch branched explicitly on the `research` and `documentation` mission
+  families and then silently fell through to the software-dev guard table for
+  everything else — including `plan` and any unregistered mission type — so a
+  mission could be held back by a guard about artifacts it can never possess,
+  with nothing explaining why. Now guard dispatch is an explicit registry keyed
+  by mission family: `plan` has its own guard table authored from its real state
+  machine, and an unregistered family fails loudly on the legacy path and
+  degrades to an explicit, logged neutral result on the composed extension path
+  — instead of inheriting the wrong rules by accident.
 
 - **An organisation doctrine pack you registered, validated, and activated
   delivered none of its step contracts, artifact requirements, or graph nodes to
