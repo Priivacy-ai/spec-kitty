@@ -135,7 +135,7 @@
       "write_scope": [
         "CHANGELOG.md",
         "docs/adr/3.x/2026-08-16-1-operator-config-env-expansion-seam.md",
-        "docs/adr/3.x/2026-08-16-2-rc-release-channel.md",
+        "docs/adr/3.x/2026-08-16-4-rc-release-channel.md",
         "docs/api/configuration.md",
         "docs/api/environment-variables.md",
         "docs/architecture/team-kitty-saas.md",
