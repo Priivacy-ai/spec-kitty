@@ -171,6 +171,15 @@ class StepContractExecutor:
         graph: DRGGraph | None = None,
     ) -> None:
         self._repo_root = repo_root
+        # Precedence divergence (C-004, deliberate — do NOT unify one side alone):
+        # `resolve_org_dirs` returns ALL existing org packs (repository overlay is
+        # later-declared-wins), whereas this executor's DRG load
+        # (`_load_graph_degrading_malformed_org_pack` -> `load_validated_graph`,
+        # below) takes only the FIRST org pack (`org_root` = first-match-wins).
+        # Coherent for the shipping single-pack case; for 2+ org packs the
+        # repository would see every pack's contracts while the DRG saw only
+        # pack #1's `delegates_to`/activation graph. Close the multi-pack DRG
+        # story (C-004) as a unit before unifying either mechanism.
         self._contracts = contract_repository or MissionStepContractRepository(
             project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts",
             org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
