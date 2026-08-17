@@ -3,7 +3,7 @@
 Charter standing order 3. Every place the tooling fought this mission, so it feeds the
 tooling-gap backlog — seeded at plan time with three known-broken surfaces this mission hit
 first-hand while driving the plan phase (all three are already documented in
-`/home/jeroennouws/dev/SK-missions/SPEC-KITTY-LEDGER.md`; restated here in public-repo-safe,
+`<workspace-root>/SPEC-KITTY-LEDGER.md`; restated here in public-repo-safe,
 class-level terms, no private downstream detail).
 
 ## SK-09 — nothing mints the mission branch during `specify`
@@ -175,7 +175,7 @@ create the lane worktree successfully (`.worktrees/org-pack-drg-root-graph-guard
 HEAD `eeb027b50`, matching the captured baseline) and appended the `planned`→`claimed`→
 `in_progress` events to `status.events.jsonl` on disk, but then failed its own follow-up commit
 of that status change with: `Failed to commit workflow status update for WP01: safe_commit:
-worktree /home/jeroennouws/dev/SK-missions/3384 HEAD is
+worktree <workspace-root>/3384 HEAD is
 'kitty/mission-org-pack-drg-root-graph-guard-01KZY0QT', expected 'main'.` — reported as "Event
 log rolled back to pre-emit state" even though the JSONL events were, in fact, still present on
 disk afterward (verified by re-reading `status.events.jsonl` directly). Same root family as

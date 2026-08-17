@@ -8,16 +8,16 @@ generated_at: '2026-08-13T22:05:08.264975+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
-    path: /home/jeroennouws/dev/SK-missions/3384/kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/spec.md
+    path: kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/spec.md
     sha256: f7d406037b52cf38b4a5f89196b702d029b2d2d5414c63fe80e3bfb033989197
   plan.md:
-    path: /home/jeroennouws/dev/SK-missions/3384/kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/plan.md
+    path: kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/plan.md
     sha256: 2d2b8d6132b166afc250f443818beb0350707c2c664b385a7c7c40b226c36e85
   tasks.md:
-    path: /home/jeroennouws/dev/SK-missions/3384/kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tasks.md
+    path: kitty-specs/org-pack-drg-root-graph-guard-01KZY0QT/tasks.md
     sha256: 3bede074d86ca0ad1dfa1f51915cfe94146bb13bc290d3df1c867ed8d20e2792
   charter:
-    path: /home/jeroennouws/dev/SK-missions/3384/.kittify/charter/charter.md
+    path: .kittify/charter/charter.md
     sha256: b2b5046860df95ed513f80cbcf8352fa59e096ec7ec0c9ff88c8c9a391cfa195
 verdict: ready
 issue_counts:
