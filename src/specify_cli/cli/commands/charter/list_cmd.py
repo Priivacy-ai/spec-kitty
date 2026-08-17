@@ -50,8 +50,11 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
 
     Templates live mission-scoped under ``<missions_root>/<mission>/templates``
     and ``.../command-templates`` (WP18). The package missions root ships with
-    the ``doctrine`` package; the org / project layers (when present) carry
-    their own missions trees under ``<doctrine-root>/doctrine/missions``.
+    the ``doctrine`` package. The project layer (when present) carries its own
+    missions tree under ``<project-doctrine-root>/doctrine/missions``; the org
+    layer (when present) carries a *flat* missions tree under
+    ``<org_root>/missions`` — no ``doctrine/`` subdir (FR-006, matching what
+    the resolver actually reads, WP03).
 
     Roots are returned override → package so :func:`discover_templates`
     deduplicates same ``<mission>/<name>`` IDs to the highest-precedence tier.
@@ -73,14 +76,16 @@ def _template_tier_roots(repo_root: Path, layer_roots: dict[str, Path]) -> list[
                 )
             )
 
-    # Org (global-mission-tier) missions, if an org doctrine layer exists.
+    # Org missions, if an org doctrine pack is configured. Flat layout
+    # (``<org_root>/missions``, no ``doctrine/`` subdir) and ``ResolutionTier.ORG``
+    # match what the resolver actually reads (WP03) — see FR-006/DEC-009.
     org_root = layer_roots.get("org")
     if org_root is not None:
-        missions = org_root / "doctrine" / "missions"
+        missions = org_root / "missions"
         if missions.is_dir():
             tier_roots.append(
                 TierRoot(
-                    tier=ResolutionTier.GLOBAL_MISSION,
+                    tier=ResolutionTier.ORG,
                     missions_root=missions,
                 )
             )
