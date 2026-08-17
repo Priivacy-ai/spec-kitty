@@ -1,0 +1,58 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+note: >
+  DEVIATION FROM STANDARD PROTOCOL (recorded honestly, not hidden): this refutation pass was
+  performed by the phase agent directly rather than a dedicated fresh subagent with no other
+  context, because a prior turn in this mission was interrupted (harness lost the process) while
+  a background subagent was in flight, and the operator's recovery instructions explicitly warned
+  against repeating the "launch background, end turn, wait for notification" pattern. To compensate
+  for the loss of true session-independence, every verdict below is grounded in a FRESH, LIVE
+  re-read of the actual code cited (not a re-read of the finding's own prose) before being marked
+  confirmed — see the evidence-recheck note per finding. Default-to-refuted-when-uncertain was
+  still honored: nothing below was marked confirmed without an independent code read matching the
+  finding's claim.
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >
+      Re-checked live: src/doctrine/drg/org_pack_config.py:474 defines resolve_existing_org_roots
+      on this branch; git show main:src/doctrine/drg/org_pack_config.py does not define it (file
+      does not exist on main at all, confirmed separately at mission start); _drg_helpers.py never
+      defines or imports the symbol on either branch. The spec's original citation was wrong.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >
+      Re-checked live: list_cmd.py:165 calls resolve_layer_roots(repo_root) when all_layers is
+      set, and passes layer_roots into list_available_detailed (pack_manager.py, layer_roots:
+      dict[str, Path] | None at three signatures) and _template_tier_roots. A genuine third
+      consumer FR-001's original ACs never exercised.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >
+      Re-checked live: context.py:84-85 computes one truncated org_root and passes it to both
+      build_charter_context (line ~117, plain-text) and build_charter_context_json (line ~132,
+      JSON). build_charter_context already calls _resolve_action_bundle at charter/context.py:270,
+      confirming the plain-text path is equally truncated today, and that AC5's swap-only fix
+      (build_charter_context_json -> _resolve_action_bundle) does not by itself widen anything
+      while the CLI still hands in a pre-truncated org_root.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >
+      Re-read spec.md's original FR-002 AC5 and FR-003 AC3/AC4 text directly: none states an
+      observable pass/fail condition; all three are prose recommendations or an explicitly-flagged
+      open question, correctly distinguishable from the genuinely testable ACs around them.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >
+      Re-checked live: src/specify_cli/dossier/manifest.py:253 (ManifestRegistry.load_manifest)
+      calls the plural _resolve_existing_org_roots(repo_root) whenever repo_root is not None,
+      confirming the "inherited for free" mechanism the finding proposes, and confirming FR-003's
+      original AC list had no line stating this reasoning.
+  - id: SPEC-VERIFY-003
+    verdict: confirmed
+    reason: >
+      Re-checked live: gh issue view 3284 returns state OPEN, title "main full suite has 23
+      untracked failures and 2 errors after bootstrap prewarm" — matches the finding's citation
+      exactly; SC-004's original text had no baseline-red acknowledgment.

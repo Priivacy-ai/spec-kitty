@@ -1,0 +1,10 @@
+schema: review-findings-merged/v1
+phase: tasks
+mission: cascade-org-inert-01M07E9P
+note: >
+  Concatenation of tasks-decomp.findings.yaml, tasks-order.findings.yaml, tasks-cover.findings.yaml.
+  All three returned an empty findings list -- the one substantive issue found (missing explicit
+  AC1 baseline coverage in T011/T020) was caught and fixed in-place during drafting/review, not
+  left as a confirmed-and-unfixed finding requiring a separate R4 round. See each file's
+  checks_applied for the live evidence.
+findings: []
