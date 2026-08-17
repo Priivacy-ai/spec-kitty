@@ -89,6 +89,14 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # ``tests/architectural/test_runtime_charter_doctrine_boundary.py``
         # forbids. Same source module, same identity-reexport shape.
         ("resolve_org_dirs", "doctrine.drg.org_pack_config"),
+        # Added by the #3520 chain fold (#3525): the multi-org-pack DRG merge
+        # gave `specify_cli`/`runtime` runtime callers (executor, gate_bindings)
+        # a top-level need for the org-root-chain resolver and the graph loader.
+        # Re-exported here — same identity-reexport shape — so those callers reach
+        # doctrine through this facade rather than a lazy `doctrine.*` import that
+        # `test_runtime_charter_doctrine_boundary.py` forbids.
+        ("resolve_existing_org_roots", "doctrine.drg.org_pack_config"),
+        ("load_graph_or_dir", "doctrine.drg.loader"),
         # ``doctrine.base`` census-drift door (WP01 FACADE-ONLY): the
         # layer-collision warning belongs on the layer-merge facade beside
         # ``merge_layers`` / ``merge_three_layers``. Consumer is WP05-owned.
