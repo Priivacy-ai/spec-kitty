@@ -1,4 +1,4 @@
-"""5-tier asset resolution: override > legacy > global-mission > global > package default.
+"""6-tier asset resolution: override > legacy > org > global-mission > global > package default.
 
 Resolution tiers (checked in order):
 1. OVERRIDE        -- .kittify/overrides/missions/{mission}/{templates,command-templates}/
@@ -6,9 +6,14 @@ Resolution tiers (checked in order):
                       global .kittify/overrides/{templates,command-templates}/
                       (no mission segment, kept for backward compatibility)
 2. LEGACY          -- .kittify/{templates,command-templates}/ (deprecated; emits warning)
-3. GLOBAL_MISSION  -- ~/.kittify/missions/{mission}/{templates,command-templates}/
-4. GLOBAL          -- ~/.kittify/{templates,command-templates}/
-5. PACKAGE         -- packs/built-in/missions/{mission}/{templates,command-templates}/
+3. ORG             -- <org_root>/missions/{mission}/{templates,command-templates}/
+                      for each root returned by
+                      ``doctrine.drg.org_pack_config.resolve_org_roots(project_dir)``,
+                      in declaration order (first match wins). A no-op when
+                      no org packs are configured (NFR-005).
+4. GLOBAL_MISSION  -- ~/.kittify/missions/{mission}/{templates,command-templates}/
+5. GLOBAL          -- ~/.kittify/{templates,command-templates}/
+6. PACKAGE         -- packs/built-in/missions/{mission}/{templates,command-templates}/
                       (relocated there from the doctrine package by #3091/#3204;
                       resolved via ``MissionTemplateRepository.default()``)
 
@@ -149,11 +154,14 @@ def _resolve_asset(
     project_dir: Path,
     mission: str = "software-dev",
 ) -> ResolutionResult:
-    """Core 5-tier resolution logic shared by public helpers.
+    """Core 6-tier resolution logic shared by public helpers.
 
     Tier 1 (override) checks two shapes, mission-scoped first:
     1a. ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (mission-scoped)
     1b. ``.kittify/overrides/{subdir}/{name}`` (global, backward-compatible fallback)
+
+    Tier 3 (org) probes each configured org doctrine pack root, in
+    declaration order, before falling through to the global-mission tier.
 
     Args:
         name: Filename to resolve (e.g. ``"plan.md"``).
@@ -189,7 +197,21 @@ def _resolve_asset(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=mission)
 
-    # Tier 3 -- global mission-specific (~/.kittify/missions/{mission}/...)
+    # Tier 3 -- org (sourced from configured org doctrine packs). Same-layer
+    # direct import (DEC-003: doctrine/resolver.py needs no facade -- it is
+    # already inside the doctrine layer). No try/except around
+    # resolve_org_roots(): OrgPackSubdirEscapeError/OrgPackEnvVarUnsetError
+    # are deliberately raised and must propagate (DEC-005, NFR-001). With no
+    # org packs configured, resolve_org_roots() returns [] and this loop is a
+    # no-op (NFR-005).
+    from doctrine.drg.org_pack_config import resolve_org_roots
+
+    for org_root in resolve_org_roots(project_dir):
+        org_path = org_root / "missions" / mission / subdir / name
+        if org_path.is_file():
+            return ResolutionResult(path=org_path, tier=ResolutionTier.ORG, mission=mission)
+
+    # Tier 4 -- global mission-specific (~/.kittify/missions/{mission}/...)
     try:
         global_home = get_kittify_home()
 
@@ -201,15 +223,15 @@ def _resolve_asset(
                 mission=mission,
             )
 
-        # Tier 4 -- global non-mission (~/.kittify/{subdir}/{name})
+        # Tier 5 -- global non-mission (~/.kittify/{subdir}/{name})
         global_path = global_home / subdir / name
         if global_path.is_file():
             return ResolutionResult(path=global_path, tier=ResolutionTier.GLOBAL, mission=mission)
     except RuntimeError:
-        # Cannot determine home directory -- skip tiers 3 and 4
+        # Cannot determine home directory -- skip tiers 4 and 5
         pass
 
-    # Tier 5 -- package default (via MissionTemplateRepository)
+    # Tier 6 -- package default (via MissionTemplateRepository)
     try:
         from doctrine.missions import MissionTemplateRepository
 
@@ -248,15 +270,16 @@ def resolve_template(
     project_dir: Path,
     mission: str = "software-dev",
 ) -> ResolutionResult:
-    """Resolve a template file through the 5-tier precedence chain.
+    """Resolve a template file through the 6-tier precedence chain.
 
     Checks (in order):
     1. .kittify/overrides/missions/{mission}/templates/{name}  (mission-scoped)
        .kittify/overrides/templates/{name}  (global fallback, backward-compat)
     2. .kittify/templates/{name}  (legacy -- emits warning/nudge)
-    3. ~/.kittify/missions/{mission}/templates/{name}
-    4. ~/.kittify/templates/{name}
-    5. <package>/missions/{mission}/templates/{name}
+    3. <org_root>/missions/{mission}/templates/{name}  (per configured org pack)
+    4. ~/.kittify/missions/{mission}/templates/{name}
+    5. ~/.kittify/templates/{name}
+    6. <package>/missions/{mission}/templates/{name}
 
     Args:
         name: Template filename (e.g. ``"spec-template.md"``).
@@ -277,15 +300,16 @@ def resolve_command(
     project_dir: Path,
     mission: str = "software-dev",
 ) -> ResolutionResult:
-    """Resolve a command template through the 5-tier precedence chain.
+    """Resolve a command template through the 6-tier precedence chain.
 
     Checks (in order):
     1. .kittify/overrides/missions/{mission}/command-templates/{name}  (mission-scoped)
        .kittify/overrides/command-templates/{name}  (global fallback, backward-compat)
     2. .kittify/command-templates/{name}  (legacy -- emits warning/nudge)
-    3. ~/.kittify/missions/{mission}/command-templates/{name}
-    4. ~/.kittify/command-templates/{name}
-    5. <package>/missions/{mission}/command-templates/{name}
+    3. <org_root>/missions/{mission}/command-templates/{name}  (per configured org pack)
+    4. ~/.kittify/missions/{mission}/command-templates/{name}
+    5. ~/.kittify/command-templates/{name}
+    6. <package>/missions/{mission}/command-templates/{name}
 
     Args:
         name: Command template filename (e.g. ``"plan.md"``).
@@ -310,8 +334,9 @@ def resolve_mission(
     Checks (in order):
     1. .kittify/overrides/missions/{name}/mission.yaml
     2. .kittify/missions/{name}/mission.yaml  (legacy -- emits warning/nudge)
-    3. ~/.kittify/missions/{name}/mission.yaml
-    4. <package>/missions/{name}/mission.yaml
+    3. <org_root>/missions/{name}/mission.yaml  (per configured org pack)
+    4. ~/.kittify/missions/{name}/mission.yaml
+    5. <package>/missions/{name}/mission.yaml
 
     Note: missions are inherently mission-scoped, so there is no separate
     "global non-mission" tier for mission configs.
@@ -340,7 +365,17 @@ def resolve_mission(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=name)
 
-    # Tier 3 -- global (missions are inherently mission-scoped)
+    # Tier 3 -- org (sourced from configured org doctrine packs). Same-layer
+    # direct import (DEC-003); no try/except around resolve_org_roots() --
+    # see the identical rationale in _resolve_asset above (DEC-005, NFR-001).
+    from doctrine.drg.org_pack_config import resolve_org_roots
+
+    for org_root in resolve_org_roots(project_dir):
+        org_path = org_root / "missions" / name / filename
+        if org_path.is_file():
+            return ResolutionResult(path=org_path, tier=ResolutionTier.ORG, mission=name)
+
+    # Tier 4 -- global (missions are inherently mission-scoped)
     try:
         global_home = get_kittify_home()
         global_path = global_home / "missions" / name / filename
@@ -349,7 +384,7 @@ def resolve_mission(
     except RuntimeError:
         pass
 
-    # Tier 4 -- package default (via MissionTemplateRepository)
+    # Tier 5 -- package default (via MissionTemplateRepository)
     try:
         from doctrine.missions import MissionTemplateRepository
 

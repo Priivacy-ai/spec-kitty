@@ -1,11 +1,16 @@
-"""5-tier asset resolution: override > legacy > global-mission > global > package default.
+"""6-tier asset resolution: override > legacy > org > global-mission > global > package default.
 
 Resolution tiers (checked in order):
 1. OVERRIDE        -- .kittify/overrides/{templates,command-templates}/
 2. LEGACY          -- .kittify/{templates,command-templates}/ (deprecated; emits warning)
-3. GLOBAL_MISSION  -- ~/.kittify/missions/{mission}/{templates,command-templates}/
-4. GLOBAL          -- ~/.kittify/{templates,command-templates}/
-5. PACKAGE         -- charter-resolved doctrine/missions/{mission}/{templates,command-templates}/
+3. ORG             -- <org_root>/missions/{mission}/{templates,command-templates}/
+                      for each root returned by the lazy
+                      ``charter.drg.resolve_org_roots(project_dir)`` facade, in
+                      declaration order (first match wins). A no-op when no
+                      org packs are configured (NFR-005).
+4. GLOBAL_MISSION  -- ~/.kittify/missions/{mission}/{templates,command-templates}/
+5. GLOBAL          -- ~/.kittify/{templates,command-templates}/
+6. PACKAGE         -- charter-resolved doctrine/missions/{mission}/{templates,command-templates}/
 
 After ``spec-kitty migrate`` has been run (i.e. ``~/.kittify/`` is
 populated), legacy-tier warnings are suppressed.  Pre-migration projects
@@ -224,21 +229,21 @@ def _package_default_path(
 
     **There is no missions_root → repo_root mapping, by design.** The factory's
     tier-axis methods are ``@staticmethod``s that take ``missions_root`` (and,
-    for the full chain, ``project_dir``) as arguments, because the 5-tier axis
+    for the full chain, ``project_dir``) as arguments, because the 6-tier axis
     is ungated by design and reads no instance state — so no instance, and
     therefore no ``repo_root``, is needed here at all.
 
     The rejected alternative was T019 option (a): resolve ``repo_root`` from
     the ``project_dir`` already threaded through :func:`_resolve_asset` and
     build the activation-aware factory with it. It is available — but it would
-    couple this pure-filesystem tier-5 lookup to charter governance-config
+    couple this pure-filesystem tier-6 lookup to charter governance-config
     loading (``PackContext.from_config`` + ``resolve_org_roots`` +
     ``infer_repo_languages``) whose result the called methods provably never
     read, and would newly make template resolution fail-closed on a malformed
     ``.kittify/config.yaml`` — a project could then no longer resolve the
     templates its repair commands need. The ``lru_cache`` that used to live
     here has moved into ``charter.resolver._mission_template_repository``,
-    alongside the resolution entry point, so repeated tier-5 lookups still
+    alongside the resolution entry point, so repeated tier-6 lookups still
     reuse one repository.
 
     Note this module keeps its own tiers 1-4 (a second, parallel filesystem
@@ -263,11 +268,16 @@ def _resolve_asset(
     project_dir: Path,
     mission: str = "software-dev",
 ) -> ResolutionResult:
-    """Core 5-tier resolution logic shared by public helpers.
+    """Core 6-tier resolution logic shared by public helpers.
 
     Tier 1 (override) checks two shapes, mission-scoped first:
     1a. ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (mission-scoped)
     1b. ``.kittify/overrides/{subdir}/{name}`` (global, backward-compatible fallback)
+
+    Tier 3 (org) probes each configured org doctrine pack root, in
+    declaration order, before falling through to the global-mission tier.
+    Sourced via the lazy ``charter.drg.resolve_org_roots`` facade (DEC-003) --
+    never a direct ``doctrine.*`` import from this module.
 
     Args:
         name: Filename to resolve (e.g. ``"plan.md"``).
@@ -303,7 +313,22 @@ def _resolve_asset(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=mission)
 
-    # Tier 3 -- global mission-specific (~/.kittify/missions/{mission}/...)
+    # Tier 3 -- org (sourced from configured org doctrine packs). Lazy import
+    # mirrors the five existing specify_cli/** call sites that route org-root
+    # resolution through this facade (DEC-003) -- never a direct
+    # ``doctrine.*`` import from runtime. No try/except around
+    # resolve_org_roots(): OrgPackSubdirEscapeError/OrgPackEnvVarUnsetError
+    # are deliberately raised and must propagate (DEC-005, NFR-001). With no
+    # org packs configured, resolve_org_roots() returns [] and this loop is a
+    # no-op (NFR-005).
+    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+
+    for org_root in resolve_org_roots(project_dir):
+        org_path = org_root / "missions" / mission / subdir / name
+        if org_path.is_file():
+            return ResolutionResult(path=org_path, tier=ResolutionTier.ORG, mission=mission)
+
+    # Tier 4 -- global mission-specific (~/.kittify/missions/{mission}/...)
     try:
         global_home = get_kittify_home()
 
@@ -315,15 +340,15 @@ def _resolve_asset(
                 mission=mission,
             )
 
-        # Tier 4 -- global non-mission (~/.kittify/{subdir}/{name})
+        # Tier 5 -- global non-mission (~/.kittify/{subdir}/{name})
         global_path = global_home / subdir / name
         if global_path.is_file():
             return ResolutionResult(path=global_path, tier=ResolutionTier.GLOBAL, mission=mission)
     except RuntimeError:
-        # Cannot determine home directory -- skip tiers 3 and 4
+        # Cannot determine home directory -- skip tiers 4 and 5
         pass
 
-    # Tier 5 -- package default via charter. Keep this call routed through
+    # Tier 6 -- package default via charter. Keep this call routed through
     # charter so runtime never binds directly to doctrine's repository shape.
     try:
         pkg_missions = get_package_asset_root()
@@ -358,14 +383,15 @@ def resolve_template(
     project_dir: Path,
     mission: str = "software-dev",
 ) -> ResolutionResult:
-    """Resolve a template file through the 5-tier precedence chain.
+    """Resolve a template file through the 6-tier precedence chain.
 
     Checks (in order):
     1. .kittify/overrides/templates/{name}
     2. .kittify/templates/{name}  (legacy -- emits warning/nudge)
-    3. ~/.kittify/missions/{mission}/templates/{name}
-    4. ~/.kittify/templates/{name}
-    5. <package>/missions/{mission}/templates/{name}
+    3. <org_root>/missions/{mission}/templates/{name}  (per configured org pack)
+    4. ~/.kittify/missions/{mission}/templates/{name}
+    5. ~/.kittify/templates/{name}
+    6. <package>/missions/{mission}/templates/{name}
 
     Args:
         name: Template filename (e.g. ``"spec-template.md"``).
@@ -390,7 +416,7 @@ def resolve_configured_template(
 
     This first-stage mapping seam reads ``artifact_kind`` from an explicit
     activated mission context, then delegates the configured filename to
-    :func:`resolve_template`. The existing five-tier filesystem precedence
+    :func:`resolve_template`. The existing six-tier filesystem precedence
     remains wholly owned by that second-stage resolver.
 
     This seam has no repository or activation-registry input, so it cannot
@@ -406,7 +432,7 @@ def resolve_configured_template(
             context is rejected rather than inferred as software development.
 
     Returns:
-        ResolutionResult from the unchanged five-tier resolver.
+        ResolutionResult from the unchanged six-tier resolver.
 
     Raises:
         TemplateConfigurationError: If the context is typeless, its mapping is
@@ -503,8 +529,8 @@ def resolve_template_by_urn(
     The URN is split into its mission-qualified ``<mission>/<name>`` template
     ID and handed to
     :func:`charter.template_catalog.resolve_template_by_id`, which performs
-    that split itself and delegates to the same Stage-2 five-tier precedence
-    (override > legacy > global-mission > global > package) that
+    that split itself and delegates to the same Stage-2 six-tier precedence
+    (override > legacy > org > global-mission > global > package) that
     :func:`resolve_template` implements -- so an override at
     ``.kittify/overrides/templates/<file>`` wins on this lane exactly as it
     does on the name-based lane (US3.3).
@@ -516,7 +542,7 @@ def resolve_template_by_urn(
             the override/legacy tiers).
 
     Returns:
-        ResolutionResult from the unchanged five-tier resolver.
+        ResolutionResult from the unchanged six-tier resolver.
 
     Raises:
         TemplateURNError: If the URN is absent/blank, missing the
@@ -563,14 +589,15 @@ def resolve_command(
     project_dir: Path,
     mission: str = "software-dev",
 ) -> ResolutionResult:
-    """Resolve a command template through the 5-tier precedence chain.
+    """Resolve a command template through the 6-tier precedence chain.
 
     Checks (in order):
     1. .kittify/overrides/command-templates/{name}
     2. .kittify/command-templates/{name}  (legacy -- emits warning/nudge)
-    3. ~/.kittify/missions/{mission}/command-templates/{name}
-    4. ~/.kittify/command-templates/{name}
-    5. <package>/missions/{mission}/command-templates/{name}
+    3. <org_root>/missions/{mission}/command-templates/{name}  (per configured org pack)
+    4. ~/.kittify/missions/{mission}/command-templates/{name}
+    5. ~/.kittify/command-templates/{name}
+    6. <package>/missions/{mission}/command-templates/{name}
 
     Args:
         name: Command template filename (e.g. ``"plan.md"``).
@@ -595,8 +622,9 @@ def resolve_mission(
     Checks (in order):
     1. .kittify/overrides/missions/{name}/mission.yaml
     2. .kittify/missions/{name}/mission.yaml  (legacy -- emits warning/nudge)
-    3. ~/.kittify/missions/{name}/mission.yaml
-    4. <package>/missions/{name}/mission.yaml
+    3. <org_root>/missions/{name}/mission.yaml  (per configured org pack)
+    4. ~/.kittify/missions/{name}/mission.yaml
+    5. <package>/missions/{name}/mission.yaml
 
     Note: missions are inherently mission-scoped, so there is no separate
     "global non-mission" tier for mission configs.
@@ -625,7 +653,18 @@ def resolve_mission(
         _warn_legacy_asset(legacy)
         return ResolutionResult(path=legacy, tier=ResolutionTier.LEGACY, mission=name)
 
-    # Tier 3 -- global (missions are inherently mission-scoped)
+    # Tier 3 -- org (sourced from configured org doctrine packs). Lazy import
+    # mirrors _resolve_asset's org-tier import above (DEC-003); no
+    # try/except around resolve_org_roots() -- see the identical rationale
+    # in _resolve_asset above (DEC-005, NFR-001).
+    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+
+    for org_root in resolve_org_roots(project_dir):
+        org_path = org_root / "missions" / name / filename
+        if org_path.is_file():
+            return ResolutionResult(path=org_path, tier=ResolutionTier.ORG, mission=name)
+
+    # Tier 4 -- global (missions are inherently mission-scoped)
     try:
         global_home = get_kittify_home()
         global_path = global_home / "missions" / name / filename
@@ -634,7 +673,7 @@ def resolve_mission(
     except RuntimeError:
         pass
 
-    # Tier 4 -- package default via charter. FR-003: routed through the
+    # Tier 5 -- package default via charter. FR-003: routed through the
     # canonical charter factory; see _package_default_path's docstring for the
     # construction-contract mapping this call site shares.
     try:

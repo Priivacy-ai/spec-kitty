@@ -565,3 +565,177 @@ def test_charter_resolution_tier_is_doctrine_resolution_tier_by_identity() -> No
 
     assert CharterResolutionTier is ResolutionTier
     assert CharterResolutionTier.ORG is ResolutionTier.ORG
+
+
+# ---------------------------------------------------------------------------
+# WP03 (FR-003, FR-005) – org tier in doctrine.resolver's _resolve_asset and
+# resolve_mission. Slots between LEGACY and GLOBAL_MISSION, sourced from
+# doctrine.drg.org_pack_config.resolve_org_roots via a same-layer direct
+# import (DEC-003 -- no facade needed inside the doctrine layer itself).
+# ---------------------------------------------------------------------------
+
+
+def _write_org_pack_config(repo_root: Path, *, pack_name: str, local_path: Path) -> None:
+    """Write a canonical ``doctrine.org.packs[].local_path`` config.yaml entry."""
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.yaml").write_text(
+        "doctrine:\n"
+        "  org:\n"
+        "    packs:\n"
+        f"      - name: {pack_name}\n"
+        f"        local_path: {local_path}\n",
+        encoding="utf-8",
+    )
+
+
+def test_org_tier_resolves_template_in_doctrine_resolver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-003: an org-pack ``spec-template.md`` resolves at ``ResolutionTier.ORG``.
+
+    Before this WP: no tier between LEGACY and GLOBAL_MISSION probed org-pack
+    roots at all, so this fixture fell through to PACKAGE_DEFAULT (see the WP
+    report for the exact pre-fix measurement).
+    """
+    project = tmp_path / "project"
+    project.mkdir()
+    org_root = tmp_path / "org-pack"
+    org_template = org_root / "missions" / "software-dev" / "templates" / "spec-template.md"
+    org_template.parent.mkdir(parents=True)
+    org_template.write_text("org template", encoding="utf-8")
+
+    _write_org_pack_config(project, pack_name="acme", local_path=org_root)
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
+
+    result = resolve_template("spec-template.md", project, mission="software-dev")
+
+    assert result.tier.name == ResolutionTier.ORG.name
+    assert result.path == org_template
+    assert result.mission == "software-dev"
+
+
+def test_org_tier_resolves_mission_yaml_in_doctrine_resolver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-005: an org-pack ``mission.yaml`` resolves at ``ResolutionTier.ORG``,
+    at the same relative position as the template case."""
+    project = tmp_path / "project"
+    project.mkdir()
+    org_root = tmp_path / "org-pack"
+    org_mission = org_root / "missions" / "software-dev" / "mission.yaml"
+    org_mission.parent.mkdir(parents=True)
+    org_mission.write_text("name: org\n", encoding="utf-8")
+
+    _write_org_pack_config(project, pack_name="acme", local_path=org_root)
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
+
+    result = resolve_mission("software-dev", project)
+
+    assert result.tier.name == ResolutionTier.ORG.name
+    assert result.path == org_mission
+    assert result.mission == "software-dev"
+
+
+def test_org_tier_sits_below_project_override_in_doctrine_resolver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """User Story 1, Acceptance Scenario 2: a project override still wins
+    over an org-pack asset -- the org tier sits below OVERRIDE, not above it."""
+    project = tmp_path / "project"
+    org_root = tmp_path / "org-pack"
+    org_template = org_root / "missions" / "software-dev" / "templates" / "spec-template.md"
+    org_template.parent.mkdir(parents=True)
+    org_template.write_text("org template", encoding="utf-8")
+
+    _write_org_pack_config(project, pack_name="acme", local_path=org_root)
+
+    override_dir = project / ".kittify" / "overrides" / "missions" / "software-dev" / "templates"
+    override_dir.mkdir(parents=True)
+    override_asset = override_dir / "spec-template.md"
+    override_asset.write_text("project override", encoding="utf-8")
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
+
+    result = resolve_template("spec-template.md", project, mission="software-dev")
+
+    assert result.tier.name == ResolutionTier.OVERRIDE.name
+    assert result.path == override_asset
+
+
+def test_org_tier_falls_through_to_global_mission_when_org_pack_missing_asset(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A configured org pack that does not contain the requested asset is a
+    miss, not an error -- resolution falls through to the next tier."""
+    project = tmp_path / "project"
+    project.mkdir()
+    org_root = tmp_path / "org-pack"
+    org_root.mkdir()  # configured, but has no missions/ subtree at all
+
+    _write_org_pack_config(project, pack_name="acme", local_path=org_root)
+
+    fake_home = tmp_path / "global-home"
+    global_template = fake_home / "missions" / "software-dev" / "templates" / "spec-template.md"
+    global_template.parent.mkdir(parents=True)
+    global_template.write_text("global content", encoding="utf-8")
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: fake_home)
+
+    result = resolve_template("spec-template.md", project, mission="software-dev")
+
+    assert result.tier.name == ResolutionTier.GLOBAL_MISSION.name
+    assert result.path == global_template
+
+
+def test_no_org_packs_configured_is_a_noop_in_doctrine_resolver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NFR-005/SC-007: with zero ``doctrine.org.packs`` entries (no
+    ``.kittify/config.yaml`` at all -- the overwhelmingly common case),
+    resolution is byte-identical to before this WP: same path, same tier."""
+    project = tmp_path / "project"
+    project.mkdir()
+    fake_home = tmp_path / "global-home"
+    global_template = fake_home / "missions" / "software-dev" / "templates" / "spec-template.md"
+    global_template.parent.mkdir(parents=True)
+    global_template.write_text("global content", encoding="utf-8")
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: fake_home)
+
+    result = resolve_template("spec-template.md", project, mission="software-dev")
+
+    assert result.tier.name == ResolutionTier.GLOBAL_MISSION.name
+    assert result.path == global_template
+
+
+def test_malformed_org_config_still_resolves_package_default_in_doctrine_resolver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """NFR-001(b): a malformed ``.kittify/config.yaml`` still resolves
+    built-in templates, with zero org roots contributed (``load_pack_registry``'s
+    pre-existing fail-soft, exercised through the new org tier -- not a new
+    try/except added by this WP)."""
+    project = tmp_path / "project"
+    kittify = project / ".kittify"
+    kittify.mkdir(parents=True)
+    (kittify / "config.yaml").write_text("not: [valid, doctrine.org.packs shape\n", encoding="utf-8")
+
+    fake_repo = _build_fake_repo(tmp_path / "package-root")
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
+    monkeypatch.setattr(missions_module.MissionTemplateRepository, "default", lambda: fake_repo)
+
+    with pytest.warns(UserWarning):
+        result = resolve_template("spec-template.md", project, mission="software-dev")
+
+    assert result.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
+    assert result.path.read_text(encoding="utf-8") == "package template"
