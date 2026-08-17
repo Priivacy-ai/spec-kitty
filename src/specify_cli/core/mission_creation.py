@@ -23,7 +23,6 @@ from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
     MissionTopology,
-    placement_seam,
     resolve_create_time_write_target,
     resolve_write_target_or_degrade,
 )
