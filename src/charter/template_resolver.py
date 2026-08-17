@@ -167,6 +167,7 @@ class CharterTemplateResolver:
         tier_prefix = {
             ResolutionTier.OVERRIDE: "override",
             ResolutionTier.LEGACY: "legacy",
+            ResolutionTier.ORG: "org",
             ResolutionTier.GLOBAL_MISSION: "global",
             ResolutionTier.GLOBAL: "global",
             ResolutionTier.PACKAGE_DEFAULT: "doctrine",
