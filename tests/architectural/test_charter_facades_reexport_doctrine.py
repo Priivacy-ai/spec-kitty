@@ -96,7 +96,14 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         # doctrine through this facade rather than a lazy `doctrine.*` import that
         # `test_runtime_charter_doctrine_boundary.py` forbids.
         ("resolve_existing_org_roots", "doctrine.drg.org_pack_config"),
-        ("load_graph_or_dir", "doctrine.drg.loader"),
+        # ``load_graph_or_dir`` was dropped from this table (and from
+        # ``charter.drg``'s import block + ``__all__``) during the #3401
+        # landing pass: the mission-step executor migrated its last ``src/``
+        # consumer to ``charter._drg_helpers.probe_org_root``, leaving the
+        # raw-loader re-export with no live caller (fails
+        # ``test_no_dead_symbols.py``). ``charter._drg_helpers`` still imports
+        # ``load_graph_or_dir`` directly from ``doctrine.drg.loader`` — that
+        # path is unaffected.
         # ``doctrine.base`` census-drift door (WP01 FACADE-ONLY): the
         # layer-collision warning belongs on the layer-merge facade beside
         # ``merge_layers`` / ``merge_three_layers``. Consumer is WP05-owned.

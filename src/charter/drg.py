@@ -72,7 +72,6 @@ from doctrine.drg import (
     DRGValidationError,
     load_built_in_graph,
     load_graph,
-    load_graph_or_dir,
     merge_layers,
     validate_dangling_references,
 )
@@ -147,7 +146,6 @@ __all__ = [
     "graph_document_to_dict",
     "load_built_in_graph",
     "load_graph",
-    "load_graph_or_dir",
     "load_org_drg",
     "merge_layers",
     "merge_three_layers",
