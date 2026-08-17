@@ -263,6 +263,7 @@ def _resolve_runtime_contract_for_step(
     only handoff for synthesized contracts.
     """
     try:
+        from charter.drg import resolve_org_dirs
         from doctrine.missions.step_contracts import (
             MissionStepContractRepository,
         )
@@ -285,7 +286,8 @@ def _resolve_runtime_contract_for_step(
                 project_dir=repo_root
                 / KITTIFY_DIR
                 / "doctrine"
-                / "mission_step_contracts"
+                / "mission_step_contracts",
+                org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
             )
             return lookup_contract(contract_ref, repository)
         profile = step.agent_profile.strip() if step.agent_profile else None
@@ -589,6 +591,24 @@ def _dispatch_via_composition(
         invocation_count,
         invocation_ids,
     )
+
+    # FR-007: surface delegation candidates that were cited (``delegates_to``)
+    # but did not resolve against the merged/activated DRG -- previously
+    # computed by the executor and read by nothing. Non-blocking (WARNING,
+    # never ERROR, D-005): a correctly-cited-but-activation-filtered candidate
+    # is a valid, if inert, state, not necessarily an authoring mistake.
+    # Defensive ``getattr`` for the same reason as ``invocation_ids`` above --
+    # test mocks (MagicMock) and real ``StepContractExecutionResult``
+    # instances both flow through cleanly.
+    for step in getattr(result, "steps", ()) or ():
+        unresolved = getattr(step, "unresolved_candidates", ())
+        if unresolved:
+            logger.warning(
+                "step %s (contract %s) has unresolved delegation candidate(s): %s",
+                getattr(step, "step_id", "<unknown>"),
+                getattr(result, "contract_id", "<unknown>"),
+                ", ".join(unresolved),
+            )
 
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 

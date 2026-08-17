@@ -84,6 +84,11 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("DRGValidationError", "doctrine.drg"),
         ("OrgDRGConflict", "doctrine.drg.merge"),
         ("resolve_org_roots", "doctrine.drg.org_pack_config"),
+        # Added alongside ``resolve_org_roots`` above: closes the direct
+        # ``specify_cli``/``runtime`` -> ``doctrine`` reach-through that
+        # ``tests/architectural/test_runtime_charter_doctrine_boundary.py``
+        # forbids. Same source module, same identity-reexport shape.
+        ("resolve_org_dirs", "doctrine.drg.org_pack_config"),
         # ``doctrine.base`` census-drift door (WP01 FACADE-ONLY): the
         # layer-collision warning belongs on the layer-merge facade beside
         # ``merge_layers`` / ``merge_three_layers``. Consumer is WP05-owned.

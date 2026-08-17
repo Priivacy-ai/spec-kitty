@@ -13,6 +13,7 @@ import pytest
 from pathlib import Path
 from typing import Optional
 from pydantic import ValidationError
+from ruamel.yaml import YAML
 
 from specify_cli.dossier.manifest import (
     ArtifactClassEnum,
@@ -490,3 +491,254 @@ class TestManifestYAMLFormat:
         assert yaml_path.exists(), f"Manifest file not found: {yaml_path}"
         manifest = ExpectedArtifactManifest.from_yaml_file(yaml_path)
         assert manifest.mission_type == "documentation"
+
+
+# ---------------------------------------------------------------------------
+# T027 (WP05, FR-008 + cache-key fix): `ManifestRegistry.load_manifest`
+# org-tier override, and the `(mission_type, org_roots)` cache-key regression
+# that closes the process-global-cache-shadows-across-projects defect.
+# ---------------------------------------------------------------------------
+
+
+def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
+    """Write ``<repo_root>/.kittify/config.yaml`` with a ``doctrine.org.packs``
+    registry only -- no mission-type-activation block, since
+    ``ManifestRegistry.load_manifest`` reads org packs directly via
+    ``resolve_org_roots``/``resolve_org_expected_artifacts``, not through the
+    `existing_mission_types()` activation gate `_resolve_expected_artifacts_slot`
+    (charter side) goes through.
+    """
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    if packs:
+        lines += ["doctrine:", "  org:", "    packs:"]
+        for name, local_path in packs:
+            lines.append(f"      - name: {name}")
+            lines.append(f"        local_path: {local_path}")
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_org_manifest(org_root: Path, mission_type: str, data: dict) -> None:
+    """Write ``<org_root>/<mission_type>/expected-artifacts.yaml`` (raw-root
+    shape, C-4 -- see ``test_org_expected_artifacts.py``'s module docstring).
+    """
+    target_dir = org_root / mission_type
+    target_dir.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (target_dir / "expected-artifacts.yaml").open("w") as fh:
+        yaml.dump(data, fh)
+
+
+class TestManifestRegistryOrgTier:
+    """T027: org-tier override through `ManifestRegistry.load_manifest`, plus
+    the SC-005 byte-identical-no-override proof and the cache-key regression
+    this WP's fix exists to close.
+    """
+
+    def setup_method(self):
+        """Clear cache before each test."""
+        ManifestRegistry.clear_cache()
+
+    def teardown_method(self):
+        """Clear cache after each test."""
+        ManifestRegistry.clear_cache()
+
+    def test_org_override_delta_through_load_manifest(self, tmp_path: Path) -> None:
+        """Mirrors T026's shape but through `ManifestRegistry.load_manifest`
+        with a `repo_root` argument: a delta in `required_always`, not
+        merely "no exception."
+        """
+        before = ManifestRegistry.load_manifest("software-dev")
+        assert before is not None
+        before_count = len(before.required_always)
+
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(
+            org_root,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "org-1",
+                "required_always": [
+                    {
+                        "artifact_key": "policy.org-required",
+                        "artifact_class": "policy",
+                        "path_pattern": "org-policy.md",
+                        "blocking": True,
+                    }
+                ],
+            },
+        )
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+
+        after = ManifestRegistry.load_manifest("software-dev", repo_root=project_root)
+
+        assert after is not None
+        assert len(after.required_always) == before_count + 1
+        assert after.manifest_version == "org-1"
+        assert any(
+            spec.artifact_key == "policy.org-required" for spec in after.required_always
+        )
+
+    def test_no_repo_root_is_byte_identical_to_pre_wp_behavior(
+        self, tmp_path: Path
+    ) -> None:
+        """SC-005 Given #2: `load_manifest(mission_type)` with no `repo_root`
+        (and with `repo_root=None` explicitly) produces output identical to
+        pre-this-WP behavior -- proving the new optional parameter did not
+        silently change the default call shape that
+        `specify_cli.sync.namespace.resolve_manifest_version` depends on.
+        """
+        no_arg_result = ManifestRegistry.load_manifest("software-dev")
+        ManifestRegistry.clear_cache()
+        explicit_none_result = ManifestRegistry.load_manifest(
+            "software-dev", repo_root=None
+        )
+
+        assert no_arg_result is not None
+        assert explicit_none_result is not None
+        assert no_arg_result.model_dump() == explicit_none_result.model_dump()
+
+    def test_cache_key_does_not_shadow_across_different_repo_roots(
+        self, tmp_path: Path
+    ) -> None:
+        """Cache-key regression (T023's fix): two different `repo_root`s
+        resolving the SAME mission_type in the same process must not
+        silently share a cached result -- this is exactly the defect this
+        WP's cache-key fix exists to close. The cache is deliberately NOT
+        cleared between the two calls below, since proving
+        no-shadowing-without-clearing is the point.
+        """
+        project_a = tmp_path / "project-a"
+        project_a.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(
+            org_root,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "project-a-org",
+            },
+        )
+        _write_org_pack_config(project_a, packs=[("acme", org_root)])
+
+        project_b = tmp_path / "project-b"
+        project_b.mkdir()
+        # No org pack configured for project_b -- built-in tree only.
+
+        result_a = ManifestRegistry.load_manifest("software-dev", repo_root=project_a)
+        result_b = ManifestRegistry.load_manifest("software-dev", repo_root=project_b)
+
+        assert result_a is not None
+        assert result_b is not None
+        assert result_a.manifest_version == "project-a-org"
+        # The defect this fix closes: without the cache-key fix, project_b's
+        # call would silently return project_a's cached (org-overridden)
+        # result instead of resolving its own (built-in-only) manifest.
+        assert result_b.manifest_version != "project-a-org"
+        assert result_b.manifest_version == "1"
+
+    def test_cache_key_preserves_declaration_order_for_same_root_set(
+        self, tmp_path: Path
+    ) -> None:
+        """Same SET of org roots, declared in different order across two
+        `repo_root`s, must not collide on one cache key. Per NFR-003 /
+        C-4 ("last-EXISTING-match wins"), reversing declaration order
+        flips which org root's manifest wins -- so a cache key built from
+        a *sorted* tuple of root strings (order-blind) would map both
+        projects to the same key, and the second project would silently
+        receive the first project's cached, order-wrong manifest. This is
+        distinct from `test_cache_key_does_not_shadow_across_different_repo_roots`,
+        which only covers *different* root sets.
+        """
+        org_x = tmp_path / "org-x"
+        org_y = tmp_path / "org-y"
+        _write_org_manifest(
+            org_x,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "x-wins",
+            },
+        )
+        _write_org_manifest(
+            org_y,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "y-wins",
+            },
+        )
+
+        project_xy = tmp_path / "project-xy"
+        project_xy.mkdir()
+        _write_org_pack_config(project_xy, packs=[("x", org_x), ("y", org_y)])
+
+        project_yx = tmp_path / "project-yx"
+        project_yx.mkdir()
+        _write_org_pack_config(project_yx, packs=[("y", org_y), ("x", org_x)])
+
+        # Cache deliberately not cleared between calls -- proving the two
+        # differently-ordered-but-same-set projects don't collide is the
+        # point, same as the different-root-sets regression test above.
+        result_xy = ManifestRegistry.load_manifest("software-dev", repo_root=project_xy)
+        result_yx = ManifestRegistry.load_manifest("software-dev", repo_root=project_yx)
+
+        assert result_xy is not None
+        assert result_yx is not None
+        # project_xy declared [x, y] -> last-match-wins is y.
+        assert result_xy.manifest_version == "y-wins"
+        # project_yx declared [y, x] -> last-match-wins is x.
+        assert result_yx.manifest_version == "x-wins"
+
+    def test_org_file_failing_model_validation_returns_none_and_caches_none(
+        self, tmp_path: Path
+    ) -> None:
+        """A parseable org YAML mapping that fails `ExpectedArtifactManifest`
+        validation (e.g. missing the required `mission_type` field) hits the
+        new org-branch's `except` clause: logged, cached as `None` under
+        that call's cache key, and returned as `None` -- not raised, and not
+        silently falling back to the built-in file (the org file's presence
+        is still authoritative, per whole-file precedence).
+        """
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(
+            org_root,
+            "software-dev",
+            # Missing required `mission_type` field -> pydantic ValidationError.
+            {"schema_version": "1.0", "manifest_version": "broken"},
+        )
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+
+        result = ManifestRegistry.load_manifest("software-dev", repo_root=project_root)
+
+        assert result is None
+        org_roots = (str(org_root),)
+        cache_key = ("software-dev", org_roots)
+        assert ManifestRegistry._cache[cache_key] is None
+
+    def test_cache_key_shape_is_tuple_of_mission_type_and_org_roots(self) -> None:
+        """Every cached key is a `(mission_type, tuple[str, ...])` 2-tuple —
+        durable proof the cache-key fix's shape (not just its behavior) is
+        what's actually stored, so a future refactor that silently reverts
+        to a bare `mission_type` key would fail this test even before any
+        cross-project shadowing test caught it.
+        """
+        ManifestRegistry.load_manifest("software-dev")
+        # Pins the whole cache -- exactly one entry, keyed by the
+        # `(mission_type, org_roots)` 2-tuple shape. `==` against a `list`
+        # of one `tuple` literal fails on a bare `"software-dev"` key (the
+        # regression this test guards against), a differently-shaped key,
+        # an extra entry, or a non-tuple `org_roots` part (e.g. a `list`)
+        # just as surely as the old count-plus-isinstance-poke sequence did.
+        assert list(ManifestRegistry._cache.keys()) == [("software-dev", ())]

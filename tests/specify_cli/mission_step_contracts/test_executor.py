@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import shutil
 from collections.abc import Mapping
 from pathlib import Path
@@ -118,6 +119,176 @@ def _write_project_graph(repo_root: Path) -> None:
             ],
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# T008/SC-003 — shared synthetic org-pack fixture (FR-001, FR-002, FR-005)
+#
+# Reused verbatim by this module's own T008/T009 tests below,
+# ``tests/review/test_gate_bindings.py`` (T010, FR-005), and (per SC-003)
+# WP03's FR-006/FR-006a tests in ``tests/runtime/`` and
+# ``tests/unit/mission_loader/`` — imported directly from this module
+# (established cross-test-module precedent in this repo, e.g.
+# ``tests/specify_cli/acceptance/test_trio_read_seam_migration.py`` importing
+# fixtures from ``tests.specify_cli._read_seam_migration_fixtures``) rather
+# than re-authored per test file, so the five lockstep-adjacent consumers
+# cannot silently drift onto independently-authored fixtures.
+# ---------------------------------------------------------------------------
+
+ORG_FIXTURE_MISSION = "org-fixture-mission"
+ORG_FIXTURE_ACTION = "review"
+ORG_FIXTURE_CONTRACT_ID = "org-fixture-review"
+ORG_FIXTURE_DIRECTIVE_STEM = "org-tier-fixture-directive"
+ORG_FIXTURE_DIRECTIVE_URN = f"directive:{ORG_FIXTURE_DIRECTIVE_STEM}"
+ORG_FIXTURE_GATE_EDGE = "in_progress->for_review"
+ORG_FIXTURE_GATE_HANDLER = "spec-kitty-pre-review"
+ORG_FIXTURE_PACK_NAME = "org-fixture-pack"
+ORG_FIXTURE_ACTION_URN = f"action:{ORG_FIXTURE_MISSION}/{ORG_FIXTURE_ACTION}"
+
+
+def write_org_tier_step_contract_fixture(
+    org_root: Path,
+    *,
+    include_gates: bool = True,
+    include_drg_fragment: bool = True,
+) -> None:
+    """Build a flat-layout org pack: one step contract + one DRG fragment.
+
+    Mirrors ``_write_org_directive_fixture``'s shape
+    (``tests/charter/test_org_scan_dirs_activation_regression.py:62``): a
+    ``directives/<stem>.directive.yaml`` artifact file (read by
+    ``resolve_artifact_urn`` for activation-stem resolution, T009) plus a
+    root-level ``<stem>.graph.yaml`` DRG fragment (read by
+    ``load_validated_graph``/``filter_graph_by_activation``). Additionally
+    ships ``mission_step_contracts/<id>.step-contract.yaml`` (FR-001's
+    ``org_dirs`` target) declaring one step whose ``delegates_to`` cites the
+    directive, plus a ``gates:`` block on that same action (FR-005/User
+    Story 3) — one fixture, every FR-001/FR-002/FR-005 observable.
+
+    ``include_drg_fragment=False`` drops the DRG fragment only (Acceptance
+    Scenario 3: the same delegation candidate becomes unresolved, not
+    resolved, when the org pack's DRG contribution is removed).
+    ``include_gates=False`` drops the ``gates:`` block only.
+    """
+    directives_dir = org_root / "directives"
+    directives_dir.mkdir(parents=True, exist_ok=True)
+    (directives_dir / f"{ORG_FIXTURE_DIRECTIVE_STEM}.directive.yaml").write_text(
+        f"id: {ORG_FIXTURE_DIRECTIVE_STEM}\n",
+        encoding="utf-8",
+    )
+
+    gates: list[dict[str, object]] = (
+        [
+            {
+                "on_transition": ORG_FIXTURE_GATE_EDGE,
+                "handler": ORG_FIXTURE_GATE_HANDLER,
+                "handler_kind": "mission_step_contract",
+                "schema_version": "1.0",
+            }
+        ]
+        if include_gates
+        else []
+    )
+    _write_yaml(
+        org_root / "mission_step_contracts" / f"{ORG_FIXTURE_CONTRACT_ID}.step-contract.yaml",
+        {
+            "schema_version": "1.0",
+            "id": ORG_FIXTURE_CONTRACT_ID,
+            "mission": ORG_FIXTURE_MISSION,
+            "action": ORG_FIXTURE_ACTION,
+            "steps": [
+                {
+                    "id": "review_gate",
+                    "description": "Run the org-tier review gate",
+                    "delegates_to": {
+                        "kind": "directive",
+                        "candidates": [ORG_FIXTURE_DIRECTIVE_STEM],
+                    },
+                }
+            ],
+            "gates": gates,
+        },
+    )
+
+    # ``load_graph_or_dir`` raises ``DRGLoadError`` for a directory containing
+    # zero ``*.graph.yaml`` files (it does not treat "no fragment" as "empty
+    # graph"), so the "fragment absent" arm still writes a *valid, empty*
+    # fragment -- proving the candidate goes unresolved because the directive
+    # node is gone, not because the org root failed to load at all.
+    _write_yaml(
+        org_root / f"{ORG_FIXTURE_DIRECTIVE_STEM}.graph.yaml",
+        {
+            "schema_version": "1.0",
+            "generated_at": "2026-08-16T00:00:00Z",
+            "generated_by": "test",
+            "nodes": (
+                [
+                    {
+                        "urn": ORG_FIXTURE_ACTION_URN,
+                        "kind": "action",
+                        "label": "Org fixture review action",
+                    },
+                    {
+                        "urn": ORG_FIXTURE_DIRECTIVE_URN,
+                        "kind": "directive",
+                        "label": "Org tier fixture directive",
+                    },
+                ]
+                if include_drg_fragment
+                else []
+            ),
+            "edges": (
+                [
+                    {
+                        "source": ORG_FIXTURE_ACTION_URN,
+                        "target": ORG_FIXTURE_DIRECTIVE_URN,
+                        "relation": "scope",
+                    }
+                ]
+                if include_drg_fragment
+                else []
+            ),
+        },
+    )
+
+
+def write_org_pack_config(repo_root: Path, org_root: Path, *, pack_name: str = ORG_FIXTURE_PACK_NAME) -> None:
+    """Register *org_root* as a configured org pack in ``.kittify/config.yaml``.
+
+    Single registration serves both resolution shapes this mission threads:
+    ``resolve_org_dirs`` (FR-001/FR-005, list-shaped, joins ``subdir`` onto
+    this root) and ``_enumerate_org_pack_paths`` (FR-002, single-path,
+    first-match on this same root) — both read the identical
+    ``doctrine.org.packs`` config this helper writes.
+    """
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "config.yaml").write_text(
+        "\n".join(
+            [
+                "doctrine:",
+                "  org:",
+                "    packs:",
+                f"      - name: {pack_name}",
+                f"        local_path: {org_root}",
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+class _FakeInvocationExecutor:
+    """Stub ``ProfileInvocationExecutor`` avoiding the real invocation/writer
+    stack, which is orthogonal to org-tier resolution (T008/T009's concern).
+    """
+
+    def invoke(self, _request_text: str, **_kwargs: object) -> object:
+        return SimpleNamespace(invocation_id="inv-org-fixture-1")
+
+    def complete_invocation(self, _invocation_id: str, *, outcome: str, closed_by: str) -> None:
+        assert outcome == "done"
+        assert closed_by == "agent"
 
 
 def _write_fixture_contract(built_in_dir: Path) -> None:
@@ -565,3 +736,277 @@ def test_profile_hint_required_when_no_action_default_exists(tmp_path: Path) -> 
                 action="composer",
             )
         )
+
+
+# ---------------------------------------------------------------------------
+# T008 — FR-001/FR-002 red-first regression (SC-001, SC-002, User Story 1)
+# ---------------------------------------------------------------------------
+
+
+def test_org_only_step_contract_becomes_discoverable_and_delegation_resolves(
+    tmp_path: Path,
+) -> None:
+    """FR-001 (SC-002) + FR-002 (User Story 1 Acceptance Scenarios 1 & 2).
+
+    An org-tier step contract with no project-tier duplicate is invisible to
+    a project-dir-only ``MissionStepContractRepository`` construction (the
+    pre-fix shape); ``StepContractExecutor``'s own default construction
+    (FR-001) makes it discoverable, and its ``delegates_to`` candidate
+    resolves to the org-tier DRG directive's URN (FR-002) -- not merely "no
+    exception raised".
+
+    Red-first: on the pre-fix commit, ``StepContractExecutor(repo_root=...)``
+    constructs a project-dir-only repository, ``get_by_action`` returns
+    ``None``, and ``.execute(...)`` raises ``StepContractExecutionError:
+    No step contract found for mission/action org-fixture-mission/review``.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root = tmp_path / "org-pack"
+    write_org_tier_step_contract_fixture(org_root)
+    write_org_pack_config(repo_root, org_root)
+
+    executor = StepContractExecutor(
+        repo_root=repo_root,
+        invocation_executor=_FakeInvocationExecutor(),
+    )
+
+    # SC-002 (True/False mechanism): FR-001 makes the org-only contract
+    # discoverable via the executor's own repository construction -- no
+    # ``contract_repository`` override is passed above, so this exercises
+    # the real fix, not an injected fixture.
+    assert executor._contracts.get_by_action(ORG_FIXTURE_MISSION, ORG_FIXTURE_ACTION) is not None
+
+    result = executor.execute(
+        StepContractExecutionContext(
+            repo_root=repo_root,
+            mission=ORG_FIXTURE_MISSION,
+            action=ORG_FIXTURE_ACTION,
+            actor="pytest",
+            profile_hint="implementer-fixture",
+        )
+    )
+
+    assert result.contract_id == ORG_FIXTURE_CONTRACT_ID
+    assert [d.urn for d in result.steps[0].resolved_delegations] == [ORG_FIXTURE_DIRECTIVE_URN]
+    assert result.steps[0].unresolved_candidates == ()
+
+
+def test_org_only_step_contract_delegation_unresolved_when_drg_fragment_absent(
+    tmp_path: Path,
+) -> None:
+    """User Story 1 Acceptance Scenario 3: the before/after contrast that
+    proves FR-002, not merely "the call doesn't crash". Same org-only
+    contract as above, but the org pack's DRG fragment is removed -- the
+    same candidate must appear in ``unresolved_candidates`` instead of
+    ``resolved_delegations``.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root = tmp_path / "org-pack"
+    write_org_tier_step_contract_fixture(org_root, include_drg_fragment=False)
+    write_org_pack_config(repo_root, org_root)
+
+    result = StepContractExecutor(
+        repo_root=repo_root,
+        invocation_executor=_FakeInvocationExecutor(),
+    ).execute(
+        StepContractExecutionContext(
+            repo_root=repo_root,
+            mission=ORG_FIXTURE_MISSION,
+            action=ORG_FIXTURE_ACTION,
+            actor="pytest",
+            profile_hint="implementer-fixture",
+        )
+    )
+
+    assert result.steps[0].resolved_delegations == ()
+    assert result.steps[0].unresolved_candidates == (ORG_FIXTURE_DIRECTIVE_STEM,)
+
+
+def test_load_validated_graph_node_count_increases_by_one_with_org_root(
+    tmp_path: Path,
+) -> None:
+    """SC-001: DRG node-count delta from ``load_validated_graph`` when a
+    resolved ``org_root`` is supplied (FR-002's exact mechanism).
+
+    The reproducible number in this checkout is 347 -> 348 (one synthetic
+    org directive node added, D-000(4)) -- asserted here as a DELTA
+    (``with_org - without_org == 1``), not either literal absolute baseline,
+    since the built-in graph's node count may drift by the time this runs
+    (per WP02's explicit instruction: assert the mechanism, not a hardcoded
+    magic number).
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root = tmp_path / "org-directive-only-pack"
+    minimal_directive_urn = "directive:sc-001-node-count-probe-directive"
+    _write_yaml(
+        org_root / "sc-001-node-count-probe-directive.graph.yaml",
+        {
+            "schema_version": "1.0",
+            "generated_at": "2026-08-16T00:00:00Z",
+            "generated_by": "test",
+            "nodes": [
+                {
+                    "urn": minimal_directive_urn,
+                    "kind": "directive",
+                    "label": "SC-001 node-count probe directive",
+                },
+            ],
+            "edges": [],
+        },
+    )
+
+    without_org = load_validated_graph(repo_root)
+    with_org = load_validated_graph(repo_root, org_root=org_root)
+
+    without_urns = {str(node.urn) for node in without_org.nodes}
+    with_urns = {str(node.urn) for node in with_org.nodes}
+
+    assert len(with_org.nodes) - len(without_org.nodes) == 1
+    assert minimal_directive_urn not in without_urns
+    assert minimal_directive_urn in with_urns
+
+
+# ---------------------------------------------------------------------------
+# Landing fold — malformed org-pack DRG must degrade with a WARNING, not
+# crash composition (regression for #3520's e2e-cross-cutting break).
+# ---------------------------------------------------------------------------
+
+
+def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A registered org pack whose DRG layout doesn't conform to
+    ``load_graph_or_dir`` (no ``graph.yaml``/``*.graph.yaml`` directly at its
+    root -- this repo's own ``packs/internal`` is exactly this shape, its
+    content living one level deeper under ``drg/fragment.yaml`` in the
+    org-fragment schema) must not turn a previously-working composition into
+    a hard block.
+
+    ``StepContractExecutor``'s org-root resolution comment claims to mirror
+    ``charter.action_doctrine_bundle._resolve_action_bundle``'s graceful
+    degrade (catch ``DRGLoadError``, warn, continue with built-in + project
+    doctrine only) -- this pins that the executor actually does that for its
+    own ``load_validated_graph`` call, not just cites the precedent.
+
+    Red-first: on the pre-fix commit this raises ``DRGLoadError`` uncaught
+    out of ``execute()`` -- confirmed via
+    ``pytest tests/specify_cli/mission_step_contracts/test_executor.py::test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing``
+    against ``git stash`` of the executor fix, which fails with exactly:
+    ``doctrine.drg.loader.DRGLoadError: No DRG graph files found in
+    directory: <tmp>/malformed-org-pack``.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _setup_fixture_profiles(repo_root)
+    _write_project_graph(repo_root)
+
+    built_in_dir = tmp_path / "contracts"
+    _write_fixture_contract(built_in_dir)
+
+    # Org pack registered, directory exists, but carries no *.graph.yaml/
+    # graph.yaml at its root -- exactly the ``packs/internal`` shape (a
+    # ``drg/fragment.yaml`` one level deeper, in the incompatible
+    # org-fragment schema).
+    org_root = tmp_path / "malformed-org-pack"
+    (org_root / "drg").mkdir(parents=True)
+    (org_root / "drg" / "fragment.yaml").write_text("kind: directives\n", encoding="utf-8")
+    write_org_pack_config(repo_root, org_root)
+
+    context_result = SimpleNamespace(mode="compact", text="fixture governance context")
+    with (
+        patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=context_result,
+        ),
+        caplog.at_level(
+            logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
+        ),
+    ):
+        result = StepContractExecutor(
+            repo_root=repo_root,
+            contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission="fixture",
+                action="composer",
+                actor="pytest",
+                profile_hint="implementer-fixture",
+            )
+        )
+
+    # Composition still succeeds -- identical three-step outcome to the
+    # no-org-pack baseline (test_three_delegated_steps_...).
+    assert [step.step_id for step in result.steps] == ["alpha", "beta", "gamma"]
+
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
+    message = warnings[0].getMessage()
+    assert str(org_root) in message
+    assert "DRGLoadError" in message or "No DRG graph files found" in message
+
+
+def test_well_formed_org_pack_drg_contributes_without_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Negative case for the malformed-org-pack degrade above: a conformant
+    org pack (a real ``*.graph.yaml`` directly at its root) must load and
+    contribute normally with no degradation warning -- proving the fix
+    doesn't unconditionally warn regardless of whether org loading actually
+    failed.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _setup_fixture_profiles(repo_root)
+    _write_project_graph(repo_root)
+
+    built_in_dir = tmp_path / "contracts"
+    _write_fixture_contract(built_in_dir)
+
+    org_root = tmp_path / "well-formed-org-pack"
+    _write_yaml(
+        org_root / "org-probe.graph.yaml",
+        {
+            "schema_version": "1.0",
+            "generated_at": "2026-08-17T00:00:00Z",
+            "generated_by": "test",
+            "nodes": [
+                {
+                    "urn": "directive:org-probe-directive",
+                    "kind": "directive",
+                    "label": "Org probe directive",
+                }
+            ],
+            "edges": [],
+        },
+    )
+    write_org_pack_config(repo_root, org_root)
+
+    context_result = SimpleNamespace(mode="compact", text="fixture governance context")
+    with (
+        patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=context_result,
+        ),
+        caplog.at_level(
+            logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
+        ),
+    ):
+        result = StepContractExecutor(
+            repo_root=repo_root,
+            contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission="fixture",
+                action="composer",
+                actor="pytest",
+                profile_hint="implementer-fixture",
+            )
+        )
+
+    assert [step.step_id for step in result.steps] == ["alpha", "beta", "gamma"]
+    assert not [record for record in caplog.records if record.levelno == logging.WARNING]

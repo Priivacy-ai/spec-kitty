@@ -20,10 +20,18 @@ import pytest
 
 from specify_cli.mission_loader.command import (
     RunCustomMissionResult,
+    _resolve_contract_refs,
     run_custom_mission,
 )
+from specify_cli.mission_loader.errors import LoaderErrorCode
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from runtime.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.schema import MissionTemplate
+from tests.specify_cli.mission_step_contracts.test_executor import (
+    ORG_FIXTURE_CONTRACT_ID,
+    write_org_pack_config,
+    write_org_tier_step_contract_fixture,
+)
 
 # Minimal valid custom mission body. Last step is the retrospective marker
 # so structural checks pass; the planning step has an agent_profile binding.
@@ -329,6 +337,93 @@ def test_unresolved_contract_ref_returns_two_with_MISSION_CONTRACT_REF_UNRESOLVE
     # Registry must not have been populated for an unresolved contract_ref --
     # the check runs BEFORE synthesis is registered.
     assert not get_runtime_contract_registry()._contracts  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# FR-006a org-tier resolution (T014, SC-003) + identical-absent-failure proof
+# shared with tests/runtime/test_bridge_composition.py's T013 (User Story 2,
+# Acceptance Scenario 3).
+#
+# SC-003 calls for ONE synthetic org-pack fixture reused by three test
+# functions (WP02's executor/gate_bindings tests plus this WP's runtime/
+# mission-load pair) -- the SAME ``write_org_tier_step_contract_fixture`` /
+# ``write_org_pack_config`` / ``ORG_FIXTURE_CONTRACT_ID`` that
+# tests/specify_cli/mission_step_contracts/test_executor.py (T008) and
+# tests/review/test_gate_bindings.py (T010) already import, not a
+# locally-duplicated copy. A prior revision of this file (and
+# tests/runtime/test_bridge_composition.py) duplicated a smaller
+# ``_write_org_step_contract_fixture`` verbatim in both files because WP02
+# had not yet landed when this WP was authored; that duplication was
+# retired here in favor of the canonical shared fixture now that it exists,
+# per this mission's pre-merge review.
+# ---------------------------------------------------------------------------
+
+
+def _org_tier_template() -> MissionTemplate:
+    return MissionTemplate.model_validate(
+        {
+            "mission": {
+                "key": "custom-mission",
+                "name": "Custom Mission",
+                "version": "1.0.0",
+            },
+            "steps": [
+                {
+                    "id": "step1",
+                    "title": "Step One",
+                    "contract_ref": ORG_FIXTURE_CONTRACT_ID,
+                }
+            ],
+        }
+    )
+
+
+def test_resolve_contract_refs_resolves_org_tier_contract_ref(
+    tmp_path: Path,
+) -> None:
+    """FR-006a / T014 / SC-003: mission-load validation resolves the same
+    org-tier ``contract_ref`` FR-006's runtime dispatch resolves (T013 in
+    tests/runtime/test_bridge_composition.py), now that
+    ``_resolve_contract_refs`` threads
+    ``resolve_org_dirs(repo_root, "mission_step_contracts")`` into the
+    ``MissionStepContractRepository`` it constructs."""
+    org_root = tmp_path / "org-pack"
+    write_org_tier_step_contract_fixture(org_root)
+    write_org_pack_config(tmp_path, org_root)
+
+    error = _resolve_contract_refs(
+        mission_key="custom-mission",
+        template=_org_tier_template(),
+        source_path="irrelevant.yaml",
+        repo_root=tmp_path,
+    )
+
+    assert error is None
+
+
+def test_resolve_contract_refs_returns_error_when_org_pack_absent(
+    tmp_path: Path,
+) -> None:
+    """User Story 2, Acceptance Scenario 3 -- identical-failure half, paired
+    with ``test_resolve_runtime_contract_for_step_returns_none_when_org_pack_absent``
+    in tests/runtime/test_bridge_composition.py. With the org pack not
+    configured at all (no ``.kittify/config.yaml``), the SAME org-tier
+    ``contract_ref`` used by the success test above fails to resolve at
+    mission-load validation time too, with the documented
+    ``MISSION_CONTRACT_REF_UNRESOLVED`` error code -- proving the lockstep
+    pair's FAILURE mode is identical to FR-006's runtime dispatch failure
+    mode, not merely that both happen to pass independently in the success
+    case."""
+    error = _resolve_contract_refs(
+        mission_key="custom-mission",
+        template=_org_tier_template(),
+        source_path="irrelevant.yaml",
+        repo_root=tmp_path,
+    )
+
+    assert error is not None
+    assert error.code == LoaderErrorCode.MISSION_CONTRACT_REF_UNRESOLVED
+    assert error.details["contract_ref"] == ORG_FIXTURE_CONTRACT_ID
 
 
 # ---------------------------------------------------------------------------

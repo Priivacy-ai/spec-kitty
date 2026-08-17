@@ -9,6 +9,7 @@ invocation primitive.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -17,15 +18,28 @@ if TYPE_CHECKING:
     from charter.pack_context import PackContext
 
 from charter._drg_helpers import load_validated_graph
-from charter.drg import ArtifactKind, DRGGraph, NodeKind, ResolvedContext, filter_graph_by_activation, resolve_context
+from charter.drg import (
+    ArtifactKind,
+    DRGGraph,
+    DRGLoadError,
+    NodeKind,
+    ResolvedContext,
+    filter_graph_by_activation,
+    resolve_context,
+    resolve_org_dirs,
+)
 from charter.mission_steps import (
     MissionStepContract,
     MissionStepContractRepository,
     MissionStepContractStep,
     MissionStepInput,
 )
+from charter.org_pack_discovery import _enumerate_org_pack_paths
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
+
+
+logger = logging.getLogger(__name__)
 
 
 _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
@@ -158,7 +172,8 @@ class StepContractExecutor:
     ) -> None:
         self._repo_root = repo_root
         self._contracts = contract_repository or MissionStepContractRepository(
-            project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts"
+            project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts",
+            org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
         )
         self._invocation_executor = invocation_executor or ProfileInvocationExecutor(repo_root)
         self._graph = graph
@@ -176,7 +191,17 @@ class StepContractExecutor:
             )
 
         profile_hint = self._resolve_profile_hint(context, selected_contract)
-        graph = self._graph or load_validated_graph(context.repo_root)
+        # FR-002 (contract C-2): first-match org_root resolution, mirroring
+        # charter/action_doctrine_bundle.py:_resolve_action_bundle. Only one
+        # configured org pack's DRG contributes today (C-004, out of scope).
+        effective_org_root: Path | None = None
+        for _name, candidate in _enumerate_org_pack_paths(context.repo_root):
+            if candidate.exists():
+                effective_org_root = candidate
+                break
+        graph = self._graph or self._load_graph_degrading_malformed_org_pack(
+            context.repo_root, effective_org_root
+        )
         # FR-031, FR-033 (WP08): apply activation filter before resolving context.
         pack_context = self._resolve_pack_context(context.repo_root)
         if pack_context is not None:
@@ -255,6 +280,55 @@ class StepContractExecutor:
             "profile_hint is required when no action default exists for "
             f"{contract.mission}/{contract.action}"
         )
+
+    @staticmethod
+    def _load_graph_degrading_malformed_org_pack(
+        repo_root: Path, org_root: Path | None
+    ) -> DRGGraph:
+        """Load the merged DRG, degrading a malformed *org_root* to "no org
+        contribution" instead of letting it crash composition.
+
+        Mirrors ``charter.action_doctrine_bundle._resolve_action_bundle``'s
+        established handling of the same ``load_validated_graph(...,
+        org_root=...)`` call: a configured org pack whose on-disk DRG layout
+        does not conform to ``load_graph_or_dir`` (no ``graph.yaml``/
+        ``*.graph.yaml`` directly at its root -- this repo's own
+        ``packs/internal`` is exactly this shape) must not turn every
+        composition dispatch in the consuming project into a hard block.
+        Before org-tier resolution was wired into this executor, such a
+        misconfigured-but-registered pack was simply never exercised on this
+        path, so its layout mismatch was inert; degrading here restores that
+        "an optional tier being broken doesn't stop dispatch" behaviour
+        without silencing the problem (D-005: WARNING, never silent --
+        matches ``resolve_org_dirs``'s per-dropped-root warning and
+        ``_resolve_expected_artifacts_slot``'s malformed-manifest warning,
+        the same treatment already applied elsewhere in this mission for the
+        same class of problem).
+
+        This degrade is deliberately narrow: when *org_root* is ``None`` (no
+        org pack configured, or none exists on disk), any ``DRGLoadError``
+        raised here is a **built-in or project** layer failure and is left
+        to propagate unchanged -- the no-org-pack path stays byte-identical
+        to before this mission. NFR-006's fail-closed posture for doctrine
+        *content* correctness is untouched: a broken built-in graph, or a
+        broken project overlay, still fails the dispatch outright. Only the
+        optional org tier degrades, and only when it is the layer that
+        actually failed to load.
+        """
+        try:
+            return load_validated_graph(repo_root, org_root=org_root)
+        except DRGLoadError as exc:
+            if org_root is None:
+                raise
+            logger.warning(
+                "Org pack DRG at %s failed to load (%s: %s); composing this "
+                "step with built-in + project doctrine only, without the "
+                "org pack's contribution.",
+                org_root,
+                type(exc).__name__,
+                exc,
+            )
+            return load_validated_graph(repo_root, org_root=None)
 
     def _resolve_pack_context(self, repo_root: Path) -> PackContext | None:
         """Construct a PackContext from project config for activation filtering.

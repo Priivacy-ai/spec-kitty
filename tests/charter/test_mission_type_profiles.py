@@ -18,14 +18,18 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from ruamel.yaml import YAML
 
+from charter.action_grain import scan_builtin_cross_grain_duplicates
 from charter.mission_type_profiles import (
     MissionTypeEmptyActionSequenceError,
     MissionTypeProfile,
     UnknownMissionTypeError,
+    _load_mission_type_profile,
     resolve_mission_type_context,
 )
 from charter.pack_context import PackContext
+from doctrine.base import DoctrineLayerCollisionWarning
 from doctrine.missions.mission_type_repository import MissionTypeRepository
 
 
@@ -805,3 +809,363 @@ class TestMissionCreatePropagatesEmptyActionSequenceError:
         assert isinstance(err, MissionTypeEmptyActionSequenceError)
         assert err.mission_type_id == "qa"
         assert err.layer == "org"
+
+
+# ---------------------------------------------------------------------------
+# WP04/T017-T019 — org-tier threading for the governance-profile repository
+# (FR-004). `_mission_type_profile_repository` now threads `org_dirs` (via
+# WP01's `resolve_org_dirs(repo_root, "mission_types")`) into
+# `MissionTypeProfileRepository.for_project`, so an org-pack
+# `mission_types/<type>/governance-profile.yaml` override is visible in
+# `resolve_mission_type_context(...).governance_text` on every call — not
+# just when some lazy accessor happens to be invoked (`_resolve_governance_slot`'s
+# own docstring: provenance/governance are resolved eagerly there; only the
+# FR-013 type-grain/action-grain union is deferred).
+# ---------------------------------------------------------------------------
+
+_ORG_OVERRIDE_TEMPLATE_SET = "org-tier-governance-override"
+
+
+def _write_org_pack_config(
+    repo_root: Path,
+    *,
+    packs: list[tuple[str, Path]],
+    activated_mission_types: list[str],
+) -> None:
+    """Write a single, real ``.kittify/config.yaml`` carrying both the
+    mission-type activation set and the ``doctrine.org.packs`` registry.
+
+    Combines the shape ``test_mission_type_profile_override.py``'s
+    ``_git_init_minimal`` writes (``mission_type_activations``) with the
+    shape ``tests/doctrine/drg/test_org_pack_config_resolve_org_dirs.py``'s
+    ``_write_config`` writes (``doctrine.org.packs``) into one file, so both
+    ``existing_mission_types()`` and ``resolve_org_dirs()`` — and therefore
+    the real ``resolve_mission_type_context()`` seam under test — read
+    exactly what an operator would configure. No ``PackContext`` mocking:
+    this is an end-to-end proof through real disk state.
+    """
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["mission_type_activations:"]
+    for mission_type in activated_mission_types:
+        lines.append(f"  - {mission_type}")
+    if packs:
+        lines += ["doctrine:", "  org:", "    packs:"]
+        for name, local_path in packs:
+            lines.append(f"      - name: {name}")
+            lines.append(f"        local_path: {local_path}")
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_org_governance_profile(org_root: Path, mission_type: str, data: dict) -> None:
+    """Write ``<org_root>/mission_types/<mission_type>/governance-profile.yaml``.
+
+    Mirrors ``test_mission_type_profile_override.py``'s ``_write_profile``,
+    adapted for the org-pack layout WP01's ``resolve_org_dirs`` resolves:
+    ``<org_root>/mission_types/`` is the ``subdir="mission_types"`` join, and
+    ``MissionTypeProfileRepository._project_scan`` recurses (``rglob``) into
+    the per-type subdirectory below it.
+    """
+    profile_dir = org_root / "mission_types" / mission_type
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (profile_dir / "governance-profile.yaml").open("w") as fh:
+        yaml.dump(data, fh)
+
+
+class TestOrgTierGovernanceProfileThreading:
+    """T017/T018 (WP04, FR-004): an org-pack governance-profile override
+    becomes visible through the full `resolve_mission_type_context` seam
+    once `_mission_type_profile_repository` threads `org_dirs` — proven as
+    a before/after measurement (NFR-001), not a bare assertion.
+    """
+
+    def test_org_override_becomes_visible_after_configuring_org_pack(
+        self, tmp_path: Path
+    ) -> None:
+        _git_init_minimal(tmp_path)
+        _write_org_pack_config(
+            tmp_path, packs=[], activated_mission_types=["software-dev"]
+        )
+
+        # BEFORE: no org pack configured at all — shipped baseline only.
+        before = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert before.provenance == "builtin"
+        assert "software-dev-default" in before.governance_text
+        assert _ORG_OVERRIDE_TEMPLATE_SET not in before.governance_text
+
+        # AFTER: configure an org pack declaring a `mission_types` override
+        # for the SAME registered type.
+        org_root = tmp_path / "org-pack"
+        _write_org_governance_profile(
+            org_root,
+            "software-dev",
+            {
+                "id": "software-dev",
+                "mission_type": "software-dev",
+                "template_set": _ORG_OVERRIDE_TEMPLATE_SET,
+            },
+        )
+        _write_org_pack_config(
+            tmp_path,
+            packs=[("acme", org_root)],
+            activated_mission_types=["software-dev"],
+        )
+
+        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+            after = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
+        assert after.provenance == "org"
+        assert _ORG_OVERRIDE_TEMPLATE_SET in after.governance_text
+        assert "software-dev-default" not in after.governance_text
+
+    def test_two_org_packs_resolve_in_declaration_order(self, tmp_path: Path) -> None:
+        """NFR-003: two org packs declaring the SAME type override resolve
+        in declaration order — the later-declared pack wins, matching
+        ``doctrine/service.py:47-52``'s documented "later configured org
+        pack overrides an earlier one" contract. This WP's change threads a
+        *list* of org dirs (declaration-ordered, per WP01's
+        ``resolve_org_dirs``) into ``MissionTypeProfileRepository.for_project``,
+        so an ordering regression here would be this WP's own fault, not a
+        pre-existing one — hence the explicit two-pack fixture rather than
+        relying solely on the generic ``resolve_org_dirs``/``BaseDoctrineRepository``
+        coverage elsewhere.
+        """
+        _git_init_minimal(tmp_path)
+        first_org_root = tmp_path / "z-org-pack"
+        second_org_root = tmp_path / "a-org-pack"
+        # Declared first -> should be overridden by the second.
+        _write_org_governance_profile(
+            first_org_root,
+            "software-dev",
+            {
+                "id": "software-dev",
+                "mission_type": "software-dev",
+                "template_set": "first-org-pack-template",
+            },
+        )
+        # Declared second -> later declaration wins for the same id.
+        _write_org_governance_profile(
+            second_org_root,
+            "software-dev",
+            {
+                "id": "software-dev",
+                "mission_type": "software-dev",
+                "template_set": "second-org-pack-template",
+            },
+        )
+        _write_org_pack_config(
+            tmp_path,
+            packs=[("z-pack", first_org_root), ("a-pack", second_org_root)],
+            activated_mission_types=["software-dev"],
+        )
+
+        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+            bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
+        assert bundle.provenance == "org"
+        assert "second-org-pack-template" in bundle.governance_text
+        assert "first-org-pack-template" not in bundle.governance_text
+
+
+# ---------------------------------------------------------------------------
+# T026 (WP05, FR-008/SC-005): org-tier expected-artifacts.yaml override,
+# reached through `_resolve_expected_artifacts_slot` via the full
+# `resolve_mission_type_context` seam.
+# ---------------------------------------------------------------------------
+
+
+def _write_org_expected_artifacts(org_root: Path, mission_type: str, data: dict) -> None:
+    """Write ``<org_root>/<mission_type>/expected-artifacts.yaml``.
+
+    Raw-root shape (C-4): unlike ``_write_org_governance_profile`` (which
+    joins the ``subdir="mission_types"`` segment ``resolve_org_dirs``
+    produces), FR-008's helper takes raw org roots and joins
+    ``<mission_type>`` directly — see ``org_expected_artifacts.py``'s module
+    docstring for why (``mission_type`` varies per call, so it cannot be
+    baked into a fixed ``subdir`` string).
+    """
+    target_dir = org_root / mission_type
+    target_dir.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (target_dir / "expected-artifacts.yaml").open("w") as fh:
+        yaml.dump(data, fh)
+
+
+class TestOrgTierExpectedArtifactsThreading:
+    """T026 (WP05, FR-008): an org-pack expected-artifacts.yaml override
+    becomes visible through `_resolve_expected_artifacts_slot`, reached via
+    the full `resolve_mission_type_context` seam — proven as a before/after
+    measurement (NFR-001), not a bare assertion.
+    """
+
+    def test_org_override_changes_required_always_count(self, tmp_path: Path) -> None:
+        _git_init_minimal(tmp_path)
+        _write_org_pack_config(
+            tmp_path, packs=[], activated_mission_types=["software-dev"]
+        )
+
+        # BEFORE: no org pack configured — built-in manifest only.
+        before = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        before_manifest = before.expected_artifacts
+        assert before_manifest is not None
+        before_count = len(before_manifest.get("required_always", []))
+
+        # AFTER: configure an org pack declaring an EXTRA required_always
+        # artifact for the same registered built-in type.
+        org_root = tmp_path / "org-pack"
+        _write_org_expected_artifacts(
+            org_root,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "org-1",
+                "required_always": [
+                    {
+                        "artifact_key": "policy.org-required",
+                        "artifact_class": "policy",
+                        "path_pattern": "org-policy.md",
+                        "blocking": True,
+                    }
+                ],
+            },
+        )
+        _write_org_pack_config(
+            tmp_path,
+            packs=[("acme", org_root)],
+            activated_mission_types=["software-dev"],
+        )
+
+        after = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        after_manifest = after.expected_artifacts
+        assert after_manifest is not None
+        after_count = len(after_manifest.get("required_always", []))
+
+        # A delta, not merely "no exception" — proves the count/content
+        # actually changed relative to the built-in-only baseline.
+        assert after_count == before_count + 1
+        assert after_manifest["manifest_version"] == "org-1"
+        assert any(
+            spec["artifact_key"] == "policy.org-required"
+            for spec in after_manifest["required_always"]
+        )
+
+    def test_org_file_fully_replaces_builtin_not_field_merged(
+        self, tmp_path: Path
+    ) -> None:
+        """SC-005 Given #3: whole-file precedence. The org file's content is
+        what's returned — the built-in file's `required_by_step.plan`
+        entries (`output.plan.main`, `output.tasks.list`) must NOT survive,
+        which would only be possible under a field-merge.
+        """
+        _git_init_minimal(tmp_path)
+        org_root = tmp_path / "org-pack"
+        _write_org_expected_artifacts(
+            org_root,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "org-only",
+                # Deliberately omits required_by_step entirely — the
+                # built-in file's `plan`/`specify`/`implement` step entries
+                # exist on disk but must not leak through if this were
+                # (incorrectly) a field-merge rather than a whole-file swap.
+            },
+        )
+        _write_org_pack_config(
+            tmp_path,
+            packs=[("acme", org_root)],
+            activated_mission_types=["software-dev"],
+        )
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        manifest = bundle.expected_artifacts
+
+        assert manifest is not None
+        assert manifest["manifest_version"] == "org-only"
+        assert "required_by_step" not in manifest or not manifest.get(
+            "required_by_step", {}
+        ).get("plan")
+
+
+class TestActionGrainBuiltinOnlyPathUnaffected:
+    """T019 (WP04): `charter.action_grain`'s built-in-only call site — which
+    calls `_load_mission_type_profile(mission_type)` with NO `repo_root`
+    (`action_grain.py`, inside `scan_builtin_cross_grain_duplicates`) — must
+    stay built-in-only even when an org pack declaring a `mission_types`
+    override for the same type is configured for the project. This WP's
+    fix only threads `org_dirs` on the `repo_root is not None` branch of
+    `_mission_type_profile_repository`; `action_grain.py` never passes
+    `repo_root`, so it should already be unaffected — this test exists to
+    make that fact durable against a future refactor, not because the fix
+    is expected to break it today.
+    """
+
+    def test_builtin_only_lookup_ignores_org_override_present_on_disk(
+        self, tmp_path: Path
+    ) -> None:
+        _git_init_minimal(tmp_path)
+        org_root = tmp_path / "org-pack"
+        _write_org_governance_profile(
+            org_root,
+            "software-dev",
+            {
+                "id": "software-dev",
+                "mission_type": "software-dev",
+                "template_set": _ORG_OVERRIDE_TEMPLATE_SET,
+            },
+        )
+        _write_org_pack_config(
+            tmp_path,
+            packs=[("acme", org_root)],
+            activated_mission_types=["software-dev"],
+        )
+
+        # Sanity: the WP04-fixed, repo_root-threaded path DOES see the org
+        # override (same fixture as TestOrgTierGovernanceProfileThreading).
+        with pytest.warns(DoctrineLayerCollisionWarning, match="software-dev"):
+            threaded = _load_mission_type_profile("software-dev", repo_root=tmp_path)
+        assert threaded is not None
+        assert threaded.template_set == _ORG_OVERRIDE_TEMPLATE_SET
+
+        # action_grain.py's own call shape: repo_root omitted (defaults to
+        # None) — must resolve the shipped baseline, untouched by the org
+        # override that exists on disk for this same project.
+        builtin_only = _load_mission_type_profile("software-dev")
+        assert builtin_only is not None
+        assert builtin_only.template_set == "software-dev-default"
+        assert builtin_only.template_set != _ORG_OVERRIDE_TEMPLATE_SET
+
+    def test_scan_builtin_cross_grain_duplicates_unaffected_by_org_override(
+        self, tmp_path: Path
+    ) -> None:
+        """The real `action_grain.py:220`-adjacent call path — exercised via
+        its own public entry point — completes without raising and without
+        picking up the org override, confirming the guard holds at the
+        actual call site, not just at the `_load_mission_type_profile` unit
+        level above.
+        """
+        _git_init_minimal(tmp_path)
+        org_root = tmp_path / "org-pack"
+        _write_org_governance_profile(
+            org_root,
+            "software-dev",
+            {
+                "id": "software-dev",
+                "mission_type": "software-dev",
+                "template_set": _ORG_OVERRIDE_TEMPLATE_SET,
+            },
+        )
+        _write_org_pack_config(
+            tmp_path,
+            packs=[("acme", org_root)],
+            activated_mission_types=["software-dev"],
+        )
+
+        scanned = scan_builtin_cross_grain_duplicates()
+
+        assert "software-dev" in scanned
