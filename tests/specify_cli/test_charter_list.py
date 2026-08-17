@@ -273,8 +273,7 @@ class TestTemplateTierRootsOrgBranch:
         tier_roots = _template_tier_roots(repo_root, {"org": org_root})
 
         org_roots = [tr for tr in tier_roots if tr.tier is ResolutionTier.ORG]
-        assert len(org_roots) == 1, tier_roots
-        assert org_roots[0].missions_root == org_root / "missions"
+        assert [tr.missions_root for tr in org_roots] == [org_root / "missions"], tier_roots
 
     def test_org_branch_absent_when_no_org_root(self, tmp_path: Path) -> None:
         repo_root = tmp_path / "repo"

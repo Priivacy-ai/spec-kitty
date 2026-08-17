@@ -357,8 +357,7 @@ def test_build_discovery_context_org_roots_empty_when_unconfigured(tmp_path: Pat
 
     assert context.org_roots == []
     assert context.project_dir == repo_root
-    assert len(context.builtin_roots) == 1
-    assert context.builtin_roots[0].name == "missions"
+    assert [r.name for r in context.builtin_roots] == ["missions"]
 
 
 def test_build_discovery_context_propagates_org_pack_subdir_escape_error(
@@ -488,7 +487,7 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
         warnings.simplefilter("always")
         context = io_seam._build_discovery_context(repo_root)
 
-    assert len(caught) == 1
+    assert len(caught) == 1  # golden-count: cardinality-is-contract
     assert "Invalid doctrine.org config" in str(caught[0].message)
     # Fails soft to zero org roots -- resolution still proceeds.
     assert context.org_roots == []
