@@ -166,7 +166,15 @@ def _dedup_org_layer_edges(
             # Exactly one occurrence in each source: a genuine cross-source
             # overlap. Collapse to exactly one retained edge by dropping the
             # drg/ occurrence (matches the pre-existing root-authoritative
-            # retention behaviour for this case).
+            # retention behaviour for this case). NB this is edge-retention,
+            # which is root-authoritative here -- the OPPOSITE direction from
+            # merge_layers' drg-authoritative node-label precedence. It is
+            # intentional and follows from the canonical triple-only duplicate
+            # definition (C-001): a duplicate is the (source, target, relation)
+            # triple, so on collapse the root edge's per-edge metadata
+            # (``when``/``reason``/``provenance``) is what survives; an author
+            # who needs drg/-side edge metadata to win must not also declare
+            # the identical triple in the root graph.
             drg_occurrence = occurrences[sources.index("drg")]
             edges_dropped_by_id.add(id(drg_occurrence))
         # Otherwise a source has >=2 occurrences (a within-source authoring
