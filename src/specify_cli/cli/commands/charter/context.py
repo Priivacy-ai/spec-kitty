@@ -82,6 +82,18 @@ def context(
         # specify_cli layer and pass it as data into the charter layer.
         # ``charter`` must not import ``specify_cli`` (ADR 2026-03-27-1).
         org_roots = [p for p in resolve_org_roots(repo_root) if p.exists()]
+        # SPEC-ARCH-002 / T017: the single-path ``org_root`` below stays
+        # truncated to ``org_roots[0]`` ONLY for the ``--include`` path
+        # (unaffected by this mission's FR-002 fix). ``build_charter_context``
+        # / ``build_charter_context_json`` must NOT receive this truncated
+        # value — an explicit (already-truncated) ``org_root`` is honoured
+        # verbatim by ``_resolve_action_bundle`` and never widens into the
+        # full chain (``charter.action_doctrine_bundle._resolve_action_bundle``
+        # docstring). Passing ``org_root=None`` through to those two calls
+        # instead lets the charter-layer self-resolution walk the FULL
+        # declaration-ordered org-pack chain via ``resolve_existing_org_roots``.
+        # The separately-computed full ``org_roots`` list below is unchanged
+        # and still passed to ``load_org_charter_json_block(org_roots)``.
         org_root = org_roots[0] if org_roots else None
         if include:
             included_text = build_charter_context_include(
@@ -114,7 +126,9 @@ def context(
             repo_root,
             action=action,
             mark_loaded=mark_loaded,
-            org_root=org_root,
+            # T017: pass None, not the truncated single-pack ``org_root`` —
+            # see the comment above where ``org_root`` is computed.
+            org_root=None,
             mission_type=mission_type,
         )
 
@@ -129,7 +143,9 @@ def context(
                 repo_root,
                 action=action,
                 depth=result.depth,
-                org_root=org_root,
+                # T017: pass None, not the truncated single-pack ``org_root``
+                # — see the comment above where ``org_root`` is computed.
+                org_root=None,
                 org_charter_block=org_charter_block,
                 mission_type=mission_type,
                 include_all=include_all,

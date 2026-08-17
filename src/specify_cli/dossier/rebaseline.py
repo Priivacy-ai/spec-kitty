@@ -37,6 +37,61 @@ Design guarantees:
 
 See: kitty-specs/dossier-parity-reconciler-01KXYXVP/spec.md (FR-009, NFR-003,
 A-003) and tasks/WP05-rebaseline-migration.md (T019-T021).
+
+Org-awareness (FR-003, mission cascade-org-inert-01M07E9P, WP01)
+------------------------------------------------------------------
+
+Until this WP, ``Indexer`` was constructed with no ``repo_root``
+(``Indexer(ManifestRegistry())``), so a configured org pack's
+``expected-artifacts.yaml`` override never reached ``rebaseline`` — unlike
+every other caller of ``Indexer`` (``reconcile.py``, ``sync/dossier_pipeline.py``,
+both already thread ``repo_root``).
+
+**T001 worktree investigation (outcome (a) — worktrees never carry dossier
+snapshots).** Evidence trail:
+
+- ``Indexer.__init__``'s docstring frames ``repo_root`` as the value threaded
+  into ``manifest_registry.load_manifest(mission_type, repo_root=...)``
+  (``indexer.py:89-102``); the sole write site for a recorded snapshot is
+  ``save_snapshot`` (``dossier/snapshot.py:154``), called from exactly one
+  production function, ``sync_feature_dossier`` (``sync/dossier_pipeline.py:140``),
+  itself only ever invoked via ``trigger_feature_dossier_sync_if_enabled``.
+- Every one of that function's six production call sites
+  (``cli/commands/agent/tasks_mark_status.py``, ``workflow_executor.py``
+  (the ``implement``/claim path), ``mission_finalize.py``,
+  ``mission_setup_plan.py``, ``mission_record_analysis.py``, ``research.py``)
+  resolves its ``repo_root`` via ``locate_project_root()``
+  (``core/paths.py:182`` — docstring: "Locate the MAIN spec-kitty project
+  root directory, **even from within worktrees**" / "returns Path to MAIN
+  project root (not worktree)") or the equivalent ``find_repo_root()``
+  (``task_utils/support.py:45``, itself delegating to the same primitive),
+  and resolves ``feature_dir`` through the placement seam's
+  ``MissionArtifactKind.TASKS_INDEX`` — an explicitly PRIMARY-partition kind
+  (``cli/commands/agent/tasks_mark_status.py:177``: "tasks.md is a
+  TASKS_INDEX (primary-partition)"), whose PRIMARY resolution is literally
+  ``get_main_repo_root(repo_root) / KITTY_SPECS_DIR / mission_slug``
+  (``missions/_read_path_resolver.py:1308``).
+- ``migrate rebaseline``'s sole production caller
+  (``cli/commands/migrate_cmd.py``, ``rebaseline_dossier_hashes``) resolves
+  its own ``repo_root`` the same way, via ``locate_project_root()``.
+- ``.kittify/dossiers/`` is gitignored (``.gitignore:66,82,86,87``), so a
+  worktree checkout cannot inherit one via git either.
+
+Net: every real write path for a recorded snapshot funnels through the
+PRIMARY/main checkout, never a ``.worktrees/<slug>-<mid8>-lane-<id>/`` path.
+Derivation (B) — deriving ``repo_root`` per-snapshot from
+``feature_dir.parent.parent`` inside ``rebaseline_snapshot_file`` — is
+therefore correct as specced, with **no** worktree-aware correction needed.
+
+**Fail-safe, not forced.** The derivation still only holds because every
+production writer's PRIMARY-partition resolution is literally
+``<repo_root>/KITTY_SPECS_DIR/<mission_slug>`` — a structural invariant, not
+merely an assumption. ``_derive_repo_root`` below checks that invariant
+(``feature_dir.parent.name == KITTY_SPECS_DIR``) before deriving anything,
+and returns ``None`` (today's org-blind behavior) when it does not hold —
+e.g. a hand-placed or legacy-layout snapshot not nested under
+``kitty-specs/``. A wrong ``repo_root`` is worse than none: it would silently
+read a *different* project's org config.
 """
 
 from __future__ import annotations
@@ -47,6 +102,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.dossier.indexer import Indexer
 from specify_cli.dossier.manifest import ManifestRegistry
 from specify_cli.dossier.snapshot import compute_snapshot
@@ -119,6 +175,29 @@ def _resolve_feature_dir(snapshot_path: Path) -> Path:
     return snapshot_path.parents[3]
 
 
+def _derive_repo_root(feature_dir: Path) -> Path | None:
+    """Derive the owning project's ``repo_root`` from a mission ``feature_dir``
+    (FR-003, derivation (B)).
+
+    Every production writer of a recorded dossier snapshot resolves
+    ``feature_dir`` to ``<repo_root>/KITTY_SPECS_DIR/<mission_slug>`` (see this
+    module's docstring, "Org-awareness" section, for the full T001 evidence
+    trail) — so ``repo_root = feature_dir.parent.parent`` is correct whenever
+    ``feature_dir``'s immediate parent is actually named ``KITTY_SPECS_DIR``.
+    That check is the one structural invariant the whole derivation depends
+    on, and it is verified here rather than assumed.
+
+    Fails SAFE — returns ``None`` (today's org-blind behavior, identical to
+    before this WP) — when the invariant does not hold, e.g. a hand-placed or
+    legacy-layout snapshot not nested under ``kitty-specs/``. A wrong
+    ``repo_root`` is worse than none: it would silently read a *different*
+    project's org config.
+    """
+    if feature_dir.parent.name != KITTY_SPECS_DIR:
+        return None
+    return feature_dir.parent.parent
+
+
 def rebaseline_snapshot_file(snapshot_path: Path, *, dry_run: bool = False) -> RebaselineOutcome:
     """Re-baseline one recorded snapshot to the canonical hash (FR-009).
 
@@ -163,7 +242,8 @@ def rebaseline_snapshot_file(snapshot_path: Path, *, dry_run: bool = False) -> R
         from specify_cli.mission import get_mission_type
 
         mission_type = get_mission_type(feature_dir) or _DEFAULT_MISSION_TYPE
-        dossier = Indexer(ManifestRegistry()).index_feature(feature_dir, mission_type)
+        repo_root = _derive_repo_root(feature_dir)
+        dossier = Indexer(ManifestRegistry(), repo_root=repo_root).index_feature(feature_dir, mission_type)
         snapshot = compute_snapshot(dossier)
     except Exception as exc:  # noqa: BLE001 - one bad mission must not abort the backlog sweep
         logger.warning("Re-index failed for %s: %s", feature_dir, exc)

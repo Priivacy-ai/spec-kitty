@@ -461,15 +461,19 @@ def build_charter_context_json(
     # WP11 (T060/B-3) — no depth<minimum early return: the ``--json`` half of
     # every-load delivery (where SC-001/002 are measured) delivers at every depth.
 
-    from charter.pack_context import PackContext as _PackContext  # noqa: PLC0415
-
-    _pack_ctx_json = _PackContext.from_config(repo_root)
-    bundle = _load_action_doctrine_bundle(
-        repo_root=repo_root,
+    # SPEC-ARCH-002 (T018): route through the self-resolving wrapper, the
+    # same one ``build_charter_context`` (plain-text) already uses above —
+    # NOT the private ``_load_action_doctrine_bundle`` directly. When
+    # ``org_root`` is None, ``_resolve_action_bundle`` widens to the FULL
+    # declaration-ordered org-pack chain via ``resolve_existing_org_roots``
+    # (see ``charter.action_doctrine_bundle``); calling
+    # ``_load_action_doctrine_bundle`` directly here bypassed that widening
+    # entirely and always resolved at most one org pack.
+    bundle = _resolve_action_bundle(
+        repo_root,
         action=normalized,
         effective_depth=state_bundle.effective_depth,
         org_root=org_root,
-        pack_context=_pack_ctx_json,
         mission_type=mission_type,
         feature_dir=feature_dir,
     )
