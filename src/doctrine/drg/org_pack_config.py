@@ -10,8 +10,6 @@ parser so it cannot drift independently.
 from __future__ import annotations
 
 import logging
-import os
-import re
 import warnings
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Literal
@@ -20,9 +18,9 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from ruamel.yaml import YAML
 from ulid import ULID
 
-logger = logging.getLogger(__name__)
-
 from kernel.env_expand import expand_raw_template, find_empty_env_token, find_unresolved_token
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "OrgPackConfig",
