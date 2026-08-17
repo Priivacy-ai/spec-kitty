@@ -174,6 +174,16 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("built_in_dir", "doctrine.pack_paths"),
         ("built_in_root", "doctrine.pack_paths"),
     ],
+    # Added by mission ``operator-config-ergonomics`` (portable provenance):
+    # the runtime provenance-normalizer reach-through routes through this
+    # facade exactly like ``charter.pack_paths`` above, closing the direct
+    # ``specify_cli``/``runtime`` -> ``doctrine.provenance`` import that
+    # ``test_runtime_charter_doctrine_boundary.py`` forbids. Same source
+    # module, same identity-reexport shape. FACADE-ONLY.
+    "charter.provenance": [
+        ("is_built_in_pack_path", "doctrine.provenance"),
+        ("to_portable_source_path", "doctrine.provenance"),
+    ],
     # Widened by WP03/T015: ``resolve_template_by_id`` (WP01 found it missing;
     # ``runtime/resolver.py`` needs it in WP07/T036). FACADE-ONLY.
     "charter.template_catalog": [
