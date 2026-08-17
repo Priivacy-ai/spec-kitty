@@ -31,6 +31,23 @@ Two predicates, mechanically decidable (no fragile heuristic):
   file(...)``'s 2nd positional arg — the laundering vector that evades both
   (a) (the 2nd arg there is a ``Name``, not an ``ast.Constant``) and the
   ``file.py:NNN`` grep (the seed spans multiple source lines).
+* **Python (raw 2-tuple key — CT7, #2853)** — now that ``composite_key`` /
+  :class:`ContentDescriptor` adoption is broad, this arm bans the *regrowth* of
+  the file:line-drift engine in its most direct form: a ratchet-key /
+  allow-list-seed constructed as a raw ``("some_file.py", 472)`` **2-tuple**
+  (a path-ish string literal + a bare int literal) instead of via
+  ``composite_key`` / :class:`ContentDescriptor`. To avoid flagging an
+  identically-shaped ``(str, int)`` tuple that is NOT a content-address ratchet
+  key — most notably the ``("kernel/schema_utils.py", 88)`` doctrine-**import-
+  lineno** exemption in ``test_kernel_no_doctrine_import.py`` (a different gate,
+  tracked #3206) — this arm is scoped by *context*, not by tuple shape alone: it
+  fires ONLY for a raw 2-tuple that (i) lives inside a module-level allow-list
+  seed container AND (ii) sits in a file that actually imports the
+  content-addressed ratchet substrate (``composite_key`` /
+  ``composite_key_from_file`` / ``code_tokens_by_line`` / ``ContentDescriptor``
+  / the descriptor resolver, from ``tests.architectural._ratchet_keys`` or
+  ``specify_cli.contracts.anchoring``). The #3206 exemption file imports none of
+  that substrate, so its ``(path, int)`` exemption tuples are never in scope.
 * **YAML** — a field-name rule over the two YAML allow-lists
   (``resolution_gate_allowlist.yaml``, ``inline_meta_read_allowlist.yaml``):
   an int is permitted ONLY as a ``line`` locator (documented
@@ -63,6 +80,7 @@ contracts/positional-anchor-ban.md; research.md Decision (deferred census).
 from __future__ import annotations
 
 import ast
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -87,6 +105,34 @@ _LINE_SINK_CALL_NAMES: frozenset[str] = frozenset(
     {"composite_key", "composite_key_from_file"}
 )
 _TOKENS_BY_LINE_CALL_NAME = "code_tokens_by_line"
+
+# CT7 (#2853) — the content-addressed ratchet substrate. A raw ``(path, int)``
+# 2-tuple key is banned ONLY in files that import one of these, i.e. files that
+# ARE content-addressed ratchets and therefore have no excuse to hand-roll a
+# positional file:line key. This scoping is what keeps the ``(path, int)``
+# doctrine-import-lineno exemption in ``test_kernel_no_doctrine_import.py``
+# (#3206 — a different gate, no substrate import) out of scope.
+_RATCHET_SUBSTRATE_MODULES: frozenset[str] = frozenset(
+    {"tests.architectural._ratchet_keys", "specify_cli.contracts.anchoring"}
+)
+_RATCHET_SUBSTRATE_NAMES: frozenset[str] = frozenset(
+    {
+        "composite_key",
+        "composite_key_from_file",
+        "code_tokens_by_line",
+        "ContentDescriptor",
+        "resolve_descriptor",
+        "descriptor_still_live",
+        "assert_descriptor_unique_within_qualname",
+    }
+)
+
+# A path-ish string literal: contains a path separator, or ends in a file
+# extension (``.py`` / ``.yaml`` / ...). Mirrors the prefix test in
+# ``specify_cli.contracts.anchoring.is_file_line_anchor`` so the tuple form
+# ``("file.py", 42)`` and the string form ``"file.py:42"`` share one notion of
+# "looks like a source path".
+_PATHISH_SUFFIX_RE = re.compile(r"\.[A-Za-z0-9]+$")
 
 # The two ratchet allow-list YAMLs this guard's field-name rule scans.
 _YAML_ALLOWLISTS: tuple[str, ...] = (
@@ -461,6 +507,89 @@ def _seed_tuple_laundering_violations(
     return violations
 
 
+def _imports_ratchet_substrate(tree: ast.Module) -> bool:
+    """True when ``tree`` imports a content-addressed ratchet substrate symbol.
+
+    A file that imports ``composite_key`` / ``ContentDescriptor`` / the
+    descriptor resolver (from ``tests.architectural._ratchet_keys`` or
+    ``specify_cli.contracts.anchoring``) IS a content-addressed ratchet, so a
+    raw ``(path, int)`` 2-tuple key inside it is the exact file:line-drift
+    regression CT7 (#2853) bans. A file that imports none of the substrate
+    (e.g. the #3206 doctrine-import-lineno gate) is out of scope for this arm.
+    """
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        if node.module in _RATCHET_SUBSTRATE_MODULES:
+            return True
+        if any(alias.name in _RATCHET_SUBSTRATE_NAMES for alias in node.names):
+            return True
+    return False
+
+
+def _is_pathish_string_literal(node: ast.AST) -> bool:
+    """True when ``node`` is a str literal that looks like a source-file path.
+
+    Path-ish = contains a ``/`` or ``\\`` separator, or ends in a file
+    extension. This narrows the raw-2-tuple ban to the ``(path, line)`` shape
+    (never an innocent ``(label, count)`` 2-tuple that happens to pair a string
+    with an int).
+    """
+    if not (isinstance(node, ast.Constant) and isinstance(node.value, str)):
+        return False
+    text = node.value.strip()
+    if not text:
+        return False
+    return "/" in text or "\\" in text or bool(_PATHISH_SUFFIX_RE.search(text))
+
+
+def _is_raw_file_line_tuple(node: ast.AST) -> bool:
+    """Sink shape (CT7): a bare ``("file.py", 472)`` 2-tuple — a path-ish string
+    literal followed by a bare int literal — the raw file:line key that must be
+    a ``composite_key`` / :class:`ContentDescriptor` instead.
+    """
+    if not isinstance(node, ast.Tuple) or len(node.elts) != 2:
+        return False
+    first, second = node.elts
+    return _is_pathish_string_literal(first) and _is_int_constant(second)
+
+
+def _raw_file_line_tuple_seed_violations(
+    tree: ast.Module, source_lines: list[str], relpath: str
+) -> list[LineSinkViolation]:
+    """CT7 (#2853): a raw ``(path, line)`` 2-tuple used as a ratchet key /
+    allow-list seed, in a file that imports the content-addressed ratchet
+    substrate.
+
+    Scoped by context (module-level seed container AND substrate-importing
+    file), NOT by tuple shape alone, so the identically-shaped ``(path, int)``
+    doctrine-import-lineno exemption in ``test_kernel_no_doctrine_import.py``
+    (#3206 — imports no substrate) stays GREEN.
+    """
+    if not _imports_ratchet_substrate(tree):
+        return []
+    violations: list[LineSinkViolation] = []
+    for container in _module_level_seed_containers(tree):
+        for node in ast.walk(container):
+            if not isinstance(node, ast.Tuple) or not _is_raw_file_line_tuple(node):
+                continue
+            if has_diagnostic_locator_marker(source_lines, node.lineno):
+                continue
+            path_node, line_node = node.elts
+            if not (isinstance(path_node, ast.Constant) and isinstance(line_node, ast.Constant)):
+                continue
+            violations.append(
+                LineSinkViolation(
+                    relpath,
+                    node.lineno,
+                    f"raw (path, line) 2-tuple {(path_node.value, line_node.value)!r} used as a "
+                    "ratchet key / allow-list seed — anchor on content via "
+                    "composite_key(...) / ContentDescriptor instead",
+                )
+            )
+    return violations
+
+
 def _scan_python_source(source: str, relpath: str) -> list[LineSinkViolation]:
     """Parse ``source`` once and run all Python sink-shape walkers over it."""
     try:
@@ -472,6 +601,7 @@ def _scan_python_source(source: str, relpath: str) -> list[LineSinkViolation]:
         _call_arg_line_sink_violations(tree, source_lines, relpath)
         + _seed_string_line_anchor_violations(tree, source_lines, relpath)
         + _seed_tuple_laundering_violations(tree, source_lines, relpath)
+        + _raw_file_line_tuple_seed_violations(tree, source_lines, relpath)
     )
 
 
@@ -619,6 +749,15 @@ def _parse_call(source: str) -> ast.Call:
     return call
 
 
+def _parse_expr(source: str) -> ast.expr:
+    """Return the value expr of a single-expression-statement source (strict-clean
+    accessor: narrows ``body[0]`` to ``ast.Expr`` so ``.value`` is typed)."""
+    tree = ast.parse(source)
+    stmt = tree.body[0]
+    assert isinstance(stmt, ast.Expr)
+    return stmt.value
+
+
 class TestIsCompositeKeyLineArg:
     def test_flags_int_literal_second_arg(self) -> None:
         call = _parse_call("composite_key(source, 347)")
@@ -719,6 +858,54 @@ class TestModuleLevelSeedContainers:
     def test_ignores_scalar_assignment(self) -> None:
         tree = ast.parse("_BASELINE = 3")
         assert _module_level_seed_containers(tree) == []
+
+
+class TestImportsRatchetSubstrate:
+    def test_detects_ratchet_keys_module_import(self) -> None:
+        tree = ast.parse("from tests.architectural._ratchet_keys import composite_key")
+        assert _imports_ratchet_substrate(tree)
+
+    def test_detects_anchoring_module_import(self) -> None:
+        tree = ast.parse("from specify_cli.contracts.anchoring import ContentDescriptor")
+        assert _imports_ratchet_substrate(tree)
+
+    def test_detects_substrate_name_from_any_module(self) -> None:
+        # Re-export shim path: name-based detection catches an alias source too.
+        tree = ast.parse("from somewhere.shim import composite_key_from_file")
+        assert _imports_ratchet_substrate(tree)
+
+    def test_ignores_non_substrate_file(self) -> None:
+        # Mirrors test_kernel_no_doctrine_import.py: ast + pathlib + pytest only.
+        tree = ast.parse("import ast\nfrom pathlib import Path\nimport pytest\n")
+        assert not _imports_ratchet_substrate(tree)
+
+
+class TestIsPathishStringLiteral:
+    def test_flags_py_extension(self) -> None:
+        assert _is_pathish_string_literal(_parse_expr('"kernel/schema_utils.py"'))
+
+    def test_flags_bare_extension_no_separator(self) -> None:
+        assert _is_pathish_string_literal(_parse_expr('"schema_utils.py"'))
+
+    def test_rejects_plain_label(self) -> None:
+        assert not _is_pathish_string_literal(_parse_expr('"some_label"'))
+
+    def test_rejects_int_node(self) -> None:
+        assert not _is_pathish_string_literal(_parse_expr("42"))
+
+
+class TestIsRawFileLineTuple:
+    def test_flags_pathish_str_int_pair(self) -> None:
+        assert _is_raw_file_line_tuple(_parse_expr('("some_file.py", 472)'))
+
+    def test_rejects_str_str_pair(self) -> None:
+        assert not _is_raw_file_line_tuple(_parse_expr('("a.py", "b.py")'))
+
+    def test_rejects_label_int_pair(self) -> None:
+        assert not _is_raw_file_line_tuple(_parse_expr('("label", 3)'))
+
+    def test_rejects_three_tuple(self) -> None:
+        assert not _is_raw_file_line_tuple(_parse_expr('("a.py", 3, "rationale")'))
 
 
 class TestYamlIntFieldViolations:
@@ -853,6 +1040,99 @@ def test_non_vacuity_compliant_snippet_stays_green() -> None:
         "    return composite_key(source, lineno)\n"
     )
     assert _scan_python_source(compliant, "scratch/compliant_seed.py") == []
+
+
+# ---------------------------------------------------------------------------
+# CT7 (#2853) — raw ``(path, line)`` 2-tuple ratchet-key ban: three directions.
+# ---------------------------------------------------------------------------
+
+
+def test_ct7_raw_file_line_tuple_seed_is_flagged() -> None:
+    """RED (direction 1): a raw ``("some_file.py", 472)`` 2-tuple used as a
+    ratchet key in a substrate-importing file IS flagged — the file:line-drift
+    regression CT7 bans.
+    """
+    planted = (
+        "from tests.architectural._ratchet_keys import composite_key\n\n"
+        "_ALLOWLIST = {\n"
+        '    ("some_file.py", 472): "rationale",\n'
+        "}\n"
+    )
+    violations = _scan_python_source(planted, "scratch/planted_raw_tuple.py")
+    assert violations, "planted raw (path, line) 2-tuple ratchet key must be flagged (CT7)"
+    assert "raw (path, line) 2-tuple" in violations[0].detail
+    assert "some_file.py" in violations[0].detail
+
+
+def test_ct7_content_descriptor_form_stays_green() -> None:
+    """GREEN (direction 2): the SAME allow-list entry expressed via
+    ``ContentDescriptor`` (content-addressed, not a raw ``(path, int)`` tuple)
+    passes — proving the arm rewards the migrated form.
+    """
+    compliant = (
+        "from tests.architectural._ratchet_keys import ContentDescriptor\n\n"
+        "_ALLOWLIST: tuple[ContentDescriptor, ...] = (\n"
+        "    ContentDescriptor(\n"
+        '        rel_path="some_file.py",\n'
+        '        qualname="mod.fn",\n'
+        '        token_substring="offending_token",\n'
+        "        occurrence=None,\n"
+        '        rationale="rationale",\n'
+        "    ),\n"
+        ")\n"
+    )
+    assert _scan_python_source(compliant, "scratch/content_descriptor_seed.py") == []
+
+
+def test_ct7_raw_tuple_in_non_substrate_file_stays_green() -> None:
+    """GREEN (scoping): the identically-shaped raw ``(path, int)`` 2-tuple in a
+    file that imports NO ratchet substrate is out of scope — this is the exact
+    shape of the #3206 doctrine-import-lineno exemption, and it must not be
+    swept up by tuple shape alone.
+    """
+    non_substrate = (
+        "import ast\n"
+        "from pathlib import Path\n\n"
+        "_PRE_EXISTING_EXEMPTIONS = frozenset(\n"
+        "    {\n"
+        '        ("kernel/schema_utils.py", 88),\n'
+        '        ("kernel/schema_utils.py", 96),\n'
+        "    }\n"
+        ")\n"
+    )
+    assert _scan_python_source(non_substrate, "scratch/import_lineno_gate.py") == []
+
+
+def test_ct7_real_3206_import_lineno_exemption_stays_green() -> None:
+    """GREEN (anti-collision, direction 3): the REAL
+    ``test_kernel_no_doctrine_import.py`` — carrying the live
+    ``("kernel/schema_utils.py", 88/96)`` #3206 import-lineno exemption tuples —
+    is scanned by the actual guard and produces ZERO findings. A regression that
+    let this arm key off tuple shape (not context) would red a legitimate,
+    tracked exemption on a different gate.
+    """
+    kernel_gate = _ARCH_ROOT / "test_kernel_no_doctrine_import.py"
+    assert kernel_gate.exists(), "the #3206 import-lineno gate moved — repoint this anti-collision test"
+    # Precondition the anti-collision proof rests on: the file really does carry
+    # the raw (path, int) exemption tuples, yet imports none of the substrate.
+    text = kernel_gate.read_text(encoding="utf-8")
+    assert '("kernel/schema_utils.py", 88)' in text
+    assert _imports_ratchet_substrate(ast.parse(text)) is False
+    assert _scan_python_file(kernel_gate) == []
+
+
+def test_ct7_escape_hatch_opts_out_raw_tuple() -> None:
+    """The ``# diagnostic-locator`` marker suppresses a raw-tuple finding too —
+    a genuinely non-anchor ``(path, int)`` pair can opt out explicitly rather
+    than forcing the predicate to grow a special case.
+    """
+    planted = (
+        "from tests.architectural._ratchet_keys import composite_key\n\n"
+        "_ALLOWLIST = {\n"
+        '    ("some_file.py", 472): "rationale",  # diagnostic-locator\n'
+        "}\n"
+    )
+    assert _scan_python_source(planted, "scratch/escaped_raw_tuple.py") == []
 
 
 def test_non_vacuity_real_compliant_yamls_stay_green() -> None:
