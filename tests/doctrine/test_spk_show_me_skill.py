@@ -47,6 +47,8 @@ def test_skill_builds_on_canonical_diagram_doctrine(skill_text: str) -> None:
     assert "toolguide:plantuml-diagramming" in sources
     assert "directive:USE_C4_MODEL_TECHNIQUES" in sources
     assert "tactic:architecture-diagram-review-checklist" in sources
+    assert "--action <action> --mission-type <type> --json" in sources
+    assert "inclusion alone does not" in sources
     assert "packs/built-in/toolguides/MERMAID_DIAGRAMMING.md" in sources
     assert "packs/built-in/toolguides/PLANTUML_DIAGRAMMING.md" in sources
 
@@ -99,6 +101,8 @@ def test_installed_skill_carries_portable_sources_and_themes(
 
     installed = project / ".agents" / "skills" / "spk-doctrine-show-me"
     assert (installed / "references" / "spec-kitty-diagram-sources.md").is_file()
+    assert (installed / "assets" / "MERMAID_DIAGRAMMING.md").is_file()
+    assert (installed / "assets" / "PLANTUML_DIAGRAMMING.md").is_file()
     assert (installed / "assets" / "mermaid-theme-common-template.md").is_file()
     assert (
         installed / "assets" / "mermaid-theme-bluegray-conversation-template.md"
@@ -115,6 +119,16 @@ def test_installed_skill_carries_portable_sources_and_themes(
 def test_bundled_theme_matches_canonical_template(filename: str) -> None:
     bundled = SKILL.parent / "assets" / filename
     canonical = REPO_ROOT / "src" / "doctrine" / "templates" / "diagrams" / "themes" / filename
+    assert bundled.read_bytes() == canonical.read_bytes()
+
+
+@pytest.mark.parametrize(
+    "filename",
+    ["MERMAID_DIAGRAMMING.md", "PLANTUML_DIAGRAMMING.md"],
+)
+def test_bundled_guide_matches_canonical_toolguide(filename: str) -> None:
+    bundled = SKILL.parent / "assets" / filename
+    canonical = REPO_ROOT / "packs" / "built-in" / "toolguides" / filename
     assert bundled.read_bytes() == canonical.read_bytes()
 
 
