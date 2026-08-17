@@ -1,0 +1,125 @@
+lens: correctness
+coverage:
+  surfaces_checked:
+    - "src/charter/context.py (build_charter_context_json T018 swap to _resolve_action_bundle)"
+    - "src/specify_cli/cli/commands/charter/_layer_roots.py (new resolve_org_root_chain, and its interaction with the unchanged single-Path resolve_layer_roots)"
+    - "src/specify_cli/cli/commands/charter/activate.py (_source_urn/_drg_id_to_config_id org_roots threading, new _activate_cascade_target fallback loop, _render_cascade_activation/_render_no_cascade_warning org_roots threading, T017 call site)"
+    - "src/specify_cli/cli/commands/charter/context.py (T017 CLI-level org_root truncation removal)"
+    - "src/specify_cli/cli/commands/charter/deactivate.py (_source_urn/_active_urns/_render_cascade_deactivation org_roots threading)"
+    - "src/specify_cli/dossier/rebaseline.py (_derive_repo_root, Indexer(repo_root=...) threading)"
+    - "charter.action_doctrine_bundle._resolve_action_bundle / _load_action_doctrine_bundle (pre-existing, not in diff, but load-bearing for T018 -- read to confirm org_root=None genuinely widens to the full chain)"
+    - "charter.kind_vocabulary.resolve_artifact_urn/resolve_config_id/_org_scan_dirs (pre-existing org_roots seam that activate.py/deactivate.py now actually reach)"
+    - "charter._drg_helpers.load_validated_graph (pre-existing org_roots param; confirmed org_roots=[] means 'no org layer', distinct from omitting the arg)"
+    - "specify_cli.dossier.indexer.Indexer.__init__ / manifest.py ManifestRegistry.load_manifest (confirmed repo_root=None is a safe no-op fallback, matching pre-fix behavior)"
+    - "CharterPackManager.activate/deactivate (confirmed plan/commit non-mutating-on-failure seam makes _activate_cascade_target's multi-attempt retry safe, and confirmed deactivate() does not need the same retry loop since it validates against the active list, not the availability catalog)"
+  tests_run: >-
+    .venv/bin/python -m pytest tests/charter/test_context_org_chain.py
+    tests/dossier/test_rebaseline.py
+    tests/specify_cli/cli/commands/charter/test_org_cascade_chain.py -q
+    -> 36 passed, 91s. Additionally wrote and ran a throwaway, repo-external
+    script (/tmp/.../pr3534-check/verify_t017.py, never touching any workspace
+    file) that calls charter.context.build_charter_context/build_charter_context_json
+    directly, reusing test_context_org_chain.py's own fixture builders, once with
+    org_root=org_roots[0] (simulating the CLI's pre-T017 truncated call) and once
+    with org_root=None (the actual post-T017 CLI call shape). Confirmed empirically:
+    truncated mode drops pack B from both plain-text and JSON output (RED), None
+    mode includes it in both (GREEN) -- so T017's effect is real and load-bearing,
+    matching WP03's task doc checkpoint 3. This is what exposed R2-001 below: the
+    checked-in test never performs this comparison against the real CLI command,
+    only against the library function called with a hardcoded literal.
+  notes: >-
+    Did not independently re-verify NFR-001 (cascade performance) with a benchmark
+    -- assessed by inspection only (the new _activate_cascade_target retry is O(1)
+    in the common single/no-org-pack case, O(chain length) worst case, and
+    resolve_org_root_chain is called a handful of extra times per CLI invocation,
+    which is cheap file-existence/YAML-parse work, not DRG-merge work). Did not
+    audit ruff/mypy directly (ruff not installed in this .venv); left to other
+    lenses/CI. Did not re-derive the doctrine-artifact-vs-mission-type dual merge
+    semantics from scratch beyond what was needed to confirm this diff's call sites
+    are internally consistent with each (load_validated_graph: later-declared-wins
+    on URN collision, pre-existing #3525 behavior; kind_vocabulary's
+    resolve_artifact_urn/resolve_config_id and the new _activate_cascade_target
+    fallback: both first-candidate-(earliest-declared)-wins, consistently with each
+    other) -- both are pre-existing, out-of-diff primitives this PR only threads
+    into, not new semantics it introduces.
+findings:
+  - id: R2-001
+    severity: 3
+    file: tests/charter/test_context_org_chain.py
+    line: 172
+    summary: "WP03's T019 'empirical inertness proof' test never invokes the real CLI command that carries T017's fix, so a regression of T017 alone would go undetected by any test in the repo."
+    failure_scenario: >-
+      T017 is "stop src/specify_cli/cli/commands/charter/context.py's context()
+      command from precomputing org_root = org_roots[0] and passing it to
+      build_charter_context/build_charter_context_json; pass org_root=None
+      instead" (see context.py lines ~97/122/141 in the diff). But
+      tests/charter/test_context_org_chain.py's _render_both() helper (lines
+      172-199) calls charter.context.build_charter_context and
+      build_charter_context_json DIRECTLY, with org_root=None passed as a
+      hardcoded literal -- it never imports or invokes
+      specify_cli.cli.commands.charter.context.context() (the actual typer
+      command T017 touches), and no other test file in the repo does either
+      (verified: grepping every test that uses CliRunner + charter_app for
+      "context" as a subcommand argument, and every test importing
+      build_charter_context/build_charter_context_json, turns up zero CLI-level
+      invocations of `charter context` with any org pack configured -- e.g.
+      tests/charter/test_context_include.py's only CliRunner+context case covers
+      --include with zero org packs; tests/charter/test_org_activations_reach_context.py
+      and tests/integration/test_org_pack_artifact_lifecycle.py also import
+      build_charter_context directly rather than going through the CLI).
+      Concretely: if a future change reintroduces
+      `org_root = org_roots[0] if org_roots else None` at the two
+      build_charter_context/build_charter_context_json call sites inside
+      context.py's context() command (e.g. someone "cleans up" the two T017
+      comments and restores the variable), tests/charter/test_context_org_chain.py
+      and the rest of the suite stay 100% green -- the actual `spec-kitty charter
+      context --action <x>` CLI command would silently regress to pack-1-only
+      resolution again with no red test anywhere. This is exactly the class of
+      gap the WP03 task doc (tasks/WP03-context-bundle-org-chain.md, T019) asked
+      to be closed via a 4-point empirical proof, but the delivered proof was
+      performed at the library-function level (and recorded manually in the WP
+      report per the test module's own docstring: "recorded via manual
+      revert-and-rerun in the WP report") rather than encoded as an automated
+      regression test guarding the CLI wiring itself. I confirmed by direct
+      inspection (not just the test's own docstring claim) that reverting only
+      T017's effect (org_root=org_roots[0] instead of None) at the
+      build_charter_context/build_charter_context_json call boundary does turn
+      pack B absent (see coverage.tests_run above) -- so T017 is genuinely
+      necessary, just untested at its actual call site.
+    recommendation: >-
+      Add (or extend an existing CLI-level test, e.g. in
+      tests/charter/test_context_include.py's CliRunner style) a test that
+      invokes `charter_app` via CliRunner with `["context", "--action", ...]`
+      (and `--json`) against a two-org-pack config, asserting pack B's content
+      appears in the real CLI output -- not just in the return value of
+      build_charter_context/build_charter_context_json called directly. That is
+      the only way to pin the actual org_root=None literal at context.py's two
+      call sites against a future accidental revert.
+  - id: R2-002
+    severity: 2
+    file: src/specify_cli/cli/commands/charter/activate.py
+    line: 272
+    summary: "_activate_cascade_target discards every failure but the last when no org-root candidate succeeds, so the operator-facing error can name the wrong reason."
+    failure_scenario: >-
+      When a cascade target's config_id does not resolve under ANY candidate
+      layer_roots (org_roots=[pack1, pack2, ...]), _activate_cascade_target
+      collects each ValueError into `failures` but re-raises only
+      `failures[-1]` (the last candidate's exception), silently discarding
+      every earlier candidate's failure reason. Concretely: if pack1 fails with
+      "Unknown directive ID 'x'" (the mundane, expected case -- the artifact
+      genuinely lives only in pack2 or nowhere) but pack2's attempt happens to
+      fail for a different, more surprising reason (e.g. a transient/structural
+      issue specific to pack2's directory layout), the operator only ever sees
+      pack2's message in the console output from _render_cascade_activation's
+      `except ValueError as exc: console.print(...)` handler and has no way to
+      tell from the CLI output that pack1 was even tried, or why it failed.
+      This does not cause incorrect activation (the plan/commit seam is
+      non-mutating on failure, confirmed by inspection, so trying pack1 then
+      pack2 is safe), only a potentially misleading diagnostic when multiple
+      org roots are configured and none contain the artifact.
+    recommendation: >-
+      Either join all collected failure messages into the raised/reported
+      error (e.g. "; ".join(str(f) for f in failures)), or at minimum note in
+      the docstring that only the last candidate's failure is surfaced so a
+      future debugger of a multi-org-pack "Unknown ID" report knows to check
+      each org root by hand rather than trusting the printed reason.
