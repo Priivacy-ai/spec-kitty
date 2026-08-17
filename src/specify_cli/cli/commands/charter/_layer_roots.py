@@ -73,6 +73,12 @@ def resolve_org_root_chain(repo_root: Path) -> list[Path]:
     resolution -- matching this module's existing role as the layer-root
     resolution seam for the charter CLI commands.
     """
-    from doctrine.drg.org_pack_config import resolve_existing_org_roots
+    # Reached through the `charter.drg` proxy, never `doctrine.*` directly:
+    # a lazy, function-body import is NOT exempt from the runtime->charter->
+    # doctrine boundary (tests/architectural/
+    # test_runtime_charter_doctrine_boundary.py). `charter.drg` re-exports this
+    # primitive for exactly this purpose, and the module-level TYPE_CHECKING
+    # import above already uses the same door.
+    from charter.drg import resolve_existing_org_roots
 
     return resolve_existing_org_roots(repo_root)
