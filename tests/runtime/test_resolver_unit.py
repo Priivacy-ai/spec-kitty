@@ -1419,7 +1419,7 @@ class TestOrgTierResolution:
             warnings.simplefilter("always")
             result = resolve_template("spec-template.md", project, "software-dev")
 
-        assert len(caught) == 1
+        assert len(caught) == 1  # golden-count: cardinality-is-contract
         assert "Invalid doctrine.org config" in str(caught[0].message)
         assert result.tier == ResolutionTier.PACKAGE_DEFAULT
         assert result.path == pkg_template
