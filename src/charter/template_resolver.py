@@ -1,7 +1,7 @@
-"""Project-aware template resolution through the 5-tier override chain.
+"""Project-aware template resolution through the 6-tier override chain.
 
-Composes MissionTemplateRepository (doctrine-level, tier 5) with the
-charter factory's tier chain (tiers 1-4). Charter is the
+Composes MissionTemplateRepository (doctrine-level, package-default tier) with the
+charter factory's tier chain. Charter is the
 concretization of doctrine into local context-aware legislation.
 
 FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05) — **this module is
@@ -28,9 +28,9 @@ path has exactly one door.
 
 Scope note: the ``resolve_*_path`` methods below are **not** part of the
 FR-003 seam and are intentionally left reaching
-:class:`MissionTemplateRepository` directly. They are tier-5 package-default
+:class:`MissionTemplateRepository` directly. They are package-default
 repository lookups, not ``doctrine.resolver`` tier-chain calls — the same
-doctrine surface ``doctrine/resolver.py``'s own tier 5 consumes. There is
+doctrine surface ``doctrine/resolver.py``'s own package-default tier consumes. There is
 therefore no second *authority* to consolidate: both these methods and the
 factory's ``resolve_package_default_*`` methods delegate to that one
 repository. Routing them through the factory as well would need
@@ -54,9 +54,9 @@ __all__ = [
 
 
 class CharterTemplateResolver:
-    """5-tier project-aware template resolution.
+    """6-tier project-aware template resolution.
 
-    Resolution order: OVERRIDE > LEGACY > GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT.
+    Resolution order: OVERRIDE > LEGACY > ORG > GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT.
 
     A thin delegate onto :class:`charter.resolver.DoctrineService` for the
     tier chain (FR-003) — see the module docstring.
@@ -88,7 +88,7 @@ class CharterTemplateResolver:
         name: str,
         project_dir: Path | None = None,
     ) -> TemplateResult:
-        """Resolve a command template through the 5-tier override chain.
+        """Resolve a command template through the 6-tier override chain.
 
         Args:
             mission: Mission name.
@@ -128,7 +128,7 @@ class CharterTemplateResolver:
         name: str,
         project_dir: Path | None = None,
     ) -> TemplateResult:
-        """Resolve a content template through the 5-tier override chain.
+        """Resolve a content template through the 6-tier override chain.
 
         Args:
             mission: Mission name.
