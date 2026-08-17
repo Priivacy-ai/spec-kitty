@@ -26,6 +26,7 @@ from runtime.next._tmp_namespace import prompt_tmp_dir
 from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group registration via register()
 from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
 from tests._shard_registry import all_groups, shard_for
+from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
     quarantine_opted_in,
@@ -1568,6 +1569,7 @@ def test_project(tmp_path: Path) -> Path:
         project / ".kittify",
         symlinks=True,
     )
+    scrub_repo_mission_overrides(project)
 
     # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"
