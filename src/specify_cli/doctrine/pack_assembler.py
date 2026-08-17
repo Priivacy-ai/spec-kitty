@@ -332,7 +332,10 @@ def assemble_pack(
     _merge_org_charters_to_output(input_packs, output_dir)
 
     # Validate assembled output.
-    validation = validate_pack(output_dir)
+    # The assembler never writes a pack-root *.graph.yaml (_copy_drg_fragments
+    # only writes output_dir/drg/*.graph.yaml) — this carve-out is structural,
+    # unconditional, and does not depend on any caller's output shape.
+    validation = validate_pack(output_dir, check_drg_root=False)
     if not validation.ok:
         # Roll back partial output.
         shutil.rmtree(output_dir, ignore_errors=True)

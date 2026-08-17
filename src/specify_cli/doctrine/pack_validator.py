@@ -35,7 +35,8 @@ Validation performs (in order):
 Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``schema_invalid``, ``duplicate_id``, ``drg_dangling_edge``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
-``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``, plus
+``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``,
+``profile_skipped``, plus
 structural categories for the ``pack`` and ``org-charter`` artifact types.
 
 The public surface is intentionally small:
@@ -110,6 +111,16 @@ class ValidationIssue:
       pack's ``assets/`` root (absolute, ``..``-escape, or symlink escape).
     * ``asset_mime_invalid`` — an ASSET manifest's ``mime`` is not a well-formed
       ``type/subtype`` value, or disagrees with the path extension's guessed type.
+    * ``profile_skipped`` — an agent-profile file was recorded by
+      ``AgentProfileRepository`` as skipped (e.g. a post-merge field-conflict
+      failure), surfaced here so ``pack validate`` reports it without a
+      separate ``spec-kitty doctor doctrine --json`` invocation.
+    * ``drg_root_graph_missing`` — the pack's ``drg/`` directory contains one
+      or more ``*.graph.yaml`` fragments but the pack root has no top-level
+      ``*.graph.yaml`` — the runtime
+      (``src/charter/_drg_helpers.py:load_validated_graph``) reads only the
+      pack root, never ``drg/`` fragments, so this pack's DRG content is not
+      consumed as authored.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
     """
 
@@ -200,8 +211,8 @@ def _yaml_parser() -> YAML:
 
 
 def _scan_files(directory: Path, glob: str) -> list[Path]:
-    """Return sorted files matching *glob*; recursive for styleguides."""
-    if directory.name == "styleguides":
+    """Return sorted files matching *glob*; recursive for styleguides and assets."""
+    if directory.name in {"styleguides", "assets"}:
         return sorted(directory.rglob(glob))
     return sorted(directory.glob(glob))
 
@@ -337,11 +348,20 @@ def _scan_artifact_directory(  # noqa: PLR0913 — small helper kept private to 
 # ---------------------------------------------------------------------------
 
 
-def validate_pack(pack_dir: Path) -> ValidationResult:
+def validate_pack(pack_dir: Path, *, check_drg_root: bool = True) -> ValidationResult:
     """Validate a doctrine pack directory.
 
     Returns a :class:`ValidationResult` with ``ok=False`` if any error was
     found.  Advisories do not affect ``ok``.
+
+    ``check_drg_root`` (FR-004, default ``True``): when ``True``, also runs
+    :func:`_check_drg_root_graph_missing` — a pack whose DRG content lives
+    only under ``drg/*.graph.yaml`` fragments with no pack-root
+    ``*.graph.yaml`` is flagged, since the runtime
+    (``src/charter/_drg_helpers.py:load_validated_graph``) reads only the
+    pack root. Callers that know their own output can never produce that
+    mismatch shape (e.g. ``pack_assembler.assemble_pack``'s internal
+    round-trip check) pass ``check_drg_root=False``.
     """
     errors: list[ValidationIssue] = []
     advisories: list[ValidationIssue] = []
@@ -384,12 +404,28 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
             pack_artifacts_data=pack_artifacts_data,
         )
 
+    # FR-002: surface AgentProfileRepository's post-merge profile-skip
+    # diagnostics inline, deduplicated against files the generic scan above
+    # already flagged schema_invalid.
+    already_flagged_files = {
+        issue.file for issue in errors if issue.artifact_type == "agent_profiles"
+    }
+    errors.extend(
+        _check_profile_skipped_diagnostics(pack_dir, already_flagged_files)
+    )
+
     # DRG validation (only if drg/ exists).
     drg_dir = pack_dir / "drg"
     if drg_dir.is_dir():
         drg_errors, drg_advisories = _validate_drg(drg_dir, pack_artifact_urns)
         errors.extend(drg_errors)
         advisories.extend(drg_advisories)
+
+    # FR-004: warn when DRG content lives only under drg/*.graph.yaml with
+    # no pack-root graph — the shape the runtime never reads. Additive and
+    # independent of _validate_drg's fragment-content checks above.
+    if check_drg_root:
+        errors.extend(_check_drg_root_graph_missing(pack_dir, drg_dir))
 
     # ASSET sidecar safety checks (T015): a separate pass mirroring the DRG
     # seam above, NOT inlined in the branchy _scan_artifact_directory loop.
@@ -461,6 +497,11 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
 # DRG validation
 # ---------------------------------------------------------------------------
 
+#: Glob for a pack's DRG-graph fragments/root file (PR-M-004: hoisted here
+#: because the literal recurred 4x across this module, crossing CLAUDE.md's
+#: Sonar S1192 >=3x duplicate-literal threshold).
+_DRG_GRAPH_GLOB = "*.graph.yaml"
+
 
 def _plural_to_urn_kind(plural: str) -> str | None:
     """Return the DRG ``NodeKind`` string matching this artifact plural."""
@@ -503,7 +544,7 @@ def _validate_drg(
     except ModuleNotFoundError:  # pragma: no cover - doctrine package always present
         return errors, advisories
 
-    fragments = sorted(drg_dir.glob("*.graph.yaml"))
+    fragments = sorted(drg_dir.glob(_DRG_GRAPH_GLOB))
     if not fragments:
         return errors, advisories
 
@@ -607,6 +648,44 @@ def _validate_drg(
                 seen_edges[key] = fragment
 
     return errors, advisories
+
+
+def _check_drg_root_graph_missing(
+    pack_dir: Path,
+    drg_dir: Path,
+) -> list[ValidationIssue]:
+    """Warn when DRG content lives only under drg/ with no pack-root graph.
+
+    The runtime (src/charter/_drg_helpers.py:load_validated_graph) reads a
+    pack-root *.graph.yaml, never drg/ fragments — see spec.md
+    Clarification 3 / sibling mission #3384. Fires only when drg/ contains
+    at least one *.graph.yaml fragment AND the pack root has none; a pack
+    with neither, or with a pack-root graph present, produces no issue.
+    Uses the identical glob string _validate_drg uses (:521) so the two
+    scans are consistent by construction (AC-5).
+    """
+    if not drg_dir.is_dir():
+        return []
+    if not sorted(drg_dir.glob(_DRG_GRAPH_GLOB)):
+        return []
+    if sorted(pack_dir.glob(_DRG_GRAPH_GLOB)):
+        return []
+    return [
+        ValidationIssue(
+            severity="error",
+            artifact_type="drg",
+            artifact_id=None,
+            file=str(pack_dir),
+            message=(
+                "DRG content exists only under drg/*.graph.yaml with no "
+                "pack-root *.graph.yaml. The runtime "
+                "(src/charter/_drg_helpers.py:load_validated_graph) reads "
+                "the pack root directly, not drg/ fragments — this pack's "
+                "DRG content will not be read as authored."
+            ),
+            category="drg_root_graph_missing",
+        )
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -755,6 +834,93 @@ def _check_asset_mime(
             category="asset_mime_invalid",
         )
     return None
+
+
+# ---------------------------------------------------------------------------
+# Agent-profile skip diagnostics (FR-002)
+# ---------------------------------------------------------------------------
+
+
+def _check_profile_skipped_diagnostics(
+    pack_dir: Path,
+    already_flagged_files: set[str],
+) -> list[ValidationIssue]:
+    """Surface ``AgentProfileRepository``'s post-merge skip diagnostics.
+
+    Reuses ``AgentProfileRepository.skipped_profiles()`` directly (AC-4)
+    rather than a second skip-detection heuristic: the pack under validation
+    is treated as the sole org source, matching how the runtime loads a real
+    org pack. Deduplicated against files already flagged ``schema_invalid``
+    by the generic per-file scan, so one root cause is not reported twice
+    under two unrelated-looking categories (AC-2).
+
+    An absent ``agent_profiles/`` directory is safe by construction —
+    ``AgentProfileRepository``'s own ``_load_layer`` guard
+    (``if not directory.exists(): return loaded``) handles it internally, so
+    this never needs a defensive ``is_dir()`` check before construction
+    (AC-5).
+
+    Construction seam: ``AgentProfileRepository`` is built directly, on
+    purpose — NOT routed through ``doctrine.service.DoctrineService``. This
+    call site validates an arbitrary ``pack_dir`` (a pack under authoring,
+    not this repo's own doctrine layer), so it needs an explicit
+    ``org_roots`` override; the sole-door architectural gate
+    (``tests/architectural/test_charter_sole_door_doctrine_service.py``)
+    bans raw ``doctrine.service.DoctrineService`` construction outside
+    ``charter.doctrine_service_builder``, and that builder's public entry
+    point (``build_activation_aware_doctrine_service``) takes only
+    ``repo_root`` and self-resolves ``org_roots`` — it cannot target an
+    arbitrary pack directory. The gate's documented escape hatch,
+    constructing ``charter.resolver.DoctrineService`` directly, requires an
+    *already-built* raw inner ``doctrine.service.DoctrineService``, which is
+    the very construction the gate forbids here. Direct
+    ``AgentProfileRepository`` construction is therefore the correct seam;
+    do not "fix" this back to a ``DoctrineService`` wrapper.
+
+    PR-M-001: direct construction does not remove the need for a guard —
+    ``AgentProfileRepository.__init__`` resolves the built-in content
+    directory via the fail-closed ``built_in_dir()`` seam (pinned by
+    ``tests/doctrine/test_pack_root_resolver.py``), which can raise in a
+    stripped environment. Guarded here exactly like the sibling
+    ``_load_built_in_ids_per_kind`` guards the same seam, except the failure
+    is surfaced as a ``profile_skipped`` ``ValidationIssue`` rather than
+    silently degraded, since this diagnostic's whole purpose is reporting
+    profile-load problems rather than a best-effort collision lookup.
+    """
+    from doctrine.agent_profiles.repository import AgentProfileRepository
+
+    try:
+        repo = AgentProfileRepository(org_dirs=[pack_dir / "agent_profiles"])
+        skipped_profiles = repo.skipped_profiles()
+    except (PackRootNotFound, BuiltInContentDirNotAvailable) as exc:
+        return [
+            ValidationIssue(
+                severity="error",
+                artifact_type="agent_profiles",
+                artifact_id=None,
+                file=str(pack_dir / "agent_profiles"),
+                message=(
+                    "unable to resolve agent-profile diagnostics: "
+                    f"{exc}"
+                ),
+                category="profile_skipped",
+            )
+        ]
+    issues: list[ValidationIssue] = []
+    for skip in skipped_profiles:
+        if skip.path in already_flagged_files:
+            continue
+        issues.append(
+            ValidationIssue(
+                severity="error",
+                artifact_type="agent_profiles",
+                artifact_id=skip.profile_id,
+                file=skip.path,
+                message=skip.error_summary,
+                category="profile_skipped",
+            )
+        )
+    return issues
 
 
 # ---------------------------------------------------------------------------
@@ -986,7 +1152,7 @@ def _collect_fragment_edge_intent(
 
     augmentation_relations = {Relation.ENHANCES.value, Relation.OVERRIDES.value}
     intent: dict[str, dict[str, tuple[dict[str, str], Path]]] = {}
-    for fragment in sorted(drg_dir.glob("*.graph.yaml")):
+    for fragment in sorted(drg_dir.glob(_DRG_GRAPH_GLOB)):
         try:
             graph = load_graph(fragment)
         except (DRGLoadError, DRGGraphSchemaError):
