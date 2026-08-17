@@ -265,12 +265,16 @@ def _resolve_asset(
 ) -> ResolutionResult:
     """Core 5-tier resolution logic shared by public helpers.
 
+    Tier 1 (override) checks two shapes, mission-scoped first:
+    1a. ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` (mission-scoped)
+    1b. ``.kittify/overrides/{subdir}/{name}`` (global, backward-compatible fallback)
+
     Args:
         name: Filename to resolve (e.g. ``"plan.md"``).
         subdir: Subdirectory within each tier (``"templates"`` or
                 ``"command-templates"``).
         project_dir: Root of the user project that contains ``.kittify/``.
-        mission: Mission key used for tiers 3-5.
+        mission: Mission key used for tier 1 (both shapes) and tiers 3-5.
 
     Returns:
         ResolutionResult with the winning path, tier and mission.
@@ -280,7 +284,15 @@ def _resolve_asset(
     """
     kittify = project_dir / ".kittify"
 
-    # Tier 1 -- override
+    # Tier 1 -- override. Mission-scoped overrides
+    # (.kittify/overrides/missions/{mission}/{subdir}/{name}) are more
+    # specific and win over the global, non-mission-scoped override
+    # (.kittify/overrides/{subdir}/{name}), which is kept as a
+    # backward-compatible fallback.
+    mission_scoped_override = kittify / "overrides" / "missions" / mission / subdir / name
+    if mission_scoped_override.is_file():
+        return ResolutionResult(path=mission_scoped_override, tier=ResolutionTier.OVERRIDE, mission=mission)
+
     override = kittify / "overrides" / subdir / name
     if override.is_file():
         return ResolutionResult(path=override, tier=ResolutionTier.OVERRIDE, mission=mission)

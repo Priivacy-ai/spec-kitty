@@ -595,6 +595,109 @@ class TestResolutionPrecedence:
 
 
 # ---------------------------------------------------------------------------
+# FR-001 / SC-002 -- converge the forked _resolve_asset tier-1 probe
+# ---------------------------------------------------------------------------
+
+
+class TestMissionScopedOverrideParity:
+    """FR-001 / SC-002 (up-org-template-fsm-01M06F9K, WP01).
+
+    ``doctrine.resolver._resolve_asset`` (the doctrine-layer "sole door",
+    used by ``charter list`` / ``show-origin``) has always probed a
+    mission-scoped override at
+    ``.kittify/overrides/missions/{mission}/{subdir}/{name}`` before the
+    flat, non-mission-scoped override. ``specify_cli.runtime.resolver.
+    _resolve_asset`` (the production ``mission create`` / plan-setup lane)
+    did not -- a template installed at the mission-scoped path resolved for
+    ``charter list`` but raised ``FileNotFoundError`` through ``mission
+    create``. These tests prove both resolver modules now agree.
+    """
+
+    @pytest.mark.parametrize(
+        "mission",
+        ["software-dev", "research"],
+        ids=["software-dev-mission", "research-mission"],
+    )
+    def test_mission_scoped_override_resolves_at_override_tier_in_both_resolvers(
+        self, tmp_path: Path, mission: str
+    ) -> None:
+        """A mission-scoped override resolves at ``ResolutionTier.OVERRIDE``
+        through ``specify_cli.runtime.resolver``, with ``(path, tier)``
+        identical to ``doctrine.resolver``'s resolution of the same fixture.
+
+        Before FR-001 lands, ``specify_cli.runtime.resolver.resolve_template``
+        raises ``FileNotFoundError`` on this fixture (it only probes the
+        flat, non-mission-scoped override path) while
+        ``doctrine.resolver.resolve_template`` already resolves it at
+        ``ResolutionTier.OVERRIDE`` -- the exact regression documented by
+        User Story 2's Independent Test.
+        """
+        import doctrine.resolver as doctrine_resolver
+
+        project = tmp_path / "project"
+        mission_scoped_path = _create_file(
+            project
+            / ".kittify"
+            / "overrides"
+            / "missions"
+            / mission
+            / "templates"
+            / "spec-template.md"
+        )
+
+        with (
+            patch(
+                "specify_cli.runtime.resolver.get_kittify_home",
+                return_value=tmp_path / "empty_home",
+            ),
+            patch(
+                "specify_cli.runtime.resolver.get_package_asset_root",
+                side_effect=FileNotFoundError("no pkg"),
+            ),
+        ):
+            specify_result = resolve_template("spec-template.md", project, mission)
+
+        doctrine_result = doctrine_resolver.resolve_template(
+            "spec-template.md", project, mission
+        )
+
+        assert specify_result.tier == ResolutionTier.OVERRIDE
+        assert specify_result.path == mission_scoped_path
+        assert (specify_result.path, specify_result.tier) == (
+            doctrine_result.path,
+            doctrine_result.tier,
+        )
+
+    def test_flat_override_still_wins_when_no_mission_scoped_override_exists(
+        self, tmp_path: Path
+    ) -> None:
+        """NFR-005: a project with no mission-scoped override resolves the
+        flat ``.kittify/overrides/{subdir}/{name}`` override exactly as
+        before -- the new probe must not change behavior for the common,
+        non-mission-scoped case.
+        """
+        project = tmp_path / "project"
+        flat_override_path = _create_file(
+            project / ".kittify" / "overrides" / "templates" / "spec-template.md"
+        )
+
+        with (
+            patch(
+                "specify_cli.runtime.resolver.get_kittify_home",
+                return_value=tmp_path / "empty_home",
+            ),
+            patch(
+                "specify_cli.runtime.resolver.get_package_asset_root",
+                side_effect=FileNotFoundError("no pkg"),
+            ),
+        ):
+            result = resolve_template("spec-template.md", project, "software-dev")
+
+        assert result.tier == ResolutionTier.OVERRIDE
+        assert result.path == flat_override_path
+
+
+# ---------------------------------------------------------------------------
 # T018 -- resolve_command and resolve_mission tests
 # ---------------------------------------------------------------------------
 
