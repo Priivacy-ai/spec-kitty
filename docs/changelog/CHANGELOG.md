@@ -231,13 +231,17 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   all resolved doctrine from the built-in pack plus the project tier only — they
   had the org-tier parameter but the callers never passed it, so an org pack was
   silently inert past activation. Now a shared `resolve_org_dirs` helper threads
-  the org tier through each of them, an org `expected-artifacts.yaml` can override
-  the governance artifact slot, and a configured-but-broken org pack warns (a
-  dropped path or a malformed manifest) instead of failing silently. Projects with
-  no org pack are unaffected — every path is byte-identical without one. Known
-  limitation: the org `expected-artifacts.yaml` override reaches the governance
-  gate but not yet the dossier completeness-index path (that consumer is
-  project-scoped today; tracked as a follow-up).
+  the org tier through each of them; an org `expected-artifacts.yaml` overrides the
+  governance artifact slot **and** the dossier completeness index (so an
+  org-mandated artifact is actually enforced by the missing-artifact detector); and
+  a configured-but-broken org pack warns (a dropped path or a malformed manifest)
+  instead of failing silently. **A chain of multiple org packs now works too**
+  (`#3525`): before, the DRG graph merged only the first org pack, so a second
+  pack's step contracts loaded but their `delegates_to`/graph edges silently did
+  not resolve — the runtime now merges the full declared chain in order (later
+  pack wins on collision, matching the doctrine overlay), and a malformed pack in
+  the chain is dropped on its own without erasing the others. Projects with no org
+  pack are unaffected — every path is byte-identical without one.
 
 - **The `SPEC_KITTY_HOME` pin census (`arch-adversarial (arch_shard_3)`) was red
   on main because a legitimate new isolation pin (`#3497`) landed after the R1a
