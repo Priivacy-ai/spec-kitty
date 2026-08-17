@@ -1389,14 +1389,16 @@ class TestOrgTierResolution:
         project = tmp_path / "project"
         kittify = project / ".kittify"
         kittify.mkdir(parents=True)
+        acme_one = tmp_path / "acme-one"
+        acme_two = tmp_path / "acme-two"
         (kittify / "config.yaml").write_text(
             "doctrine:\n"
             "  org:\n"
             "    packs:\n"
             "      - name: acme\n"
-            "        local_path: /tmp/acme-one\n"
+            f"        local_path: {acme_one}\n"
             "      - name: acme\n"
-            "        local_path: /tmp/acme-two\n",
+            f"        local_path: {acme_two}\n",
             encoding="utf-8",
         )
 

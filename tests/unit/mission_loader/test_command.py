@@ -709,14 +709,16 @@ def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
     repo_root = tmp_path / "repo"
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
+    acme_one = tmp_path / "acme-one"
+    acme_two = tmp_path / "acme-two"
     (config_dir / "config.yaml").write_text(
         "doctrine:\n"
         "  org:\n"
         "    packs:\n"
         "      - name: acme\n"
-        "        local_path: /tmp/acme-one\n"
+        f"        local_path: {acme_one}\n"
         "      - name: acme\n"
-        "        local_path: /tmp/acme-two\n",
+        f"        local_path: {acme_two}\n",
         encoding="utf-8",
     )
 
