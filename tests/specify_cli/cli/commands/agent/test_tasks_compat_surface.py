@@ -16,9 +16,9 @@ are being retired piecemeal (WP05a here; WP05b/WP06 retires the remaining 3
 heavy seams' batteries against the coverage this guard already provides).
 
 Shape mirrors ``test_mission_shim_reexports.py`` (grouped required-symbol
-tuples + a ``hasattr``/identity parametrized gate) and
-``tests/runtime/test_bridge_compat_surface.py`` (a re-derived-from-source
-completeness check rather than a hand-maintained list trusted on faith).
+tuples + a ``hasattr``/identity parametrized gate) and re-derives the required
+surface straight from source (a completeness check rather than a
+hand-maintained list trusted on faith).
 Self-contained: no import of the 6 seam test files' internal ``_MOVE_SET``
 tuples (those files are being retired around this guard) — the map below is
 this file's own literal data, and the completeness check re-derives the

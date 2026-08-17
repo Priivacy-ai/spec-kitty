@@ -4,11 +4,10 @@ Four independent concerns:
 
 1. **Non-vacuousness / compat-guard checks** — the seam actually defines every
    symbol T017-T019 relocated. Native-delegate status for the `_`-prefixed
-   compat-guarded set is verified solely by the frozen family guard now
-   (``test_bridge_compat_surface.py``'s
-   ``test_guard_b_identity_reexport_for_relocated_symbols``, which hardcodes
-   the tolerated cross-module baseline to the 3 pre-existing
-   ``runtime.next.decision``-origin names); this file additionally guards the
+   compat-guarded set was verified by a dedicated frozen family guard (which
+   hardcoded the tolerated cross-module baseline to the 3 pre-existing
+   ``runtime.next.decision``-origin names), retired in #3285; this file
+   additionally guards the
    two PUBLIC relocated names (``get_or_start_run``,
    ``build_operational_context_for_claim``) that grep-derived guard does not
    cover (it only tracks leading-underscore names).
@@ -52,9 +51,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 
 # Every symbol T017-T019 relocated to runtime_bridge_io.py that the WP02
-# compat guard binds (ALL_COMPAT_SYMBOLS / REACH in
-# test_bridge_compat_surface.py) -- MUST stay a native def/class on
-# runtime_bridge, never a plain re-export (see module docstring above).
+# compat guard bound (ALL_COMPAT_SYMBOLS / REACH -- that dedicated guard was
+# retired in #3285) -- MUST stay a native def/class on runtime_bridge, never a
+# plain re-export (see module docstring above).
 _COMPAT_GUARDED_NAMES = frozenset(
     {
         "_load_feature_runs",
@@ -463,11 +462,11 @@ def _stub_guard_helpers(
 
     ``_has_generated_docs`` is deliberately NOT stubbed here: it is not part
     of the WP02 compat guard's tracked inventory (nothing patches it in
-    production code), and ``tests/runtime/test_bridge_compat_surface.py``'s
-    frozen ``test_reach_map_covers_the_full_grep_derived_inventory`` grep-scans
+    production code). A dedicated frozen guard
+    (``test_reach_map_covers_the_full_grep_derived_inventory``) once grep-scanned
     the whole tests tree for any ``monkeypatch.setattr`` binding on
-    ``runtime_bridge`` and fails if the bound name is not already a tracked
-    symbol — introducing a new one here would trip that frozen gate. Tests
+    ``runtime_bridge`` and failed if the bound name was not already a tracked
+    symbol; that guard was retired in #3285. Tests
     that need ``has_generated_docs=True`` drive it with a real ``docs/*.md``
     file instead (see ``test_gather_artifact_presence_carries_generated_docs_flag``).
     """
