@@ -200,6 +200,16 @@ spec-kitty charter context --action specify --json
 - If no charter exists yet, note that and continue. Missing charter is not a
   blocker for `/spec-kitty.specify`.
 
+## Visual Communication (recommended)
+
+When a non-trivial actor flow, domain lifecycle, rule, or concept boundary is
+clearer visually, load `spk-doctrine-show-me` and add the smallest useful
+diagram. Prefer an inline Mermaid diagram; use PlantUML only when its richer
+layout or DSL materially helps. Keep the visual focused on product intent—do
+not introduce implementation architecture into the specification. Requirements
+and acceptance scenarios remain authoritative, and trivial content needs no
+diagram.
+
 ## Brief Context Detection (check before discovery)
 
 Before starting discovery, check for a pre-existing mission brief:

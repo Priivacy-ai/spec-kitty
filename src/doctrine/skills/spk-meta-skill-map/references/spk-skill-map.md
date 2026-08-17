@@ -56,6 +56,7 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 - `spk-doctrine-glossary`: terminology.
 - `spk-doctrine-spdd-reasons`: REASONS Canvas.
 - `spk-doctrine-profile-load`: agent profiles.
+- `spk-doctrine-show-me`: compact visuals, diagram selection, and TUI status rendering.
 - `spk-doctrine-semantic-compression`: behavior-preserving code reduction.
 - `spk-doctrine-bulk-edit`: bulk edit classification.
 

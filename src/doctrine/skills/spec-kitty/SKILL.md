@@ -42,6 +42,11 @@ spec-kitty dispatch "<request verbatim>" --profile <profile-id> --json
 Do not answer directly before dispatching. The point is to load governance and
 record the Op before doing the work.
 
+When the user asks to show, explain, compare, map, or visualize the governed
+work—or when dense prose hides its structure—also load `spk-doctrine-show-me`.
+Use its smallest-useful-visual rule while keeping the dispatch lifecycle here
+authoritative.
+
 ## The open->work->close contract
 
 Every standalone invocation follows the same three-step lifecycle:

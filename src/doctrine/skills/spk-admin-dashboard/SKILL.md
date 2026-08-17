@@ -16,6 +16,8 @@ dashboard as a generic status abstraction.
    not show the URL until validation succeeds.
 3. Use `spec-kitty dashboard --json` only for machine-readable mission rows.
 4. Use `spec-kitty dashboard --kill` only when the user asks to stop it.
+5. When presenting `/spec-kitty.status` in a text TUI, load
+   `spk-doctrine-show-me` and follow its status rendering contract.
 
 ## Reference
 
