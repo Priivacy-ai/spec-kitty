@@ -878,25 +878,33 @@ def test_load_validated_graph_node_count_increases_by_one_with_org_root(
 def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """A registered org pack whose DRG layout doesn't conform to
-    ``load_graph_or_dir`` (no ``graph.yaml``/``*.graph.yaml`` directly at its
-    root -- this repo's own ``packs/internal`` is exactly this shape, its
-    content living one level deeper under ``drg/fragment.yaml`` in the
-    org-fragment schema) must not turn a previously-working composition into
-    a hard block.
+    """A registered org pack whose ``drg/`` fragment is recognised (a
+    ``*.graph.yaml`` file the loader's glob matches) but genuinely malformed
+    (not a YAML mapping at the top level) must not turn a previously-working
+    composition into a hard block.
 
     ``StepContractExecutor``'s org-root resolution comment claims to mirror
     ``charter.action_doctrine_bundle._resolve_action_bundle``'s graceful
-    degrade (catch ``DRGLoadError``, warn, continue with built-in + project
-    doctrine only) -- this pins that the executor actually does that for its
-    own ``load_validated_graph`` call, not just cites the precedent.
+    degrade (catch ``DRGLoadError``/``OrgDRGFragmentError``, warn, continue
+    with built-in + project doctrine only) -- this pins that the executor
+    actually does that for its own ``load_validated_graph`` call, not just
+    cites the precedent.
 
-    Red-first: on the pre-fix commit this raises ``DRGLoadError`` uncaught
-    out of ``execute()`` -- confirmed via
-    ``pytest tests/specify_cli/mission_step_contracts/test_executor.py::test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing``
-    against ``git stash`` of the executor fix, which fails with exactly:
-    ``doctrine.drg.loader.DRGLoadError: No DRG graph files found in
-    directory: <tmp>/malformed-org-pack``.
+    Landing fold (#3401 x #3525) note: this fixture used to be a
+    ``drg/fragment.yaml`` file (a name the DRG loader's ``*.graph.yaml`` glob
+    does NOT match -- this repo's own ``packs/internal`` is exactly that
+    shape, see ``test_org_pack_with_no_recognised_drg_content_degrades_silently``
+    below). Under the pre-landing-fold executor, the pre-probe used bare
+    ``load_graph_or_dir(org_root)`` (root-level only), which raised
+    ``DRGLoadError`` for ANY org root lacking a root-level graph file --
+    including that shape -- so this test coincidentally passed by exercising
+    a false positive, not a real malformed-content case. Now that the
+    pre-probe mirrors ``_load_org_layer`` (root graph AND ``drg/``,
+    #3401 x #3525's fix), that shape is correctly recognised as "no org DRG
+    layer" (a legitimate, silent no-op -- see the sibling test below), so
+    this fixture was updated to a ``*.graph.yaml``-named fragment with
+    genuinely invalid content, which both the pre- and post-fix loader treat
+    as malformed.
     """
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -906,13 +914,14 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     built_in_dir = tmp_path / "contracts"
     _write_fixture_contract(built_in_dir)
 
-    # Org pack registered, directory exists, but carries no *.graph.yaml/
-    # graph.yaml at its root -- exactly the ``packs/internal`` shape (a
-    # ``drg/fragment.yaml`` one level deeper, in the incompatible
-    # org-fragment schema).
+    # Org pack registered, directory exists, its `drg/` fragment has a
+    # recognised `*.graph.yaml` name but a non-mapping top-level document --
+    # genuinely malformed, not merely absent.
     org_root = tmp_path / "malformed-org-pack"
     (org_root / "drg").mkdir(parents=True)
-    (org_root / "drg" / "fragment.yaml").write_text("kind: directives\n", encoding="utf-8")
+    (org_root / "drg" / "broken.graph.yaml").write_text(
+        "- not\n- a\n- mapping\n", encoding="utf-8"
+    )
     write_org_pack_config(repo_root, org_root)
 
     context_result = SimpleNamespace(mode="compact", text="fixture governance context")
@@ -946,7 +955,72 @@ def test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing(
     assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
     message = warnings[0].getMessage()
     assert str(org_root) in message
-    assert "DRGLoadError" in message or "No DRG graph files found" in message
+    assert "OrgDRGFragmentError" in message
+
+
+def test_org_pack_with_no_recognised_drg_content_degrades_silently(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """An org pack that ships content in a schema the DRG loader doesn't
+    recognise at all (no ``graph.yaml``/``*.graph.yaml`` anywhere -- this
+    repo's own ``packs/internal``, whose ``drg/fragment.yaml`` uses an
+    unrelated org-fragment schema, is exactly this shape) is legitimately
+    "no org DRG layer" per ``_load_org_layer``'s own documented contract, not
+    a malformed pack -- it must degrade SILENTLY (zero warnings), the same
+    outcome ``load_validated_graph`` already produces for this shape when
+    called directly (no pre-probe involved).
+
+    Landing fold (#3401 x #3525): before this fold, the executor's pre-probe
+    used bare ``load_graph_or_dir(org_root)`` (root-level only), which
+    disagreed with ``_load_org_layer`` on this exact shape -- it raised
+    ``DRGLoadError`` and produced a false-positive "org pack DRG failed to
+    load" WARNING on every single dispatch in THIS repository (every
+    mission-step composition here has ``packs/internal`` registered). Now
+    that the pre-probe mirrors ``_load_org_layer`` exactly, that noise is
+    gone.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    _setup_fixture_profiles(repo_root)
+    _write_project_graph(repo_root)
+
+    built_in_dir = tmp_path / "contracts"
+    _write_fixture_contract(built_in_dir)
+
+    # Same shape as `packs/internal`: a `drg/fragment.yaml` file whose name
+    # the loader's `*.graph.yaml` glob does not match, and no root-level
+    # graph file either -- "no org DRG layer" per `_load_org_layer`, not a
+    # load failure.
+    org_root = tmp_path / "no-drg-content-org-pack"
+    (org_root / "drg").mkdir(parents=True)
+    (org_root / "drg" / "fragment.yaml").write_text("kind: directives\n", encoding="utf-8")
+    write_org_pack_config(repo_root, org_root)
+
+    context_result = SimpleNamespace(mode="compact", text="fixture governance context")
+    with (
+        patch(
+            "specify_cli.invocation.executor.build_charter_context",
+            return_value=context_result,
+        ),
+        caplog.at_level(
+            logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
+        ),
+    ):
+        result = StepContractExecutor(
+            repo_root=repo_root,
+            contract_repository=MissionStepContractRepository(built_in_dir=built_in_dir),
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission="fixture",
+                action="composer",
+                actor="pytest",
+                profile_hint="implementer-fixture",
+            )
+        )
+
+    assert [step.step_id for step in result.steps] == ["alpha", "beta", "gamma"]
+    assert not [record for record in caplog.records if record.levelno == logging.WARNING]
 
 
 def test_well_formed_org_pack_drg_contributes_without_warning(
@@ -1190,18 +1264,30 @@ def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
     B's DRG, so this specific failure mode was structurally untestable
     pre-fix -- the fix is what makes "attempt both, isolate the bad one"
     possible at all.
+
+    Landing fold (#3401 x #3525) note: pack B's fixture was updated from a
+    ``drg/fragment.yaml`` file (a name the loader's ``*.graph.yaml`` glob
+    does not match) to a recognised-but-invalid ``*.graph.yaml`` fragment.
+    The former shape is ``_load_org_layer``'s legitimate "no org DRG layer"
+    no-op (see
+    ``test_org_pack_with_no_recognised_drg_content_degrades_silently`` in
+    this module) once the pre-probe mirrors ``_load_org_layer`` instead of
+    calling ``load_graph_or_dir`` directly at the root -- it no longer
+    produces a warning, so it stopped exercising this test's "malformed
+    pack drops out with a WARNING" claim.
     """
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     org_root_a = tmp_path / "org-pack-a"
     write_org_tier_step_contract_fixture(org_root_a)
 
-    # Pack B: registered, directory exists, but carries no *.graph.yaml/
-    # graph.yaml at its root -- same malformed shape as
-    # ``test_malformed_org_pack_drg_degrades_with_warning_instead_of_crashing``.
+    # Pack B: registered, directory exists, `drg/` fragment has a recognised
+    # `*.graph.yaml` name but genuinely invalid (non-mapping) content.
     org_root_b = tmp_path / "malformed-org-pack-b"
     (org_root_b / "drg").mkdir(parents=True)
-    (org_root_b / "drg" / "fragment.yaml").write_text("kind: directives\n", encoding="utf-8")
+    (org_root_b / "drg" / "broken.graph.yaml").write_text(
+        "- not\n- a\n- mapping\n", encoding="utf-8"
+    )
 
     write_two_pack_org_config(repo_root, org_root_a, org_root_b)
 
@@ -1229,4 +1315,194 @@ def test_chain_per_root_degrade_pack_a_survives_malformed_pack_b(
     assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
     message = warnings[0].getMessage()
     assert str(org_root_b) in message
-    assert "DRGLoadError" in message or "No DRG graph files found" in message
+    assert "OrgDRGFragmentError" in message
+
+
+# ---------------------------------------------------------------------------
+# Landing fold (#3401 x #3525) — the executor's per-root pre-probe must
+# mirror ``_load_org_layer`` semantics (root graph AND drg/ fragment), not
+# just the root level, or it misclassifies both a "valid root + malformed
+# drg/" pack (isolation regression, MAJOR) and a "drg/-only" pack (#3384's
+# fix delivering zero doctrine on this path, MINOR).
+# ---------------------------------------------------------------------------
+
+
+def _write_drg_only_org_pack_fixture(org_root: Path) -> None:
+    """A guide-compliant org pack whose DRG content lives ONLY under
+    ``drg/`` -- no root-level ``graph.yaml``/``*.graph.yaml`` (the #3384
+    shape). Reuses the shared ``ORG_FIXTURE_*`` constants so assertions can
+    check the same directive URN resolves as
+    :func:`write_org_tier_step_contract_fixture`'s root-graph shape.
+    """
+    directives_dir = org_root / "directives"
+    directives_dir.mkdir(parents=True, exist_ok=True)
+    (directives_dir / f"{ORG_FIXTURE_DIRECTIVE_STEM}.directive.yaml").write_text(
+        f"id: {ORG_FIXTURE_DIRECTIVE_STEM}\n",
+        encoding="utf-8",
+    )
+    _write_yaml(
+        org_root / "mission_step_contracts" / f"{ORG_FIXTURE_CONTRACT_ID}.step-contract.yaml",
+        {
+            "schema_version": "1.0",
+            "id": ORG_FIXTURE_CONTRACT_ID,
+            "mission": ORG_FIXTURE_MISSION,
+            "action": ORG_FIXTURE_ACTION,
+            "steps": [
+                {
+                    "id": "review_gate",
+                    "description": "Run the org-tier review gate",
+                    "delegates_to": {
+                        "kind": "directive",
+                        "candidates": [ORG_FIXTURE_DIRECTIVE_STEM],
+                    },
+                }
+            ],
+            "gates": [],
+        },
+    )
+    _write_yaml(
+        org_root / "drg" / f"{ORG_FIXTURE_DIRECTIVE_STEM}.graph.yaml",
+        {
+            "schema_version": "1.0",
+            "generated_at": "2026-08-17T00:00:00Z",
+            "generated_by": "test",
+            "nodes": [
+                {
+                    "urn": ORG_FIXTURE_ACTION_URN,
+                    "kind": "action",
+                    "label": "Org fixture review action",
+                },
+                {
+                    "urn": ORG_FIXTURE_DIRECTIVE_URN,
+                    "kind": "directive",
+                    "label": "Org tier fixture directive",
+                },
+            ],
+            "edges": [
+                {
+                    "source": ORG_FIXTURE_ACTION_URN,
+                    "target": ORG_FIXTURE_DIRECTIVE_URN,
+                    "relation": "scope",
+                }
+            ],
+        },
+    )
+
+
+def test_chain_pack_a_malformed_drg_fragment_survives_pack_b_contributes(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """MAJOR: a root-level-only pre-probe can mark a pack "healthy" when its
+    root graph is valid but its sibling ``drg/`` fragment is malformed --
+    ``_load_org_layer`` (the real loader ``load_validated_graph`` uses) still
+    raises ``OrgDRGFragmentError`` when it later loads that same root's
+    ``drg/`` fragment during the real merge.
+
+    Pre-fix, the executor's pre-probe (``load_graph_or_dir(root)``,
+    non-recursive) never looks at ``drg/`` at all, so pack A above is wrongly
+    classified healthy; the executor then calls ``load_validated_graph``
+    unwrapped (it imports only ``load_validated_graph``, never
+    ``OrgDRGFragmentError``) and the exception propagates UNCAUGHT out of
+    ``execute()``, hard-aborting the ENTIRE dispatch -- erasing pack B's
+    healthy contribution too. This is a true regression of #3525's
+    per-root-isolation promise: before #3520 wired ``drg/`` support into the
+    org loader at all, a malformed ``drg/`` fragment was inert on this path.
+
+    Red-first: on the pre-fix executor this raises
+    ``charter._drg_helpers.OrgDRGFragmentError`` uncaught out of
+    ``execute()`` instead of degrading pack A alone and letting pack B's
+    doctrine reach composition.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    org_root_a = tmp_path / "org-pack-a"
+    write_org_tier_step_contract_fixture(org_root_a)  # valid ROOT graph
+    # Malformed drg/ fragment sitting ALONGSIDE the valid root graph -- a
+    # non-mapping top-level document, which `load_graph` rejects outright.
+    (org_root_a / "drg").mkdir(parents=True)
+    (org_root_a / "drg" / "broken.graph.yaml").write_text(
+        "- not\n- a\n- mapping\n", encoding="utf-8"
+    )
+
+    org_root_b = tmp_path / "org-pack-b"
+    write_second_org_pack_fixture(org_root_b)  # fully valid
+
+    write_two_pack_org_config(repo_root, org_root_a, org_root_b)
+
+    with caplog.at_level(
+        logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
+    ):
+        result = StepContractExecutor(
+            repo_root=repo_root,
+            invocation_executor=_FakeInvocationExecutor(),
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission=ORG_FIXTURE_MISSION,
+                action=PACK_B_ACTION,
+                actor="pytest",
+                profile_hint="implementer-fixture",
+            )
+        )
+
+    # Pack B's contribution reaches composition despite pack A's malformed
+    # drg/ fragment -- dispatch must SUCCEED, not hard-abort.
+    assert result.contract_id == PACK_B_CONTRACT_ID
+    assert [d.urn for d in result.steps[0].resolved_delegations] == [PACK_B_DIRECTIVE_URN]
+    assert result.steps[0].unresolved_candidates == ()
+
+    # Exactly one WARNING, naming pack A -- pack B is never mentioned as
+    # dropped.
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    assert len(warnings) == 1, [record.getMessage() for record in caplog.records]
+    message = warnings[0].getMessage()
+    assert str(org_root_a) in message
+
+
+def test_drg_only_org_pack_no_root_graph_classified_healthy_and_contributes(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """MINOR: a guide-compliant org pack whose DRG content lives ONLY under
+    ``drg/`` (no root-level ``graph.yaml``/``*.graph.yaml`` -- the #3384
+    shape) must be classified healthy by the executor's pre-probe and
+    contribute its doctrine, not be dropped as "unhealthy" merely because
+    the pre-probe only reads the pack root.
+
+    Red-first: on the pre-fix executor, ``load_graph_or_dir(org_root)``
+    (root-level only) raises ``DRGLoadError: No DRG graph files found`` for
+    this pack, so it is dropped with a misleading WARNING and never even
+    reaches ``_load_org_layer`` -- #3384's drg/-only fix contributes zero
+    doctrine on this dispatch path even though the pack itself is perfectly
+    valid.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    org_root = tmp_path / "drg-only-org-pack"
+    _write_drg_only_org_pack_fixture(org_root)
+    write_org_pack_config(repo_root, org_root)
+
+    with caplog.at_level(
+        logging.WARNING, logger="specify_cli.mission_step_contracts.executor"
+    ):
+        result = StepContractExecutor(
+            repo_root=repo_root,
+            invocation_executor=_FakeInvocationExecutor(),
+        ).execute(
+            StepContractExecutionContext(
+                repo_root=repo_root,
+                mission=ORG_FIXTURE_MISSION,
+                action=ORG_FIXTURE_ACTION,
+                actor="pytest",
+                profile_hint="implementer-fixture",
+            )
+        )
+
+    assert result.contract_id == ORG_FIXTURE_CONTRACT_ID
+    assert [d.urn for d in result.steps[0].resolved_delegations] == [ORG_FIXTURE_DIRECTIVE_URN]
+    assert result.steps[0].unresolved_candidates == ()
+
+    # Healthy pack -- must not be dropped, so no degrade warning is logged.
+    warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+    assert not warnings, [record.getMessage() for record in caplog.records]
