@@ -97,7 +97,7 @@ _PROVENANCE_KINDS = frozenset({
     "backfill",
     "synthesize_fabricate",
 })
-_FINDING_CATEGORIES = frozenset({
+FINDING_CATEGORIES = frozenset({
     "process",
     "tooling",
     "spec_quality",
@@ -194,7 +194,7 @@ def _validate_gen_evidence_ref(raw: object, *, label: str) -> None:
 def _validate_gen_finding(raw: object, *, label: str) -> None:
     finding = _validate_mapping(raw, label=label)
     _validate_keys(finding, _FINDING_KEYS, label=label)
-    if finding.get("category") not in _FINDING_CATEGORIES:
+    if finding.get("category") not in FINDING_CATEGORIES:
         raise ValueError(f"{label}.category is invalid")
     _validate_string_list(finding.get("evidence_refs", []), label=f"{label}.evidence_refs")
 
