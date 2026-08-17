@@ -38,6 +38,24 @@ def _doctrine_repository() -> "MissionTemplateRepository":
     return MissionTemplateRepository.default()
 
 
+def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
+    """Return configured org doctrine roots that exist on disk for *repo_root*.
+
+    Lazy import mirrors :func:`_doctrine_repository` — keeps
+    ``specify_cli.dossier`` free of an import-time dependency on
+    ``charter``, and reaches ``doctrine`` only through the ``charter.drg``
+    proxy (runtime must reach doctrine through charter — never directly;
+    see ``tests/architectural/test_runtime_charter_doctrine_boundary.py``).
+    Existence-filtering mirrors every other ``resolve_org_roots`` consumer
+    (e.g. ``charter.doctrine_service_builder._self_resolve_existing_org_roots``):
+    a stale/never-fetched ``local_path`` config entry degrades to "no org
+    contribution" for this call rather than raising.
+    """
+    from charter.drg import resolve_org_roots  # noqa: PLC0415
+
+    return [root for root in resolve_org_roots(repo_root) if root.exists()]
+
+
 class ArtifactClassEnum(StrEnum):
     """Classification of artifacts in the dossier system.
 
@@ -174,10 +192,31 @@ class ManifestRegistry:
         ...     print(f"Specify step requires {len(specs)} artifacts")
     """
 
-    _cache: dict[str, ExpectedArtifactManifest | None] = {}
+    #: Cache key is ``(mission_type, org_roots_fingerprint)``, NOT bare
+    #: ``mission_type`` (FR-008 / WP05 cache-key fix). ``org_roots_fingerprint``
+    #: is a **declaration-ordered** tuple of existing org-root path strings —
+    #: NOT sorted. Per NFR-003 / C-4 ("last-EXISTING-match wins"), two
+    #: `repo_root`s that declare the SAME set of org roots in a DIFFERENT
+    #: order can resolve to different manifests; sorting the key would
+    #: collide those two cases onto one cache entry and silently hand the
+    #: second `repo_root` the first's (order-wrong) manifest. The tuple is
+    #: empty when ``repo_root`` is ``None`` (today's call shape, unchanged)
+    #: or when no configured org pack resolves to an existing path for that
+    #: ``repo_root``. Without order-preservation, the cache — process-global
+    #: and previously keyed on ``mission_type`` alone — would let the FIRST
+    #: resolution of a given mission type in a long-lived process (a daemon,
+    #: or a test session touching two projects with different org overrides)
+    #: permanently shadow every later ``repo_root``'s result for that same
+    #: mission type: project B's request would silently get project A's org
+    #: override (or lack thereof). See
+    #: ``tests/dossier/test_manifest.py::TestManifestRegistryOrgTier::test_cache_key_does_not_shadow_across_different_repo_roots``
+    #: and ``::test_cache_key_preserves_declaration_order_for_same_root_set``.
+    _cache: dict[tuple[str, tuple[str, ...]], ExpectedArtifactManifest | None] = {}
 
     @staticmethod
-    def load_manifest(mission_type: str) -> ExpectedArtifactManifest | None:
+    def load_manifest(
+        mission_type: str, repo_root: Path | None = None
+    ) -> ExpectedArtifactManifest | None:
         """Load manifest for mission type from the canonical doctrine tree.
 
         Reads ``<type>/expected-artifacts.yaml`` from the doctrine mission tree
@@ -188,30 +227,64 @@ class ManifestRegistry:
         semantics. Gracefully returns ``None`` if the manifest is not found
         (degraded mode for custom/unknown missions).
 
+        FR-008 (WP05): when *repo_root* is given and resolves to 1+ existing
+        configured org roots, an org-pack
+        ``<org_root>/<mission_type>/expected-artifacts.yaml`` (see
+        :func:`charter.org_expected_artifacts.resolve_org_expected_artifacts`,
+        contract C-4) takes precedence over the built-in file, whole-file —
+        never field-merged with it. *repo_root* is optional and defaults to
+        ``None`` (today's exact behavior: no org lookup, built-in tree only)
+        so the sole production caller,
+        ``specify_cli.sync.namespace.resolve_manifest_version`` — which has
+        no ``repo_root`` in scope — is unaffected by this signature change.
+
         Args:
             mission_type: Mission type (e.g., 'software-dev', 'research')
+            repo_root: Project root to resolve org-pack overrides for, or
+                ``None`` (default) for built-in-tree-only resolution.
 
         Returns:
             ExpectedArtifactManifest if found and valid, None otherwise
         """
-        if mission_type in ManifestRegistry._cache:
-            return ManifestRegistry._cache[mission_type]
+        org_roots = _resolve_existing_org_roots(repo_root) if repo_root is not None else []
+        cache_key = (mission_type, tuple(str(root) for root in org_roots))
+        if cache_key in ManifestRegistry._cache:
+            return ManifestRegistry._cache[cache_key]
+
+        org_parsed: object | None = None
+        if org_roots:
+            from charter.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
+
+            org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)
+
+        if org_parsed is not None:
+            try:
+                manifest = ExpectedArtifactManifest.model_validate(org_parsed)
+                ManifestRegistry._cache[cache_key] = manifest
+                logger.info(
+                    f"Loaded org-tier manifest for {mission_type}: {len(manifest.get_step_ids())} steps"
+                )
+                return manifest
+            except Exception as e:
+                logger.error(f"Failed to load org-tier manifest for {mission_type}: {e}")
+                ManifestRegistry._cache[cache_key] = None
+                return None
 
         config = _doctrine_repository().get_expected_artifacts(mission_type)
 
         if config is None:
             logger.debug(f"Manifest not found for mission type: {mission_type}")
-            ManifestRegistry._cache[mission_type] = None
+            ManifestRegistry._cache[cache_key] = None
             return None
 
         try:
             manifest = ExpectedArtifactManifest.model_validate(config.parsed)
-            ManifestRegistry._cache[mission_type] = manifest
+            ManifestRegistry._cache[cache_key] = manifest
             logger.info(f"Loaded manifest for {mission_type}: {len(manifest.get_step_ids())} steps")
             return manifest
         except Exception as e:
             logger.error(f"Failed to load manifest for {mission_type}: {e}")
-            ManifestRegistry._cache[mission_type] = None
+            ManifestRegistry._cache[cache_key] = None
             return None
 
     @staticmethod

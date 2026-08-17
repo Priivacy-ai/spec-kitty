@@ -60,6 +60,15 @@ from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionResult,
     StepContractExecutor,
 )
+from tests.specify_cli.mission_step_contracts.test_executor import (
+    ORG_FIXTURE_ACTION,
+    ORG_FIXTURE_DIRECTIVE_STEM,
+    ORG_FIXTURE_DIRECTIVE_URN,
+    ORG_FIXTURE_MISSION,
+    ORG_FIXTURE_PACK_NAME,
+    write_org_pack_config,
+    write_org_tier_step_contract_fixture,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -254,3 +263,68 @@ def test_none_activation_matches_no_filter_at_all(tmp_path: Path) -> None:
         == no_pack_context_at_all.steps[0].unresolved_candidates
         == ()
     )
+
+
+# ---------------------------------------------------------------------------
+# T009 -- C-001 proof for an ORG-TIER node (WP02, mission #3516): FR-002
+# makes the org-tier directive node reachable; activation filtering (C-001,
+# unchanged by this mission) still gates whether it's usable. Both
+# directions explicit -- none of the tests above exercise an org-tier node.
+# ---------------------------------------------------------------------------
+
+
+def test_org_tier_directive_visible_pre_filter_and_excluded_when_deactivated(
+    tmp_path: Path,
+) -> None:
+    """C-001: the org-tier directive resolves when its kind+stem are
+    activated, and is correctly EXCLUDED (unresolved, not resolved) when
+    ``directives`` is not an activated kind -- proving FR-002 only makes the
+    org node *reachable*, never bypassing the existing activation gate.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root = tmp_path / "org-pack"
+    write_org_tier_step_contract_fixture(org_root)
+    write_org_pack_config(repo_root, org_root)
+
+    def _pack(*, directives_activated: bool) -> PackContext:
+        return PackContext(
+            activated_kinds=frozenset({"directives"}) if directives_activated else frozenset(),
+            activated_mission_types=frozenset(),
+            pack_roots=(repo_root, org_root),
+            org_pack_names=(ORG_FIXTURE_PACK_NAME,),
+            repo_root=repo_root,
+            activated_directives=frozenset({ORG_FIXTURE_DIRECTIVE_STEM}) if directives_activated else None,
+        )
+
+    def _run(*, directives_activated: bool) -> StepContractExecutionResult:
+        with patch(
+            "charter.pack_context.PackContext.from_config",
+            return_value=_pack(directives_activated=directives_activated),
+        ):
+            return StepContractExecutor(
+                repo_root=repo_root,
+                invocation_executor=_FakeInvocationExecutor(),
+            ).execute(
+                StepContractExecutionContext(
+                    repo_root=repo_root,
+                    mission=ORG_FIXTURE_MISSION,
+                    action=ORG_FIXTURE_ACTION,
+                    actor="pytest",
+                    profile_hint="implementer-fixture",
+                )
+            )
+
+    activated_result = _run(directives_activated=True)
+    deactivated_result = _run(directives_activated=False)
+
+    # Visible (resolved) when the org-tier kind+stem is activated.
+    assert [d.urn for d in activated_result.steps[0].resolved_delegations] == [ORG_FIXTURE_DIRECTIVE_URN]
+    assert activated_result.steps[0].unresolved_candidates == ()
+
+    # Excluded (unresolved) when ``directives`` is not an activated kind at
+    # all -- the org node is reachable in the merged graph (FR-002) but the
+    # unchanged activation filter (C-001) still drops it before delegation
+    # resolution sees it.
+    assert deactivated_result.steps[0].resolved_delegations == ()
+    assert deactivated_result.steps[0].unresolved_candidates == (ORG_FIXTURE_DIRECTIVE_STEM,)

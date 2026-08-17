@@ -94,6 +94,7 @@ from doctrine.drg.org_pack_config import (
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     load_pack_registry as load_pack_registry,
+    resolve_org_dirs,
     resolve_org_roots,
 )
 from doctrine.drg.org_pack_loader import (
@@ -149,6 +150,7 @@ __all__ = [
     "merge_three_layers",
     "model_to_graph_dict",
     "resolve_context",
+    "resolve_org_dirs",
     "resolve_org_roots",
     "validate_dangling_references",
 ]

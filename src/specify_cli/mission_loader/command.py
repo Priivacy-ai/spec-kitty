@@ -225,6 +225,7 @@ def _resolve_contract_refs(
     at runtime too.
     """
     # Local import to avoid load-time coupling on the doctrine package.
+    from charter.drg import resolve_org_dirs
     from charter.mission_steps import (
         MissionStepContractRepository,
     )
@@ -238,7 +239,8 @@ def _resolve_contract_refs(
                 project_dir=repo_root
                 / ".kittify"
                 / "doctrine"
-                / "mission_step_contracts"
+                / "mission_step_contracts",
+                org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
             )
         if repository.get(step.contract_ref) is None:
             return LoaderError(

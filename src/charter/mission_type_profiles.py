@@ -680,7 +680,7 @@ def resolve_mission_type_context(
             type_key, is_registered=is_registered
         ),
         _expected_artifacts_thunk=lambda: _resolve_expected_artifacts_slot(
-            type_key, is_registered=is_registered
+            type_key, is_registered=is_registered, repo_root=repo_root
         ),
     )
 
@@ -972,6 +972,7 @@ def _resolve_expected_artifacts_slot(
     mission_type: str,
     *,
     is_registered: bool,
+    repo_root: Path,
 ) -> _ExpectedArtifactsManifest | None:
     """Resolve the expected-artifacts gate manifest from the doctrine tree.
 
@@ -983,9 +984,24 @@ def _resolve_expected_artifacts_slot(
     the parsed YAML is not a top-level mapping (a malformed manifest — every
     shipped ``expected-artifacts.yaml`` is a mapping keyed on ``schema_version``
     / ``mission_type`` / ``required_by_step`` / ...).
+
+    FR-008 (WP05): an org-pack ``<org_root>/<mission_type>/expected-artifacts.yaml``
+    takes precedence over the built-in file, whole-file (not field-merged) —
+    see :func:`charter.org_expected_artifacts.resolve_org_expected_artifacts`
+    (contract C-4). The built-in ``MissionTemplateRepository.default()`` read
+    below is the fallback only, reached when no configured org root has a
+    matching file (C-003: this WP adds no method to that class).
     """
     if not is_registered:
         return None
+
+    from doctrine.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415 — lazy; mirrors resolve_org_dirs import elsewhere in this module
+    from charter.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
+
+    org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
+    org_result = resolve_org_expected_artifacts(org_roots, mission_type)
+    if org_result is not None:
+        return org_result
 
     from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
 
@@ -1165,7 +1181,11 @@ def _mission_type_profile_repository(
 
     if repo_root is None:
         return MissionTypeProfileRepository()
-    return MissionTypeProfileRepository.for_project(repo_root)
+    from doctrine.drg.org_pack_config import resolve_org_dirs  # noqa: PLC0415 — lazy; mirrors MissionTypeProfileRepository import above
+
+    return MissionTypeProfileRepository.for_project(
+        repo_root, org_dirs=resolve_org_dirs(repo_root, "mission_types")
+    )
 
 
 def _load_mission_type_profile(

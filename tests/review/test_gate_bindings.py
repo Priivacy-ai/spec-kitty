@@ -42,6 +42,7 @@ from charter.mission_steps import (
 from charter.pack_context import PackContext
 from doctrine.drg.models import DRGGraph, DRGNode
 from doctrine.missions.step_contracts import GateBinding
+from specify_cli.mission_step_contracts.executor import StepContractExecutor
 from specify_cli.review import gate_bindings
 from specify_cli.review.gate_bindings import (
     GateCoverage,
@@ -49,6 +50,13 @@ from specify_cli.review.gate_bindings import (
     resolve_active_gate_bindings,
     resolve_gate_bindings_for_transition,
     resolve_mission_type,
+)
+from tests.specify_cli.mission_step_contracts.test_executor import (
+    ORG_FIXTURE_ACTION,
+    ORG_FIXTURE_GATE_EDGE,
+    ORG_FIXTURE_MISSION,
+    write_org_pack_config,
+    write_org_tier_step_contract_fixture,
 )
 
 if TYPE_CHECKING:
@@ -336,3 +344,51 @@ def test_bounded_loads_single_graph_and_binding_load(tmp_path: Path, monkeypatch
     assert graph_calls["n"] == 1, "graph must load exactly once per transition"
     assert filter_calls["n"] == 1, "activation filter must run exactly once per transition"
     assert repo.calls == [(_SOFTWARE_DEV, _REVIEW)], "contract must load exactly once"
+
+
+# ---------------------------------------------------------------------------
+# T010 (WP02, mission #3516) — FR-005: org-tier gates via the SAME shared
+# fixture T008 built in tests/specify_cli/mission_step_contracts/test_executor.py
+# (SC-003: one synthetic org-pack fixture, exercised by three separate test
+# functions — this is the gate-bindings third).
+# ---------------------------------------------------------------------------
+
+
+def test_load_gate_bindings_resolves_org_only_step_contract_gates(tmp_path: Path) -> None:
+    """FR-005 (User Story 3): an org-tier step contract's ``gates:`` block
+    fires with no project-tier duplicate present.
+
+    Red-first: on the pre-fix commit, ``_build_repository`` constructs a
+    project-dir-only repository, so ``load_gate_bindings`` returns ``[]``
+    for this org-only contract instead of its declared gate.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root = tmp_path / "org-pack"
+    write_org_tier_step_contract_fixture(org_root)
+    write_org_pack_config(repo_root, org_root)
+
+    bindings = load_gate_bindings(repo_root, ORG_FIXTURE_MISSION, ORG_FIXTURE_ACTION)
+
+    assert bindings, "org-tier contract's gates: block must resolve with no project-tier duplicate"
+    assert any(b.on_transition == ORG_FIXTURE_GATE_EDGE for b in bindings)
+
+
+def test_build_repository_and_executor_resolve_identical_org_dirs(tmp_path: Path) -> None:
+    """User Story 3 Acceptance Scenario 2 / lockstep proof: ``_build_repository``
+    (site 3) and ``StepContractExecutor.__init__`` (site 6) resolve ``org_dirs``
+    via the identical ``resolve_org_dirs`` call -- regression-tested so the two
+    construction sites cannot silently drift apart again (the exact failure
+    class this WP's mandatory lockstep constraint exists to close).
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root = tmp_path / "org-pack"
+    write_org_tier_step_contract_fixture(org_root)
+    write_org_pack_config(repo_root, org_root)
+
+    gate_bindings_repo = gate_bindings._build_repository(repo_root)
+    executor_repo = StepContractExecutor(repo_root=repo_root)._contracts
+
+    assert gate_bindings_repo._org_dirs == executor_repo._org_dirs
+    assert gate_bindings_repo._org_dirs != []

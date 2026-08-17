@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import ast
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -44,6 +45,11 @@ from runtime.next import runtime_bridge_composition as composition
 from runtime.next import runtime_bridge_cores as cores_seam
 from runtime.next import runtime_bridge_engine as engine_seam
 from runtime.next import runtime_bridge_io as io_seam
+from tests.specify_cli.mission_step_contracts.test_executor import (
+    ORG_FIXTURE_CONTRACT_ID,
+    write_org_pack_config,
+    write_org_tier_step_contract_fixture,
+)
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -389,7 +395,7 @@ def test_resolve_runtime_contract_for_step_looks_up_by_contract_ref(
 
     monkeypatch.setattr(
         "doctrine.missions.step_contracts.MissionStepContractRepository",
-        lambda *, project_dir: object(),
+        lambda *, project_dir, org_dirs=None: object(),
     )
 
     def _fake_lookup(contract_ref: str, repository: Any) -> Any:
@@ -456,7 +462,7 @@ def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(
     monkeypatch.setattr(rb, "_normalize_action_for_composition", _fake_normalize)
     monkeypatch.setattr(
         "doctrine.missions.step_contracts.MissionStepContractRepository",
-        lambda *, project_dir: object(),
+        lambda *, project_dir, org_dirs=None: object(),
     )
     sentinel = object()
     monkeypatch.setattr(
@@ -470,6 +476,142 @@ def test_resolve_runtime_contract_for_step_uses_live_lookup_for_normalize(
 
     assert calls == ["weird-id"]
     assert result is sentinel
+
+
+# ---------------------------------------------------------------------------
+# 3c-bis. FR-006 org-tier resolution (T013, SC-003) + identical-absent-failure
+# proof shared with tests/unit/mission_loader/test_command.py's T014 (User
+# Story 2, Acceptance Scenario 3).
+#
+# SC-003 calls for ONE synthetic org-pack fixture reused by three test
+# functions (WP02's executor/gate_bindings tests plus this WP's runtime/
+# mission-load pair) -- the SAME ``write_org_tier_step_contract_fixture`` /
+# ``write_org_pack_config`` / ``ORG_FIXTURE_CONTRACT_ID`` that
+# tests/specify_cli/mission_step_contracts/test_executor.py (T008) and
+# tests/review/test_gate_bindings.py (T010) already import, not a
+# locally-duplicated copy. A prior revision of this file (and
+# tests/unit/mission_loader/test_command.py) duplicated a smaller
+# ``_write_org_step_contract_fixture`` verbatim in both files because WP02
+# had not yet landed when this WP was authored; that duplication was
+# retired here in favor of the canonical shared fixture now that it exists,
+# per this mission's pre-merge review.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_runtime_contract_for_step_resolves_org_tier_contract_ref(
+    tmp_path: Path,
+) -> None:
+    """FR-006 / T013 / SC-003: an org-tier ``contract_ref`` resolves at live
+    dispatch time now that ``_resolve_runtime_contract_for_step`` threads
+    ``resolve_org_dirs(repo_root, "mission_step_contracts")`` into the
+    ``MissionStepContractRepository`` it constructs."""
+    org_root = tmp_path / "org-pack"
+    write_org_tier_step_contract_fixture(org_root)
+    write_org_pack_config(tmp_path, org_root)
+
+    run_dir = tmp_path / "run"
+    _write_frozen_template(
+        run_dir,
+        mission_key="custom-mission",
+        steps=[{"id": "step1", "title": "Step One", "contract_ref": ORG_FIXTURE_CONTRACT_ID}],
+    )
+
+    result = composition._resolve_runtime_contract_for_step(
+        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
+    )
+
+    assert result is not None
+    assert result.id == ORG_FIXTURE_CONTRACT_ID
+
+
+def test_resolve_runtime_contract_for_step_returns_none_when_org_pack_absent(
+    tmp_path: Path,
+) -> None:
+    """User Story 2, Acceptance Scenario 3 -- identical-failure half, paired
+    with ``test_resolve_contract_refs_returns_error_when_org_pack_absent`` in
+    tests/unit/mission_loader/test_command.py. With the org pack not
+    configured at all (no ``.kittify/config.yaml``), the SAME org-tier
+    ``contract_ref`` used by the success test above fails to resolve at
+    runtime dispatch too -- proving the lockstep pair's FAILURE mode is
+    identical, not merely that both happen to pass independently in the
+    success case."""
+    run_dir = tmp_path / "run"
+    _write_frozen_template(
+        run_dir,
+        mission_key="custom-mission",
+        steps=[{"id": "step1", "title": "Step One", "contract_ref": ORG_FIXTURE_CONTRACT_ID}],
+    )
+
+    result = composition._resolve_runtime_contract_for_step(
+        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
+    )
+
+    assert result is None
+
+
+def test_resolve_contract_refs_and_resolve_runtime_contract_for_step_resolve_identically(
+    tmp_path: Path,
+) -> None:
+    """Lockstep pair B (FR-006 / FR-006a): mission-load-time
+    ``_resolve_contract_refs`` (``specify_cli.mission_loader.command``) and
+    runtime-dispatch-time ``_resolve_runtime_contract_for_step`` (this
+    module) must resolve the identical org-tier ``contract_ref`` the same
+    way, given the identical org-pack configuration.
+
+    Mirrors lockstep pair A
+    (``tests/review/test_gate_bindings.py::test_build_repository_and_executor_resolve_identical_org_dirs``),
+    which directly compares the two construction sites' ``_org_dirs``
+    attribute. Pair B's two call sites are free functions with no
+    repository object exposed to the caller, so this guard proves lockstep
+    behaviorally instead: with the SAME org-pack fixture, if either call
+    site regresses (e.g. drops its ``org_dirs=`` argument and silently
+    falls back to project-tier-only resolution), the two resolutions
+    diverge -- one succeeds, one fails -- and this test goes red. Closes
+    the gap flagged in this mission's pre-merge review ("Pair B has no
+    equivalent").
+    """
+    from specify_cli.mission_loader.command import _resolve_contract_refs
+    from runtime.next._internal_runtime.schema import MissionTemplate
+
+    org_root = tmp_path / "org-pack"
+    write_org_tier_step_contract_fixture(org_root)
+    write_org_pack_config(tmp_path, org_root)
+
+    load_error = _resolve_contract_refs(
+        mission_key="custom-mission",
+        template=MissionTemplate.model_validate(
+            {
+                "mission": {
+                    "key": "custom-mission",
+                    "name": "Custom Mission",
+                    "version": "1.0.0",
+                },
+                "steps": [
+                    {
+                        "id": "step1",
+                        "title": "Step One",
+                        "contract_ref": ORG_FIXTURE_CONTRACT_ID,
+                    }
+                ],
+            }
+        ),
+        source_path="irrelevant.yaml",
+        repo_root=tmp_path,
+    )
+
+    run_dir = tmp_path / "run"
+    _write_frozen_template(
+        run_dir,
+        mission_key="custom-mission",
+        steps=[{"id": "step1", "title": "Step One", "contract_ref": ORG_FIXTURE_CONTRACT_ID}],
+    )
+    runtime_result = composition._resolve_runtime_contract_for_step(
+        repo_root=tmp_path, run_dir=run_dir, mission="custom-mission", step_id="step1"
+    )
+
+    assert load_error is None, "mission-load validation must resolve the org-tier contract_ref"
+    assert runtime_result is not None, "runtime dispatch must resolve the SAME org-tier contract_ref"
+    assert runtime_result.id == ORG_FIXTURE_CONTRACT_ID
 
 
 # ---------------------------------------------------------------------------
@@ -808,6 +950,89 @@ def test_dispatch_via_composition_uses_live_lookup_for_check_composed_action_gua
 
     assert calls == ["specify"]
     assert failures == ["patched-failure"]
+
+
+def test_dispatch_via_composition_warns_on_unresolved_delegation_candidates(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """FR-007 / T016 / SC-004: exactly one WARNING per step carrying 1+
+    unresolved ``delegates_to`` candidates, naming the step id, contract id,
+    and candidate string(s) -- and (negative case, asserted in this SAME test
+    function per SC-004, so a future change cannot break the negative case
+    while the positive case still passes) zero WARNING records when every
+    candidate resolves."""
+    from runtime.next import runtime_bridge as rb
+
+    monkeypatch.setattr(rb, "_check_composed_action_guard", lambda *a, **k: [])
+
+    # Positive case: one step with an unresolved candidate.
+    unresolved_result = SimpleNamespace(
+        contract_id="documentation-accept",
+        invocation_ids=(),
+        steps=(
+            SimpleNamespace(
+                step_id="confirm_publication_handoff",
+                unresolved_candidates=("ghost-directive-999",),
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+        lambda self, context, contract=None: unresolved_result,
+    )
+
+    with caplog.at_level(logging.WARNING, logger="runtime.next.runtime_bridge"):
+        failures = composition._dispatch_via_composition(
+            repo_root=tmp_path,
+            mission="documentation",
+            action="accept",
+            actor="implementer-pedro",
+            profile_hint=None,
+            request_text=None,
+            mode_of_work=None,
+            feature_dir=tmp_path,
+        )
+
+    assert failures is None
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1
+    message = warnings[0].getMessage()
+    assert "confirm_publication_handoff" in message
+    assert "documentation-accept" in message
+    assert "ghost-directive-999" in message
+
+    caplog.clear()
+
+    # Negative case (SC-004): every candidate resolves -> zero WARNINGs.
+    resolved_result = SimpleNamespace(
+        contract_id="documentation-accept",
+        invocation_ids=(),
+        steps=(
+            SimpleNamespace(
+                step_id="confirm_publication_handoff",
+                unresolved_candidates=(),
+            ),
+        ),
+    )
+    monkeypatch.setattr(
+        "specify_cli.mission_step_contracts.executor.StepContractExecutor.execute",
+        lambda self, context, contract=None: resolved_result,
+    )
+
+    with caplog.at_level(logging.WARNING, logger="runtime.next.runtime_bridge"):
+        failures = composition._dispatch_via_composition(
+            repo_root=tmp_path,
+            mission="documentation",
+            action="accept",
+            actor="implementer-pedro",
+            profile_hint=None,
+            request_text=None,
+            mode_of_work=None,
+            feature_dir=tmp_path,
+        )
+
+    assert failures is None
+    assert not any(r.levelno == logging.WARNING for r in caplog.records)
 
 
 # ---------------------------------------------------------------------------

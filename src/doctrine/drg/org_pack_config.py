@@ -9,6 +9,7 @@ parser so it cannot drift independently.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 import warnings
@@ -19,6 +20,8 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_valida
 from ruamel.yaml import YAML
 from ulid import ULID
 
+logger = logging.getLogger(__name__)
+
 __all__ = [
     "OrgPackConfig",
     "OrgPackEnvVarUnsetError",
@@ -26,6 +29,7 @@ __all__ = [
     "PackRegistry",
     "ensure_pack_identity",
     "load_pack_registry",
+    "resolve_org_dirs",
     "resolve_org_roots",
     "resolve_relative_path_within_root",
     "save_pack_registry",
@@ -464,6 +468,36 @@ def resolve_org_roots(repo_root: Path) -> list[Path]:
     therefore inherit the ``subdir`` seam for free.
     """
     return [pack.effective_root(repo_root) for pack in load_pack_registry(repo_root).packs]
+
+
+def resolve_org_dirs(repo_root: Path, subdir: str) -> list[Path]:
+    """Existing-path-filtered, declaration-ordered org directories for *subdir*.
+
+    Filters non-existent org-pack roots before joining *subdir* (mirrors
+    charter.doctrine_service_builder._self_resolve_existing_org_roots), so a
+    stale local_path config entry degrades to "no org contribution" cleanly
+    rather than raising. Per NFR-002, that degradation is not silent: each
+    dropped root is logged at WARNING, so a typo'd/never-fetched org pack is
+    distinguishable, in a log, from "no org pack was ever configured" (which
+    logs nothing, since there is nothing to drop). ``resolve_org_roots``
+    returns bare ``Path`` values with no pack name attached, so the warning
+    names the dropped path itself rather than the pack's config-declared
+    name — recovering the name would mean re-walking the pack registry a
+    second time inside this function, which is unnecessary: the path alone
+    is enough for an operator to match the warning back to the offending
+    ``local_path`` entry in ``.kittify/config.yaml``.
+    """
+    dirs: list[Path] = []
+    for root in resolve_org_roots(repo_root):
+        if root.exists():
+            dirs.append(root / subdir)
+        else:
+            logger.warning(
+                "Configured org pack root %s does not exist on disk; dropping its contribution to %r (stale local_path, or the pack has not been fetched yet).",
+                root,
+                subdir,
+            )
+    return dirs
 
 
 def _config_path(repo_root: Path) -> Path:

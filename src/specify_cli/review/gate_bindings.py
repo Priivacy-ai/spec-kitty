@@ -41,6 +41,7 @@ from charter.drg import (
     OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     filter_graph_by_activation,
+    resolve_org_dirs,
 )
 from charter.mission_steps import MissionStepContract, MissionStepContractRepository
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -164,8 +165,19 @@ def owning_contract_urn(mission: str, action: str) -> str:
 
 
 def _build_repository(repo_root: Path) -> MissionStepContractRepository:
-    """Construct the contract repository the way the executor does."""
-    return MissionStepContractRepository(project_dir=repo_root.joinpath(*_PROJECT_CONTRACTS_SUBPATH))
+    """Construct the contract repository the way the executor does.
+
+    FR-005: mirrors ``StepContractExecutor.__init__``
+    (``mission_step_contracts/executor.py``) exactly — same
+    ``resolve_org_dirs(repo_root, "mission_step_contracts")`` call, same
+    ``subdir`` string — so an org-tier contract's ``gates:`` block fires at
+    WP review-transition time instead of resolving delegations correctly
+    while never gating anything (User Story 3).
+    """
+    return MissionStepContractRepository(
+        project_dir=repo_root.joinpath(*_PROJECT_CONTRACTS_SUBPATH),
+        org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
+    )
 
 
 def _load_review_contract(
