@@ -19,7 +19,7 @@ import doctrine.provenance as provenance_module
 from doctrine.provenance import is_built_in_pack_path, to_portable_source_path
 from kernel.sibling_paths import SiblingPathNotFound
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.doctrine]
 
 
 @pytest.fixture
