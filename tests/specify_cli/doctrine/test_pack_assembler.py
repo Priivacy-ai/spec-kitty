@@ -310,6 +310,38 @@ class TestAssemblePack:
         assert not (output / "directives" / "old-001.directive.yaml").exists()
         assert (output / "directives" / "new-001.directive.yaml").exists()
 
+    def test_internal_validate_pack_call_carves_out_drg_root_check(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-004 / AC-6 (operator ruling #2, ``reviews/plan.ruling.md``):
+        ``assemble_pack``'s internal round-trip ``validate_pack(...)`` call
+        passes ``check_drg_root=False`` — proven by an actual
+        parameter-value assertion, not merely by
+        ``test_force_dedup_prunes_duplicate_edges_via_canonical_serializer``
+        continuing to pass. This carve-out is unconditional and structural:
+        ``_copy_drg_fragments`` never writes a pack-root ``*.graph.yaml``, so
+        the assembler's own output is always exactly the drg/-fragments-only
+        shape this check would otherwise flag.
+
+        Before this WP, ``validate_pack`` has no ``check_drg_root`` keyword
+        parameter at all, so asserting it was passed with that value fails.
+        """
+        from unittest.mock import patch
+
+        from specify_cli.doctrine.pack_validator import ValidationResult
+
+        pack = _make_pack(tmp_path, "alpha", directives=["V-001"])
+        output = tmp_path / "out"
+
+        with patch(
+            "specify_cli.doctrine.pack_assembler.validate_pack",
+            return_value=ValidationResult(ok=True),
+        ) as mock_validate:
+            result = assemble_pack([pack], output)
+
+        assert result.ok is True, result.errors
+        mock_validate.assert_called_once_with(output, check_drg_root=False)
+
 
 # ---------------------------------------------------------------------------
 # Tests — rendering

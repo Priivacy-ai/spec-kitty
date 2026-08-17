@@ -8,12 +8,14 @@ from __future__ import annotations
 
 import textwrap
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from ruamel.yaml import YAML
 
 from specify_cli.doctrine.pack_validator import (
     ValidationResult,
+    _check_profile_skipped_diagnostics,
     render_validation_result,
     validate_pack,
 )
@@ -67,13 +69,19 @@ def _write_asset_manifest(
     title: str | None = "Acme brand logo (PNG)",
     filename: str | None = None,
     drop_id: bool = False,
+    subdir: str | None = None,
 ) -> Path:
     """Write a ``*.asset.yaml`` sidecar manifest under ``pack_dir/assets/``.
 
     Realistic, production-shaped defaults (a real PNG-shaped manifest) —
     callers override individual fields to exercise a single failure mode.
+
+    ``subdir``, when given, nests the manifest one directory below
+    ``assets/`` (e.g. ``assets/<subdir>/x.asset.yaml``) — the ADR-mandated
+    org-pack manifest layout (FR-003) that ``AssetRepository`` already
+    recurses into.
     """
-    assets = pack_dir / "assets"
+    assets = pack_dir / "assets" / subdir if subdir else pack_dir / "assets"
     assets.mkdir(parents=True, exist_ok=True)
     payload: dict[str, str] = {}
     if not drop_id and artifact_id is not None:
@@ -88,6 +96,26 @@ def _write_asset_manifest(
     manifest_path = assets / name
     _yaml.dump(payload, manifest_path)
     return manifest_path
+
+
+def _write_agent_profile_yaml(
+    pack_dir: Path,
+    *,
+    filename: str,
+    content: str,
+) -> Path:
+    """Write a raw ``*.agent.yaml`` file under ``pack_dir/agent_profiles/``.
+
+    Takes a pre-formatted YAML string (rather than a dict payload, unlike the
+    other ``_write_*`` helpers here) so callers can author fixtures whose
+    exact on-disk shape matters (e.g. the deprecated scalar ``role:`` field,
+    which a dict-based writer using ``roles:`` could not represent).
+    """
+    agent_profiles = pack_dir / "agent_profiles"
+    agent_profiles.mkdir(parents=True, exist_ok=True)
+    path = agent_profiles / filename
+    path.write_text(content, encoding="utf-8")
+    return path
 
 
 # ---------------------------------------------------------------------------
@@ -242,7 +270,10 @@ class TestValidatePack:
             encoding="utf-8",
         )
 
-        result = validate_pack(tmp_path)
+        # check_drg_root=False: this test is about edge-URN resolution
+        # against pack artifacts, orthogonal to FR-004's pack-root-graph
+        # check — the fixture is deliberately drg/-fragments-only.
+        result = validate_pack(tmp_path, check_drg_root=False)
 
         assert result.ok is True, result.errors
 
@@ -266,7 +297,10 @@ class TestValidatePack:
         (drg / "010-a.graph.yaml").write_text(edge_yaml, encoding="utf-8")
         (drg / "020-b.graph.yaml").write_text(edge_yaml, encoding="utf-8")
 
-        result = validate_pack(tmp_path)
+        # check_drg_root=False: this test is about the duplicate-edge
+        # advisory, orthogonal to FR-004's pack-root-graph check — the
+        # fixture is deliberately drg/-fragments-only.
+        result = validate_pack(tmp_path, check_drg_root=False)
 
         # The duplicate is advisory, not fatal.
         assert result.ok is True, result.errors
@@ -712,6 +746,66 @@ class TestAssetManifestValidation:
         assert mime_errors, result.errors
         assert mime_errors[0].artifact_id == "acme-logo-mismatch"
 
+    def test_nested_asset_manifest_violation_is_caught(self, tmp_path: Path) -> None:
+        """FR-003 AC-1: a schema-violating manifest nested one level below
+        ``assets/`` (``assets/<pack>/x.asset.yaml`` — the ADR-mandated org-pack
+        layout ``AssetRepository`` already recurses into) is caught by
+        ``pack validate``, not silently skipped. Before FR-003, ``_scan_files``
+        only recurses for ``styleguides``, so this manifest was never scanned
+        and this assertion failed.
+        """
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-logo-nested-badmime",
+            mime="notamimetype",
+            path_value="branding/acme-logo.png",
+            subdir="acme-pack",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        mime_errors = [e for e in result.errors if e.category == "asset_mime_invalid"]
+        assert mime_errors, result.errors
+        assert mime_errors[0].artifact_id == "acme-logo-nested-badmime"
+        assert "acme-pack" in mime_errors[0].file
+
+    def test_nested_asset_manifest_valid_passes(self, tmp_path: Path) -> None:
+        """FR-003 AC-2: a valid nested manifest passes with no false positive —
+        it participates in the existing containment/mime checks exactly like a
+        top-level asset would."""
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-brand-logo-nested-png",
+            mime="image/png",
+            path_value="branding/acme-logo.png",
+            subdir="acme-pack",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        assert result.errors == []
+
+    def test_no_assets_directory_is_a_noop(self, tmp_path: Path) -> None:
+        """FR-003 AC-4: an absent ``assets/`` directory produces no error and no
+        behavior change. ``validate_pack``'s registry loop guard
+        (``if not type_dir.is_dir(): continue``) predates FR-003 and is left
+        untouched by it — this proves the guard path actually executes for the
+        absent-directory case (not merely that nothing crashes) by asserting no
+        ``assets``-typed issue is ever produced when ``assets/`` never existed.
+        """
+        _write_directive(tmp_path, artifact_id="ACME-001")
+        assert not (tmp_path / "assets").exists()
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        assert not any(
+            issue.artifact_type == "assets"
+            for issue in (*result.errors, *result.advisories)
+        ), (result.errors, result.advisories)
+
     def test_multiple_assets_independent(self, tmp_path: Path) -> None:
         """Multiple manifests in one pack are each validated independently."""
         _write_asset_manifest(
@@ -730,3 +824,368 @@ class TestAssetManifestValidation:
         result = validate_pack(tmp_path)
 
         assert result.ok is True, result.errors
+
+
+class TestProfileSkippedDiagnostics:
+    """FR-002: ``pack validate`` surfaces ``AgentProfileRepository``'s
+    post-merge profile-skip diagnostics inline (``skipped_profiles()``),
+    not only via the separate, undocumented ``spec-kitty doctor doctrine
+    --json`` command.
+
+    This is additive wiring (AC-4), not a new validation engine: the checks
+    here exercise the REAL, shipped built-in ``analyst-annie`` profile
+    (``packs/built-in/agent_profiles/analyst-annie.agent.yaml``) as the
+    merge target, per this WP's Reviewer Guidance — no fake built-in
+    directory is fabricated.
+    """
+
+    _ANALYST_ANNIE_ROLE_CONFLICT_YAML = textwrap.dedent(
+        """\
+        profile-id: analyst-annie
+        role: implementer
+        name: Override
+        purpose: test purpose
+        specialization:
+          primary-focus: test focus
+        """
+    )
+
+    def test_post_merge_skip_surfaces_as_profile_skipped_issue(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-1: a profile that passes ``AgentProfile.model_validate`` in
+        isolation (proven standalone-valid by
+        ``tests/doctrine/test_agent_profile_model_field.py``'s
+        ``TestDeprecatedScalarRoleStandaloneValid``, T008) but is recorded
+        via ``AgentProfileRepository``'s ``_record_skip`` during merge-time
+        load (the deprecated scalar ``role:`` colliding with the real
+        built-in ``analyst-annie``'s already-resolved ``roles:``) causes
+        ``pack validate`` to include a ``profile_skipped`` ``ValidationIssue``
+        in ``result.errors``.
+
+        Before this WP, ``pack_validator.py`` never calls
+        ``AgentProfileRepository``/``skipped_profiles()`` at all, so this
+        assertion fails — the only surface for this diagnostic today is the
+        separate ``spec-kitty doctor doctrine --json`` command.
+        """
+        profile_path = _write_agent_profile_yaml(
+            tmp_path,
+            filename="analyst-annie.agent.yaml",
+            content=self._ANALYST_ANNIE_ROLE_CONFLICT_YAML,
+        )
+
+        result = validate_pack(tmp_path)
+
+        skipped_issues = [
+            issue for issue in result.errors if issue.category == "profile_skipped"
+        ]
+        assert skipped_issues, result.errors
+        issue = skipped_issues[0]
+        assert issue.severity == "error"
+        assert issue.artifact_type == "agent_profiles"
+        assert issue.artifact_id == "analyst-annie"
+        assert issue.file == str(profile_path)
+        assert "role" in issue.message and "roles" in issue.message
+
+    def test_helper_calls_repository_skipped_profiles_directly(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-4: the helper reuses ``AgentProfileRepository.skipped_profiles()``
+        directly rather than hand-rolling a second skip-detection heuristic.
+
+        Patches the source location the helper's lazy, function-local import
+        binds to (``doctrine.agent_profiles.repository.AgentProfileRepository``
+        — matching this file's existing precedent of lazy in-function
+        imports, and what ``scripts/check_patch_targets.py`` expects). This
+        assertion is non-vacuous: it fails if the call is removed or replaced
+        with an inline reimplementation, since only an actual invocation of
+        the mocked method satisfies ``assert_called_once``.
+        """
+        agent_profiles_dir = tmp_path / "agent_profiles"
+        agent_profiles_dir.mkdir()
+
+        with patch(
+            "doctrine.agent_profiles.repository.AgentProfileRepository.skipped_profiles"
+        ) as mock_skipped_profiles:
+            mock_skipped_profiles.return_value = []
+            issues = _check_profile_skipped_diagnostics(tmp_path, set())
+
+        mock_skipped_profiles.assert_called_once_with()
+        assert issues == []
+
+    def test_schema_invalid_profile_is_not_double_reported(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-2: a profile file with an undeclared key (the already-fixed
+        acute case — ``AgentProfile.model_config`` has ``extra="forbid"``)
+        is caught by the existing generic per-file schema scan as
+        ``schema_invalid``. ``AgentProfileRepository``'s own load of this
+        same file would *also* fail schema validation (identical model,
+        identical ``extra="forbid"`` constraint) and therefore also appear
+        in ``skipped_profiles()`` — proving the ``already_flagged_files``
+        dedup actually filters the redundant report rather than merely
+        happening not to fire.
+        """
+        profile_path = _write_agent_profile_yaml(
+            tmp_path,
+            filename="some-profile.agent.yaml",
+            content=textwrap.dedent(
+                """\
+                profile-id: some-profile
+                name: Some Profile
+                purpose: test purpose
+                specialization:
+                  primary-focus: test focus
+                roles: [implementer]
+                totally-unknown-field: true
+                """
+            ),
+        )
+
+        result = validate_pack(tmp_path)
+
+        file_issues = [
+            issue for issue in result.errors if issue.file == str(profile_path)
+        ]
+        assert len(file_issues) == 1, file_issues
+        assert file_issues[0].category == "schema_invalid"
+        assert not any(
+            issue.category == "profile_skipped" for issue in file_issues
+        )
+
+    def test_clean_pack_has_no_profile_skipped_issue(self, tmp_path: Path) -> None:
+        """AC-3: a pack with no profile problems produces no ``profile_skipped``
+        issue and an unaffected ``ok`` result — no false positive on a
+        currently-passing pack. Uses a fresh ``profile-id`` that does not
+        collide with any built-in profile, so no merge is even attempted.
+        """
+        _write_agent_profile_yaml(
+            tmp_path,
+            filename="acme-custom-implementer.agent.yaml",
+            content=textwrap.dedent(
+                """\
+                profile-id: acme-custom-implementer
+                name: Acme Custom Implementer
+                purpose: test purpose
+                specialization:
+                  primary-focus: test focus
+                roles: [implementer]
+                """
+            ),
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        assert not any(
+            issue.category == "profile_skipped"
+            for issue in (*result.errors, *result.advisories)
+        )
+
+    def test_absent_agent_profiles_directory_is_safe_and_exercised(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-5: a pack whose ``agent_profiles/`` directory is entirely
+        absent does not raise, produces no ``profile_skipped`` issue, and —
+        per the spec's Edge Cases bullet 2 — this is proven by actually
+        exercising the check path (a direct call to the helper returning an
+        empty list), not merely by the absence of a crash from
+        ``validate_pack``.
+        """
+        (tmp_path / "directives").mkdir()
+        assert not (tmp_path / "agent_profiles").exists()
+
+        result = validate_pack(tmp_path)
+
+        assert not any(
+            issue.category == "profile_skipped"
+            for issue in (*result.errors, *result.advisories)
+        )
+
+        # Direct-call assertion: prove the check path actually executed
+        # against the absent-directory case, not swallowed by a broad
+        # try/except that would make the assertion above vacuous.
+        assert _check_profile_skipped_diagnostics(tmp_path, set()) == []
+
+    def test_repository_construction_failure_is_guarded(
+        self, tmp_path: Path
+    ) -> None:
+        """PR-M-001: a raise while resolving ``AgentProfileRepository``'s
+        built-in content directory must not propagate as an uncaught
+        traceback. The raise path is real (not hypothetical): ``__init__``
+        resolves ``built_in_dir()`` through the fail-closed seam pinned by
+        ``tests/doctrine/test_pack_root_resolver.py`` — a stripped
+        environment raises ``PackRootNotFound`` there, exactly as the
+        sibling ``_load_built_in_ids_per_kind`` guard anticipates for the
+        same seam.
+
+        Patches ``built_in_dir`` at the binding the repository's own
+        constructor calls (``doctrine.agent_profiles.repository.built_in_dir``
+        — the module ``AgentProfileRepository._default_built_in_dir``
+        actually imported it into), so this fires regardless of which
+        construction path calls into the repository (PR-M-002 routes that
+        construction through ``DoctrineService``, which does not change
+        this seam).
+        """
+        from doctrine.pack_paths import PackRootNotFound
+
+        with patch(
+            "doctrine.agent_profiles.repository.built_in_dir",
+            side_effect=PackRootNotFound("built-in"),
+        ):
+            issues = _check_profile_skipped_diagnostics(tmp_path, set())
+
+        assert issues, "a resolution failure must surface as an issue, not vanish"
+        assert issues[0].severity == "error"
+        assert issues[0].category == "profile_skipped"
+        assert issues[0].artifact_type == "agent_profiles"
+
+    def test_validate_pack_survives_repository_construction_failure(
+        self, tmp_path: Path
+    ) -> None:
+        """PR-M-001: the same raise must not crash ``validate_pack`` (and by
+        extension the ``pack_validate`` / ``org_validate`` CLI entry
+        points), which is the concrete failure the finding describes — a
+        raw traceback instead of the promised ``{"ok": ...}`` JSON.
+        """
+        from doctrine.pack_paths import PackRootNotFound
+
+        with patch(
+            "doctrine.agent_profiles.repository.built_in_dir",
+            side_effect=PackRootNotFound("built-in"),
+        ):
+            result = validate_pack(tmp_path)
+
+        assert isinstance(result, ValidationResult)
+        assert result.ok is False
+        assert any(issue.category == "profile_skipped" for issue in result.errors)
+
+
+class TestDrgRootGraphMissing:
+    """FR-004: ``pack validate`` gains an additive check that fires when a
+    pack's DRG content lives only under ``drg/*.graph.yaml`` fragments with
+    no pack-root ``*.graph.yaml`` — the shape the runtime
+    (``src/charter/_drg_helpers.py:load_validated_graph``) never reads
+    (see sibling mission #3384). Keyed off pack *content*, via the same
+    exact ``*.graph.yaml`` glob ``_validate_drg`` already uses, so it is
+    consistent by construction (AC-5).
+    """
+
+    _MINIMAL_FRAGMENT_YAML = textwrap.dedent(
+        """\
+        schema_version: "1.0"
+        generated_at: STATIC
+        generated_by: test
+        nodes: []
+        edges: []
+        """
+    )
+
+    def test_drg_only_fragment_no_pack_root_graph_fires_error(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-1 + AC-4: a pack with ``drg/010-security.graph.yaml`` and no
+        pack-root ``*.graph.yaml`` produces a ``drg_root_graph_missing``
+        error (default ``check_drg_root=True``), and ``pack validate``'s
+        CLI maps that to exit code 1.
+
+        Before this WP, ``validate_pack`` has no ``check_drg_root``
+        parameter and no ``drg_root_graph_missing`` category exists, so
+        both assertions below fail.
+        """
+        drg = tmp_path / "drg"
+        drg.mkdir()
+        (drg / "010-security.graph.yaml").write_text(
+            self._MINIMAL_FRAGMENT_YAML, encoding="utf-8"
+        )
+        assert not sorted(tmp_path.glob("*.graph.yaml"))
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        root_missing = [
+            issue
+            for issue in result.errors
+            if issue.category == "drg_root_graph_missing"
+        ]
+        assert root_missing, result.errors
+        issue = root_missing[0]
+        assert issue.severity == "error"
+        assert "_drg_helpers.py" in issue.message or "load_validated_graph" in issue.message
+
+        # AC-4's exit-code half: exercise the same fixture through the CLI.
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.doctrine import app as doctrine_app
+
+        cli_result = CliRunner().invoke(
+            doctrine_app, ["pack", "validate", str(tmp_path)]
+        )
+        assert cli_result.exit_code == 1, cli_result.output
+
+    def test_pack_root_graph_present_suppresses_diagnostic(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-2: a pack-root ``*.graph.yaml`` present (alongside ``drg/``
+        fragments) produces no ``drg_root_graph_missing`` diagnostic.
+        """
+        drg = tmp_path / "drg"
+        drg.mkdir()
+        (drg / "010-security.graph.yaml").write_text(
+            self._MINIMAL_FRAGMENT_YAML, encoding="utf-8"
+        )
+        (tmp_path / "pack.graph.yaml").write_text(
+            self._MINIMAL_FRAGMENT_YAML, encoding="utf-8"
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert not any(
+            issue.category == "drg_root_graph_missing"
+            for issue in (*result.errors, *result.advisories)
+        )
+
+    def test_neither_root_graph_nor_drg_dir_no_diagnostic(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-3: a pack with neither a pack-root graph nor a ``drg/``
+        directory at all produces no diagnostic — this check is about a
+        *mismatch*, not about requiring DRG content to exist.
+        """
+        assert not (tmp_path / "drg").exists()
+        assert not sorted(tmp_path.glob("*.graph.yaml"))
+
+        result = validate_pack(tmp_path)
+
+        assert not any(
+            issue.category == "drg_root_graph_missing"
+            for issue in (*result.errors, *result.advisories)
+        )
+
+    def test_near_miss_pack_root_filename_does_not_satisfy_check(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-5: a pack-root file named e.g. ``notes.graph.yaml.bak`` (a
+        near-miss that does not match ``*.graph.yaml``) does not satisfy
+        the pack-root requirement — the AC-1 diagnostic still fires. This
+        is correct by construction (``Path.glob("*.graph.yaml")`` does not
+        match a ``.bak``-suffixed name); this test is a regression guard
+        against a future, accidental widening of the glob.
+        """
+        drg = tmp_path / "drg"
+        drg.mkdir()
+        (drg / "010-security.graph.yaml").write_text(
+            self._MINIMAL_FRAGMENT_YAML, encoding="utf-8"
+        )
+        (tmp_path / "notes.graph.yaml.bak").write_text(
+            "not a real graph", encoding="utf-8"
+        )
+
+        result = validate_pack(tmp_path)
+
+        root_missing = [
+            issue
+            for issue in result.errors
+            if issue.category == "drg_root_graph_missing"
+        ]
+        assert root_missing, result.errors

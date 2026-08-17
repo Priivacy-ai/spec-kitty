@@ -2,7 +2,7 @@
 title: How to Create an Org Doctrine Pack
 description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-08-14'
 type: how-to
 audience: docs/context/audience/external/tech-lead-evaluator.md
 related:
@@ -62,7 +62,7 @@ my-pack/
 ├── paradigms/                  # *.paradigm.yaml — paradigm definitions
 ├── procedures/                 # *.procedure.yaml — operational procedures
 ├── agent_profiles/             # *.agent.yaml — agent personas
-├── mission_step_contracts/     # *.contract.yaml — mission step contracts
+├── mission_step_contracts/     # *.step-contract.yaml — mission step contracts
 ├── drg/                        # *.graph.yaml — DRG graph extension fragments
 └── org-charter.yaml            # optional: org governance policy
 ```
@@ -137,10 +137,16 @@ organisation-specific code:
 | Paradigms | `*.paradigm.yaml` | `<org>-par-<seq>` |
 | Procedures | `*.procedure.yaml` | `<org>-proc-<seq>` |
 | Agent profiles | `*.agent.yaml` | `<org>-<role>` |
-| Mission step contracts | `*.contract.yaml` | `<org>-msc-<seq>` |
+| Mission step contracts | `*.step-contract.yaml` | `<org>-msc-<seq>` |
 
 Collisions with built-in IDs are **permitted** but produce a full-replace advisory at
 resolution time — keep them intentional and rare.
+
+**Note**: the `mission_step_contracts/` surface documented above (`step_contracts.py`, the
+`MissionStepContract` model, and this file suffix) is slated for retirement in its entirety
+in favor of a unified `MissionStep` model — see ADR `2026-08-13-1`, *Built-in mission
+subtree stays nested; retire legacy step contracts* (Accepted). Treat the corrected suffix
+above as a bridge, not a durable authoring target.
 
 ### DRG extensions
 
