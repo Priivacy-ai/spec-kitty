@@ -995,10 +995,10 @@ def _resolve_expected_artifacts_slot(
     if not is_registered:
         return None
 
-    from doctrine.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415 — lazy; mirrors resolve_org_dirs import elsewhere in this module
+    from doctrine.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415 — lazy; mirrors resolve_org_dirs import elsewhere in this module
     from charter.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
 
-    org_roots = [root for root in resolve_org_roots(repo_root) if root.exists()]
+    org_roots = resolve_existing_org_roots(repo_root)
     org_result = resolve_org_expected_artifacts(org_roots, mission_type)
     if org_result is not None:
         return org_result

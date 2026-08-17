@@ -29,6 +29,7 @@ __all__ = [
     "PackRegistry",
     "ensure_pack_identity",
     "load_pack_registry",
+    "resolve_existing_org_roots",
     "resolve_org_dirs",
     "resolve_org_roots",
     "resolve_relative_path_within_root",
@@ -470,34 +471,57 @@ def resolve_org_roots(repo_root: Path) -> list[Path]:
     return [pack.effective_root(repo_root) for pack in load_pack_registry(repo_root).packs]
 
 
+def resolve_existing_org_roots(repo_root: Path) -> list[Path]:
+    """Return configured org doctrine local roots that exist on disk, in declaration order.
+
+    Pure existence filter over :func:`resolve_org_roots` — the single primitive
+    every "does this org root actually resolve to something on disk" consumer
+    now shares, rather than each re-implementing the same
+    ``[r for r in resolve_org_roots(repo_root) if r.exists()]`` comprehension
+    independently (previously duplicated in
+    ``charter.mission_type_profiles``, ``specify_cli.dossier.manifest``, and
+    ``charter.doctrine_service_builder._self_resolve_existing_org_roots``).
+
+    Deliberately silent (no logging): this primitive has no ``subdir``
+    context to name in a useful WARNING, and every one of the call sites
+    above was silent on a dropped root before this WP too — routing them onto
+    this primitive keeps their behaviour byte-identical.
+    :func:`resolve_org_dirs` is the subdir-joining sibling that layers the
+    per-dropped-root WARNING (NFR-002) on top of the same existence check.
+    """
+    return [root for root in resolve_org_roots(repo_root) if root.exists()]
+
+
 def resolve_org_dirs(repo_root: Path, subdir: str) -> list[Path]:
     """Existing-path-filtered, declaration-ordered org directories for *subdir*.
 
-    Filters non-existent org-pack roots before joining *subdir* (mirrors
-    charter.doctrine_service_builder._self_resolve_existing_org_roots), so a
-    stale local_path config entry degrades to "no org contribution" cleanly
-    rather than raising. Per NFR-002, that degradation is not silent: each
-    dropped root is logged at WARNING, so a typo'd/never-fetched org pack is
-    distinguishable, in a log, from "no org pack was ever configured" (which
-    logs nothing, since there is nothing to drop). ``resolve_org_roots``
-    returns bare ``Path`` values with no pack name attached, so the warning
-    names the dropped path itself rather than the pack's config-declared
-    name — recovering the name would mean re-walking the pack registry a
-    second time inside this function, which is unnecessary: the path alone
-    is enough for an operator to match the warning back to the offending
-    ``local_path`` entry in ``.kittify/config.yaml``.
+    Built on :func:`resolve_existing_org_roots` for the existence filter (the
+    return value is exactly ``[r / subdir for r in resolve_existing_org_roots(repo_root)]``),
+    so a stale local_path config entry degrades to "no org contribution"
+    cleanly rather than raising. Per NFR-002, that degradation is not silent
+    *here*: each dropped root is logged at WARNING (a responsibility that
+    stays on this function, not the shared primitive above, because only this
+    function knows the *subdir* the warning names), so a typo'd/never-fetched
+    org pack is distinguishable, in a log, from "no org pack was ever
+    configured" (which logs nothing, since there is nothing to drop).
+    ``resolve_org_roots`` returns bare ``Path`` values with no pack name
+    attached, so the warning names the dropped path itself rather than the
+    pack's config-declared name — recovering the name would mean re-walking
+    the pack registry a second time inside this function, which is
+    unnecessary: the path alone is enough for an operator to match the
+    warning back to the offending ``local_path`` entry in
+    ``.kittify/config.yaml``.
     """
-    dirs: list[Path] = []
+    existing_roots = resolve_existing_org_roots(repo_root)
+    existing_set = set(existing_roots)
     for root in resolve_org_roots(repo_root):
-        if root.exists():
-            dirs.append(root / subdir)
-        else:
+        if root not in existing_set:
             logger.warning(
                 "Configured org pack root %s does not exist on disk; dropping its contribution to %r (stale local_path, or the pack has not been fetched yet).",
                 root,
                 subdir,
             )
-    return dirs
+    return [root / subdir for root in existing_roots]
 
 
 def _config_path(repo_root: Path) -> Path:

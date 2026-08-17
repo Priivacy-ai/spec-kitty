@@ -145,11 +145,15 @@ def _self_resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     Single call site for the FR-008 "org_roots always self-resolved" axis —
     both :func:`_build_activation_aware_doctrine_service`'s default and
     :func:`build_activation_aware_doctrine_service` route through this one
-    helper so the resolution rule can never drift between them.
+    helper so the resolution rule can never drift between them. Delegates to
+    the shared :func:`doctrine.drg.org_pack_config.resolve_existing_org_roots`
+    primitive (#3525 Fold A) — this was the precedent every other
+    "does this org root exist" consumer now routes onto instead of
+    re-implementing the filter comprehension independently.
     """
-    from doctrine.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
+    from doctrine.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
 
-    return [root for root in resolve_org_roots(repo_root) if root.exists()]
+    return resolve_existing_org_roots(repo_root)
 
 
 def _build_activation_aware_doctrine_service(
