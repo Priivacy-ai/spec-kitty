@@ -76,6 +76,7 @@ every other compat-tracked intra-seam call in this module.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -115,6 +116,17 @@ MISSION_RUNTIME_YAML = "mission-runtime.yaml"
 MISSION_YAML = "mission.yaml"
 _FEATURE_RUNS_FILE = "feature-runs.json"
 STATE_FILE = "state.json"
+
+# WP06 (FR-010/FR-011, IC-06): named diagnostics for Walk B's previously
+# swallowed template-load and sidecar-co-presence failures. A real
+# ``logging.Logger`` -- not ``warnings.warn`` -- because ``warnings.warn``
+# deduplicates per call site by default: a long-running process (`spec-kitty
+# next` driving many mission resolutions) would see an identical malformed
+# org-tier fixture warned about once, then silently lose the signal on every
+# later resolution of the same broken file. ``logging.warning`` fires every
+# time, matching the always-visible behavior Walk A's `DiscoveryWarning`
+# channel already gives operators.
+_logger = logging.getLogger(__name__)
 
 
 class _FeatureRunEntry(TypedDict, total=False):
@@ -307,16 +319,109 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
     return unique
 
 
-def _template_key_for_file(path: Path) -> str | None:
+def _builtin_missions_root() -> Path:
+    """The package-shipped ``missions/`` directory.
+
+    Same expression ``_build_discovery_context`` (WP04) uses for
+    ``builtin_roots`` — recomputed locally rather than imported from there to
+    avoid coupling to a function this WP does not own (plan.md IC-06's
+    `owned_files` note: WP04 owns `_build_discovery_context`, this WP owns
+    `_template_key_for_file`/`_resolve_runtime_template_in_root`). Both
+    expressions must stay in sync by construction — there is exactly one
+    place `specify_cli`'s package-relative missions directory is defined.
+    """
+    import specify_cli  # noqa: PLC0415
+
+    return (Path(specify_cli.__file__).resolve().parent / "missions").resolve()
+
+
+def _is_builtin_missions_dir(parent: Path) -> bool:
+    """True when ``parent`` is a direct child of the package's ``missions/``
+    directory (FR-011 Acceptance Scenario 2) — i.e. one of the four built-in
+    mission directories (``plan``, ``research``, ``documentation``,
+    ``software-dev``) that already legitimately ship both sidecar files.
+    Structural (parent-of-parent identity against the one canonical built-in
+    root), not a hardcoded name list, so it stays correct if a fifth
+    built-in mission is ever added.
+    """
+    try:
+        resolved_parent = parent.resolve()
+    except OSError:
+        return False
+    return resolved_parent.parent == _builtin_missions_root()
+
+
+def _warn_non_builtin_sidecar_pairs(candidates: list[Path], mission_type: str) -> None:
+    """FR-011: name a diagnostic when a non-built-in tier ships both
+    ``mission.yaml`` and ``mission-runtime.yaml`` for the same mission key.
+
+    Built-in mission directories already legitimately ship both and MUST
+    stay silent (Acceptance Scenario 2) — filtered via
+    ``_is_builtin_missions_dir``. Purely observational: does not raise, and
+    does not change which file the existing sidecar preference (C-005, the
+    ``candidate.name == MISSION_YAML`` branch in
+    ``_resolve_runtime_template_in_root`` below) resolves to. Runs once, up
+    front, over the already-computed candidate list, independent of which
+    candidate the main resolution loop happens to match first — the
+    mission-runtime.yaml candidate is checked ahead of mission.yaml in
+    ``_candidate_templates_for_root``'s ordering and resolves (and returns)
+    before the loop ever reaches the mission.yaml candidate, so a
+    diagnostic hook placed only inside that loop would never fire for a
+    directory-shaped root.
+    """
+    seen_parents: set[Path] = set()
+    for candidate in candidates:
+        parent = candidate.parent
+        if parent in seen_parents:
+            continue
+        mission_yaml = parent / MISSION_YAML
+        mission_runtime_yaml = parent / MISSION_RUNTIME_YAML
+        if not (mission_yaml.is_file() and mission_runtime_yaml.is_file()):
+            continue
+        seen_parents.add(parent)
+        if _is_builtin_missions_dir(parent):
+            continue
+        _logger.warning(
+            "Walk B: non-built-in tier at %s ships both %s and %s for "
+            "mission %r; %s wins (existing sidecar preference unchanged).",
+            parent,
+            MISSION_YAML,
+            MISSION_RUNTIME_YAML,
+            mission_type,
+            MISSION_RUNTIME_YAML,
+        )
+
+
+def _template_key_for_file(path: Path, *, tier: str = "unknown") -> str | None:
+    """Load a mission key from ``path``, or ``None`` on any load failure.
+
+    FR-010: a load failure is also routed into a named
+    :func:`logging.Logger.warning` naming the offending path (and, when the
+    caller supplies one, the resolution tier/root it was found under) so a
+    malformed org-tier (or any-tier) ``mission.yaml``/``mission-runtime.yaml``
+    is diagnosable instead of silently discarded. The return-value contract
+    is unchanged — callers that depend on ``None`` meaning "skip this
+    candidate" (``_resolve_runtime_template_in_root``) keep working exactly
+    as before; only the caller-invisible logging side channel is new.
+    """
     try:
         template = load_mission_template_file(path)
         return template.mission.key
-    except Exception:
+    except Exception as exc:
+        _logger.warning(
+            "Walk B: failed to load mission template at %s (tier=%s): %s",
+            path,
+            tier,
+            exc,
+        )
         return None
 
 
 def _resolve_runtime_template_in_root(root: Path, mission_type: str) -> Path | None:
-    for candidate in _candidate_templates_for_root(root, mission_type):
+    candidates = _candidate_templates_for_root(root, mission_type)
+    _warn_non_builtin_sidecar_pairs(candidates, mission_type)
+
+    for candidate in candidates:
         if not candidate.exists() or not candidate.is_file():
             continue
 
@@ -328,7 +433,7 @@ def _resolve_runtime_template_in_root(root: Path, mission_type: str) -> Path | N
                 paths_to_try = [runtime_sidecar, candidate]
 
         for path in paths_to_try:
-            template_key = _template_key_for_file(path)
+            template_key = _template_key_for_file(path, tier=str(root))
             if template_key == mission_type:
                 return path.resolve()
 

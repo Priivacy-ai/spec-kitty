@@ -35,6 +35,7 @@ Four independent concerns:
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -44,6 +45,11 @@ import pytest
 
 from runtime.next._internal_runtime import MissionRunRef
 from runtime.next import runtime_bridge_io as io_seam
+from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
+
+# Module name the WP06 (FR-010/FR-011) diagnostics log under -- matches
+# ``_logger = logging.getLogger(__name__)`` in ``runtime_bridge_io.py``.
+_IO_SEAM_LOGGER_NAME = "runtime.next.runtime_bridge_io"
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -226,10 +232,27 @@ def test_candidate_templates_for_root_rejects_unrelated_file(tmp_path: Path) -> 
     assert io_seam._candidate_templates_for_root(other, "software-dev") == []
 
 
-def test_template_key_for_file_returns_none_on_load_failure(tmp_path: Path) -> None:
+def test_template_key_for_file_returns_none_on_load_failure(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """T032 (FR-010): the return-value contract is unchanged (still `None`
+    on a load failure -- callers that depend on `None` meaning "skip this
+    candidate" keep working exactly as before), but the failure is no
+    longer swallowed in total silence -- a named warning identifying the
+    offending path is now also recorded. Before this WP, calling
+    ``_template_key_for_file`` directly on a malformed file produced zero
+    diagnostics anywhere; this asserts both halves of that change."""
     bogus = tmp_path / "mission.yaml"
     bogus.write_text("not: valid: yaml: at: all:", encoding="utf-8")
-    assert io_seam._template_key_for_file(bogus) is None
+
+    with caplog.at_level(logging.WARNING, logger=_IO_SEAM_LOGGER_NAME):
+        result = io_seam._template_key_for_file(bogus)
+
+    assert result is None
+    assert any(str(bogus) in record.getMessage() for record in caplog.records), (
+        f"expected a named warning identifying {bogus}, found none in "
+        f"{caplog.records!r}"
+    )
 
 
 def test_split_env_paths_blank_is_empty() -> None:
@@ -562,6 +585,133 @@ def test_org_tier_position_parity_org_wins_over_global_across_four_sites(
     # Site 4: FSM Walk B
     walk_b_resolved = io_seam._runtime_template_key(mission, project)
     assert walk_b_resolved == str(org_mission_yaml.resolve())
+
+
+# ---------------------------------------------------------------------------
+# 2d. Walk B de-silencing (WP06, FR-010/FR-011, IC-06, mission
+# up-org-template-fsm-01M06F9K). Named diagnostics for a load failure
+# (T031/T032) and a non-built-in tier shipping both sidecar files
+# (T033/T034/T035), replacing what was previously total silence.
+# ---------------------------------------------------------------------------
+
+
+def test_runtime_template_key_org_tier_malformed_mission_yaml_warns(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """FR-010, User Story 4 Acceptance Scenario 1 / SC-005: a malformed
+    ``mission.yaml`` at the org tier produces a named warning identifying
+    the offending path and tier (not silence). Before this WP,
+    ``_runtime_template_key`` fell through to the bare ``mission_type``
+    string with ZERO warnings recorded anywhere for this exact fixture --
+    the fallback-to-``mission_type``-string return contract stays
+    unchanged; only the diagnostic is new."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root = tmp_path / "org-pack"
+    # A mission type no built-in/global tier can also satisfy, so resolution
+    # genuinely falls through to the bare string after the org tier's
+    # malformed file is tried and warned about -- not masked by a real
+    # built-in match at a later tier.
+    mission_type = "wp06-malformed-org-mission"
+    malformed = org_root / "missions" / mission_type / "mission.yaml"
+    malformed.parent.mkdir(parents=True)
+    malformed.write_text("not: valid: yaml: at: all:", encoding="utf-8")
+    _write_org_pack_config(repo_root, pack_name="acme", local_path=org_root)
+
+    with caplog.at_level(logging.WARNING, logger=_IO_SEAM_LOGGER_NAME):
+        resolved = io_seam._runtime_template_key(mission_type, repo_root)
+
+    assert resolved == mission_type
+    matches = [record for record in caplog.records if str(malformed) in record.getMessage()]
+    assert matches, (
+        f"expected a named warning identifying the malformed org-tier file "
+        f"{malformed}, found none in {caplog.records!r}"
+    )
+    assert str(org_root) in matches[0].getMessage(), (
+        "expected the warning to also identify the offending tier/root, "
+        f"got: {matches[0].getMessage()!r}"
+    )
+
+
+def test_non_builtin_tier_sidecar_pair_warns(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """FR-011, User Story 4 Acceptance Scenario 2 (positive half, T033/T034):
+    a non-built-in tier (here, an org pack) shipping both ``mission.yaml``
+    and ``mission-runtime.yaml`` for the same mission key produces a named
+    diagnostic. C-005: the pre-existing ``mission-runtime.yaml``-wins
+    preference is unchanged -- only the missing diagnostic is added; no
+    error is raised and resolution still succeeds."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    org_root = tmp_path / "org-pack"
+    mission_type = "wp06-sidecar-pair-mission"
+    mission_dir = org_root / "missions" / mission_type
+    _write_runtime_mission_yaml(mission_dir / "mission.yaml", key=mission_type)
+    _write_runtime_mission_yaml(mission_dir / "mission-runtime.yaml", key=mission_type)
+    _write_org_pack_config(repo_root, pack_name="acme", local_path=org_root)
+
+    with caplog.at_level(logging.WARNING, logger=_IO_SEAM_LOGGER_NAME):
+        resolved = io_seam._runtime_template_key(mission_type, repo_root)
+
+    # C-005: sidecar preference is unchanged -- mission-runtime.yaml wins.
+    assert resolved == str((mission_dir / "mission-runtime.yaml").resolve())
+    matches = [record for record in caplog.records if str(mission_dir) in record.getMessage()]
+    assert matches, (
+        f"expected a named diagnostic for the non-built-in sidecar pair at "
+        f"{mission_dir}, found none in {caplog.records!r}"
+    )
+
+
+@pytest.mark.parametrize(
+    "mission_type", ["plan", "research", "documentation", MISSION_TYPE_SOFTWARE_DEV]
+)
+def test_builtin_sidecar_pairs_stay_silent(
+    mission_type: str, tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """FR-011, User Story 4 Acceptance Scenario 2 (negative half, T035 --
+    the main correctness risk per plan.md's IC-06 risk note): all four
+    built-in mission directories already legitimately ship both
+    ``mission.yaml`` and ``mission-runtime.yaml``. The new sidecar
+    diagnostic MUST NOT fire for any of them -- exercised individually for
+    all four, not just one representative."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    with caplog.at_level(logging.WARNING, logger=_IO_SEAM_LOGGER_NAME):
+        io_seam._runtime_template_key(mission_type, repo_root)
+
+    sidecar_diagnostics = [
+        record for record in caplog.records if "ships both" in record.getMessage()
+    ]
+    assert sidecar_diagnostics == [], (
+        f"built-in mission {mission_type!r} must not trigger the "
+        f"non-built-in sidecar diagnostic; got {sidecar_diagnostics!r}"
+    )
+
+
+def test_runtime_template_key_no_org_pack_configured_emits_no_new_warnings(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """NFR-005/SC-007 regression safety: a project with no org pack
+    configured (the overwhelmingly common case) resolves the project-legacy
+    mission byte-identically to before this WP, including emitting NO new
+    warnings -- an unconditional/miscalibrated warn would be its own
+    defect. This is the mandatory negative case for both FR-010 and
+    FR-011's diagnostics in the same pass."""
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    legacy_mission = repo_root / ".kittify" / "missions" / "software-dev" / "mission.yaml"
+    _write_runtime_mission_yaml(legacy_mission, key="software-dev")
+
+    with caplog.at_level(logging.WARNING, logger=_IO_SEAM_LOGGER_NAME):
+        resolved = io_seam._runtime_template_key("software-dev", repo_root)
+
+    assert resolved == str(legacy_mission.resolve())
+    assert caplog.records == [], (
+        "no org pack configured -- expected zero warnings on the common "
+        f"path, got {caplog.records!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
