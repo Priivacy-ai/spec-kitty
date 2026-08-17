@@ -16,8 +16,10 @@ Both halves are required together (T017 stops the CLI-level truncation that
 fed an already-narrowed ``org_root`` into both entry points; T018 routes the
 JSON path through ``_resolve_action_bundle``, mirroring the plain-text
 path). This module proves BOTH are required, empirically, not just that a
-plausible-looking fix landed -- see the non-vacuity mutation evidence
-recorded in this WP's report.
+plausible-looking fix landed -- see the non-vacuity mutation-matrix evidence
+recorded in ``kitty-specs/cascade-org-inert-01M07E9P/
+fr002-non-vacuity-mutation-matrix.md`` (also in the PR #3534 description;
+there is no separate "WP report" artifact in this repo).
 
 Fixture shape: a minimal action node lives in an isolated (patched) built-in
 graph; each org pack contributes its own self-contained ``*.graph.yaml``
@@ -35,6 +37,7 @@ FR-002's caller-level fix at the ``charter.context`` public API seam).
 
 from __future__ import annotations
 
+import json
 import textwrap
 from pathlib import Path
 from unittest.mock import patch
@@ -224,9 +227,20 @@ class TestTwoPackChainReachesBothPaths:
     by the ``org_root=None`` call convention in ``_render_both``) or T018
     (the internal ``_resolve_action_bundle`` swap in
     ``build_charter_context_json``) back out independently must turn this RED
-    again -- recorded via manual revert-and-rerun in the WP report, per this
-    mission's stricter-than-default FR-002 test strategy (both halves proven
-    necessary, not just the whole change).
+    again -- recorded via manual revert-and-rerun in
+    ``kitty-specs/cascade-org-inert-01M07E9P/
+    fr002-non-vacuity-mutation-matrix.md`` (and the PR #3534 description),
+    per this mission's stricter-than-default FR-002 test strategy (both
+    halves proven necessary, not just the whole change).
+
+    ``_render_both`` above proves T017/T018 at the library-function level
+    only (``org_root=None`` passed directly to
+    ``build_charter_context``/``build_charter_context_json``, never through
+    the real ``charter context`` Typer command). ``TestContextCliTwoPackChain``
+    below closes that gap by driving the actual CLI command through
+    ``CliRunner`` so a regression of the CLI-level truncation itself
+    (reintroducing ``org_root = org_roots[0] if org_roots else None`` at
+    ``context.py``'s two call sites) would be caught here too.
     """
 
     def test_pack_two_directive_present_in_json_and_text(self, tmp_path: Path) -> None:
@@ -364,3 +378,107 @@ class TestMalformedPackInChainDoesNotWorsen:
         assert _PACK_B_ID not in text
         # Still a clean bootstrap render, not a stack trace.
         assert "Action Doctrine (specify):" in text
+
+
+# ---------------------------------------------------------------------------
+# R2-001 (pr-correctness.findings.yaml) -- drive the REAL ``charter context``
+# Typer command through CliRunner, not the library functions directly.
+#
+# Everything above this point calls ``build_charter_context``/
+# ``build_charter_context_json`` with a hardcoded ``org_root=None`` literal
+# (via ``_render_both``) -- it never imports or invokes
+# ``specify_cli.cli.commands.charter.context.context()``, the actual Typer
+# command T017 touches. A regression that reintroduces
+# ``org_root = org_roots[0] if org_roots else None`` at ``context.py``'s two
+# ``build_charter_context``/``build_charter_context_json`` call sites would
+# go undetected by every test above. This class closes that gap.
+# ---------------------------------------------------------------------------
+
+
+class TestContextCliTwoPackChain:
+    """Same two-org-pack, pack-B-only-content fixture as
+    ``TestTwoPackChainReachesBothPaths`` above, but driven through
+    ``spec-kitty charter context`` via ``CliRunner`` -- pinning the CLI
+    command's own ``org_root=None`` call sites (T017), not just the library
+    functions it calls.
+    """
+
+    def _invoke(
+        self,
+        repo_root: Path,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        *,
+        json_output: bool,
+    ):
+        from typer.testing import CliRunner
+
+        import specify_cli.cli.commands.charter as charter_pkg
+        from specify_cli.cli.commands.charter import charter_app
+
+        monkeypatch.setattr(charter_pkg, "find_repo_root", lambda: repo_root)
+
+        mock_built_in = _isolated_built_in_graph(tmp_path)
+        with patch(
+            "charter._drg_helpers.load_built_in_graph",
+            return_value=mock_built_in,
+        ):
+            runner = CliRunner()
+            args = ["context", "--action", _ACTION, "--mission-type", _MISSION_TYPE]
+            if json_output:
+                args.append("--json")
+            return runner.invoke(charter_app, args)
+
+    def test_pack_two_directive_present_in_cli_text_output(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        _write_project_fixture(repo_root)
+        org_root_a = tmp_path / "org-pack-a"
+        org_root_b = tmp_path / "org-pack-b"
+        _write_org_pack(org_root_a, directive_id=_PACK_A_ID, directive_urn=_PACK_A_URN)
+        _write_org_pack(org_root_b, directive_id=_PACK_B_ID, directive_urn=_PACK_B_URN)
+        _write_config(repo_root, [org_root_a, org_root_b])
+
+        result = self._invoke(repo_root, tmp_path, monkeypatch, json_output=False)
+
+        assert result.exit_code == 0, result.output
+        assert _PACK_A_ID in result.output, (
+            "regression: pack A dropped out of the real CLI's plain-text output"
+        )
+        assert _PACK_B_ID in result.output, (
+            "pack B (second org pack in the chain) is missing from the real "
+            "`spec-kitty charter context` plain-text output -- the CLI command "
+            "itself is truncating org_root to org_roots[0] again (T017 regressed)"
+        )
+
+    def test_pack_two_directive_present_in_cli_json_output(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+        _write_project_fixture(repo_root)
+        org_root_a = tmp_path / "org-pack-a"
+        org_root_b = tmp_path / "org-pack-b"
+        _write_org_pack(org_root_a, directive_id=_PACK_A_ID, directive_urn=_PACK_A_URN)
+        _write_org_pack(org_root_b, directive_id=_PACK_B_ID, directive_urn=_PACK_B_URN)
+        _write_config(repo_root, [org_root_a, org_root_b])
+
+        result = self._invoke(repo_root, tmp_path, monkeypatch, json_output=True)
+
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        directive_ids = _directive_ids(payload)
+        assert _PACK_A_ID in directive_ids, (
+            "regression: pack A dropped out of the real CLI's --json output"
+        )
+        assert _PACK_B_ID in directive_ids, (
+            "pack B (second org pack in the chain) is missing from the real "
+            "`spec-kitty charter context --json` output -- the CLI command "
+            "itself is truncating org_root to org_roots[0] again (T017 regressed)"
+        )
+        # Same content must also reach the JSON payload's embedded plain-text
+        # ``context``/``text`` fields, not just the structured ``directives``
+        # array.
+        assert _PACK_B_ID in payload["text"]
