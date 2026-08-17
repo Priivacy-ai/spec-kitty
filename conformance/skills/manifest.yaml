@@ -314,6 +314,13 @@ cases:
     expectations:
       ok: true
       violations: []
+  - id: spk-run-verdict-capture
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-run-verdict-capture
+    profile: base
+    expectations:
+      ok: true
+      violations: []
   - id: spk-start-agent-surface
     type: static
     skillDir: ../../src/doctrine/skills/spk-start-agent-surface
