@@ -323,7 +323,10 @@ def sync_feature_dossier(
 
     # Step 1: Index
     try:
-        indexer = Indexer(ManifestRegistry())
+        # #3525 Fold C: thread repo_root through so a configured org-pack
+        # expected-artifacts.yaml override is honored by the dossier
+        # completeness index, not just the governance gate.
+        indexer = Indexer(ManifestRegistry(), repo_root=repo_root)
         dossier = indexer.index_feature(feature_dir, mission_type, step_id)
     except Exception as e:
         logger.exception("Indexer failed for %s", feature_dir)

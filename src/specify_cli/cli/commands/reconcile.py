@@ -152,7 +152,10 @@ def reconcile_mission_dossier(
         from specify_cli.dossier.indexer import Indexer
         from specify_cli.dossier.manifest import ManifestRegistry
 
-        dossier = Indexer(ManifestRegistry()).index_feature(feature_dir, mission_type)
+        # #3525 Fold C: thread the resolved project root through so a
+        # configured org-pack expected-artifacts.yaml override is honored
+        # by the dossier completeness index, not just the governance gate.
+        dossier = Indexer(ManifestRegistry(), repo_root=root).index_feature(feature_dir, mission_type)
     except Exception as exc:  # noqa: BLE001 - fail-closed: any rebuild failure is an ERROR
         return ReconciliationResult(
             status=ReconciliationStatus.ERROR,
