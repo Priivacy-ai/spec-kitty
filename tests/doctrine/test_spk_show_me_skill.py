@@ -52,6 +52,7 @@ def test_skill_pins_status_tui_rendering_contract(skill_text: str) -> None:
         "src/doctrine/skills/spec-kitty/SKILL.md",
         "src/doctrine/skills/spk-mission-specify/SKILL.md",
         "src/doctrine/skills/spk-mission-plan/SKILL.md",
+        "src/doctrine/skills/spk-admin-dashboard/SKILL.md",
         "packs/built-in/missions/mission-steps/software-dev/specify/prompt.md",
         "packs/built-in/missions/mission-steps/software-dev/plan/prompt.md",
     ],

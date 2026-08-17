@@ -24,7 +24,8 @@ Families:
 - `spk-gate-*`: accept, merge, mission review, and retrospectives.
 - `spk-admin-*`: setup, configuration, upgrades, dashboard/status.
 - `spk-team-*`: auth, sync, tracker, connectors.
-- `spk-doctrine-*`: charter, glossary, SPDD, profiles, bulk-edit policy.
+- `spk-doctrine-*`: charter, glossary, SPDD, profiles, visual communication,
+  and bulk-edit policy.
 - `spk-integrate-*`: APIs, CI, external automation.
 - `spk-meta-*`: skill discovery and authoring.
 

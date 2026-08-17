@@ -15,6 +15,9 @@ Use this skill when a mission has a spec and needs an implementation plan.
    rollout, and risks.
 4. Route research gaps to `spk-mission-research`.
 5. Route unclear mission type or workflow questions to `spk-mission-types`.
+6. For non-trivial architecture, data/control flow, boundaries, migrations, or
+   risky interactions, load `spk-doctrine-show-me` and use diagrams where they
+   materially reduce prose.
 
 ## Guardrail
 
