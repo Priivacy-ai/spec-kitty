@@ -1,0 +1,57 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: >
+      Verified against wps.yaml/owned_files union (9 files total, 5 non-test) and WP02/T006
+      (widens an existing `_scan_files` condition, no new helper/call site) — WP01's "three
+      helper+call-site diagnostics" and "eight non-test files" claims both fail the cross-check;
+      plan.md's own Source Code breakdown also lists exactly 5 non-test files.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: >
+      Read WP02's DoD (explicit ruff/mypy zero-suppressions line), WP03's DoD (no such line,
+      only present in T010's subtask Validation) and WP04's DoD/Risks/Validation (no ruff/mypy
+      mention anywhere) — the asymmetry is real; plan.md:718-727's Complexity Tracking
+      follow-up is likewise never operationalized in any later WP's subtasks.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: >
+      `src/specify_cli/doctrine/pack_validator.py:389-392` is accurate on current main, but
+      WP03/T010 inserts its new call site immediately before that same "# DRG validation"
+      block (per WP03's own step 2), so the absolute line numbers will have shifted by the
+      time WP04 lands — the prose anchor is confirmed self-correcting as claimed.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: >
+      Re-ran `gh pr list --state open --json number,title,files` live: PR #2719 touches
+      `tests/cli/test_doctrine_org_commands.py` with exactly +206/-0 as cited, and
+      `docs/changelog/CHANGELOG.md` is touched by exactly the eight PRs cited (#3383, #3379,
+      #3378, #3332, #3293, #2890, #2492, #2239); neither overlap appears in WP04's Risks
+      section, while the "no open PR touches pack_validator.py/pack_assembler.py" core claim
+      is independently re-confirmed true.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: >
+      `grep -rn` for git worktree/show/checkout/stash/-C across tasks/*.md and plan.md
+      produces zero hits in any WP file and one unrelated hit at plan.md:569, exactly as
+      cited; plan.md's "Practical consequence" paragraph (lines 490-503) states the
+      separate-ref-checkout concept but supplies no runnable command sequence.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: >
+      spec.md FR-002 AC-4 (lines 331-334) requires a test asserting the call/shape; WP03's DoD
+      (line ~348) instead states AC-4 is "true by construction," and T008-T013 contain no
+      mock/patch assertion on `AgentProfileRepository.skipped_profiles`, while WP04's parallel
+      ACs (T016/T017a) do use exactly that technique and explicitly reject "existing test still
+      passes" as sufficient — the double standard is real.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: >
+      spec.md FR-004 AC-4 (lines 471-475) requires both `ok is False` and exit-code-1 coverage;
+      WP04's T014 calls `validate_pack()` directly and asserts only `result.ok is False`, with
+      no CliRunner/`runner.invoke` or exit-code assertion anywhere in the subtask, while the DoD
+      (line ~407) claims AC-4 is "falsifiable via T014's test," overstating what T014 covers.

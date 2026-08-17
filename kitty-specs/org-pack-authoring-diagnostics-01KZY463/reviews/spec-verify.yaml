@@ -1,0 +1,17 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH2-001
+    status: resolved
+    reason: >-
+      Commit 766766d38 added the parallel clause naming org_validate's onboarding-scaffold
+      carve-out to FR-004's "Fails how" paragraph (spec.md:462-465), which now reads "while
+      both assemble_pack()'s internal round-trip check and org_validate's onboarding-scaffold
+      check continue to pass for their own known drg/-fragments-only output" — matching the
+      remediation verbatim and bringing it in line with the Reflexivity-fix body, the Verified
+      Code Surfaces table (spec.md:84), C-004, the Campsite note, SC-005, and AC-6/AC-7, all of
+      which already treated org_validate as a co-equal second carve-out; an independent sweep
+      of the rest of FR-004 (Requirement, User Story 4, Edge Cases bullet 4, Reflexivity-fix
+      body, Constraints, Campsite note, SC-005) found no other paragraph naming only one of the
+      two carve-outs where it should name both.

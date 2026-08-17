@@ -1,0 +1,74 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh-2
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: PLAN-FRESH2-001
+    lens: Gates (CI trigger-mechanism accuracy — recurring-mistake class)
+    severity: 2
+    title: "Gate Set's new CHANGELOG-sync-check bullet misattributes why the check fires: cites the root CHANGELOG.md path-filter entry, but the mission edits the canonical docs/ file, which a different filter entry already covers, and the step itself is unconditional once the job runs"
+    evidence:
+      - artifact: "plan.md § The Gate Set, 'Architecture/docs consistency (docs-freshness workflow)' bullet, item 2 (added by commit 01c8a3714): \"newly applicable because IC-04 edits `docs/changelog/CHANGELOG.md`, and the root `CHANGELOG.md` (a symlink to it) sits inside this workflow's PR `paths:` filter (`.github/workflows/docs-freshness.yml:43`).\""
+      - code: ".github/workflows/docs-freshness.yml:38 — `paths:` entry `'docs/**'`, which is the pattern that actually matches a changed `docs/changelog/CHANGELOG.md` (the file this mission's IC-04 edits); the `'CHANGELOG.md'` entry at :43 matches only the literal root path, which git records as an unchanged symlink blob when only its target file is edited"
+      - code: ".github/workflows/docs-freshness.yml:126-127 — the \"Check CHANGELOG sync (canonical → root)\" step carries no step-level `if:`/path condition; every step in the `docs-freshness` job (lines 104-127+) runs unconditionally once the job itself is triggered — the step is not gated on whether CHANGELOG.md specifically appears in the diff"
+      - artifact: "plan.md § The Gate Set, docs-freshness bullet, item 1 (FR-001's own guide edit, unchanged text): confirms `docs/guides/how-to/governance/create-an-org-doctrine-pack.md` is edited, which already falls under `docs/**` and already triggers the whole `docs-freshness` workflow (and therefore the CHANGELOG-sync step) independent of IC-04's changelog edit"
+    claim: >
+      The round-2 fix (commit 01c8a3714) added a new Gate Set sub-bullet framing the CHANGELOG
+      sync check as "newly applicable" specifically because IC-04's changelog edit falls inside
+      the workflow's path filter via the `'CHANGELOG.md'` entry at line 43. Two things are wrong
+      with this reasoning, even though its bottom-line instruction (edit the canonical path, not
+      the symlink) is correct: (1) GitHub Actions `paths:` filters match the literal path of a
+      changed file, not a symlink's resolved target — editing `docs/changelog/CHANGELOG.md`
+      matches the `'docs/**'` entry (line 38), not the `'CHANGELOG.md'` entry (line 43), because
+      the root symlink file itself is untouched by this diff. (2) The "Check CHANGELOG sync" step
+      has no per-step path condition at all — it is one of roughly a dozen unconditional steps
+      that all run whenever the `docs-freshness` job runs, which happens on this PR anyway
+      because FR-001's own guide edit already falls under `'docs/**'`. So the check was never
+      "newly applicable" due to IC-04's changelog touch; it was already going to run on this PR
+      (and on any docs-freshness-triggering PR, whether or not it touches CHANGELOG.md at all).
+      This is the same recurring-mistake class as the already-confirmed PLAN-VERIFY-001 finding
+      from the prior fix round (mischaracterizing a CI job's trigger mechanism) — reintroduced
+      here in a brand-new sentence the round-2 fix itself wrote.
+    remediation: >
+      Rewrite the bullet to state the mechanism correctly: the `docs-freshness` job already runs
+      on this PR because FR-001's guide edit falls under the `'docs/**'` path filter
+      (`.github/workflows/docs-freshness.yml:38`); the "Check CHANGELOG sync" step
+      (`:126-127`) is unconditional within that job and therefore always executes once the job
+      runs, so it applies regardless of whether IC-04's changelog entry is present — drop the
+      "newly applicable ... because IC-04 edits ... and sits inside this workflow's PR `paths:`
+      filter (`:43`)" framing, since the `'CHANGELOG.md'` entry at line 43 is not what makes this
+      check fire for this diff (it would matter only if the root symlink path itself were
+      literally rewritten). Keep the existing operational guidance (edit the canonical path
+      directly, never replace the symlink) — that part is unaffected by the correction.
+
+  - id: PLAN-FRESH2-002
+    lens: Documentation precision / evidentiary reproducibility
+    severity: 2
+    title: "Contextive-glossary Gate Set bullet claims docs/context/*.md is a '25-file directory' — actual count is 24"
+    evidence:
+      - artifact: "plan.md § The Gate Set, 'Contextive glossary' bullet (added by commit 01c8a3714): \"plus `docs/context/*.md` (verified to exist as a 25-file directory, including `contextive-glossaries.md` and `glossary-conventions.md` ...)\""
+      - code: "`ls -1 docs/context/*.md | wc -l` on this checkout (HEAD = 01c8a3714) returns 24, not 25"
+    claim: >
+      The round-2 fix added a claim that `docs/context/*.md` was "verified to exist as a 25-file
+      directory" as part of justifying why the glossary check was widened to search it. Directly
+      re-running the count on this exact checkout gives 24 `.md` files
+      (`charter-overview.md`, `configuration-project-structure.md`, `contextive-glossaries.md`,
+      `doctrine.md`, `dossier.md`, `execution.md`, `glossary-conventions.md`, `governance-files.md`,
+      `governance.md`, `historical-terms.md`, `identity-fields.md`, `identity.md`, `index.md`,
+      `lexical.md`, `mission-types.md`, `naming-decision-tool-vs-agent.md`,
+      `ops-vs-missions.md`, `orchestration.md`, `planning-and-tracking.md`,
+      `practices-principles.md`, `spec-driven.md`, `system-events.md`,
+      `technology-foundations.md`, `testing-taxonomy.md`), one short of the claimed 25. The
+      bottom-line conclusion (both grep commands return zero hits, no glossary entry needed) is
+      unaffected — the two grep commands shown in the fenced block do not depend on the count —
+      but the bullet exists specifically to give a reproducible, verified evidentiary trail (the
+      prior fresh-sweep round's PLAN-FRESH-003 finding was exactly about this bullet's evidence
+      not matching its prose claim), and this round's fix introduces a fresh, directly-checkable
+      miscount into that same evidentiary sentence.
+    remediation: >
+      Correct "25-file directory" to "24-file directory" (or drop the specific count and just say
+      "a docs/context/*.md directory that includes contextive-glossaries.md and
+      glossary-conventions.md"), since the count is not load-bearing for the check's conclusion
+      and is only there as an audit-trail detail that should be accurate if stated at all.

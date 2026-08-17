@@ -1,0 +1,65 @@
+schema: wp-review/v1
+wp_id: WP04
+complete: true
+verdict: approved
+findings: []
+revert_test:
+  performed: true
+  result: >-
+    Neutralized _check_drg_root_graph_missing's call site in pack_validator.py
+    (temporary `if False and check_drg_root:` guard, restored immediately after).
+    With the diagnostic disabled: test_drg_only_fragment_no_pack_root_graph_fires_error
+    FAILED (assert True is False — result.ok stayed True), test_near_miss_pack_root_filename_does_not_satisfy_check
+    FAILED (assert [] — no drg_root_graph_missing issue), and
+    test_doctrine_org_validate_catches_drg_only_fragment_after_init FAILED
+    (assert 0 != 0 — CLI exited 0 instead of non-zero). test_pack_root_graph_present_suppresses_diagnostic
+    and test_neither_root_graph_nor_drg_dir_no_diagnostic PASSED as expected (they
+    assert absence of a diagnostic, vacuously true either way — matches AC-2/AC-3's
+    documented vacuous-pass shape). The two parameter-value assertion tests
+    (test_internal_validate_pack_call_carves_out_drg_root_check,
+    test_doctrine_org_validate_calls_validate_pack_with_check_drg_root_true) still
+    PASSED under the revert, correctly, since they assert wiring (the value passed
+    to validate_pack) not diagnostic behaviour. File restored exactly; git status
+    --porcelain -uno clean afterward.
+ruling_conformance:
+  org_validate_explicit_true: true
+  assembler_carveout_separate_rationale: true
+  ac7_positive_fire_fixture: >-
+    test_doctrine_org_validate_catches_drg_only_fragment_after_init
+    (tests/cli/test_doctrine_org_commands.py) — scaffolds a pack via
+    `runner.invoke(app, ["org", "init", ...])`, adds a real
+    drg/010-security.graph.yaml fragment with no pack-root *.graph.yaml, invokes
+    `runner.invoke(app, ["org", "validate", str(pack_dir)])`, and asserts
+    result.exit_code != 0 and "drg_root_graph_missing" in result.output. Confirmed
+    via the revert test above to genuinely exercise the CLI path and fail when the
+    diagnostic is disabled — not a vacuous assertion.
+modified_preexisting_tests:
+  verdict: justified
+  reasoning: >-
+    test_drg_edge_resolves_against_pack_artifacts and test_duplicate_drg_edge_advisory
+    (tests/specify_cli/doctrine/test_pack_validator.py) both build drg/-fragments-only
+    fixtures (no pack-root graph) to test edge-URN resolution and duplicate-edge
+    advisory logic in isolation — genuinely orthogonal to FR-004's pack-root-graph
+    check, which is about presence/absence of a top-level graph file, not edge
+    content. Before this WP the new check did not exist, so these fixtures passed
+    validate_pack(tmp_path) cleanly; after this WP's default-on check, the same
+    fixtures newly trip drg_root_graph_missing (their drg/*.graph.yaml fragment
+    names do match the check's glob), which is a correct, expected side effect of a
+    genuinely additive check, not evidence the check itself is wrong. The
+    accommodation is check_drg_root=False plus an inline rationale comment on each
+    call, not a body/assertion change: assert result.ok is True and the
+    duplicate-advisory assertions are untouched, so both tests would still fail if
+    edge-resolution or duplicate-detection regressed. Verified pack_validator.py
+    never separately validates a pack-root *.graph.yaml's schema (it is only
+    checked for existence via glob in the new helper) — so the alternative
+    accommodation floated in the review brief (add a dummy pack-root graph to the
+    fixtures instead) would be functionally equivalent, not materially more
+    "realistic"; check_drg_root=False is the more direct, self-documenting choice
+    and does not mask a defect. Confirmed via git diff that
+    test_force_dedup_prunes_duplicate_edges_via_canonical_serializer (protected
+    transitively by pack_assembler.py's own check_drg_root=False carve-out, since it
+    goes through assemble_pack) and test_doctrine_org_validate_accepts_valid_pack
+    are both present in the diff unmodified, and both pass in the current 57/5/0 run
+    — confirming the original (now-corrected) FR-004 text's claim that the latter
+    would fail is indeed false against this implementation, as operator ruling #2
+    established.

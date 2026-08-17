@@ -1,0 +1,35 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: PLAN-GOV-001
+    lens: Terminology (Contextive glossary claim verification)
+    severity: 2
+    title: "The Gate Set's Contextive-glossary grep command under-covers the repo's actual .contextive.yml file set, though its stated conclusion still holds"
+    evidence:
+      - artifact: "plan.md § The Gate Set, 'Contextive glossary' bullet"
+      - code: "src/specify_cli/cli/.contextive.yml, src/specify_cli/missions/.contextive.yml, src/specify_cli/dossier/.contextive.yml, src/specify_cli/merge/.contextive.yml, src/specify_cli/status/.contextive.yml"
+    claim: >
+      Plan.md states the glossary check was "Checked directly:
+      grep -rn \"schema_invalid|duplicate_id|asset_path_escape|drg_dangling_edge\" across
+      src/specify_cli/.contextive/*.yml, src/glossary/.contextive.yml, and docs/context/*.md
+      returns zero hits" and concludes no glossary entry is needed for the two new category
+      values. Re-running that exact command confirms zero hits, but the repo also carries five
+      more per-subpackage .contextive.yml files this command does not touch:
+      src/specify_cli/cli/.contextive.yml, src/specify_cli/missions/.contextive.yml,
+      src/specify_cli/dossier/.contextive.yml, src/specify_cli/merge/.contextive.yml, and
+      src/specify_cli/status/.contextive.yml (found via `find . -iname "*.contextive.yml"`).
+      Running the same four search terms plus the plan's own new category values
+      (profile_skipped, drg_root_graph_missing) across the full 13-file set still returns zero
+      hits, so the plan's bottom-line conclusion is correct — but the check as documented is not
+      the exhaustive sweep it presents itself as, and a future reader who copies the stated
+      command to re-verify a similar claim will silently skip 5 of 13 glossary files.
+    remediation: >
+      Widen the documented grep to the full glossary file set, e.g.
+      `find . -iname "*.contextive.yml" -o -path "*/.contextive/*.yml" | xargs grep -n <terms>`,
+      or simply state "the full .contextive.yml file set repo-wide" rather than the two
+      partial paths, so the audit trail this bullet exists to provide is actually reproducible
+      and complete.

@@ -1,0 +1,101 @@
+schema: review-findings/v1
+phase: pr
+group: tests
+complete: true
+findings:
+  - id: PR-TESTS-001
+    severity: 2
+    lens: vacuous
+    location: "tests/specify_cli/doctrine/test_pack_validator.py:1073 (test_pack_root_graph_present_suppresses_diagnostic), tests/specify_cli/doctrine/test_pack_validator.py:1095 (test_neither_root_graph_nor_drg_dir_no_diagnostic), tests/specify_cli/doctrine/test_pack_validator.py:956 (test_clean_pack_has_no_profile_skipped_issue)"
+    finding: >
+      Three new negative-assertion tests are unfalsifiable with respect to their own
+      subject: each asserts a diagnostic category is ABSENT from a fixture where, before
+      this mission's WP landed, that diagnostic category did not exist at all, so the
+      assertion holds identically whether the new check is present, absent, or broken.
+      For the two FR-004 tests this is the exact "AC-2/AC-3 passes vacuously
+      pre-implementation" shape the WP04 implementer's own commentary names (recorded in
+      reviews/wp04.review.yaml's revert_test.result, but never filed as a formal finding
+      there — findings: [] on that WP). test_clean_pack_has_no_profile_skipped_issue
+      (FR-002/AC-3) is the same shape and was not called out at all in
+      reviews/wp03.review.yaml. None of the three are defects — each is paired with a
+      solid positive-fire test for the same behaviour (test_drg_only_fragment_no_pack_root_graph_fires_error,
+      test_post_merge_skip_surfaces_as_profile_skipped_issue) that does discriminate — but
+      per this review's brief, a vacuous negative test is a real finding even when the
+      paired positive case is solid, and this pattern recurs three times across two work
+      packages without ever being logged.
+    evidence: >
+      Independent revert test (serial, restored, git status --porcelain -uno clean
+      before/after): disabled _check_drg_root_graph_missing's call site in
+      src/specify_cli/doctrine/pack_validator.py (`if False and check_drg_root:`) and ran
+      `uv run python -m pytest tests/specify_cli/doctrine/test_pack_validator.py::TestDrgRootGraphMissing
+      tests/cli/test_doctrine_org_commands.py::test_doctrine_org_validate_catches_drg_only_fragment_after_init -q`
+      => "3 failed, 4 passed" — test_pack_root_graph_present_suppresses_diagnostic and
+      test_neither_root_graph_nor_drg_dir_no_diagnostic were among the 4 that PASSED under
+      the disabled check, confirming they cannot discriminate this WP's subject.
+      test_clean_pack_has_no_profile_skipped_issue is vacuous by construction (not
+      independently re-verified by revert, since removing the entire
+      _check_profile_skipped_diagnostics call — which the WP03 reviewer's revert test at
+      reviews/wp03.review.yaml already performed — trivially cannot produce a
+      profile_skipped issue for a fixture that was never designed to collide with any
+      built-in profile-id in the first place).
+    fix: >
+      No code or assertion change required for merge — precedent already exists at
+      reviews/wp02.review.yaml (WP02-003, the identical pattern on
+      test_nested_asset_manifest_valid_passes, filed severity 1, "no code change
+      required. Optional: add a one-line comment"). Apply the same treatment here: a
+      one-line docstring/comment on each of the three tests noting it is a
+      no-false-positive companion to its named positive-fire test, not independent
+      revert-discriminating coverage, so a future reader does not mistake it for one.
+  - id: PR-TESTS-002
+    severity: 1
+    lens: coverage
+    location: "src/specify_cli/doctrine/pack_validator.py:664, src/specify_cli/doctrine/pack_validator.py:666"
+    finding: >
+      The glob literal "*.graph.yaml" now appears 4 times in pack_validator.py (lines
+      542, 664, 666, 1107) — CLAUDE.md's Sonar Expectations section requires literals
+      repeated >=3x in a module to be hoisted to a named constant (S1192). Pre-mission
+      the literal appeared only twice (lines 506 and 989 on origin/main); this mission's
+      two new call sites inside _check_drg_root_graph_missing tip the module over the
+      threshold. Not a test-file issue (the changed file is production code, not one of
+      the four C-004-targeted test files), so it is reported at nit severity and may
+      belong to another lens's remit rather than blocking this lens's sign-off.
+    evidence: >
+      `git show origin/main:src/specify_cli/doctrine/pack_validator.py | grep -n
+      '"\*\.graph\.yaml"'` => 2 hits (lines 506, 989). `grep -n '"\*\.graph\.yaml"'
+      src/specify_cli/doctrine/pack_validator.py` on this branch => 4 hits (lines 542,
+      664, 666, 1107).
+    fix: >
+      Hoist "*.graph.yaml" to a module-level constant (e.g. _GRAPH_GLOB) in
+      pack_validator.py and reference it from _validate_drg, _check_drg_root_graph_missing,
+      and the intent-conflict scan — purely cosmetic, no behaviour change.
+revert_summary: >
+  Serially reverted and restored (via a saved-original-file diff, never git checkout/restore)
+  two subjects in src/specify_cli/doctrine/pack_validator.py, confirming file identical
+  (md5sum match) and git status --porcelain -uno clean after each: (1) disabled
+  _check_drg_root_graph_missing's call site under `check_drg_root` — TestDrgRootGraphMissing's
+  two positive-fire tests and test_doctrine_org_validate_catches_drg_only_fragment_after_init
+  failed as expected (3 failed), while the two AC-2/AC-3 negative tests and the two
+  parameter-value assertion tests passed (4 passed), reproducing WP04 reviewer's own
+  revert-test result independently. (2) Dropped pack_artifact_urns from known_urns inside
+  _validate_drg to simulate an edge-resolution regression — both WP04-modified
+  pre-existing tests (test_drg_edge_resolves_against_pack_artifacts,
+  test_duplicate_drg_edge_advisory) failed as expected, confirming their check_drg_root=False
+  accommodation does not mask a regression in the behaviour they actually pin. No other
+  files were mutated.
+measured_counts: >
+  `uv run python -m pytest tests/specify_cli/doctrine/test_pack_validator.py
+  tests/doctrine/test_agent_profile_model_field.py tests/specify_cli/doctrine/test_pack_assembler.py
+  tests/cli/test_doctrine_org_commands.py -q` => 66 passed, 5 skipped, 0 failed, 65.81s.
+  Baseline (mission tip before any WP, per the review brief) was 50 passed, 5 skipped, 0
+  failed. Delta = +16 passed, 0 skipped delta, 0 failed — cross-checked against actual new
+  `def test_` counts per file via `git show origin/main:<file> | grep -c` vs current file:
+  test_pack_validator.py +12, test_agent_profile_model_field.py +1, test_pack_assembler.py
+  +1, test_doctrine_org_commands.py +2, total +16. Exact match; nothing regressed, nothing
+  unaccounted for. Coverage floors checked directly against .github/workflows/ci-quality.yml:
+  the kernel gate covers only `src/kernel` (line ~1113) and the mission-loader gate covers
+  only `src/specify_cli/mission_loader` (line ~1541); this diff's three touched files
+  (src/specify_cli/cli/commands/doctrine.py, src/specify_cli/doctrine/pack_validator.py,
+  src/specify_cli/doctrine/pack_assembler.py) fall under neither named floor. All three new
+  patch() targets validated via `uv run python scripts/check_patch_targets.py
+  tests/specify_cli/doctrine/` ("All 2 patch() targets valid") and `tests/cli/`
+  ("All 576 patch() targets valid") — both exit 0.

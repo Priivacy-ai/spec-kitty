@@ -1,0 +1,128 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: SPEC-ARCH-001
+    lens: Reflexivity
+    severity: 4
+    title: "FR-004's default-error DRG-root-graph check would break pack_assembler's own internal validate_pack call, contradicting existing passing tests"
+    evidence:
+      - artifact: "spec.md § FR-004, AC-4; § Reflexivity"
+      - code: "src/specify_cli/doctrine/pack_assembler.py:335 (validate_pack(output_dir) call, rollback on !ok)"
+      - code: "src/specify_cli/doctrine/pack_assembler.py:475-490 (_copy_drg_fragments docstring: \"Copy DRG fragments to output_dir/drg/\" — no code path anywhere in the file ever writes a pack-root *.graph.yaml)"
+      - code: "tests/specify_cli/doctrine/test_pack_assembler.py:232-262 (test_force_dedup_prunes_duplicate_edges_via_canonical_serializer — asserts result.ok is True after assemble_pack writes DRG fragments only under output/drg/, no pack-root graph, then internally calls validate_pack(output))"
+      - code: "tests/specify_cli/doctrine/test_pack_assembler.py:151-167 (test_drg_conflict — same shape)"
+    claim: >
+      The mission-derived lens explicitly requires grepping for internal callers of
+      validate_pack/pack_validate beyond the CLI entrypoint the spec cites. That grep
+      surfaces one: src/specify_cli/doctrine/pack_assembler.py:335 calls
+      validate_pack(output_dir) after assembling a merged pack, and rolls the whole
+      assembly back (result.ok=False, output directory deleted) if validation fails.
+      pack_assembler.py's _copy_drg_fragments always writes DRG content to
+      output_dir/drg/*.graph.yaml and never creates a pack-root *.graph.yaml — there is
+      no code path in the file that does. This is exactly the shape FR-004 targets: "a
+      pack's drg/ directory contains one or more *.graph.yaml fragments and the pack
+      root contains no top-level *.graph.yaml file." FR-004's AC-4 states the default
+      expected severity is error (fails pack validate's exit code) "unless the plan
+      phase records a specific reason to soften it." If implemented as specified,
+      every assembled pack that carries any DRG fragment — which is the assembler's
+      own normal, currently-tested output shape — would fail assemble_pack's internal
+      validate_pack(output_dir) gate and roll back, breaking
+      test_force_dedup_prunes_duplicate_edges_via_canonical_serializer,
+      test_drg_conflict, and any other currently-green test_pack_assembler.py test
+      that exercises DRG fragments. Neither the spec's "Verified Code Surfaces" table
+      nor its Reflexivity section (which only discusses external CI jobs gating on
+      pack validate's exit code, plus a workspace-scoped "no mid-flight mission"
+      claim) identifies pack_assembler.py as a consumer, and
+      tests/specify_cli/doctrine/test_pack_assembler.py is absent from every FR's
+      "Targeted test surface" list and from C-004's enumerated test packages — so this
+      regression would not even be run under the mission's own test-scoping
+      constraint, let alone specified against.
+    remediation: >
+      Add pack_assembler.py's internal validate_pack(output_dir) call to FR-004's
+      scope explicitly, and pick one of: (a) scope the new diagnostic to
+      author-facing pack validate invocations against a source pack, excluding
+      assembler-produced intermediate output (e.g. a parameter/flag
+      validate_pack(..., check_drg_root=False) that assemble_pack passes); (b) have
+      _copy_drg_fragments also emit a pack-root *.graph.yaml (or fold fragments into
+      one) so assembled output satisfies the same shape FR-004 requires of authored
+      packs; or (c) make FR-004's default severity advisory rather than error given
+      this concrete counter-example, with plan-phase justification either way. Add
+      tests/specify_cli/doctrine/test_pack_assembler.py to FR-004's targeted test
+      surface and C-004's test-package list, and add an acceptance criterion covering
+      assemble_pack's behavior against a DRG-fragment-only merged pack.
+
+  - id: SPEC-ARCH-002
+    lens: Contracts
+    severity: 3
+    title: "FR-002 leaves unresolved whether skipped-profile diagnostics land as a new top-level JSON key or a new category within the existing errors/advisories arrays"
+    evidence:
+      - artifact: "spec.md § FR-002 Requirement paragraph (\"...includes any skipped_profiles() entries in its ValidationResult... as ValidationIssues with a distinct category (e.g. profile_skipped)\")"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1 and § FR-002 AC-1 (\"the JSON payload includes a skipped_profiles entry\" / \"causes pack validate --json to include a skipped_profiles (or equivalently-named) entry with file, profile id..., and error summary\")"
+      - code: "src/specify_cli/doctrine/pack_validator.py:137-150 (ValidationResult.to_dict() emits exactly {ok, errors, advisories} today — no fourth key)"
+    claim: >
+      The mission's own Contracts lens asks whether FR-001's shared-suffix-constant
+      change is a silent contract change on the ValidationResult/ValidationIssue JSON
+      shape — verified clean for FR-001 (already-identical globs, genuine de-dup). The
+      identical question is live for FR-002 but the spec does not resolve it. FR-002's
+      Requirement paragraph commits to representing skip diagnostics as
+      ValidationIssues carrying a new category value (e.g. profile_skipped) — i.e.
+      reusing the existing errors/advisories arrays, which today are the only two
+      list-shaped members of ValidationResult.to_dict() alongside ok. But the User
+      Story 2 acceptance text and FR-002's own AC-1 both describe "a skipped_profiles
+      entry" "keyed by file and reason" — phrasing that reads as a structurally
+      distinct object (a new top-level key in the JSON payload, parallel to errors/
+      advisories), not a category value nested inside one of the two existing arrays.
+      These two descriptions specify two different JSON shapes for the same feature,
+      and the spec never states which one governs. Whichever an implementer picks,
+      the other reading's acceptance-scenario wording ("skipped_profiles entry")
+      would look unsatisfied to a literal-minded reviewer, and any downstream
+      consumer relying on today's fixed {ok, errors, advisories} shape sees a
+      different kind of change depending on which path is taken (a new category value
+      inside an existing array vs. an entirely new top-level key).
+    remediation: >
+      Pick one representation explicitly in the spec (or defer explicitly to plan
+      phase with a named decision point) and make FR-002's Requirement text and its
+      Acceptance Criteria use the same vocabulary. If the ValidationIssue+category
+      route is intended (as the Requirement paragraph states), reword User Story 2's
+      acceptance scenario and AC-1 to describe a profile_skipped category entry in
+      errors/advisories rather than a separate "skipped_profiles entry," and state
+      explicitly that ValidationResult.to_dict()'s top-level shape ({ok, errors,
+      advisories}) is unchanged. If a new top-level skipped_profiles key is actually
+      intended, say so in the Requirement paragraph and acknowledge it as a new
+      field on an existing external-facing JSON contract (pack validate --json),
+      per this mission's own Contracts lens standard applied to FR-001.
+
+  - id: SPEC-ARCH-003
+    lens: mission-derived (FR-001 dead-code claim)
+    severity: 2
+    title: "FR-001 phrases removing genuinely-dead _ARTIFACT_BUCKETS as the parenthetical fallback rather than the primary instruction"
+    evidence:
+      - artifact: "spec.md § FR-001 Requirement paragraph (\"Extend snapshot.py's dead _ARTIFACT_BUCKETS table (or fold it away, an implementation-phase call...) to consume the same constant\")"
+      - code: "src/specify_cli/doctrine/snapshot.py:53-65 (_ARTIFACT_BUCKETS definition)"
+    claim: >
+      Independently re-derived per the mission-derived lens: grep -rn
+      "_ARTIFACT_BUCKETS" src/ tests/ returns only the definition itself
+      (snapshot.py:53) — confirmed dead code, exactly as the spec's "Verified Code
+      Surfaces" correction states. _count_artifacts (snapshot.py:195-212) is
+      independently confirmed as the actual counter, using entry.rglob("*.yaml")
+      over directory membership, not suffix — also confirmed accurate. Given the
+      table is proven to have zero consumers anywhere in the repo, "wire it to the
+      shared constant" is the harder, no-benefit path (keeping and threading a
+      constant through code nothing reads) while "remove it" is strictly simpler and
+      loses nothing; the spec states this as a parenthetical alternative to the
+      primary "extend" instruction rather than the default. This is a low-severity
+      wording/ordering issue, not a correctness gap — the spec does correctly leave
+      the choice open — but it inverts the ordinarily-obvious default for
+      genuinely-dead code and could lead an implementer to spend effort threading a
+      constant into a table that should just be deleted.
+    remediation: >
+      Reword FR-001 to state removal of _ARTIFACT_BUCKETS as the default action
+      (since it is proven dead with no consumers), with "extend it instead" as the
+      fallback only if a concrete future consumer is identified at plan/implementation
+      time — inverting the current primary/parenthetical ordering.
+
+# If you have no findings, write: findings: []

@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: WP01's PR Shape note now says "two narrow, independently-reasoned validator diagnostics — FR-002 and FR-004 each add a small new helper function plus one call site" with FR-003 called out as a no-new-helper/no-new-call-site condition widening, and states "5 non-test files, 9 files total including tests" — matching the union of owned_files and plan.md's Source Code breakdown exactly.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: WP03's and WP04's Definition of Done now both carry an explicit "ruff check ... and mypy --strict ... pass with zero new suppressions" line, and WP04's T018 step 7 adds a complexity re-measurement (ruff --select C901 --statistics) with an explicit instruction to record a material shift in plan.md's Complexity Tracking section.
+  - id: TASKS-DECOMP-003
+    status: resolved
+    reason: WP04/T018 step 3 now says to locate the call site structurally rather than by absolute line number, and explicitly qualifies ":387-392" as a main-tip reference taken before WP02/WP03 land that will have shifted by WP04's implementation time — no longer presented as an unqualified authoritative anchor.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: Both plan.md's Open-PR write-scope check and WP04's Risks section now disclose PR #2719's second touched file (tests/cli/test_doctrine_org_commands.py, +206/-0) as a distinct co-edit risk and enumerate the 8-PR CHANGELOG.md overlap (#3383/#3379/#3378/#3332/#3293/#2890/#2492/#2239); a fresh `gh pr list --state open --json number,title,files` confirms all these PR numbers/files exactly and confirms the retained claim that no open PR touches pack_validator.py or pack_assembler.py.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: WP03's and WP04's Reviewer Guidance sections and plan.md's "Practical consequence" paragraph (C-011, Per-FR ATDD Sequencing) now all contain an actual runnable command block (git worktree add, git show | git apply with a manual-copy fallback, pytest -k, git worktree remove) rather than only naming the concept.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: WP03's T010 step 5 now adds a mock/patch-based test asserting AgentProfileRepository.skipped_profiles() is actually called, mirroring WP04's T016/T017(a) technique, and the Definition of Done bullet for AC-4 now points at that test instead of "true by construction."
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: WP04's T014 step 1 now adds a CliRunner-based assertion invoking pack_validate against AC-1's fixture and asserting exit_code == 1, and the Definition of Done now states AC-4's exit-code-1 half is "independently falsifiable via T014's test," matching what T014 now actually exercises.

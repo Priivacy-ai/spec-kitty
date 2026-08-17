@@ -1,0 +1,18 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: >-
+      The Risks section's "Open-PR collision" paragraph now uses 18 only historically ("first
+      verification ... found 18 open PRs, a later ... re-check ... found 19"), and its closing
+      sentence (previously the stale "18 currently-open PRs" restatement) now reads "beyond
+      what's enumerated above" with no raw count at all — a full-paragraph re-read finds no
+      remaining sentence asserting 18 as the current count.
+  - id: TASKS-FRESH4-001
+    status: resolved
+    reason: >-
+      Same fix verified independently — the paragraph's closing sentence (formerly WP04:545's
+      "18 currently-open PRs") dropped the number entirely per the finding's first remediation
+      option, so the opening (19, via two re-checks) and closing sentences no longer disagree.

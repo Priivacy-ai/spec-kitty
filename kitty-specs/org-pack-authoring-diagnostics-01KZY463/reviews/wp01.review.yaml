@@ -1,0 +1,9 @@
+schema: wp-review/v1
+wp_id: WP01
+complete: true
+verdict: approved
+findings: []
+checks:
+  suffix_matches_loader: "*.step-contract.yaml — src/doctrine/missions/step_contracts.py:174 (MissionStepContractRepository.GLOB), corroborated by src/specify_cli/doctrine/pack_validator.py:181 (_artifact_schema_registry()'s \"mission_step_contracts\" entry: (\"*.step-contract.yaml\", MissionStepContract)). The guide's corrected suffix at :65 and :140 matches both definitions exactly."
+  adr_status_verified: "gh pr diff 3378 --repo Priivacy-ai/spec-kitty shows docs/adr/3.x/2026-08-13-1-built-in-mission-subtree-stays-nested-retire-legacy-step-contracts.md with frontmatter status: Accepted, date 2026-08-13, Decision Outcome 'Chosen option: Option B' stating the nested packs/built-in/missions/ subtree stays canonical and 'The legacy step-contract surface is retired in its entirety' (built_in_step_contracts/, step_contracts.py, the mission_step_contracts package, the mission_step_contract ArtifactKind, and its DRG fragment, all migrated onto MissionStep and then deleted). The guide's sentence ('slated for retirement in its entirety... (Accepted)') matches this precisely — no misstatement of status or scope."
+  no_hyperlink_to_adr: true

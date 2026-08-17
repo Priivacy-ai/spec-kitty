@@ -1,0 +1,119 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: org-pack-authoring-diagnostics-01KZY463
+findings:
+  - id: TASKS-DECOMP-001
+    lens: one-PR-shape honesty
+    severity: 2
+    title: "WP01's PR Shape note miscounts the aggregate diff's helper functions and touched files"
+    evidence:
+      - artifact: "WP01 § PR Shape (mission-level note)"
+      - artifact: "WP02 § Subtask T006 (Implementation — widen `_scan_files`'s recursion condition)"
+      - artifact: "WP03 § Subtask T010 (Implementation — `_check_profile_skipped_diagnostics` + call site)"
+      - artifact: "WP04 § Subtask T018 (Implementation — the helper, the signature change, and both call sites)"
+      - artifact: "wps.yaml § owned_files (all four WPs)"
+    claim: >
+      WP01's "PR Shape" note asserts the aggregate diff is "three narrow,
+      independently-reasoned validator diagnostics — each a small new helper function plus
+      one call site" and that "total touched-file count is eight non-test files across
+      four WPs." Neither figure matches what WP02/WP03/WP04 actually specify. FR-003
+      (WP02/T006) adds no new helper function and no new call site at all — it is a
+      one-clause condition widening inside the pre-existing `_scan_files` helper ("This is
+      the entire functional change for FR-003 — no other line in the file changes for this
+      WP", WP02 T006). Only FR-002 (`_check_profile_skipped_diagnostics`, WP03/T010) and
+      FR-004 (`_check_drg_root_graph_missing`, WP04/T018) add a new helper plus call site —
+      two, not three. Separately, the union of all `owned_files` across all four WPs
+      (`wps.yaml`) is 9 files total: 5 non-test
+      (`docs/guides/how-to/governance/create-an-org-doctrine-pack.md`,
+      `src/specify_cli/doctrine/pack_validator.py`,
+      `src/specify_cli/doctrine/pack_assembler.py`,
+      `src/specify_cli/cli/commands/doctrine.py`, `docs/changelog/CHANGELOG.md`) and 4 test
+      files (`tests/specify_cli/doctrine/test_pack_validator.py`,
+      `tests/doctrine/test_agent_profile_model_field.py`,
+      `tests/specify_cli/doctrine/test_pack_assembler.py`,
+      `tests/cli/test_doctrine_org_commands.py`) — not "eight non-test files." plan.md's own
+      file-by-file "Source Code" breakdown (`plan.md:643-696`) likewise lists only 4
+      non-test source files plus the canonical CHANGELOG path (5 total), not 8, so the
+      WP01 note's citation of "per plan.md's file-by-file 'Source Code' breakdown" does not
+      support its own number. Because the actual footprint is smaller and simpler than
+      claimed (2 helpers not 3, 5 non-test files not 8), this does not overturn the
+      one-PR recommendation — if anything it strengthens it — but the note a reviewer is
+      pointed to as the honesty check for lens 3 contains numbers that don't survive a
+      cross-check against the WPs it claims to summarize, which undercuts confidence in
+      the note as a whole.
+    remediation: >
+      Correct WP01's PR Shape note: state that FR-003 is a one-clause condition widening
+      inside an existing helper with no new function/call site (not one of "three... each a
+      small new helper function plus one call site"), that only FR-002 and FR-004 add a new
+      helper each (two total, not three), and that the touched-file count is 5 non-test
+      files (not 8) / 9 files total including tests. The corrected numbers support the same
+      "one PR, as planned" conclusion, so no change to the recommendation itself is needed —
+      only to the arithmetic supporting it.
+
+  - id: TASKS-DECOMP-002
+    lens: concrete enough to implement without re-deriving the plan
+    severity: 2
+    title: "WP03 and WP04 drop the explicit ruff/mypy quality-gate item WP02's Definition of Done carries, and neither operationalizes plan.md's Complexity Tracking follow-up check"
+    evidence:
+      - artifact: "WP02 § Definition of Done"
+      - artifact: "WP03 § Subtask T010 Validation (present) vs. WP03 § Definition of Done (absent)"
+      - artifact: "WP04 § Subtask T018 Validation (absent) and WP04 § Definition of Done (absent)"
+      - artifact: "plan.md § Complexity Tracking (`plan.md:718-727`)"
+    claim: >
+      WP02's Definition of Done explicitly requires "`ruff check
+      src/specify_cli/doctrine/pack_validator.py` and `mypy --strict
+      src/specify_cli/doctrine/pack_validator.py` ... pass with zero new suppressions."
+      WP03's equivalent implementation subtask (T010) states the same requirement at the
+      subtask-Validation level ("`mypy --strict` and `ruff check` pass with zero new
+      suppressions on the touched file") but does not repeat it in WP03's top-level
+      Definition of Done checklist. WP04's implementation subtask (T018) has no ruff/mypy
+      mention anywhere — neither in its own Validation text nor in WP04's Definition of
+      Done — despite WP04's own Context section calling itself "the highest-surface-area WP
+      in the mission" (new helper, signature change, two other call-site edits).
+      plan.md's Complexity Tracking section (`plan.md:718-727`) explicitly anticipates a
+      residual risk: "If implementation reveals `validate_pack()` itself approaching the
+      complexity-15 ceiling once the two new helper calls are wired in, the remediation is
+      a further mechanical extraction... this would be recorded here retroactively" — but
+      no WP after WP02 (whose own T004 campsite-check explicitly reasons that WP03 and WP04
+      "are the ones adding new call sites inside `validate_pack()`'s body," i.e., the more
+      likely trigger points) contains a step that actually re-measures complexity or
+      references plan.md's retroactive-recording commitment. A DoD checklist is the
+      reviewer's audit surface; a reviewer following WP04's own checklist literally has no
+      prompt to verify the zero-new-suppressions bar that WP02 modeled, even though
+      `pack_validator.py` has by WP04's point accumulated three WPs' worth of new code.
+    remediation: >
+      Add the same "`ruff check ...` and `mypy --strict ...` pass with zero new
+      suppressions" line to WP03's and WP04's top-level Definition of Done checklists
+      (mirroring WP02's), and add one line to WP04's T018 validation instructing the
+      implementer to re-measure `validate_pack()`'s complexity (e.g. `ruff check
+      src/specify_cli/doctrine/pack_validator.py --select C901 --statistics`) and, if it
+      has moved materially closer to the ceiling, record that in plan.md's Complexity
+      Tracking section per that section's own stated retroactive-recording commitment.
+
+  - id: TASKS-DECOMP-003
+    lens: concrete enough to implement without re-deriving the plan
+    severity: 1
+    title: "WP04's cited anchor line numbers for the DRG-validation call site will have drifted by the time WP04 lands"
+    evidence:
+      - artifact: "WP04 § Subtask T018 step 3"
+      - code: "src/specify_cli/doctrine/pack_validator.py:387-392"
+    claim: >
+      WP04/T018 step 3 instructs: "Call the new helper conditionally, immediately after the
+      existing `_validate_drg` call (`:389-392`)." Those line numbers are accurate against
+      `main`'s current tip, but WP03 (which lands before WP04 in the same lane) inserts its
+      own new call site "immediately after the registry-scan loop... before the DRG
+      validation block that follows it" (WP03 Context section), which sits directly above
+      the `_validate_drg` call WP04 anchors to. By the time WP04's implementer opens the
+      file, WP03's insertion will have shifted the `_validate_drg` call several lines lower
+      than `:389-392`. The prose anchor ("immediately after the existing `_validate_drg`
+      call") is self-correcting and unambiguous, so this does not risk a wrong edit, but the
+      absolute line citation will be stale at the point it is actually used.
+    remediation: >
+      Either drop the absolute line numbers from WP04/T018 step 3 and rely on the
+      already-present structural anchor ("immediately after the existing `_validate_drg`
+      call, before..."), or note explicitly that the cited `:389-392` is a `main`-tip
+      reference taken before WP02/WP03 land and will have shifted by the time WP04
+      implements.

@@ -1,0 +1,38 @@
+phase: spec
+group: verify
+round: ruling-verify
+complete: true
+findings:
+  - id: RV-001
+    severity: 2
+    lens: consistency
+    location: spec.md:33-36
+    finding: >
+      The Problem section's framing sentence ("Each functional requirement below states
+      not just what the new check detects, but what it does when it detects nothing wrong
+      ... and what it does when it detects the defect (a named, per-file diagnostic --
+      never a bare 0 count or a swallowed exception)") is stated as applying uniformly to
+      "each functional requirement below." It was accurate when all four FRs added
+      validator diagnostics. After the ruling narrowed FR-001 to a documentation-only guide
+      correction, FR-001 introduces no new check, detects nothing at runtime, and emits no
+      diagnostic of any kind -- it is a static text edit. This general framing paragraph was
+      not touched by commit b9b8691fc and still describes FR-001 as if it behaves like the
+      other three FRs, which is now false. A reader who stops at the Problem section (before
+      reaching FR-001's own corrected body at spec.md:242-282, which is internally
+      consistent and correctly disclaims new runtime/diagnostic behavior) would form an
+      inaccurate impression of what FR-001 does.
+    evidence: >
+      spec.md:33-36 (unchanged by b9b8691fc, per `git show b9b8691fc -- spec.md`) vs.
+      spec.md:254 ("FR-001 changes **no code**: it does not introduce a shared suffix
+      constant, does not add a `pack_validator.py` near-miss mismatch diagnostic ... and
+      does not remove `snapshot.py`'s `_ARTIFACT_BUCKETS` table") and spec.md:266-267
+      ("This requirement corrects the guide's instruction only; it does not add any new
+      runtime or validator behavior").
+    fix: >
+      Qualify the Problem section's framing sentence to scope it to FR-002/FR-003/FR-004
+      (the FRs that add validator diagnostics), or add a one-clause carve-out noting FR-001
+      is documentation-only and adds no check/diagnostic, consistent with how the
+      Reflexivity section (spec.md:523) and C-004 (spec.md:506) already carve out FR-001
+      from equivalent generalizations elsewhere in the same document.
+
+verdict: pass
