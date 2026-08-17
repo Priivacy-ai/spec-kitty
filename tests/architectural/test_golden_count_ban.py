@@ -217,6 +217,11 @@ def _is_dynamic_result_participle(collection_expr: str) -> bool:
       ``convert`` (NFR-E);
     * ending in the ``-ed`` participle suffix — enum / registry *domain* names are
       nouns (``lanes``, ``colors``, ``kinds``), never verb participles.
+
+    Lossy by design: common fixed-collection names that happen to be lowercase ``-ed``
+    identifiers (``expected``, ``allowed``, ``required``) are also admitted to ``keep``.
+    A false ``keep`` is a missed nudge — the escape hatch remains the backstop — never a
+    broken invariant, consistent with this classifier being heuristic-and-lossy by design.
     """
     expr = collection_expr.strip()
     return (
@@ -432,6 +437,13 @@ def test_enumerable_domain_enum_count_still_converts() -> None:
     assert classify_golden_count("Lane", 10) == "convert"
     assert classify_golden_count("Color", 7) == "convert"
     assert classify_golden_count("supported_colors", 3) == "convert"
+    # Lock the load-bearing ``islower()`` branch specifically: a CapWords identifier
+    # that DOES end in ``-ed`` (``Fixed``, ``Provisioned``) must still ``convert``.
+    # ``Lane``/``Color`` above are excluded by ``endswith("ed")``, so without these two
+    # the ``islower()`` discriminator would be untested — drop ``islower()`` and this
+    # is the only assertion that goes red.
+    assert classify_golden_count("Fixed", 3) == "convert"
+    assert classify_golden_count("Provisioned", 5) == "convert"
 
 
 def test_escape_hatch_on_own_line_excludes_site() -> None:
