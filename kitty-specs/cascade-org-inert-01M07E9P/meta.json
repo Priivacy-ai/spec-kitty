@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances cascade org inert on pr/up-cascade-org-inert so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "cascade org inert",
   "slug": "cascade-org-inert-01M07E9P",
+  "status_phase": "1",
   "target_branch": "pr/up-cascade-org-inert",
   "topology": "single_branch",
   "vcs": "git",
