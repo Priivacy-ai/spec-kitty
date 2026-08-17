@@ -496,6 +496,22 @@ def test_gather_artifact_presence_reads_file_presence(tmp_path: Path, monkeypatc
     assert snapshot.status_facts["wp_ids"] == ()
 
 
+def test_gather_artifact_presence_reads_research_md_presence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Disk-backed revert-discipline pin (T001 step 4 / T004): exercises the
+    real ``gather_artifact_presence`` function (not a hand-constructed
+    ``ArtifactPresenceSnapshot``), so a revert of "research.md" from
+    ``_PRESENCE_FILE_TAGS`` is actually detectable. RED today -- the file
+    exists on disk, but ``_PRESENCE_FILE_TAGS`` does not include
+    "research.md" yet, so ``present_artifacts`` comes back empty."""
+    _stub_guard_helpers(monkeypatch)
+    (tmp_path / "research.md").write_text("# Research\n", encoding="utf-8")
+
+    snapshot = io_seam.gather_artifact_presence(tmp_path, mission_family="plan", step_id="research")
+    assert "research.md" in snapshot.present_artifacts
+
+
 def test_gather_artifact_presence_reads_wp_lane_and_dependencies(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

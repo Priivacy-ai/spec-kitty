@@ -33,6 +33,7 @@ Three independent concerns, all in-memory / no I/O (NFR-003, SC-004):
 from __future__ import annotations
 
 from collections.abc import Mapping
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -511,3 +512,138 @@ def test_documentation_unknown_action_fail_closed_default() -> None:
     assert cores.evaluate_guards(snapshot) == [
         "No guard registered for documentation action: not-a-real-doc-action"
     ]
+
+
+# ---------------------------------------------------------------------------
+# 8. evaluate_guards -- "plan" mission family (issue #3386 RED pin, T001/FR-002)
+#
+# Today, "plan" is not special-cased in ``evaluate_guards``'s dispatch, so it
+# falls through to ``_evaluate_software_dev_guards`` -- misfiring for
+# ``review`` (the WP-iteration message instead of the terminal `[]`) and for
+# ``research`` (an unconditional `[]`, ignoring `research.md`'s real
+# presence). T003/T004 register a dedicated "plan" guard table
+# (``_evaluate_plan_guards``) that fixes both.
+# ---------------------------------------------------------------------------
+
+
+def test_plan_review_guard_target_shape() -> None:
+    """RED at base: 'plan'/'review' falls through to the software-dev
+    WP-iteration guard (`wp_advance_ready` unset -> the WP-iteration failure
+    message), not the terminal no-op `[]` a dedicated 'plan' guard table
+    gives it (issue #3386's own title)."""
+    assert cores.evaluate_guards(_snapshot(mission_family="plan", step_id="review")) == []
+
+
+def test_plan_research_guard_absent_and_present() -> None:
+    """RED at base for the absent-artifact case only (TASKS-VERIFY-001):
+    'plan'/'research' currently returns `[]` unconditionally (falls through
+    to software-dev's bare catch-all `return []`, since "research" is not one
+    of software-dev's own step ids) regardless of research.md's real
+    presence. The present-artifact assertion below already passes at base
+    for that same wrong (unconditional) reason -- it is a companion
+    target-shape assertion, not itself RED evidence."""
+    assert cores.evaluate_guards(_snapshot(mission_family="plan", step_id="research")) == [
+        "Required artifact missing: research.md"
+    ]
+    assert (
+        cores.evaluate_guards(
+            _snapshot(
+                mission_family="plan",
+                step_id="research",
+                present_artifacts=frozenset({"research.md"}),
+            )
+        )
+        == []
+    )
+
+
+def test_plan_guard_specify_and_plan_branches_direct_dispatch() -> None:
+    """Direct-dispatch coverage for ``_evaluate_plan_guards`` itself (not the
+    full ``evaluate_guards`` dispatch) -- RED today via ``AttributeError``
+    since ``_evaluate_plan_guards`` does not exist until T003 lands. A
+    full-dispatch assertion alone would NOT catch an implementer swapping
+    SPEC_ARTIFACT/PLAN_ARTIFACT between these two branches, because both
+    branches coincidentally produce the same shape of output via two
+    independent code paths (this function, and software-dev's fallthrough)
+    both pre- and post-fix."""
+    assert cores._evaluate_plan_guards(_snapshot(mission_family="plan", step_id="specify")) == [
+        "Required artifact missing: spec.md"
+    ]
+    assert (
+        cores._evaluate_plan_guards(
+            _snapshot(mission_family="plan", step_id="specify", present_artifacts=frozenset({"spec.md"}))
+        )
+        == []
+    )
+    assert cores._evaluate_plan_guards(_snapshot(mission_family="plan", step_id="plan")) == [
+        "Required artifact missing: plan.md"
+    ]
+    assert (
+        cores._evaluate_plan_guards(
+            _snapshot(mission_family="plan", step_id="plan", present_artifacts=frozenset({"plan.md"}))
+        )
+        == []
+    )
+
+
+def test_plan_guard_fail_closed_else_branch() -> None:
+    """RED today via ``AttributeError`` (direct-call half) -- once T003
+    lands, asserts the fail-closed message. The companion full-dispatch
+    assertion is genuinely RED via full dispatch too (falls through to
+    software-dev's catch-all `[]` today): it confirms
+    ``_evaluate_plan_guards`` is actually *registered* in ``_GUARD_TABLES``
+    under "plan", not merely correct in isolation."""
+    assert cores._evaluate_plan_guards(_snapshot(mission_family="plan", step_id="not-a-real-plan-action")) == [
+        "No guard registered for plan action: not-a-real-plan-action"
+    ]
+    assert cores.evaluate_guards(_snapshot(mission_family="plan", step_id="not-a-real-plan-action")) == [
+        "No guard registered for plan action: not-a-real-plan-action"
+    ]
+
+
+# ---------------------------------------------------------------------------
+# 9. evaluate_guards_strict / UnregisteredMissionFamilyError (T002, FR-011)
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_guards_strict_raises_for_unregistered_mission_family() -> None:
+    """RED today via ``AttributeError`` -- neither ``evaluate_guards_strict``
+    nor ``UnregisteredMissionFamilyError`` exists until T003 lands."""
+    with pytest.raises(cores.UnregisteredMissionFamilyError):
+        cores.evaluate_guards_strict(_snapshot(mission_family="totally-unregistered-family", step_id="review"))
+
+
+def test_evaluate_guards_tolerant_wrapper_degrades_for_unregistered_mission_family() -> None:
+    """Companion coverage for the tolerant ``evaluate_guards`` wrapper's own
+    ``except UnregisteredMissionFamilyError: return []`` branch (T003) --
+    distinct from the strict function above and from
+    ``_check_cli_guards``/``_check_composed_action_guard`` (which bypass this
+    wrapper entirely per IC-03/IC-04). Kept tolerant/public only for direct
+    test callers per its own docstring, so this exercises that contract
+    directly."""
+    assert cores.evaluate_guards(_snapshot(mission_family="totally-unregistered-family", step_id="review")) == []
+
+
+def test_check_cli_guards_propagates_unregistered_mission_family_error(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """RED today: ``_check_cli_guards`` ends with
+    ``return _cores.evaluate_guards(snapshot)`` (the tolerant function),
+    which currently returns the software-dev misfire (or `[]`), never
+    raises. Once T003/T006 land, the strict lookup's
+    ``UnregisteredMissionFamilyError`` must propagate OUT of
+    ``_check_cli_guards`` itself -- not merely out of an isolated,
+    unwired ``evaluate_guards_strict`` call."""
+
+    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+        return ArtifactPresenceSnapshot(
+            present_artifacts=frozenset(),
+            status_facts={},
+            mission_family="totally-unregistered-family",
+            step_id=step_id,
+            legacy_step_id=legacy_step_id,
+        )
+
+    monkeypatch.setattr(rb._io_seam, "gather_artifact_presence", _fake_gather)
+    with pytest.raises(cores.UnregisteredMissionFamilyError):
+        rb._check_cli_guards("review", tmp_path)
