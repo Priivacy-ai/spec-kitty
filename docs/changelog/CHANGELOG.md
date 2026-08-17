@@ -236,6 +236,26 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Writing an honest cardinality assertion in a test no longer costs you an
+  annotation toll: the golden-count architectural gate
+  (`tests/architectural/test_golden_count_ban.py`) stopped flagging
+  dynamic-result `len(x) == N` checks (mission
+  `test-friction-ratchet-remediation`; closes `#3458`).** Before, an ambiguous
+  `len(result) == 3` over a runtime-computed collection defaulted to `convert`,
+  so authors had to add `# golden-count: cardinality-is-contract` just to quiet
+  the gate — on PR #3456 that toll fired twice for zero real catches. The
+  classifier now treats an ambiguous dynamic-result count as `keep`, so genuine
+  cardinality asserts pass untouched. The gate's real job is preserved:
+  enumerable-domain golden counts like `len(Lane) == 10`, which silently drift
+  when the domain grows, still convert. Companion guard added in the same slice:
+  a new CT7 recurrence check (`test_ratchet_positional_anchor_ban.py`) bans
+  reintroducing raw `("file.py", <int>)` 2-tuple ratchet keys in
+  ratchet-substrate-importing seed containers, so the file:line-drift friction
+  engine cannot regrow. Dev-facing only — no runtime or user-visible behaviour
+  changes. (Also folds 12 dangling references to the retired
+  `test_bridge_compat_surface.py` across 9 files — campsite cleanup of the
+  already-landed #3285 deletion; refs `#2853`, `#3285`, `#2633`.)
+
 - **A mission running under a non–software-dev workflow no longer gets blocked
   by a guard about objects its workflow does not have — for example a `plan`
   mission's `review` step demanding "Not all work packages are approved or done"
