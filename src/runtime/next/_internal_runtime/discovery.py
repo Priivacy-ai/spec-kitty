@@ -95,6 +95,14 @@ class DiscoveryContext(BaseModel):
     env_var_name: str = "SPEC_KITTY_MISSION_PATHS"
     user_home: Path = Field(default_factory=lambda: Path.home())
     builtin_roots: list[Path] = Field(default_factory=list)
+    #: Org-pack doctrine roots (FR-007), one per configured
+    #: ``doctrine.org.packs[]`` entry. Populated by callers via the lazy
+    #: ``charter.drg.resolve_org_roots(repo_root)`` facade -- this module
+    #: never resolves org roots itself, matching DEC-004's discipline that
+    #: ``src/runtime/next/**`` stays a pure consumer of the already-resolved
+    #: list. Empty by default, so a project with no org packs configured
+    #: sees no behavior change (NFR-005).
+    org_roots: list[Path] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +231,14 @@ def _build_tiers(context: DiscoveryContext) -> list[tuple[str, str, list[Path]]]
                 [project_dir / _KITTIFY_DIRNAME / _MISSIONS_DIRNAME],
             )
         )
+
+    # Tier: org (FR-007). Sits immediately after project_legacy and before
+    # user_global -- the same relative position WP03 gave the org tier in
+    # both template resolvers (position parity, NFR-004/SC-008). Always
+    # present (even with no project_dir) so the tier shape is uniform;
+    # ``context.org_roots`` is empty by construction unless a caller
+    # populated it, making this a no-op for the common case (NFR-005).
+    tiers.append(("org", "org_roots", context.org_roots))
 
     tiers.append(
         (

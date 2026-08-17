@@ -229,15 +229,31 @@ def _build_run_ref(
 
 
 def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
-    """Build a DiscoveryContext that finds the runtime mission template."""
+    """Build a DiscoveryContext that finds the runtime mission template.
+
+    Populates ``org_roots`` (FR-008, DEC-006 site 1 -- the construction site
+    that feeds Walk A for both ``spec-kitty next`` and query-mode runs) via
+    the lazy ``charter.drg.resolve_org_roots`` facade, mirroring the five
+    existing ``specify_cli/**`` call sites and WP03's identical pattern in
+    the template resolvers (DEC-004: never a direct ``doctrine.*`` import
+    from ``src/runtime/next/**``). No ``try/except`` wraps the call --
+    ``OrgPackSubdirEscapeError``/``OrgPackEnvVarUnsetError`` are deliberately
+    raised and must propagate (DEC-005, NFR-001). With no org packs
+    configured, ``resolve_org_roots`` returns ``[]`` and this is a verified
+    no-op (NFR-005/SC-007).
+    """
     import specify_cli  # noqa: PLC0415
 
     # Runtime bridge uses the legacy runtime templates under specify_cli/missions.
     # The doctrine mission catalog is not behaviorally equivalent yet.
     package_root = Path(specify_cli.__file__).resolve().parent / "missions"
+
+    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+
     return DiscoveryContext(
         project_dir=repo_root,
         builtin_roots=[package_root],
+        org_roots=list(resolve_org_roots(repo_root)),
     )
 
 
@@ -323,8 +339,8 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     """Resolve the runtime template path for a mission key.
 
     Uses deterministic runtime discovery precedence for mission-runtime YAML:
-    explicit -> env -> project override -> project legacy -> project config
-    -> user global -> built-in.
+    explicit -> env -> project override -> project legacy -> org (FR-009) ->
+    project config -> user global -> built-in.
 
     For the built-in ``software-dev`` mission, the packaged runtime template is
     canonical after this composition rewrite. Stale user-global mission packs
@@ -335,11 +351,18 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
 
     context = _rb._build_discovery_context(repo_root)
     env_value = os.environ.get(context.env_var_name, "")
+    # Org tier (FR-009) sits immediately after the project-legacy entry
+    # (`.kittify/missions`) and before the project-config/global/builtin
+    # tiers below -- the same relative position Walk A's `_build_tiers`
+    # gives the org tier. Reuses `context.org_roots`, already populated by
+    # `_build_discovery_context` above, rather than calling
+    # `resolve_org_roots` a second time.
     project_tiers: list[list[Path]] = [
         list(context.explicit_paths),
         _split_env_paths(env_value),
         [repo_root / KITTIFY_DIR / "overrides" / "missions"],
         [repo_root / KITTIFY_DIR / "missions"],
+        list(context.org_roots),
         _project_config_pack_paths(repo_root),
     ]
     global_tier = [context.user_home / KITTIFY_DIR / "missions"]
