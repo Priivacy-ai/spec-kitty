@@ -539,3 +539,29 @@ def test_resolve_template_and_command_package_tier_assert_path_and_mission(
     assert command.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert command.path is not None
     assert command.mission == "software-dev"
+
+
+# ---------------------------------------------------------------------------
+# T007 (WP02, FR-002) – ResolutionTier.ORG exists and is re-exported by
+# identity through charter.resolution, not merely by value equality.
+# ---------------------------------------------------------------------------
+
+
+def test_resolution_tier_org_member_exists() -> None:
+    """``ResolutionTier`` gains a real ``ORG`` member (FR-002)."""
+    assert hasattr(ResolutionTier, "ORG")
+    assert ResolutionTier.ORG.value == "org"
+
+
+def test_charter_resolution_tier_is_doctrine_resolution_tier_by_identity() -> None:
+    """``charter.resolution.ResolutionTier`` is the *same class object* as
+    ``doctrine.resolver.ResolutionTier`` (a pure re-export), not a parallel
+    declaration with matching member values. Value equality (``==``) would
+    pass even for two distinct enum classes with identically-named/valued
+    members, which is not what the re-export contract guarantees -- so this
+    asserts identity (``is``) instead.
+    """
+    from charter.resolution import ResolutionTier as CharterResolutionTier
+
+    assert CharterResolutionTier is ResolutionTier
+    assert CharterResolutionTier.ORG is ResolutionTier.ORG

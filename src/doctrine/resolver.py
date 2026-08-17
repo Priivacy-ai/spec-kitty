@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 class ResolutionTier(Enum):
     OVERRIDE = "override"
     LEGACY = "legacy"
+    ORG = "org"
     GLOBAL_MISSION = "global_mission"
     GLOBAL = "global"
     PACKAGE_DEFAULT = "package_default"
