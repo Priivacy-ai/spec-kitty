@@ -75,7 +75,7 @@ def _render_template_include(
     """Render a ``template:<mission>/<name>`` selector via WP18 (FR-034).
 
     Resolves the mission-qualified template ID through the doctrine
-    5-tier chain (:func:`doctrine.template_catalog.resolve_template_by_id`)
+    6-tier chain (:func:`doctrine.template_catalog.resolve_template_by_id`)
     and renders the resolved template file's content. The project root
     (the directory containing ``.kittify/``) is supplied as data so the
     project-scoped override/legacy tiers participate in resolution.

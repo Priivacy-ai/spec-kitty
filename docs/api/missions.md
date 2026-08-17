@@ -332,15 +332,16 @@ Any non-builtin discovery tier that produces a definition with one of these keys
 
 ### Discovery precedence
 
-The loader queries seven tiers in priority order; the highest-precedence tier wins. Lower-precedence definitions of the same key emit a `MISSION_KEY_SHADOWED` warning (except built-in shadow, which is the `MISSION_KEY_RESERVED` error above).
+The loader queries eight tiers in priority order; the highest-precedence tier wins. Lower-precedence definitions of the same key emit a `MISSION_KEY_SHADOWED` warning (except built-in shadow, which is the `MISSION_KEY_RESERVED` error above).
 
 1. **Explicit path** — `--mission-path <path>` (env-forwarded; not exposed by `mission run` directly in v1).
 2. **Environment variable** — `SPEC_KITTY_MISSION_PATHS=/path/one:/path/two`.
 3. **Project override** — `.kittify/overrides/missions/<key>/mission.yaml`.
 4. **Project legacy** — `.kittify/missions/<key>/mission.yaml`.
-5. **User global** — `~/.kittify/missions/<key>/mission.yaml`.
-6. **Project config (mission packs)** — `.kittify/config.yaml mission_packs: [...]` referencing `mission-pack.yaml` manifests.
-7. **Built-in** — `software-dev`, `research`, `documentation`, `plan`.
+5. **Org** — org-provided mission roots (`context.org_roots`), sitting between project legacy and user global.
+6. **User global** — `~/.kittify/missions/<key>/mission.yaml`.
+7. **Project config (mission packs)** — `.kittify/config.yaml mission_packs: [...]` referencing `mission-pack.yaml` manifests.
+8. **Built-in** — `software-dev`, `research`, `documentation`, `plan`.
 
 ## Authoring Custom Workflows
 
@@ -437,7 +438,7 @@ Detail key conventions:
 
 - All paths are absolute strings.
 - `mission_key` is the value of `template.mission.key` once known; `null` when unknown.
-- `tier` ∈ `{"explicit", "env", "project_override", "project_legacy", "user_global", "project_config", "builtin"}`.
+- `tier` ∈ `{"explicit", "env", "project_override", "project_legacy", "org", "user_global", "project_config", "builtin"}`.
 - `step_id` is the `PromptStep.id` value.
 
 ### Example: ERP integration mission
@@ -528,7 +529,7 @@ $ spec-kitty mission run no-such-key --mission x --json
   "message": "No mission definition with key 'no-such-key' was found in any discovery tier.",
   "details": {
     "mission_key": "no-such-key",
-    "tiers_searched": ["explicit", "env", "project_override", "project_legacy", "user_global", "project_config", "builtin"]
+    "tiers_searched": ["explicit", "env", "project_override", "project_legacy", "org", "user_global", "project_config", "builtin"]
   },
   "warnings": []
 }

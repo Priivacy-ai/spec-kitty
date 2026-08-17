@@ -8,7 +8,7 @@ glob), and have no frontmatter ``id:`` field. Their identity therefore derives
 purely from the existing **tier + mission + filename** layout — no
 template-file frontmatter churn (plan §8, contract C4.5).
 
-This module adds three things on top of the existing 5-tier
+This module adds three things on top of the existing 6-tier
 :mod:`doctrine.resolver` chain:
 
 1. :func:`discover_templates` — a discovery surface that enumerates templates
@@ -28,7 +28,7 @@ This module adds three things on top of the existing 5-tier
 
 3. :func:`resolve_template_by_id` — maps a ``<mission>/<name>`` template ID
    back through :func:`doctrine.resolver.resolve_template`, honouring the full
-   5-tier precedence (override > legacy > global-mission > global > package).
+   6-tier precedence (override > legacy > org > global-mission > global > package).
    This is what WP17's ``charter context --include template:<id>`` calls; WP16's
    ``charter list --all`` consumes :func:`discover_templates`.
 
@@ -83,7 +83,7 @@ class TierRoot:
         project_dir: Optional project root (the directory containing
             ``.kittify/``). When supplied on any root, it lets
             :func:`resolve_template_by_id` delegate to the live
-            :func:`doctrine.resolver.resolve_template` 5-tier chain.
+            :func:`doctrine.resolver.resolve_template` 6-tier chain.
     """
 
     tier: ResolutionTier
@@ -234,11 +234,11 @@ def resolve_template_by_id(
     *,
     tier_roots: list[TierRoot],
 ) -> ResolutionResult:
-    """Resolve a ``<mission>/<name>`` template ID through the 5-tier chain.
+    """Resolve a ``<mission>/<name>`` template ID through the 6-tier chain.
 
     Splits *template_id* into ``mission`` and ``name`` and delegates to
-    :func:`doctrine.resolver.resolve_template`, so the existing 5-tier
-    precedence (override > legacy > global-mission > global > package) is
+    :func:`doctrine.resolver.resolve_template`, so the existing 6-tier
+    precedence (override > legacy > org > global-mission > global > package) is
     honoured rather than re-implemented. This is the resolution surface WP17's
     ``charter context --include template:<id>`` calls.
 
