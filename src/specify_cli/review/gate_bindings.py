@@ -277,8 +277,23 @@ def _activated_msc_urns(
     graph_loader: Callable[[Path], DRGGraph] | None,
     pack_resolver: Callable[[Path], PackContext | None] | None,
 ) -> frozenset[str]:
-    """One graph load + one activation filter → surviving contract URNs (NFR-005)."""
-    graph = (graph_loader or load_validated_graph)(repo_root)
+    """One graph load + one activation filter → surviving contract URNs (NFR-005).
+
+    #3525 Fold B: the production default (no *graph_loader* override) now
+    threads the full declaration-ordered org-pack chain into
+    ``load_validated_graph`` — previously this call carried NO org roots at
+    all (inert even for a single configured pack), so org-tier
+    ``mission_step_contract`` nodes never participated in gate-binding
+    activation. An explicit *graph_loader* override (test doubles) is called
+    exactly as before — single ``repo_root`` argument, no org-roots
+    threading — so existing overrides are unaffected.
+    """
+    if graph_loader is not None:
+        graph = graph_loader(repo_root)
+    else:
+        from doctrine.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
+
+        graph = load_validated_graph(repo_root, org_roots=resolve_existing_org_roots(repo_root))
     pack = (pack_resolver or _resolve_pack_context)(repo_root)
     if pack is not None:
         graph = filter_graph_by_activation(graph, pack)

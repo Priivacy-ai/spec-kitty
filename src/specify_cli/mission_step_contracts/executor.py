@@ -25,7 +25,9 @@ from charter.drg import (
     NodeKind,
     ResolvedContext,
     filter_graph_by_activation,
+    load_graph_or_dir,
     resolve_context,
+    resolve_existing_org_roots,
     resolve_org_dirs,
 )
 from charter.mission_steps import (
@@ -34,7 +36,6 @@ from charter.mission_steps import (
     MissionStepContractStep,
     MissionStepInput,
 )
-from charter.org_pack_discovery import _enumerate_org_pack_paths
 from specify_cli.invocation.executor import InvocationPayload, ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
 
@@ -171,15 +172,14 @@ class StepContractExecutor:
         graph: DRGGraph | None = None,
     ) -> None:
         self._repo_root = repo_root
-        # Precedence divergence (C-004, deliberate — do NOT unify one side alone):
-        # `resolve_org_dirs` returns ALL existing org packs (repository overlay is
-        # later-declared-wins), whereas this executor's DRG load
-        # (`_load_graph_degrading_malformed_org_pack` -> `load_validated_graph`,
-        # below) takes only the FIRST org pack (`org_root` = first-match-wins).
-        # Coherent for the shipping single-pack case; for 2+ org packs the
-        # repository would see every pack's contracts while the DRG saw only
-        # pack #1's `delegates_to`/activation graph. Close the multi-pack DRG
-        # story (C-004) as a unit before unifying either mechanism.
+        # #3525 Fold B: `resolve_org_dirs` (repository overlay) and this
+        # executor's DRG load (`_load_graph_degrading_malformed_org_pack` ->
+        # `load_validated_graph`, below) now share the SAME chain-aware,
+        # later-declared-wins resolution over ALL existing org packs — the
+        # C-004 first-match-only divergence this comment used to flag is
+        # closed. Charter-build-time DRG callers remain intentionally
+        # org-inert (see `load_validated_graph`'s docstring); this executor
+        # is a runtime caller and always resolves the full chain.
         self._contracts = contract_repository or MissionStepContractRepository(
             project_dir=repo_root / ".kittify" / "doctrine" / "mission_step_contracts",
             org_dirs=resolve_org_dirs(repo_root, "mission_step_contracts"),
@@ -200,16 +200,12 @@ class StepContractExecutor:
             )
 
         profile_hint = self._resolve_profile_hint(context, selected_contract)
-        # FR-002 (contract C-2): first-match org_root resolution, mirroring
-        # charter/action_doctrine_bundle.py:_resolve_action_bundle. Only one
-        # configured org pack's DRG contributes today (C-004, out of scope).
-        effective_org_root: Path | None = None
-        for _name, candidate in _enumerate_org_pack_paths(context.repo_root):
-            if candidate.exists():
-                effective_org_root = candidate
-                break
+        # #3525 Fold B: resolve the FULL declaration-ordered org-pack chain
+        # (mirrors charter/action_doctrine_bundle.py:_resolve_action_bundle),
+        # not just the first configured pack.
+        effective_org_roots = resolve_existing_org_roots(context.repo_root)
         graph = self._graph or self._load_graph_degrading_malformed_org_pack(
-            context.repo_root, effective_org_root
+            context.repo_root, effective_org_roots
         )
         # FR-031, FR-033 (WP08): apply activation filter before resolving context.
         pack_context = self._resolve_pack_context(context.repo_root)
@@ -292,14 +288,15 @@ class StepContractExecutor:
 
     @staticmethod
     def _load_graph_degrading_malformed_org_pack(
-        repo_root: Path, org_root: Path | None
+        repo_root: Path, org_roots: list[Path]
     ) -> DRGGraph:
-        """Load the merged DRG, degrading a malformed *org_root* to "no org
-        contribution" instead of letting it crash composition.
+        """Load the merged DRG, degrading any malformed root in *org_roots* to
+        "no contribution from that pack" instead of letting it crash
+        composition.
 
         Mirrors ``charter.action_doctrine_bundle._resolve_action_bundle``'s
         established handling of the same ``load_validated_graph(...,
-        org_root=...)`` call: a configured org pack whose on-disk DRG layout
+        org_roots=...)`` call: a configured org pack whose on-disk DRG layout
         does not conform to ``load_graph_or_dir`` (no ``graph.yaml``/
         ``*.graph.yaml`` directly at its root -- this repo's own
         ``packs/internal`` is exactly this shape) must not turn every
@@ -314,30 +311,46 @@ class StepContractExecutor:
         the same treatment already applied elsewhere in this mission for the
         same class of problem).
 
-        This degrade is deliberately narrow: when *org_root* is ``None`` (no
+        #3525 Fold B — per-root degrade: each root in *org_roots* is
+        independently probed (via ``load_graph_or_dir``, the same loader
+        ``load_validated_graph`` uses internally for each root) BEFORE the
+        chain-wide merge, so a malformed pack #2 drops ONLY pack #2 (one
+        WARNING) while pack #1 -- and every other healthy root -- still
+        contributes. This replaces the pre-fix all-or-nothing degrade, which
+        collapsed the ENTIRE org tier the moment any single configured root
+        failed to load.
+
+        This degrade is deliberately narrow: when *org_roots* is empty (no
         org pack configured, or none exists on disk), any ``DRGLoadError``
-        raised here is a **built-in or project** layer failure and is left
-        to propagate unchanged -- the no-org-pack path stays byte-identical
-        to before this mission. NFR-006's fail-closed posture for doctrine
-        *content* correctness is untouched: a broken built-in graph, or a
-        broken project overlay, still fails the dispatch outright. Only the
-        optional org tier degrades, and only when it is the layer that
-        actually failed to load.
+        raised by the single ``load_validated_graph(repo_root, org_roots=[])``
+        call below is a **built-in or project** layer failure and is left to
+        propagate unchanged -- the no-org-pack path stays byte-identical to
+        before this mission (no per-root probing runs at all). NFR-006's
+        fail-closed posture for doctrine *content* correctness is untouched:
+        a broken built-in graph, or a broken project overlay, still fails the
+        dispatch outright. Only the optional org tier degrades, and only for
+        the specific root(s) that actually failed to load.
         """
-        try:
-            return load_validated_graph(repo_root, org_root=org_root)
-        except DRGLoadError as exc:
-            if org_root is None:
-                raise
-            logger.warning(
-                "Org pack DRG at %s failed to load (%s: %s); composing this "
-                "step with built-in + project doctrine only, without the "
-                "org pack's contribution.",
-                org_root,
-                type(exc).__name__,
-                exc,
-            )
-            return load_validated_graph(repo_root, org_root=None)
+        if not org_roots:
+            return load_validated_graph(repo_root, org_roots=[])
+
+        healthy_roots: list[Path] = []
+        for root in org_roots:
+            try:
+                load_graph_or_dir(root)
+            except DRGLoadError as exc:
+                logger.warning(
+                    "Org pack DRG at %s failed to load (%s: %s); composing this "
+                    "step with the remaining doctrine layers, without this "
+                    "org pack's contribution.",
+                    root,
+                    type(exc).__name__,
+                    exc,
+                )
+                continue
+            healthy_roots.append(root)
+
+        return load_validated_graph(repo_root, org_roots=healthy_roots)
 
     def _resolve_pack_context(self, repo_root: Path) -> PackContext | None:
         """Construct a PackContext from project config for activation filtering.

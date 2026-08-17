@@ -30,10 +30,7 @@ if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
     import doctrine.service as _doctrine_service_module
 
-from charter.org_pack_discovery import (
-    _enumerate_org_pack_paths,
-    _load_doctrine_selection,
-)
+from charter.org_pack_discovery import _load_doctrine_selection
 from charter.profile_resolution import _normalize_directive_id
 
 __all__ = [
@@ -89,13 +86,28 @@ def _resolve_action_bundle(
 ) -> _ActionDoctrineBundle:
     """Resolve the action doctrine bundle with the WP06 org-root fallback
     (extracted WP11/T060 so every-load delivery computes it once, before the
-    depth-tier branch, without growing ``build_charter_context``)."""
+    depth-tier branch, without growing ``build_charter_context``).
+
+    #3525 Fold B: when the caller does not supply an explicit *org_root*
+    override, the fallback now resolves the FULL declaration-ordered chain
+    of existing org packs (not just the first) and threads it through as
+    *org_roots* — closing the same first-match-wins gap fixed in
+    ``mission_step_contracts/executor.py``. An explicit *org_root* override
+    (e.g. a ``--org-root``-driven single-path caller) is honoured verbatim
+    and does not widen into the chain.
+    """
     effective_org_root = org_root
+    effective_org_roots: list[Path] | None = None
     if effective_org_root is None:
-        for _name, candidate in _enumerate_org_pack_paths(repo_root):
-            if candidate.exists():
-                effective_org_root = candidate
-                break
+        from doctrine.drg.org_pack_config import resolve_existing_org_roots  # noqa: PLC0415
+
+        effective_org_roots = resolve_existing_org_roots(repo_root)
+        if effective_org_roots:
+            # Legacy single-root field, kept for org_root-only callers/back-compat
+            # (e.g. any consumer of ``_ActionDoctrineBundle`` that still expects a
+            # single representative root); the DRG merge itself uses the full
+            # ``effective_org_roots`` chain below, not this single value.
+            effective_org_root = effective_org_roots[0]
 
     from charter.pack_context import PackContext as _PackContext  # noqa: PLC0415
 
@@ -104,6 +116,7 @@ def _resolve_action_bundle(
         action=action,
         effective_depth=effective_depth,
         org_root=effective_org_root,
+        org_roots=effective_org_roots,
         pack_context=_PackContext.from_config(repo_root),
         mission_type=mission_type,
         feature_dir=feature_dir,
@@ -116,6 +129,7 @@ def _load_action_doctrine_bundle(
     action: str,
     effective_depth: int,
     org_root: Path | None = None,
+    org_roots: list[Path] | None = None,
     pack_context: PackContext | None = None,
     mission_type: str | None = None,
     feature_dir: Path | None = None,
@@ -132,6 +146,14 @@ def _load_action_doctrine_bundle(
     A typeless mission (no ``mission_type`` and no ``meta.json`` type — the
     genuinely mission-less callers) degrades to an EMPTY action bundle; it is
     never resolved as software-dev (FR-003a).
+
+    #3525 Fold B: *org_roots*, when supplied, carries the full
+    declaration-ordered org-pack chain and is threaded straight through to
+    :func:`charter._drg_helpers.load_validated_graph` (which prefers it over
+    *org_root*) AND to the ``DoctrineService`` built below — both halves now
+    see every configured pack, not just *org_root*'s single representative
+    entry. Callers that only ever supplied *org_root* (no chain resolved)
+    keep the pre-fix single-root behaviour byte-identical.
     """
     from charter._drg_helpers import load_validated_graph
     from charter.context import _build_doctrine_service  # noqa: PLC0415
@@ -162,7 +184,7 @@ def _load_action_doctrine_bundle(
     # DRG action resolution entirely so no doctrine is inferred (FR-003a).
     if resolved_type is not None:
         try:
-            merged = load_validated_graph(repo_root, org_root=org_root)
+            merged = load_validated_graph(repo_root, org_root=org_root, org_roots=org_roots)
             # FR-032, FR-035 (WP08): apply activation filter before resolving context.
             if pack_context is not None:
                 merged = filter_graph_by_activation(merged, pack_context)
@@ -214,7 +236,10 @@ def _load_action_doctrine_bundle(
         toolguide_ids=list(ids_by_slot.get("toolguides", ())),
         procedure_ids=list(ids_by_slot.get("procedures", ())),
         asset_ids=list(ids_by_slot.get("assets", ())),
-        service=_build_doctrine_service(repo_root, org_roots=[org_root] if org_root else None),
+        service=_build_doctrine_service(
+            repo_root,
+            org_roots=org_roots if org_roots else ([org_root] if org_root else None),
+        ),
         merged=merged_graph,
         roots=roots,
         bridge_urns=bridge_urns,
