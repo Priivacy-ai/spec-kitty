@@ -275,8 +275,26 @@ FLOOR_MARGIN = 2
 # against the fresh 138 (``floor == live - 3``; band ``live - MARGIN(4) <= floor
 # < live`` holds: 134 <= 135 < 138), strictly satisfying the anti-vacuity check
 # (same convention as the four prior entries above).
+#
+# RAISED 2026-08-14 (mission mission-type-guard-registry-01KZY2FG): the tree
+# accumulated genuine routed-call growth ahead of this mission (unrelated
+# merges between pins), not a delegation-chain regression -- this mission's own
+# CI-gate fixes (moving _mission_type_audit.py's MissionTypeRepository import
+# from doctrine.missions.mission_type_repository onto the charter.missions
+# facade, and documenting its kitty-specs/ walk as a distinct C-001 corpus
+# walk) touch neither ROUTED_CALLEES nor any load_meta* call site, so they are
+# census-neutral by construction; the gate had simply drifted stale ahead of
+# this mission landing. Measured directly via
+# ``.venv/bin/python -c "from tests.architectural.test_inline_meta_read_gate
+# import scan_routed_load_meta_calls, SRC_ROOT;
+# print(len(scan_routed_load_meta_calls(SRC_ROOT)))"`` on this tree: live ==
+# 140. Floor raised 135 -> 137 to restore the established 3-below-live gap
+# (mechanic 2) against the fresh 140 (``floor == live - 3``; band
+# ``live - MARGIN(4) <= floor < live`` holds: 136 <= 137 < 140), strictly
+# satisfying the anti-vacuity check (same convention as the five prior entries
+# above).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 135
+ROUTED_LOAD_META_FLOOR = 137
 
 
 # --------------------------------------------------------------------------- #

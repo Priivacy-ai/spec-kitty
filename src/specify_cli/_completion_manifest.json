@@ -623,6 +623,11 @@
      "hidden": false,
      "deprecated": false
     },
+    "mission-type": {
+     "help": "Report mission-type resolution health across kitty-specs/.\n\nClassifies every mission into one of six states (FR-008):\n\n\\b\n- resolved: mission_type present, activated, and loadable\n- activated-unresolvable: activated but has no loadable profile on disk\n- unknown: mission_type present but not activated/registered anywhere\n- typeless: no mission_type key (or a blank/null/non-string value)\n- legacy-key-only: only the retired `mission` key is present\n- error: meta.json unreadable or malformed\n\nExamples:\n    spec-kitty doctor mission-type\n    spec-kitty doctor mission-type --json\n    spec-kitty doctor mission-type --mission 083-foo\n    spec-kitty doctor mission-type --fail-on unknown,activated-unresolvable",
+     "hidden": false,
+     "deprecated": false
+    },
     "sparse-checkout": {
      "help": "Detect and optionally remediate legacy sparse-checkout state.\n\nWithout ``--fix``: scans the repo and prints a warning finding\ndescribing any active sparse-checkout state (primary + lane\nworktrees). Exits 0 when clean, 1 when state is present.\n\nWith ``--fix``: in an interactive TTY, prints a step-by-step plan,\nprompts once for consent, and calls WP03's ``remediate()``. In\nnon-interactive / CI environments, prints a remediation pointer and\nexits non-zero without mutating state (FR-023).\n\nExamples:\n    spec-kitty doctor sparse-checkout\n    spec-kitty doctor sparse-checkout --fix",
      "hidden": false,

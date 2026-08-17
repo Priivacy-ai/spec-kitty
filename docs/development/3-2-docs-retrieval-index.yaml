@@ -3351,6 +3351,7 @@ pages:
     - {slug: "spec-kitty-doctor-identity", text: "spec-kitty doctor identity", level: 2}
     - {slug: "spec-kitty-doctor-invocation-pairing", text: "spec-kitty doctor invocation-pairing", level: 2}
     - {slug: "spec-kitty-doctor-mission-state", text: "spec-kitty doctor mission-state", level: 2}
+    - {slug: "spec-kitty-doctor-mission-type", text: "spec-kitty doctor mission-type", level: 2}
     - {slug: "spec-kitty-doctor-ops", text: "spec-kitty doctor ops", level: 2}
     - {slug: "spec-kitty-doctor-orphan-daemons", text: "spec-kitty doctor orphan-daemons", level: 2}
     - {slug: "spec-kitty-doctor-restart-daemon", text: "spec-kitty doctor restart-daemon", level: 2}
