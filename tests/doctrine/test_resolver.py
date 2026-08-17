@@ -723,7 +723,18 @@ def test_malformed_org_config_still_resolves_package_default_in_doctrine_resolve
     """NFR-001(b): a malformed ``.kittify/config.yaml`` still resolves
     built-in templates, with zero org roots contributed (``load_pack_registry``'s
     pre-existing fail-soft, exercised through the new org tier -- not a new
-    try/except added by this WP)."""
+    try/except added by this WP).
+
+    Regression guard (pre-merge lens, mission
+    ``up-org-template-fsm-01M06F9K``): resolution is a hot path that may run
+    many times per invocation. A project with no readable org-pack intent
+    (this config can't even be parsed) must see ZERO new warning output --
+    NFR-005/SC-007 requires byte-identical behaviour, explicitly including
+    "same log output, no new warnings", for a project with no org pack
+    configured. Before the fix this asserted the opposite
+    (``pytest.warns(UserWarning)``), codifying the regression as expected."""
+    import warnings
+
     project = tmp_path / "project"
     kittify = project / ".kittify"
     kittify.mkdir(parents=True)
@@ -734,8 +745,52 @@ def test_malformed_org_config_still_resolves_package_default_in_doctrine_resolve
     monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
     monkeypatch.setattr(missions_module.MissionTemplateRepository, "default", lambda: fake_repo)
 
-    with pytest.warns(UserWarning):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         result = resolve_template("spec-template.md", project, mission="software-dev")
+
+    assert caught == []
 
     assert result.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert result.path.read_text(encoding="utf-8") == "package template"
+
+
+def test_declared_but_broken_org_pack_still_warns_in_doctrine_resolver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Positive case for the fix above: a config that DOES declare
+    ``doctrine.org.packs`` but fails schema validation (two packs sharing
+    the same ``name``) is a genuinely misconfigured org pack -- the operator
+    demonstrably opted in and deserves to know it's broken. Unlike the
+    unparseable-file case above, that signal must remain a loud
+    ``UserWarning`` through this same resolution hot path."""
+    import warnings
+
+    project = tmp_path / "project"
+    kittify = project / ".kittify"
+    kittify.mkdir(parents=True)
+    (kittify / "config.yaml").write_text(
+        "doctrine:\n"
+        "  org:\n"
+        "    packs:\n"
+        "      - name: acme\n"
+        "        local_path: /tmp/acme-one\n"
+        "      - name: acme\n"
+        "        local_path: /tmp/acme-two\n",
+        encoding="utf-8",
+    )
+
+    fake_repo = _build_fake_repo(tmp_path / "package-root")
+
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: tmp_path / "no-home")
+    monkeypatch.setattr(missions_module.MissionTemplateRepository, "default", lambda: fake_repo)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        result = resolve_template("spec-template.md", project, mission="software-dev")
+
+    assert len(caught) == 1
+    assert "Invalid doctrine.org config" in str(caught[0].message)
+    # Fails soft to zero org roots -- resolution still proceeds.
+    assert result.tier.name == ResolutionTier.PACKAGE_DEFAULT.name

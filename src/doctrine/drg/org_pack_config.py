@@ -387,7 +387,7 @@ class PackRegistry(BaseModel):
         return [pack.name for pack in self.packs]
 
 
-def load_pack_registry(repo_root: Path) -> PackRegistry:
+def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
     """Read configured org packs from ``repo_root/.kittify/config.yaml``.
 
     Canonical shape:
@@ -399,15 +399,36 @@ def load_pack_registry(repo_root: Path) -> PackRegistry:
     top-level ``organisation_packs[]`` with ``name`` and ``path``. This is
     accepted only here so old fixtures/operators degrade consistently across
     all consumers.
+
+    ``quiet`` (default ``False``, preserves prior behaviour for every
+    existing caller): governs ONLY the "file could not be parsed at all"
+    signal below (a YAML syntax error, not a schema/validation defect). When
+    the file is unparseable there is no way to tell whether the operator
+    ever declared org-pack intent, so a resolution hot path that calls this
+    function many times per invocation (template/mission/FSM resolution)
+    should not repeat a ``UserWarning`` on every call for what -- as far as
+    we can tell -- is a project with no org pack configured at all
+    (NFR-005/SC-007: byte-identical, silent behaviour for that case).
+    ``quiet=True`` demotes that one signal to a DEBUG-level log line instead.
+
+    This does NOT weaken diagnosis of a *genuinely* misconfigured org pack:
+    a config that DOES declare ``doctrine.org`` but fails schema validation
+    (below) stays a loud ``UserWarning`` unconditionally, on every calling
+    surface, regardless of ``quiet`` -- that operator has demonstrably
+    opted in to org doctrine and deserves to know it's broken. Diagnostic
+    surfaces such as ``spec-kitty doctor doctrine`` and ``charter list``
+    call this function without ``quiet`` and so keep the full, unchanged,
+    always-loud behaviour for both signals.
     """
 
     try:
         data = _load_yaml_data(_config_path(repo_root))
     except Exception as exc:  # pragma: no cover - defensive unreadable YAML
-        warnings.warn(
-            f"Failed to read .kittify/config.yaml; org doctrine disabled: {exc}",
-            stacklevel=2,
-        )
+        msg = f"Failed to read .kittify/config.yaml; org doctrine disabled: {exc}"
+        if quiet:
+            logger.debug(msg)
+        else:
+            warnings.warn(msg, stacklevel=2)
         return PackRegistry()
 
     try:
@@ -465,15 +486,21 @@ def save_pack_registry(repo_root: Path, registry: PackRegistry) -> None:
         yaml.dump(data, file)
 
 
-def resolve_org_roots(repo_root: Path) -> list[Path]:
+def resolve_org_roots(repo_root: Path, *, quiet: bool = False) -> list[Path]:
     """Return configured org doctrine local roots in declaration order.
 
     Each entry is the pack's ``effective_root`` — i.e. the ``local_path``
     normalised relative to ``repo_root`` and joined with ``subdir`` (when
     present).  The ~9 ``DoctrineService`` consumers that call this function
     therefore inherit the ``subdir`` seam for free.
+
+    ``quiet``: forwarded verbatim to :func:`load_pack_registry` — see its
+    docstring for exactly which signal it does (and does not) silence.
     """
-    return [pack.effective_root(repo_root) for pack in load_pack_registry(repo_root).packs]
+    return [
+        pack.effective_root(repo_root)
+        for pack in load_pack_registry(repo_root, quiet=quiet).packs
+    ]
 
 
 def resolve_existing_org_roots(repo_root: Path) -> list[Path]:

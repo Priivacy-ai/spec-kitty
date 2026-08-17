@@ -398,7 +398,18 @@ def test_build_discovery_context_malformed_config_still_resolves_with_zero_org_r
     """NFR-001(b)/DEC-005 (Walk A regression, mirrors WP03's T017): a
     malformed `.kittify/config.yaml` does not raise -- `load_pack_registry`'s
     pre-existing fail-soft absorbs it, so `_build_discovery_context` still
-    returns a usable context with zero org roots contributed."""
+    returns a usable context with zero org roots contributed.
+
+    Regression guard (pre-merge lens, mission
+    ``up-org-template-fsm-01M06F9K``): resolution is a hot path that may run
+    many times per invocation. A project with no readable org-pack intent
+    (this config can't even be parsed) must see ZERO new warning output --
+    NFR-005/SC-007 requires byte-identical behaviour, explicitly including
+    "same log output, no new warnings", for a project with no org pack
+    configured. Before the fix this asserted the opposite
+    (``pytest.warns(UserWarning)``), codifying the regression as expected."""
+    import warnings
+
     repo_root = tmp_path / "repo"
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
@@ -406,9 +417,11 @@ def test_build_discovery_context_malformed_config_still_resolves_with_zero_org_r
         "not: [valid, doctrine.org.packs shape\n", encoding="utf-8"
     )
 
-    with pytest.warns(UserWarning):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         context = io_seam._build_discovery_context(repo_root)
 
+    assert caught == []
     assert context.org_roots == []
     assert context.project_dir == repo_root
 
@@ -420,7 +433,13 @@ def test_runtime_template_key_malformed_config_still_resolves_project_legacy(
     malformed `.kittify/config.yaml` does not prevent `_runtime_template_key`
     from still resolving the project-legacy mission -- the pre-existing
     fail-soft in `load_pack_registry` absorbs it, contributing zero org
-    roots rather than raising."""
+    roots rather than raising.
+
+    Regression guard (pre-merge lens, mission
+    ``up-org-template-fsm-01M06F9K``): same NFR-005/SC-007 zero-new-warnings
+    requirement as the Walk A test above -- see its docstring."""
+    import warnings
+
     repo_root = tmp_path / "repo"
     config_dir = repo_root / ".kittify"
     config_dir.mkdir(parents=True)
@@ -430,10 +449,47 @@ def test_runtime_template_key_malformed_config_still_resolves_project_legacy(
     legacy_mission = repo_root / ".kittify" / "missions" / "software-dev" / "mission.yaml"
     _write_runtime_mission_yaml(legacy_mission, key="software-dev")
 
-    with pytest.warns(UserWarning):
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         resolved = io_seam._runtime_template_key("software-dev", repo_root)
 
+    assert caught == []
     assert resolved == str(legacy_mission.resolve())
+
+
+def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
+    tmp_path: Path,
+) -> None:
+    """Positive case for the two fixes above: a config that DOES declare
+    ``doctrine.org.packs`` but fails schema validation (two packs sharing
+    the same ``name``) is a genuinely misconfigured org pack -- the operator
+    demonstrably opted in and deserves to know it's broken. Unlike the
+    unparseable-file case, that signal must remain a loud ``UserWarning``
+    through this same resolution hot path (Walk A: ``_build_discovery_context``)."""
+    import warnings
+
+    repo_root = tmp_path / "repo"
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True)
+    (config_dir / "config.yaml").write_text(
+        "doctrine:\n"
+        "  org:\n"
+        "    packs:\n"
+        "      - name: acme\n"
+        "        local_path: /tmp/acme-one\n"
+        "      - name: acme\n"
+        "        local_path: /tmp/acme-two\n",
+        encoding="utf-8",
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        context = io_seam._build_discovery_context(repo_root)
+
+    assert len(caught) == 1
+    assert "Invalid doctrine.org config" in str(caught[0].message)
+    # Fails soft to zero org roots -- resolution still proceeds.
+    assert context.org_roots == []
 
 
 def test_runtime_template_key_resolves_org_tier_mission(tmp_path: Path) -> None:

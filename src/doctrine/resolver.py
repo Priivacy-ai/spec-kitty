@@ -203,10 +203,14 @@ def _resolve_asset(
     # resolve_org_roots(): OrgPackSubdirEscapeError/OrgPackEnvVarUnsetError
     # are deliberately raised and must propagate (DEC-005, NFR-001). With no
     # org packs configured, resolve_org_roots() returns [] and this loop is a
-    # no-op (NFR-005).
+    # no-op (NFR-005). ``quiet=True``: this is a resolution hot path that may
+    # run many times per invocation -- an unparseable config.yaml with no
+    # readable org intent must not spam a UserWarning per call (see
+    # load_pack_registry's docstring). A genuinely declared-but-broken org
+    # pack still raises a loud UserWarning regardless.
     from doctrine.drg.org_pack_config import resolve_org_roots
 
-    for org_root in resolve_org_roots(project_dir):
+    for org_root in resolve_org_roots(project_dir, quiet=True):
         org_path = org_root / "missions" / mission / subdir / name
         if org_path.is_file():
             return ResolutionResult(path=org_path, tier=ResolutionTier.ORG, mission=mission)
@@ -368,9 +372,10 @@ def resolve_mission(
     # Tier 3 -- org (sourced from configured org doctrine packs). Same-layer
     # direct import (DEC-003); no try/except around resolve_org_roots() --
     # see the identical rationale in _resolve_asset above (DEC-005, NFR-001).
+    # ``quiet=True`` -- see the identical rationale in _resolve_asset above.
     from doctrine.drg.org_pack_config import resolve_org_roots
 
-    for org_root in resolve_org_roots(project_dir):
+    for org_root in resolve_org_roots(project_dir, quiet=True):
         org_path = org_root / "missions" / name / filename
         if org_path.is_file():
             return ResolutionResult(path=org_path, tier=ResolutionTier.ORG, mission=name)
