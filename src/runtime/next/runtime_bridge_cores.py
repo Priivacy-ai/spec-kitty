@@ -348,32 +348,6 @@ class _ArtifactPresenceSnapshotLike(Protocol):
 _CLI_TASKS_STEP_IDS = frozenset({"tasks_outline", "tasks_packages", "tasks_finalize"})
 
 
-def evaluate_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
-    """Pure decision folding ``_check_cli_guards`` + ``_check_composed_action_guard``
-    (+ ``_check_requirement_mapping_ready``'s tail, via the precomputed
-    ``status_facts["requirement_mapping_failures"]`` fact) over one
-    ``ArtifactPresenceSnapshot``-shaped input (FR-009, SC-007).
-
-    Dispatch mirrors the two original functions' mission-family branching
-    exactly: research / documentation get their own fail-closed-by-default
-    action tables; anything else (including the literal ``"software-dev"``
-    family AND any unrecognized family value — the original composed guard
-    fell through to the software-dev chain for both) gets the software-dev
-    dispatch, which further branches on whether ``step_id`` carries the
-    CLI-guard native vocabulary (``tasks_outline``/``tasks_packages``/
-    ``tasks_finalize``) or the composed-action vocabulary (``tasks``, with
-    ``legacy_step_id`` disambiguating the same three sub-cases plus the
-    terminal/union case) — the two vocabularies produce genuinely different
-    messages for the tasks family (see ``_evaluate_cli_tasks_guard`` vs.
-    ``_evaluate_composed_tasks_guard`` — do not unify them further).
-    """
-    if snapshot.mission_family == "research":
-        return _evaluate_research_guards(snapshot)
-    if snapshot.mission_family == "documentation":
-        return _evaluate_documentation_guards(snapshot)
-    return _evaluate_software_dev_guards(snapshot)
-
-
 def _check_artifact_present(snapshot: _ArtifactPresenceSnapshotLike, tag: str) -> list[str]:
     """Shared single-artifact-presence check (``MISSING_ARTIFACT_MESSAGE`` shape).
 
@@ -564,6 +538,91 @@ def _evaluate_software_dev_guards(snapshot: _ArtifactPresenceSnapshotLike) -> li
     if step_id in ("implement", "review"):
         return _evaluate_wp_iteration_guard(step_id, snapshot)
     return []
+
+
+# ---------------------------------------------------------------------------
+# plan mission family (composed-action guard only, FR-002) + T003's
+# _GUARD_TABLES registry (FR-001/FR-006) and the strict/tolerant split
+# (FR-003–FR-005, FR-011). Placed after all four per-family evaluators are
+# defined (above) since ``_GUARD_TABLES`` is a module-level dict literal
+# built at import time from direct function-object references, not a lazy
+# lookup — it cannot forward-reference names not yet bound.
+# ---------------------------------------------------------------------------
+
+
+def _evaluate_plan_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
+    """Guard chain for the ``"plan"`` mission family (FR-002, issue #3386).
+
+    ``specify``/``plan`` mirror the software-dev artifact-presence checks;
+    ``research`` checks the new ``"research.md"`` presence tag (T004);
+    ``review`` is a terminal status-commit step (direct analogy to
+    ``_evaluate_documentation_guards``'s ``accept`` case above — publish gate
+    is sufficient); any other action fails closed, matching the research/
+    documentation families' own unknown-action convention.
+    """
+    action = snapshot.step_id
+    if action == "specify":
+        return _check_artifact_present(snapshot, SPEC_ARTIFACT)
+    if action == "research":
+        return _check_artifact_present(snapshot, "research.md")
+    if action == "plan":
+        return _check_artifact_present(snapshot, PLAN_ARTIFACT)
+    if action == "review":
+        return []  # terminal status commit step; publish gate is sufficient
+    return [f"No guard registered for plan action: {action}"]
+
+
+class UnregisteredMissionFamilyError(ValueError):
+    """Raised by :func:`evaluate_guards_strict` when ``snapshot.mission_family``
+    has no entry in ``_GUARD_TABLES`` (FR-006/FR-011).
+
+    Sibling concept: ``charter.mission_type_profiles.UnknownMissionTypeError``
+    — same shape (a ``ValueError`` carrying the offending string), different
+    layer (this one is runtime guard-family dispatch; that one is charter
+    mission-type resolution). The two are intentionally NOT unified.
+    """
+
+
+_GUARD_TABLES: dict[str, Callable[[_ArtifactPresenceSnapshotLike], list[str]]] = {
+    "research": _evaluate_research_guards,
+    "documentation": _evaluate_documentation_guards,
+    "software-dev": _evaluate_software_dev_guards,
+    "plan": _evaluate_plan_guards,
+}
+
+
+def evaluate_guards_strict(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
+    """Strict guard-table lookup (FR-006/FR-011): raises
+    :class:`UnregisteredMissionFamilyError` instead of silently falling
+    through to the software-dev chain for an unregistered
+    ``mission_family``. Direct callers: ``_check_cli_guards``
+    (``runtime_bridge.py``, T006 — raises loudly, never caught) and
+    ``_check_composed_action_guard`` (``runtime_bridge_composition.py``,
+    T005 — caught, logged at WARNING, degrades to ``[]``).
+    """
+    guard_table_entry = _GUARD_TABLES.get(snapshot.mission_family)
+    if guard_table_entry is None:
+        raise UnregisteredMissionFamilyError(snapshot.mission_family)
+    return guard_table_entry(snapshot)
+
+
+def evaluate_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
+    """Pure decision folding ``_check_cli_guards`` + ``_check_composed_action_guard``
+    (+ ``_check_requirement_mapping_ready``'s tail, via the precomputed
+    ``status_facts["requirement_mapping_failures"]`` fact) over one
+    ``ArtifactPresenceSnapshot``-shaped input (FR-009, SC-007).
+
+    Tolerant wrapper over :func:`evaluate_guards_strict` (FR-006): an
+    unregistered ``mission_family`` degrades to ``[]`` here instead of
+    raising. Kept tolerant/public only for existing direct test callers
+    (this module's own docstring/SC-004 compat contract); any **new**
+    production call site should use :func:`evaluate_guards_strict` instead
+    so an unregistered family is never silently swallowed.
+    """
+    try:
+        return evaluate_guards_strict(snapshot)
+    except UnregisteredMissionFamilyError:
+        return []
 
 
 # ---------------------------------------------------------------------------

@@ -800,7 +800,7 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
         snapshot = dataclasses.replace(
             snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir)
         )
-    return _cores.evaluate_guards(snapshot)
+    return _cores.evaluate_guards_strict(snapshot)
 
 
 def _occurrence_gate_failures(feature_dir: Path) -> list[str]:
