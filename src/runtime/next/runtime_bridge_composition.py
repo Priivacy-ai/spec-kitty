@@ -435,9 +435,12 @@ def _check_composed_action_guard(
 ) -> list[str]:
     """Evaluate the post-composition guard for a composed action.
 
-    Forwards to :func:`runtime_bridge_cores.evaluate_guards` over a
+    Forwards to :func:`runtime_bridge_cores.evaluate_guards_strict` over a
     :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
-    T022; relocated here #2531 WP08).
+    T022; relocated here #2531 WP08). On this tolerant composed extension path
+    an :class:`~runtime_bridge_cores.UnregisteredMissionFamilyError` is caught,
+    logged at WARNING, and degraded to an explicit neutral (empty) result —
+    unlike the legacy CLI path (``_check_cli_guards``), which lets it raise.
 
     Mirrors ``_check_cli_guards`` semantics for the composed actions.
 
