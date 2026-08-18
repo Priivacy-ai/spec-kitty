@@ -99,6 +99,13 @@ KNOWN_TOP_LEVEL_KEYS_BY_ARTIFACT: dict[str, frozenset[str]] = {
             "from_lane",
             "reason",
             "review_ref",
+            # Structured review verdict (FR-014): the reducer projects
+            # ``StatusEvent.review_result`` (status/models.py) and the writer
+            # serializes it onto the row, so a persisted status_event_row
+            # legitimately carries this key. Optional/nullable — matching the
+            # reducer's override-or-carry-forward semantics — so its absence on
+            # a non-review transition is not a violation.
+            "review_result",
             "to_lane",
             "wp_id",
             "mission_id",
