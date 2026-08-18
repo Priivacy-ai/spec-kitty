@@ -28,3 +28,4 @@
 - Structural failures support loss findings. Structural count equality is never treated as proof of semantic or lossless fidelity.
 - Privacy failure means the preregistered containment contract was not runnable. Empty residue is non-evidence; no leakage or cleanup claim follows.
 - B0/B1 outputs replay sealed annotations and are not baseline performance evidence. The sealed v1 B2/C5a API cannot support a fair blinded implementation, so material utility remains `UNKNOWN`.
+- The research mission contract checks a root `source-register.csv` while its own instructions designate `research/source-register.csv`. The root file is a byte-identical compatibility projection; the nested file remains the authored register and equality is gate-verified.
