@@ -24,6 +24,7 @@ pack -- loud failure is acceptable, no degrade logic is this WP's job).
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 import pytest
@@ -497,48 +498,156 @@ class TestNoCascadeWarningNamesOrgPackArtifacts:
 
 
 # ---------------------------------------------------------------------------
-# T016 — malformed org pack: loud failure acceptable, no degrade logic here
+# T016 — graphless org pack: per-root graceful degrade (no cascade, no crash)
 # ---------------------------------------------------------------------------
 
 
-class TestMalformedOrgPackLoudFailure:
-    def test_malformed_org_pack_does_not_silently_succeed(
-        self, project_root: Path
+class TestGraphlessOrgPackDegradesGracefully:
+    def test_graphless_org_pack_activates_directly_without_cascade_or_crash(
+        self, project_root: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """A configured org pack that exists but carries no ``*.graph.yaml``
-        fragment MAY raise ``DRGLoadError`` uncaught (Out of Scope / C-006 --
-        #3401's territory, not duplicated here). What this test forbids is
-        the OTHER outcome: silently succeeding with wrong/partial data
-        (NFR-002). Either the command errors, or the cascade target is simply
-        absent -- never present under a bogus ID.
-        """
-        pack_root = project_root / "org-packs" / "malformed-pack"
-        # Artifact file present, but deliberately no *.graph.yaml at the pack
-        # root -- has_graph_files(pack_root) is False.
-        _write_directive(pack_root, "a-directive", "DIRECTIVE_A")
-        _write_org_pack_config(project_root, [("malformed-pack", "org-packs/malformed-pack")])
+        """A configured org pack that carries doctrine artifacts but **no
+        root-level ``*.graph.yaml``** contributes no charter-DRG layer, so
+        ``load_validated_graph`` degrades it to "no org DRG layer for this
+        root" (``has_graph_files(pack_root)`` is ``False``) instead of
+        crashing with ``DRGLoadError``.
 
-        result = _activate(
-            project_root,
-            "--cascade",
-            "all",
-            "directive",
-            "a-directive",
-            catch_exceptions=True,
+        This is the durable per-root-degrade behaviour the superseded #3401
+        was going to supply, retargeted to the #3387 org-pack model and folded
+        into ``_drg_helpers.load_validated_graph`` during this PR's landing.
+        (Before the guard, threading org roots into this call site crashed
+        such a pack; the graphless-pack case was previously deferred to #3401.)
+
+        Two things must hold (NFR-002 — never silently activate a bogus cascade
+        target under a graphless pack's authority):
+
+        1. The command succeeds and the **directly-named** target is activated.
+        2. **Nothing is cascade-activated** — the pack declares no DRG edges,
+           so ``--cascade all`` finds no targets. (The activation set is still
+           seeded from the default pack on the first directive activation —
+           legitimate baseline behaviour, and every seeded entry is a real
+           built-in directive, not a phantom org target.)
+        """
+        pack_root = project_root / "org-packs" / "graphless-pack"
+        # Artifact file present, but deliberately no *.graph.yaml at the pack
+        # root -- has_graph_files(pack_root) is False, so the root is skipped.
+        _write_directive(pack_root, "a-directive", "DIRECTIVE_A")
+        _write_org_pack_config(
+            project_root, [("graphless-pack", "org-packs/graphless-pack")]
         )
 
-        if result.exit_code == 0:
-            # Graceful path is not required, but if the command didn't
-            # error, it must not have silently activated a non-existent
-            # cascade target under the malformed pack's authority.
-            data = _config(project_root)
-            activated = data.get("activated_directives") or []
-            assert activated == ["a-directive"] or activated == []
-        else:
-            # Loud failure: an exception propagated (DRGLoadError, per
-            # load_graph_or_dir's contract for a pack with no graph
-            # fragment) -- acceptable per spec's Out of Scope / C-006.
-            assert result.exception is not None
+        with caplog.at_level(logging.WARNING, logger="charter._drg_helpers"):
+            result = _activate(
+                project_root,
+                "--cascade",
+                "all",
+                "directive",
+                "a-directive",
+                catch_exceptions=True,
+            )
+
+        # Graceful degrade: no DRGLoadError crash.
+        assert result.exit_code == 0, result.output
+        assert result.exception is None
+
+        # The directly-named target activated.
+        data = _config(project_root)
+        activated = data.get("activated_directives") or []
+        assert "a-directive" in activated
+
+        # NFR-002: no cascade target was activated under the graphless pack's
+        # authority -- the pack has no DRG edges to walk.
+        assert "Cascade-activated" not in result.output
+
+        # D-005 ("degrade, but never silent"): the graphless pack's drop is
+        # reported, not swallowed. This is the load-bearing assertion -- it
+        # exercises the guard's skip branch itself, which the no-crash /
+        # no-cascade checks above cannot distinguish from an empty pack.
+        assert any(
+            "ships no root-level DRG graph" in rec.message
+            and "graphless-pack" in rec.message
+            for rec in caplog.records
+        ), [rec.message for rec in caplog.records]
+
+
+# ---------------------------------------------------------------------------
+# T016b — documented limitation: cascade edges authored ONLY in
+# drg/fragment.yaml are invisible to the cascade path (post-#3387 model).
+# ---------------------------------------------------------------------------
+
+
+class TestGraphlessPackWithFragmentEdgeIsInvisibleToCascade:
+    """Pins the boundary the guard's SCOPE comment documents: charter cascade
+    reads root-level ``*.graph.yaml`` only, so a ``requires`` edge authored
+    solely in an org pack's ``drg/fragment.yaml`` (the #3387 ``OrgDRGFragment``
+    shape) does **not** cascade -- the pack has no root-level graph, so
+    ``load_validated_graph`` skips it (with a warning) and the edge is never
+    walked.
+
+    This is a **disclosed limitation, not a regression**: cascade never read
+    ``drg/fragment.yaml`` on any prior main either. The test exists so the gap
+    is pinned rather than latent -- if a later change wires ``fragment.yaml``
+    edges into cascade, this test must be updated deliberately.
+    """
+
+    def test_requires_edge_in_fragment_yaml_does_not_cascade(
+        self, project_root: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        pack_root = project_root / "org-packs" / "fragment-only-pack"
+        _write_directive(pack_root, "a-directive", "DIRECTIVE_A")
+        _write_directive(pack_root, "b-directive", "DIRECTIVE_B")
+        # The requires edge lives ONLY in drg/fragment.yaml -- never in a
+        # root-level *.graph.yaml -- so has_graph_files(pack_root) is False and
+        # the cascade path never sees this edge.
+        drg_dir = pack_root / "drg"
+        drg_dir.mkdir(parents=True, exist_ok=True)
+        (drg_dir / "fragment.yaml").write_text(
+            "pack_name: fragment-only-pack\n"
+            "source_kind: local_path\n"
+            "source_ref: org-packs/fragment-only-pack\n"
+            "layer_index: 1\n"
+            "provenance_marker: org\n"
+            "nodes:\n"
+            "  - id: DIRECTIVE_A\n"
+            "    kind: directives\n"
+            "  - id: DIRECTIVE_B\n"
+            "    kind: directives\n"
+            "edges:\n"
+            "  - source: DIRECTIVE_A\n"
+            '    target: "directive:DIRECTIVE_B"\n'
+            "    relation: requires\n",
+            encoding="utf-8",
+        )
+        _write_org_pack_config(
+            project_root, [("fragment-only-pack", "org-packs/fragment-only-pack")]
+        )
+
+        with caplog.at_level(logging.WARNING, logger="charter._drg_helpers"):
+            result = _activate(
+                project_root,
+                "--cascade",
+                "all",
+                "directive",
+                "a-directive",
+                catch_exceptions=True,
+            )
+
+        # No crash, direct target activated.
+        assert result.exit_code == 0, result.output
+        data = _config(project_root)
+        activated = data.get("activated_directives") or []
+        assert "a-directive" in activated
+
+        # The documented limitation: the fragment.yaml `requires` edge is
+        # invisible to cascade, so b-directive is NOT cascade-activated.
+        assert "b-directive" not in activated
+        assert "Cascade-activated" not in result.output
+
+        # And the operator is warned the pack contributed no cascade graph.
+        assert any(
+            "ships no root-level DRG graph" in rec.message
+            for rec in caplog.records
+        ), [rec.message for rec in caplog.records]
 
 
 # ---------------------------------------------------------------------------
