@@ -152,7 +152,7 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   `agent-memory-workflow-migration-manifest.md` (with a completeness test)
   maps all 49 audited memories to a repo home, an already-home citation, a
   learned-fact note, or "keep-private". Dogfooding payoff: verifying against
-  current code caught several *stale* memories — the review-gate frontmatter
+  current code caught several _stale_ memories — the review-gate frontmatter
   mechanism was retired for an event-sourced one, and the drain's second gate
   was mis-remembered as `sync migrate` (retired).
 - **An agent tripping a gate, hunting the right doctrine template source, or
@@ -340,7 +340,7 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   allowlisted still-dead symbol no longer forces a hand-edited "rehashed WPxx"
   baseline — a new fail-closed helper
   (`tests/architectural/_refresh_dead_symbol_hashes.py`) refreshes the
-  `body_hash` for you and is structurally incapable of admitting a *new* dead
+  `body_hash` for you and is structurally incapable of admitting a _new_ dead
   symbol (it iterates the existing allowlist only and refuses on an
   unrecoverable or ambiguous `module_path`, proven by a non-fakeable
   regression). Adding a migration no longer needs a baseline bump: the
@@ -469,7 +469,7 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   layout where live event/body writes were refused deep in the stack and
   swallowed — a **silent zero-capture** that never surfaced to the operator. A
   `#3293` regression compounded this by also refusing authenticated hosts
-  entirely. Now a fresh root resolves to project-only capture *before* any
+  entirely. Now a fresh root resolves to project-only capture _before_ any
   legacy persist; a legacy-with-data root auto-migrates through the canonical
   `migrate_journal`/`project_store_migration` engines under a deterministic,
   crash-safe migration id (re-entry never bricks the root); the live emit path
@@ -504,7 +504,7 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   claim a completed work package for review — the false "WP already claimed for
   review by `<implementer>`" refusal is gone (`#3455`).** Before, claiming a WP
   for review (`for_review → in_review`) compared the claim holder's identity,
-  which at `for_review` is structurally the *implementer* — so any cross-profile
+  which at `for_review` is structurally the _implementer_ — so any cross-profile
   reviewer (e.g. `reviewer-renata` reviewing `python-pedro`'s work) was rejected
   as a self-review collision, and the block surfaced on the status aggregate
   seam rather than the `move-task` command. Now the `for_review → in_review` edge
