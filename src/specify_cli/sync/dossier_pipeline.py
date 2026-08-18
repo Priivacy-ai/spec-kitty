@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from specify_cli.dossier.manifest import ManifestSchemaError
+
 if TYPE_CHECKING:
     from specify_cli.dossier.models import MissionDossier
     from specify_cli.dossier.snapshot import MissionDossierSnapshot
@@ -37,6 +39,36 @@ class DossierSyncResult:
     @property
     def success(self) -> bool:
         return self.dossier is not None and not self.errors
+
+
+_MANIFEST_SCHEMA_ERROR_TEMPLATE = (
+    "expected-artifacts.yaml is schema-invalid for mission type {mission_type!r}"
+    "{location}: {detail} Fix your expected-artifacts.yaml."
+)
+
+
+def _format_manifest_schema_error(mission_type: str, exc: ManifestSchemaError) -> str:
+    """Render a schema-invalid-manifest ``ManifestSchemaError`` as one
+    structured, user-legible, greppable line (#3542-B).
+
+    ``Indexer.index_feature`` -> ``ManifestRegistry.load_manifest`` raises
+    ``ManifestSchemaError`` (FR-016 / adversarial-review MAJOR fix) when
+    ``expected-artifacts.yaml`` fails schema validation (e.g. a typo'd/extra
+    key) -- a domain type, not a raw ``pydantic.ValidationError``, so callers
+    can distinguish a genuine manifest-schema failure from an unrelated
+    ``ValidationError`` (e.g. an ``ArtifactRef`` model-validator bug) that
+    happens to propagate through the same call stack. Its typed ``origin``
+    field names the manifest's source, and its chained ``__cause__`` is the
+    underlying ``pydantic.ValidationError`` naming the bad key. This helper
+    folds both into a single line so ``DossierSyncResult.errors`` carries a
+    user-legible string rather than a raw exception repr, and so the
+    caller's ``logger.warning(...)`` call is self-contained (no need to also
+    format the traceback to be actionable).
+    """
+    detail = str(exc.__cause__ or exc).replace("\n", " ")
+    return _MANIFEST_SCHEMA_ERROR_TEMPLATE.format(
+        mission_type=mission_type, location=f" ({exc.origin})", detail=detail
+    )
 
 
 def _emit_artifact_events(
@@ -328,6 +360,33 @@ def sync_feature_dossier(
         # completeness index, not just the governance gate.
         indexer = Indexer(ManifestRegistry(), repo_root=repo_root)
         dossier = indexer.index_feature(feature_dir, mission_type, step_id)
+    except ManifestSchemaError as e:
+        # #3542-B / adversarial-review MAJOR fix: a schema-invalid
+        # expected-artifacts.yaml is an author-actionable misconfiguration,
+        # not a genuine indexer bug -- this is the dominant runtime path
+        # (fired on every status transition via
+        # trigger_feature_dossier_sync_if_enabled, which is fire-and-forget
+        # and never raises), so without this branch the failure was
+        # previously invisible: caught by the generic `except Exception`
+        # below, logged at ERROR with a full stack trace meant for real
+        # bugs, and reduced to a bare `str(exc)` that names the bad key but
+        # not the file. Catching the domain `ManifestSchemaError` type here
+        # -- instead of the raw `pydantic.ValidationError` this branch used
+        # to catch -- means a genuine `ArtifactRef`/`MissionDossier`
+        # validator bug (which also raises `ValidationError`, but well
+        # after the manifest already loaded successfully) is NOT
+        # misattributed to "fix your expected-artifacts.yaml": it falls
+        # through to the generic `except Exception` below instead, where it
+        # belongs. WARNING + a structured, file-naming message keeps the
+        # "never raises" contract intact while making the failure findable.
+        schema_error = _format_manifest_schema_error(mission_type, e)
+        logger.warning(schema_error)
+        return DossierSyncResult(
+            dossier=None,
+            events_emitted=0,
+            body_outcomes=[],
+            errors=[schema_error],
+        )
     except Exception as e:
         logger.exception("Indexer failed for %s", feature_dir)
         return DossierSyncResult(
