@@ -19,8 +19,11 @@ from pathlib import Path
 MISSION = "docling-graph-kitty-specs-01M0A0FG"
 MISSION_ID = "01M0A0FGN48R0HNM2S4VQXQFF1"
 REPORT_DIR = Path("docs/research/docling-graph-kitty-specs")
+PUBLISHED_ROOT = Path("research-outputs/research")
+PUBLISHED_REPORT_DIR = PUBLISHED_ROOT / "docling-graph-kitty-specs"
 MISSION_DIR = Path("kitty-specs") / MISSION
 COMPATIBILITY_ROOT = Path("docs/research") / MISSION
+PUBLISHED_COMPATIBILITY_ROOT = PUBLISHED_ROOT / MISSION
 EVIDENCE_PATTERN = re.compile(r"EV-\d{3}")
 EVIDENCE_RANGE_PATTERN = re.compile(r"EV-(\d{3})[–-]EV-(\d{3})")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
@@ -211,8 +214,78 @@ This directory exists only for the legacy Deep Research path contract.
 REQUIRED_ABSENT_COMPATIBILITY_FILES = {str(MISSION_DIR / "acceptance-matrix.json")}
 REVIEW_LEDGER_PATH = str(MISSION_DIR / "research/adversarial-reviews.md")
 VERIFIER_PATH = str(MISSION_DIR / "research/verify_publication.py")
-HISTORICAL_RESEARCH_REVIEW_PATHS = tuple(sorted(EXACT_ARTIFACTS - {REVIEW_LEDGER_PATH, VERIFIER_PATH}))
-STATIC_COMPATIBILITY_REVIEW_PATHS = tuple(sorted((COMPATIBILITY_FILES - {str(MISSION_DIR / "status.json")}) | {VERIFIER_PATH}))
+HISTORICAL_RESEARCH_REVIEW_PATHS = tuple(
+    sorted(EXACT_ARTIFACTS - {REVIEW_LEDGER_PATH, VERIFIER_PATH, str(MISSION_DIR / "report.md")})
+)
+STATIC_COMPATIBILITY_REVIEW_PATHS = tuple(
+    sorted(
+        COMPATIBILITY_FILES
+        - {str(MISSION_DIR / "status.json"), str(MISSION_DIR / "tasks.md")}
+    )
+)
+PUBLICATION_TRANSFORM = {
+    "kind": "byte_preserving_directory_relocation",
+    "generated_prefix": "docs/research/",
+    "published_prefix": "research-outputs/research/",
+    "file_count": 193,
+    "content_bytes_changed": False,
+    "reason": (
+        "Keep immutable research payloads and compatibility carriers outside live "
+        "documentation scanners while retaining their original bytes and relative topology."
+    ),
+}
+
+
+def current_path(raw_path: str | Path) -> Path:
+    """Map a logical experiment-time path to its byte-identical published path."""
+    relative = Path(raw_path)
+    manifest_path = REPORT_DIR / "publication-manifest.json"
+    if relative == manifest_path:
+        return relative
+    generated_root = Path(PUBLICATION_TRANSFORM["generated_prefix"])
+    try:
+        suffix = relative.relative_to(generated_root)
+    except ValueError:
+        return relative
+    return Path(PUBLICATION_TRANSFORM["published_prefix"]) / suffix
+
+
+def verify_relocation_equivalence(
+    repo: Path,
+    research_revision: str,
+    compatibility_revision: str,
+    errors: list[str],
+) -> bool:
+    """Prove every relocated file retains its reviewed Git blob exactly."""
+    valid = True
+    cohorts = (
+        (PUBLISHED_REPORT_DIR, REPORT_DIR, research_revision, 189),
+        (PUBLISHED_COMPATIBILITY_ROOT, COMPATIBILITY_ROOT, compatibility_revision, 4),
+    )
+    for published_root, generated_root, revision, expected_count in cohorts:
+        published_paths = git(repo, "ls-files", str(published_root)).splitlines()
+        if len(published_paths) != expected_count or len(set(published_paths)) != expected_count:
+            errors.append(f"publication relocation cohort mismatch: {published_root}")
+            valid = False
+        for published_path in published_paths:
+            suffix = Path(published_path).relative_to(published_root)
+            generated_path = generated_root / suffix
+            try:
+                old_blob = git(repo, "rev-parse", f"{revision}:{generated_path}")
+                new_blob = git(repo, "hash-object", published_path)
+            except subprocess.CalledProcessError:
+                errors.append(f"publication relocation mapping unavailable: {generated_path}")
+                valid = False
+                continue
+            if old_blob != new_blob:
+                errors.append(f"publication relocation changed bytes: {generated_path}")
+                valid = False
+    old_tree_paths = set(git(repo, "ls-files", "docs/research").splitlines())
+    expected_old_tree = {str(REPORT_DIR / "publication-manifest.json")}
+    if old_tree_paths != expected_old_tree:
+        errors.append("publication relocation left stale or unexpected docs/research paths")
+        valid = False
+    return valid
 
 
 def sha256(path: Path) -> str:
@@ -244,7 +317,7 @@ def confined_path(repo: Path, raw_path: str) -> Path | None:
     relative = Path(raw_path)
     if relative.is_absolute() or ".." in relative.parts:
         return None
-    resolved = (repo / relative).resolve()
+    resolved = (repo / current_path(relative)).resolve()
     return resolved if resolved.is_relative_to(repo.resolve()) else None
 
 
@@ -317,7 +390,7 @@ def verify_reviewed_revision(
     for path in paths:
         try:
             reviewed_blob = git(repo, "rev-parse", f"{revision}:{path}")
-            current_blob = git(repo, "hash-object", path)
+            current_blob = git(repo, "hash-object", str(current_path(path)))
         except subprocess.CalledProcessError:
             errors.append(f"reviewed revision does not contain {path}")
             valid = False
@@ -451,8 +524,13 @@ def verify_compatibility_at_revision(  # noqa: C901
     *,
     context: str,
     expected_lanes: set[str],
+    published: bool = False,
 ) -> bool:
     valid = True
+    compatibility_root = PUBLISHED_COMPATIBILITY_ROOT if published else COMPATIBILITY_ROOT
+    expected_contract = {
+        str(current_path(path)) if published else path for path in COMPATIBILITY_FILES
+    }
     try:
         revision_paths = set(
             git(
@@ -462,7 +540,7 @@ def verify_compatibility_at_revision(  # noqa: C901
                 "--name-only",
                 revision,
                 "--",
-                str(COMPATIBILITY_ROOT),
+                str(compatibility_root),
                 str(MISSION_DIR / "issue-matrix.md"),
                 str(MISSION_DIR / "tasks.md"),
                 str(MISSION_DIR / "tasks"),
@@ -472,7 +550,7 @@ def verify_compatibility_at_revision(  # noqa: C901
     except subprocess.CalledProcessError:
         errors.append(f"{context}: compatibility tree is unavailable")
         return False
-    if revision_paths != COMPATIBILITY_FILES:
+    if revision_paths != expected_contract:
         errors.append(f"{context}: compatibility tree does not match the exact ten-file contract")
         valid = False
     try:
@@ -485,8 +563,9 @@ def verify_compatibility_at_revision(  # noqa: C901
             errors.append(f"{context}: issue matrix content contract failed")
             valid = False
     for raw_path, expected_text in COMPATIBILITY_POINTER_TEXT.items():
+        revision_pointer_path = str(current_path(raw_path)) if published else raw_path
         try:
-            pointer_text = git(repo, "show", f"{revision}:{raw_path}") + "\n"
+            pointer_text = git(repo, "show", f"{revision}:{revision_pointer_path}") + "\n"
         except subprocess.CalledProcessError:
             errors.append(f"{context}: compatibility pointer is unavailable: {raw_path}")
             valid = False
@@ -495,8 +574,9 @@ def verify_compatibility_at_revision(  # noqa: C901
             errors.append(f"{context}: compatibility pointer template mismatch: {raw_path}")
             valid = False
         target = COMPATIBILITY_POINTERS[raw_path]
+        revision_target = str(current_path(target)) if published else str(target)
         target_present = subprocess.run(
-            ["git", "cat-file", "-e", f"{revision}:{target}"],
+            ["git", "cat-file", "-e", f"{revision}:{revision_target}"],
             cwd=repo,
             check=False,
             capture_output=True,
@@ -574,6 +654,8 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
 
     if manifest.get("schema_version") != 1 or manifest.get("mission") != MISSION:
         errors.append("publication manifest schema or mission identity mismatch")
+    if manifest.get("publication_transform") != PUBLICATION_TRANSFORM:
+        errors.append("publication transform is incomplete or unexpected")
     artifacts = manifest.get("artifacts", [])
     artifact_paths = [str(record.get("path", "")) for record in artifacts]
     if len(artifact_paths) != len(set(artifact_paths)):
@@ -651,7 +733,10 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     if {str(record["path"]) for record in execution_manifests} != set(EXPECTED_EXECUTION_COUNTS):
         errors.append("execution-manifest path set mismatch")
     for record in execution_manifests:
-        execution_path = repo / str(record["path"])
+        execution_path = confined_path(repo, str(record["path"]))
+        if execution_path is None:
+            errors.append(f"{record['path']}: execution manifest is unconfined")
+            continue
         execution = json.loads(execution_path.read_text(encoding="utf-8"))
         if execution.get("executed_after_seal") is not True:
             errors.append(f"{record['path']}: not declared executed_after_seal")
@@ -675,7 +760,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         "rev-parse",
         f"{manifest['report_source_commit']}:{report_rel}",
     )
-    current_blob = git(repo, "hash-object", report_rel)
+    current_blob = git(repo, "hash-object", str(current_path(report_rel)))
     expected_blob = manifest["report_git_blob"]
     if sealed_blob != expected_blob:
         errors.append(f"sealed report blob mismatch: {sealed_blob} != {expected_blob}")
@@ -697,7 +782,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     if source_register.read_bytes() != nested_register.read_bytes():
         errors.append("root and research source registers are not byte-identical")
 
-    scorecard = read_csv(repo / REPORT_DIR / "option-scorecard.csv")
+    scorecard = read_csv(repo / current_path(REPORT_DIR / "option-scorecard.csv"))
     candidates = read_csv(repo / MISSION_DIR / "research/candidate-registry.csv")
     candidate_ids = {row["candidate_id"] for row in candidates}
     score_ids = {row["candidate_id"] for row in scorecard}
@@ -812,9 +897,9 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         elif sha256(raw_path) != row["raw_sha256"]:
             errors.append(f"{row['evidence_id']}: raw_result sha256 mismatch")
     reference_paths = (
-        repo / REPORT_DIR / "report.md",
-        repo / REPORT_DIR / "risk-register.md",
-        repo / REPORT_DIR / "option-scorecard.csv",
+        repo / current_path(REPORT_DIR / "report.md"),
+        repo / current_path(REPORT_DIR / "risk-register.md"),
+        repo / current_path(REPORT_DIR / "option-scorecard.csv"),
         repo / MISSION_DIR / "findings.md",
         repo / MISSION_DIR / "report.md",
         repo / MISSION_DIR / "research/adversarial-reviews.md",
@@ -826,7 +911,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     if unresolved:
         errors.append(f"unresolved evidence references: {sorted(unresolved)}")
 
-    redaction_path = repo / REPORT_DIR / "data/redaction-manifest.json"
+    redaction_path = repo / current_path(REPORT_DIR / "data/redaction-manifest.json")
     redaction = json.loads(redaction_path.read_text(encoding="utf-8"))
     redaction_records = redaction.get("files", [])
     redaction_paths = {str(record.get("path", "")) for record in redaction_records}
@@ -862,7 +947,11 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         if row["execution_manifest"] not in artifact_paths:
             errors.append(f"{row['probe_id']}: execution manifest is not publication-sealed")
             continue
-        execution = json.loads((repo / row["execution_manifest"]).read_text(encoding="utf-8"))
+        execution_path = confined_path(repo, row["execution_manifest"])
+        if execution_path is None:
+            errors.append(f"{row['probe_id']}: execution manifest is unconfined")
+            continue
+        execution = json.loads(execution_path.read_text(encoding="utf-8"))
         if execution.get("probe_id") != row["probe_id"]:
             errors.append(f"{row['probe_id']}: execution-manifest probe ID mismatch")
         if row["result"] != row["execution_manifest"]:
@@ -876,7 +965,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
             errors.append(f"compatibility contract file missing or unconfined: {raw_path}")
             continue
         tracked = subprocess.run(
-            ["git", "ls-files", "--error-unmatch", raw_path],
+            ["git", "ls-files", "--error-unmatch", str(current_path(raw_path))],
             cwd=repo,
             check=False,
             capture_output=True,
@@ -884,14 +973,19 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         if tracked.returncode:
             errors.append(f"compatibility contract file is not tracked: {raw_path}")
 
-    pointer_files = set(git(repo, "ls-files", str(COMPATIBILITY_ROOT)).splitlines())
-    if pointer_files != set(COMPATIBILITY_POINTERS):
+    expected_pointer_files = {str(current_path(path)) for path in COMPATIBILITY_POINTERS}
+    pointer_files = set(git(repo, "ls-files", str(PUBLISHED_COMPATIBILITY_ROOT)).splitlines())
+    if pointer_files != expected_pointer_files:
         errors.append("legacy acceptance projection must contain exactly four tracked pointer READMEs")
-    local_pointer_files = {str(path.relative_to(repo)) for path in (repo / COMPATIBILITY_ROOT).rglob("*") if path.is_file()}
-    if local_pointer_files != set(COMPATIBILITY_POINTERS):
+    local_pointer_files = {
+        str(path.relative_to(repo))
+        for path in (repo / PUBLISHED_COMPATIBILITY_ROOT).rglob("*")
+        if path.is_file()
+    }
+    if local_pointer_files != expected_pointer_files:
         errors.append("legacy acceptance projection contains untracked or unexpected files")
     for raw_path, expected_target in COMPATIBILITY_POINTERS.items():
-        pointer_path = repo / raw_path
+        pointer_path = repo / current_path(raw_path)
         if not pointer_path.is_file():
             continue
         pointer_text = pointer_path.read_text(encoding="utf-8")
@@ -900,7 +994,8 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
             errors.append(f"compatibility pointer content contract failed: {raw_path}")
             continue
         resolved_target = (pointer_path.parent / links[0]).resolve()
-        if resolved_target != (repo / expected_target).resolve() or not resolved_target.exists():
+        current_target = (repo / current_path(expected_target)).resolve()
+        if resolved_target != current_target or not resolved_target.exists():
             errors.append(f"compatibility pointer target mismatch: {raw_path}")
 
     expected_task_files = {
@@ -918,6 +1013,8 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         "compatibility projection" not in task_index
         or "21bcce5a70b72e385fad77954a9f45d7806b7835" not in task_index
         or "not canonical `requirement_refs`" not in task_index
+        or "frozen legacy migration carrier" not in task_index
+        or "- [ ] T004 Prepare Spec Kitty acceptance-gate inputs (WP01)" not in task_index
     ):
         errors.append("acceptance compatibility task index omits authority or lifecycle disclosures")
     wp_text = (repo / MISSION_DIR / "tasks/WP01-research-closeout-acceptance.md").read_text(encoding="utf-8")
@@ -957,6 +1054,9 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     elif status_result.returncode or status_validation.get("passed") is not True:
         errors.append(f"canonical acceptance status replay failed: {status_result.stderr.strip()}")
     status = json.loads((repo / MISSION_DIR / "status.json").read_text(encoding="utf-8"))
+    meta = json.loads((repo / MISSION_DIR / "meta.json").read_text(encoding="utf-8"))
+    if meta.get("deliverables_path") != f"{PUBLISHED_COMPATIBILITY_ROOT}/":
+        errors.append("mission deliverables path does not name the published compatibility root")
     wp_status = status.get("work_packages", {}).get("WP01", {})
     if status.get("mission_slug") != MISSION or status.get("mission_type") != "research":
         errors.append("acceptance status mission identity/type mismatch")
@@ -969,8 +1069,21 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     if wp_status.get("subtasks") != {f"T{value:03d}": "done" for value in range(1, 5)}:
         errors.append("acceptance compatibility WP subtask projection mismatch")
 
-    covered_paths = set(artifact_paths) | set(prereg_paths) | set(transitive_paths) | COMPATIBILITY_FILES
-    tracked_scope = set(git(repo, "ls-files", str(REPORT_DIR), str(MISSION_DIR), str(COMPATIBILITY_ROOT)).splitlines())
+    covered_paths = {
+        str(current_path(path))
+        for path in set(artifact_paths) | set(prereg_paths) | set(transitive_paths) | COMPATIBILITY_FILES
+    }
+    covered_paths.add(str(REPORT_DIR / "publication-manifest.json"))
+    tracked_scope = set(
+        git(
+            repo,
+            "ls-files",
+            str(REPORT_DIR),
+            str(PUBLISHED_REPORT_DIR),
+            str(MISSION_DIR),
+            str(PUBLISHED_COMPATIBILITY_ROOT),
+        ).splitlines()
+    )
     uncovered = {
         path
         for path in tracked_scope
@@ -997,8 +1110,10 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     review_text = review_path.read_text(encoding="utf-8")
     historical_review_revision = ledger_review_revision(review_text, "Publication integrity, round 2")
     compatibility_review_revision = ledger_review_revision(review_text, "Acceptance compatibility successor")
+    relocation_review_revision = ledger_review_revision(review_text, "CI publication relocation successor")
     historical_review_approved = bool(historical_review_revision)
     compatibility_review_approved = bool(compatibility_review_revision)
+    relocation_review_approved = bool(relocation_review_revision)
     if not historical_review_approved:
         errors.append("adversarial ledger does not record round-2 APPROVE")
     else:
@@ -1024,6 +1139,38 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
             context="compatibility reviewed-content revision",
             expected_lanes={"in_review", "approved", "done"},
         )
+    if historical_review_approved and compatibility_review_approved:
+        verify_relocation_equivalence(
+            repo,
+            historical_review_revision,
+            compatibility_review_revision,
+            errors,
+        )
+    if require_gate and not relocation_review_approved:
+        errors.append("adversarial ledger does not record CI-publication-relocation successor APPROVE")
+    if relocation_review_approved:
+        mutable_review_paths = {
+            str(REPORT_DIR / "publication-manifest.json"),
+            REVIEW_LEDGER_PATH,
+            str(MISSION_DIR / "mission-events.jsonl"),
+            str(MISSION_DIR / "status.events.jsonl"),
+            str(MISSION_DIR / "meta.json"),
+        }
+        relocation_review_paths = tuple(sorted(tracked_scope - mutable_review_paths))
+        verify_reviewed_revision(
+            repo,
+            {"reviewed_revision": relocation_review_revision},
+            relocation_review_paths,
+            errors,
+        )
+        verify_compatibility_at_revision(
+            repo,
+            relocation_review_revision,
+            errors,
+            context="relocated publication reviewed-content revision",
+            expected_lanes={"approved", "done"},
+            published=True,
+        )
 
     gate_found = False
     approval_events: list[dict[str, object]] = []
@@ -1037,7 +1184,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         expected_gate = {
             "verdict": "APPROVE",
             "review_kind": "final-seal-receipt",
-            "reviewed_content_revision": compatibility_review_revision,
+            "reviewed_content_revision": relocation_review_revision,
             "publication_manifest_sha256": sha256(manifest_path),
             "report_sha256": report_record["sha256"],
             "report_git_blob": manifest["report_git_blob"],
@@ -1056,19 +1203,24 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
             gate_found = gate_found and event_time.tzinfo is not None and revision_time < event_time <= verification_time + timedelta(minutes=5)
         except (ValueError, subprocess.CalledProcessError):
             gate_found = False
-        gate_found = gate_found and historical_review_approved and compatibility_review_approved
+        gate_found = (
+            gate_found
+            and historical_review_approved
+            and compatibility_review_approved
+            and relocation_review_approved
+        )
         if gate_found:
             gate_found = verify_reviewed_revision(
                 repo,
                 event,
                 (
                     str(REPORT_DIR / "publication-manifest.json"),
-                    str(REPORT_DIR / "report.md"),
+                    str(current_path(REPORT_DIR / "report.md")),
                     str(MISSION_DIR / "report.md"),
                     str(MISSION_DIR / "research/adversarial-reviews.md"),
                     str(MISSION_DIR / "research/verify_publication.py"),
                     str(MISSION_DIR / "status.events.jsonl"),
-                    *sorted(COMPATIBILITY_FILES),
+                    *sorted(str(current_path(path)) for path in COMPATIBILITY_FILES),
                 ),
                 errors,
             )
@@ -1079,13 +1231,14 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
                 errors,
                 context="compatibility final-seal revision",
                 expected_lanes={"approved", "done"},
+                published=True,
             )
     if require_gate and not gate_found:
         errors.append("exact hash-bound publication_approved gate event not found")
 
     for raw_path in artifact_paths:
         tracked = subprocess.run(
-            ["git", "ls-files", "--error-unmatch", raw_path],
+            ["git", "ls-files", "--error-unmatch", str(current_path(raw_path))],
             cwd=repo,
             check=False,
             capture_output=True,

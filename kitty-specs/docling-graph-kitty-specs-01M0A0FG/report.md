@@ -1,6 +1,6 @@
 # Publication pointer
 
-Canonical report: [`docs/research/docling-graph-kitty-specs/report.md`](../../docs/research/docling-graph-kitty-specs/report.md)
+Canonical report: [`research-outputs/research/docling-graph-kitty-specs/report.md`](../../research-outputs/research/docling-graph-kitty-specs/report.md)
 
 Decision: do not replace existing `kitty-specs` Markdown, do not adopt a canonical Docling/graph store, and do not add Docling Graph as a default dependency. Derived semantic and native graphs remain unevaluated rather than approved. [EV-015, EV-019, EV-023–EV-026, EV-029]
 

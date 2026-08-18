@@ -6,6 +6,13 @@ at commit `21bcce5a70b72e385fad77954a9f45d7806b7835`; adding this projection mad
 current canonical WP lifecycle active again until acceptance closes it. The
 research itself had no implementation work packages.
 
+The checkboxes below are the frozen legacy migration carrier used to derive the
+original deterministic seed. They are not the current runtime authority after
+`status_phase: "1"`: `status.events.jsonl` and `status.json` record the later,
+authentic T004 completion and the accepted `approved` lane. T004 therefore
+remains unchecked here to preserve the seed without reopening the completed
+work.
+
 ## Subtask index
 
 | ID | Description | WP | Parallel |
@@ -32,4 +39,4 @@ research itself had no implementation work packages.
 - [x] T001 Confirm terminal v2 research-runtime state (WP01)
 - [x] T002 Verify the original 40-artifact research seal at `48fd33167585c2757d7642297b663e074ed7c07e` (WP01)
 - [x] T003 Materialize pointer-only v0 research paths (WP01)
-- [x] T004 Prepare Spec Kitty acceptance-gate inputs (WP01)
+- [ ] T004 Prepare Spec Kitty acceptance-gate inputs (WP01)
