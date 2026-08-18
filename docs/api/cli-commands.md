@@ -1152,6 +1152,12 @@ _Project health diagnostics_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ channel                 Report the active release channel (stable vs.        │
+│                         prerelease-opt-in).                                  │
+│ env-file                Report ``.kitty.env`` operator env-file health       │
+│                         (presence/tier/ignore).                              │
+│ provenance              Flag committed absolute built-in-pack source_path    │
+│                         leaks (C-PRV-5).                                     │
 │ command-files           Check all agent command files for correctness.       │
 │ skills                  Check command-skill manifest drift for Codex, Vibe,  │
 │                         Pi, and Letta.                                       │
@@ -1190,6 +1196,26 @@ _Project health diagnostics_
 │                         stranded under a retired                             │
 │                         resolver path, ahead of WP13's consumer-unification  │
 │                         (FR-008).                                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor channel
+
+```
+ Usage: spec-kitty doctor channel [OPTIONS]
+
+ Report the active release channel (stable vs. prerelease-opt-in).
+
+ Reads SPEC_KITTY_PRERELEASE (default OFF — stable channel). Never
+ mutates state.
+
+ Examples:
+     spec-kitty doctor channel
+     spec-kitty doctor channel --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1269,23 +1295,32 @@ _Project health diagnostics_
  With ``--check-staleness``, also reports Gap-1 coord-branch-vs-target
  staleness (FR-008) — non-blocking either way.
 
+ With ``--mission <handle>``, scopes every per-mission check (and the
+ ``--fix`` Gap-1 fast-forward) to the single mission the shared resolver maps
+ the handle to. An unresolvable / ambiguous handle fails closed with exit 1.
+
  Examples:
      spec-kitty doctor coordination
      spec-kitty doctor coordination --fix
      spec-kitty doctor coordination --json
      spec-kitty doctor coordination --check-staleness
+     spec-kitty doctor coordination --mission 083-my-mission
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --fix                        Remove stale coordination_branch keys from      │
-│                              meta.json for missions whose coord branch was   │
-│                              never created, then re-derive topology via      │
-│                              `migrate backfill-topology`.                    │
-│ --json                       Machine-readable JSON output                    │
-│ --check-staleness            Also report coord-branch-vs-target-branch       │
-│                              staleness (Gap-1, FR-008): non-blocking,        │
-│                              whether the coord branch is behind or has       │
-│                              diverged from its mission's target_branch.      │
-│ --help             -h        Show this message and exit.                     │
+│ --fix                            Remove stale coordination_branch keys from  │
+│                                  meta.json for missions whose coord branch   │
+│                                  was never created, then re-derive topology  │
+│                                  via `migrate backfill-topology`.            │
+│ --json                           Machine-readable JSON output                │
+│ --check-staleness                Also report coord-branch-vs-target-branch   │
+│                                  staleness (Gap-1, FR-008): non-blocking,    │
+│                                  whether the coord branch is behind or has   │
+│                                  diverged from its mission's target_branch.  │
+│ --mission                  TEXT  Scope the checks to a single mission handle │
+│                                  (mission_id / mid8 / slug), resolved via    │
+│                                  the same resolver as `doctor                │
+│                                  mission-state`.                             │
+│ --help             -h            Show this message and exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -1341,6 +1376,29 @@ _Project health diagnostics_
  Examples:
      spec-kitty doctor doctrine
      spec-kitty doctor doctrine --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Machine-readable JSON output                               │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor env-file
+
+```
+ Usage: spec-kitty doctor env-file [OPTIONS]
+
+ Report ``.kitty.env`` operator env-file health (presence/tier/ignore).
+
+ Reads the repo- and home-tier ``.kitty.env`` files and the
+ config.yaml ``env_file`` pointer, and reports which governed vars
+ are set and from which tier -- names/presence only for anything not
+ on the printable-var allowlist (C-SEC-1), values never leaked.
+ Read-only -- never mutates state.
+
+ Examples:
+     spec-kitty doctor env-file
+     spec-kitty doctor env-file --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Machine-readable JSON output                               │
@@ -1530,49 +1588,6 @@ _Project health diagnostics_
  Examples:
      spec-kitty doctor provenance
      spec-kitty doctor provenance --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctor env-file
-
-```
- Usage: spec-kitty doctor env-file [OPTIONS]
-
- Report .kitty.env operator env-file health (presence/tier/ignore).
-
- Reads the repo- and home-tier .kitty.env files and the config.yaml
- env_file pointer, and reports which governed vars are set and from
- which tier -- names/presence only for anything not on the
- printable-var allowlist (C-SEC-1), values never leaked. Read-only --
- never mutates state.
-
- Examples:
-     spec-kitty doctor env-file
-     spec-kitty doctor env-file --json
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --json            Machine-readable JSON output                               │
-│ --help  -h        Show this message and exit.                                │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty doctor channel
-
-```
- Usage: spec-kitty doctor channel [OPTIONS]
-
- Report the active release channel (stable vs. prerelease-opt-in).
-
- Reads SPEC_KITTY_PRERELEASE (default OFF -- stable channel). Never
- mutates state.
-
- Examples:
-     spec-kitty doctor channel
-     spec-kitty doctor channel --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Machine-readable JSON output                               │
@@ -2639,6 +2654,24 @@ _Search tracker issues via the hosted read path_
 │ --yes              -y                                      Proceed after     │
 │                                                            merge warnings    │
 │                                                            without prompts   │
+│ --skip-review-ar…                                          Bypass the        │
+│                                                            review-artifact   │
+│                                                            consistency gate  │
+│                                                            (the #2959 escape │
+│                                                            hatch). Requires  │
+│                                                            --note; the skip  │
+│                                                            is recorded as    │
+│                                                            durable override  │
+│                                                            evidence in the   │
+│                                                            status log, never │
+│                                                            a silent bypass.  │
+│ --note                                    TEXT             Reason recorded   │
+│                                                            as override       │
+│                                                            evidence when     │
+│                                                            using             │
+│                                                            --skip-review-ar… │
+│                                                            (required with    │
+│                                                            it).              │
 │ --help             -h                                      Show this message │
 │                                                            and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -3036,8 +3069,6 @@ _Inspect mission types for this project._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list       List activated mission types for the current                      │
-│            project (FR-016).                                                 │
 │ current    Show currently active mission for a mission                       │
 │            (auto-detects mission from cwd).                                  │
 │ info       Show details for a specific mission without                       │
@@ -3053,6 +3084,8 @@ _Inspect mission types for this project._
 │            (FR-001).                                                         │
 │ switch     [REMOVED] Switch active mission - this command was  (deprecated)  │
 │            removed in v0.8.0.                                                │
+│ list       List activated mission types for the current                      │
+│            project (FR-016).                                                 │
 │ show       Show the fully resolved MissionType definition for                │
 │            this project (FR-017).                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -3305,8 +3338,6 @@ _Inspect mission types for this project._
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ list       List activated mission types for the current                      │
-│            project (FR-016).                                                 │
 │ current    Show currently active mission for a mission                       │
 │            (auto-detects mission from cwd).                                  │
 │ info       Show details for a specific mission without                       │
@@ -3322,6 +3353,8 @@ _Inspect mission types for this project._
 │            (FR-001).                                                         │
 │ switch     [REMOVED] Switch active mission - this command was  (deprecated)  │
 │            removed in v0.8.0.                                                │
+│ list       List activated mission types for the current                      │
+│            project (FR-016).                                                 │
 │ show       Show the fully resolved MissionType definition for                │
 │            this project (FR-017).                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
@@ -4380,31 +4413,46 @@ _Synchronization commands_
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ routes          Show where the current checkout sends data and which teams   │
-│                 it is shared with.                                           │
-│ share           Share the current repository from Private Teamspace into a   │
-│                 team.                                                        │
-│ unshare         Stop sharing the current repository from this developer to   │
-│                 one team.                                                    │
-│ opt-out         Disable SaaS sync for this checkout and purge its pending    │
-│                 uploads.                                                     │
-│ opt-in          Enable SaaS sync for this checkout.                          │
-│ import-history  Materialize existing local mission/WP history into the SaaS  │
-│                 projection (#2262).                                          │
-│ workspace       Synchronize workspace with upstream changes.                 │
-│ server          Show or set sync server URL.                                 │
-│ now             Trigger immediate sync of all queued events.                 │
-│ gc              Purge event payloads delivered to all known targets          │
-│                 (explicit, destructive).                                     │
-│ archive         Archive retained event payloads (explicit, non-destructive). │
-│ purge           Remove a project's retained event data from every store that │
-│                 holds it (FR-016/FR-017).                                    │
-│ migrate         Migrate legacy hash-scoped queue DBs into the append-only    │
-│                 event journal.                                               │
-│ mode            Show or set the event-sync retention x delivery mode.        │
-│ status          Show sync queue status, connection state, and auth info.     │
-│ diagnose        Validate queued events locally against the event schema.     │
-│ doctor          Diagnose sync health: queue, auth, and server connectivity.  │
+│ routes                    Show where the current checkout sends data and     │
+│                           which teams it is shared with.                     │
+│ share                     Share the current repository from Private          │
+│                           Teamspace into a team.                             │
+│ unshare                   Stop sharing the current repository from this      │
+│                           developer to one team.                             │
+│ opt-out                   Disable SaaS sync for this checkout and purge its  │
+│                           pending uploads.                                   │
+│ opt-in                    Enable SaaS sync for this checkout.                │
+│ import-history            Materialize existing local mission/WP history into │
+│                           the SaaS projection (#2262).                       │
+│ workspace                 Synchronize workspace with upstream changes.       │
+│ server                    Show or set sync server URL.                       │
+│ now                       Trigger immediate sync of all queued events.       │
+│ gc                        Purge event payloads delivered to all known        │
+│                           targets (explicit, destructive).                   │
+│ archive                   Archive retained event payloads (explicit,         │
+│                           non-destructive).                                  │
+│ purge                     Remove a project's retained event data from every  │
+│                           store that holds it (FR-016/FR-017).               │
+│ project-store-preview     Inventory immutable legacy sources, including      │
+│                           committed WAL content.                             │
+│ project-store-migrate     Copy, verify, atomically cut over, and resume one  │
+│                           migration.                                         │
+│ project-store-status      Show durable migration phase without opening       │
+│                           legacy sources.                                    │
+│ project-store-quarantine  Inspect permanently non-deliverable migration      │
+│                           quarantine records.                                │
+│ project-store-history     Preview, explicitly confirm, or disclose migrated  │
+│                           sealed history.                                    │
+│ migrate                   Refuse the retired shared-store migration and      │
+│                           point to copy-only cutover.                        │
+│ mode                      Show or set the event-sync retention x delivery    │
+│                           mode.                                              │
+│ status                    Show sync queue status, connection state, and auth │
+│                           info.                                              │
+│ diagnose                  Validate queued events locally against the event   │
+│                           schema.                                            │
+│ doctor                    Diagnose sync health: queue, auth, and server      │
+│                           connectivity.                                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4504,11 +4552,12 @@ _Synchronization commands_
  command emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``
  stream (INV-3) so historical work populates the projection.
 
- Dry-run (default) runs the full read-only pipeline — SELECT → AUDIT
- (fail-closed) → SCAN → IDENTITY → SYNTHESIZE — and previews the envelope
- stream that would be materialized. ``--apply`` additionally attaches
- provenance, server-preflights the whole stream (fail-closed), and uploads it
- in chunks to the SaaS projection under the real persisted project UUID.
+ This is an explicit three-step flow using the same ``--mission`` selector:
+ (1) ``--dry-run`` previews the synthesized cohort with zero staging/egress;
+ (2) ``--confirm-history`` stages and confirms those exact local bytes, prints
+ a history action ID, and performs zero egress; (3) ``--apply
+ --history-action-id <ID>`` preflights and uploads only that confirmed cohort.
+ Skipping Step 2 or changing the cohort/authority fails closed.
 
  Import is once-and-frozen: each event carries a deterministic id, so
  re-running after the on-disk facts change (e.g. after fixing a malformed WP
@@ -4517,13 +4566,21 @@ _Synchronization commands_
  or incomplete missions the dry-run reports before the first ``--apply``.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --apply                  Materialize the selected missions into the SaaS     │
-│                          projection (default is a dry-run plan).             │
-│ --dry-run                Preview what would be imported without emitting     │
-│                          anything (this is the default).                     │
-│ --mission          TEXT  Import only this mission (slug / mid8 / ULID);      │
-│                          default imports all eligible missions.              │
-│ --help     -h            Show this message and exit.                         │
+│ --apply                            Step 3: upload the exact Step-2 cohort;   │
+│                                    requires --history-action-id from         │
+│                                    --confirm-history.                        │
+│ --dry-run                          Step 1: preview the synthesized cohort    │
+│                                    without staging or uploading (the         │
+│                                    default).                                 │
+│ --mission                    TEXT  Import only this mission (slug / mid8 /   │
+│                                    ULID); default imports all eligible       │
+│                                    missions.                                 │
+│ --history-action-id          TEXT  Step-2 action ID consumed by --apply;     │
+│                                    reuse the same --mission selector.        │
+│ --confirm-history                  Step 2: stage and confirm the exact       │
+│                                    Step-1 cohort locally; performs zero      │
+│                                    upload.                                   │
+│ --help               -h            Show this message and exit.               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -4532,46 +4589,7 @@ _Synchronization commands_
 ```
  Usage: spec-kitty sync migrate [OPTIONS]
 
- Migrate legacy hash-scoped queue DBs into the append-only event journal.
-
- Lifts every currently-queued payload from the legacy ``queue.db`` and each
- scoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording
- per-source provenance and quarantining divergent-duplicate collisions into
- the migration-audit store. Import opens source DBs read-only.
-
- On a clean migration (no conflicts, no source errors) the migrated rows are
- then deleted from their source queues so the legacy-row boundary converges
- and ``sync now`` / ``sync opt-in`` stop refusing (#2665). Pass
- ``--no-cleanup`` to skip that step and inspect first.
-
- Divergent-duplicate conflicts (same ``event_id``, different payload than the
- journal) block cleanup by default. Pass ``--resolve-conflicts keep-journal``
- to resolve them journal-wins: each conflicting source payload is archived to
- the audit quarantine and the source row removed, so the boundary can
- converge. The journal is never overwritten. Exits non-zero when unresolved
- conflicts still block cleanup (SC-011).
-
- Convergence also projects each row's stored identity into the journal's
- ``project_uuid``/``project_slug``/``repo_slug`` columns (#3030 H4). A row with
- a
- NULL ``project_uuid`` is permanently unselectable, so before this ran every
- pre-mission row — including the operator's own consenting project's history —
- was undeliverable forever. Identity is only recovered from the row's own
- stored
- envelope, never invented, so a row that carries none stays NULL and stays
- unselectable.
-
- ``--backfill-consent-index`` additionally maps path-keyed consent records onto
- the uuid index. That one is opt-in because it writes machine-global consent
- state and the uuid index outranks a repo default, so it can flip a project
- from
- denied to delivering; every mapped project and every unresolvable record is
- listed.
-
- Examples:
-     spec-kitty sync migrate
-     spec-kitty sync migrate --no-cleanup
-     spec-kitty sync migrate --resolve-conflicts keep-journal
+ Refuse the retired shared-store migration and point to copy-only cutover.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --no-cleanup                            Import into the journal but do NOT   │
@@ -4689,6 +4707,36 @@ _Synchronization commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty sync project_store_history
+
+```
+
+```
+
+## spec-kitty sync project_store_migrate
+
+```
+
+```
+
+## spec-kitty sync project_store_preview
+
+```
+
+```
+
+## spec-kitty sync project_store_quarantine
+
+```
+
+```
+
+## spec-kitty sync project_store_status
+
+```
+
+```
+
 ## spec-kitty sync purge
 
 ```
@@ -4716,10 +4764,9 @@ _Synchronization commands_
  by adding up what the purge reports deleting, and the report names the
  populations a targeted purge cannot reach instead of quietly leaving them out.
 
- ``--all`` is per-checkout for the local-commit frames and the report says so:
- the other three stores are machine-global, but there is no registry of
- checkouts,
- so another checkout's queued frames are neither listed nor touched.
+ ``--all`` is bounded to the active project's routed store and this checkout's
+ local-commit frames. Another project store or checkout is neither listed nor
+ touched.
 
  Examples:
      spec-kitty sync purge --project acme-migration
@@ -4735,11 +4782,11 @@ _Synchronization commands_
 │ --identity-less                Purge journal/ledger rows whose project       │
 │                                identity is NULL — permanently undeliverable  │
 │                                rows that no project selector can match.      │
-│ --all                          Purge every row of this machine's journal,    │
-│                                delivery ledger and body-upload queue, plus   │
-│                                THIS checkout's queued local-commit frames.   │
-│                                Requires --confirm with the confirmation      │
-│                                phrase.                                       │
+│ --all                          Purge every row in the active project's       │
+│                                journal, delivery ledger and body-upload      │
+│                                queue, plus THIS checkout's queued            │
+│                                local-commit frames. Requires --confirm with  │
+│                                the confirmation phrase.                      │
 │ --apply                        Actually delete. Without it this command only │
 │                                reports.                                      │
 │ --dry-run                      Report only, deleting nothing (this is the    │
@@ -4752,165 +4799,6 @@ _Synchronization commands_
 │                                only durable record of what happened to those │
 │                                events.                                       │
 │ --help           -h            Show this message and exit.                   │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync project_store_history
-
-> **Reference-path note:** The five `project_store_*` section titles below use
-> the callback identifiers emitted by the CLI-reference walker. The public CLI
-> spellings are hyphenated, exactly as shown in each `Usage` line.
-
-_Preview, explicitly confirm, or disclose migrated sealed history._
-
-This is a three-step, capability-gated disclosure flow. With no confirmation
-or apply options, it previews the exact unresolved rows in sealed migration
-epochs and reports their ordered row IDs and aggregate SHA-256; it records no
-confirmation, performs no egress, and does not manufacture consent.
-
-Confirmation requires both `--confirm-by` and `--idempotency-key`. It persists
-an action for exactly the displayed cohort only when current project consent,
-target, and admission authority are all valid. Confirmation and `--apply` are
-mutually exclusive.
-
-`--apply` requires the resulting `--history-action-id`, current authentication,
-and the current admitted delivery target. Before upload, the command consumes
-and revalidates the persisted capability, exact cohort, consent generation,
-target generation, admission generation, and binding audience. Any drift fails
-closed and requires a new preview and confirmation.
-
-```
- Usage: spec-kitty sync project-store-history [OPTIONS]
-
- Preview, explicitly confirm, or disclose migrated sealed history.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --confirm-by                 TEXT  Explicit operator identity that confirms  │
-│                                    the displayed sealed cohort.              │
-│ --idempotency-key            TEXT  Stable identity for an explicit           │
-│                                    confirmation.                             │
-│ --apply                            Consume a confirmed capability and invoke │
-│                                    WP07 preflight/upload.                    │
-│ --history-action-id          TEXT  Persisted action ID required by --apply.  │
-│ --json                                                                       │
-│ --help               -h            Show this message and exit.               │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync project_store_migrate
-
-_Copy, verify, atomically cut over, and resume one migration._
-
-Runs the resumable project-store migration for the explicit, unique legacy
-SQLite sources named by repeated `--source` options. Use the same
-`--migration-id` and source set as the preview. If no preview exists, migration
-first persists the inventory; running preview explicitly is recommended so the
-partition and quarantine counts can be inspected before cutover.
-
-The migration quiesces the recognized daemon writer, captures the winning
-main/WAL state, copies only attributable compatible rows, verifies the exact
-project partitions, atomically publishes the `PROJECT_ONLY` layout, and then
-restarts the daemon. It is phase-resumable after interruption. Source changes,
-schema incompatibility, verification failure, or missing attributable rows fail
-closed. Legacy source databases are evidence: this command does not delete or
-rewrite them and does not create consent. Once the layout is project-only, a new
-legacy copy is refused; use residue diagnosis through project-store status.
-
-```
- Usage: spec-kitty sync project-store-migrate [OPTIONS]
-
- Copy, verify, atomically cut over, and resume one migration.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --source                PATH  Explicit legacy SQLite source. Repeat for   │
-│                                  every shared store.                         │
-│                                  [required]                                  │
-│ *  --migration-id          TEXT  [required]                                  │
-│    --json                                                                    │
-│    --help          -h            Show this message and exit.                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync project_store_preview
-
-_Inventory immutable legacy sources, including committed WAL content._
-
-Creates the durable inventory for one migration identity from every explicit
-legacy SQLite source, including committed WAL content. The preview records
-physical and logical fingerprints, attributable project partitions, and rows
-that must be quarantined. It leaves the source bytes unchanged and does not copy
-rows into live project stores, cut over the layout, disclose history, send data,
-or grant consent. The local migration manifest and private snapshot evidence are
-persisted so a later migrate command can resume from the reviewed inventory.
-
-Repeat `--source` for every shared store. Reusing a migration ID is idempotent
-only with the same recorded source set; a different set is refused.
-
-```
- Usage: spec-kitty sync project-store-preview [OPTIONS]
-
- Inventory immutable legacy sources, including committed WAL content.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --source                PATH  Explicit legacy SQLite source. Repeat for   │
-│                                  every shared store.                         │
-│                                  [required]                                  │
-│ *  --migration-id          TEXT  [required]                                  │
-│    --json                                                                    │
-│    --help          -h            Show this message and exit.                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync project_store_quarantine
-
-_Inspect permanently non-deliverable migration quarantine records._
-
-Reads the local quarantine evidence for a migration ID and reports each table,
-source row ID, and reason. The file contains incompatible or unattributable rows
-excluded from every project sender, plus any post-cutover residue recorded by a
-residue diagnosis. This command is inspection-only: it does not retry, copy,
-delete, disclose, or transmit quarantined content. Use `--json` for the complete
-structured records.
-
-```
- Usage: spec-kitty sync project-store-quarantine [OPTIONS]
-
- Inspect permanently non-deliverable migration quarantine records.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --migration-id          TEXT  [required]                                  │
-│    --json                                                                    │
-│    --help          -h            Show this message and exit.                 │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty sync project_store_status
-
-_Show durable migration phase without opening legacy sources._
-
-Loads the durable manifest for `--migration-id` and reports its current phase.
-The normal status path is manifest-only: it does not open a legacy source or a
-live project store and performs no migration work.
-
-`--diagnose-residue` is the explicit post-cutover exception. It opens only the
-source paths already sealed in the manifest, inventories their current logical
-rows, compares them with the winning migration inventory, and records added,
-removed, or changed legacy residue as quarantine evidence. Diagnosis never
-copies residue into a project store and never selects it for delivery. Use
-`--json` for the complete manifest, including recorded residue.
-
-```
- Usage: spec-kitty sync project-store-status [OPTIONS]
-
- Show durable migration phase without opening legacy sources.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --migration-id              TEXT  [required]                              │
-│    --diagnose-residue                Compare immutable inventory with        │
-│                                      current legacy logical rows after       │
-│                                      cutover.                                │
-│    --json                                                                    │
-│    --help              -h            Show this message and exit.             │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

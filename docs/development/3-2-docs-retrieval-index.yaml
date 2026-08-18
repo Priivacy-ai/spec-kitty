@@ -3377,11 +3377,13 @@ pages:
     - {slug: "spec-kitty-docs", text: "spec-kitty docs", level: 2}
     - {slug: "spec-kitty-docs-query", text: "spec-kitty docs query", level: 2}
     - {slug: "spec-kitty-doctor", text: "spec-kitty doctor", level: 2}
+    - {slug: "spec-kitty-doctor-channel", text: "spec-kitty doctor channel", level: 2}
     - {slug: "spec-kitty-doctor-command-files", text: "spec-kitty doctor command-files", level: 2}
     - {slug: "spec-kitty-doctor-contracts", text: "spec-kitty doctor contracts", level: 2}
     - {slug: "spec-kitty-doctor-coordination", text: "spec-kitty doctor coordination", level: 2}
     - {slug: "spec-kitty-doctor-cutover", text: "spec-kitty doctor cutover", level: 2}
     - {slug: "spec-kitty-doctor-doctrine", text: "spec-kitty doctor doctrine", level: 2}
+    - {slug: "spec-kitty-doctor-env-file", text: "spec-kitty doctor env-file", level: 2}
     - {slug: "spec-kitty-doctor-identity", text: "spec-kitty doctor identity", level: 2}
     - {slug: "spec-kitty-doctor-invocation-pairing", text: "spec-kitty doctor invocation-pairing", level: 2}
     - {slug: "spec-kitty-doctor-mission-state", text: "spec-kitty doctor mission-state", level: 2}
@@ -3389,8 +3391,6 @@ pages:
     - {slug: "spec-kitty-doctor-ops", text: "spec-kitty doctor ops", level: 2}
     - {slug: "spec-kitty-doctor-orphan-daemons", text: "spec-kitty doctor orphan-daemons", level: 2}
     - {slug: "spec-kitty-doctor-provenance", text: "spec-kitty doctor provenance", level: 2}
-    - {slug: "spec-kitty-doctor-env-file", text: "spec-kitty doctor env-file", level: 2}
-    - {slug: "spec-kitty-doctor-channel", text: "spec-kitty doctor channel", level: 2}
     - {slug: "spec-kitty-doctor-restart-daemon", text: "spec-kitty doctor restart-daemon", level: 2}
     - {slug: "spec-kitty-doctor-review-cycle-reconcile", text: "spec-kitty doctor review-cycle-reconcile", level: 2}
     - {slug: "spec-kitty-doctor-shim-registry", text: "spec-kitty doctor shim-registry", level: 2}
@@ -3511,12 +3511,12 @@ pages:
     - {slug: "spec-kitty-sync-now", text: "spec-kitty sync now", level: 2}
     - {slug: "spec-kitty-sync-opt-in", text: "spec-kitty sync opt-in", level: 2}
     - {slug: "spec-kitty-sync-opt-out", text: "spec-kitty sync opt-out", level: 2}
-    - {slug: "spec-kitty-sync-purge", text: "spec-kitty sync purge", level: 2}
     - {slug: "spec-kitty-sync-project-store-history", text: "spec-kitty sync project_store_history", level: 2}
     - {slug: "spec-kitty-sync-project-store-migrate", text: "spec-kitty sync project_store_migrate", level: 2}
     - {slug: "spec-kitty-sync-project-store-preview", text: "spec-kitty sync project_store_preview", level: 2}
     - {slug: "spec-kitty-sync-project-store-quarantine", text: "spec-kitty sync project_store_quarantine", level: 2}
     - {slug: "spec-kitty-sync-project-store-status", text: "spec-kitty sync project_store_status", level: 2}
+    - {slug: "spec-kitty-sync-purge", text: "spec-kitty sync purge", level: 2}
     - {slug: "spec-kitty-sync-routes", text: "spec-kitty sync routes", level: 2}
     - {slug: "spec-kitty-sync-server", text: "spec-kitty sync server", level: 2}
     - {slug: "spec-kitty-sync-share", text: "spec-kitty sync share", level: 2}
