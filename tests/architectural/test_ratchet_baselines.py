@@ -211,6 +211,17 @@ def _emit_skip_marker_delta(
     the unmodified ``_SKIP_MARKER_RE``), not by a ``pytest.fail`` here. Shrinkage
     locks in a lower high-water mark. This helper NEVER raises — that is the
     whole point of draining the hard-fail toll.
+
+    #3560 finding 2 (advisory-by-design, not a gap): the ``record_property``
+    values emitted below land in pytest's JUnit ``user_properties``, which is
+    write-only in this repo (nothing reads it back to gate CI) — so this
+    numeric count is intentionally NOT machine-enforced. The count-bump was
+    pure bookkeeping toll; draining it here does not remove any teeth. The
+    actual machine-enforced gate for a new skip-marker block is per-block and
+    lives in ``tests/contract/test_example_round_trip.py``
+    (``_SKIP_MARKER_RE``): a block with neither a ``# pydantic_model:`` tag nor
+    a ``# round-trip: skip: <reason>`` marker carrying a non-empty reason fails
+    that gate directly, independent of this advisory count.
     """
     if current > baseline:
         record_property(
