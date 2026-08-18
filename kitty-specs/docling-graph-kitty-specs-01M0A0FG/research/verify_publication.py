@@ -378,7 +378,8 @@ def verify_event_log_at_revision(  # noqa: C901
             if payload.get("mission_id") != MISSION_ID or payload.get("mission_slug") != MISSION or payload.get("mission_type") != "research":
                 errors.append(f"{context}: MissionCreated identity/type mismatch")
                 valid = False
-        if "wp_id" in event and event.get("wp_id") not in {None, "WP01"}:
+        wp_shaped = "from_lane" in event or "to_lane" in event or event.get("kind") == "annotation"
+        if wp_shaped and event.get("wp_id") != "WP01":
             errors.append(f"{context}: unexpected work-package event {event.get('wp_id')}")
             valid = False
         if event.get("wp_id") == "WP01" and event.get("kind") == "annotation":
