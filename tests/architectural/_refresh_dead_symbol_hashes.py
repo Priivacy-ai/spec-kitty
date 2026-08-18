@@ -77,7 +77,7 @@ __all__ = [
 
 
 class Outcome:
-    """The four Contract-A decision outcomes for one allow-list entry."""
+    """The five Contract-A decision outcomes for one allow-list entry."""
 
     REFRESH = "refresh"
     """Exactly one still-dead candidate survives ``module_path`` narrowing."""
@@ -87,6 +87,17 @@ class Outcome:
     """>=2 still-dead ``bare_name`` candidates the entry cannot disambiguate."""
     UNRECOVERABLE = "unrecoverable"
     """Content-tier ``module_path`` could not be recovered from the comment."""
+    NEEDS_MODULE_PATH = "needs_module_path"
+    """A CONTENT-tier entry narrows to one candidate whose canonical key must be
+    COLLISION-tier (its ``bare_name``/``body_hash`` collides live with another
+    symbol, so :func:`key_tier` escalates). Rewriting the content-tier hash
+    would be ineffective -- the gate's ``final_key in allowlist`` check compares
+    the FULL ``SymbolKey`` tuple including ``module_path``, so a content-tier
+    ``SymbolKey(name, hash)`` never equals a collision-tier
+    ``SymbolKey(name, hash, module_path=...)`` -- leaving the gate RED for both
+    colliding symbols. The operator must escalate this entry to the
+    ``module_path=`` (collision) tier by hand; the helper refuses to guess
+    which module (#3560 finding 1)."""
 
 
 _CONTENT_TIER = "content"
@@ -132,11 +143,19 @@ class AllowlistEntry:
 
 @dataclass(frozen=True)
 class DeadLocation:
-    """One still-dead live ``__all__`` location + its freshly-resolved hash."""
+    """One still-dead live ``__all__`` location + its freshly-resolved hash.
+
+    ``requires_module_path`` mirrors whether :func:`test_no_dead_symbols.key_tier`
+    escalated this location's FINAL key to the collision tier (``module_path``
+    set) -- i.e. its ``bare_name``/``body_hash`` collide live with another
+    ``__all__`` symbol. Defaults to ``False`` so existing positional-arg
+    constructions (tests predating #3560 finding 1) keep working unchanged.
+    """
 
     module_path: str
     bare_name: str
     new_hash: str
+    requires_module_path: bool = False
 
 
 @dataclass(frozen=True)
@@ -297,14 +316,21 @@ def compute_still_dead(
         final_key = _resolve_final_key(bare_name, module_path, corpus.get(module_path), corpus, collision_index)
         if final_key is None:
             continue
-        locations.append(DeadLocation(module_path=module_path, bare_name=bare_name, new_hash=final_key.body_hash))
+        locations.append(
+            DeadLocation(
+                module_path=module_path,
+                bare_name=bare_name,
+                new_hash=final_key.body_hash,
+                requires_module_path=final_key.module_path is not None,
+            )
+        )
     return locations
 
 
-def _new_hash_for(still_dead: Sequence[DeadLocation], bare_name: str, module_path: str) -> str | None:
+def _location_for(still_dead: Sequence[DeadLocation], bare_name: str, module_path: str) -> DeadLocation | None:
     for location in still_dead:
         if location.bare_name == bare_name and location.module_path == module_path:
-            return location.new_hash
+            return location
     return None
 
 
@@ -317,6 +343,14 @@ def decide(entry: AllowlistEntry, still_dead: Sequence[DeadLocation]) -> Refresh
     content-tier entry with an unrecoverable ``module_path`` **always** refuses
     — it never falls back to a bare-name-only corpus-wide match (the
     silent-admit vector).
+
+    A narrowed CONTENT-tier entry whose sole candidate needs COLLISION-tier
+    keying (:attr:`DeadLocation.requires_module_path`) escalates to
+    :attr:`Outcome.NEEDS_MODULE_PATH` instead of refreshing — rewriting only the
+    hash of a content-tier ``SymbolKey`` would be structurally ineffective
+    against a collision the gate can only exempt via a ``module_path=``-tagged
+    key (#3560 finding 1). A COLLISION-tier entry (already carries
+    ``module_path=``) that narrows cleanly is unaffected and still refreshes.
     """
     bare_matches = tuple(sorted(loc.module_path for loc in still_dead if loc.bare_name == entry.bare_name))
     entry_module = entry.module_path
@@ -326,10 +360,14 @@ def decide(entry: AllowlistEntry, still_dead: Sequence[DeadLocation]) -> Refresh
         return RefreshDecision(entry, outcome, bare_matches, (), None)
     narrowed = tuple(module for module in bare_matches if module == entry_module)
     if len(narrowed) == 1:
-        new_hash = _new_hash_for(still_dead, entry.bare_name, entry_module)
-        if new_hash is not None:
-            return RefreshDecision(entry, Outcome.REFRESH, bare_matches, narrowed, new_hash)
-        return RefreshDecision(entry, Outcome.DANGLING, bare_matches, narrowed, None)
+        location = _location_for(still_dead, entry.bare_name, entry_module)
+        if location is None:
+            return RefreshDecision(entry, Outcome.DANGLING, bare_matches, narrowed, None)
+        if entry.is_content_tier and location.requires_module_path:
+            # Fail-closed escalation: never widen what gets refreshed by
+            # rewriting a content-tier hash that cannot exempt the collision.
+            return RefreshDecision(entry, Outcome.NEEDS_MODULE_PATH, bare_matches, narrowed, None)
+        return RefreshDecision(entry, Outcome.REFRESH, bare_matches, narrowed, location.new_hash)
     if len(narrowed) >= 2:
         # Defensive: >=2 still-dead siblings in one module (unique __all__ names
         # make this rare) -> cannot disambiguate, refuse.
