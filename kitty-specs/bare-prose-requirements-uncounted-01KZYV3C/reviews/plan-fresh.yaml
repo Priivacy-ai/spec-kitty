@@ -1,0 +1,54 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: PLAN-FRESH-001
+    lens: fresh-eyes / debugger-debbie (evidence-reproduction)
+    severity: 3
+    title: "PLAN-GOV-002's broadened-predicate corpus scan states '7 candidate tokens' — an independent re-run of the exact algorithm plan.md describes reproduces the same 5 specs but 8 raw token occurrences (or 5 if deduplicated), never 7"
+    evidence:
+      - artifact: "plan.md § C-008 decision (lines 218-242): '...the narrow-heading candidate set (7 candidate tokens total), and manual review of every one of those 7 tokens found zero true positives...'"
+      - artifact: "tracer-design-decisions.md, PLAN-GOV-002 row: '...found only 5/368 (1.36%) newly-flagged specs, 7 candidate tokens, zero true positives on manual review...'"
+      - artifact: "plan.md § Architecture (lines 164-191) — the documented algorithm this scan is claimed to reuse: for each requirement-named section, for each line not itself matching a declared shape, scan the line for every _REF_FIND_PATTERN token and record each as a candidate."
+    claim: >
+      Re-implementing the exact algorithm plan.md's own "Architecture" section describes
+      (broaden `_is_requirement_heading` to also match "constraint"; for each
+      requirement-named section, skip lines matching a declared shape, else record every
+      `_REF_FIND_PATTERN` token not in the document-wide declared set as a candidate) and
+      running it against the live `kitty-specs/*/spec.md` corpus (368 specs, matching the
+      plan's stated corpus size) reproduces the plan's claimed spec-level result exactly —
+      the same 5 specs by path and heading (`coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V`,
+      `doctrine-public-api-surface-01KZPDSR`, `drg-relation-impacts-vocabulary-01KYFV87`,
+      `foundational-values-creed-band-01KYFV8N`, `test-quality-doctrine-series-01KYFV8H`),
+      5/368 = 1.36%. But the per-token count does not reproduce under any consistent
+      counting rule: `coord-read-residuals-...`'s single `### Constraints` table row
+      ("`| C-009-mirror | ... the inverse of the implement-loop C-009 |`") yields 2 raw
+      `C-009` matches (the mis-parsed ID-column text plus the description-column
+      citation); `doctrine-public-api-surface-...`'s row
+      ("`| C-007-mission | C-007 extension ... the charter C-007 \`__all__\` convention ... |`")
+      yields 3 raw `C-007` matches; the other three specs yield 1 token each. Literal
+      per-occurrence counting (what the Architecture section's algorithm text literally
+      does — it has no dedup step) gives 2+3+1+1+1 = **8**, not 7. Deduplicating to one
+      candidate per unique token per spec (the only alternative reading that treats
+      "candidate" as a distinct requirement id rather than a raw match) gives
+      1+1+1+1+1 = **5**, not 7. No consistent application of the stated methodology
+      produces exactly 7. This is exactly the class of defect the review brief called out
+      to check for: a corpus-scan number that doesn't match its own methodology
+      description. It does not change the qualitative conclusion (small FP count, zero
+      true positives, disposition (b) kept) or the 5/368 = 1.36% spec-level figure, which
+      does reproduce cleanly — but the "7 tokens... zero true positives" phrasing is
+      presented as a directly-measured fact in three places (plan.md twice,
+      tracer-design-decisions.md once), and PLAN-GOV-002's entire purpose was to replace
+      an assertion with "a real measurement... not a placeholder." An unreproducible
+      sub-figure inside that measurement undercuts exactly the claim the fix round was
+      trying to establish.
+    remediation: >
+      Re-run the corpus scan with an explicit, stated counting rule (raw per-occurrence
+      count, or one candidate per unique token per spec) and correct "7 candidate tokens"
+      to whichever figure that rule actually produces (8 under raw counting, 5 under
+      per-spec dedup) in all three locations (plan.md's C-008 decision section, twice, and
+      tracer-design-decisions.md's PLAN-GOV-002 row). State the counting rule used so a
+      future re-verification (e.g. IC-07's implementation-time re-check) can reproduce it
+      without ambiguity.

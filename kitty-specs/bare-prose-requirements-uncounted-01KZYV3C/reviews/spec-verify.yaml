@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: Story 4 (Independent Test, AC1-AC3), FR-005, FR-006, C-006, SC-005/SC-006 now classify every newly-flagged corpus spec into exactly three bins (true positive, false positive, ambiguous-cannot-classify block per Story 5 AC2), require the ambiguous-block rate to be measured and recorded separately (ambiguous-blocks / corpus size) and gated by its own explicit <=2% default ceiling, independently of the false-positive ceiling, with AC3 and FR-006/C-006 stating explicitly the ambiguous bin is "never counted toward or against the false-positive ceiling, and vice versa."
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: Story 4's Independent Test, FR-005, FR-006, C-006, SC-005, and SC-006 all now require whichever form (scripts/ or tests/) is chosen to be "wired into the CI-run test suite as an assertion that fails when the currently-measured or last-recorded rate exceeds its accepted ceiling," explicitly for both the false-positive and the ambiguous-block ceilings, closing the "docstring number a human reads once" gap the finding raised.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: FR-006, C-006, and Story 4 AC3 all now use identical concrete wording — the higher-bar exception must be "reviewed and explicitly accepted... by the mission's own post-plan R1-R6 adversarial review squad" before the requirement/constraint is satisfied — naming an actual, pre-existing project review mechanism (the post-plan R1-R6 adversarial squad used by sk-design) rather than the previously undefined "independently reviewed"; a repo-wide grep confirms the phrase "independently reviewed" no longer appears anywhere in spec.md.
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: Story 4's Independent Test now describes the human-classifier sense as "naming that it was manual and how ties or borderline calls were resolved," dropping "ambiguity" entirely from that sentence; every remaining "ambiguous"/"ambiguity" occurrence in the document (Story 4 body/AC1-AC3, FR-005/FR-006/NFR-002/C-006, Key Entities, SC-005/SC-006) now refers explicitly and consistently to Story 5 AC2's runtime ambiguous-cannot-classify blocking sense, so the two meanings no longer collide.

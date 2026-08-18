@@ -1,0 +1,109 @@
+# review-findings/v1 — R3 confirmed findings + the orchestrator's rulings (close-out
+# fixer pass, issue #3396). This is a report-only phase per doctrine (no R4/R5 fix
+# rounds inside the squad itself) — the rulings below were applied directly by the
+# close-out fixer, not by a squad fix-round subagent.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: confirmed
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: PR-CONTRACT-001
+    lens: Contract vs implementation — guard read symmetry
+    severity: 2
+    title: "The four wired guards read the new bare-prose fact via .get(key, ()) while every sibling fact in the same guards uses strict status_facts[key] indexing"
+    evidence:
+      - code: "src/runtime/next/runtime_bridge_cores.py:542,564,588,605 (bare_prose_requirement_failures — .get(..., ()))"
+      - code: "src/runtime/next/runtime_bridge_cores.py:546,571,593,610,612 (sibling facts — bare subscript)"
+      - artifact: "plan.md, FR-002's code sketch / PLAN-ARCH-001"
+    claim: >
+      Every one of the four guards this mission wired reads the new fact via a
+      degrading `.get(key, ())` while every sibling fact in the same guards uses a
+      strict `status_facts["key"]` subscript — a silent-success vector inside the exact
+      mission built to eliminate silent success, currently dormant because every
+      constructor populates the key.
+    remediation: >
+      Tighten the four reads to strict indexing, matching the sibling facts.
+    ruling:
+      disposition: FIX (code) — ATTEMPTED, BLOCKED, NOT APPLIED
+      verdict: confirmed-but-not-fixed
+      action_taken: >
+        Per the ruling ("FIX code... Before committing, run the full guard surface...
+        if any test constructs a snapshot without the key, this fix would break it — in
+        that case STOP and report"): applied the four-line change in an isolated,
+        uncommitted working-tree edit and ran the full guard surface
+        (tests/runtime/test_bridge_cores.py, tests/next/, tests/specify_cli/next/,
+        -n 8 --dist loadfile). One test failed:
+        tests/runtime/test_bridge_cores.py::test_composed_tasks_terminal_ready_reports_requirement_and_dependency_then_occurrence
+        (line 413-430) constructs an `ArtifactPresenceSnapshot` directly (bypassing the
+        shared `_snapshot()` helper that defaults the key) with a `status_facts` dict
+        that omits `bare_prose_requirement_failures`, and calls the REAL (unmocked)
+        `cores.evaluate_guards` with `step_id="tasks"`, `legacy_step_id=None` — which
+        dispatches to `_evaluate_composed_tasks_terminal_guard`, one of the four touched
+        guards. With strict indexing this raises `KeyError:
+        'bare_prose_requirement_failures'`, confirmed by direct reproduction. Per the
+        ruling's own explicit STOP clause, this means the `.get()` default is
+        load-bearing after all for this one pre-existing test. The edit was reverted;
+        `src/runtime/next/runtime_bridge_cores.py` is unchanged from mission HEAD
+        (verified clean via `git diff` — no diff). NOT applied. Reported to the operator
+        for a ruling on either (a) updating this one test's snapshot construction to
+        include the key (bringing it in line with the shared helper), then re-applying
+        the strict-indexing fix, or (b) leaving the `.get()` default as-is with this
+        finding recorded as accepted-dormant-risk.
+      rationale: >
+        The ruling's own contingency governs: a test relying on the `.get()` default
+        was found, so the fix is BLOCKED, not silently forced through by also editing
+        the test (that would be an undisclosed test-assertion change outside this
+        close-out fixer's authorized scope, and the ruling explicitly reserves this case
+        for a STOP-and-report rather than an autonomous resolution).
+  - id: PR-CONTRACT-002
+    lens: Contract vs implementation — undisclosed scope reduction
+    severity: 2
+    title: "map-requirements --json returns success/exit 0 even when bare_prose_requirement_ids is non-empty, but spec.md SC-001 states the command blocks"
+    evidence:
+      - code: "tests/specify_cli/cli/commands/agent/test_tasks_mapping_core.py:431-462"
+      - artifact: "kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/spec.md § SC-001"
+    claim: >
+      `map-requirements --json` surfaces `bare_prose_requirement_ids` in its JSON
+      payload but still returns success/exit 0 even when non-empty. spec.md's SC-001
+      overclaims that all three surfaces block, which is not what the shipped code does
+      for `map-requirements`.
+    remediation: >
+      Correct SC-001 to state accurately what each surface does; add a Clarifications
+      entry. Do not change the code.
+    ruling:
+      disposition: FIX (spec, not code)
+      verdict: confirmed-and-fixed
+      action_taken: >
+        `map-requirements` surfacing rather than blocking is correct design for a
+        mapping-registration command — the defect is that spec.md SC-001 claimed it
+        blocks. Corrected SC-001 to state that `finalize-tasks` and `spec-kitty next`
+        block, while `map-requirements` surfaces `bare_prose_requirement_ids` in its
+        JSON payload without failing. Added a Clarifications entry (Session
+        2026-08-14) disclosing the distinction explicitly, matching the rigor the spec
+        already applies to its other deliberate narrowing (the Constraints-heading
+        blind spot, C-008). No code changed.
+      rationale: >
+        The code's behavior is the correct design; the spec's success criterion was
+        the inaccurate artifact. Fixing the spec, not the code, keeps the fix scoped to
+        the actual defect.
+  - id: PR-CONTRACT-003
+    lens: Contract vs implementation — golden envelope harness gap
+    severity: 1
+    title: "The golden JSON error-surface harness never exercises the bare-prose failure path"
+    evidence:
+      - code: "tests/specify_cli/cli/commands/agent/test_tasks_cli_contract.py"
+      - code: "tests/fixtures/tasks_cli/json/envelopes.json"
+    claim: >
+      No entry in the golden JSON error-surface harness exercises the new bare-prose
+      failure path. Pre-existing gap, not introduced or widened by this mission's diff.
+    remediation: >
+      Accept as pre-existing. Belongs to its own issue against the golden envelope
+      harness's coverage, not a fix inside this mission.
+    ruling:
+      disposition: ACCEPT
+      verdict: confirmed-and-accepted
+      action_taken: None — recorded here as accepted, not fixed in this mission.
+      rationale: >
+        Pre-existing gap in the golden envelope harness, not introduced by this diff.
+        Belongs to its own issue against that harness's coverage.

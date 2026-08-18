@@ -1,0 +1,38 @@
+# review-findings/v1 — pre-merge squad, boundary lens (R1). Report-only phase:
+# HEAD does not move and nothing outside reviews/ changes as a result of this file.
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+profile: architect-alphonso
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings: []
+# Empty findings list is the outcome, not the absence of a session — this squad
+# genuinely ran. Verification performed, recorded here as the evidence:
+verification_summary: >
+  Boundary holds by design. `runtime_bridge_cores.py` reads only
+  `snapshot.status_facts["bare_prose_requirement_failures"]` as plain data — the real
+  import (`specify_cli.requirement_mapping`) lives in `runtime_bridge.py`'s
+  `_check_bare_prose_requirements_ready` gather layer, never inside the stdlib-only
+  leaf module (C-007's preservation requirement holds).
+checks:
+  - description: >-
+      Planted a disallowed import (`import specify_cli.requirement_mapping`) directly
+      into live `runtime_bridge_cores.py` to prove the import-boundary architectural test
+      (WP04) actually catches a real violation, not merely a hypothetical one.
+    result: >-
+      WP04's gate failed at line 78 as expected; the planted import was reverted; the
+      tree was confirmed clean; the full targeted surface re-ran green (14 passed).
+  - description: Independently reproduce the corpus false-positive census.
+    result: "1/368 — matches the shipped detector's own docstring figure, not the historical 9/368 design-time prototype figure."
+  - description: >-
+      Reflexivity check (Story 6): which guards actually gained the new read, and which
+      mission steps can newly block as a result.
+    result: >-
+      Only the four guards behind `tasks_outline`/`tasks_packages`/`tasks_finalize` and
+      the composed `tasks` vocabulary read the new fact — `implement` and `review` do
+      not. A mission already mid-implementation cannot newly hit this gate.
+  - description: Confirm no template or agent-directory drift accompanied the runtime change.
+    result: No mission-step template and no agent-directory copy was touched by this diff.
+  - description: Full targeted test surface, final run.
+    result: 675 passed.
