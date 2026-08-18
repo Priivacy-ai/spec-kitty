@@ -7,10 +7,11 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import re
 import subprocess
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 
@@ -20,6 +21,7 @@ MISSION_DIR = Path("kitty-specs") / MISSION
 EVIDENCE_PATTERN = re.compile(r"EV-\d{3}")
 EVIDENCE_RANGE_PATTERN = re.compile(r"EV-(\d{3})[–-]EV-(\d{3})")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
+RFC3339_PATTERN = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})")
 EXPECTED_REVIEWERS = {
     "/root/postgather_authority:architect-alphonso",
     "/root/postgather_claims:reviewer-renata",
@@ -404,9 +406,12 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
             if not all_applicable_pass:
                 errors.append(f"{candidate}: non-PASS candidate cannot receive a weighted score")
             try:
-                float(row["weighted_score"])
+                weighted_score = float(row["weighted_score"])
             except ValueError:
                 errors.append(f"{candidate}: weighted score is neither numeric nor N/A")
+            else:
+                if not math.isfinite(weighted_score) or not 0.0 <= weighted_score <= 5.0:
+                    errors.append(f"{candidate}: weighted score must be finite and within 0–5")
 
     evidence_rows = read_csv(repo / MISSION_DIR / "research/evidence-log.csv")
     expected_evidence_columns = {
@@ -541,7 +546,9 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
 
     review_path = repo / MISSION_DIR / "research/adversarial-reviews.md"
     review_lines = [line for line in review_path.read_text(encoding="utf-8").splitlines() if "| Publication integrity, round 2 |" in line]
-    review_approved = len(review_lines) == 1 and "APPROVE" in review_lines[0]
+    review_cells = [cell.strip() for cell in review_lines[0].strip().strip("|").split("|")] if len(review_lines) == 1 else []
+    ledger_reviewed_revision = review_cells[3] if len(review_cells) == 6 else ""
+    review_approved = len(review_cells) == 6 and re.fullmatch(r"[0-9a-f]{40}", ledger_reviewed_revision) is not None and review_cells[5] == "APPROVE"
     if not review_approved:
         errors.append("adversarial ledger does not record round-2 APPROVE")
 
@@ -557,6 +564,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         expected_gate = {
             "verdict": "APPROVE",
             "review_kind": "final-seal-receipt",
+            "reviewed_content_revision": ledger_reviewed_revision,
             "publication_manifest_sha256": sha256(manifest_path),
             "report_sha256": report_record["sha256"],
             "report_git_blob": manifest["report_git_blob"],
@@ -566,9 +574,13 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         gate_found = all(event.get(key) == value for key, value in expected_gate.items())
         gate_found = gate_found and set(event.get("reviewers", [])) == EXPECTED_REVIEWERS
         try:
-            event_time = datetime.fromisoformat(str(event.get("timestamp", "")).replace("Z", "+00:00"))
+            timestamp = str(event.get("timestamp", ""))
+            if RFC3339_PATTERN.fullmatch(timestamp) is None:
+                raise ValueError("timestamp is not strict RFC3339")
+            event_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
             revision_time = datetime.fromisoformat(git(repo, "show", "-s", "--format=%cI", str(event.get("reviewed_revision", ""))))
-            gate_found = gate_found and event_time.tzinfo is not None and event_time > revision_time
+            verification_time = datetime.now(tz=event_time.tzinfo)
+            gate_found = gate_found and event_time.tzinfo is not None and revision_time < event_time <= verification_time + timedelta(minutes=5)
         except (ValueError, subprocess.CalledProcessError):
             gate_found = False
         gate_found = gate_found and review_approved
