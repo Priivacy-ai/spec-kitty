@@ -325,25 +325,37 @@ class TestNoOrgPackRegression:
 
 
 # ---------------------------------------------------------------------------
-# T021 -- malformed pack in the chain: unchanged whole-bundle-collapse,
-# not this WP's territory (PR #3401) -- must not WORSEN, loud collapse is OK.
+# T021 -- graphless pack in the chain: per-root degrade, healthy packs survive
 # ---------------------------------------------------------------------------
 
 
-class TestMalformedPackInChainDoesNotWorsen:
-    """Per spec.md's "Out of Scope"/C-006: a malformed org pack anywhere in
-    the chain collapses the WHOLE action-doctrine bundle (pre-existing
-    ``_load_action_doctrine_bundle`` ``except DRGLoadError`` behaviour,
-    unchanged by this WP) -- never an uncaught crash to the operator. Before
-    this WP's fix, a malformed pack B was simply unreachable (invisible,
-    single-root truncation), so this failure mode was structurally
-    untestable at this call site; the fix makes it reachable for the first
-    time, exhibiting the SAME collapse-not-crash behaviour every other
-    ``load_validated_graph`` caller with org roots threaded already has
-    (e.g. ``gate_bindings.py``) -- disclosed status quo, not a regression.
+class TestGraphlessPackInChainDegradesPerRoot:
+    """A chain pack that ships **no root-level ``*.graph.yaml``** contributes
+    no charter-DRG layer, so ``load_validated_graph`` skips just that root
+    (``has_graph_files`` is ``False``) and every other, healthy pack in the
+    chain still resolves -- per-root degrade, not whole-bundle collapse.
+
+    This is the durable per-root behaviour the superseded #3401 was going to
+    supply (its guide-shape ``drg/*.graph.yaml`` mechanism was superseded by
+    #3387; only this graphless-root runtime sliver survives). It is folded
+    into ``_drg_helpers.load_validated_graph`` during this PR's landing.
+    Before the guard, this call site's single ``except DRGLoadError`` wrapper
+    collapsed the WHOLE bundle whenever any one root was graphless, taking a
+    structurally-fine sibling pack down with it.
+
+    The graphless root's own ``drg/fragment.yaml`` (the #3387 ``OrgDRGFragment``
+    shape) is invisible to this runtime cascade path by design -- it is read
+    only by the separate diagnostic merge path (surfaced in ``doctor doctrine``
+    / ``charter list``). Note this gap is NOT covered by the
+    ``drg_root_graph_missing`` validator finding, which globs the different
+    ``drg/*.graph.yaml`` shape, not ``fragment.yaml``. So skipping the root
+    here is a deliberate degrade (with a per-root WARNING from
+    ``load_validated_graph``), not a swallowed error -- see
+    ``TestGraphlessPackWithFragmentEdgeIsInvisibleToCascade`` in
+    ``test_org_cascade_chain.py`` for the pinned edge-carrying case.
     """
 
-    def test_malformed_second_pack_collapses_whole_bundle_without_crashing(
+    def test_graphless_second_pack_skipped_healthy_pack_survives(
         self, tmp_path: Path
     ) -> None:
         repo_root = tmp_path / "repo"
@@ -352,29 +364,24 @@ class TestMalformedPackInChainDoesNotWorsen:
         org_root_a = tmp_path / "org-pack-a"
         _write_org_pack(org_root_a, directive_id=_PACK_A_ID, directive_urn=_PACK_A_URN)
 
-        # Malformed: directory exists on disk but ships no *.graph.yaml
-        # fragment anywhere under it (``load_graph_or_dir`` raises
-        # ``DRGLoadError`` for this shape -- see
-        # ``tests/specify_cli/mission_step_contracts/test_executor.py``'s
-        # identically-shaped ``malformed-org-pack-b`` fixture).
-        org_root_b = tmp_path / "malformed-org-pack-b"
+        # Graphless: directory exists on disk but ships no root-level
+        # ``*.graph.yaml``. Its ``drg/fragment.yaml`` is the #3387
+        # ``OrgDRGFragment`` shape, which this runtime cascade path does not
+        # read (has_graph_files(org_root_b) is False -> the root is skipped).
+        org_root_b = tmp_path / "graphless-org-pack-b"
         (org_root_b / "drg").mkdir(parents=True)
         (org_root_b / "drg" / "fragment.yaml").write_text(
             "kind: directives\n", encoding="utf-8"
         )
         _write_config(repo_root, [org_root_a, org_root_b])
 
-        # Must not raise -- DRGLoadError is caught inside
-        # _load_action_doctrine_bundle and logged, never propagated to the
-        # operator.
+        # Must not raise, and must not collapse the whole bundle.
         text, payload = _render_both(repo_root, tmp_path)
 
-        # Whole-bundle collapse: even pack A's (structurally fine, declared
-        # first) content is gone too -- this is the documented, unchanged
-        # pre-existing behaviour (PR #3401's territory to make per-root
-        # instead of whole-bundle), not something this WP is fixing.
-        assert _directive_ids(payload) == set()
-        assert _PACK_A_ID not in text
+        # Per-root degrade: pack A (healthy, declared first) survives; the
+        # graphless pack B contributes nothing.
+        assert _directive_ids(payload) == {_PACK_A_ID}
+        assert _PACK_A_ID in text
         assert _PACK_B_ID not in text
         # Still a clean bootstrap render, not a stack trace.
         assert "Action Doctrine (specify):" in text
