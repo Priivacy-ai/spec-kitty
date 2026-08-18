@@ -244,8 +244,9 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   errors describing the nested reader's schema — twice leading readers to
   believe the tool contradicted itself when one enum value was wrong. It now
   reports the generator reader's accurate one-line diagnosis (e.g.
-  `not_helpful[0].category is invalid`) and appends the allowed finding
-  categories, so the fix is obvious instead of a guess.
+  `not_helpful[0].category is invalid`) and appends the categories that field
+  actually allows — findings and proposals draw from different sets — so the
+  fix is obvious instead of a guess.
 
 - **Writing an honest cardinality assertion in a test no longer costs you an
   annotation toll: the golden-count architectural gate

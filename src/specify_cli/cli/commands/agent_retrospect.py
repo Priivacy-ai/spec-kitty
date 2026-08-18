@@ -38,6 +38,7 @@ from specify_cli.retrospective import (
 from specify_cli.retrospective.lifecycle_events import Actor as LifecycleActor
 from specify_cli.retrospective.reader import (
     FINDING_CATEGORIES,
+    PROPOSAL_CATEGORIES,
     SchemaError,
     YAMLParseError,
     read_gen_record,
@@ -560,8 +561,15 @@ def synthesize_cmd(
             # contradicts itself when a single enum value was wrong.
             detail = str(gen_exc) if gen_exc is not None else str(exc)
             if gen_exc is not None and "category is invalid" in detail:
-                allowed = ", ".join(sorted(FINDING_CATEGORIES))
-                detail = f"{detail}\nAllowed finding categories: {allowed}"
+                # Findings and proposals both raise "<label>.category is invalid"
+                # but draw from DIFFERENT allow-lists (#3537 landing). Pick by the
+                # label so a bad proposal category is not handed the finding set.
+                if "proposals[" in detail:
+                    allowed = ", ".join(sorted(PROPOSAL_CATEGORIES))
+                    detail = f"{detail}\nAllowed proposal categories: {allowed}"
+                else:
+                    allowed = ", ".join(sorted(FINDING_CATEGORIES))
+                    detail = f"{detail}\nAllowed finding categories: {allowed}"
             msg = f"Retrospective record malformed: {detail}"
             if json_only:
                 _err_console.print_json(json.dumps({"error": "record_malformed", "detail": detail}))
