@@ -304,6 +304,24 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **The lane "no kitty-specs on lane branches" `move-task` guard no longer
+  false-positives on inherited planning artifacts in `coord` topology, so lane
+  transitions stop demanding `--force` on every step (`#3271`; closes `#2274`).**
+  The guard is a two-pass content delta (the shipped `#2274`/FR-007 fix), but
+  both passes keyed off the lane's coordination/mission base ref, whose
+  merge-base predates the `kitty-specs/**` a lane legitimately holds — prior
+  missions' committed artifacts inherited from the base, plus this mission's own
+  planning artifacts merged in via the recorded planning commit (ADR
+  `2026-07-29-1` / `#2993`). Both are ancestors of the planning branch but not of
+  the coord base, so they surfaced as lane-introduced contamination and the
+  guard's own "clean the branch" remedy would have deleted other missions'
+  artifacts — leaving `--force`, documented as "not recommended", as the only
+  safe path. The delta is now measured against the planning branch
+  (`planning_base_branch`, else the mission's `target_branch`), falling back to
+  the lane base ref only for legacy/flat missions without `meta.json`. The
+  sibling branch-currency and implementation-commit gates keep the coordination
+  ref, which is correct for them.
+
 - **A spec that writes some requirements as plain prose sentences no longer
   passes the coverage gate as if they were covered — `spec-kitty next` and
   `finalize-tasks` now block and name the uncounted ids (mission
