@@ -25,6 +25,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.status import feature_status_lock
 from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
+from specify_cli.status.review_result_parse import parse_review_result_json
 
 logger = logging.getLogger(__name__)
 
@@ -260,6 +261,13 @@ def emit(
     reason: Annotated[str | None, typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[str | None, typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
     review_ref: Annotated[str | None, typer.Option("--review-ref", help="Review feedback reference")] = None,
+    review_result_json: Annotated[
+        str | None,
+        typer.Option(
+            "--review-result-json",
+            help="JSON structured review outcome for transitions from in_review",
+        ),
+    ] = None,
     workspace_context: Annotated[
         str | None,
         typer.Option(
@@ -292,7 +300,7 @@ def emit(
 
     Examples:
         spec-kitty agent status emit WP01 --to claimed --actor claude
-        spec-kitty agent status emit WP01 --to done --actor claude --evidence-json '{"review": {"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}}'
+        spec-kitty agent status emit WP01 --to approved --actor claude --review-result-json '{"reviewer": "alice", "verdict": "approved", "reference": "PR#1"}'
         spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason "resuming after crash"
     """
     try:
@@ -328,6 +336,17 @@ def emit(
                 )
                 raise typer.Exit(1)
 
+        # Parse/validate the structured review verdict through the SAME hoisted
+        # parser the orchestrator-api transition surface uses (FR-010/FR-013),
+        # so both surfaces accept/reject an identical shape.
+        review_result = None
+        if review_result_json is not None:
+            try:
+                review_result = parse_review_result_json(review_result_json)
+            except ValueError as exc:
+                _output_error(json_output, str(exc))
+                raise typer.Exit(1)
+
         # Lazy import to avoid circular imports
         from specify_cli.status import TransitionError
         from specify_cli.status import TransitionRequest
@@ -345,6 +364,7 @@ def emit(
             reason=reason,
             evidence=evidence,
             review_ref=review_ref,
+            review_result=review_result,
             workspace_context=workspace_context,
             subtasks_complete=subtasks_complete,
             implementation_evidence_present=implementation_evidence_present,
