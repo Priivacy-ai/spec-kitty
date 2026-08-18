@@ -30,10 +30,13 @@ Sites in this module that **mention** ``review-cycle-*`` artifacts but do
 * ``_has_prior_rejection``, which performs a read-only ``glob`` check.
 * fix-mode prompt rendering, which reads the latest artifact via
   ``ReviewCycleArtifact.from_file`` / ``.latest``; no write.
-* review-prompt rendering, which computes a *placeholder* path
-  ``review-cycle-{next_cycle}.md`` for inclusion in instructional output to
-  the human reviewer. Nothing is written; the file only materialises when
-  the reviewer subsequently runs ``move-task --to planned``.
+* review-prompt rendering, which reads the counter to compute a *placeholder*
+  path ``review-feedback-{next_cycle}.md``
+  (:func:`specify_cli.review.cycle.review_feedback_source_path`) for
+  inclusion in instructional output to the human reviewer. Nothing is
+  written; the reviewer authors that file and the ``review-cycle-N.md``
+  artifact only materialises when they subsequently run ``move-task --to
+  planned``.
 
 Re-running ``spec-kitty agent action implement WPNN`` is therefore a
 counter-no-op by construction: this module never calls
@@ -91,7 +94,11 @@ from specify_cli.review.prompt_metadata import (
     write_review_prompt_with_metadata,
 )
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
-from specify_cli.review.cycle import REVIEW_FEEDBACK_SENTINELS, resolve_review_cycle_pointer
+from specify_cli.review.cycle import (
+    REVIEW_FEEDBACK_SENTINELS,
+    resolve_review_cycle_pointer,
+    review_feedback_source_path,
+)
 from specify_cli.status import feature_status_lock
 from specify_cli.status import AgentAssignment, Lane
 from specify_cli.status import (
@@ -1771,7 +1778,7 @@ def review(
         sub_artifact_dir.mkdir(parents=True, exist_ok=True)
         existing_cycles = sorted(sub_artifact_dir.glob("review-cycle-*.md"))
         next_cycle = len(existing_cycles) + 1
-        review_feedback_path = sub_artifact_dir / f"review-cycle-{next_cycle}.md"
+        review_feedback_path = review_feedback_source_path(sub_artifact_dir, next_cycle)
 
         prompt_lines = _executor.build_review_prompt_lines(
             normalized_wp_id=normalized_wp_id,
