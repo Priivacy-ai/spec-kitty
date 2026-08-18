@@ -27,6 +27,8 @@ agent_profile: researcher-robbie
 authoritative_surface: docs/research/docling-graph-kitty-specs/publication-manifest.json
 execution_mode: documentation
 model: gpt-5
+# The docs/research entries below are frozen generation-time logical paths.
+# publication-manifest.json maps them to research-outputs/research at publication.
 owned_files:
 - kitty-specs/docling-graph-kitty-specs-01M0A0FG/tasks.md
 - kitty-specs/docling-graph-kitty-specs-01M0A0FG/issue-matrix.md
@@ -48,6 +50,13 @@ task_type: research
 Make the completed v2 research mission legible to the legacy acceptance reader
 without changing the research report, evidence, option dispositions, or
 canonical publication authority.
+
+## Publication path mapping
+
+The `owned_files` frontmatter preserves generation-time logical
+`docs/research/...` paths for provenance. The publication manifest maps those
+paths to their current physical `research-outputs/research/...` locations; the
+logical paths are not claims that the files still exist under `docs/`.
 
 ## Definition of done
 

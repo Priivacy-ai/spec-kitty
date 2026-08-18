@@ -194,8 +194,8 @@ This directory exists only for the legacy Deep Research path contract.
 """,
     str(COMPATIBILITY_ROOT / "data/README.md"): """# Acceptance compatibility pointer
 
-Canonical published data remain in
-[`docs/research/docling-graph-kitty-specs/data/`](../../docling-graph-kitty-specs/data/).
+Canonical published data are in
+[`research-outputs/research/docling-graph-kitty-specs/data/`](../../docling-graph-kitty-specs/data/).
 This directory exists only for the legacy Deep Research path contract.
 """,
     str(COMPATIBILITY_ROOT / "findings/README.md"): """# Acceptance compatibility pointer
@@ -207,9 +207,28 @@ This directory exists only for the legacy Deep Research path contract.
     str(COMPATIBILITY_ROOT / "reports/README.md"): """# Acceptance compatibility pointer
 
 The sole long-form publication remains
+[`research-outputs/research/docling-graph-kitty-specs/report.md`](../../docling-graph-kitty-specs/report.md).
+This directory exists only for the legacy Deep Research path contract.
+""",
+}
+HISTORICAL_COMPATIBILITY_POINTER_TEXT = {
+    **COMPATIBILITY_POINTER_TEXT,
+    str(COMPATIBILITY_ROOT / "data/README.md"): """# Acceptance compatibility pointer
+
+Canonical published data remain in
+[`docs/research/docling-graph-kitty-specs/data/`](../../docling-graph-kitty-specs/data/).
+This directory exists only for the legacy Deep Research path contract.
+""",
+    str(COMPATIBILITY_ROOT / "reports/README.md"): """# Acceptance compatibility pointer
+
+The sole long-form publication remains
 [`docs/research/docling-graph-kitty-specs/report.md`](../../docling-graph-kitty-specs/report.md).
 This directory exists only for the legacy Deep Research path contract.
 """,
+}
+REWRITTEN_COMPATIBILITY_POINTERS = {
+    str(COMPATIBILITY_ROOT / "data/README.md"),
+    str(COMPATIBILITY_ROOT / "reports/README.md"),
 }
 REQUIRED_ABSENT_COMPATIBILITY_FILES = {str(MISSION_DIR / "acceptance-matrix.json")}
 REVIEW_LEDGER_PATH = str(MISSION_DIR / "research/adversarial-reviews.md")
@@ -220,18 +239,27 @@ HISTORICAL_RESEARCH_REVIEW_PATHS = tuple(
 STATIC_COMPATIBILITY_REVIEW_PATHS = tuple(
     sorted(
         COMPATIBILITY_FILES
-        - {str(MISSION_DIR / "status.json"), str(MISSION_DIR / "tasks.md")}
+        - REWRITTEN_COMPATIBILITY_POINTERS
+        - {
+            str(MISSION_DIR / "status.json"),
+            str(MISSION_DIR / "tasks.md"),
+            str(MISSION_DIR / "tasks/WP01-research-closeout-acceptance.md"),
+        }
     )
 )
 PUBLICATION_TRANSFORM = {
-    "kind": "byte_preserving_directory_relocation",
+    "kind": "directory_relocation_with_reviewed_pointer_rewrites",
     "generated_prefix": "docs/research/",
     "published_prefix": "research-outputs/research/",
     "file_count": 193,
-    "content_bytes_changed": False,
+    "research_payload_file_count": 189,
+    "byte_identical_file_count": 191,
+    "rewritten_compatibility_pointers": sorted(REWRITTEN_COMPATIBILITY_POINTERS),
+    "research_payload_bytes_changed": False,
     "reason": (
-        "Keep immutable research payloads and compatibility carriers outside live "
-        "documentation scanners while retaining their original bytes and relative topology."
+        "Keep immutable research payloads outside live documentation scanners; relocate "
+        "four compatibility carriers at the same relative topology and rewrite two "
+        "navigation-only labels to name their published targets."
     ),
 }
 
@@ -256,20 +284,37 @@ def verify_relocation_equivalence(
     compatibility_revision: str,
     errors: list[str],
 ) -> bool:
-    """Prove every relocated file retains its reviewed Git blob exactly."""
+    """Prove exact relocation sets and every non-pointer payload's reviewed Git blob."""
     valid = True
     cohorts = (
-        (PUBLISHED_REPORT_DIR, REPORT_DIR, research_revision, 189),
-        (PUBLISHED_COMPATIBILITY_ROOT, COMPATIBILITY_ROOT, compatibility_revision, 4),
+        (REPORT_DIR, PUBLISHED_REPORT_DIR, research_revision, PUBLICATION_TRANSFORM["research_payload_file_count"]),
+        (COMPATIBILITY_ROOT, PUBLISHED_COMPATIBILITY_ROOT, compatibility_revision, 4),
     )
-    for published_root, generated_root, revision, expected_count in cohorts:
-        published_paths = git(repo, "ls-files", str(published_root)).splitlines()
-        if len(published_paths) != expected_count or len(set(published_paths)) != expected_count:
-            errors.append(f"publication relocation cohort mismatch: {published_root}")
+    expected_published_paths: set[str] = set()
+    byte_identical_count = 0
+    for generated_root, published_root, revision, expected_count in cohorts:
+        generated_paths = set(
+            git(
+                repo,
+                "ls-tree",
+                "-r",
+                "--name-only",
+                revision,
+                "--",
+                str(generated_root),
+            ).splitlines()
+        )
+        generated_paths.discard(str(REPORT_DIR / "publication-manifest.json"))
+        if len(generated_paths) != expected_count:
+            errors.append(f"publication relocation historical cohort count mismatch: {generated_root}")
             valid = False
-        for published_path in published_paths:
-            suffix = Path(published_path).relative_to(published_root)
-            generated_path = generated_root / suffix
+        for generated_path in sorted(generated_paths):
+            suffix = Path(generated_path).relative_to(generated_root)
+            published_path = str(published_root / suffix)
+            expected_published_paths.add(published_path)
+            if generated_path in REWRITTEN_COMPATIBILITY_POINTERS:
+                continue
+            byte_identical_count += 1
             try:
                 old_blob = git(repo, "rev-parse", f"{revision}:{generated_path}")
                 new_blob = git(repo, "hash-object", published_path)
@@ -280,6 +325,18 @@ def verify_relocation_equivalence(
             if old_blob != new_blob:
                 errors.append(f"publication relocation changed bytes: {generated_path}")
                 valid = False
+    published_paths = set(
+        git(repo, "ls-files", str(PUBLISHED_REPORT_DIR), str(PUBLISHED_COMPATIBILITY_ROOT)).splitlines()
+    )
+    if published_paths != expected_published_paths:
+        errors.append("publication relocation current path set differs from reviewed historical sets")
+        valid = False
+    if len(expected_published_paths) != PUBLICATION_TRANSFORM["file_count"]:
+        errors.append("publication relocation historical file count mismatch")
+        valid = False
+    if byte_identical_count != PUBLICATION_TRANSFORM["byte_identical_file_count"]:
+        errors.append("publication relocation byte-identical file count mismatch")
+        valid = False
     old_tree_paths = set(git(repo, "ls-files", "docs/research").splitlines())
     expected_old_tree = {str(REPORT_DIR / "publication-manifest.json")}
     if old_tree_paths != expected_old_tree:
@@ -562,7 +619,8 @@ def verify_compatibility_at_revision(  # noqa: C901
         if issue_matrix_text != ISSUE_MATRIX_TEXT:
             errors.append(f"{context}: issue matrix content contract failed")
             valid = False
-    for raw_path, expected_text in COMPATIBILITY_POINTER_TEXT.items():
+    pointer_contract = COMPATIBILITY_POINTER_TEXT if published else HISTORICAL_COMPATIBILITY_POINTER_TEXT
+    for raw_path, expected_text in pointer_contract.items():
         revision_pointer_path = str(current_path(raw_path)) if published else raw_path
         try:
             pointer_text = git(repo, "show", f"{revision}:{revision_pointer_path}") + "\n"
@@ -1023,6 +1081,8 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         "https://github.com/Priivacy-ai/spec-kitty/issues/3546",
         "migrate backfill-runtime-state",
         "`force:false`",
+        "generation-time logical",
+        "research-outputs/research/",
     ):
         if token not in wp_text:
             errors.append(f"acceptance compatibility WP omits required disclosure: {token}")
@@ -1053,6 +1113,52 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         errors.append("canonical Spec Kitty CLI is unavailable for acceptance status replay")
     elif status_result.returncode or status_validation.get("passed") is not True:
         errors.append(f"canonical acceptance status replay failed: {status_result.stderr.strip()}")
+
+    backfill_result = (
+        subprocess.run(
+            [
+                cli,
+                "migrate",
+                "backfill-runtime-state",
+                "--mission",
+                MISSION,
+                "--dry-run",
+                "--json",
+            ],
+            cwd=repo,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if cli
+        else None
+    )
+    try:
+        backfill = json.loads(backfill_result.stdout) if backfill_result else {}
+    except json.JSONDecodeError:
+        backfill = {}
+    results = backfill.get("results", []) if isinstance(backfill, dict) else []
+    backfill_entry = results[0] if len(results) == 1 and isinstance(results[0], dict) else {}
+    if backfill_result is None:
+        errors.append("canonical Spec Kitty CLI is unavailable for runtime cutover verification")
+    elif (
+        backfill_result.returncode
+        or backfill.get("dry_run") is not True
+        or backfill.get("summary", {}).get("total") != 1
+        or backfill.get("summary", {}).get("would_seed") != 0
+        or backfill.get("summary", {}).get("failed") != 0
+        or backfill_entry.get("slug") != MISSION
+        or backfill_entry.get("seeded_count") != 0
+        or backfill_entry.get("verify_ok") is not True
+        or backfill_entry.get("failed") is not False
+        or backfill_entry.get("mismatches") != []
+        or backfill_entry.get("error") is not None
+    ):
+        errors.append(
+            "canonical runtime cutover verification failed: "
+            f"returncode={backfill_result.returncode} output={backfill_result.stdout.strip()} "
+            f"stderr={backfill_result.stderr.strip()}"
+        )
     status = json.loads((repo / MISSION_DIR / "status.json").read_text(encoding="utf-8"))
     meta = json.loads((repo / MISSION_DIR / "meta.json").read_text(encoding="utf-8"))
     if meta.get("deliverables_path") != f"{PUBLISHED_COMPATIBILITY_ROOT}/":

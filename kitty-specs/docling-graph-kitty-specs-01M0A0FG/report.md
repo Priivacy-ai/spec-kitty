@@ -12,3 +12,9 @@ Integrity:
 - publication manifest: [`docs/research/docling-graph-kitty-specs/publication-manifest.json`](../../docs/research/docling-graph-kitty-specs/publication-manifest.json)
 
 This file is deliberately a pointer/abstract, not a second long-form publication.
+
+Publication packaging preserves experiment-time `docs/research/...` paths in
+sealed manifests as logical provenance. The publication manifest maps them to
+the current physical `research-outputs/research/...` tree; research payload
+bytes are unchanged, while two navigation-only compatibility labels were
+rewritten to name their published targets.

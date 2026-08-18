@@ -9,12 +9,18 @@
   "report_source_commit": "2864accfb0cb41dc28f40fdd9de93d48afb05984",
   "report_git_blob": "a6089b352e6aff63373b1dda76b7172294a3086d",
   "publication_transform": {
-    "kind": "byte_preserving_directory_relocation",
+    "kind": "directory_relocation_with_reviewed_pointer_rewrites",
     "generated_prefix": "docs/research/",
     "published_prefix": "research-outputs/research/",
     "file_count": 193,
-    "content_bytes_changed": false,
-    "reason": "Keep immutable research payloads and compatibility carriers outside live documentation scanners while retaining their original bytes and relative topology."
+    "research_payload_file_count": 189,
+    "byte_identical_file_count": 191,
+    "rewritten_compatibility_pointers": [
+      "docs/research/docling-graph-kitty-specs-01M0A0FG/data/README.md",
+      "docs/research/docling-graph-kitty-specs-01M0A0FG/reports/README.md"
+    ],
+    "research_payload_bytes_changed": false,
+    "reason": "Keep immutable research payloads outside live documentation scanners; relocate four compatibility carriers at the same relative topology and rewrite two navigation-only labels to name their published targets."
   },
   "publication_gate": {
     "event_type": "gate_passed",
@@ -64,7 +70,7 @@
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/findings.md", "bytes": 7561, "sha256": "43bdb301f267e72c39c508a326334e5cfcfb740001c6b90afe580b928596ce75"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/data-model.md", "bytes": 2365, "sha256": "4e9e522666dfc150fe31ba0af9bc398852f760d1175e699456436eb20c9db819"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research.md", "bytes": 2682, "sha256": "47168fdd3ea036a2a3b8e3a66d0d0ee6b6538c343c041c9101d9a0b1a5f387a0"},
-    {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/report.md", "bytes": 930, "sha256": "742f82a8dc2616b6913a6944ddc9008532c0e0817bdae5311acbd1a284084e16"},
+    {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/report.md", "bytes": 1278, "sha256": "636e414b8d37bcf53f3d43b47d172b38a26c03ea73ab4ec0829c8433544c95de"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/source-register.csv", "bytes": 5653, "sha256": "3737d87ae7e120bce6fb768e9e5ff3b14f33240500968bb7a3233b0d243083de"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/source-register.csv", "bytes": 5653, "sha256": "3737d87ae7e120bce6fb768e9e5ff3b14f33240500968bb7a3233b0d243083de"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/evidence-log.csv", "bytes": 11468, "sha256": "732b323dc270d5a0ba59bea823b0f41689a65eaca404512fe10767e003660cde"},
@@ -78,7 +84,7 @@
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/empirical-evidence-register.csv", "bytes": 1921, "sha256": "02e92eea344a0a3e0731f5e18f6cd699397a7fda868234e111df8d843c9d4773"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/execution-ledger.jsonl", "bytes": 1466, "sha256": "2fc7044c4d2e873d2bed00d02124fc58037a2b9170cf68ade3637c02147e58ee"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/adversarial-reviews.md", "bytes": 6136, "sha256": "67e3fda6eb77eb50e4bbb8999261c7f20377cff41832b76487b71307a8d33395"},
-    {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/verify_publication.py", "bytes": 59006, "sha256": "2c9bdc8ba372d4d59daffc2833e37bac747e2a9b7958e261cf69a1a54d7909a4"},
+    {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/verify_publication.py", "bytes": 63374, "sha256": "2d3599de0e8cbf120ec7e09f32792e4689988c4ed6f09a14c85bb57e647dfbe6"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/baseline-observations.yaml", "bytes": 1286, "sha256": "da307270411da1bdd719379b49c7b2cc6cf0cc59775d24225ac9f4afa685edc8"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/build_execution_manifests.py", "bytes": 7111, "sha256": "cfe11f709f91d3b3369a10bbe3c96dc4483947573008ac2bc020dfdc1858b009"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/materialize_recorded_baseline.py", "bytes": 1766, "sha256": "8e982fbd1bae14d3d7b90059306ea66864cf65bca35a75f7758b7952071d80a5"},
