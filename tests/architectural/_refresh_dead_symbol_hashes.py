@@ -394,14 +394,44 @@ def plan_refresh(
     return [decide(entry, still_dead) for entry in entries]
 
 
+def _guard_no_shared_hash_rows(decisions: Sequence[RefreshDecision]) -> None:
+    """Refuse (loudly, before any rewrite) if >=2 REFRESH decisions target the
+    same physical source row.
+
+    ``_apply`` slices columns captured from the ORIGINAL line for each
+    decision. If two REFRESH decisions land on the same ``hash_row``, the
+    first rewrite shifts the line's content (a different-length hash changes
+    column offsets), so the second decision's ``hash_col_start``/
+    ``hash_col_end`` -- captured before either rewrite -- would slice the
+    WRONG span of the already-mutated line, silently corrupting it. Contract A
+    assumes one allow-list entry per physical line (#3560 finding 3); this
+    guard makes that assumption fail-closed instead of silently violated.
+    """
+    seen_rows: dict[int, str] = {}
+    for decision in decisions:
+        if decision.outcome != Outcome.REFRESH or decision.new_hash is None:
+            continue
+        row = decision.entry.hash_row
+        if row in seen_rows:
+            raise ValueError(
+                f"_apply: >=2 REFRESH decisions target the same source row {row} "
+                f"({seen_rows[row]!r} and {decision.entry.bare_name!r}) -- rewriting "
+                "both would corrupt column offsets captured from the original line; "
+                "refusing (fail-closed, #3560 finding 3)"
+            )
+        seen_rows[row] = decision.entry.bare_name
+
+
 def _apply(source: str, decisions: Sequence[RefreshDecision]) -> str:
     """Rewrite only the ``body_hash`` literals of REFRESH decisions, in place.
 
     Every other byte of *source* is preserved — no entry is added or removed
     (the never-append invariant is structural: only existing hash tokens are
     overwritten). Each allow-list entry is single-line with its own hash token,
-    so column-slice replacement never collides.
+    so column-slice replacement never collides -- :func:`_guard_no_shared_hash_rows`
+    verifies that assumption before any mutation happens.
     """
+    _guard_no_shared_hash_rows(decisions)
     lines = source.splitlines(keepends=True)
     for decision in decisions:
         if decision.outcome != Outcome.REFRESH or decision.new_hash is None:
