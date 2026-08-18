@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#3091": {
+      "evidence_ref": "Closed upstream; cited only as a stale-comment observation in code this mission does not own",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3519": {
+      "evidence_ref": "Follow-up: #3519 (open upstream). map-requirements rejects SC- refs, so SC-001..008 are carried in prose and a coverage table rather than in frontmatter.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3522": {
+      "evidence_ref": "Follow-up: #3522 (open upstream). Boundary tests never scan src/runtime, so this mission's NFR-003 compliance is verified by review discipline, not by CI.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3523": {
+      "evidence_ref": "This mission's own issue; FR-001 through FR-012 trace to it",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}
