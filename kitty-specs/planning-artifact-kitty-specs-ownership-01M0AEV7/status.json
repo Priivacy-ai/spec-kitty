@@ -20,17 +20,35 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01M0AQBVQZPB8D61FYTW3EZ8KG",
       "last_transition_at": "2026-08-18T15:20:45.567438+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: confined planning_artifact exemption; 179+25 tests green, ruff/mypy clean. --force: lane-hygiene guard false-positive on inherited kitty-specs coordination state (#3271 class); WP deliverable is src/+tests only."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed (reviewer-renata): 91 tests green, ruff/mypy clean. --force: #3271 lane-hygiene false-positive.",
         "reviewer": "ATDD",
         "verdict": "approved"
       },
-      "shell_pid": 2620574,
-      "shell_pid_created_at": "1787063951.81"
+      "role": "reviewer",
+      "shell_pid": 2655138,
+      "shell_pid_created_at": "1787065664.84",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done"
+      }
     }
   }
 }
