@@ -17,6 +17,7 @@ from pathlib import Path
 
 
 MISSION = "docling-graph-kitty-specs-01M0A0FG"
+MISSION_ID = "01M0A0FGN48R0HNM2S4VQXQFF1"
 REPORT_DIR = Path("docs/research/docling-graph-kitty-specs")
 MISSION_DIR = Path("kitty-specs") / MISSION
 COMPATIBILITY_ROOT = Path("docs/research") / MISSION
@@ -28,6 +29,46 @@ EXPECTED_REVIEWERS = {
     "/root/postgather_authority:architect-alphonso",
     "/root/postgather_claims:reviewer-renata",
     "/root/postgather_empirical:debugger-debbie",
+}
+CANONICAL_LANES = {
+    "planned",
+    "claimed",
+    "in_progress",
+    "for_review",
+    "in_review",
+    "approved",
+    "done",
+    "blocked",
+    "canceled",
+}
+ALLOWED_FORCE_FREE_TRANSITIONS = {
+    ("planned", "claimed"),
+    ("planned", "blocked"),
+    ("planned", "canceled"),
+    ("claimed", "in_progress"),
+    ("claimed", "blocked"),
+    ("claimed", "canceled"),
+    ("in_progress", "planned"),
+    ("in_progress", "for_review"),
+    ("in_progress", "approved"),
+    ("in_progress", "blocked"),
+    ("in_progress", "canceled"),
+    ("for_review", "in_review"),
+    ("for_review", "blocked"),
+    ("for_review", "canceled"),
+    ("in_review", "planned"),
+    ("in_review", "in_progress"),
+    ("in_review", "approved"),
+    ("in_review", "done"),
+    ("in_review", "blocked"),
+    ("in_review", "canceled"),
+    ("approved", "planned"),
+    ("approved", "in_progress"),
+    ("approved", "done"),
+    ("approved", "blocked"),
+    ("approved", "canceled"),
+    ("blocked", "in_progress"),
+    ("blocked", "canceled"),
 }
 EXACT_ARTIFACTS = {
     str(REPORT_DIR / "report.md"),
@@ -303,22 +344,26 @@ def verify_absent_at_revision(
     return valid
 
 
-def verify_event_log_at_revision(
+def verify_event_log_at_revision(  # noqa: C901
     repo: Path,
     revision: str,
     errors: list[str],
     *,
     context: str,
     expected_lanes: set[str],
-) -> bool:
+) -> tuple[bool, dict[str, object]]:
     event_path = str(MISSION_DIR / "status.events.jsonl")
     try:
         text = git(repo, "show", f"{revision}:{event_path}")
     except subprocess.CalledProcessError:
         errors.append(f"{context}: canonical status event log is unavailable")
-        return False
+        return False, {}
     lane = "planned"
+    subtasks: dict[str, str] = {}
     transition_count = 0
+    last_event_id = ""
+    last_transition_at = ""
+    mission_created = 0
     valid = True
     for line_number, line in enumerate(text.splitlines(), start=1):
         try:
@@ -327,26 +372,60 @@ def verify_event_log_at_revision(
             errors.append(f"{context}: invalid status event JSON at line {line_number}")
             valid = False
             continue
+        if event.get("event_type") == "MissionCreated":
+            mission_created += 1
+            payload = event.get("payload", {})
+            if payload.get("mission_id") != MISSION_ID or payload.get("mission_slug") != MISSION or payload.get("mission_type") != "research":
+                errors.append(f"{context}: MissionCreated identity/type mismatch")
+                valid = False
+        if event.get("wp_id") == "WP01" and event.get("kind") == "annotation":
+            delta_subtasks = event.get("delta", {}).get("subtasks", {})
+            if not isinstance(delta_subtasks, dict):
+                errors.append(f"{context}: invalid WP01 subtask annotation")
+                valid = False
+            else:
+                subtasks.update({str(key): str(value) for key, value in delta_subtasks.items()})
         if event.get("wp_id") != "WP01" or "from_lane" not in event or "to_lane" not in event:
             continue
         transition_count += 1
-        if event.get("mission_slug") != MISSION:
+        last_event_id = str(event.get("event_id", ""))
+        last_transition_at = str(event.get("at", ""))
+        from_lane = str(event.get("from_lane"))
+        to_lane = str(event.get("to_lane"))
+        if event.get("mission_slug") != MISSION or event.get("mission_id") != MISSION_ID:
             errors.append(f"{context}: WP01 transition mission identity mismatch")
             valid = False
         if event.get("force") is not False:
             errors.append(f"{context}: WP01 transition did not record force=false")
             valid = False
-        if event.get("from_lane") != lane:
+        if from_lane not in CANONICAL_LANES or to_lane not in CANONICAL_LANES:
+            errors.append(f"{context}: WP01 transition uses a non-canonical lane")
+            valid = False
+        if (from_lane, to_lane) not in ALLOWED_FORCE_FREE_TRANSITIONS:
+            errors.append(f"{context}: WP01 transition uses an illegal force-free edge")
+            valid = False
+        if from_lane != lane:
             errors.append(f"{context}: WP01 transition chain is not replayable")
             valid = False
-        lane = str(event.get("to_lane"))
+        lane = to_lane
+    if mission_created != 1:
+        errors.append(f"{context}: expected exactly one canonical MissionCreated event")
+        valid = False
     if transition_count < 4 or lane not in expected_lanes:
         errors.append(f"{context}: WP01 transition log ended in unexpected lane {lane}")
         valid = False
-    return valid
+    replay = {
+        "lane": lane,
+        "subtasks": subtasks,
+        "transition_count": transition_count,
+        "last_event_id": last_event_id,
+        "last_transition_at": last_transition_at,
+        "force_count": 0,
+    }
+    return valid, replay
 
 
-def verify_compatibility_at_revision(
+def verify_compatibility_at_revision(  # noqa: C901
     repo: Path,
     revision: str,
     errors: list[str],
@@ -397,6 +476,16 @@ def verify_compatibility_at_revision(
             errors.append(f"{context}: canonical pointer target is unavailable: {target}")
             valid = False
     try:
+        meta = json.loads(git(repo, "show", f"{revision}:{MISSION_DIR / 'meta.json'}"))
+    except (json.JSONDecodeError, subprocess.CalledProcessError):
+        errors.append(f"{context}: canonical mission metadata is unavailable or invalid")
+        valid = False
+    else:
+        if meta.get("mission_id") != MISSION_ID or meta.get("mission_slug") != MISSION or meta.get("mission_type") != "research":
+            errors.append(f"{context}: canonical mission metadata identity/type mismatch")
+            valid = False
+    status: dict[str, object] = {}
+    try:
         status = json.loads(git(repo, "show", f"{revision}:{MISSION_DIR / 'status.json'}"))
     except (json.JSONDecodeError, subprocess.CalledProcessError):
         errors.append(f"{context}: canonical status projection is unavailable or invalid")
@@ -415,8 +504,34 @@ def verify_compatibility_at_revision(
         if wp_status.get("subtasks") != {f"T{value:03d}": "done" for value in range(1, 5)}:
             errors.append(f"{context}: status subtask projection mismatch")
             valid = False
-    if not verify_event_log_at_revision(repo, revision, errors, context=context, expected_lanes=expected_lanes):
+    replay_valid, replay = verify_event_log_at_revision(
+        repo,
+        revision,
+        errors,
+        context=context,
+        expected_lanes=expected_lanes,
+    )
+    if not replay_valid:
         valid = False
+    if replay:
+        wp_status = status.get("work_packages", {}).get("WP01", {})
+        expected_summary = dict.fromkeys(CANONICAL_LANES, 0)
+        expected_summary[str(replay["lane"])] = 1
+        expected_subtasks = {f"T{value:03d}": "done" for value in range(1, 5)}
+        projection_matches_replay = (
+            set(status.get("work_packages", {})) == {"WP01"}
+            and wp_status.get("lane") == replay["lane"]
+            and wp_status.get("subtasks") == replay["subtasks"] == expected_subtasks
+            and wp_status.get("force_count") == replay["force_count"]
+            and wp_status.get("last_event_id") == replay["last_event_id"]
+            and wp_status.get("last_transition_at") == replay["last_transition_at"]
+            and status.get("event_count") == replay["transition_count"]
+            and status.get("last_event_id") == replay["last_event_id"]
+            and status.get("summary") == expected_summary
+        )
+        if not projection_matches_replay:
+            errors.append(f"{context}: materialized status does not exactly match canonical event replay")
+            valid = False
     if not verify_absent_at_revision(repo, revision, REQUIRED_ABSENT_COMPATIBILITY_FILES, errors, context=context):
         valid = False
     return valid
