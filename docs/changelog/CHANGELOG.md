@@ -236,6 +236,17 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **`retrospect synthesize` now tells you the one thing that is actually
+  wrong with a retrospective instead of burying it under ~100 errors about a
+  schema the file was never meant to satisfy (`#3537`; closes `#3533`).** When
+  a hand-edited retrospective had a single invalid finding category, the
+  command printed a wall of Pydantic `extra_forbidden` / `Field required`
+  errors describing the nested reader's schema — twice leading readers to
+  believe the tool contradicted itself when one enum value was wrong. It now
+  reports the generator reader's accurate one-line diagnosis (e.g.
+  `not_helpful[0].category is invalid`) and appends the allowed finding
+  categories, so the fix is obvious instead of a guess.
+
 - **Writing an honest cardinality assertion in a test no longer costs you an
   annotation toll: the golden-count architectural gate
   (`tests/architectural/test_golden_count_ban.py`) stopped flagging
