@@ -18,6 +18,7 @@ from pathlib import Path
 MISSION = "docling-graph-kitty-specs-01M0A0FG"
 REPORT_DIR = Path("docs/research/docling-graph-kitty-specs")
 MISSION_DIR = Path("kitty-specs") / MISSION
+COMPATIBILITY_ROOT = Path("docs/research") / MISSION
 EVIDENCE_PATTERN = re.compile(r"EV-\d{3}")
 EVIDENCE_RANGE_PATTERN = re.compile(r"EV-(\d{3})[–-]EV-(\d{3})")
 SHA256_PATTERN = re.compile(r"[0-9a-f]{64}")
@@ -108,7 +109,25 @@ EXPECTED_NA_SHA_BY_ID = {
     "EV-025": "N/A_sealed_methodology",
     "EV-026": "N/A_synthesis_input",
 }
-SUBSTANTIVE_REVIEW_PATHS = tuple(sorted(EXACT_ARTIFACTS - {str(MISSION_DIR / "research/adversarial-reviews.md")}))
+COMPATIBILITY_FILES = {
+    str(MISSION_DIR / "tasks.md"),
+    str(MISSION_DIR / "tasks/.gitkeep"),
+    str(MISSION_DIR / "tasks/README.md"),
+    str(MISSION_DIR / "tasks/WP01-research-closeout-acceptance.md"),
+    str(MISSION_DIR / "status.json"),
+    str(COMPATIBILITY_ROOT / "research/README.md"),
+    str(COMPATIBILITY_ROOT / "data/README.md"),
+    str(COMPATIBILITY_ROOT / "findings/README.md"),
+    str(COMPATIBILITY_ROOT / "reports/README.md"),
+}
+COMPATIBILITY_POINTERS = {
+    str(COMPATIBILITY_ROOT / "research/README.md"): MISSION_DIR / "research",
+    str(COMPATIBILITY_ROOT / "data/README.md"): REPORT_DIR / "data",
+    str(COMPATIBILITY_ROOT / "findings/README.md"): MISSION_DIR / "findings.md",
+    str(COMPATIBILITY_ROOT / "reports/README.md"): REPORT_DIR / "report.md",
+}
+REQUIRED_ABSENT_COMPATIBILITY_FILES = {str(MISSION_DIR / "acceptance-matrix.json")}
+SUBSTANTIVE_REVIEW_PATHS = tuple(sorted((EXACT_ARTIFACTS - {str(MISSION_DIR / "research/adversarial-reviews.md")}) | COMPATIBILITY_FILES))
 
 
 def sha256(path: Path) -> str:
@@ -243,12 +262,19 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         str(MISSION_DIR / "mission-events.jsonl"),
         str(MISSION_DIR / "meta.json"),
         str(MISSION_DIR / "status.events.jsonl"),
-        str(MISSION_DIR / "tasks"),
         str(MISSION_DIR / "traces"),
     }
     actual_exclusions = {str(record.get("path", "")) for record in manifest.get("artifact_hash_exclusions", [])}
     if actual_exclusions != expected_exclusions:
         errors.append("publication manifest artifact exclusions are incomplete or unexpected")
+    expected_compatibility_contract = {
+        "schema_version": 1,
+        "authority": "acceptance_projection_not_research_evidence",
+        "paths": sorted(COMPATIBILITY_FILES),
+        "required_absent": sorted(REQUIRED_ABSENT_COMPATIBILITY_FILES),
+    }
+    if manifest.get("compatibility_contract") != expected_compatibility_contract:
+        errors.append("publication manifest compatibility contract is incomplete or unexpected")
     for record in artifacts:
         verify_file_record(repo, record, errors, context="publication artifact")
 
@@ -521,8 +547,94 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
             if (row["result"], row["sha256"]) not in result_records:
                 errors.append(f"{row['probe_id']}: result/hash absent from execution manifest")
 
-    covered_paths = set(artifact_paths) | set(prereg_paths) | set(transitive_paths)
-    tracked_scope = set(git(repo, "ls-files", str(REPORT_DIR), str(MISSION_DIR)).splitlines())
+    for raw_path in sorted(COMPATIBILITY_FILES):
+        path = confined_path(repo, raw_path)
+        if path is None or not path.is_file():
+            errors.append(f"compatibility contract file missing or unconfined: {raw_path}")
+            continue
+        tracked = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", raw_path],
+            cwd=repo,
+            check=False,
+            capture_output=True,
+        )
+        if tracked.returncode:
+            errors.append(f"compatibility contract file is not tracked: {raw_path}")
+
+    pointer_files = set(git(repo, "ls-files", str(COMPATIBILITY_ROOT)).splitlines())
+    if pointer_files != set(COMPATIBILITY_POINTERS):
+        errors.append("legacy acceptance projection must contain exactly four tracked pointer READMEs")
+    local_pointer_files = {str(path.relative_to(repo)) for path in (repo / COMPATIBILITY_ROOT).rglob("*") if path.is_file()}
+    if local_pointer_files != set(COMPATIBILITY_POINTERS):
+        errors.append("legacy acceptance projection contains untracked or unexpected files")
+    for raw_path, expected_target in COMPATIBILITY_POINTERS.items():
+        pointer_path = repo / raw_path
+        if not pointer_path.is_file():
+            continue
+        pointer_text = pointer_path.read_text(encoding="utf-8")
+        links = re.findall(r"\]\(([^)]+)\)", pointer_text)
+        if not pointer_text.startswith("# Acceptance compatibility pointer\n") or "legacy Deep Research path contract" not in pointer_text or len(links) != 1:
+            errors.append(f"compatibility pointer content contract failed: {raw_path}")
+            continue
+        resolved_target = (pointer_path.parent / links[0]).resolve()
+        if resolved_target != (repo / expected_target).resolve() or not resolved_target.exists():
+            errors.append(f"compatibility pointer target mismatch: {raw_path}")
+
+    expected_task_files = {
+        str(MISSION_DIR / "tasks/.gitkeep"),
+        str(MISSION_DIR / "tasks/README.md"),
+        str(MISSION_DIR / "tasks/WP01-research-closeout-acceptance.md"),
+    }
+    if set(git(repo, "ls-files", str(MISSION_DIR / "tasks")).splitlines()) != expected_task_files:
+        errors.append("acceptance compatibility task directory does not match its exact three-file contract")
+    task_index = (repo / MISSION_DIR / "tasks.md").read_text(encoding="utf-8")
+    if (
+        "compatibility projection" not in task_index
+        or "21bcce5a70b72e385fad77954a9f45d7806b7835" not in task_index
+        or "not canonical `requirement_refs`" not in task_index
+    ):
+        errors.append("acceptance compatibility task index omits authority or lifecycle disclosures")
+    wp_text = (repo / MISSION_DIR / "tasks/WP01-research-closeout-acceptance.md").read_text(encoding="utf-8")
+    for token in (
+        "requirement_refs: []",
+        "https://github.com/Priivacy-ai/spec-kitty/issues/3546",
+        "migrate backfill-runtime-state",
+        "`force:false`",
+    ):
+        if token not in wp_text:
+            errors.append(f"acceptance compatibility WP omits required disclosure: {token}")
+    if re.search(r"^requirement_refs:\s*\[(?!\])", wp_text, flags=re.MULTILINE):
+        errors.append("acceptance compatibility WP falsely claims canonical requirement refs")
+    for raw_path in REQUIRED_ABSENT_COMPATIBILITY_FILES:
+        if (repo / raw_path).exists():
+            errors.append(f"planning-artifact-only research mission must not materialize {raw_path}")
+
+    status_result = subprocess.run(
+        [sys.executable, "-m", "specify_cli", "agent", "status", "validate", "--mission", MISSION, "--json"],
+        cwd=repo,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    try:
+        status_validation = json.loads(status_result.stdout)
+    except json.JSONDecodeError:
+        status_validation = {}
+    if status_result.returncode or status_validation.get("passed") is not True:
+        errors.append("canonical acceptance status replay failed")
+    status = json.loads((repo / MISSION_DIR / "status.json").read_text(encoding="utf-8"))
+    wp_status = status.get("work_packages", {}).get("WP01", {})
+    if status.get("mission_slug") != MISSION or status.get("mission_type") != "research":
+        errors.append("acceptance status mission identity/type mismatch")
+    if wp_status.get("lane") not in {"for_review", "in_review", "approved", "done"}:
+        errors.append("acceptance compatibility WP is not in a review-or-terminal lane")
+    if wp_status.get("force_count") != 0:
+        errors.append("acceptance compatibility WP used a forced transition")
+    if wp_status.get("subtasks") != {f"T{value:03d}": "done" for value in range(1, 5)}:
+        errors.append("acceptance compatibility WP subtask projection mismatch")
+
+    covered_paths = set(artifact_paths) | set(prereg_paths) | set(transitive_paths) | COMPATIBILITY_FILES
+    tracked_scope = set(git(repo, "ls-files", str(REPORT_DIR), str(MISSION_DIR), str(COMPATIBILITY_ROOT)).splitlines())
     uncovered = {
         path
         for path in tracked_scope
@@ -602,6 +714,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
                     str(MISSION_DIR / "report.md"),
                     str(MISSION_DIR / "research/adversarial-reviews.md"),
                     str(MISSION_DIR / "research/verify_publication.py"),
+                    *sorted(COMPATIBILITY_FILES),
                 ),
                 errors,
             )
@@ -624,6 +737,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     result: dict[str, object] = {
         "status": "PASS" if not errors else "FAIL",
         "artifacts_verified": len(artifacts),
+        "compatibility_files_verified": len(COMPATIBILITY_FILES),
         "transitive_files_verified": len(transitive_paths),
         "evidence_raw_files_verified": evidence_raw_files,
         "preregistration_verified": preregistration_verified,

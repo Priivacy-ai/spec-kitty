@@ -2,11 +2,7 @@
 work_package_id: WP01
 title: Research closeout and acceptance proof
 dependencies: []
-requirement_refs:
-- DR-004
-- AR-002
-- QR-001
-- QR-002
+requirement_refs: []
 tracker_refs: []
 planning_base_branch: research/docling-graph-kitty-specs
 merge_target_branch: research/docling-graph-kitty-specs
@@ -55,7 +51,9 @@ canonical publication authority.
 ## Definition of done
 
 - The v2 research runtime reports `done`.
-- The full publication verifier passes with the hash-bound gate event.
+- The original 40-artifact research seal remains historically verifiable at
+  `48fd33167585c2757d7642297b663e074ed7c07e`; a compatibility-aware successor
+  seal is issued after this projection and its verifier are reviewed.
 - Legacy Deep Research directories contain pointers only.
 - Spec Kitty acceptance succeeds without `--lenient` or `--allow-fail`.
 
@@ -63,6 +61,21 @@ canonical publication authority.
 
 Reject any repair that duplicates the long-form report, reclassifies unknown
 evidence, bypasses a guard, or makes a compatibility path canonical.
+
+## Approved mission-type compatibility exception
+
+`spec-kitty agent mission finalize-tasks --validate-only` rejected this
+research WP because its parser recognizes only `FR|NFR|C` references, while the
+built-in research spec defines `DR|AR|QR`. Adding a fake software-development
+requirement would alter sealed research. This is the same mission-type root
+cause tracked in [#3546](https://github.com/Priivacy-ai/spec-kitty/issues/3546).
+
+The recovery therefore used the supported
+`migrate backfill-runtime-state --mission ...` path, which verified and flipped
+the state successfully. Subsequent transitions are canonical, `force:false`,
+and adversarially reviewed. `requirement_refs` is deliberately empty rather
+than falsely claiming runtime mapping; DR-004, AR-002, QR-001, and QR-002 remain
+human research traceability only.
 
 ## Activity log
 
