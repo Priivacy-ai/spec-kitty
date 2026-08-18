@@ -718,28 +718,44 @@ class TestEdgeCasesCombined:
         assert snapshot.parity_hash_sha256 is not None
 
     def test_completeness_transitions(self, tmp_path):
-        """Completeness can transition from incomplete to complete."""
+        """Completeness can transition from incomplete to complete.
+
+        WP02 (mission expected-artifacts-manifest-repair-01KZY498, FR-006)
+        reconciled the software-dev manifest's `plan` step to require only
+        plan.md, matching `_evaluate_software_dev_guards`' `plan` branch
+        (tasks.md moved to the separate `tasks_outline` step). This test
+        pinned the pre-reconciliation shape (plan step requiring
+        spec+plan+tasks); corrected here in the same out-of-map-edit spirit
+        as `tests/dossier/test_manifest.py`'s named stale-test corrections --
+        a direct, unavoidable consequence of that content edit, not scope
+        creep. See tracer-design-decisions.md / tasks/WP02-reconcile-manifests.md.
+        """
         feature_dir = tmp_path / "feature"
         feature_dir.mkdir()
 
-        # Start incomplete (only spec.md, at 'plan' step which requires spec + plan + tasks)
+        # Start incomplete (only spec.md, at 'plan' step which requires plan.md)
         (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
         indexer = Indexer(ManifestRegistry())
         dossier1 = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
         assert dossier1.manifest is not None
         assert dossier1.completeness_status == 'incomplete'
 
-        # Add plan.md (still missing tasks)
+        # Add plan.md (now complete for 'plan' step -- tasks.md is not
+        # required here; it belongs to the separate 'tasks_outline' step)
         (feature_dir / "plan.md").write_text("# Plan\n", encoding='utf-8')
         dossier2 = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
         assert dossier2.manifest is not None
-        assert dossier2.completeness_status == 'incomplete'
+        assert dossier2.completeness_status == 'complete'
 
-        # Add tasks.md (now complete for 'plan' step)
-        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding='utf-8')
-        dossier3 = indexer.index_feature(feature_dir, 'software-dev', step_id='plan')
+        # tasks.md is required at the 'tasks_outline' step, not 'plan'
+        dossier3 = indexer.index_feature(feature_dir, 'software-dev', step_id='tasks_outline')
         assert dossier3.manifest is not None
-        assert dossier3.completeness_status == 'complete'
+        assert dossier3.completeness_status == 'incomplete'
+
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding='utf-8')
+        dossier4 = indexer.index_feature(feature_dir, 'software-dev', step_id='tasks_outline')
+        assert dossier4.manifest is not None
+        assert dossier4.completeness_status == 'complete'
 
 
 # ============================================================================
