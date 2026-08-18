@@ -157,9 +157,7 @@ REQUIRED_ABSENT_COMPATIBILITY_FILES = {str(MISSION_DIR / "acceptance-matrix.json
 REVIEW_LEDGER_PATH = str(MISSION_DIR / "research/adversarial-reviews.md")
 VERIFIER_PATH = str(MISSION_DIR / "research/verify_publication.py")
 HISTORICAL_RESEARCH_REVIEW_PATHS = tuple(sorted(EXACT_ARTIFACTS - {REVIEW_LEDGER_PATH, VERIFIER_PATH}))
-STATIC_COMPATIBILITY_REVIEW_PATHS = tuple(
-    sorted((COMPATIBILITY_FILES - {str(MISSION_DIR / "status.json")}) | {str(REPORT_DIR / "publication-manifest.json"), VERIFIER_PATH})
-)
+STATIC_COMPATIBILITY_REVIEW_PATHS = tuple(sorted((COMPATIBILITY_FILES - {str(MISSION_DIR / "status.json")}) | {VERIFIER_PATH}))
 
 
 def sha256(path: Path) -> str:
