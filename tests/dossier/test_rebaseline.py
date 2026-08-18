@@ -391,6 +391,74 @@ class TestRebaselineErrorBranches:
         assert outcome.changed is False
         assert snapshot_path.read_text(encoding="utf-8") == before  # not rewritten
 
+    def test_rebaseline_skips_one_mission_on_malformed_manifest(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WP01 (FR-016, AS5): one bad mission must not abort the backlog sweep.
+
+        Exercises rebaseline.py's own pre-existing `except Exception` at
+        dossier/rebaseline.py:168-170 ("one bad mission must not abort the
+        backlog sweep") — no new exception handling is added to rebaseline.py
+        itself (tracer-design-decisions.md Decision 3). One of two missions in
+        the sweep resolves to a malformed manifest (routed through the real
+        `ManifestRegistry.load_manifest()` via the T002 typo'd fixture, same
+        `_doctrine_repository` seam); pre-T006/T007 the typo is silently
+        swallowed (manifest=None) and both missions rebaseline cleanly;
+        post-T006 the raised `ValidationError` propagates through
+        `Indexer.index_feature()` for the bad mission only, captured here as a
+        per-mission `error="reindex_failed: ..."` while the other mission's
+        outcome is unaffected (sweep continues).
+        """
+        import ruamel.yaml
+
+        import specify_cli.dossier.manifest as manifest_module
+        import specify_cli.mission as mission_module
+        from doctrine.missions.repository import ConfigResult
+        from specify_cli.dossier.manifest import ManifestRegistry
+        from specify_cli.dossier.rebaseline import rebaseline_recorded_snapshots
+
+        good_slug = "062-alpha-good"
+        bad_slug = "062-beta-bad"
+        good_dir = tmp_path / good_slug
+        bad_dir = tmp_path / bad_slug
+        _write_source_mission(good_dir)
+        _write_source_mission(bad_dir)
+        _record_old_form_snapshot(good_dir, good_slug)
+        _record_old_form_snapshot(bad_dir, bad_slug)
+        ManifestRegistry.clear_cache()
+
+        fixture_path = Path(__file__).parent / "fixtures" / "expected_artifacts_typo.yaml"
+        content = fixture_path.read_text(encoding="utf-8")
+        yaml = ruamel.yaml.YAML(typ="safe")
+        parsed = yaml.load(content)
+        real_repository = manifest_module._doctrine_repository()
+
+        class _FakeRepository:
+            def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+                if mission == "typo-fixture":
+                    return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
+                return real_repository.get_expected_artifacts(mission)
+
+        monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+
+        def _fake_mission_type(feature_dir: Path) -> str:
+            return "typo-fixture" if feature_dir.name == bad_slug else "software-dev"
+
+        monkeypatch.setattr(mission_module, "get_mission_type", _fake_mission_type)
+
+        outcomes = rebaseline_recorded_snapshots(tmp_path)
+
+        assert len(outcomes) == 2  # golden-count: cardinality-is-contract
+        by_slug = {o.mission_slug: o for o in outcomes}
+
+        bad_outcome = by_slug[bad_slug]
+        assert bad_outcome.error is not None
+        assert bad_outcome.error.startswith("reindex_failed")
+        assert bad_outcome.changed is False
+
+        good_outcome = by_slug[good_slug]
+        assert good_outcome.error is None  # sweep continued past the bad mission
+
 
 # ── FR-003 (cascade-org-inert-01M07E9P, WP01): org-awareness ──────────────────
 #

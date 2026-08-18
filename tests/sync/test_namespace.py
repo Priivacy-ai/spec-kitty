@@ -177,6 +177,28 @@ class TestResolveManifestVersion:
         mock_load.return_value = None
         assert resolve_manifest_version("unknown-mission") == "1"
 
+    @patch("specify_cli.dossier.manifest.ManifestRegistry.load_manifest")
+    def test_resolve_manifest_version_returns_one_on_malformed_manifest(
+        self, mock_load: MagicMock
+    ) -> None:
+        """WP01 (FR-016, AS6): a malformed manifest keeps the "always a string"
+        contract via `resolve_manifest_version`'s own dedicated
+        `except pydantic.ValidationError: return "1"` — not an accident of an
+        unrelated caller's blanket catch (tracer-design-decisions.md Decision 3).
+        """
+        import pydantic
+
+        from specify_cli.dossier.manifest import ExpectedArtifactManifest
+
+        try:
+            ExpectedArtifactManifest()  # type: ignore[call-arg]  # missing required mission_type
+        except pydantic.ValidationError as exc:
+            mock_load.side_effect = exc
+        else:  # pragma: no cover - defensive; construction above always raises
+            raise AssertionError("expected a ValidationError")
+
+        assert resolve_manifest_version("malformed-mission") == "1"
+
 
 # --- SupportedInlineFormat ---
 

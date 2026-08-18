@@ -16,7 +16,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 import logging
 
 if TYPE_CHECKING:
@@ -89,6 +89,8 @@ class ExpectedArtifactSpec(BaseModel):
         blocking: If True, missing artifact blocks mission completeness
     """
 
+    model_config = ConfigDict(extra="forbid")
+
     artifact_key: str = Field(
         ...,
         min_length=1,
@@ -123,6 +125,8 @@ class ExpectedArtifactManifest(BaseModel):
         required_by_step: Dict mapping step_id to required artifacts for that step
         optional_always: Artifacts optional regardless of step
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     schema_version: str = Field(
         default="1.0",
@@ -229,7 +233,16 @@ class ManifestRegistry:
         :class:`ExpectedArtifactManifest` (WP10 / IC-07). The adapted model —
         not the raw ``ConfigResult`` — is cached, preserving the registry cache
         semantics. Gracefully returns ``None`` if the manifest is not found
-        (degraded mode for custom/unknown missions).
+        (degraded mode for custom/unknown missions), or if it fails to parse
+        as YAML at all — :meth:`MissionTemplateRepository.get_expected_artifacts`
+        catches ``YAMLError``/``OSError``/``UnicodeDecodeError`` upstream and
+        returns ``None`` before this method ever sees it, a known gap tracked
+        in `#3412 <https://github.com/Priivacy-ai/spec-kitty/issues/3412>`_. A
+        *found*, syntactically-valid manifest that fails **schema** validation
+        (e.g. a typo'd/extra key, rejected by ``extra="forbid"``) raises
+        ``pydantic.ValidationError`` instead of being silently swallowed
+        (FR-016): only schema-level malformation is distinguished from
+        absence — YAML-syntax-level malformation is not (yet).
 
         FR-008 (WP05): when *repo_root* is given and resolves to 1+ existing
         configured org roots, an org-pack
@@ -248,7 +261,16 @@ class ManifestRegistry:
                 ``None`` (default) for built-in-tree-only resolution.
 
         Returns:
-            ExpectedArtifactManifest if found and valid, None otherwise
+            ExpectedArtifactManifest if found and valid, None if not found —
+            including a manifest that exists but is broken at the YAML-syntax
+            level (see #3412 above)
+
+        Raises:
+            pydantic.ValidationError: If the manifest file is found, parses as
+                valid YAML, but fails *schema* validation (e.g. an
+                unrecognized/typo'd key, given
+                ``model_config = ConfigDict(extra="forbid")`` on both models).
+                Does NOT raise for YAML-syntax errors — see above.
         """
         org_roots = _resolve_existing_org_roots(repo_root) if repo_root is not None else []
         cache_key = (mission_type, tuple(str(root) for root in org_roots))
@@ -281,15 +303,15 @@ class ManifestRegistry:
             ManifestRegistry._cache[cache_key] = None
             return None
 
-        try:
-            manifest = ExpectedArtifactManifest.model_validate(config.parsed)
-            ManifestRegistry._cache[cache_key] = manifest
-            logger.info(f"Loaded manifest for {mission_type}: {len(manifest.get_step_ids())} steps")
-            return manifest
-        except Exception as e:
-            logger.error(f"Failed to load manifest for {mission_type}: {e}")
-            ManifestRegistry._cache[cache_key] = None
-            return None
+        # Rebase resolution (#3413 x #3520): the propagation is this branch's
+        # (FR-016 -- a malformed manifest must fail loudly, so the swallowing
+        # try/except that cached None is deliberately gone), and `cache_key` is
+        # main's org-aware `(mission_type, org_roots)` tuple rather than the bare
+        # `mission_type` this commit was written against.
+        manifest = ExpectedArtifactManifest.model_validate(config.parsed)
+        ManifestRegistry._cache[cache_key] = manifest
+        logger.info(f"Loaded manifest for {mission_type}: {len(manifest.get_step_ids())} steps")
+        return manifest
 
     @staticmethod
     def get_required_artifacts(
