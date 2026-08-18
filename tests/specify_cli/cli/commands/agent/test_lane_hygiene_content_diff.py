@@ -274,3 +274,91 @@ class TestGenuinelyDivergentStillFlagged:
         assert "spec.md" not in flagged_names, (
             f"Identical file 'spec.md' should NOT be flagged, got {flagged!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# T027 / T028: coord-topology inheritance (#3271)
+# ---------------------------------------------------------------------------
+
+
+def _build_coord_inheritance_scenario(tmp_path: Path) -> tuple[Path, str, str]:
+    """Simulate the #3271 coord-topology inheritance layout.
+
+    Layout::
+
+        A (main) ── README
+          └── coord:  A → C   (adds kitty-specs/prior-mission/spec.md)
+                └── target: C → T   (adds kitty-specs/this-mission/spec.md)
+        lane: forked from coord (C), then MERGES the recorded planning commit T
+              (ADR 2026-07-29-1 / #2993) → lane kitty-specs is byte-identical to
+              target, with zero lane-authored delta.
+
+    The coordination branch is minted at mission-create *before* the planning
+    commit exists, so ``merge-base(lane, coord)`` predates ``this-mission``'s
+    planning artifacts even though the lane holds them byte-identically to the
+    planning tip. Diffing against ``coord`` therefore false-positives; diffing
+    against ``target`` (the planning branch) is clean.
+
+    Returns ``(repo, coord_branch, target_branch)``.
+    """
+    repo = _init_repo(tmp_path)
+
+    (repo / "README.md").write_text("anchor\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "anchor")
+
+    # Coordination branch: prior mission's committed kitty-specs, no planning yet.
+    _git(repo, "checkout", "-q", "-b", "coord")
+    prior = repo / "kitty-specs" / "prior-mission"
+    prior.mkdir(parents=True)
+    (prior / "spec.md").write_text("prior mission spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "coord: inherit prior-mission kitty-specs")
+
+    # Target/planning branch: adds THIS mission's planning artifacts on top.
+    _git(repo, "checkout", "-q", "-b", "target")
+    this_mission = repo / "kitty-specs" / "this-mission"
+    this_mission.mkdir(parents=True)
+    (this_mission / "spec.md").write_text("this mission spec\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "target: record this-mission planning commit")
+    planning_sha = subprocess.run(
+        ["git", "rev-parse", "target"],
+        cwd=repo, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+    # Lane: forked from coord, then merges the recorded planning commit (#2993).
+    _git(repo, "checkout", "-q", "coord")
+    _git(repo, "checkout", "-q", "-b", "lane")
+    _git(repo, "merge", "-q", "--no-edit", planning_sha)
+
+    return repo, "coord", "target"
+
+
+class TestCoordInheritanceNotFlagged:
+    """#3271: a lane whose kitty-specs are byte-identical to the planning branch
+    must not be flagged, even when the coordination base ref predates them."""
+
+    def test_t027_coord_base_reproduces_the_false_positive(self, tmp_path: Path) -> None:
+        """Characterisation: basing the delta on the coordination branch flags
+        inherited/merged content — the pre-fix behaviour #3271 reports."""
+        repo, coord, _target = _build_coord_inheritance_scenario(tmp_path)
+
+        flagged = _list_wp_branch_mission_specs_changes(repo, coord)
+
+        assert flagged, (
+            "Scenario invariant: diffing against the coordination base ref must "
+            "surface the inherited/merged kitty-specs (the #3271 false positive)."
+        )
+
+    def test_t028_planning_base_is_clean(self, tmp_path: Path) -> None:
+        """The fix: basing the delta on the planning/target branch yields an empty
+        result — inherited and #2993-merged artifacts are ancestors of it."""
+        repo, _coord, target = _build_coord_inheritance_scenario(tmp_path)
+
+        flagged = _list_wp_branch_mission_specs_changes(repo, target)
+
+        assert flagged == [], (
+            f"False positive: lane kitty-specs byte-identical to the planning "
+            f"branch were flagged. Flagged paths: {flagged!r}"
+        )
