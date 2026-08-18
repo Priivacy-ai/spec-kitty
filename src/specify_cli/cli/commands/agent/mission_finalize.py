@@ -304,11 +304,16 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
     Returns ``True`` (attributable — keep as a commit candidate) when:
     - meta.json is not tracked at ``HEAD`` yet (nothing to diff against — the
       whole file is new content), or
-    - either side fails to parse as JSON (can't compute a field-level diff;
-      falls back to the pre-REV-001 unconditional-inclusion behavior rather
-      than silently dropping an artifact this repo has always committed), or
+    - the committed (``HEAD``) side fails to parse as JSON while the working-tree
+      copy is valid (our fix supersedes a malformed committed copy), or
     - the changed-field set is empty or a subset of
       ``FINALIZE_ATTRIBUTABLE_META_FIELDS``.
+
+    Returns ``False`` (exclude the whole file) when the working-tree copy is
+    unreadable or malformed. finalize-tasks did NOT commit meta.json before
+    #3466, so the conservative default for a corrupt on-disk file is to never
+    commit it -- committing a truncated meta.json would break every fail-closed
+    reader.
     """
     from kernel.meta_decode import decode_meta
     from specify_cli.cli.commands.agent import mission as _mission
@@ -332,39 +337,42 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
     try:
         current_text = meta_path.read_text(encoding="utf-8")
     except OSError as read_exc:
-        # SK3466-REV2-003: unlike the sibling error paths this fix added
-        # (_persist_target_branch_override's console/JSON warning,
-        # _revert_unpersisted_target_branch_override's logger.warning), this
-        # fallback previously left no trace at all. Falling back to True
-        # (pre-round-3 unconditional-inclusion) is deliberate -- see the
-        # decode-failure branch below for the reasoning -- but a working
-        # meta.json that suddenly can't be read is worth a diagnostic.
+        # #3466 landing: a working-tree meta.json that cannot be read is
+        # EXCLUDED, not committed. finalize-tasks never committed meta.json
+        # before this change, so an unreadable on-disk copy must not be swept
+        # into the finalize commit -- doing so risks committing a truncated or
+        # corrupt file over readers that fail closed on it.
         logger.warning(
-            "SK3466-REV2-003: could not read %s to compute finalize-commit "
-            "attribution (%s); falling back to unconditional-inclusion "
-            "(commit meta.json anyway)",
+            "#3466: could not read %s to compute finalize-commit attribution "
+            "(%s); excluding meta.json from the finalize commit",
             meta_path,
             read_exc,
         )
-        return True
+        return False
     committed_meta = decode_meta(committed_text, on_malformed="none")
     current_meta = decode_meta(current_text, on_malformed="none")
-    if committed_meta is None or current_meta is None:
-        # SK3466-REV2-003: same reasoning as the OSError branch above -- a
-        # malformed meta.json (e.g. truncated by a crash mid-write) falls
-        # back to unconditional-inclusion rather than silently dropping an
-        # artifact this repo has always committed, but that fallback must
-        # leave a trace. `True` stays the default here deliberately: this
-        # function cannot tell "malformed because of a foreign edit" from
-        # "malformed because of a crash", and reverting to pre-round-3
-        # behavior (commit it) risks losing a legitimate write far less than
-        # dropping meta.json ever more silently would.
+    if current_meta is None:
+        # #3466 landing: the working-tree meta.json is malformed (e.g. truncated
+        # by a crash mid-write). finalize-tasks did NOT commit meta.json before
+        # this change, so the conservative default is to EXCLUDE a corrupt
+        # on-disk file -- committing it would break every fail-closed reader.
         logger.warning(
-            "SK3466-REV2-003: %s failed to decode as JSON on the %s side "
-            "while computing finalize-commit attribution for %s; falling "
-            "back to unconditional-inclusion (commit meta.json anyway)",
+            "#3466: working-tree %s failed to decode as JSON while computing "
+            "finalize-commit attribution for %s; excluding meta.json from the "
+            "finalize commit",
             META_JSON_FILENAME,
-            "HEAD" if committed_meta is None else "working-tree",
+            meta_path,
+        )
+        return False
+    if committed_meta is None:
+        # The committed (HEAD) copy is malformed but our working-tree copy is
+        # valid: include it -- committing the good file over a bad HEAD is safe
+        # and is exactly the corrective write finalize-tasks exists to make.
+        logger.warning(
+            "#3466: HEAD %s failed to decode as JSON while computing "
+            "finalize-commit attribution for %s; including the valid "
+            "working-tree meta.json in the finalize commit",
+            META_JSON_FILENAME,
             meta_path,
         )
         return True
