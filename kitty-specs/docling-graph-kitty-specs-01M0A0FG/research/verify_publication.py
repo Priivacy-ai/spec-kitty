@@ -169,7 +169,7 @@ ISSUE_MATRIX_TEXT = (
     "compatibility projection. The research mission does not claim to fix it.\n\n"
     "| Issue | Title | Verdict | Evidence ref |\n"
     "|---|---|---|---|\n"
-    "| #3546 | Research mission task finalization assumes `FR/NFR/C` requirements | "
+    "| #3546 | Research planning/task gates reject canonical `DR/AR/QR` requirements | "
     "deferred-with-followup | Follow-up: #3546 — tracked upstream; this mission used the supported "
     "`migrate backfill-runtime-state` recovery, recorded `force:false`, and did not invent "
     "software-development requirements. |\n\n"
