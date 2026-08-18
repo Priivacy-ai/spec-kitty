@@ -84,7 +84,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeGuard
 
 import pytest
 import yaml
@@ -176,7 +176,7 @@ class LineSinkViolation:
 # ---------------------------------------------------------------------------
 
 
-def _is_int_constant(node: ast.AST) -> bool:
+def _is_int_constant(node: ast.AST) -> TypeGuard[ast.Constant]:
     """True when ``node`` is a bare (non-bool) int literal."""
     return (
         isinstance(node, ast.Constant)
@@ -242,7 +242,7 @@ def _is_tokens_by_line_index(
             return None
         key = node.slice
         return key if _is_int_constant(key) else None
-    if _call_func_name(node) == "get":
+    if isinstance(node, ast.Call) and _call_func_name(node) == "get":
         func = node.func
         if not isinstance(func, ast.Attribute) or not _is_tokens_by_line_target(
             func.value, tokens_vars
@@ -786,8 +786,7 @@ class TestIsCompositeKeyLineArg:
 
 class TestIsTokensByLineIndex:
     def test_flags_direct_chain_subscript(self) -> None:
-        tree = ast.parse("code_tokens_by_line(source)[42]")
-        node = tree.body[0].value
+        node = _parse_expr("code_tokens_by_line(source)[42]")
         assert isinstance(node, ast.Subscript)
         offender = _is_tokens_by_line_index(node, frozenset())
         assert offender is not None
@@ -800,8 +799,7 @@ class TestIsTokensByLineIndex:
         assert offender.value == 42
 
     def test_flags_variable_chain_subscript(self) -> None:
-        tree = ast.parse("tokens[42]")
-        node = tree.body[0].value
+        node = _parse_expr("tokens[42]")
         assert isinstance(node, ast.Subscript)
         offender = _is_tokens_by_line_index(node, frozenset({"tokens"}))
         assert offender is not None
@@ -818,8 +816,7 @@ class TestIsTokensByLineIndex:
         assert _is_tokens_by_line_index(call, frozenset()) is None
 
     def test_permits_untracked_variable_subscript(self) -> None:
-        tree = ast.parse("tokens[42]")
-        node = tree.body[0].value
+        node = _parse_expr("tokens[42]")
         assert isinstance(node, ast.Subscript)
         # "tokens" was never seen assigned from code_tokens_by_line(...).
         assert _is_tokens_by_line_index(node, frozenset()) is None
