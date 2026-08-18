@@ -356,6 +356,22 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   burn-downs, zero-pins, and change-detectors all stay frozen behind the C-001
   do-not-touch fence; 108 gates green, ruff + mypy `--strict` clean. Test
   infrastructure only, no runtime or user-facing change (no version bump).
+- **`finalize-tasks` no longer rejects a `planning_artifact` work package that
+  owns its `kitty-specs/` deliverables, so a decision checkpoint, freeze/measurement
+  snapshot, or bulk-edit occurrence map can be a first-class WP (mission
+  `planning-artifact-kitty-specs-ownership`; closes `#3222` and its repro `#2643`).**
+  The ownership model already blessed `kitty-specs/` ownership for
+  `planning_artifact` (`ownership.validation._PLANNING_PREFIXES`,
+  `validate_execution_mode_consistency`) and the lane layer already routes such
+  WPs to the repo-root planning lane — only the `finalize-tasks` ban disagreed,
+  rejecting any `kitty-specs/` owned file unconditionally (a later over-reach whose
+  own rationale was scoped to `code_change` lane branches). The ban is now
+  execution-mode-aware: it exempts a `planning_artifact` WP whose `owned_files`
+  are **all** confined to the planning surfaces (`kitty-specs/`, `docs/`), and
+  stays fail-closed for `code_change` and for any WP that also owns code — so a
+  mislabelled planning WP cannot become a backdoor to owning `src/`. Planning-
+  artifact WPs never reach a lane branch, so the lane commit-guard and move-task
+  hygiene guards are unaffected.
 
 - **A spec that writes some requirements as plain prose sentences no longer
   passes the coverage gate as if they were covered — `spec-kitty next` and
