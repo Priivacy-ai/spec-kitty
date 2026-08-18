@@ -1,0 +1,35 @@
+{
+  "event_count": 2,
+  "last_event_id": "01M0AAQVJQ7C4PEP0KWRVST4JA",
+  "materialized_at": "2026-08-18T11:40:07.127109+00:00",
+  "mission_number": "",
+  "mission_slug": "docling-graph-kitty-specs-01M0A0FG",
+  "mission_type": "research",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "codex",
+      "agent": "codex",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01M0AAQVJQ7C4PEP0KWRVST4JA",
+      "last_transition_at": "2026-08-18T11:40:07.127109+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "planned"
+      }
+    }
+  }
+}
