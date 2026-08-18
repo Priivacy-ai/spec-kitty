@@ -265,7 +265,11 @@ PUBLICATION_TRANSFORM = {
 
 
 def current_path(raw_path: str | Path) -> Path:
-    """Map a logical experiment-time path to its byte-identical published path."""
+    """Map a logical experiment-time path to its current published path.
+
+    Relocation byte identity is proven separately, excluding the two declared
+    navigation-only compatibility pointer rewrites.
+    """
     relative = Path(raw_path)
     manifest_path = REPORT_DIR / "publication-manifest.json"
     if relative == manifest_path:
