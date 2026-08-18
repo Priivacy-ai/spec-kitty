@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2323": {
+      "evidence_ref": "Out-of-scope follow-on per spec C-004 (legacy-contract 151->0 backfill); tracked open as #2323",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2625": {
+      "evidence_ref": "Out-of-scope follow-on per spec C-004 (golden-count bulk conversion); tracked open as #2625",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#2853": {
+      "evidence_ref": "Mission core ask",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#3458": {
+      "evidence_ref": "Golden-count classifier toll shipped in PR #3538 (already merged upstream lineage)",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3538": {
+      "evidence_ref": "PR delivering the golden-count facet (#3458); referenced as shipped context",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3552": {
+      "evidence_ref": "Follow-up: #3552 \u2014 non-hashing source_module root fix; this mission ships the fail-closed helper instead",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

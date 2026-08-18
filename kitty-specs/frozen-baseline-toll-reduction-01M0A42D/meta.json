@@ -1,0 +1,18 @@
+{
+  "baseline_merge_commit": "ab45eea4a492c8a08a440c18497388c551c28b86",
+  "created_at": "2026-08-18T09:43:33.399548+00:00",
+  "flattened": true,
+  "friendly_name": "Frozen-baseline toll reduction",
+  "mission_id": "01M0A42DRQNAS2ZF8ME2J4WGJX",
+  "mission_number": null,
+  "mission_slug": "frozen-baseline-toll-reduction-01M0A42D",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty's frozen-absolute-baseline architectural gates hard-fail CI when a count or hash they pin moves. Several of them tax every legitimate additive change — a new migration module, a new skip-marker, an edited dead-symbol body — with a manual baseline edit that catches no real defect, and authors only discover the red in CI. This mission drains that narrow set of genuine-toll gates (via source-derived counts, a hash-refresh helper, warning-not-fail, and local-suite visibility) while leaving every load-bearing gate — the P0 security boundaries, still-shrinking burn-downs, and change-detectors — fully intact.",
+  "purpose_tldr": "Stop legitimate additive test changes from paying a manual baseline-appeasement toll that catches no real defect, without weakening any load-bearing gate.",
+  "slug": "frozen-baseline-toll-reduction-01M0A42D",
+  "status_phase": "1",
+  "target_branch": "fix/frozen-baseline-toll-reduction",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-18T11:13:52.002644+00:00"
+}
