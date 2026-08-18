@@ -6,6 +6,10 @@
 
 schema_version: "1.0"
 mission_type: "documentation"
+# manifest_version is a sync-namespace identity key (feeds NamespaceRef), not
+# a content-freshness counter; do not bump on content-only changes -- see
+# kitty-specs/expected-artifacts-manifest-repair-01KZY498/tracer-design-decisions.md
+# Decision 2.
 manifest_version: "1"
 
 # Artifacts required regardless of mission step
@@ -22,30 +26,20 @@ required_by_step:
       blocking: true
 
   audit:
-    # Audit phase requires documentation plan
-    - artifact_key: "workflow.plan.documentation"
-      artifact_class: "workflow"
-      path_pattern: "plan.md"
-      blocking: true
-    - artifact_key: "workflow.tasks.documentation"
-      artifact_class: "workflow"
-      path_pattern: "tasks.md"
-      blocking: true
-    # Gap analysis required for structured audit
+    # Audit phase requires gap analysis (matches _evaluate_documentation_guards'
+    # "audit" branch, which checks gap-analysis.md only).
     - artifact_key: "evidence.gap-analysis"
       artifact_class: "evidence"
       path_pattern: "gap-analysis.md"
       blocking: true
 
   design:
-    # Design phase requires plan and task breakdown
+    # Design phase requires the documentation plan (matches
+    # _evaluate_documentation_guards' "design" branch, which checks
+    # plan.md only).
     - artifact_key: "workflow.plan.documentation"
       artifact_class: "workflow"
       path_pattern: "plan.md"
-      blocking: true
-    - artifact_key: "workflow.tasks.documentation"
-      artifact_class: "workflow"
-      path_pattern: "tasks.md"
       blocking: true
 
   generate:
@@ -67,12 +61,20 @@ required_by_step:
       blocking: false
 
   validate:
-    # Validate phase checks completeness
-    []
+    # Validate phase requires the audit report (matches
+    # _evaluate_documentation_guards' "validate" branch).
+    - artifact_key: "evidence.audit-report"
+      artifact_class: "evidence"
+      path_pattern: "audit-report.md"
+      blocking: true
 
   publish:
-    # Publish phase finalizes documentation
-    []
+    # Publish phase requires the release notes (matches
+    # _evaluate_documentation_guards' "publish" branch).
+    - artifact_key: "output.release.main"
+      artifact_class: "output"
+      path_pattern: "release.md"
+      blocking: true
 
   accept:
     # Accept phase confirms the publication handoff is complete
