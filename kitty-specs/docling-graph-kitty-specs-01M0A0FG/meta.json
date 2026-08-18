@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances docling graph kitty specs on research/docling-graph-kitty-specs so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "docling graph kitty specs",
   "slug": "docling-graph-kitty-specs-01M0A0FG",
+  "status_phase": "1",
   "target_branch": "research/docling-graph-kitty-specs",
   "topology": "single_branch"
 }
