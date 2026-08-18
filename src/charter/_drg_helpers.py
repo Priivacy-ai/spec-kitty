@@ -24,6 +24,7 @@ to :func:`load_validated_graph`.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from doctrine.drg.loader import (
@@ -34,6 +35,8 @@ from doctrine.drg.loader import (
 )
 from doctrine.drg.models import DRGGraph
 from doctrine.drg.validator import assert_valid
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _resolve_org_root(_repo_root: Path) -> Path | None:
@@ -116,8 +119,46 @@ def load_validated_graph(
 
     merged = load_built_in_graph()
     for root in roots:
-        if root and root.exists():
+        # An org root that ships a root-level DRG graph (`graph.yaml` or
+        # `*.graph.yaml`) contributes its charter-DRG layer; one that is
+        # present-but-malformed still fails loud inside `load_graph_or_dir`.
+        if root and root.exists() and has_graph_files(root):
             merged = merge_layers(merged, load_graph_or_dir(root))
+            continue
+        # A configured, on-disk org root with NO root-level DRG graph
+        # contributes no charter-DRG layer. Degrade it to "no org DRG layer"
+        # instead of crashing the whole load with `DRGLoadError: No DRG graph
+        # files found`, so cascade activation from a pack that carries only
+        # doctrine artifacts still works and one graphless pack no longer takes
+        # its healthy sibling roots down. This is the durable per-root-degrade
+        # sliver of the superseded #3401, retargeted to the #3387 org model.
+        #
+        # SCOPE — do not overstate what cascade sees. Charter cascade reads
+        # root-level `*.graph.yaml` ONLY. Edges an org pack authors solely in
+        # `drg/fragment.yaml` (the #3387 `OrgDRGFragment` shape) are read only
+        # by the separate diagnostic merge path (`load_org_pack` →
+        # `merge_three_layers`, surfaced in `doctor doctrine` / `charter list`)
+        # and are invisible to cascade — before and after this guard. That
+        # `drg/fragment.yaml` gap is NOT flagged by `drg_root_graph_missing`
+        # either: that finding globs `drg/*.graph.yaml` (a different shape),
+        # not `fragment.yaml`. So the WARNING below is the operator's only
+        # signal that a configured pack contributed nothing to cascade.
+        #
+        # D-005 ("degrade, but never silent"), matching the per-root warning
+        # `mission_step_contracts.executor._load_graph_degrading_malformed_org_pack`
+        # emits for the same shape. Executor / action-bundle callers pre-filter
+        # or never reach this branch, so this does not double-warn them; the
+        # `activate` / `deactivate` / `gate_bindings` callers — which do not
+        # pre-probe — get their only signal here.
+        if root and root.exists():
+            _LOGGER.warning(
+                "Org pack at %s ships no root-level DRG graph "
+                "(graph.yaml / *.graph.yaml); it contributes no doctrine graph "
+                "to cascade and was skipped. Any requires/suggests edges "
+                "authored only in drg/fragment.yaml are not read by the "
+                "cascade path.",
+                root,
+            )
 
     project_dir = repo_root / ".kittify" / "doctrine"
     project = (
