@@ -19,6 +19,24 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **An organisation doctrine pack can now ship templates and mission-FSM
+  content, and `spec-kitty` actually resolves them at runtime — before, an org
+  pack could declare a template or mission that no resolution path would ever
+  find (`#3524`; closes `#3523`).** The two forked template resolvers
+  (`doctrine/resolver.py` and `specify_cli/runtime/resolver.py`) and the FSM
+  mission-discovery walks consulted only the built-in, project-legacy, and
+  user-global tiers — `resolve_org_roots()` existed but nothing on those paths
+  called it, so a configured, validated, activated org pack stayed inert for
+  templates and mission discovery. Now an `ORG` tier sits between the
+  project-legacy and user-global tiers in the asset chain (6 tiers) and in FSM
+  discovery (8 tiers); the two resolvers' tier-1 mission-scoped override probe is
+  reconverged (they had silently drifted, so the same lookup behaved differently
+  depending on which resolver ran); and `charter list` now reports org-sourced
+  entries with the correct `ORG` origin instead of mislabelling them
+  `GLOBAL_MISSION` and reading them from the wrong directory. Projects with no
+  org pack are unaffected — `resolve_org_roots()` returns `[]` and every new
+  lookup is a no-op.
+
 - **`spec-kitty doctor mission-type` reports whether every mission's
   `mission_type` actually resolves, so a broken or unregistered type is visible
   before it misbehaves (mission `mission-type-guard-registry`; `#3402`,
