@@ -1,6 +1,8 @@
 {
+  "accept_commit": "c6d040330c6dc7fa5446419245844e7508ecd684",
   "acceptance_history": [
     {
+      "accept_commit": "c6d040330c6dc7fa5446419245844e7508ecd684",
       "acceptance_mode": "local",
       "accepted_at": "2026-08-18T12:33:09.053981+00:00",
       "accepted_by": "codex",
