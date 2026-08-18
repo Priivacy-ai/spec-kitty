@@ -16,7 +16,7 @@ evidence.
 | 2026-08-18 | Post-synthesis | same 3 tasks / same 3 profiles | `d2b3a6f33` plus repair commits | Does every disposition obey frozen gates and the bounded consumer census? | REVISE → APPROVE after `UNKNOWN` → defer and census corrections. |
 | 2026-08-18 | Pre-publication content | same 3 tasks / same 3 profiles | report blob `a6089b352e6aff63373b1dda76b7172294a3086d` | Does reader-facing language preserve evidence strength, risks, and option symmetry? | REVISE → APPROVE after focused citations, risk table, and EV-029 rule mapping. |
 | 2026-08-18 | Publication integrity, round 1 | same 3 tasks / same 3 profiles | working tree after `2864accfb` | Can the publication seal drift, false-PASS, or approve a stale report? | REVISE: align canonical artifact paths, verify transitive raw files, bind gate tokens, and make review history auditable. |
-| 2026-08-18 | Publication integrity, round 2 | same 3 tasks / same 3 profiles | PENDING | Do the repaired manifest, verifier, ledger, pointer, report blob, and gate binding form a closed integrity proof? | PENDING |
+| 2026-08-18 | Publication integrity, round 2 | `/root/postgather_authority`, `/root/postgather_claims`, `/root/postgather_empirical` / `architect-alphonso`, `reviewer-renata`, `debugger-debbie` | d1e13c6a4ae1ecc95cbfd450db541abf93b785aa | Do the repaired manifest, verifier, ledger, pointer, report blob, and gate binding form a closed integrity proof? | APPROVE |
 
 ## Publication-integrity round 1 findings
 
