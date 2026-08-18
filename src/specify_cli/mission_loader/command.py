@@ -209,7 +209,7 @@ def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
         Path(runtime_bridge.__file__).resolve().parent.parent / "missions"
     )
 
-    from charter.drg import resolve_org_roots  # noqa: PLC0415 — lazy, mirrors existing pattern
+    from charter.drg import resolve_org_roots  # lazy, mirrors the resolve_org_dirs pattern below
 
     return DiscoveryContext(
         project_dir=repo_root,
