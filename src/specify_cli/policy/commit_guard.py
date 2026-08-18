@@ -6,7 +6,7 @@ scope and blocks modifications to kitty-specs/ from implementation branches.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
 import fnmatch
 import re
 from dataclasses import dataclass, field
@@ -81,9 +81,13 @@ def validate_staged_files(
         )
 
     # Check kitty-specs/ protection.
+    # #2980: a bulk-edit mission's own occurrence map is the single permitted
+    # kitty-specs/ lane write (DIRECTIVE_035). The exception is expressed once in
+    # ``is_occurrence_map_path`` and honored identically by the move-task
+    # lane-hygiene guard, so the two guards no longer disagree on it.
     if policy.block_mission_specs:
         for f in staged_files:
-            if f.startswith(f"{KITTY_SPECS_DIR}/"):
+            if f.startswith(f"{KITTY_SPECS_DIR}/") and not is_occurrence_map_path(f):
                 violations.append(
                     f"Protected path: {f} — implementation branches must not modify kitty-specs/"
                 )

@@ -362,3 +362,77 @@ class TestCoordInheritanceNotFlagged:
             f"False positive: lane kitty-specs byte-identical to the planning "
             f"branch were flagged. Flagged paths: {flagged!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Occurrence-map exception (#2980): a bulk-edit mission's own occurrence map is
+# a permitted lane write and must not be flagged by the lane-hygiene guard.
+# ---------------------------------------------------------------------------
+
+
+class TestOccurrenceMapException:
+    """#2980: the move-task lane-hygiene guard honours the same occurrence-map
+    exception the pre-commit guard does — the lane may carry its own mission's
+    ``kitty-specs/<mission>/occurrence_map.yaml`` without being flagged, while a
+    sibling planning artifact on the lane is still flagged."""
+
+    def test_own_occurrence_map_is_not_flagged(self, tmp_path: Path) -> None:
+        repo = _init_repo(tmp_path)
+
+        (repo / "README.md").write_text("anchor\n", encoding="utf-8")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-q", "-m", "anchor")
+
+        # Planning branch has no occurrence map yet.
+        _git(repo, "checkout", "-q", "-b", "planning")
+        (repo / "kitty-specs" / "mission-x").mkdir(parents=True)
+        (repo / "kitty-specs" / "mission-x" / "spec.md").write_text("spec\n", encoding="utf-8")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-q", "-m", "planning: spec")
+
+        # Lane writes ONLY its own occurrence map (DIRECTIVE_035 sweep upkeep).
+        _git(repo, "checkout", "-q", "-b", "lane")
+        (repo / "kitty-specs" / "mission-x" / "occurrence_map.yaml").write_text(
+            "target: {}\n", encoding="utf-8"
+        )
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-q", "-m", "lane: keep occurrence map current")
+
+        flagged = _list_wp_branch_mission_specs_changes(repo, "planning")
+
+        assert flagged == [], (
+            f"Occurrence map wrongly flagged as lane contamination: {flagged!r}"
+        )
+
+    def test_sibling_planning_artifact_still_flagged(self, tmp_path: Path) -> None:
+        repo = _init_repo(tmp_path)
+
+        (repo / "README.md").write_text("anchor\n", encoding="utf-8")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-q", "-m", "anchor")
+
+        _git(repo, "checkout", "-q", "-b", "planning")
+        (repo / "kitty-specs" / "mission-x").mkdir(parents=True)
+        (repo / "kitty-specs" / "mission-x" / "spec.md").write_text("spec\n", encoding="utf-8")
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-q", "-m", "planning: spec")
+
+        # Lane writes its occurrence map AND edits spec.md (a real violation).
+        _git(repo, "checkout", "-q", "-b", "lane")
+        (repo / "kitty-specs" / "mission-x" / "occurrence_map.yaml").write_text(
+            "target: {}\n", encoding="utf-8"
+        )
+        (repo / "kitty-specs" / "mission-x" / "spec.md").write_text(
+            "spec EDITED on lane\n", encoding="utf-8"
+        )
+        _git(repo, "add", ".")
+        _git(repo, "commit", "-q", "-m", "lane: map + spec edit")
+
+        flagged = _list_wp_branch_mission_specs_changes(repo, "planning")
+
+        assert any("spec.md" in p for p in flagged), (
+            f"Genuine spec.md edit on the lane must still be flagged, got {flagged!r}"
+        )
+        assert not any("occurrence_map.yaml" in p for p in flagged), (
+            f"Occurrence map must be excepted even alongside a real violation, got {flagged!r}"
+        )

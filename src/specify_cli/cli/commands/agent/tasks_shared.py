@@ -41,7 +41,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _validate_ready_for_review as _seam_validate_ready_for_review,
 )
 from specify_cli.cli.selector_resolution import resolve_mission_handle
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
 from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
@@ -613,6 +613,12 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
         if not path or not path.startswith(f"{KITTY_SPECS_DIR}/"):
             continue
         if path in seen:
+            continue
+        # #2980: a bulk-edit mission's own occurrence map is the single permitted
+        # kitty-specs/ lane write (DIRECTIVE_035). Honor the same exception the
+        # pre-commit guard applies, expressed once in is_occurrence_map_path, so
+        # the two kitty-specs guards agree instead of warn-here / block-there.
+        if is_occurrence_map_path(path):
             continue
         seen.add(path)
         candidates.append(path)
