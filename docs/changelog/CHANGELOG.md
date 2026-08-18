@@ -369,6 +369,31 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   DRG graph files found` — each configured pack is handled on its own, so one
   graphless pack no longer takes a healthy sibling down with it.
 
+- **A command run from a linked lane worktree no longer silently acts on the
+  primary checkout: root/workspace resolution is now honest under worktrees and
+  clones, and the review-verdict CLI path is unified across both surfaces
+  (`#3129` umbrella; Epics `#2624`/`#3549`/`#3044`).** A family of commands keyed
+  off the ambient invoking location (`find_repo_root`/`locate_project_root`) and
+  re-anchored a foreign lane worktree to the primary — producing silent
+  cross-checkout writes and false-green guards. A single checkout-identity guard
+  (`core/checkout_identity.py`) now distinguishes an owned invocation from a
+  foreign lane worktree (parsing `.git` directly, carrying read/write intent so
+  the deliberate primary-read anchors from `#2320`/`#3328` are preserved), and
+  in-scope commands adopt a fail-closed refusal (`#3128`) that names the target
+  checkout instead of redirecting: `intake` (`#3540`), `doctor tool-surfaces
+  --fix` (`#2613`), `doctor mission-state` (`#3051`/`#3541`), `migrate
+  backfill-runtime-state` (`#3049`), `setup-plan` branch-match (`#3124`), and the
+  `find_repo_root` nested-clone boundary (`#2610`). On the verdict seam,
+  `_parse_review_result_json` and the `for_review` commit-gate are hoisted to a
+  shared, topology-aware surface (`#3547`/`#1734`); `agent status emit` gains
+  `--review-result-json` so a work package can be walked to `done` through `emit`
+  alone with a structured verdict, and its misleading `--help` example is
+  corrected. `review_result` is registered in the `status_event_row` audit shape
+  with a value-equality snapshot round-trip (`#3543`/`#3461`). The
+  standalone-clone re-anchor described in the triggering issues was verified a
+  phantom (clones already resolve to self); the real, decidable defect is the
+  linked-worktree/nested-clone invoking location, and each slice ships an
+  issue-pinned red-first regression.
 - **Rejecting a work package no longer costs a wasted cycle: the feedback-file
   path `agent action review` prints in its rejection command is now one
   `move-task` will actually accept (`#3554`; closes `#3430`).** Before, the
