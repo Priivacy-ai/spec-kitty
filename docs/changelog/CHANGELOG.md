@@ -340,7 +340,7 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   allowlisted still-dead symbol no longer forces a hand-edited "rehashed WPxx"
   baseline — a new fail-closed helper
   (`tests/architectural/_refresh_dead_symbol_hashes.py`) refreshes the
-  `body_hash` for you and is structurally incapable of admitting a *new* dead
+  `body_hash` for you and is structurally incapable of admitting a _new_ dead
   symbol (it iterates the existing allowlist only and refuses on an
   unrecoverable or ambiguous `module_path`, proven by a non-fakeable
   regression). Adding a migration no longer needs a baseline bump: the
