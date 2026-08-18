@@ -12,7 +12,7 @@
 | Stream | Evidence | Status |
 |---|---|---|
 | Primary-source review | 24 included sources; 8 explicit contradictions | Complete |
-| Authority/consumer census | 15 fact classes; 24 bounded consumer contexts | Complete in-repo; ecosystem residual `UNKNOWN` |
+| Authority/consumer census | 15 fact classes; 22 in-repo contexts, one bounded Git contract, and one external residual | Complete for known local surfaces; ecosystem residual `UNKNOWN` |
 | Corpus census | 10,161 files / 95,403,203 bytes / 385 missions | Complete at frozen revision |
 | Markdown → `DoclingDocument` → Markdown round-trip | 39 unique inputs × 3 repetitions | Complete; lifecycle, fusion, invalidation, rollback, and graph-query behavior `UNKNOWN` |
 | Operations | Clean Python 3.11 environment; five import/version trials | Complete for bounded macOS footprint |
