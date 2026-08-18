@@ -76,7 +76,7 @@ Citation style: stable evidence IDs linked to APA-like source-register rows with
 
 ### Corpus Selection
 
-The corpus census records tracked file counts, bytes, artifact roles, mission metadata/type where available, topology, era proxy, and Markdown syntax features. `research/select_corpus.py` is the sole selector. Before selection it freezes: feature-detection regexes, tracked-file eligibility, exploratory exclusions, stratum precedence, size quantiles over eligible byte sizes, maximum two specimens per mission, and lexicographic SHA-256/path tie order. It chooses one negative/control specimen with no target syntax and at least 12 Markdown specimens so the published coverage matrix contains:
+The corpus census records tracked file counts, bytes, artifact roles, mission metadata/type where available, topology, era proxy, and Markdown syntax features. `research/select_corpus.py` is the sole selector. Before selection it freezes: feature-detection regexes, tracked-file eligibility, exploratory exclusions, stratum precedence, size quantiles over eligible byte sizes, maximum two sampled-stratum specimens per mission, and lexicographic SHA-256/path tie order. Preregistered query-source inclusions are exempt from that cap so every gold-source Markdown file receives its advertised span oracle; the manifest labels those non-population inclusions `query_fixture:*`. It chooses one negative/control specimen with no target syntax and at least 12 Markdown specimens so the published coverage matrix contains:
 
 - roles: `spec.md`, `plan.md`, `tasks.md`, WP prompt/review-cycle, research/findings, and other contract/explanation;
 - eras/types: legacy numeric mission, current ULID mission, software-dev, research/documentation where present;
