@@ -848,8 +848,12 @@ _Mission lifecycle commands for AI agents_
 │ --target-branch          TEXT  Override the canonical merge target branch    │
 │                                read from meta.json. Use this for legacy      │
 │                                missions created before WP07 persisted        │
-│                                target_branch in meta.json (FR-012 escape     │
-│                                hatch).                                       │
+│                                target_branch in meta.json, or to correct a   │
+│                                mission whose target_branch is stale (FR-012  │
+│                                escape hatch). The override is persisted into │
+│                                the primary meta.json as part of this run, so │
+│                                every other target_branch consumer converges  │
+│                                on it too (#3466).                            │
 │ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
