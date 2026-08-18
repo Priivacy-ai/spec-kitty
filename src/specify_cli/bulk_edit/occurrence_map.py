@@ -24,6 +24,7 @@ import jsonschema
 from ruamel.yaml import YAML
 
 from kernel.schema_utils import SchemaUtilities
+from specify_cli.core.constants import OCCURRENCE_MAP_FILENAME
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +210,7 @@ def load_occurrence_map(feature_dir: Path) -> OccurrenceMap | None:
 
     Returns ``None`` when the file does not exist.
     """
-    yaml_path = feature_dir / "occurrence_map.yaml"
+    yaml_path = feature_dir / OCCURRENCE_MAP_FILENAME
     if not yaml_path.exists():
         return None
 
