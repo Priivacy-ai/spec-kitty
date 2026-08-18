@@ -320,6 +320,23 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   `src/` change); this lands the _instrument_ ahead of the follow-on adoption
   (R1b), so `Refs #3121` rather than `Closes`.
 
+### ♻️ Changed
+
+- **The dead-symbol allowlist's provenance is now a machine-readable
+  `source_module=` field instead of a parsed comment, so refreshing a still-dead
+  allowlisted symbol no longer depends on comment hygiene (mission
+  `symbolkey-source-module-01M0B0SF`; `#3552`).** Before, a content-tier entry's
+  originating module lived only in its free-form `# module::Name` comment,
+  which the refresh helper (`_refresh_dead_symbol_hashes.py`) had to
+  tokenize-parse to recover — a fragile source of truth that had drifted into
+  multiple comment formats, and same-name symbols from different modules
+  couldn't be told apart structurally. Now every content-tier `SymbolKey`
+  carries an optional, provenance-only `source_module=` keyword as the single
+  canonical source; the `# module::Name` comment stays in place as
+  human-readable audit trail, but the machine comment-parsing path is retired,
+  and same-name entries disambiguate on the field rather than on comment
+  convention. Test infrastructure only, no `src/` change (no version bump).
+
 ### 🐛 Fixed
 
 - **Rejecting a work package no longer costs a wasted cycle: the feedback-file
