@@ -1,0 +1,66 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M0BASWN54RPC43JPS65KTBX4",
+  "materialized_at": "2026-08-18T21:00:28.197240+00:00",
+  "mission_number": "",
+  "mission_slug": "symbolkey-source-module-01M0B0SF",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0BAST8RD7EFAQK97NVMQCFD",
+      "last_transition_at": "2026-08-18T21:00:25.752951+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata, opus): compare=False field, frozen surfaces untouched, G1-G6 mutation-proven teeth. Issue-matrix seeded (7 rows).",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2779249,
+      "shell_pid_created_at": "1787078448.47"
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M0BASVHPHEVS0HBMS0PD6NK2",
+      "last_transition_at": "2026-08-18T21:00:27.062434+00:00",
+      "review_result": {
+        "reference": "Review passed (reviewer-renata): 58/58 tests green, ruff+mypy --strict clean. FR-003 backfill 338 content-tier entries all carry source_module; 380 module::Name comments preserved (no ast.unparse). FR-007 integrity guard cross-checks live corpus not comment - mechanically validates all values. 6 parse surfaces retired (SC-004); UNRECOVERABLE+decide() unchanged. #3560 escalation tests assert NEEDS_MODULE_PATH and pass. Cardinality 363 unchanged (NFR-001); no ratchet key (C-003). Orchestrator fixture edit sound. --force overrides misfiring kitty-specs hygiene guard (stale remediation/ base-ref per #2980/#3271); in_review->approved transition is valid.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2838027,
+      "shell_pid_created_at": "1787080301.36"
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M0BASWN54RPC43JPS65KTBX4",
+      "last_transition_at": "2026-08-18T21:00:28.197240+00:00",
+      "review_result": {
+        "reference": "Review passed (final WP). Changelog entry under [Unreleased] 3.2.6rc2 leads with dev-facing impact (source_module provenance is now a machine field, not a parsed comment), matches bold-lead + before->after house style, references #3552, accurate to shipped WP02 behavior (comment kept as audit, comment-parsing retired, no src/ change, test-infra only). No pyproject version bump; MD049 clean (no single-asterisk emphasis). Gates run by reviewer: anchor-ban 54 passed, terminology 10 passed, markdownlint 0 errors. --force used to pass the known kitty-specs lane-hygiene guard false-positive (#2980/#3271), as done for WP01/WP02; the approve transition itself is valid.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "shell_pid": 2920340,
+      "shell_pid_created_at": "1787083719.79"
+    }
+  }
+}

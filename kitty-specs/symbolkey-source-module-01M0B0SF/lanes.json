@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "mission_slug": "symbolkey-source-module-01M0B0SF",
+  "mission_id": "01M0B0SFQXSRCNWEBPVZVTQ6X7",
+  "mission_branch": "kitty/mission-symbolkey-source-module-01M0B0SF",
+  "target_branch": "remediation/symbolkey-source-module-3552",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_symbol_key.py",
+        "tests/unit/test_symbol_key.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/_refresh_dead_symbol_hashes.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/architectural/test_refresh_dead_symbol_hashes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "docs/changelog/CHANGELOG.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-08-18T18:30:21.474815+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "5faf1d74105e2933ea5c7c85cd44b6cb2e70dfbd"
+}
