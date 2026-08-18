@@ -60,7 +60,7 @@ The counter-case is that no fair candidate ran, no users validated those jobs, a
 - Defer as unevaluated: `C2`, `C4`, `C5a`, `C5b`, `C6b`, `C7g`, `C8g`, `C8b`, `C9g`, `C9b`, `P2`.
 - Prune/reject by authority, consent, or identity contract: `P1`, `P3`, `P4`, `P5`.
 
-No candidate qualified for weighted scoring because every adoption candidate had at least one `FAIL` or `UNKNOWN` mandatory gate. [EV-015–EV-026]
+No candidate qualified for weighted scoring because every adoption candidate had at least one `FAIL` or `UNKNOWN` mandatory gate. [EV-015–EV-026, EV-029]
 
 ## Revisit conditions
 

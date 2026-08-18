@@ -51,3 +51,4 @@
 {"type":"source_documented","source_id":"dg-inference","timestamp":"2026-08-18T10:40:24Z","actor":"codex","revision":"current-register-v2"}
 {"mission": "research", "payload": {"action": "gathering", "agent": "codex", "decision_kind": "blocked", "mission_state": "gathering", "result_input": "success", "wp_id": null}, "timestamp": "2026-08-18T10:25:46.354496+00:00", "type": "MissionNextInvoked"}
 {"mission": "research", "payload": {"action": "synthesis", "agent": "codex", "decision_kind": "step", "mission_state": "synthesis", "result_input": "success", "wp_id": null}, "timestamp": "2026-08-18T10:28:11.116128+00:00", "type": "MissionNextInvoked"}
+{"mission": "research", "payload": {"action": "output", "agent": "codex", "decision_kind": "step", "mission_state": "output", "result_input": "success", "wp_id": null}, "timestamp": "2026-08-18T10:39:54.824000+00:00", "type": "MissionNextInvoked"}
