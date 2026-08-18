@@ -19,6 +19,21 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **Spec Kitty now ships a `spk-doctrine-show-me` skill that guides any agent to
+  explain work with compact, checkable visuals — the smallest diagram,
+  pseudocode, or tree that answers the question — recommended from the specify
+  and plan surfaces (`#3528`).** Before, agents had no shared doctrine for _when_
+  a visual earns its place or _which_ shape fits the point (call tree, sequence,
+  state diagram, C4, or a `diff` over the matching tree), so visual explanations
+  were ad-hoc and often missing. The skill routes to Spec Kitty's canonical
+  Mermaid, PlantUML, C4, and diagram-review sources — bundling byte-pinned
+  portable copies of the guides and themes so it keeps working once installed in
+  a consumer project — and documents faithful `/spec-kitty.status` TUI rendering
+  from `--json` (lifecycle lanes vs the five-group display, and done-progress vs
+  weighted-readiness, so a custom board never mislabels weighted readiness as
+  completed work). Adapted from HumanLayer's MIT-licensed `show-me` skill with
+  full attribution and license notice preserved.
+
 - **An organisation doctrine pack can now ship templates and mission-FSM
   content, and `spec-kitty` actually resolves them at runtime — before, an org
   pack could declare a template or mission that no resolution path would ever
