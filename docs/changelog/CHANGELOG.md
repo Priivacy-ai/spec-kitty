@@ -304,6 +304,20 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Rejecting a work package no longer costs a wasted cycle: the feedback-file
+  path `agent action review` prints in its rejection command is now one
+  `move-task` will actually accept (`#3554`; closes `#3430`).** Before, the
+  review prompt told the reviewer to write feedback to
+  `tasks/<wp>/review-cycle-N.md` and then pass that same file to `move-task
+  --review-feedback-file` — but inside the WP's own directory that exact
+  filename is the tool-authored verdict artifact, which the provenance guard
+  refuses as a feedback source. So the rejection command printed verbatim always
+  failed, and the reviewer only discovered it after burning a cycle. The
+  advertised path is now `tasks/<wp>/review-feedback-N.md` — still committed in
+  the WP's own in-repo directory — and the name is owned in `review/cycle.py`
+  beside the guard that decides what is acceptable, so the printed path and the
+  accepted path cannot drift apart again.
+
 - **The two `kitty-specs/` lane guards no longer disagree about a bulk-edit
   mission's own occurrence map, so it can be kept current from the implementing
   lane without a manual unwind (`#2980`).** The pre-commit ownership guard warned
