@@ -29,6 +29,7 @@ execution_mode: documentation
 model: gpt-5
 owned_files:
 - kitty-specs/docling-graph-kitty-specs-01M0A0FG/tasks.md
+- kitty-specs/docling-graph-kitty-specs-01M0A0FG/issue-matrix.md
 - kitty-specs/docling-graph-kitty-specs-01M0A0FG/tasks/WP01-research-closeout-acceptance.md
 - docs/research/docling-graph-kitty-specs-01M0A0FG/research/README.md
 - docs/research/docling-graph-kitty-specs-01M0A0FG/data/README.md

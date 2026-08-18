@@ -152,6 +152,7 @@ EXPECTED_NA_SHA_BY_ID = {
     "EV-026": "N/A_synthesis_input",
 }
 COMPATIBILITY_FILES = {
+    str(MISSION_DIR / "issue-matrix.md"),
     str(MISSION_DIR / "tasks.md"),
     str(MISSION_DIR / "tasks/.gitkeep"),
     str(MISSION_DIR / "tasks/README.md"),
@@ -162,6 +163,19 @@ COMPATIBILITY_FILES = {
     str(COMPATIBILITY_ROOT / "findings/README.md"),
     str(COMPATIBILITY_ROOT / "reports/README.md"),
 }
+ISSUE_MATRIX_TEXT = (
+    "# Issue matrix — Docling Graph research acceptance compatibility\n\n"
+    "This matrix classifies the runtime defect referenced by the acceptance\n"
+    "compatibility projection. The research mission does not claim to fix it.\n\n"
+    "| Issue | Title | Verdict | Evidence ref |\n"
+    "|---|---|---|---|\n"
+    "| #3546 | Research mission task finalization assumes `FR/NFR/C` requirements | "
+    "deferred-with-followup | Follow-up: #3546 — tracked upstream; this mission used the supported "
+    "`migrate backfill-runtime-state` recovery, recorded `force:false`, and did not invent "
+    "software-development requirements. |\n\n"
+    "Valid `Verdict` values: `fixed`, `verified-already-fixed`,\n"
+    "`deferred-with-followup`, `in-mission`.\n"
+)
 COMPATIBILITY_POINTERS = {
     str(COMPATIBILITY_ROOT / "research/README.md"): MISSION_DIR / "research",
     str(COMPATIBILITY_ROOT / "data/README.md"): REPORT_DIR / "data",
@@ -449,6 +463,7 @@ def verify_compatibility_at_revision(  # noqa: C901
                 revision,
                 "--",
                 str(COMPATIBILITY_ROOT),
+                str(MISSION_DIR / "issue-matrix.md"),
                 str(MISSION_DIR / "tasks.md"),
                 str(MISSION_DIR / "tasks"),
                 str(MISSION_DIR / "status.json"),
@@ -458,8 +473,17 @@ def verify_compatibility_at_revision(  # noqa: C901
         errors.append(f"{context}: compatibility tree is unavailable")
         return False
     if revision_paths != COMPATIBILITY_FILES:
-        errors.append(f"{context}: compatibility tree does not match the exact nine-file contract")
+        errors.append(f"{context}: compatibility tree does not match the exact ten-file contract")
         valid = False
+    try:
+        issue_matrix_text = git(repo, "show", f"{revision}:{MISSION_DIR / 'issue-matrix.md'}") + "\n"
+    except subprocess.CalledProcessError:
+        errors.append(f"{context}: issue matrix is unavailable")
+        valid = False
+    else:
+        if issue_matrix_text != ISSUE_MATRIX_TEXT:
+            errors.append(f"{context}: issue matrix content contract failed")
+            valid = False
     for raw_path, expected_text in COMPATIBILITY_POINTER_TEXT.items():
         try:
             pointer_text = git(repo, "show", f"{revision}:{raw_path}") + "\n"
@@ -886,6 +910,9 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     }
     if set(git(repo, "ls-files", str(MISSION_DIR / "tasks")).splitlines()) != expected_task_files:
         errors.append("acceptance compatibility task directory does not match its exact three-file contract")
+    issue_matrix = (repo / MISSION_DIR / "issue-matrix.md").read_text(encoding="utf-8")
+    if issue_matrix != ISSUE_MATRIX_TEXT:
+        errors.append("acceptance compatibility issue matrix content contract failed")
     task_index = (repo / MISSION_DIR / "tasks.md").read_text(encoding="utf-8")
     if (
         "compatibility projection" not in task_index
