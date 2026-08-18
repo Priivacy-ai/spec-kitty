@@ -4460,6 +4460,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/testing/friction-burn-down-sequencing.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/testing/index.md
   tag: current
   divio_type: none
