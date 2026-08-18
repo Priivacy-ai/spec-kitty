@@ -348,6 +348,20 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   detector was measured against all 368 real `kitty-specs/*/spec.md` files — 1
   flagged (0.27%), zero true positives — and that figure is frozen into a
   shrink-only CI ratchet.
+- **A mission whose `meta.json` recorded `target_branch: "main"` no longer
+  wedges permanently at `finalize-tasks`, and the `--target-branch` escape
+  hatch now actually rescues it (`#3482`; closes `#3466`).** `specify
+  --topology single_branch` run from a checkout on `main` writes
+  `target_branch: "main"`; finalize-tasks then resolved its WP-status
+  bookkeeping destination from that literal field, tripped the protected-branch
+  guard, and refused with `PROTECTED_BRANCH_REFUSED` — and passing
+  `--target-branch <feature>` produced a byte-identical refusal still naming
+  `main`, because the override never reached that consumer. There was no
+  sanctioned way out (no retarget migration, hand-editing `meta.json` is
+  prohibited). The override now persists into the canonical `target_branch`
+  field before the commit pipeline, so every consumer converges on it and the
+  mission finalizes; a failed persist is reported to `--json` callers instead
+  of silently returning false.
 
 - **`retrospect synthesize` now tells you the one thing that is actually
   wrong with a retrospective instead of burying it under ~100 errors about a
