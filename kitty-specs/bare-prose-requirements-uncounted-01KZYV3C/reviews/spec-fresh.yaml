@@ -1,0 +1,113 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: SPEC-FRESH-001
+    lens: fresh-sweep
+    severity: 4
+    title: Ambiguous-and-therefore-blocking outcome (Story 5 AC2) is not folded into Story 4's false-positive-rate corpus gate
+    evidence:
+      - artifact: "spec.md § Story 5 Acceptance Scenario 2 (line ~129)"
+      - artifact: "spec.md § FR-007 (line 171), § NFR-002 (line 181)"
+      - artifact: "spec.md § User Story 4 Independent Test / AC1 (lines ~102-110), § FR-005/FR-006 (lines 169-170), § C-006 (line 196), § SC-005/SC-006 (lines 216-217)"
+    claim: >
+      This revision round tightened two things independently: (1) Story 5 AC2 / FR-007 / NFR-002 now
+      say an "ambiguous, cannot classify" result MUST block spec-kitty next's advance-vs-stay decision
+      "the same way a confirmed bare-prose finding does"; and (2) Story 4 / FR-005 / FR-006 / C-006 /
+      SC-005 / SC-006 now impose a concrete <=2% false-positive-rate ceiling that gates shipping the
+      blocking behavior, measured by a corpus-validation procedure that classifies each newly-flagged
+      corpus spec into exactly two bins: true positive (genuine bare-prose requirement) or false
+      positive. Story 5's new "ambiguous" outcome is a third kind of block that fits neither bin: it is
+      not a confirmed bare-prose finding, and calling it a "false positive" is not obviously correct
+      either (the detector genuinely could not classify the case). Nothing in the revised Story
+      4/FR-005/FR-006/C-006/SC-005/SC-006 text says whether corpus specs that trip the ambiguous path
+      are counted toward the <=2% denominator/numerator, counted separately with their own ceiling, or
+      excluded from the measurement entirely. A production spec that trips "ambiguous" will block
+      spec-kitty next exactly like a genuine finding, but that noise source has no measured, gated rate
+      -- so the mission could satisfy "FP rate <=2%" on paper while an unbounded rate of
+      ambiguous-triggered blocks (which Story 5 AC2 itself predicts is "empirically, likely
+      highest true-positive" but does not require measuring) reaches production unmeasured. This
+      defeats the purpose of the FP-ceiling addition this same revision round introduced.
+    remediation: >
+      Add an explicit instruction to FR-005 / the Story 4 Independent Test that the corpus-validation
+      procedure must also count how many corpus specs trip the "ambiguous, cannot classify" blocking
+      path (separately from confirmed true/false positives), and either fold that count into the <=2%
+      ceiling's numerator or state an explicit, separately-gated acceptance bar for ambiguous-triggered
+      blocks before FR-006/C-006 can be considered satisfied.
+
+  - id: SPEC-FRESH-002
+    lens: fresh-sweep
+    severity: 3
+    title: The new <=2% false-positive ceiling has no required CI-enforced regression check, only a one-time ship gate
+    evidence:
+      - artifact: "spec.md § FR-005 (line 169), § FR-006 (line 170)"
+      - artifact: "spec.md § C-006 (line 196)"
+      - artifact: "spec.md § User Story 4 Independent Test (line ~106)"
+    claim: >
+      FR-005 / the Story 4 Independent Test explicitly allow the corpus-validation procedure to be "a
+      script under scripts/ or a parametrized test under tests/." Neither form is required to assert
+      the <=2% ceiling as a pass/fail check. If implemented as a scripts/ one-off, the ceiling
+      (FR-006/C-006/SC-006, all newly concretized this round) is checked exactly once, at initial ship
+      time, by a human reading a docstring number -- with no CI-enforced regression gate afterward. The
+      spec itself acknowledges the corpus grows ("re-count at implementation time since the corpus
+      grows," Story 4 Independent Test), so a corpus that drifts the true rate above 2% post-ship would
+      go undetected indefinitely. This reproduces the same "who checks it, and does it stay checked"
+      gap that the FP-ceiling addition was meant to close -- the revision added a concrete number but
+      not durable enforcement of it.
+    remediation: >
+      Require in FR-005/FR-006 that whichever form is chosen, it is wired into the test suite (CI) as
+      an assertion that fails when the currently-measured or last-recorded rate exceeds the accepted
+      ceiling -- not merely a number recorded in a docstring for a human to notice later.
+
+  - id: SPEC-FRESH-003
+    lens: fresh-sweep
+    severity: 3
+    title: "\"independently reviewed\" is a load-bearing, undefined term introduced three times this round"
+    evidence:
+      - artifact: "spec.md § FR-006 (line 170)"
+      - artifact: "spec.md § C-006 (line 196)"
+      - artifact: "spec.md § User Story 4 Acceptance Scenario 3 (line ~112)"
+    claim: >
+      This revision's answer to "who checks the FP-rate exception" is that the plan phase "MAY set the
+      accepted bar higher than 2% only by recording an explicit, evidence-backed justification... independently
+      reviewed before FR-006/C-006 is considered satisfied." This exact phrase ("independently reviewed")
+      is repeated verbatim in FR-006, C-006, and Story 4 AC3, all revised in this round, but the spec
+      never states who performs this review or through what mechanism -- e.g. whether the standard
+      pre-merge adversarial squad (which reviews every PR regardless of this exception) satisfies it, or
+      whether a specifically-scoped second reviewer is required. Without a named reviewer or mechanism,
+      "independently reviewed" is unenforceable: a single implementer could self-certify that review
+      occurred, which is exactly the kind of unverifiable gate this project's own doctrine
+      (architectural-gate-non-vacuity, explicitly invoked elsewhere in this same spec at FR-010/NFR-005)
+      is designed to prevent.
+    remediation: >
+      Name the specific review surface that satisfies "independently reviewed" for this exception (e.g.
+      "the mission's pre-merge adversarial squad must explicitly record acceptance of the justification"
+      or a named second-reviewer step), so the higher-bar exception path is auditable rather than
+      self-certified.
+
+  - id: SPEC-FRESH-004
+    lens: fresh-sweep
+    severity: 2
+    title: "\"ambiguous\"/\"ambiguity\" is overloaded across two different freshly-revised sections with different meanings"
+    evidence:
+      - artifact: "spec.md § User Story 4 Independent Test (line ~106)"
+      - artifact: "spec.md § User Story 5 Acceptance Scenario 2 (line ~129)"
+    claim: >
+      Story 4's Independent Test (revised this round) uses "ties/ambiguity" to describe a human
+      classifier's uncertainty when labeling a corpus spec as true-positive vs. false-positive during
+      corpus validation ("naming that it was manual and how ties/ambiguity were resolved"). Story 5 AC2
+      (also revised this round) uses "ambiguous" as a distinct, formal runtime state of the detector's
+      own classification logic that mandatorily blocks spec-kitty next in production. Both uses were
+      introduced or reworded in the same revision round, in two sections that already cross-reference
+      each other's machinery (Story 4 is explicitly tasked with sampling for the false-negative class
+      Story 5's blocking logic is meant to catch), so a reader could plausibly conflate "a corpus-
+      validation call that was ambiguous to classify" with "a live spec that trips the detector's
+      ambiguous-and-therefore-blocking path." This project's own CLAUDE.md documents unqualified
+      term reuse (primary/merge/routing) as a recurring, named footgun class in this exact repo, which
+      raises the bar for tolerating a fresh instance of the same pattern.
+    remediation: >
+      Rename the human-judgment sense in Story 4's Independent Test (e.g. "classification uncertainty"
+      or "borderline calls") to avoid overloading "ambiguous"/"ambiguity" against Story 5's distinct,
+      blocking-triggering runtime sense of the same word.

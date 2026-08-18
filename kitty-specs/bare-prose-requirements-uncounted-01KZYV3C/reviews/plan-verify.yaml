@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-GOV-001
+    status: resolved
+    reason: Campsite-Clean Scope now names _validate_requirement_mapping as in-scope complexity debt (radon cc independently re-run here confirms C(16), matching the plan's claim exactly), scopes a real classification/report-formatting extraction into the campsite-clean FIRST commit ahead of IC-03, and IC-03's sequencing line now depends on that extraction landing first.
+  - id: PLAN-GOV-002
+    status: resolved
+    reason: C-008 now cites an actually-performed broadened-predicate corpus scan (5/368 newly flagged, 7 tokens, zero true positives, plus a named over-match risk) with a sound methodology distinct from the pre-existing 88.32% heading-pull figure, paired with a genuine cost/scope justification for why full remediation is out of plan-phase scope, and the tracer-design-decisions.md entry for PLAN-GOV-002 exists.
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: The plan settled on the .get("bare_prose_requirement_failures", ()) approach in the FR-002 code sketch, and IC-02's Risks bullet explicitly states the same .get(..., ()) rule, so the guard code sketch and IC-02 are internally consistent about the one approach chosen.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: The ratchet-fixture section now adds assertion 3 (concrete non-empty floor per fixture spec) and assertion 4 (a self-mutation teeth test stubbing find_bare_prose_requirement_ids to return empty and asserting the ratchet then fails), and explicitly cites architectural-gate-non-vacuity alongside frozen-baseline-shrink-only-ratchet.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: SonarCloud Scan + Quality Gate was moved out of "Triggered / must pass" into a new "Not triggered at all on this mission's PR" category citing the real ci-quality.yml:3648 schedule/workflow_dispatch-only trigger condition, and independent inspection of the workflow file confirms the sonarcloud job is absent from the quality-gate aggregator's needs list.
+  - id: PLAN-VERIFY-003
+    status: resolved
+    reason: Both instances (Baseline Capture and #3395 Churn Risk) now pin the claim to the fixed pre-plan-commit ref 2e088fbe0 instead of a self-moving HEAD, with a live re-verification instruction for the executor; independent git log confirms exactly 7 commits between ab15225ea and 2e088fbe0 as claimed.

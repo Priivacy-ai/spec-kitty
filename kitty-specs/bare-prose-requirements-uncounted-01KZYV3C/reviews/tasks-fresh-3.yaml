@@ -1,0 +1,45 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh3
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: TASKS-FRESH3-001
+    lens: instruction accuracy / reviewer-checklist correctness
+    severity: 2
+    title: "WP05's Review Guidance overgeneralizes 'before `_tasks_dir_ready`' to a guard that never calls `_tasks_dir_ready`"
+    evidence:
+      - artifact: "tasks/WP05-spec-kitty-next-guard-wiring.md § Review Guidance (first bullet): \"Confirm all four guards read the new fact BEFORE their `_tasks_dir_ready` check, not after.\""
+      - code: "src/runtime/next/runtime_bridge_cores.py:469 (`_tasks_dir_ready` def), :487/:517/:528 (the only three call sites, inside `_evaluate_tasks_packages_guard`, `_evaluate_composed_tasks_packages_guard`, `_evaluate_composed_tasks_terminal_guard`)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:492-504 (`_evaluate_tasks_finalize_guard` — no call to `_tasks_dir_ready` anywhere in its body; it uses its own separate inline checks, `snapshot.status_facts[\"tasks_dir_is_dir\"]` and `\"tasks_wp_files\" not in snapshot.present_artifacts`, with no early-return short-circuit at all — every branch falls through to the final `failures.extend(occurrence_gate_failures); return failures`)"
+    claim: >
+      Live read of `runtime_bridge_cores.py` confirms `_tasks_dir_ready` is called at
+      exactly three sites (lines 487, 517, 528) — inside
+      `_evaluate_tasks_packages_guard`, `_evaluate_composed_tasks_packages_guard`, and
+      `_evaluate_composed_tasks_terminal_guard`. `_evaluate_tasks_finalize_guard`
+      (lines 492-504), the fourth guard WP05 also wires, does not call
+      `_tasks_dir_ready` at all today; it has its own separate `tasks_dir_is_dir`/
+      `tasks_wp_files`-in-`present_artifacts` inline check with no early-return
+      short-circuit shape to be "before" or "after." Plan.md and spec.md both
+      correctly document this fourth guard as structurally different (it "does not
+      read `requirement_mapping_failures` at all today" — spec.md's Edge Cases /
+      Story 3's "fourth call site" note, plan.md's FR-003 audit), but WP05's own
+      Review Guidance bullet states the before/after check uniformly across "all four
+      guards" as if all four share the `_tasks_dir_ready`-short-circuit shape. A
+      reviewer applying this checklist item literally to `_evaluate_tasks_finalize_guard`
+      will find no `_tasks_dir_ready` call to check ordering against, which could read
+      as a wiring gap in a correct implementation, or (less likely but possible) let an
+      incorrect implementation that adds a spurious `_tasks_dir_ready` call to this guard
+      pass an over-literal review. T025's own per-subtask instructions are correct and
+      guard-agnostic ("as the FIRST statement... then extend with the guard's existing
+      logic"), so this is confined to the Review Guidance summary bullet, not the
+      implementation instructions themselves — hence minor, not implementation-blocking.
+    remediation: >
+      Reword the Review Guidance bullet to distinguish the three `_tasks_dir_ready`-gated
+      guards from `_evaluate_tasks_finalize_guard`'s different shape, e.g.: "Confirm the
+      three guards that call `_tasks_dir_ready`
+      (`_evaluate_tasks_packages_guard`/`_evaluate_composed_tasks_packages_guard`/
+      `_evaluate_composed_tasks_terminal_guard`) read the new fact BEFORE that check, not
+      after; confirm `_evaluate_tasks_finalize_guard` (which has no `_tasks_dir_ready`
+      call) reads the new fact unconditionally, as the first statement, same as the
+      others."

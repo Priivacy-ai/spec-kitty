@@ -1,0 +1,104 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: SPEC-GOV-001
+    lens: mission-specific (silent-success self-application audit)
+    severity: 3
+    title: "Story 5 / FR-007's \"ambiguous case, treated as requiring review\" leaves the load-bearing dimension (blocking vs. advisory-visible) unspecified"
+    evidence:
+      - artifact: "spec.md § User Story 5, Acceptance Scenario 2"
+      - artifact: "spec.md § FR-007, § NFR-002"
+      - artifact: "spec.md § User Story 1 (title: \"blocked, not merely logged\")"
+      - code: "src/runtime/next/runtime_bridge.py:835-864 (_log_requirement_extraction_warnings_safely — the existing fail-safe advisory wrapper Scenario 3 says the new path must not be routed through)"
+    claim: >-
+      Acceptance Scenario 2 of Story 5 says the detector, on an ambiguous input, "treats the
+      ambiguous case as requiring review (surfaced, non-silent) rather than defaulting to 'not
+      a requirement, ignore'." Unlike Scenario 1 (exception case), which anchors to an
+      unambiguous observable ("an explicit failure naming what could not be classified"),
+      Scenario 2 deliberately uses softer language ("requiring review" rather than "failure")
+      and never states whether "requiring review" means the ambiguous case (a) blocks
+      spec-kitty next's advance-vs-stay decision the same way a confirmed bare-prose finding
+      does, or (b) is merely surfaced as a distinguishable-but-non-blocking signal (e.g. a
+      differently-worded log line or a JSON field) that never reaches the guard. NFR-002 only
+      requires the result be "not indistinguishable from nothing to flag" — it does not require
+      blocking. Because Story 1's entire raison d'être is that advisory-only logging is
+      insufficient ("blocked, not merely logged"), and the ambiguous bucket is by construction
+      the hardest-to-classify (and plausibly the highest true-positive-rate) subset of inputs,
+      an implementation that reads "requiring review" as option (b) — a second, distinctly-worded
+      but still non-blocking warning, distinguishable from "clean" in content only — would
+      satisfy AC2's and NFR-002's literal text while reintroducing exactly the "advisory-only,
+      easy to miss" failure this mission exists to close, for precisely the inputs most likely
+      to be genuine. This is the unfalsifiable-aspirational-language risk the charter's ATDD-first
+      / non-vacuous-AC standing orders exist to prevent (C-011; ATDD-First Discipline section).
+      It is not fully vacuous — a fault-injection test against the edge-case example named in
+      the Edge Cases section ("Section boundary edge cases") is directed by the Independent Test
+      paragraph — but the pass/fail bar for that test is underspecified on the one dimension that
+      matters for the mission's stated purpose.
+    remediation: >-
+      In plan.md (or by amending spec.md's Acceptance Scenario 2 directly), state explicitly
+      whether an "ambiguous, requires review" classification blocks spec-kitty next's
+      advance-vs-stay decision (same guard path as a confirmed bare-prose finding) or is a
+      separate, non-blocking-but-visible signal — and if the latter, add an explicit acceptance
+      criterion bounding how that residual advisory differs in practice from the pre-mission
+      status quo this mission was chartered to fix. The Story 4 corpus-validation false-positive
+      count (FR-005/FR-006) should also state whether "ambiguous → blocks" inputs are counted
+      toward the measured false-positive rate, since a blocking ambiguous-case policy changes
+      that rate's composition.
+
+  - id: SPEC-GOV-002
+    lens: directive (traceability / communication governance, DIRECTIVE_048)
+    severity: 2
+    title: "Broken internal cross-reference: spec.md promises a Clarifications entry on a commit-hash discrepancy that the Clarifications section does not contain"
+    evidence:
+      - artifact: "spec.md § Context (informative), sentence citing commit `3823f2b00` \"— see Clarifications for the hash discrepancy versus the issue text's `ae7eba9b2`\""
+      - artifact: "spec.md § Clarifications — contains exactly one Q&A (the branch-from-#3395 operator decision); no entry addresses a hash discrepancy"
+      - code: "git log (this checkout): 3823f2b00 = \"revert(runtime): drop inert zero-declared requirement block, keep advisory logging\" — real, resolves; ae7eba9b2 does not resolve to any object in this checkout's history (git cat-file -t ae7eba9b2 -> fatal: Not a valid object name)"
+    claim: >-
+      spec.md's Context section explicitly defers explanation of a stated commit-hash
+      discrepancy ("`3823f2b00` on this checkout" vs. "the issue text's `ae7eba9b2`") to the
+      Clarifications section, but the Clarifications section — verified by reading it in full —
+      contains only the single 2026-08-14 branching-decision Q&A and says nothing about the
+      hash discrepancy. `3823f2b00` is confirmed to exist and to be the revert commit described;
+      `ae7eba9b2` does not resolve to any git object in this checkout, so a reader (including a
+      future plan/implementation-phase agent trying to `git show` the precedent this mission's
+      central risk — Story 3 — is built on) following the promised cross-reference finds
+      nothing, and has no explanation for why the issue text's hash doesn't match this
+      checkout's. This does not affect implementation correctness (the cited `3823f2b00` is
+      itself accurate), but it is a real, verifiable gap in a document whose own operating style
+      elsewhere is unusually rigorous about citing exact, checked evidence — on a public repo
+      where this spec is a permanent artifact.
+    remediation: >-
+      Add the missing Clarifications entry (or fold a one- or two-sentence explanation directly
+      into the Context sentence) stating why the two hashes differ — most plausibly that the
+      referenced commit was rewritten/rebased between when the GitHub issue text was written and
+      when this checkout's branch was created (consistent with C-005's already-disclosed
+      rebase-on-#3395-change risk) — so the forward-reference resolves to real content.
+
+  - id: SPEC-GOV-003
+    lens: ledger (SK-04 — retrospective FR-coverage detector silently reports clean coverage)
+    severity: 1
+    title: "Spec frames itself as addressing \"this repository's silent-success failure class\" without acknowledging the closest ledger sibling (SK-04) that remains unaddressed"
+    evidence:
+      - artifact: "spec.md § Context: \"this repository's silent-success failure class (tracked incidents #3133, #3212, #3282, #3336)\""
+      - artifact: "spec.md § User Story 5 Why-this-priority: \"#3396 IS an instance of this repository's silent-success failure class... not an ordinary feature gap.\""
+      - code: "SPEC-KITTY-LEDGER.md SK-04 (src/specify_cli/retrospective/generator.py:75, _FR_REF_RE = re.compile(r\"\\b(FR-\\d{3,})\\b\")) — a separate, still-open silent-clean-coverage defect in a different FR-extraction mechanism (retrospective, not requirement_mapping.py's declared-shape gate)"
+    claim: >-
+      SK-04 is the ledger's closest analog to this mission's defect class — a regex-based FR
+      extractor that silently reports zero-gaps/clean coverage when real requirements don't match
+      its pattern — but in a different file/mechanism (retrospective/generator.py's `_FR_REF_RE`,
+      not requirement_mapping.py's `_DECLARED_ID_PATTERNS`) and triggered by a different cause
+      (lettered IDs, not bare-prose shape). This mission's scope is correctly bounded to the
+      coverage-gate's requirement extraction (C-001 explicitly keeps `_DECLARED_ID_PATTERNS`
+      untouched), so SK-04 is legitimately out of scope for implementation. The gap is purely
+      framing: spec.md's broad "silent-success failure class" language invites a reader to
+      believe this mission meaningfully narrows that class repository-wide, when a known,
+      still-open sibling instance in a different mechanism is left completely unmentioned.
+    remediation: >-
+      Add a one-line note (Context or Constraints) explicitly scoping SK-04 out: e.g. "the
+      retrospective phase's separate FR-extraction mechanism (SPEC-KITTY-LEDGER.md SK-04) has an
+      analogous silent-clean defect and is NOT addressed by this mission" — cheap, and prevents a
+      future reader from assuming this mission closes the failure class more broadly than it does.

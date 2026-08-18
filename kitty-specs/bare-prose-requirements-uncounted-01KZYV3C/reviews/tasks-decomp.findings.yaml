@@ -1,0 +1,96 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: decomp
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: TASKS-DECOMP-001
+    lens: decomposition (descriptions concrete enough to implement without re-deriving)
+    severity: 4
+    title: "WP02/WP06 misidentify test_finalize_provenance_guard.py as the file covering _validate_requirement_mapping; the real coverage file is never mentioned anywhere in the mission"
+    evidence:
+      - artifact: "tasks.md line 193 (WP02/T012): \"Run the located test files (`test_finalize_provenance_guard.py` and any other file `git grep -l _validate_requirement_mapping tests/` surfaces) unmodified and green.\""
+      - artifact: "tasks.md line 481 (WP06/T030): lists `tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py` as \"confirmed via `git grep -l _validate_requirement_mapping tests/`\""
+      - artifact: "tasks/WP02-campsite-clean-validate-requirement-mapping.md line 116: \"`tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py` is a known hit\" (T012)"
+      - artifact: "tasks/WP06-finalize-tasks-map-requirements-wiring.md line 97 (T030): same file listed as confirmed via the grep"
+      - artifact: "tasks.md WP02 \"Independent Test\" (line 173): \"every pre-existing test exercising `_validate_requirement_mapping` (see T030 in WP06 for the located test files) passes unmodified\" — the cross-referenced T030 list is the wrong one"
+      - code: "Ran `git grep -l _validate_requirement_mapping tests/` directly against this checkout: the ONLY hit is `tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py` (4 call sites, lines 117/129/141/153). `test_finalize_provenance_guard.py` contains zero occurrences of `_validate_requirement_mapping` (confirmed via `grep -n` — no match) — its docstring (lines 1-14) shows it covers an unrelated concern, #3311 re-finalize provenance preservation (`_compute_and_write_lanes`/`_execution_has_begun`), not requirement-mapping validation at all."
+      - code: "`test_mission_finalize_phases.py` — the file that actually exercises `_validate_requirement_mapping` — is never referenced anywhere in tasks.md or any tasks/WP*.md file (confirmed via `grep -rn test_mission_finalize_phases kitty-specs/bare-prose-requirements-uncounted-01KZYV3C/`, zero hits)."
+    claim: >
+      WP02's Independent Test (the behaviour-preservation regression guard for the
+      charter Standing Order 2 campsite-clean split of `_validate_requirement_mapping`)
+      and WP06's canonical-sources test-location step (T030, "do not create a parallel
+      test file") both point to `test_finalize_provenance_guard.py` as the located,
+      confirmed test file exercising `_validate_requirement_mapping`. Direct grep against
+      the actual codebase shows this is false: that file is completely unrelated (a
+      different mission's provenance-preservation guard test) and contains zero
+      references to the function. The one file that genuinely does exercise
+      `_validate_requirement_mapping` directly (`test_mission_finalize_phases.py`,
+      4 call sites) is never named anywhere in the mission's tasks.md or WP files. An
+      implementer following WP02's literal Independent Test / T012 instruction, or WP06's
+      T030 "add new cases to whichever of these already covers the relevant command,"
+      could run/extend the wrong file, produce a vacuous "all pre-existing tests still
+      green" regression check for the campsite-clean split (since the named file has no
+      relevant assertions to break), and/or add WP06's new bare-prose test cases to a
+      file structurally unrelated to requirement-mapping validation — a canonical-sources
+      violation in the opposite direction (fragmenting coverage away from the real home).
+    remediation: >
+      Replace every reference to `test_finalize_provenance_guard.py` as the located
+      `_validate_requirement_mapping` coverage file (tasks.md lines 193 and 481; WP02
+      prompt lines 116/125; WP06 prompt line 97) with
+      `tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py`, and add it
+      explicitly to WP06's T030 canonical-sources list (alongside the four
+      `plan_mapping`-hit files, which are independently confirmed correct). Re-run
+      `git grep -l _validate_requirement_mapping tests/` at WP02/WP06 implementation time
+      and use its live output rather than the copied list in these artifacts.
+
+  - id: TASKS-DECOMP-002
+    lens: decomposition (descriptions concrete enough to implement without re-deriving; contradicts existing code)
+    severity: 4
+    title: "WP06/T031 falsely claims _validate_requirement_mapping 'already has spec_content in scope'; neither the function nor its caller has it, and the analogous plan_mapping/MappingRequest call site has the same unscoped gap"
+    evidence:
+      - artifact: "tasks.md line 490 (WP06/T031): \"compute the bare-prose candidates once (already has `spec_content` in scope)\""
+      - artifact: "tasks/WP06-finalize-tasks-map-requirements-wiring.md line 108 (T031): \"compute the bare-prose candidates once (the function already has `spec_content` in scope via its callers)\""
+      - artifact: "tasks.md T032 / tasks/WP06-*.md T032: \"same predicate call, same field name... added to the returned `MappingPlan`\" — no mention that `plan_mapping` is a documented pure function with no I/O and no `spec_content` field in its input dataclass"
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:621-628 — `_validate_requirement_mapping`'s full parameter list is `wp_ids, wp_requirement_refs, all_spec_requirement_ids, functional_spec_requirement_ids, wp_dependencies, *, json_output` — no `spec_content` parameter."
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:1918-1925 — the sole call site: `_validate_requirement_mapping(wp_ids, dep_resolution.wp_requirement_refs, all_spec_requirement_ids, functional_spec_requirement_ids, dep_resolution.wp_dependencies, json_output=json_output)` — no `spec_content` argument."
+      - code: "src/specify_cli/cli/commands/agent/mission_finalize.py:343-365 — `_read_spec_requirement_ids` reads `spec_content` locally (line 362) but its return type is `tuple[set[str], set[str], list[str]]` — it does NOT return the raw text, so the caller (the `cli` function body around lines 1780-1930) never binds a `spec_content` variable (confirmed via targeted grep over that line range: zero matches for `spec_content`)."
+      - code: "src/specify_cli/cli/commands/agent/tasks_mapping_core.py:53-75 — `MappingRequest` (the frozen dataclass 'Every fact `plan_mapping` needs — all resolved by the shell') carries only `spec_all_ids`/`spec_functional_ids` (already-parsed sets), not raw `spec_content`; `plan_mapping` (line 123, docstring: 'with NO side effects (INV-4)') is architected as pure/I-O-free. The shell (`tasks_map_requirements.py:306`) does read `spec_content`, but does not currently pass it (or a derived bare-prose result) into the `MappingRequest(...)` construction at line 356."
+    claim: >
+      WP06/T031 states as a settled fact that `_validate_requirement_mapping` "already
+      has spec_content in scope," presented as a reason no extra plumbing is needed
+      before calling `find_bare_prose_requirement_ids(spec_content)` inside it. Direct
+      inspection of the function signature, its one call site, and the helper that
+      actually reads spec.md (`_read_spec_requirement_ids`, which reads-and-discards the
+      raw text before returning) shows this is false: no `spec_content` value exists
+      anywhere in that call chain today. WP02's campsite-clean split (the WP this WP
+      depends on) explicitly requires "same call signature, same exceptions... no
+      behaviour change" for its own commit, so the signature-plumbing work WP06 actually
+      needs (adding a parameter to `_validate_requirement_mapping` and/or changing
+      `_read_spec_requirement_ids`'s return shape and its one caller) is real,
+      non-trivial, and currently unscoped by any subtask in WP02 or WP06. The parallel
+      `tasks_mapping_core.py::plan_mapping` call site (T032) has the identical gap in a
+      structurally more consequential form: `plan_mapping` is a documented pure function
+      (INV-4, no I/O) and its `MappingRequest` input dataclass has no `spec_content`
+      field — wiring the predicate in requires extending `MappingRequest` and updating
+      its one construction site in the shell (`tasks_map_requirements.py`), which T032's
+      one-line "same predicate call" instruction does not surface. An implementer
+      following either subtask literally would discover the premise is wrong only after
+      starting implementation, which is exactly the "ambiguity/gap likely to cause
+      rework inside one work package" this review is meant to catch before it lands.
+    remediation: >
+      Correct T031's claim: state explicitly that `spec_content` is NOT currently
+      available inside `_validate_requirement_mapping` or its caller, and add a subtask
+      (or fold into T031) to either (a) change `_read_spec_requirement_ids`'s return
+      type to also yield the raw `spec_content` and update its one caller to thread it
+      through to `_validate_requirement_mapping`'s new parameter, or (b) have the caller
+      re-read spec.md once (mirroring the pattern already used at
+      `_check_bare_prose_requirements_ready` in WP05) and pass the resulting
+      `bare_prose_requirement_ids` into `_validate_requirement_mapping` as data rather
+      than passing raw content in. For T032, add an explicit subtask to extend
+      `MappingRequest` with a `bare_prose_requirement_ids` (or `spec_content`) field and
+      update the `MappingRequest(...)` construction call in
+      `tasks_map_requirements.py` (~line 356) to populate it from the `spec_content` the
+      shell already reads at line 306 — preserving `plan_mapping`'s documented
+      pure/no-I/O contract by passing the pre-computed result in, not the raw text.

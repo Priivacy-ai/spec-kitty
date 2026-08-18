@@ -1,0 +1,207 @@
+{
+  "event_count": 46,
+  "last_event_id": "01M006Q14MKQ949KMBG0MW62ZH",
+  "materialized_at": "2026-08-14T13:17:21.428162+00:00",
+  "mission_number": "",
+  "mission_slug": "bare-prose-requirements-uncounted-01KZYV3C",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP02": {
+      "actor": "user",
+      "agent": "implement-command",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M002QZAWNE587EBPSFA3SF1J",
+      "last_transition_at": "2026-08-14T12:07:58.044787+00:00",
+      "notes": [
+        "First pass, no rejections. Behaviour-preserving decompose of _validate_requirement_mapping verified line-by-line diff-identical, call order unchanged; 29/29 tests pass, no existing test modified; 4 new non-vacuous helper tests. Non-blocking findings recorded (not rejections): WP02-F1 (sev3, radon/ruff C901 discrepancy recurs PLAN-GOV-001 remediation gap), WP02-F2 (sev2, undeclared radon pip install into shared .venv)."
+      ],
+      "review_result": {
+        "reference": "WP02-review-2026-08-14",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1683898,
+      "shell_pid_created_at": "1786708456.0",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "implement-command",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KZZXPC3A3571GTCE8EKJDE98",
+      "last_transition_at": "2026-08-14T10:39:42.698178+00:00",
+      "notes": [
+        "FORCED: guard 'no implementation commits beyond mission branch' (rev-list check) became unearnable after this operator's own corrective merge of mission branch onto lane-b HEAD (done to clear the kitty-specs contamination guard per lane-c precedent) collapsed the lane-ahead-of-mission ancestry gap the commit-presence guard checks; the 5 implementation commits (e083a0e12,88aa6cc38,3b6e34f23,3676b6ac6,36ece4b51) indisputably exist in history and are already independently reviewed/approved. || Reviewer reviewer-renata: verdict approved. F1|severity 4 rejected once (docstring false-positive rate 9/368 structurally could not describe shipped per-line declared-shape skip predicate); fresh implementer corrected to measured 1/368=0.27% (N=368, dated, sole hit egress-refusal-consolidation-3110-01KYW895 Requirement-level falsifiers, ids C-1/C-3, zero true positives) plus reconciliation of 9/368 and 139/368 prototype figures. Independent verifier ruled F1 CLOSED, no new findings: re-measured corpus itself (1/368 matching), AST-compared both revisions with docstrings stripped (AST identical: True), confirmed _is_requirement_heading and find_undeclared_requirement_citations untouched, confirmed superseded tracer row preserved not deleted. Gates: ruff clean, mypy clean, 49 module tests pass, terminology guard 10 pass."
+      ],
+      "review_result": {
+        "reference": "reviews/implement.ruling.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1588809,
+      "shell_pid_created_at": "1786702148.71",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "implement-command",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KZZVMW9G9SABRQRFVSW8E5TV",
+      "last_transition_at": "2026-08-14T10:03:56.592811+00:00",
+      "notes": [
+        "Reviewer reviewer-renata: verdict approved, zero findings. Non-vacuity independently reproduced: planted import specify_cli.requirement_mapping into src/runtime/next/runtime_bridge_cores.py -> FAILED ... Disallowed imports found: line 78, then restored, worktree clean. Shard selection verified at tests/_arch_shard_map.py:355-364."
+      ],
+      "review_result": {
+        "reference": "reviews/implement.ruling.md",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1516063,
+      "shell_pid_created_at": "1786699424.07",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T019": "done"
+      }
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "implement-command",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M001X406SBJQAD9J1C1HWSC3",
+      "last_transition_at": "2026-08-14T11:53:18.086837+00:00",
+      "notes": [
+        "First pass, no rejections. RED-first ATDD (T020) + wiring (T021-T025) + re-pin (T020 supersede). Detector untouched; WP04 import boundary intact; 789 passed on targeted surface; ruff clean incl C901. Non-blocking notes: (a) 1b5b86e0f commit msg attributes re-pin authority to operator ruling covering only F4 shape -- correct authority is plan.md:209-264 PLAN-GOV-002; (b) status_facts.get default is defensive-only, could use a comment."
+      ],
+      "review_result": {
+        "reference": "reviewer-renata: approved, no findings >=4; empirically proved wiring via zero-WP-file case across all four guards",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1624788,
+      "shell_pid_created_at": "1786705059.11",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": "implement-command",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M004XF4FPP06DX7NKC0KMD70",
+      "last_transition_at": "2026-08-14T12:45:55.215695+00:00",
+      "notes": [
+        "Approved first pass. One severity-2 note recorded (not a rejection): b66884766's commit message over-cites the operator's ruling as authorisation for a file outside its literal scope; DIRECTIVE_041 is the correct primary authority for that re-pin."
+      ],
+      "review_result": {
+        "reference": "reviewer-renata: approved, no findings >= severity 4; reproduced signal reachability in-process (finalize_tasks exit1, bare_prose_requirement_ids FR-001/FR-002); confirmed CliRunner test on real stdout; red-first verified (29 failed pre-wiring, 441 passed/0 failed at HEAD); WP02 seams reused; protected files byte-identical; zero kitty-specs writes; mypy clean",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1717616,
+      "shell_pid_created_at": "1786709323.31",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done",
+        "T030a": "done",
+        "T031": "done",
+        "T032": "done",
+        "T032a": "done",
+        "T033": "done"
+      }
+    },
+    "WP07": {
+      "actor": "user",
+      "agent": "implement-command",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KZZYN8YM86AWT9DW061QZGN5",
+      "last_transition_at": "2026-08-14T10:56:35.284349+00:00",
+      "notes": [
+        "WP07 complete: false-negative sample + re-verified broadened-predicate FP figure appended to find_bare_prose_requirement_ids docstring; no production code changed (AST-verified identical, docstrings excluded); C-011 red-first waived per WP07's own contract (informational, non-gating). Non-blocking note: docstring now ~137 lines vs ~14 lines of code, duplicates plan.md:201-261 - follow-up concern, not a WP07 defect."
+      ],
+      "review_result": {
+        "reference": "reviewer-renata: approved, no blocking findings; reproduced broadened-predicate measurement 5/368=1.36% (same 5 specs), spot-checked 2/5 against corpus confirming zero true positives, AST-verified Constraints blind spot not widened, proved sample non-vacuous via controlled widening of _is_requirement_heading (narrow 1->6, newly-flagged 5->0) then restored; ruff clean, mypy clean, 50 tests pass",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1611475,
+      "shell_pid_created_at": "1786704106.01",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
+    },
+    "WP08": {
+      "actor": "user",
+      "agent": "implement-command",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M006Q14MKQ949KMBG0MW62ZH",
+      "last_transition_at": "2026-08-14T13:17:21.428162+00:00",
+      "notes": [
+        "Approved first pass, no findings >= severity 4. Independently re-measured corpus (N=368, flagged=1, exact match). Proved ratchet in growth direction via planted bare-prose FR-999 spec (test failed as designed, then restored clean). Confirmed gate is frozen, not live re-scan. Verified shard selection (arch_shard_1 via default_fallback, all 5 tests collected, ci-quality.yml:2144-2280 arch-adversarial job runs this leg). Proved _CORPUS_MARKED_MODULES registration mechanically forced by deleting it and watching registry guard fail. Verified census of ~120 in-flight missions: zero newly block, including this mission's own spec.md. Informational-only note: WP08 task file T037 references a stale 9-spec baseline figure from design-time prototype; implementer correctly re-measured live and shipped true N=1 -- not a defect."
+      ],
+      "review_result": {
+        "reference": "reviewer-renata:2026-08-14:zero-findings-severity-ge-4:corpus-N368-flagged1-egress-refusal-consolidation-3110-01KYW895:growth-direction-proved-planted-FR-999:shard-arch_shard_1:census-120-inflight-zero-block",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "shell_pid": 1776154,
+      "shell_pid_created_at": "1786711606.8",
+      "subtasks": {
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done",
+        "T041": "done",
+        "T042": "done",
+        "T043": "done",
+        "T044": "done"
+      }
+    }
+  }
+}
