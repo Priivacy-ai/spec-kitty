@@ -603,6 +603,27 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   changes. (Also folds 12 dangling references to the retired
   `test_bridge_compat_surface.py` across 9 files — campsite cleanup of the
   already-landed #3285 deletion; refs `#2853`, `#3285`, `#2633`.)
+- **A misspelled key in an `expected-artifacts.yaml` completeness manifest was
+  silently discarded — the requirement simply vanished while the manifest still
+  loaded "successfully" — and the shipped manifests disagreed with the guards
+  that actually enforce completeness in eight places, while the `plan` mission
+  type had no manifest at all (`#3413`; closes `#3388`).** Before, a typo'd or
+  unrecognized key was dropped without a word, so a manifest could quietly
+  describe a completeness contract different from the one the runtime enforced.
+  Now `ExpectedArtifactSpec` and `ExpectedArtifactManifest` reject unknown keys
+  (`extra="forbid"`) and the loader raises on a schema-invalid manifest instead
+  of swallowing it; the three shipped `research`/`documentation`/`software-dev`
+  manifests were reconciled to match their guards exactly; `plan` gained an
+  (explicitly descriptive) manifest; and a cross-cutting parity test now catches
+  the next manifest-vs-guard drift. The schema failure is also actionable and
+  consistent: it raises a distinguishable `ManifestSchemaError` that names the
+  offending manifest file, surfaced the same way across `spec-kitty reconcile`,
+  the background dossier sync (a clear warning in the sync result, not a
+  swallowed stack trace), and manifest-version resolution — and it now covers
+  org-authored manifests too, not just the built-in ones (`#3542`). A genuine
+  internal indexing error is no longer misreported as "fix your manifest". This
+  covers _schema_ violations; a YAML-_syntax_-broken manifest still degrades
+  silently upstream (tracked in `#3412`).
 
 - **A mission running under a non–software-dev workflow no longer gets blocked
   by a guard about objects its workflow does not have — for example a `plan`
