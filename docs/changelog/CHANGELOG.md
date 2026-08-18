@@ -322,6 +322,21 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **`charter activate --cascade` now follows an org-pack dependency edge no
+  matter which pack in the chain declares it, and activating from an org pack
+  that ships no dependency graph no longer crashes the command (`#3534`; closes
+  `#3527`).** Before, cascade activation, `charter context --json`, and dossier
+  rebaseline each saw only the first configured org pack — a `requires`/`suggests`
+  edge into or out of any second-or-later pack was silently ignored, so
+  `--cascade` under-activated whenever doctrine lived across more than one org
+  pack. Now the full declaration-ordered org-pack chain is threaded through all
+  three, so an edge cascades regardless of which pack authored it. As part of
+  landing, activating a directive or profile from an org pack that carries
+  doctrine artifacts but no root-level DRG graph now degrades that pack to "no
+  DRG layer" and activates normally, instead of aborting with `DRGLoadError: No
+  DRG graph files found` — each configured pack is handled on its own, so one
+  graphless pack no longer takes a healthy sibling down with it.
+
 - **Rejecting a work package no longer costs a wasted cycle: the feedback-file
   path `agent action review` prints in its rejection command is now one
   `move-task` will actually accept (`#3554`; closes `#3430`).** Before, the
