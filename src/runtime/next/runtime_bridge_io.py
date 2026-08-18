@@ -844,6 +844,7 @@ def gather_artifact_presence(
         "wp_dependencies_present": wp_dependencies_present,
         "wp_dependency_records": tuple(wp_dependency_records),
         "requirement_mapping_failures": tuple(_rb._check_requirement_mapping_ready(feature_dir)),
+        "bare_prose_requirement_failures": tuple(_rb._check_bare_prose_requirements_ready(feature_dir)),
         "occurrence_gate_failures": tuple(_rb._occurrence_gate_failures(feature_dir)),
         "source_documented_count": _rb._count_source_documented_events(feature_dir),
         "publication_approved": bool(_rb._publication_approved(feature_dir)),
