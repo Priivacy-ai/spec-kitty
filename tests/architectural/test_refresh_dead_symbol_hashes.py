@@ -230,6 +230,23 @@ def test_decide_collision_tier_preserves_module_path() -> None:
     assert decision.narrowed == ("synthetic.dup_a",)
 
 
+def test_decide_escalates_content_tier_entry_needing_collision_tier() -> None:
+    """#3560 finding 1 — a CONTENT-tier entry narrows to exactly one still-dead
+    candidate whose canonical key must be COLLISION-tier (``requires_module_path``),
+    so ``decide`` must escalate rather than REFRESH: rewriting only the
+    content-tier hash would leave the gate RED for both colliding symbols."""
+    still_dead = [
+        DeadLocation("synthetic.dup_a", "Dup", "hnew", requires_module_path=True),
+        DeadLocation("synthetic.dup_b", "Dup", "hnew", requires_module_path=True),
+    ]
+    entry = _entry("Dup", provenance_module="synthetic.dup_a")  # content-tier, no module_path=
+    decision = decide(entry, still_dead)
+    assert decision.outcome == Outcome.NEEDS_MODULE_PATH
+    assert decision.outcome != Outcome.REFRESH
+    assert decision.new_hash is None
+    assert decision.narrowed == ("synthetic.dup_a",)
+
+
 # ---------------------------------------------------------------------------
 # T008 — real (WP01-normalized) tree refreshes, never refuses on provenance
 # ---------------------------------------------------------------------------
@@ -477,3 +494,41 @@ def test_ac3_collision_tier_refresh_preserves_module_path_in_source() -> None:
     assert entry.kwarg_module_path == "synthetic.dup_a", "collision-tier module_path must be preserved"
     assert entry.body_hash != _OLD_HASH, "the collision-tier hash must be refreshed"
     assert 'module_path="synthetic.dup_a"' in rewritten
+
+
+def test_content_tier_entry_needing_collision_tier_escalates_end_to_end() -> None:
+    """#3560 finding 1, end-to-end: a CONTENT-tier allow-list entry (no
+    ``module_path=`` kwarg) whose only still-dead candidate collides live with
+    a sibling symbol must escalate via ``plan_refresh`` and must NOT be
+    rewritten by ``refresh``/``_apply`` — an ineffective content-tier hash
+    rewrite would leave the gate RED for both ``Dup`` symbols."""
+    body = 'Dup = "same-body"\n__all__ = ["Dup"]\n'
+    corpus = {
+        "synthetic.dup_a": _module(body),
+        "synthetic.dup_b": _module(body),  # byte-identical -> live collision
+    }
+    decls = {
+        "synthetic.dup_a": frozenset({"Dup"}),
+        "synthetic.dup_b": frozenset({"Dup"}),
+    }
+    source = (
+        "_CATEGORY_TEST = frozenset(\n"
+        "    {\n"
+        "        # synthetic.dup_a::Dup\n"
+        f'        SymbolKey("Dup", "{_OLD_HASH}"),\n'
+        "    }\n"
+        ")\n"
+    )
+
+    decisions = plan_refresh(corpus, decls, {}, source)
+    assert len(decisions) == 1  # golden-count: cardinality-is-contract
+    decision = decisions[0]
+    assert decision.outcome == Outcome.NEEDS_MODULE_PATH, (
+        "a content-tier entry whose target needs collision-tier keying must "
+        "escalate, never REFRESH an ineffective content-tier hash"
+    )
+    assert decision.new_hash is None
+
+    rewritten = refresh(corpus, decls, {}, source)
+    assert rewritten == source, "_apply must not rewrite an escalation decision"
+    assert 'SymbolKey("Dup", "' + _OLD_HASH + '")' in rewritten
