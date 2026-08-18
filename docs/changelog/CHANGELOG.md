@@ -304,6 +304,18 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **The two `kitty-specs/` lane guards no longer disagree about a bulk-edit
+  mission's own occurrence map, so it can be kept current from the implementing
+  lane without a manual unwind (`#2980`).** The pre-commit ownership guard warned
+  (and let the commit through) while `move-task` blocked the later transition,
+  so `kitty-specs/<mission>/occurrence_map.yaml` — which DIRECTIVE_035 requires
+  the lane to update as the sweep proceeds — tripped the gate after the work was
+  committed. The exception is now expressed once (`is_occurrence_map_path` in
+  `core.constants`) and honored by both guards: the map is permitted on the lane
+  at both, while every other `kitty-specs/` path stays governed (a sibling
+  `spec.md` on the lane is still blocked). The commit-guard `mode` semantics for
+  non-exception paths are unchanged.
+
 - **The lane "no kitty-specs on lane branches" `move-task` guard no longer
   false-positives on inherited planning artifacts in `coord` topology, so lane
   transitions stop demanding `--force` on every step (`#3271`; closes `#2274`).**
