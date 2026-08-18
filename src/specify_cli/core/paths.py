@@ -260,10 +260,17 @@ def locate_project_root(start: Path | None = None, *, stop: Path | None = None) 
                 # If we can't read or parse the .git file, continue searching
                 pass
 
-        elif git_path.is_dir():  # noqa: SIM102
-            # This is the main repo (or a regular git repo)
-            if (candidate / KITTIFY_DIR).is_dir():
-                return candidate
+        elif git_path.is_dir():
+            # A ``.git`` *directory* is a repo boundary: a regular repo, the
+            # main repo of a worktree set, OR a nested clone living inside an
+            # outer primary. Stop here — consistently with
+            # ``resolve_canonical_root`` rule 1 — even when ``.kittify`` is
+            # absent, rather than walking UP past a nested clone's ``.git``
+            # directory into the enclosing primary (FR-007, #2610). Linked
+            # worktrees use a ``.git`` *file* pointer (handled in the branch
+            # above), so this boundary-stop never affects the deliberate
+            # worktree->primary re-anchor.
+            return candidate
 
         # Also check for .kittify marker (fallback for non-git scenarios)
         kittify_path = candidate / KITTIFY_DIR

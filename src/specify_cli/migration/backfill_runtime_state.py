@@ -81,6 +81,11 @@ from kernel.clock import UTC, datetime, timedelta, parse_iso, from_epoch
 from pathlib import Path
 from typing import Any, Literal
 
+from specify_cli.core.checkout_identity import (
+    FailClosedRefusal,
+    Intent,
+    resolve_checkout_identity,
+)
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
 from specify_cli.core.utils import ensure_within_any
@@ -101,6 +106,7 @@ from specify_cli.status import (
     read_event_stream,
     reduce,
 )
+from specify_cli.event_journal.journal import ProjectLayoutRequiredError
 from specify_cli.workspace import canonicalize_feature_dir
 
 from .mission_state import deterministic_ulid
@@ -2031,7 +2037,56 @@ def _has_snapshot_runtime(wp: dict[str, Any]) -> bool:
     )
 
 
-def verify_backfill(feature_dir: Path, *, read_dir: Path | None = None) -> VerifyResult:
+def _invocation_write_refusal(
+    feature_dir: Path, intent: Intent
+) -> FailClosedRefusal | None:
+    """Return the fail-closed refusal when *feature_dir*'s invoking checkout does
+    not own the redirected path a WRITE-guarding verify is about to read (#3049).
+
+    The false-green this closes (WP05 / FR-005): invoked from a foreign lane
+    worktree, the cutover flow's :func:`verify_backfill` canonicalizes
+    *feature_dir* to the primary/coord checkout — the deliberate C-003 write
+    target — and then reads that same redirected path, so the cutover guard
+    passes no matter which checkout invoked it.
+
+    The guard is made invoking-checkout-aware WITHOUT moving the write target:
+
+    * *intent* is :attr:`~specify_cli.core.checkout_identity.Intent.PRIMARY_READ`
+      (the default for a bare, read-only verify such as the ``is_cut_over``
+      doctor) — the invocation is only *reading* the deliberate primary anchor,
+      never blessing a write from a checkout it must own, so it is NEVER refused
+      (WP01 INV-2: ``write_refusal`` is silent for every ``PRIMARY_READ``).
+    * When :func:`canonicalize_feature_dir` does NOT redirect the read
+      (``canonical == feature_dir``), the invocation reads exactly the checkout
+      it points at — the primary checkout, or an already-canonical *registered*
+      coordination worktree — so it owns what it reads and proceeds unchanged
+      (``None``; no new refusal on the owner path).
+    * Only a WRITE-guarding verify (the cutover flow threads
+      :attr:`~specify_cli.core.checkout_identity.Intent.WRITE`) whose read was
+      redirected AND whose invoking checkout is a foreign lane worktree is
+      refused fail-closed — the single #3128 write-refusal seam, whose message
+      names the canonical target checkout it declined to bless (INV-5).
+
+    Ownership is resolved from *feature_dir* itself (which carries the invoking
+    checkout's root — it is built as ``<invoking-root>/kitty-specs/<slug>`` by
+    the command that resolved the root), so the decision is independent of
+    ``Path.cwd()`` and of the ``paths.py`` re-anchoring resolvers (WP01 INV-4).
+    """
+    if intent is not Intent.WRITE:
+        return None
+    canonical = canonicalize_feature_dir(feature_dir)
+    if canonical == feature_dir:
+        return None
+    identity = resolve_checkout_identity(feature_dir, Intent.WRITE)
+    return identity.write_refusal()
+
+
+def verify_backfill(
+    feature_dir: Path,
+    *,
+    read_dir: Path | None = None,
+    intent: Intent = Intent.PRIMARY_READ,
+) -> VerifyResult:
     """Fail-closed proof that OLD-reader values survive in deterministic seeds.
 
     Rebuilds the expected deterministic rows from the OLD frontmatter/checkbox
@@ -2054,14 +2109,24 @@ def verify_backfill(feature_dir: Path, *, read_dir: Path | None = None) -> Verif
             frontmatter from (placement-port-residuals-closure-01KYDEF0
             FR-002 / IC-02 — mirrors :func:`backfill_runtime_state`'s
             read/write-leg split). Defaults to *feature_dir*.
+        intent: Whether this verify guards a WRITE (the cutover flow — a foreign
+            lane invocation that reads a redirected primary path is refused
+            fail-closed, #3049 / WP05) or is a bare ``PRIMARY_READ`` (the
+            default — a read-only verify such as the ``is_cut_over`` doctor,
+            never refused). See :func:`_invocation_write_refusal`.
 
     Returns:
         A :class:`VerifyResult`; call :meth:`VerifyResult.raise_if_failed` (or use
         :func:`run_backfill_and_verify`) to turn a non-``ok`` result into an abort.
+        A foreign-lane WRITE invocation returns a non-``ok`` result whose single
+        mismatch is the checkout-naming refusal message.
 
     Raises:
         MigrationOrderingError: if verify is run after ``strip_mutable_fields``.
     """
+    refusal = _invocation_write_refusal(feature_dir, intent)
+    if refusal is not None:
+        return VerifyResult(ok=False, wp_count=0, mismatches=(refusal.message(),))
     feature_dir = canonicalize_feature_dir(feature_dir)
     read_dir = canonicalize_feature_dir(read_dir) if read_dir is not None else feature_dir
     try:

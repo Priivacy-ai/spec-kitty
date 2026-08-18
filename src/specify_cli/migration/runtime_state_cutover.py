@@ -46,6 +46,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from specify_cli.core.checkout_identity import Intent
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.mission_metadata import load_meta, write_meta
@@ -111,15 +112,26 @@ def _seed_phase(feature_dir: Path, *, read_dir: Path | None = None, dry_run: boo
     return backfill_runtime_state(feature_dir, read_dir=read_dir, dry_run=dry_run)
 
 
-def _verify_phase(feature_dir: Path, *, read_dir: Path | None = None) -> VerifyResult:
+def _verify_phase(
+    feature_dir: Path,
+    *,
+    read_dir: Path | None = None,
+    intent: Intent = Intent.WRITE,
+) -> VerifyResult:
     """Phase 2 — fail-closed count+value parity of the snapshot vs the OLD reader.
 
     Thin wrapper over :func:`verify_backfill`; a non-``ok`` result makes the flip
     phase unreachable in :func:`cutover_mission`. *read_dir* is the FR-002
     read/write-leg split (defaults to *feature_dir* — see
     :func:`verify_backfill`'s docstring).
+
+    *intent* is :attr:`~specify_cli.core.checkout_identity.Intent.WRITE` here
+    (WP05 / #3049): this verify guards the seed+flip WRITE, so a foreign lane
+    invocation that reads the redirected primary/coord path is refused
+    fail-closed rather than reporting a false pass. The deliberate C-003 write
+    target is unchanged — only the guard becomes invoking-checkout-aware.
     """
-    return verify_backfill(feature_dir, read_dir=read_dir)
+    return verify_backfill(feature_dir, read_dir=read_dir, intent=intent)
 
 
 class PlacementMismatchError(RuntimeError):

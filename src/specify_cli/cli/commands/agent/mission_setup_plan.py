@@ -27,6 +27,7 @@ import. Behavior is preserved byte-for-byte from the pre-decomposition
 
 from __future__ import annotations
 
+from collections.abc import Callable
 import contextlib
 from dataclasses import dataclass
 import logging
@@ -42,10 +43,15 @@ import typer
 from charter import resolve_mission_type_context
 from charter.resolution import ResolutionResult
 from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.doc_analysis.doc_state import GeneratorConfig
 from specify_cli.mission import _canonical_meta_mission_type, get_mission_type
 from specify_cli.core.paths import load_meta_fail_closed
+from specify_cli.missions._resolve_planning_branch import (
+    PlanningBranchResolutionFailed,
+    load_mission_target_branch,
+)
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
@@ -300,6 +306,60 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
         raise typer.Exit(1) from None
 
 
+def _emit_spec_missing(spec_file: Path, feature_dir: Path, mission_slug: str, *, json_output: bool) -> None:
+    """Emit the SPEC_FILE_MISSING payload and exit 1."""
+    payload: dict[str, object] = {
+        "error_code": "SPEC_FILE_MISSING",
+        "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
+        "mission_slug": mission_slug,
+        "feature_dir": str(feature_dir.resolve()),
+        "spec_file": str(spec_file.resolve()),
+        "remediation": [
+            f"Restore the missing spec file at {spec_file.resolve()}",
+            f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
+        ],
+    }
+    if json_output:
+        _emit_json(payload)
+    else:
+        console.print(f"[red]Error:[/red] {payload['error']}")
+        for step in cast(list[str], payload["remediation"]):
+            console.print(f"  - {step}")
+    raise typer.Exit(1)
+
+
+def _resolve_branch_match_operands(
+    invocation_cwd: Path,
+    plan_read_dir: Path,
+    *,
+    fallback_branch: str,
+    get_current_branch: Callable[[Path], str | None],
+) -> tuple[str, str]:
+    """Resolve ``(invoking_branch, match_target)`` for the honest branch match.
+
+    FR-006 / #3124: ``branch_matches_target`` must reflect the INVOKING checkout's
+    HEAD against the mission's canonical ``meta.json`` target — not the primary
+    checkout's HEAD (which ``locate_project_root`` re-anchored ``repo_root`` onto).
+    ``resolve_checkout_identity`` yields the invoking checkout root — the lane
+    worktree itself for a linked worktree, the primary for an owner invocation — so
+    ``get_current_branch`` reads the honest branch. The comparison target is the
+    canonical ``meta.json`` value read off the PRIMARY planning surface
+    (``plan_read_dir``). When ``meta.json`` is unreadable (a coord husk) both
+    operands collapse to the invoking HEAD, so the guard degrades to a silent match
+    rather than a spurious disagreement.
+
+    This changes only the *match* operands; the deliberate primary-anchored target
+    resolution feeding every display/planning field is left untouched.
+    """
+    identity = resolve_checkout_identity(invocation_cwd, Intent.WRITE)
+    invoking_branch = get_current_branch(identity.invoking_root) or fallback_branch
+    try:
+        match_target = load_mission_target_branch(plan_read_dir)
+    except PlanningBranchResolutionFailed:
+        match_target = invoking_branch
+    return invoking_branch, match_target
+
+
 def _enforce_spec_gate(
     spec_file: Path,
     feature_dir: Path,
@@ -308,6 +368,7 @@ def _enforce_spec_gate(
     *,
     target_branch: str,
     current_branch: str,
+    match_target_branch: str | None = None,
     json_output: bool,
 ) -> bool:
     """Issue #846 entry gate: spec must exist + be committed + substantive.
@@ -323,6 +384,7 @@ def _enforce_spec_gate(
         repo_root,
         target_branch=target_branch,
         current_branch=current_branch,
+        match_target_branch=match_target_branch,
     )
     if outcome is None:
         return False
@@ -343,6 +405,7 @@ def _evaluate_spec_gate(
     *,
     target_branch: str,
     current_branch: str,
+    match_target_branch: str | None = None,
 ) -> tuple[SetupPlanLocalOutcome | None, str | None]:
     """Build, but do not report, the authoritative local spec-gate result."""
     if not spec_file.exists():
@@ -401,6 +464,7 @@ def _evaluate_spec_gate(
         payload,
         target_branch=target_branch,
         current_branch=current_branch,
+        match_target_branch=match_target_branch,
     )
     return (
         SetupPlanLocalOutcome(rendered_payload, 0, "blocked"),
@@ -793,6 +857,7 @@ def _build_setup_plan_result(
     generators_detected: list[GeneratorConfig],
     target_branch: str,
     current_branch: str,
+    match_target_branch: str | None = None,
     plan_scaffold_only: bool = False,
 ) -> SetupPlanLocalOutcome:
     """Build the authoritative setup-plan result without rendering it.
@@ -829,7 +894,12 @@ def _build_setup_plan_result(
         result["gap_analysis"] = gap_analysis_path
     if generators_detected:
         result["generators_detected"] = generators_detected
-    result = _inject_branch_contract(result, target_branch=target_branch, current_branch=current_branch)
+    result = _inject_branch_contract(
+        result,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+    )
     render_kind: Literal["success", "scaffold", "blocked", "error"] = (
         "scaffold"
         if plan_scaffold_only
@@ -853,6 +923,7 @@ def _emit_setup_plan_result(
     generators_detected: list[GeneratorConfig],
     target_branch: str,
     current_branch: str,
+    match_target_branch: str | None = None,
     json_output: bool,
     plan_scaffold_only: bool = False,
 ) -> None:
@@ -869,6 +940,7 @@ def _emit_setup_plan_result(
         generators_detected=generators_detected,
         target_branch=target_branch,
         current_branch=current_branch,
+        match_target_branch=match_target_branch,
         plan_scaffold_only=plan_scaffold_only,
     )
     if not json_output:
@@ -923,7 +995,6 @@ def setup_plan(
         feature_dir = _resolve_setup_plan_feature_dir(repo_root, feature, json_output=json_output)
         mission_slug = feature_dir.name
         _, target_branch = _mission._show_branch_context(repo_root, mission_slug, json_output)
-        current_branch = _mission.get_current_branch(repo_root) or target_branch
 
         # gate-read-surface-completion WP02 / FR-001 / #2107 (out-of-map edit —
         # WP01 owns ``mission.py``; rationale: re-point ``setup_plan``'s PLANNING
@@ -953,6 +1024,19 @@ def setup_plan(
         plan_read_dir = _mission._planning_read_dir(repo_root, mission_slug, artifact_type="plan")
         plan_file = plan_read_dir / "plan.md"
 
+        # FR-006 / #3124: compute the branch-match operands from the INVOKING
+        # checkout + the mission's meta.json target — NOT the primary HEAD that
+        # locate_project_root() re-anchored ``repo_root`` onto. ``target_branch``
+        # (above) stays primary-anchored for every display/planning field; only the
+        # match value reflects the invoking checkout. ``plan_read_dir`` is the
+        # PRIMARY planning surface where the canonical meta.json lives.
+        current_branch, match_target_branch = _resolve_branch_match_operands(
+            Path.cwd(),
+            plan_read_dir,
+            fallback_branch=target_branch,
+            get_current_branch=_mission.get_current_branch,
+        )
+
         if _enforce_spec_gate(
             spec_file,
             feature_dir,
@@ -960,6 +1044,7 @@ def setup_plan(
             repo_root,
             target_branch=target_branch,
             current_branch=current_branch,
+            match_target_branch=match_target_branch,
             json_output=json_output,
         ):
             return
@@ -1000,6 +1085,7 @@ def setup_plan(
             generators_detected=generators_detected,
             target_branch=target_branch,
             current_branch=current_branch,
+            match_target_branch=match_target_branch,
             json_output=json_output,
             plan_scaffold_only=plan_scaffold_only,
         )
