@@ -54,6 +54,8 @@ follow-up tracker ticket per FR-303.
 from __future__ import annotations
 
 import ast
+import re
+import tokenize
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -114,10 +116,10 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # charter._catalog_miss::CharterCatalogMissWarning
         SymbolKey("CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8"),
         # charter.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
-        SymbolKey("ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd"),
+        SymbolKey("ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd"),  # charter.activations::ALLOWED_MISSION_TYPES
         SymbolKey("REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f"),  # charter.activations::REGISTERED_TRIGGERS
         # charter.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
-        SymbolKey("CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9"),
+        SymbolKey("CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9"),  # charter.compact::CompactView
         SymbolKey("extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633"),  # charter.compact::extract_section_anchors
         SymbolKey("StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b"),  # charter.synthesizer.write_pipeline::StagedArtifact
         SymbolKey("is_re2_active", "1f449ff66fa7793bd2911da921304f2668c6c449879c96292bf8c6a8a8b2efe9"),  # kernel._safe_re::is_re2_active
@@ -126,25 +128,38 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # wired to production callers until the deferred integration WP (#3518).
         # library-first slice; the AST ratchet + schema/identity/counts/lineage unit
         # suites exercise these meanwhile. Operator-confirmed deferred-API landing.
-        SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4"),  # charter.synthesizer.manifest
-        SymbolKey("ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb"),  # doctrine.drg.org_pack_config
-        SymbolKey("GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322"),  # specify_cli.doctrine.builtin_manifest
-        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a"),  # specify_cli.doctrine.builtin_manifest
-        SymbolKey("build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976"),  # specify_cli.doctrine.builtin_manifest
-        SymbolKey("enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab"),  # specify_cli.doctrine.builtin_manifest
-        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1"),  # specify_cli.doctrine.pack_lineage
-        SymbolKey("UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097"),  # specify_cli.doctrine.pack_lineage
-        SymbolKey("UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92"),  # specify_cli.doctrine.pack_lineage
-        SymbolKey("resolve_accompanying_doctrine_pack", "dbc882bbbfa45f20c1ee4f86ffe0561d6955f067279c82e5e0768807874870bf"),  # specify_cli.doctrine.pack_lineage
-        SymbolKey("resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9"),  # specify_cli.doctrine.pack_lineage
-        SymbolKey("CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377"),  # specify_cli.doctrine.pack_manifest
-        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3"),  # specify_cli.doctrine.pack_manifest
-        SymbolKey("SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db"),  # specify_cli.doctrine.pack_manifest
-        SymbolKey("absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693"),  # specify_cli.doctrine.pack_manifest
-        SymbolKey("compute_pack_manifest_hash", "829680a1fb5a9d2159fcfecba012118a2d8d0ea486b9fc2a94394acd9db71b3c"),  # specify_cli.doctrine.pack_manifest
-        SymbolKey("counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d"),  # specify_cli.doctrine.pack_manifest
-        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2"),  # specify_cli.doctrine.pack_manifest
-        SymbolKey("sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2"),  # specify_cli.doctrine.pack_manifest
+        # charter.synthesizer.manifest::compute_manifest_hash
+        SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4"),
+        SymbolKey("ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb"),  # doctrine.drg.org_pack_config::ensure_pack_identity
+        SymbolKey("GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322"),  # specify_cli.doctrine.builtin_manifest::GENERATED_BY
+        # specify_cli.doctrine.builtin_manifest::MANIFEST_FILENAME
+        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a"),
+        # specify_cli.doctrine.builtin_manifest::build_builtin_manifest
+        SymbolKey("build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976"),
+        # specify_cli.doctrine.builtin_manifest::enumerate_constituents
+        SymbolKey("enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab"),
+        # specify_cli.doctrine.pack_lineage::PackLineageCycleError
+        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1"),
+        # specify_cli.doctrine.pack_lineage::UnresolvedDoctrinePackError
+        SymbolKey("UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097"),
+        # specify_cli.doctrine.pack_lineage::UnresolvedPackParentError
+        SymbolKey("UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92"),
+        # specify_cli.doctrine.pack_lineage::resolve_accompanying_doctrine_pack
+        SymbolKey("resolve_accompanying_doctrine_pack", "dbc882bbbfa45f20c1ee4f86ffe0561d6955f067279c82e5e0768807874870bf"),
+        # specify_cli.doctrine.pack_lineage::resolve_pack_lineage_order
+        SymbolKey("resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9"),
+        SymbolKey("CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377"),  # specify_cli.doctrine.pack_manifest::CharterProfile
+        # specify_cli.doctrine.pack_manifest::HASH_EXCLUDED_FIELDS
+        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3"),
+        SymbolKey("SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db"),  # specify_cli.doctrine.pack_manifest::SCHEMA_VERSION
+        # specify_cli.doctrine.pack_manifest::absorb_synthesis_manifest
+        SymbolKey("absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693"),
+        # specify_cli.doctrine.pack_manifest::compute_pack_manifest_hash
+        SymbolKey("compute_pack_manifest_hash", "829680a1fb5a9d2159fcfecba012118a2d8d0ea486b9fc2a94394acd9db71b3c"),
+        SymbolKey("counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d"),  # specify_cli.doctrine.pack_manifest::counts_by_kind
+        # specify_cli.doctrine.pack_manifest::load_pack_manifest
+        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2"),
+        SymbolKey("sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2"),  # specify_cli.doctrine.pack_manifest::sort_constituents
     }
 )
 
@@ -221,7 +236,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
         # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
         # instead of datetime.now(UTC), per the clock single-door migration)
-        SymbolKey("assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa"),
+        SymbolKey("assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa"),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179"),
         SymbolKey("render_report", "719c4b8b25a0a7b9e613e559e60abacbdef6ad4ab04788e9b956b7d788ad13fb"),  # specify_cli.cli.commands._auth_doctor::render_report
@@ -230,10 +245,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.cli.commands._branch_strategy_gate::GateDecision
         SymbolKey("GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899"),
         SymbolKey("GateOutcome", "a5a38bc5a569b83b9d227c1bd2c9000aa8c1a9d6b139032c562f7da23faeb563"),  # specify_cli.cli.commands._branch_strategy_gate::GateOutcome
-        # specify_cli.cli.commands.implement::_ensure_vcs_in_meta
         # (hash refreshed: doctrine-charter-split-unification-01KZ0SRB/WP08
         # rewrote the guard body from `meta or {}` to an explicit
         # `if meta is None` check to avoid masking a missing-meta failure)
+        # specify_cli.cli.commands.implement::_ensure_vcs_in_meta
         SymbolKey("_ensure_vcs_in_meta", "4f9c0969a2a5519b1366171eb7ad78b578b40eeae7788578ffc6ca23e645472e"),
         # specify_cli.cli.commands.implement::detect_feature_context
         SymbolKey("detect_feature_context", "03ce3f732e5db8d5a02fbfdcae55ae3acdaf00bdbbd3370b400b37e57fb66b81"),
@@ -296,13 +311,13 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("_write_dashboard_file", "ef82e6e8e295ed1b746ebbc8983b3fee53ab6f31b6d4bd143be6bfcc4a82017e"),
         SymbolKey("get_dashboard_html", "99ab224c187cd9b6ac929157228cd64e5c53eca093745248f868dc8da6008cfa"),  # specify_cli.dashboard.templates::get_dashboard_html
         SymbolKey("GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c"),  # specify_cli.doctrine.org_charter::GovernancePolicy
-        # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
         # Hash refreshed for the write-side-seam-matrix-tracer landing fold
         # (Wave B / #3070) ASSET-kind tuple extension (added the ``assets``
         # member); still grandfathered-dead (no external src/ importer --
         # only internal use + a private ``_REQUIRED_KIND_FIELDS`` copy in
         # ``src/charter/context.py``). Body-sensitive key => extending the
         # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
+        # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
         SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
         SymbolKey("apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b"),
@@ -431,8 +446,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("PROBLEMATIC_CHARS", "2c28f74e9e567401e971a4c8fb4d8d88e441d7ade49d950e0bd1208a3d514b41"),  # specify_cli.text_sanitization::PROBLEMATIC_CHARS
         # specify_cli.text_sanitization::sanitize_markdown_text
         SymbolKey("sanitize_markdown_text", "1531f4eece348d60d229144a81fc098028060a79d91d8ccd0fad3f8ec0ca2f34"),
-        # specify_cli.tracker.origin::search_origin_candidates
         # (rehashed: the client is now constructed with project_root=repo_root, #3030 FR-029)
+        # specify_cli.tracker.origin::search_origin_candidates
         SymbolKey("search_origin_candidates", "5901b7aef2a3cf420da33994b0db298b2b96d9bf23b9da263eba3c1003305069"),
         # specify_cli.tracker.origin::start_mission_from_ticket
         SymbolKey("start_mission_from_ticket", "16f1e4cf5ba62e5e10c1d4622b62549922f9b149432897f11696e00e7e8cac8a"),
@@ -757,11 +772,11 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.cli.commands.merge::BaselineMergeCommitError (escalated: live collision)
         SymbolKey("BaselineMergeCommitError", "f63bb04588cfd7df1144a1e646283b39e2bcc28ae152b07a0799b34f0f91c65b", module_path="specify_cli.cli.commands.merge"),
-        # specify_cli.merge.bookkeeping_projection::_assert_status_surface_file_path_is_trusted
         # (coord-write-placement-closure-01KYCF83 WP03 / FR-003 rehash: the
         # filename-trust check now classifies via kind_for_mission_file instead
         # of a hardcoded {filename1, filename2} membership test -- body changed,
         # content-tier hash re-pinned.)
+        # specify_cli.merge.bookkeeping_projection::_assert_status_surface_file_path_is_trusted
         SymbolKey("_assert_status_surface_file_path_is_trusted", "4849bba669d427bc0cdb0a72f77dc821f821b979edd3293e9ea5f1d6e0fe6d62"),
         # specify_cli.merge.bookkeeping_projection::_read_optional_bytes
         SymbolKey("_read_optional_bytes", "ff9a424ce926fdeb80a67f95e6350ef8b4107a3fcf9a3192f57d6fed6db076a8"),
@@ -779,6 +794,7 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         # content-tier and body-sensitive by design -- see _symbol_key.py
         # "Body-sensitivity" note; still a seam-internal helper, zero cross-file
         # src/ caller)
+        # specify_cli.merge.ordering::_write_mission_number_to_branch
         SymbolKey("_write_mission_number_to_branch", "38e9704c5b132c12d81d3be921a257f0e340f58264fba5909703bb088b523fc2"),
         SymbolKey("check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460"),  # specify_cli.merge.push_preflight::check_push_safety
         SymbolKey("_extract_mission_slug", "834a3e235860c64046504604c6f21d21f5a8c2e8443ef33b8c4ad6ad07c2e934"),  # specify_cli.merge.resolve::_extract_mission_slug
@@ -849,11 +865,10 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         SymbolKey("HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935"),  # specify_cli.delivery.receivers::HttpResponse
         SymbolKey("ReceiverGate", "222316c26a75df8f8d97c3423fa0d49fdbd2f6326362a53fd1cb8de155f30298"),  # specify_cli.delivery.receivers::ReceiverGate
         SymbolKey("STUB_ENDPOINT_URL", "bf67c1a0cecca5dd72e30cc6a6a0e2b3cef8c69dd363929c13f96bcd5129079d"),  # specify_cli.delivery.receivers::STUB_ENDPOINT_URL
-        # specify_cli.delivery.receivers::StubReceiver
         # Rehashed for #3030 FR-028: deliver() now takes a ConsentedBatch. The entry is
         # content-addressed on the symbol body, so ANY edit to an allowlisted symbol
         # invalidates its key — a red here is not necessarily a new death.
-        SymbolKey("StubReceiver", "0103ed4178fea0da9ecc959a707d248a0effacc5ea9a506ac8afad5285fa0c83"),
+        SymbolKey("StubReceiver", "0103ed4178fea0da9ecc959a707d248a0effacc5ea9a506ac8afad5285fa0c83"),  # specify_cli.delivery.receivers::StubReceiver
         SymbolKey("map_batch_response", "608a6a0ba7eb0439166cd843f95d8fcbb2a1cd61f13e7b081e6daa596f4730d2"),  # specify_cli.delivery.receivers::map_batch_response
         # specify_cli.delivery.status_report::ADDITIVE_SECTION_KEYS
         SymbolKey("ADDITIVE_SECTION_KEYS", "45f0e694af41633f3bf4de2228ba6e52905e1c41a5d9cdbb8c1e67f5b256472a"),
@@ -1033,10 +1048,11 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.runtime.resolver::resolve_template_by_urn -- compatibility-contract
         # URN lane (C-004/FR-010); consumer wired in #2761
+        # specify_cli.runtime.resolver::resolve_template_by_urn
         SymbolKey("resolve_template_by_urn", "bcffd1b95ca9d308f731df2e86a84131223f4f79cf7ebc2d498afbe6c9d3c8a6"),
         # specify_cli.runtime.resolver::TemplateURNError -- compatibility-contract
         # URN lane (C-004/FR-010); consumer wired in #2761
-        SymbolKey("TemplateURNError", "226a29599f205cd275a02a6ccd97545c8af1bc82ace37003d4ab2017c5b3b813"),
+        SymbolKey("TemplateURNError", "226a29599f205cd275a02a6ccd97545c8af1bc82ace37003d4ab2017c5b3b813"),  # specify_cli.runtime.resolver::TemplateURNError
     }
 )
 
@@ -1071,8 +1087,7 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = frozenset(
     {
-        # charter.charter_yaml_io::OWNED_SECTIONS
-        SymbolKey("OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3"),
+        SymbolKey("OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3"),  # charter.charter_yaml_io::OWNED_SECTIONS
         # charter.charter_yaml_io::UnknownCharterYamlSectionError
         SymbolKey("UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a"),
     }
@@ -1107,6 +1122,7 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # Content-hash re-pin (landing fold #2892): parse_results now consumes
         # parse_mode's result in its branch condition (was a discarded call),
         # moving the class body hash b6749c1 -> 07f52ef. Still same-module-constructed.
+        # specify_cli.review.scope_source::GateCoverageScopeSource
         SymbolKey("GateCoverageScopeSource", "07f52ef5a1d46d26494964082ad14dbe83e7009c88987837e4096b3de4226be8"),
         # specify_cli.review.scope_source::DeclaredCommandScopeSource -- constructed
         # exclusively via resolve_scope_source() (same-module); consumed
@@ -1116,16 +1132,18 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # parse_mode/parse_results were stabilized to an outcome-invariant
         # strategy label (SOURCE_MISMATCH fail-open fix), moving the class body
         # hash 0ed7a0e -> fac6a9d. Symbol is still same-module-constructed only.
+        # specify_cli.review.scope_source::DeclaredCommandScopeSource
         SymbolKey("DeclaredCommandScopeSource", "fac6a9dffbf00049014f5397114a40ed36ebc4be66a09a23028dd7422400e6b9"),
         # specify_cli.review.scope_source::FileScopeBreakdown -- the return value
         # of GateCoverageScopeSource.scope_breakdown(); consumed structurally
         # (attribute access) by pre_review_gate._scope_result_from_breakdown,
         # never imported there by concrete type name.
-        SymbolKey("FileScopeBreakdown", "870689c5e51f6e752f05b416fa7fc03111f98f07263f8d330cfb2383ef1193ae"),
+        SymbolKey("FileScopeBreakdown", "870689c5e51f6e752f05b416fa7fc03111f98f07263f8d330cfb2383ef1193ae"),  # specify_cli.review.scope_source::FileScopeBreakdown
         # specify_cli.review.scope_source::ScopeBreakdownMixin -- inherited only
         # by GateCoverageScopeSource, same-module; the mixin's file_to_scope
         # default projection (FR-006) is exercised by every narrowing-source
         # test but the mixin class itself is never imported cross-module.
+        # specify_cli.review.scope_source::ScopeBreakdownMixin
         SymbolKey("ScopeBreakdownMixin", "c54d14c1c0c52cbd24231e9cc6bbf90ea9c988b830edce5628bb5d32da27fae4"),
     }
 )
@@ -1187,10 +1205,8 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
         SymbolKey("PostConsolidationViolation", "6e97a633cce0f4ed58dcbc805cbf9ceb4aed0884f4b137e7362cf52f4d6f99cb"),
         # specify_cli.acceptance.post_consolidation::verify_deferred_invariants
         SymbolKey("verify_deferred_invariants", "e1c30bf407aa9a48fe5dfe0870f00f47cb0fb61367f2ad8f292f608ca2661c9d"),
-        # specify_cli.cli.commands.archive::create
-        SymbolKey("create", "758e16e495dc35a5a9338583a8a906a46d7e6b9ffcddc04b9d0b49f7f39227ba"),
-        # specify_cli.cli.commands.archive::list_archives
-        SymbolKey("list_archives", "1d7216238f988bfdd9f3a29fd315d89a48d0092b8b22c9ebdaf5c23c2308a886"),
+        SymbolKey("create", "758e16e495dc35a5a9338583a8a906a46d7e6b9ffcddc04b9d0b49f7f39227ba"),  # specify_cli.cli.commands.archive::create
+        SymbolKey("list_archives", "1d7216238f988bfdd9f3a29fd315d89a48d0092b8b22c9ebdaf5c23c2308a886"),  # specify_cli.cli.commands.archive::list_archives
     }
 )
 
@@ -1258,7 +1274,7 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # replaces, added when WP02/doctrine-delivery-activation wired the
         # since-removed caller). Re-allowlisting on caller removal, not
         # deleting/de-exporting, matches that precedent.
-        SymbolKey("charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830"),
+        SymbolKey("charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830"),  # charter.pack_context::charter_activated_urns
         # charter.pack_context::normalize_activation_identifier
         SymbolKey("normalize_activation_identifier", "8deec4a1dd1a1699b821620bfa64a7ae3f3e64798b76156465ff2bef1e395c0c"),
         # charter.pack_context::partition_activated_unreachable
@@ -1269,6 +1285,7 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # the frozenset, changing its body; still no ``src/`` importer — the sole
         # reference in src/charter/context_renderers/profile_sections.py:341 is a
         # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
+        # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS
         SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5"),
         # doctrine.drg.reachability::action_channel_reachable
         SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10"),
@@ -1396,6 +1413,104 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
 )
+
+
+# ---------------------------------------------------------------------------
+# Provenance-comment normalization guard (FR-002 / Contract A-norm, WP01)
+# ---------------------------------------------------------------------------
+#
+# Content-tier ``SymbolKey`` entries are location-free by design
+# (``module_path is None``), so their originating module lives ONLY in the
+# ``# module::Name`` provenance comment. WP02's safe hash-refresh helper
+# recovers that module *source-only* and fails closed when it is missing -- the
+# recovery is AC2's safety hinge for the 7 duplicate content-tier ``bare_name``s
+# whose sole discriminator is the comment. This guard keeps the hint from
+# silently degrading to "refuse" as new entries are added: every content-tier
+# entry MUST carry a single canonical, full ``# module::Name`` comment.
+#
+# Placement is trailing on the ``SymbolKey`` line, EXCEPT where a trailing
+# comment would breach the 164-char line limit (``E501``); those (long
+# ``module::Name``) entries carry the comment on the immediately-preceding line
+# instead -- a form WP02's parser already handles (Contract A-norm's 3 formats).
+_PROVENANCE_COMMENT_RE = re.compile(r"^#\s*(?P<module>[\w.]+)::(?P<name>\w+)\s*$")
+
+_THIS_SOURCE = Path(__file__).resolve()
+
+
+def _content_tier_entry_lines() -> list[tuple[int, str]]:
+    """Return ``(lineno, bare_name)`` for every content-tier allowlist entry.
+
+    "Content-tier" == a ``SymbolKey(...)`` call with no ``module_path=`` keyword,
+    located inside a module-level ``_CATEGORY_*`` frozenset assignment (which is
+    what aggregates into :data:`_SYMBOL_ALLOWLIST`). Synthetic ``SymbolKey``
+    calls inside test bodies are excluded by that scoping.
+    """
+    tree = ast.parse(_THIS_SOURCE.read_text())
+    entries: list[tuple[int, str]] = []
+    for stmt in tree.body:
+        targets: list[ast.expr] = []
+        if isinstance(stmt, ast.Assign):
+            targets = list(stmt.targets)
+        elif isinstance(stmt, ast.AnnAssign):
+            targets = [stmt.target]
+        else:
+            continue
+        if not any(isinstance(t, ast.Name) and t.id.startswith("_CATEGORY_") for t in targets):
+            continue
+        for node in ast.walk(stmt):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Name)
+                and node.func.id == "SymbolKey"
+                and not any(kw.arg == "module_path" for kw in node.keywords)
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and isinstance(node.args[0].value, str)
+            ):
+                entries.append((node.lineno, node.args[0].value))
+    return entries
+
+
+def _comments_by_line() -> dict[int, str]:
+    """Map source line number -> the ``# ...`` comment starting on that line."""
+    comments: dict[int, str] = {}
+    with tokenize.open(_THIS_SOURCE) as handle:
+        for tok in tokenize.generate_tokens(handle.readline):
+            if tok.type == tokenize.COMMENT:
+                comments[tok.start[0]] = tok.string
+    return comments
+
+
+def test_every_content_tier_entry_has_parseable_provenance_comment() -> None:
+    """Every content-tier allowlist entry carries a canonical ``# module::Name``.
+
+    Non-vacuous by construction: it iterates the real allowlist entries and
+    fails if the set is empty (a parse regression) or if any single entry lacks
+    a parseable ``# module::Name`` comment -- trailing on the entry line or on
+    the line immediately above it -- whose ``Name`` matches the entry's
+    ``bare_name`` (FR-002 / Contract A-norm defense-in-depth for the duplicate
+    content-tier ``bare_name``s).
+    """
+    entries = _content_tier_entry_lines()
+    assert entries, "no content-tier allowlist entries discovered -- parser regression"
+
+    comments = _comments_by_line()
+    violations: list[str] = []
+    for lineno, bare_name in entries:
+        candidates = (comments.get(lineno), comments.get(lineno - 1))
+        matched = False
+        for comment in candidates:
+            match = _PROVENANCE_COMMENT_RE.match(comment) if comment else None
+            if match is not None and match.group("name") == bare_name:
+                matched = True
+                break
+        if not matched:
+            violations.append(f"L{lineno}: '{bare_name}' -> no canonical `# module::{bare_name}` (trailing/preceding); saw {candidates!r}")
+
+    assert not violations, (
+        "content-tier allowlist entries lacking a canonical `# module::Name` "
+        "provenance comment (WP01/FR-002):\n  " + "\n  ".join(violations)
+    )
 
 
 def _is_asset_blob(path: Path) -> bool:

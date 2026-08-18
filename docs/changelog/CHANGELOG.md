@@ -334,6 +334,29 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   sibling branch-currency and implementation-commit gates keep the coordination
   ref, which is correct for them.
 
+- **Three architectural-gate tolls that only ever fired in CI, on legitimate
+  additive change, are gone (mission `frozen-baseline-toll-reduction`; closes
+  `#2853`).** For a developer working in this repo: editing the body of an
+  allowlisted still-dead symbol no longer forces a hand-edited "rehashed WPxx"
+  baseline — a new fail-closed helper
+  (`tests/architectural/_refresh_dead_symbol_hashes.py`) refreshes the
+  `body_hash` for you and is structurally incapable of admitting a *new* dead
+  symbol (it iterates the existing allowlist only and refuses on an
+  unrecoverable or ambiguous `module_path`, proven by a non-fakeable
+  regression). Adding a migration no longer needs a baseline bump: the
+  `category_1_auto_discovered_migrations` count now derives from the frozenset
+  authority in both loop arms, so the 105→107 file drift that a hard-pinned
+  count would red on passes clean. And a legitimate new skip no longer
+  hard-fails CI — `skip_marker_blocks` growth is now reviewable-with-teeth
+  (asserted via `record_property`, with the mandatory co-located skip-reason
+  line as the review signal) instead of a wall. Also drained the inert
+  `test_no_dead_symbols` baseline key (closing a silent re-entry hole) and
+  fast-marked the two sub-second gates for local pre-push runs. Every
+  load-bearing gate is untouched — P0-security boundaries, still-shrinking
+  burn-downs, zero-pins, and change-detectors all stay frozen behind the C-001
+  do-not-touch fence; 108 gates green, ruff + mypy `--strict` clean. Test
+  infrastructure only, no runtime or user-facing change (no version bump).
+
 - **A spec that writes some requirements as plain prose sentences no longer
   passes the coverage gate as if they were covered — `spec-kitty next` and
   `finalize-tasks` now block and name the uncounted ids (mission
