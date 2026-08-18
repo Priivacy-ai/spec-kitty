@@ -304,6 +304,21 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **A spec that writes some requirements as plain prose sentences no longer
+  passes the coverage gate as if they were covered — `spec-kitty next` and
+  `finalize-tasks` now block and name the uncounted ids (mission
+  `bare-prose-requirements-uncounted`; closes `#3396`).** When a spec declared
+  some requirements in a recognised shape (a table row, heading, bullet, or
+  bold-led paragraph) and wrote others as bare sentences, the plain ones were
+  silently mapped to nothing while both commands reported full coverage. Now
+  `spec-kitty next` refuses to advance past the tasks boundary and
+  `finalize-tasks` exits non-zero, each listing the bare-prose requirement ids;
+  `map-requirements` surfaces them in its JSON (`bare_prose_requirement_ids`)
+  without gating, since it registers mappings rather than advancing. The
+  detector was measured against all 368 real `kitty-specs/*/spec.md` files — 1
+  flagged (0.27%), zero true positives — and that figure is frozen into a
+  shrink-only CI ratchet.
+
 - **`retrospect synthesize` now tells you the one thing that is actually
   wrong with a retrospective instead of burying it under ~100 errors about a
   schema the file was never meant to satisfy (`#3537`; closes `#3533`).** When
