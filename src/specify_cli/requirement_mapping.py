@@ -57,12 +57,17 @@ _HEADING_ID_PATTERN = re.compile(r"^#{1,6}\s*((?:FR|NFR|C)-\d+)\b", re.IGNORECAS
 # sentence" signal, so bold is OPTIONAL once that marker is present
 # (``- FR-001: ...`` and ``- **FR-001**: ...`` both declare FR-001).
 _BULLET_LEAD_ID_PATTERN = re.compile(r"^\s*(?:[-*]|\d+\.)\s*\*{0,2}((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
-# With NO bullet marker, bold is REQUIRED -- a bare, un-bulleted, un-bolded
-# line opening with an id (``FR-001 must hold...``) is indistinguishable from
-# a citation sentence and must NOT count as declared (that's the #3394 bug).
-# The bold span need not close right after the id -- ``**FR-001**: text`` and
-# ``**FR-001 — Title.** body text`` (bold id+title, common across
-# kitty-specs/) both declare FR-001.
+# A bold id leading a bare paragraph (``**FR-001**: text``,
+# ``**FR-001 — Title.** body text``, common across kitty-specs/) also declares
+# FR-001. NOTE (pre-merge SSOT review, 2026-08-18): this pattern is a
+# readability alias -- every line it matches, ``_BULLET_LEAD_ID_PATTERN``
+# already matches (its ``[-*]`` marker slot consumes the first ``*`` and its
+# ``\*{0,2}`` slot the second), so it adds nothing to ``_declared_ids`` /
+# ``find_bare_prose_requirement_ids``. It is kept only to spell the
+# bold-without-bullet case out explicitly; do not assume bold-led paragraphs
+# flow *exclusively* through here. A bare, un-bulleted, un-bolded line opening
+# with an id (``FR-001 must hold...``) matches neither and must NOT count as
+# declared (that is the #3394 bug).
 _BOLD_PARAGRAPH_LEAD_ID_PATTERN = re.compile(r"^\s*\*\*((?:FR|NFR|C)-\d+)\b", re.IGNORECASE)
 _DECLARED_ID_PATTERNS = (
     _TABLE_ROW_ID_PATTERN,
@@ -79,6 +84,19 @@ def _declared_ids(spec_content: str) -> set[str]:
     real specs also declare requirements with no enclosing section heading at
     all (e.g. a bare ``- **FR-001**: ...`` directly under the spec title), so
     scoping extraction to a heading boundary would silently drop those.
+
+    Only the FIRST id on a line is captured (the ``break`` below stops at the
+    first pattern match per line) -- this is load-bearing, not an oversight:
+    it is what excludes a citation of another id inside a table row's own
+    description cell from being counted as a second declaration. The trade-off
+    is that a genuine multi-id declaration line (e.g.
+    ``- **FR-001 / FR-002**: both must hold.``) silently loses every id after
+    the first; a corpus scan (#3394 Op) found 16 such multi-id, non-table
+    declaration lines across kitty-specs/*/spec.md, and every lost id in all 16
+    was also declared via a table row elsewhere in the same spec, so measured
+    loss is zero today. Do not "fix" the ``break`` without re-running that scan
+    -- removing it would let a table row's description-cell citations leak back
+    in as declarations, reintroducing #3394.
     """
     found: set[str] = set()
     for line in spec_content.splitlines():
