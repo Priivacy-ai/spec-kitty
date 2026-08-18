@@ -452,6 +452,17 @@ def _evaluate_research_guards(snapshot: _ArtifactPresenceSnapshotLike) -> list[s
 
 
 def _evaluate_generate_docs_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
+    """Block the "generate" -> next-step transition when no generated docs exist.
+
+    NOTE (#3542-C): this always blocks on a missing docs/**/*.md, regardless
+    of the `documentation` mission's `expected-artifacts.yaml` `generate`
+    entry, which marks that same path pattern `blocking: false`. That
+    `blocking` flag governs a different axis -- *dossier completeness*
+    scoring (ManifestRegistry / Indexer) -- not the *runtime step-transition
+    gate* implemented here. The two are allowed to disagree by design; do
+    not "fix" this guard (or the manifest) to match the other without
+    re-checking both call sites.
+    """
     if snapshot.status_facts["has_generated_docs"]:
         return []
     return ["Required artifact missing: docs/**/*.md (no Markdown files found under docs/)"]

@@ -50,6 +50,17 @@ required_by_step:
 
   generate:
     # Generate phase produces documentation artifacts
+    #
+    # NOTE (#3542-C): `blocking: false` here governs *dossier completeness*
+    # scoring only -- whether a missing docs/**/*.md counts against this
+    # manifest's completeness index (ManifestRegistry / Indexer). It is a
+    # separate axis from the *runtime step-transition gate*, which is
+    # `_evaluate_generate_docs_guard` in
+    # `src/runtime/next/runtime_bridge_cores.py`: that guard unconditionally
+    # blocks the "generate" -> next-step transition when no generated docs
+    # are found, independent of this `blocking` flag. The two are allowed to
+    # disagree -- do not "fix" one to match the other without re-checking
+    # both call sites.
     - artifact_key: "output.docs.generated"
       artifact_class: "output"
       path_pattern: "docs/**/*.md"

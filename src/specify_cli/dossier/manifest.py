@@ -16,7 +16,7 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 import logging
 
 if TYPE_CHECKING:
@@ -60,6 +60,60 @@ def _resolve_existing_org_roots(repo_root: Path) -> list[Path]:
     return resolve_existing_org_roots(repo_root)
 
 
+class ManifestSchemaError(Exception):
+    """Raised when a *found* ``expected-artifacts.yaml`` fails schema
+    validation, as distinct from a manifest that is absent entirely or one
+    that fails at the YAML-syntax level (#3412, still degrades to ``None``
+    upstream of this module).
+
+    Deliberately NOT a :class:`pydantic.ValidationError` subclass:
+    ``ValidationError`` is a Rust-backed pydantic-core type not designed for
+    subclassing, and the model-level tests in ``tests/dossier/test_manifest.py``
+    construct :class:`ExpectedArtifactSpec`/:class:`ExpectedArtifactManifest`
+    directly and assert the raw ``pydantic.ValidationError`` from *that*
+    construction -- unaffected by this type, which only wraps failures at the
+    :meth:`ManifestRegistry.load_manifest` boundary.
+
+    This is the fix for a MAJOR adversarial-review finding: catching
+    ``except pydantic.ValidationError`` around the whole
+    ``Indexer.index_feature(...)`` call (in
+    ``sync/dossier_pipeline.py::sync_feature_dossier``) misattributes ANY
+    ``ValidationError`` raised while indexing -- including a genuine
+    ``ArtifactRef``/``MissionDossier`` model-validator bug, raised well
+    *after* the manifest has already loaded successfully -- to "your
+    ``expected-artifacts.yaml`` is broken". Catching this domain-specific
+    type instead of the raw pydantic type lets a real indexer bug fall
+    through to the generic ``except Exception`` branch (ERROR + stack
+    trace) where it belongs.
+
+    Args:
+        mission_type: The mission type the manifest was resolved for.
+        origin: A human-legible label for the manifest's source -- a file
+            path for the built-in/project tiers (``ConfigResult.origin``);
+            a descriptive org-tier label when no single file path is
+            available (see the org-tier branch of
+            :meth:`ManifestRegistry.load_manifest`).
+
+    The underlying :class:`pydantic.ValidationError` is chained via
+    ``raise ... from exc``, so it is always available as ``__cause__`` --
+    :meth:`__str__` reads it from there rather than storing a redundant
+    third field.
+    """
+
+    def __init__(self, mission_type: str, origin: str) -> None:
+        self.mission_type = mission_type
+        self.origin = origin
+        super().__init__(mission_type, origin)
+
+    def __str__(self) -> str:
+        underlying = self.__cause__
+        detail = str(underlying) if underlying is not None else "unknown validation failure"
+        return (
+            f"expected-artifacts.yaml schema-invalid for mission type "
+            f"{self.mission_type!r} ({self.origin}): {detail}"
+        )
+
+
 class ArtifactClassEnum(StrEnum):
     """Classification of artifacts in the dossier system.
 
@@ -88,6 +142,8 @@ class ExpectedArtifactSpec(BaseModel):
         path_pattern: Glob pattern relative to feature dir (e.g., 'spec.md', 'tasks/*.md')
         blocking: If True, missing artifact blocks mission completeness
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     artifact_key: str = Field(
         ...,
@@ -123,6 +179,8 @@ class ExpectedArtifactManifest(BaseModel):
         required_by_step: Dict mapping step_id to required artifacts for that step
         optional_always: Artifacts optional regardless of step
     """
+
+    model_config = ConfigDict(extra="forbid")
 
     schema_version: str = Field(
         default="1.0",
@@ -229,7 +287,20 @@ class ManifestRegistry:
         :class:`ExpectedArtifactManifest` (WP10 / IC-07). The adapted model —
         not the raw ``ConfigResult`` — is cached, preserving the registry cache
         semantics. Gracefully returns ``None`` if the manifest is not found
-        (degraded mode for custom/unknown missions).
+        (degraded mode for custom/unknown missions), or if it fails to parse
+        as YAML at all — :meth:`MissionTemplateRepository.get_expected_artifacts`
+        catches ``YAMLError``/``OSError``/``UnicodeDecodeError`` upstream and
+        returns ``None`` before this method ever sees it, a known gap tracked
+        in `#3412 <https://github.com/Priivacy-ai/spec-kitty/issues/3412>`_. A
+        *found*, syntactically-valid manifest that fails **schema** validation
+        (e.g. a typo'd/extra key, rejected by ``extra="forbid"``) raises
+        :class:`ManifestSchemaError` instead of being silently swallowed
+        (FR-016): only schema-level malformation is distinguished from
+        absence — YAML-syntax-level malformation is not (yet). This applies
+        on BOTH tiers below — built-in/project *and* org — so an org-authored
+        manifest with a typo'd key fails just as loudly as a built-in one
+        (previously the org-tier branch swallowed every ``Exception``,
+        including schema errors, into ``None``).
 
         FR-008 (WP05): when *repo_root* is given and resolves to 1+ existing
         configured org roots, an org-pack
@@ -248,7 +319,25 @@ class ManifestRegistry:
                 ``None`` (default) for built-in-tree-only resolution.
 
         Returns:
-            ExpectedArtifactManifest if found and valid, None otherwise
+            ExpectedArtifactManifest if found and valid, None if not found —
+            including a manifest that exists but is broken at the YAML-syntax
+            level (see #3412 above)
+
+        Raises:
+            ManifestSchemaError: If the manifest file is found, parses as
+                valid YAML, but fails *schema* validation (e.g. an
+                unrecognized/typo'd key, given
+                ``model_config = ConfigDict(extra="forbid")`` on both models).
+                Does NOT raise for YAML-syntax errors — see above. Carries
+                typed ``mission_type`` and ``origin`` fields naming the
+                resolved manifest's source (e.g.
+                ``"doctrine/software-dev/expected-artifacts.yaml"`` for the
+                built-in/project tiers; a descriptive org-tier label when no
+                single file path is available), and chains the underlying
+                ``pydantic.ValidationError`` via ``__cause__`` — so
+                ``str(exc)`` is always operator-actionable (names both the
+                file and the bad key) for any consumer, not only one that
+                knows to read an exception note (#3542-A/B fix).
         """
         org_roots = _resolve_existing_org_roots(repo_root) if repo_root is not None else []
         cache_key = (mission_type, tuple(str(root) for root in org_roots))
@@ -269,7 +358,34 @@ class ManifestRegistry:
                     f"Loaded org-tier manifest for {mission_type}: {len(manifest.get_step_ids())} steps"
                 )
                 return manifest
+            except ValidationError as exc:
+                # paula rank-2: a schema-invalid ORG manifest must fail as
+                # loudly as a schema-invalid built-in one (see the built-in
+                # branch below) -- an operator authored this file and
+                # expected it to take effect, so silently falling back to
+                # None (or worse, to the built-in file, which whole-file
+                # precedence forbids) hides a genuine misconfiguration.
+                # `resolve_org_expected_artifacts` (charter.org_expected_artifacts)
+                # returns only the parsed mapping, not which org_root/file
+                # matched (last-EXISTING-match-wins means it isn't
+                # necessarily the last root in the list either -- only the
+                # last root with a *matching file*), so no single precise
+                # path is available here. `origin` is therefore a
+                # descriptive label naming the org tier + mission_type +
+                # the full set of roots that were checked, rather than a
+                # fabricated/guessed file path.
+                origin = (
+                    f"org-tier expected-artifacts.yaml for mission type {mission_type!r} "
+                    f"(no single source file path available; checked org roots: "
+                    f"{', '.join(str(root) for root in org_roots)})"
+                )
+                raise ManifestSchemaError(mission_type, origin) from exc
             except Exception as e:
+                # Genuinely non-schema failures (e.g. an org file that reads
+                # as something model_validate can't even attempt against,
+                # or an unexpected error inside resolve_org_expected_artifacts
+                # itself) keep the pre-existing tolerant swallow-to-None --
+                # only *schema* errors are widened to fail loud above.
                 logger.error(f"Failed to load org-tier manifest for {mission_type}: {e}")
                 ManifestRegistry._cache[cache_key] = None
                 return None
@@ -281,15 +397,28 @@ class ManifestRegistry:
             ManifestRegistry._cache[cache_key] = None
             return None
 
+        # Rebase resolution (#3413 x #3520): the propagation is this branch's
+        # (FR-016 -- a malformed manifest must fail loudly, so the swallowing
+        # try/except that cached None is deliberately gone), and `cache_key` is
+        # main's org-aware `(mission_type, org_roots)` tuple rather than the bare
+        # `mission_type` this commit was written against.
         try:
             manifest = ExpectedArtifactManifest.model_validate(config.parsed)
-            ManifestRegistry._cache[cache_key] = manifest
-            logger.info(f"Loaded manifest for {mission_type}: {len(manifest.get_step_ids())} steps")
-            return manifest
-        except Exception as e:
-            logger.error(f"Failed to load manifest for {mission_type}: {e}")
-            ManifestRegistry._cache[cache_key] = None
-            return None
+        except ValidationError as exc:
+            # #3542-A/adversarial-review MAJOR fix: raise the domain
+            # `ManifestSchemaError` (typed `mission_type`/`origin` fields,
+            # chaining the raw ValidationError via `__cause__`) instead of
+            # letting the raw `pydantic.ValidationError` cross this module's
+            # boundary. A bare `except pydantic.ValidationError` at any
+            # consumer (e.g. the old `sync_feature_dossier`) is a proxy for
+            # "manifest schema failure" that misfires on ANY ValidationError
+            # raised later in the same call stack (e.g. a genuine
+            # `ArtifactRef`/`MissionDossier` validator bug) -- catching this
+            # specific type instead fixes that misattribution at the source.
+            raise ManifestSchemaError(mission_type, config.origin) from exc
+        ManifestRegistry._cache[cache_key] = manifest
+        logger.info(f"Loaded manifest for {mission_type}: {len(manifest.get_step_ids())} steps")
+        return manifest
 
     @staticmethod
     def get_required_artifacts(
