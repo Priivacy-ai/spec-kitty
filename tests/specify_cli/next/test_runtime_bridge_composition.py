@@ -501,6 +501,59 @@ def test_tasks_guard_requires_dependencies_frontmatter(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
+# #3396 (WP05) — composed-dispatch teeth tests: the bare-prose requirement
+# signal reaches the composed ``tasks`` guard at both the packages and
+# terminal/finalize boundaries, through this module's own
+# ``_check_composed_action_guard`` integration entry point (not only the
+# pure ``evaluate_guards`` core — see tests/runtime/test_bridge_cores.py).
+# ---------------------------------------------------------------------------
+
+_BARE_PROSE_REPRO_SPEC = (
+    "# Spec\n\n"
+    "## Functional Requirements\n\n"
+    "FR-001 the loader must reject bad input. FR-002 the error must name "
+    "the offending path.\n\n"
+    "| ID | Requirement | Acceptance Criteria | Status |\n"
+    "| --- | --- | --- | --- |\n"
+    "| NFR-001 | Perf | Some criteria. | proposed |\n"
+)
+
+
+def test_composed_tasks_packages_guard_blocks_bare_prose_requirements_zero_wp_files(tmp_path: Path) -> None:
+    """Zero WP files (the guard would otherwise only report the generic
+    'materialize WP packages first' message) -- the bare-prose failure must
+    still surface, naming FR-001/FR-002."""
+    fd = tmp_path / "kitty-specs" / "feat"
+    fd.mkdir(parents=True)
+    (fd / "spec.md").write_text(_BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+    (fd / "tasks.md").write_text("# tasks", encoding="utf-8")
+    (fd / "tasks").mkdir()
+
+    failures = _check_composed_action_guard("tasks", fd, legacy_step_id="tasks_packages")
+    assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+    assert any("WP*.md" in f for f in failures), failures
+
+
+def test_composed_tasks_finalize_guard_blocks_bare_prose_requirements_with_unrelated_wp_files(
+    tmp_path: Path,
+) -> None:
+    """>=1 WP file exists, referencing only the correctly-declared NFR-001 --
+    the pre-existing requirement-mapping check is clean here by construction
+    (no FR is declared in a recognized shape), so a message naming
+    FR-001/FR-002 proves the new signal, not the pre-existing check."""
+    fd = tmp_path / "kitty-specs" / "feat"
+    fd.mkdir(parents=True)
+    (fd / "spec.md").write_text(_BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+    (fd / "tasks.md").write_text("# tasks", encoding="utf-8")
+    tasks = fd / "tasks"
+    tasks.mkdir()
+    _write_wp_file(tasks, "WP01", requirement_refs=["NFR-001"])
+
+    failures = _check_composed_action_guard("tasks", fd, legacy_step_id="tasks_finalize")
+    assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+
+
+# ---------------------------------------------------------------------------
 # Test #9 — Specify guard requires spec.md
 # ---------------------------------------------------------------------------
 

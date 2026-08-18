@@ -1145,6 +1145,78 @@ class TestAtomicTaskSteps:
         assert "Requirement mapping incomplete" in failures[0]
         assert "unmapped FRs: FR-002" in failures[0]
 
+    # -----------------------------------------------------------------
+    # #3396 Story 3 — the bare-prose signal actually reaches spec-kitty
+    # next's advance-vs-stay decision, in BOTH Story 3 configurations
+    # (zero WP files; >=1 WP file, none referencing the bare-prose ids),
+    # driven through the CLI-native and composed integration entry points
+    # (not only the pure evaluate_guards core in isolation — see
+    # tests/runtime/test_bridge_cores.py for the pure-core teeth tests).
+    # -----------------------------------------------------------------
+
+    _BARE_PROSE_REPRO_SPEC = (
+        "# Spec\n\n"
+        "## Functional Requirements\n\n"
+        "FR-001 the loader must reject bad input. FR-002 the error must name "
+        "the offending path.\n\n"
+        "| ID | Requirement | Acceptance Criteria | Status |\n"
+        "| --- | --- | --- | --- |\n"
+        "| NFR-001 | Perf | Some criteria. | proposed |\n"
+    )
+
+    @pytest.mark.git_repo
+    def test_tasks_packages_guard_blocks_bare_prose_requirements_zero_wp_files(self, tmp_path: Path) -> None:
+        """Story 3 config (a): zero WP files materialized yet. Before this
+        WP's wiring, `_check_cli_guards("tasks_packages", ...)` returned only
+        the generic 'materialize WP packages first' message regardless of
+        spec.md content -- this is the exact `_zero_declared_requirement_
+        block` (3823f2b00) dead-path shape this mission exists to avoid
+        repeating. The failure detail must be traceable to FR-001/FR-002
+        specifically, not only the generic message that would fire
+        regardless."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(self._BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+
+        from runtime.next.runtime_bridge import _check_cli_guards
+
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+        assert any("WP*.md" in f for f in failures), failures
+
+    @pytest.mark.git_repo
+    def test_composed_tasks_finalize_guard_blocks_bare_prose_requirements_with_unrelated_wp_files(
+        self, tmp_path: Path
+    ) -> None:
+        """Story 3 config (b): >=1 WP file exists, referencing only the
+        correctly-declared NFR-001 -- NOT the bare-prose FR-001/FR-002 (those
+        ids were never offered by map-requirements, since they are
+        undeclared). The pre-existing missing/unknown/unmapped
+        requirement-mapping check is clean here by construction
+        (`functional_requirement_ids` is empty since no FR is declared in a
+        recognized shape), proving this is not merely that pre-existing check
+        incidentally catching the same case (spec.md Story 3 AC2)."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(self._BARE_PROSE_REPRO_SPEC, encoding="utf-8")
+        (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\ndependencies: []\n"
+            "requirement_refs: [NFR-001]\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_composed_action_guard, _check_requirement_mapping_ready
+
+        # Sanity: the pre-existing requirement-mapping check is clean here --
+        # the assertion below is not incidentally passing because of it.
+        assert _check_requirement_mapping_ready(feature_dir) == []
+
+        failures = _check_composed_action_guard("tasks", feature_dir, legacy_step_id="tasks_finalize")
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+
     @pytest.mark.git_repo
     def test_tasks_packages_guard_passes_when_functional_requirements_are_mapped(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
@@ -1358,6 +1430,249 @@ class TestAtomicTaskSteps:
         assert len(failures) == 1
         assert "Requirement mapping preflight failed" in failures[0]
         assert "simulated preflight crash" in failures[0]
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_advisory_computation_crash_does_not_reach_failures(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """#3394 focused-review F3 (severity 2) fix: a crash in the advisory
+        computation (``find_undeclared_requirement_citations``) must NOT
+        propagate into ``_check_requirement_mapping_ready``'s broad
+        ``except Exception`` -- unlike ``test_requirement_mapping_preflight_
+        wraps_unexpected_errors`` above (which pins that a REAL extraction
+        crash, e.g. in ``parse_requirement_ids_from_spec_md``, correctly
+        fails closed), the advisory is purely diagnostic and must fail OPEN:
+        swallowed and logged, never surfaced as a gate failure, even when its
+        own computation raises. Before the F3 fix this test is RED (the
+        exception reaches the outer handler and becomes a generic
+        "Requirement mapping preflight failed" failure)."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\nrequirement_refs: [FR-001]\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        def _boom(*_args: object, **_kwargs: object) -> None:
+            raise RuntimeError("simulated advisory crash")
+
+        from specify_cli import requirement_mapping as rm
+
+        monkeypatch.setattr(rm, "find_undeclared_requirement_citations", _boom)
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        caplog.set_level("DEBUG")
+        failures = _check_requirement_mapping_ready(feature_dir)
+
+        # The real signal: no gate failure at all, and specifically not the
+        # generic fail-closed message the advisory crash would otherwise
+        # produce if it reached the outer except.
+        assert failures == []
+        assert not any("Requirement mapping preflight failed" in f for f in failures)
+        assert not any("simulated advisory crash" in f for f in failures)
+
+        # Swallowed-and-logged, not silently dropped: the crash is still
+        # observable at DEBUG level.
+        crash_records = [r for r in caplog.records if "advisory computation failed" in r.message]
+        assert len(crash_records) == 1
+
+    # -----------------------------------------------------------------
+    # #3394 negative-space regression pins, plus the F1 advisory-logging
+    # coverage, exercised end-to-end through the real spec.md/tasks parse
+    # path (not just RequirementMappingFacts construction — see
+    # tests/runtime/test_bridge_cores.py for the pure-core equivalents).
+    # -----------------------------------------------------------------
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_zero_declared_logs_advisory_while_still_blocking_on_missing_refs(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """spec.md declares NOTHING recognizable (bare, unbulleted, unbolded
+        FR-001/FR-002 sentences) and WP01 has no requirement_refs at all --
+        the pre-existing missing-refs check already blocks this
+        unconditionally (WP01's refs are empty -> "missing"), so the F1
+        advisory logs alongside that block rather than replacing or
+        preventing it. Confirms the advisory fires on the same content that
+        also happens to block via a pre-existing, unrelated path."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "FR-001 must hold. FR-002 too.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        caplog.set_level("WARNING")
+        failures = _check_requirement_mapping_ready(feature_dir)
+
+        assert len(failures) == 1
+        assert failures[0].startswith("Requirement mapping incomplete before finalize-tasks: ")
+        assert "missing refs for WPs: WP01" in failures[0]
+
+        advisory_records = [r for r in caplog.records if "mentions requirement-shaped token(s)" in r.message]
+        assert len(advisory_records) == 1
+        assert "spec.md mentions requirement-shaped token(s)" in advisory_records[0].message
+        assert not advisory_records[0].message.startswith("Requirement mapping incomplete")
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_zero_declared_zero_raw_tokens_does_not_block(self, tmp_path: Path) -> None:
+        """The genuinely empty case: a spec with no formal requirements at
+        all (zero declared ids AND zero raw FR-/NFR-/C-NNN tokens anywhere)
+        must NOT block -- there is nothing to be missing."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Overview\n\n"
+            "This mission has no formal functional requirements; it is a small "
+            "documentation-only change.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)  # exists, but deliberately no WP*.md files
+
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
+
+        assert _check_requirement_mapping_ready(feature_dir) == []
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_foreign_citation_shape_now_blocks_per_3396(self, tmp_path: Path) -> None:
+        """RE-PINNED (operator ruling 2026-08-14): #3396 supersedes #3395's
+        advisory-only decision for this exact shape. #3394/#3395's repro --
+        spec.md DECLARES three FRs in a table and merely CITES a foreign,
+        already-shipped FR-021 in bare prose in that same section -- was
+        pinned non-blocking under #3395's fix (`find_undeclared_requirement_
+        citations` never fires here, since the section's declared set is
+        non-empty). #3396's new, per-token, document-scoped detector
+        (`find_bare_prose_requirement_ids`) cannot distinguish "this spec's
+        own uncounted requirement" from "a bare-prose citation of a foreign
+        id" -- both are simply a ref-shaped token, in a Requirements
+        section, absent from the document-wide declared set -- and #3396 is
+        chartered to block on that shape rather than stay silent
+        (DIRECTIVE_041: the product decision this test pins changed, so the
+        old non-blocking assertion was stale, not the wiring). The
+        pre-#3396 requirement-mapping decision alone stays clean (every
+        declared FR is still mapped to WP01); only the full guard path,
+        which now also reads the bare-prose fact, blocks."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "| ID | Requirement | Acceptance Criteria | Status |\n"
+            "| --- | --- | --- | --- |\n"
+            "| FR-001 | First | Covered by WP01. | proposed |\n"
+            "| FR-002 | Second | Covered by WP01. | proposed |\n"
+            "| FR-003 | Third | Covered by WP01. | proposed |\n\n"
+            "This mission is easy to miss without prior art -- see FR-021's "
+            "default-pack materialization for the pattern this follows.\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: WP01\n"
+            "requirement_refs:\n"
+            "  - FR-001\n"
+            "  - FR-002\n"
+            "  - FR-003\n"
+            "---\n"
+            "# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+
+        # The pre-#3396 requirement-mapping decision alone is still clean --
+        # every declared FR is mapped to WP01.
+        assert _check_requirement_mapping_ready(feature_dir) == []
+        # But the full `spec-kitty next` guard path now blocks on the
+        # bare-prose FR-021 citation (#3396 supersedes #3395's advisory-only
+        # treatment of this shape).
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-021" in f for f in failures), failures
+
+    @pytest.mark.git_repo
+    def test_requirement_mapping_mixed_declared_and_bare_prose_now_blocks_per_3396(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """RE-PINNED (operator ruling 2026-08-14): #3396 supersedes #3395's
+        advisory-only decision for this exact shape. The F4 finding's own
+        repro fixture (bare-prose FR-001/FR-002 alongside a properly
+        DECLARED table-row NFR-001, WP01 mapping only NFR-001) IS #3396's own
+        target repro -- the mission's whole reason to exist (Story 1).
+        Under #3395's fix it was pinned non-blocking-but-logged (the F1
+        advisory surfaces the "why" without gating). #3396 deliberately
+        supersedes that advisory-only decision for this shape and blocks
+        instead (DIRECTIVE_041: the product decision this test pins
+        changed, so the old non-blocking assertion was stale, not the
+        wiring). The F1 advisory keeps logging alongside the new blocking
+        failure -- both signals now coexist for this shape."""
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n"
+            "## Functional Requirements\n\n"
+            "FR-001 must hold. FR-002 too.\n\n"
+            "## Non-Functional Requirements\n\n"
+            "| ID | Requirement | Status |\n"
+            "| --- | --- | --- |\n"
+            "| NFR-001 | Latency under 200ms. | proposed |\n",
+            encoding="utf-8",
+        )
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: WP01\n"
+            "requirement_refs:\n"
+            "  - NFR-001\n"
+            "---\n"
+            "# WP01\n",
+            encoding="utf-8",
+        )
+
+        from runtime.next.runtime_bridge import _check_cli_guards, _check_requirement_mapping_ready
+
+        caplog.set_level("WARNING")
+        # The pre-#3396 requirement-mapping decision alone is still clean --
+        # NFR-001 is mapped, and #3394/#3395's own fix still does not count
+        # bare FR-001/FR-002 as declared requirements.
+        assert _check_requirement_mapping_ready(feature_dir) == []
+        # But the full `spec-kitty next` guard path now blocks (#3396
+        # supersedes #3395's advisory-only treatment of this shape):
+        failures = _check_cli_guards("tasks_packages", feature_dir)
+        assert any("FR-001" in f and "FR-002" in f for f in failures), failures
+
+        # The pre-existing F1 advisory still logs alongside the new
+        # blocking failure -- both signals coexist for this shape.
+        advisory_records = [r for r in caplog.records if "mentions requirement-shaped token(s)" in r.message]
+        assert len(advisory_records) >= 1
+        assert "Functional Requirements" in advisory_records[0].message
+        assert "FR-001, FR-002" in advisory_records[0].message
 
     @pytest.mark.git_repo
     def test_tasks_finalize_guard_blocks_without_raw_dependencies(self, tmp_path: Path) -> None:
