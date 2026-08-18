@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import json
+import textwrap
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
+from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent.tasks import app as status_app
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.registry import SkillRegistry
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
+from tests.mocked_env import setup_mocked_env
 
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
@@ -86,6 +93,113 @@ def test_skill_pins_status_tui_rendering_contract(skill_text: str) -> None:
     assert "JSON has no `next_action`" in skill_text
     assert "Done progress" in skill_text
     assert "Weighted readiness" in skill_text
+
+
+def test_skill_documented_status_json_keys_match_live_emitter(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, skill_text: str
+) -> None:
+    """Live-invoke ``spec-kitty agent tasks status --json`` and pin the
+    documented JSON keys to what ``_st_emit_json`` actually constructs.
+
+    The skill (lines ~61-68) tells a TUI consumer to read top-level
+    ``done_count``, ``total_wps``, ``progress_percentage``, ``stalled_wps``,
+    ``stale_verdicts``, ``mission_slug``, and per-WP ``work_packages[].lane``
+    / ``work_packages[].is_stale``. Nothing previously coupled those literal
+    names to the emitter's real output, so a future key rename there would
+    let the skill silently document a JSON shape that no longer exists. This
+    builds a small fixture mission (same shape as
+    ``tests/specify_cli/cli/commands/agent/test_tasks_status_progress.py``),
+    runs the real CLI ``--json`` path, and asserts the documented keys are
+    present in the actual payload -- not merely re-grepped from the prose.
+    """
+    mission_slug = "show-me-json-contract"
+    (tmp_path / ".kittify").mkdir()
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": mission_slug,
+                "mission_number": "042",
+                "mission_type": "software-dev",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    lanes = {"WP01": "approved", "WP02": "in_progress"}
+    for wp_id, lane in lanes.items():
+        (tasks_dir / f"{wp_id}-test.md").write_text(
+            textwrap.dedent(
+                f"""\
+                ---
+                work_package_id: {wp_id}
+                title: Test {wp_id}
+                execution_mode: code_change
+                ---
+                # {wp_id}
+                """
+            ),
+            encoding="utf-8",
+        )
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id=f"test-{wp_id}-{lane}",
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                from_lane=Lane.PLANNED,
+                to_lane=Lane(lane),
+                at="2026-01-01T00:00:00+00:00",
+                actor="test",
+                force=True,
+                execution_mode="worktree",
+            ),
+        )
+
+    workspace = SimpleNamespace(execution_mode="code_change", resolution_kind="lane_workspace")
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    with setup_mocked_env(tmp_path, workspace_resolution=workspace):
+        result = runner.invoke(status_app, ["status", "--mission", mission_slug, "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+
+    documented_top_level_keys = (
+        "done_count",
+        "total_wps",
+        "progress_percentage",
+        "stalled_wps",
+        "stale_verdicts",
+        "mission_slug",
+    )
+    for documented_key in documented_top_level_keys:
+        assert documented_key in skill_text, (
+            f"expected SKILL.md to still document {documented_key!r}"
+        )
+        assert documented_key in payload, (
+            f"SKILL.md documents top-level status-JSON key {documented_key!r}, "
+            "but the live `_st_emit_json` payload does not contain it -- the "
+            "skill's documented contract has drifted from the real emitter"
+        )
+
+    work_packages = payload["work_packages"]
+    assert work_packages, "fixture must produce at least one WP row"
+    assert "work_packages[].lane" in skill_text
+    for wp in work_packages:
+        assert "lane" in wp, (
+            "SKILL.md documents `work_packages[].lane`, but a live WP row "
+            "is missing the `lane` key"
+        )
+
+    in_progress_wp = next(wp for wp in work_packages if wp["id"] == "WP02")
+    assert "work_packages[].is_stale" in skill_text
+    assert "is_stale" in in_progress_wp, (
+        "SKILL.md documents `work_packages[].is_stale`, but the live "
+        "in-progress WP row is missing the `is_stale` key"
+    )
 
 
 def test_installed_skill_carries_portable_sources_and_themes(
