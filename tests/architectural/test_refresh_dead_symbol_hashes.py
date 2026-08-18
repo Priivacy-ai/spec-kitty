@@ -13,6 +13,10 @@ Contract A). Tests ``_refresh_dead_symbol_hashes.py``:
   narrowing (c), all four branches (d), and a differential against a
   bare-name-only stub that passes (a) but fails (b)/(c).
 * T010 AC3 edges — stale vs dangling, collision-tier tier preserved.
+* T012 (``symbolkey-source-module-01M0B0SF`` WP02, FR-005/SC-002) — module
+  recovery and the refresh decision are unchanged by a garbled or absent
+  ``# module::Name`` comment now that ``source_module=`` is the sole
+  authority for a content-tier entry's originating module.
 """
 
 from __future__ import annotations
@@ -76,7 +80,7 @@ def _entry(
     *,
     tier: str = "content",
     kwarg_module_path: str | None = None,
-    provenance_module: str | None = None,
+    source_module: str | None = None,
     body_hash: str = _OLD_HASH,
 ) -> AllowlistEntry:
     """A positional-free :class:`AllowlistEntry` for direct ``decide`` tests."""
@@ -85,7 +89,7 @@ def _entry(
         body_hash=body_hash,
         tier=tier,
         kwarg_module_path=kwarg_module_path,
-        provenance_module=provenance_module,
+        source_module=source_module,
         lineno=1,
         hash_row=1,
         hash_col_start=0,
@@ -185,14 +189,14 @@ def test_compute_still_dead_equals_gate_offenders() -> None:
 
 def test_decide_refresh_on_exactly_one_candidate() -> None:
     still_dead = [DeadLocation("synthetic.m1", "Foo", "newhash")]
-    decision = decide(_entry("Foo", provenance_module="synthetic.m1"), still_dead)
+    decision = decide(_entry("Foo", source_module="synthetic.m1"), still_dead)
     assert decision.outcome == Outcome.REFRESH
     assert decision.new_hash == "newhash"
     assert decision.narrowed == ("synthetic.m1",)
 
 
 def test_decide_dangling_on_zero_candidates() -> None:
-    decision = decide(_entry("Foo", provenance_module="synthetic.m1"), [])
+    decision = decide(_entry("Foo", source_module="synthetic.m1"), [])
     assert decision.outcome == Outcome.DANGLING
     assert decision.new_hash is None
 
@@ -202,7 +206,7 @@ def test_decide_ambiguous_on_two_candidates_without_module_path() -> None:
         DeadLocation("synthetic.m1", "Foo", "h1"),
         DeadLocation("synthetic.m2", "Foo", "h2"),
     ]
-    decision = decide(_entry("Foo", provenance_module=None), still_dead)
+    decision = decide(_entry("Foo", source_module=None), still_dead)
     assert decision.outcome == Outcome.AMBIGUOUS
     assert decision.new_hash is None
     assert len(decision.bare_matches) == 2  # golden-count: cardinality-is-contract
@@ -212,7 +216,7 @@ def test_decide_unrecoverable_refuses_even_with_single_candidate() -> None:
     """A content-tier entry with unrecoverable provenance NEVER falls back to a
     bare-name-only match — the silent-admit vector (NFR-001)."""
     still_dead = [DeadLocation("synthetic.m1", "Foo", "h1")]
-    decision = decide(_entry("Foo", provenance_module=None), still_dead)
+    decision = decide(_entry("Foo", source_module=None), still_dead)
     assert decision.outcome == Outcome.UNRECOVERABLE
     assert decision.new_hash is None
 
@@ -239,12 +243,67 @@ def test_decide_escalates_content_tier_entry_needing_collision_tier() -> None:
         DeadLocation("synthetic.dup_a", "Dup", "hnew", requires_module_path=True),
         DeadLocation("synthetic.dup_b", "Dup", "hnew", requires_module_path=True),
     ]
-    entry = _entry("Dup", provenance_module="synthetic.dup_a")  # content-tier, no module_path=
+    entry = _entry("Dup", source_module="synthetic.dup_a")  # content-tier, no module_path=
     decision = decide(entry, still_dead)
     assert decision.outcome == Outcome.NEEDS_MODULE_PATH
     assert decision.outcome != Outcome.REFRESH
     assert decision.new_hash is None
     assert decision.narrowed == ("synthetic.dup_a",)
+
+
+# ---------------------------------------------------------------------------
+# T012 — comment-independent recovery (FR-005 / SC-002)
+# ---------------------------------------------------------------------------
+
+
+def test_module_path_recovery_is_comment_independent() -> None:
+    """FR-005/SC-002: garbling or deleting a content-tier entry's `# module::Name`
+    provenance comment does NOT change the module the helper recovers, nor the
+    refresh decision it reaches -- `source_module=` is the sole authority now.
+
+    Against the pre-rewire (comment-parsing) helper this WOULD have flipped
+    the decision to ``UNRECOVERABLE`` (the comment was the only source of the
+    module then): the entry's ``# module::Name`` comment in the second source
+    variant below deliberately names the WRONG module, and is absent
+    entirely in the third, yet both parse and decide identically to the
+    canonical (correct-comment) source because none of them are read.
+    """
+    corpus = {"synthetic.mod_a": _module(_one_symbol("Foo", "99"))}
+    decls = {"synthetic.mod_a": frozenset({"Foo"})}
+
+    canonical_source = (
+        "_CATEGORY_TEST = frozenset(\n"
+        "    {\n"
+        "        # synthetic.mod_a::Foo\n"
+        f'        SymbolKey("Foo", "{_OLD_HASH}", source_module="synthetic.mod_a"),\n'
+        "    }\n"
+        ")\n"
+    )
+    garbled_comment_source = (
+        "_CATEGORY_TEST = frozenset(\n"
+        "    {\n"
+        "        # synthetic.nowhere::NotFoo -- deliberately wrong module\n"
+        f'        SymbolKey("Foo", "{_OLD_HASH}", source_module="synthetic.mod_a"),\n'
+        "    }\n"
+        ")\n"
+    )
+    no_comment_source = (
+        "_CATEGORY_TEST = frozenset(\n"
+        "    {\n"
+        f'        SymbolKey("Foo", "{_OLD_HASH}", source_module="synthetic.mod_a"),\n'
+        "    }\n"
+        ")\n"
+    )
+
+    for source in (canonical_source, garbled_comment_source, no_comment_source):
+        entries = parse_allowlist_entries(source)
+        assert len(entries) == 1  # golden-count: cardinality-is-contract
+        assert entries[0].module_path == "synthetic.mod_a", "source_module= must win regardless of the comment"
+
+        decisions = plan_refresh(corpus, decls, {}, source)
+        assert len(decisions) == 1  # golden-count: cardinality-is-contract
+        assert decisions[0].outcome == Outcome.REFRESH, "the refresh decision must be identical across all 3 sources"
+        assert decisions[0].new_hash is not None
 
 
 # ---------------------------------------------------------------------------
@@ -305,9 +364,9 @@ _T009_SOURCE = (
     "_CATEGORY_TEST = frozenset(\n"
     "    {\n"
     "        # synthetic.mod_a::Foo\n"
-    f'        SymbolKey("Foo", "{_OLD_HASH}"),\n'
+    f'        SymbolKey("Foo", "{_OLD_HASH}", source_module="synthetic.mod_a"),\n'
     "        # synthetic.gone_mod::Gone\n"
-    f'        SymbolKey("Gone", "{_OLD_HASH}"),\n'
+    f'        SymbolKey("Gone", "{_OLD_HASH}", source_module="synthetic.gone_mod"),\n'
     f'        SymbolKey("Amb", "{_OLD_HASH}"),\n'
     f'        SymbolKey("Solo", "{_OLD_HASH}"),\n'
     "    }\n"
@@ -445,7 +504,7 @@ def test_ac3_gained_caller_body_unchanged_is_stale_not_refreshed() -> None:
     assert "synthetic.mod_a::Foo" in stale
 
     # The helper does not refresh a symbol that gained a caller (0 still-dead).
-    entry = _entry("Foo", provenance_module="synthetic.mod_a", body_hash=live_key.body_hash)
+    entry = _entry("Foo", source_module="synthetic.mod_a", body_hash=live_key.body_hash)
     decision = decide(entry, compute_still_dead(corpus, decls, per_symbol, set()))
     assert decision.outcome != Outcome.REFRESH
 
@@ -515,7 +574,7 @@ def test_content_tier_entry_needing_collision_tier_escalates_end_to_end() -> Non
         "_CATEGORY_TEST = frozenset(\n"
         "    {\n"
         "        # synthetic.dup_a::Dup\n"
-        f'        SymbolKey("Dup", "{_OLD_HASH}"),\n'
+        f'        SymbolKey("Dup", "{_OLD_HASH}", source_module="synthetic.dup_a"),\n'
         "    }\n"
         ")\n"
     )
@@ -531,7 +590,7 @@ def test_content_tier_entry_needing_collision_tier_escalates_end_to_end() -> Non
 
     rewritten = refresh(corpus, decls, {}, source)
     assert rewritten == source, "_apply must not rewrite an escalation decision"
-    assert 'SymbolKey("Dup", "' + _OLD_HASH + '")' in rewritten
+    assert 'SymbolKey("Dup", "' + _OLD_HASH + '", source_module="synthetic.dup_a")' in rewritten
 
 
 # ---------------------------------------------------------------------------

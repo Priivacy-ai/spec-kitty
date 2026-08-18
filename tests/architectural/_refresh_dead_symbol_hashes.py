@@ -1,6 +1,11 @@
 """Fail-closed hash-refresh helper for the dead-symbol allow-list (WP02).
 
-Mission: ``frozen-baseline-toll-reduction-01M0A42D``, WP02 (FR-001/FR-002/NFR-001).
+Mission: ``frozen-baseline-toll-reduction-01M0A42D``, WP02 (FR-001/FR-002/NFR-001);
+extended by ``symbolkey-source-module-01M0B0SF`` WP02 (FR-002/FR-004/FR-007) to
+read a content-tier entry's originating module from its backfilled
+``source_module=`` keyword directly, rather than recovering it from the
+allow-list's ``# module::Name`` comment (the comment text is kept for human
+audit only -- SC-004 retires the machine comment-parser, not the comment).
 Consumed by ``test_refresh_dead_symbol_hashes.py``; run as a script via
 ``python -m tests.architectural._refresh_dead_symbol_hashes`` to refresh the
 live allow-list in ``test_no_dead_symbols.py`` in place.
@@ -32,18 +37,16 @@ Single-source authorities (no re-implementation / split-brain)
   threads ``resolve_symbol_key`` / ``key_tier`` / ``classify_collisions`` from
   ``_symbol_key.py``). ``classify_collisions`` has **no** deadness notion; the
   deadness signal comes only from ``_compute_offenders``.
-* **Provenance comment** — a content-tier ``SymbolKey`` is location-free
-  (``module_path is None``); its originating module is recovered from the
-  WP01-normalized ``# module::Name`` comment via the shared
-  :data:`test_no_dead_symbols._PROVENANCE_COMMENT_RE` — a **fail-closed hint
-  only, never used for hashing**.
+* **source_module** — a content-tier ``SymbolKey`` is location-free
+  (``module_path is None``); its originating module is read directly from the
+  entry's backfilled ``source_module=`` keyword (#3552) — a **fail-closed
+  hint only, never used for hashing**, and never re-derived by parsing the
+  ``# module::Name`` comment.
 """
 
 from __future__ import annotations
 
 import ast
-import io
-import tokenize
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -52,7 +55,6 @@ from tests.architectural._symbol_key import (
     classify_collisions,
 )
 from tests.architectural.test_no_dead_symbols import (
-    _PROVENANCE_COMMENT_RE,
     _compute_offenders,
     _resolve_final_key,
 )
@@ -86,7 +88,7 @@ class Outcome:
     AMBIGUOUS = "ambiguous"
     """>=2 still-dead ``bare_name`` candidates the entry cannot disambiguate."""
     UNRECOVERABLE = "unrecoverable"
-    """Content-tier ``module_path`` could not be recovered from the comment."""
+    """Content-tier entry carries no ``source_module`` (fail-closed backstop)."""
     NEEDS_MODULE_PATH = "needs_module_path"
     """A CONTENT-tier entry narrows to one candidate whose canonical key must be
     COLLISION-tier (its ``bare_name``/``body_hash`` collides live with another
@@ -108,18 +110,18 @@ _COLLISION_TIER = "collision"
 class AllowlistEntry:
     """One parsed ``SymbolKey(...)`` allow-list entry with rewrite coordinates.
 
-    ``provenance_module`` is the module recovered from the ``# module::Name``
-    comment (content-tier only); ``kwarg_module_path`` is the escalated
+    ``source_module`` is the entry's backfilled ``source_module=`` keyword
+    (content-tier only, #3552); ``kwarg_module_path`` is the escalated
     collision-tier ``module_path=`` keyword. :attr:`module_path` unifies them
     into the single identity-minus-hash discriminator, or ``None`` when a
-    content-tier entry's provenance is unrecoverable (the silent-admit guard).
+    content-tier entry carries no ``source_module`` (the silent-admit guard).
     """
 
     bare_name: str
     body_hash: str
     tier: str
     kwarg_module_path: str | None
-    provenance_module: str | None
+    source_module: str | None
     lineno: int
     hash_row: int
     hash_col_start: int
@@ -131,14 +133,14 @@ class AllowlistEntry:
 
     @property
     def module_path(self) -> str | None:
-        """Recovered originating module, or ``None`` if unrecoverable.
+        """Originating module, or ``None`` if absent.
 
         Collision-tier entries carry it explicitly (``module_path=`` keyword);
-        content-tier entries recover it from the provenance comment.
+        content-tier entries carry it via their own ``source_module=`` keyword.
         """
         if self.tier == _COLLISION_TIER:
             return self.kwarg_module_path
-        return self.provenance_module
+        return self.source_module
 
 
 @dataclass(frozen=True)
@@ -176,31 +178,17 @@ class RefreshDecision:
 
 
 # ---------------------------------------------------------------------------
-# Parsing — AST for structure/positions, tokenize for provenance comments
+# Parsing — AST only; source_module is a first-class kwarg, not a comment
 # ---------------------------------------------------------------------------
-
-
-def _comments_by_row(source: str) -> dict[int, str]:
-    """Map source row -> the ``# ...`` comment starting on that row (tokenize).
-
-    Comments are invisible to ``ast``; tokenize is the only way to recover the
-    ``# module::Name`` provenance hint.
-    """
-    comments: dict[int, str] = {}
-    reader = io.StringIO(source).readline
-    for tok in tokenize.generate_tokens(reader):
-        if tok.type == tokenize.COMMENT:
-            comments[tok.start[0]] = tok.string
-    return comments
 
 
 def _iter_symbolkey_calls(tree: ast.Module) -> list[ast.Call]:
     """Yield every ``SymbolKey(...)`` call inside a module-level ``_CATEGORY_*``
     frozenset assignment.
 
-    Scoped exactly like ``test_no_dead_symbols._content_tier_entry_lines`` so
-    synthetic ``SymbolKey(...)`` calls in *test bodies* are excluded — only the
-    calls that aggregate into ``_SYMBOL_ALLOWLIST`` are rewritten.
+    Scoped exactly like ``test_no_dead_symbols``'s own content-tier call walk
+    so synthetic ``SymbolKey(...)`` calls in *test bodies* are excluded — only
+    the calls that aggregate into ``_SYMBOL_ALLOWLIST`` are rewritten.
     """
     calls: list[ast.Call] = []
     for stmt in tree.body:
@@ -234,20 +222,16 @@ def _module_path_kwarg(call: ast.Call) -> str | None:
     return None
 
 
-def _recover_provenance(bare_name: str, lineno: int, comments: dict[int, str]) -> str | None:
-    """Recover ``module_path`` from a ``# module::Name`` comment (fail-closed).
+def _source_module_kwarg(call: ast.Call) -> str | None:
+    """The ``source_module="..."`` keyword string, or ``None`` when absent.
 
-    Checks the trailing comment on the entry's own line first, then the comment
-    on the immediately-preceding line (Contract A-norm's two placements), and
-    only accepts it when the comment's ``Name`` equals ``bare_name`` — never a
-    bare-name-only or corpus-wide guess.
+    Mirrors :func:`_module_path_kwarg`. Content-tier entries carry their
+    originating module here (backfilled, #3552) instead of it being recovered
+    from the ``# module::Name`` comment.
     """
-    for candidate in (comments.get(lineno), comments.get(lineno - 1)):
-        if candidate is None:
-            continue
-        match = _PROVENANCE_COMMENT_RE.match(candidate)
-        if match is not None and match.group("name") == bare_name:
-            return match.group("module")
+    for kw in call.keywords:
+        if kw.arg == "source_module":
+            return _str_arg(kw.value)
     return None
 
 
@@ -255,12 +239,11 @@ def parse_allowlist_entries(source: str) -> list[AllowlistEntry]:
     """Parse every allow-list ``SymbolKey(...)`` entry from *source*.
 
     AST gives the exact ``body_hash`` string-literal coordinates (for the
-    in-place rewrite) and the collision-tier ``module_path=`` keyword;
-    tokenize supplies the provenance comment. Malformed entries (missing the two
-    positional string args) are skipped.
+    in-place rewrite), the collision-tier ``module_path=`` keyword, and the
+    content-tier ``source_module=`` keyword. Malformed entries (missing the
+    two positional string args) are skipped.
     """
     tree = ast.parse(source)
-    comments = _comments_by_row(source)
     entries: list[AllowlistEntry] = []
     for call in _iter_symbolkey_calls(tree):
         if len(call.args) < 2:
@@ -272,16 +255,15 @@ def parse_allowlist_entries(source: str) -> list[AllowlistEntry]:
             continue
         kwarg_module_path = _module_path_kwarg(call)
         tier = _COLLISION_TIER if kwarg_module_path is not None else _CONTENT_TIER
-        lineno = call.lineno
-        provenance = None if tier == _COLLISION_TIER else _recover_provenance(bare_name, lineno, comments)
+        source_module = None if tier == _COLLISION_TIER else _source_module_kwarg(call)
         entries.append(
             AllowlistEntry(
                 bare_name=bare_name,
                 body_hash=body_hash,
                 tier=tier,
                 kwarg_module_path=kwarg_module_path,
-                provenance_module=provenance,
-                lineno=lineno,
+                source_module=source_module,
+                lineno=call.lineno,
                 hash_row=hash_node.lineno,
                 hash_col_start=hash_node.col_offset,
                 hash_col_end=hash_node.end_col_offset if hash_node.end_col_offset is not None else hash_node.col_offset,
