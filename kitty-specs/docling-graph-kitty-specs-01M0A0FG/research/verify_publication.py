@@ -9,6 +9,7 @@ import hashlib
 import json
 import math
 import re
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timedelta
@@ -126,8 +127,39 @@ COMPATIBILITY_POINTERS = {
     str(COMPATIBILITY_ROOT / "findings/README.md"): MISSION_DIR / "findings.md",
     str(COMPATIBILITY_ROOT / "reports/README.md"): REPORT_DIR / "report.md",
 }
+COMPATIBILITY_POINTER_TEXT = {
+    str(COMPATIBILITY_ROOT / "research/README.md"): """# Acceptance compatibility pointer
+
+Canonical mission research artifacts remain in
+[`kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/`](../../../../kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/).
+This directory exists only for the legacy Deep Research path contract.
+""",
+    str(COMPATIBILITY_ROOT / "data/README.md"): """# Acceptance compatibility pointer
+
+Canonical published data remain in
+[`docs/research/docling-graph-kitty-specs/data/`](../../docling-graph-kitty-specs/data/).
+This directory exists only for the legacy Deep Research path contract.
+""",
+    str(COMPATIBILITY_ROOT / "findings/README.md"): """# Acceptance compatibility pointer
+
+Canonical decision findings remain in
+[`kitty-specs/docling-graph-kitty-specs-01M0A0FG/findings.md`](../../../../kitty-specs/docling-graph-kitty-specs-01M0A0FG/findings.md).
+This directory exists only for the legacy Deep Research path contract.
+""",
+    str(COMPATIBILITY_ROOT / "reports/README.md"): """# Acceptance compatibility pointer
+
+The sole long-form publication remains
+[`docs/research/docling-graph-kitty-specs/report.md`](../../docling-graph-kitty-specs/report.md).
+This directory exists only for the legacy Deep Research path contract.
+""",
+}
 REQUIRED_ABSENT_COMPATIBILITY_FILES = {str(MISSION_DIR / "acceptance-matrix.json")}
-SUBSTANTIVE_REVIEW_PATHS = tuple(sorted((EXACT_ARTIFACTS - {str(MISSION_DIR / "research/adversarial-reviews.md")}) | COMPATIBILITY_FILES))
+REVIEW_LEDGER_PATH = str(MISSION_DIR / "research/adversarial-reviews.md")
+VERIFIER_PATH = str(MISSION_DIR / "research/verify_publication.py")
+HISTORICAL_RESEARCH_REVIEW_PATHS = tuple(sorted(EXACT_ARTIFACTS - {REVIEW_LEDGER_PATH, VERIFIER_PATH}))
+STATIC_COMPATIBILITY_REVIEW_PATHS = tuple(
+    sorted((COMPATIBILITY_FILES - {str(MISSION_DIR / "status.json")}) | {str(REPORT_DIR / "publication-manifest.json"), VERIFIER_PATH})
+)
 
 
 def sha256(path: Path) -> str:
@@ -240,6 +272,155 @@ def verify_reviewed_revision(
         if reviewed_blob != current_blob:
             errors.append(f"publication artifact changed after review: {path}")
             valid = False
+    return valid
+
+
+def ledger_review_revision(text: str, point_cut: str) -> str:
+    lines = [line for line in text.splitlines() if f"| {point_cut} |" in line]
+    cells = [cell.strip() for cell in lines[0].strip().strip("|").split("|")] if len(lines) == 1 else []
+    if len(cells) != 6 or cells[5] != "APPROVE" or re.fullmatch(r"[0-9a-f]{40}", cells[3]) is None:
+        return ""
+    return cells[3]
+
+
+def verify_absent_at_revision(
+    repo: Path,
+    revision: str,
+    paths: set[str],
+    errors: list[str],
+    *,
+    context: str,
+) -> bool:
+    valid = True
+    for path in sorted(paths):
+        present = subprocess.run(
+            ["git", "cat-file", "-e", f"{revision}:{path}"],
+            cwd=repo,
+            check=False,
+            capture_output=True,
+        )
+        if present.returncode == 0:
+            errors.append(f"{context}: required-absent path was present: {path}")
+            valid = False
+    return valid
+
+
+def verify_event_log_at_revision(
+    repo: Path,
+    revision: str,
+    errors: list[str],
+    *,
+    context: str,
+    expected_lanes: set[str],
+) -> bool:
+    event_path = str(MISSION_DIR / "status.events.jsonl")
+    try:
+        text = git(repo, "show", f"{revision}:{event_path}")
+    except subprocess.CalledProcessError:
+        errors.append(f"{context}: canonical status event log is unavailable")
+        return False
+    lane = "planned"
+    transition_count = 0
+    valid = True
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            errors.append(f"{context}: invalid status event JSON at line {line_number}")
+            valid = False
+            continue
+        if event.get("wp_id") != "WP01" or "from_lane" not in event or "to_lane" not in event:
+            continue
+        transition_count += 1
+        if event.get("mission_slug") != MISSION:
+            errors.append(f"{context}: WP01 transition mission identity mismatch")
+            valid = False
+        if event.get("force") is not False:
+            errors.append(f"{context}: WP01 transition did not record force=false")
+            valid = False
+        if event.get("from_lane") != lane:
+            errors.append(f"{context}: WP01 transition chain is not replayable")
+            valid = False
+        lane = str(event.get("to_lane"))
+    if transition_count < 4 or lane not in expected_lanes:
+        errors.append(f"{context}: WP01 transition log ended in unexpected lane {lane}")
+        valid = False
+    return valid
+
+
+def verify_compatibility_at_revision(
+    repo: Path,
+    revision: str,
+    errors: list[str],
+    *,
+    context: str,
+    expected_lanes: set[str],
+) -> bool:
+    valid = True
+    try:
+        revision_paths = set(
+            git(
+                repo,
+                "ls-tree",
+                "-r",
+                "--name-only",
+                revision,
+                "--",
+                str(COMPATIBILITY_ROOT),
+                str(MISSION_DIR / "tasks.md"),
+                str(MISSION_DIR / "tasks"),
+                str(MISSION_DIR / "status.json"),
+            ).splitlines()
+        )
+    except subprocess.CalledProcessError:
+        errors.append(f"{context}: compatibility tree is unavailable")
+        return False
+    if revision_paths != COMPATIBILITY_FILES:
+        errors.append(f"{context}: compatibility tree does not match the exact nine-file contract")
+        valid = False
+    for raw_path, expected_text in COMPATIBILITY_POINTER_TEXT.items():
+        try:
+            pointer_text = git(repo, "show", f"{revision}:{raw_path}") + "\n"
+        except subprocess.CalledProcessError:
+            errors.append(f"{context}: compatibility pointer is unavailable: {raw_path}")
+            valid = False
+            continue
+        if pointer_text != expected_text:
+            errors.append(f"{context}: compatibility pointer template mismatch: {raw_path}")
+            valid = False
+        target = COMPATIBILITY_POINTERS[raw_path]
+        target_present = subprocess.run(
+            ["git", "cat-file", "-e", f"{revision}:{target}"],
+            cwd=repo,
+            check=False,
+            capture_output=True,
+        )
+        if target_present.returncode:
+            errors.append(f"{context}: canonical pointer target is unavailable: {target}")
+            valid = False
+    try:
+        status = json.loads(git(repo, "show", f"{revision}:{MISSION_DIR / 'status.json'}"))
+    except (json.JSONDecodeError, subprocess.CalledProcessError):
+        errors.append(f"{context}: canonical status projection is unavailable or invalid")
+        valid = False
+    else:
+        wp_status = status.get("work_packages", {}).get("WP01", {})
+        if status.get("mission_slug") != MISSION or status.get("mission_type") != "research":
+            errors.append(f"{context}: status identity/type mismatch")
+            valid = False
+        if wp_status.get("lane") not in expected_lanes:
+            errors.append(f"{context}: status ended in unexpected lane {wp_status.get('lane')}")
+            valid = False
+        if wp_status.get("force_count") != 0:
+            errors.append(f"{context}: status records a forced transition")
+            valid = False
+        if wp_status.get("subtasks") != {f"T{value:03d}": "done" for value in range(1, 5)}:
+            errors.append(f"{context}: status subtask projection mismatch")
+            valid = False
+    if not verify_event_log_at_revision(repo, revision, errors, context=context, expected_lanes=expected_lanes):
+        valid = False
+    if not verify_absent_at_revision(repo, revision, REQUIRED_ABSENT_COMPATIBILITY_FILES, errors, context=context):
+        valid = False
     return valid
 
 
@@ -573,7 +754,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
             continue
         pointer_text = pointer_path.read_text(encoding="utf-8")
         links = re.findall(r"\]\(([^)]+)\)", pointer_text)
-        if not pointer_text.startswith("# Acceptance compatibility pointer\n") or "legacy Deep Research path contract" not in pointer_text or len(links) != 1:
+        if pointer_text != COMPATIBILITY_POINTER_TEXT[raw_path] or len(links) != 1:
             errors.append(f"compatibility pointer content contract failed: {raw_path}")
             continue
         resolved_target = (pointer_path.parent / links[0]).resolve()
@@ -609,25 +790,35 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         if (repo / raw_path).exists():
             errors.append(f"planning-artifact-only research mission must not materialize {raw_path}")
 
-    status_result = subprocess.run(
-        [sys.executable, "-m", "specify_cli", "agent", "status", "validate", "--mission", MISSION, "--json"],
-        cwd=repo,
-        check=False,
-        capture_output=True,
-        text=True,
+    checkout_cli = repo / ".venv/bin/spec-kitty"
+    cli = str(checkout_cli) if checkout_cli.is_file() else shutil.which("spec-kitty")
+    status_result = (
+        subprocess.run(
+            [cli, "agent", "status", "validate", "--mission", MISSION, "--json"],
+            cwd=repo,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if cli
+        else None
     )
     try:
-        status_validation = json.loads(status_result.stdout)
+        status_validation = json.loads(status_result.stdout) if status_result else {}
     except json.JSONDecodeError:
         status_validation = {}
-    if status_result.returncode or status_validation.get("passed") is not True:
-        errors.append("canonical acceptance status replay failed")
+    if status_result is None:
+        errors.append("canonical Spec Kitty CLI is unavailable for acceptance status replay")
+    elif status_result.returncode or status_validation.get("passed") is not True:
+        errors.append(f"canonical acceptance status replay failed: {status_result.stderr.strip()}")
     status = json.loads((repo / MISSION_DIR / "status.json").read_text(encoding="utf-8"))
     wp_status = status.get("work_packages", {}).get("WP01", {})
     if status.get("mission_slug") != MISSION or status.get("mission_type") != "research":
         errors.append("acceptance status mission identity/type mismatch")
     if wp_status.get("lane") not in {"for_review", "in_review", "approved", "done"}:
         errors.append("acceptance compatibility WP is not in a review-or-terminal lane")
+    if require_gate and wp_status.get("lane") not in {"approved", "done"}:
+        errors.append("sealed acceptance compatibility WP is not in a terminal review lane")
     if wp_status.get("force_count") != 0:
         errors.append("acceptance compatibility WP used a forced transition")
     if wp_status.get("subtasks") != {f"T{value:03d}": "done" for value in range(1, 5)}:
@@ -657,13 +848,37 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
     else:
         events_path = gate_path
 
-    review_path = repo / MISSION_DIR / "research/adversarial-reviews.md"
-    review_lines = [line for line in review_path.read_text(encoding="utf-8").splitlines() if "| Publication integrity, round 2 |" in line]
-    review_cells = [cell.strip() for cell in review_lines[0].strip().strip("|").split("|")] if len(review_lines) == 1 else []
-    ledger_reviewed_revision = review_cells[3] if len(review_cells) == 6 else ""
-    review_approved = len(review_cells) == 6 and re.fullmatch(r"[0-9a-f]{40}", ledger_reviewed_revision) is not None and review_cells[5] == "APPROVE"
-    if not review_approved:
+    review_path = repo / REVIEW_LEDGER_PATH
+    review_text = review_path.read_text(encoding="utf-8")
+    historical_review_revision = ledger_review_revision(review_text, "Publication integrity, round 2")
+    compatibility_review_revision = ledger_review_revision(review_text, "Acceptance compatibility successor")
+    historical_review_approved = bool(historical_review_revision)
+    compatibility_review_approved = bool(compatibility_review_revision)
+    if not historical_review_approved:
         errors.append("adversarial ledger does not record round-2 APPROVE")
+    else:
+        verify_reviewed_revision(
+            repo,
+            {"reviewed_revision": historical_review_revision},
+            HISTORICAL_RESEARCH_REVIEW_PATHS,
+            errors,
+        )
+    if require_gate and not compatibility_review_approved:
+        errors.append("adversarial ledger does not record acceptance-compatibility successor APPROVE")
+    if compatibility_review_approved:
+        verify_reviewed_revision(
+            repo,
+            {"reviewed_revision": compatibility_review_revision},
+            STATIC_COMPATIBILITY_REVIEW_PATHS,
+            errors,
+        )
+        verify_compatibility_at_revision(
+            repo,
+            compatibility_review_revision,
+            errors,
+            context="compatibility reviewed-content revision",
+            expected_lanes={"in_review", "approved", "done"},
+        )
 
     gate_found = False
     approval_events: list[dict[str, object]] = []
@@ -677,7 +892,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         expected_gate = {
             "verdict": "APPROVE",
             "review_kind": "final-seal-receipt",
-            "reviewed_content_revision": ledger_reviewed_revision,
+            "reviewed_content_revision": compatibility_review_revision,
             "publication_manifest_sha256": sha256(manifest_path),
             "report_sha256": report_record["sha256"],
             "report_git_blob": manifest["report_git_blob"],
@@ -696,14 +911,7 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
             gate_found = gate_found and event_time.tzinfo is not None and revision_time < event_time <= verification_time + timedelta(minutes=5)
         except (ValueError, subprocess.CalledProcessError):
             gate_found = False
-        gate_found = gate_found and review_approved
-        if gate_found:
-            gate_found = verify_reviewed_revision(
-                repo,
-                {"reviewed_revision": ledger_reviewed_revision},
-                SUBSTANTIVE_REVIEW_PATHS,
-                errors,
-            )
+        gate_found = gate_found and historical_review_approved and compatibility_review_approved
         if gate_found:
             gate_found = verify_reviewed_revision(
                 repo,
@@ -714,9 +922,18 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
                     str(MISSION_DIR / "report.md"),
                     str(MISSION_DIR / "research/adversarial-reviews.md"),
                     str(MISSION_DIR / "research/verify_publication.py"),
+                    str(MISSION_DIR / "status.events.jsonl"),
                     *sorted(COMPATIBILITY_FILES),
                 ),
                 errors,
+            )
+        if gate_found:
+            gate_found = verify_compatibility_at_revision(
+                repo,
+                str(event.get("reviewed_revision", "")),
+                errors,
+                context="compatibility final-seal revision",
+                expected_lanes={"approved", "done"},
             )
     if require_gate and not gate_found:
         errors.append("exact hash-bound publication_approved gate event not found")
