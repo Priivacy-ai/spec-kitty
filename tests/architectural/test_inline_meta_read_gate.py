@@ -293,8 +293,17 @@ FLOOR_MARGIN = 2
 # ``live - MARGIN(4) <= floor < live`` holds: 136 <= 137 < 140), strictly
 # satisfying the anti-vacuity check (same convention as the five prior entries
 # above).
+# RAISED 2026-08-15 (SK3466, #3482 landing): this change's OWN diff adds exactly
+# 2 new routed sites -- ``_meta_json_delta_is_finalize_attributable``
+# (mission_finalize.py) decodes both the git-HEAD-committed and the current
+# on-disk meta.json via ``kernel.meta_decode.decode_meta`` (already in
+# :data:`ROUTED_CALLEES`) instead of hand-rolling ``json.loads``. Live rises
+# 140 -> 142; floor raised 137 -> 139 to restore the established 3-below-live
+# gap (mechanic 2) against the corrected 142 (``floor == live - 3``; band
+# ``live - MARGIN(4) <= floor < live`` holds: 138 <= 139 < 142), strictly
+# satisfying the anti-vacuity check (same convention as the entries above).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 137
+ROUTED_LOAD_META_FLOOR = 139
 
 
 # --------------------------------------------------------------------------- #
