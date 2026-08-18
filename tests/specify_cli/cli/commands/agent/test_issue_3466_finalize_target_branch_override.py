@@ -636,6 +636,52 @@ def test_meta_json_delta_is_finalize_attributable_unit(tmp_path: Path) -> None:
     assert _meta_json_delta_is_finalize_attributable(new_meta_path, repo) is True
 
 
+def test_meta_json_delta_attribution_is_side_specific_on_decode_failure(tmp_path: Path) -> None:
+    """#3466 landing: a malformed WORKING-TREE meta.json is EXCLUDED; a malformed
+    HEAD copy with a valid working-tree copy is INCLUDED.
+
+    finalize-tasks did NOT commit meta.json before this change, so the
+    conservative default for a corrupt on-disk file is to never commit it --
+    committing a truncated meta.json would break every fail-closed reader. The
+    two directions are asymmetric: an unreadable committed (HEAD) copy is
+    superseded by our valid working-tree fix, so that direction still includes.
+    Reverting either branch to the pre-landing unconditional ``True`` reds this.
+    """
+    from specify_cli.cli.commands.agent.mission_finalize import (
+        _meta_json_delta_is_finalize_attributable,
+    )
+
+    valid = {"slug": "decode-unit", "target_branch": "main", "vcs": "git"}
+
+    # (a) Working-tree copy truncated mid-write (crash) while HEAD is valid
+    # -> EXCLUDE: never commit a corrupt file over fail-closed readers.
+    wt_repo = tmp_path / "wt_malformed"
+    wt_repo.mkdir()
+    _git(wt_repo, "init", "-q")
+    _git(wt_repo, "config", "user.email", "test@example.com")
+    _git(wt_repo, "config", "user.name", "Test")
+    wt_meta = wt_repo / "meta.json"
+    wt_meta.write_text(json.dumps(valid), encoding="utf-8")
+    _git(wt_repo, "add", "meta.json")
+    _git(wt_repo, "commit", "-q", "-m", "seed valid meta.json")
+    wt_meta.write_text('{"target_branch": "kitty/feature", "vcs": "gi', encoding="utf-8")
+    assert _meta_json_delta_is_finalize_attributable(wt_meta, wt_repo) is False
+
+    # (b) Committed (HEAD) copy malformed but working-tree copy valid
+    # -> INCLUDE: the corrective write supersedes a bad HEAD.
+    head_repo = tmp_path / "head_malformed"
+    head_repo.mkdir()
+    _git(head_repo, "init", "-q")
+    _git(head_repo, "config", "user.email", "test@example.com")
+    _git(head_repo, "config", "user.name", "Test")
+    head_meta = head_repo / "meta.json"
+    head_meta.write_text('{"target_branch": "main", "vcs": "gi', encoding="utf-8")
+    _git(head_repo, "add", "meta.json")
+    _git(head_repo, "commit", "-q", "-m", "seed malformed HEAD meta.json")
+    head_meta.write_text(json.dumps(valid), encoding="utf-8")
+    assert _meta_json_delta_is_finalize_attributable(head_meta, head_repo) is True
+
+
 # ---------------------------------------------------------------------------
 # SK3466-REV-001: a foreign meta.json edit made by a DIFFERENT command
 # (mimicking `implement --no-auto-commit`'s vcs-lock write) must NOT be
