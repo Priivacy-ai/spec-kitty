@@ -108,6 +108,7 @@ EXPECTED_NA_SHA_BY_ID = {
     "EV-025": "N/A_sealed_methodology",
     "EV-026": "N/A_synthesis_input",
 }
+SUBSTANTIVE_REVIEW_PATHS = tuple(sorted(EXACT_ARTIFACTS - {str(MISSION_DIR / "research/adversarial-reviews.md")}))
 
 
 def sha256(path: Path) -> str:
@@ -584,6 +585,13 @@ def verify(require_gate: bool) -> dict[str, object]:  # noqa: C901, PLR0915
         except (ValueError, subprocess.CalledProcessError):
             gate_found = False
         gate_found = gate_found and review_approved
+        if gate_found:
+            gate_found = verify_reviewed_revision(
+                repo,
+                {"reviewed_revision": ledger_reviewed_revision},
+                SUBSTANTIVE_REVIEW_PATHS,
+                errors,
+            )
         if gate_found:
             gate_found = verify_reviewed_revision(
                 repo,

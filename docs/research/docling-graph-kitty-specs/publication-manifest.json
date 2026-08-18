@@ -52,7 +52,7 @@
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/empirical-evidence-register.csv", "bytes": 1921, "sha256": "02e92eea344a0a3e0731f5e18f6cd699397a7fda868234e111df8d843c9d4773"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/execution-ledger.jsonl", "bytes": 1466, "sha256": "2fc7044c4d2e873d2bed00d02124fc58037a2b9170cf68ade3637c02147e58ee"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/adversarial-reviews.md", "bytes": 5552, "sha256": "2fc7d0440d94df819b926af4c1ffeb4267334dbd23727a2d4843c77ee99beac0"},
-    {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/verify_publication.py", "bytes": 30468, "sha256": "0c20aefe81dc1cc30128fd327e2611bf62b17b5b1549ed812da036d38bf5d007"},
+    {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/verify_publication.py", "bytes": 30824, "sha256": "03a2af83d9e65736baa70f38c706f08670eb04f389e3cd67fb50a77ce23f27d1"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/baseline-observations.yaml", "bytes": 1286, "sha256": "da307270411da1bdd719379b49c7b2cc6cf0cc59775d24225ac9f4afa685edc8"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/build_execution_manifests.py", "bytes": 7111, "sha256": "cfe11f709f91d3b3369a10bbe3c96dc4483947573008ac2bc020dfdc1858b009"},
     {"path": "kitty-specs/docling-graph-kitty-specs-01M0A0FG/research/materialize_recorded_baseline.py", "bytes": 1766, "sha256": "8e982fbd1bae14d3d7b90059306ea66864cf65bca35a75f7758b7952071d80a5"},
