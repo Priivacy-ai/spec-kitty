@@ -27,6 +27,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _check_uncommitted_worktree_changes,
     _check_worktree_health,
     _issue_matrix_approval_blocker,
+    _resolve_planning_branch_for_lane_guard,
     _self_review_fallback_option_error,
     _validate_research_artifacts,
     _validate_worktree_state,
@@ -816,6 +817,100 @@ def test_check_kitty_specs_contamination_clean_returns_none(tmp_path: Path) -> N
         list_wp_branch_specs_changes_for_guard=lambda **_k: [],
     )
     assert result is None
+
+
+def test_check_kitty_specs_contamination_diffs_against_planning_branch(tmp_path: Path) -> None:
+    """#3271 red-first: the lane-hygiene delta must be measured against the
+    PLANNING branch, not the lane's coordination/mission base ref.
+
+    Pre-fix the guard passed ``check_branch`` (the coord/mission branch) to the
+    lister, so a lane that legitimately inherited kitty-specs from the base — or
+    got this mission's planning artifacts via the #2993 recorded-planning-commit
+    merge — false-positived on every transition. The captured ``base_branch``
+    must now be the planning branch resolved from meta.json.
+    """
+    captured: dict[str, object] = {}
+
+    def _spy(**kwargs: object) -> list[str]:
+        captured["base_branch"] = kwargs["base_branch"]
+        return []  # clean delta against the planning branch → guard passes
+
+    with patch(
+        "specify_cli.mission_metadata.load_meta",
+        return_value={"planning_base_branch": "kitty/plan"},
+    ):
+        result = _check_kitty_specs_contamination(
+            worktree_path=tmp_path,
+            check_branch="kitty/mission-coord-01ABC",
+            feature_dir=tmp_path,
+            wp_id="WP01",
+            target_lane="for_review",
+            list_wp_branch_specs_changes_for_guard=_spy,
+        )
+
+    assert result is None
+    # RED pre-fix: was "kitty/mission-coord-01ABC" (the coordination base ref).
+    assert captured["base_branch"] == "kitty/plan"
+
+
+def test_check_kitty_specs_contamination_falls_back_to_check_branch_without_meta(
+    tmp_path: Path,
+) -> None:
+    """Legacy/flat missions without meta.json keep the lane base ref (#3271).
+
+    When no planning branch can be resolved the delta base must fall back to
+    ``check_branch`` exactly as before — the flat/legacy topology forks from the
+    mission branch, which is the correct base there.
+    """
+    captured: dict[str, object] = {}
+
+    def _spy(**kwargs: object) -> list[str]:
+        captured["base_branch"] = kwargs["base_branch"]
+        return []
+
+    with patch("specify_cli.mission_metadata.load_meta", return_value=None):
+        _check_kitty_specs_contamination(
+            worktree_path=tmp_path,
+            check_branch="kitty/mission-legacy",
+            feature_dir=tmp_path,
+            wp_id="WP01",
+            target_lane="for_review",
+            list_wp_branch_specs_changes_for_guard=_spy,
+        )
+
+    assert captured["base_branch"] == "kitty/mission-legacy"
+
+
+# ---------------------------------------------------------------------------
+# Sub-split helper: _resolve_planning_branch_for_lane_guard (#3271)
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_planning_branch_prefers_planning_base_branch(tmp_path: Path) -> None:
+    with patch(
+        "specify_cli.mission_metadata.load_meta",
+        return_value={"planning_base_branch": "kitty/plan", "target_branch": "docs/x"},
+    ):
+        assert _resolve_planning_branch_for_lane_guard(tmp_path) == "kitty/plan"
+
+
+def test_resolve_planning_branch_falls_back_to_target_branch(tmp_path: Path) -> None:
+    with (
+        patch(
+            "specify_cli.mission_metadata.load_meta",
+            return_value={"target_branch": "docs/3253-docs-gaps"},
+        ),
+        patch(
+            "specify_cli.core.paths.read_target_branch_from_meta",
+            return_value="docs/3253-docs-gaps",
+        ),
+    ):
+        assert _resolve_planning_branch_for_lane_guard(tmp_path) == "docs/3253-docs-gaps"
+
+
+def test_resolve_planning_branch_returns_none_without_meta(tmp_path: Path) -> None:
+    with patch("specify_cli.mission_metadata.load_meta", return_value=None):
+        assert _resolve_planning_branch_for_lane_guard(tmp_path) is None
 
 
 # ---------------------------------------------------------------------------
