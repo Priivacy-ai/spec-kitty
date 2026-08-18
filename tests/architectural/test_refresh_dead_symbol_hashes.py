@@ -532,3 +532,25 @@ def test_content_tier_entry_needing_collision_tier_escalates_end_to_end() -> Non
     rewritten = refresh(corpus, decls, {}, source)
     assert rewritten == source, "_apply must not rewrite an escalation decision"
     assert 'SymbolKey("Dup", "' + _OLD_HASH + '")' in rewritten
+
+
+# ---------------------------------------------------------------------------
+# #3560 finding 3 — _apply refuses two REFRESH decisions on the same row
+# ---------------------------------------------------------------------------
+
+
+def test_apply_raises_on_two_refresh_decisions_same_row() -> None:
+    """``_apply`` mutates ``lines[row_index]`` using column offsets captured
+    from the ORIGINAL line. Two REFRESH decisions targeting the same physical
+    row would corrupt the second column-slice rewrite after the first mutates
+    the line -- ``_apply`` must raise loudly BEFORE rewriting anything, rather
+    than silently corrupt the source (#3560 finding 3)."""
+    from tests.architectural._refresh_dead_symbol_hashes import _apply
+
+    entry_a = _entry("Foo", body_hash=_OLD_HASH)  # hash_row=1 (see _entry helper)
+    entry_b = _entry("Bar", body_hash=_OLD_HASH)  # same hash_row=1 -> collides
+    decision_a = RefreshDecision(entry_a, Outcome.REFRESH, ("synthetic.m1",), ("synthetic.m1",), "hash_a")
+    decision_b = RefreshDecision(entry_b, Outcome.REFRESH, ("synthetic.m2",), ("synthetic.m2",), "hash_b")
+
+    with pytest.raises(ValueError, match="same source row"):
+        _apply(f'SymbolKey("Foo", "{_OLD_HASH}")\n', [decision_a, decision_b])
