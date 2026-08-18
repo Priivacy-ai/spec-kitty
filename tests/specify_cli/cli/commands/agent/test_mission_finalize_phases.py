@@ -526,6 +526,31 @@ def test_owned_files_kitty_specs_gate_rejects_kitty_specs_path() -> None:
         seam._validate_owned_files_not_in_mission_specs({"WP01": meta}, json_output=True)
 
 
+def test_owned_files_kitty_specs_gate_exempts_confined_planning_wp() -> None:
+    """A ``planning_artifact`` WP confined to planning surfaces is exempt from the
+    kitty-specs ban and does not raise (#3222 / #2643, FR-001/FR-004)."""
+    meta = WPMetadata(
+        work_package_id="WP01",
+        title="t",
+        execution_mode="planning_artifact",
+        owned_files=["kitty-specs/001-m/disposition-matrix.md"],
+    )
+    seam._validate_owned_files_not_in_mission_specs({"WP01": meta}, json_output=True)
+
+
+def test_owned_files_kitty_specs_gate_rejects_mislabeled_planning_owning_code() -> None:
+    """Confinement (FR-004, INV-4): a ``planning_artifact`` WP that also owns a
+    ``src/`` path is NOT exempted — the kitty-specs path still trips the ban."""
+    meta = WPMetadata(
+        work_package_id="WP01",
+        title="t",
+        execution_mode="planning_artifact",
+        owned_files=["kitty-specs/001-m/spec.md", "src/foo.py"],
+    )
+    with pytest.raises(typer.Exit):
+        seam._validate_owned_files_not_in_mission_specs({"WP01": meta}, json_output=True)
+
+
 # ---------------------------------------------------------------------------
 # _gather_validation_frontmatter (prefer-in-memory-then-disk, FR-031)
 # ---------------------------------------------------------------------------

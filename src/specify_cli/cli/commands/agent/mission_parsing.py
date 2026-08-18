@@ -21,6 +21,8 @@ from specify_cli.cli.console import console
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.validation import _PLANNING_PREFIXES
 from specify_cli.status import WPMetadata
 from kernel.clock import now_utc_stamp
 from kernel.paths import to_posix
@@ -217,12 +219,51 @@ def _raw_frontmatter_has_field(wp_raw_content: str, field_name: str) -> bool:
     )
 
 
+def _is_confined_planning_wp(metadata: WPMetadata) -> bool:
+    """Return True when a WP is a ``planning_artifact`` confined to planning surfaces.
+
+    The kitty-specs owned-files ban is lifted for such a WP (#3222 / #2643): a
+    planning checkpoint whose only deliverables live under ``kitty-specs/``/``docs/``
+    routes to the repo-root planning lane and may legitimately own its mission-specs
+    artifacts. The exemption is granted **iff both**:
+
+    1. ``execution_mode`` equals :data:`ExecutionMode.PLANNING_ARTIFACT` — compared
+       against the enum ``.value`` (a normalized string compare) rather than relying
+       on incidental ``StrEnum`` equality, so an unset/``None`` mode is never exempt.
+    2. **Every** ``owned_files`` entry, normalized via
+       :func:`_normalize_owned_file_path`, is under a prefix in
+       :data:`_PLANNING_PREFIXES` (imported from ``ownership.validation`` — the single
+       authority, not re-derived here).
+
+    Condition 2 is the confinement guard (FR-004): a ``planning_artifact`` WP that
+    also owns ``src/``/``tests/`` (or any other non-planning path) is **not** exempted,
+    so mislabeling cannot become a backdoor to owning code on the planning lane. The
+    check normalizes each entry first so confinement is symmetric with the ban
+    predicate ``_is_mission_specs_owned_file``, which also matches on the normalized
+    path (a ``./kitty-specs/…`` entry trips the ban yet must still count as confined).
+    """
+    if str(metadata.execution_mode) != ExecutionMode.PLANNING_ARTIFACT.value:
+        return False
+    return all(
+        _normalize_owned_file_path(owned_file).startswith(_PLANNING_PREFIXES)
+        for owned_file in metadata.owned_files
+    )
+
+
 def _invalid_mission_specs_owned_files(
     frontmatter_by_wp: dict[str, WPMetadata],
 ) -> list[dict[str, str]]:
-    """Return structured invalid owned_files entries for finalize-tasks errors."""
+    """Return structured invalid owned_files entries for finalize-tasks errors.
+
+    A ``planning_artifact`` WP confined to planning surfaces is exempt from the
+    kitty-specs ban (see :func:`_is_confined_planning_wp`); every other WP —
+    including a ``code_change`` WP and a mislabeled planning WP that also owns a
+    non-planning path — stays fail-closed (INV-1).
+    """
     invalid: list[dict[str, str]] = []
     for wp_id, metadata in sorted(frontmatter_by_wp.items()):
+        if _is_confined_planning_wp(metadata):
+            continue
         for owned_file in metadata.owned_files:
             if _is_mission_specs_owned_file(owned_file):
                 invalid.append({"wp_id": wp_id, "path": owned_file})
