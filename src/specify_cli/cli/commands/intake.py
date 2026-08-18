@@ -8,6 +8,11 @@ from pathlib import Path
 import typer
 from specify_cli.cli.console import console
 from specify_cli.cli.console import err_console
+from specify_cli.core.checkout_identity import (
+    FailClosedRefusal,
+    Intent,
+    resolve_checkout_identity,
+)
 from specify_cli.core.env import is_interactive
 
 from specify_cli.intake.errors import (
@@ -39,6 +44,22 @@ from specify_cli.task_utils import TaskCliError, find_repo_root
 MAX_BRIEF_FILE_SIZE_BYTES: int = 5 * 1024 * 1024  # 5 MB
 
 
+class IntakeCheckoutRefusedError(Exception):
+    """A foreign checkout attempted to write the shared brief slot (FR-002).
+
+    ``intake`` re-anchors its brief slot to the primary checkout via
+    ``find_repo_root``; performing that cross-checkout write from a lane
+    worktree would silently clobber the primary's shared, untracked slot
+    (spec C-003 / #3128). This error wraps the single-channel WP01
+    :class:`FailClosedRefusal` seam so the refusal text is composed only in
+    ``checkout_identity`` (NFR-003) and always names the target checkout.
+    """
+
+    def __init__(self, refusal: FailClosedRefusal) -> None:
+        self.refusal = refusal
+        super().__init__(refusal.message())
+
+
 def _format_too_large_message(exc: IntakeTooLargeError) -> str:
     """Render an `IntakeTooLargeError` into a user-friendly stderr line."""
     size = exc.detail.get("size")
@@ -57,9 +78,38 @@ def _format_too_large_message(exc: IntakeTooLargeError) -> str:
 def _resolve_repo_root() -> Path:
     """Resolve the project root for brief artifacts, falling back to CWD."""
     try:
-        return find_repo_root(Path.cwd())
+        # find_repo_root is typed -> Path, but the task_utils re-export leaks
+        # Any to mypy here; wrap to keep this module's mypy surface clean.
+        return Path(find_repo_root(Path.cwd()))
     except TaskCliError:
         return Path.cwd().resolve()
+
+
+def _guard_shared_slot_ownership(repo_root: Path) -> None:
+    """Fail closed when a foreign checkout would write the shared brief slot.
+
+    ``_resolve_repo_root`` re-anchors a linked worktree to the primary
+    (the deliberate #2320/#3328 anchor), so writing the brief from a lane
+    worktree would clobber the primary's shared, untracked slot (spec C-003 /
+    #3128). Consult the WP01 identity seam under ``WRITE`` intent:
+
+    * if this invocation owns its checkout, the write is local — proceed;
+    * otherwise this is a linked worktree whose brief write re-anchors to the
+      primary. Refuse — via the single ``FailClosedRefusal`` channel, naming
+      the target — only when the resolved write target *is* that foreign
+      primary (``repo_root == canonical_target``), i.e. the shared-slot
+      clobber. Never redirect the write into the lane.
+
+    The check is intent-only and therefore also gates ``--force``.
+    """
+    identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
+    if identity.is_owner:
+        return
+    if repo_root.resolve() != identity.canonical_target:
+        return
+    refusal = identity.write_refusal()
+    if refusal is not None:
+        raise IntakeCheckoutRefusedError(refusal)
 
 
 def _commit_brief(
@@ -68,7 +118,13 @@ def _commit_brief(
     source_file: str,
     source_agent: str | None = None,
 ) -> None:
-    """Write the brief pair, overlaying handoff-packet provenance when present."""
+    """Write the brief pair, overlaying handoff-packet provenance when present.
+
+    Fails closed before any write when invoked from a foreign checkout (FR-002):
+    this is the single write chokepoint shared by the normal and ``--auto``
+    paths, so guarding here also covers ``--force``.
+    """
+    _guard_shared_slot_ownership(repo_root)
     packet = parse_handoff_packet(content)
     agent = source_agent
     if agent is None and packet is not None and packet.source_tool:
