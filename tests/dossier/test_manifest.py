@@ -20,6 +20,7 @@ from specify_cli.dossier.manifest import (
     ExpectedArtifactSpec,
     ExpectedArtifactManifest,
     ManifestRegistry,
+    ManifestSchemaError,
 )
 
 
@@ -692,15 +693,19 @@ class TestManifestRegistryOrgTier:
         # project_yx declared [y, x] -> last-match-wins is x.
         assert result_yx.manifest_version == "x-wins"
 
-    def test_org_file_failing_model_validation_returns_none_and_caches_none(
+    def test_org_file_failing_schema_validation_raises_manifest_schema_error(
         self, tmp_path: Path
     ) -> None:
-        """A parseable org YAML mapping that fails `ExpectedArtifactManifest`
-        validation (e.g. missing the required `mission_type` field) hits the
-        new org-branch's `except` clause: logged, cached as `None` under
-        that call's cache key, and returned as `None` -- not raised, and not
-        silently falling back to the built-in file (the org file's presence
-        is still authoritative, per whole-file precedence).
+        """paula rank-2: a parseable org YAML mapping that fails
+        `ExpectedArtifactManifest` schema validation (e.g. missing the
+        required `mission_type` field) must fail as loudly as a
+        schema-invalid BUILT-IN manifest does -- raising `ManifestSchemaError`
+        -- not be silently swallowed to `None`. An org author authored this
+        file and expects it to take effect; before this fix the org-tier
+        branch caught `except Exception` around the whole schema-validation
+        attempt and degraded ANY failure (including a genuine schema typo)
+        to `None`, hiding a real misconfiguration behind the same "not
+        found" signal as a mission type with no org override at all.
         """
         project_root = tmp_path / "project"
         project_root.mkdir()
@@ -713,12 +718,27 @@ class TestManifestRegistryOrgTier:
         )
         _write_org_pack_config(project_root, packs=[("acme", org_root)])
 
-        result = ManifestRegistry.load_manifest("software-dev", repo_root=project_root)
+        with pytest.raises(ManifestSchemaError) as exc_info:
+            ManifestRegistry.load_manifest("software-dev", repo_root=project_root)
 
-        assert result is None
+        exc = exc_info.value
+        assert exc.mission_type == "software-dev"
+        # No single org file path is available (resolve_org_expected_artifacts
+        # doesn't report which root matched) -- the origin label instead
+        # names the org tier + mission type + the roots that were checked.
+        assert "org-tier" in exc.origin
+        assert str(org_root) in exc.origin
+        # str() is operator-actionable: names the mission type, the origin
+        # label, AND the underlying pydantic detail (the missing field).
+        assert "software-dev" in str(exc)
+        assert "mission_type" in str(exc)
+        assert isinstance(exc.__cause__, ValidationError)
+
+        # Nothing is cached on a raise -- a subsequent call re-attempts
+        # resolution rather than silently returning a stale None forever.
         org_roots = (str(org_root),)
         cache_key = ("software-dev", org_roots)
-        assert ManifestRegistry._cache[cache_key] is None
+        assert cache_key not in ManifestRegistry._cache
 
     def test_cache_key_shape_is_tuple_of_mission_type_and_org_roots(self) -> None:
         """Every cached key is a `(mission_type, tuple[str, ...])` 2-tuple —
@@ -782,7 +802,14 @@ class TestSchemaHardeningAndLoudFailure:
             assert manifest is not None, f"{mission_type} manifest failed to load"
 
     def test_load_manifest_raises_on_schema_violating_key(self, monkeypatch: pytest.MonkeyPatch):
-        """`ManifestRegistry.load_manifest()` raises ValidationError on a typo'd/extra key.
+        """`ManifestRegistry.load_manifest()` raises `ManifestSchemaError` on a
+        typo'd/extra key -- a domain type, NOT the raw `pydantic.ValidationError`
+        (adversarial-review MAJOR fix): catching the raw pydantic type at a
+        consumer boundary is a proxy for "the manifest schema is broken" that
+        misfires on any unrelated `ValidationError` raised later in the same
+        call stack (see
+        `tests/sync/test_dossier_pipeline.py::TestSyncFeatureDossier::test_artifactref_validation_error_is_not_misattributed_to_manifest_schema`
+        for the concrete M1 misattribution this fixes).
 
         The fixture (`expected_artifacts_typo.yaml`) is syntactically valid
         YAML — this exercises the `extra="forbid"` schema-validation path, NOT
@@ -810,8 +837,59 @@ class TestSchemaHardeningAndLoudFailure:
 
         monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
 
-        with pytest.raises(ValidationError):
+        with pytest.raises(ManifestSchemaError) as exc_info:
             ManifestRegistry.load_manifest("typo-fixture")
+
+        assert exc_info.value.mission_type == "typo-fixture"
+        assert exc_info.value.origin == "test-fixture"
+        assert isinstance(exc_info.value.__cause__, ValidationError)
+
+    def test_load_manifest_validation_error_names_the_manifest_file(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """#3542-A: the raised `ManifestSchemaError` must name *which*
+        expected-artifacts.yaml was schema-invalid, not just the offending
+        key.
+
+        The underlying `pydantic.ValidationError` already names the bad key
+        ("Extra inputs are not permitted"), but gives an org author
+        debugging a typo no way to find the file on its own. Uses the same
+        fake-repository seam as `test_load_manifest_raises_on_schema_violating_key`
+        above, but with a distinctive ``origin`` label to prove that label is
+        readable BOTH via the typed ``.origin`` field AND via plain
+        ``str(exc)`` -- so any consumer that renders `str(exc)` (e.g.
+        `cli/commands/reconcile.py`'s generic `except Exception as exc: ...
+        f"...: {exc}"`) shows the file without needing to know to read a PEP
+        678 exception note.
+        """
+        import specify_cli.dossier.manifest as manifest_module
+        from doctrine.missions.repository import ConfigResult
+
+        content = self._TYPO_FIXTURE_PATH.read_text(encoding="utf-8")
+        import ruamel.yaml
+
+        yaml = ruamel.yaml.YAML(typ="safe")
+        parsed = yaml.load(content)
+        distinctive_origin = "doctrine/typo-fixture/expected-artifacts.yaml"
+
+        class _FakeRepository:
+            def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+                return ConfigResult(content=content, origin=distinctive_origin, parsed=parsed)
+
+        monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+
+        with pytest.raises(ManifestSchemaError) as exc_info:
+            ManifestRegistry.load_manifest("typo-fixture")
+
+        assert exc_info.value.origin == distinctive_origin
+        # str() -- not just an exception note only some callers know to
+        # read -- names both the origin file and the underlying key.
+        formatted = str(exc_info.value)
+        assert distinctive_origin in formatted, (
+            "ManifestSchemaError's str() must name the offending manifest "
+            "file so an org author can find and fix the typo; got: " + formatted
+        )
+        assert "required_alwyas" in formatted
 
 
 class TestManifestReconciliation:

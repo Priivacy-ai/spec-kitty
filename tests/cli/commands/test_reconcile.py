@@ -171,6 +171,16 @@ class TestLibraryApi:
         assert result.is_error
         assert bool(result) is False
         assert "validation error" in result.error.lower()
+        # Adversarial-review MAJOR fix (#3542 x domain-exception rework): the
+        # error surfaced here comes from `ManifestRegistry.load_manifest`
+        # raising `ManifestSchemaError` (not a raw `pydantic.ValidationError`)
+        # through `Indexer.index_feature`, caught by reconcile.py's
+        # pre-existing generic `except Exception as exc: ... f"...: {exc}"`.
+        # `ManifestSchemaError.__str__` names the manifest's origin
+        # ("test-fixture", per the fake repository above) alongside the
+        # validation detail, so an operator debugging this failure can find
+        # *which* file was schema-invalid, not just that some key was wrong.
+        assert "test-fixture" in result.error
 
 
 # ── T015/T016: CLI exit codes + named divergence ─────────────────────────────

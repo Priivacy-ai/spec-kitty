@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 import hashlib
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -191,6 +192,173 @@ class TestSyncFeatureDossier:
         assert "scan failed" in result.errors[0]
 
         # Event emission and body prep should not be called
+        mock_emit.assert_not_called()
+        mock_prepare.assert_not_called()
+
+    def test_indexer_failure_schema_invalid_manifest_is_actionable(
+        self,
+        mock_registry_cls: MagicMock,
+        mock_indexer_cls: MagicMock,
+        mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
+        mock_prepare: MagicMock,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """#3542-B: a schema-invalid ``expected-artifacts.yaml`` must surface
+        as an actionable, file-naming WARNING on the dossier sync path — the
+        dominant runtime path (fired on every status transition via
+        ``trigger_feature_dossier_sync_if_enabled``, which is fire-and-forget
+        and never raises). Before this fix, ``Indexer.index_feature``
+        raising ``pydantic.ValidationError`` (per FR-016 /
+        ``ManifestRegistry.load_manifest``) fell into the same generic
+        ``except Exception`` branch as any other indexer crash:
+        ``logger.exception`` (ERROR level, full traceback) plus a bare
+        ``str(exc)`` in ``DossierSyncResult.errors`` — which names the bad
+        key but not which manifest file, burying an author-actionable typo
+        under a stack trace meant for genuine bugs.
+
+        This is a unit-level test of the ``sync_feature_dossier`` branch in
+        isolation (``Indexer``/``ManifestRegistry`` are mocked at the class
+        level for this whole test class) — it hand-builds the
+        ``ManifestSchemaError`` ``Indexer.index_feature`` is documented to
+        raise. The REAL, unmocked end-to-end path — a genuine typo'd
+        manifest routed through the real ``ManifestRegistry.load_manifest``
+        producer, with no hand-crafted exception anywhere — is covered
+        separately by
+        ``test_real_load_manifest_schema_error_names_origin_through_sync_feature_dossier``
+        below (paula rank-3).
+        """
+        from pydantic import ValidationError
+
+        from specify_cli.dossier.manifest import ExpectedArtifactManifest, ManifestSchemaError
+
+        origin = "doctrine/software-dev/expected-artifacts.yaml"
+        try:
+            ExpectedArtifactManifest(
+                mission_type="software-dev",
+                required_alwyas=[],  # type: ignore[call-arg]  # deliberate typo
+            )
+            raise AssertionError("expected ValidationError")  # pragma: no cover
+        except ValidationError as exc:
+            schema_error = ManifestSchemaError("software-dev", origin)
+            schema_error.__cause__ = exc
+
+        mock_indexer = MagicMock()
+        mock_indexer.index_feature.side_effect = schema_error
+        mock_indexer_cls.return_value = mock_indexer
+
+        ns = _make_namespace()
+        queue = MagicMock()
+        with caplog.at_level(logging.WARNING, logger="specify_cli.sync.dossier_pipeline"):
+            result = sync_feature_dossier(tmp_path, ns, queue)
+
+        assert result.success is False
+        assert result.dossier is None
+        assert result.events_emitted == 0
+        assert result.body_outcomes == []
+        assert len(result.errors) == 1
+        error_message = result.errors[0]
+        assert "doctrine/software-dev/expected-artifacts.yaml" in error_message, error_message
+        assert "required_alwyas" in error_message, error_message
+        assert "Fix your expected-artifacts.yaml" in error_message, error_message
+
+        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert any(
+            "doctrine/software-dev/expected-artifacts.yaml" in r.getMessage()
+            for r in warning_records
+        ), caplog.text
+        # Must NOT also fall through to the generic ERROR-level
+        # logger.exception(...) branch meant for genuine indexer bugs.
+        assert not any(r.levelno >= logging.ERROR for r in caplog.records), caplog.text
+
+        # Event emission and body prep should not be called
+        mock_emit.assert_not_called()
+        mock_prepare.assert_not_called()
+
+    def test_artifactref_validation_error_is_not_misattributed_to_manifest_schema(
+        self,
+        mock_registry_cls: MagicMock,
+        mock_indexer_cls: MagicMock,
+        mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
+        mock_prepare: MagicMock,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """M1 pin (adversarial-review MAJOR finding, highest-value fix): a
+        ``pydantic.ValidationError`` raised while constructing an
+        ``ArtifactRef``/``MissionDossier`` model INSIDE ``index_feature`` —
+        e.g. a genuine ``ArtifactRef.validate_artifact_key`` bug — is NOT the
+        same failure as a schema-invalid ``expected-artifacts.yaml``, even
+        though both are, at the raw-type level, a ``pydantic.ValidationError``.
+
+        Before this fix, ``sync_feature_dossier`` caught
+        ``except pydantic.ValidationError`` around the WHOLE
+        ``Indexer.index_feature(...)`` call — a proxy for "the manifest is
+        broken" that misfires on ANY ``ValidationError``, including one
+        raised well after the manifest already loaded successfully. That
+        downgraded a genuine indexer bug from ERROR-with-stack-trace to a
+        WARNING mislabeled "Fix your expected-artifacts.yaml." — actively
+        misleading whoever investigates it.
+
+        This test constructs a REAL ``ArtifactRef`` validation failure (an
+        ``artifact_key`` that fails ``validate_artifact_key``'s regex — the
+        same failure mode a real filename-derived key could hit, e.g. a file
+        containing parentheses) and asserts it reaches the GENERIC
+        ``except Exception`` branch (ERROR + stack trace, verbatim
+        ``str(exc)``), never the manifest-schema branch.
+        """
+        from pydantic import ValidationError
+
+        from specify_cli.dossier.models import ArtifactRef
+
+        try:
+            ArtifactRef(
+                artifact_key="bad key (parens)",  # fails validate_artifact_key's regex
+                artifact_class="input",
+                relative_path="spec.md",
+                content_hash_sha256="",
+                size_bytes=0,
+                required_status="required",
+                is_present=True,
+            )
+            raise AssertionError("expected ValidationError")  # pragma: no cover
+        except ValidationError as exc:
+            artifact_ref_error = exc
+
+        mock_indexer = MagicMock()
+        mock_indexer.index_feature.side_effect = artifact_ref_error
+        mock_indexer_cls.return_value = mock_indexer
+
+        ns = _make_namespace()
+        queue = MagicMock()
+        with caplog.at_level(logging.WARNING, logger="specify_cli.sync.dossier_pipeline"):
+            result = sync_feature_dossier(tmp_path, ns, queue)
+
+        assert result.success is False
+        assert result.dossier is None
+        assert len(result.errors) == 1
+        error_message = result.errors[0]
+        # The GENERIC branch's contract: a bare `str(exc)`, never the
+        # manifest-schema template's "Fix your expected-artifacts.yaml."
+        # suffix or an `expected-artifacts.yaml is schema-invalid` framing --
+        # this is a real indexer bug, not an author-fixable manifest typo.
+        assert error_message == str(artifact_ref_error)
+        assert "expected-artifacts.yaml" not in error_message, error_message
+        assert "Fix your expected-artifacts.yaml" not in error_message, error_message
+
+        # Must hit the generic ERROR-level `logger.exception(...)` branch --
+        # the whole point of NOT catching this as a manifest-schema failure.
+        error_records = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        assert error_records, caplog.text
+        assert any("Indexer failed" in r.getMessage() for r in error_records), caplog.text
+        # Must NOT also emit the manifest-schema WARNING path.
+        warning_records = [r for r in caplog.records if r.levelno == logging.WARNING]
+        assert not any(
+            "expected-artifacts.yaml" in r.getMessage() for r in warning_records
+        ), caplog.text
+
         mock_emit.assert_not_called()
         mock_prepare.assert_not_called()
 
@@ -585,3 +753,66 @@ class TestSyncFeatureDossier:
         assert result.events_emitted == 3
         assert mock_emit_snapshot.call_args.kwargs["namespace"] == ns.to_dict()
         assert mock_emit_drift.call_args.kwargs["namespace"] == ns.to_dict()
+
+
+# --- Real end-to-end: no mocked Indexer/ManifestRegistry (paula rank-3) ---
+
+
+def test_real_load_manifest_schema_error_names_origin_through_sync_feature_dossier(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """paula rank-3 (end-to-end, no hand-crafted exception): a REAL
+    schema-invalid ``expected-artifacts.yaml``, routed through the REAL
+    ``ManifestRegistry.load_manifest`` producer -- via the same
+    ``_doctrine_repository`` fake-seam ``tests/dossier/test_manifest.py``
+    uses to route a typo'd fixture in, not through any mocked
+    ``Indexer``/``ManifestRegistry`` class (unlike
+    ``TestSyncFeatureDossier``, this test function is NOT decorated with
+    those class-level patches) -- must surface its origin file through
+    ``sync_feature_dossier``'s ``DossierSyncResult.errors``.
+
+    The CLI-side counterpart of this same real-producer path is
+    ``tests/cli/commands/test_reconcile.py::TestLibraryApi::test_reconcile_reports_error_on_malformed_manifest``,
+    which pins the equivalent ``reconcile_mission_dossier`` behavior with its
+    own distinctive origin ("test-fixture") -- together the two tests prove
+    BOTH consumers surface the origin from the one real producer, not just
+    one of them.
+    """
+    import ruamel.yaml
+    from doctrine.missions.repository import ConfigResult
+
+    import specify_cli.dossier.manifest as manifest_module
+    from specify_cli.dossier.manifest import ManifestRegistry
+
+    feature_dir = tmp_path / "047-real-e2e"
+    feature_dir.mkdir()
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+
+    content = "mission_type: software-dev\nrequired_alwyas: []\n"
+    yaml = ruamel.yaml.YAML(typ="safe")
+    parsed = yaml.load(content)
+    distinctive_origin = "doctrine/software-dev/expected-artifacts.yaml (real-e2e)"
+
+    class _FakeRepository:
+        def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+            return ConfigResult(content=content, origin=distinctive_origin, parsed=parsed)
+
+    monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+    ManifestRegistry.clear_cache()
+
+    ns = _make_namespace()
+    queue = MagicMock()
+    queue.project_uuid = ns.project_uuid
+
+    try:
+        result = sync_feature_dossier(feature_dir, ns, queue)
+    finally:
+        ManifestRegistry.clear_cache()
+
+    assert result.success is False
+    assert result.dossier is None
+    assert result.events_emitted == 0
+    assert len(result.errors) == 1
+    error_message = result.errors[0]
+    assert distinctive_origin in error_message, error_message
+    assert "required_alwyas" in error_message, error_message
