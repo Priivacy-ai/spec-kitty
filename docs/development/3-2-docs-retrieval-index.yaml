@@ -12894,6 +12894,17 @@ pages:
     - {slug: "3-runner-core-count-context-plan-md-technical-context", text: "3. Runner core-count context (plan.md Technical Context)", level: 2}
     - {slug: "4-known-gaps-affecting-this-artifact-do-not-silently-omit", text: "4. Known gaps affecting this artifact (do not silently omit)", level: 2}
     - {slug: "5-how-to-refresh-this-artifact", text: "5. How to refresh this artifact", level: 2}
+  - path: "docs/plans/testing/friction-burn-down-sequencing.md"
+    title: "Friction Burn-Down Sequencing — false-red / manual-toll engines"
+    divio_type: "none"
+    abstract: "Sequencing note for the 3.2.x dev-friction burn-down: what already landed, the narrow toll that actually remains, and which gates look like friction but must NOT be touched."
+    anchors:
+    - {slug: "what-already-landed-verified-do-not-re-scope-into-a-mission", text: "What already landed (verified, do NOT re-scope into a mission)", level: 2}
+    - {slug: "what-actually-remains-the-real-narrow-scope", text: "What actually remains (the real, narrow scope)", level: 2}
+    - {slug: "recommended-first-mission-slice-recalibrated", text: "Recommended first mission slice (recalibrated)", level: 2}
+    - {slug: "parallel-track-independent-gate-reliability-epic-3260", text: "Parallel track (independent) — gate-reliability, epic #3260", level: 2}
+    - {slug: "counterweight-do-not-fix-these-contracts-not-friction", text: "Counterweight — do NOT \"fix\" these (contracts, not friction)", level: 2}
+    - {slug: "tracker-reconciliation-done-2026-08-17", text: "Tracker reconciliation (done 2026-08-17)", level: 2}
   - path: "docs/plans/testing/index.md"
     title: "Testing"
     divio_type: "none"
