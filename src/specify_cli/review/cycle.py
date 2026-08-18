@@ -53,6 +53,21 @@ _COMMIT_CONTENTION_RETRY_SLEEP_SECONDS = 0.15
 _REVIEW_CYCLE_FILE_RE = re.compile(r"^review-cycle-(?P<cycle>[1-9][0-9]*)\.md$")
 
 
+def review_feedback_source_path(sub_artifact_dir: Path, cycle_number: int) -> Path:
+    """Return the in-repo path a reviewer should write cycle *cycle_number*'s
+    rejection feedback to.
+
+    Deliberately NOT ``review-cycle-N.md``: inside *sub_artifact_dir* that
+    filename is the TOOL-authored verdict artifact, which
+    :func:`_guard_feedback_source_provenance` refuses as a ``feedback_source``.
+    The review prompt used to advertise exactly that path, so the rejection
+    command it printed could never be run as printed (#3430). Owning the name
+    here, beside the guard, is what stops the advertised path and the accepted
+    path drifting apart again.
+    """
+    return sub_artifact_dir / f"review-feedback-{cycle_number}.md"
+
+
 def _review_cycle_wp_dir(
     repo_root: Path,
     mission_slug: str,
