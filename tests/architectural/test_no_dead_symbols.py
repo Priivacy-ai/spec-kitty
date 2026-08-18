@@ -54,8 +54,6 @@ follow-up tracker ticket per FR-303.
 from __future__ import annotations
 
 import ast
-import re
-import tokenize
 from collections.abc import Mapping
 from pathlib import Path
 
@@ -111,55 +109,101 @@ _SRC_ROOT = _REPO_ROOT / "src"
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5"),  # charter._catalog_miss::CatalogMissCause
-        SymbolKey("CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8"),  # charter._catalog_miss::CharterCatalogMissError
+        SymbolKey(
+            "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter._catalog_miss"
+        ),  # charter._catalog_miss::CatalogMissCause
+        SymbolKey(
+            "CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8", source_module="charter._catalog_miss"
+        ),  # charter._catalog_miss::CharterCatalogMissError
         # charter._catalog_miss::CharterCatalogMissWarning
-        SymbolKey("CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8"),
+        SymbolKey("CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8", source_module="charter._catalog_miss"),
         # charter.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
-        SymbolKey("ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd"),  # charter.activations::ALLOWED_MISSION_TYPES
-        SymbolKey("REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f"),  # charter.activations::REGISTERED_TRIGGERS
+        SymbolKey(
+            "ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd", source_module="charter.activations"
+        ),  # charter.activations::ALLOWED_MISSION_TYPES
+        SymbolKey(
+            "REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f", source_module="charter.activations"
+        ),  # charter.activations::REGISTERED_TRIGGERS
         # charter.compact::CompactView (body_hash refreshed WP11/T061: widened to carry every delivered kind)
-        SymbolKey("CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9"),  # charter.compact::CompactView
-        SymbolKey("extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633"),  # charter.compact::extract_section_anchors
-        SymbolKey("StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b"),  # charter.synthesizer.write_pipeline::StagedArtifact
-        SymbolKey("is_re2_active", "1f449ff66fa7793bd2911da921304f2668c6c449879c96292bf8c6a8a8b2efe9"),  # kernel._safe_re::is_re2_active
+        SymbolKey(
+            "CompactView", "eb8e865d277128be5a9f75d070b2acf3110794ed3650a38ad54507f648d872d9", source_module="charter.compact"
+        ),  # charter.compact::CompactView
+        SymbolKey(
+            "extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633", source_module="charter.compact"
+        ),  # charter.compact::extract_section_anchors
+        SymbolKey(
+            "StagedArtifact", "e5cac178a00a1ab09ab3a43c31edee223c69f455e050f12dd172742c15e25f8b", source_module="charter.synthesizer.write_pipeline"
+        ),  # charter.synthesizer.write_pipeline::StagedArtifact
+        SymbolKey(
+            "is_re2_active", "1f449ff66fa7793bd2911da921304f2668c6c449879c96292bf8c6a8a8b2efe9", source_module="kernel._safe_re"
+        ),  # kernel._safe_re::is_re2_active
         # pack-metadata-manifest-unification (#3500-#3503, ADR 2026-08-16-1): the
         # unified pack-manifest schema/lineage/hash public API, declared now but not
         # wired to production callers until the deferred integration WP (#3518).
         # library-first slice; the AST ratchet + schema/identity/counts/lineage unit
         # suites exercise these meanwhile. Operator-confirmed deferred-API landing.
         # charter.synthesizer.manifest::compute_manifest_hash
-        SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4"),
-        SymbolKey("ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb"),  # doctrine.drg.org_pack_config::ensure_pack_identity
-        SymbolKey("GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322"),  # specify_cli.doctrine.builtin_manifest::GENERATED_BY
+        SymbolKey("compute_manifest_hash", "976c4625daa4d8bc9612ad055b4076e879ab68aa5df7cba27c16ce90f5c51ef4", source_module="charter.synthesizer.manifest"),
+        SymbolKey(
+            "ensure_pack_identity", "ca9b5b99abe23a15555eca6452a326aede2faf85c70518c1a17b8dc345b349bb", source_module="doctrine.drg.org_pack_config"
+        ),  # doctrine.drg.org_pack_config::ensure_pack_identity
+        SymbolKey(
+            "GENERATED_BY", "124f8f0fc76bb7fc39e58268421f79fe2044c7901abf8ed50a4dfd4a64556322", source_module="specify_cli.doctrine.builtin_manifest"
+        ),  # specify_cli.doctrine.builtin_manifest::GENERATED_BY
         # specify_cli.doctrine.builtin_manifest::MANIFEST_FILENAME
-        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a"),
+        SymbolKey("MANIFEST_FILENAME", "8d9c9bfddfbfe8e93bbc740dd033d34cb77d0b373b30e7118a1c93649bc3590a", source_module="specify_cli.doctrine.builtin_manifest"),
         # specify_cli.doctrine.builtin_manifest::build_builtin_manifest
-        SymbolKey("build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976"),
+        SymbolKey(
+            "build_builtin_manifest", "f9a428de9a2dc22e79265005c2e7629c49c9e707ae3079911bda1081d598f976", source_module="specify_cli.doctrine.builtin_manifest"
+        ),
         # specify_cli.doctrine.builtin_manifest::enumerate_constituents
-        SymbolKey("enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab"),
+        SymbolKey(
+            "enumerate_constituents", "d063e2da3dc64d421fb3a141db384b7515a09939629c536376de32c4ac42bfab", source_module="specify_cli.doctrine.builtin_manifest"
+        ),
         # specify_cli.doctrine.pack_lineage::PackLineageCycleError
-        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1"),
+        SymbolKey("PackLineageCycleError", "0e7c672a0f7e02520fb8b8dcb5e48c08c6745831760be28b3eec4277ce7635d1", source_module="specify_cli.doctrine.pack_lineage"),
         # specify_cli.doctrine.pack_lineage::UnresolvedDoctrinePackError
-        SymbolKey("UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097"),
+        SymbolKey(
+            "UnresolvedDoctrinePackError", "606f77e976b58a6cdc360bdc40a563b024e6598f01ad6866e1ca48477a60f097", source_module="specify_cli.doctrine.pack_lineage"
+        ),
         # specify_cli.doctrine.pack_lineage::UnresolvedPackParentError
-        SymbolKey("UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92"),
+        SymbolKey(
+            "UnresolvedPackParentError", "d61ea19665cc7e37035675c8ac779074707d253b3597f848db168c500df73c92", source_module="specify_cli.doctrine.pack_lineage"
+        ),
         # specify_cli.doctrine.pack_lineage::resolve_accompanying_doctrine_pack
-        SymbolKey("resolve_accompanying_doctrine_pack", "dbc882bbbfa45f20c1ee4f86ffe0561d6955f067279c82e5e0768807874870bf"),
+        SymbolKey(
+            "resolve_accompanying_doctrine_pack",
+            "dbc882bbbfa45f20c1ee4f86ffe0561d6955f067279c82e5e0768807874870bf",
+            source_module="specify_cli.doctrine.pack_lineage",
+        ),
         # specify_cli.doctrine.pack_lineage::resolve_pack_lineage_order
-        SymbolKey("resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9"),
-        SymbolKey("CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377"),  # specify_cli.doctrine.pack_manifest::CharterProfile
+        SymbolKey(
+            "resolve_pack_lineage_order", "f9b3114c48e1e4ad07968ce4e752d697bd5272f58f40626b6ff363b2517102c9", source_module="specify_cli.doctrine.pack_lineage"
+        ),
+        SymbolKey(
+            "CharterProfile", "e819b8ef6ee1d90a233d35df96668e478d793c8edcf11a3320587042e9e58377", source_module="specify_cli.doctrine.pack_manifest"
+        ),  # specify_cli.doctrine.pack_manifest::CharterProfile
         # specify_cli.doctrine.pack_manifest::HASH_EXCLUDED_FIELDS
-        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3"),
-        SymbolKey("SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db"),  # specify_cli.doctrine.pack_manifest::SCHEMA_VERSION
+        SymbolKey("HASH_EXCLUDED_FIELDS", "3c3581a0092e43f9586c79cf55dccee76fa9d480fa58e469fd3118c5e47747e3", source_module="specify_cli.doctrine.pack_manifest"),
+        SymbolKey(
+            "SCHEMA_VERSION", "d5eae924852db12511f61d775992ee1a06e6d9021b5a9623c442e387b873f9db", source_module="specify_cli.doctrine.pack_manifest"
+        ),  # specify_cli.doctrine.pack_manifest::SCHEMA_VERSION
         # specify_cli.doctrine.pack_manifest::absorb_synthesis_manifest
-        SymbolKey("absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693"),
+        SymbolKey(
+            "absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693", source_module="specify_cli.doctrine.pack_manifest"
+        ),
         # specify_cli.doctrine.pack_manifest::compute_pack_manifest_hash
-        SymbolKey("compute_pack_manifest_hash", "829680a1fb5a9d2159fcfecba012118a2d8d0ea486b9fc2a94394acd9db71b3c"),
-        SymbolKey("counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d"),  # specify_cli.doctrine.pack_manifest::counts_by_kind
+        SymbolKey(
+            "compute_pack_manifest_hash", "829680a1fb5a9d2159fcfecba012118a2d8d0ea486b9fc2a94394acd9db71b3c", source_module="specify_cli.doctrine.pack_manifest"
+        ),
+        SymbolKey(
+            "counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d", source_module="specify_cli.doctrine.pack_manifest"
+        ),  # specify_cli.doctrine.pack_manifest::counts_by_kind
         # specify_cli.doctrine.pack_manifest::load_pack_manifest
-        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2"),
-        SymbolKey("sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2"),  # specify_cli.doctrine.pack_manifest::sort_constituents
+        SymbolKey("load_pack_manifest", "beddcbcf37b0a4e7fc2be56adc9149fce863e53e05e51bd1f2d4e8dad26847b2", source_module="specify_cli.doctrine.pack_manifest"),
+        SymbolKey(
+            "sort_constituents", "00ba026bae02e3ad0d3d368cc78afe8806b62e71e5c407e8a102841315aa0fe2", source_module="specify_cli.doctrine.pack_manifest"
+        ),  # specify_cli.doctrine.pack_manifest::sort_constituents
     }
 )
 
@@ -185,12 +229,24 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
     {
         # doctrine.directives::ArtifactKind (escalated: live collision)
         SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="doctrine.directives"),
-        SymbolKey("IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12"),  # doctrine.missions.models::IDENTIFIER_PATTERN
-        SymbolKey("Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5"),  # doctrine.missions.models::Mission
-        SymbolKey("MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d"),  # doctrine.missions.models::MissionOrchestration
-        SymbolKey("MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587"),  # doctrine.missions.models::MissionStateObject
-        SymbolKey("MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973"),  # doctrine.missions.models::MissionTransition
-        SymbolKey("MissionRepository", "87721dffc175e1e94aa69dc020df1effd47b986d66e538eef4c49df962d684f9"),  # doctrine.missions::MissionRepository
+        SymbolKey(
+            "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::IDENTIFIER_PATTERN
+        SymbolKey(
+            "Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::Mission
+        SymbolKey(
+            "MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::MissionOrchestration
+        SymbolKey(
+            "MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::MissionStateObject
+        SymbolKey(
+            "MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::MissionTransition
+        SymbolKey(
+            "MissionRepository", "87721dffc175e1e94aa69dc020df1effd47b986d66e538eef4c49df962d684f9", source_module="doctrine.missions"
+        ),  # doctrine.missions::MissionRepository
         # doctrine.procedures::ArtifactKind (escalated: live collision)
         SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="doctrine.procedures"),
         # doctrine.shared::ConflictType (escalated: live collision)
@@ -213,10 +269,18 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("TermSurface", "92ae59dd08020d0481eb46aac5aae4d296803b7647f1c97cfd63cb157da9ed81", module_path="doctrine.shared"),
         # doctrine.tactics::ArtifactKind (escalated: live collision)
         SymbolKey("ArtifactKind", "daf6b8e8a33ac97ab1bbd7e927cd20ca85bedb05de19ec852dc58cd6184763be", module_path="doctrine.tactics"),
-        SymbolKey("SemanticConflictRecord", "a8ede16418bd45b1fefb48097ef7bfc5c27d9b90ba68906f3ee7124a3c1a11dd"),  # glossary.semantic_events::SemanticConflictRecord
-        SymbolKey("JsonlEventLog", "34ec3df04b36a1751a8bc959f38bc68af652b974deaa35224cc3eb86822821db"),  # runtime.next._internal_runtime.events::JsonlEventLog
-        SymbolKey("ClaimablePreview", "fb24f6e5c378dfe6485d21ca6f2a9167ec885d688bc34eb53f3e3dfe7a23683a"),  # runtime.next.discovery::ClaimablePreview
-        SymbolKey("AcceptanceMode", "c5cd8f94fa6b672c333faeaf3cdc781f33fee2bb29a8bb465fd7562ec85582c2"),  # specify_cli.acceptance::AcceptanceMode
+        SymbolKey(
+            "SemanticConflictRecord", "a8ede16418bd45b1fefb48097ef7bfc5c27d9b90ba68906f3ee7124a3c1a11dd", source_module="glossary.semantic_events"
+        ),  # glossary.semantic_events::SemanticConflictRecord
+        SymbolKey(
+            "JsonlEventLog", "34ec3df04b36a1751a8bc959f38bc68af652b974deaa35224cc3eb86822821db", source_module="runtime.next._internal_runtime.events"
+        ),  # runtime.next._internal_runtime.events::JsonlEventLog
+        SymbolKey(
+            "ClaimablePreview", "fb24f6e5c378dfe6485d21ca6f2a9167ec885d688bc34eb53f3e3dfe7a23683a", source_module="runtime.next.discovery"
+        ),  # runtime.next.discovery::ClaimablePreview
+        SymbolKey(
+            "AcceptanceMode", "c5cd8f94fa6b672c333faeaf3cdc781f33fee2bb29a8bb465fd7562ec85582c2", source_module="specify_cli.acceptance"
+        ),  # specify_cli.acceptance::AcceptanceMode
         # specify_cli.acceptance::WorkPackageState -- PRUNED (coord-authority-
         # trio-degod #2464/#2465/#2508): the class body relocated to
         # specify_cli.acceptance.summary_core, re-exported via
@@ -225,92 +289,172 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # `_is_reexport_shim_symbol` structural auto-exempt category, so a
         # hand-curated entry here would violate the auto-exempt/hand-allowlist
         # disjointness invariant (test_auto_exempt_disjoint_from_hand_allowlist).
-        SymbolKey("RefreshResult", "8d26dc6c2df664824ed8c070ed4f488088b80dd83ab10a87f2f0cc962f60f141"),  # specify_cli.auth.refresh_transaction::RefreshResult
-        SymbolKey("DaemonSummary", "17ddc7a066a9d721be767b753f6c5ecdc4dcdeca46754c67a49ef0322c1b82ab"),  # specify_cli.cli.commands._auth_doctor::DaemonSummary
-        SymbolKey("DoctorReport", "3083b579d7782d2eaf3940307c5813b06ee421abfbe971d9f50355a7bd19158b"),  # specify_cli.cli.commands._auth_doctor::DoctorReport
-        SymbolKey("Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065"),  # specify_cli.cli.commands._auth_doctor::Finding
-        SymbolKey("LockSummary", "089ea89da3f5099cf79f24b80f0227a7768c5880944fdb62ede8051eaed13562"),  # specify_cli.cli.commands._auth_doctor::LockSummary
+        SymbolKey(
+            "RefreshResult", "8d26dc6c2df664824ed8c070ed4f488088b80dd83ab10a87f2f0cc962f60f141", source_module="specify_cli.auth.refresh_transaction"
+        ),  # specify_cli.auth.refresh_transaction::RefreshResult
+        SymbolKey(
+            "DaemonSummary", "17ddc7a066a9d721be767b753f6c5ecdc4dcdeca46754c67a49ef0322c1b82ab", source_module="specify_cli.cli.commands._auth_doctor"
+        ),  # specify_cli.cli.commands._auth_doctor::DaemonSummary
+        SymbolKey(
+            "DoctorReport", "3083b579d7782d2eaf3940307c5813b06ee421abfbe971d9f50355a7bd19158b", source_module="specify_cli.cli.commands._auth_doctor"
+        ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
+        SymbolKey(
+            "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
+        ),  # specify_cli.cli.commands._auth_doctor::Finding
+        SymbolKey(
+            "LockSummary", "089ea89da3f5099cf79f24b80f0227a7768c5880944fdb62ede8051eaed13562", source_module="specify_cli.cli.commands._auth_doctor"
+        ),  # specify_cli.cli.commands._auth_doctor::LockSummary
         # specify_cli.cli.commands._auth_doctor::ServerSessionStatus
-        SymbolKey("ServerSessionStatus", "5814547ac903022d97fd3b3a685e3218971f8e6d2407cf99d1f505f2f964b25b"),
-        SymbolKey("SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74"),  # specify_cli.cli.commands._auth_doctor::SessionSummary
+        SymbolKey("ServerSessionStatus", "5814547ac903022d97fd3b3a685e3218971f8e6d2407cf99d1f505f2f964b25b", source_module="specify_cli.cli.commands._auth_doctor"),
+        SymbolKey(
+            "SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74", source_module="specify_cli.cli.commands._auth_doctor"
+        ),  # specify_cli.cli.commands._auth_doctor::SessionSummary
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
         # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
         # instead of datetime.now(UTC), per the clock single-door migration)
-        SymbolKey("assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa"),  # specify_cli.cli.commands._auth_doctor::assemble_report
+        SymbolKey(
+            "assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa", source_module="specify_cli.cli.commands._auth_doctor"
+        ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
-        SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179"),
-        SymbolKey("render_report", "719c4b8b25a0a7b9e613e559e60abacbdef6ad4ab04788e9b956b7d788ad13fb"),  # specify_cli.cli.commands._auth_doctor::render_report
+        SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
+        SymbolKey(
+            "render_report", "719c4b8b25a0a7b9e613e559e60abacbdef6ad4ab04788e9b956b7d788ad13fb", source_module="specify_cli.cli.commands._auth_doctor"
+        ),  # specify_cli.cli.commands._auth_doctor::render_report
         # specify_cli.cli.commands._auth_doctor::render_report_json
-        SymbolKey("render_report_json", "909a351e28d3aa72e41d2986c624b5ac2eb10476fa7010667fb4d1a76993cf8e"),
+        SymbolKey("render_report_json", "909a351e28d3aa72e41d2986c624b5ac2eb10476fa7010667fb4d1a76993cf8e", source_module="specify_cli.cli.commands._auth_doctor"),
         # specify_cli.cli.commands._branch_strategy_gate::GateDecision
-        SymbolKey("GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899"),
-        SymbolKey("GateOutcome", "a5a38bc5a569b83b9d227c1bd2c9000aa8c1a9d6b139032c562f7da23faeb563"),  # specify_cli.cli.commands._branch_strategy_gate::GateOutcome
+        SymbolKey(
+            "GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899", source_module="specify_cli.cli.commands._branch_strategy_gate"
+        ),
+        SymbolKey(
+            "GateOutcome", "a5a38bc5a569b83b9d227c1bd2c9000aa8c1a9d6b139032c562f7da23faeb563", source_module="specify_cli.cli.commands._branch_strategy_gate"
+        ),  # specify_cli.cli.commands._branch_strategy_gate::GateOutcome
         # (hash refreshed: doctrine-charter-split-unification-01KZ0SRB/WP08
         # rewrote the guard body from `meta or {}` to an explicit
         # `if meta is None` check to avoid masking a missing-meta failure)
         # specify_cli.cli.commands.implement::_ensure_vcs_in_meta
-        SymbolKey("_ensure_vcs_in_meta", "4f9c0969a2a5519b1366171eb7ad78b578b40eeae7788578ffc6ca23e645472e"),
+        SymbolKey("_ensure_vcs_in_meta", "4f9c0969a2a5519b1366171eb7ad78b578b40eeae7788578ffc6ca23e645472e", source_module="specify_cli.cli.commands.implement"),
         # specify_cli.cli.commands.implement::detect_feature_context
-        SymbolKey("detect_feature_context", "03ce3f732e5db8d5a02fbfdcae55ae3acdaf00bdbbd3370b400b37e57fb66b81"),
-        SymbolKey("find_wp_file", "d320a28d54f0ac514cfe9f87a85a5aad28916e7ce651934b3336f33ad6dc5283"),  # specify_cli.cli.commands.implement::find_wp_file
-        SymbolKey("CurrentContext", "49c03fb8a6af76f87fbae0133fd35d4c9ee8a4c5a0b7e5b49a812409af871bc7"),  # specify_cli.core.context_validation::CurrentContext
-        SymbolKey("ExecutionContext", "19c71b5bbf90ee7bd3aa32f2240f9495b9ff1354ceea059d4ec54824eb0d92a1"),  # specify_cli.core.context_validation::ExecutionContext
+        SymbolKey("detect_feature_context", "03ce3f732e5db8d5a02fbfdcae55ae3acdaf00bdbbd3370b400b37e57fb66b81", source_module="specify_cli.cli.commands.implement"),
+        SymbolKey(
+            "find_wp_file", "d320a28d54f0ac514cfe9f87a85a5aad28916e7ce651934b3336f33ad6dc5283", source_module="specify_cli.cli.commands.implement"
+        ),  # specify_cli.cli.commands.implement::find_wp_file
+        SymbolKey(
+            "CurrentContext", "49c03fb8a6af76f87fbae0133fd35d4c9ee8a4c5a0b7e5b49a812409af871bc7", source_module="specify_cli.core.context_validation"
+        ),  # specify_cli.core.context_validation::CurrentContext
+        SymbolKey(
+            "ExecutionContext", "19c71b5bbf90ee7bd3aa32f2240f9495b9ff1354ceea059d4ec54824eb0d92a1", source_module="specify_cli.core.context_validation"
+        ),  # specify_cli.core.context_validation::ExecutionContext
         # specify_cli.core.context_validation::detect_execution_context
-        SymbolKey("detect_execution_context", "66c12833de0af4228946dec0b95a17b58daa610f60172a5c7867ca8dbae145f1"),
+        SymbolKey(
+            "detect_execution_context", "66c12833de0af4228946dec0b95a17b58daa610f60172a5c7867ca8dbae145f1", source_module="specify_cli.core.context_validation"
+        ),
         # specify_cli.core.context_validation::get_context_env_vars
-        SymbolKey("get_context_env_vars", "56bf48a63174f5c63921938c0a8dcda0d19f98c00ba638e8a702aae1074dce0d"),
+        SymbolKey("get_context_env_vars", "56bf48a63174f5c63921938c0a8dcda0d19f98c00ba638e8a702aae1074dce0d", source_module="specify_cli.core.context_validation"),
         # specify_cli.core.context_validation::get_current_context
-        SymbolKey("get_current_context", "530ede0c50e1cc62a22df394e5677aebc9c966a146bc0e67272e3f7617e26f50"),
-        SymbolKey("require_either", "d0cef5401daa9ad655fdf70d43329ecd945a77062022719cbd2e3a16f8c43805"),  # specify_cli.core.context_validation::require_either
-        SymbolKey("require_worktree", "1d54252d092035cbcd73ac4705bab7cd7fd668e041d5d4125a8e93b67eeffdda"),  # specify_cli.core.context_validation::require_worktree
+        SymbolKey("get_current_context", "530ede0c50e1cc62a22df394e5677aebc9c966a146bc0e67272e3f7617e26f50", source_module="specify_cli.core.context_validation"),
+        SymbolKey(
+            "require_either", "d0cef5401daa9ad655fdf70d43329ecd945a77062022719cbd2e3a16f8c43805", source_module="specify_cli.core.context_validation"
+        ),  # specify_cli.core.context_validation::require_either
+        SymbolKey(
+            "require_worktree", "1d54252d092035cbcd73ac4705bab7cd7fd668e041d5d4125a8e93b67eeffdda", source_module="specify_cli.core.context_validation"
+        ),  # specify_cli.core.context_validation::require_worktree
         # specify_cli.core.context_validation::set_context_env_vars
-        SymbolKey("set_context_env_vars", "b766e1ecbde17cc1bb179f2fd9f2587caa50d9a5f7fd68c27b8588ef02137b53"),
-        SymbolKey("STALE_AFTER_S_DEFAULT", "4cc4fddf416cec3b9f30b60227a6ef49ccbb4e284b60157cbc63318f63c28452"),  # specify_cli.core.file_lock::STALE_AFTER_S_DEFAULT
-        SymbolKey("BranchResolution", "8ff2750e1b6b4d57f15389814bd6a09313da7c83e1c97c832a08b599030251f5"),  # specify_cli.core.git_ops::BranchResolution
-        SymbolKey("has_tracking_branch", "d56afa2a06af3ad5cf4510162cc98b1fa96c3dfccf116935d8fc14ef3a2c2533"),  # specify_cli.core.git_ops::has_tracking_branch
-        SymbolKey("GitPreflightIssue", "0d7ef9d2b9dd1a727e7f312f0452d3454a00afdf70f96cd4a3a60918d0fdb996"),  # specify_cli.core.git_preflight::GitPreflightIssue
-        SymbolKey("GitPreflightResult", "27bc17df44fcb02a7c958848286546deb067266d6e30fe1337bdd194e7f6cd0c"),  # specify_cli.core.git_preflight::GitPreflightResult
-        SymbolKey("StatusReadUnsupported", "cb3fb8a540195e5a5d9e44f0c57aeafca8af3da21dd56ae454c8566085d8f6fa"),  # specify_cli.core.paths::StatusReadUnsupported
+        SymbolKey("set_context_env_vars", "b766e1ecbde17cc1bb179f2fd9f2587caa50d9a5f7fd68c27b8588ef02137b53", source_module="specify_cli.core.context_validation"),
+        SymbolKey(
+            "STALE_AFTER_S_DEFAULT", "4cc4fddf416cec3b9f30b60227a6ef49ccbb4e284b60157cbc63318f63c28452", source_module="specify_cli.core.file_lock"
+        ),  # specify_cli.core.file_lock::STALE_AFTER_S_DEFAULT
+        SymbolKey(
+            "BranchResolution", "8ff2750e1b6b4d57f15389814bd6a09313da7c83e1c97c832a08b599030251f5", source_module="specify_cli.core.git_ops"
+        ),  # specify_cli.core.git_ops::BranchResolution
+        SymbolKey(
+            "has_tracking_branch", "d56afa2a06af3ad5cf4510162cc98b1fa96c3dfccf116935d8fc14ef3a2c2533", source_module="specify_cli.core.git_ops"
+        ),  # specify_cli.core.git_ops::has_tracking_branch
+        SymbolKey(
+            "GitPreflightIssue", "0d7ef9d2b9dd1a727e7f312f0452d3454a00afdf70f96cd4a3a60918d0fdb996", source_module="specify_cli.core.git_preflight"
+        ),  # specify_cli.core.git_preflight::GitPreflightIssue
+        SymbolKey(
+            "GitPreflightResult", "27bc17df44fcb02a7c958848286546deb067266d6e30fe1337bdd194e7f6cd0c", source_module="specify_cli.core.git_preflight"
+        ),  # specify_cli.core.git_preflight::GitPreflightResult
+        SymbolKey(
+            "StatusReadUnsupported", "cb3fb8a540195e5a5d9e44f0c57aeafca8af3da21dd56ae454c8566085d8f6fa", source_module="specify_cli.core.paths"
+        ),  # specify_cli.core.paths::StatusReadUnsupported
         # specify_cli.core.paths::assert_worktree_supported
-        SymbolKey("assert_worktree_supported", "d09277b8bab529fa14813600e1e8b1c40eeaad52f8939c11664500ed93ac6723"),
-        SymbolKey("check_broken_symlink", "da895533a84b6c40ff500a143b2f8e31c1f0f05f0ad70936d7dde5d3689c1054"),  # specify_cli.core.paths::check_broken_symlink
-        SymbolKey("resolve_with_context", "ecd3546936aecdb7a52d035c1413d9e70abc5da973e64066bfcf51544da5f69c"),  # specify_cli.core.paths::resolve_with_context
-        SymbolKey("DEFAULT_TIMEOUT_S", "06ad6f73f97f6fa8fb8842f61fea9ff0bc7e8c5a6aa3cd65369ee5f09f605e76"),  # specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S
-        SymbolKey("PYPI_JSON_URL", "34521508629be2d77f48e49b4908e2e7e8baedeb8eab95ac9005b0b66ace1b36"),  # specify_cli.core.upgrade_probe::PYPI_JSON_URL
-        SymbolKey("FeatureTopology", "7eb983a309007bf528c914ade5ecf049191c487a1de7457dcc663f0b6fbad30e"),  # specify_cli.core.worktree_topology::FeatureTopology
-        SymbolKey("WPTopologyEntry", "c141560334391715de4dfc82c956b81426a506c4d022fca2af3509b38aa57045"),  # specify_cli.core.worktree_topology::WPTopologyEntry
+        SymbolKey("assert_worktree_supported", "d09277b8bab529fa14813600e1e8b1c40eeaad52f8939c11664500ed93ac6723", source_module="specify_cli.core.paths"),
+        SymbolKey(
+            "check_broken_symlink", "da895533a84b6c40ff500a143b2f8e31c1f0f05f0ad70936d7dde5d3689c1054", source_module="specify_cli.core.paths"
+        ),  # specify_cli.core.paths::check_broken_symlink
+        SymbolKey(
+            "resolve_with_context", "ecd3546936aecdb7a52d035c1413d9e70abc5da973e64066bfcf51544da5f69c", source_module="specify_cli.core.paths"
+        ),  # specify_cli.core.paths::resolve_with_context
+        SymbolKey(
+            "DEFAULT_TIMEOUT_S", "06ad6f73f97f6fa8fb8842f61fea9ff0bc7e8c5a6aa3cd65369ee5f09f605e76", source_module="specify_cli.core.upgrade_probe"
+        ),  # specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S
+        SymbolKey(
+            "PYPI_JSON_URL", "34521508629be2d77f48e49b4908e2e7e8baedeb8eab95ac9005b0b66ace1b36", source_module="specify_cli.core.upgrade_probe"
+        ),  # specify_cli.core.upgrade_probe::PYPI_JSON_URL
+        SymbolKey(
+            "FeatureTopology", "7eb983a309007bf528c914ade5ecf049191c487a1de7457dcc663f0b6fbad30e", source_module="specify_cli.core.worktree_topology"
+        ),  # specify_cli.core.worktree_topology::FeatureTopology
+        SymbolKey(
+            "WPTopologyEntry", "c141560334391715de4dfc82c956b81426a506c4d022fca2af3509b38aa57045", source_module="specify_cli.core.worktree_topology"
+        ),  # specify_cli.core.worktree_topology::WPTopologyEntry
         # specify_cli.core.worktree_topology::render_topology_text
-        SymbolKey("render_topology_text", "f2355bf1f11119024cdc83aa9f71dfc3723ce0c0f1055798038d064eecea5b68"),
+        SymbolKey("render_topology_text", "f2355bf1f11119024cdc83aa9f71dfc3723ce0c0f1055798038d064eecea5b68", source_module="specify_cli.core.worktree_topology"),
         # specify_cli.dashboard.api_types::ArtifactDirectoryFile
-        SymbolKey("ArtifactDirectoryFile", "6d6d39dfb5f96086c52c2fb376fa70e288617ba0d2ec0e1eb6f90129d9c6e07c"),
-        SymbolKey("ArtifactInfo", "127f2331f4b95a36680cf52accbccbb500e7ddf70f4ed1394086adf0e3381e74"),  # specify_cli.dashboard.api_types::ArtifactInfo
+        SymbolKey("ArtifactDirectoryFile", "6d6d39dfb5f96086c52c2fb376fa70e288617ba0d2ec0e1eb6f90129d9c6e07c", source_module="specify_cli.dashboard.api_types"),
+        SymbolKey(
+            "ArtifactInfo", "127f2331f4b95a36680cf52accbccbb500e7ddf70f4ed1394086adf0e3381e74", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::ArtifactInfo
         # specify_cli.dashboard.api_types::CurrentFeatureDetected
-        SymbolKey("CurrentFeatureDetected", "5d71a01dbf0a518810700217652bf4cb6f835430f48dffef0fa46795c530a52b"),
+        SymbolKey("CurrentFeatureDetected", "5d71a01dbf0a518810700217652bf4cb6f835430f48dffef0fa46795c530a52b", source_module="specify_cli.dashboard.api_types"),
         # specify_cli.dashboard.api_types::CurrentFeatureNotDetected
-        SymbolKey("CurrentFeatureNotDetected", "16dcad41883317c0e21ebb04366be47c864fd845acb92bbd19f1bd0a6ea27236"),
+        SymbolKey("CurrentFeatureNotDetected", "16dcad41883317c0e21ebb04366be47c864fd845acb92bbd19f1bd0a6ea27236", source_module="specify_cli.dashboard.api_types"),
         # specify_cli.dashboard.api_types::DashboardHealthInfo
-        SymbolKey("DashboardHealthInfo", "54eb82892c4caf6d73e5fe3149d6b29e7525e657fcb17a72342102a5f9affa14"),
+        SymbolKey("DashboardHealthInfo", "54eb82892c4caf6d73e5fe3149d6b29e7525e657fcb17a72342102a5f9affa14", source_module="specify_cli.dashboard.api_types"),
         # specify_cli.dashboard.api_types::DiagnosticsErrorResponse
-        SymbolKey("DiagnosticsErrorResponse", "cc8eda5cbc21d10d229de1e419d51da1c76b8b413d934f6b11f87509b3355c19"),
+        SymbolKey("DiagnosticsErrorResponse", "cc8eda5cbc21d10d229de1e419d51da1c76b8b413d934f6b11f87509b3355c19", source_module="specify_cli.dashboard.api_types"),
         # specify_cli.dashboard.api_types::DiagnosticsFeatureStatus
-        SymbolKey("DiagnosticsFeatureStatus", "a780d167c838d00cc894ece9d79172f216da99d4283eb22df6eb7c6249c20885"),
+        SymbolKey("DiagnosticsFeatureStatus", "a780d167c838d00cc894ece9d79172f216da99d4283eb22df6eb7c6249c20885", source_module="specify_cli.dashboard.api_types"),
         # specify_cli.dashboard.api_types::DiagnosticsResponse
-        SymbolKey("DiagnosticsResponse", "bbebc967757d09e195e0d7b7fd63cde903321cc4c0629a74095f51e4e6a90a93"),
-        SymbolKey("ErrorResponse", "92ab9716988898729741ad5fd8289d669e00e1bd87a18c8d3469f0506f508742"),  # specify_cli.dashboard.api_types::ErrorResponse
+        SymbolKey("DiagnosticsResponse", "bbebc967757d09e195e0d7b7fd63cde903321cc4c0629a74095f51e4e6a90a93", source_module="specify_cli.dashboard.api_types"),
+        SymbolKey(
+            "ErrorResponse", "92ab9716988898729741ad5fd8289d669e00e1bd87a18c8d3469f0506f508742", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::ErrorResponse
         # specify_cli.dashboard.api_types::FeaturesListErrorResponse
-        SymbolKey("FeaturesListErrorResponse", "f8650806ac140e69a4a06f1c0ed809ce90a70e190daa9f7817a5d2a8c45d8377"),
-        SymbolKey("FileIntegrity", "5a2f8439ee99d8d6c314eaa5ea2ba90bdb65552269804016362b3fb48e3949a7"),  # specify_cli.dashboard.api_types::FileIntegrity
-        SymbolKey("KanbanStats", "b294629da998209af14c759957f0ad2a6d6479ddf5b383ae7ae6aba4476a3797"),  # specify_cli.dashboard.api_types::KanbanStats
-        SymbolKey("MissionRecord", "874182d4e297344cf91fa4944d015c4183a8aa7c7004187a98497ab7ca314403"),  # specify_cli.dashboard.api_types::MissionRecord
-        SymbolKey("ResearchArtifact", "3bceb1df567e06b8b2e1923f5fab8412e4eba3fd49c3ab89d5a2187635ee4b35"),  # specify_cli.dashboard.api_types::ResearchArtifact
-        SymbolKey("SyncInfo", "a9b32d4636c364815cab3b0810ccdfb1e51c9c328643fdee8b867f8ae2fafaf5"),  # specify_cli.dashboard.api_types::SyncInfo
-        SymbolKey("SyncTriggerSuccess", "aced0b9a63cd5f3e7442bca40d354db1a176c41d42d6ece869c2c429ba5ad155"),  # specify_cli.dashboard.api_types::SyncTriggerSuccess
-        SymbolKey("WorkflowStatus", "77fd5a6326798e778a0d9d16adc37b6d87a6c6a93923fc88feca4b74cb2a1030"),  # specify_cli.dashboard.api_types::WorkflowStatus
-        SymbolKey("WorktreeInfo", "16f6ed6ff09cd073c6a18e5c720c74d1ed1fa0a69799a672643cdf7bbe7b1beb"),  # specify_cli.dashboard.api_types::WorktreeInfo
+        SymbolKey("FeaturesListErrorResponse", "f8650806ac140e69a4a06f1c0ed809ce90a70e190daa9f7817a5d2a8c45d8377", source_module="specify_cli.dashboard.api_types"),
+        SymbolKey(
+            "FileIntegrity", "5a2f8439ee99d8d6c314eaa5ea2ba90bdb65552269804016362b3fb48e3949a7", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::FileIntegrity
+        SymbolKey(
+            "KanbanStats", "b294629da998209af14c759957f0ad2a6d6479ddf5b383ae7ae6aba4476a3797", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::KanbanStats
+        SymbolKey(
+            "MissionRecord", "874182d4e297344cf91fa4944d015c4183a8aa7c7004187a98497ab7ca314403", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::MissionRecord
+        SymbolKey(
+            "ResearchArtifact", "3bceb1df567e06b8b2e1923f5fab8412e4eba3fd49c3ab89d5a2187635ee4b35", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::ResearchArtifact
+        SymbolKey(
+            "SyncInfo", "a9b32d4636c364815cab3b0810ccdfb1e51c9c328643fdee8b867f8ae2fafaf5", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::SyncInfo
+        SymbolKey(
+            "SyncTriggerSuccess", "aced0b9a63cd5f3e7442bca40d354db1a176c41d42d6ece869c2c429ba5ad155", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::SyncTriggerSuccess
+        SymbolKey(
+            "WorkflowStatus", "77fd5a6326798e778a0d9d16adc37b6d87a6c6a93923fc88feca4b74cb2a1030", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::WorkflowStatus
+        SymbolKey(
+            "WorktreeInfo", "16f6ed6ff09cd073c6a18e5c720c74d1ed1fa0a69799a672643cdf7bbe7b1beb", source_module="specify_cli.dashboard.api_types"
+        ),  # specify_cli.dashboard.api_types::WorktreeInfo
         # specify_cli.dashboard.lifecycle::_write_dashboard_file
-        SymbolKey("_write_dashboard_file", "ef82e6e8e295ed1b746ebbc8983b3fee53ab6f31b6d4bd143be6bfcc4a82017e"),
-        SymbolKey("get_dashboard_html", "99ab224c187cd9b6ac929157228cd64e5c53eca093745248f868dc8da6008cfa"),  # specify_cli.dashboard.templates::get_dashboard_html
-        SymbolKey("GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c"),  # specify_cli.doctrine.org_charter::GovernancePolicy
+        SymbolKey("_write_dashboard_file", "ef82e6e8e295ed1b746ebbc8983b3fee53ab6f31b6d4bd143be6bfcc4a82017e", source_module="specify_cli.dashboard.lifecycle"),
+        SymbolKey(
+            "get_dashboard_html", "99ab224c187cd9b6ac929157228cd64e5c53eca093745248f868dc8da6008cfa", source_module="specify_cli.dashboard.templates"
+        ),  # specify_cli.dashboard.templates::get_dashboard_html
+        SymbolKey(
+            "GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c", source_module="specify_cli.doctrine.org_charter"
+        ),  # specify_cli.doctrine.org_charter::GovernancePolicy
         # Hash refreshed for the write-side-seam-matrix-tracer landing fold
         # (Wave B / #3070) ASSET-kind tuple extension (added the ``assets``
         # member); still grandfathered-dead (no external src/ importer --
@@ -318,176 +462,336 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # ``src/charter/context.py``). Body-sensitive key => extending the
         # tuple changes its content hash (see ``_symbol_key.py`` Body-sensitivity).
         # specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS
-        SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327"),
+        SymbolKey("REQUIRED_KIND_FIELDS", "6845e2186c122993ab17b0352e5ac72f9c821e031e96de06cb5bd996f2f0f327", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::apply_org_charter_pre_fill
-        SymbolKey("apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b"),
-        SymbolKey("AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0"),  # specify_cli.doctrine.pack_assembler::AssemblyResult
-        SymbolKey("ConflictItem", "ba27993ebb52415cc1de33833e170bcaf33a09aed1db8ebf396d778466992f57"),  # specify_cli.doctrine.pack_assembler::ConflictItem
-        SymbolKey("ArtifactDetailResponse", "6ab904af861ebc649ce5950673d6be8ef4b65f323addde067ea3bcf61bb03f49"),  # specify_cli.dossier.api::ArtifactDetailResponse
-        SymbolKey("ArtifactListItem", "6f28fdc4337d4ebecb92fdc06a278ddbbc53d2acae8258cd31257e8ec7d7eebc"),  # specify_cli.dossier.api::ArtifactListItem
-        SymbolKey("ArtifactListResponse", "4cdb7c9d4c499dff5f7554bbea3b107ff0ecd7cf192d5ce93015f247ccd02542"),  # specify_cli.dossier.api::ArtifactListResponse
-        SymbolKey("DossierHandlerAdapter", "02cde998eec8166a25ef083d57f52df460389227a595fe92253b069949338f5a"),  # specify_cli.dossier.api::DossierHandlerAdapter
+        SymbolKey(
+            "apply_org_charter_pre_fill", "559da0a61fd4f6255212b449ad4de219cb758f57501e1c5adcc1f5e5f801385b", source_module="specify_cli.doctrine.org_charter"
+        ),
+        SymbolKey(
+            "AssemblyResult", "3af243769584cf1b5e44b1a04238c6a9f879b3cd8c34e05414c046d2220202f0", source_module="specify_cli.doctrine.pack_assembler"
+        ),  # specify_cli.doctrine.pack_assembler::AssemblyResult
+        SymbolKey(
+            "ConflictItem", "ba27993ebb52415cc1de33833e170bcaf33a09aed1db8ebf396d778466992f57", source_module="specify_cli.doctrine.pack_assembler"
+        ),  # specify_cli.doctrine.pack_assembler::ConflictItem
+        SymbolKey(
+            "ArtifactDetailResponse", "6ab904af861ebc649ce5950673d6be8ef4b65f323addde067ea3bcf61bb03f49", source_module="specify_cli.dossier.api"
+        ),  # specify_cli.dossier.api::ArtifactDetailResponse
+        SymbolKey(
+            "ArtifactListItem", "6f28fdc4337d4ebecb92fdc06a278ddbbc53d2acae8258cd31257e8ec7d7eebc", source_module="specify_cli.dossier.api"
+        ),  # specify_cli.dossier.api::ArtifactListItem
+        SymbolKey(
+            "ArtifactListResponse", "4cdb7c9d4c499dff5f7554bbea3b107ff0ecd7cf192d5ce93015f247ccd02542", source_module="specify_cli.dossier.api"
+        ),  # specify_cli.dossier.api::ArtifactListResponse
+        SymbolKey(
+            "DossierHandlerAdapter", "02cde998eec8166a25ef083d57f52df460389227a595fe92253b069949338f5a", source_module="specify_cli.dossier.api"
+        ),  # specify_cli.dossier.api::DossierHandlerAdapter
         # specify_cli.dossier.api::DossierOverviewResponse
-        SymbolKey("DossierOverviewResponse", "c0eea0f2e556ff61a368cb4f3b41b870d439b890c082c04da5a1572b5f6a330f"),
-        SymbolKey("SnapshotExportResponse", "91db1cf5fefd3a5b097d6eaa6273749184caa56906c0d30a45091f3db1d6e032"),  # specify_cli.dossier.api::SnapshotExportResponse
+        SymbolKey("DossierOverviewResponse", "c0eea0f2e556ff61a368cb4f3b41b870d439b890c082c04da5a1572b5f6a330f", source_module="specify_cli.dossier.api"),
+        SymbolKey(
+            "SnapshotExportResponse", "91db1cf5fefd3a5b097d6eaa6273749184caa56906c0d30a45091f3db1d6e032", source_module="specify_cli.dossier.api"
+        ),  # specify_cli.dossier.api::SnapshotExportResponse
         # (WP10/T039) ``add_history_entry`` allowlist entry removed: WP07/T028
         # deleted the module fn + manager method + ``__all__`` export, so the
         # symbol no longer exists to be dead — keeping the entry masks the next
         # dead symbol. Confirmed gone from ``src/`` at closeout.
-        SymbolKey("get_field", "3b2643bff1ddd668dc6bd85daeb01169fd44248d148357b2a87858349df7db9e"),  # specify_cli.frontmatter::get_field
-        SymbolKey("validate_frontmatter", "83489690099bbb23896f190267e54965a3cfbddc23084e1c9698b74fe7a9a118"),  # specify_cli.frontmatter::validate_frontmatter
-        SymbolKey("SparseCheckoutKind", "7628d183a1fdd02d956c9f1557061eb221dd5ea3ffb82aeabc1c54e80e4f7409"),  # specify_cli.git.sparse_checkout::SparseCheckoutKind
+        SymbolKey(
+            "get_field", "3b2643bff1ddd668dc6bd85daeb01169fd44248d148357b2a87858349df7db9e", source_module="specify_cli.frontmatter"
+        ),  # specify_cli.frontmatter::get_field
+        SymbolKey(
+            "validate_frontmatter", "83489690099bbb23896f190267e54965a3cfbddc23084e1c9698b74fe7a9a118", source_module="specify_cli.frontmatter"
+        ),  # specify_cli.frontmatter::validate_frontmatter
+        SymbolKey(
+            "SparseCheckoutKind", "7628d183a1fdd02d956c9f1557061eb221dd5ea3ffb82aeabc1c54e80e4f7409", source_module="specify_cli.git.sparse_checkout"
+        ),  # specify_cli.git.sparse_checkout::SparseCheckoutKind
         # specify_cli.git.sparse_checkout::_reset_session_warning_state
-        SymbolKey("_reset_session_warning_state", "41466d1d3efede301673da3d49ae625c027c20e4f3d7fc52bd96579a1999c9be"),
-        SymbolKey("scan_path", "e70cf877ec6d932f793d197349a0d7e14053758ccc5f91045553d16d32c97d8f"),  # specify_cli.git.sparse_checkout::scan_path
+        SymbolKey(
+            "_reset_session_warning_state", "41466d1d3efede301673da3d49ae625c027c20e4f3d7fc52bd96579a1999c9be", source_module="specify_cli.git.sparse_checkout"
+        ),
+        SymbolKey(
+            "scan_path", "e70cf877ec6d932f793d197349a0d7e14053758ccc5f91045553d16d32c97d8f", source_module="specify_cli.git.sparse_checkout"
+        ),  # specify_cli.git.sparse_checkout::scan_path
         # specify_cli.git.sparse_checkout_remediation::STEP_REFRESH_WORKING_TREE
-        SymbolKey("STEP_REFRESH_WORKING_TREE", "2581db715e744a22f2e17f63e6d402fca97cdc7339aa1c9f5b3efad8c2f8daac"),
+        SymbolKey(
+            "STEP_REFRESH_WORKING_TREE",
+            "2581db715e744a22f2e17f63e6d402fca97cdc7339aa1c9f5b3efad8c2f8daac",
+            source_module="specify_cli.git.sparse_checkout_remediation",
+        ),
         # specify_cli.git.sparse_checkout_remediation::STEP_REMOVE_PATTERN_FILE
-        SymbolKey("STEP_REMOVE_PATTERN_FILE", "e69c1be0f4c5698c3da5aa7699eab32bfe4e0e1c9e1e48b9c56d11273e376a97"),
+        SymbolKey(
+            "STEP_REMOVE_PATTERN_FILE",
+            "e69c1be0f4c5698c3da5aa7699eab32bfe4e0e1c9e1e48b9c56d11273e376a97",
+            source_module="specify_cli.git.sparse_checkout_remediation",
+        ),
         # specify_cli.git.sparse_checkout_remediation::STEP_SPARSE_DISABLE
-        SymbolKey("STEP_SPARSE_DISABLE", "fc8312c094ac81778428095d3be5dc066f206fcdaa61fbd7d35311bca6b9b1cc"),
+        SymbolKey(
+            "STEP_SPARSE_DISABLE", "fc8312c094ac81778428095d3be5dc066f206fcdaa61fbd7d35311bca6b9b1cc", source_module="specify_cli.git.sparse_checkout_remediation"
+        ),
         # specify_cli.git.sparse_checkout_remediation::STEP_UNSET_CONFIG
-        SymbolKey("STEP_UNSET_CONFIG", "e7d1de2d22078e3d7b215ba0f0322fb83fe982b76bc42ee70a745f58537f551f"),
+        SymbolKey(
+            "STEP_UNSET_CONFIG", "e7d1de2d22078e3d7b215ba0f0322fb83fe982b76bc42ee70a745f58537f551f", source_module="specify_cli.git.sparse_checkout_remediation"
+        ),
         # specify_cli.git.sparse_checkout_remediation::STEP_USER_DECLINED
-        SymbolKey("STEP_USER_DECLINED", "43267cc6fc081fd9cc4d453c7e98f8fa04677b6553e65b34eb29bfc0e0b4d0c1"),
+        SymbolKey(
+            "STEP_USER_DECLINED", "43267cc6fc081fd9cc4d453c7e98f8fa04677b6553e65b34eb29bfc0e0b4d0c1", source_module="specify_cli.git.sparse_checkout_remediation"
+        ),
         # specify_cli.git.sparse_checkout_remediation::STEP_VERIFY_CLEAN
-        SymbolKey("STEP_VERIFY_CLEAN", "8504fb56e041ae5dccf1de99792afcb7354173696ee242776b4a9b40916e8704"),
+        SymbolKey(
+            "STEP_VERIFY_CLEAN", "8504fb56e041ae5dccf1de99792afcb7354173696ee242776b4a9b40916e8704", source_module="specify_cli.git.sparse_checkout_remediation"
+        ),
         # specify_cli.git.sparse_checkout_remediation::SparseCheckoutRemediationReport
-        SymbolKey("SparseCheckoutRemediationReport", "20b509762a8f1e2e9302ab37b6d1bd4467aa88843c96005d7774bde676261859"),
+        SymbolKey(
+            "SparseCheckoutRemediationReport",
+            "20b509762a8f1e2e9302ab37b6d1bd4467aa88843c96005d7774bde676261859",
+            source_module="specify_cli.git.sparse_checkout_remediation",
+        ),
         # specify_cli.intake.brief_writer::CrossFilesystemWriteError
-        SymbolKey("CrossFilesystemWriteError", "acd6ef68ddf571b5d10e060705595ec6757064a9fc4fcb8999cb7e359b61dc7d"),
-        SymbolKey("atomic_write_bytes", "299f9a2ce9d0680ea41a791fc5817f56818ace58c9e90d841230f2fed65d2db1"),  # specify_cli.intake.brief_writer::atomic_write_bytes
-        SymbolKey("atomic_write_text", "4338782faca587ec7cc4c907a9680bcf0fb2f6f01d920dae26adb3497fd7c46a"),  # specify_cli.intake.brief_writer::atomic_write_text
-        SymbolKey("POLICY_TABLE", "6b1740b1daf02057f8a6eb6e475fbec6dd706b69f41184b4e74067d2cfc169eb"),  # specify_cli.invocation.projection_policy::POLICY_TABLE
-        SymbolKey("ProjectionRule", "3582715cd23856b1d0e2cf14293fef2a71b5b8a7b8b178b018f33b08638b3982"),  # specify_cli.invocation.projection_policy::ProjectionRule
+        SymbolKey("CrossFilesystemWriteError", "acd6ef68ddf571b5d10e060705595ec6757064a9fc4fcb8999cb7e359b61dc7d", source_module="specify_cli.intake.brief_writer"),
+        SymbolKey(
+            "atomic_write_bytes", "299f9a2ce9d0680ea41a791fc5817f56818ace58c9e90d841230f2fed65d2db1", source_module="specify_cli.intake.brief_writer"
+        ),  # specify_cli.intake.brief_writer::atomic_write_bytes
+        SymbolKey(
+            "atomic_write_text", "4338782faca587ec7cc4c907a9680bcf0fb2f6f01d920dae26adb3497fd7c46a", source_module="specify_cli.intake.brief_writer"
+        ),  # specify_cli.intake.brief_writer::atomic_write_text
+        SymbolKey(
+            "POLICY_TABLE", "6b1740b1daf02057f8a6eb6e475fbec6dd706b69f41184b4e74067d2cfc169eb", source_module="specify_cli.invocation.projection_policy"
+        ),  # specify_cli.invocation.projection_policy::POLICY_TABLE
+        SymbolKey(
+            "ProjectionRule", "3582715cd23856b1d0e2cf14293fef2a71b5b8a7b8b178b018f33b08638b3982", source_module="specify_cli.invocation.projection_policy"
+        ),  # specify_cli.invocation.projection_policy::ProjectionRule
         # specify_cli.lanes.lifecycle_sync::LANE_AUTO_REBASE_FAILED
-        SymbolKey("LANE_AUTO_REBASE_FAILED", "ac422fb0845653d0bab1cb2449584a37ca13c9b89e1bdb6170893aa23a810630"),
-        SymbolKey("ClassifierRule", "e4253249c186c97ce24d24d459a758fe02f4b3ebc7f94e62d0a000edf743755f"),  # specify_cli.merge.conflict_classifier::ClassifierRule
-        SymbolKey("RULES", "f2fede76cafc6c35cc093acdc068080406066dc6e5f82bf7b13575fe24359c24"),  # specify_cli.merge.conflict_classifier::RULES
-        SymbolKey("Resolution", "7bc793f726da67f4273d0f5ac82d13ed3141e7a53c9c2a42bbab390b64ff46b1"),  # specify_cli.merge.conflict_classifier::Resolution
+        SymbolKey("LANE_AUTO_REBASE_FAILED", "ac422fb0845653d0bab1cb2449584a37ca13c9b89e1bdb6170893aa23a810630", source_module="specify_cli.lanes.lifecycle_sync"),
+        SymbolKey(
+            "ClassifierRule", "e4253249c186c97ce24d24d459a758fe02f4b3ebc7f94e62d0a000edf743755f", source_module="specify_cli.merge.conflict_classifier"
+        ),  # specify_cli.merge.conflict_classifier::ClassifierRule
+        SymbolKey(
+            "RULES", "f2fede76cafc6c35cc093acdc068080406066dc6e5f82bf7b13575fe24359c24", source_module="specify_cli.merge.conflict_classifier"
+        ),  # specify_cli.merge.conflict_classifier::RULES
+        SymbolKey(
+            "Resolution", "7bc793f726da67f4273d0f5ac82d13ed3141e7a53c9c2a42bbab390b64ff46b1", source_module="specify_cli.merge.conflict_classifier"
+        ),  # specify_cli.merge.conflict_classifier::Resolution
         # specify_cli.merge.conflict_classifier::r_default_manual
-        SymbolKey("r_default_manual", "729111cef2a3601de1948651817b84123bea90eed651a9cd3b458377486e6d18"),
+        SymbolKey("r_default_manual", "729111cef2a3601de1948651817b84123bea90eed651a9cd3b458377486e6d18", source_module="specify_cli.merge.conflict_classifier"),
         # specify_cli.merge.conflict_classifier::r_init_imports_union
-        SymbolKey("r_init_imports_union", "d72fa8545eb4e8df7dc80288ea3bcd1994adfb4d4e5ab1d18144aec8f4a29de1"),
+        SymbolKey(
+            "r_init_imports_union", "d72fa8545eb4e8df7dc80288ea3bcd1994adfb4d4e5ab1d18144aec8f4a29de1", source_module="specify_cli.merge.conflict_classifier"
+        ),
         # specify_cli.merge.conflict_classifier::r_pyproject_deps_union
-        SymbolKey("r_pyproject_deps_union", "e3633e4ef609408e8a9d8433c080edad3cf595dac30db1ca7dba0a12cc852e64"),
+        SymbolKey(
+            "r_pyproject_deps_union", "e3633e4ef609408e8a9d8433c080edad3cf595dac30db1ca7dba0a12cc852e64", source_module="specify_cli.merge.conflict_classifier"
+        ),
         # specify_cli.merge.conflict_classifier::r_urls_list_union
-        SymbolKey("r_urls_list_union", "483a7c2e4e5c7ec6829ed411b4f485ae141a40ff6aaaa2d07fa588c461463bfd"),
+        SymbolKey("r_urls_list_union", "483a7c2e4e5c7ec6829ed411b4f485ae141a40ff6aaaa2d07fa588c461463bfd", source_module="specify_cli.merge.conflict_classifier"),
         # specify_cli.merge.conflict_classifier::r_uvlock_regenerate
-        SymbolKey("r_uvlock_regenerate", "00c7c15c6ac3c4eebd8a6a071b3c6157953733f7dcdcdf0f8c9b29d11fbf4b94"),
-        SymbolKey("display_merge_order", "305ac620b2ebbb6568c8aef92428d3c8326cbca533039995280ad367fd35dd67"),  # specify_cli.merge.ordering::display_merge_order
+        SymbolKey("r_uvlock_regenerate", "00c7c15c6ac3c4eebd8a6a071b3c6157953733f7dcdcdf0f8c9b29d11fbf4b94", source_module="specify_cli.merge.conflict_classifier"),
+        SymbolKey(
+            "display_merge_order", "305ac620b2ebbb6568c8aef92428d3c8326cbca533039995280ad367fd35dd67", source_module="specify_cli.merge.ordering"
+        ),  # specify_cli.merge.ordering::display_merge_order
         # specify_cli.merge.state::MergeAmbiguousStateError
-        SymbolKey("MergeAmbiguousStateError", "d69fb84bf96a1edbfa84500b1c49c6eaf6c30fce35ce95659504abff5221d7c5"),
-        SymbolKey("detect_git_merge_state", "1ebb0846821cef8d19a05382e249a78a78e602af5c6568fcf47746664b27e1f6"),  # specify_cli.merge.state::detect_git_merge_state
+        SymbolKey("MergeAmbiguousStateError", "d69fb84bf96a1edbfa84500b1c49c6eaf6c30fce35ce95659504abff5221d7c5", source_module="specify_cli.merge.state"),
+        SymbolKey(
+            "detect_git_merge_state", "1ebb0846821cef8d19a05382e249a78a78e602af5c6568fcf47746664b27e1f6", source_module="specify_cli.merge.state"
+        ),  # specify_cli.merge.state::detect_git_merge_state
         # specify_cli.mission_brief::IntakeFileMissingError (escalated: live collision)
         SymbolKey("IntakeFileMissingError", "10c5629ceb1c89d8fa16d2dfacaac2480549638e7ce8264138959a6e9be9155c", module_path="specify_cli.mission_brief"),
         # specify_cli.mission_brief::IntakeFileUnreadableError (escalated: live collision)
         SymbolKey("IntakeFileUnreadableError", "cbc27774574a9c61c998e746fa8749b06806674e67079e3ad9e932fd2ab147e9", module_path="specify_cli.mission_brief"),
-        SymbolKey("clear_mission_brief", "52ef7df6a2e4e0e40032f1b4a785936d2a9e21d322b225fd80aa119a66d99b83"),  # specify_cli.mission_brief::clear_mission_brief
-        SymbolKey("MissionProtocol", "c5521662618b6e3878d62d2cbda8f5b36e658221e7925fb4faf14153c6913bd1"),  # specify_cli.mission_v1::MissionProtocol
-        SymbolKey("load_mission", "ff1a5a3dc0abab0af9244e16db29da088093f66a6ee1a6cd80477abdf731b6d9"),  # specify_cli.mission_v1::load_mission
-        SymbolKey("load_mission_by_name", "489d0f9a1c2e1bce4062ba94ff015d79148f4b105c660813bd1156a139178d4a"),  # specify_cli.mission_v1::load_mission_by_name
+        SymbolKey(
+            "clear_mission_brief", "52ef7df6a2e4e0e40032f1b4a785936d2a9e21d322b225fd80aa119a66d99b83", source_module="specify_cli.mission_brief"
+        ),  # specify_cli.mission_brief::clear_mission_brief
+        SymbolKey(
+            "MissionProtocol", "c5521662618b6e3878d62d2cbda8f5b36e658221e7925fb4faf14153c6913bd1", source_module="specify_cli.mission_v1"
+        ),  # specify_cli.mission_v1::MissionProtocol
+        SymbolKey(
+            "load_mission", "ff1a5a3dc0abab0af9244e16db29da088093f66a6ee1a6cd80477abdf731b6d9", source_module="specify_cli.mission_v1"
+        ),  # specify_cli.mission_v1::load_mission
+        SymbolKey(
+            "load_mission_by_name", "489d0f9a1c2e1bce4062ba94ff015d79148f4b105c660813bd1156a139178d4a", source_module="specify_cli.mission_v1"
+        ),  # specify_cli.mission_v1::load_mission_by_name
         # specify_cli.missions::PrimitiveExecutionContext (escalated: live collision)
         SymbolKey("PrimitiveExecutionContext", "8d0ff32282080dcc0ee90b8fd3ba8ba5c9f41d4a20886979453df1db4ce64561", module_path="specify_cli.missions"),
         # specify_cli.missions::execute_with_glossary (escalated: live collision)
         SymbolKey("execute_with_glossary", "5942ba731fd9b815adc70427f1098602d157e8bdb6cbfb9c103c2939246ef368", module_path="specify_cli.missions"),
-        SymbolKey("SRC_FALLBACK_GLOB", "98996636a6168fb393c855815769613ceeb84fd88ded2ea37b7ac2fe659048b1"),  # specify_cli.ownership.inference::SRC_FALLBACK_GLOB
+        SymbolKey(
+            "SRC_FALLBACK_GLOB", "98996636a6168fb393c855815769613ceeb84fd88ded2ea37b7ac2fe659048b1", source_module="specify_cli.ownership.inference"
+        ),  # specify_cli.ownership.inference::SRC_FALLBACK_GLOB
         # specify_cli.ownership.inference::SRC_FALLBACK_WARNING
-        SymbolKey("SRC_FALLBACK_WARNING", "bf26744e04d9f2a94ff9647ec65de398875b3bdbfcb74764ba9081379e54c223"),
+        SymbolKey("SRC_FALLBACK_WARNING", "bf26744e04d9f2a94ff9647ec65de398875b3bdbfcb74764ba9081379e54c223", source_module="specify_cli.ownership.inference"),
         # specify_cli.ownership.validation::validate_authoritative_surface
-        SymbolKey("validate_authoritative_surface", "987d09f98ff07d79a1de805e4e088add4719c804056cf500b37e843c201a9357"),
+        SymbolKey(
+            "validate_authoritative_surface", "987d09f98ff07d79a1de805e4e088add4719c804056cf500b37e843c201a9357", source_module="specify_cli.ownership.validation"
+        ),
         # specify_cli.ownership.validation::validate_execution_mode_consistency
-        SymbolKey("validate_execution_mode_consistency", "72de0a50923215a33589efddc79177f751fdf05c4a5b46a2c86616b9d7ceb96f"),
+        SymbolKey(
+            "validate_execution_mode_consistency",
+            "72de0a50923215a33589efddc79177f751fdf05c4a5b46a2c86616b9d7ceb96f",
+            source_module="specify_cli.ownership.validation",
+        ),
         # specify_cli.ownership.validation::validate_no_overlap
-        SymbolKey("validate_no_overlap", "53fd8afa15dbb6f34b94541da3a2e4b183cf91a4c3170fbd0ed77223918cacd5"),
-        SymbolKey("detect_unfilled_plan", "a939602c9997240b49616668817fffbab7af31432e65813252b4afccbff57424"),  # specify_cli.plan_validation::detect_unfilled_plan
-        SymbolKey("_is_windows", "e45defef9fec1c1c49c25645cb3f12af0773098ea15f2c5c34a44e6995409704"),  # specify_cli.runtime.home::_is_windows
+        SymbolKey("validate_no_overlap", "53fd8afa15dbb6f34b94541da3a2e4b183cf91a4c3170fbd0ed77223918cacd5", source_module="specify_cli.ownership.validation"),
+        SymbolKey(
+            "detect_unfilled_plan", "a939602c9997240b49616668817fffbab7af31432e65813252b4afccbff57424", source_module="specify_cli.plan_validation"
+        ),  # specify_cli.plan_validation::detect_unfilled_plan
+        SymbolKey(
+            "_is_windows", "e45defef9fec1c1c49c25645cb3f12af0773098ea15f2c5c34a44e6995409704", source_module="specify_cli.runtime.home"
+        ),  # specify_cli.runtime.home::_is_windows
         # specify_cli.runtime.resolver::ResolutionResult (escalated: live collision)
         SymbolKey("ResolutionResult", "a49e0d4f6645139569e84bec5471e1f3cfa6ee507aa530454f76265290ddca58", module_path="specify_cli.runtime.resolver"),
         # specify_cli.runtime.resolver::ResolutionTier (escalated: live collision)
         SymbolKey("ResolutionTier", "5503356030b4f173a85df71b0ddd839476675f23c6f80a53bd381a0a1e8004cb", module_path="specify_cli.runtime.resolver"),
-        SymbolKey("AssetDisposition", "80538ab23937dae2a0ae5057b94162ab6d3ee08ee7df23683f57a650eccd4580"),  # specify_cli.runtime::AssetDisposition
-        SymbolKey("MigrationReport", "281c091735269501f17e11de13a8ea2e88a1ce97fe4e08034928d55be34e8a6f"),  # specify_cli.runtime::MigrationReport
-        SymbolKey("OriginEntry", "1f789caf3d0bbf11391ca36704de0ab247e6693ea437be93b9598850463dbf29"),  # specify_cli.runtime::OriginEntry
+        SymbolKey(
+            "AssetDisposition", "80538ab23937dae2a0ae5057b94162ab6d3ee08ee7df23683f57a650eccd4580", source_module="specify_cli.runtime"
+        ),  # specify_cli.runtime::AssetDisposition
+        SymbolKey(
+            "MigrationReport", "281c091735269501f17e11de13a8ea2e88a1ce97fe4e08034928d55be34e8a6f", source_module="specify_cli.runtime"
+        ),  # specify_cli.runtime::MigrationReport
+        SymbolKey(
+            "OriginEntry", "1f789caf3d0bbf11391ca36704de0ab247e6693ea437be93b9598850463dbf29", source_module="specify_cli.runtime"
+        ),  # specify_cli.runtime::OriginEntry
         # specify_cli.runtime::ResolutionResult (escalated: live collision)
         SymbolKey("ResolutionResult", "a49e0d4f6645139569e84bec5471e1f3cfa6ee507aa530454f76265290ddca58", module_path="specify_cli.runtime"),
         # specify_cli.runtime::ResolutionTier (escalated: live collision)
         SymbolKey("ResolutionTier", "5503356030b4f173a85df71b0ddd839476675f23c6f80a53bd381a0a1e8004cb", module_path="specify_cli.runtime"),
-        SymbolKey("classify_asset", "7d40a0db5e655cbd1457c6f28d6a5069a31642a0cde6c94149179003e86a7932"),  # specify_cli.runtime::classify_asset
-        SymbolKey("SkillRegistry", "c01cd024b561b9115a36d3487195aac21d78bd7262a02d993702e4346c51c16b"),  # specify_cli.shims::SkillRegistry
-        SymbolKey("SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811"),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
-        SymbolKey("load", "7689780b2e4a040cfc29e5b540406167217369b98795702cc6c496cb1c9a2b7c"),  # specify_cli.skills.manifest_store::load
-        SymbolKey("save", "222fabd1e77c7d011d9fc0b583fd27d7c8a044cf0fe17fdce0a59c95583b1172"),  # specify_cli.skills.manifest_store::save
+        SymbolKey(
+            "classify_asset", "7d40a0db5e655cbd1457c6f28d6a5069a31642a0cde6c94149179003e86a7932", source_module="specify_cli.runtime"
+        ),  # specify_cli.runtime::classify_asset
+        SymbolKey(
+            "SkillRegistry", "c01cd024b561b9115a36d3487195aac21d78bd7262a02d993702e4346c51c16b", source_module="specify_cli.shims"
+        ),  # specify_cli.shims::SkillRegistry
+        SymbolKey(
+            "SCHEMA_VERSION", "8fb29803d3d131301db2bbe72bbaab5314981664272c6a9d57f2a75684ae1811", source_module="specify_cli.skills.manifest_store"
+        ),  # specify_cli.skills.manifest_store::SCHEMA_VERSION
+        SymbolKey(
+            "load", "7689780b2e4a040cfc29e5b540406167217369b98795702cc6c496cb1c9a2b7c", source_module="specify_cli.skills.manifest_store"
+        ),  # specify_cli.skills.manifest_store::load
+        SymbolKey(
+            "save", "222fabd1e77c7d011d9fc0b583fd27d7c8a044cf0fe17fdce0a59c95583b1172", source_module="specify_cli.skills.manifest_store"
+        ),  # specify_cli.skills.manifest_store::save
         # specify_cli.status.lifecycle_events::MISSION_EVENTS_FILENAME
-        SymbolKey("MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9"),
+        SymbolKey(
+            "MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9", source_module="specify_cli.status.lifecycle_events"
+        ),
         # specify_cli.status.lifecycle_events::PROJECT_EVENTS_FILENAME
-        SymbolKey("PROJECT_EVENTS_FILENAME", "27f95adf27cd2fb348df3cd92afb8f6bd3c015697e237d232da23bfa900f74fe"),
+        SymbolKey(
+            "PROJECT_EVENTS_FILENAME", "27f95adf27cd2fb348df3cd92afb8f6bd3c015697e237d232da23bfa900f74fe", source_module="specify_cli.status.lifecycle_events"
+        ),
         # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
-        SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723"),
+        SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.lifecycle_events::append_lifecycle_event
-        SymbolKey("append_lifecycle_event", "44bbd8d10caea88cf4765a3952d39b9c790cb33de16111d5110aa3fb2d574659"),
+        SymbolKey(
+            "append_lifecycle_event", "44bbd8d10caea88cf4765a3952d39b9c790cb33de16111d5110aa3fb2d574659", source_module="specify_cli.status.lifecycle_events"
+        ),
         # specify_cli.status.lifecycle_events::has_lifecycle_event
-        SymbolKey("has_lifecycle_event", "ded63398ebd799f9cbdb0519033bf4ed4cb4dee39e51837f7c1b1fe7d562e69d"),
+        SymbolKey("has_lifecycle_event", "ded63398ebd799f9cbdb0519033bf4ed4cb4dee39e51837f7c1b1fe7d562e69d", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.lifecycle_events::project_event_log_path
-        SymbolKey("project_event_log_path", "b865a8c81e88c0816fd94a24242e9bfff14f6504da477813fc99b160049f3f70"),
+        SymbolKey(
+            "project_event_log_path", "b865a8c81e88c0816fd94a24242e9bfff14f6504da477813fc99b160049f3f70", source_module="specify_cli.status.lifecycle_events"
+        ),
         # specify_cli.status.uninitialized_hint::find_wp_dependency_cycles
-        SymbolKey("find_wp_dependency_cycles", "5b6258f4436930d9c732a9afc04d5261c137cd98c5b976a780e137d482e97135"),
-        SymbolKey("SyncDiagnostic", "ea3c1a482cae9570db15cadcdf12eaefbe1ec3841d82c512dc67177c455f40b6"),  # specify_cli.sync.diagnostics::SyncDiagnostic
-        SymbolKey("reset_emitted_codes", "52fe7de8627d0dc2f62a726e39459f8512f20d4ab8206445dd91dc23b8dd20fb"),  # specify_cli.sync.diagnostics::reset_emitted_codes
-        SymbolKey("SweepReport", "7ea93e8eac2a372c62bf080a8b9af326064800e2c072fe7a8ef01111ba1c1c10"),  # specify_cli.sync.orphan_sweep::SweepReport
+        SymbolKey(
+            "find_wp_dependency_cycles", "5b6258f4436930d9c732a9afc04d5261c137cd98c5b976a780e137d482e97135", source_module="specify_cli.status.uninitialized_hint"
+        ),
+        SymbolKey(
+            "SyncDiagnostic", "ea3c1a482cae9570db15cadcdf12eaefbe1ec3841d82c512dc67177c455f40b6", source_module="specify_cli.sync.diagnostics"
+        ),  # specify_cli.sync.diagnostics::SyncDiagnostic
+        SymbolKey(
+            "reset_emitted_codes", "52fe7de8627d0dc2f62a726e39459f8512f20d4ab8206445dd91dc23b8dd20fb", source_module="specify_cli.sync.diagnostics"
+        ),  # specify_cli.sync.diagnostics::reset_emitted_codes
+        SymbolKey(
+            "SweepReport", "7ea93e8eac2a372c62bf080a8b9af326064800e2c072fe7a8ef01111ba1c1c10", source_module="specify_cli.sync.orphan_sweep"
+        ),  # specify_cli.sync.orphan_sweep::SweepReport
         # specify_cli.task_metadata_validation::TaskMetadataError
-        SymbolKey("TaskMetadataError", "a5f4d63d6b2895e3143710b52553986e2c34ee1170b0a2c65909f19b8776aee7"),
+        SymbolKey("TaskMetadataError", "a5f4d63d6b2895e3143710b52553986e2c34ee1170b0a2c65909f19b8776aee7", source_module="specify_cli.task_metadata_validation"),
         # specify_cli.task_metadata_validation::detect_lane_mismatch
-        SymbolKey("detect_lane_mismatch", "4318eac514483a8a366cb66673d4a595fec81e0664b7fc0a6d27d945148b542a"),
+        SymbolKey("detect_lane_mismatch", "4318eac514483a8a366cb66673d4a595fec81e0664b7fc0a6d27d945148b542a", source_module="specify_cli.task_metadata_validation"),
         # specify_cli.task_metadata_validation::validate_task_metadata
-        SymbolKey("validate_task_metadata", "204dce3e2bd29c165be77f41d8e43b39b81c0a424e5ab947800272e07e8e73c3"),
+        SymbolKey(
+            "validate_task_metadata", "204dce3e2bd29c165be77f41d8e43b39b81c0a424e5ab947800272e07e8e73c3", source_module="specify_cli.task_metadata_validation"
+        ),
         # specify_cli.template.asset_generator::_convert_markdown_syntax_to_format
-        SymbolKey("_convert_markdown_syntax_to_format", "e8bc1f720dcafc3536917329a9cd279c81e544c390050d4d651a33f96418709b"),
-        SymbolKey("PROBLEMATIC_CHARS", "2c28f74e9e567401e971a4c8fb4d8d88e441d7ade49d950e0bd1208a3d514b41"),  # specify_cli.text_sanitization::PROBLEMATIC_CHARS
+        SymbolKey(
+            "_convert_markdown_syntax_to_format",
+            "e8bc1f720dcafc3536917329a9cd279c81e544c390050d4d651a33f96418709b",
+            source_module="specify_cli.template.asset_generator",
+        ),
+        SymbolKey(
+            "PROBLEMATIC_CHARS", "2c28f74e9e567401e971a4c8fb4d8d88e441d7ade49d950e0bd1208a3d514b41", source_module="specify_cli.text_sanitization"
+        ),  # specify_cli.text_sanitization::PROBLEMATIC_CHARS
         # specify_cli.text_sanitization::sanitize_markdown_text
-        SymbolKey("sanitize_markdown_text", "1531f4eece348d60d229144a81fc098028060a79d91d8ccd0fad3f8ec0ca2f34"),
+        SymbolKey("sanitize_markdown_text", "1531f4eece348d60d229144a81fc098028060a79d91d8ccd0fad3f8ec0ca2f34", source_module="specify_cli.text_sanitization"),
         # (rehashed: the client is now constructed with project_root=repo_root, #3030 FR-029)
         # specify_cli.tracker.origin::search_origin_candidates
-        SymbolKey("search_origin_candidates", "5901b7aef2a3cf420da33994b0db298b2b96d9bf23b9da263eba3c1003305069"),
+        SymbolKey("search_origin_candidates", "5901b7aef2a3cf420da33994b0db298b2b96d9bf23b9da263eba3c1003305069", source_module="specify_cli.tracker.origin"),
         # specify_cli.tracker.origin::start_mission_from_ticket
-        SymbolKey("start_mission_from_ticket", "16f1e4cf5ba62e5e10c1d4622b62549922f9b149432897f11696e00e7e8cac8a"),
+        SymbolKey("start_mission_from_ticket", "16f1e4cf5ba62e5e10c1d4622b62549922f9b149432897f11696e00e7e8cac8a", source_module="specify_cli.tracker.origin"),
         # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID
-        SymbolKey("MIGRATION_ID", "2141404f3e6b3f0f036403171fd8dd34a0f4ac8775a0c19082a55bf7d3d939ad"),
+        SymbolKey(
+            "MIGRATION_ID",
+            "2141404f3e6b3f0f036403171fd8dd34a0f4ac8775a0c19082a55bf7d3d939ad",
+            source_module="specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle",
+        ),
         # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::TARGET_VERSION
-        SymbolKey("TARGET_VERSION", "ea06e5f0a28dd3c9678a78930f7dab5d64ba2f054bfdbbd6e4b1052bd94d0b6b"),
+        SymbolKey(
+            "TARGET_VERSION",
+            "ea06e5f0a28dd3c9678a78930f7dab5d64ba2f054bfdbbd6e4b1052bd94d0b6b",
+            source_module="specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle",
+        ),
         # specify_cli.upgrade.migrations::MigrationDiscoveryError
-        SymbolKey("MigrationDiscoveryError", "541864310809d0a9f476f2963151b6468ced74b86082c66d0e0e3e420cbd133f"),
+        SymbolKey("MigrationDiscoveryError", "541864310809d0a9f476f2963151b6468ced74b86082c66d0e0e3e420cbd133f", source_module="specify_cli.upgrade.migrations"),
         # specify_cli.validators.csv_schema::CSVSchemaValidation
-        SymbolKey("CSVSchemaValidation", "9492562d2a8ff78e95fe51a2eb532a7046b2c26e8a04281d800551d07ccb8b9c"),
-        SymbolKey("PathValidationResult", "0c06a5f97dbf0bd590850ce8c7bb5067852f3edfbcbf7dc58dcec264b37e55da"),  # specify_cli.validators.paths::PathValidationResult
+        SymbolKey("CSVSchemaValidation", "9492562d2a8ff78e95fe51a2eb532a7046b2c26e8a04281d800551d07ccb8b9c", source_module="specify_cli.validators.csv_schema"),
+        SymbolKey(
+            "PathValidationResult", "0c06a5f97dbf0bd590850ce8c7bb5067852f3edfbcbf7dc58dcec264b37e55da", source_module="specify_cli.validators.paths"
+        ),  # specify_cli.validators.paths::PathValidationResult
         # specify_cli.validators.paths::suggest_directory_creation
-        SymbolKey("suggest_directory_creation", "43ab52fd99963aff65a61cac707bfa4e7460fb71e515f636c9e79960290f90f7"),
-        SymbolKey("APA_PATTERN", "e225a418edd433afa959eaafb07895bb8ff165314b82c6a9bd13b5708fd3c3ce"),  # specify_cli.validators.research::APA_PATTERN
-        SymbolKey("BIBTEX_PATTERN", "1f6ccd16b6d0e71a858aefb3f51f1bb54628c060140af6aec7148bb44a00f18a"),  # specify_cli.validators.research::BIBTEX_PATTERN
-        SymbolKey("CitationFormat", "c9a89a89f61089daf873da3b26960c6ddea341d6bbe8707db968efb0f3e8aef7"),  # specify_cli.validators.research::CitationFormat
-        SymbolKey("CitationIssue", "a2f57e836d2dc4705cd00e84c6a29b265dbde10052802f024f050d405ce5e0c4"),  # specify_cli.validators.research::CitationIssue
+        SymbolKey("suggest_directory_creation", "43ab52fd99963aff65a61cac707bfa4e7460fb71e515f636c9e79960290f90f7", source_module="specify_cli.validators.paths"),
+        SymbolKey(
+            "APA_PATTERN", "e225a418edd433afa959eaafb07895bb8ff165314b82c6a9bd13b5708fd3c3ce", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::APA_PATTERN
+        SymbolKey(
+            "BIBTEX_PATTERN", "1f6ccd16b6d0e71a858aefb3f51f1bb54628c060140af6aec7148bb44a00f18a", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::BIBTEX_PATTERN
+        SymbolKey(
+            "CitationFormat", "c9a89a89f61089daf873da3b26960c6ddea341d6bbe8707db968efb0f3e8aef7", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::CitationFormat
+        SymbolKey(
+            "CitationIssue", "a2f57e836d2dc4705cd00e84c6a29b265dbde10052802f024f050d405ce5e0c4", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::CitationIssue
         # specify_cli.validators.research::CitationValidationResult
-        SymbolKey("CitationValidationResult", "2f404bee806cbe15605248cad74d39dc91004b7411a6346c37d02e5da7da1426"),
+        SymbolKey("CitationValidationResult", "2f404bee806cbe15605248cad74d39dc91004b7411a6346c37d02e5da7da1426", source_module="specify_cli.validators.research"),
         # specify_cli.validators.research::ResearchValidationError
-        SymbolKey("ResearchValidationError", "8e0de7c1ce2abc09e2e26ef2b86891a533d23a5b62d3f58918fb08c5747a8284"),
-        SymbolKey("SIMPLE_PATTERN", "a2435238e81b44f25766109d814ec803c148c3a29e2d85d47e30ab096042c7b9"),  # specify_cli.validators.research::SIMPLE_PATTERN
+        SymbolKey("ResearchValidationError", "8e0de7c1ce2abc09e2e26ef2b86891a533d23a5b62d3f58918fb08c5747a8284", source_module="specify_cli.validators.research"),
+        SymbolKey(
+            "SIMPLE_PATTERN", "a2435238e81b44f25766109d814ec803c148c3a29e2d85d47e30ab096042c7b9", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::SIMPLE_PATTERN
         # specify_cli.validators.research::VALID_CONFIDENCE_LEVELS
-        SymbolKey("VALID_CONFIDENCE_LEVELS", "c160515f343ad25476a372943d437d1cf393ea028115d2a91855bc41645c7ddb"),
+        SymbolKey("VALID_CONFIDENCE_LEVELS", "c160515f343ad25476a372943d437d1cf393ea028115d2a91855bc41645c7ddb", source_module="specify_cli.validators.research"),
         # specify_cli.validators.research::VALID_RELEVANCE_LEVELS
-        SymbolKey("VALID_RELEVANCE_LEVELS", "34722f8e96555350ed3f46a0f61ea69354855e42a78f72f88f54a1a04190d535"),
+        SymbolKey("VALID_RELEVANCE_LEVELS", "34722f8e96555350ed3f46a0f61ea69354855e42a78f72f88f54a1a04190d535", source_module="specify_cli.validators.research"),
         # specify_cli.validators.research::VALID_SOURCE_STATUS
-        SymbolKey("VALID_SOURCE_STATUS", "6b50ea350d414cf3e31225b4ee1c1116cf4eac86922853b8568fba9792e89771"),
-        SymbolKey("VALID_SOURCE_TYPES", "ca324041c550e4de017a74c75c66dc5e74ae08a64dca757367f149b082209d5a"),  # specify_cli.validators.research::VALID_SOURCE_TYPES
+        SymbolKey("VALID_SOURCE_STATUS", "6b50ea350d414cf3e31225b4ee1c1116cf4eac86922853b8568fba9792e89771", source_module="specify_cli.validators.research"),
+        SymbolKey(
+            "VALID_SOURCE_TYPES", "ca324041c550e4de017a74c75c66dc5e74ae08a64dca757367f149b082209d5a", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::VALID_SOURCE_TYPES
         # specify_cli.validators.research::detect_citation_format
-        SymbolKey("detect_citation_format", "77028d1d9914eae810073eb37c535a3ff246d8505abfeee0f3b362f93278ad7d"),
-        SymbolKey("is_apa_format", "c93231c83488d6ec02f061ed0abb668970978ef80f41c46796dc3ff6d7553b19"),  # specify_cli.validators.research::is_apa_format
-        SymbolKey("is_bibtex_format", "a405d08064337875f5131fc8ace8adbdc0166926571fb9e4bafe123d954383e3"),  # specify_cli.validators.research::is_bibtex_format
-        SymbolKey("is_simple_format", "554f7f44d63e6bfb35c044e79f4cc227be18d10799e7d43ab117123fbbf72a47"),  # specify_cli.validators.research::is_simple_format
-        SymbolKey("validate_citations", "c8f28b75658a499c19b3bea2a86ecd2460289cf32811fdb472279ffaac16d44b"),  # specify_cli.validators.research::validate_citations
+        SymbolKey("detect_citation_format", "77028d1d9914eae810073eb37c535a3ff246d8505abfeee0f3b362f93278ad7d", source_module="specify_cli.validators.research"),
+        SymbolKey(
+            "is_apa_format", "c93231c83488d6ec02f061ed0abb668970978ef80f41c46796dc3ff6d7553b19", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::is_apa_format
+        SymbolKey(
+            "is_bibtex_format", "a405d08064337875f5131fc8ace8adbdc0166926571fb9e4bafe123d954383e3", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::is_bibtex_format
+        SymbolKey(
+            "is_simple_format", "554f7f44d63e6bfb35c044e79f4cc227be18d10799e7d43ab117123fbbf72a47", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::is_simple_format
+        SymbolKey(
+            "validate_citations", "c8f28b75658a499c19b3bea2a86ecd2460289cf32811fdb472279ffaac16d44b", source_module="specify_cli.validators.research"
+        ),  # specify_cli.validators.research::validate_citations
         # specify_cli.validators.research::validate_source_register
-        SymbolKey("validate_source_register", "c9828e462d4312022aabd276cfddac19d8839c37480d692a1f54fc874ceca9d9"),
+        SymbolKey("validate_source_register", "c9828e462d4312022aabd276cfddac19d8839c37480d692a1f54fc874ceca9d9", source_module="specify_cli.validators.research"),
         # specify_cli.widen.interview_helpers::render_widen_hint_if_present
-        SymbolKey("render_widen_hint_if_present", "488672b20073c5fb098086f3a277c270b6bfada6f1efc571c7ea6d3030286011"),
+        SymbolKey(
+            "render_widen_hint_if_present", "488672b20073c5fb098086f3a277c270b6bfada6f1efc571c7ea6d3030286011", source_module="specify_cli.widen.interview_helpers"
+        ),
         # kernel-clock-single-door PR #3305: FrozenClock/SystemClock are the
         # genuine public injectable-clock API (Clock protocol's real
         # implementation + deterministic test double) -- same "decomposed-
@@ -500,8 +804,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # public (not pruned from __all__) because both are load-bearing
         # constructor targets for the SC-002 single-injection-point idiom
         # documented in kernel/clock.py's own module + class docstrings.
-        SymbolKey("FrozenClock", "d7d3b0fc4c3f3073f8d91f3a9a52d572ed4c757fa0394e099a93cbdd55cc1254"),  # kernel.clock::FrozenClock
-        SymbolKey("SystemClock", "63636506c6ff5670c4d24b17ead03fa5f98c882a019a1566126d7bfb19ac82a0"),  # kernel.clock::SystemClock
+        SymbolKey("FrozenClock", "d7d3b0fc4c3f3073f8d91f3a9a52d572ed4c757fa0394e099a93cbdd55cc1254", source_module="kernel.clock"),  # kernel.clock::FrozenClock
+        SymbolKey("SystemClock", "63636506c6ff5670c4d24b17ead03fa5f98c882a019a1566126d7bfb19ac82a0", source_module="kernel.clock"),  # kernel.clock::SystemClock
     }
 )
 
@@ -521,7 +825,7 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE: frozenset[SymbolKey] = frozenset(
         # consumed via attribute access on run_consistency_check()'s return
         # value), matching this file's own CharterYamlCorruptError precedent.
         # charter.invocation_context::ContextPreconditionError
-        SymbolKey("ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af"),
+        SymbolKey("ContextPreconditionError", "ed270fe330c24f71db20d7c033d1246499b83b3bad558fc526fc4620bddd67af", source_module="charter.invocation_context"),
     }
 )
 
@@ -546,11 +850,15 @@ _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE: frozenset[SymbolKey] = frozenset
 _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.missions._create::CoordinationBranchResult
-        SymbolKey("CoordinationBranchResult", "dc567286f5c65649bf53e959fae163eda7bc545db28e0cd59828ba382728a790"),
+        SymbolKey("CoordinationBranchResult", "dc567286f5c65649bf53e959fae163eda7bc545db28e0cd59828ba382728a790", source_module="specify_cli.missions._create"),
         # specify_cli.missions._create::coordination_branch_name
-        SymbolKey("coordination_branch_name", "8fa08bd97424675f219df65dde32de3212f4087b60ec407994190a9aad26e01b"),
+        SymbolKey("coordination_branch_name", "8fa08bd97424675f219df65dde32de3212f4087b60ec407994190a9aad26e01b", source_module="specify_cli.missions._create"),
         # specify_cli.missions._resolve_planning_branch::resolve_planning_branch_from_meta
-        SymbolKey("resolve_planning_branch_from_meta", "ab0a19c05c45f58a95bb0a95e12757a2036e6a6a690238e3f19332e336c53582"),
+        SymbolKey(
+            "resolve_planning_branch_from_meta",
+            "ab0a19c05c45f58a95bb0a95e12757a2036e6a6a690238e3f19332e336c53582",
+            source_module="specify_cli.missions._resolve_planning_branch",
+        ),
     }
 )
 
@@ -563,7 +871,9 @@ _CATEGORY_C_WP_IN_FLIGHT_COORDINATION_BRANCH: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.coordination.surface_resolver::ResolvedStatusSurface
-        SymbolKey("ResolvedStatusSurface", "9e509c1b3194a519661e3613738bfa2c69e145820701bba61c1c56cfe49ef501"),
+        SymbolKey(
+            "ResolvedStatusSurface", "9e509c1b3194a519661e3613738bfa2c69e145820701bba61c1c56cfe49ef501", source_module="specify_cli.coordination.surface_resolver"
+        ),
     }
 )
 
@@ -575,13 +885,27 @@ _CATEGORY_C_WP_IN_FLIGHT_TOPOLOGY_AUTHORITY: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc"),  # doctrine.missions.mission_step_repository::StepKey
-        SymbolKey("IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12"),  # doctrine.missions.models::IDENTIFIER_PATTERN
-        SymbolKey("Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5"),  # doctrine.missions.models::Mission
-        SymbolKey("MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d"),  # doctrine.missions.models::MissionOrchestration
-        SymbolKey("MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587"),  # doctrine.missions.models::MissionStateObject
-        SymbolKey("MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973"),  # doctrine.missions.models::MissionTransition
-        SymbolKey("DelegatesTo", "e43595becef9482b7caa76b2e901db98a5f48737237d6c1aac8b74b64c32b9ee"),  # doctrine.missions.step_contracts::DelegatesTo
+        SymbolKey(
+            "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="doctrine.missions.mission_step_repository"
+        ),  # doctrine.missions.mission_step_repository::StepKey
+        SymbolKey(
+            "IDENTIFIER_PATTERN", "944bd183d9ba2c291aefb749f879af6cd98fc905083ec9c8c6d11b76ec488d12", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::IDENTIFIER_PATTERN
+        SymbolKey(
+            "Mission", "15e9ee0fa689f7a7e779b89907e036590786ec6594a8ab27bdb062e5f9fe8fa5", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::Mission
+        SymbolKey(
+            "MissionOrchestration", "07d36b401f8d499e95d93e93d61fc1a9c139798fe4f7f0bf9f66939257ef965d", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::MissionOrchestration
+        SymbolKey(
+            "MissionStateObject", "955954fbc29b36f5c463bc5e39a04a5b24410cc31f5c0e017e8221176efae587", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::MissionStateObject
+        SymbolKey(
+            "MissionTransition", "9fe929fc9914ddcb8ebc8c3872fe9f1d410a7f14ea6690c82165379d980dc973", source_module="doctrine.missions.models"
+        ),  # doctrine.missions.models::MissionTransition
+        SymbolKey(
+            "DelegatesTo", "e43595becef9482b7caa76b2e901db98a5f48737237d6c1aac8b74b64c32b9ee", source_module="doctrine.missions.step_contracts"
+        ),  # doctrine.missions.step_contracts::DelegatesTo
     }
 )
 
@@ -593,15 +917,25 @@ _CATEGORY_C_WP_IN_FLIGHT_UNIFIED_MISSION_STEP: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("ActivationResult", "3caa63e1d20b223d5052be3797c81a938ab823a04087c3fe7a4ca6fa7d82aec7"),  # charter.pack_manager::ActivationResult
-        SymbolKey("MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093"),  # charter.pack_manager::MergeResult
-        SymbolKey("StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc"),  # doctrine.missions.mission_step_repository::StepKey
-        SymbolKey("AffectedMission", "aca1c4d1ccf40c858667a7ca7fc09a28197e3b7ed559beffd1c72e4ed91f5a1f"),  # specify_cli.charter_activate::AffectedMission
-        SymbolKey("StepRemovalWarning", "508dec1c957b44c16c889862c20780e4d64148a0918785d8edd5ff094aa66ccf"),  # specify_cli.charter_activate::StepRemovalWarning
+        SymbolKey(
+            "ActivationResult", "3caa63e1d20b223d5052be3797c81a938ab823a04087c3fe7a4ca6fa7d82aec7", source_module="charter.pack_manager"
+        ),  # charter.pack_manager::ActivationResult
+        SymbolKey(
+            "MergeResult", "cc0c8d09dc8bd0cc0152b7bee385aefdedb9f555cc1e6ac4593a009b38b25093", source_module="charter.pack_manager"
+        ),  # charter.pack_manager::MergeResult
+        SymbolKey(
+            "StepKey", "6b982c25b6d2735411195c4e785e71c6178eca1ce51e18c0b656f7f44bdd0edc", source_module="doctrine.missions.mission_step_repository"
+        ),  # doctrine.missions.mission_step_repository::StepKey
+        SymbolKey(
+            "AffectedMission", "aca1c4d1ccf40c858667a7ca7fc09a28197e3b7ed559beffd1c72e4ed91f5a1f", source_module="specify_cli.charter_activate"
+        ),  # specify_cli.charter_activate::AffectedMission
+        SymbolKey(
+            "StepRemovalWarning", "508dec1c957b44c16c889862c20780e4d64148a0918785d8edd5ff094aa66ccf", source_module="specify_cli.charter_activate"
+        ),  # specify_cli.charter_activate::StepRemovalWarning
         # specify_cli.doctrine.org_charter::OrgCharterCycleError
-        SymbolKey("OrgCharterCycleError", "15ac7dc4906c07d6bbfeab8cd3051ed1872032f497dfe23b680eb118c0126740"),
+        SymbolKey("OrgCharterCycleError", "15ac7dc4906c07d6bbfeab8cd3051ed1872032f497dfe23b680eb118c0126740", source_module="specify_cli.doctrine.org_charter"),
         # specify_cli.doctrine.org_charter::OrgCharterExtensionError
-        SymbolKey("OrgCharterExtensionError", "5351ebd8c29db6ce6682b7c0a92db5b9f433157d77f4c1985e030d0b8f7aae69"),
+        SymbolKey("OrgCharterExtensionError", "5351ebd8c29db6ce6682b7c0a92db5b9f433157d77f4c1985e030d0b8f7aae69", source_module="specify_cli.doctrine.org_charter"),
     }
 )
 
@@ -614,16 +948,26 @@ _CATEGORY_C_WP_IN_FLIGHT_CHARTER_ACTIVATION: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53"),  # charter.activation_engine::ActivationPlan
-        SymbolKey("DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43"),  # charter.cascade::DeactivationPlan
-        SymbolKey("REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca"),  # charter.cascade::REFERENCE_RELATIONS
-        SymbolKey("ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc"),  # charter.cascade::ReferencedArtifact
-        SymbolKey("SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b"),  # charter.cascade::SharedSkip
+        SymbolKey(
+            "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation_engine"
+        ),  # charter.activation_engine::ActivationPlan
+        SymbolKey(
+            "DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43", source_module="charter.cascade"
+        ),  # charter.cascade::DeactivationPlan
+        SymbolKey(
+            "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.cascade"
+        ),  # charter.cascade::REFERENCE_RELATIONS
+        SymbolKey(
+            "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.cascade"
+        ),  # charter.cascade::ReferencedArtifact
+        SymbolKey("SharedSkip", "5eaddd3d5d18e386fc96f4ad558b21289c0bf7955cc70cfadca308d234f3ff5b", source_module="charter.cascade"),  # charter.cascade::SharedSkip
         # doctrine.drg.org_pack_loader::AUGMENTATION_RELATIONS
-        SymbolKey("AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0"),
-        SymbolKey("TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e"),  # doctrine.drg.org_pack_loader::TOPOLOGY_KINDS
+        SymbolKey("AUGMENTATION_RELATIONS", "724f4741d69125ccfd2bb664f8f05739fb4a2372220636958b84476741738af0", source_module="doctrine.drg.org_pack_loader"),
+        SymbolKey(
+            "TOPOLOGY_KINDS", "eb1deec7b602719bb1ada5074ee99c1bf01b1df4faa1370845f9e8f65b341e9e", source_module="doctrine.drg.org_pack_loader"
+        ),  # doctrine.drg.org_pack_loader::TOPOLOGY_KINDS
         # doctrine.drg.org_pack_loader::merge_topology_artifact
-        SymbolKey("merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9"),
+        SymbolKey("merge_topology_artifact", "8b3946b11d7220f921e402afa6152d2d33907b8743465c34a56e681e676539e9", source_module="doctrine.drg.org_pack_loader"),
         # ``template_id_for`` and ``template_urn`` left the allowlist in
         # mission-step-creatability-01KXQA6R WP06 (S-C / #2724): the DRG
         # extractor's template-instantiation pass
@@ -631,9 +975,15 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         # is now their first live non-test caller, so the dead-symbol gate
         # (FR-008) requires them removed. ``template_node``/``template_nodes``
         # stay allowlisted -- still no live caller.
-        SymbolKey("template_node", "dea39c9ec49890b233342ad15392800be8606946f3ad2964e995969792c9b0e0"),  # doctrine.template_catalog::template_node
-        SymbolKey("template_nodes", "84573a47cbf040c8d00b413ada1f52225e2131371dd580393fbc88ac226404dd"),  # doctrine.template_catalog::template_nodes
-        SymbolKey("PackHealth", "82268603b58f8a1449a0bf97456ddf08c217c11de4d66d85a41afc56819f7eee"),  # specify_cli.cli.commands._doctrine_health::PackHealth
+        SymbolKey(
+            "template_node", "dea39c9ec49890b233342ad15392800be8606946f3ad2964e995969792c9b0e0", source_module="doctrine.template_catalog"
+        ),  # doctrine.template_catalog::template_node
+        SymbolKey(
+            "template_nodes", "84573a47cbf040c8d00b413ada1f52225e2131371dd580393fbc88ac226404dd", source_module="doctrine.template_catalog"
+        ),  # doctrine.template_catalog::template_nodes
+        SymbolKey(
+            "PackHealth", "82268603b58f8a1449a0bf97456ddf08c217c11de4d66d85a41afc56819f7eee", source_module="specify_cli.cli.commands._doctrine_health"
+        ),  # specify_cli.cli.commands._doctrine_health::PackHealth
     }
 )
 
@@ -646,8 +996,12 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_UPSTREAM_SESSION_PRESENCE: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("CACHE_PATH", "65335e57687d24eac92dec11e6cd5d4099547d3a60bb633501912b789b5ddfa2"),  # specify_cli.session_presence.upgrade_check::CACHE_PATH
-        SymbolKey("TTL_SECONDS", "12e366f07395dad9d3e750719e906194509f2ec6f0e16a5a9b180be893795962"),  # specify_cli.session_presence.upgrade_check::TTL_SECONDS
+        SymbolKey(
+            "CACHE_PATH", "65335e57687d24eac92dec11e6cd5d4099547d3a60bb633501912b789b5ddfa2", source_module="specify_cli.session_presence.upgrade_check"
+        ),  # specify_cli.session_presence.upgrade_check::CACHE_PATH
+        SymbolKey(
+            "TTL_SECONDS", "12e366f07395dad9d3e750719e906194509f2ec6f0e16a5a9b180be893795962", source_module="specify_cli.session_presence.upgrade_check"
+        ),  # specify_cli.session_presence.upgrade_check::TTL_SECONDS
     }
 )
 
@@ -659,7 +1013,9 @@ _CATEGORY_C_UPSTREAM_SESSION_PRESENCE: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_QUALITY_DEBT_1928: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("PathValidationError", "85f3d9bc44e166ee3f73f0bccfa146e43b23e3ac019402238fddda73f670e56f"),  # specify_cli.validators.paths::PathValidationError
+        SymbolKey(
+            "PathValidationError", "85f3d9bc44e166ee3f73f0bccfa146e43b23e3ac019402238fddda73f670e56f", source_module="specify_cli.validators.paths"
+        ),  # specify_cli.validators.paths::PathValidationError
     }
 )
 
@@ -682,11 +1038,13 @@ _CATEGORY_C_QUALITY_DEBT_1928: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API: frozenset[SymbolKey] = frozenset(
     {
         # kernel.env_expand::UnresolvedEnvTokenError
-        SymbolKey("UnresolvedEnvTokenError", "f412b46e47e99106738049c8591d9ea8b15465c31a052bb7d547384e137f810e"),
+        SymbolKey("UnresolvedEnvTokenError", "f412b46e47e99106738049c8591d9ea8b15465c31a052bb7d547384e137f810e", source_module="kernel.env_expand"),
         # specify_cli.bootstrap.env_file::OperatorEnvFileUnreadableError
-        SymbolKey("OperatorEnvFileUnreadableError", "ac46a6871a178702eda203f7e033f223c04d010efe92e84ca2a5c7f9bc669d8c"),
+        SymbolKey(
+            "OperatorEnvFileUnreadableError", "ac46a6871a178702eda203f7e033f223c04d010efe92e84ca2a5c7f9bc669d8c", source_module="specify_cli.bootstrap.env_file"
+        ),
         # specify_cli.core.secret_redaction::RedactedVar
-        SymbolKey("RedactedVar", "203ae262daee894e8872ca42a54de0774b5c8461f97be8ee26ac19329f8657d3"),
+        SymbolKey("RedactedVar", "203ae262daee894e8872ca42a54de0774b5c8461f97be8ee26ac19329f8657d3", source_module="specify_cli.core.secret_redaction"),
     }
 )
 
@@ -707,17 +1065,23 @@ _CATEGORY_C_OPERATOR_CONFIG_PUBLIC_API: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.cli.commands._channel_doctor::register
-        SymbolKey("register", "3e40fc6641735900c4b86d367c7daf205425df768e6a63e9be1e789ee6fb3da7"),
+        SymbolKey("register", "3e40fc6641735900c4b86d367c7daf205425df768e6a63e9be1e789ee6fb3da7", source_module="specify_cli.cli.commands._channel_doctor"),
         # specify_cli.cli.commands._channel_doctor::run_channel_report
-        SymbolKey("run_channel_report", "7b85d1bda9aae6c822e97bf6fdcf592fddc365a48710197d103e836fdfd71333"),
+        SymbolKey(
+            "run_channel_report", "7b85d1bda9aae6c822e97bf6fdcf592fddc365a48710197d103e836fdfd71333", source_module="specify_cli.cli.commands._channel_doctor"
+        ),
         # specify_cli.cli.commands._env_file_doctor::register
-        SymbolKey("register", "5e2e984810eb13ddc42d05b32070af2f41f4561ada6a87415b01d0d942c75aca"),
+        SymbolKey("register", "5e2e984810eb13ddc42d05b32070af2f41f4561ada6a87415b01d0d942c75aca", source_module="specify_cli.cli.commands._env_file_doctor"),
         # specify_cli.cli.commands._env_file_doctor::run_env_file_health
-        SymbolKey("run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9"),
+        SymbolKey(
+            "run_env_file_health", "a01d73dc1ffe6ecc2db7561a3707c98e425a77aee9b722a8687f0f9601f97fb9", source_module="specify_cli.cli.commands._env_file_doctor"
+        ),
         # specify_cli.cli.commands._provenance_doctor::register
-        SymbolKey("register", "52eac1277179077d9735c9e67756fade67aab73d384883645f69da6800f997d7"),
+        SymbolKey("register", "52eac1277179077d9735c9e67756fade67aab73d384883645f69da6800f997d7", source_module="specify_cli.cli.commands._provenance_doctor"),
         # specify_cli.cli.commands._provenance_doctor::run_provenance_audit
-        SymbolKey("run_provenance_audit", "a657b0dbc7e8d2b82fc80e005592413230902a240d550c1b12be39cd4cd66b2e"),
+        SymbolKey(
+            "run_provenance_audit", "a657b0dbc7e8d2b82fc80e005592413230902a240d550c1b12be39cd4cd66b2e", source_module="specify_cli.cli.commands._provenance_doctor"
+        ),
     }
 )
 
@@ -731,9 +1095,13 @@ _CATEGORY_C_DOCTOR_AUTO_DISCOVERY_SEAM: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.lanes.branch_naming::LEGACY_FAILOVER_SUPPRESS_ENV
-        SymbolKey("LEGACY_FAILOVER_SUPPRESS_ENV", "957586eb65e3ce121ded2ef48b5d57a4a72909a7ae1a254d4929a39f8e6428b3"),
+        SymbolKey(
+            "LEGACY_FAILOVER_SUPPRESS_ENV", "957586eb65e3ce121ded2ef48b5d57a4a72909a7ae1a254d4929a39f8e6428b3", source_module="specify_cli.lanes.branch_naming"
+        ),
         # specify_cli.lanes.branch_naming::reset_legacy_failover_warning
-        SymbolKey("reset_legacy_failover_warning", "7b006e531bb376166d109ca44ba745608b0e558e55f69565e21f83469c19c8c9"),
+        SymbolKey(
+            "reset_legacy_failover_warning", "7b006e531bb376166d109ca44ba745608b0e558e55f69565e21f83469c19c8c9", source_module="specify_cli.lanes.branch_naming"
+        ),
     }
 )
 
@@ -777,29 +1145,47 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         # of a hardcoded {filename1, filename2} membership test -- body changed,
         # content-tier hash re-pinned.)
         # specify_cli.merge.bookkeeping_projection::_assert_status_surface_file_path_is_trusted
-        SymbolKey("_assert_status_surface_file_path_is_trusted", "4849bba669d427bc0cdb0a72f77dc821f821b979edd3293e9ea5f1d6e0fe6d62"),
+        SymbolKey(
+            "_assert_status_surface_file_path_is_trusted",
+            "4849bba669d427bc0cdb0a72f77dc821f821b979edd3293e9ea5f1d6e0fe6d62",
+            source_module="specify_cli.merge.bookkeeping_projection",
+        ),
         # specify_cli.merge.bookkeeping_projection::_read_optional_bytes
-        SymbolKey("_read_optional_bytes", "ff9a424ce926fdeb80a67f95e6350ef8b4107a3fcf9a3192f57d6fed6db076a8"),
+        SymbolKey(
+            "_read_optional_bytes", "ff9a424ce926fdeb80a67f95e6350ef8b4107a3fcf9a3192f57d6fed6db076a8", source_module="specify_cli.merge.bookkeeping_projection"
+        ),
         # specify_cli.merge.bookkeeping_projection::_restore_optional_bytes
-        SymbolKey("_restore_optional_bytes", "d34e2cf5f0c1325386d4747c6111cd696a89d476dde3ced2018182c0dfba6fdb"),
-        SymbolKey("_already_baked", "42470ebca7e82026542624079c0cbafeaa3a5dc53ca3a653b2a4c196492bd93c"),  # specify_cli.merge.ordering::_already_baked
+        SymbolKey(
+            "_restore_optional_bytes", "d34e2cf5f0c1325386d4747c6111cd696a89d476dde3ced2018182c0dfba6fdb", source_module="specify_cli.merge.bookkeeping_projection"
+        ),
+        SymbolKey(
+            "_already_baked", "42470ebca7e82026542624079c0cbafeaa3a5dc53ca3a653b2a4c196492bd93c", source_module="specify_cli.merge.ordering"
+        ),  # specify_cli.merge.ordering::_already_baked
         # specify_cli.merge.ordering::_compute_next_mission_number_or_none
-        SymbolKey("_compute_next_mission_number_or_none", "a1b9c06e3368d481c463b2c09a7a9055923219ddc4de8cd33d6d52bc5f73182d"),
+        SymbolKey(
+            "_compute_next_mission_number_or_none", "a1b9c06e3368d481c463b2c09a7a9055923219ddc4de8cd33d6d52bc5f73182d", source_module="specify_cli.merge.ordering"
+        ),
         # specify_cli.merge.ordering::_is_assigned_mission_number
-        SymbolKey("_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1"),
+        SymbolKey("_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1", source_module="specify_cli.merge.ordering"),
         # specify_cli.merge.ordering::_mark_mission_number_baked
-        SymbolKey("_mark_mission_number_baked", "aa2e64b018e1d7ecc47f73211c291d16934d659b8f4b07b472e200225d99e72b"),
+        SymbolKey("_mark_mission_number_baked", "aa2e64b018e1d7ecc47f73211c291d16934d659b8f4b07b472e200225d99e72b", source_module="specify_cli.merge.ordering"),
         # specify_cli.merge.ordering::_write_mission_number_to_branch (body_hash
         # refreshed lifecycle-gate-execution-context: body edited, key is
         # content-tier and body-sensitive by design -- see _symbol_key.py
         # "Body-sensitivity" note; still a seam-internal helper, zero cross-file
         # src/ caller)
         # specify_cli.merge.ordering::_write_mission_number_to_branch
-        SymbolKey("_write_mission_number_to_branch", "38e9704c5b132c12d81d3be921a257f0e340f58264fba5909703bb088b523fc2"),
-        SymbolKey("check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460"),  # specify_cli.merge.push_preflight::check_push_safety
-        SymbolKey("_extract_mission_slug", "834a3e235860c64046504604c6f21d21f5a8c2e8443ef33b8c4ad6ad07c2e934"),  # specify_cli.merge.resolve::_extract_mission_slug
+        SymbolKey(
+            "_write_mission_number_to_branch", "38e9704c5b132c12d81d3be921a257f0e340f58264fba5909703bb088b523fc2", source_module="specify_cli.merge.ordering"
+        ),
+        SymbolKey(
+            "check_push_safety", "893124ff3029dec30c538fd54577881f4afa05002067b4f1033ce550f52e0460", source_module="specify_cli.merge.push_preflight"
+        ),  # specify_cli.merge.push_preflight::check_push_safety
+        SymbolKey(
+            "_extract_mission_slug", "834a3e235860c64046504604c6f21d21f5a8c2e8443ef33b8c4ad6ad07c2e934", source_module="specify_cli.merge.resolve"
+        ),  # specify_cli.merge.resolve::_extract_mission_slug
         # specify_cli.merge.resolve::_iter_merge_states_for_slug
-        SymbolKey("_iter_merge_states_for_slug", "7685ecbbf713921090d3265d6df803e98839f0b4f2a75795f0903478009b10e7"),
+        SymbolKey("_iter_merge_states_for_slug", "7685ecbbf713921090d3265d6df803e98839f0b4f2a75795f0903478009b10e7", source_module="specify_cli.merge.resolve"),
     }
 )
 
@@ -815,12 +1201,22 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
 _CATEGORY_B_T001_UNBLINDED: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.auth.transport::AsyncAuthenticatedClient
-        SymbolKey("AsyncAuthenticatedClient", "f55c360aa798fa78dafc366bdb643c863d5d1a56aa2d130c276b808095516f0e"),
-        SymbolKey("AuthRefreshFailed", "ceaa6c4e7772ec4cf012512c1fa9504f988aa3522df697264ecbb6025bc0367d"),  # specify_cli.auth.transport::AuthRefreshFailed
-        SymbolKey("AuthenticatedClient", "fdca768debf63f3f84eb7a9119b9b1e219094c9210840fdd433cf2a5bd3d0fc9"),  # specify_cli.auth.transport::AuthenticatedClient
-        SymbolKey("get_async_client", "784e28c299d00ac9210b69146d666fec3d77103b9475c9306bf9350d458a2f5a"),  # specify_cli.auth.transport::get_async_client
-        SymbolKey("get_client", "c8a14f890fac446b89c410dc11a379b5b759c7e8c0e7e041a23413b06a00a313"),  # specify_cli.auth.transport::get_client
-        SymbolKey("reset_clients", "3f0f27d532f29c06c5a85a9415ac60db6e5f5421ca4732d8e9a12bf69eb0e9b3"),  # specify_cli.auth.transport::reset_clients
+        SymbolKey("AsyncAuthenticatedClient", "f55c360aa798fa78dafc366bdb643c863d5d1a56aa2d130c276b808095516f0e", source_module="specify_cli.auth.transport"),
+        SymbolKey(
+            "AuthRefreshFailed", "ceaa6c4e7772ec4cf012512c1fa9504f988aa3522df697264ecbb6025bc0367d", source_module="specify_cli.auth.transport"
+        ),  # specify_cli.auth.transport::AuthRefreshFailed
+        SymbolKey(
+            "AuthenticatedClient", "fdca768debf63f3f84eb7a9119b9b1e219094c9210840fdd433cf2a5bd3d0fc9", source_module="specify_cli.auth.transport"
+        ),  # specify_cli.auth.transport::AuthenticatedClient
+        SymbolKey(
+            "get_async_client", "784e28c299d00ac9210b69146d666fec3d77103b9475c9306bf9350d458a2f5a", source_module="specify_cli.auth.transport"
+        ),  # specify_cli.auth.transport::get_async_client
+        SymbolKey(
+            "get_client", "c8a14f890fac446b89c410dc11a379b5b759c7e8c0e7e041a23413b06a00a313", source_module="specify_cli.auth.transport"
+        ),  # specify_cli.auth.transport::get_client
+        SymbolKey(
+            "reset_clients", "3f0f27d532f29c06c5a85a9415ac60db6e5f5421ca4732d8e9a12bf69eb0e9b3", source_module="specify_cli.auth.transport"
+        ),  # specify_cli.auth.transport::reset_clients
     }
 )
 
@@ -836,64 +1232,124 @@ _CATEGORY_B_T001_UNBLINDED: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("AuditSink", "1db149c15d93c2e917fb6c942a5dcd9a9fb1b8309af911d0ad060d962544bdf9"),  # specify_cli.delivery.config::AuditSink
-        SymbolKey("Delivery", "b6ae32688201dfdb4daf70060f1071b62a7ddc2ea123c32b4d0c65de5440ecce"),  # specify_cli.delivery.config::Delivery
-        SymbolKey("DiscardAuditRecord", "dab90db7f8fa5c751b0379858c0a9877fe88ff8caf0b658291736ffeaeba32d9"),  # specify_cli.delivery.config::DiscardAuditRecord
-        SymbolKey("DiscardDecision", "e7aa1c068489ec6ce9075c33bfc025a5ed1b3546309995989b7f9d01080f2c93"),  # specify_cli.delivery.config::DiscardDecision
-        SymbolKey("DiscardDecisionKind", "d205655876907c0b0d9765caebcf188ef255e41cba21bfad0d85c09560e9736c"),  # specify_cli.delivery.config::DiscardDecisionKind
-        SymbolKey("FamilyClassification", "7dce11f428dfaca1671eedfe1649ecf07d0803d5cf9bb2046e5b4c40b99f2f40"),  # specify_cli.delivery.config::FamilyClassification
-        SymbolKey("JsonlAuditSink", "c5348817f0566cb012cd9be73c5e243c7a19b4d2e76a7f77f78b8a6ae345914f"),  # specify_cli.delivery.config::JsonlAuditSink
+        SymbolKey(
+            "AuditSink", "1db149c15d93c2e917fb6c942a5dcd9a9fb1b8309af911d0ad060d962544bdf9", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::AuditSink
+        SymbolKey(
+            "Delivery", "b6ae32688201dfdb4daf70060f1071b62a7ddc2ea123c32b4d0c65de5440ecce", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::Delivery
+        SymbolKey(
+            "DiscardAuditRecord", "dab90db7f8fa5c751b0379858c0a9877fe88ff8caf0b658291736ffeaeba32d9", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::DiscardAuditRecord
+        SymbolKey(
+            "DiscardDecision", "e7aa1c068489ec6ce9075c33bfc025a5ed1b3546309995989b7f9d01080f2c93", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::DiscardDecision
+        SymbolKey(
+            "DiscardDecisionKind", "d205655876907c0b0d9765caebcf188ef255e41cba21bfad0d85c09560e9736c", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::DiscardDecisionKind
+        SymbolKey(
+            "FamilyClassification", "7dce11f428dfaca1671eedfe1649ecf07d0803d5cf9bb2046e5b4c40b99f2f40", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::FamilyClassification
+        SymbolKey(
+            "JsonlAuditSink", "c5348817f0566cb012cd9be73c5e243c7a19b4d2e76a7f77f78b8a6ae345914f", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::JsonlAuditSink
         # specify_cli.delivery.config::MissingExternalEndpointError
-        SymbolKey("MissingExternalEndpointError", "b92bf3e32108adf605bb484a0427e057ed7f7318d1ba7554b5159a81603567e8"),
+        SymbolKey("MissingExternalEndpointError", "b92bf3e32108adf605bb484a0427e057ed7f7318d1ba7554b5159a81603567e8", source_module="specify_cli.delivery.config"),
         # specify_cli.delivery.config::PolicyResolutionError
-        SymbolKey("PolicyResolutionError", "937326d99123aab38978177224911a0de39b93c8143da4498727c870c23263f0"),
-        SymbolKey("ReceiverFactory", "8bffbd5ba44ccbea82402e5cfeb6915399fb1ea6336abfe5dea1fed5d953b850"),  # specify_cli.delivery.config::ReceiverFactory
-        SymbolKey("ResolvedPolicy", "b9143d0f72c90606233e8e85d20950068b660049e318009aea6c83557707f6d8"),  # specify_cli.delivery.config::ResolvedPolicy
-        SymbolKey("ResolvedTarget", "249eb5ca981d52ddbba5fc8f8468dacd27c5262d5dce4e51abc3f8e25003d258"),  # specify_cli.delivery.config::ResolvedTarget
-        SymbolKey("Retention", "e4346975f8569d23e351047f7b4a892c1b73f40d8e5579ddf6748d06819f2367"),  # specify_cli.delivery.config::Retention
-        SymbolKey("UnknownModeError", "5065dd65ecc8c46ce95b5c762c83b139fd66c21fa6c6d3125a761034ac0033eb"),  # specify_cli.delivery.config::UnknownModeError
-        SymbolKey("discard_decision", "e0c5fd8606d658c33140576b9ddeaace7e88ab9ea9030b536047a9d8e9988c40"),  # specify_cli.delivery.config::discard_decision
-        SymbolKey("LEDGER_INDEX_NAME", "00ff2374543242c1a9bb343f02ce2a4119d806a11f317a6b569f631332aeebca"),  # specify_cli.delivery.ledger::LEDGER_INDEX_NAME
-        SymbolKey("LedgerRow", "8120a15f278fab95a5e1eda3af4bc646b746555a8f4ac31e9bcf44559b0da3e3"),  # specify_cli.delivery.ledger::LedgerRow
-        SymbolKey("TERMINAL_STATUSES", "39cfb0bb7ccf29fe7683659c8e5648022bc1fa98b30069fdee81822c103fe7bd"),  # specify_cli.delivery.ledger::TERMINAL_STATUSES
-        SymbolKey("BATCH_ENDPOINT_PATH", "ca95ace141f4fdf0e9b45beded0c05ad7eacbf89e4d6d3db6035fd7d17fcc644"),  # specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH
+        SymbolKey("PolicyResolutionError", "937326d99123aab38978177224911a0de39b93c8143da4498727c870c23263f0", source_module="specify_cli.delivery.config"),
+        SymbolKey(
+            "ReceiverFactory", "8bffbd5ba44ccbea82402e5cfeb6915399fb1ea6336abfe5dea1fed5d953b850", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::ReceiverFactory
+        SymbolKey(
+            "ResolvedPolicy", "b9143d0f72c90606233e8e85d20950068b660049e318009aea6c83557707f6d8", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::ResolvedPolicy
+        SymbolKey(
+            "ResolvedTarget", "249eb5ca981d52ddbba5fc8f8468dacd27c5262d5dce4e51abc3f8e25003d258", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::ResolvedTarget
+        SymbolKey(
+            "Retention", "e4346975f8569d23e351047f7b4a892c1b73f40d8e5579ddf6748d06819f2367", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::Retention
+        SymbolKey(
+            "UnknownModeError", "5065dd65ecc8c46ce95b5c762c83b139fd66c21fa6c6d3125a761034ac0033eb", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::UnknownModeError
+        SymbolKey(
+            "discard_decision", "e0c5fd8606d658c33140576b9ddeaace7e88ab9ea9030b536047a9d8e9988c40", source_module="specify_cli.delivery.config"
+        ),  # specify_cli.delivery.config::discard_decision
+        SymbolKey(
+            "LEDGER_INDEX_NAME", "00ff2374543242c1a9bb343f02ce2a4119d806a11f317a6b569f631332aeebca", source_module="specify_cli.delivery.ledger"
+        ),  # specify_cli.delivery.ledger::LEDGER_INDEX_NAME
+        SymbolKey(
+            "LedgerRow", "8120a15f278fab95a5e1eda3af4bc646b746555a8f4ac31e9bcf44559b0da3e3", source_module="specify_cli.delivery.ledger"
+        ),  # specify_cli.delivery.ledger::LedgerRow
+        SymbolKey(
+            "TERMINAL_STATUSES", "39cfb0bb7ccf29fe7683659c8e5648022bc1fa98b30069fdee81822c103fe7bd", source_module="specify_cli.delivery.ledger"
+        ),  # specify_cli.delivery.ledger::TERMINAL_STATUSES
+        SymbolKey(
+            "BATCH_ENDPOINT_PATH", "ca95ace141f4fdf0e9b45beded0c05ad7eacbf89e4d6d3db6035fd7d17fcc644", source_module="specify_cli.delivery.receivers"
+        ),  # specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH
         # BATCH_TIMEOUT_SECONDS left the allowlist: sync.history_import.upload now
         # imports it (reusing the canonical delivery timeout, #2884).
         # GateDecision left the allowlist: cli.commands.sync now imports it for the
         # shared _resolve_gated_receiver seam (#2884 landing fold).
-        SymbolKey("GateKind", "5b6ccac48cf9723e99c997a1f70c7af1f481e819abb62e251d9b3814fd71d05e"),  # specify_cli.delivery.receivers::GateKind
-        SymbolKey("HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935"),  # specify_cli.delivery.receivers::HttpResponse
-        SymbolKey("ReceiverGate", "222316c26a75df8f8d97c3423fa0d49fdbd2f6326362a53fd1cb8de155f30298"),  # specify_cli.delivery.receivers::ReceiverGate
-        SymbolKey("STUB_ENDPOINT_URL", "bf67c1a0cecca5dd72e30cc6a6a0e2b3cef8c69dd363929c13f96bcd5129079d"),  # specify_cli.delivery.receivers::STUB_ENDPOINT_URL
+        SymbolKey(
+            "GateKind", "5b6ccac48cf9723e99c997a1f70c7af1f481e819abb62e251d9b3814fd71d05e", source_module="specify_cli.delivery.receivers"
+        ),  # specify_cli.delivery.receivers::GateKind
+        SymbolKey(
+            "HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935", source_module="specify_cli.delivery.receivers"
+        ),  # specify_cli.delivery.receivers::HttpResponse
+        SymbolKey(
+            "ReceiverGate", "222316c26a75df8f8d97c3423fa0d49fdbd2f6326362a53fd1cb8de155f30298", source_module="specify_cli.delivery.receivers"
+        ),  # specify_cli.delivery.receivers::ReceiverGate
+        SymbolKey(
+            "STUB_ENDPOINT_URL", "bf67c1a0cecca5dd72e30cc6a6a0e2b3cef8c69dd363929c13f96bcd5129079d", source_module="specify_cli.delivery.receivers"
+        ),  # specify_cli.delivery.receivers::STUB_ENDPOINT_URL
         # Rehashed for #3030 FR-028: deliver() now takes a ConsentedBatch. The entry is
         # content-addressed on the symbol body, so ANY edit to an allowlisted symbol
         # invalidates its key — a red here is not necessarily a new death.
-        SymbolKey("StubReceiver", "0103ed4178fea0da9ecc959a707d248a0effacc5ea9a506ac8afad5285fa0c83"),  # specify_cli.delivery.receivers::StubReceiver
-        SymbolKey("map_batch_response", "608a6a0ba7eb0439166cd843f95d8fcbb2a1cd61f13e7b081e6daa596f4730d2"),  # specify_cli.delivery.receivers::map_batch_response
+        SymbolKey(
+            "StubReceiver", "0103ed4178fea0da9ecc959a707d248a0effacc5ea9a506ac8afad5285fa0c83", source_module="specify_cli.delivery.receivers"
+        ),  # specify_cli.delivery.receivers::StubReceiver
+        SymbolKey(
+            "map_batch_response", "608a6a0ba7eb0439166cd843f95d8fcbb2a1cd61f13e7b081e6daa596f4730d2", source_module="specify_cli.delivery.receivers"
+        ),  # specify_cli.delivery.receivers::map_batch_response
         # specify_cli.delivery.status_report::ADDITIVE_SECTION_KEYS
-        SymbolKey("ADDITIVE_SECTION_KEYS", "45f0e694af41633f3bf4de2228ba6e52905e1c41a5d9cdbb8c1e67f5b256472a"),
+        SymbolKey("ADDITIVE_SECTION_KEYS", "45f0e694af41633f3bf4de2228ba6e52905e1c41a5d9cdbb8c1e67f5b256472a", source_module="specify_cli.delivery.status_report"),
         # specify_cli.delivery.status_report::BODY_UPLOAD_COMPAT_KEY
-        SymbolKey("BODY_UPLOAD_COMPAT_KEY", "339aee253812a3490f03a4fc4e1e4e8492c0f62fc5813a55db35b3f22ca79a3e"),
+        SymbolKey("BODY_UPLOAD_COMPAT_KEY", "339aee253812a3490f03a4fc4e1e4e8492c0f62fc5813a55db35b3f22ca79a3e", source_module="specify_cli.delivery.status_report"),
         # specify_cli.delivery.status_report::DELIVERY_LEDGER_KEY
-        SymbolKey("DELIVERY_LEDGER_KEY", "d3df6fb989f2687421cd363713117eda8a903ca2b7482791740e12a296cde217"),
+        SymbolKey("DELIVERY_LEDGER_KEY", "d3df6fb989f2687421cd363713117eda8a903ca2b7482791740e12a296cde217", source_module="specify_cli.delivery.status_report"),
         # specify_cli.delivery.status_report::DELIVERY_TARGETS_KEY
-        SymbolKey("DELIVERY_TARGETS_KEY", "f44d437e6c09d172b81e68a322038fdf78712517331cbb0f9e4515be21d612c5"),
-        SymbolKey("EVENT_JOURNAL_KEY", "4e41a05ccac292750359c3be4216534255f1a19bc0c2e70afb07a3b0d8930321"),  # specify_cli.delivery.status_report::EVENT_JOURNAL_KEY
+        SymbolKey("DELIVERY_TARGETS_KEY", "f44d437e6c09d172b81e68a322038fdf78712517331cbb0f9e4515be21d612c5", source_module="specify_cli.delivery.status_report"),
+        SymbolKey(
+            "EVENT_JOURNAL_KEY", "4e41a05ccac292750359c3be4216534255f1a19bc0c2e70afb07a3b0d8930321", source_module="specify_cli.delivery.status_report"
+        ),  # specify_cli.delivery.status_report::EVENT_JOURNAL_KEY
         # specify_cli.delivery.status_report::GC_LARGE_JOURNAL_THRESHOLD_BYTES
-        SymbolKey("GC_LARGE_JOURNAL_THRESHOLD_BYTES", "bae60652257ec6420577d1642eefcc61afc08fb6bec3facc14f60cc5ad4e5074"),
+        SymbolKey(
+            "GC_LARGE_JOURNAL_THRESHOLD_BYTES",
+            "bae60652257ec6420577d1642eefcc61afc08fb6bec3facc14f60cc5ad4e5074",
+            source_module="specify_cli.delivery.status_report",
+        ),
         # specify_cli.delivery.status_report::MIGRATION_CONFLICTS_KEY
-        SymbolKey("MIGRATION_CONFLICTS_KEY", "2b593112d73a14ba353d22c5408b3fbdf6d3672e1f0aeac6f948aee093ee7827"),
+        SymbolKey(
+            "MIGRATION_CONFLICTS_KEY", "2b593112d73a14ba353d22c5408b3fbdf6d3672e1f0aeac6f948aee093ee7827", source_module="specify_cli.delivery.status_report"
+        ),
         # specify_cli.delivery.status_report::TARGET_AUTHORITY_KEY
-        SymbolKey("TARGET_AUTHORITY_KEY", "e07abf140b944fdac04293e228c927c0e3d47e6e3668a0efb02f889d22202d8f"),
+        SymbolKey("TARGET_AUTHORITY_KEY", "e07abf140b944fdac04293e228c927c0e3d47e6e3668a0efb02f889d22202d8f", source_module="specify_cli.delivery.status_report"),
         # specify_cli.delivery.status_report::TERMINAL_FAILURES_KEY
-        SymbolKey("TERMINAL_FAILURES_KEY", "59fcb2d13859d17054c2b2ec3102d40e6e06a507128e071bca2079e3fa8a9640"),
+        SymbolKey("TERMINAL_FAILURES_KEY", "59fcb2d13859d17054c2b2ec3102d40e6e06a507128e071bca2079e3fa8a9640", source_module="specify_cli.delivery.status_report"),
         # specify_cli.delivery.status_report::evaluate_gc_suggestion
-        SymbolKey("evaluate_gc_suggestion", "ec86dd1fd2dac37f7f480eb7e3d7b6f5454ba1b5231f574c5d3232894751e64a"),
+        SymbolKey("evaluate_gc_suggestion", "ec86dd1fd2dac37f7f480eb7e3d7b6f5454ba1b5231f574c5d3232894751e64a", source_module="specify_cli.delivery.status_report"),
         # specify_cli.event_journal.coalesce::DeliveredAnywhereQuery
-        SymbolKey("DeliveredAnywhereQuery", "006197fe8e8930ae3340613069f631fd0478c9aed0b95416e3c951db65c9c70b"),
-        SymbolKey("SupersedeMarker", "28103221c51dc7ad13004841818581069756ef63456a93fd398760b0e9934968"),  # specify_cli.event_journal.coalesce::SupersedeMarker
-        SymbolKey("install", "49e1cbe2531458103c6492184d179bc70a1707789487b439a4815b4e21ec58ef"),  # specify_cli.event_journal.coalesce::install
-        SymbolKey("JOURNAL_SUBDIR", "43ec497396ce60afcd8ef2916a2646172c1c3775c05813cb212642144d8e1d62"),  # specify_cli.event_journal.journal::JOURNAL_SUBDIR
+        SymbolKey("DeliveredAnywhereQuery", "006197fe8e8930ae3340613069f631fd0478c9aed0b95416e3c951db65c9c70b", source_module="specify_cli.event_journal.coalesce"),
+        SymbolKey(
+            "SupersedeMarker", "28103221c51dc7ad13004841818581069756ef63456a93fd398760b0e9934968", source_module="specify_cli.event_journal.coalesce"
+        ),  # specify_cli.event_journal.coalesce::SupersedeMarker
+        SymbolKey(
+            "install", "49e1cbe2531458103c6492184d179bc70a1707789487b439a4815b4e21ec58ef", source_module="specify_cli.event_journal.coalesce"
+        ),  # specify_cli.event_journal.coalesce::install
+        SymbolKey(
+            "JOURNAL_SUBDIR", "43ec497396ce60afcd8ef2916a2646172c1c3775c05813cb212642144d8e1d62", source_module="specify_cli.event_journal.journal"
+        ),  # specify_cli.event_journal.journal::JOURNAL_SUBDIR
         # specify_cli.event_journal.models::ORDERED_COLUMNS — re-keyed AGAIN for
         # #3030, which appended repo_slug after the T012 re-key below had already
         # accounted for project_uuid/project_slug. The hash-bound content tier did
@@ -906,21 +1362,37 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
         # It surfaced twice for one root cause: the stale key made the constant a
         # fresh offender AND orphaned this entry, which is the double signal
         # `_compute_dangling` documents and suppresses to a single fix.
-        SymbolKey("ORDERED_COLUMNS", "3054068a5131fb488635e1418800da7b405aed699671821becafd2573d9489c7"),  # specify_cli.event_journal.models::ORDERED_COLUMNS
-        SymbolKey("KNOWN_PREFIX", "98ecae0739efcb4413e222ecc96031896d1c57e85b9bf934884cbbdb1b2bb838"),  # specify_cli.sync.migrate_journal::KNOWN_PREFIX
-        SymbolKey("LEGACY_DIGEST", "170c1daeecd9635cf72713656060e38404f956d4305108275d591c11ecb86d29"),  # specify_cli.sync.migrate_journal::LEGACY_DIGEST
-        SymbolKey("MIGRATION_NOTE", "5ed3a197746b627274ddde481632dffb952714f486217193e06475ec10ea466d"),  # specify_cli.sync.migrate_journal::MIGRATION_NOTE
-        SymbolKey("MigrationConflict", "28bc71565ef0e26abdfd20e5a6ebb85e30bca5600c6ae1584371a75e2ebc62e9"),  # specify_cli.sync.migrate_journal::MigrationConflict
-        SymbolKey("SourceDb", "359bad378deef3920559bea9d89645c9a7aa2d84ff0c14ae315047fb9e5a3e22"),  # specify_cli.sync.migrate_journal::SourceDb
-        SymbolKey("SourceOutcome", "e5222067e3eba9771531b0a8364d898136c13fbfa5757cbd3b40a50cf8ce30a2"),  # specify_cli.sync.migrate_journal::SourceOutcome
-        SymbolKey("UNKNOWN_PREFIX", "8f1aac4b29244ee6faa6b237b3fdbe471d1ea66cdd9afd0370727053535c2791"),  # specify_cli.sync.migrate_journal::UNKNOWN_PREFIX
+        SymbolKey(
+            "ORDERED_COLUMNS", "3054068a5131fb488635e1418800da7b405aed699671821becafd2573d9489c7", source_module="specify_cli.event_journal.models"
+        ),  # specify_cli.event_journal.models::ORDERED_COLUMNS
+        SymbolKey(
+            "KNOWN_PREFIX", "98ecae0739efcb4413e222ecc96031896d1c57e85b9bf934884cbbdb1b2bb838", source_module="specify_cli.sync.migrate_journal"
+        ),  # specify_cli.sync.migrate_journal::KNOWN_PREFIX
+        SymbolKey(
+            "LEGACY_DIGEST", "170c1daeecd9635cf72713656060e38404f956d4305108275d591c11ecb86d29", source_module="specify_cli.sync.migrate_journal"
+        ),  # specify_cli.sync.migrate_journal::LEGACY_DIGEST
+        SymbolKey(
+            "MIGRATION_NOTE", "5ed3a197746b627274ddde481632dffb952714f486217193e06475ec10ea466d", source_module="specify_cli.sync.migrate_journal"
+        ),  # specify_cli.sync.migrate_journal::MIGRATION_NOTE
+        SymbolKey(
+            "MigrationConflict", "28bc71565ef0e26abdfd20e5a6ebb85e30bca5600c6ae1584371a75e2ebc62e9", source_module="specify_cli.sync.migrate_journal"
+        ),  # specify_cli.sync.migrate_journal::MigrationConflict
+        SymbolKey(
+            "SourceDb", "359bad378deef3920559bea9d89645c9a7aa2d84ff0c14ae315047fb9e5a3e22", source_module="specify_cli.sync.migrate_journal"
+        ),  # specify_cli.sync.migrate_journal::SourceDb
+        SymbolKey(
+            "SourceOutcome", "e5222067e3eba9771531b0a8364d898136c13fbfa5757cbd3b40a50cf8ce30a2", source_module="specify_cli.sync.migrate_journal"
+        ),  # specify_cli.sync.migrate_journal::SourceOutcome
+        SymbolKey(
+            "UNKNOWN_PREFIX", "8f1aac4b29244ee6faa6b237b3fdbe471d1ea66cdd9afd0370727053535c2791", source_module="specify_cli.sync.migrate_journal"
+        ),  # specify_cli.sync.migrate_journal::UNKNOWN_PREFIX
         # discover_source_dbs REMOVED (#3497 landing): now has a real external
         # caller -- layout_generation.py's has_legacy_data()/_conservation_ok()
         # import and call it directly (the "real reader", not a retired stub) --
         # so the allowlist grant is stale and must be removed (reverse
         # containment: a symbol with a caller cannot stay allowlisted).
         # specify_cli.sync.migrate_journal::migration_target_token
-        SymbolKey("migration_target_token", "bce7a50af7aefac52a1f1b1319dba5f0ba128f8d67ac449c16e9cf1986cbf6a0"),
+        SymbolKey("migration_target_token", "bce7a50af7aefac52a1f1b1319dba5f0ba128f8d67ac449c16e9cf1986cbf6a0", source_module="specify_cli.sync.migrate_journal"),
     }
 )
 
@@ -933,9 +1405,15 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("FailedEntry", "0e1aa316dd07e92dedc924494897d393b9e8410bb718b8884698933da58900e9"),  # specify_cli.sync.orphan_sweep::FailedEntry
-        SymbolKey("SkippedEntry", "d55962bfd4eb368c36e7204231f5dd79c7c677768ca27db70fc0c0d21950547f"),  # specify_cli.sync.orphan_sweep::SkippedEntry
-        SymbolKey("SweptEntry", "e74ae7b75e826cf7e213e08728c1ef15d7ba42dad631136512d9ed2527f1304f"),  # specify_cli.sync.orphan_sweep::SweptEntry
+        SymbolKey(
+            "FailedEntry", "0e1aa316dd07e92dedc924494897d393b9e8410bb718b8884698933da58900e9", source_module="specify_cli.sync.orphan_sweep"
+        ),  # specify_cli.sync.orphan_sweep::FailedEntry
+        SymbolKey(
+            "SkippedEntry", "d55962bfd4eb368c36e7204231f5dd79c7c677768ca27db70fc0c0d21950547f", source_module="specify_cli.sync.orphan_sweep"
+        ),  # specify_cli.sync.orphan_sweep::SkippedEntry
+        SymbolKey(
+            "SweptEntry", "e74ae7b75e826cf7e213e08728c1ef15d7ba42dad631136512d9ed2527f1304f", source_module="specify_cli.sync.orphan_sweep"
+        ),  # specify_cli.sync.orphan_sweep::SweptEntry
     }
 )
 
@@ -961,11 +1439,15 @@ _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.sync.layout_generation::NO_AUTO_CUTOVER_ENV
-        SymbolKey("NO_AUTO_CUTOVER_ENV", "42000b4d43af2be0fe49519580844ae591d5d1757bdd182da765aad0e1098434"),
+        SymbolKey("NO_AUTO_CUTOVER_ENV", "42000b4d43af2be0fe49519580844ae591d5d1757bdd182da765aad0e1098434", source_module="specify_cli.sync.layout_generation"),
         # specify_cli.sync.layout_generation::LayoutAutoCutoverRefusedError
-        SymbolKey("LayoutAutoCutoverRefusedError", "4e1aab01c345a9525ac411f202313dfdaa3f3f83711f0d87912e26ce7f235249"),
+        SymbolKey(
+            "LayoutAutoCutoverRefusedError", "4e1aab01c345a9525ac411f202313dfdaa3f3f83711f0d87912e26ce7f235249", source_module="specify_cli.sync.layout_generation"
+        ),
         # specify_cli.sync.layout_generation::LayoutCutoverIncompleteError
-        SymbolKey("LayoutCutoverIncompleteError", "b8ea000a40231fd78125c048552b171d12b7ef0d94ddfbcd1954beac76f20505"),
+        SymbolKey(
+            "LayoutCutoverIncompleteError", "b8ea000a40231fd78125c048552b171d12b7ef0d94ddfbcd1954beac76f20505", source_module="specify_cli.sync.layout_generation"
+        ),
     }
 )
 
@@ -1049,10 +1531,12 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
         # specify_cli.runtime.resolver::resolve_template_by_urn -- compatibility-contract
         # URN lane (C-004/FR-010); consumer wired in #2761
         # specify_cli.runtime.resolver::resolve_template_by_urn
-        SymbolKey("resolve_template_by_urn", "bcffd1b95ca9d308f731df2e86a84131223f4f79cf7ebc2d498afbe6c9d3c8a6"),
+        SymbolKey("resolve_template_by_urn", "bcffd1b95ca9d308f731df2e86a84131223f4f79cf7ebc2d498afbe6c9d3c8a6", source_module="specify_cli.runtime.resolver"),
         # specify_cli.runtime.resolver::TemplateURNError -- compatibility-contract
         # URN lane (C-004/FR-010); consumer wired in #2761
-        SymbolKey("TemplateURNError", "226a29599f205cd275a02a6ccd97545c8af1bc82ace37003d4ab2017c5b3b813"),  # specify_cli.runtime.resolver::TemplateURNError
+        SymbolKey(
+            "TemplateURNError", "226a29599f205cd275a02a6ccd97545c8af1bc82ace37003d4ab2017c5b3b813", source_module="specify_cli.runtime.resolver"
+        ),  # specify_cli.runtime.resolver::TemplateURNError
     }
 )
 
@@ -1087,9 +1571,11 @@ _CATEGORY_C_URN_RESOLUTION_LANE: frozenset[SymbolKey] = frozenset(
 
 _CATEGORY_C_WP_IN_FLIGHT_CHARTER_YAML_IO_WRITE_HELPER: frozenset[SymbolKey] = frozenset(
     {
-        SymbolKey("OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3"),  # charter.charter_yaml_io::OWNED_SECTIONS
+        SymbolKey(
+            "OWNED_SECTIONS", "64c7a3f3de0c69de219050aed3e63d0f50a2ad8162997d0efa52be16deff81c3", source_module="charter.charter_yaml_io"
+        ),  # charter.charter_yaml_io::OWNED_SECTIONS
         # charter.charter_yaml_io::UnknownCharterYamlSectionError
-        SymbolKey("UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a"),
+        SymbolKey("UnknownCharterYamlSectionError", "9671c9b4163dbb4c718cf85bc3850ed8643fbf1d92ea63c7e296040e7197328a", source_module="charter.charter_yaml_io"),
     }
 )
 
@@ -1123,7 +1609,7 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # parse_mode's result in its branch condition (was a discarded call),
         # moving the class body hash b6749c1 -> 07f52ef. Still same-module-constructed.
         # specify_cli.review.scope_source::GateCoverageScopeSource
-        SymbolKey("GateCoverageScopeSource", "07f52ef5a1d46d26494964082ad14dbe83e7009c88987837e4096b3de4226be8"),
+        SymbolKey("GateCoverageScopeSource", "07f52ef5a1d46d26494964082ad14dbe83e7009c88987837e4096b3de4226be8", source_module="specify_cli.review.scope_source"),
         # specify_cli.review.scope_source::DeclaredCommandScopeSource -- constructed
         # exclusively via resolve_scope_source() (same-module); consumed
         # cross-module only structurally, through the ScopeSource port (never
@@ -1133,18 +1619,22 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # strategy label (SOURCE_MISMATCH fail-open fix), moving the class body
         # hash 0ed7a0e -> fac6a9d. Symbol is still same-module-constructed only.
         # specify_cli.review.scope_source::DeclaredCommandScopeSource
-        SymbolKey("DeclaredCommandScopeSource", "fac6a9dffbf00049014f5397114a40ed36ebc4be66a09a23028dd7422400e6b9"),
+        SymbolKey(
+            "DeclaredCommandScopeSource", "fac6a9dffbf00049014f5397114a40ed36ebc4be66a09a23028dd7422400e6b9", source_module="specify_cli.review.scope_source"
+        ),
         # specify_cli.review.scope_source::FileScopeBreakdown -- the return value
         # of GateCoverageScopeSource.scope_breakdown(); consumed structurally
         # (attribute access) by pre_review_gate._scope_result_from_breakdown,
         # never imported there by concrete type name.
-        SymbolKey("FileScopeBreakdown", "870689c5e51f6e752f05b416fa7fc03111f98f07263f8d330cfb2383ef1193ae"),  # specify_cli.review.scope_source::FileScopeBreakdown
+        SymbolKey(
+            "FileScopeBreakdown", "870689c5e51f6e752f05b416fa7fc03111f98f07263f8d330cfb2383ef1193ae", source_module="specify_cli.review.scope_source"
+        ),  # specify_cli.review.scope_source::FileScopeBreakdown
         # specify_cli.review.scope_source::ScopeBreakdownMixin -- inherited only
         # by GateCoverageScopeSource, same-module; the mixin's file_to_scope
         # default projection (FR-006) is exercised by every narrowing-source
         # test but the mixin class itself is never imported cross-module.
         # specify_cli.review.scope_source::ScopeBreakdownMixin
-        SymbolKey("ScopeBreakdownMixin", "c54d14c1c0c52cbd24231e9cc6bbf90ea9c988b830edce5628bb5d32da27fae4"),
+        SymbolKey("ScopeBreakdownMixin", "c54d14c1c0c52cbd24231e9cc6bbf90ea9c988b830edce5628bb5d32da27fae4", source_module="specify_cli.review.scope_source"),
     }
 )
 
@@ -1194,19 +1684,39 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.acceptance.execution_context::CannotEvaluateReason
-        SymbolKey("CannotEvaluateReason", "169f6e0b84cc22cc54ed339999b26191c66ce24fb4b8c4f4d9e87ba82852c55d"),
+        SymbolKey(
+            "CannotEvaluateReason", "169f6e0b84cc22cc54ed339999b26191c66ce24fb4b8c4f4d9e87ba82852c55d", source_module="specify_cli.acceptance.execution_context"
+        ),
         # specify_cli.acceptance.execution_context::SurfaceHeadResolver
-        SymbolKey("SurfaceHeadResolver", "1b5124eac062ce4ebeec680cbd3d867d602747896eab7ae166162f65427653a2"),
+        SymbolKey(
+            "SurfaceHeadResolver", "1b5124eac062ce4ebeec680cbd3d867d602747896eab7ae166162f65427653a2", source_module="specify_cli.acceptance.execution_context"
+        ),
         # specify_cli.acceptance.post_consolidation::InvariantViolation
-        SymbolKey("InvariantViolation", "2ef6e1e24afd16c2e6d0ea942a09f82189f61f7c4e081d33e2bb7f4fcb513f2d"),
+        SymbolKey(
+            "InvariantViolation", "2ef6e1e24afd16c2e6d0ea942a09f82189f61f7c4e081d33e2bb7f4fcb513f2d", source_module="specify_cli.acceptance.post_consolidation"
+        ),
         # specify_cli.acceptance.post_consolidation::PostConsolidationResult
-        SymbolKey("PostConsolidationResult", "d657817ba43238e2bbae83261e6acb8eb65a28de60a15496087166021594fb30"),
+        SymbolKey(
+            "PostConsolidationResult", "d657817ba43238e2bbae83261e6acb8eb65a28de60a15496087166021594fb30", source_module="specify_cli.acceptance.post_consolidation"
+        ),
         # specify_cli.acceptance.post_consolidation::PostConsolidationViolation
-        SymbolKey("PostConsolidationViolation", "6e97a633cce0f4ed58dcbc805cbf9ceb4aed0884f4b137e7362cf52f4d6f99cb"),
+        SymbolKey(
+            "PostConsolidationViolation",
+            "6e97a633cce0f4ed58dcbc805cbf9ceb4aed0884f4b137e7362cf52f4d6f99cb",
+            source_module="specify_cli.acceptance.post_consolidation",
+        ),
         # specify_cli.acceptance.post_consolidation::verify_deferred_invariants
-        SymbolKey("verify_deferred_invariants", "e1c30bf407aa9a48fe5dfe0870f00f47cb0fb61367f2ad8f292f608ca2661c9d"),
-        SymbolKey("create", "758e16e495dc35a5a9338583a8a906a46d7e6b9ffcddc04b9d0b49f7f39227ba"),  # specify_cli.cli.commands.archive::create
-        SymbolKey("list_archives", "1d7216238f988bfdd9f3a29fd315d89a48d0092b8b22c9ebdaf5c23c2308a886"),  # specify_cli.cli.commands.archive::list_archives
+        SymbolKey(
+            "verify_deferred_invariants",
+            "e1c30bf407aa9a48fe5dfe0870f00f47cb0fb61367f2ad8f292f608ca2661c9d",
+            source_module="specify_cli.acceptance.post_consolidation",
+        ),
+        SymbolKey(
+            "create", "758e16e495dc35a5a9338583a8a906a46d7e6b9ffcddc04b9d0b49f7f39227ba", source_module="specify_cli.cli.commands.archive"
+        ),  # specify_cli.cli.commands.archive::create
+        SymbolKey(
+            "list_archives", "1d7216238f988bfdd9f3a29fd315d89a48d0092b8b22c9ebdaf5c23c2308a886", source_module="specify_cli.cli.commands.archive"
+        ),  # specify_cli.cli.commands.archive::list_archives
     }
 )
 
@@ -1258,7 +1768,7 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
 _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
     {
         # charter.pack_context::ActivationReachabilityPartition
-        SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661"),
+        SymbolKey("ActivationReachabilityPartition", "16f04ac28e60241772fae3e88ebe14fa1e4b234c2fc216673cc9d075f285b661", source_module="charter.pack_context"),
         # charter_activated_urns: charter.pack_context::charter_activated_urns
         # -- re-allowlisted (charter-pack-usage-journey-01KYWWTF WP01/T006b,
         # #3118). It is the documented FR-017 "single activation authority"
@@ -1274,22 +1784,28 @@ _CATEGORY_C_DELIVERY_RAIL_FORWARD_API: frozenset[SymbolKey] = frozenset(
         # replaces, added when WP02/doctrine-delivery-activation wired the
         # since-removed caller). Re-allowlisting on caller removal, not
         # deleting/de-exporting, matches that precedent.
-        SymbolKey("charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830"),  # charter.pack_context::charter_activated_urns
+        SymbolKey(
+            "charter_activated_urns", "5003eed5e2d30c222f2108ba89da31d8531cdeb468898d01b3fa96020bd62830", source_module="charter.pack_context"
+        ),  # charter.pack_context::charter_activated_urns
         # charter.pack_context::normalize_activation_identifier
-        SymbolKey("normalize_activation_identifier", "8deec4a1dd1a1699b821620bfa64a7ae3f3e64798b76156465ff2bef1e395c0c"),
+        SymbolKey("normalize_activation_identifier", "8deec4a1dd1a1699b821620bfa64a7ae3f3e64798b76156465ff2bef1e395c0c", source_module="charter.pack_context"),
         # charter.pack_context::partition_activated_unreachable
-        SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4"),
-        SymbolKey("partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841"),  # charter.progressive_disclosure::partition_delivery
+        SymbolKey("partition_activated_unreachable", "a128040a4804e409225402613ffbe128932fa1862881810bbb3bd3cfd1241fb4", source_module="charter.pack_context"),
+        SymbolKey(
+            "partition_delivery", "7a90e7fc7bfaa802edcb2f675f4cce8f0e7e6db3fbe184b68b64a4a03d194841", source_module="charter.progressive_disclosure"
+        ),  # charter.progressive_disclosure::partition_delivery
         # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS (body_hash refreshed
         # WP03/doctrine-delivery-activation-01KYQVQK: WP01 added Relation.SUGGESTS to
         # the frozenset, changing its body; still no ``src/`` importer — the sole
         # reference in src/charter/context_renderers/profile_sections.py:341 is a
         # prose comment, not an import/call — so it stays allowlisted, hash-refreshed.)
         # doctrine.drg.reachability::PROFILE_CHANNEL_RELATIONS
-        SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5"),
+        SymbolKey("PROFILE_CHANNEL_RELATIONS", "17b05fe56e1ba52f5efca0f1cebe40e0ed1ab3232b80111f8e47e51176203fb5", source_module="doctrine.drg.reachability"),
         # doctrine.drg.reachability::action_channel_reachable
-        SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10"),
-        SymbolKey("action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04"),  # doctrine.drg.reachability::action_seed_urns
+        SymbolKey("action_channel_reachable", "12033bfeabd0a031f426ef16f55dbc9ee765a0d1c8ad09a822847a1d91b42d10", source_module="doctrine.drg.reachability"),
+        SymbolKey(
+            "action_seed_urns", "65ce52327f352629e39db6b4d922f14aa86e9e3ef71725a856e70567f0b66d04", source_module="doctrine.drg.reachability"
+        ),  # doctrine.drg.reachability::action_seed_urns
         # ``agent_profile_seed_urns`` retired from this allowlist by WP03
         # (doctrine-delivery-activation-01KYQVQK): it now has a genuine cross-file
         # ``src/`` consumer — src/doctrine/agent_profiles/repository.py imports it
@@ -1416,37 +1932,34 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
 
 
 # ---------------------------------------------------------------------------
-# Provenance-comment normalization guard (FR-002 / Contract A-norm, WP01)
+# source_module completeness + integrity guards (FR-006 / FR-007, #3552 WP02)
 # ---------------------------------------------------------------------------
 #
 # Content-tier ``SymbolKey`` entries are location-free by design
-# (``module_path is None``), so their originating module lives ONLY in the
-# ``# module::Name`` provenance comment. WP02's safe hash-refresh helper
-# recovers that module *source-only* and fails closed when it is missing -- the
-# recovery is AC2's safety hinge for the 7 duplicate content-tier ``bare_name``s
-# whose sole discriminator is the comment. This guard keeps the hint from
-# silently degrading to "refuse" as new entries are added: every content-tier
-# entry MUST carry a single canonical, full ``# module::Name`` comment.
-#
-# Placement is trailing on the ``SymbolKey`` line, EXCEPT where a trailing
-# comment would breach the 164-char line limit (``E501``); those (long
-# ``module::Name``) entries carry the comment on the immediately-preceding line
-# instead -- a form WP02's parser already handles (Contract A-norm's 3 formats).
-_PROVENANCE_COMMENT_RE = re.compile(r"^#\s*(?P<module>[\w.]+)::(?P<name>\w+)\s*$")
+# (``module_path is None``); their originating module is now backfilled
+# directly onto each entry as an explicit ``source_module=`` kwarg (#3552),
+# rather than machine-recovered from the ``# module::Name`` comment -- the
+# comment TEXT is kept for human audit only (FR-004/SC-004); the WP01-era
+# machine reader that used to parse it out of the comment (and this guard's
+# predecessor, which asserted every entry had one such parseable comment) is
+# retired. These two guards replace it: completeness (every content-tier
+# entry carries ``source_module=``) and integrity (every ``source_module``
+# names a module in the LIVE importable corpus that actually declares the
+# symbol, reusing :func:`classify_collisions`' own corpus walk rather than
+# re-parsing the comment under a new name).
 
 _THIS_SOURCE = Path(__file__).resolve()
 
 
-def _content_tier_entry_lines() -> list[tuple[int, str]]:
-    """Return ``(lineno, bare_name)`` for every content-tier allowlist entry.
+def _content_tier_symbolkey_calls(tree: ast.Module) -> list[ast.Call]:
+    """Every content-tier ``SymbolKey(...)`` call inside a ``_CATEGORY_*`` frozenset.
 
-    "Content-tier" == a ``SymbolKey(...)`` call with no ``module_path=`` keyword,
-    located inside a module-level ``_CATEGORY_*`` frozenset assignment (which is
-    what aggregates into :data:`_SYMBOL_ALLOWLIST`). Synthetic ``SymbolKey``
-    calls inside test bodies are excluded by that scoping.
+    Scoped identically to the retired WP01-era content-tier call walk (same
+    ``_CATEGORY_*``-assignment walk), so synthetic ``SymbolKey(...)`` calls in
+    test bodies are excluded -- only calls that aggregate into
+    :data:`_SYMBOL_ALLOWLIST` are considered.
     """
-    tree = ast.parse(_THIS_SOURCE.read_text())
-    entries: list[tuple[int, str]] = []
+    calls: list[ast.Call] = []
     for stmt in tree.body:
         targets: list[ast.expr] = []
         if isinstance(stmt, ast.Assign):
@@ -1463,53 +1976,71 @@ def _content_tier_entry_lines() -> list[tuple[int, str]]:
                 and isinstance(node.func, ast.Name)
                 and node.func.id == "SymbolKey"
                 and not any(kw.arg == "module_path" for kw in node.keywords)
-                and node.args
-                and isinstance(node.args[0], ast.Constant)
-                and isinstance(node.args[0].value, str)
             ):
-                entries.append((node.lineno, node.args[0].value))
-    return entries
+                calls.append(node)
+    return calls
 
 
-def _comments_by_line() -> dict[int, str]:
-    """Map source line number -> the ``# ...`` comment starting on that line."""
-    comments: dict[int, str] = {}
-    with tokenize.open(_THIS_SOURCE) as handle:
-        for tok in tokenize.generate_tokens(handle.readline):
-            if tok.type == tokenize.COMMENT:
-                comments[tok.start[0]] = tok.string
-    return comments
+def _bare_name_of(call: ast.Call) -> str:
+    """The first positional string argument of a ``SymbolKey(...)`` call."""
+    arg = call.args[0] if call.args else None
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+        return arg.value
+    return "<unresolvable>"
 
 
-def test_every_content_tier_entry_has_parseable_provenance_comment() -> None:
-    """Every content-tier allowlist entry carries a canonical ``# module::Name``.
+def _source_module_of(call: ast.Call) -> str | None:
+    """The ``source_module="..."`` keyword string on *call*, or ``None`` when absent."""
+    for kw in call.keywords:
+        if kw.arg == "source_module" and isinstance(kw.value, ast.Constant) and isinstance(kw.value.value, str):
+            return kw.value.value
+    return None
 
-    Non-vacuous by construction: it iterates the real allowlist entries and
-    fails if the set is empty (a parse regression) or if any single entry lacks
-    a parseable ``# module::Name`` comment -- trailing on the entry line or on
-    the line immediately above it -- whose ``Name`` matches the entry's
-    ``bare_name`` (FR-002 / Contract A-norm defense-in-depth for the duplicate
-    content-tier ``bare_name``s).
+
+def test_every_content_tier_entry_has_source_module() -> None:
+    """FR-006 completeness: every content-tier allowlist entry carries `source_module=`.
+
+    Non-vacuous by construction: fails if the set is empty (a parser
+    regression) or if any content-tier ``SymbolKey(...)`` call lacks a
+    ``source_module=`` kwarg. Replaces the retired WP01-era guard that
+    asserted every entry had a parseable provenance comment instead, so the
+    SSOT invariant holds as the corpus grows.
     """
-    entries = _content_tier_entry_lines()
-    assert entries, "no content-tier allowlist entries discovered -- parser regression"
+    tree = ast.parse(_THIS_SOURCE.read_text())
+    calls = _content_tier_symbolkey_calls(tree)
+    assert calls, "no content-tier allowlist entries discovered -- parser regression"
 
-    comments = _comments_by_line()
+    missing = [_bare_name_of(call) for call in calls if _source_module_of(call) is None]
+    assert not missing, "content-tier allowlist entries lacking `source_module=` (FR-006): " + ", ".join(missing)
+
+
+def test_every_content_tier_source_module_is_live_and_declares_symbol() -> None:
+    """FR-007 integrity: every `source_module` names a live module declaring the symbol.
+
+    Cross-checks each content-tier entry's ``source_module`` against the LIVE
+    importable corpus via :func:`classify_collisions`'s own corpus walk --
+    never re-parses the ``# module::Name`` comment, which would recreate the
+    machine comment-parser SC-004 retires under a new name.
+    """
+    tree = ast.parse(_THIS_SOURCE.read_text())
+    calls = _content_tier_symbolkey_calls(tree)
+    assert calls, "no content-tier allowlist entries discovered -- parser regression"
+    _decls, _path_to_dotted, _path_to_tree, corpus = _walk_modules()
+    collision_index = classify_collisions(corpus)
+
     violations: list[str] = []
-    for lineno, bare_name in entries:
-        candidates = (comments.get(lineno), comments.get(lineno - 1))
-        matched = False
-        for comment in candidates:
-            match = _PROVENANCE_COMMENT_RE.match(comment) if comment else None
-            if match is not None and match.group("name") == bare_name:
-                matched = True
-                break
-        if not matched:
-            violations.append(f"L{lineno}: '{bare_name}' -> no canonical `# module::{bare_name}` (trailing/preceding); saw {candidates!r}")
+    for call in calls:
+        source_module = _source_module_of(call)
+        if source_module is None:
+            continue  # covered by test_every_content_tier_entry_has_source_module
+        bare_name = _bare_name_of(call)
+        locations = collision_index.get(bare_name, [])
+        if not any(loc.module_path == source_module for loc in locations):
+            violations.append(f"{source_module}::{bare_name}")
 
     assert not violations, (
-        "content-tier allowlist entries lacking a canonical `# module::Name` "
-        "provenance comment (WP01/FR-002):\n  " + "\n  ".join(violations)
+        "content-tier `source_module` names a module that does not declare "
+        "the symbol in the live corpus (FR-007): " + ", ".join(violations)
     )
 
 
@@ -1531,11 +2062,7 @@ def _iter_src_python_files() -> list[Path]:
     Excludes doctrine ``asset`` blobs (shipped, loaded by path — see
     :func:`_is_asset_blob`).
     """
-    return sorted(
-        p
-        for p in _SRC_ROOT.rglob("*.py")
-        if "__pycache__" not in p.parts and not _is_asset_blob(p)
-    )
+    return sorted(p for p in _SRC_ROOT.rglob("*.py") if "__pycache__" not in p.parts and not _is_asset_blob(p))
 
 
 def _module_dotted(path: Path) -> str:
@@ -1658,11 +2185,7 @@ def _record_module_attr_edges(
     ``M::NAME``, silently re-blinding the very gate this mission hardens.
     """
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Attribute)
-            and isinstance(node.value, ast.Name)
-            and node.value.id in alias_map
-        ):
+        if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id in alias_map:
             resolved = alias_map[node.value.id]
             if resolved in known_modules:
                 per_symbol.setdefault(resolved, set()).add(node.attr)
@@ -1683,12 +2206,7 @@ def _record_getattr_str_edges(
     required to avoid re-blinding the gate via a symbol-path collision.
     """
     for node in ast.walk(tree):
-        if not (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Name)
-            and node.func.id == "getattr"
-            and len(node.args) >= 2
-        ):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "getattr" and len(node.args) >= 2):
             continue
         obj, attr_arg = node.args[0], node.args[1]
         if not (isinstance(obj, ast.Name) and obj.id in alias_map):
@@ -1713,12 +2231,7 @@ def _find_facade_lazy_dict_name(tree: ast.Module) -> str | None:
             continue
         arg_id = node.args.args[0].arg
         for child in ast.walk(node):
-            if (
-                isinstance(child, ast.Subscript)
-                and isinstance(child.value, ast.Name)
-                and isinstance(child.slice, ast.Name)
-                and child.slice.id == arg_id
-            ):
+            if isinstance(child, ast.Subscript) and isinstance(child.value, ast.Name) and isinstance(child.slice, ast.Name) and child.slice.id == arg_id:
                 return child.value.id
     return None
 
@@ -1914,9 +2427,7 @@ def _record_dynamic_call_accessor_edges(
     for path, tree in path_to_tree.items():
         containing = _package_of(path)
         alias_map, str_consts = _build_alias_map_and_consts(tree, containing)
-        factories = find_module_factory_functions(
-            tree, alias_map, str_consts, containing, known_modules, _resolve_relative_module
-        )
+        factories = find_module_factory_functions(tree, alias_map, str_consts, containing, known_modules, _resolve_relative_module)
         if not factories:
             continue
         merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
@@ -2489,29 +3000,20 @@ def test_no_false_negative_call_accessor_detector_direct_chain() -> None:
     access would. Resolved generally (no name special-case for
     ``runtime_bridge`` anywhere in the resolver).
     """
-    src = (
-        "import importlib\n"
-        "def _factory():\n"
-        "    return importlib.import_module('target_mod')\n"
-        "_factory().Live\n"
-    )
+    src = "import importlib\ndef _factory():\n    return importlib.import_module('target_mod')\n_factory().Live\n"
     tree = ast.parse(src)
     alias_map, str_consts = _build_alias_map_and_consts(tree, "")
     known_modules = frozenset({"target_mod"})
-    factories = find_module_factory_functions(
-        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
-    )
+    factories = find_module_factory_functions(tree, alias_map, str_consts, "", known_modules, _resolve_relative_module)
     ps: dict[str, set[str]] = {}
     record_call_chain_attr_edges(tree, factories, ps)
     sub_idx = _submodule_index(ps)
 
     assert _symbol_has_caller("Live", "target_mod", ps, sub_idx), (
-        "target_mod::Live must be rescued by _factory().Live where _factory() "
-        "dynamically resolves target_mod via importlib.import_module"
+        "target_mod::Live must be rescued by _factory().Live where _factory() dynamically resolves target_mod via importlib.import_module"
     )
     assert not _symbol_has_caller("Live", "unrelated_mod", ps, sub_idx), (
-        "unrelated_mod::Live must NOT be rescued -- the resolver must not "
-        "widen liveness to any attribute access (contract anti-goal)"
+        "unrelated_mod::Live must NOT be rescued -- the resolver must not widen liveness to any attribute access (contract anti-goal)"
     )
 
 
@@ -2520,28 +3022,18 @@ def test_no_false_negative_call_accessor_detector_bound_local() -> None:
     actually used by the known ``_runtime_bridge_module()`` call sites in
     ``next_cmd.py`` (``bridge = _runtime_bridge_module(); bridge.attr``).
     """
-    src = (
-        "import importlib\n"
-        "def _factory():\n"
-        "    return importlib.import_module('target_mod')\n"
-        "bridge = _factory()\n"
-        "bridge.Live\n"
-    )
+    src = "import importlib\ndef _factory():\n    return importlib.import_module('target_mod')\nbridge = _factory()\nbridge.Live\n"
     tree = ast.parse(src)
     alias_map, str_consts = _build_alias_map_and_consts(tree, "")
     known_modules = frozenset({"target_mod"})
-    factories = find_module_factory_functions(
-        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
-    )
+    factories = find_module_factory_functions(tree, alias_map, str_consts, "", known_modules, _resolve_relative_module)
     merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
     ps: dict[str, set[str]] = {}
     _record_module_attr_edges(tree, merged_alias_map, ps, known_modules)
     sub_idx = _submodule_index(ps)
 
     assert _symbol_has_caller("Live", "target_mod", ps, sub_idx), (
-        "target_mod::Live must be rescued by bridge.Live where bridge = "
-        "_factory() and _factory() dynamically resolves target_mod via "
-        "importlib.import_module"
+        "target_mod::Live must be rescued by bridge.Live where bridge = _factory() and _factory() dynamically resolves target_mod via importlib.import_module"
     )
     assert not _symbol_has_caller("Live", "unrelated_mod", ps, sub_idx)
 
@@ -2563,9 +3055,7 @@ def test_no_false_negative_call_accessor_detector_unreferenced_stays_dead() -> N
     tree = ast.parse(src)
     alias_map, str_consts = _build_alias_map_and_consts(tree, "")
     known_modules = frozenset({"target_mod"})
-    factories = find_module_factory_functions(
-        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
-    )
+    factories = find_module_factory_functions(tree, alias_map, str_consts, "", known_modules, _resolve_relative_module)
     merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
     ps: dict[str, set[str]] = {}
     _record_module_attr_edges(tree, merged_alias_map, ps, known_modules)
@@ -2602,13 +3092,10 @@ def test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist() 
         "QueryModeValidationError",
     ):
         assert name in decls.get(mod_dotted, frozenset()), (
-            f"{mod_dotted}::{name} must still be declared in __all__ -- this "
-            "test targets the real live corpus, not a stale fixture"
+            f"{mod_dotted}::{name} must still be declared in __all__ -- this test targets the real live corpus, not a stale fixture"
         )
         assert _symbol_has_caller(name, mod_dotted, per_symbol, submodule_index), (
-            f"{mod_dotted}::{name} must be recognised-live via the "
-            "_runtime_bridge_module() dynamic accessor WITHOUT its allowlist "
-            "row (IC-01 / FR-001 / FR-002)"
+            f"{mod_dotted}::{name} must be recognised-live via the _runtime_bridge_module() dynamic accessor WITHOUT its allowlist row (IC-01 / FR-001 / FR-002)"
         )
 
 

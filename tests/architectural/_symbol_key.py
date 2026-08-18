@@ -58,7 +58,7 @@ import ast
 import hashlib
 import time
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from specify_cli.ast_analysis.imports import extract_static_all
 from specify_cli.contracts.anchoring import code_tokens_by_line
@@ -94,11 +94,24 @@ class SymbolKey:
     ``module_path is None`` -> content tier (default, relocation-proof).
     ``module_path`` set -> escalated module_path tier (collision-safe,
     relocation-forfeit for this entry only — D-1).
+
+    ``source_module`` is optional, **provenance-only** machine identity (#3552):
+    the module an allowlist entry's `# module::Name` comment currently names,
+    carried on the key so a resolver-recovery path can consult it without
+    re-parsing that comment. It is declared ``compare=False`` and therefore
+    excluded from ``__eq__``/``__hash__``/frozenset membership — a
+    provenance-bearing allowlist entry must still equal (and be found by) a
+    freshly resolver-minted key that carries no provenance at all (`final_key
+    in allowlist`, G1/G2). It also never enters ``body_hash``, ``key_tier``'s
+    escalation decision, or ``as_tuple()`` (G3/G4/G5) — it is inert with
+    respect to identity, tier, and serialization; see
+    ``contracts/non-goal-invariants.md`` for the full G1–G6 guard contract.
     """
 
     bare_name: str
     body_hash: str
     module_path: str | None = None
+    source_module: str | None = field(default=None, compare=False)
 
     @property
     def is_content_tier(self) -> bool:
