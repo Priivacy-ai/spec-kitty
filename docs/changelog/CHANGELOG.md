@@ -354,6 +354,20 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **A hand-authored project-tier agent profile now becomes a reference-graph node
+  the charter cascade can reach — before, it loaded and validated but was
+  silently invisible to cascade (`#3038`; M6 of the charter-resolution program;
+  asset half deferred to `#3037`).** The project doctrine tier admitted only
+  three kinds (directive / tactic / styleguide) as DRG nodes, so a profile
+  authored under `.kittify/doctrine/agent_profiles/` reported healthy yet reached
+  no dispatched agent. Spec Kitty now walks the authored project profiles and
+  emits an `agent_profile:<id>` node into the project overlay `graph.yaml` the
+  cascade reads — through the existing additive-only guards, and failing loud
+  (naming the file) on a malformed, URN-unsafe, or duplicate `profile-id` rather
+  than silently skipping it. The kind→node-kind admission map is now
+  `ArtifactKind`-keyed and covered by the totality gate, so a future kind cannot
+  silently escape project-tier node admission.
+
 - **Doctrine authored in an org pack or project overlay now loads and activates
   with the same completeness as the built-in corpus — nested subdirectories are
   no longer silently dropped, and the charter kind vocabulary is derived from a

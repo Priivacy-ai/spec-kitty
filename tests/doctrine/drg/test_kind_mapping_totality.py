@@ -87,6 +87,18 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         # dict makes the projection guard-visible (this exemption is the
         # documented reason it stays partial).
         "specify_cli.cli.commands.doctrine::_STUB_TEMPLATES",
+        # M6 (#3038): the emittable-project-tier-kind allowlist. Its keys are the
+        # kinds emitted as project-overlay DRG nodes (directive/tactic/styleguide/
+        # agent_profile); every other kind's absence is contractual (asset stays
+        # reference-only, procedure/paradigm/... are not emitted at the project
+        # tier). The sole read site `_node_kind_for` reads it via `.get` and
+        # treats a miss as "kind not emitted at project tier" -- a deliberate
+        # partial. It is enum-keyed (not string-keyed) precisely so THIS guard is
+        # guard-visible to it. Being exempt, this entry never reddens the
+        # enum-keyed guard itself; the protection is indirect -- a future
+        # ArtifactKind reddens the non-exempt authorities (PROJECT_KIND_DIRS et
+        # al.), forcing a deliberate emit-or-not decision through the kind surface.
+        "charter.synthesizer.project_drg::_KIND_TO_NODE_KIND",
     }
 )
 
@@ -249,10 +261,12 @@ def test_mixed_enum_and_plain_keys_raise_instead_of_silently_skipping() -> None:
 #
 # The enum-keyed guard above is blind to string-keyed kind maps (keys are string
 # literals, not ``ArtifactKind.MEMBER`` accesses). Those maps -- the artifact_kinds
-# authority tables ``_PLURALS`` / ``_PATTERNS`` / ``_HAS_BUILT_IN_CONTENT_DIR``,
-# and the string-keyed ``charter.synthesizer.project_drg._KIND_TO_NODE_KIND`` --
+# authority tables ``_PLURALS`` / ``_PATTERNS`` / ``_HAS_BUILT_IN_CONTENT_DIR`` --
 # escaped totality entirely (the #2981 drift class: a copy silently missing a
-# kind). This section extends the same AST machinery to string-keyed kind-map
+# kind). (``charter.synthesizer.project_drg._KIND_TO_NODE_KIND`` was also a
+# string-keyed escapee until M6 (#3038) re-keyed it on ``ArtifactKind``; it is
+# now covered by the enum-keyed guard above via ``_EXEMPT_GET_PARTIALS``.)
+# This section extends the same AST machinery to string-keyed kind-map
 # LITERALS: a module-level dict whose keys are all string constants drawn from
 # the kind vocabulary. Such a map must be total over its key-family (all singular
 # ArtifactKind values, or all plurals) unless it is an explicitly allow-listed
@@ -281,7 +295,9 @@ _MIN_STRING_KIND_KEYS = 3
 #: of scope for M1 (that is the cascade/kind-admission work of M5/M6). This gate
 #: enforces totality on the declared canonical authorities only; the broader
 #: discovery is proven non-vacuous by
-#: :func:`test_string_keyed_kind_map_coverage_sees_previously_hidden_maps`.
+#: :func:`test_string_keyed_authority_maps_are_total` (the authorities are
+#: discovered) and :func:`test_string_keyed_scan_flags_a_dropped_kind` (a
+#: dropped kind is reported).
 _STRING_KEYED_MUST_BE_TOTAL: frozenset[str] = frozenset(
     {
         "doctrine.artifact_kinds::_PLURALS",
@@ -289,14 +305,6 @@ _STRING_KEYED_MUST_BE_TOTAL: frozenset[str] = frozenset(
         "doctrine.artifact_kinds::_HAS_BUILT_IN_CONTENT_DIR",
     }
 )
-
-#: A previously-invisible string-keyed kind map the scan must now SEE (proving
-#: the #2981 escape is closed), even though it is a legitimate partial not
-#: required to be total. ``_KIND_TO_NODE_KIND`` synthesizes only directive/
-#: tactic/styleguide targets (read via ``.get``); converting it to enum-keyed is
-#: M6 (#3038), out of scope for M1 (C-004).
-_STRING_KEYED_COVERAGE_WITNESS = "charter.synthesizer.project_drg::_KIND_TO_NODE_KIND"
-
 
 @dataclass(frozen=True)
 class _StringKindKeyedDict:
@@ -490,22 +498,6 @@ def test_charter_plural_singular_literal_exemptions_are_real() -> None:
         assert exempt in discovered, (
             f"exempt {exempt!r} not found -- collapsed already? drop the exemption"
         )
-
-
-def test_string_keyed_kind_map_coverage_sees_previously_hidden_maps() -> None:
-    """The escape is closed: the scan now SEES string-keyed kind maps.
-
-    ``_KIND_TO_NODE_KIND`` (string-keyed) was invisible to the enum-keyed guard;
-    the string-keyed scan must discover it (a legitimate partial -- not required
-    total, but no longer unseen).
-    """
-    by_name = {e.qualified_name: e for e in _discover_string_kind_keyed_dicts()}
-    assert _STRING_KEYED_COVERAGE_WITNESS in by_name, (
-        f"{_STRING_KEYED_COVERAGE_WITNESS} not discovered -- string-keyed coverage "
-        "regressed"
-    )
-    # It is genuinely partial (that is why it needs explicit coverage, not silence).
-    assert _string_missing_members(by_name[_STRING_KEYED_COVERAGE_WITNESS])
 
 
 def test_string_keyed_scan_flags_a_dropped_kind() -> None:
