@@ -295,6 +295,35 @@ def test_help_renders_for_every_subcommand(command: str) -> None:
     assert "Usage:" in result.output
 
 
+def _declared_option_flags(command: str) -> set[str]:
+    """The option flags a ``sync`` subcommand DECLARES, read from its function
+    signature rather than from a rendered ``--help``.
+
+    ``--help`` renders the *shared, process-global* ``sync.app``; a leaky sibling
+    test elsewhere in a whole-tree shard can mutate that app object and strip a
+    command's params, which manifests here as a phantom "lost <flag>" that never
+    reproduces in isolation. The declared option set on the command's own
+    function is the pollution-immune source of truth for this freeze (the render
+    itself is still frozen by ``test_help_renders_for_every_subcommand``).
+
+    Typer combines a boolean flag pair into a single ``"--flag/--no-flag"``
+    declaration, so each ``param_decls`` entry is split on ``/`` to recover the
+    individual flag tokens.
+    """
+    import inspect
+
+    import typer
+
+    func = getattr(sync, command)
+    flags: set[str] = set()
+    for param in inspect.signature(func).parameters.values():
+        default = param.default
+        if isinstance(default, typer.models.OptionInfo):
+            for decl in default.param_decls or ():
+                flags.update(token for token in decl.split("/") if token.startswith("-"))
+    return flags
+
+
 @pytest.mark.parametrize(
     ("command", "expected_flags"),
     [
@@ -305,11 +334,15 @@ def test_help_renders_for_every_subcommand(command: str) -> None:
     ],
 )
 def test_flag_matrix_for_flagged_commands(command: str, expected_flags: set[str]) -> None:
-    """The load-bearing option flags on each flagged surface are frozen."""
-    result = invoke(command, "--help")
-    assert result.exit_code == 0
+    """The load-bearing option flags on each flagged surface are frozen.
+
+    Asserted against the command's declared ``typer.Option`` set (see
+    :func:`_declared_option_flags`) so a whole-tree-shard sibling that mutates the
+    shared ``sync.app`` cannot produce a phantom "lost <flag>".
+    """
+    declared = _declared_option_flags(command)
     for flag in expected_flags:
-        assert flag in result.output, f"{command} --help lost {flag}"
+        assert flag in declared, f"{command} lost {flag} (declared: {sorted(declared)})"
 
 
 # The safe black-box matrix: (argv, expected_exit, stable_substring | None).
