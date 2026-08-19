@@ -354,6 +354,25 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **A charter-preflight state no longer hands you a command that cannot clear it
+  (`#2831`).** Four freshness states — `charter_source` `missing`/`invalid` and
+  `synced_bundle` `missing`/`stale` — emitted `spec-kitty charter sync` as their
+  remediation, and `charter sync` is a pure staleness reporter that never writes
+  (`src/charter/sync.py`: "it always reports `synced=False` / `files_written=[]`").
+  The operator ran it, nothing changed, and the gate refused identically, while every
+  charter diagnostic reported healthy because they resolve `charter.md` and the gate
+  resolves `charter.yaml`. There was no exit. Now the one state a command can actually
+  clear — an absent `charter.yaml` on a project with no `charter:` pointer — names
+  `spec-kitty charter generate --no-from-interview`, and the states no command can
+  clear emit **no** remediation plus a `detail` explaining why. An unparseable
+  `charter.yaml` cannot be repaired by any write path (each round-trip-parses it to
+  preserve authored sections), and with a `charter:` pointer present `charter generate`
+  fails closed by design (INV-5, `#2530`) so it cannot run either; the documented
+  recovery there, `spec-kitty upgrade`, is interactive. Being told no command exists,
+  with the reason, beats being sent to one that exits non-zero. A new architectural
+  gate (`tests/architectural/test_remediation_effectiveness.py`) pins the rule: every
+  emitted remediation must exit 0 **and** leave its state `fresh`.
+
 - **`charter activate --cascade` now follows an org-pack dependency edge no
   matter which pack in the chain declares it, and activating from an org pack
   that ships no dependency graph no longer crashes the command (`#3534`; closes
