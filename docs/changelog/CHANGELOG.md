@@ -354,6 +354,38 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **Doctrine authored in an org pack or project overlay now loads and activates
+  with the same completeness as the built-in corpus — nested subdirectories are
+  no longer silently dropped, and the charter kind vocabulary is derived from a
+  single authority so drifted copies can't render the wrong token or blind kind
+  inference (`#3490`, `#3426`, `#2981`; M1 of the charter-resolution program).**
+  Before, org/project discovery scanned non-recursively while built-in used
+  `rglob`, and the doctrine *loader* and the charter-activation *resolver* each
+  decided recursion independently — so a tactic, styleguide, or agent profile
+  authored one directory deep (e.g. `styleguides/writing/`) loaded at runtime and
+  showed in `charter list`, yet the activation resolver silently skipped it
+  (measured 71% tactic undercount; nested org styleguides un-activatable). Now a
+  single doctrine-layer recursion authority (`doctrine.discovery_recursion`) is
+  read by both the loader (`base._project_scan`, `agent_profiles._load` — the two
+  redundant `rglob` overrides removed) and the resolver
+  (`kind_vocabulary._org_scan_dirs` / `_layer_scan_dirs`), so org/project
+  discovery is unconditionally recursive and the two agree by construction;
+  kind-specific globs keep `.provenance/*.yaml` sidecars and `.md` files out, and
+  the recursive flat-org scan excludes the reserved `built-in/` subtree so
+  flat-wins-over-legacy precedence is preserved. The plural↔singular charter
+  kind vocabulary is now derived from one `ArtifactKind`-backed authority
+  (`CHARTER_ACTIVATABLE_*`, the 10 activatable kinds including `anti_pattern`),
+  collapsing the hand-copied maps in `charter.activations` and
+  `charter._activation_render` — the two drifted copies that had fallen two kinds
+  behind, so `glossary_pack` rendered as its plural and `glossary_packs`
+  inference was blind, are fixed. `charter context --include glossary_pack:<id>`
+  now renders and `--include anti_pattern:<id>` resolves to a normal not-found
+  instead of erroring on an "unsupported selector kind". A new falsifiable
+  parity/totality gate binds loader↔resolver recursion agreement and covers the
+  string-keyed kind authorities the previous enum-keyed guard could not see, so
+  this class of silent drift fails loudly if reintroduced. No cascade-reach or
+  golden-count change.
+
 - **`charter activate --cascade` now follows an org-pack dependency edge no
   matter which pack in the chain declares it, and activating from an org pack
   that ships no dependency graph no longer crashes the command (`#3534`; closes
