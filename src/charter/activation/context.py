@@ -490,12 +490,26 @@ def build_charter_context_json(
                 "tactic": (service.tactics, bundle.tactic_ids),
                 "styleguide": (service.styleguides, bundle.styleguide_ids),
                 "toolguide": (service.toolguides, bundle.toolguide_ids),
-                # #3389: ``procedure`` is a first-class typed array. ``asset``
-                # stays reference-only (#3037) and remains in extra_delivered,
-                # folded into references[] without its own array.
+                # #3389: ``procedure`` is a first-class typed array. Two kinds
+                # stay reference-only and travel through ``extra_delivered``
+                # instead of getting their own typed array, folded into the flat
+                # ``references[]`` link set by ``build_disclosure_payload``:
+                #   * ``asset`` (#3037) — no resolution/install path.
+                #   * ``glossary_pack`` (M4) — delivered as a term-name surface
+                #     list on the bootstrap-TEXT path (WP01) and surfaced in JSON
+                #     only as a ``references[]`` link, NOT a typed array: its
+                #     terms are pulled on demand via
+                #     ``--include glossary-pack:<id>``. Mirrors the deliberate
+                #     ``asset`` asymmetry so both delivered-but-reference-only
+                #     kinds are documented; adding a typed ``glossary``/
+                #     ``glossary_packs`` array would change the top-level key set
+                #     and require a ``context_schema_version`` bump — do not.
                 "procedure": (service.procedures, bundle.procedure_ids),
             },
-            extra_delivered={"asset": bundle.asset_ids},
+            extra_delivered={
+                "asset": bundle.asset_ids,
+                "glossary_pack": bundle.glossary_pack_ids,
+            },
             merged=bundle.merged,
             roots=bundle.roots,
             include_all=include_all,
