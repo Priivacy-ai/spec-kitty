@@ -219,3 +219,59 @@ def test_governance_resolution_carries_asset_field() -> None:
         paradigms=[], directives=[], tools=[], template_set="x", metadata={}
     )
     assert resolution.assets == []
+
+
+# ---------------------------------------------------------------------------
+# WP01 (deliver-loaded-doctrine) — glossary packs deliver to a real slot, and
+# every ``slot=None`` row carries a MACHINE-CHECKABLE stated reason so exclusion
+# and ignorance stay distinguishable (FR-001/FR-003, NFR-003).
+# ---------------------------------------------------------------------------
+
+
+def test_glossary_pack_delivers_to_glossary_packs_slot() -> None:
+    """An activated, graph-reachable glossary pack has a delivery home."""
+    assert context.action_bundle_bucket(NodeKind.GLOSSARY_PACK) == "glossary_packs"
+
+
+def test_empty_slot_map_grows_a_glossary_packs_accumulator() -> None:
+    """The slot accumulator is derived from the table, so the new slot appears."""
+    from charter.context_renderers.delivery_table import _empty_slot_map
+
+    assert "glossary_packs" in _empty_slot_map()
+
+
+def test_every_none_slot_kind_has_a_machine_checkable_stated_reason() -> None:
+    """No ``slot=None`` row may be a silent exclusion — each states WHY.
+
+    The reason surface is a real, importable map (``_DELIVERY_REASON_BY_KIND``)
+    keyed by the excluded kinds, so a future ``None`` row added without a reason
+    reddens here rather than passing as an unexplained blank.
+    """
+    from charter.context_renderers.delivery_table import (
+        _ACTION_BUNDLE_DELIVERY_BY_KIND,
+        _DELIVERY_REASON_BY_KIND,
+    )
+
+    none_slot_kinds = {
+        kind
+        for kind, row in _ACTION_BUNDLE_DELIVERY_BY_KIND.items()
+        if row.slot is None
+    }
+    unexplained = sorted(
+        kind.value
+        for kind in none_slot_kinds
+        if not _DELIVERY_REASON_BY_KIND.get(kind, "").strip()
+    )
+    assert not unexplained, f"None-slot kinds lacking a stated reason: {unexplained}"
+
+    # Non-vacuity: the reason map carries an entry ONLY for excluded kinds; a
+    # stale reason for a kind that actually delivers to a slot is a defect.
+    stale = sorted(
+        kind.value
+        for kind in _DELIVERY_REASON_BY_KIND
+        if _ACTION_BUNDLE_DELIVERY_BY_KIND[kind].slot is not None
+    )
+    assert not stale, f"reason recorded for delivered (non-None) kinds: {stale}"
+
+    # And the map covers exactly the None-slot kinds — no missing, no extra.
+    assert set(_DELIVERY_REASON_BY_KIND) == none_slot_kinds

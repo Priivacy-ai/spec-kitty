@@ -76,6 +76,16 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         # "no delegatable node kind" -- correct here, since an anti-pattern
         # node is never a mission-step-contract delegation target (D2).
         "specify_cli.mission_step_contracts.executor::_ARTIFACT_TO_NODE_KIND",
+        # WP01 (deliver-loaded-doctrine): the delivery table's exclusion-reason
+        # sidecar is a partial NodeKind map BY CONSTRUCTION -- it carries a
+        # stated reason for every `slot=None` kind and nothing for the delivered
+        # kinds. It is an audit sidecar to the total `_ACTION_BUNDLE_DELIVERY_BY_KIND`
+        # (never read via a plain `[kind]` lookup on a delivered kind), and its
+        # exact coverage of the None-slot set is machine-checked by
+        # `tests/charter/test_action_bundle_delivery.py::
+        # test_every_none_slot_kind_has_a_machine_checkable_stated_reason`, so a
+        # future None row without a reason still reddens -- just there, not here.
+        "charter.context_renderers.delivery_table::_DELIVERY_REASON_BY_KIND",
         # WP03 (T016): the `doctrine new` scaffolder's per-kind stub table.
         # Intentionally partial -- `template` (empty glob, unscaffoldable),
         # `glossary_pack` and `anti_pattern` (hand-authored) carry no stub. The
