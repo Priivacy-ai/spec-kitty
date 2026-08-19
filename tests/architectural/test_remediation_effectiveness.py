@@ -31,6 +31,13 @@ import pytest
 
 from specify_cli.charter_runtime.freshness.computer import compute_freshness
 
+#: Selection marker, not decoration: CI selects tests BY MARKER, so an
+#: unmarked file under tests/architectural/ is collected by ZERO gates --
+#: `test_same_tier_uniqueness::test_split_preserves_zero_orphans` and
+#: `test_ci_collection_completeness` both fail on it, correctly. Without this
+#: an effectiveness oracle could regress and never turn a branch red.
+pytestmark = pytest.mark.architectural
+
 _CHARTER_DIR = Path(".kittify") / "charter"
 _UNPARSEABLE = "governance:\n  - broken: [unterminated\n    flow sequence\n"
 

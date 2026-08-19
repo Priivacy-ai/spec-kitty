@@ -262,7 +262,13 @@ def _recover_unparseable_charter_yaml(charter_dir: Path) -> tuple[bool, list[str
     Never raises for the parse itself; a genuinely unreadable path is left for
     the caller's normal error handling.
     """
-    charter_yaml = charter_dir / "charter.yaml"
+    # The filename comes from `charter.bundle.CHARTER_YAML`, never a local
+    # literal: `test_charter_path_literal_authority` requires every charter-path
+    # literal to be declared with a rationale, and the right answer here is to
+    # use the canonical constant rather than register another exception to it.
+    from charter.bundle import CHARTER_YAML  # noqa: PLC0415 — keep charter.* off the CLI import path
+
+    charter_yaml = charter_dir / CHARTER_YAML.name
     if not charter_yaml.exists():
         return False, []
 
