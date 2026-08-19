@@ -88,10 +88,6 @@ collaboration:
     - redundancy-map
     - reduction-diff
     - equivalence-evidence
-  operating-procedures:
-    - semantic-compression-workflow
-    - behavior-preserving-refactor
-    - equivalence-verification
   canonical-verbs:
     - map
     - reduce
