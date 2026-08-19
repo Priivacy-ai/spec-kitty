@@ -164,11 +164,12 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
+def load_org_drg(repo_root: Path, *, strict: bool = True) -> list[OrgDRGFragment]:
     """Load all configured org packs from ``.kittify/config.yaml``.
 
     Returns one :class:`OrgDRGFragment` per pack in declaration order.
-    Layer indices are assigned ``1..N``.
+    Layer indices are assigned ``1..N`` from the full-registry enumeration —
+    a pack skipped under ``strict=False`` does **not** renumber its siblings.
 
     This function is project-config-aware (charter-domain): it reads the
     shared org-pack registry contract from
@@ -183,12 +184,30 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
         config is absent or has no ``doctrine.org`` pack entries, the
         function returns ``[]`` (NFR-001 backward compatibility — repos
         with no org packs behave identically to today).
+    strict:
+        When ``True`` (default), behaviour is identical to the original
+        loader: every configured pack is loaded via
+        :func:`doctrine.drg.org_pack_loader.load_org_pack`, which raises
+        :class:`OrgPackMissingError` when a pack ships no
+        ``drg/fragment.yaml``. The diagnostic callers (``doctor doctrine`` /
+        ``charter list`` / lint / status) keep this default so their
+        error-reporting stays byte-identical (NFR-001).
+
+        When ``False``, a pack whose ``drg/fragment.yaml`` does not exist is
+        **skipped** (it contributes no fragment layer); any root-level
+        ``*.graph.yaml`` it ships is still folded by
+        :func:`charter._drg_helpers.load_validated_graph`'s per-root loop, and
+        a pack shipping neither is warned there. The cascade callers
+        (``charter activate/deactivate``) pass ``strict=False`` so a mixed
+        chain (one root-graph pack + one fragment pack) yields the real
+        fragment edges instead of raising on the first fragment-less pack
+        (DRG read-path bridge, mission ``drg-read-path-bridge-01M0CHVZ``, D3).
 
     Raises
     ------
     OrgPackMissingError:
-        When a configured pack's ``path`` does not exist on disk
-        (FR-004).
+        When ``strict=True`` and a configured pack ships no
+        ``drg/fragment.yaml`` (FR-004).
     NotImplementedError:
         When a pack declares ``source: url`` or ``source: package`` —
         only ``local_path`` is shipped in this mission (NEW-1).
@@ -196,7 +215,10 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
     registry = load_pack_registry(repo_root)
     fragments: list[OrgDRGFragment] = []
     for layer_index, pack in enumerate(registry.packs, start=1):
-        fragments.append(load_org_pack(pack.name, pack.effective_root(repo_root), layer_index))
+        pack_root = pack.effective_root(repo_root)
+        if not strict and not (pack_root / "drg" / "fragment.yaml").exists():
+            continue
+        fragments.append(load_org_pack(pack.name, pack_root, layer_index))
     return fragments
 
 
