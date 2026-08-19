@@ -61,10 +61,12 @@ def builtin_missions_root() -> Path:
     is layer-rule-clean (charter → doctrine, no ``specify_cli``) and
     byte-identical in the return value: :meth:`default_missions_root` is
     itself ``importlib.resources``-based (wheel-safe), which the previous
-    ``Path(__file__)``-relative literal here was not. Full convergence onto
-    ``doctrine.pack_paths.built_in_dir`` remains deferred to #3091 —
-    ``pack_paths`` has no ``missions/`` content directory today — and is
-    explicitly NOT claimed by this delegation.
+    ``Path(__file__)``-relative literal here was not. Full convergence onto the
+    promoted ``pack_paths`` missions authority
+    (``doctrine.pack_paths.built_in_missions_root``) is a tracked follow-up
+    (#3575), now unblocked — #3091 relocated the missions tree into
+    ``packs/built-in`` and ``pack_paths`` exposes ``built_in_missions_root()`` —
+    and is explicitly NOT claimed by this delegation.
 
     Public module-level accessor (#2668) so cross-module consumers (e.g.
     ``charter.action_grain``, ``charter.mission_type_profiles``) no longer
