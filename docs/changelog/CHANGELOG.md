@@ -382,6 +382,36 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   `ArtifactKind`-keyed and covered by the totality gate, so a future kind cannot
   silently escape project-tier node admission.
 
+- **Loaded doctrine now actually reaches the dispatched agent — glossary packs,
+  procedure/tactic step descriptions, project-overlay agent profiles, and
+  `procedures` in `charter context --json` are no longer silently dropped
+  (`#3489`, `#3176`, `#3389`, `#3488` render half; M4 of the charter-resolution
+  program).** Before, four delivery/render paths validated clean yet delivered
+  nothing: `GLOSSARY_PACK` had `slot=None` in the action-bundle delivery table
+  (one of two `None` rows lacking the module's required stated reason) and no
+  renderer, so glossary packs were structurally unreachable in every config;
+  procedure/tactic step `description` was dead code (`title` is required, so
+  `title or description` never reached it — ~63% of step content undeliverable);
+  `build_activation_aware_doctrine_service` derived its project root from three
+  fixed candidates, none of which was `.kittify/agent_profiles`, so a
+  project-overlay profile silently vanished when resolved through the
+  activation-aware service; and `charter context --json` omitted the
+  `procedures[]` array the text render already shipped. Now `GLOSSARY_PACK` has a
+  real `ACTIVATED` delivery slot with a term-name surface list plus a
+  `--include glossary-pack:<id>` fetch pointer (names only — the full
+  definitions stay behind the pointer so the NFR-001 token budget is respected),
+  **every** remaining `None` delivery-table row carries a machine-checkable
+  stated reason (closing the class, including `ANTI_PATTERN`), step
+  `description` renders alongside `title` on both the action-bundle and profile
+  channels, the styleguide/toolguide pointer-only choice is a documented
+  deliberate budget decision rather than an unlabeled no-op, an optional
+  `agent_profile_overlay_dir` threaded through the doctrine-service builders
+  (default `None`, byte-identical unset) lets `default_profile_repository`
+  resolve `.kittify/agent_profiles` through the sole sanctioned builder, and
+  `context --json` ships a typed `procedures[]` array under a deliberately
+  bumped `context_schema_version` (`1.0.0` → `1.1.0`) with `asset` documented as
+  reference-only (its typed-array promotion deferred behind `#3037`).
+
 - **Doctrine authored in an org pack or project overlay now loads and activates
   with the same completeness as the built-in corpus — nested subdirectories are
   no longer silently dropped, and the charter kind vocabulary is derived from a
