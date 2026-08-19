@@ -241,6 +241,54 @@ def _resolve_status_surface_for_repo(
     return ms.read_dir, mission_slug, main_repo_root
 
 
+def _enforce_emit_for_review_gate(
+    json_output: bool,
+    main_repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    to: str,
+    force: bool,
+) -> None:
+    """Reject an in_progress->for_review emit with no lane commit (FR-011).
+
+    Thin CLI adapter over the shared, surface-neutral gate leaf
+    (:func:`specify_cli.lanes.for_review_gate.evaluate_for_review_gate`) --
+    mirrors the orchestrator-api ``transition`` surface's
+    ``_enforce_for_review_commit_gate`` so BOTH surfaces enforce identical
+    semantics (a WP with zero commits on its lane branch cannot reach
+    ``for_review``). No-ops when the alias-resolved target lane is not
+    ``for_review``, when bypassed (``--force``), or when the gate does not
+    apply (no ``lanes.json``, or the WP is not in any lane) -- the leaf
+    decides those cases and returns a passing decision.
+
+    Raises:
+        typer.Exit: With code 1 when the gate rejects the transition.
+    """
+    from specify_cli.lanes.for_review_gate import (
+        GateDecision,
+        evaluate_for_review_gate,
+    )
+    from specify_cli.status import Lane, resolve_lane_alias
+
+    if resolve_lane_alias(to) != Lane.FOR_REVIEW:
+        return
+
+    decision: GateDecision = evaluate_for_review_gate(
+        main_repo_root, mission_slug, wp_id, force=force
+    )
+    if not decision.passed:
+        _output_error(
+            json_output,
+            decision.reason,
+            {
+                "error": decision.reason,
+                "wp_id": wp_id,
+                "lane_id": decision.lane_id,
+            },
+        )
+        raise typer.Exit(1)
+
+
 @app.command()
 def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
@@ -346,6 +394,12 @@ def emit(
             except ValueError as exc:
                 _output_error(json_output, str(exc))
                 raise typer.Exit(1)
+
+        # FR-011: the shared, topology-aware for_review commit gate -- no-ops
+        # unless the alias-resolved target lane is for_review, mirroring the
+        # orchestrator-api transition surface's identical gate placement
+        # (immediately before the transition is emitted).
+        _enforce_emit_for_review_gate(json_output, main_repo_root, mission_slug, wp_id, to, force)
 
         # Lazy import to avoid circular imports
         from specify_cli.status import TransitionError
