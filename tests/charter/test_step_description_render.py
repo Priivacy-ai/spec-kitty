@@ -48,30 +48,29 @@ def test_procedure_step_description_renders_under_title() -> None:
     body = _format_inline_procedure_body(
         _Procedure([ProcedureStep(title=_TITLE, description=_DESCRIPTION)])
     )
-    text = "\n".join(body)
 
-    assert _TITLE in text
-    assert _DESCRIPTION in text
+    # FR-004: the description is not a loose substring — it is an 8-space
+    # indented sub-line BENEATH the title line, not spliced into it.
+    assert f"      - {_TITLE}" in body
+    assert f"        {_DESCRIPTION}" in body
 
 
 def test_tactic_step_description_renders_under_title() -> None:
     body = _format_inline_tactic_body(
         _Tactic([TacticStep(title=_TITLE, description=_DESCRIPTION)])
     )
-    text = "\n".join(body)
 
-    assert _TITLE in text
-    assert _DESCRIPTION in text
+    assert f"      - {_TITLE}" in body
+    assert f"        {_DESCRIPTION}" in body
 
 
 def test_profile_inline_named_body_renders_description() -> None:
     body = format_inline_named_body(
         _Procedure([ProcedureStep(title=_TITLE, description=_DESCRIPTION)])
     )
-    text = "\n".join(body)
 
-    assert _TITLE in text
-    assert _DESCRIPTION in text
+    assert f"      - {_TITLE}" in body
+    assert f"        {_DESCRIPTION}" in body
 
 
 def test_procedure_body_byte_identical_when_description_absent() -> None:
@@ -105,3 +104,23 @@ def test_profile_named_body_byte_identical_when_description_absent() -> None:
 
     assert f"      - {_TITLE}" in with_none
     assert [line for line in with_none if line.startswith("        ")] == []
+
+
+def test_profile_named_body_titleless_step_uses_description_as_header_once() -> None:
+    """A step with a ``description`` but no ``title`` (FR-004 fall-through).
+
+    ``format_inline_named_body`` uses the description AS the ``- <desc>`` header
+    line and emits NO 8-space sub-line — the description must appear EXACTLY
+    once, never duplicated as both header and indented sub-line.
+    """
+    body = format_inline_named_body(
+        _Procedure([ProcedureStep(title="", description=_DESCRIPTION)])
+    )
+
+    # The description stands in as the header line ...
+    assert f"      - {_DESCRIPTION}" in body
+    # ... exactly once across the whole body ...
+    assert body.count(f"      - {_DESCRIPTION}") == 1
+    # ... and never also as an 8-space sub-line duplicate.
+    assert f"        {_DESCRIPTION}" not in body
+    assert [line for line in body if line.startswith("        ")] == []
