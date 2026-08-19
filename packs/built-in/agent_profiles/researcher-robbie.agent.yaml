@@ -56,7 +56,6 @@ collaboration:
     - recommendation-summary
     - knowledge-base-entry
   operating-procedures:
-    - research-template
     - spike-timebox-policy
   canonical-verbs:
     - investigate

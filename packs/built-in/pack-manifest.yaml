@@ -5,7 +5,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/analyst-annie.agent.yaml
   provenance_path:
-- content_hash: 091d6223b873fdd15233b3970053f88bb7cd61ada223e2ab7532ef188eda2844
+- content_hash: ffd07debfee2e57b108f59d2d69b32dc10bc482e1ffb78856602d85f4883f588
   id: architect-alphonso
   kind: agent_profile
   path: agent_profiles/architect-alphonso.agent.yaml
@@ -15,17 +15,17 @@ constituents:
   kind: agent_profile
   path: agent_profiles/comms-cleo.agent.yaml
   provenance_path:
-- content_hash: cc6b08c3391abe890ff2dc35b4d7faa3e6cb6566cacedfab2eb570fa9248cb0a
+- content_hash: 1c7526c795a8ceca50875efb4ee9fb886f2572c8a61bcedb013549fe00a02f4f
   id: curator-carla
   kind: agent_profile
   path: agent_profiles/curator-carla.agent.yaml
   provenance_path:
-- content_hash: 2aa4396ee2d102e49d4a0f076ed7d1a7a8e3d2da8c9d1dc6cc32843db780e7ac
+- content_hash: 8007f115eadb129c55acc97ee23a46dd54f773c53515ffe36bd07d3f56756510
   id: debugger-debbie
   kind: agent_profile
   path: agent_profiles/debugger-debbie.agent.yaml
   provenance_path:
-- content_hash: 1428bfeabd57c8cd636d72d587b11799b84a0f4d325aea24880f6d8e4083f6c7
+- content_hash: 07117e1378d878e0b94ceb6b20c0b3a4f15f120315ccb6e430c14642127076f4
   id: designer-dagmar
   kind: agent_profile
   path: agent_profiles/designer-dagmar.agent.yaml
@@ -40,7 +40,7 @@ constituents:
   kind: agent_profile
   path: agent_profiles/doctrine-daphne.agent.yaml
   provenance_path:
-- content_hash: 18bbb8b92ed33fed4568a7c4a10643656ae51e0658e8f7a502a20f6288e4869f
+- content_hash: 32801a8792cb909474c431932a2c8091e3780a2af3668276c4dbcc811b199a82
   id: frontend-freddy
   kind: agent_profile
   path: agent_profiles/frontend-freddy.agent.yaml
@@ -55,12 +55,12 @@ constituents:
   kind: agent_profile
   path: agent_profiles/human-in-charge.agent.yaml
   provenance_path:
-- content_hash: 7ba48415be7adf3ea2afddeb7f8afd86b7ef5cc24bd43007f25410f928cab635
+- content_hash: 684d162773aa543fe0df813a8715d3e1b6d375bacdd2b7df56d4f2fcad30b066
   id: implementer-ivan
   kind: agent_profile
   path: agent_profiles/implementer-ivan.agent.yaml
   provenance_path:
-- content_hash: 9835a284bf8a64c1b568eb13a39b345d95307ffaf3061d01e0243c1f7065c433
+- content_hash: efdaf0baaf7a19e9b6c78ba6fefbfc586b10f37635502d40faec9bf99aaf700e
   id: java-jenny
   kind: agent_profile
   path: agent_profiles/java-jenny.agent.yaml
@@ -75,42 +75,42 @@ constituents:
   kind: agent_profile
   path: agent_profiles/minutes-maker-mahad.agent.yaml
   provenance_path:
-- content_hash: 5d4b5509b57b1a7fa328105921d05b02977a37b508ba1a8cb3b3c3ba33d170b5
+- content_hash: 736c9886b6ad1881587bba5c0038a51069620fff140426eedc56e30139907584
   id: node-norris
   kind: agent_profile
   path: agent_profiles/node-norris.agent.yaml
   provenance_path:
-- content_hash: 9e9a7e204fe7f3c66a120e2c36d9e9cf519e489f88982cce1c65114fde527899
+- content_hash: 232eb0eed4bc6b93c4725983ebbd5c820846662be7f7ec116f80bff425561700
   id: paula-patterns
   kind: agent_profile
   path: agent_profiles/paula-patterns.agent.yaml
   provenance_path:
-- content_hash: a75a69594825554fc286c1c7a6d7a70707ba6a0724686cf6f3546a33b92a4a87
+- content_hash: 5c8bdc271726913d938f9d062e147dcc1f893143b3b811c4380aafcfc5df47e6
   id: planner-priti
   kind: agent_profile
   path: agent_profiles/planner-priti.agent.yaml
   provenance_path:
-- content_hash: 3bda1107743f47513ffe9820ba84727c42b83613bcfac1ca02dc70ad5092acb6
+- content_hash: d3c871d1d07b61faf04fc9bea4216f2692c05fcc7916541cea26438bebfc7ced
   id: python-pedro
   kind: agent_profile
   path: agent_profiles/python-pedro.agent.yaml
   provenance_path:
-- content_hash: 495904c9937c2977f2696a6c0e5ce38903a6b3eb85600953882c81caaea7d098
+- content_hash: c8f08d3482ff330928cb6ee0a66e50927741aaa0c33893aa2948567cd1506726
   id: randy-reducer
   kind: agent_profile
   path: agent_profiles/randy-reducer.agent.yaml
   provenance_path:
-- content_hash: afd5f0c5caee89258f78421bc6908b7fc2dcc42c5ae78be1fd6c269eacb2127a
+- content_hash: 4ae60ec2ef1a64db370539c4206b3aff39c91d39ec07f377930759e2d79d0df9
   id: researcher-robbie
   kind: agent_profile
   path: agent_profiles/researcher-robbie.agent.yaml
   provenance_path:
-- content_hash: de4e2d2c641e773180e84ea3bc60beb937e66aadcef6012db392289a088275c4
+- content_hash: c761c248f72557749c146463efd8749b796c106d9aa58f5e589013a5c6a804ed
   id: retrospective-facilitator
   kind: agent_profile
   path: agent_profiles/retrospective-facilitator.agent.yaml
   provenance_path:
-- content_hash: 6f0a40e7d0584f951e18e5f040043b05c84c20c1aa61313f99dd9eca7caa54bf
+- content_hash: 1a2b9b76eb866033169fd42d2265e91297a7ec3154a121c7b55932b7af04c1e1
   id: reviewer-renata
   kind: agent_profile
   path: agent_profiles/reviewer-renata.agent.yaml

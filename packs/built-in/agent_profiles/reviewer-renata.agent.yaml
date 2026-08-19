@@ -73,10 +73,6 @@ collaboration:
     - approval-record
     - security-findings
   operating-procedures:
-    - code-review-checklist
-    - security-review-process
-    - reverse-speccing
-    - language-driven-design-review
     - adversarial-squad-deployment
   canonical-verbs:
     - review

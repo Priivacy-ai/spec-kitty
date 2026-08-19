@@ -72,8 +72,6 @@ collaboration:
     - retrospective.yaml
     - retrospective-events
     - proposal-set
-  operating-procedures:
-    - retrospective-facilitation-protocol
   canonical-verbs:
     - retrospect
     - capture

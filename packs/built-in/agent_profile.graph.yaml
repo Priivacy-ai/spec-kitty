@@ -122,6 +122,9 @@ edges:
   when: designing or reviewing significant code changes
   reason: "When designing and reviewing significant code changes, the architect should reach Domain-Driven Design. Composition-only under today's traversal (the profile channel walks requires/specializes_from only), authored per the #3063 operator attestation."
 - source: agent_profile:architect-alphonso
+  target: procedure:drill-down-documentation
+  relation: requires
+- source: agent_profile:architect-alphonso
   target: procedure:event-storming-discovery
   relation: suggests
   when: discovering domain events, commands, aggregates, policies, read models, and bounded-context boundaries from real business flows
@@ -267,6 +270,10 @@ edges:
   target: tactic:supply-chain-install-safety
   relation: requires
   reason: Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC checklist before accepting a new or changed npm dependency, and record the evidence rather than an aspirational statement of intent.
+- source: agent_profile:frontend-freddy
+  target: tactic:tdd-red-green-refactor
+  relation: requires
+  reason: Drives frontend implementation through red-green-refactor; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
 - source: agent_profile:generic-agent
   target: directive:DIRECTIVE_028
   relation: requires
@@ -390,6 +397,13 @@ edges:
   when: when assessing whether the tests around a change actually constrain its behaviour
   reason: 'An implementer-role profile should reach the mutation hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
 - source: agent_profile:java-jenny
+  target: procedure:test-first-bug-fixing
+  relation: requires
+- source: agent_profile:java-jenny
+  target: tactic:acceptance-test-first
+  relation: requires
+  reason: ATDD outside-in from acceptance criteria; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
+- source: agent_profile:java-jenny
   target: tactic:behavior-driven-development
   relation: requires
   reason: BDD scenarios define acceptance criteria for Java features. Wire Gherkin scenarios via Cucumber-JVM as acceptance tests before implementing production code.
@@ -397,6 +411,10 @@ edges:
   target: tactic:dependency-hygiene
   relation: requires
   reason: Pin direct dependency versions in the Maven properties block, restrict resolution to Maven Central, exclude vulnerable transitives with a documented reason, and regenerate the SBOM after any dependency change.
+- source: agent_profile:java-jenny
+  target: tactic:tdd-red-green-refactor
+  relation: requires
+  reason: Unit-level red-green-refactor discipline; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
 - source: agent_profile:lexical-larry
   target: directive:DIRECTIVE_003
   relation: requires
@@ -498,6 +516,10 @@ edges:
   target: tactic:supply-chain-install-safety
   relation: requires
   reason: Run the full registry/freshness/lifecycle-script/Node-LTS/incident-IoC checklist before accepting a new or changed npm dependency, and record the evidence rather than an aspirational statement of intent.
+- source: agent_profile:node-norris
+  target: tactic:tdd-red-green-refactor
+  relation: requires
+  reason: Drives Node.js implementation through red-green-refactor; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
 - source: agent_profile:paula-patterns
   target: directive:DIRECTIVE_001
   relation: requires
@@ -536,6 +558,9 @@ edges:
   reason: Evaluate whether the release fix closes the observed issue and what blast radius it carries before handoff
 - source: agent_profile:planner-priti
   target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:planner-priti
+  target: procedure:adversarial-squad-deployment
   relation: requires
 - source: agent_profile:python-pedro
   target: agent_profile:implementer-ivan
@@ -600,6 +625,10 @@ edges:
   target: tactic:dependency-hygiene
   relation: requires
   reason: Pin direct dependency versions in pyproject.toml/uv.lock, restrict resolution to PyPI, audit license compliance, and regenerate the SBOM after any dependency change — the pip/uv checks this tactic already covers for Python.
+- source: agent_profile:python-pedro
+  target: tactic:tdd-red-green-refactor
+  relation: requires
+  reason: Core Python red-green-refactor discipline; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
 - source: agent_profile:python-pedro
   target: tactic:test-scaffolding-as-design-smell
   relation: requires
@@ -728,6 +757,9 @@ edges:
   relation: suggests
   when: when assessing whether the tests under review actually constrain behaviour
   reason: 'The reviewer profile should reach the mutation hub when assessing test quality under review. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:reviewer-renata
+  target: procedure:adversarial-squad-deployment
+  relation: requires
 - source: agent_profile:reviewer-renata
   target: tactic:code-review-incremental
   relation: requires

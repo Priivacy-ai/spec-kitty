@@ -80,11 +80,6 @@ collaboration:
     - integration-tests
     - pull-request
     - implementation-notes
-  operating-procedures:
-    - tdd-red-green-refactor
-    - self-review-quality-gate
-    - code-review-checklist
-    - test-coverage-requirement
   canonical-verbs:
     - implement
     - fix
@@ -210,3 +205,5 @@ tactic-references:
       Pin direct dependency versions in pyproject.toml/uv.lock, restrict resolution
       to PyPI, audit license compliance, and regenerate the SBOM after any
       dependency change — the pip/uv checks this tactic already covers for Python.
+  - id: tdd-red-green-refactor
+    rationale: Core Python red-green-refactor discipline; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).

@@ -82,11 +82,6 @@ collaboration:
     - pull-request
     - implementation-notes
   operating-procedures:
-    - acceptance-test-first
-    - tdd-red-green-refactor
-    - self-review-quality-gate
-    - code-review-checklist
-    - test-coverage-requirement
     - test-first-bug-fixing
   canonical-verbs:
     - implement
@@ -205,3 +200,7 @@ tactic-references:
       Pin direct dependency versions in the Maven properties block, restrict
       resolution to Maven Central, exclude vulnerable transitives with a
       documented reason, and regenerate the SBOM after any dependency change.
+  - id: acceptance-test-first
+    rationale: ATDD outside-in from acceptance criteria; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).
+  - id: tdd-red-green-refactor
+    rationale: Unit-level red-green-refactor discipline; migrated from a misfiled operating-procedures entry (it names a tactic, not a procedure).

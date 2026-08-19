@@ -945,8 +945,10 @@ class TestSixEdgesReachabilityWiring:
     def test_spike_timebox_policy_is_profile_reachable_via_researcher_robbie(
         self, graph: DRGGraph
     ) -> None:
-        """Edge 5: ``agent_profile:researcher-robbie --requires--> spike-timebox-
-        policy``, robbie's structured ``operating-procedures`` field entry."""
+        """``agent_profile:researcher-robbie --requires--> spike-timebox-policy``,
+        data-driven from robbie's ``operating-procedures`` field (M3: the former
+        curated hand-pin was retired once the field became a first-class edge
+        source — the edge persists, now derived)."""
         reach = profile_channel_reachable(graph, agent_profile_seed_urns(graph))
         assert "procedure:spike-timebox-policy" in reach
 

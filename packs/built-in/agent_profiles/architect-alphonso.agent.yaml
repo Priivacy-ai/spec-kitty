@@ -63,8 +63,6 @@ collaboration:
     - component-diagram
     - interface-specification
   operating-procedures:
-    - architecture-review-checklist
-    - adr-template
     - drill-down-documentation
   canonical-verbs:
     - design
