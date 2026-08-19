@@ -385,6 +385,23 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   string-keyed kind authorities the previous enum-keyed guard could not see, so
   this class of silent drift fails loudly if reintroduced. No cascade-reach or
   golden-count change.
+- **`charter activate --cascade` now follows a `requires`/`suggests` edge an org
+  pack authors in its canonical `drg/fragment.yaml`, and `pack validate` no longer
+  contradicts the runtime about whether that fragment is read (`#3572`, `#3573`).**
+  Before, those fragment edges were parsed only by the diagnostic path (`doctor
+  doctrine` / `charter list`) and were never bridged into the graph cascade walks —
+  which read root-level `*.graph.yaml` only — so activating an artifact silently
+  cascaded nothing for org-authored fragment dependencies, even though diagnostics
+  showed the edge. The companion `drg_root_graph_missing` validator globbed
+  `*.graph.yaml` and never flagged a `fragment.yaml`-only pack, so `pack validate`
+  exited 0 on the same gap. Now `load_validated_graph` folds org fragments through
+  the existing three-layer merge (reusing its endpoint-resolution and edge
+  de-duplication — no second code path), so a fragment `requires` edge cascades;
+  the graphless-pack warning fires only when a pack ships **neither** a root graph
+  **nor** a `drg/fragment.yaml`; and the validator finding is reconciled in the
+  same change, so `pack validate` and the runtime tell one story. The diagnostic
+  path is unchanged (the bridge adds a consumer), and build-time callers that pass
+  no org fragments are unaffected.
 
 - **`charter activate --cascade` now follows an org-pack dependency edge no
   matter which pack in the chain declares it, and activating from an org pack
