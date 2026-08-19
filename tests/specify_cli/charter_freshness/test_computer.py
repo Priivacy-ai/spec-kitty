@@ -244,7 +244,7 @@ def test_returns_three_sub_objects(tmp_path: Path) -> None:
 def test_charter_source_missing_when_charter_yaml_absent(tmp_path: Path) -> None:
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "missing"
-    assert result.charter_source.remediation == "spec-kitty charter sync"
+    assert result.charter_source.remediation == "spec-kitty charter generate --no-from-interview"
 
 
 def test_charter_source_fresh_when_charter_yaml_parses(tmp_path: Path) -> None:
@@ -261,7 +261,7 @@ def test_charter_source_invalid_when_unparseable(tmp_path: Path) -> None:
     _seed_charter_yaml(tmp_path, body="not: [valid: yaml: at: all")
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "invalid"
-    assert result.charter_source.remediation == "spec-kitty charter sync"
+    assert result.charter_source.remediation == "spec-kitty charter generate --no-from-interview --recover-invalid"
 
 
 def test_charter_source_never_reachable_as_stale() -> None:

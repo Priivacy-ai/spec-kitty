@@ -115,7 +115,22 @@ FreshnessState = Literal["fresh", "stale", "missing", "built_in_only", "invalid"
 
 # S1192: shared remediation command strings, referenced by every sub-state
 # builder below that recommends a recovery command.
-_REMEDIATE_CHARTER_SYNC = "spec-kitty charter sync"
+# `charter sync` is deliberately NOT used as a remediation here (#2831).
+# `src/charter/sync.py` documents itself as a pure staleness reporter -- "it
+# always reports synced=False / files_written=[]" -- so every state that named
+# it handed the operator a command that could not clear the check blocking them.
+# Each state below now names a command that demonstrably reaches `fresh`,
+# enforced by tests/architectural/test_remediation_effectiveness.py.
+_REMEDIATE_CHARTER_GENERATE = "spec-kitty charter generate --no-from-interview"
+#: An unparseable `charter.yaml` needs the extra flag: `write_compiled_charter`
+#: refreshes only the DERIVED sections of an existing file and round-trips the
+#: document to preserve the AUTHORED ones, so it must parse it. `--force` does
+#: NOT help (it gates no destructive overwrite -- see that function's
+#: docstring); the file has to be moved aside first, which `--recover-invalid`
+#: does (to `charter.yaml.bak`).
+_REMEDIATE_CHARTER_RECOVER = (
+    "spec-kitty charter generate --no-from-interview --recover-invalid"
+)
 _REMEDIATE_CHARTER_SYNTHESIZE = "spec-kitty charter synthesize"
 
 
@@ -133,7 +148,7 @@ class FreshnessSubState:
             ``invalid``.  Matches ``contracts/charter-status-json.md``.
         last_change: ISO 8601 timestamp of the most recent change to the
             tracked asset (None when missing or unknown).
-        remediation: Operator-facing hint (e.g. ``spec-kitty charter sync``)
+        remediation: Operator-facing hint (e.g. ``spec-kitty charter generate``)
             or None when no action is required.
         detail: Optional human-readable explanation surfaced for ``invalid``
             states so operators understand why an artifact is broken.
@@ -311,7 +326,7 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation=_REMEDIATE_CHARTER_SYNC,
+            remediation=_REMEDIATE_CHARTER_GENERATE,
         )
 
     last_change = _mtime_iso(charter_yaml_path)
@@ -320,8 +335,11 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
         return FreshnessSubState(
             state="invalid",
             last_change=last_change,
-            remediation=_REMEDIATE_CHARTER_SYNC,
-            detail="charter.yaml exists but cannot be parsed",
+            remediation=_REMEDIATE_CHARTER_RECOVER,
+            detail=(
+                "charter.yaml exists but cannot be parsed; --recover-invalid moves it "
+                "to charter.yaml.bak and bootstraps a fresh one"
+            ),
         )
 
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
@@ -350,7 +368,7 @@ def _compute_synced_bundle(
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation=_REMEDIATE_CHARTER_SYNC,
+            remediation=_REMEDIATE_CHARTER_GENERATE,
         )
 
     last_change = _latest_mtime(existing)
@@ -359,7 +377,7 @@ def _compute_synced_bundle(
         return FreshnessSubState(
             state="stale",
             last_change=last_change,
-            remediation=_REMEDIATE_CHARTER_SYNC,
+            remediation=_REMEDIATE_CHARTER_RECOVER,
         )
 
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)

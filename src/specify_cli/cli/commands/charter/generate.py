@@ -238,6 +238,60 @@ def _load_interview_for_generate(
     return interview_data, "interview", resolved_mission_type or interview_data.mission
 
 
+#: Suffix for the copy of an unparseable ``charter.yaml`` moved aside by
+#: ``--recover-invalid``. A previous backup IS overwritten, deliberately: the
+#: backup exists to preserve the content the operator has *now*, and any earlier
+#: backup is itself a superseded broken state. The overwrite is always reported.
+_INVALID_BACKUP_SUFFIX = ".bak"
+
+
+def _recover_unparseable_charter_yaml(charter_dir: Path) -> tuple[bool, list[str]]:
+    """Move an unparseable ``charter.yaml`` aside so bootstrap can proceed.
+
+    ``write_compiled_charter`` refreshes only the DERIVED sections of an
+    existing ``charter.yaml`` and round-trips the document to preserve the
+    AUTHORED ones (``charter.compiler`` / INV-9). That round-trip must parse
+    the file, so an unparseable ``charter.yaml`` makes generation raise --
+    ``--force`` does not help, because ``force`` gates no destructive
+    overwrite (see ``write_compiled_charter``'s docstring). Moving the file
+    aside is therefore the ONLY way to reach the bootstrap-create path, which
+    is why this exists rather than a plain overwrite.
+
+    Returns ``(recovered, notices)``. ``recovered`` is False and ``notices``
+    empty when there is nothing to do -- the file is absent, or parses fine.
+    Never raises for the parse itself; a genuinely unreadable path is left for
+    the caller's normal error handling.
+    """
+    charter_yaml = charter_dir / "charter.yaml"
+    if not charter_yaml.exists():
+        return False, []
+
+    from ruamel.yaml import YAML  # noqa: PLC0415 — keep ruamel off the CLI import path
+    from ruamel.yaml.error import YAMLError  # noqa: PLC0415
+
+    try:
+        with charter_yaml.open(encoding="utf-8") as fh:
+            YAML(typ="rt").load(fh)
+    except YAMLError:
+        pass  # unparseable -- fall through to the move below
+    except OSError:
+        return False, []  # unreadable for another reason; not ours to recover
+    else:
+        return False, []  # parses fine; nothing to recover
+
+    backup = charter_yaml.with_name(charter_yaml.name + _INVALID_BACKUP_SUFFIX)
+    notices = []
+    if backup.exists():
+        notices.append(
+            f"replaced an earlier {backup.name} while recovering an unparseable charter.yaml"
+        )
+    charter_yaml.replace(backup)
+    notices.append(
+        f"charter.yaml could not be parsed; moved it to {backup.name} and bootstrapped a fresh one"
+    )
+    return True, notices
+
+
 @charter_app.command()
 def generate(
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
@@ -252,6 +306,15 @@ def generate(
     ),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing charter bundle"),
+    recover_invalid: bool = typer.Option(
+        False,
+        "--recover-invalid",
+        help=(
+            "If charter.yaml exists but cannot be parsed, move it aside to "
+            "charter.yaml.bak and bootstrap a fresh one. Without this flag an "
+            "unparseable charter.yaml is a hard error (nothing is moved)."
+        ),
+    ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
     """Generate charter bundle from interview answers + doctrine references.
@@ -324,6 +387,13 @@ def generate(
             )
             resolved_mission_type = resolved.canonical_value
 
+        # Must run BEFORE anything parses charter.yaml (the interview load and
+        # the compile/write below both can): once the unparseable file is moved
+        # aside, generation takes its ordinary bootstrap-create path.
+        recovery_notices: list[str] = []
+        if recover_invalid:
+            _, recovery_notices = _recover_unparseable_charter_yaml(charter_dir)
+
         interview_data, interview_source, resolved_mission = _load_interview_for_generate(
             repo_root=repo_root,
             answers_path=answers_path,
@@ -376,7 +446,7 @@ def generate(
         sync_result = _sync_charter_if_present(charter_path, charter_dir)
         sync_warnings, sync_files = _finalize_sync_result(sync_result)
 
-        diagnostics = [*compiled.diagnostics, *sync_warnings]
+        diagnostics = [*recovery_notices, *compiled.diagnostics, *sync_warnings]
 
         files_written = list(bundle_result.files_written)
         for file_name in sync_files:
