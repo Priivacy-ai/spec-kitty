@@ -1,3 +1,10 @@
+---
+title: Charter-Resolution Program
+description: 'Program overview, mission map (M1-M6) and run instructions for the charter-resolution defect cluster: org/project doctrine that loads healthy but reaches no consumer.'
+doc_status: active
+updated: '2026-08-19'
+---
+
 # Charter-Resolution Program
 
 Authored governance — org-pack and project-tier doctrine — silently fails to reach the dispatched agent. This program closes that class of defect. It rolls up to reach epic **#3530** and fail-loud epic **#3410**.

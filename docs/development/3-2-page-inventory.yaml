@@ -3140,6 +3140,42 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/charter-resolution/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/program-brief.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/seeds/seed-m3-operating-procedures.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/seeds/seed-m4-doctrine-delivery.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/seeds/seed-m5-kind-complete-cascade.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/seeds/seed-m6-project-tier-nodes.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/code-quality/index.md
   tag: current
   divio_type: none

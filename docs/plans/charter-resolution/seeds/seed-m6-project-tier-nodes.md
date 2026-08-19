@@ -1,3 +1,10 @@
+---
+title: Mission Seed M6 - Project-Tier DRG Node Emission
+description: 'Specify-intake seed for the mission closing #3038: emit hand-authored project-tier agent_profile artefacts as DRG nodes reachable by cascade.'
+doc_status: active
+updated: '2026-08-19'
+---
+
 # Mission Seed — M6: Project-Tier DRG Node Emission
 
 > **Status:** seed. Feed to `/spec-kitty.specify` in a fresh session.
