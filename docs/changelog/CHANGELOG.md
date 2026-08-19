@@ -385,10 +385,13 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   backfill-runtime-state` (`#3049`), `setup-plan` branch-match (`#3124`), and the
   `find_repo_root` nested-clone boundary (`#2610`). On the verdict seam,
   `_parse_review_result_json` and the `for_review` commit-gate are hoisted to a
-  shared, topology-aware surface (`#3547`/`#1734`); `agent status emit` gains
-  `--review-result-json` so a work package can be walked to `done` through `emit`
-  alone with a structured verdict, and its misleading `--help` example is
-  corrected. `review_result` is registered in the `status_event_row` audit shape
+  shared, topology-aware leaf that **both** `agent status emit` and
+  `orchestrator-api transition` now enforce identically — on real lane commit
+  state, not a topology guess — closing a gap where a work package with no
+  commit on its lane could reach `for_review` (and onward to `done`) through
+  `emit` alone (`#3547`/`#1734`); `agent status emit` gains `--review-result-json`
+  so a work package can be walked to `done` through `emit` alone with a
+  structured verdict, and its misleading `--help` example is corrected. `review_result` is registered in the `status_event_row` audit shape
   with a value-equality snapshot round-trip (`#3543`/`#3461`). The
   standalone-clone re-anchor described in the triggering issues was verified a
   phantom (clones already resolve to self); the real, decidable defect is the
