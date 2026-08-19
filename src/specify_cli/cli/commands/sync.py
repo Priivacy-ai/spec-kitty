@@ -819,7 +819,13 @@ def _render_tracker_egress_row(
         issues.append(row_issue)
 
 
-def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
+def _render_tracker_egress(
+    console_out: Any,
+    issues: list[str],
+    local: TrackerEgressVerdict,
+    hosted: TrackerEgressVerdict,
+    binding_present: bool,
+) -> None:
     """Report the tracker-egress verdict the gates enforce (#3108 FR-014, SC-014).
 
     One row per :class:`EgressDestination` member -- two rows, always, in every
@@ -837,71 +843,29 @@ def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
     ``_CONSENT_FAULT_NOT_ABSENCE`` unconditionally, which is false for most of
     this verdict's own states.
 
-    Never consults the on-disk tracker provider to decide what to show: ``--provider``
-    overrides it in memory only (``TrackerService._resolve_saas_backend_for_provider``),
-    so a provider-conditional block would misreport one destination while saying
-    nothing about the other. Two written-out calls below, each with a literal
-    :class:`EgressDestination` member -- never a loop over the enum, which would
-    turn the ``destination`` argument into an ``ast.Name`` and red WP07's guard G5.
+    Consumes the ``local``/``hosted`` verdicts and ``binding_present`` already
+    computed by :func:`_gather_doctor_facts` (the WP10 gather half) rather than
+    recomputing them here. The gate that bounds tracker data-egress verdicts to a
+    fixed inventory of call sites (#3108 zero-blast-radius) admits exactly the two
+    gather calls; a second, duplicate ``tracker_egress_verdict`` computation in
+    this render half both doubled that inventory and read the on-disk tracker
+    provider twice in one ``doctor`` run. Those gather calls pass an identical root
+    (``locate_project_root(Path.cwd())``) and identical per-transport identifier
+    kinds, each with a literal :class:`EgressDestination` member -- never a loop
+    over the enum, which would turn ``destination`` into an ``ast.Name`` and red
+    WP07's guard G5 -- so the rows this renderer prints are byte-for-byte what the
+    old in-place calls produced. ``root=None`` is a specified case, not an error
+    path (the verdict function never raises): the gather passes it straight through
+    to both destinations, so a directory that resolves no checkout is still
+    rendered here, never as if its tracker egress were fine.
 
-    Resolves its own root with ``locate_project_root(Path.cwd())``, exactly as the
-    sibling readability block does, so both sections in one ``doctor`` run describe
-    the same checkout -- the signature deliberately takes no ``root`` parameter so
-    ``doctor()`` keeps calling both renderers identically. ``root=None`` is a
-    specified case, not an error path (the verdict function never raises): passed
-    straight through to both calls rather than guarded behind
-    ``if repo_root is not None:``, so a directory that resolves no checkout is never
-    rendered as if its tracker egress were fine.
+    ``binding_present`` -- whether *any* provider is bound, never which one -- gates
+    the ``issues`` append only; both rows render regardless. It, too, is resolved
+    once in the gather, where the ``load_tracker_config`` read is guarded (that
+    config read RAISES on an unparseable ``.kittify/config.yaml``, and ``doctor``
+    must stay useful on exactly that checkout).
     """
-    from specify_cli.core.paths import locate_project_root
-    from specify_cli.tracker.config import load_tracker_config
-
-    # Each row passes the fragment its **owning transport** passes at that destination --
-    # ``local_service.py`` for ``LOCAL_SUBPROCESS`` and ``tracker/saas_client.py`` for
-    # ``HOSTED_SERVICE`` -- rather than a fragment of ``doctor``'s own. ``doctor`` reports;
-    # it does not transmit, so it has no identifier set to declare. Its contract is that
-    # "the enforced answer and the reported answer cannot disagree" (``egress_verdict.py``
-    # module docstring, the stated reason that module exists), and the refusal text an
-    # operator reads here is rendered from ``identifiers``. Passing anything else -- a
-    # doctor-local fragment, or one transport's fragment for both rows -- would print a
-    # refusal that differs from the one the gate actually raises, which is the exact
-    # divergence the single-function design was built to prevent. Imported locally, as the
-    # two imports above are, so the hosted client and its HTTP stack load only when
-    # ``doctor`` runs.
-    from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
-    from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
-
     console_out.print(f"\n[bold]{_TRACKER_EGRESS_SECTION_TITLE}[/bold]")
-    root = locate_project_root(Path.cwd())  # may be None; that is a rendered case
-    local = tracker_egress_verdict(
-        root,
-        destination=EgressDestination.LOCAL_SUBPROCESS,
-        identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
-    )
-    hosted = tracker_egress_verdict(
-        root,
-        destination=EgressDestination.HOSTED_SERVICE,
-        identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
-    )
-    # Whether *any* provider is bound -- never which one. Gates the `issues` append
-    # only; both rows render regardless. See `_render_tracker_egress_row`.
-    #
-    # Guarded, and the guard is load-bearing: `load_tracker_config` RAISES on an
-    # unparseable `.kittify/config.yaml`, and `doctor`'s whole job is to be useful on
-    # exactly that checkout. Unguarded, this read aborted the command mid-render --
-    # measured as the `REPAIR THE FILE'S SYNTAX` count dropping 4 -> 2, because every
-    # line after this block stopped printing. `tracker_egress_verdict` is defended
-    # against this internally (NFR-003, "never raises"); a second, direct config read
-    # is not, and reintroduced the same defect one level up. An unreadable config means
-    # no binding is *knowable*, so no issue is claimed -- the sibling readability
-    # renderer already reports the unparseable file as its own issue, and the two rows
-    # below still print their refusal either way.
-    binding_present = False
-    if root is not None:
-        try:
-            binding_present = bool(load_tracker_config(root).provider)
-        except Exception:  # noqa: BLE001 — doctor must render on a broken config, not abort
-            binding_present = False
     _render_tracker_egress_row(console_out, issues, local, binding_present=binding_present)
     _render_tracker_egress_row(console_out, issues, hosted, binding_present=binding_present)
 
@@ -3868,7 +3832,13 @@ def _render_doctor_report(facts: DoctorFacts, report: DoctorReport) -> None:
     discard: list[str] = []
     _render_per_project_store(console, discard)
     _render_consent_readability(console, discard)
-    _render_tracker_egress(console, discard)
+    _render_tracker_egress(
+        console,
+        discard,
+        facts.tracker_local_verdict,
+        facts.tracker_hosted_verdict,
+        facts.tracker_binding_present,
+    )
     console.print()
 
     _render_doctor_detail_tables(facts)
