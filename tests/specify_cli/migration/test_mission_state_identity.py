@@ -15,9 +15,22 @@ false-green on ``--audit`` (both modes re-anchor to the primary and read it at
 
 FR-009 manifest honesty (T014): the canonicalization manifest enumerates every
 touched field, **including removed fields**.
+
+Landing-pass coherence fold (#3567 review): ``repair_repo`` itself was UNGATED
+-- the guard above was wired only into the CLI shell
+(``_mission_state_doctor.py::_refuse_foreign_lane_fix``), so its second caller
+(``_teamspace_mission_state_gate.py``) bypassed the refusal entirely. The
+``test_repair_repo_*`` tests below pin the guard at the ``repair_repo`` level
+(inside ``migration/mission_state.py``, immediately after the #2320 re-anchor
+and before any filesystem write) so every caller -- CLI shell, TeamSpace gate,
+and any future direct call -- fails closed on a foreign-lane invocation.
 """
 
 from __future__ import annotations
+
+import json
+import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -29,6 +42,7 @@ from specify_cli.migration.mission_state import (
     _rule_normalize_lanes,
     audit_invocation_disagreement,
     enforce_primary_write_ownership,
+    repair_repo,
 )
 
 pytestmark = pytest.mark.regression
@@ -196,3 +210,105 @@ def test_manifest_reports_no_removal_when_nothing_dropped(tmp_path) -> None:
 
     assert result.error is None
     assert not any(a.startswith("removed_field:") for a in result.actions)
+
+
+# --- repair_repo self-protection (#3567 landing-pass coherence fold) ---------
+#
+# Real git topology (not the stdlib-only ``.git`` pointer fixture above):
+# ``repair_repo`` itself walks real git state past the guard (``_assert_git_safe``
+# / ``_git_lock`` / ``_git_head`` all shell out to ``git``), so these two tests
+# need an actual primary checkout + a real linked worktree, mirroring
+# ``tests/integration/migration/test_repair_primary_anchor.py``.
+
+_REPAIR_MISSION_ID = "01KWNP7Q8R9TVWXY2Z3A4B5CQZ"
+_REPAIR_SLUG = "repair-repo-foreign-lane-guard"
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True)
+
+
+def _seed_repair_mission(root: Path) -> None:
+    mission = root / "kitty-specs" / _REPAIR_SLUG
+    mission.mkdir(parents=True)
+    (mission / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": _REPAIR_SLUG,
+                "mission_id": _REPAIR_MISSION_ID,
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-08-19T10:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (mission / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                "actor": "claude-code",
+                "at": "2026-08-19T10:00:01+00:00",
+                "event_id": "01KWNP7Q8R9TVWXY2Z3A4B5CR1",
+                "execution_mode": "worktree",
+                "force": False,
+                "from_lane": "planned",
+                "to_lane": "claimed",
+                "mission_id": _REPAIR_MISSION_ID,
+                "mission_slug": _REPAIR_SLUG,
+                "wp_id": "WP01",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def _make_real_primary_with_lane(tmp_path: Path) -> tuple[Path, Path]:
+    """Real primary checkout + a linked lane worktree pointing at it."""
+    primary = tmp_path / "primary"
+    primary.mkdir()
+    _git(primary, "init", "-q", "-b", "main")
+    _git(primary, "config", "user.email", "mission-state-guard@spec-kitty.test")
+    _git(primary, "config", "user.name", "mission state guard test")
+    _seed_repair_mission(primary)
+    _git(primary, "add", ".")
+    _git(primary, "commit", "-q", "-m", "baseline")
+
+    lane = tmp_path / f"{_REPAIR_SLUG}-lane"
+    _git(primary, "worktree", "add", "-q", "-b", f"kitty/mission-{_REPAIR_SLUG}-lane", str(lane))
+    return primary, lane
+
+
+@pytest.mark.git_repo
+def test_repair_repo_fails_closed_from_foreign_lane_cwd(tmp_path, monkeypatch) -> None:
+    """``repair_repo`` itself refuses a foreign-lane invocation (#3567 fold).
+
+    Mirrors the real CLI shape: ``run_mission_state`` already re-anchors
+    ``resolved_root`` to the primary and calls ``repair_repo(resolved_root, ...)``
+    while the OS ``cwd`` stays the invoking (foreign) lane worktree -- exactly
+    what ``_teamspace_mission_state_gate.py``'s ``repair_repo(project_path)``
+    call does too, WITHOUT the CLI shell's ``_refuse_foreign_lane_fix`` guard in
+    front of it. Before this fold ``repair_repo`` had no self-protection, so
+    this reproduces a silent foreign-lane canonicalization slipping through the
+    TeamSpace-gate path.
+    """
+    primary, lane = _make_real_primary_with_lane(tmp_path)
+    monkeypatch.chdir(lane)
+
+    with pytest.raises(MissionStateWriteRefused) as exc:
+        repair_repo(primary, allow_dirty=True)
+
+    assert str(primary) in str(exc.value)
+    # No manifest was written -- the refusal happens before any filesystem write.
+    assert not (primary / ".kittify" / "migrations" / "mission-state").exists()
+
+
+@pytest.mark.git_repo
+def test_repair_repo_owner_invocation_succeeds(tmp_path, monkeypatch) -> None:
+    """An OWNER invocation (cwd IS the primary) proceeds -- the guard must not over-refuse."""
+    primary, _lane = _make_real_primary_with_lane(tmp_path)
+    monkeypatch.chdir(primary)
+
+    report = repair_repo(primary, allow_dirty=True)
+
+    assert report.target_missions == [_REPAIR_SLUG]
