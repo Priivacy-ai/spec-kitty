@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
+    import charter.offering.service as _doctrine_service_module
+
     from charter.activation.scope import CharterScope
 
 from ruamel.yaml import YAML as YAML
@@ -351,24 +353,53 @@ def build_charter_context_include(
         return _render_template_include(repo_root, identifier, selector)
 
     canonical_kind = resolved_kind.value
-    if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
-        # FR-016: the agent-profile fetch path must inherit the charter
-        # activation gate, so it (and only it) uses the activation-aware
-        # service. Every other include kind stays on the unwrapped service.
-        # The service is built HERE (not inside the sibling helper) so this
-        # remains the sole call site of
-        # ``_build_activation_aware_doctrine_service`` — several tests
-        # monkeypatch that name on this module.
+
+    # FR-016: the agent-profile fetch path — and, as of M4, the glossary-pack
+    # fetch path — inherit the charter activation gate, so they (and only they)
+    # use the activation-aware service; every other include kind stays on the
+    # unwrapped service. Glossary is gated because M4 gives ``GLOSSARY_PACK`` an
+    # activation-gated delivery slot AND newly advertises a
+    # ``--include glossary-pack:<id>`` fetch pointer
+    # (``_format_inline_glossary_body``); that fetch pointer must honor the same
+    # gate its delivery slot advertises, or ``--include`` leaks back the term
+    # definitions the charter withheld from a de-activated pack. This needs no
+    # renderer change: the activation-aware ``charter.activation.resolver.DoctrineService``
+    # already gates ``glossary_packs`` (returning a filtered
+    # ``dict[str, GlossaryPack]``), and the catalog renderer reaches the repo
+    # via ``getattr(service, attr).get(id)`` — a filtered ``dict``'s ``.get``
+    # is call-compatible with the repository's, so the gated service drops
+    # straight into the CATALOG renderer. Agent-profile keeps its dedicated
+    # renderer; glossary routes through the shared catalog render/return below,
+    # exactly as it would on the plain service — only the service it renders on
+    # differs. The gated service is built HERE, once (not inside a sibling
+    # helper), so this stays the sole call site of
+    # ``_build_activation_aware_doctrine_service`` — several tests monkeypatch
+    # that name on this module.
+    gated_service = None
+    if canonical_kind in (
+        ArtifactKind.AGENT_PROFILE.value,
+        ArtifactKind.GLOSSARY_PACK.value,
+    ):
         gated_service = _build_activation_aware_doctrine_service(
             repo_root, org_roots=org_roots
         )
-        return _render_agent_profile_include_selector(
-            gated_service, canonical_kind, identifier, selector
-        )
+        if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
+            return _render_agent_profile_include_selector(
+                gated_service, canonical_kind, identifier, selector
+            )
 
-    # Built here for the same reason: keep this the sole call site of
-    # ``_build_doctrine_service`` that several tests monkeypatch.
-    service = _build_doctrine_service(repo_root, org_roots=org_roots)
+    # Shared catalog render/return. ``service`` is the gated service for the
+    # glossary-pack branch and the plain service (built here — the sole call
+    # site of ``_build_doctrine_service`` several tests monkeypatch) for every
+    # other kind. The ``cast`` reconciles the two nominally distinct
+    # ``DoctrineService`` classes; the renderer only reads ``.glossary_packs``
+    # (a gated ``dict``) off the gated service, so it is structurally
+    # sufficient.
+    service = (
+        cast("_doctrine_service_module.DoctrineService", gated_service)
+        if gated_service is not None
+        else _build_doctrine_service(repo_root, org_roots=org_roots)
+    )
     result = _render_catalog_kind_include_selector(
         service, canonical_kind, identifier, selector
     )
