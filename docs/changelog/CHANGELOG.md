@@ -396,7 +396,11 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   resolve `.kittify/agent_profiles` through the sole sanctioned builder, and
   `context --json` ships a typed `procedures[]` array under a deliberately
   bumped `context_schema_version` (`1.0.0` → `1.1.0`) with `asset` documented as
-  reference-only (its typed-array promotion deferred behind `#3037`).
+  reference-only (its typed-array promotion deferred behind `#3037`). The
+  `--include glossary-pack:<id>` fetch the pointer advertises inherits the same
+  activation gate as the delivery slot (a de-activated pack is a structured miss,
+  never a definition leak), and a delivered glossary pack is surfaced in the
+  `--json` payload's `references[]` link set rather than being silently absent.
 
 - **Doctrine authored in an org pack or project overlay now loads and activates
   with the same completeness as the built-in corpus — nested subdirectories are
