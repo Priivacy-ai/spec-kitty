@@ -61,7 +61,7 @@ The extractor emits `agent_profile --requires--> procedure` from the `operating-
 **Acceptance Scenarios**:
 
 1. **Given** a profile with a resolvable `operating-procedures` procedure ref, **When** `extract_artifact_edges` runs, **Then** exactly one `agent_profile:<id> --requires--> procedure:<target>` edge is emitted.
-2. **Given** a profile whose `operating-procedures` entry does not resolve to a procedure node, **When** the extractor runs, **Then** no procedure edge is emitted for it (guarded — belt-and-suspenders against org/project-tier profiles the built-in gate does not cover).
+2. **Given** a profile whose `operating-procedures` entry does not resolve to a procedure node, **When** the extractor runs, **Then** no procedure edge is emitted for it (guarded — the guard prevents a dangling edge *should the extractor ever be pointed at a non-built-in root*; org/project op-proc *field* validation is out of scope here, since their DRG endpoints are resolved at fragment-merge, not by this field extractor).
 3. **Given** the operating-procedures-sourced hand-pins (`researcher-robbie→spike-timebox-policy`, `doctrine-daphne→onboard-external-agent-to-pack`) are removed from `_CURATED_ARTIFACT_EDGES`, **When** the graph is regenerated, **Then** those edges still exist (now data-driven) and the graph still passes `assert_valid`.
 4. **Given** the regenerated graph, **When** compared to the pre-mission graph, **Then** every removed edge is re-derived and the only net-new profile→procedure edges are the 4 previously-inert real refs (plus any repoints from triage) — no dangling edges.
 
@@ -80,7 +80,7 @@ The extractor emits `agent_profile --requires--> procedure` from the `operating-
 ### Edge Cases
 
 - **Alias collision**: two procedures with ids differing only by kebab spelling — resolution is by exact id against the procedure node set; no fuzzy matching (fail-closed).
-- **Org/project-tier profiles**: the built-in load-time gate covers built-in profiles only; the extractor emission guard (procedure-kind check) still protects the graph from an unresolvable org/project ref (no dangling edge, silent skip is acceptable *there* because the gate is built-in-scoped — see C-006).
+- **Org/project-tier profiles**: the built-in load-time gate covers built-in profiles only; the extractor's op-proc emission runs only over the built-in `agent_profiles` root, so org/project op-proc *fields* never flow through it — their DRG edges arrive via `drg/fragment.yaml` merge + endpoint resolution instead. The procedure-kind emission guard is belt-and-suspenders *should the extractor ever be pointed at a non-built-in root* (no dangling edge); org/project op-proc field validation is out of scope here — see C-006.
 - **Duplicate emission**: a procedure named in both `operating-procedures` and a hand-pin must dedupe to one edge (existing `_add_edge` triple-dedup covers this).
 - **Empty field**: a profile with no `operating-procedures` emits nothing and passes the gate (default `[]`).
 - **Repoint creates a new real edge**: if a fictional entry is repointed to a real procedure, that becomes a data-driven edge — accounted for in the graph-delta review (US3 scenario 4).
@@ -120,7 +120,7 @@ The extractor emits `agent_profile --requires--> procedure` from the `operating-
 | C-003 | No delivery/render change | Do NOT touch the delivery-table/renderer that ships procedures to the agent (#3488 render half = M4). This mission owns edge wiring only. | Technical | High | Open |
 | C-004 | Single-authority discipline | `charter` must not import `specify_cli`; the validator/emission logic lives under `doctrine/`, read by the graph build. | Technical | High | Open |
 | C-005 | ATDD red-first | Every implementation WP commits its failing-first test before the fix; the reviewer verifies RED on `planning_base_branch` and GREEN at the final commit (charter C-011). | Process | High | Open |
-| C-006 | Built-in-scoped gate | The load-time empty-set gate covers built-in profiles only. Org/project-tier profiles are protected by the extractor's procedure-kind emission guard (no dangling edge), not by a hard load failure — those tiers are out of scope for the gate. | Technical | Medium | Open |
+| C-006 | Built-in-scoped gate | The load-time empty-set gate covers built-in profiles only. The extractor's `_emit_operating_procedure_edges` runs solely over the built-in `agent_profiles` root (via `extract_artifact_edges`/`generate_graph`), so org/project op-proc *fields* never flow through this guard at all — their DRG edges arrive via `drg/fragment.yaml` merge + endpoint resolution, a different mechanism. The procedure-kind emission guard prevents a dangling edge *should the extractor ever be pointed at a non-built-in root*; org/project op-proc **field** validation is out of scope for this mission. | Technical | Medium | Open |
 | C-007 | No new procedure content | Authoring net-new procedure nodes for fictional refs is OUT of scope. Triage dispositions are delete / repoint-to-existing / migrate-to-tactic-channel. Authoring is deferred to a doctrine-content mission. | Scope | Medium | Open |
 
 ### Key Entities
@@ -156,4 +156,8 @@ The seed flagged two open operator decisions; the operator delegated resolution 
 - Kind-complete cascade / `REFERENCE_RELATIONS` expansion (#2829 = M5).
 - Delivery/render of procedures to the dispatched agent (#3488 render half, `procedures[]` array = M4).
 - Authoring net-new procedure nodes for fictional references (doctrine-content work).
-- Org/project-tier `operating-procedures` hard load-failure gate (built-in-scoped here; org/project protected by the emission guard).
+- Org/project-tier `operating-procedures` **field** validation (built-in-scoped here; org/project op-proc fields never flow through this extractor — their DRG endpoints are resolved at `drg/fragment.yaml` merge, not by this field extractor — see C-006).
+- **Sibling same-defect channels (tracked follow-up).** This mission validates and data-drives exactly one inline field (`collaboration.operating-procedures`). Other inline fields carry the identical "schema-validated list whose values are never checked against real nodes → authored-green-but-inert" defect (the #3530 meta-cause) and are deliberately left unfixed here — the point is to *name* them, not fix them:
+  - `context-sources.tactics`, `context-sources.toolguides`, `context-sources.styleguides` on `ContextSources` — schema-validated `list[str]` the extractor never reads or resolves (only `context-sources.directives` is consumed today).
+  - Profile `tactic-references` resolution — the migration *destination* channel emits its edges via `_ensure_node`, which mints a phantom node for a fictional id (a non-dangling edge that still passes `assert_valid`), so it has no resolution validator either.
+  These share this mission's root cause but are out of scope; they should be triaged and data-driven in a follow-up mission.
