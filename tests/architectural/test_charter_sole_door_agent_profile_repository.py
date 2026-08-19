@@ -358,28 +358,33 @@ def test_detector_ignores_a_same_named_unrelated_class(tmp_path: Path) -> None:
 def test_excluding_one_site_does_not_waive_its_module(tmp_path: Path) -> None:
     """Composite-key keying, proven: a NEW bypass in an excluded file still reds.
 
-    Injects a second construction into a copy of ``projection.py`` — the file
-    carrying the escalated ``default_profile_repository`` exclusion — inside a
-    *different* function. The excluded site stays excluded; the new one is
-    reported. A whole-file exclusion would have swallowed both.
+    Injects a second construction into a copy of ``invocation/registry.py`` — the
+    file carrying the ``ProfileRegistry.__init__`` exclusion (C-006, builds
+    against ``.kittify/profiles``) — inside a *different* function. The excluded
+    site stays excluded; the new one is reported. A whole-file exclusion would
+    have swallowed both. (Re-pointed off ``projection.py``'s
+    ``default_profile_repository`` after that site migrated onto the builder
+    overlay seam in mission M4/WP02 (#3176) and its exclusion descriptor was
+    deleted; ``registry.py`` imports ``AgentProfileRepository`` at module level,
+    so the appended site resolves without any extra import.)
     """
-    original = (REPO_ROOT / "src/specify_cli/tool_surface/profiles/projection.py").read_text(encoding="utf-8")
-    scratch = tmp_path / "projection_mutant.py"
+    original = (REPO_ROOT / "src/specify_cli/invocation/registry.py").read_text(encoding="utf-8")
+    scratch = tmp_path / "registry_mutant.py"
     scratch.write_text(
         original + ("\n\ndef sneaky_second_door(project_root):\n    return AgentProfileRepository(project_dir=project_root)\n"),
         encoding="utf-8",
     )
     scan = scan_file_constructions(
         scratch,
-        "src/specify_cli/tool_surface/profiles/projection.py",
+        "src/specify_cli/invocation/registry.py",
         candidate_names=AGENT_PROFILE_CANDIDATE_NAMES,
         target_qualnames=AGENT_PROFILE_TARGETS,
     )
     assert scan is not None
     qualnames = {site.qualname for site in scan.result.sites}
-    assert {"default_profile_repository", "sneaky_second_door"} <= qualnames, qualnames
+    assert {"ProfileRegistry.__init__", "sneaky_second_door"} <= qualnames, qualnames
 
     violations = check_agent_profile_gate(scan.result.sites)
     assert len(violations) == 1, violations
     assert "sneaky_second_door" in violations[0]
-    assert "default_profile_repository" not in violations[0]
+    assert "ProfileRegistry.__init__" not in violations[0]
