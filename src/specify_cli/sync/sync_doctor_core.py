@@ -28,7 +28,7 @@ The byte-stable observable contract is guarded by the WP02 goldens
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from kernel.clock import datetime
 from typing import Any
 
 from rich.markup import escape as _escape_markup
