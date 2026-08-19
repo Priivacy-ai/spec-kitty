@@ -227,3 +227,34 @@ def test_owner_invocation_from_primary_unchanged(
     payload = _run_setup_plan_from(primary, primary, feature_dir, monkeypatch)
 
     assert payload.get("branch_matches_target") is True, payload
+
+
+# --------------------------------------------------------------------------- #
+# Coord-husk fallback — meta.json unreadable ⇒ operands collapse to invoking HEAD.
+# --------------------------------------------------------------------------- #
+def test_coord_husk_meta_unreadable_degrades_to_silent_match(tmp_path: Path) -> None:
+    """FR-006 fallback: when ``meta.json`` cannot be read (a coord husk), the match
+    operands both collapse to the invoking HEAD so the guard degrades to a silent
+    match (``branch_matches_target: true``) rather than a spurious disagreement.
+
+    Exercises ``_resolve_branch_match_operands``'s ``PlanningBranchResolutionFailed``
+    branch directly: ``plan_read_dir`` has no ``meta.json``, so the canonical target
+    read raises and ``match_target`` falls back to ``invoking_branch``.
+    """
+    from specify_cli.cli.commands.agent.mission_setup_plan import (
+        _resolve_branch_match_operands,
+    )
+
+    plan_read_dir = tmp_path / "coord-husk"  # no meta.json here
+    plan_read_dir.mkdir()
+
+    invoking_branch, match_target = _resolve_branch_match_operands(
+        tmp_path,
+        plan_read_dir,
+        fallback_branch="kitty/mission-x-lane-a",
+        get_current_branch=lambda _root: "kitty/mission-x-lane-a",
+    )
+
+    # Both operands are the invoking HEAD ⇒ the honest match is a silent True.
+    assert invoking_branch == "kitty/mission-x-lane-a"
+    assert match_target == invoking_branch

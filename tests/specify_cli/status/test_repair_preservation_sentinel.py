@@ -15,7 +15,13 @@ exactly the false red WP04 forbids a later WP from manufacturing.
 
 from __future__ import annotations
 
+import pytest
+
 from specify_cli.migration.mission_state import _build_canonical_row
+
+# Module-level marker so every node is collected by a main-push job
+# (#2957 CI-collection-completeness): matches the sibling status unit tests.
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MISSION_ID = "01J000000000000000000SENTL"
 
