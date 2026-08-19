@@ -937,13 +937,13 @@ EXPECTED_ENCLOSING_FUNCTIONS = frozenset(
         "LocalTrackerService.sync_run",
         "SaaSTrackerClient._current_tracker_egress_verdict",
         "_check_sync_readiness",
-        "_render_tracker_egress",
+        "_gather_doctor_facts",
     }
 )
 EXPECTED_ENCLOSING_COUNT = 6
-#: Seven, not six: ``sync doctor``'s renderer calls the verdict **twice**, once per destination
+#: Seven, not six: ``sync doctor``'s fact-gather calls the verdict **twice**, once per destination
 #: row. Both numbers are asserted separately and both are exact. An implementer who reads "six
-#: call sites" as "six call expressions" writes a renderer that loops over ``EgressDestination``,
+#: call sites" as "six call expressions" writes a gather that loops over ``EgressDestination``,
 #: which G5 then rejects because the loop variable is an ``ast.Name``, not a literal member.
 #:
 #: **Landing-pass audited chokepoint (2026-08-10, PR #3135, HIGH-1 / #3108 follow-up):**
@@ -962,15 +962,15 @@ EXPECTED_ENCLOSING_COUNT = 6
 EXPECTED_CALL_EXPRESSION_COUNT = 7
 
 #: The load-bearing half of G5 (its set-equality clause carries almost nothing on its own, because
-#: the doctor renderer supplies both members by itself). Per site, the **sorted members actually
-#: passed** -- so the renderer's "exactly one of each" is pinned, not merely "both appear".
+#: the doctor gather supplies both members by itself). Per site, the **sorted members actually
+#: passed** -- so the gather's "exactly one of each" is pinned, not merely "both appear".
 EXPECTED_PER_SITE_DESTINATIONS: dict[str, tuple[str, ...]] = {
     "LocalTrackerService.sync_pull": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_push": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_run": ("LOCAL_SUBPROCESS",),
     "SaaSTrackerClient._current_tracker_egress_verdict": ("HOSTED_SERVICE",),
     "_check_sync_readiness": ("HOSTED_SERVICE",),
-    "_render_tracker_egress": ("HOSTED_SERVICE", "LOCAL_SUBPROCESS"),
+    "_gather_doctor_facts": ("HOSTED_SERVICE", "LOCAL_SUBPROCESS"),
 }
 EXPECTED_LITERAL_MEMBERS = frozenset({"LOCAL_SUBPROCESS", "HOSTED_SERVICE"})
 
@@ -1117,8 +1117,8 @@ def test_g4_exactly_six_enclosing_functions_and_seven_call_expressions() -> None
     """G4 -- **two** exact assertions, never collapsed into one and never ``<=``.
 
     Exactly **6** enclosing functions (``sync_pull``, ``sync_push``, ``sync_run``,
-    ``SaaSTrackerClient._request``, ``_check_sync_readiness``, and ``sync doctor``'s renderer)
-    and exactly **7** call expressions (the renderer calls twice, once per destination row).
+    ``SaaSTrackerClient._request``, ``_check_sync_readiness``, and ``sync doctor``'s fact-gather)
+    and exactly **7** call expressions (the gather calls twice, once per destination row).
 
     Originally "exactly 5 / exactly 6" (FR-015); re-pinned to 6/7 at the 2026-08-10 landing pass
     (PR #3135, HIGH-1 / #3108 follow-up) when ``_check_sync_readiness`` gained its own audited
@@ -1153,7 +1153,7 @@ def test_g4_exactly_six_enclosing_functions_and_seven_call_expressions() -> None
     assert len(real.enclosing) == EXPECTED_ENCLOSING_COUNT, f"G4: expected {EXPECTED_ENCLOSING_COUNT} enclosing functions, found {len(real.enclosing)}{bundle_b}"
     assert real.call_count == EXPECTED_CALL_EXPRESSION_COUNT, (
         f"G4: expected exactly {EXPECTED_CALL_EXPRESSION_COUNT} call expressions "
-        f"(the doctor renderer contributes two, one per destination row), found {real.call_count}:\n"
+        f"(the doctor gather contributes two, one per destination row), found {real.call_count}:\n"
         f"{real.describe()}{bundle_b}"
     )
 
@@ -1244,7 +1244,7 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
 
     **1. The per-site mapping (load-bearing).** The hosted verdict helper always
     ``HOSTED_SERVICE`` and the adjacent physical-sink pin proves ``_request`` calls it first;
-    the three local sites always ``LOCAL_SUBPROCESS``; the doctor renderer exactly one of each.
+    the three local sites always ``LOCAL_SUBPROCESS``; the doctor gather exactly one of each.
     *This is the clause whose mutant must kill.*
 
     **2. The node-shape clause.** Every ``destination`` argument is an ``ast.Attribute`` on
@@ -1252,7 +1252,7 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
     ``ast.Call`` (a derivation).
 
     **3. The set-equality clause.** Kept, but record honestly that *it carries almost nothing on
-    its own, because the doctor renderer supplies both members by itself.*
+    its own, because the doctor gather supplies both members by itself.*
 
     Why this is P0: ``TrackerService._resolve_saas_backend_for_provider`` overrides the on-disk
     provider **in memory** and never rewrites the file, so three operator-reachable commands drive

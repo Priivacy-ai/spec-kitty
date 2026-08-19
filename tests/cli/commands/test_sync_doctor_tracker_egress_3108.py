@@ -49,6 +49,8 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands import sync as sync_module
 from specify_cli.cli.commands.sync import app
+from specify_cli.core.paths import locate_project_root
+from specify_cli.tracker.config import TrackerConfigError, load_tracker_config
 from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
 from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
 from specify_cli.tracker.egress_verdict import (
@@ -511,6 +513,39 @@ def _render_row(verdict: TrackerEgressVerdict, *, binding_present: bool = True) 
     return _flat(_strip_markup(console_out.text)), issues
 
 
+def _doctor_gathered_verdicts(
+    tracker_root: Path | None,
+) -> tuple[TrackerEgressVerdict, TrackerEgressVerdict, bool]:
+    """Reproduce what ``_gather_doctor_facts`` (the WP10 gather half) computes and hands
+    to ``_render_tracker_egress``.
+
+    The doctor's two ``tracker_egress_verdict`` call sites now live in the fact-gather,
+    not the render (the render only consumes the verdicts it is handed). This helper calls
+    the verdict function with the **same args the gather uses** -- ``LOCAL_SUBPROCESS`` with
+    ``LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS`` for the local row, ``HOSTED_SERVICE`` with
+    ``TRACKER_EGRESS_IDENTIFIER_KINDS`` for the hosted row -- plus the ``binding_present``
+    flag derived from a **guarded** ``load_tracker_config`` read (the gather tolerates an
+    unparseable ``.kittify/config.yaml`` here; ``TrackerConfigError`` -> ``False``).
+    """
+    local = tracker_egress_verdict(
+        tracker_root,
+        destination=EgressDestination.LOCAL_SUBPROCESS,
+        identifiers=_IDENTIFIERS_FOR[EgressDestination.LOCAL_SUBPROCESS],
+    )
+    hosted = tracker_egress_verdict(
+        tracker_root,
+        destination=EgressDestination.HOSTED_SERVICE,
+        identifiers=_IDENTIFIERS_FOR[EgressDestination.HOSTED_SERVICE],
+    )
+    binding_present = False
+    if tracker_root is not None:
+        try:
+            binding_present = bool(load_tracker_config(tracker_root).provider)
+        except TrackerConfigError:
+            binding_present = False
+    return local, hosted, binding_present
+
+
 class TestRenderTrackerEgressRowDirectly:
     """Direct calls to ``_render_tracker_egress_row`` with hand-built verdicts -- the
     row-rendering branches, isolated from ``tracker_egress_verdict``'s own construction
@@ -579,9 +614,15 @@ class TestRenderTrackerEgressRowDirectly:
 
 
 class TestRenderTrackerEgressDirectly:
-    """Direct calls to ``_render_tracker_egress`` itself -- the two literal calls and the
-    root resolution, against a real checkout, without `doctor`'s own auth/daemon/network
-    setup cost."""
+    """Direct calls to ``_render_tracker_egress`` itself -- it now **consumes** the two
+    verdicts the fact-gather (:func:`~specify_cli.cli.commands.sync._gather_doctor_facts`)
+    computed and renders one row each, against a real checkout, without `doctor`'s own
+    auth/daemon/network setup cost.
+
+    The two literal ``tracker_egress_verdict`` calls moved into the gather (WP10); the render
+    no longer computes them. This cell builds them exactly as the gather does (via
+    :func:`_doctor_gathered_verdicts`) and asserts the render emits the section title and both
+    rows from what it was handed."""
 
     def test_prints_the_section_title_and_two_rows_for_a_real_checkout(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         repo = _fully_permitted_checkout(tmp_path)
@@ -589,7 +630,9 @@ class TestRenderTrackerEgressDirectly:
         console_out = _CapturingConsole()
         issues: list[str] = []
 
-        sync_module._render_tracker_egress(console_out, issues)
+        tracker_root = locate_project_root(Path.cwd())
+        local, hosted, binding_present = _doctor_gathered_verdicts(tracker_root)
+        sync_module._render_tracker_egress(console_out, issues, local, hosted, binding_present)
 
         flat_text = _flat(_strip_markup(console_out.text))
         assert sync_module._TRACKER_EGRESS_SECTION_TITLE in flat_text
@@ -676,6 +719,13 @@ class TestUnparseableConfigDoesNotAbortDoctor:
     Same class as WP03 review round 1 HIGH-1: `tracker_egress_verdict` is defended
     internally (NFR-003), and a *second*, direct config read was not. The pin is here
     rather than only in the consent-health suite because this block is what breaks it.
+
+    Post-WP10 relocation: the guarded ``load_tracker_config`` read (and both verdict calls)
+    moved into ``_gather_doctor_facts``; the render now only consumes what it is handed. This
+    cell reproduces the gather's guarded computation (:func:`_doctor_gathered_verdicts`,
+    which swallows ``TrackerConfigError`` -> ``binding_present = False``) on the broken
+    checkout and asserts the render still emits both REFUSED rows -- the fact-gather does not
+    abort on an unparseable config, and neither does the render it feeds.
     """
 
     def test_unparseable_config_still_renders_both_rows(self, tmp_path: Path) -> None:
@@ -687,7 +737,9 @@ class TestUnparseableConfigDoesNotAbortDoctor:
         monkey = pytest.MonkeyPatch()
         try:
             monkey.chdir(root)
-            sync_module._render_tracker_egress(console_out, issues)
+            tracker_root = locate_project_root(Path.cwd())
+            local, hosted, binding_present = _doctor_gathered_verdicts(tracker_root)
+            sync_module._render_tracker_egress(console_out, issues, local, hosted, binding_present)
         finally:
             monkey.undo()
         flat = _flat(_strip_markup(console_out.text))
