@@ -1,3 +1,10 @@
+---
+title: Charter-Resolution Program Brief
+description: 'Investigation-grounded brief for the charter-resolution program: root causes, mission decomposition, sequencing, risks and spec-time operator decisions.'
+doc_status: active
+updated: '2026-08-19'
+---
+
 # Mission Brief — Doctrine Reach & Resolution Honesty
 
 **Prepared from:** a 4-lens design investigation (load-path, cascade/edges, reach/delivery, validation-honesty) traced against current `main` (`6ec05086f`, post-#3520/#3534).

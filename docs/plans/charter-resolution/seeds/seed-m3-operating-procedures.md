@@ -1,3 +1,10 @@
+---
+title: Mission Seed M3 - Operating-Procedures Validate, Triage, Data-Drive
+description: 'Specify-intake seed for the mission closing #2994/#3352: validate operating-procedures references, triage fictional entries, then data-drive profile-to-procedure edges.'
+doc_status: active
+updated: '2026-08-19'
+---
+
 # Mission Seed — M3: Operating-Procedures Validate → Triage → Data-Drive
 
 > **Status:** seed (not yet a mission). Feed this to `/spec-kitty.specify` in a fresh session.

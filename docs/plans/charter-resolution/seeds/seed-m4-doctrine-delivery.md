@@ -1,3 +1,10 @@
+---
+title: Mission Seed M4 - Deliver Loaded Doctrine to the Agent
+description: 'Specify-intake seed for the mission closing #3489/#3176/#3389: fix silent delivery-table and render no-ops so loaded doctrine reaches the dispatched agent.'
+doc_status: active
+updated: '2026-08-19'
+---
+
 # Mission Seed — M4: Deliver Loaded Doctrine to the Dispatched Agent
 
 > **Status:** seed. Feed to `/spec-kitty.specify` in a fresh session.

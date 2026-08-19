@@ -9332,6 +9332,77 @@ pages:
     - {slug: "3-remaining-work-sequenced", text: "3. Remaining work, sequenced", level: 2}
     - {slug: "4-consumer-communication-plan", text: "4. Consumer communication plan", level: 2}
     - {slug: "5-open-decisions-for-the-po", text: "5. Open decisions for the PO", level: 2}
+  - path: "docs/plans/charter-resolution/README.md"
+    title: "Charter-Resolution Program"
+    divio_type: "none"
+    abstract: "Program overview, mission map (M1-M6) and run instructions for the charter-resolution defect cluster: org/project doctrine that loads healthy but reaches no consumer."
+    anchors:
+    - {slug: "missions", text: "Missions", level: 2}
+    - {slug: "sequencing", text: "Sequencing", level: 2}
+    - {slug: "how-to-run-a-mission-fresh-session", text: "How to run a mission (fresh session)", level: 2}
+  - path: "docs/plans/charter-resolution/program-brief.md"
+    title: "Charter-Resolution Program Brief"
+    divio_type: "none"
+    abstract: "Investigation-grounded brief for the charter-resolution program: root causes, mission decomposition, sequencing, risks and spec-time operator decisions."
+    anchors:
+    - {slug: "1-problem-statement-bluf", text: "1. Problem statement (BLUF)", level: 2}
+    - {slug: "2-root-causes-one-disease-six-faces", text: "2. Root causes (one disease, six faces)", level: 2}
+    - {slug: "3-proposed-approach-four-principles", text: "3. Proposed approach (four principles)", level: 2}
+    - {slug: "4-mission-decomposition-a-program-not-one-mission", text: "4. Mission decomposition (a program, not one mission)", level: 2}
+    - {slug: "enabling-layer-land-first-in-parallel", text: "Enabling layer — land first, in parallel", level: 3}
+    - {slug: "reach-delivery-layer", text: "Reach/delivery layer", level: 3}
+    - {slug: "completeness-layer-land-last", text: "Completeness layer — land last", level: 3}
+    - {slug: "carve-out", text: "Carve-out", level: 3}
+    - {slug: "cleanup-rider-rideable-on-any-mission", text: "Cleanup rider (rideable on any mission)", level: 3}
+    - {slug: "5-sequencing", text: "5. Sequencing", level: 2}
+    - {slug: "6-scope", text: "6. Scope", level: 2}
+    - {slug: "7-risks", text: "7. Risks", level: 2}
+    - {slug: "8-open-questions-operator-decisions-at-spec-time", text: "8. Open questions — operator decisions at spec time", level: 2}
+    - {slug: "9-recommended-first-mission", text: "9. Recommended first mission", level: 2}
+  - path: "docs/plans/charter-resolution/seeds/seed-m3-operating-procedures.md"
+    title: "Mission Seed M3 - Operating-Procedures Validate, Triage, Data-Drive"
+    divio_type: "none"
+    abstract: "Specify-intake seed for the mission closing #2994/#3352: validate operating-procedures references, triage fictional entries, then data-drive profile-to-procedure edges."
+    anchors:
+    - {slug: "problem", text: "Problem", level: 2}
+    - {slug: "fix-approach-hard-internal-order-do-not-reorder", text: "Fix approach (hard internal order — do NOT reorder)", level: 2}
+    - {slug: "open-operator-decisions-resolve-at-this-mission-s-discovery", text: "Open operator decisions (resolve at this mission's discovery)", level: 2}
+    - {slug: "scope", text: "Scope", level: 2}
+    - {slug: "key-seams-from-the-investigation", text: "Key seams (from the investigation)", level: 2}
+    - {slug: "risk", text: "Risk", level: 2}
+  - path: "docs/plans/charter-resolution/seeds/seed-m4-doctrine-delivery.md"
+    title: "Mission Seed M4 - Deliver Loaded Doctrine to the Agent"
+    divio_type: "none"
+    abstract: "Specify-intake seed for the mission closing #3489/#3176/#3389: fix silent delivery-table and render no-ops so loaded doctrine reaches the dispatched agent."
+    anchors:
+    - {slug: "problem", text: "Problem", level: 2}
+    - {slug: "fix-approach-three-groupings", text: "Fix approach (three groupings)", level: 2}
+    - {slug: "open-operator-decisions-resolve-at-this-mission-s-discovery", text: "Open operator decisions (resolve at this mission's discovery)", level: 2}
+    - {slug: "scope", text: "Scope", level: 2}
+    - {slug: "key-seams", text: "Key seams", level: 2}
+    - {slug: "risk", text: "Risk", level: 2}
+  - path: "docs/plans/charter-resolution/seeds/seed-m5-kind-complete-cascade.md"
+    title: "Mission Seed M5 - Kind-Complete Cascade and Orphan Wiring"
+    divio_type: "none"
+    abstract: "Specify-intake seed for the mission closing #2829 and the residual of #3009: expand the cascade relation set and wire the remaining orphaned artefacts."
+    anchors:
+    - {slug: "problem", text: "Problem", level: 2}
+    - {slug: "fix-approach", text: "Fix approach", level: 2}
+    - {slug: "open-operator-decisions-resolve-at-this-mission-s-discovery-adr", text: "Open operator decisions (resolve at this mission's discovery / ADR)", level: 2}
+    - {slug: "scope", text: "Scope", level: 2}
+    - {slug: "key-seams", text: "Key seams", level: 2}
+    - {slug: "sequencing", text: "Sequencing", level: 2}
+  - path: "docs/plans/charter-resolution/seeds/seed-m6-project-tier-nodes.md"
+    title: "Mission Seed M6 - Project-Tier DRG Node Emission"
+    divio_type: "none"
+    abstract: "Specify-intake seed for the mission closing #3038: emit hand-authored project-tier agent_profile artefacts as DRG nodes reachable by cascade."
+    anchors:
+    - {slug: "problem", text: "Problem", level: 2}
+    - {slug: "fix-approach", text: "Fix approach", level: 2}
+    - {slug: "open-operator-decisions-resolve-at-this-mission-s-discovery", text: "Open operator decisions (resolve at this mission's discovery)", level: 2}
+    - {slug: "scope", text: "Scope", level: 2}
+    - {slug: "key-seams", text: "Key seams", level: 2}
+    - {slug: "note", text: "Note", level: 2}
   - path: "docs/plans/code-quality/index.md"
     title: "Code Quality — Working Collection"
     divio_type: "none"
