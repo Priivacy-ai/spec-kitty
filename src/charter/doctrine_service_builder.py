@@ -282,11 +282,18 @@ def build_activation_aware_doctrine_service(
     #3176 (WP02): the optional *agent_profile_overlay_dir* is the one override
     this public builder does forward — it points the inner service's
     agent-profile project overlay at a caller-chosen path (e.g.
-    ``.kittify/agent_profiles``) so
+    ``.kittify/agent_profiles``). Note that the production consumer
     ``specify_cli.tool_surface.profiles.projection.default_profile_repository``
-    can migrate onto this sole sanctioned builder. Default ``None`` keeps the
-    delegation byte-identical (NFR-002); this stays a thin delegate — no second
-    wrapper construction site (C-006).
+    does NOT use this public builder: it calls the private
+    :func:`_build_activation_aware_doctrine_service` with ``org_roots=[]`` to
+    suppress org-root self-resolution (C-008 — org profiles must enter
+    exclusively through the activation gate, which this self-resolving public
+    builder cannot express) while still threading the overlay seam. This
+    public ``agent_profile_overlay_dir`` param is therefore test-covered
+    (``tests/charter/test_builder_overlay_seam.py``) but has no current
+    production caller; it is kept because it is harmless and exercised. Default
+    ``None`` keeps the delegation byte-identical (NFR-002); this stays a thin
+    delegate — no second wrapper construction site (C-006).
     """
     return _build_activation_aware_doctrine_service(
         repo_root, agent_profile_overlay_dir=agent_profile_overlay_dir
