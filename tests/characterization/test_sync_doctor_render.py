@@ -45,7 +45,7 @@ def _healthy_facts(**overrides: Any) -> DoctorFacts:
         queue_error=None,
         queue_stats=SimpleNamespace(total_queued=0, max_queue_size=1000, oldest_event_age=None, top_event_types=[]),
         body_diagnostics={"total_tasks": 0, "recorded_failure_count": 0, "recent_failures": []},
-        queue_db="/tmp/queue.db",
+        queue_db="/data/queue.db",
         session=session,
         session_present=True,
         access_token_ok=True,
@@ -70,7 +70,7 @@ def _healthy_facts(**overrides: Any) -> DoctorFacts:
         tracker_binding_present=True,
         orphan_records=[],
         orphan_record_count=0,
-        owner_record_path="/tmp/owner.json",
+        owner_record_path="/data/owner.json",
     )
     return dataclasses.replace(base, **overrides)
 
@@ -285,8 +285,8 @@ def test_refused_unbound_tracker_row_contributes_no_issue() -> None:
 
 
 def test_orphan_owner_records_surface_retirement_issue() -> None:
-    report = _report(orphan_records=[object(), object()], orphan_record_count=2, owner_record_path="/tmp/o.json")
-    assert any("2 orphan daemon owner record(s) on disk" in i and "/tmp/o.json" in i for i in report.issues)
+    report = _report(orphan_records=[object(), object()], orphan_record_count=2, owner_record_path="/data/o.json")
+    assert any("2 orphan daemon owner record(s) on disk" in i and "/data/o.json" in i for i in report.issues)
 
 
 # ---------------------------------------------------------------------------

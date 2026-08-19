@@ -11,6 +11,7 @@
   "purpose_context": "cli/commands/sync.py is the single worst source file in the repo and the CLI-split half of the degod program's Wave 4. This mission decomposes it behind a golden-CLI-characterization test that freezes all 22 sync subcommands' behavior first, extracts pure decision cores and injectable adapters (preserving the CoordRead-vs-CoordWrite authority split), and retires the three # noqa: C901 suppressions — while explicitly deferring env-var deletion (to WS6) and daemon-lifecycle changes (to WS4). It also completes calibration/walker.py's named-constant set to clear its duplicated-literal cluster.",
   "purpose_tldr": "Decompose the 6,332-LOC sync CLI god-module into ports + pure cores + thin command shells (and tidy walker.py), retiring the three complexity suppressions with zero behavior change.",
   "slug": "sync-cli-degod-wave4-01M0B0MX",
+  "status_phase": "1",
   "target_branch": "refactor/wave4-sync-degod",
   "topology": "coord",
   "vcs": "git",
