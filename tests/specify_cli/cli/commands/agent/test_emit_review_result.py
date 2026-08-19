@@ -16,9 +16,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.status import app
+from tests._support.ansi import strip_ansi
 from tests.status.conftest import seed_wp_to_planned
 
 pytestmark = pytest.mark.fast
@@ -163,17 +165,30 @@ def test_emit_rejects_malformed_review_result_json(
 
 def test_emit_help_documents_review_result_json_not_evidence_verdict() -> None:
     """FR-012: --help documents --review-result-json, no verdict-via-evidence example."""
-    # Force a wide terminal so Rich does not hard-wrap the long option name or
-    # the example snippets mid-token (CI runners default to a narrow width,
-    # which split ``--review-result-json`` across lines and broke the match).
+    # The option's PRESENCE is asserted render-independently. Rich (15.x on CI)
+    # soft-wraps the long ``--review-result-json`` token across two lines under a
+    # non-tty console, and the CliRunner ``COLUMNS`` override does not reliably
+    # reach Rich, so a substring match on the rendered help is width-fragile (it
+    # broke CI as ``--review`` / ``result-json``). A registered option with help
+    # text is documented in ``--help`` by construction, so introspect that.
+    emit_cmd = typer.main.get_command(app).commands["emit"]
+    review_opt = next(
+        (p for p in emit_cmd.params if "--review-result-json" in getattr(p, "opts", ())),
+        None,
+    )
+    assert review_opt is not None, "emit must expose --review-result-json"
+    assert review_opt.help, "--review-result-json must carry --help documentation"
+
+    # The rendered help must show the WORKING verdict example (via
+    # --review-result-json) and must NOT route a verdict through --evidence-json.
+    # Match against an ANSI-stripped, whitespace-free projection so a soft wrap at
+    # any point neither breaks the positive match nor false-passes the negative.
     result = runner.invoke(app, ["emit", "--help"], env={"COLUMNS": "200"})
     assert result.exit_code == 0, result.output
-    # Collapse remaining whitespace so snippets match regardless of soft wrapping.
-    collapsed = " ".join(result.output.split())
-    assert "--review-result-json" in collapsed
+    packed = "".join(strip_ansi(result.output).split())
+    assert '"verdict":"approved"' in packed  # only via the review-result-json example
     # The misleading example routed an approval verdict through --evidence-json.
-    assert '--evidence-json \'{"review"' not in collapsed
-    assert '"verdict": "approved"' in collapsed  # only via the review-result-json example
+    assert '--evidence-json\'{"review"' not in packed
 
 
 def test_both_verdict_surfaces_share_one_parser() -> None:
