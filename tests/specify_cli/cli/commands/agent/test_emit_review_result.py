@@ -163,9 +163,12 @@ def test_emit_rejects_malformed_review_result_json(
 
 def test_emit_help_documents_review_result_json_not_evidence_verdict() -> None:
     """FR-012: --help documents --review-result-json, no verdict-via-evidence example."""
-    result = runner.invoke(app, ["emit", "--help"])
+    # Force a wide terminal so Rich does not hard-wrap the long option name or
+    # the example snippets mid-token (CI runners default to a narrow width,
+    # which split ``--review-result-json`` across lines and broke the match).
+    result = runner.invoke(app, ["emit", "--help"], env={"COLUMNS": "200"})
     assert result.exit_code == 0, result.output
-    # Collapse Rich line-wrapping so example snippets match regardless of width.
+    # Collapse remaining whitespace so snippets match regardless of soft wrapping.
     collapsed = " ".join(result.output.split())
     assert "--review-result-json" in collapsed
     # The misleading example routed an approval verdict through --evidence-json.
