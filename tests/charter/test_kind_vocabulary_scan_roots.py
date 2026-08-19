@@ -141,16 +141,18 @@ class TestOrgScanDirsHelper:
         flat = tmp_path / ArtifactKind.TACTIC.plural
         candidate = flat / "built-in"
         candidate.mkdir(parents=True)
+        # WP02: the flat org entry is now recursive (shared authority, C-001),
+        # matching the loader; the legacy `built-in` entry is unchanged.
         assert _org_scan_dirs(ArtifactKind.TACTIC, [tmp_path]) == [
-            (flat, False),
+            (flat, True),
             (candidate, True),
         ]
 
-    def test_flat_only_dir_returned_non_recursive(self, tmp_path: Path) -> None:
-        """Flat-only: only ``<root>/<plural>`` exists -> one entry, non-recursive."""
+    def test_flat_only_dir_returned_recursive(self, tmp_path: Path) -> None:
+        """Flat-only: only ``<root>/<plural>`` exists -> one recursive entry (WP02)."""
         flat = tmp_path / ArtifactKind.TACTIC.plural
         flat.mkdir(parents=True)
-        assert _org_scan_dirs(ArtifactKind.TACTIC, [tmp_path]) == [(flat, False)]
+        assert _org_scan_dirs(ArtifactKind.TACTIC, [tmp_path]) == [(flat, True)]
 
     def test_flat_only_resolves_via_resolve_artifact_urn_without_raising(
         self, tmp_path: Path
@@ -193,8 +195,9 @@ class TestOrgScanDirsHelper:
         """
         legacy = tmp_path / ArtifactKind.TACTIC.plural / "built-in"
         legacy.mkdir(parents=True)
+        # WP02: flat entry now recursive (shared authority); legacy unchanged.
         assert _org_scan_dirs(ArtifactKind.TACTIC, [tmp_path]) == [
-            (tmp_path / ArtifactKind.TACTIC.plural, False),
+            (tmp_path / ArtifactKind.TACTIC.plural, True),
             (legacy, True),
         ]
 
@@ -326,9 +329,10 @@ class TestLayerScanDirsHelper:
     def test_missing_layer_dir_skipped(self, tmp_path: Path) -> None:
         assert _layer_scan_dirs(ArtifactKind.TACTIC, {"org": tmp_path}) == []
 
-    def test_existing_layer_dir_returned_as_non_recursive(self, tmp_path: Path) -> None:
+    def test_existing_layer_dir_returned_as_recursive(self, tmp_path: Path) -> None:
+        """WP02: layer dirs recurse via the shared authority (C-001)."""
         candidate = tmp_path / "doctrine" / ArtifactKind.TACTIC.plural / "org"
         candidate.mkdir(parents=True)
         assert _layer_scan_dirs(ArtifactKind.TACTIC, {"org": tmp_path}) == [
-            (candidate, False)
+            (candidate, True)
         ]

@@ -357,7 +357,7 @@ def _render_bootstrap_text(
     #
     # ``budgeted`` is pinned to ``str`` (mirroring ``_resolve_authority_block``'s
     # ``block`` idiom above) so the conditionally-``skip``-followed
-    # ``charter.context_renderers`` import (see the ``charter.*``
+    # ``charter.activation.context_renderers`` import (see the ``charter.*``
     # ``[[tool.mypy.overrides]]`` in pyproject.toml) cannot make this return look
     # like ``Any`` to mypy.
     budgeted: str = _enforce_token_budget(

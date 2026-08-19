@@ -36,7 +36,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.offering.artifact_kinds import ArtifactKind
+from charter.offering.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
 from charter.offering.drg.models import NodeKind
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
@@ -85,7 +85,7 @@ _EXEMPT_GET_PARTIALS: frozenset[str] = frozenset(
         # `tests/charter/test_action_bundle_delivery.py::
         # test_every_none_slot_kind_has_a_machine_checkable_stated_reason`, so a
         # future None row without a reason still reddens -- just there, not here.
-        "charter.context_renderers.delivery_table::_DELIVERY_REASON_BY_KIND",
+        "charter.activation.context_renderers.delivery_table::_DELIVERY_REASON_BY_KIND",
         # WP03 (T016): the `doctrine new` scaffolder's per-kind stub table.
         # Intentionally partial -- `template` (empty glob, unscaffoldable),
         # `glossary_pack` and `anti_pattern` (hand-authored) carry no stub. The
@@ -310,9 +310,9 @@ _MIN_STRING_KIND_KEYS = 3
 #: dropped kind is reported).
 _STRING_KEYED_MUST_BE_TOTAL: frozenset[str] = frozenset(
     {
-        "doctrine.artifact_kinds::_PLURALS",
-        "doctrine.artifact_kinds::_PATTERNS",
-        "doctrine.artifact_kinds::_HAS_BUILT_IN_CONTENT_DIR",
+        "charter.offering.artifact_kinds::_PLURALS",
+        "charter.offering.artifact_kinds::_PATTERNS",
+        "charter.offering.artifact_kinds::_HAS_BUILT_IN_CONTENT_DIR",
     }
 )
 
@@ -421,7 +421,7 @@ def test_string_keyed_authority_maps_are_total() -> None:
 #: review squad; it lives on the golden-adjacent DRG activation-filter path and
 #: imports ``ArtifactKind`` via ``doctrine.api`` (a public-wheel boundary), so it
 #: is left un-collapsed under C-004 discipline. Follow-up: collapse onto
-#: :data:`doctrine.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
+#: :data:`charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
 _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT: frozenset[str] = frozenset(
     {"charter.drg::_SINGULAR_TO_PLURAL"}
 )
@@ -490,7 +490,7 @@ def test_no_charter_module_redeclares_a_plural_singular_kind_literal() -> None:
         )
     assert not offenders, (
         "these charter modules re-declare a plural↔singular kind-map literal "
-        "instead of importing doctrine.artifact_kinds.CHARTER_ACTIVATABLE_"
+        "instead of importing charter.offering.artifact_kinds.CHARTER_ACTIVATABLE_"
         f"SINGULAR_TO_PLURAL (#2981 re-declaration class): {offenders}"
     )
 
