@@ -99,9 +99,11 @@ _PROFILE_CODE_CHANGE_WHEN = "are about to apply a code change"
 # WP01 (deliver-loaded-doctrine, FR-005): the stated reason styleguide/toolguide
 # profile sections render pointer-only (``body_fn=None``). This is a DELIBERATE
 # NFR-001 token-budget decision -- their bodies are large and pulled on demand --
-# not a silent no-op. Named here (rather than left as an incidental "bodies vary"
-# aside) so the choice is discoverable, and asserted intentional by
-# ``tests/charter/test_step_description_render.py`` / the profile-render suite.
+# not a silent no-op. This constant is a documented, human-readable stated
+# reason surfaced in the render-policy docstrings below (the FR-005
+# discoverability requirement); it is not imported or asserted by any test.
+# Named here (rather than left as an incidental "bodies vary" aside) so the
+# choice is discoverable at the point of decision.
 _STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON: str = (
     "styleguide/toolguide profile sections are pointer-only by design "
     "(NFR-001 token budget): their bodies are pulled on demand via the "
