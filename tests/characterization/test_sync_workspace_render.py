@@ -98,7 +98,7 @@ def _stub_workspace(
     ``sync.<name>`` module attributes — the exact late-bound seam the T022
     restructure keeps reachable (INV-4).
     """
-    workspace_path = Path("/tmp/.worktrees/042-demo-lane-a")
+    workspace_path = Path("/repo-root/.worktrees/042-demo-lane-a")
     monkeypatch.setattr(sync, "_detect_workspace_context", lambda: (workspace_path, mission_slug))
     if result is not None:
         monkeypatch.setattr(sync, "get_vcs", lambda *a, **k: _FakeVCS(result))
