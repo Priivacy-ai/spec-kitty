@@ -275,3 +275,76 @@ def test_every_none_slot_kind_has_a_machine_checkable_stated_reason() -> None:
 
     # And the map covers exactly the None-slot kinds — no missing, no extra.
     assert set(_DELIVERY_REASON_BY_KIND) == none_slot_kinds
+
+
+# ---------------------------------------------------------------------------
+# WP01 (deliver-loaded-doctrine) — GLOSSARY_PACK travels the REAL pipeline
+# (R4 review gap 1). The kind was proven only by a table lookup and a
+# hand-built bundle; nothing put a ``glossary_pack:*`` node in a graph and
+# asserted it survives the ACTIVATED gate and lands in the ``glossary_packs``
+# slot via ``_classify_artifact_urns`` after
+# ``filter_graph_by_activation`` → ``resolve_context``. These mirror the
+# ``procedure:p1`` / ``asset:a1`` real-pipeline test above for GLOSSARY_PACK.
+# ---------------------------------------------------------------------------
+
+
+def _scope_graph_with_glossary() -> DRGGraph:
+    """An action that directly scopes a single ``glossary_pack:g1`` node.
+
+    Wired exactly like ``procedure:p1`` / ``asset:a1`` in :func:`_scope_graph`:
+    one ``scope`` hop from the action node, so reachability is depth-1 and the
+    activation gate — not reachability — is the variable under test. A sibling
+    of ``_scope_graph`` so the shared graph's slot assertions are undisturbed.
+    """
+    nodes = [
+        DRGNode(urn=_ACTION_URN, kind=NodeKind.ACTION),
+        DRGNode(urn="directive:d1", kind=NodeKind.DIRECTIVE),
+        DRGNode(urn="glossary_pack:g1", kind=NodeKind.GLOSSARY_PACK),
+    ]
+    edges = [
+        DRGEdge(source=_ACTION_URN, target=n.urn, relation=Relation.SCOPE)
+        for n in nodes[1:]
+    ]
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="2026-07-29T00:00:00+00:00",
+        generated_by="test_action_bundle_delivery",
+        nodes=nodes,
+        edges=edges,
+    )
+
+
+def test_glossary_pack_classifies_into_glossary_packs_slot_through_real_pipeline() -> None:
+    """An activated, graph-reachable glossary pack lands in the real slot.
+
+    ``glossary_packs`` is in ``activated_kinds``, so the ACTIVATED gate keeps
+    the node; it must then classify into the ``glossary_packs`` slot as ``g1``.
+    Falsifiable: if GLOSSARY_PACK were mis-routed (slot=None, or a different
+    slot key), or if the gate silently dropped it, this equality reddens.
+    """
+    graph = _scope_graph_with_glossary()
+    pack = _pack(kinds=frozenset({"directives", "glossary_packs"}))
+
+    filtered = filter_graph_by_activation(graph, pack)
+    resolved = resolve_context(filtered, _ACTION_URN, depth=2)
+    delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, set())
+
+    assert delivered["glossary_packs"] == ("g1",)
+
+
+def test_glossary_pack_gated_out_when_kind_not_activated() -> None:
+    """The ACTIVATED gate withholds the glossary pack when its kind is off.
+
+    ``glossary_packs`` is absent from ``activated_kinds``, so
+    ``filter_graph_by_activation`` drops the node before classification and the
+    ``glossary_packs`` slot is empty — proving the gate (not mere reachability)
+    governs GLOSSARY_PACK delivery (GLOSSARY_PACK gate is ACTIVATED, not ALL).
+    """
+    graph = _scope_graph_with_glossary()
+    pack = _pack(kinds=frozenset({"directives"}))
+
+    filtered = filter_graph_by_activation(graph, pack)
+    resolved = resolve_context(filtered, _ACTION_URN, depth=2)
+    delivered = context._classify_artifact_urns(resolved.artifact_urns, filtered, set())
+
+    assert delivered.get("glossary_packs", ()) == ()
