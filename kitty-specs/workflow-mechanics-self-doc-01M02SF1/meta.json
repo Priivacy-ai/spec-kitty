@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances Self-documenting repo (Bucket 2): workflow/CI/status mechanics on kitty/mission-workflow-self-doc so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Migrate the workflow/CI/git/status-mechanics agent-memory into canonical repo homes (#3464)",
   "slug": "workflow-mechanics-self-doc-01M02SF1",
+  "status_phase": "1",
   "target_branch": "kitty/mission-workflow-self-doc",
   "topology": "single_branch",
   "vcs": "git",
