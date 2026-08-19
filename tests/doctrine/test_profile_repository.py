@@ -807,10 +807,18 @@ class TestAgentProfileRepositoryLoader:
         repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
         assert repo.get("nested") is not None
 
-    def test_project_glob_does_not_find_profiles_in_subdirectory(
+    def test_project_rglob_finds_profiles_in_subdirectory(
         self, shipped_profiles_dir: Path, tmp_path: Path
     ):
-        """Project loader uses glob (not rglob) and ignores nested profiles."""
+        """Project loader recurses (parity with built-in) and finds nested profiles.
+
+        Regression for #3490: org/project overlay discovery is now
+        unconditionally recursive via the single ``discovery_recursion``
+        authority, matching the built-in tier's ``rglob`` (see
+        ``test_shipped_rglob_finds_profiles_in_subdirectory`` above). A profile
+        one directory deep in the project overlay must load, not be silently
+        dropped as it was under the previous non-recursive ``glob``.
+        """
         project = tmp_path / "project"
         sub = project / "sub"
         sub.mkdir(parents=True)
@@ -821,7 +829,7 @@ class TestAgentProfileRepositoryLoader:
         repo = AgentProfileRepository(
             built_in_dir=shipped_profiles_dir, project_dir=project
         )
-        assert repo.get("deep") is None
+        assert repo.get("deep") is not None
 
     def test_non_agent_yaml_files_are_ignored(self, tmp_path: Path):
         """Files not matching *.agent.yaml pattern are silently ignored."""
