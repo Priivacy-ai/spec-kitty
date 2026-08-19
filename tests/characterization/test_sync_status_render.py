@@ -13,6 +13,8 @@ expectation that every new branch is executed directly.
 
 from __future__ import annotations
 
+import pytest
+
 from types import SimpleNamespace
 from typing import Any
 
@@ -99,6 +101,8 @@ def _rowmap(rows: list[Any]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # build_status_rows — main table
 # ---------------------------------------------------------------------------
+
+pytestmark = [pytest.mark.fast]
 
 
 def test_status_rows_queue_empty_and_saas_enabled() -> None:

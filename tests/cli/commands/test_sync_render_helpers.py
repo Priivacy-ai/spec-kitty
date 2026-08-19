@@ -15,6 +15,8 @@ from specify_cli.cli.commands.sync import (
     _selector_kind,
 )
 
+pytestmark = [pytest.mark.fast]
+
 
 @pytest.mark.parametrize(
     ("pct", "expected"),
@@ -52,7 +54,5 @@ def test_override_label_tri_state(value: bool | None, expected: str) -> None:
         (None, False, "all"),
     ],
 )
-def test_selector_kind_classification(
-    project: str | None, identity_less: bool, expected: str
-) -> None:
+def test_selector_kind_classification(project: str | None, identity_less: bool, expected: str) -> None:
     assert _selector_kind(project, identity_less) == expected

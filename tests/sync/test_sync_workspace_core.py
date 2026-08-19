@@ -10,6 +10,8 @@ branch-level new-code coverage the extraction adds (Sonar new-code-coverage).
 
 from __future__ import annotations
 
+import pytest
+
 from pathlib import Path
 from typing import Any
 
@@ -61,6 +63,8 @@ def _line_texts(plan_steps: tuple[object, ...]) -> list[str]:
 # sync_stats_summary
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.fast]
+
 
 def test_stats_summary_all_zero_is_no_file_changes() -> None:
     assert sync_stats_summary(_result(SyncStatus.SYNCED)) == "no file changes"
@@ -98,18 +102,14 @@ def test_up_to_date_with_message_appends_dim_line() -> None:
 
 
 def test_synced_non_verbose_has_no_changes_step() -> None:
-    plan = build_sync_render_plan(
-        _result(SyncStatus.SYNCED, files_updated=1, changes_integrated=[]), verbose=False
-    )
+    plan = build_sync_render_plan(_result(SyncStatus.SYNCED, files_updated=1, changes_integrated=[]), verbose=False)
     assert plan.exit_code is None
     assert not any(isinstance(s, RenderChanges) for s in plan.steps)
     assert _line_texts(plan.steps)[0] == "\n[green]✓ Synced[/green] - 1 updated"
 
 
 def test_synced_verbose_inserts_changes_step_before_message() -> None:
-    plan = build_sync_render_plan(
-        _result(SyncStatus.SYNCED, files_updated=1, message="done"), verbose=True
-    )
+    plan = build_sync_render_plan(_result(SyncStatus.SYNCED, files_updated=1, message="done"), verbose=True)
     kinds = [type(s).__name__ for s in plan.steps]
     assert kinds == ["RenderLine", "RenderChanges", "RenderLine"]
     assert _line_texts(plan.steps)[-1] == "[dim]done[/dim]"
@@ -121,9 +121,7 @@ def test_synced_verbose_inserts_changes_step_before_message() -> None:
 
 
 def test_conflicts_non_verbose_emits_conflicts_step_no_changes() -> None:
-    plan = build_sync_render_plan(
-        _result(SyncStatus.CONFLICTS, conflicts=[_conflict()]), verbose=False
-    )
+    plan = build_sync_render_plan(_result(SyncStatus.CONFLICTS, conflicts=[_conflict()]), verbose=False)
     assert plan.exit_code is None
     assert any(isinstance(s, RenderConflicts) for s in plan.steps)
     assert not any(isinstance(s, RenderChanges) for s in plan.steps)
@@ -131,9 +129,7 @@ def test_conflicts_non_verbose_emits_conflicts_step_no_changes() -> None:
 
 
 def test_conflicts_verbose_appends_changes_step() -> None:
-    plan = build_sync_render_plan(
-        _result(SyncStatus.CONFLICTS, conflicts=[_conflict()]), verbose=True
-    )
+    plan = build_sync_render_plan(_result(SyncStatus.CONFLICTS, conflicts=[_conflict()]), verbose=True)
     assert any(isinstance(s, RenderChanges) for s in plan.steps)
 
 
@@ -152,9 +148,7 @@ def test_failed_arm_exits_1_with_try_hint() -> None:
 
 
 def test_failed_arm_with_conflicts_inserts_conflicts_step() -> None:
-    plan = build_sync_render_plan(
-        _result(SyncStatus.FAILED, conflicts=[_conflict()]), verbose=False
-    )
+    plan = build_sync_render_plan(_result(SyncStatus.FAILED, conflicts=[_conflict()]), verbose=False)
     assert any(isinstance(s, RenderConflicts) for s in plan.steps)
 
 

@@ -9419,6 +9419,14 @@ pages:
     - {slug: "location-hotspot", text: "Location hotspot", level: 3}
     - {slug: "how-the-debt-maps-onto-the-roadmap", text: "How the debt maps onto the roadmap", level: 2}
     - {slug: "recommended-sequence", text: "Recommended sequence", level: 2}
+  - path: "docs/plans/code-quality/sync-env-census.md"
+    title: "SPEC_KITTY_* env census — sync surface"
+    divio_type: "none"
+    abstract: "Env census of the sync surface: a live or retire-candidate verdict for every SPEC_KITTY_* reference, proving the Wave-4 de-god deleted no environment name."
+    anchors:
+    - {slug: "census-8-references-7-live-1-retire-candidate", text: "Census (8 references, 7 `live` / 1 `retire-candidate`)", level: 2}
+    - {slug: "verdict-rationale", text: "Verdict rationale", level: 3}
+    - {slug: "anti-deletion-invariant-fr-007", text: "Anti-deletion invariant (FR-007)", level: 2}
   - path: "docs/plans/code-quality/targeted-cleanup-scoping.md"
     title: "Targeted Cleanup Scoping — sync.py and walker.py"
     divio_type: "none"

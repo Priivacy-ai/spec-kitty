@@ -1,3 +1,13 @@
+---
+title: SPEC_KITTY_* env census — sync surface
+description: 'Env census of the sync surface: a live or retire-candidate verdict for every SPEC_KITTY_* reference, proving the Wave-4 de-god deleted no environment name.'
+doc_status: active
+updated: '2026-08-19'
+related:
+- docs/plans/code-quality/index.md
+- docs/plans/code-quality/targeted-cleanup-scoping.md
+- docs/plans/refactor/degod-unshim-roadmap.md
+---
 # `SPEC_KITTY_*` env census — sync surface (mission `sync-cli-degod-wave4-01M0B0MX`, WP12 / FR-007)
 
 **Purpose.** Inventory every `SPEC_KITTY_*` reference on the `spec-kitty sync` surface and

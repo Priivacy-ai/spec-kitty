@@ -15,6 +15,8 @@ the extracted pure functions in isolation.
 
 from __future__ import annotations
 
+import pytest
+
 from specify_cli.sync.sync_purge_core import (
     _PURGE_BODY,
     _PURGE_FRAMES,
@@ -43,6 +45,8 @@ _UUID_B = "bbbbbbbb-2222-2222-2222-222222222222"
 # --------------------------------------------------------------------------- #
 # _RawCensus — the shared pure data shape
 # --------------------------------------------------------------------------- #
+
+pytestmark = [pytest.mark.fast]
 
 
 def test_raw_census_count_sums_only_the_named_keys() -> None:
