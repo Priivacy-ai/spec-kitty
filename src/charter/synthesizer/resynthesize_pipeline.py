@@ -351,6 +351,7 @@ def run(
             targets=resolved.targets,
             spec_kitty_version=_SPEC_KITTY_VERSION,
             built_in_drg=built_in_drg,
+            project_root=_repo_root,
         )
         existing_graph_dir = _repo_root / _KITTIFY_DIRNAME / "doctrine"
         project_graph = updated_overlay

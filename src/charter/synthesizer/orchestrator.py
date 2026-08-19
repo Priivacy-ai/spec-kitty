@@ -264,6 +264,7 @@ def synthesize(
         targets=targets,
         spec_kitty_version=_SPEC_KITTY_VERSION,
         built_in_drg=built_in_drg,
+        project_root=_repo_root,
     )
     outcome = _reconcile_synthesis(
         repo_root=_repo_root,
