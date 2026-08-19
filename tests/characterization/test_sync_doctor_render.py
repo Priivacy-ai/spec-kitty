@@ -15,7 +15,7 @@ I/O and no ``Console`` in sight.
 from __future__ import annotations
 
 import dataclasses
-from datetime import timedelta
+from kernel.clock import timedelta
 from types import SimpleNamespace
 from typing import Any
 
