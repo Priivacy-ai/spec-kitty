@@ -321,11 +321,19 @@ def test_bounded_loads_single_graph_and_binding_load(tmp_path: Path, monkeypatch
     graph_calls = {"n": 0}
     filter_calls = {"n": 0}
 
-    def _spy_graph(_root: Path, *, org_roots: list[Path] | None = None) -> DRGGraph:
+    def _spy_graph(
+        _root: Path,
+        *,
+        org_roots: list[Path] | None = None,
+        org_fragments: object = None,
+    ) -> DRGGraph:
         # #3525 Fold B: the module-level default path now calls
         # ``load_validated_graph(repo_root, org_roots=...)`` -- this spy
         # patches that same module-level name, so it must accept (and can
         # ignore) the keyword its production caller now always passes.
+        # DRG read-path bridge (WP02): that default also threads
+        # ``org_fragments=load_org_drg(repo_root, strict=False)``, so the spy
+        # accepts (and ignores) that keyword too.
         graph_calls["n"] += 1
         return _graph_with_review_node()
 

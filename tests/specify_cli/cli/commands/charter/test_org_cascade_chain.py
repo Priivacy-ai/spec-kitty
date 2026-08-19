@@ -571,34 +571,37 @@ class TestGraphlessOrgPackDegradesGracefully:
 
 
 # ---------------------------------------------------------------------------
-# T016b — documented limitation: cascade edges authored ONLY in
-# drg/fragment.yaml are invisible to the cascade path (post-#3387 model).
+# T016b — org fragment.yaml edges cascade (DRG read-path bridge, mission
+# drg-read-path-bridge-01M0CHVZ). Previously a disclosed limitation; the
+# bridge routes the org fragment layer through merge_three_layers so the edge
+# is now walked by cascade.
 # ---------------------------------------------------------------------------
 
 
-class TestGraphlessPackWithFragmentEdgeIsInvisibleToCascade:
-    """Pins the boundary the guard's SCOPE comment documents: charter cascade
-    reads root-level ``*.graph.yaml`` only, so a ``requires`` edge authored
-    solely in an org pack's ``drg/fragment.yaml`` (the #3387 ``OrgDRGFragment``
-    shape) does **not** cascade -- the pack has no root-level graph, so
-    ``load_validated_graph`` skips it (with a warning) and the edge is never
-    walked.
+class TestFragmentYamlEdgeCascades:
+    """A ``requires``/``suggests`` edge authored solely in an org pack's
+    ``drg/fragment.yaml`` (the #3387 ``OrgDRGFragment`` shape) now **does**
+    cascade at ``charter activate``.
 
-    This is a **disclosed limitation, not a regression**: cascade never read
-    ``drg/fragment.yaml`` on any prior main either. The test exists so the gap
-    is pinned rather than latent -- if a later change wires ``fragment.yaml``
-    edges into cascade, this test must be updated deliberately.
+    The DRG read-path bridge (FR-001/FR-002) routes the org fragment layer
+    through the existing ``merge_three_layers`` from inside
+    ``_drg_helpers.load_validated_graph``, so a fragment-only pack's edges enter
+    the graph charter cascade walks. A fragment-bearing pack is **not** graphless
+    (FR-004), so the D-005 graphless warning does not fire for it. This test was
+    flipped from ``TestGraphlessPackWithFragmentEdgeIsInvisibleToCascade`` (which
+    pinned the pre-bridge limitation) as the executable red→green contract for
+    this mission (FR-005).
     """
 
-    def test_requires_edge_in_fragment_yaml_does_not_cascade(
+    def test_requires_edge_in_fragment_yaml_cascades(
         self, project_root: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         pack_root = project_root / "org-packs" / "fragment-only-pack"
         _write_directive(pack_root, "a-directive", "DIRECTIVE_A")
         _write_directive(pack_root, "b-directive", "DIRECTIVE_B")
         # The requires edge lives ONLY in drg/fragment.yaml -- never in a
-        # root-level *.graph.yaml -- so has_graph_files(pack_root) is False and
-        # the cascade path never sees this edge.
+        # root-level *.graph.yaml. The bridge folds this fragment via
+        # merge_three_layers so the edge IS walked by cascade.
         drg_dir = pack_root / "drg"
         drg_dir.mkdir(parents=True, exist_ok=True)
         (drg_dir / "fragment.yaml").write_text(
@@ -638,13 +641,17 @@ class TestGraphlessPackWithFragmentEdgeIsInvisibleToCascade:
         activated = data.get("activated_directives") or []
         assert "a-directive" in activated
 
-        # The documented limitation: the fragment.yaml `requires` edge is
-        # invisible to cascade, so b-directive is NOT cascade-activated.
-        assert "b-directive" not in activated
-        assert "Cascade-activated" not in result.output
+        # The fragment.yaml `requires` edge now cascades: b-directive IS
+        # cascade-activated (the bridge folded the org fragment layer).
+        assert "b-directive" in activated, (
+            f"org fragment.yaml requires edge did not cascade-activate; "
+            f"output:\n{result.output}"
+        )
+        assert "Cascade-activated" in result.output
 
-        # And the operator is warned the pack contributed no cascade graph.
-        assert any(
+        # A fragment-bearing pack is NOT graphless (FR-004) -- no graphless
+        # warning fires for it.
+        assert not any(
             "ships no root-level DRG graph" in rec.message
             for rec in caplog.records
         ), [rec.message for rec in caplog.records]
