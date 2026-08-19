@@ -41,7 +41,7 @@ rows:
   - cli/commands/test_sync_doctor_tracker_egress_3108.py
   - doctor_environment
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 129
+  lineno: 131
   kind: fixture
   home_partition: B1
 - key:
