@@ -27,14 +27,17 @@ from __future__ import annotations
 from doctrine.artifact_kinds import ArtifactKind
 
 __all__ = [
-    "RECURSIVE_OVERLAY_KINDS",
     "overlay_scan_is_recursive",
 ]
 
 #: The kinds whose org/project overlay discovery is recursive. Derived as the
 #: whole :class:`~doctrine.artifact_kinds.ArtifactKind` universe (C-001:
-#: unconditional), never hand-listed. Both loader and resolver bind their
-#: recursion to this set via :func:`overlay_scan_is_recursive`.
+#: unconditional), never hand-listed. The public seam is
+#: :func:`overlay_scan_is_recursive`, which binds both loader and resolver
+#: recursion to this set; the frozenset itself is a module-level derivation
+#: surface asserted by the parity gate (``tests/doctrine/test_discovery_recursion.py``)
+#: but consumed by no other ``src/`` module, so it is deliberately **not** in
+#: ``__all__`` — exporting an unimported symbol would trip the dead-symbol gate.
 RECURSIVE_OVERLAY_KINDS: frozenset[ArtifactKind] = frozenset(ArtifactKind)
 
 
