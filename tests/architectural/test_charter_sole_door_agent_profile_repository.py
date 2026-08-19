@@ -195,28 +195,6 @@ AGENT_PROFILE_EXCLUSIONS: tuple[ContentDescriptor, ...] = (
             "through the factory."
         ),
     ),
-    ContentDescriptor(
-        rel_path="src/specify_cli/tool_surface/profiles/projection.py",
-        qualname="default_profile_repository",
-        token_substring="AgentProfileRepository ( project_dir = project_dir )",
-        occurrence=None,
-        rationale=(
-            "ESCALATED C-002 FINDING, TRACKED FOLLOW-UP AT #3176 - NOT A "
-            "PERMANENT CARVE-OUT. The .kittify/agent_profiles project-overlay "
-            "directory is unreachable through the unified builder: the factory's inner "
-            "service derives its project directory from "
-            "charter.activation._doctrine_paths.resolve_project_root's three fixed "
-            "candidates (.kittify/doctrine, src/doctrine, doctrine), and "
-            "build_activation_aware_doctrine_service exposes no parameter to "
-            "retarget it. WP02's implementer and reviewer independently forced "
-            "the naive migration and reproduced three real test breakages "
-            "(project-overlay profiles silently dropped). Closing it needs a "
-            "builder-level change on WP01's already-approved surface, outside "
-            "WP09's write scope. DELETE this entry - do not renew it - once the "
-            "builder gains a project-overlay override."
-        ),
-    ),
-    ContentDescriptor(
         rel_path="src/specify_cli/doctrine/pack_validator.py",
         qualname="_check_profile_skipped_diagnostics",
         token_substring="AgentProfileRepository (",
