@@ -51,7 +51,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 from specify_cli.status import ReviewResult
-from specify_cli.status.review_result_parse import parse_review_result_json
+from specify_cli.status import parse_review_result_json
 
 from .envelope import (
     CONTRACT_VERSION,
@@ -1354,9 +1354,14 @@ def _enforce_for_review_commit_gate(
     gate and render its own CLI error. No-ops when bypassed (``--force``) or when
     the gate does not apply (no lanes.json, or the WP is not in any lane).
     """
-    from specify_cli.lanes.for_review_gate import evaluate_for_review_gate
+    from specify_cli.lanes.for_review_gate import (
+        GateDecision,
+        evaluate_for_review_gate,
+    )
 
-    decision = evaluate_for_review_gate(main_repo_root, mission, wp, force=force)
+    decision: GateDecision = evaluate_for_review_gate(
+        main_repo_root, mission, wp, force=force
+    )
     if not decision.passed:
         _fail(
             cmd,

@@ -292,7 +292,7 @@ def lint_report_path(repo_root: Path) -> Path:
     single source of truth for that location — no caller should re-compose the
     ``.kittify`` / filename literals by hand (#2628 SSOT fold).
     """
-    return repo_root / KITTIFY_DIR / LINT_REPORT_FILENAME
+    return Path(repo_root / KITTIFY_DIR / LINT_REPORT_FILENAME)
 
 
 def is_worktree_context(path: Path) -> bool:
@@ -696,7 +696,10 @@ def load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
     try:
         # allow_missing=True  -> None when file is absent (field-absent case)
         # on_malformed="raise" -> ValueError when file exists but is corrupt
-        return load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+        meta: dict[str, Any] | None = load_meta(
+            feature_dir, allow_missing=True, on_malformed="raise"
+        )
+        return meta
     except ValueError as exc:
         raise MissionMetaReadError(meta_path, exc) from exc
 

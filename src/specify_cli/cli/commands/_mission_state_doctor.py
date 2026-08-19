@@ -446,9 +446,12 @@ def _surface_audit_disagreement(
     reported as agreement). ``False`` when the invocation owns the primary (the
     common case) or targets an explicit/fixture root. #3051/#3541.
     """
-    from specify_cli.migration.mission_state import audit_invocation_disagreement
+    from specify_cli.migration.mission_state import (
+        CheckoutDisagreement,
+        audit_invocation_disagreement,
+    )
 
-    disagreements = audit_invocation_disagreement(
+    disagreements: list[CheckoutDisagreement] = audit_invocation_disagreement(
         Path.cwd(), resolved_root, mission=mission
     )
     if not disagreements:

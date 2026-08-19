@@ -25,7 +25,7 @@ from specify_cli.missions._read_path_resolver import (
 )
 from specify_cli.status import feature_status_lock
 from specify_cli.status import EVENTS_FILENAME, EventPersistenceError, StoreError
-from specify_cli.status.review_result_parse import parse_review_result_json
+from specify_cli.status import parse_review_result_json
 
 logger = logging.getLogger(__name__)
 

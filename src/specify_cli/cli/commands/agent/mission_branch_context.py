@@ -350,7 +350,8 @@ def _resolve_planning_branch(
     del repo_root  # No longer used; kept in signature for API stability.
     if target_branch_override is not None and target_branch_override.strip():
         return target_branch_override.strip()
-    return load_mission_target_branch(feature_dir)
+    resolved: str = load_mission_target_branch(feature_dir)
+    return resolved
 
 
 def _get_current_branch(repo_root: Path) -> str:
