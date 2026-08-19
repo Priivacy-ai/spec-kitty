@@ -27,8 +27,10 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from charter.offering.artifact_kinds import ArtifactKind
 from charter.offering.drg.migration.extractor import graph_document_to_dict, model_to_graph_dict
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.project_scan import walk_project_agent_profile_nodes
 
 from charter.activation.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 from kernel.clock import now_utc_seconds
@@ -42,25 +44,56 @@ from .request import SynthesisTarget
 # Helpers
 # ---------------------------------------------------------------------------
 
-_KIND_TO_NODE_KIND: dict[str, NodeKind] = {
-    "directive": NodeKind.DIRECTIVE,
-    "tactic": NodeKind.TACTIC,
-    "styleguide": NodeKind.STYLEGUIDE,
+#: The emittable project-tier kind allowlist: kinds that become project-overlay
+#: DRG nodes, mapped to the ``NodeKind`` they carry. Its *keys* ARE the contract
+#: — a kind's **absence** is deliberate, not an oversight: ``asset`` (#3037),
+#: ``procedure``, ``paradigm``, ``toolguide``, ``glossary_pack``,
+#: ``mission_step_contract``, ``template`` and ``anti_pattern`` are intentionally
+#: not emitted at the project tier. ``AGENT_PROFILE`` was admitted in M6 (#3038)
+#: so a hand-authored project profile becomes a cascade-reachable node.
+#:
+#: ``ArtifactKind``-keyed (not string-keyed) so the totality gate
+#: (``tests/doctrine/drg/test_kind_mapping_totality.py``) is *guard-visible* to
+#: it. The map is a deliberate partial listed in that gate's
+#: ``_EXEMPT_GET_PARTIALS`` (the sole read site :func:`_node_kind_for` reads via
+#: ``.get``, treating a miss as "not emitted at the project tier"), so this
+#: entry itself never reddens the enum-keyed guard. The protection is indirect:
+#: a future ``ArtifactKind`` reddens the *non-exempt* authority tables
+#: (``PROJECT_KIND_DIRS`` et al.), forcing a developer through the kind surface
+#: — at which point the decision to emit it at the project tier (extend this
+#: map) or not (leave it out) is a conscious one, not a silent omission.
+#:
+#: NOTE: the ``AGENT_PROFILE`` entry drives the *answer-driven* synthesis-target
+#: path (:func:`_node_kind_for`); the hand-authored filesystem-walk path
+#: (:func:`charter.offering.drg.project_scan.walk_project_agent_profile_nodes`)
+#: hardcodes ``NodeKind.AGENT_PROFILE`` directly. The answer-driven path does
+#: not produce ``agent_profile`` targets today (interview sections map only to
+#: directive/tactic/styleguide), so the entry primarily buys gate visibility and
+#: forward-compatibility rather than an active answer-driven emission.
+_KIND_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
+    ArtifactKind.DIRECTIVE: NodeKind.DIRECTIVE,
+    ArtifactKind.TACTIC: NodeKind.TACTIC,
+    ArtifactKind.STYLEGUIDE: NodeKind.STYLEGUIDE,
+    ArtifactKind.AGENT_PROFILE: NodeKind.AGENT_PROFILE,
 }
 
 
 def _node_kind_for(kind: str) -> NodeKind | None:
-    """Return the ``NodeKind`` for a synthesis target *kind*, or ``None``.
+    """Return the ``NodeKind`` for a synthesis-target/project *kind*, or ``None``.
 
-    Only ``directive``/``tactic``/``styleguide`` are synthesizable charter
-    targets today. ``.get`` (not a raising subscript, WP06) so unsupported
-    kinds — including the mission-tier ``template`` and loose-contract
-    ``asset`` :class:`~charter.offering.artifact_kinds.ArtifactKind` members —
-    resolve to ``None`` instead of raising. Callers (``emit_project_layer``)
-    treat ``None`` as "skip this target's node and edges" so an unsupported
-    target kind never crashes project-DRG emission.
+    Normalizes the *kind* string to an :class:`~charter.offering.artifact_kinds.ArtifactKind`
+    (an unknown string → ``None``), then reads :data:`_KIND_TO_NODE_KIND` via
+    ``.get`` (not a raising subscript). A kind outside the emittable
+    project-tier allowlist — including the mission-tier ``template`` and
+    loose-contract ``asset`` members — resolves to ``None``. Callers
+    (:func:`emit_project_layer`) treat ``None`` as "skip this target's node and
+    edges" so an unsupported kind never crashes project-DRG emission (WP06).
     """
-    return _KIND_TO_NODE_KIND.get(kind)
+    try:
+        artifact_kind = ArtifactKind(kind)
+    except ValueError:
+        return None
+    return _KIND_TO_NODE_KIND.get(artifact_kind)
 
 
 def _node_to_dict(node: DRGNode) -> dict[str, object]:
@@ -113,16 +146,67 @@ def _serialize_graph(graph: DRGGraph) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _append_project_profile_nodes(
+    *,
+    project_root: Path,
+    nodes: list[DRGNode],
+    seen_urns: set[str],
+    built_in_node_urns: frozenset[str],
+    built_in_node_count: int,
+) -> None:
+    """Append hand-authored project agent_profile nodes through the overlay guards.
+
+    Walks ``<project_root>/.kittify/doctrine/agent_profiles/`` (M6 / #3038) and
+    merges the discovered ``agent_profile:<id>`` nodes into *nodes* in place,
+    applying the same additive-only and overlay-dedupe invariants the
+    answer-driven loop enforces:
+
+    * **Additive-only (INV-1)** — a URN already present in the built-in layer
+      raises :class:`ProjectDRGValidationError` (a project profile must not
+      shadow a built-in node).
+    * **Dedupe (INV-2)** — a URN already emitted in this overlay (by an
+      answer-driven target or an earlier walked file with the same
+      ``profile-id``) is skipped, so each ``agent_profile:<id>`` appears once.
+
+    The walk itself fails loud on a malformed profile file (INV-6 / NFR-002).
+    """
+    for node in walk_project_agent_profile_nodes(project_root):
+        urn = node.urn
+        if urn in built_in_node_urns:
+            raise ProjectDRGValidationError(
+                errors=(
+                    f"Additive-only violation (INV-1): project agent_profile URN "
+                    f"'{urn}' already exists in the built-in DRG layer.  A "
+                    f"hand-authored project profile must carry a new URN disjoint "
+                    f"from built-in nodes.",
+                ),
+                merged_graph_summary=(
+                    f"built_in_nodes={built_in_node_count}, colliding_urn={urn!r}"
+                ),
+            )
+        if urn in seen_urns:
+            continue  # INV-2 overlay dedupe: emit each agent_profile:<id> once.
+        seen_urns.add(urn)
+        nodes.append(node)
+
+
 def emit_project_layer(
     targets: Sequence[SynthesisTarget],
     spec_kitty_version: str,
     built_in_drg: DRGGraph,
+    project_root: Path | None = None,
 ) -> DRGGraph:
     """Build an additive project-layer ``DRGGraph`` from *targets*.
 
     One node is emitted per target; edges are derived from each target's
     ``source_urns`` (direction: project node ``derived_from``/``requires``
     the source URN per existing DRG conventions).
+
+    When *project_root* is supplied, hand-authored project-tier ``agent_profile``
+    artefacts under ``<project_root>/.kittify/doctrine/agent_profiles/`` are also
+    walked and appended as ``agent_profile:<id>`` nodes (M6 / #3038), through the
+    same additive-only / overlay-dedupe guards. When *project_root* is ``None``
+    the emit is answer-driven-only (pre-M6 behaviour, unchanged).
 
     FR-020 / EC-6 additive-only enforcement:
 
@@ -239,6 +323,18 @@ def emit_project_layer(
                 reason=f"Derived from synthesis target {target.slug!r}",
             )
             edges.append(edge)
+
+    # M6 (#3038): compose hand-authored project agent_profile nodes. These are
+    # artefact-driven (no synthesis answer), so they only appear when a
+    # project_root is threaded from the caller's write/preview seam.
+    if project_root is not None:
+        _append_project_profile_nodes(
+            project_root=project_root,
+            nodes=nodes,
+            seen_urns=seen_urns,
+            built_in_node_urns=built_in_node_urns,
+            built_in_node_count=len(built_in_drg.nodes),
+        )
 
     return DRGGraph(
         schema_version="1.0",

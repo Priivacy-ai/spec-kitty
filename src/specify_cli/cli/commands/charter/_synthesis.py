@@ -209,7 +209,7 @@ def _collect_evidence_result(
     return orchestrator.collect()
 
 
-def _build_synthesis_validation_callback(request: Any) -> Any:
+def _build_synthesis_validation_callback(request: Any, *, repo_root: Path | None = None) -> Any:
     from charter.drg import DRGGraph
     from charter.activation.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
     from charter.activation.synthesizer.orchestrator import _built_in_drg_from_snapshot
@@ -247,6 +247,10 @@ def _build_synthesis_validation_callback(request: Any) -> Any:
             targets=targets,
             spec_kitty_version=spec_kitty_version,
             built_in_drg=built_in_drg,
+            # M6 (#3038): thread the project root so hand-authored project
+            # agent_profile nodes are emitted here too, keeping this preview/
+            # dry-run emit consistent with the real write path.
+            project_root=repo_root,
         )
         persist_project_graph(project_graph, staged_dir.root, staged_dir.guard)
         validate_project_graph(staged_dir.root, built_in_drg)
@@ -347,7 +351,7 @@ def _run_synthesis_dry_run(
     from charter.activation.synthesizer.write_pipeline import stage_and_validate
 
     results = run_all(request, adapter=syn_adapter)
-    validation_callback = _build_synthesis_validation_callback(request)
+    validation_callback = _build_synthesis_validation_callback(request, repo_root=repo_root)
 
     with StagingDir.create(repo_root, request.run_id) as staging_dir:
         staged_artifacts: list[str] = stage_and_validate(
@@ -383,7 +387,7 @@ def _run_synthesis_dry_run_with_artifacts(
     )
 
     results = run_all(request, adapter=syn_adapter)
-    validation_callback = _build_synthesis_validation_callback(request)
+    validation_callback = _build_synthesis_validation_callback(request, repo_root=repo_root)
 
     with StagingDir.create(repo_root, request.run_id) as staging_dir:
         staged_artifacts = stage_and_validate(
@@ -642,6 +646,11 @@ def _reconciliation_preview(request: Any, repo_root: Path) -> ReconciliationDelt
         targets=targets,
         spec_kitty_version=spec_kitty_version,
         built_in_drg=built_in_drg,
+        # M6 (#3038): include hand-authored project agent_profile nodes so the
+        # reconciliation preview (orphan-refusal + --dry-run report) matches the
+        # real write path and never mis-classifies a persisted profile node as
+        # a removable orphan.
+        project_root=repo_root,
     )
     outcome = reconcile_synthesis(
         repo_root=repo_root,
