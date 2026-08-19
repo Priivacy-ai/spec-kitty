@@ -21,7 +21,21 @@ pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 
 def test_exactly_ten_activatable_kinds() -> None:
-    assert len(CHARTER_ACTIVATABLE_KINDS) == 10
+    # Pin the exact member set, not a bare count: adding, removing, or renaming
+    # an activatable kind must force a content edit here, never pass silently at
+    # an unchanged cardinality (golden-count contract, #2076).
+    assert set(CHARTER_ACTIVATABLE_KINDS) == {
+        ArtifactKind.AGENT_PROFILE,
+        ArtifactKind.ANTI_PATTERN,
+        ArtifactKind.DIRECTIVE,
+        ArtifactKind.GLOSSARY_PACK,
+        ArtifactKind.MISSION_STEP_CONTRACT,
+        ArtifactKind.PARADIGM,
+        ArtifactKind.PROCEDURE,
+        ArtifactKind.STYLEGUIDE,
+        ArtifactKind.TACTIC,
+        ArtifactKind.TOOLGUIDE,
+    }
 
 
 def test_anti_pattern_kept_template_and_asset_excluded() -> None:
