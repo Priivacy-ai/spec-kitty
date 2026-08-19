@@ -170,9 +170,10 @@ _KNOWN_JOIN_ALLOWLIST: frozenset[tuple[Path, int]] = frozenset(
         # resolution-parity M1): `_org_scan_dirs` gained the recursion-authority
         # rewrite and an operator-authorized precedence-widening docstring, and
         # DROPPED the "Known residual (tracked #3426)" paragraph now that #3426
-        # is fixed by this mission. M2's relocation docstring then pushes the
-        # unchanged `flat / "built-in"` join down from line 269 to line 283.
-        (Path("src/charter/activation/kind_vocabulary.py"), 283),
+        # is fixed by this mission -- net-shortening the docstring and pulling
+        # the (unchanged) `flat / "built-in"` join back up from line 283 to
+        # line 269; the org-tier legacy join itself is unchanged.
+        (Path("src/charter/activation/kind_vocabulary.py"), 269),
         # src/kernel/paths.py::_MISSION_ASSETS_SIBLING_PATTERN -- a relative
         # SHAPE constant (input to kernel.sibling_paths.resolve_installed_sibling),
         # not a filesystem join against a concrete root. kernel cannot import
