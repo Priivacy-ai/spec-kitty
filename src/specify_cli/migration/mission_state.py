@@ -545,6 +545,14 @@ def repair_repo(
 ) -> RepairReport:
     """Canonicalize historical mission state on disk and write a manifest."""
     resolved_repo_root = _anchor_repair_root(repo_root, scan_root=scan_root)
+    # Self-protecting guard (#3567 landing-pass coherence fold): every caller of
+    # ``repair_repo`` -- the CLI shell's ``_refuse_foreign_lane_fix`` (an earlier,
+    # formatted duplicate of this same check) and the TeamSpace gate
+    # (``_teamspace_mission_state_gate.py``, previously ungated) -- must fail
+    # closed on a foreign-lane invocation instead of silently canonicalizing the
+    # primary. No-ops for owner invocations and explicit-root-from-non-lane-cwd
+    # callers (tests/fixtures); see ``enforce_primary_write_ownership``.
+    enforce_primary_write_ownership(Path.cwd(), resolved_repo_root)
     mission_dirs = _select_mission_dirs(resolved_repo_root, scan_root=scan_root, mission=mission)
     if not mission_dirs:
         raise MissionStateRepairError("No mission directories found to repair.")
