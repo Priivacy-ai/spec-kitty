@@ -16,9 +16,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from ruamel.yaml import YAML
 
 from doctrine.agent_profiles.operating_procedures import (
+    collect_operating_procedure_entries,
     node_universe,
     resolve_operating_procedure_entries,
 )
@@ -29,23 +29,10 @@ pytestmark = pytest.mark.architectural
 _BUILT_IN = Path(__file__).resolve().parents[2] / "packs" / "built-in"
 _PROFILES_DIR = _BUILT_IN / "agent_profiles"
 
-_yaml = YAML(typ="safe")
-
 
 def _built_in_operating_procedures() -> dict[str, list[str]]:
     """Map ``profile_id -> operating-procedures`` for every built-in profile."""
-    entries: dict[str, list[str]] = {}
-    for path in sorted(_PROFILES_DIR.glob("*.agent.yaml")):
-        data = _yaml.load(path)
-        if not isinstance(data, dict):
-            continue
-        profile_id = data.get("profile-id")
-        if not profile_id:
-            continue
-        collaboration = data.get("collaboration") or {}
-        ops = collaboration.get("operating-procedures") or []
-        entries[profile_id] = list(ops)
-    return entries
+    return collect_operating_procedure_entries(_PROFILES_DIR)
 
 
 def test_built_in_operating_procedures_all_resolve_to_a_procedure_node() -> None:

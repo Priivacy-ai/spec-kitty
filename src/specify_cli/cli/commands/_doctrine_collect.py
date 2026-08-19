@@ -58,6 +58,7 @@ __all__ = [
     "_count_pack_artifacts",
     "_collect_profile_health",
     "_run_cross_grain_check",
+    "_run_operating_procedures_check",
     "_attach_pack_health",
     "_build_pack_entries",
     "_collect_doctrine_collisions",
@@ -438,9 +439,8 @@ def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
     ``org_drg["operating_procedures_unresolved"]`` finding (present-and-empty on
     a healthy tree). Read-only; never raises ``doctor doctrine``.
     """
-    from ruamel.yaml import YAML
-
     from doctrine.agent_profiles.operating_procedures import (
+        collect_operating_procedure_entries,
         node_universe,
         resolve_operating_procedure_entries,
     )
@@ -452,17 +452,9 @@ def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
         return
     try:
         procedure_urns, urns_by_kind = node_universe(load_built_in_graph().nodes)
-        yaml = YAML(typ="safe")
-        entries: dict[str, list[str]] = {}
-        for path in sorted((built_in_root() / "agent_profiles").glob("*.agent.yaml")):
-            data = yaml.load(path)
-            if not isinstance(data, dict):
-                continue
-            profile_id = data.get("profile-id")
-            if not profile_id:
-                continue
-            collaboration = data.get("collaboration") or {}
-            entries[profile_id] = list(collaboration.get("operating-procedures") or [])
+        entries = collect_operating_procedure_entries(
+            built_in_root() / "agent_profiles"
+        )
         unresolved = resolve_operating_procedure_entries(
             entries, procedure_urns, urns_by_kind
         )

@@ -654,15 +654,20 @@ def _emit_operating_procedure_edges(
 
     Guarded: an entry is emitted only when its ``procedure:<id>`` target is an
     already-minted procedure node, so an org/project-tier profile cannot mint a
-    dangling edge. Every built-in entry must resolve — an unresolved one (a
-    fictional or wrong-kind reference) raises, converting the old silent drop
-    into a loud build failure. Kept in its own helper (its own profile walk) so
+    dangling edge. Every built-in entry must resolve to a procedure-kind node
+    present at extraction time — an unresolved one (a fictional or wrong-kind
+    reference) raises, converting the old silent drop into a loud build failure.
+    Kept in its own helper (its own profile walk) so
     :func:`extract_artifact_edges` complexity is unchanged (NFR-004); the second
-    walk is 16 small files. ``resolve_operating_procedure_entries`` is the single
-    authority for "does this entry resolve to a procedure node" (also read by the
-    architectural gate and ``doctor doctrine``).
+    walk is 16 small files. The field harvest is delegated to
+    :func:`~doctrine.agent_profiles.operating_procedures.collect_operating_procedure_entries`
+    (the single authority, also read by the architectural gate and ``doctor
+    doctrine``) so the three consumers cannot diverge on the falsy-entry policy;
+    ``resolve_operating_procedure_entries`` is the single authority for "does
+    this entry resolve to a procedure node".
     """
     from doctrine.agent_profiles.operating_procedures import (
+        collect_operating_procedure_entries,
         node_universe,
         resolve_operating_procedure_entries,
     )
@@ -670,17 +675,8 @@ def _emit_operating_procedure_edges(
     if not profiles_dir.is_dir():
         return
     procedure_urns, urns_by_kind = node_universe(nodes_by_urn.values())
-    entries_by_profile: dict[str, list[str]] = {}
-    for path in sorted(profiles_dir.glob("*.agent.yaml")):
-        data = _load_yaml(path)
-        if data is None:
-            continue
-        profile_id = data.get("profile-id", "")
-        if not profile_id:
-            continue
-        collaboration = data.get("collaboration", {}) or {}
-        entries = [e for e in (collaboration.get("operating-procedures") or []) if e]
-        entries_by_profile[profile_id] = entries
+    entries_by_profile = collect_operating_procedure_entries(profiles_dir)
+    for profile_id, entries in entries_by_profile.items():
         src_urn = artifact_to_urn("agent_profile", profile_id)
         for entry in entries:
             tgt_urn = artifact_to_urn("procedure", entry)
