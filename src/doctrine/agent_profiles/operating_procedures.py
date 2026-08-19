@@ -21,16 +21,25 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from collections.abc import Set as AbstractSet
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
+
+from ruamel.yaml import YAML
 
 from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGNode, NodeKind
 
 __all__ = [
     "UnresolvedOpProc",
+    "collect_operating_procedure_entries",
     "node_universe",
     "resolve_operating_procedure_entries",
 ]
+
+#: A single ``ruamel.yaml`` reader reused for every profile parse. ``typ="safe"``
+#: mirrors the DRG extractor / doctor collectors so the harvest is byte-identical
+#: across all three consumers.
+_YAML = YAML(typ="safe")
 
 #: The DRG kind an ``operating-procedures`` entry must resolve to.
 _PROCEDURE_KIND = NodeKind.PROCEDURE
@@ -55,6 +64,42 @@ class UnresolvedOpProc:
     entry: str
     reason: UnresolvedReason
     resolved_kind: str | None
+
+
+def collect_operating_procedure_entries(profiles_dir: Path) -> dict[str, list[str]]:
+    """Harvest ``{profile_id: [operating-procedures entry, ...]}`` from *profiles_dir*.
+
+    THE single authority for reading the ``collaboration.operating-procedures``
+    field off built-in agent-profile YAML. The DRG extractor (edge emission +
+    fail-closed raise), ``doctor doctrine`` (diagnostic collector) and the
+    architectural gate all delegate here so the walk — glob order, dict-shape
+    guard, ``profile-id`` keying and the falsy-entry policy — can never diverge
+    between them (C-004 single-authority).
+
+    Globs ``*.agent.yaml`` under *profiles_dir* in sorted order and parses each
+    with ``ruamel.yaml.YAML(typ="safe")``. A file whose top-level data is not a
+    mapping, or that carries no ``profile-id``, is skipped. The single
+    falsy-filter policy is applied here and nowhere else: empty/falsy entries
+    (e.g. an authored ``""``) are dropped, so a caller never has to re-decide
+    whether a blank entry is a real reference. A profile with no
+    ``operating-procedures`` field maps to an empty list.
+
+    Returns an empty mapping when *profiles_dir* is not a directory.
+    """
+    entries_by_profile: dict[str, list[str]] = {}
+    if not profiles_dir.is_dir():
+        return entries_by_profile
+    for path in sorted(profiles_dir.glob("*.agent.yaml")):
+        data = _YAML.load(path)
+        if not isinstance(data, dict):
+            continue
+        profile_id = data.get("profile-id")
+        if not profile_id:
+            continue
+        collaboration = data.get("collaboration") or {}
+        raw = collaboration.get("operating-procedures") or []
+        entries_by_profile[profile_id] = [entry for entry in raw if entry]
+    return entries_by_profile
 
 
 def node_universe(
