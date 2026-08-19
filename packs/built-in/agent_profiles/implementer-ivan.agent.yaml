@@ -58,9 +58,6 @@ collaboration:
     - integration-tests
     - pull-request
     - implementation-notes
-  operating-procedures:
-    - code-review-checklist
-    - test-coverage-requirement
   canonical-verbs:
     - implement
     - fix

@@ -263,6 +263,63 @@ class TestExtractArtifactEdges:
         )
         assert edge.when == "Preserve this metadata."
 
+    def _write_profile(self, root: Path, op_entries: list[str]) -> None:
+        profiles_dir = root / "agent_profiles"
+        profiles_dir.mkdir(parents=True, exist_ok=True)
+        lines = ["profile-id: p", "name: P", "collaboration:", "  operating-procedures:"]
+        lines += [f"    - {e}" for e in op_entries]
+        (profiles_dir / "p.agent.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def test_operating_procedure_edge_emitted_for_resolvable_target(
+        self, tmp_path: Path
+    ) -> None:
+        """A resolvable operating-procedures entry emits one requires edge (M3)."""
+        root = tmp_path / "pack"
+        procedures_dir = root / "procedures"
+        procedures_dir.mkdir(parents=True)
+        (procedures_dir / "foo.procedure.yaml").write_text(
+            "id: foo\nname: Foo\n", encoding="utf-8"
+        )
+        self._write_profile(root, ["foo"])
+
+        _, edges = extract_artifact_edges(root)
+
+        matches = [
+            e
+            for e in edges
+            if e.source == "agent_profile:p"
+            and e.target == "procedure:foo"
+            and e.relation is Relation.REQUIRES
+        ]
+        assert len(matches) == 1
+
+    def test_unresolvable_operating_procedure_fails_closed(
+        self, tmp_path: Path
+    ) -> None:
+        """A fictional operating-procedures entry raises at extraction (M3)."""
+        root = tmp_path / "pack"
+        (root / "procedures").mkdir(parents=True)
+        self._write_profile(root, ["ghost-procedure"])
+
+        with pytest.raises(ValueError, match="operating-procedures"):
+            extract_artifact_edges(root)
+
+    def test_wrong_kind_operating_procedure_fails_closed(
+        self, tmp_path: Path
+    ) -> None:
+        """An operating-procedures entry naming a tactic (wrong kind) raises (M3)."""
+        root = tmp_path / "pack"
+        tactics_dir = root / "tactics"
+        tactics_dir.mkdir(parents=True)
+        (tactics_dir / "t.tactic.yaml").write_text(
+            "schema_version: '1.0'\nid: t\nname: T\npurpose: test\n", encoding="utf-8"
+        )
+        (root / "procedures").mkdir(parents=True)
+        self._write_profile(root, ["t"])
+
+        with pytest.raises(ValueError, match="operating-procedures"):
+            extract_artifact_edges(root)
+
     def test_procedure_template_references_produce_template_edges(self) -> None:
         """Procedure template references should be represented in the DRG."""
         _, edges = extract_artifact_edges(DOCTRINE_ROOT)

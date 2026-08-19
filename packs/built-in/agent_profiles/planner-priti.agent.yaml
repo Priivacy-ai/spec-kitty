@@ -58,8 +58,6 @@ collaboration:
     - risk-register
     - work-package-spec
   operating-procedures:
-    - dependency-validation-process
-    - capacity-estimation-guide
     - adversarial-squad-deployment
   canonical-verbs:
     - plan

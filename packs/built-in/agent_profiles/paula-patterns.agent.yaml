@@ -76,10 +76,6 @@ collaboration:
     - release-fix-decision
     - long-term-architecture-issue
     - compatibility-risk-notes
-  operating-procedures:
-    - architecture-scout-dispatch
-    - release-vs-long-term-synthesis
-    - boundary-ownership-triage
   canonical-verbs:
     - scout
     - synthesize

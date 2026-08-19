@@ -54,9 +54,6 @@ collaboration:
     - design-specification
     - component-design
     - accessibility-audit
-  operating-procedures:
-    - design-review-checklist
-    - accessibility-audit-process
   canonical-verbs:
     - design
     - prototype
