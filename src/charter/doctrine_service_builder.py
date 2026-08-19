@@ -222,11 +222,21 @@ def _build_activation_aware_doctrine_service(
     resolved_org_roots = (
         org_roots if org_roots is not None else _self_resolve_existing_org_roots(repo_root)
     )
-    inner = _build_doctrine_service(
-        repo_root,
-        org_roots=resolved_org_roots,
-        agent_profile_overlay_dir=agent_profile_overlay_dir,
-    )
+    # Forward ``agent_profile_overlay_dir`` only when set: the common ``None``
+    # case must reach ``_build_doctrine_service`` with the byte-identical
+    # ``(repo_root, org_roots=...)`` call the ``charter.context`` monkeypatch
+    # stubs (``lambda repo_root, *, org_roots=None: ...``) expect — passing the
+    # extra kwarg unconditionally raises ``TypeError`` against those stubs
+    # (NFR-002). The overlay is still threaded through whenever a caller
+    # (e.g. the profiles projection) actually supplies it.
+    if agent_profile_overlay_dir is not None:
+        inner = _build_doctrine_service(
+            repo_root,
+            org_roots=resolved_org_roots,
+            agent_profile_overlay_dir=agent_profile_overlay_dir,
+        )
+    else:
+        inner = _build_doctrine_service(repo_root, org_roots=resolved_org_roots)
     pack_context = PackContext.from_config(repo_root)
     return ActivationAwareDoctrineService(inner, pack_context=pack_context)
 
