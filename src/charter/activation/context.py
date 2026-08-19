@@ -490,8 +490,12 @@ def build_charter_context_json(
                 "tactic": (service.tactics, bundle.tactic_ids),
                 "styleguide": (service.styleguides, bundle.styleguide_ids),
                 "toolguide": (service.toolguides, bundle.toolguide_ids),
+                # #3389: ``procedure`` is a first-class typed array. ``asset``
+                # stays reference-only (#3037) and remains in extra_delivered,
+                # folded into references[] without its own array.
+                "procedure": (service.procedures, bundle.procedure_ids),
             },
-            extra_delivered={"procedure": bundle.procedure_ids, "asset": bundle.asset_ids},
+            extra_delivered={"asset": bundle.asset_ids},
             merged=bundle.merged,
             roots=bundle.roots,
             include_all=include_all,
