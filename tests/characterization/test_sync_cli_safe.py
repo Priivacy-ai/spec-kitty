@@ -158,6 +158,8 @@ STATUS_CHECK_CORE_KEYS: frozenset[str] = frozenset(
 
 runner = CliRunner()
 
+pytestmark = [pytest.mark.fast]
+
 
 @pytest.fixture(autouse=True)
 def _hermetic_sync_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -334,9 +336,7 @@ _SAFE_MATRIX: tuple[tuple[list[str], int, str | None], ...] = (
 
 
 @pytest.mark.parametrize(("argv", "expected_exit", "substring"), _SAFE_MATRIX)
-def test_safe_subcommand_exit_and_shape(
-    argv: list[str], expected_exit: int, substring: str | None, tmp_path: Path
-) -> None:
+def test_safe_subcommand_exit_and_shape(argv: list[str], expected_exit: int, substring: str | None, tmp_path: Path) -> None:
     """Freeze exit code (+ a stable, redacted output marker) for safe surfaces."""
     result = invoke(*argv)
     assert result.exit_code == expected_exit, result.output
@@ -363,9 +363,7 @@ def test_now_saas_disabled_silent_skip_exit_0(monkeypatch: pytest.MonkeyPatch) -
     the disabled notice and returns ``Exit(0)`` -- it must never be "cleaned up"
     into an error. Freeze the exact print + exit-0 behaviour.
     """
-    monkeypatch.setattr(
-        sync_preflight, "run_preflight", lambda *a, **k: SimpleNamespace(ok=True, render=lambda c: None)
-    )
+    monkeypatch.setattr(sync_preflight, "run_preflight", lambda *a, **k: SimpleNamespace(ok=True, render=lambda c: None))
     monkeypatch.setattr(sync, "is_saas_sync_enabled", lambda: False)
     result = invoke("now")
     assert result.exit_code == 0
@@ -374,9 +372,7 @@ def test_now_saas_disabled_silent_skip_exit_0(monkeypatch: pytest.MonkeyPatch) -
 
 def _stub_now_dispatch_to_recovery(monkeypatch: pytest.MonkeyPatch, outcome: RecoveryOutcome) -> None:
     """Route ``now`` past preflight into the unauthenticated-recovery branch."""
-    monkeypatch.setattr(
-        sync_preflight, "run_preflight", lambda *a, **k: SimpleNamespace(ok=True, render=lambda c: None)
-    )
+    monkeypatch.setattr(sync_preflight, "run_preflight", lambda *a, **k: SimpleNamespace(ok=True, render=lambda c: None))
     monkeypatch.setattr(sync, "enforce_teamspace_mission_state_ready", lambda **k: None)
     monkeypatch.setattr(sync, "_event_sync_retained_work_present", lambda: True)
     monkeypatch.setattr(
@@ -387,9 +383,7 @@ def _stub_now_dispatch_to_recovery(monkeypatch: pytest.MonkeyPatch, outcome: Rec
     # A summary that selected work but made no durable progress (recorded == 0)
     # is the dispatch analogue of the legacy per-event unauthenticated result --
     # it routes through the teamspace-aware recovery handler.
-    summary = DispatchSummary(
-        target_id=None, selected=1, delivered=0, duplicate=0, pending=0, rejected=0, transient=0, terminal_failed=0
-    )
+    summary = DispatchSummary(target_id=None, selected=1, delivered=0, duplicate=0, pending=0, rejected=0, transient=0, terminal_failed=0)
     monkeypatch.setattr(sync, "_run_event_sync_dispatch", lambda: summary)
     monkeypatch.setattr(sync, "handle_unauthenticated_with_teamspace", lambda **k: outcome)
 
@@ -449,9 +443,7 @@ def test_status_check_json_coherent_exit_0(monkeypatch: pytest.MonkeyPatch) -> N
         orphan_records=[],
     )
     monkeypatch.setattr(sync_preflight, "build_boundary_failure_set", lambda *a, **k: fake_fs)
-    monkeypatch.setattr(
-        sync_daemon, "scan_sync_daemons", lambda *a, **k: SimpleNamespace(orphan_count=0, orphan_processes=[])
-    )
+    monkeypatch.setattr(sync_daemon, "scan_sync_daemons", lambda *a, **k: SimpleNamespace(orphan_count=0, orphan_processes=[]))
     monkeypatch.setattr(sync, "is_saas_sync_enabled", lambda: False)
 
     def _fake_report(payload: dict[str, Any], runtime: object) -> dict[str, Any]:

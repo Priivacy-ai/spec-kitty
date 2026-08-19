@@ -37,6 +37,8 @@ from kernel.clock import now_utc
 
 runner = CliRunner()
 
+pytestmark = [pytest.mark.fast]
+
 
 @pytest.fixture(autouse=True)
 def _hermetic_sync_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

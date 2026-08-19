@@ -14,6 +14,8 @@ I/O and no ``Console`` in sight.
 
 from __future__ import annotations
 
+import pytest
+
 import dataclasses
 from kernel.clock import timedelta
 from types import SimpleNamespace
@@ -90,6 +92,8 @@ def _report(**overrides: Any) -> DoctorReport:
 # Healthy verdict
 # ---------------------------------------------------------------------------
 
+pytestmark = [pytest.mark.fast]
+
 
 def test_healthy_facts_yield_no_issues() -> None:
     report = _report()
@@ -110,16 +114,12 @@ def test_queue_unavailable_surfaces_migrate_issue() -> None:
 
 
 def test_queue_full_surfaces_eviction_issue() -> None:
-    report = _report(
-        queue_stats=SimpleNamespace(total_queued=1000, max_queue_size=1000, oldest_event_age=None, top_event_types=[])
-    )
+    report = _report(queue_stats=SimpleNamespace(total_queued=1000, max_queue_size=1000, oldest_event_age=None, top_event_types=[]))
     assert any("Queue is FULL" in i for i in report.issues)
 
 
 def test_queue_near_full_surfaces_percentage_issue() -> None:
-    report = _report(
-        queue_stats=SimpleNamespace(total_queued=850, max_queue_size=1000, oldest_event_age=None, top_event_types=[])
-    )
+    report = _report(queue_stats=SimpleNamespace(total_queued=850, max_queue_size=1000, oldest_event_age=None, top_event_types=[]))
     assert any("Queue is 85% full" in i for i in report.issues)
 
 
