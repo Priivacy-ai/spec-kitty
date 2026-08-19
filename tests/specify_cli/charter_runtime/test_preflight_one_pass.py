@@ -183,13 +183,9 @@ def test_multi_failure_per_check_verdicts_pinned(tmp_path: Path) -> None:
 
     by_name = {c.name: c for c in result.checks}
     assert by_name["charter_source"].state == "invalid"
-    assert by_name["charter_source"].remediation == (
-        "spec-kitty charter generate --no-from-interview --recover-invalid"
-    )
+    assert by_name["charter_source"].remediation is None
     assert by_name["synced_bundle"].state == "stale"
-    assert by_name["synced_bundle"].remediation == (
-        "spec-kitty charter generate --no-from-interview --recover-invalid"
-    )
+    assert by_name["synced_bundle"].remediation is None
     assert by_name["synthesized_drg"].state == "missing"
     assert by_name["synthesized_drg"].remediation == "spec-kitty charter synthesize"
 

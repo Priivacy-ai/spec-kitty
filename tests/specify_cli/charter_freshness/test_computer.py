@@ -261,7 +261,10 @@ def test_charter_source_invalid_when_unparseable(tmp_path: Path) -> None:
     _seed_charter_yaml(tmp_path, body="not: [valid: yaml: at: all")
     result = compute_freshness(tmp_path)
     assert result.charter_source.state == "invalid"
-    assert result.charter_source.remediation == "spec-kitty charter generate --no-from-interview --recover-invalid"
+    # No command can repair an unparseable charter.yaml (see
+    # _NO_EFFECTIVE_REMEDIATION in computer.py); the detail explains it instead.
+    assert result.charter_source.remediation is None
+    assert "cannot be parsed" in (result.charter_source.detail or "")
 
 
 def test_charter_source_never_reachable_as_stale() -> None:

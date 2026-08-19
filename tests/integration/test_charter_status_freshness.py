@@ -227,9 +227,7 @@ def test_freshness_state_invalid_when_charter_yaml_unparseable(tmp_path: Path) -
     payload = _invoke_status_json(tmp_path)
     freshness = payload["freshness"]
     assert freshness["charter_source"]["state"] == "invalid"
-    assert freshness["charter_source"]["remediation"] == (
-        "spec-kitty charter generate --no-from-interview --recover-invalid"
-    )
+    assert freshness["charter_source"]["remediation"] is None
 
 
 def test_freshness_state_missing_when_no_synthesis_artifacts(tmp_path: Path) -> None:

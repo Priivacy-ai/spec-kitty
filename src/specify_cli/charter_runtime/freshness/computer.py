@@ -119,20 +119,26 @@ FreshnessState = Literal["fresh", "stale", "missing", "built_in_only", "invalid"
 # `src/charter/sync.py` documents itself as a pure staleness reporter -- "it
 # always reports synced=False / files_written=[]" -- so every state that named
 # it handed the operator a command that could not clear the check blocking them.
-# Each state below now names a command that demonstrably reaches `fresh`,
-# enforced by tests/architectural/test_remediation_effectiveness.py.
 _REMEDIATE_CHARTER_GENERATE = "spec-kitty charter generate --no-from-interview"
-#: An unparseable `charter.yaml` needs the extra flag: `write_compiled_charter`
-#: refreshes only the DERIVED sections of an existing file and round-trips the
-#: document to preserve the AUTHORED ones, so it must parse it. `--force` does
-#: NOT help (it gates no destructive overwrite -- see that function's
-#: docstring); the file has to be moved aside first, which `--recover-invalid`
-#: does (to `charter.yaml.bak`).
-_REMEDIATE_CHARTER_RECOVER = (
-    "spec-kitty charter generate --no-from-interview --recover-invalid"
-)
 _REMEDIATE_CHARTER_SYNTHESIZE = "spec-kitty charter synthesize"
 
+#: States for which NO command in this codebase can currently reach `fresh`, so
+#: the honest output is no command at all rather than one that cannot work.
+#:
+#: An unparseable `charter.yaml` is the case: `write_compiled_charter` refreshes
+#: only the DERIVED sections of an existing file and round-trips the document to
+#: preserve the AUTHORED ones, so it must PARSE it -- and `--force` gates no
+#: destructive overwrite (see that function's docstring). PR #3015 reached the
+#: same conclusion by exhaustive census.
+#:
+#: Moving the file aside first LOOKS like the answer and is not: on any project
+#: that has run `charter generate` before, `.kittify/config.yaml` carries a
+#: `charter:` pointer, and generation then dies in
+#: `provision_mission_type_activations` -> `resolve_activation_write_target`
+#: with CHARTER_PACK_CONFIG_INVALID *after* the original was moved -- leaving no
+#: charter.yaml at all. That is strictly worse than showing no command, so this
+#: state stays exempt until the stale-pointer crash is fixed on its own.
+_NO_EFFECTIVE_REMEDIATION = None
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -309,6 +315,36 @@ def _latest_mtime(paths: list[Path]) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+
+def _has_charter_pointer(repo_root: Path) -> bool:
+    """True when ``.kittify/config.yaml`` carries a ``charter:`` pointer.
+
+    Load-bearing for remediation selection, not cosmetic. A project that has
+    ever run ``charter generate`` successfully carries this pointer, and
+    ``pack_manager.resolve_activation_write_target`` then fails LOUD by design
+    (INV-5 / #2530) when the pointed-at file is absent or unreadable -- so
+    ``charter generate`` itself cannot run, and cannot be the remediation.
+    """
+    config = _safe_load_yaml(repo_root / ".kittify" / "config.yaml")
+    return bool(config) and bool(str(config.get("charter") or "").strip())
+
+
+def _remediation_for_absent_charter(repo_root: Path) -> str | None:
+    """The command that can recreate an absent ``charter.yaml``, if one exists.
+
+    Without a pointer this is an ordinary bootstrap and ``charter generate``
+    works (verified). With a dangling pointer it does not: generation dies in
+    ``provision_mission_type_activations`` before writing anything. The
+    documented recovery for that shape is ``spec-kitty upgrade``, which is
+    INTERACTIVE (it prompts before applying migrations), so there is no single
+    non-interactive command to hand the operator -- and naming one that exits
+    non-zero is the exact defect #2831 is about.
+    """
+    if _has_charter_pointer(repo_root):
+        return _NO_EFFECTIVE_REMEDIATION
+    return _REMEDIATE_CHARTER_GENERATE
+
+
 def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
     """Report presence/parseability of the resolving charter source.
 
@@ -326,7 +362,16 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation=_REMEDIATE_CHARTER_GENERATE,
+            remediation=_remediation_for_absent_charter(repo_root),
+            detail=(
+                None
+                if not _has_charter_pointer(repo_root)
+                else (
+                    "charter.yaml is absent but .kittify/config.yaml still points at it; "
+                    "`charter generate` fails closed on a dangling pointer (INV-5). "
+                    "Run `spec-kitty upgrade` (interactive) or correct the 'charter:' pointer"
+                )
+            ),
         )
 
     last_change = _mtime_iso(charter_yaml_path)
@@ -335,10 +380,11 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
         return FreshnessSubState(
             state="invalid",
             last_change=last_change,
-            remediation=_REMEDIATE_CHARTER_RECOVER,
+            remediation=_NO_EFFECTIVE_REMEDIATION,
             detail=(
-                "charter.yaml exists but cannot be parsed; --recover-invalid moves it "
-                "to charter.yaml.bak and bootstraps a fresh one"
+                "charter.yaml exists but cannot be parsed; no command can currently "
+                "repair it -- fix the YAML by hand, or move it aside and re-run "
+                "`spec-kitty charter generate --no-from-interview`"
             ),
         )
 
@@ -368,7 +414,7 @@ def _compute_synced_bundle(
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation=_REMEDIATE_CHARTER_GENERATE,
+            remediation=_remediation_for_absent_charter(repo_root),
         )
 
     last_change = _latest_mtime(existing)
@@ -377,7 +423,7 @@ def _compute_synced_bundle(
         return FreshnessSubState(
             state="stale",
             last_change=last_change,
-            remediation=_REMEDIATE_CHARTER_RECOVER,
+            remediation=_NO_EFFECTIVE_REMEDIATION,
         )
 
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
