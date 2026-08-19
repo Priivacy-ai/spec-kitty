@@ -36,7 +36,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
+from doctrine.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
 from doctrine.drg.models import NodeKind
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
@@ -242,3 +242,287 @@ def test_mixed_enum_and_plain_keys_raise_instead_of_silently_skipping() -> None:
     tree = ast.parse(source, filename="<synthetic>")
     with pytest.raises(AssertionError, match="mixes enum-keyed"):
         _kind_keyed_dicts_in_module(tree, "synthetic")
+
+
+# ---------------------------------------------------------------------------
+# WP05 / T025 -- STRING-KEYED kind-map coverage.
+#
+# The enum-keyed guard above is blind to string-keyed kind maps (keys are string
+# literals, not ``ArtifactKind.MEMBER`` accesses). Those maps -- the artifact_kinds
+# authority tables ``_PLURALS`` / ``_PATTERNS`` / ``_HAS_BUILT_IN_CONTENT_DIR``,
+# and the string-keyed ``charter.synthesizer.project_drg._KIND_TO_NODE_KIND`` --
+# escaped totality entirely (the #2981 drift class: a copy silently missing a
+# kind). This section extends the same AST machinery to string-keyed kind-map
+# LITERALS: a module-level dict whose keys are all string constants drawn from
+# the kind vocabulary. Such a map must be total over its key-family (all singular
+# ArtifactKind values, or all plurals) unless it is an explicitly allow-listed
+# intentional partial. (Collapsed authorities that are dict *comprehensions*, not
+# literals -- e.g. ``CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`` -- are ``ast.DictComp``
+# nodes, not ``ast.Dict``, so they are naturally out of scope here and covered by
+# their own WP03 tests.)
+# ---------------------------------------------------------------------------
+
+_KIND_SINGULARS: frozenset[str] = frozenset(kind.value for kind in ArtifactKind)
+_KIND_PLURALS: frozenset[str] = frozenset(kind.plural for kind in ArtifactKind)
+
+#: Minimum number of kind-token keys before a string-keyed dict is treated as a
+#: kind map (avoids matching an incidental 1-2 entry dict that merely happens to
+#: use a kind word as a key).
+_MIN_STRING_KIND_KEYS = 3
+
+#: String-keyed kind-map LITERALS that are the canonical kind *authorities* and
+#: MUST therefore be total over every :class:`ArtifactKind` (a new kind added
+#: without an entry here is a silent trap the enum-keyed guard cannot see because
+#: the keys are strings). Keyed ``"<dotted.module>::<CONSTANT>"``.
+#:
+#: Scope note (no silent caps): the string-keyed scan *discovers* every string
+#: kind-map literal in the tree, but many are legitimately partial consumer maps
+#: (subsets of kinds for a specific purpose) -- forcing all of them total is out
+#: of scope for M1 (that is the cascade/kind-admission work of M5/M6). This gate
+#: enforces totality on the declared canonical authorities only; the broader
+#: discovery is proven non-vacuous by
+#: :func:`test_string_keyed_kind_map_coverage_sees_previously_hidden_maps`.
+_STRING_KEYED_MUST_BE_TOTAL: frozenset[str] = frozenset(
+    {
+        "doctrine.artifact_kinds::_PLURALS",
+        "doctrine.artifact_kinds::_PATTERNS",
+        "doctrine.artifact_kinds::_HAS_BUILT_IN_CONTENT_DIR",
+    }
+)
+
+#: A previously-invisible string-keyed kind map the scan must now SEE (proving
+#: the #2981 escape is closed), even though it is a legitimate partial not
+#: required to be total. ``_KIND_TO_NODE_KIND`` synthesizes only directive/
+#: tactic/styleguide targets (read via ``.get``); converting it to enum-keyed is
+#: M6 (#3038), out of scope for M1 (C-004).
+_STRING_KEYED_COVERAGE_WITNESS = "charter.synthesizer.project_drg::_KIND_TO_NODE_KIND"
+
+
+@dataclass(frozen=True)
+class _StringKindKeyedDict:
+    """A discovered module-level dict literal keyed by kind-token string constants."""
+
+    qualified_name: str
+    key_family: str  # "singular" | "plural"
+    keys: frozenset[str]
+    lineno: int
+
+
+def _string_constant_keys(value: ast.Dict) -> list[str] | None:
+    """Return the string-constant keys of *value*, or ``None`` if any key is not one."""
+    keys: list[str] = []
+    for key in value.keys:
+        if isinstance(key, ast.Constant) and isinstance(key.value, str):
+            keys.append(key.value)
+        else:
+            return None
+    return keys
+
+
+def _string_kind_keyed_dicts_in_module(
+    tree: ast.Module, module_name: str
+) -> list[_StringKindKeyedDict]:
+    """Find module-level dict literals keyed entirely by kind-token strings.
+
+    A candidate is a dict all of whose keys are string constants and where at
+    least :data:`_MIN_STRING_KIND_KEYS` of them are drawn from ONE key-family
+    (all singular :class:`ArtifactKind` values, or all plurals). A dict that
+    mixes singular and plural kind keys, or mixes kind and non-kind keys, is not
+    a clean kind map and is skipped (the enum-keyed guard's mixed-shape rule has
+    the analogous strictness).
+    """
+    found: list[_StringKindKeyedDict] = []
+    for stmt in tree.body:
+        pair = _dict_target_and_value(stmt)
+        if pair is None:
+            continue
+        target, value = pair
+        if not isinstance(value, ast.Dict):
+            continue
+        keys = _string_constant_keys(value)
+        if keys is None or len(keys) < _MIN_STRING_KIND_KEYS:
+            continue
+        key_set = frozenset(keys)
+        singular_hits = key_set & _KIND_SINGULARS
+        plural_hits = key_set & _KIND_PLURALS
+        # Require a homogeneous, fully-kind-token key set of one family.
+        if key_set <= _KIND_SINGULARS and len(singular_hits) >= _MIN_STRING_KIND_KEYS:
+            family = "singular"
+        elif key_set <= _KIND_PLURALS and len(plural_hits) >= _MIN_STRING_KIND_KEYS:
+            family = "plural"
+        else:
+            continue
+        found.append(
+            _StringKindKeyedDict(
+                qualified_name=f"{module_name}::{target.id}",
+                key_family=family,
+                keys=key_set,
+                lineno=stmt.lineno,
+            )
+        )
+    return found
+
+
+def _discover_string_kind_keyed_dicts() -> list[_StringKindKeyedDict]:
+    found: list[_StringKindKeyedDict] = []
+    for path in sorted(_SRC_ROOT.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        found.extend(_string_kind_keyed_dicts_in_module(tree, _dotted_module_name(path)))
+    return found
+
+
+def _string_missing_members(entry: _StringKindKeyedDict) -> set[str]:
+    family = _KIND_SINGULARS if entry.key_family == "singular" else _KIND_PLURALS
+    return set(family) - entry.keys
+
+
+def test_string_keyed_authority_maps_are_total() -> None:
+    """The canonical string-keyed kind authorities must be total over every kind.
+
+    Catches the #2981 drift class at its source: a canonical authority table
+    (``_PLURALS`` / ``_PATTERNS`` / ``_HAS_BUILT_IN_CONTENT_DIR``) silently
+    missing a kind fails here, naming the missing kinds -- coverage the
+    enum-keyed guard cannot provide because these maps are string-keyed.
+    """
+    by_name = {e.qualified_name: e for e in _discover_string_kind_keyed_dicts()}
+    violations: list[str] = []
+    for authority in _STRING_KEYED_MUST_BE_TOTAL:
+        assert authority in by_name, (
+            f"authority {authority!r} was not discovered by the string-keyed scan "
+            "(renamed/relocated? update _STRING_KEYED_MUST_BE_TOTAL)"
+        )
+        missing = _string_missing_members(by_name[authority])
+        if missing:
+            violations.append(f"{authority} is missing {sorted(missing)}")
+    assert not violations, "\n".join(violations)
+
+
+#: Pre-existing charter ``plural↔singular`` kind-map literals that predate M1 and
+#: sit outside its named scope. ``charter.drg::_SINGULAR_TO_PLURAL`` is a fifth
+#: hand copy (identical 10 kinds to the derived authority) surfaced by the M1
+#: review squad; it lives on the golden-adjacent DRG activation-filter path and
+#: imports ``ArtifactKind`` via ``doctrine.api`` (a public-wheel boundary), so it
+#: is left un-collapsed under C-004 discipline. Follow-up: collapse onto
+#: :data:`doctrine.artifact_kinds.CHARTER_ACTIVATABLE_SINGULAR_TO_PLURAL`.
+_CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT: frozenset[str] = frozenset(
+    {"charter.drg::_SINGULAR_TO_PLURAL"}
+)
+
+#: The full charter-activatable singular→plural vocabulary (10 kinds). A literal
+#: containing EVERY one of these pairs is a complete hand copy of the vocabulary
+#: authority — the #2981 re-declaration class. A *partial* singular→plural map
+#: (a directory/array map that merely uses some plurals as values, e.g.
+#: ``_REFERENCE_KIND_DIRS``) is a legitimate consumer, not a vocabulary copy, and
+#: is not flagged.
+_FULL_ACTIVATABLE_SINGULAR_PLURAL_PAIRS: frozenset[tuple[str, str]] = frozenset(
+    (kind.value, kind.plural) for kind in CHARTER_ACTIVATABLE_KINDS
+)
+
+
+def _plural_singular_kind_literals_in_module(
+    tree: ast.Module, module_name: str
+) -> list[str]:
+    """Return qualified names of dict literals that are a COMPLETE plural↔singular
+    kind-vocabulary copy (contain every charter-activatable singular→plural pair).
+
+    This is the #2981 re-declaration signature: a full hand copy of the derived
+    vocabulary authority. Extra keys (e.g. a ``mission-type`` token) are tolerated
+    so a copy carrying one is still recognised; partial maps are not flagged.
+    """
+    found: list[str] = []
+    for stmt in tree.body:
+        pair = _dict_target_and_value(stmt)
+        if pair is None:
+            continue
+        target, value = pair
+        if not isinstance(value, ast.Dict):
+            continue
+        pairs = {
+            (key.value, val.value)
+            for key, val in zip(value.keys, value.values, strict=True)
+            if isinstance(key, ast.Constant)
+            and isinstance(key.value, str)
+            and isinstance(val, ast.Constant)
+            and isinstance(val.value, str)
+        }
+        if pairs >= _FULL_ACTIVATABLE_SINGULAR_PLURAL_PAIRS:
+            found.append(f"{module_name}::{target.id}")
+    return found
+
+
+def test_no_charter_module_redeclares_a_plural_singular_kind_literal() -> None:
+    """The #2981 class is fail-loud: charter must DERIVE the plural↔singular map.
+
+    A charter module that re-introduces a hand-copied plural↔singular kind-map
+    literal (instead of importing the single derived authority) fails here —
+    exactly the re-declaration class the enum-keyed guard and the authority-only
+    string guard cannot catch. The one pre-existing copy is explicitly exempted
+    with a documented follow-up; any NEW one reddens this test.
+    """
+    charter_root = _SRC_ROOT / "charter"
+    offenders: list[str] = []
+    for path in sorted(charter_root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        offenders.extend(
+            name
+            for name in _plural_singular_kind_literals_in_module(
+                tree, _dotted_module_name(path)
+            )
+            if name not in _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT
+        )
+    assert not offenders, (
+        "these charter modules re-declare a plural↔singular kind-map literal "
+        "instead of importing doctrine.artifact_kinds.CHARTER_ACTIVATABLE_"
+        f"SINGULAR_TO_PLURAL (#2981 re-declaration class): {offenders}"
+    )
+
+
+def test_charter_plural_singular_literal_exemptions_are_real() -> None:
+    """Each exempt pre-existing copy must actually be discovered (non-vacuous)."""
+    charter_root = _SRC_ROOT / "charter"
+    discovered: set[str] = set()
+    for path in sorted(charter_root.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        discovered.update(
+            _plural_singular_kind_literals_in_module(tree, _dotted_module_name(path))
+        )
+    for exempt in _CHARTER_PLURAL_SINGULAR_LITERAL_EXEMPT:
+        assert exempt in discovered, (
+            f"exempt {exempt!r} not found -- collapsed already? drop the exemption"
+        )
+
+
+def test_string_keyed_kind_map_coverage_sees_previously_hidden_maps() -> None:
+    """The escape is closed: the scan now SEES string-keyed kind maps.
+
+    ``_KIND_TO_NODE_KIND`` (string-keyed) was invisible to the enum-keyed guard;
+    the string-keyed scan must discover it (a legitimate partial -- not required
+    total, but no longer unseen).
+    """
+    by_name = {e.qualified_name: e for e in _discover_string_kind_keyed_dicts()}
+    assert _STRING_KEYED_COVERAGE_WITNESS in by_name, (
+        f"{_STRING_KEYED_COVERAGE_WITNESS} not discovered -- string-keyed coverage "
+        "regressed"
+    )
+    # It is genuinely partial (that is why it needs explicit coverage, not silence).
+    assert _string_missing_members(by_name[_STRING_KEYED_COVERAGE_WITNESS])
+
+
+def test_string_keyed_scan_flags_a_dropped_kind() -> None:
+    """A synthetic singular-keyed map missing a kind is reported by name."""
+    source = (
+        "_TABLE: dict[str, str] = {\n"
+        + "".join(
+            f"    {member.value!r}: 'x',\n"
+            for member in ArtifactKind
+            if member is not ArtifactKind.ASSET
+        )
+        + "}\n"
+    )
+    tree = ast.parse(source, filename="<synthetic-string-map>")
+    found = {
+        e.qualified_name: e
+        for e in _string_kind_keyed_dicts_in_module(tree, "synthetic")
+    }
+    entry = found["synthetic::_TABLE"]
+    assert _string_missing_members(entry) == {ArtifactKind.ASSET.value}
