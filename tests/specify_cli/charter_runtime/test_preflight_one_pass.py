@@ -51,9 +51,16 @@ Covers:
   gate (``check_analysis_report_current``, #2157b) is a different subsystem
   and must not be touched by this fix.
 - ``test_refresh_command_prefix_is_hoisted_shared_constant``: campsite
-  (S1192) -- the three refresh commands share a hoisted
+  (S1192) -- the ``spec-kitty charter``-rooted refresh commands
+  (``synthesize`` / ``bundle validate``) share a hoisted
   ``["spec-kitty", "charter"]`` prefix constant instead of repeating the
-  literal (their tails differ).
+  literal (their tails differ). H1 (#2831 HIGH finding) moved the refresh
+  sequence's step one off a hardcoded ``charter sync`` (a pure staleness
+  reporter that can never create/repair ``charter.yaml``) onto the
+  freshness-computed ``charter_source`` remediation instead -- which may or
+  may not sit under this same prefix (``spec-kitty upgrade --yes`` does
+  not) -- so this constant is no longer shared by all refresh-sequence
+  commands, only the two that always do.
 """
 
 from __future__ import annotations
@@ -337,7 +344,9 @@ def test_c004_fence_analysis_report_not_invoked(tmp_path: Path, monkeypatch: pyt
 
 
 def test_refresh_command_prefix_is_hoisted_shared_constant() -> None:
-    """The three refresh commands (``sync`` / ``synthesize`` /
-    ``bundle validate``) share a hoisted ``["spec-kitty", "charter"]``
-    prefix constant instead of each repeating the literal."""
+    """The ``synthesize`` / ``bundle validate`` refresh commands share a
+    hoisted ``["spec-kitty", "charter"]`` prefix constant instead of each
+    repeating the literal. Step one (H1, #2831) is built from the freshness
+    computer's own ``remediation`` string instead — see this module's
+    docstring."""
     assert list(runner_module._SPEC_KITTY_CHARTER_PREFIX) == ["spec-kitty", "charter"]
