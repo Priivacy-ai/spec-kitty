@@ -131,6 +131,28 @@ FreshnessState = Literal["fresh", "stale", "missing", "built_in_only", "invalid"
 # no remediation at all where none can help.
 _REMEDIATE_CHARTER_SYNTHESIZE = "spec-kitty charter synthesize"
 
+#: F1 ("no charter at all") remediation for a ``missing`` ``charter_source``/
+#: ``synced_bundle``: there is no legacy content to fold in, so a plain
+#: generate is both correct and content-preserving (there is nothing to
+#: preserve).
+_REMEDIATE_GENERATE_NO_INTERVIEW = "spec-kitty charter generate --no-from-interview"
+
+#: F2 (a legacy ``governance.yaml``/``directives.yaml``/``metadata.yaml``/
+#: ``references.yaml`` bundle present, ``charter.yaml`` not yet generated)
+#: remediation for the same ``missing`` state (H3, #2831 HIGH finding).
+#: ``spec-kitty charter generate --no-from-interview`` generates a DEFAULT
+#: charter.yaml from scratch — it does not read the legacy bundle at all, so
+#: an operator with real governance content silently loses it (the operator
+#: is told "fixed" while their governance intent is discarded). ``spec-kitty
+#: upgrade --yes`` (the non-interactive alias for ``--force``) reaches
+#: ``ConsolidateCharterBundleMigration``, which composes ``charter.yaml``
+#: FROM the legacy bundle — the content-preserving path. See
+#: ``tests/architectural/test_remediation_effectiveness.py::
+#: test_assert_remediation_effective_recognizes_a_genuinely_effective_remediation``
+#: for the proof that this command reaches ``fresh`` against a realistic F2
+#: fixture.
+_REMEDIATE_UPGRADE_YES = "spec-kitty upgrade --yes"
+
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -482,14 +504,31 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
     ``_missing_charter_source_detail``. Without it the two fixture shapes
     were indistinguishable to an operator: same state, same remediation, no
     explanatory text.
+
+    ``missing``'s ``remediation`` is ALSO F1/F2-conditional (H3, #2831 HIGH
+    finding): F1 and F2 used to share
+    :data:`_REMEDIATE_GENERATE_NO_INTERVIEW` even though that command
+    generates a DEFAULT charter and never reads the legacy bundle — an
+    operator with real governance content in F2 silently lost it. F2 (a
+    legacy bundle detected via :func:`_legacy_bundle_present`) now gets
+    :data:`_REMEDIATE_UPGRADE_YES`, which reaches
+    ``ConsolidateCharterBundleMigration`` and composes ``charter.yaml`` FROM
+    the legacy bundle instead of overwriting it with a blank one.
     """
     charter_yaml_path = repo_root / _CHARTER_DIR / _CHARTER_YAML_FILENAME
 
     if not charter_yaml_path.exists():
+        if _legacy_bundle_present(repo_root):
+            return FreshnessSubState(
+                state="missing",
+                last_change=None,
+                remediation=_REMEDIATE_UPGRADE_YES,
+                detail=_missing_charter_source_detail(repo_root),
+            )
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation="spec-kitty charter generate --no-from-interview",
+            remediation=_REMEDIATE_GENERATE_NO_INTERVIEW,
             detail=_missing_charter_source_detail(repo_root),
         )
 
@@ -555,15 +594,28 @@ def _compute_synced_bundle(
     recomputing the F1-vs-F2 distinction a second time: this branch is only
     reached when ``charter.yaml`` — the same file ``charter_source``
     inspects — is absent, so ``charter_source`` is always ``"missing"``
-    too, with the same F1/F2 answer already computed.
+    too, with the same F1/F2 answer already computed. ``remediation`` is
+    likewise F1/F2-conditional (H3, #2831), re-checking
+    :func:`_legacy_bundle_present` directly rather than threading a decision
+    through ``charter_source`` — this layer is only reached when
+    ``charter_source`` computed the identical F1/F2 answer from the same
+    disk state, so recomputing costs one extra filesystem check (NFR-001)
+    and keeps this function's remediation decision self-contained.
     """
     bundle_paths = [repo_root / _CHARTER_DIR / name for name in _BUNDLE_FILES]
     existing = [p for p in bundle_paths if p.exists()]
     if not existing:
+        if _legacy_bundle_present(repo_root):
+            return FreshnessSubState(
+                state="missing",
+                last_change=None,
+                remediation=_REMEDIATE_UPGRADE_YES,
+                detail=charter_source.detail,
+            )
         return FreshnessSubState(
             state="missing",
             last_change=None,
-            remediation="spec-kitty charter generate --no-from-interview",
+            remediation=_REMEDIATE_GENERATE_NO_INTERVIEW,
             detail=charter_source.detail,
         )
 

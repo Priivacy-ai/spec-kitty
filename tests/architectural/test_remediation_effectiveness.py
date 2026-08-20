@@ -39,6 +39,20 @@ see ``test_exempt_check_output_names_check_with_no_command`` and
 ``test_backfill_cannot_return`` for the coverage that replaced the two
 removed parametrized cases.
 
+H3 addendum (#2831 HIGH finding, landed alongside H5/H1/H2 in the same
+mission): ``_compute_charter_source``'s and ``_compute_synced_bundle``'s
+``missing`` branches each split from one call site into two — an F1 ("no
+charter at all") site keeping ``spec-kitty charter generate
+--no-from-interview`` and a distinct F2 (legacy bundle present) site now
+naming ``spec-kitty upgrade --yes`` instead. Both F1 and F2 used to share
+the F1 command, so an operator whose project actually carried a legacy
+``governance.yaml``/``directives.yaml``/``metadata.yaml``/``references.yaml``
+bundle was told to run a command that generates a DEFAULT charter and
+silently discards their governance content. ``_REMEDIATION_STATE_FLOOR``
+grew 5 -> 7 and the floor-sum invariant 7 -> 9 to match (a genuine new-call-
+site addition, not a state moving between the floor and the exemption set —
+see the comment on that assertion below).
+
 WP03 cycle-2 addendum: review cycle 1 found two gaps in this module's own
 bookkeeping, neither touching ``computer.py``/``runner.py``:
 
@@ -86,6 +100,7 @@ import subprocess
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from textwrap import dedent
 
 import pytest
 
@@ -94,6 +109,7 @@ from specify_cli.charter_runtime.freshness.computer import compute_freshness
 from specify_cli.charter_runtime.preflight.runner import run_charter_preflight
 
 from tests.specify_cli.charter_preflight._fixtures import (
+    build_f1_no_charter,
     build_f2_legacy_bundle_no_charter_yaml,
     build_f4_invalid_charter_yaml,
     init_git_repo,
@@ -285,15 +301,19 @@ _EXEMPT_STATES: frozenset[tuple[str, str]] = frozenset(
 # T005 — pinned floors (NFR-001 / C-EFF-4)
 # ---------------------------------------------------------------------------
 
-# R-005 census, as amended by WP03: 2 `spec-kitty charter generate`
-# sites (`_compute_charter_source`'s :309 missing, `_compute_synced_bundle`'s
-# :~368 missing) + 3 `spec-kitty charter synthesize` sites (synthesized_drg).
-# The former :318/:357 sites (`invalid` / cascading `stale`) now emit
-# `remediation=None` and are declared exempt above rather than counted here
-# — WP03, a deliberate reviewed change (was 7). Update this floor
-# deliberately, in the same change, when a state is legitimately added or
-# removed — never to nudge a red run green.
-_REMEDIATION_STATE_FLOOR = 5
+# R-005 census, as amended by WP03 then by the H3 fix (#2831 HIGH finding):
+# `_compute_charter_source`'s and `_compute_synced_bundle`'s `missing`
+# branches each SPLIT into two call sites (F1 "no charter at all" ->
+# `spec-kitty charter generate --no-from-interview`; F2 "legacy bundle
+# present" -> `spec-kitty upgrade --yes`) -- both used to share the F1
+# command, silently discarding a legacy bundle's content (H3). That is
+# 2 + 2 = 4 `missing`-state sites (was 2) + 3 `spec-kitty charter synthesize`
+# sites (synthesized_drg) = 7. The :318/:357-equivalent sites (`invalid` /
+# cascading `stale`) still emit `remediation=None` and are declared exempt
+# above rather than counted here — WP03, a deliberate reviewed change (was
+# 7, then 5). Update this floor deliberately, in the same change, when a
+# state is legitimately added or removed — never to nudge a red run green.
+_REMEDIATION_STATE_FLOOR = 7
 
 # `_compute_charter_source`, `_compute_synced_bundle`, `_compute_synthesized_drg`
 # (R-005). Update deliberately, in the same change, if a producer is added.
@@ -384,13 +404,22 @@ def test_exemption_set_size_is_pinned() -> None:
         "does have a working remediation, excluding it from C-EFF-1 testing."
     )
 
-    assert _REMEDIATION_STATE_FLOOR + _EXEMPTION_FLOOR == 7, (
+    # H3 (#2831 HIGH finding) genuinely grew the total: `_compute_charter_source`'s
+    # and `_compute_synced_bundle`'s `missing` branches each split into an F1 call
+    # site (`spec-kitty charter generate --no-from-interview`) and a distinct F2
+    # call site (`spec-kitty upgrade --yes`) so a legacy bundle's content is no
+    # longer silently discarded by a shared, wrong remediation. That is +2 real
+    # call sites (7 -> 9) -- not a state moving between the floor and the
+    # exemption set, which is exactly the case this assertion exists to tell
+    # apart from an accidental shrink. Updated deliberately, in this same
+    # reviewed change, per this test's own documented escape hatch below.
+    assert _REMEDIATION_STATE_FLOOR + _EXEMPTION_FLOOR == 9, (
         "NFR-001/C-EFF-4: the remediation-emitting floor and the exemption "
         f"floor drifted apart from the known total — {_REMEDIATION_STATE_FLOOR} "
-        f"+ {_EXEMPTION_FLOOR} != 7. A state may legitimately move between "
+        f"+ {_EXEMPTION_FLOOR} != 9. A state may legitimately move between "
         "remediation-emitting coverage and _EXEMPT_STATES (bump one floor, "
         "drop the other, in the same change) but must never be lost from "
-        "both at once. If the total genuinely changed, update `7` "
+        "both at once. If the total genuinely changed, update `9` "
         "deliberately, in this same reviewed change."
     )
 
@@ -480,6 +509,17 @@ def _fixture_charter_source_missing(root: Path) -> Path:
     return build_f2_legacy_bundle_no_charter_yaml(root)
 
 
+def _fixture_charter_source_missing_f1(root: Path) -> Path:
+    """F1 (H3, #2831 HIGH finding) — drives the SAME ``missing`` state as
+    :func:`_fixture_charter_source_missing`, but with no legacy bundle on
+    disk at all: "no charter, never initialised", distinct from F2's
+    "legacy bundle present, not yet folded in". Exercises the OTHER of the
+    two ``missing``-state call sites ``computer.py`` now emits — F1 keeps
+    ``spec-kitty charter generate --no-from-interview`` (there is no legacy
+    content to preserve), while F2 moved to ``spec-kitty upgrade --yes``."""
+    return build_f1_no_charter(root)
+
+
 def _fixture_exempt_pair(root: Path) -> Path:
     """F4 — drives the two exempt states (``charter_source: invalid`` and
     the cascading ``synced_bundle: stale``) simultaneously: ``synced_bundle``
@@ -546,23 +586,33 @@ class _EffectivenessCase:
 #: line down. Re-derived by running
 #: ``_discover_remediation_emitting_states_full()`` against the current
 #: file, not by hand-counting.
-#: Re-pinned three times during the #2831 landing: first by upstream's own
+#: Re-pinned four times during the #2831 landing: first by upstream's own
 #: edits to ``computer.py`` (411 -> 422, 464 -> 475, 569 -> 580, 600 -> 611,
 #: 613 -> 624), then by this mission's charter.md F1/F2 fix (422 -> 445,
-#: 475 -> 498, 580 -> 603, 611 -> 634, 624 -> 647), then again by the H5 fix
+#: 475 -> 498, 580 -> 603, 611 -> 634, 624 -> 647), then by the H5 fix
 #: (#2831 HIGH finding) that inserted ``_is_supported_charter_bundle`` ahead
 #: of ``_compute_charter_source`` (445 -> 492, 498 -> 566, 603 -> 671,
-#: 634 -> 702, 647 -> 715). Multiple re-pins in one landing are the cost of a
-#: positional key; it is tolerable only because a stale lineno here fails
-#: LOUDLY in the parity test below rather than silently dropping a state. Re-derived by running
+#: 634 -> 702, 647 -> 715), then by the H3 fix (#2831 HIGH finding) that
+#: split ``_compute_charter_source``'s and ``_compute_synced_bundle``'s
+#: ``missing`` branches into distinct F1/F2 call sites: this GREW the table
+#: from 5 to 7 rows (492 -> {525, 531}, 566 -> {612, 618}, 671 -> 723,
+#: 702 -> 754, 715 -> 767) — not a pure re-pin, a genuine new-coverage
+#: addition (see ``_REMEDIATION_STATE_FLOOR``'s comment). Multiple re-pins
+#: in one landing are the cost of a positional key; it is tolerable only
+#: because a stale lineno here fails LOUDLY in the parity test below rather
+#: than silently dropping a state. Re-derived by running
 #: ``_discover_remediation_emitting_states_full()`` against the current file,
-#: never by hand-counting. The producer/state identities are unchanged.
+#: never by hand-counting. The producer/state identities are unchanged
+#: (`missing` remains `missing` — only the number of DISTINCT remediation
+#: commands the state can emit changed, from 1 to 2, per producer).
 _CASES: tuple[_EffectivenessCase, ...] = (
-    _EffectivenessCase("charter_source", 492, _fixture_charter_source_missing),
-    _EffectivenessCase("synced_bundle", 566, _fixture_charter_source_missing),
-    _EffectivenessCase("synthesized_drg", 671, _fixture_drg_missing),
-    _EffectivenessCase("synthesized_drg", 702, _fixture_drg_stale_bundle_not_fresh),
-    _EffectivenessCase("synthesized_drg", 715, _fixture_drg_stale_hash_mismatch),
+    _EffectivenessCase("charter_source", 525, _fixture_charter_source_missing),
+    _EffectivenessCase("charter_source", 531, _fixture_charter_source_missing_f1),
+    _EffectivenessCase("synced_bundle", 612, _fixture_charter_source_missing),
+    _EffectivenessCase("synced_bundle", 618, _fixture_charter_source_missing_f1),
+    _EffectivenessCase("synthesized_drg", 723, _fixture_drg_missing),
+    _EffectivenessCase("synthesized_drg", 754, _fixture_drg_stale_bundle_not_fresh),
+    _EffectivenessCase("synthesized_drg", 767, _fixture_drg_stale_hash_mismatch),
 )
 
 
@@ -690,6 +740,73 @@ def test_assert_remediation_effective_recognizes_a_genuinely_effective_remediati
     assert after == "fresh", (
         "expected `spec-kitty upgrade --yes` to fully resolve charter_source to 'fresh' "
         f"against a realistic F2 fixture; got {after!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# H3 (#2831 HIGH finding) — the F2 remediation must be CONTENT-PRESERVING,
+# not merely state-changing
+# ---------------------------------------------------------------------------
+
+
+def test_f2_remediation_composes_upgrade_yes_and_preserves_legacy_content(
+    tmp_path: Path,
+    run_cli: Callable[..., subprocess.CompletedProcess[str]],
+) -> None:
+    """H3 acceptance test: the composed remediation the operator is shown
+    for an F2 (legacy-bundle) project must be ``spec-kitty upgrade --yes``
+    — never the shared F1 command — AND running it must fold the legacy
+    bundle's actual content into ``charter.yaml``, not overwrite it with a
+    blank default.
+
+    Before H3, ``_compute_charter_source``/``_compute_synced_bundle`` named
+    ``spec-kitty charter generate --no-from-interview`` for F2 exactly as
+    for F1. That command generates a DEFAULT charter and never reads
+    ``governance.yaml``/``directives.yaml`` at all — an operator's real
+    governance content (a distinctive, hand-authored directive here) would
+    be silently discarded even though the gate reported success.
+    ``ConsolidateCharterBundleMigration`` (reached via ``spec-kitty upgrade
+    --yes``) is the only remediation that actually reads the legacy bundle
+    (``m_unify_charter_activation_finalize.py::_compose_charter_yaml_document``),
+    so this test seeds a marker no default-generated charter could produce
+    by coincidence and asserts it survives verbatim into the written
+    ``charter.yaml``.
+    """
+    repo_root = tmp_path
+    build_f2_legacy_bundle_no_charter_yaml(repo_root)
+
+    distinctive_directive_id = "DIRECTIVE_2831_CANARY"
+    distinctive_title = "H3 canary: legacy governance content must survive remediation"
+    (repo_root / ".kittify" / "charter" / "directives.yaml").write_text(
+        dedent(
+            f"""\
+            directives:
+              - id: {distinctive_directive_id}
+                title: "{distinctive_title}"
+                description: Marker directive proving the F2 remediation is content-preserving.
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    command = _composed_command_for_layer(repo_root, "charter_source")
+    assert command == "spec-kitty upgrade --yes", (
+        "expected the composed remediation for an F2 (legacy-bundle) project to be "
+        f"`spec-kitty upgrade --yes`, not the content-discarding F1 command; got {command!r}"
+    )
+
+    _assert_remediation_effective(repo_root, "charter_source", command, run_cli)
+
+    charter_yaml_path = repo_root / ".kittify" / "charter" / "charter.yaml"
+    assert charter_yaml_path.exists(), "remediation must have written charter.yaml"
+    written = charter_yaml_path.read_text(encoding="utf-8")
+    assert distinctive_directive_id in written, (
+        "the legacy directive's id must survive the F2 remediation into charter.yaml — "
+        f"a content-discarding remediation would produce a default charter with no such "
+        f"marker. Written charter.yaml:\n{written}"
+    )
+    assert distinctive_title in written, (
+        "the legacy directive's title must survive the F2 remediation into charter.yaml"
     )
 
 
