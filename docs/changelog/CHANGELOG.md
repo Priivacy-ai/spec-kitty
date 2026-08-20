@@ -354,6 +354,20 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **A procedure named in an agent profile's `operating-procedures` field now
+  becomes a real, cascade-reachable dependency of that profile — and a fictional
+  or wrong-kind entry fails the doctrine build loudly instead of drifting in
+  silence (`#2994`, `#3352`, `#3488`; M3 of the operating-procedures program).**
+  Before, those edges were hand-pinned one-by-one in the DRG extractor (drift-prone
+  and easy to forget), while 44 dead references — 36 pointing at procedures that
+  never existed and 8 pointing at the wrong kind — sat unresolved and invisible.
+  Now the field is the single authority: `spec-kitty` harvests it into
+  `agent_profile --requires--> procedure` graph edges, refuses to build when a
+  built-in entry does not resolve to a real procedure node (naming the offender),
+  and `spec-kitty doctor doctrine` surfaces any unresolved entries. The 44 dead
+  references were triaged (delete / repoint / migrate) so the shipped population
+  is 100% resolvable.
+
 - **A hand-authored project-tier agent profile now becomes a reference-graph node
   the charter cascade can reach — before, it loaded and validated but was
   silently invisible to cascade (`#3038`; M6 of the charter-resolution program;
