@@ -445,7 +445,8 @@ def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
         resolve_operating_procedure_entries,
     )
     from charter.offering.drg.loader import load_built_in_graph
-    from charter.offering.pack_paths import built_in_root
+    from charter.offering.artifact_kinds import ArtifactKind
+    from charter.offering.pack_paths import built_in_dir
 
     org_drg = report.org_drg
     if not isinstance(org_drg, dict):  # pragma: no cover — always a dict
@@ -453,7 +454,7 @@ def _run_operating_procedures_check(report: DoctrineHealthReport) -> None:
     try:
         procedure_urns, urns_by_kind = node_universe(load_built_in_graph().nodes)
         entries = collect_operating_procedure_entries(
-            built_in_root() / "agent_profiles"
+            built_in_dir(ArtifactKind.AGENT_PROFILE)
         )
         unresolved = resolve_operating_procedure_entries(
             entries, procedure_urns, urns_by_kind
