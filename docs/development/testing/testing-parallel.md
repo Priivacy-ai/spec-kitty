@@ -65,7 +65,7 @@ isolated home directory. The isolation is set up in `tests/conftest.py`:
 - `pytest_configure` points `HOME` / `USERPROFILE` and the XDG dirs
   (`XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`) at a per-worker base
   **before collection**, so modules that bind a home-derived path at import time
-  (for example `specify_cli.sync.daemon.SPEC_KITTY_DIR`) resolve into the
+  (for example paths derived from `get_runtime_root()`) resolve into the
   isolated home.
 - An autouse, function-scoped fixture re-asserts the `HOME` / `USERPROFILE` / XDG
   env vars for every test, keyed by worker id, so call-time `Path.home()` reads
