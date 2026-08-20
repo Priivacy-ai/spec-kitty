@@ -112,6 +112,11 @@ DISPOSITION: dict[str, str] = {
     "charter.offering.agent_profiles.repository": "FACADE-ONLY",
     "charter.offering.agent_profiles.capabilities": "FACADE-ONLY",
     "charter.offering.agent_profiles.diagnostics": "FACADE-ONLY",
+    # operating_procedures: the single-authority operating-procedures harvest,
+    # reached by _doctrine_collect.py (doctor doctrine) + the DRG extractor.
+    # FACADE-ONLY per the cluster: it belongs behind the charter.profiles door;
+    # the op-procedures door is a tracked follow-up (see PR #3593).
+    "charter.offering.agent_profiles.operating_procedures": "FACADE-ONLY",
     # artifact kinds — PUBLIC (already enumerated in charter.offering.api / charter.drg)
     "charter.offering.artifact_kinds": "PUBLIC",
     # DRG cluster → charter.drg (existing/widened door)
