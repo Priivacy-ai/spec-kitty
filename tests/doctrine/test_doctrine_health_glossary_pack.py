@@ -325,16 +325,14 @@ class TestDoctorDoctrineGlossaryPackJson:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.timing
+@pytest.mark.performance
 class TestDoctorDoctrinePerformance:
-    """NFR-005 wall-clock gate (T026).
+    """NFR-005 wall-clock gate (T026), held out of normal PR runs.
 
-    ``@pytest.mark.timing`` per the flakiness policy's Tier-1 disposition
-    (docs/development/testing/testing-flakiness.md): do not wall-clock in the
-    parallel shard. The 2 s budget is generous for a warm, unloaded run but a
-    16-worker xdist shard routinely pushed it over with no code regression
-    (red on main @15db6ebd9, spec-kitty#81), so the gate runs in the dedicated
-    serial ``-m timing`` pass instead.
+    A single-shot wall-clock budget is cold-start/shared-runner bound, so
+    ``@pytest.mark.performance`` keeps it out of normal runs; set
+    ``SPEC_KITTY_RUN_PERFORMANCE=1`` for an explicit local run. The out-of-band
+    statistical harness is tracked in #3595.
     """
 
     def test_doctor_doctrine_json_completes_under_two_seconds(
