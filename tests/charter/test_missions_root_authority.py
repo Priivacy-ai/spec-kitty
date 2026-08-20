@@ -16,10 +16,15 @@ plan.md's Project Structure notes. ``builtin_missions_root()`` becomes a thin
 delegate (not a second co-equal authority); ``home.py``'s ``dev_roots``
 fallback calls the same authority.
 
-Full convergence onto ``doctrine.pack_paths.built_in_dir`` remains deferred to
-GitHub issue #3091 (``pack_paths`` has no ``missions/`` content directory
-today, per research.md D1) — this WP does NOT claim that convergence, and
-these tests do not exercise it.
+Full convergence onto ``doctrine.pack_paths.built_in_missions_root`` was
+completed by issue #3575: ``builtin_missions_root()`` now delegates straight
+to :func:`~doctrine.pack_paths.built_in_missions_root` (the single canonical
+source), rather than hopping through
+:meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`.
+The equivalence assertions below still hold because
+``default_missions_root()`` is itself a thin wrapper over the same
+``pack_paths`` call (plus an existence check that ``builtin_missions_root()``
+does not replicate — see its docstring for that behaviour note).
 """
 
 from __future__ import annotations
@@ -31,6 +36,7 @@ import pytest
 
 from charter.mission_type_profile_repository import builtin_missions_root
 from doctrine.missions.repository import MissionTemplateRepository
+from doctrine.pack_paths import built_in_missions_root as pack_paths_built_in_missions_root
 from specify_cli.runtime import home as home_module
 
 pytestmark = [pytest.mark.unit]
@@ -39,6 +45,20 @@ pytestmark = [pytest.mark.unit]
 def test_builtin_missions_root_matches_promoted_authority() -> None:
     """T022: ``builtin_missions_root()`` is a thin delegate, not a rival authority."""
     assert builtin_missions_root() == MissionTemplateRepository.default_missions_root()
+
+
+def test_builtin_missions_root_delegates_directly_to_pack_paths() -> None:
+    """#3575: ``builtin_missions_root()`` now converges directly onto
+    ``pack_paths.built_in_missions_root()`` — the single canonical missions-root
+    authority — rather than hopping through ``default_missions_root()``.
+    """
+    root = builtin_missions_root()
+
+    assert root == pack_paths_built_in_missions_root()
+    assert root.is_dir(), (
+        "sanity: the canonical authority must resolve to the real built-in "
+        "missions directory in this editable-install test environment"
+    )
 
 
 def test_home_dev_roots_fallback_matches_promoted_authority(
