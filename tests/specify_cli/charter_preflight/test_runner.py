@@ -31,6 +31,7 @@ from specify_cli.charter_runtime.preflight import (
 pytestmark = [pytest.mark.git_repo]
 
 from ._fixtures import (
+    build_f2_legacy_bundle_no_charter_yaml,
     init_git_repo,
     make_fresh_repo,
     seed_bundle_files,
@@ -579,36 +580,159 @@ def test_auto_refresh_clean_worktree_runs_sequence(tmp_path: Path, monkeypatch: 
 
     result = run_charter_preflight(tmp_path, auto_refresh=True)
 
-    # Order matters — sync (because bundle is fresh-but-charter+bundle don't have manifest cmd combination)
-    # Per the algorithm: sync only skipped when both source+bundle are fresh.
-    # In this test source is fresh and bundle is fresh, so sync is skipped.
-    # synthesize is run, validate is run.
+    # This fixture (charter.md + the four legacy governance/directives/
+    # metadata/references files, no charter.yaml) is genuinely the F2
+    # shape: charter_source/synced_bundle both read `missing` with
+    # `remediation="spec-kitty upgrade --yes"` (H3, #2831 — a real legacy
+    # bundle folds forward via `upgrade --yes`, never the F1-only `charter
+    # generate --no-from-interview`). H1 (#2831): step one now runs THAT
+    # command, never a hardcoded `charter sync` (a pure staleness reporter
+    # that can never create `charter.yaml` — the very defect this fixture
+    # used to mask, since the stub below always returns exit 0 regardless
+    # of which command is asked for). synthesize then runs (drg missing),
+    # then validate.
     assert result.auto_refresh_applied is True
     spec_kitty_calls = [c for c in seen if c[0] == "spec-kitty"]
     # Must include synthesize (drg missing) and bundle validate (always).
     cmds_as_strs = [" ".join(c) for c in spec_kitty_calls]
+    assert "spec-kitty upgrade --yes" in cmds_as_strs
     assert "spec-kitty charter synthesize" in cmds_as_strs
     assert "spec-kitty charter bundle validate" in cmds_as_strs
     # And the result captured the runner's own tracked action sequence in
-    # order: sync, synthesize, bundle validate, then a WP06 re-stamp
-    # `synthesize` (#2777, MAJOR-1 rejection cycle 1) — the references-parity
-    # heal's targeted `generate` rewrites charter.yaml's derived catalog but
-    # never re-stamps the synthesis manifest's bundle_content_hash itself, so
-    # the boundary re-runs the same flagless `synthesize` once more to keep
-    # the post-refresh freshness recompute manifest-coherent. That targeted
-    # `generate` call is a real executed subprocess (visible above via
-    # `cmds_as_strs`, which observes every "spec-kitty" call) but is issued
-    # by `references_refresh.refresh_references_if_needed` — a background
+    # order: upgrade --yes, synthesize, bundle validate, then a WP06
+    # re-stamp `synthesize` (#2777, MAJOR-1 rejection cycle 1) — the
+    # references-parity heal's targeted `generate` rewrites charter.yaml's
+    # derived catalog but never re-stamps the synthesis manifest's
+    # bundle_content_hash itself, so the boundary re-runs the same flagless
+    # `synthesize` once more to keep the post-refresh freshness recompute
+    # manifest-coherent. That targeted `generate` call is a real executed
+    # subprocess (visible above via `cmds_as_strs`, which observes every
+    # "spec-kitty" call) but is issued by
+    # `references_refresh.refresh_references_if_needed` — a background
     # extension-point side effect, not one of the primary steps
     # `_attempt_auto_refresh` itself tracks — so it is intentionally absent
     # from `auto_refresh_actions`.
     assert "spec-kitty charter generate --no-from-interview" in cmds_as_strs
     assert result.auto_refresh_actions == [
-        "spec-kitty charter sync",
+        "spec-kitty upgrade --yes",
         "spec-kitty charter synthesize",
         "spec-kitty charter bundle validate",
         "spec-kitty charter synthesize",
     ]
+
+
+def test_auto_refresh_real_cli_from_f2_non_fresh_state_repairs_charter_source(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    isolated_env: dict[str, str],
+) -> None:
+    """H1 (#2831 HIGH finding), end-to-end proof against THIS checkout's real
+    command implementations — not a stub that always returns exit 0.
+
+    The reviewer's own repro: a real F2 legacy-bundle project (realistic
+    scaffolding, per ``build_f2_legacy_bundle_no_charter_yaml``'s
+    ``seed_realistic_agent_scaffolding``, so ``upgrade --yes`` does not halt
+    on the unrelated ``0.10.1_populate_slash_commands`` precondition — see
+    the mission's own review-cycle-1 finding) with ``auto_refresh=True``.
+    Before H1, step one unconditionally ran ``spec-kitty charter sync`` — a
+    pure staleness reporter that can never create ``charter.yaml`` — so this
+    exact non-fresh starting state ran only ``sync``, exited 1, and left
+    every state unchanged. Every existing auto-refresh test either started
+    from already-fresh state or stubbed every ``spec-kitty`` subprocess call
+    to unconditionally succeed regardless of which command was asked for —
+    both shapes hide this exact defect (module docstring, H1). This test
+    starts from NON-fresh (F2 ``missing``) and runs the real CLI.
+
+    ``subprocess.run`` is monkeypatched only to route the runner's
+    ``["spec-kitty", ...]`` argv through THIS checkout's own venv + source
+    tree (mirrors ``tests.conftest.run_cli``'s ``isolated_env``/
+    ``get_venv_python`` mechanism) instead of whatever ``spec-kitty``
+    happens to resolve to on ``$PATH`` — which may be a stale global install
+    of a different checkout (CLAUDE.md's "stale-install false reds"). Every
+    command's actual implementation still runs for real; nothing about its
+    behaviour is faked.
+
+    Scope note: this asserts ``charter_source``/``synced_bundle`` genuinely
+    reach ``fresh`` (H1's exact claim), NOT ``result.passed`` for the whole
+    sequence. Running this real end-to-end uncovered a SEPARATE, pre-existing
+    defect in ``spec-kitty charter bundle validate`` (unit 3 of the sequence,
+    untouched by any of H1/H3/H5): its "Tracked files" table reports
+    ``.kittify/charter/charter.yaml`` as ``[MISSING]`` even immediately after
+    a real ``upgrade --yes`` that provably wrote it (confirmed by hand:
+    ``ls -la .kittify/charter/`` shows the file; ``compute_freshness`` agrees
+    it is ``fresh``) — it appears to still check the pre-consolidation
+    v1.0.0 manifest shape (``charter.bundle``'s own docstring: "v1.0.0 scope
+    is limited to the three sync-produced derivatives"), never updated for
+    the charter.yaml-based bundle inversion. That defect is outside this
+    mission's five HIGH findings (H1-H5) and is not fixed here; recompute
+    freshness directly below rather than trusting ``result.checks``, which
+    ``_attempt_auto_refresh`` returns pre-refresh/stale on ANY later-step
+    failure (a separate, pre-existing return-shape property, also not part
+    of H1's scope).
+    """
+    from specify_cli.charter_runtime.preflight import runner as runner_module
+    from tests.test_isolation_helpers import get_venv_python
+
+    build_f2_legacy_bundle_no_charter_yaml(tmp_path)
+
+    # Commit the seeded legacy bundle so the worktree is clean (FR-008) --
+    # same requirement the stubbed sibling test above satisfies.
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(
+        ["git", "commit", "-q", "-m", "seed F2 legacy bundle"],
+        cwd=tmp_path,
+        check=True,
+        env={
+            "GIT_AUTHOR_NAME": "t",
+            "GIT_AUTHOR_EMAIL": "t@x",
+            "GIT_COMMITTER_NAME": "t",
+            "GIT_COMMITTER_EMAIL": "t@x",
+            "PATH": "/usr/bin:/bin",
+        },
+    )
+
+    real_run = subprocess.run
+    venv_python = str(get_venv_python())
+
+    def real_cli_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
+        if cmd[:1] != ["spec-kitty"]:
+            return real_run(cmd, **kwargs)
+        translated = [venv_python, "-m", "specify_cli.__init__", *cmd[1:]]
+        kwargs["env"] = isolated_env
+        return real_run(translated, **kwargs)
+
+    monkeypatch.setattr(runner_module.subprocess, "run", real_cli_run)
+
+    result = run_charter_preflight(tmp_path, auto_refresh=True)
+
+    assert result.auto_refresh_applied is True
+    assert result.auto_refresh_actions, "expected at least one real refresh command to run"
+    assert result.auto_refresh_actions[0] == "spec-kitty upgrade --yes", (
+        "H1 fix: step one must be the freshness-computed F2 remediation, never "
+        f"a hardcoded `charter sync`; got {result.auto_refresh_actions!r}"
+    )
+    assert "spec-kitty charter sync" not in result.auto_refresh_actions
+
+    charter_yaml_path = tmp_path / ".kittify" / "charter" / "charter.yaml"
+    assert charter_yaml_path.exists(), (
+        "the real `spec-kitty upgrade --yes` must have created charter.yaml -- "
+        f"auto_refresh_actions={result.auto_refresh_actions!r} "
+        f"blocked_reason={result.blocked_reason!r}"
+    )
+
+    # Recompute directly rather than trusting `result.checks` -- see the
+    # docstring's scope note on why a later-step failure returns stale
+    # pre-refresh checks.
+    from specify_cli.charter_runtime.freshness import compute_freshness
+
+    post_freshness = compute_freshness(tmp_path)
+    assert post_freshness.charter_source.state == "fresh", (
+        "H1: the real F2 remediation must genuinely clear charter_source -- "
+        f"got {post_freshness.charter_source!r}"
+    )
+    assert post_freshness.synced_bundle.state == "fresh", (
+        f"H1: synced_bundle must clear alongside charter_source -- got {post_freshness.synced_bundle!r}"
+    )
 
 
 def test_auto_refresh_failure_captures_blocked_reason(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
