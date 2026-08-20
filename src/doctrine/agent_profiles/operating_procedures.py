@@ -30,7 +30,6 @@ from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGNode, NodeKind
 
 __all__ = [
-    "UnresolvedOpProc",
     "collect_operating_procedure_entries",
     "node_universe",
     "resolve_operating_procedure_entries",
