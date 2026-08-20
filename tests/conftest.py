@@ -54,8 +54,8 @@ from tests.utils import REPO_ROOT, run, write_wp
 # Two layers are required:
 #   1. ``pytest_configure`` sets the HOME/XDG env vars *before collection* so
 #      that modules which bind a home-derived path at import time (e.g.
-#      ``specify_cli.sync.daemon.SPEC_KITTY_DIR = Path.home() / ".spec-kitty"``
-#      at module top level, ``daemon.py:94``) resolve into the isolated home.
+#      ``specify_cli.paths.get_runtime_root()``, which ``daemon.py`` calls
+#      lazily on every access) resolve into the isolated home.
 #   2. An autouse, function-scoped fixture re-asserts the ``Path.home``
 #      monkeypatch + env for every test, keyed by worker id, so call-time
 #      ``Path.home()`` reads are isolated too. Never session-only: a single
@@ -223,10 +223,11 @@ def pytest_configure(config: pytest.Config) -> None:
     os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     # WP04: isolate this worker's home BEFORE collection so modules that bind a
-    # home-derived path at import time (e.g. ``daemon.SPEC_KITTY_DIR`` at
-    # ``daemon.py:94``) resolve into the per-worker isolated home, never the
-    # developer's real ``~/.spec-kitty``. The autouse fixture below re-applies
-    # the same mapping per test for call-time reads.
+    # home-derived path at import time (e.g. ``daemon.py`` calling
+    # ``get_runtime_root()`` lazily on every access) resolve into the
+    # per-worker isolated home, never the developer's real ``~/.spec-kitty``.
+    # The autouse fixture below re-applies the same mapping per test for
+    # call-time reads.
     _apply_home_env(_worker_home_base(config))
 
     try:
