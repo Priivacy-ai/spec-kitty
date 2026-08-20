@@ -76,6 +76,7 @@ Waves are landing order on the shared pre-rc2 branch, not calendar weeks. Within
 a wave, missions are independent and may proceed in parallel.
 
 ### Wave 0 — ship the P0 and open the gate
+
 - **M1** — the P0 point-fix. Standalone, smallest, highest severity (silent *and*
   fabricates success). Ships first so the operator-facing regression is closed
   immediately.
@@ -85,6 +86,7 @@ a wave, missions are independent and may proceed in parallel.
   for **safety** — see the sign-off section.
 
 ### Wave 1 — independent, cross-cutting first
+
 - **M7** — enum consolidation. Placed early because it is a hard prerequisite for
   M6 **and** because its rename touches every consumer of the ownership enum,
   including the net-new `infer_execution_mode` consumer that M4's #3590 detector
@@ -96,6 +98,7 @@ a wave, missions are independent and may proceed in parallel.
   so its detector references the renamed enum.
 
 ### Wave 2 — gated behavior-changers and the deep fixes
+
 - **M3** and **M5** — both require the Wave-0 backfill gate. They may run in
   parallel with each other **but must coordinate the shared mission-type reader
   path**: M3's `resolve_mission_type_key` fast path must compose with M5's
