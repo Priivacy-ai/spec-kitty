@@ -370,6 +370,37 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   Now the guard's stderr is surfaced on the success path, while git's routine
   stdout summary is routed to debug so an ordinary commit no longer emits a
   spurious warning on the same channel.
+- **Activating a mission type now cascades to the governance its steps depend on,
+  and the cascade proposes only kinds you can actually activate (`#2829`; M5 of
+  the charter-resolution program).** Before, the charter cascade followed only
+  `requires`/`suggests`/`refines`, so the forward closure from a `mission_type`
+  dead-ended at the intermediate `action` node — every built-in mission type
+  cascaded to **zero** artifacts, and the governance an operator switched on
+  reached nobody. The followed set now also walks the action hop (`scope` +
+  `instantiates`), so the three governance-bearing built-in mission types cascade
+  to their directives/tactics/styleguides (measured 31/23/160, was 0). At the same
+  time, cascade candidacy is filtered to the canonical `CHARTER_ACTIVATABLE_KINDS`
+  authority, so it no longer proposes non-activatable `template`/`asset` targets
+  (which surfaced as spurious "could not cascade-activate" warnings for 137
+  existing sources). `mission_type:plan` correctly cascades empty — its step
+  contracts scope no governance, so the traversal dead-end is closed for it too but
+  there is nothing to reach (tracked as a follow-up to author plan-step
+  governance). The relation-set decision is recorded in ADR `2026-08-20-1`.
+
+- **The last five charter-activated doctrine artefacts that no consumer could reach
+  are now wired to a single authority or honestly marked direct-activation-only
+  (residual of `#3009`; M5).** Four had a defensible source expressed only as a
+  hand-authored overlay edge; each is promoted to a real reference in its owning
+  directive's frontmatter (DIRECTIVE_034 → `given-when-then-authoring` + `gherkin`,
+  DIRECTIVE_030 → `sonar`, DIRECTIVE_041 → `quadruple-a-test-format`), so the pure
+  doctrine graph explains their reachability without a secondary overlay patch and
+  the shipped graph stays byte-identical. The fifth, `deployable-skill-authoring`,
+  has no defensible source and is recorded direct-activation-only rather than given
+  a guessed edge. Promoting the metadata surfaced — and fixed at root — a second
+  validation authority: the catalog `DirectiveReference` model and
+  `directive.schema.yaml` both rejected the `when`/`reason` keys under
+  `extra="forbid"`, which would have silently dropped a promoted directive and
+  degraded the profile renderer to a `CharterCatalogMissWarning`.
 
 - **A procedure named in an agent profile's `operating-procedures` field now
   becomes a real, cascade-reachable dependency of that profile — and a fictional
