@@ -195,7 +195,7 @@ constituents:
   kind: directive
   path: directives/029-agent-commit-signing-policy.directive.yaml
   provenance_path:
-- content_hash: c6cce4fdf132db0f2721a51619dcb05ba61bba580314b8b31551c31815de3bd8
+- content_hash: 3d1bc2ca6b40ec438fe921d094872bcd1fdfc6090f809ca7b51b99a804f2756a
   id: DIRECTIVE_030
   kind: directive
   path: directives/030-test-and-typecheck-quality-gate.directive.yaml
@@ -215,7 +215,7 @@ constituents:
   kind: directive
   path: directives/033-targeted-staging-policy.directive.yaml
   provenance_path:
-- content_hash: 14a28077ad76d7bfd135c75f459983541b45692bf8cc9e48e3b9141a506fd5be
+- content_hash: 84f1f37be5f0f136dc4299092ad7d4ba98da4b2f7146269e9c4cc574dea8d2ab
   id: DIRECTIVE_034
   kind: directive
   path: directives/034-test-first-development.directive.yaml
@@ -250,7 +250,7 @@ constituents:
   kind: directive
   path: directives/040-recurring-bug-structural-intervention.directive.yaml
   provenance_path:
-- content_hash: 692d87864ca8d584a4f4941bccdc72e6a1c9c68a0e50f76c8879e7218934b866
+- content_hash: 1331da83c7c98ab39f606e2a9da88846c22551abf951add6130904787edb746e
   id: DIRECTIVE_041
   kind: directive
   path: directives/041-tests-as-scaffold-not-friction.directive.yaml
@@ -1340,7 +1340,7 @@ constituents:
 fetched_at:
 generated_at:
 generated_by: spec-kitty doctrine regenerate-graph
-manifest_hash: 6426a833167ce3990842f5bed985a520e96229e1f81dac5d74e216640e6e57fd
+manifest_hash: 74834f058eb9eabe3ff50452d5f316cf9415c1b275c1305c6a25d8af764f2dec
 schema_version: '1'
 source_type: built-in
 source_url:
