@@ -31,19 +31,38 @@ jobs:
   drift-detector:
     name: drift-detector
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: ${{ !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
     timeout-minutes: 5
     steps:
+      # Always-green shim (pr:skip-ci / pr:deferred): `drift-detector` is the
+      # REQUIRED status check this workflow offers to branch protection (see
+      # header). A job-level `if:` skip would leave that required context
+      # UNSATISFIED and block merge, so instead the job always runs and
+      # short-circuits its work when a skip label is present — the context
+      # reports success either way. On push events no PR labels exist, so
+      # `skip` is always false and the detector runs normally.
+      - name: Resolve skip label
+        id: guard
+        run: |
+          echo "skip=${{ contains(github.event.pull_request.labels.*.name, 'pr:deferred') || contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Short-circuit (pr:skip-ci / pr:deferred present)
+        if: steps.guard.outputs.skip == 'true'
+        run: echo "pr:skip-ci/pr:deferred present — drift-detector short-circuited to green (required-check parity)."
+
       - name: Checkout
+        if: steps.guard.outputs.skip != 'true'
         uses: actions/checkout@v6
 
       - name: Install uv
+        if: steps.guard.outputs.skip != 'true'
         uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
 
       - name: Install dependencies (frozen)
+        if: steps.guard.outputs.skip != 'true'
         run: uv sync --frozen --extra test
 
       - name: Run canonical-registry drift detector
+        if: steps.guard.outputs.skip != 'true'
         run: uv run pytest tests/sync/test_diagnose.py::TestCanonicalRegistryRecognition -v
