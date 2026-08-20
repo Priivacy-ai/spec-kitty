@@ -12377,6 +12377,27 @@ pages:
     - {slug: "success-criteria-mandatory", text: "Success Criteria *(mandatory)*", level: 2}
     - {slug: "measurable-outcomes", text: "Measurable Outcomes", level: 3}
     - {slug: "out-of-scope", text: "Out of scope", level: 2}
+  - path: "docs/plans/investigations/friction-bugs-processing-charter-root-cause.md"
+    title: "Processing & charter friction bugs: shared root causes and mission scope"
+    divio_type: "none"
+    abstract: "Five-lens squad root-cause analysis of a 7-issue friction defect class (#3605, #3604, #3598, #3596, #3590, #3578, #3571), code-verified against main, with a scoped mission seed and the open decisions specify must resolve."
+    anchors:
+    - {slug: "0-the-one-paragraph-answer", text: "0. The one-paragraph answer", level: 2}
+    - {slug: "1-the-missing-shared-contract", text: "1. The missing shared contract", level: 2}
+    - {slug: "2-cluster-a-charter-doctrine-drg-reach", text: "2. Cluster A — charter/doctrine DRG-reach", level: 2}
+    - {slug: "2-1-whack-a-carrier-at-the-drg-extract-emit-seam-3605-3604", text: "2.1 Whack-a-carrier at the DRG extract/emit seam — #3605 + #3604", level: 3}
+    - {slug: "2-2-coarse-proxy-predicate-a-fail-open-gate-in-front-of-a-finer-capability-3596-3598", text: "2.2 Coarse-proxy predicate — a fail-open gate in front of a finer capability — #3596 + #3598", level: 3}
+    - {slug: "2-3-n-disagreeing-readers-of-meta-json-mission-type-bonus", text: "2.3 N-disagreeing readers of `meta.json` mission-type (bonus)", level: 3}
+    - {slug: "3-cluster-b-processing-workflow", text: "3. Cluster B — processing/workflow", level: 2}
+    - {slug: "4-consolidation-dedup-verdict", text: "4. Consolidation & dedup verdict", level: 2}
+    - {slug: "5-proposed-mission-shape-order", text: "5. Proposed mission shape & order", level: 2}
+    - {slug: "6-decisions-the-spec-must-resolve", text: "6. Decisions the spec must resolve", level: 2}
+    - {slug: "7-risks-blast-radius", text: "7. Risks / blast-radius", level: 2}
+    - {slug: "8-terminology-to-pin-in-the-spec", text: "8. Terminology to pin in the spec", level: 2}
+    - {slug: "9-prior-art-status", text: "9. Prior-art status", level: 2}
+    - {slug: "10-implementation-readiness-code-inspection-squad", text: "10. Implementation-readiness (code-inspection squad)", level: 2}
+    - {slug: "11-expanded-scope-related-issues-discovery-squad", text: "11. Expanded scope (related-issues discovery squad)", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/investigations/index.md"
     title: "Investigations"
     divio_type: "none"
