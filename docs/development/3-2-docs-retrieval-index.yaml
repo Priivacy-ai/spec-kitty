@@ -12094,6 +12094,39 @@ pages:
     abstract: "Landing page for the 2.x architecture initiatives: active or exploratory, intentionally non-canonical work that feeds future architecture decisions."
     anchors:
     - {slug: "current-initiatives", text: "Current Initiatives", level: 2}
+  - path: "docs/plans/initiatives/rc3-friction-burndown/index.md"
+    title: "rc3 fail-loud friction burndown"
+    divio_type: "none"
+    abstract: "Collection index for the eight-mission rc3 crux: the fail-silent/fail-open friction burndown under epic #3410 — program overview plus delivery approach and sequencing."
+    anchors:
+    - {slug: "documents", text: "Documents", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-approach.md"
+    title: "rc3 friction burndown: delivery approach & sequencing"
+    divio_type: "none"
+    abstract: "The rc3 delivery plan: dependency DAG, wave sequencing (the mission_type-backfill gate, M7-before-M6, M1-before-M8, M2 single re-ledger), per-mission size/risk, the M3/M5 behavior-change sign-offs and their migration prerequisite, and the cut/land plan."
+    anchors:
+    - {slug: "dependency-dag", text: "Dependency DAG", level: 2}
+    - {slug: "wave-sequencing", text: "Wave sequencing", level: 2}
+    - {slug: "wave-0-ship-the-p0-and-open-the-gate", text: "Wave 0 — ship the P0 and open the gate", level: 3}
+    - {slug: "wave-1-independent-cross-cutting-first", text: "Wave 1 — independent, cross-cutting first", level: 3}
+    - {slug: "wave-2-gated-behavior-changers-and-the-deep-fixes", text: "Wave 2 — gated behavior-changers and the deep fixes", level: 3}
+    - {slug: "per-mission-size-risk", text: "Per-mission size & risk", level: 2}
+    - {slug: "deliberate-behavior-change-sign-offs-m3-m5-and-the-shared-prerequisite", text: "Deliberate behavior-change sign-offs (M3, M5) and the shared prerequisite", level: 2}
+    - {slug: "the-3488-keep-the-invariant-not-the-fix-note", text: "The #3488 \"keep-the-invariant-not-the-fix\" note", level: 2}
+    - {slug: "rc3-cut-land-plan", text: "rc3 cut & land plan", level: 2}
+    - {slug: "integration-notes-cross-mission-coordination-surface", text: "Integration notes (cross-mission coordination surface)", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
+  - path: "docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-overview.md"
+    title: "rc3 fail-loud friction burndown: program overview"
+    divio_type: "none"
+    abstract: "Program BLUF for the eight-mission rc3 crux — the fail-silent/fail-open root cause under epic #3410, the mission table (scope, issues, size, cluster), and what changes for users and operators."
+    anchors:
+    - {slug: "the-root-cause-in-one-paragraph", text: "The root cause in one paragraph", level: 2}
+    - {slug: "the-two-clusters", text: "The two clusters", level: 2}
+    - {slug: "the-eight-missions", text: "The eight missions", level: 2}
+    - {slug: "what-changes-for-users-and-operators", text: "What changes for users and operators", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md"
     title: "🎉 Encoding & Plan Validation Test Suite - COMPLETE"
     divio_type: "none"
