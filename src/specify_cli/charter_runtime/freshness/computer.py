@@ -91,6 +91,7 @@ report it produces).
 
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 from kernel.clock import from_epoch
 from pathlib import Path
@@ -335,6 +336,13 @@ def _safe_load_yaml(path: Path) -> dict[str, object] | None:
     only routes the synthesis manifest and graph reads through the
     chokepoint; this raw parse-check of ``charter.yaml`` itself is a sibling
     concern still owned by this module.
+
+    This is a raw YAML-shape check only (dict vs. not) — it does NOT decide
+    whether the mapping actually satisfies the bundle contract. Callers that
+    need that stronger guarantee compose this with
+    :func:`_is_supported_charter_bundle` (H5, #2831): a bare parse success
+    accepts ``{}`` and any other mapping equally, which is exactly the gap
+    that let an incompatible bundle read as ``fresh``.
     """
     if not path.exists():
         return None
@@ -346,6 +354,45 @@ def _safe_load_yaml(path: Path) -> dict[str, object] | None:
     if isinstance(data, dict):
         return data
     return None
+
+
+#: The only ``schema_version`` major series this build's bundle contract
+#: understands. Mirrors ``charter.bundle.SCHEMA_VERSION`` ("2.0.0") and
+#: ``charter.schemas.CharterYaml.schema_version``'s default/pattern — NOT
+#: imported (same mirror-not-import discipline as ``_LEGACY_BUNDLE_FILENAMES``
+#: above) to keep this module's hot import path off the ``charter.schemas``
+#: pydantic graph (NFR-003).
+_SUPPORTED_CHARTER_SCHEMA_MAJOR = "2"
+_SCHEMA_VERSION_PATTERN = re.compile(r"^(\d+)\.\d+\.\d+$")
+
+
+def _is_supported_charter_bundle(data: dict[str, object]) -> bool:
+    """Return whether a parsed ``charter.yaml`` mapping satisfies the
+    minimum bundle contract (contracts/charter-yaml-schema.md), not merely
+    "is a mapping" (H5, #2831).
+
+    ``_safe_load_yaml`` alone accepts ANY mapping that parses — including
+    ``{}`` (no content at all) and a ``schema_version`` this build's bundle
+    contract does not understand (a pre-inversion ``"1.0.0"`` charter, or a
+    future major bump this install predates). Both parse cleanly as YAML
+    but are not a charter bundle ``charter.schemas.CharterYaml`` (the actual
+    round-trip contract every writer targets) or any other real consumer
+    would accept — so preflight must not report them ``fresh``. This is a
+    deliberately MINIMAL gate (non-empty mapping + a supported
+    ``schema_version``), not full pydantic validation: the full ``CharterYaml``
+    model is a heavier, write-side concern (``charter.compiler``) this
+    read-side freshness check does not import (NFR-003), and every field it
+    would additionally require (``catalog``, etc.) is already covered by
+    other consumers failing loudly at their own read time — this check's
+    job is only to stop preflight from calling a non-bundle ``fresh``.
+    """
+    if not data:
+        return False
+    schema_version = data.get("schema_version")
+    if not isinstance(schema_version, str):
+        return False
+    match = _SCHEMA_VERSION_PATTERN.match(schema_version)
+    return match is not None and match.group(1) == _SUPPORTED_CHARTER_SCHEMA_MAJOR
 
 
 def _load_synthesis_manifest_via_chokepoint(repo_root: Path) -> SynthesisManifest | None:
@@ -448,12 +495,33 @@ def _compute_charter_source(repo_root: Path) -> FreshnessSubState:
 
     last_change = _mtime_iso(charter_yaml_path)
 
-    if _safe_load_yaml(charter_yaml_path) is None:
+    parsed = _safe_load_yaml(charter_yaml_path)
+    if parsed is None:
         return FreshnessSubState(
             state="invalid",
             last_change=last_change,
             remediation=None,
             detail="charter.yaml exists but cannot be parsed; `charter generate` needs it to already parse — restore from VCS or hand-repair, then re-run",
+        )
+
+    if not _is_supported_charter_bundle(parsed):
+        # H5 (#2831): a mapping that parses cleanly but is `{}` or carries an
+        # unsupported `schema_version` is the same "genuine inconsistency" as
+        # unparseable YAML from a remediation standpoint — no write path
+        # merges into a bundle-shaped file, so this shares `invalid`'s
+        # exempt, remediation=None treatment (C-EFF-2) rather than inventing
+        # a new state.
+        return FreshnessSubState(
+            state="invalid",
+            last_change=last_change,
+            remediation=None,
+            detail=(
+                "charter.yaml exists and parses as YAML but does not match the "
+                "charter bundle contract (empty mapping, or a `schema_version` "
+                "this install does not support); `charter generate` needs it to "
+                "already be a valid bundle to merge into — restore from VCS or "
+                "hand-repair, then re-run"
+            ),
         )
 
     return FreshnessSubState(state="fresh", last_change=last_change, remediation=None)
