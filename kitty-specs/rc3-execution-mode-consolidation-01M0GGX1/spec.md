@@ -167,3 +167,7 @@ collision, single authority per axis, class-name clash removed, behavior unchang
   acceptance block.
 - **#3590 / M6** — depends on M7; will add a non-diff completion-mode member to the renamed ownership enum.
 - ADR `docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md` — updated when enum #2 is retired.
+
+## Cross-mission coordination (rc3 integration check)
+
+- **Downstream consumers (M7 lands first).** BOTH **M6** (adds a non-diff completion-mode member to the renamed enum) AND **M4** (its #3590 detector consumes `infer_execution_mode`, whose members this mission renames) depend on M7. Sequence M7 before both; the drift-guard test must permit M6's additive member while still catching re-drift.

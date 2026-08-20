@@ -149,3 +149,8 @@ Downstream, lane computation never consults terminal-lane state, so a canceled W
 - **(b) merge/accept asymmetry — RESOLVED: DOCUMENT as deliberate-for-now** (FR-012, C-003); file closure as a SEPARATE ticket; do not remove the safety valve here. (operator)
 - **(c) scope boundary — RESOLVED: expanded to the deep fix** — #3590 (both), #2945, #3432, #3433 in; #3431 and #2745 stay out. (operator)
 - **(d) M7 dependency — RESOLVED: HARD dependency, M7 lands FIRST**; D1's completion-mode value lands on M7's cleaned/renamed `ExecutionMode` (C-002, NFR-003). (operator)
+
+## Cross-mission coordination (rc3 integration check)
+
+- **M7 → M6 (hard dependency).** M6's D1 non-diff completion-mode value lands on M7's cleaned/renamed `ExecutionMode` — M7 lands first; M7's guard test must permit M6's additive member.
+- **Same-file coordination with M5.** M6 and M5 (#2901 fold) both edit `audit/classifiers/wp_files.py` — M6 the terminal-lane constant, M5 the failure-classification reader. Assign per-symbol ownership at plan time.

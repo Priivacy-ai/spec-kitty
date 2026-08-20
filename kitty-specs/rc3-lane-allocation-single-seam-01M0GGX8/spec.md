@@ -279,3 +279,8 @@ design and the seam work may begin before M1 merges, but M8's allocation seam su
   `retrospective/generator.py:271`, `cli/commands/_review_cycle_reconcile_doctor.py:282`,
   `cli/commands/agent/status.py:158` & `:197`, `core/worktree_topology.py:172`.
 - `src/specify_cli/coordination/commit_router.py` + `coordination/policy.py` — the #3536 seam.
+
+## Cross-mission coordination (rc3 integration check)
+
+- **M1 → M8 (soft dependency).** M8 generalizes the allocation seam **around** M1's `base` param — reference, do not duplicate M1's point-fix.
+- **Same-file coordination with M5.** M8 and M5 both edit `retrospective/generator.py` (different symbols/lines). Assign per-symbol ownership at plan time.

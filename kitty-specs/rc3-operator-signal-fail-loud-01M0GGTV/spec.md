@@ -106,3 +106,8 @@ The internal/dogfooding doctrine pack exists on `main`:
 - **In scope**: #3578 (rollback reset signal + siblings), #3590 (INTERIM authoring-time warning only), #3548 (`_fail` message drop), #3517 (`_route_event` bool discard — residual 2 only), #3412 (malformed manifest → None), #2991 (finalize-tasks drops `SC-###`).
 - **Vocabulary / epics**: #3410 (charter/doctrine silent-drop, fail-loud), #3549 (event-log integrity).
 - **Deferred to M6**: #3432, #3433, #2745 (and epic #3550) — deep WP terminal-state fix; the #3590 interim explicitly does NOT touch terminal states.
+
+## Cross-mission coordination (rc3 integration check)
+
+- **M7 → M4 dependency.** M4's #3590 detector consumes `infer_execution_mode`, whose ownership-enum members **M7 renames**. M7 must land before M4 (or M4 must adopt the renamed enum), else a compile break / merge churn. Sequence M7 ahead of M4 (M7 is also a prerequisite for M6).
+- **Same-file coordination with M3.** M4 and M3 both touch `expected-artifacts.yaml` / `repository.py` under `src/doctrine/missions/` (different symbols/lines). Assign per-symbol ownership at plan time.

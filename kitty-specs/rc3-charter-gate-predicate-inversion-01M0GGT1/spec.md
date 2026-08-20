@@ -173,3 +173,9 @@ Scope forks (a)-(c) are **RESOLVED** by the coordinator (fold the full seam; lay
 | #3386, #3388 | Closed preconditions (family dispatch correct; expected-artifacts reconciled); re-confirm at plan (C-003). |
 
 **Re-verify before finalize/implement**: all cited line numbers against `main` (issues note prior drift); locate/confirm the source investigation file; confirm the specific `GUARD_REGISTRY`/`compile_guards` symbols have no live callers; sweep for sibling `non-bootstrap → compact` delivery assertions and any stray-`spec.md` presence tests.
+
+## Cross-mission coordination (rc3 integration check)
+
+- **M3↔M5 reader reconciliation (load-bearing).** M3's delivery path uses `resolve_mission_type_key` (KDD: no new hard-fail on that path); M5 introduces the canonical `read_mission_type()` helper and drops legacy resolution. `resolve_mission_type_key` MUST route through M5's converged reader — if it keeps a parallel legacy-honoring path, the two readers re-diverge, which is the exact defect M5 exists to kill. Reconcile at plan time (coordinate with M5).
+- **Same-file coordination with M4.** M3 and M4 both touch `expected-artifacts.yaml` / `repository.py` under `src/doctrine/missions/` (different symbols/lines). Assign per-symbol ownership at plan time.
+- **Program gate.** M3's typeless/typo `mission_type` hard-fail (#3598) requires **M0 (`mission_type` backfill)** to have run in the target project first — see the rc3 approach doc.
