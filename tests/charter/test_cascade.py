@@ -47,7 +47,7 @@ pytestmark = pytest.mark.unit
 #: ``tests/doctrine/drg/migration/test_extractor.py::DOCTRINE_ROOT`` (this file
 #: is two directories shallower: ``tests/charter/test_cascade.py`` ->
 #: ``tests/charter`` -> ``tests`` -> repo root).
-_DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "doctrine"
+_DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "charter" / "offering"
 
 
 # ---------------------------------------------------------------------------
@@ -168,13 +168,23 @@ def test_scope_rejects_empty_explicit_set() -> None:
         CascadeScope(is_all=False, kinds=frozenset())
 
 
-def test_reference_relations_are_requires_suggests_and_refines() -> None:
-    # REFINES joined the cascade reference set in #2079 so a refinement edge is
-    # traversed (not born inert like APPLIES); REQUIRES/SUGGESTS are the legacy set.
-    assert (
-        frozenset({Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES})
-        == REFERENCE_RELATIONS
+def test_reference_relations_include_scope_and_instantiates() -> None:
+    # ADR 2026-08-20-1 (#2829): SCOPE + INSTANTIATES joined the cascade reference
+    # set so the forward closure walks the action hop
+    # (``mission_type --requires--> action --scope--> governance`` and
+    # ``action --instantiates--> template``). REQUIRES/SUGGESTS are the legacy set;
+    # REFINES joined in #2079. This is the widened followed set the kind-complete
+    # cascade traverses (candidacy is filtered separately).
+    expected = frozenset(
+        {
+            Relation.REQUIRES,
+            Relation.SUGGESTS,
+            Relation.REFINES,
+            Relation.SCOPE,
+            Relation.INSTANTIATES,
+        }
     )
+    assert expected == REFERENCE_RELATIONS
 
 
 def test_tension_vocabulary_excluded_from_reference_relations() -> None:
