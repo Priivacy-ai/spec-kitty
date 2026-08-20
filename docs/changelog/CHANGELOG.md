@@ -354,6 +354,23 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
+- **`safe-commit`/`spec-commit` and work-package prompts now print commands you
+  can actually run — before, they named invocations that error out when
+  copy-pasted (`#3577`).** The protected-branch commit refusals told operators to
+  run `spec-kitty mission create --start-branch …` and the WP task-prompt
+  templates showed `spec-kitty agent status`, but neither is real: `--start-branch`
+  lives only on `agent mission create`, and the status board is `agent tasks
+  status` (`agent status` is a command group with no board). Both are corrected
+  at the source, so a printed command runs as-is.
+
+- **A warn-mode commit-guard warning is no longer swallowed on a successful
+  `safe-commit`/`spec-commit` — operators now see the guard's warning instead of
+  it vanishing (`#3580`).** Before, a successful commit discarded the guard's
+  warn-mode output, so a warning the guard emitted never reached the operator.
+  Now the guard's stderr is surfaced on the success path, while git's routine
+  stdout summary is routed to debug so an ordinary commit no longer emits a
+  spurious warning on the same channel.
+
 - **A procedure named in an agent profile's `operating-procedures` field now
   becomes a real, cascade-reachable dependency of that profile — and a fictional
   or wrong-kind entry fails the doctrine build loudly instead of drifting in
