@@ -16,6 +16,10 @@ reports.
 
 Open designs and unshipped scope still worth consulting:
 
+- [Processing & charter friction bugs: shared root causes and mission scope](friction-bugs-processing-charter-root-cause.md) —
+  five-lens-squad root-cause analysis of a 7-issue friction defect class (#3605, #3604, #3598,
+  #3596, #3590, #3578, #3571), code-verified against `main`; a scoped mission seed with the
+  open decisions specify must resolve.
 - [Write-path topology: ambient-location root cause and remediation options](write-path-topology-root-cause.md) —
   dialectic-squad-corroborated root cause for the #3129 defect class (14 issues); scoped
   remediation options for a future mission; rejects the batch-reparent/new-P0-epic action.

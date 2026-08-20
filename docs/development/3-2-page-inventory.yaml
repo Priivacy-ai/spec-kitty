@@ -4280,6 +4280,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/investigations/friction-bugs-processing-charter-root-cause.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/investigations/index.md
   tag: current
   divio_type: none
