@@ -691,7 +691,7 @@ def extract_artifact_edges(  # noqa: C901
                     )
                 )
 
-            # references (top-level list of {type, id, when?})
+            # references (top-level list of {type, id, when?, reason?})
             for ref in data.get("references", []) or []:
                 ref_type: str = ref.get("type", "")
                 ref_id: str = ref.get("id", "")
@@ -707,7 +707,12 @@ def extract_artifact_edges(  # noqa: C901
                         source=src_urn,
                         target=tgt_urn,
                         relation=_relation_for_ref_type(ref_type),
-                        when=ref.get("when"),
+                        # ``when``/``reason`` carried symmetrically (single
+                        # authority :func:`_reference_edge_kwargs`) so a directive
+                        # frontmatter reference can hold the curated rationale an
+                        # overlay edge used to -- the capability that makes the
+                        # #3009 overlay-to-frontmatter promotions lossless.
+                        **_reference_edge_kwargs(ref),
                     )
                 )
 
@@ -741,7 +746,7 @@ def extract_artifact_edges(  # noqa: C901
                         source=src_urn,
                         target=tgt_urn,
                         relation=Relation.SUGGESTS,
-                        when=ref.get("when"),
+                        **_reference_edge_kwargs(ref),
                     )
                 )
 
@@ -762,7 +767,7 @@ def extract_artifact_edges(  # noqa: C901
                             source=src_urn,
                             target=tgt_urn,
                             relation=Relation.SUGGESTS,
-                            when=ref.get("when"),
+                            **_reference_edge_kwargs(ref),
                         )
                     )
 
@@ -814,8 +819,7 @@ def extract_artifact_edges(  # noqa: C901
                     ref_type=ref_type,
                     ref_id=ref_id,
                     relation=_relation_for_procedure_ref_type(ref_type),
-                    when=ref.get("when"),
-                    reason=ref.get("reason"),
+                    **_reference_edge_kwargs(ref),
                 )
 
     # --- Procedures ---

@@ -760,39 +760,52 @@ _NOT_A_TRAVERSAL_TARGET: frozenset[str] = frozenset({"agent_profile:human-in-cha
 #: times, and the styleguide is a distribution-surface concern, not a
 #: pack-authoring one. Corrected so the standard is applied once: record
 #: relationships that exist, refuse to invent ones that do not.
-_ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
+# Ledger (kind-complete-cascade-orphan-wiring-01M0FQCD, WP02, #3009 RESIDUAL --
+# the move that drives this tracked-defect set to EMPTY, C-003):
+#   * The four family-D artefacts -- ``styleguide:given-when-then-authoring``,
+#     ``toolguide:gherkin`` (both from DIRECTIVE_034), ``toolguide:sonar`` (from
+#     DIRECTIVE_030) and ``styleguide:quadruple-a-test-format`` (from
+#     DIRECTIVE_041) -- were PROMOTED from hand-authored overlay ``suggests``
+#     edges to their owning directive's own ``references`` frontmatter. The
+#     extractor now mints a real inbound edge for each in the PURE graph, so they
+#     are no longer orphans at all: they leave BOTH this set and
+#     ``_ORPHANS_RESOLVED_BY_OVERLAY`` (the overlay no longer resolves them --
+#     the overlay edges were deleted, the frontmatter edges took their place,
+#     byte-identically). See ``TestResidualOrphanWiring`` and the promoted
+#     directive YAMLs.
+#   * ``styleguide:deployable-skill-authoring`` -- the sole source-less member --
+#     leaves for the new ``_DIRECT_ACTIVATION_ONLY`` disposition (FR-008). It is
+#     still a pure orphan (no defensible source, no invented edge -- C-003), so
+#     it stays in ``_INTENTIONAL_ORPHANS`` via that bucket; it simply stops being
+#     counted as tracked #3009 debt.
+# Net: ``_ACTIVATED_BUT_ORPHANED`` -5 (4 promoted + 1 direct-only) -> empty; the
+# #3009 residual is closed. This set is now the empty floor the "must only ever
+# SHRINK" invariant always aimed at -- a new member may be added only with an
+# issue reference and a defensible-source audit.
+_ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset()
+
+#: **Direct-activation-only disposition (#3009 residual, mission
+#: kind-complete-cascade-orphan-wiring-01M0FQCD, WP02, FR-008).**
+#: ``styleguide:deployable-skill-authoring`` is charter-ACTIVATED yet has no
+#: defensible source artefact to carry an inbound edge: the onboarding procedure
+#: mentions "skill" zero times, and the styleguide is a distribution-surface
+#: concern, not a pack-authoring one (see the ``_ACTIVATED_BUT_ORPHANED`` header's
+#: closing paragraph, which already refused to invent an edge for it). It is
+#: therefore recorded here as *direct-activation-only*: it is reached by charter
+#: activation directly (``charter activate styleguide deployable-skill-authoring``),
+#: never by a cascade or an action/profile traversal, and inventing a guessed edge
+#: to green-wash it is explicitly refused (C-003). It stays a pure orphan (a member
+#: of ``_INTENTIONAL_ORPHANS``) but leaves the tracked-defect
+#: ``_ACTIVATED_BUT_ORPHANED`` set, which this mission drives to empty.
+_DIRECT_ACTIVATION_ONLY: frozenset[str] = frozenset(
     {
         "styleguide:deployable-skill-authoring",
-        # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
-        # the four family-D BDD/testing artefacts the writing-comms charter set
-        # activated. Each is still wired only by the family-D overlay (they stay in
-        # _ORPHANS_RESOLVED_BY_OVERLAY) yet remain unreachable from any action or
-        # profile traversal root -- activating them cascades to nothing. Tracked as
-        # #3009 debt until real inbound edges are authored (the deferred A2
-        # orphan-wiring doctrine mission), NOT green-washed away here.
-        "styleguide:quadruple-a-test-format",
-        "styleguide:given-when-then-authoring",
-        "toolguide:sonar",
-        "toolguide:gherkin",
-        # Ledger (writing-comms/diagramming activation, commit 9a99801f1, #3009):
-        # the reconcile-change-scope-tensions hub directive graduated here from
-        # _AWAITING_REFERENCES (its only edges were the hand-authored
-        # ``reconciles_tension`` overlay edges; it became charter-ACTIVATED, and
-        # once id_normalizer folds its slug to the node URN it was detected as
-        # an activated pure orphan).
-        #
-        # Ledger (19) (drg-reachability-metric-wiring-01KZS5VR, WP01, #3009
-        # point 3) RETIRES that status: ``directive:DIRECTIVE_024``/
-        # ``DIRECTIVE_025 --suggests--> RECONCILE_CHANGE_SCOPE_TENSIONS``
-        # (edges 2/3) are now real, extractor-minted edges, so
-        # ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` is no longer a pure
-        # orphan -- removed from this set (and from
-        # _ORPHANS_RESOLVED_BY_OVERLAY). See ledger entry (19); this is a
-        # SHRINK of the tracked #3009 defect set (C-003).
     }
 )
 
 #: Every node a PURE ``generate_graph`` run leaves incident to no edge.
+#: CURRENT total is 22 (see the WP02 ledger paragraph at the end of this block);
+#: the arithmetic that follows is the historical trail that reached the prior 26.
 #: 17 + 3 + 1 + 5 = 26 (was 17 + 5 + 1 + 6 = 29 before ledger entry (19)
 #: (drg-reachability-metric-wiring-01KZS5VR, WP01, #3009 point 3): three URNs
 #: leave -- ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS`` leaves
@@ -813,34 +826,45 @@ _ACTIVATED_BUT_ORPHANED: frozenset[str] = frozenset(
 #: ``_EXPECTED_ORPHAN_COUNT`` pinned 32; the difference is ledger entries (6) and (7)
 #: -- one deletion and eight wirings -- and is now a consequence of the membership
 #: rather than the whole contract.
+#: Ledger (kind-complete-cascade-orphan-wiring-01M0FQCD, WP02, #3009 residual):
+#: the pure-orphan total moves 26 -> 22. The four promoted family-D artefacts
+#: gain real frontmatter inbound edges and leave the orphan set entirely (-4);
+#: ``deployable-skill-authoring`` merely changes bucket (``_ACTIVATED_BUT_ORPHANED``
+#: -> ``_DIRECT_ACTIVATION_ONLY``) and stays an orphan. New composition:
+#: 17 + 3 + 1 + 0 + 1 = 22 (``_EDGELESS_BY_CONSTRUCTION`` + ``_AWAITING_REFERENCES``
+#: + ``_NOT_A_TRAVERSAL_TARGET`` + ``_ACTIVATED_BUT_ORPHANED`` (now empty) +
+#: ``_DIRECT_ACTIVATION_ONLY``).
 _INTENTIONAL_ORPHANS: frozenset[str] = (
     _EDGELESS_BY_CONSTRUCTION
     | _AWAITING_REFERENCES
     | _NOT_A_TRAVERSAL_TARGET
     | _ACTIVATED_BUT_ORPHANED
+    | _DIRECT_ACTIVATION_ONLY
 )
 
-#: The pure-extractor figure (26) and the shipped-graph figure (21) differ by
-#: exactly these five, and by nothing else: the hand-authored overlay
+#: The pure-extractor figure (22) and the shipped-graph figure (21) differ by
+#: exactly this ONE node, and by nothing else: the hand-authored overlay
 #: (``charter.offering.drg.migration.hand_authored_overlay``) carries edges the
-#: extractor has no frontmatter mechanism to mint, and they land on these nodes.
+#: extractor has no frontmatter mechanism to mint, and the sole survivor lands on
+#: ``asset:common-docs-structural-lint`` (``asset.graph.yaml`` ships ``edges: []``
+#: so an asset can never be an edge source in the pure graph).
 #: (Ledger entry (15) removed ``directive:USE_C4_MODEL_TECHNIQUES`` from this set --
 #: it gained a real extractor edge, so the overlay no longer resolves it. Ledger
 #: entry (19) removed ``directive:RECONCILE_CHANGE_SCOPE_TENSIONS``,
 #: ``directive:DISCIPLINED_REFACTORING`` and ``directive:USE_MUTATION_TESTING_TO_
 #: VALIDATE_TEST_QUALITY`` for the same reason -- each gained a real curated-table
-#: extractor edge, so the overlay no longer resolves it; the overlay edges that
-#: used to wire them are still present and still counted in
-#: ``HAND_AUTHORED_EDGES``, they simply no longer determine orphan status.)
+#: extractor edge. Ledger (kind-complete-cascade-orphan-wiring-01M0FQCD, WP02,
+#: #3009 residual) removed the four family-D artefacts
+#: (``styleguide:given-when-then-authoring``, ``toolguide:gherkin``,
+#: ``toolguide:sonar``, ``styleguide:quadruple-a-test-format``): their overlay
+#: ``suggests`` edges were DELETED and re-authored byte-identically in directive
+#: frontmatter, so they gain a real pure-graph inbound edge and cease to be
+#: orphans -- the overlay no longer determines (or even carries) their status. -4.
 #: Naming them keeps the two figures related by a stated cause instead of by two
 #: independent magic numbers that could drift apart unnoticed.
 _ORPHANS_RESOLVED_BY_OVERLAY: frozenset[str] = frozenset(
     {
         "asset:common-docs-structural-lint",
-        "styleguide:quadruple-a-test-format",
-        "styleguide:given-when-then-authoring",
-        "toolguide:sonar",
-        "toolguide:gherkin",
     }
 )
 
@@ -974,6 +998,7 @@ class TestDRGZeroDelta:
             _AWAITING_REFERENCES,
             _NOT_A_TRAVERSAL_TARGET,
             _ACTIVATED_BUT_ORPHANED,
+            _DIRECT_ACTIVATION_ONLY,
         )
         assert sum(len(part) for part in parts) == len(_INTENTIONAL_ORPHANS), (
             "the orphan buckets overlap -- a URN is filed under two reasons"
@@ -1006,6 +1031,61 @@ class TestDRGZeroDelta:
         # equivalent of regenerate-graph --check). Assert their sizes agree exactly
         # (non-frozen) plus the floor.
         assert len(regenerated.edges) == len(shipped.edges) >= len(shipped.nodes)
+
+
+#: The four #3009-residual orphans that get a real frontmatter inbound edge this
+#: mission (kind-complete-cascade-orphan-wiring-01M0FQCD, WP02, FR-007). Each was
+#: a hand-authored overlay ``suggests`` edge sourced at its owning directive; the
+#: promotion moves that authority into the directive's own ``references``
+#: frontmatter so the edge exists in the PURE extractor graph, not only the
+#: overlay. ``(source directive, target)`` pairs:
+_RESIDUAL_FRONTMATTER_PROMOTIONS: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("directive:DIRECTIVE_034", "styleguide:given-when-then-authoring"),
+        ("directive:DIRECTIVE_034", "toolguide:gherkin"),
+        ("directive:DIRECTIVE_030", "toolguide:sonar"),
+        ("directive:DIRECTIVE_041", "styleguide:quadruple-a-test-format"),
+    }
+)
+
+
+@pytest.mark.doctrine
+class TestResidualOrphanWiring:
+    """#3009 residual: 4 overlay edges promoted to source frontmatter, 1 direct-only.
+
+    ATDD red-first (WP02/T006): both assertions are RED on the planning base
+    (the 4 targets have zero inbound edges in the pure graph; the fifth is still
+    filed under the tracked-defect ``_ACTIVATED_BUT_ORPHANED`` set). They go
+    green once the promotions land in directive frontmatter (T007/T008) and the
+    ledger records ``deployable-skill-authoring`` direct-activation-only (T010).
+    """
+
+    def test_promoted_targets_have_a_pure_graph_inbound_edge(self, tmp_path: Path) -> None:
+        """FR-007: each promoted target is de-orphaned in the PURE extractor
+        graph (no overlay), sourced from its owning directive's frontmatter with
+        the expected ``(source, target)`` pair -- not merely *some* inbound edge."""
+        graph = generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        inbound_pairs = {(edge.source, edge.target) for edge in graph.edges}
+        missing = sorted(
+            pair for pair in _RESIDUAL_FRONTMATTER_PROMOTIONS if pair not in inbound_pairs
+        )
+        assert not missing, (
+            "these #3009-residual orphans still lack a pure-graph frontmatter "
+            "inbound edge from their owning directive (promotion did not take "
+            f"effect): {missing}"
+        )
+
+    def test_deployable_skill_authoring_is_direct_activation_only(self) -> None:
+        """FR-008: the source-less fifth orphan is recorded direct-activation-only
+        and has LEFT the tracked-defect ``_ACTIVATED_BUT_ORPHANED`` set (never
+        given a guessed edge -- C-003)."""
+        urn = "styleguide:deployable-skill-authoring"
+        assert urn in _DIRECT_ACTIVATION_ONLY
+        assert urn not in _ACTIVATED_BUT_ORPHANED, (
+            "deployable-skill-authoring must move OUT of the tracked-defect "
+            "_ACTIVATED_BUT_ORPHANED set into the direct-activation-only "
+            "disposition, not sit in both"
+        )
 
 
 @pytest.mark.doctrine
