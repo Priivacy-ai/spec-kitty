@@ -495,6 +495,7 @@ class TestShippedProfilesContextSources:
         assert profile.context_sources.tactics == expected_tactics
 
 
+@pytest.mark.performance
 class TestShippedProfilesPerformance:
     """Performance gate: loading all shipped profiles must complete quickly."""
 
