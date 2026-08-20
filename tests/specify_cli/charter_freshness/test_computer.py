@@ -465,6 +465,63 @@ def test_charter_source_invalid_when_unparseable(tmp_path: Path) -> None:
     assert "cannot be parsed" in (result.charter_source.detail or "")
 
 
+def test_charter_source_invalid_when_empty_mapping(tmp_path: Path) -> None:
+    """H5 (#2831 HIGH finding): ``charter.yaml: {}`` parses cleanly as YAML
+    but is not a charter bundle by any consumer's standard (no
+    ``schema_version``, no ``catalog``) — it must not read ``fresh``.
+    Before this fix, ``_safe_load_yaml`` accepted any mapping including the
+    empty one, so preflight greenlit a charter no other consumer would
+    accept.
+    """
+    _seed_charter_yaml(tmp_path, body="{}\n")
+    result = compute_freshness(tmp_path)
+    assert result.charter_source.state == "invalid"
+    assert result.charter_source.remediation is None
+    assert "bundle contract" in (result.charter_source.detail or "")
+
+
+@pytest.mark.parametrize("schema_version", ["1.0.0", "3.0.0", "not-a-version"])
+def test_charter_source_invalid_when_schema_version_unsupported(
+    tmp_path: Path, schema_version: str
+) -> None:
+    """H5 (#2831 HIGH finding): a ``schema_version`` this build's bundle
+    contract does not understand (a pre-inversion ``1.0.0`` shape, a
+    hypothetical future major, or a non-semver string) parses cleanly but
+    must not read ``fresh`` — only the ``"2.x.x"`` series this build's
+    ``charter.schemas.CharterYaml``/``charter.bundle.SCHEMA_VERSION``
+    actually supports may pass.
+    """
+    _seed_charter_yaml(tmp_path, body=f"schema_version: '{schema_version}'\ncatalog: {{}}\n")
+    result = compute_freshness(tmp_path)
+    assert result.charter_source.state == "invalid"
+    assert result.charter_source.remediation is None
+
+
+def test_charter_source_fresh_when_schema_version_is_supported_minor_bump(
+    tmp_path: Path,
+) -> None:
+    """A forward-compatible minor/patch bump within the supported major
+    series (``2.x.x``) still reads ``fresh`` — H5 tightens on the
+    UNSUPPORTED-major/malformed case only, not on any deviation from the
+    exact seeded ``2.0.0`` string."""
+    _seed_charter_yaml(tmp_path, body=_CHARTER_YAML_BODY.replace("2.0.0", "2.1.0"))
+    result = compute_freshness(tmp_path)
+    assert result.charter_source.state == "fresh"
+
+
+def test_synced_bundle_stale_when_charter_source_invalid_via_unsupported_schema(
+    tmp_path: Path,
+) -> None:
+    """H5 corollary: ``synced_bundle`` cascades the same way it already does
+    for unparseable YAML — an unsupported ``schema_version`` makes
+    ``charter_source`` ``invalid``, which cascades to ``synced_bundle``
+    ``stale`` (never independently ``fresh``)."""
+    _seed_charter_yaml(tmp_path, body="{}\n")
+    result = compute_freshness(tmp_path)
+    assert result.charter_source.state == "invalid"
+    assert result.synced_bundle.state == "stale"
+
+
 def test_charter_source_never_reachable_as_stale() -> None:
     """Structural pin for Landmine 2: ``"stale"`` is not among the states
     ``_compute_charter_source`` can produce — the content-drift question
