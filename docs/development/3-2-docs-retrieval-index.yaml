@@ -12103,7 +12103,7 @@ pages:
   - path: "docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-approach.md"
     title: "rc3 friction burndown: delivery approach & sequencing"
     divio_type: "none"
-    abstract: "The rc3 delivery plan: dependency DAG, wave sequencing (the mission_type-backfill gate, M7-before-M6, M1-before-M8, M2 single re-ledger), per-mission size/risk, the M3/M5 behavior-change sign-offs and their migration prerequisite, and the cut/land plan."
+    abstract: "The rc3 delivery plan: dependency DAG, wave sequencing (backfill gate, M7-before-M6, M1-before-M8), per-mission size/risk, the M3/M5 behavior-change sign-offs, and the land plan."
     anchors:
     - {slug: "dependency-dag", text: "Dependency DAG", level: 2}
     - {slug: "wave-sequencing", text: "Wave sequencing", level: 2}
@@ -12119,7 +12119,7 @@ pages:
   - path: "docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-overview.md"
     title: "rc3 fail-loud friction burndown: program overview"
     divio_type: "none"
-    abstract: "Program BLUF for the eight-mission rc3 crux — the fail-silent/fail-open root cause under epic #3410, the mission table (scope, issues, size, cluster), and what changes for users and operators."
+    abstract: "Program BLUF for the eight-mission rc3 crux — the fail-silent/fail-open root cause under epic #3410, the mission table, and what changes for users and operators."
     anchors:
     - {slug: "the-root-cause-in-one-paragraph", text: "The root cause in one paragraph", level: 2}
     - {slug: "the-two-clusters", text: "The two clusters", level: 2}
