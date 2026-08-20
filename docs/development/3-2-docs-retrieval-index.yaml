@@ -12380,7 +12380,7 @@ pages:
   - path: "docs/plans/investigations/friction-bugs-processing-charter-root-cause.md"
     title: "Processing & charter friction bugs: shared root causes and mission scope"
     divio_type: "none"
-    abstract: "Five-lens squad root-cause analysis of a 7-issue friction defect class (#3605, #3604, #3598, #3596, #3590, #3578, #3571), code-verified against main, with a scoped mission seed and the open decisions specify must resolve."
+    abstract: "Five-lens root-cause analysis of a seven-issue processing-and-charter friction defect class, code-verified against main, with a scoped mission seed and open specify decisions."
     anchors:
     - {slug: "0-the-one-paragraph-answer", text: "0. The one-paragraph answer", level: 2}
     - {slug: "1-the-missing-shared-contract", text: "1. The missing shared contract", level: 2}

@@ -1,6 +1,6 @@
 ---
 title: 'Processing & charter friction bugs: shared root causes and mission scope'
-description: 'Five-lens squad root-cause analysis of a 7-issue friction defect class (#3605, #3604, #3598, #3596, #3590, #3578, #3571), code-verified against main, with a scoped mission seed and the open decisions specify must resolve.'
+description: 'Five-lens root-cause analysis of a seven-issue processing-and-charter friction defect class, code-verified against main, with a scoped mission seed and open specify decisions.'
 doc_status: draft
 updated: '2026-08-20'
 related:
