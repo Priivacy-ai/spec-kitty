@@ -263,6 +263,100 @@ class TestExtractArtifactEdges:
         )
         assert edge.when == "Preserve this metadata."
 
+    def test_directive_reference_reason_roundtrips(self, tmp_path: Path) -> None:
+        """A directive ``references`` entry carries ``reason`` symmetrically with
+        ``when`` (#3009 residual, WP02/T007). Backward-compatible: an entry with
+        no ``reason`` yields ``reason=None``.
+
+        This is the extractor capability that makes the overlay-to-frontmatter
+        promotions LOSSLESS -- without it a promoted edge would drop its curated
+        ``reason`` and the regenerated fragment would drift.
+        """
+        doctrine_root = tmp_path / "pack"
+        directives_dir = doctrine_root / "directives"
+        directives_dir.mkdir(parents=True)
+        (directives_dir / "reason-roundtrip.directive.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: '1.0'",
+                    "id: reason-roundtrip",
+                    "title: Reason Roundtrip",
+                    "references:",
+                    "  - type: styleguide",
+                    "    id: with-reason",
+                    "    when: applying the styleguide",
+                    "    reason: because the directive suggests it here",
+                    "  - type: toolguide",
+                    "    id: without-reason",
+                    "    when: running the tool",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        _, edges = extract_artifact_edges(doctrine_root)
+
+        with_reason = next(
+            e for e in edges if e.target == "styleguide:with-reason"
+        )
+        assert with_reason.relation == Relation.SUGGESTS
+        assert with_reason.when == "applying the styleguide"
+        assert with_reason.reason == "because the directive suggests it here"
+
+        without_reason = next(
+            e for e in edges if e.target == "toolguide:without-reason"
+        )
+        assert without_reason.when == "running the tool"
+        assert without_reason.reason is None
+
+    def test_tactic_reference_reason_roundtrips(self, tmp_path: Path) -> None:
+        """A tactic ``references`` entry (top-level AND step-level) carries
+        ``reason`` symmetrically with ``when``, via the single
+        :func:`_reference_edge_kwargs` authority.
+
+        Regression for the pre-merge finding that the tactic branches read only
+        ``when`` while the directive/paradigm branches read both -- so a future
+        overlay-to-frontmatter promotion on a *tactic* source would have silently
+        dropped its rationale at the extractor. Closes the defect class by
+        construction (one helper feeds every reference branch).
+        """
+        doctrine_root = tmp_path / "pack"
+        tactics_dir = doctrine_root / "tactics"
+        tactics_dir.mkdir(parents=True)
+        (tactics_dir / "reason-roundtrip.tactic.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: '1.0'",
+                    "id: tactic-reason-roundtrip",
+                    "name: Tactic Reason Roundtrip",
+                    "references:",
+                    "  - type: styleguide",
+                    "    id: top-with-reason",
+                    "    when: at the top level",
+                    "    reason: because the tactic suggests it",
+                    "steps:",
+                    "  - references:",
+                    "      - type: toolguide",
+                    "        id: step-with-reason",
+                    "        when: at the step level",
+                    "        reason: because the step suggests it",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        _, edges = extract_artifact_edges(doctrine_root)
+
+        top = next(e for e in edges if e.target == "styleguide:top-with-reason")
+        assert top.when == "at the top level"
+        assert top.reason == "because the tactic suggests it"
+
+        step = next(e for e in edges if e.target == "toolguide:step-with-reason")
+        assert step.when == "at the step level"
+        assert step.reason == "because the step suggests it"
+
     def _write_profile(self, root: Path, op_entries: list[str]) -> None:
         profiles_dir = root / "agent_profiles"
         profiles_dir.mkdir(parents=True, exist_ok=True)

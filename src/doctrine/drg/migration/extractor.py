@@ -539,6 +539,30 @@ def _kind_for_type(ref_type: str) -> NodeKind | None:
     return _KIND_MAP.get(ref_type)
 
 
+def _reference_edge_kwargs(ref: dict[str, Any]) -> dict[str, str | None]:
+    """Curated edge metadata (``when``/``reason``) for a ``{type, id, when?,
+    reason?}`` reference dict, carried symmetrically onto its DRG edge.
+
+    The single authority for the ``when``/``reason``-bearing ``references``
+    branches -- **directive, tactic (top- and step-level), and paradigm** -- so
+    none silently drops a field. Before this, the tactic branches read only
+    ``when`` while directive/paradigm read both, so a future overlay-to-
+    frontmatter promotion (the #3009 residual mechanism) on a tactic source would
+    have lost its rationale at the extractor. Both default to ``None``, so any
+    bare ``{type, id}`` reference is unchanged.
+
+    Deliberately **not** yet wired through the ``procedure`` references branch:
+    shipped procedure references DO author ``reason``, which that branch has
+    always dropped, so routing it here would change the shipped graph (new edge
+    metadata) and requires its own golden re-ledger -- tracked separately, out of
+    this mission's scope. Note also that end-to-end frontmatter promotion for a
+    non-directive source additionally needs that kind's reference *model* +
+    generated schema to accept ``reason`` (only :class:`DirectiveReference` does
+    today); the extractor carrying the field is necessary but not sufficient.
+    """
+    return {"when": ref.get("when"), "reason": ref.get("reason")}
+
+
 def _add_ref_edge(
     *,
     nodes_by_urn: dict[str, DRGNode],
@@ -720,7 +744,7 @@ def extract_artifact_edges(  # noqa: C901
                     )
                 )
 
-            # references (top-level list of {type, id, when?})
+            # references (top-level list of {type, id, when?, reason?})
             for ref in data.get("references", []) or []:
                 ref_type: str = ref.get("type", "")
                 ref_id: str = ref.get("id", "")
@@ -736,7 +760,12 @@ def extract_artifact_edges(  # noqa: C901
                         source=src_urn,
                         target=tgt_urn,
                         relation=_relation_for_ref_type(ref_type),
-                        when=ref.get("when"),
+                        # ``when``/``reason`` carried symmetrically (single
+                        # authority :func:`_reference_edge_kwargs`) so a directive
+                        # frontmatter reference can hold the curated rationale an
+                        # overlay edge used to -- the capability that makes the
+                        # #3009 overlay-to-frontmatter promotions lossless.
+                        **_reference_edge_kwargs(ref),
                     )
                 )
 
@@ -770,7 +799,7 @@ def extract_artifact_edges(  # noqa: C901
                         source=src_urn,
                         target=tgt_urn,
                         relation=Relation.SUGGESTS,
-                        when=ref.get("when"),
+                        **_reference_edge_kwargs(ref),
                     )
                 )
 
@@ -791,7 +820,7 @@ def extract_artifact_edges(  # noqa: C901
                             source=src_urn,
                             target=tgt_urn,
                             relation=Relation.SUGGESTS,
-                            when=ref.get("when"),
+                            **_reference_edge_kwargs(ref),
                         )
                     )
 
@@ -843,8 +872,7 @@ def extract_artifact_edges(  # noqa: C901
                     ref_type=ref_type,
                     ref_id=ref_id,
                     relation=_relation_for_procedure_ref_type(ref_type),
-                    when=ref.get("when"),
-                    reason=ref.get("reason"),
+                    **_reference_edge_kwargs(ref),
                 )
 
     # --- Procedures ---
