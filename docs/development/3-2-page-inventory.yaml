@@ -4208,6 +4208,24 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/initiatives/rc3-friction-burndown/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-approach.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-overview.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md
   tag: current
   divio_type: none
