@@ -291,6 +291,15 @@ _ACTION_UNREACHABLE_D1: frozenset[str] = frozenset(
         "procedure:event-storming-discovery",
         "procedure:migrate-project-guidance-to-spec-kitty-charter",
         "styleguide:adversarial-squad-cadence",
+        # ``deployable-skill-authoring`` stays action-unreachable at BOTH depths
+        # (and profile-unreachable). Mission kind-complete-cascade-orphan-wiring
+        # -01M0FQCD (WP02, #3009 residual) records it *direct-activation-only*: it
+        # has no defensible source artefact, so no inbound edge was invented
+        # (C-003); it is reached by charter activation directly, never by a
+        # traversal. It therefore remains in every unreachable set here unchanged
+        # -- the promotion of the four family-D siblings to frontmatter left the
+        # SHIPPED graph byte-identical, so no reachability pin moves this mission.
+        # (See ``_DIRECT_ACTIVATION_ONLY`` in test_extractor_projection.py.)
         "styleguide:deployable-skill-authoring",
         "styleguide:java-conventions",
         "styleguide:mutation-aware-test-design",
