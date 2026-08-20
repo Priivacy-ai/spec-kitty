@@ -56,7 +56,6 @@ class TestSyncDaemonHonorsDisableEnv:
         with (
             patch("specify_cli.sync.daemon._ensure_sync_daemon_running_locked", inner),
             patch("specify_cli.sync.daemon.DAEMON_LOCK_FILE", tmp_path / "sync-daemon.lock"),
-            patch("specify_cli.sync.daemon.SPEC_KITTY_DIR", tmp_path),
         ):
             outcome = ensure_sync_daemon_running(
                 intent=DaemonIntent.REMOTE_REQUIRED,
@@ -87,7 +86,6 @@ class TestSyncDaemonHonorsDisableEnv:
         with (
             patch("specify_cli.sync.daemon._ensure_sync_daemon_running_locked", inner),
             patch("specify_cli.sync.daemon.DAEMON_LOCK_FILE", tmp_path / "sync-daemon.lock"),
-            patch("specify_cli.sync.daemon.SPEC_KITTY_DIR", tmp_path),
         ):
             outcome = ensure_sync_daemon_running(
                 intent=DaemonIntent.REMOTE_REQUIRED,

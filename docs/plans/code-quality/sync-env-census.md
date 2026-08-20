@@ -1,8 +1,8 @@
 ---
 title: SPEC_KITTY_* env census — sync surface
-description: 'Env census of the sync surface: a live or retire-candidate verdict for every SPEC_KITTY_* reference, proving the Wave-4 de-god deleted no environment name.'
+description: 'Env census of the sync surface: a live or retired verdict for every SPEC_KITTY_* reference, proving the Wave-4 de-god deleted no environment name.'
 doc_status: active
-updated: '2026-08-19'
+updated: '2026-08-20'
 related:
 - docs/plans/code-quality/index.md
 - docs/plans/code-quality/targeted-cleanup-scoping.md
@@ -17,9 +17,15 @@ god-module into the `specify_cli.sync.sync_*` seam modules, and this census esta
 the relocation **deleted no environment reference** — a relocation moves a reference from the
 husk to a seam module, but the *set* of referenced names is invariant.
 
-**Retirement is out of scope (WS6 / INV-6).** Verdicts are an inventory only. No variable is
-deleted, renamed, or rewired by this mission. Every `retire-candidate` is handed to the WS6
-follow-on issue (FR-008); it is *documented*, never *actioned*, here.
+**Retirement was out of scope for the Wave-4 mission itself (WS6 / INV-6).** Verdicts were an
+inventory only there; no variable was deleted, renamed, or rewired by that mission. Every
+`retire-candidate` was handed to the WS6 follow-on issue (FR-008) for deliberate, later action.
+
+**Update (#3569, 2026-08-20).** The sole `retire-candidate`, `SPEC_KITTY_DIR`, has been retired:
+its remaining test importers were migrated off the name (they patched it defensively alongside
+the real `DAEMON_*_FILE` lazy attributes but nothing in production ever read it — the patches
+were removed outright) and the shim was deleted from `daemon.py`. The census below reflects the
+post-retirement state (7 references, all `live`).
 
 **Surface scanned.** `src/specify_cli/cli/commands/sync.py` (the husk) plus every `*.py` under
 `src/specify_cli/sync/` (recursively). The frozen expected set and the executable guard live in
@@ -32,7 +38,7 @@ token on the surface is the wildcard `SPEC_KITTY_SYNC_*` written in a `restart.p
 (`# ... the #2573b disable-env skip (SPEC_KITTY_SYNC_*)`), which is a family reference, not a
 distinct name.
 
-## Census (8 references, 7 `live` / 1 `retire-candidate`)
+## Census (7 references, all `live`; 1 historical `retired`)
 
 | # | Reference | Kind | Verdict | Where / role |
 |---|-----------|------|---------|--------------|
@@ -43,17 +49,18 @@ distinct name.
 | 5 | `SPEC_KITTY_SYNC_READONLY_IDENTITY` | env var | **live** | Read-only-identity flag (`events.py`, `READ_ONLY_IDENTITY_ENV`) gating identity mutation on event emission. |
 | 6 | `SPEC_KITTY_NO_AUTO_CUTOVER` | env var | **live** | Refuses legacy-root auto-cutover (`layout_generation.py`, `NO_AUTO_CUTOVER_ENV`). Active operator escape hatch. |
 | 7 | `SPEC_KITTY_CLI_VERSION` | env var | **live** | Pins the CLI version across daemon respawn (`daemon.py`): read on start, re-exported onto the respawned child's env. |
-| 8 | `SPEC_KITTY_DIR` | module-attribute shim | **retire-candidate** | *Not* an `os.environ` variable — a legacy lazily-resolved module attribute on `daemon.py` (`_LAZY_PATH_RESOLVERS`, served via `__getattr__`), the import-time path constant **superseded by `SPEC_KITTY_HOME` + `get_runtime_root()`**. Kept only for external importers/tests that still reference the name. Candidate for removal once those callers migrate — deferred to WS6. |
+| ~~8~~ | `SPEC_KITTY_DIR` | module-attribute shim | **retired (#3569)** | *Was not* an `os.environ` variable — a legacy lazily-resolved module attribute on `daemon.py` (`_LAZY_PATH_RESOLVERS`, served via `__getattr__`), superseded at runtime by `SPEC_KITTY_HOME` + `get_runtime_root()`. Had no production readers; the only remaining bindings were defensive `monkeypatch`/`patch` calls in daemon tests (alongside the still-live `DAEMON_*_FILE` lazy attributes) that had no effect on behaviour. Those bindings were deleted and the shim removed from `daemon.py` and `_LAZY_PATH_RESOLVERS`. |
 
 ### Verdict rationale
 
-- **`live` (7)** — every entry except #8 is a genuine, actively-consumed environment variable
-  whose deletion would change `sync` behaviour. None is a de-god artefact; all pre-date the
-  mission and survive the relocation unchanged.
-- **`retire-candidate` (1)** — `SPEC_KITTY_DIR` is a backward-compatibility module shim, not an
-  env var. Its runtime authority already moved to `SPEC_KITTY_HOME` / `get_runtime_root()`. It
-  is retained (not deleted) because external importers still bind the name; retiring it requires
-  migrating those callers, which is WS6 follow-on work, not this mission (WS6 / INV-6).
+- **`live` (7)** — every entry except the retired #8 is a genuine, actively-consumed environment
+  variable whose deletion would change `sync` behaviour. None is a de-god artefact; all pre-date
+  the mission and survive the relocation unchanged.
+- **`retired` (1, was `retire-candidate`)** — `SPEC_KITTY_DIR` was a backward-compatibility module
+  shim, not an env var. Its runtime authority had already moved to `SPEC_KITTY_HOME` /
+  `get_runtime_root()`; the only remaining callers were test monkeypatches that did nothing (they
+  set an attribute production code never read). #3569 (the WS6 follow-on, FR-008) confirmed that
+  and deleted the shim.
 
 ## Anti-deletion invariant (FR-007)
 
@@ -62,7 +69,6 @@ it from the live tree on every run; any shrinkage (a deleted reference) fails th
 
 ```
 SPEC_KITTY_CLI_VERSION
-SPEC_KITTY_DIR
 SPEC_KITTY_ENABLE_SAAS_SYNC
 SPEC_KITTY_HOME
 SPEC_KITTY_NO_AUTO_CUTOVER
@@ -70,3 +76,6 @@ SPEC_KITTY_SAAS_URL
 SPEC_KITTY_SYNC_MINIMAL_IMPORT
 SPEC_KITTY_SYNC_READONLY_IDENTITY
 ```
+
+(`SPEC_KITTY_DIR` was removed from this frozen set by #3569's deliberate retirement — see the
+census row above.)
