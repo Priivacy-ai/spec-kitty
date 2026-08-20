@@ -157,3 +157,9 @@ Two adjacent reader-consolidation items are **folded into this mission** by oper
 | B | `mission_type` backfill (NEW) | none today — `backfill-identity` mints `mission_id` only | **FR-007:** verify coverage; add dedicated `mission_type` backfill |
 | C | `mission.py:542` `_canonical_meta_mission_type` | canonical, reads `mission_type` + legacy `mission` | **Delegate to shared helper; drop legacy `mission` read** |
 | W | #2901 sites: `dossier/indexer.py`, `sync/history_import/scan.py`, `audit/classifiers/wp_files.py`, `status/bootstrap.py`, `mission_v1/guards.py`, `review/prompt_metadata.py` | divergent WP-frontmatter catch/recovery | **FR-008 fold:** one tolerant reader in `status/wp_metadata.py` |
+
+## Cross-mission coordination (rc3 integration check)
+
+- **M3↔M5 reader reconciliation (load-bearing).** M3's delivery path relies on `resolve_mission_type_key`; ensure it routes through M5's `read_mission_type()` so the two readers do not re-diverge (the defect M5 kills). Coordinate at plan time.
+- **Same-file coordination.** M5 (#2901 fold) and **M6** both edit `audit/classifiers/wp_files.py`; M5 and **M8** both edit `retrospective/generator.py` (different symbols/lines each). Assign per-symbol ownership at plan time.
+- **Program gate.** M5's legacy-resolution drop requires **M0 (`mission_type` backfill)** to have run first — see the rc3 approach doc.
