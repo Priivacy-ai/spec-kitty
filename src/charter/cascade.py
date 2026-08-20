@@ -60,7 +60,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import ClassVar
 
-from doctrine.artifact_kinds import ArtifactKind
+from doctrine.artifact_kinds import CHARTER_ACTIVATABLE_KINDS, ArtifactKind
 from doctrine.drg.models import DRGEdge, DRGGraph, Relation
 
 __all__ = [
@@ -84,8 +84,29 @@ __all__ = [
 #: is followed too: a refinement is a traversable reference at least as
 #: load-bearing as a suggestion, so activating an artifact cascades to what it
 #: refines — this is the wiring that keeps ``REFINES`` from being born inert.
+#:
+#: ``SCOPE`` and ``INSTANTIATES`` join the set per ADR 2026-08-20-1 (#2829) to
+#: follow the **action hop**. A ``mission_type`` node carries only
+#: ``requires → action`` edges; an ``action`` node carries ``scope → governance``
+#: ({directive, tactic, styleguide, …}) and ``instantiates → template`` — it has
+#: no requires/suggests/refines edges. Without ``scope``/``instantiates`` the
+#: forward closure reaches the ``action`` node and stops, so activating any of the
+#: four built-in mission types cascaded to nobody. ``scope`` is the direct #2829
+#: fix (action → governance); ``instantiates`` is followed so the action hop is
+#: complete and mission-type actions are treated like the pre-existing sources
+#: that already reach templates. Its non-activatable ``template`` targets are
+#: dropped at *candidacy* (see :func:`_referenced_artifacts`), not by omitting the
+#: relation — traversal reach and candidacy are separate concerns. The remaining
+#: relations stay excluded (lineage, overlay, runtime handoff, tension,
+#: anti-pattern) so the cascade never over-reaches; the ADR tabulates why.
 REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
-    {Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES}
+    {
+        Relation.REQUIRES,
+        Relation.SUGGESTS,
+        Relation.REFINES,
+        Relation.SCOPE,
+        Relation.INSTANTIATES,
+    }
 )
 
 #: Recovery hint surfaced with the no-cascade warning (FR-013, Contract C3.2).
@@ -242,12 +263,16 @@ def _reference_adjacency(edges: list[DRGEdge]) -> dict[str, list[str]]:
 
 
 def _referenced_artifacts(graph: DRGGraph, source_urn: str) -> list[ReferencedArtifact]:
-    """Return artifact-kind nodes referenced (transitively) from *source_urn*.
+    """Return charter-activatable nodes referenced (transitively) from *source_urn*.
 
-    Pure forward closure over :data:`REFERENCE_RELATIONS`, filtered to nodes that
-    are themselves artifact kinds (non-artifact nodes — actions, glossary — are
-    never cascade candidates). Result is sorted by ``(kind, artifact_id)`` for
-    deterministic rendering.
+    Pure forward closure over :data:`REFERENCE_RELATIONS` (which now follows the
+    action hop via ``scope``/``instantiates``), filtered twice: non-artifact nodes
+    (actions, glossary) are dropped because :func:`_kind_of` returns ``None``, and
+    non-activatable artifact kinds (``template``/``asset``) are dropped via the
+    canonical :data:`~doctrine.artifact_kinds.CHARTER_ACTIVATABLE_KINDS` set (ADR
+    2026-08-20-1). The closure still *reaches* those nodes — traversal reach and
+    candidacy are separate concerns — but they are never cascade candidates.
+    Result is sorted by ``(kind, artifact_id)`` for deterministic rendering.
     """
     adj = _reference_adjacency(graph.edges)
     reachable = _forward_reference_closure(adj, {source_urn})
@@ -255,6 +280,14 @@ def _referenced_artifacts(graph: DRGGraph, source_urn: str) -> list[ReferencedAr
     for urn in reachable:
         kind = _kind_of(urn)
         if kind is None:
+            continue
+        # ADR 2026-08-20-1 (#2829): traversal follows ``instantiates`` (and
+        # ``scope``) so the closure passes *through* action nodes to the governance
+        # and templates they reach; candidacy then drops the non-activatable
+        # ``template``/``asset`` kinds via the single canonical
+        # ``CHARTER_ACTIVATABLE_KINDS`` authority. One membership test — no
+        # per-specific-kind branch.
+        if kind not in CHARTER_ACTIVATABLE_KINDS:
             continue
         refs.append(ReferencedArtifact(kind=kind, artifact_id=_bare_id(urn), urn=urn))
     refs.sort(key=lambda r: (r.kind.value, r.artifact_id))

@@ -2943,6 +2943,19 @@ pages:
     - {slug: "c-kernel-expander-token-provenance-two-tier-kitty-env-chosen", text: "C. Kernel expander + token provenance + two-tier `.kitty.env` (chosen)", level: 3}
     - {slug: "d-new-spec-kitty-config-home-locator-var", text: "D. New `SPEC_KITTY_CONFIG_HOME` locator var", level: 3}
     - {slug: "more-information", text: "More Information", level: 2}
+  - path: "docs/adr/3.x/2026-08-20-1-cascade-kind-complete-relation-set.md"
+    title: "ADR: The Charter Cascade Follows the Action Hop and Proposes Only Charter-Activatable Kinds"
+    divio_type: "none"
+    abstract: "The charter cascade follows the action hop (scope + instantiates) so activating a mission type reaches its governance, and proposes only charter-activatable kinds."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "relations-deliberately-kept-out-of-the-followed-set", text: "Relations deliberately kept out of the followed set", level: 3}
+    - {slug: "symmetry", text: "Symmetry", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "related", text: "Related", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -9624,6 +9637,7 @@ pages:
     - {slug: "composition-ledger-nfr-004-family-e-3063-analysis-terminology-reasons-canvas-family", text: "Composition ledger (NFR-004) — Family E (#3063 ANALYSIS / TERMINOLOGY / REASONS-CANVAS family)", level: 2}
     - {slug: "family-f-3063-orphan-governance-directives-operator-interview-outcome-accept-no-edges-authored", text: "Family F (#3063 ORPHAN GOVERNANCE DIRECTIVES) — operator interview outcome, ACCEPT (no edges authored)", level: 2}
     - {slug: "composition-ledger-nfr-004-mission-rehome-writing-comms-doctrine-01kz9v0s-wp04", text: "Composition ledger (NFR-004) — mission `rehome-writing-comms-doctrine-01KZ9V0S` (WP04)", level: 2}
+    - {slug: "composition-ledger-nfr-004-mission-kind-complete-cascade-orphan-wiring-01m0fqcd-wp02-3009-residual", text: "Composition ledger (NFR-004) — mission `kind-complete-cascade-orphan-wiring-01M0FQCD` (WP02, #3009 RESIDUAL)", level: 2}
     - {slug: "composition-ledger-nfr-002-nfr-004-reachability-companion-metric-mission-drg-reachability-metric-wiring-01kzs5vr-wp01-3009-point-3", text: "Composition ledger (NFR-002/NFR-004) — reachability companion metric (mission `drg-reachability-metric-wiring-01KZS5VR`, WP01, #3009 point 3)", level: 2}
     - {slug: "the-six-curated-edges-curated-artifact-edges-src-doctrine-drg-migration-extractor-py", text: "The six curated edges (`_CURATED_ARTIFACT_EDGES`, `src/doctrine/drg/migration/extractor.py`)", level: 3}
     - {slug: "the-companion-metric-moves-action-unreachable-shipped-88-75", text: "The companion metric moves: `_ACTION_UNREACHABLE_SHIPPED` 88 → 75", level: 3}

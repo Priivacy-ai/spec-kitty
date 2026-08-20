@@ -26,7 +26,12 @@ from charter.cascade import (
     deactivation_plan,
     referenced_but_not_cascaded,
 )
-from doctrine.artifact_kinds import ArtifactKind, MissionTypeNotAnArtifactKind
+from doctrine.artifact_kinds import (
+    CHARTER_ACTIVATABLE_KINDS,
+    ArtifactKind,
+    MissionTypeNotAnArtifactKind,
+)
+from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.unit
@@ -150,13 +155,23 @@ def test_scope_rejects_empty_explicit_set() -> None:
         CascadeScope(is_all=False, kinds=frozenset())
 
 
-def test_reference_relations_are_requires_suggests_and_refines() -> None:
-    # REFINES joined the cascade reference set in #2079 so a refinement edge is
-    # traversed (not born inert like APPLIES); REQUIRES/SUGGESTS are the legacy set.
-    assert (
-        frozenset({Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES})
-        == REFERENCE_RELATIONS
+def test_reference_relations_include_scope_and_instantiates() -> None:
+    # ADR 2026-08-20-1 (#2829): SCOPE + INSTANTIATES joined the cascade reference
+    # set so the forward closure walks the action hop
+    # (``mission_type --requires--> action --scope--> governance`` and
+    # ``action --instantiates--> template``). REQUIRES/SUGGESTS are the legacy set;
+    # REFINES joined in #2079. This is the widened followed set the kind-complete
+    # cascade traverses (candidacy is filtered separately).
+    expected = frozenset(
+        {
+            Relation.REQUIRES,
+            Relation.SUGGESTS,
+            Relation.REFINES,
+            Relation.SCOPE,
+            Relation.INSTANTIATES,
+        }
     )
+    assert expected == REFERENCE_RELATIONS
 
 
 def test_tension_vocabulary_excluded_from_reference_relations() -> None:
@@ -365,3 +380,239 @@ def test_deactivation_transitive_shared_reference_is_skipped() -> None:
     assert plan.deactivate == ["tactic:a"]
     assert [s.urn for s in plan.skipped_shared] == ["tactic:deep"]
     assert plan.skipped_shared[0].referencing_active_urn == "agent_profile:renata"
+
+
+# ---------------------------------------------------------------------------
+# WP01 (#2829) — kind-complete cascade: follow the action hop, filter to
+# CHARTER_ACTIVATABLE_KINDS. ADR docs/adr/3.x/2026-08-20-1-...
+# ---------------------------------------------------------------------------
+
+#: The four built-in mission types shipped in the merged DRG.
+_BUILT_IN_MISSION_TYPE_URNS: tuple[str, ...] = (
+    "mission_type:documentation",
+    "mission_type:plan",
+    "mission_type:research",
+    "mission_type:software-dev",
+)
+
+#: The mission types whose action steps ``scope`` onto governance artifacts in the
+#: shipped graph — so following the action hop yields a non-empty cascade (C-CAS-1).
+#: ``mission_type:plan`` is intentionally absent: its action steps carry only
+#: ``instantiates → template`` edges (no ``scope``), so after the ADR 2026-08-20-1
+#: activatable-kind filter it cascades to nothing. That is a *graph-data* property
+#: (the plan step contracts scope no governance), not a cascade-code defect, and
+#: wiring plan governance is outside WP01's code-only scope (see
+#: ``test_plan_cascade_is_empty_because_its_actions_scope_no_governance``).
+_GOVERNANCE_BEARING_MISSION_TYPE_URNS: tuple[str, ...] = (
+    "mission_type:documentation",
+    "mission_type:research",
+    "mission_type:software-dev",
+)
+
+#: Relations that must stay OUT of the followed set (C-CAS-6). A graph with only
+#: one of these from the source must cascade to nothing. ``in_tension_with`` is
+#: stored canonically with the lexicographically-smaller URN as source.
+_EXCLUDED_RELATIONS: tuple[Relation, ...] = (
+    Relation.IN_TENSION_WITH,
+    Relation.REJECTS,
+    Relation.DELEGATES_TO,
+    Relation.SPECIALIZES_FROM,
+    Relation.ENHANCES,
+    Relation.OVERRIDES,
+    Relation.REPLACES,
+    Relation.APPLIES,
+    Relation.VOCABULARY,
+)
+
+
+@pytest.fixture(scope="module")
+def built_in_graph() -> DRGGraph:
+    """The merged built-in DRG, loaded once for the module."""
+    return load_built_in_graph()
+
+
+@pytest.mark.parametrize("mission_type_urn", _GOVERNANCE_BEARING_MISSION_TYPE_URNS)
+def test_cascade_from_governance_bearing_mission_types_is_non_empty(
+    built_in_graph: DRGGraph, mission_type_urn: str
+) -> None:
+    # C-CAS-1 (RED baseline: returned 0 — the #2829 action-hop dead-end).
+    # Following the action hop (requires -> action -> scope -> governance) makes
+    # the cascade reachable for every mission type whose steps scope governance.
+    result = cascade_activation_targets(
+        built_in_graph, mission_type_urn, CascadeScope.all()
+    )
+    assert result.activated, (
+        f"cascade from {mission_type_urn} was empty — the #2829 action-hop dead-end"
+    )
+
+
+def test_plan_cascade_is_empty_because_its_actions_scope_no_governance(
+    built_in_graph: DRGGraph,
+) -> None:
+    # SURFACED FINDING (WP01, code-only scope): the #2829 dead-end (the closure
+    # stopping at the action node) IS closed for plan too — the traversal now
+    # passes *through* its actions. But ``mission_type:plan``'s action steps carry
+    # only ``instantiates → template`` edges and no ``scope`` edges in the shipped
+    # graph, so after the ADR 2026-08-20-1 activatable-kind filter drops those
+    # templates there is nothing left to cascade. This is a graph-data property
+    # (plan step contracts scope no governance), NOT a cascade-code defect; wiring
+    # plan governance would be a graph-data change outside WP01's owned surface.
+    result = cascade_activation_targets(
+        built_in_graph, "mission_type:plan", CascadeScope.all()
+    )
+    assert result.activated == {}
+
+
+def test_cascade_from_documentation_reaches_governance_kinds(
+    built_in_graph: DRGGraph,
+) -> None:
+    # C-CAS-2: documentation's actions scope onto governance artifacts; the
+    # activated mapping must include at least directive, tactic, styleguide.
+    result = cascade_activation_targets(
+        built_in_graph, "mission_type:documentation", CascadeScope.all()
+    )
+    for kind_key in ("directive", "tactic", "styleguide"):
+        assert kind_key in result.activated, (
+            f"{kind_key!r} missing from documentation cascade: "
+            f"{sorted(result.activated)}"
+        )
+
+
+def test_cascade_never_proposes_template_or_asset(built_in_graph: DRGGraph) -> None:
+    # C-CAS-3: even for a source whose closure reaches templates/assets, neither
+    # appears in ``activated`` nor in the no-cascade ``skipped`` report.
+    result = cascade_activation_targets(
+        built_in_graph, "mission_type:documentation", CascadeScope.all()
+    )
+    assert "template" not in result.activated
+    assert "asset" not in result.activated
+
+    report = referenced_but_not_cascaded(built_in_graph, "mission_type:documentation")
+    assert "template" not in report.skipped
+    assert "asset" not in report.skipped
+
+
+@pytest.mark.parametrize("mission_type_urn", _BUILT_IN_MISSION_TYPE_URNS)
+def test_cascade_never_emits_action_nodes(
+    built_in_graph: DRGGraph, mission_type_urn: str
+) -> None:
+    # C-CAS-4: ``action:`` is not an ArtifactKind, so it is never a bucket key —
+    # the traversal passes *through* actions but never proposes one as a target.
+    result = cascade_activation_targets(
+        built_in_graph, mission_type_urn, CascadeScope.all()
+    )
+    assert "action" not in result.activated
+
+
+@pytest.mark.parametrize("relation", _EXCLUDED_RELATIONS)
+def test_excluded_relation_yields_empty_cascade(relation: Relation) -> None:
+    # C-CAS-6: a graph carrying only one excluded relation from the source must
+    # cascade to nothing — those relations never join REFERENCE_RELATIONS.
+    # Construct source < target so an ``in_tension_with`` edge is canonically shaped.
+    source = "directive:aaa-source"
+    target = "directive:bbb-target"
+    graph = _graph(
+        nodes=[
+            _node(source, NodeKind.DIRECTIVE),
+            _node(target, NodeKind.DIRECTIVE),
+        ],
+        edges=[_edge(source, target, relation)],
+    )
+    result = cascade_activation_targets(graph, source, CascadeScope.all())
+    assert result.activated == {}
+    assert result.skipped_by_scope == {}
+
+
+def test_instantiates_is_followed_but_template_dropped_at_candidacy() -> None:
+    # ADR: ``instantiates`` is followed (traversal reaches the template) but its
+    # only targets are templates, dropped at candidacy — so it adds no activation
+    # target. Traversal reach and candidacy are separate concerns.
+    graph = _graph(
+        nodes=[
+            _node("mission_type:gamma", NodeKind.MISSION_TYPE),
+            _node("action:gamma/step", NodeKind.ACTION),
+            _node("template:tmpl", NodeKind.TEMPLATE),
+        ],
+        edges=[
+            _edge("mission_type:gamma", "action:gamma/step", Relation.REQUIRES),
+            _edge("action:gamma/step", "template:tmpl", Relation.INSTANTIATES),
+        ],
+    )
+    result = cascade_activation_targets(
+        graph, "mission_type:gamma", CascadeScope.all()
+    )
+    assert result.activated == {}
+
+
+def test_deactivation_shared_via_widened_set_is_skipped() -> None:
+    # C-CAS-7: a candidate reachable via the widened (scope) set from another
+    # still-active source is skipped (named), never deactivated. RED baseline:
+    # scope is unfollowed so the candidate is not even reached (skipped_shared []).
+    graph = _graph(
+        nodes=[
+            _node("mission_type:alpha", NodeKind.MISSION_TYPE),
+            _node("mission_type:beta", NodeKind.MISSION_TYPE),
+            _node("action:alpha/step", NodeKind.ACTION),
+            _node("action:beta/step", NodeKind.ACTION),
+            _node("directive:shared-gov", NodeKind.DIRECTIVE),
+        ],
+        edges=[
+            _edge("mission_type:alpha", "action:alpha/step", Relation.REQUIRES),
+            _edge("mission_type:beta", "action:beta/step", Relation.REQUIRES),
+            _edge("action:alpha/step", "directive:shared-gov", Relation.SCOPE),
+            _edge("action:beta/step", "directive:shared-gov", Relation.SCOPE),
+        ],
+    )
+    plan = deactivation_plan(
+        graph,
+        "mission_type:alpha",
+        CascadeScope.all(),
+        active_urns={"mission_type:alpha", "mission_type:beta"},
+    )
+    assert plan.deactivate == []
+    assert [s.urn for s in plan.skipped_shared] == ["directive:shared-gov"]
+    assert plan.skipped_shared[0].referencing_active_urn == "mission_type:beta"
+
+
+def test_cascade_candidate_kinds_are_all_charter_activatable(
+    built_in_graph: DRGGraph,
+) -> None:
+    # C-CAS-3/5: every kind the shipped cascade proposes (for any mission type)
+    # is a member of CHARTER_ACTIVATABLE_KINDS — the filter admits nothing else.
+    activatable_values = {kind.value for kind in CHARTER_ACTIVATABLE_KINDS}
+    for mission_type_urn in _BUILT_IN_MISSION_TYPE_URNS:
+        result = cascade_activation_targets(
+            built_in_graph, mission_type_urn, CascadeScope.all()
+        )
+        assert set(result.activated) <= activatable_values, (
+            f"{mission_type_urn} proposed a non-activatable kind: "
+            f"{set(result.activated) - activatable_values}"
+        )
+
+
+def test_instantiates_targets_are_all_non_activatable_today(
+    built_in_graph: DRGGraph,
+) -> None:
+    """Pin ADR 2026-08-20-1's "instantiates adds no activation target today".
+
+    ``instantiates`` is followed for action-hop completeness, but every shipped
+    ``instantiates`` edge points at a ``template`` (a non-charter-activatable
+    kind dropped at candidacy), so following it contributes ZERO cascade
+    candidates. If a future ``instantiates`` edge ever targets a
+    charter-activatable kind, cascade output would change silently — this pin
+    fails so the change is a conscious decision (update the ADR + tests), not an
+    accident.
+    """
+    activatable_values = {kind.value for kind in CHARTER_ACTIVATABLE_KINDS}
+    offenders: list[str] = []
+    for edge in built_in_graph.edges:
+        if edge.relation is not Relation.INSTANTIATES:
+            continue
+        prefix = edge.target.split(":", 1)[0] if ":" in edge.target else edge.target
+        if prefix in activatable_values:
+            offenders.append(edge.target)
+    assert not offenders, (
+        "instantiates now targets charter-activatable kind(s); following it would "
+        "change cascade output. Update ADR 2026-08-20-1 + the cascade tests before "
+        f"shipping: {sorted(set(offenders))}"
+    )

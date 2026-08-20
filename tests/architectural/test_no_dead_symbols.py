@@ -955,7 +955,7 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
             "DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43", source_module="charter.cascade"
         ),  # charter.cascade::DeactivationPlan
         SymbolKey(
-            "REFERENCE_RELATIONS", "923c7531fa07a59396d69e256ee38a05448b62f4d75cde08c9fbaa932376a8ca", source_module="charter.cascade"
+            "REFERENCE_RELATIONS", "95fca0816d6568e68a953c321ec3ca6c5a45a7903f064fdbcb4d87bc1558632b", source_module="charter.cascade"
         ),  # charter.cascade::REFERENCE_RELATIONS
         SymbolKey(
             "ReferencedArtifact", "80d3c02ebae2c466ff75be630ecfd259036be62ea0a1394dbab6503f75414afc", source_module="charter.cascade"
