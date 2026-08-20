@@ -106,7 +106,7 @@ import pytest
 
 from specify_cli.charter_runtime.freshness import computer as _computer_module
 from specify_cli.charter_runtime.freshness.computer import compute_freshness
-from specify_cli.charter_runtime.preflight.runner import run_charter_preflight
+from specify_cli.charter_runtime.preflight.runner import _PASS_STATES, run_charter_preflight
 
 from tests.specify_cli.charter_preflight._fixtures import (
     build_f1_no_charter,
@@ -470,8 +470,20 @@ def _assert_remediation_effective(
     run_cli: Callable[..., subprocess.CompletedProcess[str]],
 ) -> None:
     """Execute ``command`` — exactly as shown to the operator — against the
-    isolated fixture at ``repo_root`` and assert ``layer``'s state changed
-    (C-EFF-1).
+    isolated fixture at ``repo_root`` and assert it was genuinely EFFECTIVE
+    (C-EFF-1/C-EFF-7): the process exited 0 AND ``layer`` reached a
+    documented passing state (``fresh``, or ``built_in_only`` where that is
+    the documented pass — the same :data:`_PASS_STATES` the runner itself
+    uses to decide ``passed``).
+
+    H2 (#2831 HIGH finding): before this strengthening, only ``after !=
+    before`` was checked — so a remediation that writes malformed YAML and
+    returns exit code 17 PASSED, because ``missing -> invalid`` is a change
+    even though ``invalid`` solves nothing and the process itself reported
+    failure. See ``test_h2_...`` below for the non-vacuity proof that this
+    strengthening actually catches that shape (a fake ``run_cli`` that
+    changes state to a non-passing one, and a separate one that reports a
+    non-zero exit despite reaching a passing state).
 
     C-EFF-5: ``repo_root`` must be an isolated fixture directory. Every
     caller in this module passes a ``tmp_path``-rooted fixture — never the
@@ -490,6 +502,19 @@ def _assert_remediation_effective(
         f"`{command}` did not change {layer}'s state (stayed {before!r}); "
         f"exit={completed.returncode} "
         f"stdout={completed.stdout.strip()!r} stderr={completed.stderr.strip()!r}"
+    )
+    assert completed.returncode == 0, (
+        f"`{command}` changed {layer} from {before!r} to {after!r} but the "
+        f"process exited {completed.returncode} (non-zero) — a remediation "
+        f"the operator ran and watched fail is not effective just because "
+        f"some state moved; "
+        f"stdout={completed.stdout.strip()!r} stderr={completed.stderr.strip()!r}"
+    )
+    assert after in _PASS_STATES, (
+        f"`{command}` exited 0 and changed {layer} from {before!r} to "
+        f"{after!r}, but {after!r} is not a documented passing state "
+        f"({sorted(_PASS_STATES)}) — moving from one non-passing state to "
+        f"another (e.g. missing -> invalid) is not effective (C-EFF-1/C-EFF-7)."
     )
 
 
@@ -689,6 +714,111 @@ def test_mechanism_detects_an_ineffective_remediation(
         _assert_remediation_effective(
             tmp_path, "charter_source", "spec-kitty charter status", run_cli
         )
+
+
+# ---------------------------------------------------------------------------
+# H2 (#2831 HIGH finding) — non-vacuity for the STRENGTHENED assertion:
+# state-changed-but-not-effective must now fail where it used to pass
+# ---------------------------------------------------------------------------
+
+
+def test_h2_strengthened_assertion_catches_state_change_to_non_passing_state(
+    tmp_path: Path,
+) -> None:
+    """H2 non-vacuity proof, primary case (the finding's own example).
+
+    Before H2, ``_assert_remediation_effective`` asserted only ``after !=
+    before`` — so a remediation that writes malformed YAML over a missing
+    ``charter.yaml`` (moving ``charter_source`` from ``missing`` straight to
+    ``invalid`` — a real state change, and a state ``computer.py`` itself
+    treats as a genuine inconsistency with no effective remediation, C-EFF-2)
+    would have PASSED this helper, because ``missing != invalid`` IS a
+    change, even though ``invalid`` solves nothing for the operator.
+
+    This is demonstrated with a fake ``run_cli``-shaped callable — not the
+    real CLI — deliberately: it lets this test show the EXACT shape H2
+    fixes (state moved to a documented non-passing value) without depending
+    on finding or fabricating a real spec-kitty command that behaves this
+    badly. The fake reports ``returncode=0`` (a "successful" run by the
+    process's own account) so this specifically exercises the NEW
+    passing-state check, not the exit-code check (see the sibling test
+    below for that one). ``test_mechanism_detects_an_ineffective_remediation``
+    above already covers the OTHER failure mode (state does not change at
+    all) — this test covers the gap alongside it, not a replacement for it.
+    """
+    repo_root = tmp_path
+    build_f1_no_charter(repo_root)
+    before = _layer_state(repo_root, "charter_source")
+    assert before == "missing"
+
+    charter_yaml_path = repo_root / ".kittify" / "charter" / "charter.yaml"
+
+    def fake_run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        # Simulate a remediation that "ran successfully" (exit 0) but wrote
+        # genuinely malformed YAML instead of a real charter bundle.
+        charter_dir = project_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True, exist_ok=True)
+        (charter_dir / "charter.yaml").write_text("not: [valid: yaml: at: all", encoding="utf-8")
+        return subprocess.CompletedProcess(args=["spec-kitty", *args], returncode=0, stdout="", stderr="")
+
+    with pytest.raises(AssertionError, match="not a documented passing state"):
+        _assert_remediation_effective(
+            repo_root,
+            "charter_source",
+            "spec-kitty charter generate --no-from-interview",
+            fake_run_cli,
+        )
+
+    after = _layer_state(repo_root, "charter_source")
+    assert after == "invalid", (
+        f"fixture invariant: the fake remediation must have genuinely moved the state to "
+        f"'invalid' (proving the OLD `after != before` check alone would have passed this "
+        f"as 'effective'); got {after!r}"
+    )
+    assert charter_yaml_path.exists()
+
+
+def test_h2_strengthened_assertion_catches_nonzero_exit_despite_state_change(
+    tmp_path: Path,
+) -> None:
+    """H2 non-vacuity proof, exit-code half: a remediation that reaches a
+    documented passing state must ALSO have exited 0 to count as effective.
+
+    A remediation an operator watches fail (non-zero exit) is not
+    "effective" merely because the on-disk state happens to have moved to a
+    value this module treats as passing — the process's own report of
+    failure must not be silently ignored. The fake ``run_cli`` here writes a
+    genuinely valid, fresh charter bundle (so the OLD `after != before`
+    check AND a state-only passing check would both have passed) but
+    reports ``returncode=17``, isolating the exit-code half of the H2
+    strengthening from the passing-state half proven by the sibling test
+    above.
+    """
+    repo_root = tmp_path
+    build_f1_no_charter(repo_root)
+    before = _layer_state(repo_root, "charter_source")
+    assert before == "missing"
+
+    def fake_run_cli(project_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
+        seed_charter_yaml(project_path)  # writes a genuinely valid, fresh charter.yaml
+        return subprocess.CompletedProcess(
+            args=["spec-kitty", *args], returncode=17, stdout="", stderr="boom failure\n"
+        )
+
+    with pytest.raises(AssertionError, match="non-zero"):
+        _assert_remediation_effective(
+            repo_root,
+            "charter_source",
+            "spec-kitty charter generate --no-from-interview",
+            fake_run_cli,
+        )
+
+    after = _layer_state(repo_root, "charter_source")
+    assert after == "fresh", (
+        f"fixture invariant: the fake remediation must have genuinely reached a passing "
+        f"state (proving a state-only check would have passed this as 'effective' — only "
+        f"the exit-code check catches it); got {after!r}"
+    )
 
 
 # ---------------------------------------------------------------------------
