@@ -1,6 +1,6 @@
 ---
 title: 'rc3 fail-loud friction burndown: program overview'
-description: 'Program BLUF for the eight-mission rc3 crux — the fail-silent/fail-open root cause under epic #3410, the mission table (scope, issues, size, cluster), and what changes for users and operators.'
+description: 'Program BLUF for the eight-mission rc3 crux — the fail-silent/fail-open root cause under epic #3410, the mission table, and what changes for users and operators.'
 doc_status: draft
 updated: '2026-08-20'
 related:

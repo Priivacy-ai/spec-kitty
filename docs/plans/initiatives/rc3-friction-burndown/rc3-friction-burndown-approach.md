@@ -1,6 +1,6 @@
 ---
 title: 'rc3 friction burndown: delivery approach & sequencing'
-description: 'The rc3 delivery plan: dependency DAG, wave sequencing (the mission_type-backfill gate, M7-before-M6, M1-before-M8, M2 single re-ledger), per-mission size/risk, the M3/M5 behavior-change sign-offs and their migration prerequisite, and the cut/land plan.'
+description: 'The rc3 delivery plan: dependency DAG, wave sequencing (backfill gate, M7-before-M6, M1-before-M8), per-mission size/risk, the M3/M5 behavior-change sign-offs, and the land plan.'
 doc_status: draft
 updated: '2026-08-20'
 related:
