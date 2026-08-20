@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-08-20T21:23:15.357517+00:00",
+  "flattened": false,
+  "friendly_name": "M7 - ExecutionMode consolidation",
+  "mission_id": "01M0GGX1RXEEBRNZHX8GT7J5CP",
+  "mission_number": null,
+  "mission_slug": "rc3-execution-mode-consolidation-01M0GGX1",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances M7 - ExecutionMode consolidation on pr/rc3-friction-mission-specs so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Retire the dead ExecutionMode enum + rename the live one (widen #3416)",
+  "slug": "rc3-execution-mode-consolidation-01M0GGX1",
+  "target_branch": "pr/rc3-friction-mission-specs",
+  "topology": "single_branch"
+}
