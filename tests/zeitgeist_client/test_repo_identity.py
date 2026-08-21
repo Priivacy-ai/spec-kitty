@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.zeitgeist_client import budget, repo_identity
+from specify_cli.zeitgeist_client import budget, repo_identity, transport
 
 # Real `git init`/`clone`/`worktree` subprocesses throughout this file.
 pytestmark = [pytest.mark.git_repo]
@@ -323,3 +323,71 @@ def test_git_budget_nests_inside_the_hook_budget_with_the_offer_budget():
     assert (
         repo_identity.GIT_BUDGET_S + budget.OFFER_BUDGET_S < budget.HOOK_BUDGET_S
     ), "GIT_BUDGET_S + OFFER_BUDGET_S must still land inside HOOK_BUDGET_S with margin"
+
+
+# --- ClientConfig.for_repository(): binding presence to canonical identity -
+
+
+def test_for_repository_derives_repo_and_branch_from_git_truth_not_a_claim(tmp_path, origin):
+    clone = _clone(origin, tmp_path / "work" / "renamed-checkout")
+    _git("checkout", "-q", "-b", "feature/x", cwd=clone)
+
+    config = transport.ClientConfig.for_repository(
+        str(clone),
+        relay_url="http://127.0.0.1:9",
+        token="tok",
+        harness="claude-code",
+        session_id="sess-1",
+    )
+
+    assert config.repo == "acme-widgets"  # not "renamed-checkout" — no claim, no basename
+    assert config.branch == "feature/x"
+    assert config.relay_url == "http://127.0.0.1:9"
+    assert config.token == "tok"
+    assert config.harness == "claude-code"
+    assert config.session_id == "sess-1"
+    assert config.agent_id is None
+
+
+def test_for_repository_raises_instead_of_constructing_an_unverified_client_config(tmp_path):
+    plain = tmp_path / "just-a-folder"
+    plain.mkdir()
+    with pytest.raises(repo_identity.UnverifiedRepositoryIdentity):
+        transport.ClientConfig.for_repository(
+            str(plain),
+            relay_url="http://127.0.0.1:9",
+            token="tok",
+            harness="claude-code",
+            session_id="sess-1",
+        )
+
+
+def test_for_repository_raises_for_an_ambiguous_session_container(tmp_path, origin):
+    container = tmp_path / "sandboxes"
+    container.mkdir()
+    _clone(origin, container / "lane-a")
+    _clone(origin, container / "lane-b")
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        transport.ClientConfig.for_repository(
+            str(container),
+            relay_url="http://127.0.0.1:9",
+            token="tok",
+            harness="claude-code",
+            session_id="sess-1",
+        )
+
+
+def test_bare_client_config_construction_is_unaffected_a_free_form_claim(tmp_path):
+    """Z1.md decision 7 ("caller fields are claims only") still governs the
+    plain dataclass constructor — `for_repository` is an additive, stricter
+    alternative, not a replacement."""
+    config = transport.ClientConfig(
+        relay_url="http://127.0.0.1:9",
+        token="tok",
+        harness="claude-code",
+        session_id="sess-1",
+        agent_id=None,
+        repo="anything-i-claim",
+        branch="anything",
+    )
+    assert config.repo == "anything-i-claim"
