@@ -8,14 +8,16 @@ co-owner of an unrelated file format). TOML, ``filelock``-guarded (decision
 rather than tracker's hand-rolled ``fcntl``/``msvcrt``).
 
 Keyed by canonical ``repo`` (from ``repo_identity.identity()`` — not yet
-ported in this pass, see WP01 handoff), so two projects on one machine hold
-independent tokens (N-row precedent: two repos, two entries).
+ported in this pass, see ``docs/plans/zeitgeist-client-wp01-remaining.md``),
+so two projects on one machine hold independent tokens (N-row precedent:
+two repos, two entries).
 
 This module owns only the *storage* primitive. The network canary-offer
 probe (``spec-kitty zeitgeist checkout <relay-url>``, "refresh re-derives",
 "revoke issues session.revoke then deletes") is the CLI adapter's job — not
-yet implemented (see WP01 handoff) — and will call ``store()``/``revoke()``
-here as its last step. ``revoke()`` here is the client-side wipe half only:
+yet implemented (see ``docs/plans/zeitgeist-client-wp01-remaining.md``) —
+and will call ``store()``/``revoke()`` here as its last step. ``revoke()``
+here is the client-side wipe half only:
 "never fails to wipe locally even if the offer drops" (N10) is satisfied
 trivially by revoke() never attempting network I/O at all.
 

@@ -7,8 +7,9 @@ N17 (no fabricated client-side expiry), N18 (focus_ref derivation), and R1
 (race: concurrent focus_heartbeat calls do not corrupt state).
 
 ``watch()``/``status()``/credential checkout are explicitly NOT covered here
-— see the WP01 handoff for what remains (validator.py schema checks,
-mcp_stdio.py, the CLI adapter, harness-asset staging, credentials.py).
+— see docs/plans/zeitgeist-client-wp01-remaining.md for what remains
+(validator.py schema checks, mcp_stdio.py, the CLI adapter, harness-asset
+staging, credentials.py's network canary flow).
 """
 
 from __future__ import annotations

@@ -16,7 +16,7 @@ F3-T1 have not landed as producer candidates in their own repos to pin
 digests against, per Z1.md §3.5's "cannot freeze before both exist"). offer()
 currently performs only the sanitizer gate before its one network attempt.
 ``watch()``/``status()`` are not implemented (``NotImplementedError``) — see
-the WP01 handoff for the full remaining list.
+``docs/plans/zeitgeist-client-wp01-remaining.md`` for the full remaining list.
 
 ``focus_start``/``_heartbeat``/`_pause``/`_end`` build ``focus_ref``
 themselves (Z1.md §3.2 item 8, F1's normative derivation clause):
@@ -236,12 +236,12 @@ class ZeitgeistClient:
 
     def status(self) -> None:
         raise NotImplementedError(
-            "ZeitgeistClient.status() is not implemented in this pass — see the "
-            "WP01 handoff 'remaining' list"
+            "ZeitgeistClient.status() is not implemented in this pass — see "
+            "docs/plans/zeitgeist-client-wp01-remaining.md"
         )
 
     def watch(self, *, idle_timeout_s: float | None = None) -> None:
         raise NotImplementedError(
-            "ZeitgeistClient.watch() is not implemented in this pass — see the "
-            "WP01 handoff 'remaining' list"
+            "ZeitgeistClient.watch() is not implemented in this pass — see "
+            "docs/plans/zeitgeist-client-wp01-remaining.md"
         )
