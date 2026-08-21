@@ -189,3 +189,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-16 | [Default-off pre-release (rc) consumer channel, gated by SPEC_KITTY_PRERELEASE](2026-08-16-4-rc-release-channel.md) |
 | 2026-08-16 | [Operator configuration resolves through one kernel env-expansion seam; committed provenance stores tokens](2026-08-16-5-operator-config-env-expansion-seam.md) |
 | 2026-08-20 | [The Charter Cascade Follows the Action Hop and Proposes Only Charter-Activatable Kinds](2026-08-20-1-cascade-kind-complete-relation-set.md) |
+| 2026-08-21 | [Charter/runtime gates test the declared entity, not a coarse hardcoded set](2026-08-21-1-charter-gate-predicate-inversion.md) |

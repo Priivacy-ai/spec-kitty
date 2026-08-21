@@ -2957,6 +2957,18 @@ pages:
     - {slug: "symmetry", text: "Symmetry", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "related", text: "Related", level: 2}
+  - path: "docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md"
+    title: "ADR: Charter/runtime gates test the declared entity, not a coarse hardcoded set"
+    divio_type: "none"
+    abstract: "Five charter/runtime surfaces replace coarse-set membership with a predicate on the actually-declared entity; two deliberate behaviour reversals (non-bootstrap actions deliver; typo mission types hard-fail) ship under named red-by-design test reversals."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "two-deliberate-behaviour-reversals-this-is-not-a-byte-identical-refactor", text: "Two deliberate behaviour reversals (this is NOT a byte-identical refactor)", level: 3}
+    - {slug: "red-by-design-test-reversals-each-must-be-reversed-never-fixed-back", text: "Red-by-design test reversals (each MUST be reversed, never \"fixed back\")", level: 3}
+    - {slug: "resolved-design-decisions-pushed-here-by-the-post-spec-squad", text: "Resolved design decisions (pushed here by the POST-SPEC squad)", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
