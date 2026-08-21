@@ -12,6 +12,12 @@ versioned, re-pinned act rather than silent bit-rot (Z1.md §4 row N20).
 (Z1.md §3.2 item 8 step 2): "forbidden-field zero-attempt" means the relay's
 request log stays empty when it fires, not merely that the request later
 fails.
+
+The key match is case-sensitive exact-match by design, parity-anchored to
+F3's own case-sensitive forbidden-key check (F3.md §3.1 item 2) — this is a
+deliberate parity choice, not an oversight, so ``{"Token": "x"}`` is not
+rejected by ``FORBIDDEN_CONTROL_KEYS``/``FORBIDDEN_OBSERVATION_KEYS`` unless
+the exact-cased key is present.
 """
 
 from __future__ import annotations

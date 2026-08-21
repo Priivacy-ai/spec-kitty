@@ -117,6 +117,17 @@ def test_assert_clean_walks_lists_of_dicts():
         sanitizer.assert_clean({"items": [{"ok": 1}, {"token": "x"}]})
 
 
+def test_assert_clean_key_match_is_case_sensitive_by_design():
+    # Case-sensitivity is a deliberate parity choice with F3's own
+    # case-sensitive forbidden-key check (F3.md §3.1 item 2), not an
+    # oversight — see sanitizer.py's module docstring. A differently-cased
+    # key is therefore NOT caught by either forbidden set.
+    sanitizer.assert_clean({"args": {"Token": "x"}})
+    sanitizer.assert_clean(
+        {"args": {"USER": "robert"}}, forbidden=sanitizer.FORBIDDEN_OBSERVATION_KEYS
+    )
+
+
 def test_assert_clean_never_repairs_only_raises():
     doc = {"args": {"detail": "x"}}
     with pytest.raises(sanitizer.ForbiddenFieldError):
