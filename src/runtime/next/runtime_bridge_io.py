@@ -838,18 +838,62 @@ def _build_operational_context_for_decision(
 # ---------------------------------------------------------------------------
 
 
-_PRESENCE_FILE_TAGS: tuple[str, ...] = (
-    "spec.md",
-    "plan.md",
-    "tasks.md",
-    "source-register.csv",
-    "findings.md",
-    "report.md",
-    "gap-analysis.md",
-    "audit-report.md",
-    "release.md",
-    "research.md",
-)
+def _presence_filenames_for(mission_family: str) -> frozenset[str]:
+    """Resolve the per-type presence filename set for *mission_family* (FR-011, #3597).
+
+    Sources filenames from the single per-type ``expected-artifacts.yaml``
+    ``path_pattern`` authority (WP04's seam, #3599) -- the same authority
+    :func:`specify_cli.runtime.resolver.required_artifacts_for` /
+    :func:`~specify_cli.runtime.resolver.resolve_configured_artifact_name`
+    draw from -- instead of the previously-closed 10-tuple literal this
+    function replaces (``_PRESENCE_FILE_TAGS``).
+
+    Family-scoped (every step's ``required_always`` + ``required_by_step``
+    + ``optional_always`` path_patterns, unioned via
+    :func:`doctrine.missions.step_projection.project_artifact_name_set`),
+    deliberately NOT filtered to the caller's ``step_id`` (byte-compat,
+    NFR-003): the guard vocabulary calling this port is not uniform across
+    mission families or dispatch paths. Software-dev's own manifest keys
+    (mission.yaml state ids: specify/plan/tasks_outline/tasks_packages/
+    tasks_finalize/...) match its CLI-native guard's ``step_id`` 1:1, but
+    neither the *composed* ``"tasks"`` action (no such manifest key --
+    disambiguated only by ``legacy_step_id``) nor the ``plan`` mission
+    family's composed action names (``specify``/``plan``, vs. its own
+    manifest's ``goals``/``draft`` step keys) resolve correctly if this
+    port filtered to one caller-supplied ``step_id``. Scanning the whole
+    family set instead -- exactly what the old global 10-tuple effectively
+    did for every family it was blindly reused across -- avoids silently
+    turning either mismatch into a spurious block. (A step-scoped design
+    was tried during this WP's implementation and reverted after it red
+    ``tests/runtime/test_bridge_parity.py::test_coverage_floor_is_met`` by
+    incorrectly blocking the software-dev composed ``tasks`` guard and the
+    ``plan``-family ``specify``/``plan`` guards even when their artifacts
+    were present.)
+
+    A custom mission family gates on its own filenames (AC-10) as long as
+    it ships an ``expected-artifacts.yaml`` -- present -> passes, absent ->
+    blocks -- regardless of which step is being gathered for; a family
+    with no manifest resolves to an empty set. The distinct guard-table
+    *dispatch* fail-closed concern for a genuinely unregistered family is a
+    separate, retained mechanism: ``runtime_bridge_cores.evaluate_guards_strict``
+    still raises ``UnregisteredMissionFamilyError`` when ``_GUARD_TABLES``
+    has no entry for the family (per the ADR).
+
+    Every one of the 10 built-in filenames the old tuple hardcoded still
+    resolves identically (NFR-003) -- see
+    ``tests/specify_cli/runtime/test_configured_artifact_name.py`` for the
+    per-(family, artifact_key) byte-compat characterization.
+    """
+    from charter.missions import MissionTemplateRepository  # noqa: PLC0415
+    from doctrine.missions import ExpectedArtifactManifest  # noqa: PLC0415
+    from doctrine.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
+
+    config = MissionTemplateRepository.default().get_expected_artifacts(mission_family)
+    if config is None:
+        return frozenset()
+    manifest = ExpectedArtifactManifest.model_validate(config.parsed)
+    name_set = project_artifact_name_set(manifest) or {}
+    return frozenset(name_set.values())
 
 
 @dataclass(frozen=True)
@@ -921,7 +965,7 @@ def gather_artifact_presence(
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     present: set[str] = set()
-    for tag in _PRESENCE_FILE_TAGS:
+    for tag in _presence_filenames_for(mission_family):
         if (feature_dir / tag).is_file():
             present.add(tag)
 
