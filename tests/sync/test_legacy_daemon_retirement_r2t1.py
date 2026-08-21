@@ -222,6 +222,56 @@ def test_live_daemon_is_stopped_via_existing_no_drain_path(
 
 
 # ---------------------------------------------------------------------------
+# Regression (attempt-6 review, HIGH) - verified daemon, no state file yet
+# ---------------------------------------------------------------------------
+
+
+def test_live_daemon_without_state_file_is_still_stopped(
+    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A verified owner record with no daemon state file must never be
+    reported ``already_stopped`` while the daemon is left running.
+
+    ``run_sync_daemon`` self-registers ``owner.json`` synchronously on bind,
+    before the parent CLI's own post-spawn health-check loop (up to ~21s of
+    retry budget in ``_ensure_sync_daemon_running_locked``) finishes and
+    writes the separate daemon state file. This deliberately never writes
+    that state file -- representing an interrupted parent, or a partially
+    completed version-mismatch recycle that already unlinked it via
+    ``_kill_and_cleanup`` while the SIGKILL target had not actually exited
+    -- and asserts the verified, live daemon is still contacted and
+    actually stopped, driven off the owner record's own port/token/pid
+    rather than the (here, absent) state file.
+    """
+    from specify_cli.sync import daemon as daemon_module
+    from specify_cli.sync.retirement import retire_legacy_sync_daemon
+
+    # See the matching comment on
+    # ``test_live_daemon_is_stopped_via_existing_no_drain_path`` for why this
+    # pin is required. Deliberately never written to, unlike that test.
+    state_file = _scoped_home / "sync-daemon"
+    monkeypatch.setattr(daemon_module, "DAEMON_STATE_FILE", state_file)
+    harness = DaemonHarness(state_file)
+    port = find_free_port_in_range(9400, 9425)
+    try:
+        proc = harness.spawn_daemon(port, _TOKEN, home=str(_scoped_home))
+        assert not state_file.exists(), "state file must be absent for this regression"
+        assert _owner_json_path(_scoped_home).exists(), "owner.json self-registers synchronously"
+
+        outcome = retire_legacy_sync_daemon()
+
+        assert outcome.status != "already_stopped", (
+            "a missing state file must never be reported as 'already stopped' "
+            "while the verified daemon is left running"
+        )
+        assert outcome.status == "stopped"
+        proc.wait(timeout=5.0)
+        assert proc.poll() is not None, "daemon process must have actually exited"
+    finally:
+        harness.shutdown()
+
+
+# ---------------------------------------------------------------------------
 # N7 - race/crash: SIGKILL bypassing clean shutdown entirely
 # ---------------------------------------------------------------------------
 
