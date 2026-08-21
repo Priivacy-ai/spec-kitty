@@ -16,6 +16,12 @@ walk ``docs_root.rglob("*.md")`` itself, and its sibling in
 diverged and the SEO gate spent months guarding 16 of 674 pages while reporting
 green. There is now exactly one authority.
 
+``--changed-from BASE_REF`` limits reported violations to changed, published
+Markdown pages on PRs while retaining the complete published corpus as the
+comparison context for uniqueness. A changed page that duplicates an unchanged
+page therefore still fails, but a violation confined to an unchanged page does
+not. Without the flag, the whole-tree behavior is unchanged.
+
 A violation is one of:
 
 * ``missing``     — no ``description`` key, or it is blank;
@@ -39,10 +45,9 @@ Exit codes:
 ===  =========================================================================
 0    No violations, or violations under the default report-only mode.
 1    ``--strict`` and at least one violation.
-2    The gate could not establish a trustworthy page set (:class:`CoverageError`)
-     — an empty or collapsed resolution. This is *not* a content violation but a
-     malfunction of the gate itself, so it fails regardless of ``--strict``: a
-     gate that validates zero pages must fail, not pass.
+2    The gate could not establish a trustworthy page set (:class:`CoverageError`),
+     or ``--changed-from`` could not resolve its Git base. Both are gate
+     malfunctions and fail regardless of ``--strict``.
 ===  =========================================================================
 
 Depends only on the standard library plus ``ruamel.yaml`` (via
@@ -60,6 +65,7 @@ from pathlib import Path
 from typing import Final
 
 from scripts.docs import seo_postprocess
+from scripts.docs._guards import GitDiffError, resolve_changed_files
 from scripts.docs._inventory import parse_frontmatter
 from scripts.docs._published_pages import (
     MINIMUM_EXPECTED_PAGES,
@@ -80,6 +86,7 @@ __all__ = [
     "check_description_length",
     "main",
     "validate_descriptions",
+    "validate_descriptions_diff_scoped",
 ]
 
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
@@ -245,6 +252,59 @@ def validate_descriptions(
     )
     violations.sort(key=lambda v: (v.path, v.reason))
     return LengthReport(checked_count=len(descriptions), violations=violations)
+
+
+def validate_descriptions_diff_scoped(
+    *,
+    docs_root: Path,
+    repo_root: Path,
+    changed_files: list[str],
+    docfx_config: Path | None = None,
+) -> LengthReport:
+    """Validate only changed, published Markdown pages.
+
+    Per-page violations are reported only for changed files under ``docs_root``.
+    Uniqueness still compares those pages with the complete published corpus,
+    so a changed description cannot duplicate an unchanged peer unnoticed.
+    Deleted paths and resolved diffs with no changed docs produce an empty
+    report. Changed but unpublished pages are excluded by the shared page-set
+    authority; no non-vacuity floor is applied to the changed subset itself.
+    """
+    docs_root_rel = _repo_relative(docs_root, repo_root)
+    changed_docs = {
+        rel
+        for rel in changed_files
+        if rel.startswith(f"{docs_root_rel}/")
+        and rel.endswith(".md")
+        and (repo_root / rel).is_file()
+    }
+    if not changed_docs:
+        return LengthReport()
+
+    # The shared resolver remains the publication authority and enforces the
+    # complete corpus floor in production. No additional non-vacuity floor is
+    # applied to the changed subset: zero published pages in a resolved PR diff
+    # is a valid scoped result.
+    page_set = _resolve_page_set(docs_root=docs_root, docfx_config=docfx_config)
+    descriptions = _collect_descriptions(
+        sorted(page_set.pages), docs_root=docs_root, repo_root=repo_root
+    )
+    scoped_paths = changed_docs.intersection(descriptions)
+    if not scoped_paths:
+        return LengthReport()
+
+    all_per_page = _per_page_violations(descriptions)
+    all_flagged = {violation.path for violation in all_per_page}
+    violations = [
+        violation for violation in all_per_page if violation.path in scoped_paths
+    ]
+    violations.extend(
+        violation
+        for violation in _duplicate_violations(descriptions, flagged=all_flagged)
+        if violation.path in scoped_paths
+    )
+    violations.sort(key=lambda violation: (violation.path, violation.reason))
+    return LengthReport(checked_count=len(scoped_paths), violations=violations)
 
 
 def _resolve_page_set(*, docs_root: Path, docfx_config: Path | None) -> PublishedPageSet:
@@ -416,18 +476,45 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Exit non-zero when any description is missing, boilerplate, out-of-band, or duplicated.",
     )
+    parser.add_argument(
+        "--changed-from",
+        metavar="BASE_REF",
+        default=None,
+        help=(
+            "Diff-scope violations to published docs-root *.md files changed "
+            "since BASE_REF. Fails closed only when BASE_REF cannot be "
+            "resolved; a resolved diff with zero in-scope docs files is a "
+            "clean pass."
+        ),
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point. Returns the process exit code."""
     args = build_parser().parse_args(argv)
+    changed: list[str] | None = None
+    if args.changed_from is not None:
+        try:
+            changed = resolve_changed_files(args.repo_root, args.changed_from)
+        except GitDiffError as exc:
+            sys.stderr.write(f"description_length_check: ERROR: {exc}\n")
+            return EXIT_COVERAGE_FAILURE
+
     try:
-        report = validate_descriptions(
-            docs_root=args.docs_root,
-            repo_root=args.repo_root,
-            docfx_config=args.docfx_config,
-        )
+        if changed is None:
+            report = validate_descriptions(
+                docs_root=args.docs_root,
+                repo_root=args.repo_root,
+                docfx_config=args.docfx_config,
+            )
+        else:
+            report = validate_descriptions_diff_scoped(
+                docs_root=args.docs_root,
+                repo_root=args.repo_root,
+                changed_files=changed,
+                docfx_config=args.docfx_config,
+            )
     except CoverageError as exc:
         sys.stderr.write(f"description_length_check: COVERAGE FAILURE: {exc}\n")
         return EXIT_COVERAGE_FAILURE
