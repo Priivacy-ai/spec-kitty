@@ -29,6 +29,7 @@ from specify_cli.sync.history_import.upload import (
     _SERVER_MAX_BATCH_SIZE,
     PreflightRejected,
     _chunked,
+    _PreflightResponse,
     build_provenance_manifest,
     envelope_sha256,
     run_import_upload,
@@ -650,3 +651,274 @@ def test_run_import_upload_rejects_on_a_later_chunk_uploads_nothing(authority):
         )
     assert calls["n"] == 2  # both chunks preflighted...
     assert not stub.received_event_ids()  # ...before any was delivered
+
+
+# ── #3581: deployed preflight contract (accepted, no per-event results[]) ─────
+#
+# The deployed SaaS `/api/v1/events/preflight/` returns HTTP 200
+# `{"accepted": true, "event_count": N, "reconciliation": {...}}` with NO
+# `results[]` (apps/sync/views.py::preflight_sync_events, non-mutating by
+# design). The old `_PreflightResponse.accepted` required a correlated
+# `results[]` unconditionally, so this genuine server SUCCESS was raised as a
+# `PreflightRejected` -- blocking all history import.
+
+
+def _deployed_accepted_payload(event_count: int) -> dict[str, Any]:
+    """The exact deployed 200 shape: accepted, no results[], zeroed/null counters."""
+    return {
+        "accepted": True,
+        "event_count": event_count,
+        "reconciliation": {
+            "events_received": event_count,
+            "canonical_mission_events": 0,
+            "slug_fallback_events": 0,
+            "materialization_computed": False,
+            "events_imported": None,
+            "events_deduplicated": None,
+            "events_rejected": None,
+            "slug_fallback_used": None,
+            "saas_minted_mission_ids": None,
+        },
+    }
+
+
+def test_preflight_response_accepted_true_without_results_is_accepted():
+    response = _PreflightResponse(
+        status_code=200,
+        payload=_deployed_accepted_payload(1),
+        expected_event_ids=("e0",),
+    )
+    assert response.accepted is True
+
+
+def test_preflight_response_results_present_correlated_success_and_duplicate_is_accepted():
+    """Unchanged behavior: correlated results[] with success/duplicate statuses
+    is accepted whether or not a top-level ``accepted`` key is present."""
+    response = _PreflightResponse(
+        status_code=200,
+        payload={
+            "results": [
+                {"event_id": "e0", "status": "success"},
+                {"event_id": "e1", "status": "duplicate"},
+            ]
+        },
+        expected_event_ids=("e0", "e1"),
+    )
+    assert response.accepted is True
+
+
+def test_preflight_response_results_present_but_incomplete_is_not_accepted_even_if_accepted_true():
+    """Fail-closed preserved: results[] present but missing an expected event
+    id is never waived, even when the server also says accepted:true."""
+    response = _PreflightResponse(
+        status_code=200,
+        payload={
+            "accepted": True,
+            "results": [{"event_id": "e0", "status": "success"}],
+        },
+        expected_event_ids=("e0", "e1"),
+    )
+    assert response.accepted is False
+
+
+def test_preflight_response_results_present_with_a_rejected_status_is_not_accepted():
+    response = _PreflightResponse(
+        status_code=200,
+        payload={
+            "accepted": True,
+            "results": [
+                {"event_id": "e0", "status": "success"},
+                {"event_id": "e1", "status": "rejected"},
+            ],
+        },
+        expected_event_ids=("e0", "e1"),
+    )
+    assert response.accepted is False
+
+
+def test_preflight_response_explicit_accepted_false_without_results_is_not_accepted():
+    response = _PreflightResponse(
+        status_code=200,
+        payload={"accepted": False, "event_count": 1, "reconciliation": {}},
+        expected_event_ids=("e0",),
+    )
+    assert response.accepted is False
+
+
+def test_preflight_response_missing_accepted_key_without_results_is_not_accepted():
+    """Malformed / missing ``accepted`` key stays fail-closed, never a silent accept."""
+    response = _PreflightResponse(
+        status_code=200,
+        payload={"event_count": 1, "reconciliation": {}},
+        expected_event_ids=("e0",),
+    )
+    assert response.accepted is False
+
+
+def test_preflight_response_results_present_but_malformed_is_not_accepted_even_if_accepted_true():
+    """F1 fail-closed: a ``results`` key present in ANY non-correlatable form
+    (here a non-list) is a malformed verdict and is never waived to accepted,
+    even with accepted:true. Only a wholly ABSENT results key honors the flag."""
+    response = _PreflightResponse(
+        status_code=200,
+        payload={"accepted": True, "results": "not-a-list"},
+        expected_event_ids=("e0",),
+    )
+    assert response.accepted is False
+
+
+def test_preflight_response_non_200_with_accepted_true_is_not_accepted():
+    response = _PreflightResponse(
+        status_code=400,
+        payload={"accepted": True},
+        expected_event_ids=("e0",),
+    )
+    assert response.accepted is False
+
+
+def test_preflight_accepted_without_results_does_not_raise_through_run_server_preflight(authority):
+    """RED-FIRST entry-point test for #3581: the deployed 200 accepted/no-
+    results[] shape must not raise PreflightRejected."""
+    envelopes = [_env("e0")]
+    poster = _fake_poster(_deployed_accepted_payload(1))
+    result = run_server_preflight(
+        envelopes,
+        server_url=_SERVER,
+        auth_token="t",
+        poster=poster,
+        **authority(envelopes),
+    )
+    assert result["accepted"] is True
+
+
+def test_run_import_upload_delivers_when_preflight_accepted_without_results(authority):
+    """The --apply path: a deployed-shape accepted preflight must let the
+    upload proceed to delivery (not raise, not silently drop any event)."""
+    stub = StubReceiver(endpoint_url=_SERVER)
+    envelopes = [_env(f"e{i}") for i in range(2)]
+    poster = _fake_poster(_deployed_accepted_payload(2))
+    report = run_import_upload(
+        envelopes,
+        receiver=stub,
+        server_url=_SERVER,
+        auth_token="t",
+        poster=poster,
+        **authority(envelopes),
+    )
+    assert report.success == 2
+    assert set(stub.received_event_ids()) == {"e0", "e1"}
+
+
+def test_run_import_upload_apply_retry_after_accepted_without_results_does_not_crash(authority):
+    """Apply-path degradation (#3581/#3582): a SECOND `--apply` run against the
+    same deployed-shape accepted/no-results[] preflight must replay the
+    terminal verdict, not crash trying to recover a perpetually nonterminal
+    attempt. Before the fix, leaving the preflight attempt ledger `UNKNOWN`
+    on every no-results 200 makes the re-run's terminal-history projection see
+    neither ABSENT nor TERMINAL and raise `HistoryTransportAuthorityError`
+    straight out of `run_import_upload` -- an uncaught crash, not the
+    documented fail-closed `PreflightRejected`."""
+    stub = StubReceiver(endpoint_url=_SERVER)
+    envelopes = [_env(f"e{i}") for i in range(2)]
+    transport_authority = authority(envelopes)
+    poster = _fake_poster(_deployed_accepted_payload(2))
+
+    first = run_import_upload(
+        envelopes,
+        receiver=stub,
+        server_url=_SERVER,
+        auth_token="t",
+        poster=poster,
+        **transport_authority,
+    )
+    assert first.success == 2
+
+    second = run_import_upload(
+        envelopes,
+        receiver=stub,
+        server_url=_SERVER,
+        auth_token="t",
+        poster=poster,
+        **transport_authority,
+    )
+    assert second.success == 2  # idempotent replay, not a crash
+
+
+# ── #3582: preflight rejection surfaces the server's structured diagnostic ────
+
+
+def _deployed_rejection_payload(event_count: int) -> dict[str, Any]:
+    """The exact deployed 400 shape (serialize_live_ingress_failure): a
+    top-level error/category/code summary plus one details[] entry per
+    offending event, alongside the always-null-on-preflight reconciliation
+    counters (apps/sync/serializers.py, apps/sync/views.py)."""
+    return {
+        "error": "1 of 1 events invalid; see details",
+        "category": "validation",
+        "code": "invalid_event_id",
+        "details": [
+            {
+                "category": "validation",
+                "code": "invalid_event_id",
+                "detail": "event_id must be a UUID",
+                "event_id": "e0",
+                "index": 0,
+                "path": "events[0].event_id",
+                "value": "e0",
+            }
+        ],
+        "accepted": False,
+        "event_count": event_count,
+        "reconciliation": {
+            "events_received": event_count,
+            "canonical_mission_events": 0,
+            "slug_fallback_events": 0,
+            "materialization_computed": False,
+            "events_imported": None,
+            "events_deduplicated": None,
+            "events_rejected": None,
+            "slug_fallback_used": None,
+            "saas_minted_mission_ids": None,
+        },
+    }
+
+
+def test_preflight_rejected_message_prefers_structured_diagnostic_over_reconciliation():
+    exc = PreflightRejected(_deployed_rejection_payload(1))
+    message = str(exc)
+    assert "event_id must be a UUID" in message
+    assert "invalid_event_id" in message
+    # The structured diagnostic is the headline; the always-null-on-preflight
+    # reconciliation counters, if present at all, trail as secondary context.
+    assert message.index("event_id must be a UUID") < message.index("events_received")
+
+
+def test_preflight_rejected_message_backward_compat_error_only_payload():
+    """A payload carrying only ``error`` (e.g. a local transport failure, or an
+    older/minimal server shape) still surfaces that message unchanged."""
+    exc = PreflightRejected({"error": "preflight transport failed: connection reset"})
+    assert "preflight transport failed: connection reset" in str(exc)
+
+
+def test_preflight_rejected_message_falls_back_to_reconciliation_when_no_structured_diagnostic():
+    """No top-level ``error`` at all: fall back to whatever diagnostic exists,
+    exactly as before (#3582 does not regress this path)."""
+    exc = PreflightRejected({"reconciliation": {"events_rejected": 3}})
+    assert "events_rejected" in str(exc)
+
+
+def test_run_server_preflight_rejection_surfaces_structured_diagnostic_not_zero_counters(authority):
+    """RED-FIRST entry-point test for #3582."""
+    envelopes = [_env("e0")]
+    poster = _fake_poster(_deployed_rejection_payload(1), status=400)
+    with pytest.raises(PreflightRejected) as excinfo:
+        run_server_preflight(
+            envelopes,
+            server_url=_SERVER,
+            auth_token="t",
+            poster=poster,
+            **authority(envelopes),
+        )
+    message = str(excinfo.value)
+    assert "event_id must be a UUID" in message
+    assert "invalid_event_id" in message
