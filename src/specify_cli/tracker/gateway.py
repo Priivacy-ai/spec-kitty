@@ -94,61 +94,165 @@ class GatewayScopeViolationError(TrackerGatewayError):
 
 
 class GatewayForbiddenOperationError(TrackerGatewayError):
-    """Raised when a command attempts an assign/close/approve/release operation.
+    """Raised when a command's ``bd`` subcommand is not on the gateway allow-list.
 
-    The Beads program gateway never lets a tracker-sync call assign, close,
-    approve, or release a Bead, and never lets it bypass Spec Kitty's own
-    self-claim/review/publication flow (docs/TRACKER_ARCH_ROLE.md:43 in the
+    TRK-M1-04 node criterion (verbatim): the gateway "cannot assign/close/
+    approve/release Beads" and never lets a tracker-sync call "bypass self-
+    claim/review/publication" (docs/TRACKER_ARCH_ROLE.md:43 in the
     rearchitecture control-plane repository; ``BeadsConnector`` A5 in the
-    landed TRK-M1-03 kernel already denies these at the patch/argument
-    level). This is independent, defense-in-depth enforcement at the
-    command-runner boundary: it holds even for a caller that builds a raw
-    ``bd`` argv directly and hands it to the runner, bypassing
-    ``BeadsConnector`` entirely.
+    landed TRK-M1-03 kernel already denies assignment/terminal-transition
+    patches at the patch/argument level). This is independent,
+    defense-in-depth enforcement at the command-runner boundary: it holds
+    even for a caller that builds a raw ``bd`` argv directly and hands it to
+    the runner, bypassing ``BeadsConnector`` entirely.
+
+    Two independent adversarial reviews (Renata REJECT, TRK-M1-04) found
+    that a finite *deny*-list against ``bd`` 1.2.2's real surface can never
+    be complete: beyond the many close-equivalent subcommands (``gate
+    resolve`` -- documented verbatim as "equivalent to bd close <gate-id>",
+    ``epic close-eligible``, ``supersede --with``, ``duplicate --of``,
+    ``duplicates --auto-merge``, ``delete --force``, ``reopen``, ``assign``),
+    ``bd``'s done-category statuses are themselves user-configurable
+    (``bd config set status.custom ...``) -- a status-*value* blacklist is
+    structurally unable to enumerate a caller-defined vocabulary. This
+    module therefore inverts the control: deny-by-default, allow-list only
+    the exact read/query and non-lifecycle-write subcommand paths the
+    tracker adapter actually issues (see :data:`_ALLOWED_SUBCOMMAND_PATHS`),
+    with the sole further guard on the two allow-listed write paths being an
+    absolute, spelling-independent ban on the *flags* that carry lifecycle
+    meaning (``--assignee``/``-a``, ``--status``/``-s``, ``--claim`` --
+    banned outright, never gated on the value that follows them, precisely
+    because no finite value list can keep up with a configurable status
+    vocabulary).
     """
 
 
-#: ``done`` is included directly (not resolved via a separate alias map) --
-#: ``bd close --help`` documents it verbatim: "Aliases: close, done". It is
-#: the only subcommand alias any denied operation has, so listing both
-#: spellings here is simpler than a general alias-resolution pass.
-_FORBIDDEN_SUBCOMMANDS = frozenset({"close", "done", "assign", "approve", "release"})
-_FORBIDDEN_FLAGS = frozenset({"--assignee", "--approve", "--release"})
-_FORBIDDEN_STATUS_VALUES = frozenset({"closed", "done", "tombstone"})
+#: The complete, exact allow-list: every ``bd`` subcommand path the tracker
+#: adapter legitimately needs, matched as a full path tuple (not just the
+#: first token) so a two-word forbidden operation sharing a first token with
+#: an allowed one-word operation (e.g. hypothetical ``gate show`` vs. the
+#: denied ``gate resolve``) cannot slip past a check written against only
+#: ``argv[1]``. Sourced from the actual call sites in the landed TRK-M1-02/03
+#: kernel's ``spec_kitty_tracker.connectors.beads.BeadsConnector``:
+#: ``list_issues`` -> ``list``, ``get_issue`` -> ``show``, ``create_issue`` ->
+#: ``create``, ``update_issue`` -> ``update``, ``upsert_link`` -> ``dep add``,
+#: ``add_comment`` -> ``comments add``. Everything else -- every close/
+#: cancel/delete/supersede/duplicate/merge/config-mutation/self-claim
+#: subcommand ``bd --help`` lists, and anything ``bd`` might add in a future
+#: release -- is refused by default, with no enumeration required.
+_ALLOWED_SUBCOMMAND_PATHS: frozenset[tuple[str, ...]] = frozenset(
+    {
+        ("list",),
+        ("show",),
+        ("create",),
+        ("update",),
+        ("dep", "add"),
+        ("comments", "add"),
+    }
+)
 
-#: ``bd``'s flag parser (Cobra/pflag) registers a single-character shorthand
-#: for some long flags -- ``bd update --help``: "-a, --assignee string",
-#: "-s, --status string". :func:`_canonicalize_argv` rewrites each shorthand
-#: to its long form before any deny-list check runs, so the checks below only
-#: ever need to name the long form once.
-_SHORT_FLAG_ALIASES = {
-    "-a": "--assignee",
-    "-s": "--status",
+#: Parent subcommands whose *second* token extends the matched path (``bd
+#: dep add`` / ``bd comments add``). Every other ``bd`` subcommand this
+#: module knows of (``gate``, ``epic``, ``merge-slot``, ``config``, ...) is
+#: matched on its first token alone -- since none of those first tokens are
+#: themselves allow-listed, their second-word spelling is irrelevant: ``bd
+#: gate resolve`` and a hypothetical ``bd gate show`` are both refused
+#: because ``"gate"`` alone is not on :data:`_ALLOWED_SUBCOMMAND_PATHS`.
+_COMPOUND_SUBCOMMAND_PARENTS = frozenset({"dep", "comments"})
+
+#: ``bd``'s own root-level flags (``bd --help``, "Flags:" section) that can
+#: appear before the subcommand token. Split into value-taking (consume the
+#: following token too) and boolean, so :func:`_extract_subcommand_path` can
+#: skip past them to find the real subcommand -- an unrecognized dash-
+#: prefixed token is conservatively treated as boolean (skip one token),
+#: which only ever shifts the scan forward and can never cause a forbidden
+#: subcommand token to be skipped over undetected (see module test suite's
+#: "global flags before subcommand" coverage).
+_GLOBAL_VALUE_FLAGS = frozenset({"--actor", "--db", "-C", "--directory", "--dolt-auto-commit"})
+
+#: Lifecycle-carrying flags banned outright on the two allow-listed WRITE
+#: paths, independent of whatever value follows them. This is a *flag-name*
+#: ban, not a value blacklist: bd's flag surface for ``create``/``update`` is
+#: fixed by the installed bd version (unlike its status *vocabulary*, which
+#: is user-configurable), so enumerating flag names here does not carry the
+#: same "cannot be made complete" defect the prior status-value blacklist
+#: had. ``update --status``/``-s`` is banned for every value, including a
+#: superficially-safe non-terminal one -- the gateway cannot know, from a
+#: bare string, whether a given installation's ``status.custom`` config
+#: makes that value a done-category status; any status transition is
+#: lifecycle and is host-owned, never tracker-sync-owned.
+_LIFECYCLE_FLAGS_BY_ALLOWED_WRITE: dict[tuple[str, ...], frozenset[str]] = {
+    ("create",): frozenset({"--assignee", "-a"}),
+    ("update",): frozenset({"--assignee", "-a", "--status", "-s", "--claim"}),
 }
 
 
 def _canonicalize_argv(command: Sequence[str]) -> list[str]:
-    """Normalize ``command`` to one canonical surface syntax before matching.
+    """Split every glued ``--flag=value``/``-f=value`` token into two tokens.
 
-    ``bd``'s flag parser accepts multiple equivalent spellings for the same
-    single-value flag: split two-token (``--flag value``), glued equals
-    (``--flag=value`` or, for a registered shorthand, ``-f=value``), and a
-    short flag (``-f value``). Every check in this module was written
-    against the split two-token, long-flag shape; without this
-    normalization step a caller could dodge every check simply by picking a
-    different equivalent spelling of an already-forbidden flag (Renata
-    REJECT, TRK-M1-04: reproduced live against ``bd update --help``'s
-    ``-a``/``-s`` shorthands and glued ``=`` form).
+    ``bd``'s flag parser (Cobra/pflag) accepts a single-value flag as either
+    split two-token (``--flag value``) or glued equals (``--flag=value``,
+    or for any short flag, ``-f=value``). This split is purely syntactic --
+    it needs no alias table or per-flag knowledge, so it is applied
+    generically to *every* long flag and every single-character short flag,
+    not just a hardcoded list of "known" ones. Every check downstream
+    matches against the split two-token shape; without this normalization
+    step a caller could dodge a flag-name check simply by picking the glued
+    spelling of an already-forbidden flag (Renata REJECT, TRK-M1-04:
+    reproduced live against ``bd update --help``'s ``-a``/``-s`` shorthands
+    and glued ``=`` form).
     """
     canonical: list[str] = []
     for arg in command:
         flag, sep, value = arg.partition("=")
-        if sep and (flag.startswith("--") or flag in _SHORT_FLAG_ALIASES):
-            canonical.append(_SHORT_FLAG_ALIASES.get(flag, flag))
+        if sep and (flag.startswith("--") or (flag.startswith("-") and len(flag) == 2)):
+            canonical.append(flag)
             canonical.append(value)
             continue
-        canonical.append(_SHORT_FLAG_ALIASES.get(arg, arg))
+        canonical.append(arg)
     return canonical
+
+
+def _extract_subcommand_path(argv: Sequence[str]) -> tuple[str, ...]:
+    """The canonicalized ``bd`` subcommand path (1 or 2 tokens), or ``()``.
+
+    Skips the command executable name (``argv[0]``, e.g. ``"bd"``) and any
+    root-level global flags -- value-taking ones (:data:`_GLOBAL_VALUE_FLAGS`)
+    consume their following token too; anything else dash-prefixed is
+    conservatively treated as boolean-shaped and skipped alone -- to find
+    the first positional token, which is the subcommand. A literal ``--``
+    (pflag's "stop parsing flags" marker) ends the skip immediately, so a
+    caller cannot hide the real subcommand behind it. If the first token is
+    a compound parent (:data:`_COMPOUND_SUBCOMMAND_PARENTS`, e.g. ``dep``),
+    and a following non-flag token exists, it extends the path to two
+    tokens -- so ``bd dep add ...`` and ``bd dep remove ...`` are
+    distinguished, and a bare ``bd dep --blocks ...`` (no explicit
+    sub-subcommand) yields the one-token path ``("dep",)``, which is not
+    itself allow-listed and is therefore refused.
+    """
+    tokens = list(argv[1:])
+    index = 0
+    stop_skipping = False
+    while index < len(tokens):
+        arg = tokens[index]
+        if not stop_skipping and arg == "--":
+            stop_skipping = True
+            index += 1
+            continue
+        if not stop_skipping and arg.startswith("-"):
+            index += 2 if arg in _GLOBAL_VALUE_FLAGS else 1
+            continue
+        break
+    if index >= len(tokens):
+        return ()
+    path = [tokens[index]]
+    if (
+        tokens[index] in _COMPOUND_SUBCOMMAND_PARENTS
+        and index + 1 < len(tokens)
+        and not tokens[index + 1].startswith("-")
+    ):
+        path.append(tokens[index + 1])
+    return tuple(path)
 
 
 def _forbidden_operation_reason(command: Sequence[str]) -> str | None:
@@ -158,23 +262,28 @@ def _forbidden_operation_reason(command: Sequence[str]) -> str | None:
     self-claim/review/publication) -- the same command is denied for the
     same reason on every call, with no memory of prior attempts, so a
     retried or duplicated attempt can never slip past a gate that already
-    refused it once. Matches against :func:`_canonicalize_argv`'s output, not
-    the raw argv, so alias/shorthand/glued-flag surface forms of an already-
-    forbidden operation cannot slip past a check written against the
-    canonical spelling.
+    refused it once. Deny-by-default: a subcommand path not exactly present
+    in :data:`_ALLOWED_SUBCOMMAND_PATHS` is refused outright, with no need to
+    separately enumerate every forbidden operation ``bd`` exposes today or
+    might add later. The two allow-listed write paths additionally forbid
+    their lifecycle flags (:data:`_LIFECYCLE_FLAGS_BY_ALLOWED_WRITE`)
+    regardless of spelling (:func:`_canonicalize_argv` already normalized
+    glued-equals/short-flag spellings) or value.
     """
     argv = _canonicalize_argv(command)
-    for arg in argv:
-        if arg in _FORBIDDEN_SUBCOMMANDS:
-            return f"forbidden subcommand {arg!r}"
-        if arg in _FORBIDDEN_FLAGS:
-            return f"forbidden flag {arg!r}"
-    for index, arg in enumerate(argv):
-        if arg != "--status" or index + 1 >= len(argv):
-            continue
-        value = argv[index + 1].strip().lower()
-        if value in _FORBIDDEN_STATUS_VALUES:
-            return f"forbidden terminal status {value!r} via --status"
+    path = _extract_subcommand_path(argv)
+    if path not in _ALLOWED_SUBCOMMAND_PATHS:
+        joined = " ".join(path) if path else "<none>"
+        return f"subcommand {joined!r} is not on the tracker gateway allow-list"
+
+    forbidden_flags = _LIFECYCLE_FLAGS_BY_ALLOWED_WRITE.get(path)
+    if forbidden_flags:
+        for arg in argv:
+            if arg in forbidden_flags:
+                joined = " ".join(path)
+                return (
+                    f"forbidden lifecycle flag {arg!r} on allow-listed subcommand {joined!r}"
+                )
     return None
 
 
@@ -285,9 +394,11 @@ class GatewayCommandRunner:
        ``spec_kitty_tracker.errors.ScopeViolationError`` when the installed
        tracker package exposes it).
     3. **never assign/close/approve/release, never bypass self-claim/
-       review/publication**: :func:`_forbidden_operation_reason` inspects
-       the raw ``bd`` argv independently of whatever ``BeadsConnector``
-       itself already denies, else :class:`GatewayForbiddenOperationError`.
+       review/publication**: :func:`_forbidden_operation_reason` matches the
+       raw ``bd`` argv's subcommand path against a deny-by-default
+       allow-list (:data:`_ALLOWED_SUBCOMMAND_PATHS`), independently of
+       whatever ``BeadsConnector`` itself already denies, else
+       :class:`GatewayForbiddenOperationError`.
 
     A denied/forbidden attempt is recorded (bounded, most-recent-N) and
     surfaced by :meth:`authority_report` as ``denied_operations``,
