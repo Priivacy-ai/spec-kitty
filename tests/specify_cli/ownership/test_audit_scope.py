@@ -20,7 +20,7 @@ from specify_cli.ownership.audit_targets import (
     validate_audit_coverage,
 )
 from specify_cli.ownership.models import (
-    ExecutionMode,
+    WorkProductKind,
     OwnershipManifest,
     SCOPE_CODEBASE_WIDE,
 )
@@ -35,7 +35,7 @@ from specify_cli.ownership.validation import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _manifest(
-    mode: ExecutionMode = ExecutionMode.CODE_CHANGE,
+    mode: WorkProductKind = WorkProductKind.CODE_CHANGE,
     owned: tuple[str, ...] = ("src/foo/**",),
     surface: str = "src/foo/",
     scope: str | None = None,
@@ -49,7 +49,7 @@ def _manifest(
 
 
 def _codebase_wide_manifest(
-    mode: ExecutionMode = ExecutionMode.CODE_CHANGE,
+    mode: WorkProductKind = WorkProductKind.CODE_CHANGE,
     owned: tuple[str, ...] = ("**/*",),
     surface: str = "/",
 ) -> OwnershipManifest:
@@ -174,7 +174,7 @@ class TestCodebaseWideSkipsAuthoritativeSurface:
     def test_empty_surface_passes_for_codebase_wide(self) -> None:
         """Empty authoritative_surface is fine for codebase-wide WPs."""
         m = OwnershipManifest(
-            execution_mode=ExecutionMode.CODE_CHANGE,
+            execution_mode=WorkProductKind.CODE_CHANGE,
             owned_files=("**/*",),
             authoritative_surface="",
             scope=SCOPE_CODEBASE_WIDE,
@@ -196,7 +196,7 @@ class TestCodebaseWideSkipsExecutionModeConsistency:
     def test_code_change_with_planning_paths_no_warning(self) -> None:
         """Audit WP can be code_change but touch kitty-specs/."""
         m = _codebase_wide_manifest(
-            mode=ExecutionMode.CODE_CHANGE,
+            mode=WorkProductKind.CODE_CHANGE,
             owned=("kitty-specs/**", "src/**"),
         )
         warnings = validate_execution_mode_consistency(m)
@@ -205,7 +205,7 @@ class TestCodebaseWideSkipsExecutionModeConsistency:
     def test_planning_artifact_with_src_no_warning(self) -> None:
         """Audit WP can be planning_artifact but scan src/."""
         m = _codebase_wide_manifest(
-            mode=ExecutionMode.PLANNING_ARTIFACT,
+            mode=WorkProductKind.PLANNING_ARTIFACT,
             owned=("src/specify_cli/**",),
         )
         warnings = validate_execution_mode_consistency(m)
@@ -240,7 +240,7 @@ class TestMixedScopeMission:
         """Codebase-wide WPs produce zero warnings in validate_all."""
         manifests = {
             "WP01": _codebase_wide_manifest(
-                mode=ExecutionMode.CODE_CHANGE,
+                mode=WorkProductKind.CODE_CHANGE,
                 owned=("kitty-specs/**", "docs/**"),
             ),
         }

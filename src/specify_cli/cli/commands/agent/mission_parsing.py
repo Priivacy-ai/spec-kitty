@@ -21,7 +21,7 @@ from specify_cli.cli.console import console
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.validation import _PLANNING_PREFIXES
 from specify_cli.status import WPMetadata
 from kernel.clock import now_utc_stamp
@@ -227,7 +227,7 @@ def _is_confined_planning_wp(metadata: WPMetadata) -> bool:
     routes to the repo-root planning lane and may legitimately own its mission-specs
     artifacts. The exemption is granted **iff both**:
 
-    1. ``execution_mode`` equals :data:`ExecutionMode.PLANNING_ARTIFACT` — compared
+    1. ``execution_mode`` equals :data:`WorkProductKind.PLANNING_ARTIFACT` — compared
        against the enum ``.value`` (a normalized string compare) rather than relying
        on incidental ``StrEnum`` equality, so an unset/``None`` mode is never exempt.
     2. **Every** ``owned_files`` entry, normalized via
@@ -242,7 +242,7 @@ def _is_confined_planning_wp(metadata: WPMetadata) -> bool:
     predicate ``_is_mission_specs_owned_file``, which also matches on the normalized
     path (a ``./kitty-specs/…`` entry trips the ban yet must still count as confined).
     """
-    if str(metadata.execution_mode) != ExecutionMode.PLANNING_ARTIFACT.value:
+    if str(metadata.execution_mode) != WorkProductKind.PLANNING_ARTIFACT.value:
         return False
     return all(
         _normalize_owned_file_path(owned_file).startswith(_PLANNING_PREFIXES)

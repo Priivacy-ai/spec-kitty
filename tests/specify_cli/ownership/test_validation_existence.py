@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import validate_glob_matches
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -54,7 +54,7 @@ class TestPhantomPathExistenceCheck:
             "WP01": OwnershipManifest(
                 owned_files=(phantom,),
                 authoritative_surface="src/specify_cli/",
-                execution_mode=ExecutionMode.CODE_CHANGE,
+                execution_mode=WorkProductKind.CODE_CHANGE,
             )
         }
 
@@ -78,7 +78,7 @@ class TestPhantomPathExistenceCheck:
             "WP02": OwnershipManifest(
                 owned_files=(phantom,),
                 authoritative_surface="src/specify_cli/",
-                execution_mode=ExecutionMode.CODE_CHANGE,
+                execution_mode=WorkProductKind.CODE_CHANGE,
             )
         }
 
@@ -105,7 +105,7 @@ class TestPhantomPathExistenceCheck:
             "WP03": OwnershipManifest(
                 owned_files=(future_path,),
                 authoritative_surface="src/specify_cli/",
-                execution_mode=ExecutionMode.CODE_CHANGE,
+                execution_mode=WorkProductKind.CODE_CHANGE,
             )
         }
         create_intent = {"WP03": [future_path]}
@@ -130,7 +130,7 @@ class TestPhantomPathExistenceCheck:
             "WP04": OwnershipManifest(
                 owned_files=("src/specify_cli/nonexistent/**",),
                 authoritative_surface="src/specify_cli/",
-                execution_mode=ExecutionMode.CODE_CHANGE,
+                execution_mode=WorkProductKind.CODE_CHANGE,
             )
         }
 
@@ -153,7 +153,7 @@ class TestPhantomPathExistenceCheck:
             "WP05": OwnershipManifest(
                 owned_files=("src/specify_cli/real_module.py",),
                 authoritative_surface="src/specify_cli/",
-                execution_mode=ExecutionMode.CODE_CHANGE,
+                execution_mode=WorkProductKind.CODE_CHANGE,
             )
         }
 
