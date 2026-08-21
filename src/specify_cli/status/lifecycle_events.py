@@ -35,10 +35,9 @@ with the typed contracts.
 
 from __future__ import annotations
 
-import contextlib
 import json
 import logging
-import os
+from contextlib import AbstractContextManager, nullcontext
 from pathlib import Path
 from typing import Any
 from collections.abc import Iterable, Mapping
@@ -46,7 +45,9 @@ from collections.abc import Iterable, Mapping
 from kernel.clock import datetime, now_utc, now_utc_iso, parse_iso
 from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root
 
+from .locking import feature_status_lock, project_event_log_lock
 from .models import Lane as _Lane
+from .store import append_raw_rows_atomic
 
 logger = logging.getLogger(__name__)
 
@@ -200,13 +201,46 @@ def _read_lifecycle_lines(path: Path) -> list[dict[str, Any]]:
 
 
 def _atomic_append(path: Path, line: str) -> None:
-    """Append a single JSON line to *path*, creating parents as needed."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(line + "\n")
-        fh.flush()
-        with contextlib.suppress(OSError):
-            os.fsync(fh.fileno())
+    """Append a single serialized JSON line to *path*, crash-safely.
+
+    F2-T1 (F2.md section 2.2/3.3): this used to be a plain ``O_APPEND``
+    write with no locking and no temp-file+rename, structurally different
+    from -- and racing against -- ``status/store.py``'s crash-safe primitive
+    that also writes this same file. It now delegates to the shared
+    write-ahead-then-atomic-rename primitive
+    (:func:`specify_cli.status.store.append_raw_rows_atomic`) instead, so
+    both writers of ``status.events.jsonl`` / ``.kittify/canonical-events.jsonl``
+    use the identical durability mechanism. Locking is the caller's
+    responsibility (:func:`append_lifecycle_event` acquires the lock that
+    owns *path* before calling this). Kept as a named, single-line-oriented
+    seam (rather than inlining) so existing write-failure tests can keep
+    monkeypatching this exact name (compatibility, F2.md section 3.4).
+    """
+    append_raw_rows_atomic(path, [json.loads(line)])
+
+
+def _lifecycle_write_lock(
+    repo_root: Path | None, mission_slug: str | None
+) -> AbstractContextManager[Path | None]:
+    """Return the lock context that guards a lifecycle log writer.
+
+    Mission-scoped writes (``mission_slug`` provided, i.e. every appender
+    except ``ProjectInitialized``) use the SAME mission-keyed
+    :func:`feature_status_lock` that ``status/emit.py``'s
+    ``emit_status_transition`` uses for ``status.events.jsonl`` -- this is
+    what closes the F2-T1 lost-write race, since both writers now serialize
+    on one lock file. Project-scoped writes (``ProjectInitialized``) use the
+    sibling :func:`project_event_log_lock`. When *repo_root* cannot be
+    resolved (the log path is not inside any git repo -- an edge case for
+    ad-hoc/non-repo callers) locking is skipped, matching this module's
+    pre-existing best-effort, never-raise contract; the write itself still
+    goes through the crash-safe primitive either way.
+    """
+    if repo_root is None:
+        return nullcontext()
+    if mission_slug is not None:
+        return feature_status_lock(repo_root, mission_slug)
+    return project_event_log_lock(repo_root)
 
 
 # canonical-producer-exempt: #1198 -- local lifecycle JSONL envelope.
@@ -455,6 +489,7 @@ def append_lifecycle_event(
     project_uuid: str | None = None,
     project_slug: str | None = None,
     dedup_keys: Mapping[str, Any] | None = None,
+    mission_slug: str | None = None,
 ) -> dict[str, Any] | None:
     """Append a lifecycle event to *log_path* unless an idempotent match exists.
 
@@ -463,6 +498,16 @@ def append_lifecycle_event(
     tuple is already on disk. Failures fall back to a debug log; the
     function never raises so callers can chain it safely behind a
     fire-and-forget ``contextlib.suppress`` if they choose.
+
+    ``mission_slug`` (F2-T1, F2.md section 3.3): pass the mission's slug for
+    every mission-scoped appender (all of them except
+    :func:`emit_project_initialized`) so the write is serialized under the
+    SAME lock ``status/emit.py``'s ``emit_status_transition`` uses for that
+    mission's ``status.events.jsonl`` -- closing the lost-write race between
+    the two writers of that file. Leave it ``None`` for project-scoped
+    writes (``.kittify/canonical-events.jsonl``), which lock on the sibling
+    :func:`specify_cli.status.locking.project_event_log_lock` instead. The
+    external return-value/never-raises contract is unchanged either way.
     """
     if event_type not in LIFECYCLE_EVENT_TYPES:
         logger.debug("Refusing to append unknown lifecycle event type %r", event_type)
@@ -486,8 +531,10 @@ def append_lifecycle_event(
         project_uuid=project_uuid,
         project_slug=project_slug,
     )
+    repo_root = _repo_root_for_lifecycle_log(log_path)
     try:
-        _atomic_append(log_path, json.dumps(envelope, sort_keys=True))
+        with _lifecycle_write_lock(repo_root, mission_slug):
+            _atomic_append(log_path, json.dumps(envelope, sort_keys=True))
     except OSError as exc:
         logger.warning("Could not persist %s event to %s: %s", event_type, log_path, exc)
         return None
@@ -600,6 +647,7 @@ def emit_mission_created_local(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys={"mission_slug": mission_slug},
+        mission_slug=mission_slug,
     )
 
 
@@ -692,6 +740,7 @@ def emit_artifact_phase(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys=dedup,
+        mission_slug=mission_slug,
     )
 
 
@@ -742,6 +791,7 @@ def emit_wp_created_local(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys={"mission_slug": mission_slug, "wp_id": wp_id},
+        mission_slug=mission_slug,
     )
 
 
@@ -784,6 +834,7 @@ def emit_reviewer_self_approval(
             "intended_reviewer": intended_reviewer,
             "failure_reason": failure_reason,
         },
+        mission_slug=mission_slug,
     )
 
 
@@ -853,6 +904,7 @@ def emit_mission_reopened(
         project_uuid=project_uuid,
         project_slug=project_slug,
         # No dedup_keys: append-each.
+        mission_slug=mission_slug,
     )
 
 
@@ -924,6 +976,7 @@ def emit_follow_up_recorded(
         project_uuid=project_uuid,
         project_slug=project_slug,
         dedup_keys=dedup_keys,
+        mission_slug=mission_slug,
     )
 
 

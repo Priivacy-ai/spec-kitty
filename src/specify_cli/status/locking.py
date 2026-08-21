@@ -62,20 +62,25 @@ def feature_status_lock_path(repo_root: Path, mission_slug: str) -> Path:
     return common_dir / "spec-kitty-locks" / f"{mission_slug}.status.lock"
 
 
-@contextmanager
-def feature_status_lock(
-    repo_root: Path,
-    mission_slug: str,
-    *,
-    timeout: float = -1,
-) -> Iterator[Path]:
-    """Acquire the per-feature status lock.
+#: Lock-path key for the project-level canonical event log
+#: (``<repo_root>/.kittify/canonical-events.jsonl``). ``ProjectInitialized``
+#: has no ``mission_slug`` to key a lock file on (F2-T1 / F2.md section 3.3,
+#: section 6.3) so this fixed sentinel stands in for one. Never written into
+#: any log row -- lock-path key only.
+_PROJECT_LOCK_SENTINEL = "__project__"
 
-    Uses the git common dir so main checkouts and worktrees coordinate on the
-    same lock file. Locking is re-entrant within a single thread so callers can
-    safely wrap a larger transaction around helpers that also acquire the lock.
+
+@contextmanager
+def _named_status_lock(lock_path: Path, *, timeout: float) -> Iterator[Path]:
+    """Shared re-entrant FileLock acquisition, parameterized by *lock_path*.
+
+    Both :func:`feature_status_lock` and :func:`project_event_log_lock`
+    delegate here so the re-entrancy bookkeeping (``_get_thread_locks``) and
+    the underlying ``FileLock`` mechanics exist in exactly one place (F2-T1:
+    a second independently-maintained locking implementation is the same
+    anti-pattern that produced the unlocked-writer race this lock family
+    exists to close).
     """
-    lock_path = feature_status_lock_path(repo_root, mission_slug)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
     held_locks = _get_thread_locks()
@@ -96,7 +101,7 @@ def feature_status_lock(
         lock.acquire()
     except Timeout as exc:
         raise FeatureStatusLockTimeoutError(
-            f"Timed out acquiring feature status lock for {mission_slug}: {lock_path}"
+            f"Timed out acquiring status lock: {lock_path}"
         ) from exc
 
     held_locks[lock_key] = (lock, 1)
@@ -105,3 +110,43 @@ def feature_status_lock(
     finally:
         del held_locks[lock_key]
         lock.release()
+
+
+@contextmanager
+def feature_status_lock(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    timeout: float = -1,
+) -> Iterator[Path]:
+    """Acquire the per-feature status lock.
+
+    Uses the git common dir so main checkouts and worktrees coordinate on the
+    same lock file. Locking is re-entrant within a single thread so callers can
+    safely wrap a larger transaction around helpers that also acquire the lock.
+    """
+    lock_path = feature_status_lock_path(repo_root, mission_slug)
+    with _named_status_lock(lock_path, timeout=timeout) as held_path:
+        yield held_path
+
+
+@contextmanager
+def project_event_log_lock(
+    repo_root: Path,
+    *,
+    timeout: float = -1,
+) -> Iterator[Path]:
+    """Acquire the project-level lock for ``.kittify/canonical-events.jsonl``.
+
+    Same ``FileLock``-over-git-common-dir mechanism as
+    :func:`feature_status_lock`, keyed by the fixed
+    :data:`_PROJECT_LOCK_SENTINEL` instead of a ``mission_slug`` (that log has
+    no mission to key on). Re-entrant per thread via the same shared
+    bookkeeping. Serializes every writer of the project-level canonical event
+    log, independently of any mission-level lock (F2-T1, F2.md section 3.3).
+    """
+    lock_path = (
+        _git_common_dir(repo_root) / "spec-kitty-locks" / f"{_PROJECT_LOCK_SENTINEL}.status.lock"
+    )
+    with _named_status_lock(lock_path, timeout=timeout) as held_path:
+        yield held_path

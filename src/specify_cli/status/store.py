@@ -355,18 +355,27 @@ def append_primary_checkout_event_verified(feature_dir: Path, event: StatusEvent
     append_event_verified(feature_dir, event)
 
 
-def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> None:
+def append_raw_rows_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
     """Atomically append pre-serialized event dicts as sanitized JSONL lines.
 
-    Shared write core for both lane ``StatusEvent`` batches and off-axis
-    ``InnerStateChanged`` annotation batches: read existing text, append the new
+    Public, envelope-agnostic promotion of the write-ahead-then-atomic-rename
+    primitive (F2-T1, F2.md section 3.3): read existing text, append the new
     sanitized rows, and ``os.replace`` a temp file so crash recovery never
-    observes a half-written batch.
+    observes a half-written batch. Takes an explicit *path* rather than a
+    ``feature_dir`` so it can serve as the single durability mechanism for
+    BOTH ``status.events.jsonl`` (mission-scoped, inside a ``feature_dir``)
+    and ``.kittify/canonical-events.jsonl`` (project-scoped, not inside any
+    ``feature_dir``) -- F2.md section 3.1 item 3 names this as the intent a
+    ``feature_dir``-only signature cannot satisfy.
+
+    No behavior change for existing ``StatusEvent`` callers: they continue to
+    call the private :func:`_append_serialized_atomic` wrapper below, which
+    computes the identical ``feature_dir / EVENTS_FILENAME`` path and
+    delegates here.
     """
     if not rows:
         return
 
-    path = _events_path(feature_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
 
     existing = _read_text_without_following_symlinks(path)
@@ -395,6 +404,18 @@ def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> 
     finally:
         if not replaced:
             tmp_path.unlink(missing_ok=True)
+
+
+def _append_serialized_atomic(feature_dir: Path, rows: list[dict[str, Any]]) -> None:
+    """Thin, behavior-preserving wrapper over :func:`append_raw_rows_atomic`.
+
+    Existing ``StatusEvent``/``InnerStateChanged`` callers keep calling this
+    private name with a ``feature_dir``; it resolves the identical
+    ``feature_dir / EVENTS_FILENAME`` path :func:`_events_path` always
+    computed and delegates to the public, path-parameterized primitive. No
+    on-disk behavior change (F2-T1, F2.md section 3.3).
+    """
+    append_raw_rows_atomic(_events_path(feature_dir), rows)
 
 
 def _fsync_directory(directory: Path) -> None:
