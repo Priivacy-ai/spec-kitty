@@ -195,9 +195,20 @@ def _atomic_write_yaml(data: dict[str, Any], canonical: Path, target_dir: Path) 
     function) — asserted below so a future caller that passes a divergent
     directory fails loudly instead of silently fsyncing the wrong directory.
 
-    Width stays 120 here (not the kernel's wider 4096 default): retrospective
-    records intentionally keep the narrower wrap; widening it is a separate,
-    open decision tracked by #3059.
+    Width stays 120 here (not the kernel's wider 4096 default) — deliberately,
+    per the #3059 decision. The kernel default exists for writers whose
+    scalars must never fragment (hashes, round-trip-sensitive frontmatter);
+    retrospective.yaml is the opposite case, a git-committed document meant
+    to be read directly, carrying prose fields up to 2000 chars (``Finding.note``,
+    ``GenFinding.details``, proposal ``rationale``) that would otherwise land
+    as one unreadable line. Wrapping at 120 keeps those fields reviewable in
+    a diff or terminal; the #3057 normalizer (invoked inside
+    ``write_mapping_atomic``) strips the trailing-whitespace artifact that
+    wrapping produces, so the two are a deliberate pairing, not competing
+    patches. ``test_atomic_write_yaml_strips_trailing_whitespace_from_wrapped_scalars``
+    (tests/retrospective/test_writer_atomicity.py) asserts the wrap actually
+    happens at 120 and would need updating if this width ever changes — do
+    not raise it to 4096 to "align" with the kernel default.
 
     Raises:
         WriterError: On any IO or serialization error.  The tempfile is
