@@ -25,6 +25,13 @@ themselves (Z1.md §3.2 item 8, F1's normative derivation clause):
 at both the type boundary and a runtime guard — ``revoked`` is a
 server-originated ``LiveFrame.signal`` outcome the client can only observe,
 never claim (Z1.md decision 6, N12).
+
+``ClientConfig.for_repository`` (Z6-C) is an additive, stricter constructor:
+it derives ``repo``/``branch`` from ``repo_identity.identity()`` — the
+checkout's actual git truth — instead of accepting them as a bare caller
+claim, so presence bound through it cannot be spoofed to a different
+project. The plain ``ClientConfig(...)`` constructor is unchanged; Z1.md
+decision 7 ("caller fields are claims only") still governs it.
 """
 
 from __future__ import annotations
@@ -40,7 +47,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal
 
-from . import budget, sanitizer
+from . import budget, repo_identity, sanitizer
 
 # ≤90s current-focus bound (O1-C's operability drills exercise this
 # denominator; Z1 owns the constant, Z1.md §1 "downstream criteria").
@@ -64,6 +71,44 @@ class ClientConfig:
     agent_id: str | None
     repo: str
     branch: str
+
+    @classmethod
+    def for_repository(
+        cls,
+        cwd: str,
+        *,
+        relay_url: str,
+        token: str,
+        harness: str,
+        session_id: str,
+        agent_id: str | None = None,
+        budget_s: float = repo_identity.GIT_BUDGET_S,
+    ) -> ClientConfig:
+        """The sanctioned, non-spoofable constructor (Z6-C): ``repo``/
+        ``branch`` come from ``repo_identity.identity(cwd)`` — the checkout's
+        actual git truth — rather than from a caller-supplied claim. Raises
+        ``repo_identity.RepoIdentityError`` (``AmbiguousRepositoryIdentity``/
+        ``UnverifiedRepositoryIdentity``) instead of constructing a
+        ``ClientConfig`` whose ``.repo`` could be spoofed to a different
+        project.
+
+        The bare dataclass constructor above is unaffected: Z1.md decision 7
+        ("caller fields are claims only") still governs direct
+        ``ClientConfig(...)`` construction (existing callers, tests). This is
+        an additive, stricter alternative for a caller (the not-yet-built CLI
+        adapter) that needs presence bound to the checkout's canonical
+        identity rather than a claim it merely trusts.
+        """
+        ident = repo_identity.identity(cwd, budget=budget_s)
+        return cls(
+            relay_url=relay_url,
+            token=token,
+            harness=harness,
+            session_id=session_id,
+            agent_id=agent_id,
+            repo=ident.repo,
+            branch=ident.branch,
+        )
 
 
 class OfferOutcome(StrEnum):
