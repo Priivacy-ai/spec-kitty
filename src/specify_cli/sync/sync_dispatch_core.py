@@ -72,12 +72,19 @@ class SyncNowExitAction(Enum):
     * :attr:`TRANSIENT_BLOCK` — a wholesale-transient drain; the wrapper prints
       the classified :func:`_transient_block_message` and, under ``strict``,
       raises ``typer.Exit(1)``.
+    * :attr:`ADMISSION_BLOCKED` — a gate/admission block (``admission_gated``),
+      NOT a real 401/403 (#3620, Finding 2). The real reason was already
+      printed by the exec layer (``_AdmissionGatedNoDelivery.reason``); the
+      wrapper must NOT route this through unauthenticated recovery — it only
+      honors ``strict`` (``typer.Exit(1)``) like :attr:`EXIT_STRICT_FAILURE`,
+      without the misleading "not authenticated" message.
     """
 
     NONE = "none"
     EXIT_STRICT_FAILURE = "exit_strict_failure"
     HANDLE_UNAUTHENTICATED = "handle_unauthenticated"
     TRANSIENT_BLOCK = "transient_block"
+    ADMISSION_BLOCKED = "admission_blocked"
 
 
 def _combine_dispatch_summaries(left: DispatchSummary, right: DispatchSummary) -> DispatchSummary:
@@ -142,6 +149,7 @@ def decide_sync_now_exit(
     *,
     retained_work_present: bool = False,
     intentional_no_delivery: bool = False,
+    admission_gated: bool = False,
 ) -> SyncNowExitAction:
     """Map the dispatch outcome to the strict ``sync now`` exit **decision** (pure).
 
@@ -176,6 +184,16 @@ def decide_sync_now_exit(
 
     A ``None`` summary means dispatch infrastructure was unavailable. Under
     ``strict`` that is a failure only when retained or legacy work exists.
+
+    ``admission_gated`` (#3620, Finding 2) narrows the two "nothing attempted"
+    arms below: when the exec layer explicitly detected a gate/admission
+    block (``_AdmissionGatedNoDelivery``) rather than a genuine 401/403, the
+    verdict is :attr:`SyncNowExitAction.ADMISSION_BLOCKED` instead of
+    :attr:`SyncNowExitAction.HANDLE_UNAUTHENTICATED`, so the host does not
+    route it through unauthenticated recovery and print "not authenticated"
+    for a problem that has nothing to do with the local session. The true
+    401/403 path (``_HTTP_AUTH_STATUSES`` / :attr:`SyncNowExitAction.TRANSIENT_BLOCK`)
+    is untouched by this parameter.
     """
     if summary is None:
         if strict and (queue_size > 0 or retained_work_present):
@@ -194,10 +212,12 @@ def decide_sync_now_exit(
         return SyncNowExitAction.EXIT_STRICT_FAILURE
 
     # Selected work made no durable progress. A pure gate/auth block records no
-    # rows, so route it through teamspace-aware recovery; transport/content
-    # failures still use the legacy strict exit.
+    # rows, so route it through teamspace-aware recovery — UNLESS the exec
+    # layer identified it as a gate/admission block rather than a real
+    # unauthenticated shape (admission_gated, #3620 Finding 2). Transport/
+    # content failures still use the legacy strict exit.
     if selected > 0 and progressed == 0 and summary.recorded == 0:
-        return SyncNowExitAction.HANDLE_UNAUTHENTICATED
+        return SyncNowExitAction.ADMISSION_BLOCKED if admission_gated else SyncNowExitAction.HANDLE_UNAUTHENTICATED
     if selected > 0 and progressed == 0 and summary.transient > 0:
         return SyncNowExitAction.TRANSIENT_BLOCK
     if selected > 0 and progressed == 0 and summary.recorded > 0:
@@ -206,10 +226,11 @@ def decide_sync_now_exit(
         # semantics without sending the operator through auth recovery.
         return SyncNowExitAction.EXIT_STRICT_FAILURE if strict else SyncNowExitAction.NONE
 
-    # Pending work but nothing was even attempted → teamspace-aware recovery.
+    # Pending work but nothing was even attempted → teamspace-aware recovery,
+    # unless it is the same admission_gated shape as above.
     work_present = queue_size > 0 or selected > 0
     if work_present and progressed == 0:
-        return SyncNowExitAction.HANDLE_UNAUTHENTICATED
+        return SyncNowExitAction.ADMISSION_BLOCKED if admission_gated else SyncNowExitAction.HANDLE_UNAUTHENTICATED
     errors = summary.rejected + summary.transient + summary.terminal_failed
     if strict and errors > 0:
         return SyncNowExitAction.EXIT_STRICT_FAILURE

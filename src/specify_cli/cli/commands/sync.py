@@ -210,6 +210,23 @@ class _IntentionalNoDelivery:
     summary: DispatchSummary
 
 
+@dataclass(frozen=True)
+class _AdmissionGatedNoDelivery:
+    """A gate/admission block, carrying the REAL reason (#3620, Finding 2).
+
+    Distinguishes "the receiver's gates refused" or "no ADMITTED delivery
+    target" from a genuine 401/403 — see
+    ``sync_dispatch_exec._run_event_sync_dispatch`` (the two gate branches)
+    and ``sync_dispatch_core.SyncNowExitAction.ADMISSION_BLOCKED``. Without
+    this marker the host cannot tell a gate/admission block apart from the
+    legacy "nothing attempted" unauthenticated shape, and misreports it as
+    "not authenticated" — exactly the bug this type exists to close.
+    """
+
+    summary: DispatchSummary
+    reason: str
+
+
 def _enforce_sync_now_exit_from_dispatch(
     strict: bool,
     queue_size: int,
@@ -217,6 +234,7 @@ def _enforce_sync_now_exit_from_dispatch(
     *,
     retained_work_present: bool = False,
     intentional_no_delivery: bool = False,
+    admission_gated: bool = False,
 ) -> None:
     """Apply the strict ``spec-kitty sync now`` exit contract to the dispatch outcome.
 
@@ -229,7 +247,7 @@ def _enforce_sync_now_exit_from_dispatch(
     routing through teamspace-aware recovery
     (:func:`_handle_sync_now_unauthenticated`), or ``raise typer.Exit``. Freezing
     the ``now`` exit-code contract (contract item 5) is now the decision core's
-    responsibility; this wrapper is a stable dispatch over four outcomes.
+    responsibility; this wrapper is a stable dispatch over five outcomes.
     """
     action = decide_sync_now_exit(
         strict,
@@ -237,11 +255,21 @@ def _enforce_sync_now_exit_from_dispatch(
         summary,
         retained_work_present=retained_work_present,
         intentional_no_delivery=intentional_no_delivery,
+        admission_gated=admission_gated,
     )
     if action is SyncNowExitAction.NONE:
         return
     if action is SyncNowExitAction.EXIT_STRICT_FAILURE:
         raise typer.Exit(1)
+    if action is SyncNowExitAction.ADMISSION_BLOCKED:
+        # #3620 Finding 2: the real gate/admission reason was already printed
+        # by the exec layer (_run_event_sync_dispatch). Honor --strict without
+        # routing through _handle_sync_now_unauthenticated, which would print
+        # the misleading "not authenticated" message for a problem that has
+        # nothing to do with the local session.
+        if strict:
+            raise typer.Exit(1)
+        return
     if action is SyncNowExitAction.HANDLE_UNAUTHENTICATED:
         _handle_sync_now_unauthenticated(strict)
         return
@@ -2140,7 +2168,11 @@ def now(
     # (C-006).
     dispatch_outcome = _run_event_sync_dispatch()
     intentional_no_delivery = isinstance(dispatch_outcome, _IntentionalNoDelivery)
-    summary = dispatch_outcome.summary if intentional_no_delivery else dispatch_outcome
+    # #3620 Finding 2: a gate/admission block is a distinct marker from the
+    # deliberate-retention one above, so the exit decision can tell it apart
+    # from a genuine "not authenticated" and surface the real reason instead.
+    admission_gated = isinstance(dispatch_outcome, _AdmissionGatedNoDelivery)
+    summary = dispatch_outcome.summary if intentional_no_delivery or admission_gated else dispatch_outcome
     service.drain_body_uploads_only()
 
     # Persist the per-outcome report (if requested) and map the dispatch outcome
@@ -2152,6 +2184,7 @@ def now(
         summary,
         retained_work_present=retained_work_present,
         intentional_no_delivery=intentional_no_delivery,
+        admission_gated=admission_gated,
     )
 
 
