@@ -17,9 +17,11 @@ from specify_cli.ownership.models import ExecutionMode
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.branch_naming import worktree_dir_name as _worktree_dir_name
+from specify_cli.lanes._git import branch_exists
 from specify_cli.lanes.worktree_allocator import (
     _read_coordination_branch,
     allocate_lane_worktree,
+    predict_lane_worktree,
 )
 from specify_cli.workspace.context import ResolvedWorkspace
 from specify_cli.workspace.context import WorkspaceContext, save_context
@@ -100,6 +102,25 @@ def create_lane_workspace(
     if lanes_manifest is None:
         raise ValueError(f"{wp_id} requires lanes.json workspace allocation metadata")
 
+    lane = lanes_manifest.lane_for_wp(wp_id)
+    lane_id = lane.lane_id if lane else "unknown"
+
+    # #3571 follow-up: capture reuse STRUCTURALLY, BEFORE allocation. A lane
+    # whose worktree already exists on disk (2nd+ WP in the lane / resume) — or
+    # whose branch exists while the worktree was lost (crash-recovery re-attach)
+    # — is a genuine reuse; a lane the allocator creates fresh from ``base`` is
+    # not. This mirrors the allocator's own fresh-vs-reuse fork and is immune to
+    # base divergence. The prior ``_has_commits_beyond_base(honored_base)``
+    # content probe misfired here: on a fresh lane rooted on a divergent
+    # ``--base``, the recorded planning-commit / dependency-tip merges land as
+    # "commits beyond base", which read as reuse — skipping the ``base_commit``
+    # provenance write below and defeating ``for_review_gate``'s recorded-
+    # honored-base lookup on exactly the divergent-``--base`` lane it exists for.
+    predicted_path, predicted_branch = predict_lane_worktree(
+        repo_root, mission_slug, lane_id
+    )
+    is_reuse = predicted_path.exists() or branch_exists(repo_root, predicted_branch)
+
     workspace_path, branch_name = allocate_lane_worktree(
         repo_root=repo_root,
         mission_slug=mission_slug,
@@ -112,9 +133,6 @@ def create_lane_workspace(
     from specify_cli.policy.hook_installer import install_commit_guard
 
     install_commit_guard(workspace_path, repo_root)
-
-    lane = lanes_manifest.lane_for_wp(wp_id)
-    lane_id = lane.lane_id if lane else "unknown"
 
     # FR-011 / C-001: record the ACTUAL honored parent, not always
     # ``mission_branch``. ``base`` when supplied (the allocator parented the
@@ -134,14 +152,6 @@ def create_lane_workspace(
             if coordination_branch is not None
             else lanes_manifest.mission_branch
         )
-    )
-
-    # Detect reuse: if the worktree has a .git file it was pre-existing
-    # and allocate_lane_worktree just validated it was clean.
-    git_marker = workspace_path / ".git"
-    is_reuse = git_marker.exists() and _has_commits_beyond_base(
-        workspace_path,
-        honored_base,
     )
 
     from specify_cli.workspace.context import load_context
@@ -223,15 +233,3 @@ def _rev_parse(repo_root: Path, ref: str) -> str:
         check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else "unknown"
-
-
-def _has_commits_beyond_base(worktree_path: Path, base_branch: str) -> bool:
-    """Check if the worktree branch has any commits beyond the base."""
-    result = subprocess.run(
-        ["git", "log", f"{base_branch}..HEAD", "--oneline", "-1"],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return bool(result.stdout.strip())

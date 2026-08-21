@@ -33,7 +33,9 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.status import Lane
 from specify_cli.status.work_package_lifecycle import WorkPackageStartResult
 from specify_cli.lanes.persistence import write_lanes_json
+from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
+from specify_cli.workspace.context import ResolvedWorkspace
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -397,6 +399,95 @@ def test_nfr003_base_composes_with_recorded_planning_commit(tmp_path: Path) -> N
     assert worktree_path.exists()
     assert _is_ancestor(repo, EXPLICIT_BASE_BRANCH, branch)
     assert _is_ancestor(repo, planning_sha, branch)
+
+
+def test_fr011_fresh_divergent_base_lane_with_planning_commit_is_not_reuse(
+    tmp_path: Path,
+) -> None:
+    """#3571 follow-up: a FRESH coord lane rooted on a divergent ``--base`` with a
+    recorded planning commit merged on top must be treated as a fresh creation
+    (``is_reuse`` False) so its ``base_commit`` provenance is written.
+
+    Regression: the retired ``_has_commits_beyond_base(honored_base)`` probe
+    misdetected such a lane as *reuse* (the planning-commit merge is "commits
+    beyond base"), which skipped the ``base_commit`` frontmatter write and left
+    ``for_review_gate._recorded_honored_base`` with no context to read — silently
+    defeating the honored-base review scope on exactly the divergent-``--base``
+    lane it exists for. Structural reuse detection (worktree/branch
+    pre-existence) is immune to base divergence.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo)
+    feature_dir = repo / "kitty-specs" / MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+    _write_meta(feature_dir, mission_slug=MISSION_SLUG, coordination_branch=COORD_BRANCH)
+    (repo / "README.md").write_text("seed\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "seed")
+    seed_sha = _git_out(repo, "rev-parse", "HEAD")
+    _git(repo, "branch", COORD_BRANCH, seed_sha)
+
+    # Divergent base B off the seed (does NOT contain the planning commit).
+    _git(repo, "branch", EXPLICIT_BASE_BRANCH, seed_sha)
+    _git(repo, "checkout", "-q", EXPLICIT_BASE_BRANCH)
+    (repo / "base.txt").write_text("base work\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "explicit base work (B)")
+    _git(repo, "checkout", "-q", "main")
+
+    # Planning commit off the seed — diverges from B, so its merge onto a
+    # B-rooted lane creates "commits beyond B" (the misdetection trigger).
+    _git(repo, "checkout", "-q", "-b", "planning-tmp", seed_sha)
+    (repo / "planning.txt").write_text("planning artifact\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "planning commit")
+    planning_sha = _git_out(repo, "rev-parse", "HEAD")
+    _git(repo, "checkout", "-q", "main")
+    _git(repo, "branch", "-D", "planning-tmp")
+
+    manifest = _make_manifest(
+        mission_branch=f"kitty/mission-{MISSION_SLUG}", planning_commit_sha=planning_sha,
+    )
+
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    wp_file = tasks_dir / f"{WP_ID}-task.md"
+    wp_file.write_text(
+        f"---\nwork_package_id: {WP_ID}\ndependencies: []\n---\n# {WP_ID}\n"
+    )
+
+    resolved = ResolvedWorkspace(
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        execution_mode="code_change",
+        mode_source="frontmatter",
+        resolution_kind="lane_workspace",
+        workspace_name=f"{MISSION_SLUG}-lane-a",
+        worktree_path=repo / ".worktrees" / f"{MISSION_SLUG}-lane-a",
+        branch_name=None,
+        lane_id="lane-a",
+        lane_wp_ids=[WP_ID],
+    )
+
+    result = create_lane_workspace(
+        repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_file=wp_file,
+        resolved_workspace=resolved,
+        lanes_manifest=manifest,
+        declared_deps=[],
+        vcs_backend_value="git",
+        base=EXPLICIT_BASE_BRANCH,
+    )
+
+    # A freshly-created lane must NOT be misdetected as reuse.
+    assert result.is_reuse is False
+    # ... so the honored-base provenance IS written to the WP frontmatter.
+    frontmatter = wp_file.read_text()
+    assert "base_commit:" in frontmatter
+    base_b_sha = _git_out(repo, "rev-parse", EXPLICIT_BASE_BRANCH)
+    assert base_b_sha in frontmatter
 
 
 # ---------------------------------------------------------------------------
