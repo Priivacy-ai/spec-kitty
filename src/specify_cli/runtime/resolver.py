@@ -585,7 +585,8 @@ def resolve_configured_artifact_name(
     Twins :func:`resolve_configured_template`'s per-type filename seam
     without adding a second filename authority (squad §S2): the mapping is
     projected from ``expected-artifacts.yaml``'s ``path_pattern`` (via
-    :func:`doctrine.missions.step_projection.project_artifact_name_set`),
+    :func:`charter.missions.project_artifact_name_set`, the runtime->charter->
+    doctrine facade),
     never from :attr:`~doctrine.missions.models.MissionStepTemplateRef.template_file`.
 
     Args:
