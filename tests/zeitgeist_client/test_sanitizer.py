@@ -84,9 +84,22 @@ def test_assert_clean_raises_on_root_level_forbidden_key():
 
 
 def test_assert_clean_raises_on_nested_forbidden_key():
-    # N2: nested forbidden key {"args": {"meta": {"user": "robert"}}}
+    # N2: nested forbidden key, control-envelope shape.
+    # (FORBIDDEN_CONTROL_KEYS is F3's set; "user" is F1-observation-only —
+    # this exercises the same nested-walk claim against a control-plane key.)
     with pytest.raises(sanitizer.ForbiddenFieldError) as excinfo:
-        sanitizer.assert_clean({"args": {"meta": {"user": "robert"}}})
+        sanitizer.assert_clean({"args": {"meta": {"team_id": "t-1"}}})
+    assert excinfo.value.key == "team_id"
+
+
+def test_assert_clean_raises_on_nested_forbidden_key_observation_set():
+    # N2 against the observation-key forbidden set (F1's), e.g. a presence
+    # payload smuggling a free identity field.
+    with pytest.raises(sanitizer.ForbiddenFieldError) as excinfo:
+        sanitizer.assert_clean(
+            {"args": {"meta": {"user": "robert"}}},
+            forbidden=sanitizer.FORBIDDEN_OBSERVATION_KEYS,
+        )
     assert excinfo.value.key == "user"
 
 
