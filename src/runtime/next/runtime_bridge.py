@@ -791,10 +791,23 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
     unmoved :func:`_should_advance_wp_step` I/O read — and its own WP02
     compat reach — stay exactly where they were.
 
+    The mission family passed to ``gather_artifact_presence`` is the
+    mission's actual resolved type (:func:`get_mission_type`, #3407 M3
+    WP06) — never a hardcoded ``"software-dev"`` — so
+    ``evaluate_guards_strict``'s ``_GUARD_TABLES.get(family)`` dispatch
+    reaches the correct per-type guard table (including the ``"plan"``
+    branch) instead of routing every mission type through the
+    software-dev chain. A typeless mission resolves to ``""`` (the neutral
+    result, never ``None`` — see :func:`get_mission_type`), which has no
+    ``_GUARD_TABLES`` entry and so fails closed via
+    :class:`runtime_bridge_cores.UnregisteredMissionFamilyError`, matching
+    every other genuinely-unregistered family.
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
+    mission_family = get_mission_type(feature_dir)
     snapshot = _io_seam.gather_artifact_presence(
-        feature_dir, mission_family="software-dev", step_id=step_id
+        feature_dir, mission_family=mission_family, step_id=step_id
     )
     if step_id in ("implement", "review"):
         snapshot = dataclasses.replace(
