@@ -95,7 +95,7 @@ class TestResolveActionBundleSingleLoad:
             )
 
         assert bundle.merged is not None, "software-dev is a resolvable type; merged must carry the DRG"
-        assert len(calls) == 1, (
+        assert len(calls) == 1, (  # golden-count: cardinality-is-contract
             "_resolve_action_bundle must call load_validated_graph exactly once "
             f"per invocation; observed {len(calls)} call(s)"
         )
@@ -118,7 +118,7 @@ class TestActionGateSingleLoad:
             )
 
         assert payload.get("mode") == "bootstrap"
-        assert len(calls) == 1, (
+        assert len(calls) == 1, (  # golden-count: cardinality-is-contract
             "build_charter_context_json(action='tasks', mission_type='software-dev') "
             f"must resolve the DRG exactly once (NFR-001, no memoization); "
             f"observed {len(calls)} loads"
@@ -154,7 +154,7 @@ class TestBootstrapActionsSingleDefinitionSite:
                     isinstance(value, ast.Call)
                     and isinstance(value.func, ast.Name)
                     and value.func.id in ("frozenset", "set")
-                    and len(value.args) == 1
+                    and len(value.args) == 1  # golden-count: cardinality-is-contract
                 ):
                     value = value.args[0]
                 if not isinstance(value, ast.Set):

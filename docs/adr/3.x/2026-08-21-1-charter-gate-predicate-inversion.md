@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Charter/runtime gates test the declared entity, not a coarse hardcoded set'
-description: 'Five charter/runtime surfaces replace coarse-set membership with a predicate on the actually-declared entity; two deliberate behaviour reversals (non-bootstrap actions deliver; typo mission types hard-fail) ship under named red-by-design test reversals.'
+description: 'Charter/runtime gates test the declared entity, not a coarse hardcoded set; two deliberate reversals (non-bootstrap actions deliver, typo types hard-fail) ship under this ADR.'
 status: Accepted
 date: '2026-08-21'
 ---

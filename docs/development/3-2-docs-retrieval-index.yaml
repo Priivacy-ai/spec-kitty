@@ -2960,7 +2960,7 @@ pages:
   - path: "docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md"
     title: "ADR: Charter/runtime gates test the declared entity, not a coarse hardcoded set"
     divio_type: "none"
-    abstract: "Five charter/runtime surfaces replace coarse-set membership with a predicate on the actually-declared entity; two deliberate behaviour reversals (non-bootstrap actions deliver; typo mission types hard-fail) ship under named red-by-design test reversals."
+    abstract: "Charter/runtime gates test the declared entity, not a coarse hardcoded set; two deliberate reversals (non-bootstrap actions deliver, typo types hard-fail) ship under this ADR."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}

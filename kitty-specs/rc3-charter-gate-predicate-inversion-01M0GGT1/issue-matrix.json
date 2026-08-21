@@ -107,6 +107,18 @@
       "title": "M0 mission_type backfill + doctor census \u2014 LANDED on main (program gate)",
       "verdict": "verified-already-fixed",
       "wp": null
+    },
+    "#3615": {
+      "evidence_ref": "WP02 lane-a (surface A-fold, FR-007): interview.py _KNOWN_ACTIONS removed; folded into the single fast-path BOOTSTRAP_ACTIONS constant; AC-7 AST guard prevents a 4th copy.",
+      "fr": "FR-007",
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "Fold duplicate _KNOWN_ACTIONS into charter.context.BOOTSTRAP_ACTIONS",
+      "verdict": "fixed",
+      "wp": "WP02"
     }
   },
   "schema_version": 1
