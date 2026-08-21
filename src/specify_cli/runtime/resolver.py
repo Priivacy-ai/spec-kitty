@@ -565,8 +565,10 @@ def _load_expected_artifact_manifest(mission_type: str) -> ExpectedArtifactManif
     *mission_type* (unregistered/custom type -- degrades gracefully, mirrors
     ``ManifestRegistry.load_manifest``).
     """
-    from charter.missions import MissionTemplateRepository  # noqa: PLC0415
-    from doctrine.missions import ExpectedArtifactManifest  # noqa: PLC0415
+    from charter.missions import (  # noqa: PLC0415
+        ExpectedArtifactManifest,
+        MissionTemplateRepository,
+    )
 
     config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)
     if config is None:
@@ -615,7 +617,7 @@ def resolve_configured_artifact_name(
             reason="has no expected-artifacts manifest",
         )
 
-    from doctrine.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
+    from charter.missions import project_artifact_name_set  # noqa: PLC0415
 
     name_set = project_artifact_name_set(manifest) or {}
     mapped_filename = name_set.get(artifact_key)

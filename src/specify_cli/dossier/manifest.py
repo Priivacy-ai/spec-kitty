@@ -60,9 +60,9 @@ def __getattr__(name: str) -> Any:
     when one of the three names is actually requested).
     """
     if name in _RELOCATED_NAMES:
-        from doctrine.missions import expected_artifact_manifest as _eam  # noqa: PLC0415
+        from charter import missions as _cm  # noqa: PLC0415 — through-charter re-export (runtime→charter→doctrine boundary)
 
-        return getattr(_eam, name)
+        return getattr(_cm, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -257,8 +257,9 @@ class ManifestRegistry:
         # lives in ``doctrine.missions.expected_artifact_manifest`` -- a
         # lazy, function-local import (not TYPE_CHECKING-only) because the
         # two ``.model_validate(...)`` calls below need the real class at
-        # RUNTIME, not just a type annotation. See the module docstring.
-        from doctrine.missions import ExpectedArtifactManifest  # noqa: PLC0415
+        # RUNTIME, not just a type annotation. Routed through the charter facade
+        # so runtime reaches doctrine through charter (arch boundary gate).
+        from charter.missions import ExpectedArtifactManifest  # noqa: PLC0415
 
         org_roots = _resolve_existing_org_roots(repo_root) if repo_root is not None else []
         cache_key = (mission_type, tuple(str(root) for root in org_roots))

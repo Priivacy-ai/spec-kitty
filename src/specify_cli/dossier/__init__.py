@@ -19,7 +19,7 @@ from .hasher import (
 # (indexer.py now goes straight to doctrine.missions), and adding them to
 # __all__ without such a caller reds tests/architectural/test_no_dead_symbols.py.
 # The attribute is still importable for any external caller of this package.
-from doctrine.missions import (
+from charter.missions import (
     ArtifactClassEnum as ArtifactClassEnum,
     ExpectedArtifactManifest as ExpectedArtifactManifest,
     ExpectedArtifactSpec as ExpectedArtifactSpec,
