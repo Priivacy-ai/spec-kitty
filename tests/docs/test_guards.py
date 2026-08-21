@@ -10,10 +10,10 @@ and the ``gate``/``noun``/``fr_id``/``extra`` parameterization surfacing in
 the message — are covered independently of either caller.
 
 The second half exercises :func:`scripts.docs._guards.resolve_changed_files`,
-the shared diff-scope resolver both blocking docs gates' ``--changed-from``
-mode is built on. **B-WP02 is the load-bearing distinction pinned here:**
-fail-closed keys on git base RESOLVABILITY (a non-zero ``git`` return code),
-never on the resolved changed-set being empty.
+the shared diff-scope resolver used by all four blocking per-page gates'
+``--changed-from`` modes. **B-WP02 is the load-bearing distinction pinned
+here:** fail-closed keys on git base RESOLVABILITY (a non-zero ``git`` return
+code), never on the resolved changed-set being empty.
 """
 
 from __future__ import annotations

@@ -17,8 +17,9 @@ This is a distinct contract from ``redirect_stub_generator.assert_non_vacuous``
 and are intentionally left alone.
 
 This module also carries :func:`resolve_changed_files`, the shared diff-scope
-resolver both blocking docs gates use for their ``--changed-from`` mode
-(#3147, WP02). **B-WP02 (BLOCKER, see
+resolver used by the related-edge, relative-link, audience, and description
+blocking gates for their ``--changed-from`` mode (#3147, #3316). **B-WP02
+(BLOCKER, see
 ``kitty-specs/ci-scoping-gate-reliability-01KZP80D/investigate-squad-findings.md``):
 the fail-closed trigger is git base RESOLVABILITY, never changed-set
 emptiness.** ``docs-freshness.yml`` fires on many non-``.md`` paths
