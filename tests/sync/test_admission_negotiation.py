@@ -122,6 +122,28 @@ class TestServerRequiresStrictAdmission:
         # The first origin's cached (non-strict) resolution is untouched.
         assert server_requires_strict_admission("https://a.example") is False
 
+    def test_live_handshake_is_not_masked_by_cached_non_strict_verdict(self) -> None:
+        """A per-call strict handshake wins even after an origin cached non-strict.
+
+        Regression (#3626 landing review): the memo caches only the
+        process-stable env/config inputs. A ``handshake=None`` resolution for an
+        origin used to poison the cache so a *later* strict handshake for that
+        same origin returned the stale non-strict value — exactly the transition
+        that goes live when the SaaS #795 server starts advertising the
+        handshake mid-process. The handshake must be evaluated live, ahead of
+        the cache.
+        """
+        origin = "https://handshake-after-cache.example"
+        # First call with no handshake caches the non-strict env/config verdict.
+        assert server_requires_strict_admission(origin) is False
+        # A subsequent strict handshake for the SAME origin must not be masked.
+        assert (
+            server_requires_strict_admission(origin, handshake={"admission": {"required": True}})
+            is True
+        )
+        # The cached env/config verdict for a handshake-less call is unchanged.
+        assert server_requires_strict_admission(origin) is False
+
 
 # --------------------------------------------------------------------------- #
 # maybe_admit_locally — the guard matrix                                      #
