@@ -19,8 +19,9 @@ seams could silently re-diverge (e.g. a new channel wired into DRG
 projection but never wired into ``_render_profile_sections``'s renderer
 list, or wired pointer-only with no documented reason).
 
-**FR-008 anti-divergence test design.** The five profile-selector channels
-``_render_profile_sections`` composes are grouped into two buckets:
+**FR-008 anti-divergence test design.** The six profile-selector channels
+``_render_profile_sections`` composes (its module-level
+``_PROFILE_SECTION_RENDERERS`` tuple) are grouped into two buckets:
 
 * **body-delivering** — ``directive`` (``directive-references`` →
   ``_render_profile_directives``), ``tactic`` (``tactic-references`` →
@@ -32,9 +33,14 @@ list, or wired pointer-only with no documented reason).
 * **attested pointer-only** — ``styleguide`` / ``toolguide``
   (``styleguide-references`` / ``toolguide-references`` →
   ``render_profile_styleguides`` / ``render_profile_toolguides``, both
-  ``body_fn=None`` by design). Never an inline body; always the fetch
-  stanza, and the *reason* for that choice is a named, importable constant
-  rather than only a docstring aside.
+  ``body_fn=None`` by design), and ``suggested_doctrine`` (the profile
+  *channel*'s ``suggests``-reached #3063 A–E families →
+  ``render_profile_suggested_doctrine``, also ``body_fn=None`` — NFR-003:
+  a suggested artefact is always named as a link, never inlined). Never an
+  inline body; always the fetch stanza, and the *reason* for that choice is
+  either a named, importable constant (styleguide/toolguide) or the
+  renderer's own docstring (suggested_doctrine) rather than an unattested
+  aside.
 
 ``test_directive_tactic_operating_procedures_are_emitted_as_drg_edges`` binds
 the **emit** half: it runs the single-authority extractor
@@ -45,7 +51,7 @@ fixture pack and asserts the three body-delivering channels really do land as
 merely assumed from reading the source.
 
 ``test_real_projected_channels_are_delivered_or_attested_pointer_only`` binds
-the **delivery** half: it renders one synthetic profile citing all five
+the **delivery** half: it renders one synthetic profile citing all six
 channels through the real ``_render_profile_sections`` entry point and
 classifies each channel's rendered output as ``"body"``, ``"pointer_only"``,
 or ``"undelivered"`` (an inline body is present XOR the fetch-stanza selector
@@ -54,8 +60,18 @@ The FR-008 invariant, ``_is_consistent``, accepts ``"body"`` outright and
 accepts ``"pointer_only"`` only when the channel carries a non-empty attested
 reason; ``"undelivered"`` is always a failure.
 
+``test_real_projected_channels_roster_matches_product_renderer_composition``
+closes the divergence this file was written to catch but originally left
+open: it binds ``_REAL_PROJECTED_CHANNELS`` to
+``_PROFILE_SECTION_RENDERERS`` — the exact tuple the product composes — by
+renderer *function identity*, not by a hand-counted literal. A 7th channel
+wired into that tuple without a matching roster entry now fails this
+assertion instead of passing silently (the original defect: the roster had
+only five hand-listed channels while the product already composed six,
+and nothing tied the two together).
+
 **Red-first proof.** The classifier and invariant are generic — they do not
-special-case the five real channel names — so the two synthetic-channel tests
+special-case the six real channel names — so the two synthetic-channel tests
 below (``test_synthetic_undelivered_channel_is_caught`` and
 ``test_synthetic_unattested_pointer_only_channel_is_caught``) exercise the
 *same* ``_classify_delivery`` / ``_is_consistent`` pair against a fabricated
@@ -63,13 +79,14 @@ channel that mimics exactly what a future one-seam-only divergence would look
 like: a channel projected into the DRG whose delivery renderer was either
 never wired up (renders neither a body nor its own fetch stanza) or wired
 ``body_fn=None`` with no attestation (silent pointer-only, the pre-#3488-fix
-defect class). Both synthetic cases fail the invariant; the five real
+defect class). Both synthetic cases fail the invariant; the six real
 channels, exercised through the identical mechanism in the test just above,
 currently pass — proving the check is live, not a tautology.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -78,13 +95,20 @@ from typing import Literal
 import pytest
 
 from charter.context_renderers.profile_sections import (
+    _PROFILE_SECTION_RENDERERS,
     _STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON,
+    _render_profile_directives,
     _render_profile_sections,
+    _render_profile_tactics,
+    render_profile_procedures,
+    render_profile_styleguides,
+    render_profile_suggested_doctrine,
+    render_profile_toolguides,
 )
 from doctrine.agent_profiles import AgentProfile
 from doctrine.drg.migration.extractor import extract_artifact_edges
 from doctrine.drg.migration.id_normalizer import artifact_to_urn
-from doctrine.drg.models import Relation
+from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.fast
 
@@ -92,9 +116,14 @@ _DeliveryMode = Literal["body", "pointer_only", "undelivered"]
 
 
 # ---------------------------------------------------------------------------
-# Delivery-side fixture: one synthetic profile exercising all five channels
+# Delivery-side fixture: one synthetic profile exercising all six channels
 # through the real ``_render_profile_sections`` entry point.
 # ---------------------------------------------------------------------------
+
+#: The suggested-doctrine fixture artefact + the ``suggests`` edge ``when``
+#: ``render_profile_suggested_doctrine`` must surface for it.
+_SUGGESTED_PARADIGM_ID = "fixture-paradigm"
+_SUGGESTED_PARADIGM_WHEN = "you are shaping a new bounded context"
 
 
 class _StubCatalogRepo:
@@ -107,21 +136,60 @@ class _StubCatalogRepo:
         return self._items.get(item_id)
 
 
-class _StubProcedureChannel:
-    """Stubs the slice of ``AgentProfileRepository`` ``render_profile_procedures``
-    depends on (WP08's ``requires``/``specializes_from`` walk) without needing a
-    real, materialized DRG. ``render_profile_suggested_doctrine`` also probes
-    ``agent_profiles`` for ``profile_channel_reached``; that method is
-    deliberately absent here, so the lookup raises ``AttributeError`` and the
-    renderer's own broad ``except Exception: return []`` degrades it to no
-    section — the fixture only needs to speak the one surface under test.
+def _fixture_suggested_doctrine_graph() -> DRGGraph:
+    """A minimal DRG: the fixture profile ``suggests`` one paradigm.
+
+    Mirrors the shape ``render_profile_suggested_doctrine`` walks in
+    production (WP01, #3063 Family A: ``agent_profile --suggests--> paradigm``)
+    — see ``tests/doctrine/drg/test_profile_suggests_delivery.py`` for the
+    real-graph equivalent this synthesizes a minimal stand-in for.
+    """
+    return DRGGraph(
+        schema_version="1.0",
+        generated_at="1970-01-01T00:00:00Z",
+        generated_by="test_emit_delivery_bind:_fixture_suggested_doctrine_graph",
+        nodes=[
+            DRGNode(urn="agent_profile:fr008-bind-fixture", kind=NodeKind.AGENT_PROFILE),
+            DRGNode(
+                urn=f"paradigm:{_SUGGESTED_PARADIGM_ID}", kind=NodeKind.PARADIGM
+            ),
+        ],
+        edges=[
+            DRGEdge(
+                source="agent_profile:fr008-bind-fixture",
+                target=f"paradigm:{_SUGGESTED_PARADIGM_ID}",
+                relation=Relation.SUGGESTS,
+                when=_SUGGESTED_PARADIGM_WHEN,
+            ),
+        ],
+    )
+
+
+class _StubAgentProfileChannel:
+    """Stubs the slice of ``AgentProfileRepository`` the delivery-side
+    channel renderers depend on: ``profile_channel_procedure_ids`` (WP08's
+    ``requires``/``specializes_from`` walk, consumed by
+    ``render_profile_procedures``) and ``profile_channel_reached`` + ``.drg``
+    (the ``suggests``-delivery walk, consumed by
+    ``render_profile_suggested_doctrine``) — without needing a real,
+    materialized DRG for either.
     """
 
-    def __init__(self, procedure_ids: list[str]) -> None:
+    def __init__(
+        self,
+        procedure_ids: list[str],
+        reached: frozenset[str],
+        drg: DRGGraph,
+    ) -> None:
         self._procedure_ids = procedure_ids
+        self._reached = reached
+        self.drg = drg
 
     def profile_channel_procedure_ids(self, profile_id: str) -> list[str]:
         return self._procedure_ids
+
+    def profile_channel_reached(self, profile_id: str) -> frozenset[str]:
+        return self._reached
 
 
 def _fixture_profile() -> AgentProfile:
@@ -181,7 +249,14 @@ def _fixture_service() -> SimpleNamespace:
                 )
             }
         ),
-        agent_profiles=_StubProcedureChannel(["fixture-procedure"]),
+        paradigms=_StubCatalogRepo(
+            {_SUGGESTED_PARADIGM_ID: SimpleNamespace(title="Fixture Paradigm")}
+        ),
+        agent_profiles=_StubAgentProfileChannel(
+            procedure_ids=["fixture-procedure"],
+            reached=frozenset({f"paradigm:{_SUGGESTED_PARADIGM_ID}"}),
+            drg=_fixture_suggested_doctrine_graph(),
+        ),
     )
 
 
@@ -204,12 +279,19 @@ class _ProjectedChannel:
     the channel rendered pointer-only. ``attested_reason`` is the documented,
     non-empty rationale for pointer-only delivery when that is the design
     (``None`` for channels that are never meant to be pointer-only).
+    ``renderer`` is the actual product function
+    (``_PROFILE_SECTION_RENDERERS`` member) this channel exercises — the
+    anti-divergence guard test below binds the roster to the product's
+    renderer *composition* through this field, by function identity, rather
+    than by a hand-counted literal. ``None`` for the synthetic/hypothetical
+    channels below, which exercise no real renderer.
     """
 
     name: str
     body_marker: str | None
     fetch_selector: str
     attested_reason: str | None
+    renderer: Callable[..., list[str]] | None = None
 
 
 def _fetch_stanza_line(selector: str) -> str:
@@ -245,36 +327,63 @@ def _is_consistent(channel: _ProjectedChannel, mode: _DeliveryMode) -> bool:
     return False
 
 
+#: The documented, non-empty rationale for ``suggested_doctrine``'s
+#: pointer-only (``body_fn=None``) delivery — pulled from the renderer's own
+#: docstring (NFR-003: a suggested artefact is named as a link, never
+#: inlined) rather than hand-typed, so the attestation is bound to the
+#: product's own words the same way ``_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON``
+#: is a named product constant for the styleguide/toolguide channels.
+_SUGGESTED_DOCTRINE_POINTER_ONLY_REASON: str = (
+    render_profile_suggested_doctrine.__doc__ or ""
+)
+assert "NFR-003" in _SUGGESTED_DOCTRINE_POINTER_ONLY_REASON, (
+    "render_profile_suggested_doctrine's docstring must document the "
+    "NFR-003 link-only rationale this test attests"
+)
+
+
 _REAL_PROJECTED_CHANNELS: tuple[_ProjectedChannel, ...] = (
     _ProjectedChannel(
         name="directive",
         body_marker="Intent: Do the fixture thing.",
         fetch_selector="directive:DIRECTIVE_999",
         attested_reason=None,
+        renderer=_render_profile_directives,
     ),
     _ProjectedChannel(
         name="tactic",
         body_marker="Name: Fixture Tactic",
         fetch_selector="tactic:fixture-tactic",
         attested_reason=None,
+        renderer=_render_profile_tactics,
     ),
     _ProjectedChannel(
         name="operating-procedures",
         body_marker="Name: Fixture Procedure",
         fetch_selector="procedure:fixture-procedure",
         attested_reason=None,
+        renderer=render_profile_procedures,
     ),
     _ProjectedChannel(
         name="styleguide",
         body_marker=None,
         fetch_selector="styleguide:fixture-styleguide",
         attested_reason=_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON,
+        renderer=render_profile_styleguides,
     ),
     _ProjectedChannel(
         name="toolguide",
         body_marker=None,
         fetch_selector="toolguide:fixture-toolguide",
         attested_reason=_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON,
+        renderer=render_profile_toolguides,
+    ),
+    _ProjectedChannel(
+        name="suggested_doctrine",
+        body_marker=None,
+        fetch_selector=f"paradigm:{_SUGGESTED_PARADIGM_ID}",
+        attested_reason=_SUGGESTED_DOCTRINE_POINTER_ONLY_REASON,
+        renderer=render_profile_suggested_doctrine,
     ),
 )
 
@@ -302,12 +411,42 @@ def test_real_projected_channels_are_delivered_or_attested_pointer_only() -> Non
         "operating-procedures": "body",
         "styleguide": "pointer_only",
         "toolguide": "pointer_only",
+        "suggested_doctrine": "pointer_only",
     }
     for channel in _REAL_PROJECTED_CHANNELS:
         assert _is_consistent(channel, results[channel.name]), (
             f"channel {channel.name!r} classified as {results[channel.name]!r} "
             "violates the FR-008 body-or-attested-pointer-only invariant"
         )
+
+
+def test_real_projected_channels_roster_matches_product_renderer_composition() -> None:
+    """FR-008 anti-divergence GUARD: bind ``_REAL_PROJECTED_CHANNELS`` to the
+    product's own renderer composition (``_PROFILE_SECTION_RENDERERS`` —
+    the exact tuple ``_render_profile_sections`` iterates), not to a
+    hand-counted literal.
+
+    This is the durable check the original roster lacked: it hand-listed five
+    channels while the product already composed six (``directive``, ``tactic``,
+    ``styleguide``, ``toolguide``, ``operating-procedures``,
+    ``suggested_doctrine``), and nothing tied the two together — so the sixth
+    channel silently passed the FR-008 invariant test above by simply never
+    being checked. Binding by renderer *function identity* means a future 7th
+    channel added to ``_PROFILE_SECTION_RENDERERS`` without a matching roster
+    entry fails this assertion (set sizes/members diverge) instead of the
+    divergence going unnoticed, exactly the residual this file exists to close.
+    """
+    roster_renderers = {channel.renderer for channel in _REAL_PROJECTED_CHANNELS}
+    product_renderers = set(_PROFILE_SECTION_RENDERERS)
+
+    assert roster_renderers == product_renderers, (
+        "_REAL_PROJECTED_CHANNELS's renderer set has diverged from "
+        "_PROFILE_SECTION_RENDERERS (the product's composed profile-channel "
+        "renderers) — a channel was added to or removed from one without "
+        "updating the other"
+    )
+    # No duplicate/missing coverage: exactly one roster entry per renderer.
+    assert len(_REAL_PROJECTED_CHANNELS) == len(_PROFILE_SECTION_RENDERERS)
 
 
 def test_synthetic_undelivered_channel_is_caught() -> None:
