@@ -38,6 +38,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
+    from spec_kitty_tracker import BeadsConnector
     from spec_kitty_tracker.context import LocalExecutionContext
 
 
@@ -380,3 +381,74 @@ def _default_inner_runner() -> _CommandRunnerLike:
     from spec_kitty_tracker.connectors.cli_runner import SubprocessCommandRunner
 
     return SubprocessCommandRunner()
+
+
+class TrackerGatewayUnavailableError(TrackerGatewayError):
+    """Raised when the installed ``spec_kitty_tracker`` predates the program
+    gateway's required surface (``spec_kitty_tracker.context.LocalExecutionContext``,
+    added in the landed TRK-M1-02 kernel, 0.5.x -- not yet published to PyPI
+    at the time this module was written; see
+    ``docs/development/how-to/local-overrides.md`` Pattern A for how to
+    develop/test against it locally in the meantime).
+    """
+
+
+def _try_import_gateway_beads_types() -> tuple[type, type, type] | None:
+    """``(BeadsConnector, BeadsConnectorConfig, LocalExecutionContext)`` if the
+    installed tracker package exposes all three, else ``None``. A separate,
+    monkeypatchable function (mirroring :func:`_try_import_scope_violation_error`)
+    so :func:`build_gateway_beads_connector`'s unavailable-package path is
+    exercisable without needing an actual old-tracker-package install."""
+    try:
+        from spec_kitty_tracker import BeadsConnector, BeadsConnectorConfig
+        from spec_kitty_tracker.context import LocalExecutionContext
+    except ImportError:
+        return None
+    return BeadsConnector, BeadsConnectorConfig, LocalExecutionContext
+
+
+def build_gateway_beads_connector(
+    *,
+    token: TrackerGatewayToken,
+    workspace: str,
+    command: str = "bd",
+    cwd: str | None = None,
+    runner: GatewayCommandRunner | None = None,
+) -> tuple[BeadsConnector, GatewayCommandRunner]:
+    """Construct a ``BeadsConnector`` wired through the local program gateway.
+
+    This is the host-owned wiring TRK-M1-04's node criteria describes: the
+    returned connector's ``LocalExecutionContext`` is derived from ``token``
+    (so ``BeadsConnector`` preserves mission/task/team/repository scope --
+    TRK-M1-02 A3/A4), and every ``bd`` invocation the connector issues is
+    routed through a :class:`GatewayCommandRunner` bound to the same token
+    (so it is token-valid and cannot assign/close/approve/release -- see
+    :class:`GatewayCommandRunner`'s docstring), never the package's default
+    direct-subprocess ``SubprocessCommandRunner``
+    (``BeadsConnector.__init__``'s own fail-closed rule already refuses a
+    scoped ``context`` without an explicit ``runner``; this function is what
+    supplies that explicit runner).
+
+    Raises :class:`TrackerGatewayUnavailableError` if the installed
+    ``spec_kitty_tracker`` predates ``LocalExecutionContext`` (needs 0.5+).
+    """
+    imported = _try_import_gateway_beads_types()
+    if imported is None:
+        raise TrackerGatewayUnavailableError(
+            "spec-kitty-tracker>=0.5 (spec_kitty_tracker.context.LocalExecutionContext) "
+            "is required to build a program-gateway Beads connector (TRK-M1-04); "
+            "the installed spec-kitty-tracker predates it."
+        )
+    beads_connector_cls, beads_connector_config_cls, local_execution_context_cls = imported
+
+    context = local_execution_context_cls(
+        actor=token.actor,
+        repository=token.repository,
+        team=token.team,
+        mission_id=token.mission_id,
+        task_id=token.task_id,
+    )
+    gateway_runner = runner if runner is not None else GatewayCommandRunner(token)
+    config = beads_connector_config_cls(workspace=workspace, command=command, cwd=cwd, context=context)
+    connector = beads_connector_cls(config, runner=gateway_runner)
+    return connector, gateway_runner
