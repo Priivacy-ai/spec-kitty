@@ -44,11 +44,11 @@ from __future__ import annotations
 import os
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from specify_cli.charter_runtime.freshness import compute_freshness
 
-from .result import CharterPreflightCheck, CharterPreflightResult
+from .result import CharterPreflightCheck, CharterPreflightResult, CheckState
 
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
     from specify_cli.charter_runtime.freshness import CharterFreshness
@@ -237,7 +237,7 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
         result.append(
             CharterPreflightCheck(
                 name=layer_key,
-                state=state,
+                state=cast(CheckState, state),
                 detail=str(detail),
                 remediation=str(remediation) if remediation else None,
             )
