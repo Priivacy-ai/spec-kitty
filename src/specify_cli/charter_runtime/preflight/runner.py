@@ -237,7 +237,7 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
         result.append(
             CharterPreflightCheck(
                 name=layer_key,
-                state=state,  # type: ignore[arg-type]
+                state=state,
                 detail=str(detail),
                 remediation=str(remediation) if remediation else None,
             )
@@ -467,7 +467,8 @@ def refresh_references_if_needed(repo_root: Path, cause: str) -> bool:
     """
     from .references_refresh import refresh_references_if_needed as _refresh_references
 
-    return _refresh_references(repo_root, cause)
+    result: bool = _refresh_references(repo_root, cause)
+    return result
 
 
 def _attempt_auto_refresh(
