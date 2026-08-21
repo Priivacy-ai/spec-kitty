@@ -239,27 +239,29 @@ def test_no_activation_keys_skips_doctrine_scan(
 
 
 @pytest.mark.doctrine
-@pytest.mark.timing
-# NFR-003 perf guard, routed to the serial `-m timing` gate (2026-08-07, PR
-# #3246 landing fold). ``run_consistency_check`` is pure in-process work,
-# nominal ~1.2s wall locally. Earlier revisions of this test lived in the
-# parallel ``fast-tests-charter`` shard (`-n auto`), where the dominant flake
-# source was CACHE CONTENTION: ~4 xdist workers on a 4-vCPU runner thrash the
-# shared L2/L3, so this memory-touching check's measured time inflated to
-# ~4.8s and tripped every absolute budget (and even a CPU-calibration ratio,
-# because a register-bound calibration does not track a memory-bound workload
-# under cache pressure). Marking it ``timing`` moves it to the dedicated
-# ``timing-nfr-serial`` job (``-m timing -n0``), which runs one test at a time
-# with the whole cache available -- restoring the ~1.2s nominal and letting a
-# simple wall-clock budget be both stable and meaningful. The 3.0s ceiling is
-# ~2.5x nominal: headroom for the 4-vCPU runner's single-thread speed while a
-# genuine algorithmic regression still trips it. (Not a #3246 regression:
-# nominal is identical on this branch and upstream/main's charter sources.)
+@pytest.mark.performance
+# NFR-003 perf guard. ``run_consistency_check`` is pure in-process work,
+# nominal ~1.2s wall locally. Routing history: it first lived in the parallel
+# ``fast-tests-charter`` shard (`-n auto`), where CACHE CONTENTION (~4 xdist
+# workers thrashing a 4-vCPU runner's shared L2/L3) inflated this memory-bound
+# check to ~4.8s and tripped every absolute budget; PR #3246 moved it to the
+# serial ``-m timing`` gate (`-n0`) to measure it uncontended. But even
+# uncontended, the shared-runner cold-start variance still spiked a single-shot
+# measurement to 5.21s (>3s ceiling) and red-mained an unrelated PR (#3616
+# landing fold, 2026-08-21). A one-shot wall-clock budget on a shared runner is
+# inherently flaky as a *blocking* signal, so it now carries ``performance``
+# (env-gated: SPEC_KITTY_RUN_PERFORMANCE=1, see tests/conftest.py), which holds
+# it off every blocking PR/main run per pytest.ini. The durable answer is the
+# out-of-band Monte-Carlo harness tracked in #3595; the 3.0s ceiling (~2.5x
+# nominal) still trips a genuine algorithmic regression when the gate is run
+# explicitly.
 def test_run_consistency_check_completes_within_budget(tmp_path: Path) -> None:
     """NFR-003: consistency check against the built-in doctrine stays fast.
 
-    Runs in the serial ``timing-nfr-serial`` gate (no parallel cache
-    contention), so a plain wall-clock budget is stable; ~1.2s nominal.
+    Carries ``performance`` (env-gated, held off the blocking path): a
+    single-shot wall-clock budget on a shared runner is too cold-start-sensitive
+    to block a PR. Nominal ~1.2s; run explicitly with ``-m performance`` and
+    ``SPEC_KITTY_RUN_PERFORMANCE=1``, or via the out-of-band harness (#3595).
     """
     ctx = _ctx_with_config(tmp_path, "# minimal valid project\n")
 
@@ -269,5 +271,5 @@ def test_run_consistency_check_completes_within_budget(tmp_path: Path) -> None:
 
     assert elapsed < 3.0, (
         f"consistency check took {elapsed:.2f}s (limit: 3s; nominal ~1.2s, "
-        "serial timing gate)"
+        "performance gate)"
     )
