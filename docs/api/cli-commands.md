@@ -2710,6 +2710,62 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                            fail-closed, and flip status_phase.               │
 │ rebaseline-dossier-hashes  One-time re-baseline of recorded dossier snapshot │
 │                            hashes (FR-009, WP05).                            │
+│ backfill-mission-type      Mint a profile-resolving mission_type into legacy │
+│                            meta.json whose only type signal is the           │
+│                            deprecated mission field.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate backfill-mission-type
+
+```
+ Usage: spec-kitty migrate backfill-mission-type [OPTIONS]
+
+ Mint a profile-resolving ``mission_type`` into legacy ``meta.json`` (rc3 M0).
+
+ Legacy missions store their type only in the deprecated ``mission`` field.
+ This command writes a canonical ``mission_type`` for every candidate whose
+ legacy value resolves a governance profile at *any* layer (built-in / org
+ / project) — activation-independent, per the M3 tolerance authority.  A
+ mission that already has a ``mission_type`` key is always skipped and
+ left byte-for-byte unchanged.
+
+ This command is **idempotent** — running it twice reports ``wrote=0`` on
+ the second pass.
+
+ A candidate whose legacy value resolves **no** governance profile is
+ never written; it is reported ``needs_manual_resolution`` instead. This
+ does **not** by itself fail the command — see the exit codes below — but
+ a distinct, actionable diagnostic is printed naming the affected
+ mission(s): the fix is to assign a valid mission type whose governance
+ profile resolves at some layer, or to author/activate that type. It is
+ not necessarily a typo.
+
+ Exit codes:
+
+ - ``0`` — ``--dry-run`` (always, regardless of findings), or a live run
+   with zero ``error`` results (``needs_manual_resolution`` alone does not
+   fail the command)
+ - ``1`` — a live run with one or more ``error`` results (corrupt /
+   unreadable ``meta.json``), or ``--mission`` naming a slug that has no
+   matching directory under ``kitty-specs/``
+
+ Examples:
+
+     spec-kitty migrate backfill-mission-type --dry-run --json
+
+     spec-kitty migrate backfill-mission-type --mission 083-foo-bar
+
+     spec-kitty migrate backfill-mission-type
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json                   Emit the per-mission backfill result list as        │
+│                          structured JSON.                                    │
+│ --dry-run                Report what would change without writing any files. │
+│                          The JSON shape is identical to a live run.          │
+│ --mission          SLUG  Scope to a single mission slug (e.g. 083-foo). Omit │
+│                          to process all missions.                            │
+│ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
