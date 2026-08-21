@@ -29,17 +29,18 @@ fact is unobservable from CI and is asserted nowhere here — do not add a
 ``required == {...}`` assertion (it would also conflict with ui-e2e.yml's
 "Required-check contract" comment).
 
-Property 4 (#3147, WP02 T011) pins the diff-scope wiring added to narrow the
-two blocking dead-link/related-edge gate steps to the PR's own changed
+Property 4 (#3147, WP02 T011; extended by #3316) pins the diff-scope
+wiring that narrows all four blocking per-page gates to the PR's own changed
 ``docs/**/*.md`` files (see ``scripts/docs/_guards.py:resolve_changed_files``
 and the B-WP02 fail-closed-on-resolvability contract in
 ``kitty-specs/ci-scoping-gate-reliability-01KZP80D/investigate-squad-findings.md``):
 the checkout step must fetch full history (``fetch-depth: 0``, required for the
-base commit to resolve) and the two gate steps must receive a diff-scope flag
-derived from ``github.event.pull_request.base.sha``. Properties 1-3 above are
-otherwise UNCHANGED by WP02 — the PR ``paths:`` allowlist and the unfiltered
-``push: main`` backstop are exactly what they were before diff-scoping; WP02
-narrows *which files are examined*, never *whether the gate triggers*.
+base commit to resolve) and the related-edge, relative-link, audience, and
+description gate steps must receive a diff-scope flag derived from
+``github.event.pull_request.base.sha``. Properties 1-3 above remain unchanged —
+the PR ``paths:`` allowlist and the unfiltered ``push: main`` backstop are
+exactly what they were before diff-scoping; scoping narrows *which files are
+examined*, never *whether the gate triggers*.
 """
 
 from __future__ import annotations
@@ -212,30 +213,24 @@ def test_diffscope_flag_derives_from_pr_base_sha() -> None:
     assert "pull_request" in run
 
 
-def test_related_and_body_link_gates_receive_diffscope_flag() -> None:
-    """Property 4c (#3147): both blocking dead-link gates receive the flag.
+def test_all_blocking_per_page_gates_receive_diffscope_flag() -> None:
+    """Property 4c (#3147, #3316): all four per-page gates receive the flag.
 
-    Only the two gates #3147 targets (related-edge validator, relative
-    body-link gate) are diff-scoped — the other docs-freshness steps
-    (description-length, structural lint, changelog/contributing sync,
-    slash-command freshness, the freshness orchestrator) are explicitly out of
-    scope (WP02 spec) and must NOT reference the flag.
+    The related-edge and relative body-link gates gained diff scoping in #3147;
+    #3316 extends the same contract to their audience and description siblings.
+    Other docs-freshness steps remain whole-tree.
     """
     workflow = _load_workflow(_WORKFLOW)
-    assert _step_run_contains(workflow, "Related-edge validator", "steps.diffscope.outputs.flag"), (
-        "Related-edge validator step must pass steps.diffscope.outputs.flag"
+    expected_steps = (
+        "Related-edge validator",
+        "Audience resolver",
+        "Description-length gate",
+        "Relative body-link gate",
     )
-    assert _step_run_contains(workflow, "Relative body-link gate", "steps.diffscope.outputs.flag"), (
-        "Relative body-link gate step must pass steps.diffscope.outputs.flag"
-    )
-
-
-def test_description_length_gate_stays_out_of_diff_scope() -> None:
-    """Out-of-scope guard: the description-length gate is NOT diff-scoped (WP02 spec)."""
-    workflow = _load_workflow(_WORKFLOW)
-    assert not _step_run_contains(workflow, "Description-length gate", "steps.diffscope.outputs.flag"), (
-        "Description-length gate is explicitly out of #3147's scope — must not carry the flag"
-    )
+    for step_name in expected_steps:
+        assert _step_run_contains(
+            workflow, step_name, "steps.diffscope.outputs.flag"
+        ), f"{step_name} step must pass steps.diffscope.outputs.flag"
 
 
 # --------------------------------------------------------------------------- #
