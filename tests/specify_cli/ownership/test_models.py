@@ -1,4 +1,4 @@
-"""Tests for ownership.models — ExecutionMode and OwnershipManifest."""
+"""Tests for ownership.models — WorkProductKind and OwnershipManifest."""
 
 from __future__ import annotations
 
@@ -6,12 +6,12 @@ from typing import Any
 
 import pytest
 
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.status.wp_metadata import WPMetadata
 
 
 # ---------------------------------------------------------------------------
-# ExecutionMode
+# WorkProductKind
 # ---------------------------------------------------------------------------
 
 
@@ -19,21 +19,21 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestExecutionMode:
     def test_exactly_two_values(self) -> None:
-        values = [m.value for m in ExecutionMode]
+        values = [m.value for m in WorkProductKind]
         assert sorted(values) == ["code_change", "planning_artifact"]
 
     def test_is_str_enum(self) -> None:
-        assert isinstance(ExecutionMode.CODE_CHANGE, str)
-        assert str(ExecutionMode.CODE_CHANGE) == "code_change"
-        assert str(ExecutionMode.PLANNING_ARTIFACT) == "planning_artifact"
+        assert isinstance(WorkProductKind.CODE_CHANGE, str)
+        assert str(WorkProductKind.CODE_CHANGE) == "code_change"
+        assert str(WorkProductKind.PLANNING_ARTIFACT) == "planning_artifact"
 
     def test_construction_from_string(self) -> None:
-        assert ExecutionMode("code_change") is ExecutionMode.CODE_CHANGE
-        assert ExecutionMode("planning_artifact") is ExecutionMode.PLANNING_ARTIFACT
+        assert WorkProductKind("code_change") is WorkProductKind.CODE_CHANGE
+        assert WorkProductKind("planning_artifact") is WorkProductKind.PLANNING_ARTIFACT
 
     def test_invalid_value_raises(self) -> None:
         with pytest.raises(ValueError):
-            ExecutionMode("unknown_mode")
+            WorkProductKind("unknown_mode")
 
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ class TestExecutionMode:
 class TestOwnershipManifest:
     def _make(self, **kwargs: Any) -> OwnershipManifest:
         defaults: dict[str, Any] = {
-            "execution_mode": ExecutionMode.CODE_CHANGE,
+            "execution_mode": WorkProductKind.CODE_CHANGE,
             "owned_files": ("src/specify_cli/ownership/**",),
             "authoritative_surface": "src/specify_cli/ownership/",
         }
@@ -53,14 +53,14 @@ class TestOwnershipManifest:
 
     def test_basic_creation(self) -> None:
         m = self._make()
-        assert m.execution_mode == ExecutionMode.CODE_CHANGE
+        assert m.execution_mode == WorkProductKind.CODE_CHANGE
         assert "src/specify_cli/ownership/**" in m.owned_files
         assert m.authoritative_surface == "src/specify_cli/ownership/"
 
     def test_frozen(self) -> None:
         m = self._make()
         with pytest.raises((AttributeError, TypeError)):
-            m.execution_mode = ExecutionMode.PLANNING_ARTIFACT  # type: ignore[misc]
+            m.execution_mode = WorkProductKind.PLANNING_ARTIFACT  # type: ignore[misc]
 
     def test_owned_files_is_tuple(self) -> None:
         m = self._make(owned_files=("a/**", "b/**"))
@@ -75,7 +75,7 @@ class TestOwnershipManifest:
             "authoritative_surface": "src/foo/",
         }
         m = OwnershipManifest.from_frontmatter(data)
-        assert m.execution_mode == ExecutionMode.CODE_CHANGE
+        assert m.execution_mode == WorkProductKind.CODE_CHANGE
         assert m.owned_files == ("src/foo/**", "tests/foo/**")
         assert m.authoritative_surface == "src/foo/"
 
@@ -86,7 +86,7 @@ class TestOwnershipManifest:
             "authoritative_surface": "kitty-specs/001-feature/",
         }
         m = OwnershipManifest.from_frontmatter(data)
-        assert m.execution_mode == ExecutionMode.PLANNING_ARTIFACT
+        assert m.execution_mode == WorkProductKind.PLANNING_ARTIFACT
 
     def test_from_frontmatter_missing_owned_files_defaults_to_empty(self) -> None:
         data = {
@@ -114,7 +114,7 @@ class TestOwnershipManifest:
 
     def test_roundtrip_via_frontmatter(self) -> None:
         m = self._make(
-            execution_mode=ExecutionMode.PLANNING_ARTIFACT,
+            execution_mode=WorkProductKind.PLANNING_ARTIFACT,
             owned_files=("kitty-specs/001/**", "docs/001/**"),
             authoritative_surface="kitty-specs/001/",
         )
@@ -135,7 +135,7 @@ class TestOwnershipManifestFromWPMetadata:
             authoritative_surface="src/foo/",
         )
         m = OwnershipManifest.from_frontmatter(meta)
-        assert m.execution_mode == ExecutionMode.CODE_CHANGE
+        assert m.execution_mode == WorkProductKind.CODE_CHANGE
         assert m.owned_files == ("src/foo/**",)
         assert m.authoritative_surface == "src/foo/"
 
@@ -195,7 +195,7 @@ class TestOwnershipManifestFromWPMetadata:
             authoritative_surface="kitty-specs/001/",
         )
         m = OwnershipManifest.from_frontmatter(meta)
-        assert m.execution_mode == ExecutionMode.PLANNING_ARTIFACT
+        assert m.execution_mode == WorkProductKind.PLANNING_ARTIFACT
 
     def test_wp_metadata_same_result_as_dict(self) -> None:
         """WPMetadata path produces identical result to equivalent dict."""

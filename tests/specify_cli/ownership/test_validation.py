@@ -6,7 +6,7 @@ import pytest
 
 from pathlib import Path
 
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import (
     ValidationResult,
     build_wp_manifests,
@@ -22,7 +22,7 @@ from specify_cli.status.wp_metadata import WPMetadata
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _manifest(
-    mode: ExecutionMode = ExecutionMode.CODE_CHANGE,
+    mode: WorkProductKind = WorkProductKind.CODE_CHANGE,
     owned: tuple[str, ...] = ("src/foo/**",),
     surface: str = "src/foo/",
 ) -> OwnershipManifest:
@@ -181,13 +181,13 @@ class TestValidateAuthoritativeSurface:
 
 class TestValidateExecutionModeConsistency:
     def test_code_change_with_src_files_no_warning(self) -> None:
-        m = _manifest(mode=ExecutionMode.CODE_CHANGE, owned=("src/foo/**",), surface="src/foo/")
+        m = _manifest(mode=WorkProductKind.CODE_CHANGE, owned=("src/foo/**",), surface="src/foo/")
         warnings = validate_execution_mode_consistency(m)
         assert warnings == []
 
     def test_code_change_with_tests_files_no_warning(self) -> None:
         m = _manifest(
-            mode=ExecutionMode.CODE_CHANGE,
+            mode=WorkProductKind.CODE_CHANGE,
             owned=("tests/specify_cli/**",),
             surface="tests/specify_cli/",
         )
@@ -196,7 +196,7 @@ class TestValidateExecutionModeConsistency:
 
     def test_code_change_with_only_kitty_specs_warns(self) -> None:
         m = _manifest(
-            mode=ExecutionMode.CODE_CHANGE,
+            mode=WorkProductKind.CODE_CHANGE,
             owned=("kitty-specs/001-feature/**",),
             surface="kitty-specs/001-feature/",
         )
@@ -205,7 +205,7 @@ class TestValidateExecutionModeConsistency:
 
     def test_planning_artifact_with_kitty_specs_no_warning(self) -> None:
         m = _manifest(
-            mode=ExecutionMode.PLANNING_ARTIFACT,
+            mode=WorkProductKind.PLANNING_ARTIFACT,
             owned=("kitty-specs/001-feature/**",),
             surface="kitty-specs/001-feature/",
         )
@@ -214,7 +214,7 @@ class TestValidateExecutionModeConsistency:
 
     def test_planning_artifact_with_docs_no_warning(self) -> None:
         m = _manifest(
-            mode=ExecutionMode.PLANNING_ARTIFACT,
+            mode=WorkProductKind.PLANNING_ARTIFACT,
             owned=("docs/features/**",),
             surface="docs/features/",
         )
@@ -223,7 +223,7 @@ class TestValidateExecutionModeConsistency:
 
     def test_planning_artifact_with_src_warns(self) -> None:
         m = _manifest(
-            mode=ExecutionMode.PLANNING_ARTIFACT,
+            mode=WorkProductKind.PLANNING_ARTIFACT,
             owned=("src/specify_cli/ownership/**",),
             surface="src/specify_cli/ownership/",
         )
@@ -231,7 +231,7 @@ class TestValidateExecutionModeConsistency:
         assert len(warnings) == 1
 
     def test_empty_owned_files_no_warning(self) -> None:
-        m = _manifest(mode=ExecutionMode.CODE_CHANGE, owned=(), surface="src/")
+        m = _manifest(mode=WorkProductKind.CODE_CHANGE, owned=(), surface="src/")
         warnings = validate_execution_mode_consistency(m)
         # Empty owned_files → no inconsistency to detect
         assert warnings == []
@@ -271,7 +271,7 @@ class TestValidateAll:
         # planning_artifact owns src/ → warning only
         manifests = {
             "WP01": _manifest(
-                mode=ExecutionMode.PLANNING_ARTIFACT,
+                mode=WorkProductKind.PLANNING_ARTIFACT,
                 owned=("src/foo/**",),
                 surface="src/foo/",
             ),
@@ -342,7 +342,7 @@ class TestValidateGlobMatches:
 
         manifests = {
             "WP01": OwnershipManifest(
-                execution_mode=ExecutionMode.CODE_CHANGE,
+                execution_mode=WorkProductKind.CODE_CHANGE,
                 owned_files=("src/**", "missing_path/**"),
                 authoritative_surface="src/",
             ),
@@ -386,7 +386,7 @@ class TestValidateGlobMatches:
             "WP01": OwnershipManifest(
                 owned_files=(absent_path,),
                 authoritative_surface="src/specify_cli/",
-                execution_mode=ExecutionMode.CODE_CHANGE,
+                execution_mode=WorkProductKind.CODE_CHANGE,
             )
         }
 

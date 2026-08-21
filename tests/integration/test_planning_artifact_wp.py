@@ -22,17 +22,17 @@ class TestPlanningArtifactExecutionMode:
     """The execution_mode enum must include planning_artifact."""
 
     def test_planning_artifact_is_a_first_class_execution_mode(self) -> None:
-        from specify_cli.ownership.models import ExecutionMode
+        from specify_cli.ownership.models import WorkProductKind
 
-        assert ExecutionMode.PLANNING_ARTIFACT == "planning_artifact"
-        assert ExecutionMode.CODE_CHANGE == "code_change"
+        assert WorkProductKind.PLANNING_ARTIFACT == "planning_artifact"
+        assert WorkProductKind.CODE_CHANGE == "code_change"
 
     def test_default_execution_mode_is_code_change(self) -> None:
         """A WP without an explicit execution_mode defaults to code_change."""
-        from specify_cli.ownership.models import ExecutionMode
+        from specify_cli.ownership.models import WorkProductKind
 
         # The enum's value used as the documented default.
-        assert ExecutionMode.CODE_CHANGE.value == "code_change"
+        assert WorkProductKind.CODE_CHANGE.value == "code_change"
 
 
 class TestLanePlannerSkipsPlanningArtifactWPs:
@@ -64,7 +64,7 @@ class TestPlanningArtifactWorkspaceResolution:
             ResolvedWorkspace,
             resolve_workspace_for_wp,
         )
-        from specify_cli.ownership.models import ExecutionMode
+        from specify_cli.ownership.models import WorkProductKind
 
         # Skip the full filesystem dance — instead, validate the
         # ResolvedWorkspace contract directly. The contract is what the
@@ -72,7 +72,7 @@ class TestPlanningArtifactWorkspaceResolution:
         workspace = ResolvedWorkspace(
             mission_slug="fixture-mission",
             wp_id="WP01",
-            execution_mode=ExecutionMode.PLANNING_ARTIFACT.value,
+            execution_mode=WorkProductKind.PLANNING_ARTIFACT.value,
             mode_source="explicit",
             resolution_kind="repo_root",
             workspace_name="fixture-mission-lane-planning",

@@ -12,7 +12,7 @@ from specify_cli.ownership.inference import (
     infer_owned_files,
     infer_ownership,
 )
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import validate_authoritative_surface
 
 
@@ -27,17 +27,17 @@ class TestInferExecutionMode:
     def test_code_change_default_no_signals(self) -> None:
         """When content has no discernible signals, default to code_change."""
         mode = infer_execution_mode("Create a new feature.", [])
-        assert mode == ExecutionMode.CODE_CHANGE
+        assert mode == WorkProductKind.CODE_CHANGE
 
     def test_src_path_implies_code_change(self) -> None:
         content = "Create src/specify_cli/ownership/__init__.py with public exports."
         mode = infer_execution_mode(content, [])
-        assert mode == ExecutionMode.CODE_CHANGE
+        assert mode == WorkProductKind.CODE_CHANGE
 
     def test_test_path_implies_code_change(self) -> None:
         content = "Add tests/specify_cli/ownership/test_models.py covering all branches."
         mode = infer_execution_mode(content, [])
-        assert mode == ExecutionMode.CODE_CHANGE
+        assert mode == WorkProductKind.CODE_CHANGE
 
     def test_kitty_specs_only_implies_planning_artifact(self) -> None:
         content = (
@@ -45,34 +45,34 @@ class TestInferExecutionMode:
             "Also update kitty-specs/057-feature/plan.md."
         )
         mode = infer_execution_mode(content, [])
-        assert mode == ExecutionMode.PLANNING_ARTIFACT
+        assert mode == WorkProductKind.PLANNING_ARTIFACT
 
     def test_spec_md_implies_planning_artifact(self) -> None:
         content = "Write spec.md and plan.md for the new feature."
         mode = infer_execution_mode(content, [])
-        assert mode == ExecutionMode.PLANNING_ARTIFACT
+        assert mode == WorkProductKind.PLANNING_ARTIFACT
 
     def test_tasks_md_implies_planning_artifact(self) -> None:
         content = "Generate tasks.md with work packages."
         mode = infer_execution_mode(content, [])
-        assert mode == ExecutionMode.PLANNING_ARTIFACT
+        assert mode == WorkProductKind.PLANNING_ARTIFACT
 
     def test_data_model_md_implies_planning_artifact(self) -> None:
         content = "Write data-model.md describing the entity relationships."
         mode = infer_execution_mode(content, [])
-        assert mode == ExecutionMode.PLANNING_ARTIFACT
+        assert mode == WorkProductKind.PLANNING_ARTIFACT
 
     def test_mixed_content_code_change_wins(self) -> None:
         """When both code and planning signals are present, code_change wins."""
         content = "Update kitty-specs/001/spec.md and implement src/specify_cli/foo.py."
         mode = infer_execution_mode(content, [])
-        assert mode == ExecutionMode.CODE_CHANGE
+        assert mode == WorkProductKind.CODE_CHANGE
 
     def test_wp_files_list_contributes(self) -> None:
         content = "Do some work."
         wp_files = ["src/specify_cli/new_module.py"]
         mode = infer_execution_mode(content, wp_files)
-        assert mode == ExecutionMode.CODE_CHANGE
+        assert mode == WorkProductKind.CODE_CHANGE
 
 
 # ---------------------------------------------------------------------------
@@ -219,7 +219,7 @@ class TestInferredSurfacePassesValidation:
     def test_inferred_surface_validates(self, owned: list[str]) -> None:
         surface = infer_authoritative_surface(owned)
         manifest = OwnershipManifest(
-            execution_mode=ExecutionMode.CODE_CHANGE,
+            execution_mode=WorkProductKind.CODE_CHANGE,
             owned_files=tuple(owned),
             authoritative_surface=surface,
         )
@@ -236,7 +236,7 @@ class TestInferOwnership:
         content = "Create src/specify_cli/ownership/__init__.py"
         manifest, warnings = infer_ownership(content, "057-feature")
         assert isinstance(manifest, OwnershipManifest)
-        assert manifest.execution_mode == ExecutionMode.CODE_CHANGE
+        assert manifest.execution_mode == WorkProductKind.CODE_CHANGE
         assert len(manifest.owned_files) > 0
         assert manifest.authoritative_surface != ""
         assert warnings == []
@@ -244,14 +244,14 @@ class TestInferOwnership:
     def test_planning_artifact_manifest(self) -> None:
         content = "Update kitty-specs/057-feature/spec.md and plan.md."
         manifest, warnings = infer_ownership(content, "057-feature")
-        assert manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT
+        assert manifest.execution_mode == WorkProductKind.PLANNING_ARTIFACT
         assert any("kitty-specs/057-feature" in f for f in manifest.owned_files)
         assert warnings == []
 
     def test_wp_files_override_contributes(self) -> None:
         content = "Do something."
         manifest, _warnings = infer_ownership(content, "057-feature", wp_files=["src/foo.py"])
-        assert manifest.execution_mode == ExecutionMode.CODE_CHANGE
+        assert manifest.execution_mode == WorkProductKind.CODE_CHANGE
 
     def test_fallback_manifest_has_warning(self) -> None:
         """WP with no file paths → src/** fallback, warning returned."""
