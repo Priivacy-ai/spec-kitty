@@ -233,9 +233,22 @@ def _canonical_git_dir(cwd: str) -> str:
     """The one checkout ``cwd`` unambiguously belongs to, or ``""`` if it is
     not inside any checkout at all. Raises ``AmbiguousRepositoryIdentity``
     rather than picking one when that cannot be determined — see the module
-    docstring."""
-    raw = _git_dir_from_filesystem(os.path.abspath(cwd))
-    real = _git_dir_from_filesystem(os.path.realpath(cwd))
+    docstring.
+
+    The sibling-checkout ("session-container") check below must run
+    whenever ``cwd`` is not itself directly a checkout root/worktree (no
+    ``.git`` sitting AT ``cwd``), regardless of whether the upward walk from
+    ``cwd`` finds an ANCESTOR directory's ``.git``. A session-container that
+    holds several independent checkouts can itself sit inside another git
+    repository — exactly this program's own ``.sandboxes/``, nested inside
+    the root control-plane repo — and trusting the ancestor's ``.git`` first
+    would silently mint that unrelated ancestor's identity instead of
+    refusing to guess (the whole point of this module)."""
+    raw_abspath = os.path.abspath(cwd)
+    real_abspath = os.path.realpath(cwd)
+
+    raw = _git_dir_from_filesystem(raw_abspath)
+    real = _git_dir_from_filesystem(real_abspath)
     if raw and real and os.path.realpath(raw) != os.path.realpath(real):
         raise AmbiguousRepositoryIdentity(
             f"{cwd!r} resolves to two different repository roots depending on "
@@ -243,19 +256,19 @@ def _canonical_git_dir(cwd: str) -> str:
             f"literal path vs {real!r} via the resolved path) — refusing to "
             "guess which is canonical"
         )
-    git_dir = real or raw
-    if git_dir:
-        return git_dir
 
-    siblings = _sibling_checkouts(os.path.realpath(cwd))
-    if len(siblings) >= 2:
-        raise AmbiguousRepositoryIdentity(
-            f"{cwd!r} is not itself a checkout but directly contains "
-            f"{len(siblings)} independent ones ({sorted(siblings)!r}) — "
-            "refusing to guess which is canonical; call identity() from "
-            "inside the intended checkout instead"
-        )
-    return ""
+    cwd_is_own_checkout = os.path.exists(os.path.join(real_abspath, ".git"))
+    if not cwd_is_own_checkout:
+        siblings = _sibling_checkouts(real_abspath)
+        if len(siblings) >= 2:
+            raise AmbiguousRepositoryIdentity(
+                f"{cwd!r} is not itself a checkout but directly contains "
+                f"{len(siblings)} independent ones ({sorted(siblings)!r}) — "
+                "refusing to guess which is canonical; call identity() from "
+                "inside the intended checkout instead"
+            )
+
+    return real or raw
 
 
 def repo_name(cwd: str, deadline: Deadline | None = None) -> str:
