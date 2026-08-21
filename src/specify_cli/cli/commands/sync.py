@@ -2087,10 +2087,14 @@ def _render_legacy_daemon_retirement(console_out: Any, issues: list[str]) -> Non
     §3.2.2 requires: it calls
     :func:`specify_cli.sync.retirement.retire_legacy_sync_daemon`, which
     detects a live daemon via the owner record
-    (``owner.classify_owner_record``) and reuses the existing no-drain
-    ``daemon.stop_sync_daemon()`` shutdown path unchanged -- this renderer
-    adds no new drain and no new network primitive itself; it only reports
-    what that call already did.
+    (``owner.classify_owner_record``) and stops it using ``daemon.py``'s
+    existing no-drain primitives, driven by that same verified owner
+    record's own port/token/pid (see
+    ``retirement._stop_verified_daemon`` -- deliberately not
+    ``daemon.stop_sync_daemon()``'s wrapper, which depends on a separate
+    state file that need not exist yet even when the daemon is live) --
+    this renderer adds no new drain and no new network primitive itself;
+    it only reports what that call already did.
 
     Silent on ``"no_daemon"`` -- the overwhelmingly common post-R2 case (no
     pre-R2 daemon was ever left running on this host) is not a health

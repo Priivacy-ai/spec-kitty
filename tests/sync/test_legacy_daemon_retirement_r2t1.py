@@ -2,15 +2,20 @@
 
 ``R2.md`` §3.2.2 requires one explicit, best-effort retirement step reachable
 from a normal post-R2 CLI invocation that: detects a live daemon via the
-existing ``owner.py`` mechanism, calls the existing no-drain
-``stop_sync_daemon()`` path (reused unchanged), and reports the outcome. It
-must never construct a new network primitive and must never "improve" the
+existing ``owner.py`` mechanism, stops it via the existing no-drain
+primitives in ``daemon.py`` (``_check_sync_daemon_health``,
+``_stop_daemon_by_http``, ``_kill_and_cleanup`` -- the verified owner
+record's own port/token/pid drive this directly; see
+``retirement._stop_verified_daemon``, not ``daemon.stop_sync_daemon()``'s
+separate state-file-dependent wrapper), and reports the outcome. It must
+never construct a new network primitive and must never "improve" the
 no-drain shutdown on the way to deletion (§3.2.1).
 
 This module tests ``specify_cli.sync.retirement.retire_legacy_sync_daemon``
 against §4's negative/fault/race matrix rows N1-N3 (pure, no subprocess),
 N4/N7/N8 (real subprocess, serial ``-n0`` per this repo's daemon-test
-convention), plus a clean-absence baseline.
+convention), a state-file-divergence regression, plus a clean-absence
+baseline.
 
 Row -> test map:
     N1  ownership-verification  -> test_alive_pid_with_wrong_identity_is_never_signaled
@@ -19,6 +24,7 @@ Row -> test map:
     N4  no-final-sync, explicit -> test_live_daemon_is_stopped_via_existing_no_drain_path
     N7  race/crash              -> test_sigkilled_daemon_converges_on_retry
     N8  race, concurrent stop   -> test_concurrent_retirement_is_idempotent
+    --  state-file divergence   -> test_live_daemon_without_state_file_is_still_stopped
     --  baseline                -> test_absent_owner_record_is_a_clean_noop
 """
 
@@ -181,11 +187,14 @@ def test_live_daemon_is_stopped_via_existing_no_drain_path(
     from specify_cli.sync.retirement import retire_legacy_sync_daemon
 
     # ``_daemon_state_file()`` resolves to ``<SPEC_KITTY_HOME>/sync-daemon`` on
-    # POSIX (``daemon._daemon_root()``); point the harness there so
-    # ``stop_sync_daemon()`` -- the existing no-drain path this module reuses
-    # unchanged -- finds it, matching what the real spawn path
-    # (``ensure_sync_daemon_running`` -> ``_write_daemon_file``) always writes
-    # alongside ``owner.json`` in production.
+    # POSIX (``daemon._daemon_root()``); point the harness there and write it
+    # to mirror what the real spawn path (``ensure_sync_daemon_running`` ->
+    # ``_write_daemon_file``) writes alongside ``owner.json`` in production --
+    # this covers the common case where both files are present. Retirement
+    # itself is driven entirely by the verified owner record's own
+    # port/token/pid (see ``retirement._stop_verified_daemon``) and does not
+    # read this file; the divergent case where it is absent is covered by
+    # ``test_live_daemon_without_state_file_is_still_stopped`` below.
     #
     # Pinned explicitly via ``monkeypatch.setattr`` rather than left to
     # ``SPEC_KITTY_HOME`` resolution alone: ``DAEMON_STATE_FILE`` is served by
