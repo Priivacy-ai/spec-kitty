@@ -174,6 +174,7 @@ from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 # at each call site below; the seam ``_rb.<name>`` round-trips were repointed to
 # the owning seam in the same change.
 
+from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
@@ -1667,8 +1668,28 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 guard_failures=guard_failures,
             )
 
-    # Check guards for non-WP steps before advancing
-    if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id):
+    # Check guards for non-WP steps before advancing.
+    #
+    # This CLI-native pre-check (#3407 M3) is scoped to the ``software-dev``
+    # mission family only. Its ``kind=step`` "re-issue the current step"
+    # semantic belongs to software-dev's linear specify → plan → tasks CLI
+    # vocabulary; it must NOT pre-empt composition dispatch for the other
+    # families. For ``documentation`` / ``research`` / ``plan`` and every
+    # custom mission type, the composed-action guard (Phase 3) is the
+    # authority — it surfaces the same missing-artifact failure as a
+    # ``kind=blocked`` decision (the fail-CLOSED contract, spec.md AC of the
+    # documentation/research runtime walks) and, unlike ``_check_cli_guards``
+    # here, degrades gracefully for guard-table-unregistered custom families
+    # instead of raising ``UnregisteredMissionFamilyError``. Gating on the
+    # family keeps software-dev byte-identical to its pre-#3407 behavior
+    # (AC-14) while restoring the correct blocked decision for the composed
+    # families (WP06 wrongly routed them through this ``kind=step`` path).
+    if (
+        ctx.result == "success"
+        and current_step_id
+        and not _is_wp_iteration_step(current_step_id)
+        and get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV
+    ):
         guard_failures = _check_cli_guards(current_step_id, feature_dir)
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
