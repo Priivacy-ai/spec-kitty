@@ -20,7 +20,9 @@ profile context. Styleguide/toolguide citations deliberately never do that —
 they always render as a pointer (a fetch command), by design, to protect the
 token budget. Separately, a built-in profile's `operating-procedures` entries are
 checked at build time and by `spec-kitty doctor doctrine`; an entry that does not
-resolve to a real procedure is a loud, fail-closed error, not a silent drop.
+resolve to a real procedure is a loud, fail-closed error at build time (and a
+non-fatal `spec-kitty doctor doctrine` diagnostic that flips the health report
+unhealthy), never a silent drop.
 
 This page documents both contracts so a pack author knows what to expect without
 reading the renderer source.
@@ -92,8 +94,8 @@ procedure IDs the profile relies on operationally. At DRG build time
 real procedure nodes already minted in the graph:
 
 - **Resolves to a procedure node** — an `agent_profile --requires--> procedure`
-  DRG edge is emitted, and the profile channel (WP08's `requires` /
-  `specializes_from` walk) then delivers that procedure's body inline to the
+  DRG edge is emitted, and the profile channel's `requires` /
+  `specializes_from` walk then delivers that procedure's body inline to the
   agent, the same as a directly-cited procedure.
 - **Does not resolve** (a fictional entry, a typo, or an ID that names a node of
   the wrong kind) — the build **fails loud**: `extract_artifact_edges` raises
@@ -148,8 +150,8 @@ of the relation vocabulary), see
 `context-sources.{doctrine-layers,tactics,toolguides,styleguides,additional}`
 field family (`src/doctrine/agent_profiles/profile.py`) is schema-legit but
 never read and reaches no delivery path — it never enters the DRG, so it sits
-outside both contracts this page documents. Tracked as a dead-field cleanup
-follow-up (`#context-sources-dead-field`), not fixed here.
+outside both contracts this page documents. Tracked as dead-field cleanup
+follow-up #3629, not fixed here.
 
 ## See also
 
