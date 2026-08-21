@@ -8,7 +8,9 @@ not reimplementation).
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -82,6 +84,116 @@ def test_byte_determinism_two_builds_same_commit(temp_repo: Path) -> None:
     json_a = snap_a.model_dump_json(by_alias=True)
     json_b = snap_b.model_dump_json(by_alias=True)
     assert json_a == json_b
+
+
+def test_raw_model_dump_json_is_NOT_hashseed_stable(temp_repo: Path) -> None:
+    """Documents WHY N1's guarantee must be scoped to the on-disk artifact,
+    not to arbitrary serialization of the Pydantic model (Renata D1-T1
+    review, LOW finding — this is the concrete regression the review warned
+    about, reproduced): ``TeamMissionSnapshot.model_dump_json()`` does NOT
+    sort keys, so ``work_packages.WP01``'s field order (built from a dict
+    comprehension over ``TEAM_WP_ALLOWED_FIELDS``, a frozenset whose
+    iteration order is PYTHONHASHSEED-dependent) genuinely differs between
+    two fresh interpreters. This is why ``write.py``'s
+    ``_atomic_write_json`` — the ONLY sanctioned path to disk (§3.2 docstring)
+    — always re-serializes through ``json.dumps(..., sort_keys=True)``
+    rather than writing ``model_dump_json()`` output verbatim; see
+    :func:`test_byte_determinism_of_published_artifact_across_processes`
+    below for the guarantee that actually matters (the file on disk).
+    """
+    slug = "001-demo-feature"
+    write_wp(temp_repo, slug, "planned", "WP01")
+    _commit_all(temp_repo)
+
+    script = (
+        "from pathlib import Path\n"
+        "from specify_cli.team_projection.mission_view import build_team_mission_snapshot\n"
+        f"feature_dir = Path({str(temp_repo / 'kitty-specs' / slug)!r})\n"
+        f"project_dir = Path({str(temp_repo)!r})\n"
+        "snap = build_team_mission_snapshot(feature_dir, project_dir, require_clean=True)\n"
+        "print(snap.model_dump_json(by_alias=True), end='')\n"
+    )
+
+    def _run_with_seed(seed: str) -> str:
+        env = dict(os.environ)
+        env["PYTHONHASHSEED"] = seed
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=True,
+        )
+        return result.stdout
+
+    output_seed_a = _run_with_seed("12345")
+    output_seed_b = _run_with_seed("999999")
+
+    assert output_seed_a, "subprocess produced no output"
+    assert json.loads(output_seed_a)["schema"] == "team_mission_snapshot/v1"
+    # Both are valid, semantically-identical documents (same key/value set)...
+    assert json.loads(output_seed_a) == json.loads(output_seed_b)
+    # ...but NOT byte-identical: raw model_dump_json() does not canonicalize
+    # dict order, so it is NOT a hashseed-stable serialization on its own.
+    assert output_seed_a != output_seed_b, (
+        "model_dump_json() output was unexpectedly hashseed-stable in this "
+        "run -- if this starts failing, the underlying instability this test "
+        "documents may have been fixed upstream (e.g. pydantic added key "
+        "sorting); if so, delete this test, it has served its purpose."
+    )
+
+
+def test_byte_determinism_of_published_artifact_across_processes(temp_repo: Path) -> None:
+    """N1's real requirement — proven via TWO SEPARATE PROCESS invocations
+    (fresh interpreter, different ``PYTHONHASHSEED`` each time), matching
+    the wording of D1.md §4 N1 exactly, and matching what Renata's review
+    verified by hand: the ARTIFACT THAT ACTUALLY REACHES DISK
+    (``.kittify/derived/<slug>/team-snapshot.json``, written by
+    ``write_team_projection`` through ``_atomic_write_json``'s
+    ``json.dumps(..., sort_keys=True)`` funnel) is byte-identical across
+    runs, even though raw ``model_dump_json()`` is provably NOT (see the
+    test immediately above) — because the write boundary, not the model's
+    default serialization, is what supplies the canonicalization.
+    """
+    slug = "001-demo-feature"
+    write_wp(temp_repo, slug, "planned", "WP01")
+    _commit_all(temp_repo)
+
+    script = (
+        "from pathlib import Path\n"
+        "from specify_cli.team_projection.write import write_team_projection\n"
+        f"write_team_projection(Path({str(temp_repo)!r}))\n"
+    )
+
+    def _run_with_seed(seed: str) -> None:
+        env = dict(os.environ)
+        env["PYTHONHASHSEED"] = seed
+        subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=True,
+        )
+
+    derived = temp_repo / ".kittify" / "derived"
+
+    _run_with_seed("12345")
+    files_seed_a = {
+        path.relative_to(derived): path.read_bytes() for path in derived.rglob("*") if path.is_file()
+    }
+    assert files_seed_a, "no files were written under .kittify/derived"
+
+    _run_with_seed("999999")
+    files_seed_b = {
+        path.relative_to(derived): path.read_bytes() for path in derived.rglob("*") if path.is_file()
+    }
+
+    assert files_seed_a.keys() == files_seed_b.keys()
+    for relative_path, content_a in files_seed_a.items():
+        assert content_a == files_seed_b[relative_path], (
+            f"{relative_path} differed byte-for-byte across PYTHONHASHSEED runs"
+        )
 
 
 # --- N7: no orchestration-state laundering (shell_pid / shell_pid_created_at) ----
