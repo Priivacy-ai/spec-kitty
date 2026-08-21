@@ -279,6 +279,21 @@ def test_scope_violation_falls_back_to_local_error_type_when_tracker_package_lac
         ["bd", "--json", "update", "BD-1", "--status", "closed"],
         ["bd", "--json", "update", "BD-1", "--status", "done"],
         ["bd", "--json", "update", "BD-1", "--status", "tombstone"],
+        # Renata REJECT (TRK-M1-04 attempt N): real `bd` deny-list bypasses --
+        # each of these is a documented, currently-live `bd` CLI surface form
+        # for an already-forbidden operation, reproduced live against
+        # /opt/homebrew/bin/bd (`bd close --help`: "Aliases: close, done";
+        # `bd update --help`: "-a, --assignee string", "-s, --status string",
+        # both also accepting the standard pflag `--flag=value` glued form).
+        ["bd", "--json", "done", "BD-1"],  # `done` is bd's own alias for `close`
+        ["bd", "--json", "update", "BD-1", "--status=closed"],  # glued long flag
+        ["bd", "--json", "update", "BD-1", "--status=done"],
+        ["bd", "--json", "update", "BD-1", "--status=tombstone"],
+        ["bd", "--json", "update", "BD-1", "-s", "closed"],  # short flag, split form
+        ["bd", "--json", "update", "BD-1", "-s=closed"],  # short flag, glued form
+        ["bd", "--json", "update", "BD-1", "-a", "ivan"],  # short flag, split form
+        ["bd", "--json", "update", "BD-1", "--assignee=ivan"],  # glued long flag
+        ["bd", "--json", "update", "BD-1", "-a=ivan"],  # short flag, glued form
     ],
 )
 def test_runner_refuses_assign_close_approve_release_operations(command: list[str]) -> None:
