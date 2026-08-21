@@ -215,6 +215,18 @@ def _atomic_append(path: Path, line: str) -> None:
     owns *path* before calling this). Kept as a named, single-line-oriented
     seam (rather than inlining) so existing write-failure tests can keep
     monkeypatching this exact name (compatibility, F2.md section 3.4).
+
+    Behavior change, explicitly named (F2.md section 3.4 review follow-up):
+    because this now delegates to ``append_raw_rows_atomic``, every lifecycle
+    row is run through ``store.sanitize_event_for_log`` before it hits disk,
+    same as ``StatusEvent`` rows. Previously lifecycle rows were never
+    sanitized. No lifecycle payload field currently collides with the PII
+    field set that helper strips (``machine_name``, ``hostname``,
+    ``workspace_path``, ``developer_name``, ``developer_email``) or its
+    ``session_started_at``/``session_ended_at`` rewrite, so there is no
+    observed behavior change today -- but a future lifecycle payload field
+    that happens to share one of those names will now be silently stripped,
+    and that is intentional, not an oversight.
     """
     append_raw_rows_atomic(path, [json.loads(line)])
 
