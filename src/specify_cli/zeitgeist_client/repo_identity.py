@@ -1,0 +1,334 @@
+"""Canonical repository identity (Z6-C, program-graph handle Z6-C):
+"Canonicalize repository identity across session-container directories;
+ambiguous multi-checkout containers, symlinks, missing origin/quarantine
+metadata, and conflicting roots fail rather than mint/guess identity."
+
+``credentials.py``'s own module docstring anticipated this: "Keyed by
+canonical repo (from ``repo_identity.identity()`` — not yet ported in this
+pass)." This is that module. It is NOT a literal parity port the way
+``grammar.py`` is a byte-for-byte transcription of
+``zeitgeist/editor.py:146-192`` — that file's grammar is already correct for
+Z1's purpose. ``zeitgeist/integrations/repo_identity.py`` is not, for THIS
+purpose: its own ``repo_name()`` falls back, when no ``origin`` remote is
+configured, to the basename of ``--git-common-dir``'s parent and finally to
+the basename of ``cwd`` itself — i.e. a DIRECTORY NAME. A directory name is
+exactly what an ordinary ``mv``, or a hostile checkout, controls. Z1's own
+``transport.ClientConfig.repo`` is an explicit caller-supplied CLAIM (Z1.md
+decision 7, "caller fields are claims only") — this module exists to give a
+canonical-identity-aware caller (the not-yet-built CLI adapter; see
+``docs/plans/zeitgeist-client-wp01-remaining.md`` item 5) something stronger
+than a claim to bind presence to, so a checkout renamed or relocated to
+impersonate a different project cannot mint that project's identity.
+Directory-basename fallbacks would defeat exactly that, so this module never
+uses one: ``repo_name()`` derives ONLY from ``origin`` (live, or a
+``.git/config``-only read when git is slow/unavailable) or from committed
+"quarantine metadata" (see ``_QUARANTINE_SECTION`` below — a frozen record of
+a prior ``origin`` for a repository whose live remote was deliberately
+removed, e.g. this program's own HIC-BOOT-003 remote-quarantine contract).
+Everything else — no origin and no quarantine record, an ambiguous
+"session-container" directory holding more than one checkout, or a symlink
+that makes the syntactic path and the resolved path disagree about which
+checkout is meant — raises rather than guesses.
+
+``Deadline``, the ``origin``/``.git``-directory filesystem readers, and the
+aggregate-git-budget discipline (NFR-001 in zeitgeist's own WP01) ARE ported
+unchanged from ``zeitgeist/integrations/repo_identity.py`` — that machinery's
+correctness does not depend on the guess-vs-fail question above, and
+``GIT_BUDGET_S`` keeps upstream's own 2.0s value: nested inside
+``budget.HOOK_BUDGET_S`` (4.0s) alongside ``budget.OFFER_BUDGET_S`` (0.75s)
+with margin to spare, the same nesting discipline ``budget.py`` documents for
+its own constant.
+"""
+
+from __future__ import annotations
+
+import os
+import subprocess
+import time
+from dataclasses import dataclass
+
+# Repo derivation, branch lookup, and commit lookup share this — one wall-clock
+# budget for ALL Git work in one identity() call, not a per-subprocess value.
+# Ported from zeitgeist/integrations/repo_identity.py (NFR-001).
+GIT_BUDGET_S = 2.0
+
+# Below this there is no point starting another subprocess: fork+exec of git
+# costs more than the remaining budget, and a probe launched with ~0s left can
+# only be killed. Give up and take the next fallback instead.
+_MIN_PROBE_S = 0.05
+
+# Section a trusted quarantine process writes into `.git/config`, recording
+# the `origin` a checkout had before its live remote was removed. Same INI
+# shape as `[remote "origin"]`, so it is read by the identical minimal walk.
+_QUARANTINE_SECTION = 'kitty "quarantine"'
+
+
+class RepoIdentityError(Exception):
+    """Base for every way `identity()`/`repo_name()` refuse to mint an
+    identity rather than guess one. Callers that only care "did this fail"
+    can catch this; callers that want to distinguish why catch the specific
+    subclasses below."""
+
+
+class AmbiguousRepositoryIdentity(RepoIdentityError):
+    """More than one checkout could be "the" repository: a session-container
+    directory holding several independent checkouts, or a symlink whose
+    syntactic path and resolved path disagree about which checkout is
+    meant."""
+
+
+class UnverifiedRepositoryIdentity(RepoIdentityError):
+    """A single checkout was found, but it carries no non-spoofable
+    provenance: no `origin` remote (live or in `.git/config`) and no
+    `[kitty "quarantine"]` record of a prior one."""
+
+
+@dataclass(frozen=True)
+class RepoIdentity:
+    """`(repo, branch, commit)` for one checkout, under ONE aggregate Git
+    deadline — "the exact repo/commit truth" `identity()` returns."""
+
+    repo: str
+    branch: str
+    commit: str
+
+
+class Deadline:
+    """A shrinking wall-clock budget shared across several Git probes.
+
+    ``run()`` passes what is LEFT to ``subprocess.run(timeout=...)``, so N
+    probes under one Deadline finish in the budget, not N times the budget.
+    Exhausted probes return ``""`` — identical to a failed probe, so every
+    caller's existing fallback chain already handles them and no call site
+    needs a timeout branch. Ported unchanged from
+    ``zeitgeist/integrations/repo_identity.py``.
+    """
+
+    def __init__(self, budget: float = GIT_BUDGET_S):
+        self.expires_at = time.monotonic() + budget
+
+    def remaining(self) -> float:
+        return self.expires_at - time.monotonic()
+
+    def expired(self) -> bool:
+        return self.remaining() < _MIN_PROBE_S
+
+    def run(self, args: list[str], cwd: str) -> str:
+        """One ``git`` probe against the remaining budget. ``""`` on any
+        failure, including a spent budget."""
+        left = self.remaining()
+        if left < _MIN_PROBE_S:
+            return ""
+        try:
+            out = subprocess.run(
+                ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=left
+            )
+            return out.stdout.strip() if out.returncode == 0 else ""
+        except Exception:
+            return ""
+
+
+def _name_from_url(url: str) -> str:
+    name = url.rstrip("/").rsplit("/", 1)[-1].rsplit(":", 1)[-1]
+    if name.endswith(".git"):
+        name = name[:-4]
+    return name
+
+
+def _git_dir_from_filesystem(cwd: str) -> str:
+    """Locate the common ``.git`` directory by reading files, never running
+    git. Ported unchanged from ``zeitgeist/integrations/repo_identity.py``: a
+    worktree's ``.git`` is a plain text file containing
+    ``gitdir: /path/to/main/.git/worktrees/<name>``, so the whole layout is
+    readable without a subprocess."""
+    path = os.path.abspath(cwd)
+    while True:
+        candidate = os.path.join(path, ".git")
+        if os.path.isdir(candidate):
+            return candidate
+        if os.path.isfile(candidate):
+            try:
+                with open(candidate) as f:
+                    for line in f:
+                        if line.startswith("gitdir:"):
+                            gitdir = line.split(":", 1)[1].strip()
+                            if not os.path.isabs(gitdir):
+                                gitdir = os.path.join(path, gitdir)
+                            marker = os.sep + "worktrees" + os.sep
+                            if marker in gitdir:
+                                return gitdir.split(marker)[0]
+                            return gitdir
+            except OSError:
+                return ""
+        parent = os.path.dirname(path)
+        if parent == path:
+            return ""
+        path = parent
+
+
+def _read_ini_value(git_dir: str, section_marker: str, key: str) -> str:
+    """Read ``key`` out of the first matching ``[section]`` block of
+    ``<git_dir>/config``, with no subprocess. Shared minimal-INI walk behind
+    both ``_origin_from_filesystem`` and the quarantine-metadata reader —
+    ``configparser`` rejects real-world ``.git/config`` files, so both use
+    the same small walk upstream chose for the origin case."""
+    try:
+        with open(os.path.join(git_dir, "config")) as f:
+            in_section = False
+            for raw_line in f:
+                line = raw_line.strip()
+                if line.startswith("["):
+                    in_section = line.replace(" ", "").lower() == section_marker
+                elif in_section and line.lower().startswith(key):
+                    _, _, value = line.partition("=")
+                    return value.strip()
+    except OSError:
+        return ""
+    return ""
+
+
+def _origin_from_filesystem(cwd: str) -> str:
+    """Read ``[remote "origin"] url`` out of ``.git/config`` with no
+    subprocess. Ported unchanged from
+    ``zeitgeist/integrations/repo_identity.py``."""
+    git_dir = _git_dir_from_filesystem(cwd)
+    if not git_dir:
+        return ""
+    return _read_ini_value(git_dir, '[remote"origin"]', "url")
+
+
+def _quarantine_origin_from_filesystem(cwd: str) -> str:
+    """Read the frozen ``origin`` a quarantine process recorded before
+    removing the live remote — see the module docstring and
+    ``_QUARANTINE_SECTION``."""
+    git_dir = _git_dir_from_filesystem(cwd)
+    if not git_dir:
+        return ""
+    marker = "[" + _QUARANTINE_SECTION.replace(" ", "").lower() + "]"
+    return _read_ini_value(git_dir, marker, "origin")
+
+
+def _sibling_checkouts(path: str) -> list[str]:
+    """Immediate child directories of ``path`` that are themselves git
+    checkouts (contain their own ``.git``). Two or more make ``path`` an
+    ambiguous "session-container directory" — Z6-C's own term for e.g. this
+    program's ``.sandboxes/`` — when queried directly rather than from
+    inside one specific checkout."""
+    try:
+        entries = list(os.scandir(path))
+    except OSError:
+        return []
+    found = []
+    for entry in entries:
+        try:
+            is_dir = entry.is_dir(follow_symlinks=False)
+        except OSError:
+            continue
+        if is_dir and os.path.exists(os.path.join(entry.path, ".git")):
+            found.append(entry.name)
+    return found
+
+
+def _canonical_git_dir(cwd: str) -> str:
+    """The one checkout ``cwd`` unambiguously belongs to, or ``""`` if it is
+    not inside any checkout at all. Raises ``AmbiguousRepositoryIdentity``
+    rather than picking one when that cannot be determined — see the module
+    docstring."""
+    raw = _git_dir_from_filesystem(os.path.abspath(cwd))
+    real = _git_dir_from_filesystem(os.path.realpath(cwd))
+    if raw and real and os.path.realpath(raw) != os.path.realpath(real):
+        raise AmbiguousRepositoryIdentity(
+            f"{cwd!r} resolves to two different repository roots depending on "
+            f"whether a symlink in its path is followed ({raw!r} via the "
+            f"literal path vs {real!r} via the resolved path) — refusing to "
+            "guess which is canonical"
+        )
+    git_dir = real or raw
+    if git_dir:
+        return git_dir
+
+    siblings = _sibling_checkouts(os.path.realpath(cwd))
+    if len(siblings) >= 2:
+        raise AmbiguousRepositoryIdentity(
+            f"{cwd!r} is not itself a checkout but directly contains "
+            f"{len(siblings)} independent ones ({sorted(siblings)!r}) — "
+            "refusing to guess which is canonical; call identity() from "
+            "inside the intended checkout instead"
+        )
+    return ""
+
+
+def repo_name(cwd: str, deadline: Deadline | None = None) -> str:
+    """Canonical repo name, from ``origin`` or quarantine metadata ONLY —
+    never a directory name. See the module docstring for the full rationale
+    and the divergence from ``zeitgeist/integrations/repo_identity.py``.
+
+    Raises ``AmbiguousRepositoryIdentity`` for a session-container directory
+    or a symlink-caused root conflict, and ``UnverifiedRepositoryIdentity``
+    when a single checkout is found but has no `origin` (live or on disk)
+    and no quarantine record.
+
+    Pass a ``deadline`` to share one budget with the caller's other probes
+    (branch/commit lookups); called without one it allocates its own, which
+    is correct only when this is the single Git consumer in the process —
+    ``identity()`` is what callers binding presence want.
+    """
+    deadline = deadline or Deadline()
+    _canonical_git_dir(cwd)  # may raise AmbiguousRepositoryIdentity
+
+    url = deadline.run(["remote", "get-url", "origin"], cwd)
+    if url:
+        name = _name_from_url(url)
+        if name:
+            return name
+
+    url = _origin_from_filesystem(cwd)
+    if url:
+        name = _name_from_url(url)
+        if name:
+            return name
+
+    url = _quarantine_origin_from_filesystem(cwd)
+    if url:
+        name = _name_from_url(url)
+        if name:
+            return name
+
+    raise UnverifiedRepositoryIdentity(
+        f"{cwd!r} has no `origin` remote (live or in `.git/config`) and no "
+        f"[{_QUARANTINE_SECTION}] quarantine record — refusing to mint an "
+        "identity from a directory name"
+    )
+
+
+def branch_name(cwd: str, deadline: Deadline | None = None) -> str:
+    """Current branch, or ``""`` when Git is unavailable, detached, or out of
+    budget — never identity-critical (unlike ``repo_name``, a wrong branch
+    guess cannot make presence appear as a different repository), so this
+    degrades quietly rather than raising."""
+    _canonical_git_dir(cwd)  # may raise AmbiguousRepositoryIdentity
+    return (deadline or Deadline()).run(["rev-parse", "--abbrev-ref", "HEAD"], cwd)
+
+
+def commit_oid(cwd: str, deadline: Deadline | None = None) -> str:
+    """Current commit OID, or ``""`` when Git is unavailable or out of
+    budget. Same non-fatal degradation as ``branch_name``."""
+    _canonical_git_dir(cwd)  # may raise AmbiguousRepositoryIdentity
+    return (deadline or Deadline()).run(["rev-parse", "HEAD"], cwd)
+
+
+def identity(cwd: str, budget: float = GIT_BUDGET_S) -> RepoIdentity:
+    """``RepoIdentity(repo, branch, commit)`` for ``cwd``, under ONE
+    aggregate Git deadline — the sanctioned entry point for a caller binding
+    client presence to canonical identity (Z6-C). Deriving the three
+    separately would let independent timeouts stack past a hook's harness
+    bound, exactly the bug zeitgeist's own WP01 fixed for repo+branch.
+
+    Raises ``AmbiguousRepositoryIdentity``/``UnverifiedRepositoryIdentity``
+    (both ``RepoIdentityError``) instead of returning a guessed ``repo``.
+    """
+    deadline = Deadline(budget)
+    repo = repo_name(cwd, deadline)
+    branch = branch_name(cwd, deadline)
+    commit = commit_oid(cwd, deadline)
+    return RepoIdentity(repo=repo, branch=branch, commit=commit)
