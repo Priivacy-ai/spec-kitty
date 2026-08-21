@@ -55,4 +55,7 @@ def ident(value: str, pattern: re.Pattern[str] = IDENT_RE) -> str:
         and not _too_many_segments(value, MAX_SEGMENTS[kind])
     ):
         return value
-    return "unknown-" + hashlib.sha1(value.encode()).hexdigest()[:8]
+    # Non-cryptographic use: a short, stable, non-reversible correlation
+    # label for a rejected identifier, not a security boundary — identical
+    # to zeitgeist/editor.py:192's own choice, ported unchanged (N19 parity).
+    return "unknown-" + hashlib.sha1(value.encode()).hexdigest()[:8]  # noqa: S324

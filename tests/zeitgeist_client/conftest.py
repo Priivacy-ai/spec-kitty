@@ -18,13 +18,15 @@ territory (Z1.md §4 preamble); this double never leaves ``127.0.0.1``.
 
 from __future__ import annotations
 
+import contextlib
 import http.server
 import json
 import socket
 import threading
 import time
+from collections.abc import Generator
 from dataclasses import dataclass, field
-from typing import Any, Generator
+from typing import Any
 
 import pytest
 
@@ -112,10 +114,8 @@ class TeamKittyDouble:
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
-                try:
+                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
                     self.wfile.write(payload)
-                except (BrokenPipeError, ConnectionResetError):
-                    pass
 
             def do_POST(self) -> None:  # noqa: N802
                 self._handle()

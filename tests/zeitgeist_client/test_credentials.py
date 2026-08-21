@@ -21,6 +21,9 @@ import pytest
 
 from specify_cli.zeitgeist_client import credentials
 
+# See tests/zeitgeist_client/test_grammar.py's pytestmark comment.
+pytestmark = pytest.mark.fast
+
 
 @pytest.fixture()
 def state_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:

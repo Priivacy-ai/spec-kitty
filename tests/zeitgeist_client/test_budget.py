@@ -14,7 +14,12 @@ from __future__ import annotations
 
 import time
 
+import pytest
+
 from specify_cli.zeitgeist_client import budget
+
+# See tests/zeitgeist_client/test_grammar.py's pytestmark comment.
+pytestmark = pytest.mark.fast
 
 
 def test_offer_budget_s_is_750ms():

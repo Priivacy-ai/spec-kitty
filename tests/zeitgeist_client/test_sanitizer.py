@@ -14,10 +14,14 @@ import pytest
 
 from specify_cli.zeitgeist_client import sanitizer
 
+# See test_grammar.py's pytestmark comment for why this is required, not
+# cosmetic.
+pytestmark = pytest.mark.fast
+
 
 def test_forbidden_control_keys_matches_f3_forbidden_keys_v1():
     # m1-contract-drafts/F3.md:103
-    assert sanitizer.FORBIDDEN_CONTROL_KEYS == frozenset(
+    assert frozenset(
         {
             "token",
             "authorization",
@@ -34,13 +38,13 @@ def test_forbidden_control_keys_matches_f3_forbidden_keys_v1():
             "url",
             "runtime_url",
         }
-    )
+    ) == sanitizer.FORBIDDEN_CONTROL_KEYS
     assert sanitizer.FORBIDDEN_CONTROL_KEYS_VERSION == 1
 
 
 def test_forbidden_observation_keys_matches_f1_set():
     # m1-contract-drafts/F1.md:162-166
-    assert sanitizer.FORBIDDEN_OBSERVATION_KEYS == frozenset(
+    assert frozenset(
         {
             "detail",
             "message",
@@ -68,7 +72,7 @@ def test_forbidden_observation_keys_matches_f1_set():
             "runtime_url",
             "branch",
         }
-    )
+    ) == sanitizer.FORBIDDEN_OBSERVATION_KEYS
     assert sanitizer.FORBIDDEN_OBSERVATION_KEYS_VERSION == "v1"
 
 

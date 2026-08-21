@@ -36,8 +36,8 @@ import urllib.error
 import urllib.request
 import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass, field
-from enum import Enum
+from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any, Literal
 
 from . import budget, sanitizer
@@ -66,7 +66,7 @@ class ClientConfig:
     branch: str
 
 
-class OfferOutcome(str, Enum):
+class OfferOutcome(StrEnum):
     SENT = "sent"  # relay accepted (2xx)
     REJECTED = "rejected"  # relay returned 4xx/5xx
     DROPPED_BUDGET = "dropped_budget"  # 750ms elapsed before a response

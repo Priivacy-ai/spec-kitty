@@ -20,7 +20,12 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.zeitgeist_client import budget, sanitizer, transport
+from specify_cli.zeitgeist_client import budget, transport
+
+# See tests/zeitgeist_client/test_grammar.py's pytestmark comment. This file
+# uses real loopback sockets/threads (the Team Kitty double) but no
+# subprocess and no git — the "fast" tier's actual disqualifier.
+pytestmark = pytest.mark.fast
 
 
 def closed_port_url() -> str:
@@ -37,15 +42,15 @@ def closed_port_url() -> str:
 
 
 def _config(double_url: str, **overrides: object) -> transport.ClientConfig:
-    base = dict(
-        relay_url=double_url,
-        token="test-token",
-        harness="claude-code",
-        session_id="sess-1",
-        agent_id="agent-1",
-        repo="spec-kitty",
-        branch="main",
-    )
+    base: dict[str, object] = {
+        "relay_url": double_url,
+        "token": "test-token",
+        "harness": "claude-code",
+        "session_id": "sess-1",
+        "agent_id": "agent-1",
+        "repo": "spec-kitty",
+        "branch": "main",
+    }
     base.update(overrides)
     return transport.ClientConfig(**base)  # type: ignore[arg-type]
 

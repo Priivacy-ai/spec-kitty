@@ -9,7 +9,16 @@ from ``zeitgeist/editor.py:146-147`` at draft time, not by import.
 
 from __future__ import annotations
 
+import pytest
+
 from specify_cli.zeitgeist_client import grammar
+
+# Pure-logic, no subprocess/git overhead, sub-second — the "fast" tier
+# (pytest.ini). Required so this file is collected by fast-tests-core-misc's
+# `-m "fast and not windows_ci and not regression"` selection (see
+# tests/architectural/test_ci_collection_completeness.py — an unmarked test
+# file is structurally uncollected by any push-gating job).
+pytestmark = pytest.mark.fast
 
 
 def test_ident_re_pattern_is_byte_identical_to_zeitgeist_editor():

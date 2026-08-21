@@ -93,7 +93,7 @@ def store(*, repo: str, relay_url: str, token: str, token_kind: str) -> None:
         data[repo] = {
             "relay_url": relay_url,
             "token": token,
-            "token_issued_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "token_issued_at": datetime.datetime.now(datetime.UTC).isoformat(),
             "token_kind": token_kind,
         }
         _write_all(data)

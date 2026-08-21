@@ -31,7 +31,8 @@ import sys
 import threading
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, TypeVar
+from typing import Any, Generic, TypeVar
+from collections.abc import Callable
 
 # The harness kills a hook at 5s (zeitgeist/integrations/client_budget.py).
 # Land clearly inside it: the margin absorbs interpreter startup, import
@@ -95,8 +96,18 @@ class NoRedirects:
         import urllib.request
 
         class _Blocked(urllib.request.HTTPRedirectHandler):
+            # Overrides HTTPRedirectHandler.redirect_request, which urllib
+            # calls positionally — the leading underscores are the ARG002
+            # convention for "part of a required base-class signature, never
+            # read", not a rename hazard.
             def redirect_request(
-                self, req: Any, fp: Any, code: Any, msg: Any, headers: Any, newurl: Any
+                self,
+                _req: Any,
+                _fp: Any,
+                _code: Any,
+                _msg: Any,
+                _headers: Any,
+                _newurl: Any,
             ) -> None:
                 return None
 
