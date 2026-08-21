@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _The 3.2.6rc3 candidate cycle is open. Entries land here as missions merge._
 
+### ✨ Added
+
+- **Legacy missions now carry a canonical `mission_type`, so upgrading past the M3/M5 mission-type changes no longer breaks them.** (#3614) A new `spec-kitty migrate backfill-mission-type` command mints a **profile-resolving** `mission_type` into every legacy `meta.json` whose only type signal is the deprecated `mission` field, and the existing `spec-kitty doctor mission-type --fail-on …` census gate proves a project is safe before it upgrades. **Before:** a project carrying `mission`-only missions resolved fine today, but would go type-unresolvable once M5 drops the legacy reader, then hard-fail once M3 rejects unresolvable types — breaking on upgrade with no migration path. **After:** run `spec-kitty migrate backfill-mission-type` (idempotent; never overwrites an existing `mission_type`; a `--dry-run`/`--json`/`--mission` surface; a value that resolves no governance profile at any layer is reported `needs_manual_resolution`, never masked into a broken state), then gate the release with `spec-kitty doctor mission-type --fail-on legacy-key-only,typeless,error` (the states that actually break under M3+M5). The write decision is keyed on the same activation-independent `MissionTypeProfileRepository` tolerance M3 uses, so a valid built-in type resolves and backfills even on a project that has not activated it. **Program ordering:** this backfill must land and be run against a project **before** the M3 (#3596/#3598) and M5 mission-type-reader changes reach it.
+
 ## [3.2.6rc2] - 2026-08-20
 
 _The 3.2.6rc2 candidate shipped 2026-08-20 (rc1 shipped 2026-08-12)._
