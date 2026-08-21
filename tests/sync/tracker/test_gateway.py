@@ -26,7 +26,23 @@ from dataclasses import dataclass
 
 import pytest
 
-from specify_cli.tracker.gateway import TrackerGatewayToken
+from specify_cli.tracker.gateway import (
+    GatewayAuthorizationError,
+    GatewayCommandRunner,
+    GatewayForbiddenOperationError,
+    GatewayScopeViolationError,
+    TrackerGatewayToken,
+    _try_import_scope_violation_error,
+)
+
+#: A scope violation raises spec_kitty_tracker.errors.ScopeViolationError when
+#: the installed tracker package exposes it (0.5.x+, always true in this dev
+#: venv per Pattern A -- docs/development/how-to/local-overrides.md), else
+#: falls back to GatewayScopeViolationError. Both share the same
+#: expected_scope/actual_scope attribute contract, so tests that only need
+#: "some scope-violation error was raised, with the right attributes" assert
+#: against whichever type is actually live rather than assuming one.
+_SCOPE_VIOLATION_TYPE = _try_import_scope_violation_error() or GatewayScopeViolationError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -157,3 +173,153 @@ def test_narrow_token_requires_matching_task_id() -> None:
         token.covers(_FakeContext(actor="ivan", repository="spec-kitty", mission_id="m1", task_id="TRK-M1-05"))
         is False
     )
+
+
+# ---------------------------------------------------------------------------
+# GatewayCommandRunner
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class _FakeInnerRunner:
+    """Records every delegated call; returns a canned string."""
+
+    output: str = "ok"
+    calls: list[tuple[tuple[str, ...], str | None, _FakeContext | None]] = None  # type: ignore[assignment]
+
+    def __post_init__(self) -> None:
+        self.calls = []
+
+    def run(self, command, *, cwd=None, context=None) -> str:
+        self.calls.append((tuple(command), cwd, context))
+        return self.output
+
+
+def _token(**overrides) -> TrackerGatewayToken:
+    defaults = {"token": "tok-1", "actor": "ivan", "repository": "spec-kitty", "issued_at": 1000.0, "ttl_seconds": 60.0}
+    defaults.update(overrides)
+    return TrackerGatewayToken(**defaults)
+
+
+def _ctx(**overrides) -> _FakeContext:
+    defaults = {"actor": "ivan", "repository": "spec-kitty"}
+    defaults.update(overrides)
+    return _FakeContext(**defaults)
+
+
+def test_runner_delegates_an_allowed_command_to_the_inner_runner() -> None:
+    inner = _FakeInnerRunner(output="bd-output")
+    runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
+    ctx = _ctx()
+
+    result = runner.run(["bd", "--json", "list"], cwd="/repo", context=ctx)
+
+    assert result == "bd-output"
+    assert inner.calls == [(("bd", "--json", "list"), "/repo", ctx)]
+
+
+def test_runner_denies_when_token_is_expired() -> None:
+    inner = _FakeInnerRunner()
+    runner = GatewayCommandRunner(_token(ttl_seconds=60.0), inner=inner, clock=lambda: 1060.0)
+
+    with pytest.raises(GatewayAuthorizationError):
+        runner.run(["bd", "--json", "list"], context=_ctx())
+
+    assert inner.calls == []
+
+
+def test_runner_denies_when_context_is_missing() -> None:
+    inner = _FakeInnerRunner()
+    runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
+
+    with pytest.raises(GatewayAuthorizationError):
+        runner.run(["bd", "--json", "list"], context=None)
+
+    assert inner.calls == []
+
+
+def test_runner_raises_scope_violation_for_mismatched_context() -> None:
+    inner = _FakeInnerRunner()
+    runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
+
+    with pytest.raises(_SCOPE_VIOLATION_TYPE) as exc_info:
+        runner.run(["bd", "--json", "list"], context=_ctx(actor="debbie"))
+
+    assert "ivan" in exc_info.value.expected_scope
+    assert "debbie" in exc_info.value.actual_scope
+    assert inner.calls == []
+
+
+def test_scope_violation_falls_back_to_local_error_type_when_tracker_package_lacks_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the installed spec_kitty_tracker predates ScopeViolationError (0.4.x),
+    the gateway still fails closed with its own equivalent error type instead of
+    raising an unrelated ImportError."""
+    import specify_cli.tracker.gateway as gateway_module
+
+    monkeypatch.setattr(gateway_module, "_try_import_scope_violation_error", lambda: None)
+    inner = _FakeInnerRunner()
+    runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
+
+    with pytest.raises(gateway_module.GatewayScopeViolationError):
+        runner.run(["bd", "--json", "list"], context=_ctx(repository="other-repo"))
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["bd", "--json", "close", "BD-1"],
+        ["bd", "--json", "assign", "BD-1", "ivan"],
+        ["bd", "--json", "approve", "BD-1"],
+        ["bd", "--json", "release", "BD-1"],
+        ["bd", "--json", "create", "title", "--assignee", "ivan"],
+        ["bd", "--json", "update", "BD-1", "--status", "closed"],
+        ["bd", "--json", "update", "BD-1", "--status", "done"],
+        ["bd", "--json", "update", "BD-1", "--status", "tombstone"],
+    ],
+)
+def test_runner_refuses_assign_close_approve_release_operations(command: list[str]) -> None:
+    inner = _FakeInnerRunner()
+    runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
+
+    with pytest.raises(GatewayForbiddenOperationError):
+        runner.run(command, context=_ctx())
+
+    assert inner.calls == []
+
+
+def test_runner_allows_a_non_terminal_status_update() -> None:
+    inner = _FakeInnerRunner()
+    runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
+
+    runner.run(["bd", "--json", "update", "BD-1", "--status", "in_progress"], context=_ctx())
+
+    assert len(inner.calls) == 1
+
+
+def test_runner_denies_the_forbidden_command_every_time_it_is_attempted() -> None:
+    """Idempotency/race requirement: denial is a pure function of the command,
+    never a one-shot gate that a retried/duplicate attempt could slip past."""
+    inner = _FakeInnerRunner()
+    runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
+    command = ["bd", "--json", "close", "BD-1"]
+
+    for _ in range(3):
+        with pytest.raises(GatewayForbiddenOperationError):
+            runner.run(command, context=_ctx())
+
+    assert inner.calls == []
+
+
+def test_runner_reevaluates_scope_independently_per_call() -> None:
+    """No cross-call caching: a runner that permits one context must still
+    independently deny the next call whose context is out of scope."""
+    inner = _FakeInnerRunner()
+    runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
+
+    runner.run(["bd", "--json", "list"], context=_ctx())
+    with pytest.raises(_SCOPE_VIOLATION_TYPE):
+        runner.run(["bd", "--json", "list"], context=_ctx(repository="other-repo"))
+
+    assert len(inner.calls) == 1
