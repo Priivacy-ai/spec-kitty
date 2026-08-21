@@ -1972,6 +1972,7 @@ jobs:
               tests/stress
               tests/tasks
               tests/unit
+              tests/zeitgeist_client
             ignore_args: ''
             marker_extra: ''
     steps:
