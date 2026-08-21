@@ -32,6 +32,8 @@ from specify_cli.tracker.gateway import (
     GatewayForbiddenOperationError,
     GatewayScopeViolationError,
     TrackerGatewayToken,
+    TrackerGatewayUnavailableError,
+    build_gateway_beads_connector,
     _try_import_scope_violation_error,
 )
 
@@ -414,3 +416,116 @@ def test_token_property_returns_the_configured_token() -> None:
     runner = GatewayCommandRunner(token, inner=_FakeInnerRunner(), clock=lambda: 1001.0)
 
     assert runner.token is token
+
+
+# ---------------------------------------------------------------------------
+# build_gateway_beads_connector -- real BeadsConnector wiring
+#
+# Requires spec_kitty_tracker>=0.5 (spec_kitty_tracker.context.LocalExecutionContext,
+# landed by TRK-M1-02/03 but not yet published to PyPI at the time this WP
+# was written -- see docs/development/how-to/local-overrides.md Pattern A).
+# Each test that actually needs the real symbol calls
+# ``_require_gateway_tracker()`` first and skips cleanly (rather than
+# failing) against the currently-published 0.4.x line, so the rest of this
+# file's tests -- and this file's collection itself -- stay green in a
+# clean-install (``uv sync --frozen``) environment.
+# ---------------------------------------------------------------------------
+
+
+def _require_gateway_tracker() -> None:
+    pytest.importorskip("spec_kitty_tracker.context", reason="TRK-M1-04 gateway wiring needs spec-kitty-tracker>=0.5")
+
+
+def test_build_gateway_beads_connector_wires_token_scope_into_the_execution_context() -> None:
+    _require_gateway_tracker()
+    from spec_kitty_tracker import BeadsConnector
+
+    token = _token(team="team-kitty", mission_id="m1", task_id="TRK-M1-04")
+    connector, gateway_runner = build_gateway_beads_connector(token=token, workspace="beads")
+
+    assert isinstance(connector, BeadsConnector)
+    assert gateway_runner.token is token
+    context = connector.config.context
+    assert context is not None
+    assert context.actor == "ivan"
+    assert context.repository == "spec-kitty"
+    assert context.team == "team-kitty"
+    assert context.mission_id == "m1"
+    assert context.task_id == "TRK-M1-04"
+
+
+async def test_build_gateway_beads_connector_round_trips_list_issues_through_the_gateway() -> None:
+    _require_gateway_tracker()
+    import json
+
+    inner = _FakeInnerRunner(
+        output=json.dumps(
+            [{"id": "BD-1", "title": "Do the thing", "status": "open", "issue_type": "task", "priority": 2}]
+        )
+    )
+    token = _token()
+    connector, gateway_runner = build_gateway_beads_connector(
+        token=token, workspace="beads", runner=GatewayCommandRunner(token, inner=inner, clock=lambda: 1001.0)
+    )
+
+    page = await connector.list_issues(updated_since=None, cursor=None, limit=10, filters=None)
+
+    assert [issue.ref.id for issue in page.items] == ["BD-1"]
+    # the gateway attributed the call to the token's scope, not an unscoped default:
+    ((_command, _cwd, call_context),) = inner.calls
+    assert call_context.actor == "ivan"
+    assert call_context.repository == "spec-kitty"
+    assert gateway_runner is connector._runner
+
+
+async def test_build_gateway_beads_connector_still_denies_a_terminal_transition_at_the_connector_layer() -> None:
+    """BeadsConnector's own A5 guard (landed TRK-M1-03) fires before the gateway
+    ever sees a command -- the two enforcement layers compose, they don't race."""
+    _require_gateway_tracker()
+    from spec_kitty_tracker import CapabilityNotSupportedError, CanonicalStatus
+    from spec_kitty_tracker.models import ExternalRef
+
+    inner = _FakeInnerRunner()
+    token = _token()
+    connector, _gateway_runner = build_gateway_beads_connector(
+        token=token, workspace="beads", runner=GatewayCommandRunner(token, inner=inner, clock=lambda: 1001.0)
+    )
+    ref = ExternalRef(system="beads", workspace="beads", id="BD-1")
+
+    with pytest.raises(CapabilityNotSupportedError):
+        await connector.update_issue(ref, {"status": CanonicalStatus.DONE}, idempotency_key=None)
+
+    assert inner.calls == []
+
+
+async def test_build_gateway_beads_connector_gateway_still_denies_a_raw_bypass_of_the_connector() -> None:
+    """Independent of BeadsConnector's own A5 guard: a caller that skips the
+    connector and hands the gateway raw argv directly is still refused."""
+    _require_gateway_tracker()
+    inner = _FakeInnerRunner()
+    token = _token()
+    _connector, gateway_runner = build_gateway_beads_connector(
+        token=token, workspace="beads", runner=GatewayCommandRunner(token, inner=inner, clock=lambda: 1001.0)
+    )
+
+    with pytest.raises(GatewayForbiddenOperationError):
+        gateway_runner.run(["bd", "--json", "close", "BD-1"], context=_connector_context(token))
+
+    assert inner.calls == []
+
+
+def _connector_context(token: TrackerGatewayToken):
+    from spec_kitty_tracker.context import LocalExecutionContext
+
+    return LocalExecutionContext(actor=token.actor, repository=token.repository)
+
+
+def test_build_gateway_beads_connector_raises_when_tracker_predates_local_execution_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import specify_cli.tracker.gateway as gateway_module
+
+    monkeypatch.setattr(gateway_module, "_try_import_gateway_beads_types", lambda: None)
+
+    with pytest.raises(TrackerGatewayUnavailableError):
+        build_gateway_beads_connector(token=_token(), workspace="beads")
