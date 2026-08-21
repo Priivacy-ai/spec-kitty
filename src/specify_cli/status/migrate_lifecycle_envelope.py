@@ -76,7 +76,11 @@ from .lifecycle_events import (
     _repo_root_for_lifecycle_log,  # noqa: PLC2701 -- same-package reuse, not a public API
 )
 from .locking import feature_status_lock, project_event_log_lock
-from .store import _fsync_directory  # noqa: PLC2701 -- same-package reuse, not a public API
+from .store import (  # noqa: PLC2701 -- same-package reuse, not a public API
+    StoreError,
+    _fsync_directory,
+    _read_text_without_following_symlinks,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -186,18 +190,26 @@ def _migrate_row(row: dict[str, Any]) -> tuple[dict[str, Any], MigrationAction]:
     return migrated, "migrated"
 
 
-def _read_raw_lines(path: Path) -> list[str]:
-    """Read *path* as a list of non-blank raw line strings, verbatim.
+def _read_raw_lines(path: Path) -> list[tuple[int, str]]:
+    """Read *path* as (1-based line number, non-blank raw line text) pairs.
 
     Distinct from :func:`specify_cli.status.store.read_events_raw` (which is
     hardcoded to ``feature_dir / EVENTS_FILENAME``): this migration tool
     operates on an explicit path that may be either the mission-level or the
-    project-level log.
+    project-level log. Routes through
+    :func:`specify_cli.status.store._read_text_without_following_symlinks`
+    (the same ``O_NOFOLLOW`` symlink-escape guard ``append_raw_rows_atomic``
+    enforces on its own read side, F2.md section 2.1) rather than a plain
+    ``Path.read_text`` -- a log path is untrusted external-facing input, and
+    migration must refuse to silently read (or, worse, subsequently replace)
+    whatever a symlink at that path happens to point at.
     """
-    if not path.exists():
-        return []
-    text = path.read_text(encoding="utf-8")
-    return [line for line in text.splitlines() if line.strip()]
+    text = _read_text_without_following_symlinks(path)
+    return [
+        (line_number, line)
+        for line_number, line in enumerate(text.splitlines(), start=1)
+        if line.strip()
+    ]
 
 
 def _lock_for_log_path(log_path: Path) -> AbstractContextManager[Path | None]:
@@ -310,7 +322,11 @@ def migrate_lifecycle_envelope(
                 ),
             )
 
-        original_text = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
+        # Symlink-safe read (F2.md section 2.1): the same O_NOFOLLOW guard
+        # every other reader/writer of these two files enforces, so a
+        # symlinked log_path is refused here rather than silently followed
+        # and then clobbered by the atomic replace below.
+        original_text = _read_text_without_following_symlinks(log_path)
         _atomic_replace_file(backup_path, original_text)
         new_content = "".join(line + "\n" for line in new_lines)
         _atomic_replace_file(log_path, new_content)
@@ -332,8 +348,16 @@ def _compute_manifest_and_lines(
     unchanged_count = 0
     skipped_count = 0
 
-    for raw_line in raw_lines:
-        row = json.loads(raw_line)
+    for line_number, raw_line in raw_lines:
+        try:
+            row = json.loads(raw_line)
+        except json.JSONDecodeError as exc:
+            # Same StoreError-shaped, line-numbered failure contract as
+            # store.read_events_raw (F2.md section 4, IB1/IB2): fail
+            # loud-and-legible on the exact invalid-byte input class this
+            # migration tool exists to remediate, rather than crashing raw
+            # with no line context.
+            raise StoreError(f"Invalid JSON on line {line_number}: {exc}") from exc
         if not isinstance(row, dict) or row.get("event_type") not in LIFECYCLE_EVENT_TYPES:
             # Not a lifecycle row (StatusEvent transition, InnerStateChanged
             # annotation, retrospective/decision row, ...) -- pass through
