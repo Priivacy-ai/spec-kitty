@@ -25,6 +25,7 @@ from scripts.docs.audience_resolver import (
     main,
     resolve_audiences,
 )
+from tests.docs.conftest import commit_all_changes, init_git_repo_with_base
 
 pytestmark = pytest.mark.architectural
 
@@ -191,3 +192,108 @@ def test_report_only_exit_zero_even_when_dangling(tmp_path: Path) -> None:
     exit_code = main(["--repo-root", str(repo), "--docs-root", str(repo / "docs")])
 
     assert exit_code == 0
+
+
+class TestDiffScopeAudienceCLI:
+    """``--changed-from`` behavior through :func:`main` over real git repos."""
+
+    def test_changed_dangling_reference_reds(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        _stage_catalog(repo)
+        base_sha = init_git_repo_with_base(repo)
+        _write(
+            repo / "docs" / "changed.md",
+            ["audience:", f"  - {_MISSING_REL}"],
+            body="changed",
+        )
+        commit_all_changes(repo, "add dangling audience reference")
+
+        exit_code = main(
+            [
+                "--repo-root",
+                str(repo),
+                "--docs-root",
+                str(repo / "docs"),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+
+        assert exit_code == 1
+
+    def test_unchanged_preexisting_dangling_reference_passes(
+        self, tmp_path: Path
+    ) -> None:
+        repo = _stage_repo(
+            tmp_path,
+            audience=["audience:", f"  - {_MISSING_REL}"],
+            dangling=True,
+        )
+        base_sha = init_git_repo_with_base(repo)
+        _write(
+            repo / "docs" / "changed.md",
+            [f"audience: {_PERSONA_REL}"],
+            body="changed",
+        )
+        commit_all_changes(repo, "add clean audience reference")
+
+        exit_code = main(
+            [
+                "--repo-root",
+                str(repo),
+                "--docs-root",
+                str(repo / "docs"),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+
+        assert exit_code == 0
+
+    def test_resolved_zero_docs_passes(self, tmp_path: Path) -> None:
+        repo = _stage_repo(
+            tmp_path,
+            audience=["audience:", f"  - {_MISSING_REL}"],
+            dangling=True,
+        )
+        base_sha = init_git_repo_with_base(repo)
+        (repo / "README.md").write_text("# changed\n", encoding="utf-8")
+        commit_all_changes(repo, "change non-docs file")
+
+        exit_code = main(
+            [
+                "--repo-root",
+                str(repo),
+                "--docs-root",
+                str(repo / "docs"),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+
+        assert exit_code == 0
+
+    def test_unresolvable_base_errors(self, tmp_path: Path) -> None:
+        repo = _stage_repo(
+            tmp_path,
+            audience=[f"audience: {_PERSONA_REL}"],
+            dangling=False,
+        )
+        init_git_repo_with_base(repo)
+
+        exit_code = main(
+            [
+                "--repo-root",
+                str(repo),
+                "--docs-root",
+                str(repo / "docs"),
+                "--strict",
+                "--changed-from",
+                "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            ]
+        )
+
+        assert exit_code not in (0, 1)
