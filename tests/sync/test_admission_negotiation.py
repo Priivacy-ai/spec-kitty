@@ -344,3 +344,42 @@ class TestAdmitLocallyDirectIdempotency:
         assert second == first
         assert second.binding_audience == f"{LOCAL_NONSTRICT_AUDIENCE_PREFIX}https://app.spec-kitty.ai"
         assert second.admission_generation == 1
+
+
+class TestLocalAdmissionWireContract:
+    """Pin what the local self-admission actually puts on the wire.
+
+    Landing-pass security review (#3626) confirmed the local admission proof
+    *is* transmitted — the `binding_audience` a locally-admitted context carries
+    rides onto every delivery via ``attach_admission_proof``. That is by design
+    (the paired #795 handoff relies on a strict server *receiving* the label to
+    reject it — degrade, not corruption). The contract that matters is therefore
+    not "nothing is sent" but "what is sent is honestly SELF-LABELED, never a
+    forged server-issued proof": the wire `binding_audience` carries the
+    ``local-nonstrict:`` prefix, so a strict server can distinguish and reject
+    it rather than be fooled.
+    """
+
+    def test_wire_proof_is_self_labeled_local_nonstrict_never_forged(self) -> None:
+        from specify_cli.saas_client.admission import (
+            ProjectWriteAdmissionProof,
+            attach_admission_proof,
+        )
+
+        # A context minted by maybe_admit_locally carries this exact audience.
+        local_audience = f"{LOCAL_NONSTRICT_AUDIENCE_PREFIX}https://app.spec-kitty.ai"
+        proof = ProjectWriteAdmissionProof(
+            project_uuid=PROJECT,
+            admission_generation=1,
+            binding_audience=local_audience,
+        )
+
+        wire = attach_admission_proof({"event_id": "01HZZ"}, proof)
+
+        # The label IS on the wire (not stripped) ...
+        assert wire["binding_audience"] == local_audience
+        # ... and it is honestly self-identifying as a LOCAL admission, so a
+        # strict server can tell it apart from a server-issued audience and
+        # reject it — it never poses as a forged server proof.
+        assert str(wire["binding_audience"]).startswith(LOCAL_NONSTRICT_AUDIENCE_PREFIX)
+        assert wire["admission_generation"] == 1
