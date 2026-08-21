@@ -160,11 +160,16 @@ def _piped_scope_from_toml_credentials(path: Path) -> str | None:
     is selected by ProjectSyncStore via ``_derive_queue_scope`` (FR-009 / C-003).
 
     Defensive by contract: a missing/corrupt/incomplete file yields ``None``
-    rather than raising, mirroring the ``_read_json`` posture above.
+    rather than raising, mirroring the ``_read_json`` posture above. This
+    includes files that are not valid UTF-8 (binary garbage, a truncated/
+    corrupted write, or a stray unrelated file at that path) — ``toml.load``
+    raises ``UnicodeDecodeError`` internally from its own read, not one of
+    ``toml``'s documented parse-error types, so it must be caught explicitly
+    alongside the TOML/OS/type failures.
     """
     try:
         data = toml.load(path)
-    except (toml.TomlDecodeError, OSError, TypeError):
+    except (toml.TomlDecodeError, OSError, TypeError, UnicodeDecodeError):
         return None
     if not isinstance(data, Mapping):
         return None
