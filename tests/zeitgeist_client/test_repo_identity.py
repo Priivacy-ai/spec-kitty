@@ -159,6 +159,56 @@ def test_container_directory_with_one_child_checkout_is_unverified_not_ambiguous
         repo_identity.repo_name(str(container))
 
 
+def test_container_nested_inside_a_parent_repo_with_origin_still_raises_ambiguous(
+    tmp_path, origin
+):
+    """Reproduces the real motivating topology named in this module's own
+    docstring: a session-container (this program's own `.sandboxes/`) that
+    holds multiple independent checkouts, itself sitting inside ANOTHER git
+    repository that has a live `origin` (this program's own root
+    control-plane repo). The upward `.git` filesystem walk from the
+    container finds the PARENT repo's `.git` first — that must never let
+    the parent's identity be minted in place of refusing the real
+    sibling-checkout ambiguity; the isolated-tmp_path variant of this test
+    above (parent outside any repo) cannot exercise this because there is no
+    ancestor `.git` for the walk to find."""
+    parent = tmp_path / "root-control-plane"
+    parent.mkdir()
+    _git("init", "-q", cwd=parent)
+    _git("remote", "add", "origin", "git@github.com:me/root-repo.git", cwd=parent)
+
+    container = parent / "sandboxes"
+    container.mkdir()
+    _clone(origin, container / "lane-a")
+    _clone(origin, container / "lane-b")
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(container))
+
+
+def test_container_nested_inside_a_parent_repo_without_origin_raises_ambiguous_not_unverified(
+    tmp_path, origin
+):
+    """Same nested-container topology as above, but the parent repo has no
+    `origin` (this exact repository's actual topology). Before the fix this
+    accidentally failed closed too — but via the WRONG error
+    (`UnverifiedRepositoryIdentity`, with a misleading message claiming the
+    container itself has no origin) rather than the correct
+    `AmbiguousRepositoryIdentity` for a real sibling-checkout conflict. The
+    accidental pass must not be topology-dependent."""
+    parent = tmp_path / "root-control-plane"
+    parent.mkdir()
+    _git("init", "-q", cwd=parent)
+
+    container = parent / "sandboxes"
+    container.mkdir()
+    _clone(origin, container / "lane-a")
+    _clone(origin, container / "lane-b")
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(container))
+
+
 # --- symlinks / conflicting roots ------------------------------------------
 
 
