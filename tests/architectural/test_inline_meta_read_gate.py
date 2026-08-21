@@ -302,8 +302,16 @@ FLOOR_MARGIN = 2
 # gap (mechanic 2) against the corrected 142 (``floor == live - 3``; band
 # ``live - MARGIN(4) <= floor < live`` holds: 138 <= 139 < 142), strictly
 # satisfying the anti-vacuity check (same convention as the entries above).
+# rc3 M0 (mission_type backfill, PR #3614): the new
+# ``specify_cli.migration.backfill_mission_type`` module routes its meta reads
+# through ``core.paths.load_meta_fail_closed`` (a named ``ROUTED_CALLEES``
+# member) rather than hand-rolling ``json.loads``. Live rises 142 -> 144; floor
+# raised 139 -> 141 to restore the established 3-below-live gap (mechanic 2)
+# against the corrected 144 (``floor == live - 3``; band
+# ``live - MARGIN(4) <= floor < live`` holds: 140 <= 141 < 144), strictly
+# satisfying the anti-vacuity check (same convention as the entries above).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 139
+ROUTED_LOAD_META_FLOOR = 141
 
 
 # --------------------------------------------------------------------------- #
