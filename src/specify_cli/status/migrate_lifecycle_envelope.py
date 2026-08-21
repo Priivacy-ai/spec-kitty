@@ -68,7 +68,6 @@ from typing import Any, Literal
 from uuid import UUID
 
 from specify_cli.identity.project import derive_build_id
-from specify_cli.sync.clock import generate_node_id
 
 from .lifecycle_events import (
     LIFECYCLE_EVENT_TYPES,
@@ -163,6 +162,12 @@ def _migrate_row(row: dict[str, Any]) -> tuple[dict[str, Any], MigrationAction]:
 
     if row.get("project_uuid") is None:
         return dict(row), "skipped_no_project_uuid"
+
+    # Lazy import: status/*.py modules must not top-level import
+    # specify_cli.sync.* (tests/status/test_parity.py
+    # test_no_status_module_directly_imports_sync_at_toplevel), mirroring
+    # the existing pattern in status/emit.py's SaaS-fan-out imports.
+    from specify_cli.sync.clock import generate_node_id  # noqa: PLC0415
 
     migrated = {k: v for k, v in row.items() if k != "aggregate_type"}
     migrated["schema_version"] = _STRICT_SCHEMA_VERSION
