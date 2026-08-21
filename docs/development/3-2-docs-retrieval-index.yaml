@@ -4488,6 +4488,16 @@ pages:
     - {slug: "glossary-pack", text: "Glossary pack", level: 3}
     - {slug: "anti-pattern", text: "Anti-pattern", level: 3}
     - {slug: "where-to-go-next", text: "Where to go next", level: 2}
+  - path: "docs/architecture/doctrine-projection-and-delivery.md"
+    title: "Profile-channel projection and delivery"
+    divio_type: "explanation"
+    abstract: "Why styleguide/toolguide profile citations render pointer-only, and how to read the operating_procedures_unresolved diagnostic — for pack authors."
+    anchors:
+    - {slug: "two-contracts-one-loaded-profile", text: "Two contracts, one loaded profile", level: 2}
+    - {slug: "contract-1-styleguide-toolguide-are-pointer-only-by-design", text: "Contract 1 — styleguide/toolguide are pointer-only by design", level: 2}
+    - {slug: "contract-2-the-operating-procedures-unresolved-diagnostic", text: "Contract 2 — the `operating_procedures_unresolved` diagnostic", level: 2}
+    - {slug: "what-this-page-does-not-cover", text: "What this page does not cover", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/architecture/doctrine-relationships.md"
     title: "Doctrine relationships: lineage, delegation, augmentation, and action resolution"
     divio_type: "none"
