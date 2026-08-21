@@ -1526,6 +1526,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/doctrine-projection-and-delivery.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/doctrine-relationships.md
   tag: current
   divio_type: none
