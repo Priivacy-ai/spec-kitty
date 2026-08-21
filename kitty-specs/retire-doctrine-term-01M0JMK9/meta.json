@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-retire-doctrine-term-01M0JMK9",
+  "created_at": "2026-08-21T17:06:18.253177+00:00",
+  "flattened": false,
+  "friendly_name": "Retire the Doctrine Term",
+  "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+  "mission_number": null,
+  "mission_slug": "retire-doctrine-term-01M0JMK9",
+  "mission_type": "software-dev",
+  "purpose_context": "Spec Kitty's governance vocabulary currently splits 'doctrine' (the artefact layer) from 'charter' (the compiled file and activation surface). The operator has decided that 'doctrine' is retired: everything user-facing becomes 'charter', with a three-way distinction between the charter.md file, active charter (wired in), and inactive charter. This mission produces the decision record (ADR in docs/adr/3.x/), a complete inventory of user-facing occurrences by surface, an ordering and methodology analysis, and the plan expressed as stacked spec-kitty missions with dependencies. It does not execute the rename itself.",
+  "purpose_tldr": "Plan and sequence the retirement of 'doctrine' as a user-facing term in Spec Kitty, replaced by 'charter': ADR, full occurrence inventory, ordering/methodology analysis, and a stacked mission plan.",
+  "slug": "retire-doctrine-term-01M0JMK9",
+  "target_branch": "feat/retire-doctrine-term",
+  "topology": "coord"
+}
