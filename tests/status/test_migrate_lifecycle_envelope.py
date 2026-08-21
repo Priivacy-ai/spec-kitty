@@ -33,12 +33,16 @@ def _git_init(path: Path) -> None:
 from specify_cli.status.lifecycle_events import (
     emit_wp_created_local,
     mission_event_log_path,
+    project_event_log_path,
     read_lifecycle_events,
 )
+from specify_cli.status.doctor import check_reviewer_self_approval
 from specify_cli.status.emit import emit_status_transition
+import specify_cli.status.migrate_lifecycle_envelope as migrate_lifecycle_envelope_module
 from specify_cli.status.migrate_lifecycle_envelope import migrate_lifecycle_envelope
 from specify_cli.status.models import TransitionRequest
 from specify_cli.status.reducer import materialize_snapshot, materialize_to_json
+from specify_cli.status.store import StoreError
 
 from tests.status.conftest import seed_wp_to_planned as _seed_planned
 
@@ -243,8 +247,7 @@ def test_mig3_migration_touches_only_lifecycle_rows(feature_dir: Path) -> None:
         line
         for line in raw_lines_after
         if json.loads(line).get("event_type") not in ("WPCreated",)
-        and "to_lane" in json.loads(line)
-        or "kind" in json.loads(line)
+        and ("to_lane" in json.loads(line) or "kind" in json.loads(line))
     ]
     # The genesis/planned/claimed StatusEvent rows are byte-identical.
     assert non_lifecycle_before == non_lifecycle_after
@@ -339,3 +342,169 @@ def test_compat6_every_migrated_row_passes_strict_validation(feature_dir: Path) 
     for entry in migrated_entries:
         errors = _stub_validate_strict_envelope(entry)
         assert errors == (), f"{entry.get('event_type')}: {errors}"
+
+
+# ---------------------------------------------------------------------------
+# Symlink-escape refusal. Renata HANDBACK finding (HIGH): migration must
+# never follow a symlinked log_path to read (and then os.replace-clobber)
+# whatever it points at -- the same O_NOFOLLOW guard every other
+# reader/writer of these two files enforces.
+# ---------------------------------------------------------------------------
+
+
+def test_symlinked_log_path_is_refused_not_followed(
+    feature_dir: Path, tmp_path: Path
+) -> None:
+    external = tmp_path / "external_outside_mission_dir.jsonl"
+    external.write_text('{"secret": "leak-me-not"}\n', encoding="utf-8")
+
+    log_path = mission_event_log_path(feature_dir)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_path.symlink_to(external)
+
+    with pytest.raises(StoreError, match="symbolic link"):
+        migrate_lifecycle_envelope(log_path)
+
+    # Refusing must not have touched the symlink or its target.
+    assert log_path.is_symlink()
+    assert log_path.resolve() == external.resolve()
+    assert external.read_text(encoding="utf-8") == '{"secret": "leak-me-not"}\n'
+
+
+# ---------------------------------------------------------------------------
+# C2 -- crash mid-migration (os.replace failure between backup and final
+# replace) leaves the original file untouched. Renata HANDBACK finding
+# (MEDIUM): F2.md section 4's C2 row had no dedicated test in this module.
+# ---------------------------------------------------------------------------
+
+
+def test_c2_crash_between_backup_and_final_replace_leaves_original_untouched(
+    feature_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """migrate_lifecycle_envelope calls _atomic_replace_file twice: once for
+    the .pre-migration.bak snapshot, once for the rewritten log itself. A
+    crash (os.replace failure) on the SECOND call -- after the snapshot has
+    already landed -- must still leave the live log_path exactly as it was;
+    the migration is only "done" once the final replace has completed."""
+    project_uuid = str(uuid.uuid4())
+    log_path = mission_event_log_path(feature_dir)
+    _write_raw_lines(log_path, _six_legacy_row_fixture(project_uuid))
+    original = log_path.read_text(encoding="utf-8")
+
+    real_replace = migrate_lifecycle_envelope_module.os.replace
+    call_count = {"n": 0}
+
+    def _flaky_replace(src: Path, dst: Path) -> None:
+        call_count["n"] += 1
+        if call_count["n"] == 2:
+            raise OSError("simulated crash mid-migration (second os.replace)")
+        real_replace(src, dst)
+
+    monkeypatch.setattr(migrate_lifecycle_envelope_module.os, "replace", _flaky_replace)
+
+    with pytest.raises(OSError, match="simulated crash mid-migration"):
+        migrate_lifecycle_envelope(log_path)
+
+    assert call_count["n"] == 2, "expected exactly 2 os.replace calls (backup, then final)"
+    assert log_path.read_text(encoding="utf-8") == original, (
+        "a crash on the final replace must leave the live log untouched -- "
+        "the backup landing first must not be observable as a partial migration"
+    )
+    assert list(log_path.parent.glob(f".{log_path.name}.*.tmp")) == [], (
+        "no leftover tmp file after the simulated crash"
+    )
+
+
+# ---------------------------------------------------------------------------
+# IB1/IB2 -- invalid-byte (corrupted JSON) lines raise a StoreError-shaped,
+# line-numbered failure -- never a raw, unhandled json.JSONDecodeError.
+# Renata HANDBACK finding (HIGH + MEDIUM): matches store.read_events_raw's
+# existing invalid-byte contract (tests/status/test_store.py
+# test_corruption_reports_line_number) so migration fails loud-and-legible
+# on exactly the crash-scenario input class F2 exists to guard against.
+# ---------------------------------------------------------------------------
+
+
+def test_ib1_invalid_json_line_in_mission_log_raises_line_numbered_error(
+    feature_dir: Path,
+) -> None:
+    project_uuid = str(uuid.uuid4())
+    log_path = mission_event_log_path(feature_dir)
+    good_row = _legacy_row(
+        event_type="ProjectInitialized",
+        aggregate_id=project_uuid,
+        aggregate_type="Project",
+        payload={"project_uuid": project_uuid},
+        project_uuid=project_uuid,
+    )
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    with log_path.open("w", encoding="utf-8") as fh:
+        fh.write(json.dumps(good_row, sort_keys=True) + "\n")
+        fh.write("{this is not valid json\n")
+    original = log_path.read_text(encoding="utf-8")
+
+    with pytest.raises(StoreError, match="line 2"):
+        migrate_lifecycle_envelope(log_path)
+
+    # A corrupted file must be discoverable via dry_run too -- an operator
+    # inspecting before committing to a real migration gets the same
+    # graceful, line-numbered failure rather than a surprise crash later.
+    with pytest.raises(StoreError, match="line 2"):
+        migrate_lifecycle_envelope(log_path, dry_run=True)
+
+    # Never partially written: the raise happens before any lock/snapshot
+    # bookkeeping, so the log is exactly as corrupted (and only as
+    # corrupted) as it started.
+    assert log_path.read_text(encoding="utf-8") == original
+
+
+def test_ib2_invalid_json_line_in_project_log_raises_same_error_shape(
+    repo: Path,
+) -> None:
+    """Asymmetry pin: the project-level log
+    (``.kittify/canonical-events.jsonl``) must raise the identical
+    StoreError-shaped, line-numbered failure as the mission-level log (IB1)
+    -- migration must not special-case one log location's corruption
+    handling relative to the other."""
+    log_path = project_event_log_path(repo)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    project_uuid = str(uuid.uuid4())
+    good_row = _legacy_row(
+        event_type="ProjectInitialized",
+        aggregate_id=project_uuid,
+        aggregate_type="Project",
+        payload={"project_uuid": project_uuid},
+        project_uuid=project_uuid,
+    )
+    with log_path.open("w", encoding="utf-8") as fh:
+        fh.write(json.dumps(good_row, sort_keys=True) + "\n")
+        fh.write("{also not valid json\n")
+
+    with pytest.raises(StoreError, match="line 2"):
+        migrate_lifecycle_envelope(log_path)
+
+
+# ---------------------------------------------------------------------------
+# COMPAT1 -- doctor.py's lifecycle-log reader sees identical results before
+# and after migration. Renata HANDBACK finding (MEDIUM): F2.md section 4's
+# COMPAT1 row had no dedicated test in this module.
+# ---------------------------------------------------------------------------
+
+
+def test_compat1_doctor_reviewer_self_approval_check_survives_migration(
+    feature_dir: Path,
+) -> None:
+    project_uuid = str(uuid.uuid4())
+    log_path = mission_event_log_path(feature_dir)
+    _write_raw_lines(log_path, _six_legacy_row_fixture(project_uuid))
+
+    before = check_reviewer_self_approval(feature_dir)
+    assert len(before) == 1, "expected exactly the one ReviewerSelfApproval finding"
+
+    migrate_lifecycle_envelope(log_path)
+
+    after = check_reviewer_self_approval(feature_dir)
+    assert len(after) == 1
+    assert after[0].wp_id == before[0].wp_id
+    assert after[0].message == before[0].message
+    assert after[0].recommended_action == before[0].recommended_action
