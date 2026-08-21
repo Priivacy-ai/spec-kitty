@@ -110,7 +110,10 @@ def _filter_wp_state(wp_state: dict[str, Any]) -> dict[str, Any]:
 
 def _content_sha256(mission_body: dict[str, Any]) -> str:
     canonical = json.dumps(mission_body, sort_keys=True, separators=(",", ":"))
-    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    # noqa justification: content-integrity digest for an attestation
+    # manifest artifact (§3.3), not a charter-hashed doctrine artifact —
+    # charter.hasher.hash_content() is the wrong tool here.
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251
 
 
 def build_team_mission_snapshot(

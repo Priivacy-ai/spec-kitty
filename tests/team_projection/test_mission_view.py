@@ -61,7 +61,7 @@ def test_content_sha256_covers_mission_body_only(temp_repo: Path) -> None:
     snap = build_team_mission_snapshot(feature_dir, temp_repo, require_clean=True)
 
     canonical = json.dumps(snap.mission, sort_keys=True, separators=(",", ":"))
-    expected = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    expected = "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251
     assert snap.content_sha256 == expected
 
 

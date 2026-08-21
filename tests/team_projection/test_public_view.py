@@ -124,14 +124,14 @@ def test_public_mission_allowed_fields_subset_of_team_mission_fields() -> None:
         "summary",
         "retrospective",
     }
-    assert PUBLIC_MISSION_ALLOWED_FIELDS <= team_mission_top_level_fields
+    assert team_mission_top_level_fields >= PUBLIC_MISSION_ALLOWED_FIELDS
 
 
 def test_public_index_allowed_fields_subset_of_team_index_entry_fields() -> None:
     from specify_cli.team_projection.public_view import PUBLIC_INDEX_ALLOWED_FIELDS
     from specify_cli.team_projection.team_index import TeamIndexEntry
 
-    assert PUBLIC_INDEX_ALLOWED_FIELDS <= set(TeamIndexEntry.model_fields.keys())
+    assert set(TeamIndexEntry.model_fields.keys()) >= PUBLIC_INDEX_ALLOWED_FIELDS
 
 
 def test_project_public_mission_snapshot_projects_allowlist_only(temp_repo: Path) -> None:

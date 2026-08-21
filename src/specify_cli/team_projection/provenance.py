@@ -26,8 +26,20 @@ from specify_cli.version_utils import get_version
 #: Directories D1's clean-tree check scopes to — the tracked planning/status
 #: surfaces this package reads bodies from (mirrors the scope
 #: ``charter_runtime/preflight/runner.py`` uses for its own dirty-artifact
-#: detection).
-_DIRTY_SCOPE_PATHS: tuple[str, ...] = ("kitty-specs", ".kittify")
+#: detection). ``.kittify/derived`` is explicitly EXCLUDED via git pathspec
+#: magic: it is where THIS package's own output lands (``write.py``,
+#: ``state/contract.py``'s ``derived_mission_views`` family, ``IGNORED``/
+#: gitignored by design), so a `publish` run's own writes must never
+#: retroactively dirty the very clean-tree check subsequent calls in the same
+#: run rely on — self-write-dirties-own-check would make every artifact after
+#: the first in a single ``write_team_projection`` invocation spuriously fail
+#: `require_clean=True`, even on a project whose `.gitignore` has not yet
+#: (re)learned the `.kittify/derived/` entry.
+_DIRTY_SCOPE_PATHS: tuple[str, ...] = (
+    "kitty-specs",
+    ".kittify",
+    ":(exclude).kittify/derived",
+)
 
 _GIT_STATUS_TIMEOUT_SECS = 5.0
 _GIT_REV_PARSE_TIMEOUT_SECS = 5.0

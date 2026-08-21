@@ -53,7 +53,28 @@ def _content_sha256_of_entries(entries: tuple[dict[str, Any], ...]) -> str:
     import json
 
     canonical = json.dumps(list(entries), sort_keys=True, separators=(",", ":"))
-    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    # noqa justification: content-integrity digest for an attestation
+    # manifest artifact (§3.3), not a charter-hashed doctrine artifact.
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251
+
+
+def resolve_feature_dir_for_mission_slug(project_dir: Path, mission_slug: str) -> Path:
+    """Resolve the on-disk mission directory for a registry ``mission_slug``.
+
+    Shared by ``attestation.py``/``write.py`` (which both need to re-resolve
+    a mission's ``feature_dir`` from a :class:`TeamIndexEntry`, not just the
+    registry key iterated here). Falls back to the conventional
+    ``kitty-specs/<slug>`` layout for pseudo-keyed (legacy/orphan) missions
+    whose registry key differs from the on-disk directory name — the
+    directory name IS the ``mission_slug`` in every case
+    (``build_mission_registry`` always sets it from ``feature_dir.name``,
+    §2.1), so this fallback is exact, not a guess.
+    """
+    feature_paths: dict[str, Path] = scanner.gather_feature_paths(project_dir)
+    resolved: Path | None = feature_paths.get(mission_slug)
+    if resolved is not None:
+        return resolved
+    return project_dir / "kitty-specs" / mission_slug
 
 
 def build_team_index(project_dir: Path, *, require_clean: bool = False) -> TeamIndex:

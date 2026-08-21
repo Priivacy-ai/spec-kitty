@@ -22,6 +22,7 @@ from ruamel.yaml import YAML
 
 from .mission_view import TEAM_WP_ALLOWED_FIELDS, TeamMissionSnapshot
 from .provenance import ExactCommitProvenance
+from .team_index import TeamIndex
 
 #: Deliberately narrower than TEAM_WP_ALLOWED_FIELDS: no actor/agent/role/
 #: model/provider/review/assignee/tracker_refs/subtasks/review_result on the
@@ -111,7 +112,9 @@ def _content_sha256(body: Any) -> str:
     import json
 
     canonical = json.dumps(body, sort_keys=True, separators=(",", ":"))
-    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    # noqa justification: content-integrity digest for an attestation
+    # manifest artifact (§3.3), not a charter-hashed doctrine artifact.
+    return "sha256:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251
 
 
 def project_public_mission_snapshot(
@@ -144,4 +147,24 @@ def project_public_mission_snapshot(
         provenance=team.provenance,
         content_sha256=_content_sha256(projected_mission),
         mission=projected_mission,
+    )
+
+
+def project_public_index(team: TeamIndex) -> PublicIndex:
+    """Pure allowlist projection of a :class:`TeamIndex` onto the public
+    index shape: each row filtered to :data:`PUBLIC_INDEX_ALLOWED_FIELDS`,
+    same order as the team index (§3.3)."""
+    missions = tuple(
+        {
+            key: value
+            for key, value in entry.model_dump(mode="json").items()
+            if key in PUBLIC_INDEX_ALLOWED_FIELDS
+        }
+        for entry in team.missions
+    )
+    return PublicIndex(
+        schema="public_index/v1",
+        provenance=team.provenance,
+        content_sha256=_content_sha256(list(missions)),
+        missions=missions,
     )
