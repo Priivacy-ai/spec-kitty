@@ -323,3 +323,94 @@ def test_runner_reevaluates_scope_independently_per_call() -> None:
         runner.run(["bd", "--json", "list"], context=_ctx(repository="other-repo"))
 
     assert len(inner.calls) == 1
+
+
+# ---------------------------------------------------------------------------
+# authority_report / record_conflicts -- "exposes authority/freshness/conflicts"
+# ---------------------------------------------------------------------------
+
+
+def test_authority_report_reflects_a_fresh_authorized_token() -> None:
+    runner = GatewayCommandRunner(_token(mission_id="m1", task_id="TRK-M1-04"), inner=_FakeInnerRunner(), clock=lambda: 1001.0)
+
+    report = runner.authority_report(_ctx(mission_id="m1", task_id="TRK-M1-04"))
+
+    assert report.authorized is True
+    assert report.fresh is True
+    assert report.actor == "ivan"
+    assert report.repository == "spec-kitty"
+    assert report.mission_id == "m1"
+    assert report.task_id == "TRK-M1-04"
+    assert report.denied_operations == ()
+    assert report.conflicts == ()
+
+
+def test_authority_report_reflects_an_expired_token_as_unauthorized() -> None:
+    runner = GatewayCommandRunner(_token(ttl_seconds=60.0), inner=_FakeInnerRunner(), clock=lambda: 1060.0)
+
+    report = runner.authority_report()
+
+    assert report.fresh is False
+    assert report.authorized is False
+
+
+def test_authority_report_reflects_an_out_of_scope_context_as_unauthorized_but_fresh() -> None:
+    runner = GatewayCommandRunner(_token(), inner=_FakeInnerRunner(), clock=lambda: 1001.0)
+
+    report = runner.authority_report(_ctx(repository="other-repo"))
+
+    assert report.fresh is True
+    assert report.authorized is False
+
+
+def test_authority_report_with_no_context_reports_token_authority_alone() -> None:
+    runner = GatewayCommandRunner(_token(), inner=_FakeInnerRunner(), clock=lambda: 1001.0)
+
+    report = runner.authority_report()
+
+    assert report.authorized is True
+    assert report.fresh is True
+
+
+def test_authority_report_accumulates_denied_operations_up_to_the_history_limit() -> None:
+    runner = GatewayCommandRunner(_token(), inner=_FakeInnerRunner(), clock=lambda: 1001.0, history_limit=2)
+
+    for command in (
+        ["bd", "--json", "close", "BD-1"],
+        ["bd", "--json", "assign", "BD-1", "ivan"],
+        ["bd", "--json", "approve", "BD-1"],
+    ):
+        with pytest.raises(GatewayForbiddenOperationError):
+            runner.run(command, context=_ctx())
+
+    report = runner.authority_report()
+
+    assert len(report.denied_operations) == 2
+    assert "forbidden subcommand 'assign'" in report.denied_operations[0]
+    assert "forbidden subcommand 'approve'" in report.denied_operations[1]
+
+
+def test_record_conflicts_is_surfaced_by_authority_report() -> None:
+    runner = GatewayCommandRunner(_token(), inner=_FakeInnerRunner(), clock=lambda: 1001.0)
+
+    runner.record_conflicts(["title conflict on BD-1", "status conflict on BD-2"])
+    report = runner.authority_report()
+
+    assert report.conflicts == ("title conflict on BD-1", "status conflict on BD-2")
+
+
+def test_record_conflicts_replaces_rather_than_accumulates() -> None:
+    runner = GatewayCommandRunner(_token(), inner=_FakeInnerRunner(), clock=lambda: 1001.0)
+
+    runner.record_conflicts(["first sync's conflict"])
+    runner.record_conflicts(["second sync's conflict"])
+    report = runner.authority_report()
+
+    assert report.conflicts == ("second sync's conflict",)
+
+
+def test_token_property_returns_the_configured_token() -> None:
+    token = _token()
+    runner = GatewayCommandRunner(token, inner=_FakeInnerRunner(), clock=lambda: 1001.0)
+
+    assert runner.token is token
