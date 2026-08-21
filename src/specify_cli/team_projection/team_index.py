@@ -18,6 +18,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.dashboard import scanner
 
 from .mission_view import build_team_mission_snapshot
@@ -69,7 +70,21 @@ def resolve_feature_dir_for_mission_slug(project_dir: Path, mission_slug: str) -
     directory name IS the ``mission_slug`` in every case
     (``build_mission_registry`` always sets it from ``feature_dir.name``,
     §2.1), so this fallback is exact, not a guess.
+
+    This is the single chokepoint every caller in this package uses before
+    joining ``mission_slug`` into any filesystem path (§3.1's declared
+    ``specify_cli.core.paths.assert_safe_path_segment`` import surface,
+    Renata D1-T1 review MEDIUM finding) — ``write.py``'s own
+    ``derived_dir / entry.mission_slug / ...`` joins always run after this
+    function has already validated the same ``entry.mission_slug`` value for
+    that mission in the same publish run, so guarding here transitively
+    guards those too. Raises ``ValueError`` (hard fail, never a silent
+    downgrade) because a mission directory reaching this far has already
+    been treated as a legitimate mission by the scanner; a hostile name at
+    this point is a defense-in-depth backstop, not an expected input to
+    degrade gracefully around.
     """
+    assert_safe_path_segment(mission_slug)
     feature_paths: dict[str, Path] = scanner.gather_feature_paths(project_dir)
     resolved: Path | None = feature_paths.get(mission_slug)
     if resolved is not None:

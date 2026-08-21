@@ -145,3 +145,39 @@ def test_legacy_pseudo_key_mission_appears_exactly_once(temp_repo: Path) -> None
 
     matches = [e for e in index.missions if e.mission_slug == "005-legacy-mission"]
     assert len(matches) == 1
+
+
+# --- Renata review (D1-T1 APPROVE w/ findings), MEDIUM: mission_slug path-
+# segment guard. D1.md §3.1 declares specify_cli.core.paths
+# (assert_safe_path_segment) as part of D1's allowed import surface, but
+# nothing in team_projection/ called it before this fix -- resolve_feature_dir_
+# for_mission_slug joined an unvalidated mission_slug straight into a
+# filesystem path. mission_slug is always feature_dir.name today (structurally
+# "/"-free), but a real mission directory COULD be named with non-ASCII or a
+# leading dot; nothing caught that before this guard. ------------------------
+
+
+def test_resolve_feature_dir_for_mission_slug_rejects_leading_dot(temp_repo: Path) -> None:
+    from specify_cli.team_projection.team_index import resolve_feature_dir_for_mission_slug
+
+    with pytest.raises(ValueError, match="safe path segment"):
+        resolve_feature_dir_for_mission_slug(temp_repo, ".hidden-mission")
+
+
+def test_resolve_feature_dir_for_mission_slug_rejects_non_ascii(temp_repo: Path) -> None:
+    from specify_cli.team_projection.team_index import resolve_feature_dir_for_mission_slug
+
+    with pytest.raises(ValueError, match="safe path segment"):
+        resolve_feature_dir_for_mission_slug(temp_repo, "café-mission")
+
+
+def test_resolve_feature_dir_for_mission_slug_accepts_normal_slug(temp_repo: Path) -> None:
+    """The guard must not reject the ordinary, already-registered case --
+    only the hostile-format one (regression guard alongside the two above)."""
+    from specify_cli.team_projection.team_index import resolve_feature_dir_for_mission_slug
+
+    write_wp(temp_repo, "001-alpha", "planned", "WP01")
+    _commit_all(temp_repo)
+
+    resolved = resolve_feature_dir_for_mission_slug(temp_repo, "001-alpha")
+    assert resolved == temp_repo / "kitty-specs" / "001-alpha"

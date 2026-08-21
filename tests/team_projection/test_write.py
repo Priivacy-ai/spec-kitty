@@ -129,6 +129,28 @@ def test_manifest_absent_when_run_fails_before_completion(
     )
 
 
+# --- Renata review (D1-T1 APPROVE w/ findings), MEDIUM: mission_slug path-
+# segment guard reachable end-to-end through write_team_projection. ----------
+
+
+def test_write_team_projection_rejects_hostile_mission_dir_name(temp_repo: Path) -> None:
+    """A mission directory whose name (mission_slug) fails the safe-segment
+    grammar (here: non-ASCII) must be rejected cleanly by the publish path
+    instead of being silently joined into ``.kittify/derived/<slug>/...``.
+    No attestation manifest is written for a run that fails partway."""
+    from specify_cli.team_projection.write import write_team_projection
+
+    write_wp(temp_repo, "café-mission", "planned", "WP01")
+    _commit_all(temp_repo)
+
+    with pytest.raises(ValueError, match="safe path segment"):
+        write_team_projection(temp_repo)
+
+    derived = temp_repo / ".kittify" / "derived"
+    manifest_path = derived / "attestation-manifest.json"
+    assert not manifest_path.exists()
+
+
 def test_write_uses_atomic_write_json_pattern(temp_repo: Path) -> None:
     """No stray ``.tmp`` file survives a successful run (temp-file +
     os.replace, reusing ``status/views.py``'s existing primitive)."""
