@@ -25,12 +25,21 @@ from specify_cli.core.atomic import atomic_write
 from kernel.clock import now_utc_iso
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 
 ANALYSIS_REPORT_FILENAME = "analysis-report.md"
 ANALYSIS_REPORT_ARTIFACT_TYPE = "spec-kitty.analysis-report"
 ANALYSIS_REPORT_COMMAND = "/spec-kitty.analyze"
 ANALYSIS_REPORT_REASON_CARRIER_FORMAT = "carrier_format_not_wrapped"
-_HASH_INPUTS = ("spec.md", "plan.md", "tasks.md")
+# FR-009/FR-010 (#3599): sourced from the per-type expected-artifacts.yaml
+# path_pattern authority, not hardcoded literals -- byte-compatible with
+# the prior ("spec.md", "plan.md", "tasks.md") literal for software-dev
+# (NFR-003). See tests/specify_cli/runtime/test_configured_artifact_name.py.
+_HASH_INPUTS = (
+    resolve_configured_artifact_name("input.spec.main"),
+    resolve_configured_artifact_name("output.plan.main"),
+    resolve_configured_artifact_name("output.tasks.list"),
+)
 
 # --- analysis-findings/v1 structured carrier (FR-004 / #1819) ---------------
 #

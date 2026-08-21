@@ -64,6 +64,7 @@ from specify_cli.retrospective.writer import (
 )
 from specify_cli.status import reduce as reduce_status_events
 from specify_cli.status import read_events
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 
 app = typer.Typer(
     name="retrospect",
@@ -231,6 +232,23 @@ def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path
     return surface.parent
 
 
+def _required_planning_artifact_filenames() -> tuple[str, str, str]:
+    """Return today's (spec, plan, tasks) filenames via the resolved artifact-name seam.
+
+    FR-009/FR-010 (#3599): sourced from the per-type expected-artifacts.yaml
+    path_pattern authority, not hardcoded literals -- byte-compatible with
+    the prior ``("spec.md", "plan.md", "tasks.md")`` literal for software-dev
+    (NFR-003). Evaluated at call time (not cached at import) so this stays
+    live for tests that patch the underlying manifest source -- see
+    tests/specify_cli/runtime/test_configured_artifact_name.py.
+    """
+    return (
+        resolve_configured_artifact_name("input.spec.main"),
+        resolve_configured_artifact_name("output.plan.main"),
+        resolve_configured_artifact_name("output.tasks.list"),
+    )
+
+
 def _mission_artifacts_sufficient_for_empty_record(
     feature_dir: Path,
     *,
@@ -244,7 +262,7 @@ def _mission_artifacts_sufficient_for_empty_record(
     status surface (FR-009 / #1735), which diverges from ``feature_dir`` under
     coordination topology.
     """
-    for required in ("spec.md", "plan.md", "tasks.md"):
+    for required in _required_planning_artifact_filenames():
         if not (feature_dir / required).is_file():
             return False
     tasks_dir = feature_dir / "tasks"
