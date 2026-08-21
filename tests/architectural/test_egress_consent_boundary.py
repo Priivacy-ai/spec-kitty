@@ -2274,6 +2274,7 @@ specify_cli/delivery/ledger.py::init_ledger::CREATE::executescript
 specify_cli/delivery/retention.py::_purge_all_body_rows::DELETE::execute
 specify_cli/delivery/retention.py::_purge_journal_rows::DELETE::executemany
 specify_cli/delivery/retention.py::_purge_ledger_rows::DELETE::execute
+specify_cli/delivery/targets.py::ProjectDeliveryTargetRegistry.admit_locally::INSERT::execute
 specify_cli/delivery/targets.py::ProjectDeliveryTargetRegistry.register::INSERT::execute
 specify_cli/event_journal/coalesce.py::_collapse_into::UPDATE::execute
 specify_cli/event_journal/coalesce.py::_connect::CREATE::execute

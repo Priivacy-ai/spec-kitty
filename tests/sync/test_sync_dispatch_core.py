@@ -156,6 +156,44 @@ class TestDecideSyncNowExit:
         summary = _summary(selected=3, delivered=1, transient=2)
         assert decide_sync_now_exit(False, 0, summary) is SyncNowExitAction.NONE
 
+    # ----------------------------------------------------------------- #
+    # admission_gated (#3620 Finding 2 + AC-9 regression guard)         #
+    # ----------------------------------------------------------------- #
+
+    def test_admission_gated_zero_recorded_is_admission_blocked_not_unauthenticated(self) -> None:
+        # Same shape as test_selected_no_progress_no_records_is_unauthenticated
+        # (a pure gate/admission block records no rows) but admission_gated=True
+        # means the exec layer identified it as a gate/admission block, not a
+        # real 401/403 — so the verdict must NOT be HANDLE_UNAUTHENTICATED.
+        summary = _summary(selected=4)
+        assert decide_sync_now_exit(True, 0, summary, admission_gated=True) is SyncNowExitAction.ADMISSION_BLOCKED
+
+    def test_admission_gated_pending_nothing_attempted_is_admission_blocked(self) -> None:
+        assert decide_sync_now_exit(True, 5, DispatchSummary.empty(), admission_gated=True) is SyncNowExitAction.ADMISSION_BLOCKED
+
+    def test_admission_gated_false_preserves_legacy_unauthenticated_routing(self) -> None:
+        # AC-9 regression guard, direction 1: without the marker, the legacy
+        # "nothing attempted" shape still routes through teamspace-aware
+        # recovery — admission_gated must never become the default behavior.
+        summary = _summary(selected=4)
+        assert decide_sync_now_exit(True, 0, summary, admission_gated=False) is SyncNowExitAction.HANDLE_UNAUTHENTICATED
+
+    def test_genuine_401_batch_stays_transient_block_even_when_admission_gated(self) -> None:
+        # AC-9 regression guard, direction 2 (Finding 2's other half): a REAL
+        # 401/403 must never be relabeled as admission_blocked, even if a
+        # caller mistakenly passed admission_gated=True. The transient-with-
+        # recorded-rows shape takes precedence over the zero-recorded arm this
+        # parameter touches, so genuine auth failures are untouched by design.
+        summary = _summary(
+            selected=2,
+            transient=2,
+            failures=(
+                DispatchFailure(event_id="e1", outcome="transient", http_status=401),
+                DispatchFailure(event_id="e2", outcome="transient", http_status=401),
+            ),
+        )
+        assert decide_sync_now_exit(True, 0, summary, admission_gated=True) is SyncNowExitAction.TRANSIENT_BLOCK
+
 
 # --------------------------------------------------------------------------- #
 # _combine_dispatch_summaries                                                 #
@@ -281,6 +319,27 @@ class TestEnforceSyncNowExitWrapper:
         # selected>0, no progress, no records → HANDLE_UNAUTHENTICATED.
         sync_module._enforce_sync_now_exit_from_dispatch(True, 0, _summary(selected=4))
         assert calls == [True]
+
+    def test_admission_blocked_action_never_calls_unauthenticated_recovery(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # #3620 Finding 2: the same "selected>0, no progress, no records" shape
+        # as the unauthenticated test above, but admission_gated=True. The
+        # wrapper must NOT print/route the "not authenticated" message — that
+        # is exactly the misreport this fix closes.
+        import specify_cli.cli.commands.sync as sync_module
+
+        calls: list[bool] = []
+        monkeypatch.setattr(sync_module, "_handle_sync_now_unauthenticated", lambda strict: calls.append(strict))
+        with pytest.raises(typer.Exit) as exc:
+            sync_module._enforce_sync_now_exit_from_dispatch(True, 0, _summary(selected=4), admission_gated=True)
+        assert exc.value.exit_code == 1
+        assert calls == [], "admission_gated must never route through unauthenticated recovery"
+
+    def test_admission_blocked_action_not_strict_returns_without_raise(self) -> None:
+        import specify_cli.cli.commands.sync as sync_module
+
+        # Under --no-strict, an admission-gated block is reported (by the exec
+        # layer, upstream) but does not raise.
+        sync_module._enforce_sync_now_exit_from_dispatch(False, 0, _summary(selected=4), admission_gated=True)
 
     def test_logged_out_on_connected_teamspace_raises_exit_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.cli.commands.sync as sync_module

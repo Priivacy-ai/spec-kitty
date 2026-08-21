@@ -21,8 +21,9 @@ What lives here:
 * **The sole event-delivery path** — ``_run_event_sync_dispatch``: opens the
   project dispatch runtime, resolves the gated receiver, drives the batches and
   returns the ``DispatchSummary`` (or an ``_IntentionalNoDelivery`` wrapper, or
-  ``None`` on infrastructure failure) for the host ``now`` shell to map onto the
-  strict exit contract.
+  an ``_AdmissionGatedNoDelivery`` wrapper carrying the real gate/admission
+  reason (#3620, Finding 2), or ``None`` on infrastructure failure) for the
+  host ``now`` shell to map onto the strict exit contract.
 
 **Late-bound host access (INV-4 / WP03 convention).** The monkeypatch seam
 callees these executors invoke — ``_EVENT_SYNC_DISPATCH_BATCH_LIMIT``,
@@ -58,8 +59,14 @@ from specify_cli.sync.sync_dispatch_core import (
 
 _LOG = logging.getLogger(__name__)
 
+#: Finding 2 (#3620): the real gate/capability reason, kept identical between
+#: the console notice and the ``_AdmissionGatedNoDelivery`` marker so the host
+#: (``cli/commands/sync.py``) never has to re-derive it and a genuine 401/403
+#: is never relabeled as this.
+_ADMISSION_NOT_CURRENT_REASON = "admission_not_current"
+
 if TYPE_CHECKING:
-    from specify_cli.cli.commands.sync import _IntentionalNoDelivery
+    from specify_cli.cli.commands.sync import _AdmissionGatedNoDelivery, _IntentionalNoDelivery
     from specify_cli.delivery.config import EventSyncConfig
     from specify_cli.delivery.dispatcher import DispatchSummary
     from specify_cli.delivery.receivers import DeliveryReceiver, GateDecision
@@ -169,7 +176,7 @@ def _run_dispatch_batches(
     return combined
 
 
-def _run_event_sync_dispatch() -> DispatchSummary | _IntentionalNoDelivery | None:
+def _run_event_sync_dispatch() -> DispatchSummary | _IntentionalNoDelivery | _AdmissionGatedNoDelivery | None:
     """Drive the WP07 dispatcher over the resolved active target.
 
     This is the SOLE event-delivery path for ``sync now`` (the destructive
@@ -178,7 +185,11 @@ def _run_event_sync_dispatch() -> DispatchSummary | _IntentionalNoDelivery | Non
     infrastructure failure degrades to a dim notice and ``None`` rather than
     crashing the command (NFR-006). An operator-selected mode with no receiver
     returns an explicit wrapper around an empty summary so strict handling can
-    distinguish deliberate retention from gate/admission failure.
+    distinguish deliberate retention from gate/admission failure. A gate/
+    admission block (receiver gate unsatisfied, or no ADMITTED delivery
+    target) similarly returns ``_AdmissionGatedNoDelivery`` carrying the real
+    reason, so the host never mislabels it as "not authenticated" (#3620,
+    Finding 2).
     Delivery outcomes surface via the printed summary; the journal is never
     deleted on success (FR-001).
     """
@@ -217,7 +228,7 @@ def _run_event_sync_dispatch() -> DispatchSummary | _IntentionalNoDelivery | Non
             names = ", ".join(gate.name for gate in gate_decision.unsatisfied)
             sync_module.console.print(f"[dim]Event sync gated: {names}[/dim]")
             gated_selected: int = sync_module._count_project_retained_events(opened)
-            return DispatchSummary(
+            gated_summary = DispatchSummary(
                 target_id=None,
                 selected=gated_selected,
                 delivered=0,
@@ -227,11 +238,16 @@ def _run_event_sync_dispatch() -> DispatchSummary | _IntentionalNoDelivery | Non
                 transient=0,
                 terminal_failed=0,
             )
+            # Finding 2 (#3620): carry the REAL gate names so the host never
+            # relabels a gate/capability block as "not authenticated" — see
+            # sync_dispatch_core.SyncNowExitAction.ADMISSION_BLOCKED.
+            gated_no_delivery: _AdmissionGatedNoDelivery = sync_module._AdmissionGatedNoDelivery(gated_summary, reason=names)
+            return gated_no_delivery
         delivery_target = opened.delivery_target
         if delivery_target is None:
-            sync_module.console.print("[dim]Event sync gated: admission_not_current[/dim]")
+            sync_module.console.print(f"[dim]Event sync gated: {_ADMISSION_NOT_CURRENT_REASON}[/dim]")
             admission_selected: int = sync_module._count_project_retained_events(opened)
-            return DispatchSummary(
+            admission_summary = DispatchSummary(
                 target_id=None,
                 selected=admission_selected,
                 delivered=0,
@@ -241,6 +257,8 @@ def _run_event_sync_dispatch() -> DispatchSummary | _IntentionalNoDelivery | Non
                 transient=0,
                 terminal_failed=0,
             )
+            admission_no_delivery: _AdmissionGatedNoDelivery = sync_module._AdmissionGatedNoDelivery(admission_summary, reason=_ADMISSION_NOT_CURRENT_REASON)
+            return admission_no_delivery
         summary: DispatchSummary = sync_module._run_dispatch_batches(opened, receiver, delivery_target)
         sync_module._print_dispatch_summary(summary, config.mode.name)
         with opened.store.unit_of_work() as unit:
