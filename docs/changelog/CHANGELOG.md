@@ -19,6 +19,8 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **New `spec-kitty team-projection publish` command produces read-only, byte-deterministic team-index and per-mission snapshot artifacts (plus an explicit-opt-in public variant and an attestation manifest) with exact-commit provenance (D1-T1).** Every artifact is a closed, allowlist-filtered projection of the existing status event log — orchestration-only runtime state (`shell_pid`, unbounded operator `notes`) never reaches a team or public consumer — and public output stays absent unless a project explicitly sets `public_projection.enabled: true` in `.kittify/config.yaml`. Refuses (non-zero exit, zero files written) on a dirty working tree, since the attestation manifest's whole purpose is a truthful commit-to-content binding for downstream consumers. New `specify_cli/team_projection/` package; no new runtime dependency.
+
 - **Spec Kitty now ships a `spk-doctrine-show-me` skill that guides any agent to
   explain work with compact, checkable visuals — the smallest diagram,
   pseudocode, or tree that answers the question — recommended from the specify
