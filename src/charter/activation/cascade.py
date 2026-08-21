@@ -84,8 +84,30 @@ __all__ = [
 #: is followed too: a refinement is a traversable reference at least as
 #: load-bearing as a suggestion, so activating an artifact cascades to what it
 #: refines — this is the wiring that keeps ``REFINES`` from being born inert.
+#:
+#: ``SCOPE`` and ``INSTANTIATES`` join the set per ADR 2026-08-20-1 (#2829) to
+#: follow the **action hop**. A ``mission_type`` node carries
+#: ``requires → action`` edges and, since #3604, ``scope → governance`` edges
+#: for its type-wide selections; an ``action`` node carries ``scope → governance``
+#: ({directive, tactic, styleguide, …}) and ``instantiates → template`` — it has
+#: no requires/suggests/refines edges. Without ``scope``/``instantiates`` the
+#: forward closure reaches the ``action`` node and stops, so activating any of the
+#: four built-in mission types cascaded to nobody. ``scope`` is the direct #2829
+#: fix (action → governance); ``instantiates`` is followed so the action hop is
+#: complete and mission-type actions are treated like the pre-existing sources
+#: that already reach templates. Its non-activatable ``template`` targets are
+#: dropped at *candidacy* (see :func:`_referenced_artifacts`), not by omitting the
+#: relation — traversal reach and candidacy are separate concerns. The remaining
+#: relations stay excluded (lineage, overlay, runtime handoff, tension,
+#: anti-pattern) so the cascade never over-reaches; the ADR tabulates why.
 REFERENCE_RELATIONS: frozenset[Relation] = frozenset(
-    {Relation.REQUIRES, Relation.SUGGESTS, Relation.REFINES}
+    {
+        Relation.REQUIRES,
+        Relation.SUGGESTS,
+        Relation.REFINES,
+        Relation.SCOPE,
+        Relation.INSTANTIATES,
+    }
 )
 
 #: Recovery hint surfaced with the no-cascade warning (FR-013, Contract C3.2).

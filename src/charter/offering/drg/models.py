@@ -69,7 +69,7 @@ class NodeKind(StrEnum):
     # addressed by the underscore URN ``glossary_pack:<id>``. It is NOT part of
     # the retiring runtime term nodes above and survives Mission C.
     GLOSSARY_PACK = "glossary_pack"  # URN prefix: "glossary_pack:<id>"
-    MISSION_TYPE = "mission_type"   # URN prefix: "mission_type:<id>"; carries `requires` edges to its action_sequence steps
+    MISSION_TYPE = "mission_type"   # URN prefix: "mission_type:<id>"; carries `requires`->action_sequence steps, `scope`->type-wide governance (#3604)
     # URN prefix: "anti_pattern:<id>"; `rejects` targets only (D2) -- never
     # activated as a live rule; finer marking (e.g. "smell") lives in
     # `DRGNode.tags`, not a second `NodeKind` member.
