@@ -1,9 +1,9 @@
 # Mission Specification: M7 — ExecutionMode / enum consolidation
 
-**Mission**: M7 (one of eight specs feeding a single-branch pre-rc2 PR; run later)
-**Status**: LIGHT DRAFT — operator decisions resolved (specify-phase only; NOT finalized — do not `mission create` yet)
+**Mission**: M7 (rc3 fail-loud friction burndown; Wave-1 lead — lands before M6/M4)
+**Status**: SPECIFIED — operator decisions resolved; mission created; ready for `/spec-kitty.plan`
 **Home ticket**: #3416 — WIDEN to include ExecutionMode as a **separated** acceptance block · coupled to #3590 / M6 (M6 depends on M7)
-**Authored by**: analyst-annie, 2026-08-20 · verified against `main`
+**Authored by**: analyst-annie, 2026-08-20 · verified against `main` · re-grounded against `upstream/main` @ `c44b4bcf87` on 2026-08-21 (every file:line citation re-checked on the current HEAD)
 
 ---
 
