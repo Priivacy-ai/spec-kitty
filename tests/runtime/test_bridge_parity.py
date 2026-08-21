@@ -1167,15 +1167,50 @@ def test_answer_path_side_effects_captured(
     assert run_a.side_effects.coord_commit_calls, "expected the answer-path coord commit to record calls"
 
 
+#: #3407 (M3 WP06) — ``_check_cli_guards`` now resolves the mission's REAL
+#: family (``get_mission_type``) instead of hardcoding ``"software-dev"``.
+#: ``_dn_dependency_gate`` calls ``_check_cli_guards`` as an UNCONDITIONAL
+#: pre-check for every step/family, before falling through to composed
+#: dispatch (``_check_composed_action_guard``). Previously that pre-check was
+#: a silent no-op for non-software-dev step ids (hardcoded software-dev
+#: routing made "scoping"/"discover" fall through ``_evaluate_software_dev_
+#: guards`` to ``return []``), so the missing-``spec.md`` failure was only
+#: ever caught by the composed guard. Post-fix, the pre-check correctly
+#: routes "scoping"/"discover" through ``_evaluate_research_guards`` /
+#: ``_evaluate_documentation_guards`` and catches the SAME failure itself —
+#: short-circuiting before ``_check_composed_action_guard`` is ever called
+#: for ``dn_research_scoping_guard_fail`` / ``dn_documentation_discover_
+#: guard_fail``. Both paths dispatch through the identical
+#: ``_GUARD_TABLES[family]`` -> ``_check_artifact_present(snapshot,
+#: SPEC_ARTIFACT)`` call, so the failure content is byte-identical either
+#: way — see ``test_moved_guard_branches_produce_identical_failures`` below,
+#: which pins that directly. Only the RECORDING call-site changed (``cli``
+#: vs ``composed``), and the oracle's ``classify_guard_branch``
+#: (``tests/runtime/_bridge_oracle.py``) does not yet label non-software-dev
+#: CLI pre-check calls distinctly — they fold into the already-counted
+#: ``cli:fallthrough_unrecognized`` bucket — so ``composed:research:scoping``
+#: and ``composed:documentation:discover`` are no longer independently
+#: trackable at the CURRENT instrumentation granularity. The floor below
+#: drops from 18 to 16 to reflect that INSTRUMENTATION change, not a real
+#: coverage loss: the underlying guard logic for both actions is still
+#: exercised every run, just via a different (correct) call site.
+#:
 #: Guard-branch coverage floor — a checkable count (not a fixture count),
 #: classified by action name so it is robust to line shifts (see test below).
-_GUARD_BRANCH_FLOOR = 18
+_GUARD_BRANCH_FLOOR = 16
+
+#: The two fixtures whose guard-catching call site moved from the composed
+#: guard to the CLI pre-check per the #3407 rationale above.
+_MOVED_TO_CLI_PRE_CHECK_FIXTURES: dict[str, str] = {
+    "dn_research_scoping_guard_fail": "scoping",
+    "dn_documentation_discover_guard_fail": "discover",
+}
 
 
 def test_coverage_floor_is_met(
     ledger_results: tuple[dict[str, tuple[FixtureRun, FixtureRun]], CoverageLedger],
 ) -> None:
-    """Guard-branch coverage floor (>= 18 branches reached, each from its owning
+    """Guard-branch coverage floor (>= 16 branches reached, each from its owning
     entry) — a checkable count, proven non-tautological by
     ``test_hollow_ledger_fails_coverage_floor`` (below).
 
@@ -1192,6 +1227,12 @@ def test_coverage_floor_is_met(
     action name, not line number, so it stays active and robust. (The
     ``assert_coverage_floor_met`` helper + ``KNOWN_DECISION_SITES`` remain so the
     structural fix can re-activate the site half.)
+
+    The floor moved 18 -> 16 for #3407 (M3 WP06): see the rationale comment
+    on ``_GUARD_BRANCH_FLOOR`` above. ``test_moved_guard_branches_produce_
+    identical_failures`` (below) is the checkable proof that the 2-branch
+    drop is an instrumentation artifact of the routing fix, not a real
+    coverage regression.
     """
     _results, ledger = ledger_results
     reached = ledger.guard_branches_reached
@@ -1200,6 +1241,49 @@ def test_coverage_floor_is_met(
         f"(floor={_GUARD_BRANCH_FLOOR}). Reached: {sorted(reached)}. "
         f"Fixtures run: {ledger.fixtures_run}"
     )
+
+
+def test_moved_guard_branches_produce_identical_failures(
+    ledger_results: tuple[dict[str, tuple[FixtureRun, FixtureRun]], CoverageLedger],
+) -> None:
+    """#3407 (M3 WP06) — checkable proof for the ``_GUARD_BRANCH_FLOOR`` 18->16
+    rebaseline: the ``research:scoping`` / ``documentation:discover`` guard
+    checks moved from the composed guard to the CLI pre-check, not away
+    entirely.
+
+    For each of ``_MOVED_TO_CLI_PRE_CHECK_FIXTURES``, asserts:
+
+    1. The CLI pre-check (``_check_cli_guards``) fired for the action and
+       carried a non-empty failure list.
+    2. The composed guard (``_check_composed_action_guard``) was NEVER
+       reached for that same action — proving the CLI pre-check
+       short-circuited it, which is exactly why the composed-labeled branch
+       disappeared from the coverage ledger.
+    3. The CLI call's failures are exactly the decision's ``guard_failures``
+       (the observable behavior the fixture produces), and mention the
+       missing ``spec.md`` artifact — the same message
+       ``_check_composed_action_guard`` would have produced, since both
+       paths dispatch through the identical ``_GUARD_TABLES[family]`` ->
+       ``_check_artifact_present(snapshot, SPEC_ARTIFACT)`` call. This is
+       the byte-identical-failure-content proof: only the call site moved.
+    """
+    results, _ledger = ledger_results
+    for fixture_id, step_id in _MOVED_TO_CLI_PRE_CHECK_FIXTURES.items():
+        run_a, _run_b = results[fixture_id]
+        cli_calls = [c for c in run_a.guard_calls if c.fn == "cli" and c.step_id_or_action == step_id]
+        composed_calls = [c for c in run_a.guard_calls if c.fn == "composed" and c.step_id_or_action == step_id]
+        assert cli_calls, f"{fixture_id}: expected the CLI pre-check to fire for {step_id!r}"
+        assert not composed_calls, (
+            f"{fixture_id}: composed guard for {step_id!r} unexpectedly reached — "
+            "the CLI pre-check should have short-circuited first"
+        )
+        assert cli_calls[0].failures == run_a.decision.guard_failures, (
+            f"{fixture_id}: CLI pre-check failures diverged from the decision's "
+            f"guard_failures: {cli_calls[0].failures!r} vs {run_a.decision.guard_failures!r}"
+        )
+        assert any("spec.md" in failure for failure in cli_calls[0].failures), (
+            f"{fixture_id}: expected the missing-spec.md failure message, got {cli_calls[0].failures!r}"
+        )
 
 
 def test_hollow_ledger_fails_coverage_floor() -> None:
