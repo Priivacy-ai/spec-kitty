@@ -73,7 +73,7 @@ The package root exposes a minimal `__all__` (the `__all__` Declaration
 Convention, C-007):
 
 ```python
-__all__ = ["ExecutionContext", "ExecutionMode", "resolve_action_context", "ActionContextError"]
+__all__ = ["ExecutionContext", "resolve_action_context", "ActionContextError"]
 ```
 
 - `ExecutionContext` — the immutable, complete resolved context (read/write/dest
@@ -81,8 +81,6 @@ __all__ = ["ExecutionContext", "ExecutionMode", "resolve_action_context", "Actio
   object**, never over path fragments. Consumers receive a resolved context;
   they do not reconstruct `main_repo_root / "kitty-specs" / mission_slug`
   themselves (FR-009).
-- `ExecutionMode` — the resolution mode (e.g. worktree vs. code-change),
-  inferred when the caller does not specify it.
 - `resolve_action_context(repo_root, mission, wp_id=None, *, mode=None) -> ExecutionContext`
   — the single resolution entry point. CWD-invariant, topology-aware,
   mode-correct `target_branch`, and raises `ActionContextError` on unresolvable
@@ -140,10 +138,24 @@ later work, not a safety gate this surface must provide.
 ### What is now explicit
 
 - The execution-state domain has a screaming, top-level home: `mission_runtime`.
-- The public surface is fixed to four symbols, all expressed over context
-  objects, and internal submodules are import-forbidden from outside the package.
+- The public surface is lean and expressed over context objects (originally four
+  symbols; `ExecutionMode` was retired 2026-08-21 — see Amendments), and internal
+  submodules are import-forbidden from outside the package.
 - The migration is Strangler-ordered: umbrella first (WP02), relocation second
   (WP03), call-site cutover and shim removal after.
+
+## Amendments
+
+- **2026-08-21 — `ExecutionMode` retired (mission `rc3-execution-mode-consolidation-01M0GGX1`, M7).**
+  `mission_runtime.context.ExecutionMode` (a `worktree` / `code_change` enum) was
+  never consumed: `MissionExecutionContext.execution_mode` carries a raw `str`, and
+  no code compared against the enum's members. It was removed from `context.py`, from
+  the package `__all__`, and from this ADR's public-API listing. The worktree-vs-direct
+  execution-mode axis is owned by the external `spec_kitty_events.status.ExecutionMode`
+  (`worktree` / `direct_repo`); the retired local enum was a dead, mis-named duplicate
+  of that axis whose `code_change` token also collided with the *ownership* enum's
+  unrelated `code_change` ("WP produces code"). Retiring it removes both the dead
+  symbol and one half of that class-name/token footgun.
 
 ## References
 
