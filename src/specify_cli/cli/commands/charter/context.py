@@ -66,7 +66,6 @@ def context(
 ) -> None:
     """Render charter context for a specific workflow action."""
     from charter.activation.context import (
-        BOOTSTRAP_ACTIONS,
         build_charter_context,
         build_charter_context_include,
         build_charter_context_json,
@@ -196,7 +195,11 @@ def context(
             )
             return
 
-        if result.action in BOOTSTRAP_ACTIONS:
+        # FR-007 (#3596, WP02): gate the display header on the resolved mode,
+        # not set-membership -- a declared non-fast-path action (e.g.
+        # "tasks", "retrospect") now resolves bootstrap too and must get its
+        # header, which a static BOOTSTRAP_ACTIONS check would still deny.
+        if result.mode == "bootstrap":
             console.print(f"Action: {result.action} ({result.mode})")
         console.print(result.text)
 

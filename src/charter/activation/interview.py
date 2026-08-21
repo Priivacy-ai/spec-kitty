@@ -31,9 +31,6 @@ __all__ = [
 ]
 
 
-# Known action values for LocalSupportDeclaration normalization.
-_KNOWN_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
-
 # Glob characters that indicate a path pattern rather than an explicit file.
 _GLOB_CHARS: tuple[str, ...] = ("*", "?", "[", "]")
 
@@ -72,17 +69,72 @@ class LocalSupportDeclaration:
         return cls(path=path, action=action, target_kind=target_kind, target_id=target_id)
 
 
+def _declared_action_labels(repo_root: Path) -> frozenset[str]:
+    """FR-008 (#3596, ADR 2026-08-21-1-charter-gate-predicate-inversion).
+
+    Type-agnostic declared-node source: every action-step label reachable on
+    ANY ``action:<type>/<step>`` DRG node (across every mission type, not just
+    ``software-dev``), consulted ALONGSIDE the fast-path
+    :data:`~charter.activation.context.BOOTSTRAP_ACTIONS` constant so the fast-path set
+    never becomes the closed acceptance allowlist (squad note S6) -- a
+    declared node outside the four fast-path tokens (e.g. ``tasks``,
+    ``retrospect``) is accepted, not warn-dropped.
+
+    Best-effort: any DRG load failure degrades to an empty set (the fast-path
+    set alone still governs acceptance), mirroring
+    ``_load_action_doctrine_bundle``'s WARNING-and-degrade posture for the
+    same failure mode -- interview validation must not hard-fail on a
+    charter-less or malformed project. ``FileNotFoundError``/``OSError`` are
+    caught alongside ``DRGLoadError`` -- the shipped-graph-missing case
+    (e.g. a broken install) surfaces as a raw ``OSError``, not a translated
+    ``DRGLoadError``, matching the established idiom at
+    ``charter.reference_resolver``'s own ``load_validated_graph`` call site.
+    """
+    from charter.offering.drg.loader import DRGLoadError  # noqa: PLC0415 -- leaf import, no cycle risk
+
+    from charter.activation._drg_helpers import load_validated_graph  # noqa: PLC0415 -- see cycle note below
+
+    try:
+        merged = load_validated_graph(repo_root)
+    except (DRGLoadError, OSError):
+        return frozenset()
+    return frozenset(
+        urn.split("/", 1)[1]
+        for urn in merged.node_urns()
+        if urn.startswith("action:") and "/" in urn
+    )
+
+
 def validate_local_support_declarations(
     declarations: list[LocalSupportDeclaration],
+    *,
+    repo_root: Path | None = None,
 ) -> tuple[list[LocalSupportDeclaration], list[str]]:
     """Validate and normalize a list of declarations.
 
     Returns (valid_declarations, error_messages).
     Rejects directory paths (trailing slash or no extension when a glob char present)
     and paths containing glob characters.
+
+    *repo_root*, when supplied, feeds :func:`_declared_action_labels` -- FR-008's
+    second acceptance input (a declared DRG action node), alongside the
+    fast-path :data:`~charter.activation.context.BOOTSTRAP_ACTIONS` constant. Omitting it
+    (existing callers, existing tests) degrades to fast-path-only acceptance,
+    the pre-fix behaviour -- backward compatible, not a new hard requirement.
     """
     valid: list[LocalSupportDeclaration] = []
     errors: list[str] = []
+
+    # Cycle note: `charter.activation.context` sits above this module in the
+    # existing import graph, so a module-level import of
+    # ``BOOTSTRAP_ACTIONS`` could import a partially initialized module back
+    # through that chain.
+    # Function-local import breaks the cycle (established pattern -- see
+    # `charter.resolver`'s lazy `CharterInterview` import).
+    from charter.activation.context import BOOTSTRAP_ACTIONS  # noqa: PLC0415
+
+    declared_labels = _declared_action_labels(repo_root) if repo_root is not None else frozenset()
+    known_actions = BOOTSTRAP_ACTIONS | declared_labels
 
     for decl in declarations:
         path = decl.path
@@ -103,12 +155,12 @@ def validate_local_support_declarations(
         # Normalize action: unknown values are silently dropped (set to None)
         normalized_action: str | None = None
         if decl.action is not None:
-            if decl.action in _KNOWN_ACTIONS:
+            if decl.action in known_actions:
                 normalized_action = decl.action
             else:
                 errors.append(
                     f"local_supporting_files path '{path}': unknown action "
-                    f"'{decl.action}' (expected one of {sorted(_KNOWN_ACTIONS)}); "
+                    f"'{decl.action}' (expected one of {sorted(known_actions)}); "
                     "treating as global."
                 )
                 # Still include the declaration but with action=None
