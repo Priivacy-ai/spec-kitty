@@ -27,24 +27,28 @@ def _render(source: str, asset_root: Path, **kwargs: Any) -> RenderedDocument:
     "payload",
     [
         "<script>alert(1)</script>",
-        '<img src=x onerror=alert(1)>',
+        "<img src=x onerror=alert(1)>",
         "<svg onload=alert(1)>",
         '<div onclick="alert(1)">x</div>',
-        "<a onmouseover=\"alert(1)\">x</a>",
+        '<a onmouseover="alert(1)">x</a>',
         "<body onload=alert(1)>",
     ],
 )
 def test_d1_no_raw_html_passthrough(tmp_path: Path, payload: str) -> None:
-    doc = _render(f"Hello {payload} world", tmp_path)
-    lowered = doc.html.lower()
-    assert "<script" not in lowered
-    assert "onerror=" not in lowered
-    assert "onload=" not in lowered
     import re
 
-    assert re.search(r"\son[a-z]+=", lowered) is None
-    # The source text must survive as escaped literal text, not be silently dropped.
-    assert "alert(1)" in doc.html or "alert(1)" in doc.html.replace("&#x28;", "(").replace("&#x29;", ")")
+    doc = _render(f"Hello {payload} world", tmp_path)
+    lowered = doc.html.lower()
+    # No LIVE (unescaped) tag or event-handler attribute may appear: the
+    # source's literal `<` must always have been turned into `&lt;` before
+    # any tag name, so no real DOM element/attribute is ever constructed.
+    assert re.search(r"<(script|img|svg|div|a|body)[\s>]", lowered) is None
+    assert re.search(r"<[a-z][^&]*\son[a-z]+\s*=", lowered) is None
+    # The source text must survive as escaped literal text, not be silently
+    # dropped — §3.2's "escaped as text, matching renderer #2's esc()-first
+    # discipline" (D2.md §4 row D1).
+    assert "&lt;" in doc.html
+    assert "alert(1)" in doc.html
 
 
 # --- D7: unsafe URL schemes rejected for link and image ---------------------------
@@ -55,7 +59,7 @@ def test_d1_no_raw_html_passthrough(tmp_path: Path, payload: str) -> None:
     ["javascript", "data", "vbscript", "file"],
 )
 def test_d7_unsafe_link_scheme_rejected(tmp_path: Path, scheme: str) -> None:
-    payload = f"javascript:alert(1)" if scheme == "javascript" else f"{scheme}:something"
+    payload = "javascript:alert(1)" if scheme == "javascript" else f"{scheme}:something"
     doc = _render(f"[link]({payload})", tmp_path)
     assert "href=" not in doc.html
     assert "link" in doc.html  # link text retained
@@ -202,8 +206,24 @@ def test_d13_block_and_inline_vocabulary(tmp_path: Path) -> None:
     )
     doc = _render(source, tmp_path)
     for tag in (
-        "<h1", "<h2", "<p", "<ul", "<ol", "<li", "<code", "<strong", "<em",
-        "<blockquote", "<hr", "<pre", "<table", "<thead", "<tbody", "<tr", "<th", "<td",
+        "<h1",
+        "<h2",
+        "<p",
+        "<ul",
+        "<ol",
+        "<li",
+        "<code",
+        "<strong",
+        "<em",
+        "<blockquote",
+        "<hr",
+        "<pre",
+        "<table",
+        "<thead",
+        "<tbody",
+        "<tr",
+        "<th",
+        "<td",
     ):
         assert tag in doc.html, f"missing {tag} in {doc.html}"
     assert 'class="language-python"' in doc.html
