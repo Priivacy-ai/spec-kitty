@@ -39,6 +39,15 @@ _ALLOWED_LINK_SCHEMES = frozenset({"https", "mailto"})
 
 _SCHEME_RE = re.compile(r"^([a-zA-Z][a-zA-Z0-9+.\-]*):")
 
+# Matches the WHATWG URL spec's own input-preprocessing step: real browsers
+# strip every ASCII C0 control character (tab, CR, LF, VT, FF, NUL, etc.)
+# from anywhere in a URL string before determining its scheme. Without this,
+# an embedded control character (e.g. "java<TAB>script:") splits the
+# unbroken alnum/+/./- run _SCHEME_RE requires, so the scheme match fails,
+# the string falls through to the "internal relative link" branch, and the
+# unsafe scheme reaches the DOM byte-for-byte (D2.md §4 row D7).
+_URL_CONTROL_CHARS_RE = re.compile(r"[\x00-\x1f\x7f]")
+
 # --- block-level grammar -----------------------------------------------------
 
 _FENCE_RE = re.compile(r"^```([a-zA-Z0-9_+\-]*)\s*$")
@@ -56,8 +65,14 @@ _INLINE_CODE_RE = re.compile(r"`([^`]+)`")
 _STRONG_RE = re.compile(r"\*\*([^*]+)\*\*")
 _EM_STAR_RE = re.compile(r"\*([^*]+)\*")
 _EM_UNDER_RE = re.compile(r"(?<![A-Za-z0-9_])_([^_]+)_(?![A-Za-z0-9_])")
-_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)]*)\)")
-_LINK_RE = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
+# The target group allows one level of balanced-parenthesis nesting inside
+# the destination (e.g. Wikipedia-style ".../Example_(disambiguation)" or
+# code-search URLs) instead of truncating at the first literal ")" — the two
+# alternatives are mutually exclusive on their first character, so this
+# stays linear-time (no catastrophic-backtracking risk, D2.md §4 row D19).
+_PAREN_BALANCED_DEST = r"(?:[^()]|\([^()]*\))*"
+_IMAGE_RE = re.compile(rf"!\[([^\]]*)\]\(({_PAREN_BALANCED_DEST})\)")
+_LINK_RE = re.compile(rf"\[([^\]]*)\]\(({_PAREN_BALANCED_DEST})\)")
 
 _COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 
@@ -292,7 +307,7 @@ def _resolve_href(
     warnings: list[str],
 ) -> tuple[str | None, bool]:
     """Return ``(href, is_external)`` or ``(None, False)`` if the scheme is rejected."""
-    stripped = url.strip()
+    stripped = _URL_CONTROL_CHARS_RE.sub("", url).strip()
     if not stripped:
         return None, False
     if stripped.startswith("//"):
@@ -318,7 +333,7 @@ def _resolve_image_src(src: str, asset_root: Path, warnings: list[str]) -> str |
     ``relative_to()`` check, matching ``handlers/static.py``'s existing
     ``StaticHandler`` confinement pattern (D2.md §4 rows D11-D12).
     """
-    stripped = src.strip()
+    stripped = _URL_CONTROL_CHARS_RE.sub("", src).strip()
     if not stripped:
         return None
     if stripped.startswith("//"):
