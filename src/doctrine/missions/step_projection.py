@@ -33,12 +33,17 @@ scalar surface.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from .models import MissionStep, MissionStepTemplateRef, validate_action_sequence
+
+if TYPE_CHECKING:
+    from .expected_artifact_manifest import ExpectedArtifactManifest
 
 __all__ = [
     "iter_template_refs",
     "project_action_sequence",
+    "project_artifact_name_set",
     "project_template_set",
 ]
 # ``iter_template_refs`` is the single shared traversal of ``MissionStep.template``:
@@ -119,6 +124,40 @@ def project_template_set(steps: Iterable[MissionStep]) -> dict[str, str] | None:
     for _step, template_ref in iter_template_refs(steps):
         template_set[template_ref.artifact_key] = template_ref.template_file
     return template_set or None
+
+
+def project_artifact_name_set(manifest: ExpectedArtifactManifest) -> dict[str, str] | None:
+    """Project the ``artifact_key -> path_pattern`` mapping from an expected-artifacts manifest.
+
+    Twin of :func:`project_template_set` for the artifact-*filename* seam
+    (FR-009): the single per-type authority for a configured artifact's
+    filename is ``expected-artifacts.yaml``'s ``path_pattern``, not
+    :attr:`~doctrine.missions.models.MissionStepTemplateRef.template_file`
+    (squad §S2) -- so this projection reads *manifest*, not a
+    ``MissionStep`` collection.
+
+    Flattens ``required_always``, every ``required_by_step`` list (in
+    manifest-declaration / insertion order, mirroring
+    :func:`project_template_set`'s determinism contract), and
+    ``optional_always`` into one ``artifact_key -> path_pattern`` dict. When
+    the same ``artifact_key`` appears more than once (e.g. software-dev's
+    ``output.tasks.per_wp`` is required at both ``tasks_packages`` and
+    ``tasks_finalize``, always with the same ``path_pattern`` in every
+    shipped manifest), the last occurrence wins -- deterministic because
+    dict/list ordering is preserved end to end from the parsed YAML.
+
+    Returns ``None`` when *manifest* declares no artifact specs at all
+    (mirrors :func:`project_template_set`'s None-when-empty contract).
+    """
+    name_set: dict[str, str] = {}
+    for spec in manifest.required_always:
+        name_set[spec.artifact_key] = spec.path_pattern
+    for specs in manifest.required_by_step.values():
+        for spec in specs:
+            name_set[spec.artifact_key] = spec.path_pattern
+    for spec in manifest.optional_always:
+        name_set[spec.artifact_key] = spec.path_pattern
+    return name_set or None
 
 
 def iter_template_refs(

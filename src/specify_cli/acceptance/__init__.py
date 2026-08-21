@@ -31,6 +31,7 @@ from specify_cli.task_utils import (
     split_frontmatter,
 )
 from specify_cli.task_utils.support import TaskCliError
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
 
 # WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
@@ -83,9 +84,14 @@ ACCEPTANCE_PROVENANCE_FIELDS: tuple[str, ...] = (
     "vcs_locked_at",
 )
 
-SPEC_FILE = "spec.md"
-PLAN_FILE = "plan.md"
-TASKS_FILE = "tasks.md"
+# FR-009/FR-010 (#3599): the accept triple is sourced from the per-type
+# expected-artifacts.yaml path_pattern authority, not hardcoded literals --
+# byte-compatible with the prior "spec.md"/"plan.md"/"tasks.md" literals for
+# software-dev (NFR-003). See
+# tests/specify_cli/runtime/test_configured_artifact_name.py.
+SPEC_FILE = resolve_configured_artifact_name("input.spec.main")
+PLAN_FILE = resolve_configured_artifact_name("output.plan.main")
+TASKS_FILE = resolve_configured_artifact_name("output.tasks.list")
 QUICKSTART_FILE = "quickstart.md"
 DATA_MODEL_FILE = "data-model.md"
 RESEARCH_FILE = "research.md"
