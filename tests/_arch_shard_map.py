@@ -121,6 +121,10 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     # arbitrarily to keep the table's insertion order alphabetical-ish and
     # the pick auditable.
     "tests/architectural/test_docs_cli_reference_parity.py",
+    # Added by mission rc3-execution-mode-consolidation-01M0GGX1 (M7, WP02): the
+    # ExecutionMode/WorkProductKind re-drift guard (4 tests). shard_1 was the
+    # lightest by file count (17 vs 22/30) when this file landed.
+    "tests/architectural/test_execution_mode_no_redrift.py",
     "tests/architectural/test_integration_boundary.py",
     "tests/architectural/test_marker_job_completeness.py",
     "tests/architectural/test_no_dead_symbols.py",

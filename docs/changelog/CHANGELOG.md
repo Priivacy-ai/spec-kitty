@@ -71,6 +71,10 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   (`mcp>=1.27.1,<2.0.0`) and exposes the matching `zeitgeist_status`/
   `zeitgeist_watch` tools.
 
+### ♻️ Changed
+
+- **Untangled the three-way `ExecutionMode` name/token collision — one class named `ExecutionMode` no longer means three different things.** (#3416, prereq for #3590) Three unrelated classes were all named `ExecutionMode`, and two collided on a `code_change` member that meant **contradictory** things. **Before:** `mission_runtime.context.ExecutionMode` (`worktree`/`code_change`) was a dead, never-consumed local duplicate of the external `spec_kitty_events.status.ExecutionMode` (`worktree`/`direct_repo`) axis, while `specify_cli.ownership.models.ExecutionMode` (`code_change`/`planning_artifact`) modelled the unrelated "what a WP produces" axis — so a reader of `ExecutionMode.code_change` could not tell which axis they were on. **After:** the dead `mission_runtime` enum is **retired** (removed from the package `__all__` and the canonical-surface ADR); the live ownership enum is **renamed** to `WorkProductKind` (its member string values `code_change`/`planning_artifact` are **unchanged**, so WP frontmatter stays wire-compatible); and the external `spec_kitty_events.status.ExecutionMode` is now the single live class of that name, owning the worktree-vs-direct axis. A re-drift guard (`tests/architectural/test_execution_mode_no_redrift.py`) fails if a `class ExecutionMode` or a local `worktree`+`code_change` enum reappears in `src/`, while permitting `WorkProductKind` to gain future members. Behaviour-preserving: no lane, worktree, or status-payload behaviour changed. The five-`Severity`-enum ladder co-located under #3416 is a separate acceptance block and remains open.
+
 - **Spec Kitty now ships a `spk-doctrine-show-me` skill that guides any agent to
   explain work with compact, checkable visuals — the smallest diagram,
   pseudocode, or tree that answers the question — recommended from the specify

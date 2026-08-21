@@ -31,7 +31,7 @@ from specify_cli.cli.commands.agent.mission import (
 from specify_cli.lanes.auto_rebase import _AUTO_REBASE_MANAGED_LAYOUT_KINDS
 from specify_cli.lanes.compute import compute_lanes
 from specify_cli.ownership.inference import infer_authoritative_surface, infer_ownership
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import (
     validate_authoritative_surface,
     validate_execution_mode_consistency,
@@ -191,7 +191,7 @@ def test_planning_artifact_owning_kitty_specs_finalizes_and_lands_in_planning_la
     # (3) placement is positive: WP01 lands in the planning lane.
     manifests = {
         "WP01": OwnershipManifest(
-            execution_mode=ExecutionMode.PLANNING_ARTIFACT,
+            execution_mode=WorkProductKind.PLANNING_ARTIFACT,
             owned_files=tuple(owned),
             authoritative_surface=f"kitty-specs/{MISSION_SLUG}/",
         )
@@ -290,7 +290,7 @@ def test_fr005_out_of_planning_paths_warning_preserved() -> None:
     the ban, so end-to-end it is only reachable for a WP owning no kitty-specs
     path — the unit test is the crisp home."""
     manifest = OwnershipManifest(
-        execution_mode=ExecutionMode.PLANNING_ARTIFACT,
+        execution_mode=WorkProductKind.PLANNING_ARTIFACT,
         owned_files=("scripts/verify.py",),
         authoritative_surface="scripts/",
     )
@@ -313,7 +313,7 @@ def test_inference_accept_unset_mode_planning_body_is_exempt() -> None:
         "disposition-matrix.md. A planning decision checkpoint; see docs/ for context.\n"
     )
     manifest, _warnings = infer_ownership(raw, MISSION_SLUG)
-    assert str(manifest.execution_mode) == ExecutionMode.PLANNING_ARTIFACT.value
+    assert str(manifest.execution_mode) == WorkProductKind.PLANNING_ARTIFACT.value
 
     # The exemption applies to the resolved-planning WP owning kitty-specs.
     exempt_meta = _planning_meta([f"kitty-specs/{MISSION_SLUG}/disposition-matrix.md"])
@@ -339,7 +339,7 @@ def test_inference_reject_unset_mode_code_signal_stays_fail_closed(tmp_path: Pat
         f"  - {owned[0]}\nauthoritative_surface: kitty-specs/{MISSION_SLUG}/\n---\n" + body
     )
     manifest, _warnings = infer_ownership(raw, MISSION_SLUG)
-    assert str(manifest.execution_mode) == ExecutionMode.CODE_CHANGE.value
+    assert str(manifest.execution_mode) == WorkProductKind.CODE_CHANGE.value
 
     # (b) end-to-end: finalize rejects the inferred-code_change WP fail-closed.
     feature_dir = _build_planning_wp(
@@ -369,12 +369,12 @@ def test_overlapping_planning_wps_still_rejected_by_no_overlap() -> None:
     shared = f"kitty-specs/{MISSION_SLUG}/disposition-matrix.md"
     manifests = {
         "WP01": OwnershipManifest(
-            execution_mode=ExecutionMode.PLANNING_ARTIFACT,
+            execution_mode=WorkProductKind.PLANNING_ARTIFACT,
             owned_files=(shared,),
             authoritative_surface=f"kitty-specs/{MISSION_SLUG}/",
         ),
         "WP02": OwnershipManifest(
-            execution_mode=ExecutionMode.PLANNING_ARTIFACT,
+            execution_mode=WorkProductKind.PLANNING_ARTIFACT,
             owned_files=(shared,),
             authoritative_surface=f"kitty-specs/{MISSION_SLUG}/",
         ),
@@ -396,7 +396,7 @@ def test_authoritative_surface_inference_covers_kitty_specs_owned_file() -> None
     surface = infer_authoritative_surface(owned)
     assert surface == f"kitty-specs/{MISSION_SLUG}/"
     manifest = OwnershipManifest(
-        execution_mode=ExecutionMode.PLANNING_ARTIFACT,
+        execution_mode=WorkProductKind.PLANNING_ARTIFACT,
         owned_files=tuple(owned),
         authoritative_surface=surface,
     )

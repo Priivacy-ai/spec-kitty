@@ -26,7 +26,7 @@ from typing import Any
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .git_preflight import GitPreflightError
 from .vcs import get_vcs
-from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 from specify_cli.status import WPMetadata
 
@@ -193,17 +193,17 @@ def create_wp_workspace(
         FileExistsError: If ``workspace_path`` already exists and is not a
             valid git worktree (``code_change`` only).
     """
-    raw_mode = wp_frontmatter.execution_mode or ExecutionMode.CODE_CHANGE
+    raw_mode = wp_frontmatter.execution_mode or WorkProductKind.CODE_CHANGE
     owned_files_raw: list[str] = list(wp_frontmatter.owned_files)
     wp_code = wp_frontmatter.work_package_id
     mission_slug = wp_frontmatter.feature_slug or ""
 
     try:
-        mode = ExecutionMode(raw_mode)
+        mode = WorkProductKind(raw_mode)
     except ValueError:
-        mode = ExecutionMode.CODE_CHANGE
+        mode = WorkProductKind.CODE_CHANGE
 
-    if mode == ExecutionMode.PLANNING_ARTIFACT:
+    if mode == WorkProductKind.PLANNING_ARTIFACT:
         result_path = create_planning_workspace(
             mission_slug=mission_slug,
             wp_code=wp_code,

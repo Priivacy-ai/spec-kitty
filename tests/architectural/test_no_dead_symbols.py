@@ -670,7 +670,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.ownership.validation::validate_execution_mode_consistency
         SymbolKey(
             "validate_execution_mode_consistency",
-            "72de0a50923215a33589efddc79177f751fdf05c4a5b46a2c86616b9d7ceb96f",
+            "a357e210abed737248ce70127facb98551595178974cbdb00b39d9bafb48eee1",
             source_module="specify_cli.ownership.validation",
         ),
         # specify_cli.ownership.validation::validate_no_overlap

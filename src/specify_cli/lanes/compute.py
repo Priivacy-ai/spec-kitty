@@ -19,7 +19,7 @@ from specify_cli.core.dependency_graph import detect_cycles, topological_sort
 from kernel.clock import now_utc_iso
 from specify_cli.lanes.branch_naming import mission_branch_name
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import _globs_overlap
 
 
@@ -343,7 +343,7 @@ def compute_lanes(
     planning_artifact_wp_ids: list[str] = []
     for wp_id in all_wp_ids:
         manifest = ownership_manifests.get(wp_id)
-        if manifest and manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+        if manifest and manifest.execution_mode == WorkProductKind.PLANNING_ARTIFACT:
             planning_artifact_wp_ids.append(wp_id)
             continue
         if not manifest:

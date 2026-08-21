@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
-from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.models import WorkProductKind
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.branch_naming import worktree_dir_name as _worktree_dir_name
@@ -73,7 +73,7 @@ def create_lane_workspace(
     Returns:
         LaneWorkspaceResult with workspace info.
     """
-    if resolved_workspace.execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+    if resolved_workspace.execution_mode == WorkProductKind.PLANNING_ARTIFACT:
         return LaneWorkspaceResult(
             workspace_path=resolved_workspace.worktree_path,
             branch_name=resolved_workspace.branch_name,
