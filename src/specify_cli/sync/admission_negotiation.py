@@ -121,14 +121,21 @@ def server_requires_strict_admission(
     2. ``SPEC_KITTY_SYNC_STRICT_ADMISSION`` truthy in the environment.
     3. ``[event_sync] strict_admission = true`` in the persisted config table.
 
-    Memoized per normalized *server_origin* in a module-level dict, so the
-    capability is resolved once per process rather than once per dispatch
-    batch. :func:`reset_strict_admission_cache` clears it (tests only).
+    Only the process-stable inputs (env var, persisted config) are memoized per
+    normalized *server_origin* in a module-level dict, so that capability is
+    resolved once per process rather than once per dispatch batch. The
+    *handshake* is a **per-call** signal and is evaluated live on every call,
+    ahead of the cache — a cached ``None``-handshake verdict for an origin must
+    never mask a later strict handshake for that same origin (the #795 server
+    starts advertising the handshake mid-process). :func:`reset_strict_admission_cache`
+    clears the env/config memo (tests only).
     """
+    if _handshake_requires_strict(handshake):
+        return True
     normalized = _normalize_origin(server_origin)
     if normalized in _strict_admission_cache:
         return _strict_admission_cache[normalized]
-    strict = _handshake_requires_strict(handshake) or _env_requires_strict() or _config_requires_strict()
+    strict = _env_requires_strict() or _config_requires_strict()
     _strict_admission_cache[normalized] = strict
     return strict
 
