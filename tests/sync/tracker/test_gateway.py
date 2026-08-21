@@ -35,6 +35,7 @@ from specify_cli.tracker.gateway import (
     TrackerGatewayUnavailableError,
     build_gateway_beads_connector,
     _canonicalize_argv,
+    _extract_subcommand_path,
     _try_import_scope_violation_error,
 )
 
@@ -281,17 +282,19 @@ def test_scope_violation_falls_back_to_local_error_type_when_tracker_package_lac
         (["update", "BD-1", "--status", "closed"], ["update", "BD-1", "--status", "closed"]),
         # Glued long-flag equals form splits into the two-token shape.
         (["update", "BD-1", "--status=closed"], ["update", "BD-1", "--status", "closed"]),
-        # Short flag (split form) rewrites to its long-flag spelling.
-        (["update", "BD-1", "-s", "closed"], ["update", "BD-1", "--status", "closed"]),
-        # Short flag (glued equals form) both rewrites AND splits.
-        (["update", "BD-1", "-s=closed"], ["update", "BD-1", "--status", "closed"]),
-        (["update", "BD-1", "-a", "ivan"], ["update", "BD-1", "--assignee", "ivan"]),
-        (["update", "BD-1", "-a=ivan"], ["update", "BD-1", "--assignee", "ivan"]),
+        # Glued short-flag equals form splits too -- generically, for ANY
+        # single-character short flag, not just a hardcoded "known" set.
+        (["update", "BD-1", "-s=closed"], ["update", "BD-1", "-s", "closed"]),
+        (["update", "BD-1", "-a=ivan"], ["update", "BD-1", "-a", "ivan"]),
         (["update", "BD-1", "--assignee=ivan"], ["update", "BD-1", "--assignee", "ivan"]),
+        # Split short-flag form is already canonical -- a no-op (no alias
+        # rewrite: the deny check names both spellings explicitly instead).
+        (["update", "BD-1", "-s", "closed"], ["update", "BD-1", "-s", "closed"]),
+        (["update", "BD-1", "-a", "ivan"], ["update", "BD-1", "-a", "ivan"]),
         # An unrelated flag/value with '=' in the value is left alone apart
         # from the split -- canonicalization never touches value content.
         (["update", "BD-1", "--notes=a=b"], ["update", "BD-1", "--notes", "a=b"]),
-        # Bare tokens with no '=' and no shorthand entry pass through untouched.
+        # Bare tokens with no '=' pass through untouched.
         (["bd", "--json", "list"], ["bd", "--json", "list"]),
     ],
 )
@@ -299,35 +302,109 @@ def test_canonicalize_argv(argv: list[str], expected: list[str]) -> None:
     assert _canonicalize_argv(argv) == expected
 
 
+# ---------------------------------------------------------------------------
+# _extract_subcommand_path -- allow-list matching surface (TRK-M1-04 redesign)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        # No global flags: subcommand is the first token after the executable.
+        (["bd", "list"], ("list",)),
+        (["bd", "close", "BD-1"], ("close",)),
+        # A single boolean global flag is skipped.
+        (["bd", "--json", "list"], ("list",)),
+        # A value-taking global flag consumes its value token too.
+        (["bd", "--actor", "ivan", "list"], ("list",)),
+        (["bd", "-C", "/some/repo", "list"], ("list",)),
+        (["bd", "--db", "/x.db", "--json", "list"], ("list",)),
+        # Multiple global flags stack in any mix of boolean/value-taking.
+        (["bd", "--json", "--actor", "ivan", "-q", "close", "BD-1"], ("close",)),
+        # A compound parent's second token extends the path...
+        (["bd", "dep", "add", "BD-1", "BD-2"], ("dep", "add")),
+        (["bd", "--json", "comments", "add", "BD-1", "hi"], ("comments", "add")),
+        # ...but only when a non-flag second token is actually present.
+        (["bd", "dep", "--blocks", "BD-2"], ("dep",)),
+        (["bd", "dep"], ("dep",)),
+        # A non-compound parent never gets a second token, regardless of it.
+        (["bd", "gate", "resolve", "GATE-1"], ("gate",)),
+        # `--` stops flag-skipping immediately, so a subcommand cannot hide
+        # behind it as if it were a global flag's value.
+        (["bd", "--", "close", "BD-1"], ("close",)),
+        # No subcommand token at all.
+        (["bd", "--json"], ()),
+        (["bd"], ()),
+    ],
+)
+def test_extract_subcommand_path(argv: list[str], expected: tuple[str, ...]) -> None:
+    assert _extract_subcommand_path(argv) == expected
+
+
 @pytest.mark.parametrize(
     "command",
     [
+        # Direct close-equivalents (previously a deny-list entry; now
+        # simply not on the allow-list).
         ["bd", "--json", "close", "BD-1"],
+        ["bd", "--json", "done", "BD-1"],  # bd close --help: "Aliases: close, done"
         ["bd", "--json", "assign", "BD-1", "ivan"],
+        ["bd", "--json", "reopen", "BD-1"],
+        ["bd", "--json", "delete", "BD-1", "--force"],
+        # bd 1.2.2 has no top-level `approve`/`release` subcommand -- denied
+        # anyway by default-deny, forward-compatible against a future bd
+        # release that adds one, with no enumeration required.
         ["bd", "--json", "approve", "BD-1"],
         ["bd", "--json", "release", "BD-1"],
+        # Close-equivalents discovered via `bd --help`/`bd <cmd> --help`
+        # (Renata REJECT, TRK-M1-04): `bd gate resolve --help` documents
+        # itself verbatim as "equivalent to 'bd close <gate-id>'";
+        # `bd epic close-eligible` bulk-closes epics; `bd supersede --with`/
+        # `bd duplicate --of`/`bd duplicates --auto-merge` auto-close their
+        # target; `bd merge-slot release` releases a lifecycle primitive;
+        # `bd config set` can rewrite the very status vocabulary a value
+        # blacklist would have needed to enumerate.
+        ["bd", "--json", "gate", "resolve", "GATE-1"],
+        ["bd", "--json", "epic", "close-eligible"],
+        ["bd", "--json", "supersede", "BD-1", "--with", "BD-2"],
+        ["bd", "--json", "duplicate", "BD-1", "--of", "BD-2"],
+        ["bd", "--json", "duplicates", "--auto-merge"],
+        ["bd", "--json", "merge-slot", "release"],
+        ["bd", "--json", "config", "set", "status.custom", "merged"],
+        # A bare `bd dep --blocks` (no explicit `add`/`remove` sub-token) is
+        # a write shorthand the tracker adapter never issues -- the
+        # one-token path `("dep",)` alone is not allow-listed.
+        ["bd", "--json", "dep", "BD-1", "--blocks", "BD-2"],
+        # Deny-by-default on a subcommand this module has never heard of --
+        # the whole point of an allow-list over a deny-list.
+        ["bd", "--json", "flurbnicate", "BD-1"],
+        # Self-claim (sets assignee AND status atomically).
+        ["bd", "--json", "update", "BD-1", "--claim"],
+        # `create --assignee`: BeadsConnector.create_issue never emits this
+        # itself, but the invariant holds even for a raw-argv bypass.
         ["bd", "--json", "create", "title", "--assignee", "ivan"],
+        ["bd", "--json", "create", "title", "-a", "ivan"],
+        # `update --status`/`--assignee`: banned as bare flag names,
+        # regardless of value -- including a value that looks non-terminal.
+        # `bd`'s done-category statuses are user-configurable
+        # (`bd config set status.custom ...`), so no finite status-*value*
+        # list could ever be complete; only banning the flag itself can be.
         ["bd", "--json", "update", "BD-1", "--status", "closed"],
-        ["bd", "--json", "update", "BD-1", "--status", "done"],
-        ["bd", "--json", "update", "BD-1", "--status", "tombstone"],
-        # Renata REJECT (TRK-M1-04 attempt N): real `bd` deny-list bypasses --
-        # each of these is a documented, currently-live `bd` CLI surface form
-        # for an already-forbidden operation, reproduced live against
-        # /opt/homebrew/bin/bd (`bd close --help`: "Aliases: close, done";
-        # `bd update --help`: "-a, --assignee string", "-s, --status string",
-        # both also accepting the standard pflag `--flag=value` glued form).
-        ["bd", "--json", "done", "BD-1"],  # `done` is bd's own alias for `close`
+        ["bd", "--json", "update", "BD-1", "--status", "in_progress"],
+        ["bd", "--json", "update", "BD-1", "--status", "merged"],  # hypothetical custom status
         ["bd", "--json", "update", "BD-1", "--status=closed"],  # glued long flag
-        ["bd", "--json", "update", "BD-1", "--status=done"],
-        ["bd", "--json", "update", "BD-1", "--status=tombstone"],
         ["bd", "--json", "update", "BD-1", "-s", "closed"],  # short flag, split form
         ["bd", "--json", "update", "BD-1", "-s=closed"],  # short flag, glued form
         ["bd", "--json", "update", "BD-1", "-a", "ivan"],  # short flag, split form
         ["bd", "--json", "update", "BD-1", "--assignee=ivan"],  # glued long flag
         ["bd", "--json", "update", "BD-1", "-a=ivan"],  # short flag, glued form
+        # Global flags before the subcommand must not shift a forbidden
+        # subcommand token out of view.
+        ["bd", "--actor", "ivan", "--json", "close", "BD-1"],
+        ["bd", "-C", "/some/repo", "close", "BD-1"],
     ],
 )
-def test_runner_refuses_assign_close_approve_release_operations(command: list[str]) -> None:
+def test_runner_refuses_operations_not_on_the_allow_list(command: list[str]) -> None:
     inner = _FakeInnerRunner()
     runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
 
@@ -337,12 +414,29 @@ def test_runner_refuses_assign_close_approve_release_operations(command: list[st
     assert inner.calls == []
 
 
-def test_runner_allows_a_non_terminal_status_update() -> None:
+@pytest.mark.parametrize(
+    "command",
+    [
+        ["bd", "--json", "list"],
+        ["bd", "--json", "list", "--status", "open"],
+        ["bd", "--json", "show", "BD-1"],
+        ["bd", "--json", "create", "New issue", "--type", "task", "--priority", "2"],
+        ["bd", "--json", "update", "BD-1", "--title", "Renamed"],
+        ["bd", "--json", "update", "BD-1", "--priority", "1", "--parent", "BD-0"],
+        ["bd", "--json", "dep", "add", "BD-1", "BD-2", "--type", "blocks"],
+        ["bd", "--json", "comments", "add", "BD-1", "note text"],
+        # Global flags preceding an allowed subcommand are skipped correctly.
+        ["bd", "--actor", "ivan", "--json", "list"],
+        ["bd", "-C", "/some/repo", "show", "BD-1"],
+    ],
+)
+def test_runner_allows_operations_on_the_allow_list(command: list[str]) -> None:
     inner = _FakeInnerRunner()
     runner = GatewayCommandRunner(_token(), inner=inner, clock=lambda: 1001.0)
 
-    runner.run(["bd", "--json", "update", "BD-1", "--status", "in_progress"], context=_ctx())
+    result = runner.run(command, context=_ctx())
 
+    assert result == "ok"
     assert len(inner.calls) == 1
 
 
@@ -434,8 +528,8 @@ def test_authority_report_accumulates_denied_operations_up_to_the_history_limit(
     report = runner.authority_report()
 
     assert len(report.denied_operations) == 2
-    assert "forbidden subcommand 'assign'" in report.denied_operations[0]
-    assert "forbidden subcommand 'approve'" in report.denied_operations[1]
+    assert "subcommand 'assign' is not on the tracker gateway allow-list" in report.denied_operations[0]
+    assert "subcommand 'approve' is not on the tracker gateway allow-list" in report.denied_operations[1]
 
 
 def test_record_conflicts_is_surfaced_by_authority_report() -> None:
