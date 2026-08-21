@@ -14,10 +14,20 @@ choice (``_STYLEGUIDE_TOOLGUIDE_POINTER_ONLY_REASON``, same module). The
 residual this file closes is structural, not a code fix: no test previously
 bound the DRG-emit side (a profile-selector field really is projected into
 the graph) to the delivery side (that same channel reaches the agent, either
-as an inline body or as an *attested* pointer-only fetch stanza) — so the two
-seams could silently re-diverge (e.g. a new channel wired into DRG
-projection but never wired into ``_render_profile_sections``'s renderer
-list, or wired pointer-only with no documented reason).
+as an inline body or as an *attested* pointer-only fetch stanza). This file
+binds ``_render_profile_sections``'s delivery renderer composition
+(``_PROFILE_SECTION_RENDERERS``) to the projected-channel roster
+(``_REAL_PROJECTED_CHANNELS``), so a renderer added without a matching
+roster entry, or a rostered channel that stops delivering (neither body nor
+attested pointer-only), reddens — plus a 3-edge emit spot-check
+(``test_directive_tactic_operating_procedures_are_emitted_as_drg_edges``).
+It additionally binds the emit-side governance scope-field table
+(``_GOVERNANCE_PROFILE_SCOPE_FIELDS``) to the ``MissionTypeProfile`` schema
+(the #3604 defect class: a ``selected_*`` field that validates and loads but
+has no table entry to project it into the DRG). This is not a full,
+automatic emit↔delivery cross-seam enumeration — a purely emit-only channel
+that is projected into the DRG but never wired into any delivery renderer at
+all stays outside what these binds catch.
 
 **FR-008 anti-divergence test design.** The six profile-selector channels
 ``_render_profile_sections`` composes (its module-level
@@ -105,8 +115,12 @@ from charter.context_renderers.profile_sections import (
     render_profile_suggested_doctrine,
     render_profile_toolguides,
 )
+from charter.mission_type_profiles import MissionTypeProfile
 from doctrine.agent_profiles import AgentProfile
-from doctrine.drg.migration.extractor import extract_artifact_edges
+from doctrine.drg.migration.extractor import (
+    _GOVERNANCE_PROFILE_SCOPE_FIELDS,
+    extract_artifact_edges,
+)
 from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
@@ -447,6 +461,26 @@ def test_real_projected_channels_roster_matches_product_renderer_composition() -
     )
     # No duplicate/missing coverage: exactly one roster entry per renderer.
     assert len(_REAL_PROJECTED_CHANNELS) == len(_PROFILE_SECTION_RENDERERS)
+
+
+def test_governance_profile_scope_field_table_is_bound_to_model_schema() -> None:
+    """Emit-side bind: the extractor's _GOVERNANCE_PROFILE_SCOPE_FIELDS table
+    must enumerate exactly MissionTypeProfile's selected_* fields. A new
+    selected_* field added to the model without a table entry would validate,
+    load, and then vanish at the DRG projection seam -- the #3604 defect this
+    mission closed. This guard reddens on that drift (both directions)."""
+    table_fields = {name for name, _kind in _GOVERNANCE_PROFILE_SCOPE_FIELDS}
+    model_fields = {
+        n for n in MissionTypeProfile.model_fields if n.startswith("selected_")
+    }
+
+    assert table_fields == model_fields, (
+        "_GOVERNANCE_PROFILE_SCOPE_FIELDS has diverged from "
+        "MissionTypeProfile's selected_* fields (symmetric difference: "
+        f"{table_fields ^ model_fields}) -- a selected_* field was added to "
+        "or removed from the model without a matching extractor table entry, "
+        "or vice versa"
+    )
 
 
 def test_synthetic_undelivered_channel_is_caught() -> None:

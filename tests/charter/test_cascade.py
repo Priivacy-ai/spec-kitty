@@ -416,7 +416,10 @@ _BUILT_IN_MISSION_TYPE_URNS: tuple[str, ...] = (
 #: ``test_plan_cascade_reaches_its_authored_governance`` below for the specific
 #: membership assertions, and ``freshly_extracted_graph``'s docstring for why
 #: these two tests assert against a freshly-extracted graph rather than
-#: ``built_in_graph`` (the committed goldens are not re-ledgered until WP04).
+#: ``built_in_graph`` (the committed goldens ARE re-ledgered in this mission —
+#: byte-identical to the canonical overlay regen, locked by
+#: ``test_extractor_projection.py``'s ``test_shipped_graph_is_fresh_and_
+#: byte_identical`` — so this re-extraction now matches the shipped artifact).
 _GOVERNANCE_BEARING_MISSION_TYPE_URNS: tuple[str, ...] = (
     "mission_type:documentation",
     "mission_type:plan",
@@ -448,40 +451,43 @@ def built_in_graph() -> DRGGraph:
 
 @pytest.fixture(scope="module")
 def freshly_extracted_graph() -> DRGGraph:
-    """A live re-extraction of the built-in DRG — NOT the committed goldens.
+    """A live re-extraction of the built-in DRG, asserted equal to the
+    committed goldens.
 
     ``built_in_graph`` (above) loads the shipped ``packs/built-in/*.graph.yaml``
     fragments via :func:`load_built_in_graph` — those are committed goldens,
-    refreshed only by ``spec-kitty doctrine regenerate-graph``, the single
-    re-ledger tool WP04 owns (deferred, gated on M3 per this mission's
-    research.md). #3604's new ``mission_type --scope--> gov`` pass (T007,
-    :func:`extract_governance_profile_scope_edges`) does not appear in those
-    goldens until that re-ledger lands, so a golden-backed cascade assertion
-    for ``mission_type:plan`` cannot go green inside WP02 without creating a
-    WP02<->WP04 landing cycle.
+    refreshed by ``spec-kitty doctrine regenerate-graph``. #3604's new
+    ``mission_type --scope--> gov`` pass (T007,
+    :func:`extract_governance_profile_scope_edges`) IS re-ledgered into those
+    goldens in this mission (``packs/built-in/mission_type.graph.yaml`` and
+    ``procedure.graph.yaml`` are updated in the landing commit), and
+    ``test_extractor_projection.py``'s ``test_shipped_graph_is_fresh_and_
+    byte_identical`` locks the shipped fragments byte-identical to a fresh
+    canonical regen — so this fixture's cascade assertions now validate the
+    same content the goldens carry.
 
-    This fixture instead calls
+    This fixture calls
     :func:`~doctrine.drg.migration.hand_authored_overlay.generate_reference_graph_with_overlay`
-    directly against the real shipped doctrine tree. That function -- NOT bare
+    directly against the real shipped doctrine tree rather than loading the
+    goldens through :func:`load_built_in_graph`. That function -- NOT bare
     :func:`~doctrine.drg.migration.extractor.generate_graph` -- is the correct
     live-extraction reference: it is the exact pipeline
-    ``spec-kitty doctrine regenerate-graph`` and WP04's re-ledger both run
-    (pure extraction, written to a throwaway scratch dir, then merged with the
-    hand-authored overlay via :func:`merge_hand_authored_overlay`). A first
-    version of this fixture called bare ``generate_graph``, which omits that
-    overlay; two of the shipped overlay-authored edges reference nodes the
-    bare extractor prunes as dangling, silently collapsing cascade
-    reachability for several mission types (post-review finding, #3604 WP02).
-    Bare ``generate_graph`` output therefore does not match any shipped
-    artifact -- ``generate_reference_graph_with_overlay`` does (proof:
+    ``spec-kitty doctrine regenerate-graph`` runs (pure extraction, written to
+    a throwaway scratch dir, then merged with the hand-authored overlay via
+    :func:`merge_hand_authored_overlay`). A first version of this fixture
+    called bare ``generate_graph``, which omits that overlay; two of the
+    shipped overlay-authored edges reference nodes the bare extractor prunes
+    as dangling, silently collapsing cascade reachability for several mission
+    types (post-review finding, #3604 WP02). Bare ``generate_graph`` output
+    therefore does not match any shipped artifact --
+    ``generate_reference_graph_with_overlay`` does (proof:
     ``spec-kitty doctrine regenerate-graph --check`` is clean against
-    ``built_in_graph`` on the base commit).
+    ``built_in_graph``).
 
-    T007's pass is exercised immediately and this fixture's consumers are
-    green within WP02, independent of the stale goldens. Once WP04
-    regenerates the shipped fragments, ``built_in_graph`` will carry the
-    identical edges and this fixture becomes redundant (but harmless) for its
-    consumers below.
+    Kept as a live re-extraction (rather than switched to ``built_in_graph``)
+    so these tests keep validating the extractor's actual output, not just
+    the committed snapshot of it; the two are byte-identical today by
+    construction of the ``test_extractor_projection.py`` guard above.
     """
     return generate_reference_graph_with_overlay(_DOCTRINE_ROOT)
 
@@ -526,8 +532,8 @@ def test_plan_cascade_reaches_its_authored_governance(
     # plan's full authored governance: 1 directive (031-context-aware-design),
     # 9 tactics, 3 paradigms, and 1 styleguide (planning-and-tracking). Asserted
     # against ``freshly_extracted_graph``, not ``built_in_graph`` — see that
-    # fixture's docstring for why (the committed goldens are not re-ledgered
-    # until WP04).
+    # fixture's docstring for why (the committed goldens ARE re-ledgered in
+    # this mission, byte-identical to the canonical regen).
     result = cascade_activation_targets(
         freshly_extracted_graph, "mission_type:plan", CascadeScope.all()
     )
@@ -793,11 +799,13 @@ def test_mission_type_scope_edges_cover_every_governance_profile_selection(
 #: T008 secondary (ratchet) — total cascade-target counts
 #: (``sum(len(v) for v in result.activated.values())``) for each built-in
 #: mission type, measured against ``freshly_extracted_graph`` (NOT
-#: ``built_in_graph`` -- see that fixture's docstring for why: goldens are not
-#: re-ledgered until WP04). ``freshly_extracted_graph`` calls the CANONICAL
-#: ``generate_reference_graph_with_overlay`` pipeline -- the same one
-#: ``spec-kitty doctrine regenerate-graph`` and WP04's re-ledger run -- so
-#: these totals are what WP04 will actually commit, verified two ways:
+#: ``built_in_graph`` -- see that fixture's docstring for why: the goldens ARE
+#: re-ledgered in this mission and are byte-identical to a fresh canonical
+#: regen, locked by ``test_extractor_projection.py``). ``freshly_extracted_
+#: graph`` calls the CANONICAL ``generate_reference_graph_with_overlay``
+#: pipeline -- the same one ``spec-kitty doctrine regenerate-graph`` runs --
+#: so these totals are what the shipped goldens actually carry, verified two
+#: ways:
 #: (1) ``spec-kitty doctrine regenerate-graph --check`` is clean on the base
 #: commit (goldens == canonical regenerate, pre-#3604); (2) with
 #: ``extract_governance_profile_scope_edges`` temporarily no-op'd, the SAME
