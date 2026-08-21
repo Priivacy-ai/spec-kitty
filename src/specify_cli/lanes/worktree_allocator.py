@@ -73,6 +73,55 @@ class DependencyLaneMergeConflictError(StructuredError):
         return payload
 
 
+class UnhonorableBaseError(StructuredError):
+    """Raised when a supplied ``--base`` cannot be honored by the active route.
+
+    #3571 (P0) / D2 / D3 / FR-004 / FR-009 / FR-010: an operator's explicit
+    ``base`` binds the parent a FRESH lane branches from. Four routes cannot
+    apply it without either fabricating success or re-parenting work that
+    belongs to Mission M8's two-route reconciliation, so each fails loud
+    instead of silently ignoring (or partially honoring) the operator's
+    intent:
+
+    * ``"reuse"`` -- the lane worktree already exists (:func:`allocate_lane_worktree`
+      reuse early-return); an existing lane cannot be re-parented (D3).
+    * ``"crash_recovery"`` -- the lane branch exists but its worktree directory
+      is gone; re-attaching cannot re-parent either (D3).
+    * ``"dependency_lane"`` -- the lane has a non-empty ``depends_on_lanes``;
+      honoring ``base`` would require re-parenting coord-descended dependency
+      tips onto it, which would re-import unrelated ancestry (D2/FR-009, the
+      M8 seam).
+    * ``"detached_base"`` -- ``base`` shares no common ancestor with the
+      recorded planning-artifact commit (FR-010); merging would require
+      ``--allow-unrelated-histories``, which fabricates a lineage the
+      operator did not ask for.
+
+    ``route``, ``wp_id``, and ``base`` are built INTO the exception (never
+    duplicated as inline f-strings at each of the four raise sites) and are
+    surfaced machine-readably via :meth:`to_dict` for the orchestrator-api
+    envelope (NFR-004).
+    """
+
+    error_code: str = "UNHONORABLE_BASE"
+
+    def __init__(self, *, route: str, wp_id: str, base: str) -> None:
+        self.route = route
+        self.wp_id = wp_id
+        self.base = base
+        super().__init__(
+            f"Cannot honor --base {base!r} for {wp_id!r}: the {route!r} route "
+            "cannot re-parent an already-committed lane. See the mission M8 "
+            "two-route reconciliation for the deferred general fix."
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        payload = super().to_dict()
+        payload["route"] = self.route
+        payload["wp_id"] = self.wp_id
+        payload["base"] = self.base
+        return payload
+
+
 class PlanningCommitMergeConflictError(StructuredError):
     """Raised when merging the recorded planning-artifact commit conflicts.
 
@@ -134,11 +183,77 @@ def predict_lane_worktree(
     return worktree_path, branch
 
 
+def _guard_base_honorable(
+    base: str | None,
+    route: str,
+    wp_id: str,
+    *,
+    lane: ExecutionLane | None = None,
+    planning_sha: str | None = None,
+    repo_root: Path | None = None,
+) -> None:
+    """Raise :class:`UnhonorableBaseError` when ``base`` cannot be honored at ``route``.
+
+    The single call-site for all four fail-loud triggers (D2/D3/FR-004/FR-009/
+    FR-010) so each guard body in :func:`allocate_lane_worktree` stays a flat
+    ``if`` (Sonar S3776 cognitive-nesting) rather than composing the message
+    inline at each of the four raise sites. ``base is None`` is always a
+    no-op — these routes only need to fail loud when an operator actually
+    supplied a base this route cannot apply.
+
+    Routes:
+        ``"reuse"`` / ``"crash_recovery"``: unconditional once ``base`` is
+            supplied — an already-created lane cannot be re-parented (D3).
+        ``"dependency_lane"``: raises only when ``lane.depends_on_lanes`` is
+            non-empty (D2/FR-009) — a no-dependency lane is fine.
+        ``"detached_base"``: raises only when ``planning_sha`` is recorded
+            AND shares no common ancestor with ``base`` (FR-010), checked via
+            ``git merge-base`` in ``repo_root`` BEFORE the worktree/branch is
+            created (atomicity — no half-created lane on failure).
+    """
+    if base is None:
+        return
+    if route in ("reuse", "crash_recovery"):
+        raise UnhonorableBaseError(route=route, wp_id=wp_id, base=base)
+    if route == "dependency_lane":
+        if lane is not None and lane.depends_on_lanes:
+            raise UnhonorableBaseError(route=route, wp_id=wp_id, base=base)
+        return
+    if route == "detached_base":
+        if planning_sha is None or repo_root is None:
+            return
+        result = subprocess.run(
+            ["git", "merge-base", base, planning_sha],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise UnhonorableBaseError(route=route, wp_id=wp_id, base=base)
+
+
+def _resolve_lane_parent(
+    base: str | None, coordination_branch: str | None, mission_branch: str,
+) -> str:
+    """Return the parent ref a freshly-created lane branches from (D1/C-005).
+
+    ``base`` — when supplied — fully REPLACES the topology-derived parent
+    (``coordination_branch`` for coord topology, ``mission_branch`` for
+    legacy); it is never layered on top of it. ``base=None`` reproduces the
+    prior topology-derived parent exactly (byte-identical legacy behaviour,
+    C-005/FR-006).
+    """
+    if base is not None:
+        return base
+    return coordination_branch if coordination_branch is not None else mission_branch
+
+
 def allocate_lane_worktree(
     repo_root: Path,
     mission_slug: str,
     wp_id: str,
     lanes_manifest: LanesManifest,
+    base: str | None = None,
 ) -> tuple[Path, str]:
     """Allocate or reuse the worktree for the lane containing wp_id.
 
@@ -163,11 +278,21 @@ def allocate_lane_worktree(
     conflict fails closed with :class:`DependencyLaneMergeConflictError` after
     aborting the merge (never a half-merged worktree).
 
+    #3571 (P0) / D1/D2/D3: ``base``, when supplied, is threaded as an EXPLICIT
+    parameter (never smuggled through ``lanes_manifest.mission_branch``) and
+    fully REPLACES the topology-derived parent on a fresh no-dependency lane
+    (D1). Four routes cannot honor a supplied ``base`` and fail loud instead
+    (:class:`UnhonorableBaseError`, never a silent no-op / warn-and-continue):
+    lane-worktree reuse, branch-exists crash-recovery, a dependency-bearing
+    lane, and a base detached from the recorded planning commit (FR-010).
+
     Args:
         repo_root: Absolute path to the main repository.
         mission_slug: Feature slug for branch naming.
         wp_id: Work package ID to allocate a worktree for.
         lanes_manifest: The computed lanes manifest.
+        base: Optional explicit base ref (``--base``). ``None`` reproduces
+            prior topology-derived-parent behaviour exactly (NFR-005).
 
     Returns:
         Tuple of (worktree_path, branch_name).
@@ -177,6 +302,8 @@ def allocate_lane_worktree(
         DirtyWorktreeError: If reusing a worktree that has uncommitted changes.
         DependencyLaneMergeConflictError: If a dependency lane tip cannot be
             auto-merged into the lane (fail-closed, merge aborted first).
+        UnhonorableBaseError: If ``base`` is supplied but the active route
+            cannot honor it (D2/D3/FR-009/FR-010).
         RuntimeError: If git operations fail.
     """
     lane = lanes_manifest.lane_for_wp(wp_id)
@@ -190,6 +317,9 @@ def allocate_lane_worktree(
     worktree_path, branch = predict_lane_worktree(repo_root, mission_slug, lane.lane_id)
 
     if worktree_path.exists():
+        # FL1 (D3): an existing lane worktree cannot be re-parented onto a
+        # newly-supplied base — raise BEFORE any reuse side effects below.
+        _guard_base_honorable(base, "reuse", wp_id)
         # Reuse existing lane worktree — validate it is clean first.
         _validate_worktree_clean(worktree_path, lane.lane_id)
         # FR-009 (#2993) reuse-path self-heal: a lane created before this fix
@@ -234,6 +364,9 @@ def allocate_lane_worktree(
     # entries first so git does not reject the re-attachment on the grounds
     # that the branch is "already checked out" in the now-gone worktree.
     if _branch_exists(repo_root, branch):
+        # FL2 (D3): a branch that already exists (worktree dir gone) cannot
+        # be re-parented by re-attaching — raise BEFORE the prune/re-attach.
+        _guard_base_honorable(base, "crash_recovery", wp_id)
         subprocess.run(
             ["git", "worktree", "prune"],
             cwd=str(repo_root),
@@ -258,11 +391,31 @@ def allocate_lane_worktree(
         )
         return worktree_path, branch
 
+    # FL4 (FR-010): a base detached from the recorded planning commit cannot
+    # be merged without --allow-unrelated-histories — a PRE-CREATE guard
+    # (before either branch below creates the lane worktree/branch) so a
+    # failure leaves nothing half-created (atomicity; applies to both the
+    # coord and legacy routes).
+    _guard_base_honorable(
+        base, "detached_base", wp_id,
+        planning_sha=lanes_manifest.planning_commit_sha, repo_root=repo_root,
+    )
+
     if coordination_branch is not None:
+        # FL3 (D2/FR-009): a dependency-bearing lane cannot honor an
+        # explicit base without re-parenting its coord-descended dependency
+        # tips (the M8 seam) — raise BEFORE the branch/worktree side effects.
+        _guard_base_honorable(base, "dependency_lane", wp_id, lane=lane)
         _ensure_branch_exists(
             repo_root, coordination_branch, lanes_manifest.target_branch,
         )
-        _create_lane_worktree(repo_root, worktree_path, branch, coordination_branch)
+        # D1/C-005: base fully REPLACES coordination_branch as the parent
+        # when supplied; base=None reproduces the prior coord-parent
+        # behaviour exactly.
+        parent = _resolve_lane_parent(
+            base, coordination_branch, lanes_manifest.mission_branch,
+        )
+        _create_lane_worktree(repo_root, worktree_path, branch, parent)
         # Register the sparse-checkout policy so the lane filesystem does
         # NOT contain status.events.jsonl / status.json. Only meaningful
         # when we have a mid8; new-topology missions always do because
@@ -271,8 +424,9 @@ def allocate_lane_worktree(
             worktree_path, mission_slug, coordination_branch, short_id,
         )
     else:
-        # Legacy path: parent on the mission_branch field.
-        mission_branch = lanes_manifest.mission_branch
+        # Legacy path: parent on base when supplied, else the mission_branch
+        # field (C-005 — #1684 preserved byte-for-byte when base is None).
+        mission_branch = _resolve_lane_parent(base, None, lanes_manifest.mission_branch)
         _ensure_mission_branch(repo_root, mission_branch, lanes_manifest.target_branch)
         _create_lane_worktree(repo_root, worktree_path, branch, mission_branch)
 
@@ -472,10 +626,14 @@ def _merge_dependency_lane_tips(
       undoes the conflicting merge, orphaning a partially-propagated state the
       operator never asked for. The whole multi-dep loop is all-or-nothing.
 
-    The merge composes with an explicit ``--base`` override: ``--base`` selects
-    the *root* the lane branches from (handled by the caller via the patched
-    ``mission_branch``); dependency tips are then merged on top so cross-lane
-    code still propagates regardless of the chosen root.
+    FR-008 (#3571): an explicit ``base`` is threaded into
+    :func:`allocate_lane_worktree` as its own parameter (never smuggled
+    through ``lanes_manifest.mission_branch``) and selects the *root* a
+    fresh **no-dependency** lane branches from (D1) — this function only
+    ever runs for such lanes, because a dependency-bearing lane combined
+    with an explicit ``base`` fails loud before creation
+    (:class:`UnhonorableBaseError`, FR-009/D2) rather than merging a
+    coord-descended dependency tip on top of a base-alone lane.
     """
     ordered = _ordered_dependency_lanes(lane, lanes_manifest)
     if not ordered:

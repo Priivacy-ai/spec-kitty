@@ -149,6 +149,55 @@ def test_new_topology_parents_on_coordination_branch(
     )
 
 
+def test_explicit_base_replaces_coordination_branch_parent(
+    new_topology_repo: Path,
+) -> None:
+    """#3571 (D1/FR-001/FR-002) companion: an explicit ``base`` fully
+    REPLACES ``coordination_branch`` as a fresh no-dependency lane's parent
+    -- it is never layered on top of it. Work landed on the coordination
+    branch AFTER the base was chosen must not leak into the lane.
+    """
+    repo = new_topology_repo
+
+    # Extra coord-only work, landed on COORD_BRANCH after the fixture seed.
+    _git(repo, "checkout", "-q", COORD_BRANCH)
+    (repo / "coord-only.txt").write_text("coord-only work\n")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-q", "-m", "coord-only work")
+    coord_only_sha = subprocess.run(
+        ["git", "-C", str(repo), "rev-parse", COORD_BRANCH],
+        capture_output=True, text=True,
+    ).stdout.strip()
+    _git(repo, "checkout", "-q", "main")
+
+    # A divergent base branch off "main" (predates the coord-only work).
+    _git(repo, "branch", "explicit-base")
+
+    manifest = _make_manifest(mission_branch=COORD_BRANCH, mission_id=MISSION_ID)
+    worktree_path, branch = allocate_lane_worktree(
+        repo_root=repo, mission_slug=MISSION_SLUG, wp_id="WP01",
+        lanes_manifest=manifest, base="explicit-base",
+    )
+    assert worktree_path.exists()
+
+    is_ancestor_base = subprocess.run(
+        ["git", "-C", str(repo), "merge-base", "--is-ancestor", "explicit-base", branch],
+        capture_output=True,
+    )
+    assert is_ancestor_base.returncode == 0, (
+        f"lane branch {branch} should descend from the supplied base"
+    )
+
+    is_ancestor_coord_only = subprocess.run(
+        ["git", "-C", str(repo), "merge-base", "--is-ancestor", coord_only_sha, branch],
+        capture_output=True,
+    )
+    assert is_ancestor_coord_only.returncode != 0, (
+        "lane must NOT inherit coord-only work landed after --base was chosen "
+        "(D1 -- base ALONE, coordination_branch not layered on)"
+    )
+
+
 def test_new_topology_applies_sparse_checkout(
     new_topology_repo: Path,
 ) -> None:

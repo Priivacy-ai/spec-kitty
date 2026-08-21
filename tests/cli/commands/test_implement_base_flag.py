@@ -202,7 +202,18 @@ class TestImplementBaseFlagIntegration:
     """Integration tests for the implement --base flag."""
 
     def test_implement_base_flag_creates_workspace_from_ref(self, tmp_path: Path) -> None:
-        """spec-kitty implement WP06 --base main creates worktree from main's tip."""
+        """spec-kitty implement WP06 --base main creates worktree from main's tip.
+
+        #3571 (M1 WP01): rewritten from a mocked-``create_lane_workspace``
+        assertion on the now-RETIRED ``mission_branch`` smuggle (the old
+        version passed even though the coord-topology allocation path never
+        read that field -- the exact silent-discard bug #3571 fixes) to a
+        real base-THREADING assertion. ``create_lane_workspace`` now runs for
+        real so the test proves ``--base`` actually reaches the allocator and
+        the created lane branch genuinely descends from the supplied ref.
+        """
+        from specify_cli.core.vcs import VCSBackend
+
         repo = tmp_path / "repo"
         repo.mkdir()
         _make_git_repo(repo)
@@ -214,21 +225,7 @@ class TestImplementBaseFlagIntegration:
             cwd=str(repo), capture_output=True, text=True, check=True,
         ).stdout.strip()
 
-        # Run implement --base main via direct function call with mocked deps.
         from specify_cli.cli.commands.implement import implement
-        from specify_cli.lanes.implement_support import LaneWorkspaceResult
-
-        fake_result = LaneWorkspaceResult(
-            workspace_path=repo / ".worktrees" / "068-test-lane-a",
-            branch_name="kitty/mission-068-test-lane-a",
-            workspace_name="068-test-lane-a",
-            lane_id="lane-a",
-            mission_branch="main",  # the explicit base was used
-            is_reuse=False,
-            vcs_backend_value="git",
-            execution_mode="code_change",
-            resolution_kind="lane_workspace",
-        )
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=repo),
@@ -240,10 +237,11 @@ class TestImplementBaseFlagIntegration:
             patch("specify_cli.cli.commands.implement.resolve_feature_target_branch",
                   return_value="main"),
             patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
-            patch("specify_cli.cli.commands.implement.require_lanes_json") as mock_lanes,
-            patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta"),
-            patch("specify_cli.cli.commands.implement.create_lane_workspace",
-                  return_value=fake_result) as mock_create,
+            patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta", return_value=VCSBackend.GIT),
+            patch(
+                "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+                lambda *_args, **_kwargs: None,
+            ),
             patch("specify_cli.cli.commands.implement._get_wp_lane_from_event_log",
                   return_value="in_progress"),
             patch("specify_cli.status.emit._saas_fan_out"),
@@ -251,26 +249,6 @@ class TestImplementBaseFlagIntegration:
             patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
             patch("specify_cli.core.context_validation.require_main_repo", lambda f: f),
         ):
-            from specify_cli.lanes.models import LanesManifest as _LM, ExecutionLane as _EL
-            mock_manifest = _LM(
-                version=1,
-                mission_slug="068-test",
-                mission_id="068-test",
-                mission_branch="kitty/mission-068-test",
-                target_branch="main",
-                lanes=[_EL(
-                    lane_id="lane-a",
-                    wp_ids=("WP06",),
-                    write_scope=("src/**",),
-                    predicted_surfaces=(),
-                    depends_on_lanes=(),
-                    parallel_group=0,
-                )],
-                computed_at="2026-04-07T10:00:00+00:00",
-                computed_from="test",
-            )
-            mock_lanes.return_value = mock_manifest
-
             try:
                 implement(
                     wp_id="WP06",
@@ -283,15 +261,17 @@ class TestImplementBaseFlagIntegration:
             except (SystemExit, typer.Exit):
                 pass  # Exit is normal for implement after successful run
 
-        # Verify create_lane_workspace was called with a manifest whose
-        # mission_branch equals "main" (the explicit base).
-        assert mock_create.called, "create_lane_workspace should have been called"
-        call_kwargs = mock_create.call_args.kwargs
-        used_manifest = call_kwargs.get("lanes_manifest") or mock_create.call_args[1].get("lanes_manifest")
-        if used_manifest is not None:
-            assert used_manifest.mission_branch == "main", (
-                f"Expected mission_branch='main' (explicit base), got '{used_manifest.mission_branch}'"
-            )
+        # The lane branch must genuinely descend from the supplied --base
+        # (FR-001/FR-003) -- not merely have a manifest field patched to it
+        # (the retired smuggle this rewrite replaces).
+        lane_branch = "kitty/mission-068-test-lane-a"
+        is_ancestor = subprocess.run(
+            ["git", "merge-base", "--is-ancestor", main_sha, lane_branch],
+            cwd=str(repo), capture_output=True,
+        )
+        assert is_ancestor.returncode == 0, (
+            f"lane {lane_branch} must descend from the supplied --base (sha {main_sha})"
+        )
 
     def test_implement_base_flag_invalid_ref_fails_clearly(self, tmp_path: Path) -> None:
         """--base bogus-ref should fail with the documented error message."""
