@@ -34,6 +34,7 @@ from specify_cli.tracker.gateway import (
     TrackerGatewayToken,
     TrackerGatewayUnavailableError,
     build_gateway_beads_connector,
+    _canonicalize_argv,
     _try_import_scope_violation_error,
 )
 
@@ -266,6 +267,36 @@ def test_scope_violation_falls_back_to_local_error_type_when_tracker_package_lac
 
     with pytest.raises(gateway_module.GatewayScopeViolationError):
         runner.run(["bd", "--json", "list"], context=_ctx(repository="other-repo"))
+
+
+# ---------------------------------------------------------------------------
+# _canonicalize_argv -- surface-syntax normalization (Renata REJECT fix)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("argv", "expected"),
+    [
+        # Split two-token form is already canonical -- a no-op.
+        (["update", "BD-1", "--status", "closed"], ["update", "BD-1", "--status", "closed"]),
+        # Glued long-flag equals form splits into the two-token shape.
+        (["update", "BD-1", "--status=closed"], ["update", "BD-1", "--status", "closed"]),
+        # Short flag (split form) rewrites to its long-flag spelling.
+        (["update", "BD-1", "-s", "closed"], ["update", "BD-1", "--status", "closed"]),
+        # Short flag (glued equals form) both rewrites AND splits.
+        (["update", "BD-1", "-s=closed"], ["update", "BD-1", "--status", "closed"]),
+        (["update", "BD-1", "-a", "ivan"], ["update", "BD-1", "--assignee", "ivan"]),
+        (["update", "BD-1", "-a=ivan"], ["update", "BD-1", "--assignee", "ivan"]),
+        (["update", "BD-1", "--assignee=ivan"], ["update", "BD-1", "--assignee", "ivan"]),
+        # An unrelated flag/value with '=' in the value is left alone apart
+        # from the split -- canonicalization never touches value content.
+        (["update", "BD-1", "--notes=a=b"], ["update", "BD-1", "--notes", "a=b"]),
+        # Bare tokens with no '=' and no shorthand entry pass through untouched.
+        (["bd", "--json", "list"], ["bd", "--json", "list"]),
+    ],
+)
+def test_canonicalize_argv(argv: list[str], expected: list[str]) -> None:
+    assert _canonicalize_argv(argv) == expected
 
 
 @pytest.mark.parametrize(

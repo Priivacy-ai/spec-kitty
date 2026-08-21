@@ -108,9 +108,47 @@ class GatewayForbiddenOperationError(TrackerGatewayError):
     """
 
 
-_FORBIDDEN_SUBCOMMANDS = frozenset({"close", "assign", "approve", "release"})
+#: ``done`` is included directly (not resolved via a separate alias map) --
+#: ``bd close --help`` documents it verbatim: "Aliases: close, done". It is
+#: the only subcommand alias any denied operation has, so listing both
+#: spellings here is simpler than a general alias-resolution pass.
+_FORBIDDEN_SUBCOMMANDS = frozenset({"close", "done", "assign", "approve", "release"})
 _FORBIDDEN_FLAGS = frozenset({"--assignee", "--approve", "--release"})
 _FORBIDDEN_STATUS_VALUES = frozenset({"closed", "done", "tombstone"})
+
+#: ``bd``'s flag parser (Cobra/pflag) registers a single-character shorthand
+#: for some long flags -- ``bd update --help``: "-a, --assignee string",
+#: "-s, --status string". :func:`_canonicalize_argv` rewrites each shorthand
+#: to its long form before any deny-list check runs, so the checks below only
+#: ever need to name the long form once.
+_SHORT_FLAG_ALIASES = {
+    "-a": "--assignee",
+    "-s": "--status",
+}
+
+
+def _canonicalize_argv(command: Sequence[str]) -> list[str]:
+    """Normalize ``command`` to one canonical surface syntax before matching.
+
+    ``bd``'s flag parser accepts multiple equivalent spellings for the same
+    single-value flag: split two-token (``--flag value``), glued equals
+    (``--flag=value`` or, for a registered shorthand, ``-f=value``), and a
+    short flag (``-f value``). Every check in this module was written
+    against the split two-token, long-flag shape; without this
+    normalization step a caller could dodge every check simply by picking a
+    different equivalent spelling of an already-forbidden flag (Renata
+    REJECT, TRK-M1-04: reproduced live against ``bd update --help``'s
+    ``-a``/``-s`` shorthands and glued ``=`` form).
+    """
+    canonical: list[str] = []
+    for arg in command:
+        flag, sep, value = arg.partition("=")
+        if sep and (flag.startswith("--") or flag in _SHORT_FLAG_ALIASES):
+            canonical.append(_SHORT_FLAG_ALIASES.get(flag, flag))
+            canonical.append(value)
+            continue
+        canonical.append(_SHORT_FLAG_ALIASES.get(arg, arg))
+    return canonical
 
 
 def _forbidden_operation_reason(command: Sequence[str]) -> str | None:
@@ -120,9 +158,12 @@ def _forbidden_operation_reason(command: Sequence[str]) -> str | None:
     self-claim/review/publication) -- the same command is denied for the
     same reason on every call, with no memory of prior attempts, so a
     retried or duplicated attempt can never slip past a gate that already
-    refused it once.
+    refused it once. Matches against :func:`_canonicalize_argv`'s output, not
+    the raw argv, so alias/shorthand/glued-flag surface forms of an already-
+    forbidden operation cannot slip past a check written against the
+    canonical spelling.
     """
-    argv = list(command)
+    argv = _canonicalize_argv(command)
     for arg in argv:
         if arg in _FORBIDDEN_SUBCOMMANDS:
             return f"forbidden subcommand {arg!r}"
