@@ -43,6 +43,7 @@ from scripts.docs.description_length_check import (
 # first. Reaching the gate's own assertion directly is the only way to prove it
 # is load-bearing rather than decorative.
 from scripts.docs.description_length_check import _assert_coverage  # noqa: E402
+from tests.docs.conftest import commit_all_changes, init_git_repo_with_base
 
 pytestmark = pytest.mark.architectural
 
@@ -376,6 +377,165 @@ def test_live_tree_covers_the_adr_subtree() -> None:
 
     assert adr_pages, "no ADR pages on disk — the scope assertion would pass vacuously"
     assert report.checked_count > len(adr_pages)
+
+
+# --- diff scope: PRs report only changed published pages (#3316) ------------
+
+
+def _stub_published_pages(
+    monkeypatch: pytest.MonkeyPatch, *relative_paths: str
+) -> None:
+    """Stub the published-page authority with the named repo-relative pages."""
+    page_set = PublishedPageSet(
+        pages=frozenset(Path("docs") / relative for relative in relative_paths),
+        source_globs=("**.md",),
+        exclusions=(),
+    )
+
+    def _resolve_page_set(**_kwargs: object) -> PublishedPageSet:
+        return page_set
+
+    monkeypatch.setattr(
+        "scripts.docs.description_length_check._resolve_page_set",
+        _resolve_page_set,
+    )
+
+
+class TestDiffScopeDescriptionCLI:
+    """``--changed-from`` behavior through :func:`main` over real git repos."""
+
+    def test_changed_length_violation_reds(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        docs = tmp_path / "docs"
+        _write_page(docs / "existing.md", _desc(100))
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "changed.md", _desc(49))
+        commit_all_changes(tmp_path, "add short description")
+        _stub_published_pages(monkeypatch, "existing.md", "changed.md")
+
+        exit_code = main(
+            [
+                "--docs-root",
+                str(docs),
+                "--repo-root",
+                str(tmp_path),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+
+        assert exit_code == 1
+
+    def test_unchanged_preexisting_violation_passes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        docs = tmp_path / "docs"
+        _write_page(docs / "preexisting.md", _desc(49))
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "changed.md", _desc(100))
+        commit_all_changes(tmp_path, "add valid description")
+        _stub_published_pages(monkeypatch, "preexisting.md", "changed.md")
+
+        exit_code = main(
+            [
+                "--docs-root",
+                str(docs),
+                "--repo-root",
+                str(tmp_path),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+
+        assert exit_code == 0
+
+    def test_changed_duplicate_compares_with_unchanged_peer(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        docs = tmp_path / "docs"
+        shared = _desc(120)
+        _write_page(docs / "existing.md", shared)
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "changed.md", shared)
+        commit_all_changes(tmp_path, "add duplicate description")
+        _stub_published_pages(monkeypatch, "existing.md", "changed.md")
+
+        exit_code = main(
+            [
+                "--docs-root",
+                str(docs),
+                "--repo-root",
+                str(tmp_path),
+                "--strict",
+                "--json",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+
+        assert exit_code == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["checked_count"] == 1
+        assert payload["violations"] == [
+            {
+                "length": 120,
+                "path": "docs/changed.md",
+                "peers": ["docs/existing.md"],
+                "reason": "duplicate",
+            }
+        ]
+
+    def test_resolved_zero_docs_passes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        docs = tmp_path / "docs"
+        _write_page(docs / "preexisting.md", _desc(49))
+        base_sha = init_git_repo_with_base(tmp_path)
+        (tmp_path / "README.md").write_text("# changed\n", encoding="utf-8")
+        commit_all_changes(tmp_path, "change non-docs file")
+        _stub_published_pages(monkeypatch, "preexisting.md")
+
+        exit_code = main(
+            [
+                "--docs-root",
+                str(docs),
+                "--repo-root",
+                str(tmp_path),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+
+        assert exit_code == 0
+
+    def test_unresolvable_base_errors(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        docs = tmp_path / "docs"
+        _write_page(docs / "existing.md", _desc(100))
+        init_git_repo_with_base(tmp_path)
+        _stub_published_pages(monkeypatch, "existing.md")
+
+        exit_code = main(
+            [
+                "--docs-root",
+                str(docs),
+                "--repo-root",
+                str(tmp_path),
+                "--strict",
+                "--changed-from",
+                "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+            ]
+        )
+
+        assert exit_code not in (0, 1)
 
 
 # --- main: the report-only / --strict exit contract (preserved) ------------
