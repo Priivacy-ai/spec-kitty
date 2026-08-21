@@ -147,6 +147,21 @@ def test_read_queue_scope_from_credentials_absent_yields_none(isolated_home: Pat
     assert read_queue_scope_from_credentials() is None
 
 
+def test_read_queue_scope_from_credentials_non_utf8_bytes_yields_none(isolated_home: Path) -> None:
+    """A credentials file that is not valid UTF-8 (binary garbage, a
+    truncated/corrupted write, or a stray unrelated file at that path) must
+    yield ``None``, not raise. The function's own docstring promises
+    "Defensive by contract: a missing/corrupt/incomplete file yields None
+    rather than raising" — that guarantee must hold for encoding failures
+    too, not just TOML-parse/OS/type failures.
+    """
+    from specify_cli.sync.queue_scope import read_queue_scope_from_credentials
+
+    creds = isolated_home / "credentials"
+    creds.write_bytes(b"\xff\xfe\x00\x01garbage-not-utf8\xff\xfe")
+    assert read_queue_scope_from_credentials() is None
+
+
 # ---------------------------------------------------------------------------
 # Legacy-path stubs — WP10-migration-only, must raise, never resolve silently
 # ---------------------------------------------------------------------------
