@@ -174,15 +174,22 @@ def test_absent_owner_record_is_a_clean_noop(_scoped_home: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_live_daemon_is_stopped_via_existing_no_drain_path(
-    tmp_path: Path, _scoped_home: Path
-) -> None:
+def test_live_daemon_is_stopped_via_existing_no_drain_path(_scoped_home: Path) -> None:
     from specify_cli.sync.retirement import retire_legacy_sync_daemon
 
-    harness = DaemonHarness(tmp_path / "sync-daemon")
+    # ``_daemon_state_file()`` resolves to ``<SPEC_KITTY_HOME>/sync-daemon`` on
+    # POSIX (``daemon._daemon_root()``); point the harness there so
+    # ``stop_sync_daemon()`` -- the existing no-drain path this module reuses
+    # unchanged -- finds it, matching what the real spawn path
+    # (``ensure_sync_daemon_running`` -> ``_write_daemon_file``) always writes
+    # alongside ``owner.json`` in production.
+    harness = DaemonHarness(_scoped_home / "sync-daemon")
     port = find_free_port_in_range(9400, 9425)
     try:
         proc = harness.spawn_daemon(port, _TOKEN, home=str(_scoped_home))
+        harness.write_state_file(
+            f"http://127.0.0.1:{port}", port, _TOKEN, proc.pid
+        )
 
         outcome = retire_legacy_sync_daemon()
 
@@ -230,13 +237,16 @@ def test_sigkilled_daemon_converges_on_retry(tmp_path: Path, _scoped_home: Path)
 # ---------------------------------------------------------------------------
 
 
-def test_concurrent_retirement_is_idempotent(tmp_path: Path, _scoped_home: Path) -> None:
+def test_concurrent_retirement_is_idempotent(_scoped_home: Path) -> None:
     from specify_cli.sync.retirement import retire_legacy_sync_daemon
 
-    harness = DaemonHarness(tmp_path / "sync-daemon")
+    harness = DaemonHarness(_scoped_home / "sync-daemon")
     port = find_free_port_in_range(9400, 9425)
     try:
         proc = harness.spawn_daemon(port, _TOKEN, home=str(_scoped_home))
+        harness.write_state_file(
+            f"http://127.0.0.1:{port}", port, _TOKEN, proc.pid
+        )
 
         results: list[Any] = [None, None]
 
