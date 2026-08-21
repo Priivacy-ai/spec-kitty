@@ -2073,6 +2073,51 @@ def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
     _render_tracker_egress_row(console_out, issues, hosted, binding_present=binding_present)
 
 
+#: ``retire_legacy_sync_daemon`` outcomes that resolved automatically -- nothing
+#: for an operator to act on, so no ``issues`` entry (R2.md §3.2.2).
+_LEGACY_RETIREMENT_RESOLVED_STATUSES = frozenset(
+    {"stopped", "cleared_stale", "already_stopped"}
+)
+
+
+def _render_legacy_daemon_retirement(console_out: Any, issues: list[str]) -> None:
+    """Best-effort retirement of a pre-R2 legacy sync daemon (R2-T1, R2.md §3.2.2).
+
+    This is the "reachable from a normal post-R2 CLI invocation" call site
+    §3.2.2 requires: it calls
+    :func:`specify_cli.sync.retirement.retire_legacy_sync_daemon`, which
+    detects a live daemon via the owner record
+    (``owner.classify_owner_record``) and reuses the existing no-drain
+    ``daemon.stop_sync_daemon()`` shutdown path unchanged -- this renderer
+    adds no new drain and no new network primitive itself; it only reports
+    what that call already did.
+
+    Silent on ``"no_daemon"`` -- the overwhelmingly common post-R2 case (no
+    pre-R2 daemon was ever left running on this host) is not a health
+    fault, and printing an "OK" row for it every single ``doctor`` run would
+    bury the states that actually need attention. The three resolved
+    states (a live daemon stopped, or a stale/already-gone record cleared)
+    print a confirmation but raise no issue -- they resolved automatically,
+    with nothing left for the operator to do. The two states the
+    retirement step is required by §3.2's own fail-closed contract to
+    refuse to act on unilaterally (an unreadable owner record, or a live
+    PID whose identity it could not verify) print AND raise an issue, so
+    they surface in ``doctor``'s problem summary rather than only in this
+    section's own output.
+    """
+    from specify_cli.sync.retirement import retire_legacy_sync_daemon
+
+    outcome = retire_legacy_sync_daemon()
+    if outcome.status == "no_daemon":
+        return
+
+    if outcome.status in _LEGACY_RETIREMENT_RESOLVED_STATUSES:
+        console_out.print(f"[green]Legacy daemon retirement[/green]: {outcome.detail}")
+    else:
+        console_out.print(f"[yellow]Legacy daemon retirement[/yellow]: {outcome.detail}")
+        issues.append(f"Legacy sync daemon retirement needs attention: {outcome.detail}")
+
+
 def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> None:
     """Report what convergence recovered into the identity columns (#3030 H4).
 
@@ -6208,6 +6253,10 @@ def doctor() -> None:  # noqa: C901
     # readability, not verdict. Two rows, always -- one per EgressDestination --
     # because the on-disk provider does not determine the destination.
     _render_tracker_egress(console, issues)
+    # --- 3f. Legacy daemon retirement (R2-T1, R2.md §3.2.2) ---
+    # Best-effort convergence for a daemon left running by a pre-R2 install;
+    # see the renderer's own docstring for the full contract.
+    _render_legacy_daemon_retirement(console, issues)
     console.print()
 
     if singleton_report is not None and singleton_report.orphan_count > 0:
