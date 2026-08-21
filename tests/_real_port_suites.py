@@ -13,11 +13,15 @@ How this list was verified (re-run this to extend/re-check the family)::
 
     grep -rl "find_free_port_in_range" tests/sync/*.py
 
-As of this mission that grep returns 5 files: ``_daemon_harness.py`` itself
-(the shared helper, not a test file — excluded), and the 4 test files listed
-in ``FIXED_RANGE_SUITES`` below, each binding the fixed range either via the
+That grep returns 6 files: ``_daemon_harness.py`` itself (the shared helper,
+not a test file — excluded), and the 5 test files listed in
+``FIXED_RANGE_SUITES`` below, each binding the fixed range either via the
 harness's re-exported helper or (``test_orphan_sweep.py``) a local
 ``_find_free_port_in_range`` re-implementation of the same fixed-range scan.
+(``test_legacy_daemon_retirement_r2t1.py`` added by R2-T1 — WP(a) daemon
+retirement — reuses the harness's ``find_free_port_in_range(9400, 9425)``,
+the same reserved range ``test_daemon_orphan_classification.py`` already
+binds, so it joins this family rather than claiming a new range.)
 
 Exclusion note — ephemeral (port-0) binders stay OUT of this registry
 ------------------------------------------------------------------
@@ -43,11 +47,12 @@ merge the two.
 from __future__ import annotations
 
 # Verified via `grep -rl find_free_port_in_range tests/sync/*.py` (see module
-# docstring for the exact command and its current 5-file result, minus the
+# docstring for the exact command and its current 6-file result, minus the
 # shared harness module itself which is not a test file).
 FIXED_RANGE_SUITES: tuple[str, ...] = (
     "tests/sync/test_orphan_sweep.py",
     "tests/sync/test_daemon_orphan_classification.py",
     "tests/sync/test_daemon_cleanup_boundary.py",
     "tests/sync/test_issue_1071_singleton_reconfirmation.py",
+    "tests/sync/test_legacy_daemon_retirement_r2t1.py",
 )
