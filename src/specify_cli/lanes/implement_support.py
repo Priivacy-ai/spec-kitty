@@ -17,7 +17,10 @@ from specify_cli.ownership.models import ExecutionMode
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.branch_naming import worktree_dir_name as _worktree_dir_name
-from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
+from specify_cli.lanes.worktree_allocator import (
+    _read_coordination_branch,
+    allocate_lane_worktree,
+)
 from specify_cli.workspace.context import ResolvedWorkspace
 from specify_cli.workspace.context import WorkspaceContext, save_context
 
@@ -54,6 +57,7 @@ def create_lane_workspace(
     lanes_manifest: LanesManifest | None,
     declared_deps: list[str],
     vcs_backend_value: str,
+    base: str | None = None,
 ) -> LaneWorkspaceResult:
     """Create or reuse the execution workspace for the given WP.
 
@@ -69,6 +73,13 @@ def create_lane_workspace(
         lanes_manifest: The computed lanes manifest for code_change WPs.
         declared_deps: Declared dependencies for this WP.
         vcs_backend_value: VCS backend value string (e.g., "git").
+        base: #3571 (C-001) — explicit ``--base`` ref, threaded (never
+            smuggled through ``lanes_manifest.mission_branch``) into
+            :func:`~specify_cli.lanes.worktree_allocator.allocate_lane_worktree`
+            AND into the recorded ``base_branch``/``base_commit`` provenance
+            below, so both the allocation decision and what gets reported as
+            "the base this lane was parented on" agree. ``None`` reproduces
+            prior behaviour exactly (NFR-005).
 
     Returns:
         LaneWorkspaceResult with workspace info.
@@ -94,6 +105,7 @@ def create_lane_workspace(
         mission_slug=mission_slug,
         wp_id=wp_id,
         lanes_manifest=lanes_manifest,
+        base=base,
     )
 
     # Install pre-commit ownership guard.
@@ -104,17 +116,37 @@ def create_lane_workspace(
     lane = lanes_manifest.lane_for_wp(wp_id)
     lane_id = lane.lane_id if lane else "unknown"
 
+    # FR-011 / C-001: record the ACTUAL honored parent, not always
+    # ``mission_branch``. ``base`` when supplied (the allocator parented the
+    # lane on it, D1); otherwise the SAME topology parent
+    # ``allocate_lane_worktree`` itself just used to create the lane
+    # (``coordination_branch`` for coord topology, ``mission_branch`` for
+    # legacy — mirrors ``_read_coordination_branch``, the private helper the
+    # allocator reads internally, so this can never diverge from what was
+    # actually created). No-regression pin: a default no-``--base`` coord
+    # lane still records ``coordination_branch`` exactly as before.
+    coordination_branch = _read_coordination_branch(repo_root, mission_slug)
+    honored_base = (
+        base
+        if base is not None
+        else (
+            coordination_branch
+            if coordination_branch is not None
+            else lanes_manifest.mission_branch
+        )
+    )
+
     # Detect reuse: if the worktree has a .git file it was pre-existing
     # and allocate_lane_worktree just validated it was clean.
     git_marker = workspace_path / ".git"
     is_reuse = git_marker.exists() and _has_commits_beyond_base(
         workspace_path,
-        lanes_manifest.mission_branch,
+        honored_base,
     )
 
     from specify_cli.workspace.context import load_context
 
-    base_branch = lanes_manifest.mission_branch
+    base_branch = honored_base
 
     if is_reuse:
         # Reuse — refresh context to reflect the new active WP.

@@ -88,6 +88,32 @@ def resolve_lane_base_ref(
         )
 
 
+def _recorded_honored_base(
+    main_repo_root: Path, mission_slug: str, lane_id: str,
+) -> str | None:
+    """The lane's recorded honored-base provenance (FR-011), or ``None``.
+
+    ``create_lane_workspace`` (implement_support.py) records the ACTUAL
+    parent a lane was allocated on -- ``base`` when ``--base`` was supplied,
+    else the topology parent the allocator used (``coordination_branch`` for
+    coord, ``mission_branch`` for legacy) -- into ``WorkspaceContext.base_branch``.
+    Reading it here lets the gate measure against whatever the lane was
+    ACTUALLY parented on (operator ruling, C-004) instead of re-deriving a
+    topology guess that can disagree with a lane created via an explicit
+    ``--base``. ``None`` when no context file exists yet (e.g. the lane has
+    not been allocated) -- callers fall back to :func:`resolve_lane_base_ref`.
+    """
+    from specify_cli.lanes.branch_naming import worktree_dir_name
+    from specify_cli.workspace.context import load_context
+
+    workspace_name = worktree_dir_name(mission_slug, mission_id=None, lane_id=lane_id)
+    context = load_context(main_repo_root, workspace_name)
+    if context is None or not context.base_branch:
+        return None
+    recorded_base_branch: str = context.base_branch
+    return recorded_base_branch
+
+
 def _resolve_lane(
     main_repo_root: Path, mission_slug: str, wp_id: str
 ) -> tuple[LanesManifest, ExecutionLane] | None:
@@ -143,7 +169,15 @@ def evaluate_for_review_gate(
 
     lane_id = lane.lane_id
     worktree, lane_branch = predict_lane_worktree(main_repo_root, mission_slug, lane_id)
-    base_ref = resolve_lane_base_ref(main_repo_root, mission_slug, manifest)
+    # FR-011 / C-004 (operator ruling): prefer the lane's recorded honored
+    # base -- what the lane was ACTUALLY parented on, including an explicit
+    # --base -- over the topology guess. A default no-base coord lane
+    # records coordination_branch as its honored base (implement_support.py),
+    # so this is a no-regression pin, not a special case: coord is simply the
+    # default value of the uniform "actual honored parent" SSOT.
+    base_ref = _recorded_honored_base(main_repo_root, mission_slug, lane_id)
+    if base_ref is None:
+        base_ref = resolve_lane_base_ref(main_repo_root, mission_slug, manifest)
 
     from ._git import lane_has_commit_beyond_base
 
