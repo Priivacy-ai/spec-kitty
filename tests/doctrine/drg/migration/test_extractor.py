@@ -27,10 +27,12 @@ from charter.offering.drg.migration.extractor import (
     _relation_for_procedure_ref_type,
     extract_action_edges,
     extract_artifact_edges,
+    extract_governance_profile_scope_edges,
     extract_mission_type_edges,
     generate_graph,
 )
 from charter.offering.drg.migration.hand_authored_overlay import write_reference_graph_with_overlay
+from charter.offering.drg.migration.id_normalizer import artifact_to_urn
 from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from charter.offering.drg.query import resolve_context
 from charter.offering.drg.validator import validate_graph
@@ -1411,3 +1413,145 @@ class TestAgentProfileImplementerIvanConstant:
         # is here to preserve.
         assert len(lineage_targets) == 4  # golden-count: cardinality-is-contract
         assert all(t is _AGENT_PROFILE_IMPLEMENTER_IVAN for t in lineage_targets)
+
+
+class TestExtractGovernanceProfileScopeEdges:
+    """Focused unit tests for ``extract_governance_profile_scope_edges``
+    (#3604), which was previously only exercised end-to-end against the real
+    shipped doctrine tree. Mirrors ``TestDiscoverBuiltInNodesInDir``'s
+    tmp_path fixture-pack style. Covers the branches the end-to-end path
+    never isolates: the ``mission_type`` fallback to the profile's own
+    parent-directory name, the ``seen_triples`` dedup guard, and the
+    missing-``missions/``-dir early return.
+    """
+
+    def test_missing_missions_dir_returns_no_edges(self, tmp_path: Path) -> None:
+        """A doctrine root with no ``missions/`` directory at all degrades to
+        an empty edge list rather than raising -- mirrors every other
+        extraction pass's missing-source-dir tolerance."""
+        assert not (tmp_path / "missions").exists()
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        assert edges == []
+
+    def test_mission_type_falls_back_to_parent_dir_name(self, tmp_path: Path) -> None:
+        """When ``governance-profile.yaml`` omits the ``mission_type`` key,
+        the source mission-type id is the profile's own parent directory
+        name (``profile_path.parent.name``) -- not left unresolved or
+        defaulted to some other constant."""
+        profile_dir = tmp_path / "missions" / "research"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "governance-profile.yaml").write_text(
+            "selected_directives:\n  - DIRECTIVE_999\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        assert {(e.source, e.target, e.relation) for e in edges} == {
+            (
+                artifact_to_urn("mission_type", "research"),
+                artifact_to_urn("directive", "DIRECTIVE_999"),
+                Relation.SCOPE,
+            )
+        }
+
+    def test_explicit_mission_type_overrides_parent_dir_name(
+        self, tmp_path: Path
+    ) -> None:
+        """When authored, the ``mission_type`` key wins over the parent
+        directory name -- proving the fallback above really is a fallback,
+        not an always-preferred value."""
+        profile_dir = tmp_path / "missions" / "on-disk-dir-name"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "governance-profile.yaml").write_text(
+            "mission_type: authored-type\n"
+            "selected_paradigms:\n"
+            "  - fixture-paradigm\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        assert {(e.source, e.target, e.relation) for e in edges} == {
+            (
+                artifact_to_urn("mission_type", "authored-type"),
+                artifact_to_urn("paradigm", "fixture-paradigm"),
+                Relation.SCOPE,
+            )
+        }
+
+    def test_duplicate_selected_id_is_deduplicated_via_seen_triples(
+        self, tmp_path: Path
+    ) -> None:
+        """The same target id repeated within a ``selected_*`` list collapses
+        to a single ``(source, target, relation)`` edge via the
+        ``seen_triples`` guard, instead of emitting a duplicate edge per
+        repeated entry."""
+        profile_dir = tmp_path / "missions" / "plan"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "governance-profile.yaml").write_text(
+            "mission_type: plan\n"
+            "selected_tactics:\n"
+            "  - fixture-tactic\n"
+            "  - fixture-tactic\n"
+            "  - fixture-tactic\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        # List-equality (not set): proves the three duplicate entries collapse to
+        # exactly one emitted edge, not merely to one unique triple.
+        assert [(e.source, e.target, e.relation) for e in edges] == [
+            (
+                artifact_to_urn("mission_type", "plan"),
+                artifact_to_urn("tactic", "fixture-tactic"),
+                Relation.SCOPE,
+            )
+        ]
+
+    def test_multiple_profiles_and_fields_each_emit_their_own_edge(
+        self, tmp_path: Path
+    ) -> None:
+        """Sanity check the dedup guard is scoped per-triple, not global: two
+        distinct mission types, and two distinct fields on the same profile,
+        each still produce their own edge."""
+        research_dir = tmp_path / "missions" / "research"
+        research_dir.mkdir(parents=True)
+        (research_dir / "governance-profile.yaml").write_text(
+            "mission_type: research\n"
+            "selected_directives:\n"
+            "  - DIRECTIVE_999\n"
+            "selected_tactics:\n"
+            "  - fixture-tactic\n",
+            encoding="utf-8",
+        )
+        plan_dir = tmp_path / "missions" / "plan"
+        plan_dir.mkdir(parents=True)
+        (plan_dir / "governance-profile.yaml").write_text(
+            "mission_type: plan\nselected_directives:\n  - DIRECTIVE_999\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        triples = {(e.source, e.target, e.relation) for e in edges}
+        assert triples == {
+            (
+                artifact_to_urn("mission_type", "research"),
+                artifact_to_urn("directive", "DIRECTIVE_999"),
+                Relation.SCOPE,
+            ),
+            (
+                artifact_to_urn("mission_type", "research"),
+                artifact_to_urn("tactic", "fixture-tactic"),
+                Relation.SCOPE,
+            ),
+            (
+                artifact_to_urn("mission_type", "plan"),
+                artifact_to_urn("directive", "DIRECTIVE_999"),
+                Relation.SCOPE,
+            ),
+        }

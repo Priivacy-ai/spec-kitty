@@ -575,6 +575,30 @@ def _render_profile_tactics(
     )
 
 
+# The composed set of profile-channel section renderers ``_render_profile_sections``
+# calls, in deterministic render order. Named at module scope (rather than kept
+# function-local) so the FR-008 anti-divergence test
+# (``tests/charter/test_emit_delivery_bind.py::_REAL_PROJECTED_CHANNELS``) can
+# bind its roster to this exact tuple instead of hand-copying/re-deriving it —
+# a future 7th renderer added here without a matching roster entry now fails
+# that test instead of silently diverging.
+_PROFILE_SECTION_RENDERERS: tuple[Callable[[AgentProfile, object], list[str]], ...] = (
+    _render_profile_directives,
+    _render_profile_tactics,
+    render_profile_styleguides,
+    render_profile_toolguides,
+    render_profile_procedures,
+    # WP01 (doctrine-delivery-activation-01KYQVQK): the channel-resolved
+    # ``suggests``-delivery section — the profile channel now follows
+    # ``suggests``, delivering the #3063 A–E families (paradigm/tactic/…) as
+    # ``when``-labelled links. Distinct from the C-007 deferral of
+    # schema-attested INLINE citation of asset/anti-pattern/paradigm kinds:
+    # this delivers what the CHANNEL reaches, as ``render_profile_procedures``
+    # already does.
+    render_profile_suggested_doctrine,
+)
+
+
 def _render_profile_sections(
     profile: AgentProfile | None,
     service: object,
@@ -590,24 +614,9 @@ def _render_profile_sections(
     """
     if profile is None:
         return ""
-    section_renderers = (
-        _render_profile_directives,
-        _render_profile_tactics,
-        render_profile_styleguides,
-        render_profile_toolguides,
-        render_profile_procedures,
-        # WP01 (doctrine-delivery-activation-01KYQVQK): the channel-resolved
-        # ``suggests``-delivery section — the profile channel now follows
-        # ``suggests``, delivering the #3063 A–E families (paradigm/tactic/…) as
-        # ``when``-labelled links. Distinct from the C-007 deferral of
-        # schema-attested INLINE citation of asset/anti-pattern/paradigm kinds:
-        # this delivers what the CHANNEL reaches, as ``render_profile_procedures``
-        # already does.
-        render_profile_suggested_doctrine,
-    )
     blocks = [
         "\n".join(lines)
-        for renderer in section_renderers
+        for renderer in _PROFILE_SECTION_RENDERERS
         if (lines := renderer(profile, service))
     ]
     return "\n\n".join(blocks)
