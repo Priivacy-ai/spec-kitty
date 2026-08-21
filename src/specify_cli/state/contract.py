@@ -245,6 +245,82 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         ),
     ),
     StateSurface(
+        name="team_projection_mission_snapshot",
+        path_pattern=".kittify/derived/<mission_slug>/team-snapshot.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DERIVED,
+        git_class=GitClass.IGNORED,
+        owner_module="team_projection",
+        creation_trigger="spec-kitty team-projection publish",
+        notes=(
+            "Closed, allowlist-filtered team-scoped per-mission snapshot with "
+            "exact-commit provenance. Extends the derived_mission_views family "
+            "(same root/DERIVED/IGNORED classification); regenerable from "
+            "(status.events.jsonl, .kittify/config.yaml, git HEAD)."
+        ),
+    ),
+    StateSurface(
+        name="team_projection_index",
+        path_pattern=".kittify/derived/team-index.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DERIVED,
+        git_class=GitClass.IGNORED,
+        owner_module="team_projection",
+        creation_trigger="spec-kitty team-projection publish",
+        notes=(
+            "Cross-mission team index: a table of contents (per-mission "
+            "content_sha256 pointers), not a bundle of full snapshot bodies."
+        ),
+    ),
+    StateSurface(
+        name="team_projection_public_mission_snapshot",
+        path_pattern=".kittify/derived/<mission_slug>/public/mission.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DERIVED,
+        git_class=GitClass.IGNORED,
+        owner_module="team_projection",
+        creation_trigger="spec-kitty team-projection publish",
+        notes=(
+            "Explicit-opt-in public variant of the team mission snapshot "
+            "(narrower field allowlist). Present on disk only when "
+            "public_projection.enabled is true in .kittify/config.yaml."
+        ),
+    ),
+    StateSurface(
+        name="team_projection_public_index",
+        path_pattern=".kittify/derived/public/index.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DERIVED,
+        git_class=GitClass.IGNORED,
+        owner_module="team_projection",
+        creation_trigger="spec-kitty team-projection publish",
+        notes=(
+            "Explicit-opt-in public variant of the team index. Present on "
+            "disk only when public_projection.enabled is true."
+        ),
+    ),
+    StateSurface(
+        name="team_projection_attestation_manifest",
+        path_pattern=".kittify/derived/attestation-manifest.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DERIVED,
+        git_class=GitClass.IGNORED,
+        owner_module="team_projection",
+        creation_trigger="spec-kitty team-projection publish",
+        notes=(
+            "Closed per-commit manifest naming every team_projection artifact "
+            "written for the current exact commit and its content_sha256. "
+            "Producer-only: names artifacts for a later provider-native "
+            "attestation verification step (owned by a downstream repo), "
+            "never verifies anything itself."
+        ),
+    ),
+    StateSurface(
         name="migration_state_ledger",
         path_pattern=".kittify/migrations/mission-state/<run_id>.json",
         root=StateRoot.PROJECT,
