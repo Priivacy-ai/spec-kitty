@@ -1,8 +1,22 @@
-"""Project-owned event outbox plus pure legacy-discovery path helpers."""
+"""Project-owned event outbox (transport half of the retired-pipeline queue).
+
+R3-T1 (m1-contract-drafts/R3.md §2.1a) split this module: the scope-resolution
+primitives (``build_queue_scope``, ``scope_db_path``, ``read_active_scope``,
+``read_queue_scope_from_credentials``, ``read_queue_scope_from_session``,
+``default_queue_db_path``, ``_legacy_queue_db_path``,
+``detect_legacy_rows_for_scope``, ``LegacyRowCounts``) now live in the
+retained, transport-independent ``specify_cli.sync.queue_scope`` module —
+``sync/target_authority.py`` and the other retained callers import from there
+directly. This module re-exports the same objects (identity, not copies) so
+existing call sites that still import scope helpers from here keep working
+unchanged. Only ``OfflineQueue`` and friends (``get_max_queue_size``) are
+genuinely transport-specific and this module's own scope going forward — R2's
+physical-deletion criterion applies to this remaining surface, not to
+``queue_scope``.
+"""
 
 from __future__ import annotations
 
-import hashlib
 import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -14,7 +28,6 @@ import toml
 from kernel.clock import UTC, datetime, now_utc, now_utc_iso, timedelta
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
-from specify_cli.paths import get_runtime_root
 from specify_cli.sync.layout_generation import (
     LayoutDestination,
     LayoutGenerationAuthority,
@@ -22,6 +35,22 @@ from specify_cli.sync.layout_generation import (
     LayoutWritePermit,
 )
 from specify_cli.sync.project_store import ProjectUnitOfWork
+from specify_cli.sync.queue_scope import (
+    LegacyQueueMigrationRequiredError,
+    LegacyRowCounts,
+    _active_scope_path,
+    _legacy_queue_db_path,
+    _scoped_queue_dir,
+    _spec_kitty_dir,
+    build_queue_scope,
+    default_queue_db_path,
+    detect_legacy_rows_for_scope,
+    read_active_scope,
+    read_queue_scope_from_credentials,
+    read_queue_scope_from_session,
+    scope_db_path,
+    write_active_scope,
+)
 
 DEFAULT_MAX_QUEUE_SIZE = 100_000
 DEFAULT_STRICT_CAP_SIZE = 10_000
@@ -39,10 +68,6 @@ class OfflineQueueFull(RuntimeError):
         super().__init__(f"Offline sync queue at capacity ({current}/{cap})")
         self.cap = cap
         self.current = current
-
-
-class LegacyQueueMigrationRequiredError(RuntimeError):
-    """A retired path-backed queue operation was requested on a live path."""
 
 
 @dataclass(slots=True)
@@ -69,192 +94,9 @@ class ProjectOutboxTask:
     created_at: str
 
 
-@dataclass(frozen=True, slots=True)
-class LegacyRowCounts:
-    event_rows: int = 0
-    body_upload_rows: int = 0
-    failure_log_rows: int = 0
-    per_table: dict[str, int] = field(default_factory=dict)
-
-    @property
-    def total_rows(self) -> int:
-        return self.event_rows + self.body_upload_rows + self.failure_log_rows
-
-    def __bool__(self) -> bool:
-        return bool(self.per_table)
-
-    def __len__(self) -> int:
-        return len(self.per_table)
-
-    def __iter__(self) -> Any:
-        return iter(self.per_table)
-
-    def __contains__(self, key: object) -> bool:
-        return key in self.per_table
-
-    def __getitem__(self, key: str) -> int:
-        return self.per_table[key]
-
-    def get(self, key: str, default: int = 0) -> int:
-        return self.per_table.get(key, default)
-
-    def items(self) -> Any:
-        return self.per_table.items()
-
-    def keys(self) -> Any:
-        return self.per_table.keys()
-
-    def values(self) -> Any:
-        return self.per_table.values()
-
-    def __hash__(self) -> int:
-        return hash((self.event_rows, self.body_upload_rows, self.failure_log_rows))
-
-
-def _spec_kitty_dir() -> Path:
-    return Path(get_runtime_root().base)
-
-
-def _credentials_path() -> Path:
-    return _spec_kitty_dir() / "credentials"
-
-
-def _auth_session_store_dir() -> Path:
-    return _spec_kitty_dir() / "auth"
-
-
-def _legacy_queue_db_path() -> Path:
-    """Named WP10 migration input; never opened by this module."""
-    return _spec_kitty_dir() / "queue.db"
-
-
-def _scoped_queue_dir() -> Path:
-    return _spec_kitty_dir() / "queues"
-
-
-def _active_scope_path() -> Path:
-    return _spec_kitty_dir() / "active_queue_scope"
-
-
-def _normalise_scope_part(value: str) -> str:
-    return value.strip().lower()
-
-
-def build_queue_scope(server_url: str, username: str, team_slug: str) -> str:
-    material = "\0".join(_normalise_scope_part(value) for value in (server_url, username, team_slug))
-    return hashlib.sha256(material.encode()).hexdigest()  # noqa: TID251 - legacy path identity
-
-
-def scope_db_path(scope: str) -> Path:
-    return _scoped_queue_dir() / f"queue-{scope}.db"
-
-
-def read_active_scope(path: Path | None = None) -> str | None:
-    source = path or _active_scope_path()
-    try:
-        value = source.read_text(encoding="utf-8").strip()
-    except OSError:
-        return None
-    return value or None
-
-
-def write_active_scope(scope: str, path: Path | None = None) -> None:
-    destination = path or _active_scope_path()
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(f"{scope.strip()}\n", encoding="utf-8")
-
-
-def _read_json(path: Path) -> Mapping[str, Any] | None:
-    try:
-        value: Any = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, ValueError, TypeError):
-        return None
-    return value if isinstance(value, Mapping) else None
-
-
-def _piped_scope_from_toml_credentials(path: Path) -> str | None:
-    """Build the canonical ``server|user|team`` scope from a TOML credentials file.
-
-    This is an **auth/identity signal**, not a physical-store selector: the
-    returned string is split back into ``(user, team)`` by
-    ``preflight._read_scope_identity_local_only`` (which expects the
-    ``server|user|team`` order) and is used by the FR-011 gate purely as a
-    truthiness test. It never derives a queue DB path — the authoritative store
-    is selected by ProjectSyncStore via ``_derive_queue_scope`` (FR-009 / C-003).
-
-    Defensive by contract: a missing/corrupt/incomplete file yields ``None``
-    rather than raising, mirroring the ``_read_json`` posture above.
-    """
-    try:
-        data = toml.load(path)
-    except (toml.TomlDecodeError, OSError, TypeError):
-        return None
-    if not isinstance(data, Mapping):
-        return None
-    user_data = data.get("user")
-    server_data = data.get("server")
-    if not isinstance(user_data, Mapping) or not isinstance(server_data, Mapping):
-        return None
-    username = user_data.get("username")
-    server_url = server_data.get("url")
-    if not isinstance(username, str) or not username.strip():
-        return None
-    if not isinstance(server_url, str) or not server_url.strip():
-        return None
-    team_slug = user_data.get("team_slug")
-    team = team_slug if isinstance(team_slug, str) and team_slug.strip() else "no-team"
-    return f"{server_url}|{username}|{team}"
-
-
-def read_queue_scope_from_credentials(credentials_path: Path | None = None) -> str | None:
-    """Return a queue-scope **auth signal** from the on-disk credentials, or ``None``.
-
-    Two supported forms, JSON-explicit winning where present (preserves #3293):
-
-    1. JSON with an explicit ``queue_scope`` string — returned verbatim.
-    2. The supported TOML credential form (``[user]`` / ``[server]`` tables) —
-       parsed back into the canonical ``server|user|team`` piped scope that
-       ``preflight._read_scope_identity_local_only`` splits on (preflight.py:479).
-
-    Restoring form (2) fixes the #3425 credential regression (FR-004): a
-    genuinely-authenticated host again yields a truthy scope so the FR-011 auth
-    gate stops refusing it. This function stays a pure, side-effect-free read: no
-    migration, no SaaS round-trip, no path resolution. The value is an auth signal
-    only — it must never steer physical-store selection (FR-009 / C-003).
-    """
-    path = credentials_path or _credentials_path()
-    data = _read_json(path)
-    if data is not None:
-        explicit = data.get("queue_scope")
-        if isinstance(explicit, str) and explicit.strip():
-            return str(explicit)
-    return _piped_scope_from_toml_credentials(path)
-
-
-def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None:
-    del allow_rehydrate
-    active = read_active_scope()
-    if active:
-        return active
-    session = _read_json(_auth_session_store_dir() / "session.json")
-    if session is None:
-        return None
-    explicit = session.get("queue_scope")
-    return str(explicit) if isinstance(explicit, str) and explicit.strip() else None
-
-
-def default_queue_db_path(*_args: object, **_kwargs: object) -> Path:
-    raise LegacyQueueMigrationRequiredError("live payload queues are selected by ProjectSyncStore; legacy paths are WP10 migration inputs")
-
-
 def resolved_scope_db_path(resolved_target: object) -> Path:
     del resolved_target
     raise LegacyQueueMigrationRequiredError("target identity cannot select a live payload store")
-
-
-def detect_legacy_rows_for_scope(scope: str) -> LegacyRowCounts:
-    del scope
-    raise LegacyQueueMigrationRequiredError("inspect legacy rows through the named WP10 read-only migration adapter")
 
 
 def pending_events_for_scope(scope: str) -> int:
@@ -571,14 +413,21 @@ class OfflineQueue:
 
 __all__ = [
     "DEFAULT_MAX_QUEUE_SIZE",
+    "LegacyQueueMigrationRequiredError",
+    "LegacyRowCounts",
     "OfflineQueue",
     "ProjectOutboxTask",
     "QueueStats",
+    "_active_scope_path",
     "_legacy_queue_db_path",
+    "_scoped_queue_dir",
     "build_queue_scope",
+    "default_queue_db_path",
+    "detect_legacy_rows_for_scope",
     "get_max_queue_size",
     "read_active_scope",
     "read_queue_scope_from_credentials",
     "read_queue_scope_from_session",
     "scope_db_path",
+    "write_active_scope",
 ]

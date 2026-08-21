@@ -41,7 +41,7 @@ from specify_cli.auth.config import get_saas_base_url
 from specify_cli.auth.errors import ConfigurationError
 from specify_cli.sync.config import SyncConfig
 from specify_cli.sync.project_identity import CanonicalProjectUUID
-from specify_cli.sync.queue import (
+from specify_cli.sync.queue_scope import (
     build_queue_scope,
     read_active_scope,
     read_queue_scope_from_credentials,

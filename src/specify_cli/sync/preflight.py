@@ -398,7 +398,7 @@ def _read_queue_scope_local_only() -> str | None:
     """Read the queue scope from already-persisted local state only.
 
     Cycle-3 read-only fix: the public helper
-    ``specify_cli.sync.queue.read_queue_scope_from_session`` calls
+    ``specify_cli.sync.queue_scope.read_queue_scope_from_session`` calls
     ``resolve_private_team_id_for_ingress`` which can transitively invoke
     ``TokenManager.rehydrate_membership_if_needed()`` — and that issues a
     ``GET /api/v1/me`` HTTP request when the in-memory session lacks a
@@ -452,10 +452,10 @@ def _read_scope_identity_local_only() -> tuple[str, str] | None:
     resolved locally, which the preflight treats as unauthenticated.
     """
     # Local imports keep module import-time cheap and avoid top-level
-    # cycles with sync.queue / auth.
+    # cycles with sync.queue_scope / auth.
     from specify_cli.auth.manager import get_token_manager
     from specify_cli.auth.session import StoredSession, require_private_team_id
-    from specify_cli.sync.queue import read_queue_scope_from_credentials
+    from specify_cli.sync.queue_scope import read_queue_scope_from_credentials
 
     # Step 1: try the in-memory session via PURE helpers only.
     session: StoredSession | None
@@ -488,7 +488,7 @@ def _read_scope_identity_local_only() -> tuple[str, str] | None:
 def _resolve_queue_db_path_readonly() -> Path:
     """Return the active queue DB path without triggering migration or SaaS.
 
-    ``specify_cli.sync.queue.default_queue_db_path`` resolves the same path
+    ``specify_cli.sync.queue_scope.default_queue_db_path`` resolves the same path
     but invokes ``_migrate_legacy_queue_to_scope`` as a side effect when an
     auth scope is present (queue.py:797). Calling it from the preflight
     would violate the read-only contract (T003) and silently move legacy
@@ -507,8 +507,8 @@ def _resolve_queue_db_path_readonly() -> Path:
     authenticated sessions, without touching either DB.
     """
     # Local import keeps module import-time cheap and avoids a top-level
-    # cycle with sync.queue.
-    from specify_cli.sync.queue import (
+    # cycle with sync.queue_scope.
+    from specify_cli.sync.queue_scope import (
         _legacy_queue_db_path,
         scope_db_path,
     )
