@@ -50,7 +50,6 @@ _PUBLIC_SURFACE = sorted(
         "ArtifactPlacementFragment",
         "BranchRefFragment",
         "CommitTarget",
-        "ExecutionMode",
         "IdentityFragment",
         "MissionArtifactContext",
         "MissionArtifactHome",
