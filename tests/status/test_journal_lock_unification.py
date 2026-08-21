@@ -36,13 +36,11 @@ def _git_init(path: Path) -> None:
     )
 
 
-import specify_cli.status.lifecycle_events as lifecycle
 import specify_cli.status.store as status_store
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.lifecycle_events import (
     emit_wp_created_local,
     mission_event_log_path,
-    project_event_log_path,
 )
 from specify_cli.status.locking import (
     _PROJECT_LOCK_SENTINEL,
@@ -51,11 +49,10 @@ from specify_cli.status.locking import (
     project_event_log_lock,
 )
 from specify_cli.status.models import TransitionRequest
-from specify_cli.status.reducer import materialize, reduce
+from specify_cli.status.reducer import materialize
 from specify_cli.status.store import (
     append_raw_rows_atomic,
     is_non_lane_event,
-    read_events,
     read_events_raw,
 )
 
@@ -124,10 +121,9 @@ def test_project_event_log_lock_path_uses_fixed_sentinel(repo: Path) -> None:
 
 
 def test_project_event_log_lock_is_reentrant_per_thread(repo: Path) -> None:
-    with project_event_log_lock(repo):
-        # nested acquisition in the same thread must not deadlock
-        with project_event_log_lock(repo):
-            pass
+    # nested acquisition in the same thread must not deadlock
+    with project_event_log_lock(repo), project_event_log_lock(repo):
+        pass
 
 
 def test_project_event_log_lock_distinct_from_any_mission_lock(
@@ -331,12 +327,14 @@ def test_co3_project_and_mission_locks_do_not_mutually_block(
     feature_dir: Path, repo: Path
 ) -> None:
     """Different lock sentinels (mission vs project) never contend."""
-    with feature_status_lock(repo, _MISSION_SLUG, timeout=2):
-        # Must be able to take the project lock while the mission lock is
-        # held, from the SAME thread even -- proves they are independent
-        # locks, not aliases of one another.
-        with project_event_log_lock(repo, timeout=2):
-            pass
+    # Must be able to take the project lock while the mission lock is held,
+    # from the SAME thread even -- proves they are independent locks, not
+    # aliases of one another.
+    with (
+        feature_status_lock(repo, _MISSION_SLUG, timeout=2),
+        project_event_log_lock(repo, timeout=2),
+    ):
+        pass
 
 
 def test_co4_reentrant_caller_can_invoke_rehomed_appender_without_deadlock(
