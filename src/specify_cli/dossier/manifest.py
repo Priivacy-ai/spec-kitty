@@ -1,8 +1,24 @@
 """Expected artifact manifest system for mission completeness validation.
 
-This module defines manifest schema and registry for declaring which artifacts
-are required/optional at each mission step. Manifests are YAML-based and step-aware,
-reading from mission.yaml state machines.
+This module defines the registry for declaring which artifacts are
+required/optional at each mission step. Manifests are YAML-based and
+step-aware, reading from mission.yaml state machines.
+
+**C-001 relocation (mission rc3-charter-gate-predicate-inversion-01M0GGT1,
+WP04 / #3599):** the manifest *schema* -- ``ArtifactClassEnum`` /
+``ExpectedArtifactSpec`` / ``ExpectedArtifactManifest`` -- moved to
+:mod:`doctrine.missions.expected_artifact_manifest`; this module keeps only
+the registry (``ManifestRegistry``), which is genuinely ``specify_cli``-owned
+(dossier caching/org-tier policy). The three relocated names are still
+importable from here -- ``ExpectedArtifactManifest.model_validate`` is called
+at RUNTIME below, not just referenced in type hints, so a
+``TYPE_CHECKING``-only import would ``NameError``; instead the runtime call
+site uses a lazy, function-local import (mirroring
+:func:`_doctrine_repository`'s existing discipline), and the module-level
+``__getattr__`` below (PEP 562) keeps
+``from specify_cli.dossier.manifest import ExpectedArtifactManifest`` (and
+its two siblings) resolving for existing importers -- see
+``tests/doctrine/missions/test_expected_artifact_manifest_relocation.py``.
 
 Key concepts:
 - ArtifactClassEnum: 6 artifact classes (input, workflow, output, evidence, policy, runtime)
@@ -13,19 +29,44 @@ Key concepts:
 See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 """
 
-from enum import StrEnum
+from __future__ import annotations
+
 from pathlib import Path
-from typing import TYPE_CHECKING
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from typing import TYPE_CHECKING, Any
+from pydantic import ValidationError
 import logging
 
 if TYPE_CHECKING:
     from charter.missions import MissionTemplateRepository
+    from doctrine.missions import ExpectedArtifactManifest, ExpectedArtifactSpec
 
 logger = logging.getLogger(__name__)
 
+#: Names relocated to :mod:`doctrine.missions.expected_artifact_manifest`
+#: (C-001) that this module still lazily re-exports for backward
+#: compatibility -- see the module docstring and ``__getattr__`` below.
+_RELOCATED_NAMES = frozenset({"ArtifactClassEnum", "ExpectedArtifactManifest", "ExpectedArtifactSpec"})
 
-def _doctrine_repository() -> "MissionTemplateRepository":
+
+def __getattr__(name: str) -> Any:
+    """PEP 562 lazy re-export for the classes relocated to ``doctrine.missions``.
+
+    Only fires for attribute access this module doesn't otherwise define
+    (regular imports/definitions above always win first) -- so
+    ``from specify_cli.dossier.manifest import ExpectedArtifactManifest``
+    (and ``ExpectedArtifactSpec`` / ``ArtifactClassEnum``) keeps resolving at
+    runtime for every existing importer, without this module carrying an
+    import-time dependency on ``doctrine`` (the lazy import below only runs
+    when one of the three names is actually requested).
+    """
+    if name in _RELOCATED_NAMES:
+        from charter import missions as _cm  # noqa: PLC0415 — through-charter re-export (runtime→charter→doctrine boundary)
+
+        return getattr(_cm, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _doctrine_repository() -> MissionTemplateRepository:
     """Return the doctrine mission repository bound to the bundled doctrine tree.
 
     Lazy import keeps the ``specify_cli.dossier`` package free of an
@@ -114,133 +155,6 @@ class ManifestSchemaError(Exception):
         )
 
 
-class ArtifactClassEnum(StrEnum):
-    """Classification of artifacts in the dossier system.
-
-    - INPUT: Artifacts provided by user or external source (spec.md, requirements.txt)
-    - WORKFLOW: Process/workflow artifacts (tasks.md, plan.md)
-    - OUTPUT: Deliverable artifacts from the mission (implementation code, findings.md)
-    - EVIDENCE: Supporting evidence (research.md, gap-analysis.md, test results)
-    - POLICY: Governance and standards (architecture-decision.md, compliance.md)
-    - RUNTIME: Artifacts generated at runtime (logs, metrics, temporary data)
-    """
-
-    INPUT = "input"
-    WORKFLOW = "workflow"
-    OUTPUT = "output"
-    EVIDENCE = "evidence"
-    POLICY = "policy"
-    RUNTIME = "runtime"
-
-
-class ExpectedArtifactSpec(BaseModel):
-    """Single artifact expected at a mission step.
-
-    Attributes:
-        artifact_key: Stable, unique key (e.g., 'input.spec.main')
-        artifact_class: One of {input, workflow, output, evidence, policy, runtime}
-        path_pattern: Glob pattern relative to feature dir (e.g., 'spec.md', 'tasks/*.md')
-        blocking: If True, missing artifact blocks mission completeness
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    artifact_key: str = Field(
-        ...,
-        min_length=1,
-        description="Stable, unique key (e.g., 'input.spec.main', 'output.tasks.per_wp')",
-    )
-    artifact_class: ArtifactClassEnum = Field(
-        ...,
-        description="Classification: input | workflow | output | evidence | policy | runtime",
-    )
-    path_pattern: str = Field(
-        ...,
-        min_length=1,
-        description="Glob pattern relative to feature directory (e.g., 'spec.md', 'tasks/*.md')",
-    )
-    blocking: bool = Field(
-        default=False,
-        description="If True, missing artifact blocks mission completeness",
-    )
-
-
-class ExpectedArtifactManifest(BaseModel):
-    """Complete expected artifact manifest for a mission type.
-
-    Defines which artifacts are required/optional at each mission step.
-    Step-aware: required_by_step keys match mission.yaml state IDs.
-
-    Attributes:
-        schema_version: Manifest schema version (e.g., "1.0")
-        mission_type: Mission type (e.g., 'software-dev', 'research', 'documentation')
-        manifest_version: Manifest data version (e.g., "1")
-        required_always: Artifacts required regardless of step
-        required_by_step: Dict mapping step_id to required artifacts for that step
-        optional_always: Artifacts optional regardless of step
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    schema_version: str = Field(
-        default="1.0",
-        description="Manifest schema version",
-    )
-    mission_type: str = Field(
-        ...,
-        description="Mission type (e.g., 'software-dev', 'research', 'documentation')",
-    )
-    manifest_version: str = Field(
-        default="1",
-        description="Manifest data version",
-    )
-    required_always: list[ExpectedArtifactSpec] = Field(
-        default_factory=list,
-        description="Artifacts required regardless of mission step",
-    )
-    required_by_step: dict[str, list[ExpectedArtifactSpec]] = Field(
-        default_factory=dict,
-        description="Dict mapping step_id to required artifacts for that step",
-    )
-    optional_always: list[ExpectedArtifactSpec] = Field(
-        default_factory=list,
-        description="Artifacts optional regardless of mission step",
-    )
-
-    @classmethod
-    def from_yaml_file(cls, path: Path) -> "ExpectedArtifactManifest":
-        """Load manifest from YAML file.
-
-        Args:
-            path: Path to YAML manifest file
-
-        Returns:
-            ExpectedArtifactManifest instance
-
-        Raises:
-            FileNotFoundError: If file doesn't exist
-            ValueError: If YAML is invalid
-        """
-        import ruamel.yaml
-
-        yaml = ruamel.yaml.YAML()
-        with open(path) as f:
-            data = yaml.load(f)
-
-        if data is None:
-            data = {}
-
-        return cls(**data)
-
-    def get_step_ids(self) -> list[str]:
-        """Return all step IDs in required_by_step.
-
-        Returns:
-            List of step IDs (keys of required_by_step dict)
-        """
-        return list(self.required_by_step.keys())
-
-
 class ManifestRegistry:
     """Registry for loading and querying expected artifact manifests.
 
@@ -309,9 +223,9 @@ class ManifestRegistry:
         contract C-4) takes precedence over the built-in file, whole-file —
         never field-merged with it. *repo_root* is optional and defaults to
         ``None`` (today's exact behavior: no org lookup, built-in tree only)
-        so a caller without a ``repo_root`` in scope is unaffected by
-        this signature change. (The former sole production caller lived in
-        the deleted sync namespace module, issue #5.)
+        so the sole production caller,
+        ``specify_cli.sync.namespace.resolve_manifest_version`` — which has
+        no ``repo_root`` in scope — is unaffected by this signature change.
 
         Args:
             mission_type: Mission type (e.g., 'software-dev', 'research')
@@ -339,6 +253,14 @@ class ManifestRegistry:
                 file and the bad key) for any consumer, not only one that
                 knows to read an exception note (#3542-A/B fix).
         """
+        # C-001 relocation (WP04 / #3599): ``ExpectedArtifactManifest`` now
+        # lives in ``doctrine.missions.expected_artifact_manifest`` -- a
+        # lazy, function-local import (not TYPE_CHECKING-only) because the
+        # two ``.model_validate(...)`` calls below need the real class at
+        # RUNTIME, not just a type annotation. Routed through the charter facade
+        # so runtime reaches doctrine through charter (arch boundary gate).
+        from charter.missions import ExpectedArtifactManifest  # noqa: PLC0415
+
         org_roots = _resolve_existing_org_roots(repo_root) if repo_root is not None else []
         cache_key = (mission_type, tuple(str(root) for root in org_roots))
         if cache_key in ManifestRegistry._cache:
