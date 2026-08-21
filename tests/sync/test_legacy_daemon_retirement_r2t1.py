@@ -174,7 +174,10 @@ def test_absent_owner_record_is_a_clean_noop(_scoped_home: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_live_daemon_is_stopped_via_existing_no_drain_path(_scoped_home: Path) -> None:
+def test_live_daemon_is_stopped_via_existing_no_drain_path(
+    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.sync import daemon as daemon_module
     from specify_cli.sync.retirement import retire_legacy_sync_daemon
 
     # ``_daemon_state_file()`` resolves to ``<SPEC_KITTY_HOME>/sync-daemon`` on
@@ -183,7 +186,24 @@ def test_live_daemon_is_stopped_via_existing_no_drain_path(_scoped_home: Path) -
     # unchanged -- finds it, matching what the real spawn path
     # (``ensure_sync_daemon_running`` -> ``_write_daemon_file``) always writes
     # alongside ``owner.json`` in production.
-    harness = DaemonHarness(_scoped_home / "sync-daemon")
+    #
+    # Pinned explicitly via ``monkeypatch.setattr`` rather than left to
+    # ``SPEC_KITTY_HOME`` resolution alone: ``DAEMON_STATE_FILE`` is served by
+    # ``daemon.__getattr__`` (never a real module global) until some test
+    # patches it, and ``monkeypatch``'s teardown then "restores" that
+    # resolved-at-patch-time ``Path`` as a REAL, permanent module attribute --
+    # which freezes ``_resolve_lazy_path``'s override branch for the rest of
+    # the pytest process, shadowing every later test's own
+    # ``SPEC_KITTY_HOME``. Reproduced directly: this test passes alone but
+    # failed after ``test_daemon_orphan_classification.py`` ran first in the
+    # same ``-n0`` process, for exactly this reason. Pinning here (the same
+    # pattern ``test_daemon_self_retirement.py`` and
+    # ``test_daemon_orphan_classification.py`` itself already use) makes this
+    # test immune to that ordering, rather than relying on being scheduled
+    # first.
+    state_file = _scoped_home / "sync-daemon"
+    monkeypatch.setattr(daemon_module, "DAEMON_STATE_FILE", state_file)
+    harness = DaemonHarness(state_file)
     port = find_free_port_in_range(9400, 9425)
     try:
         proc = harness.spawn_daemon(port, _TOKEN, home=str(_scoped_home))
@@ -237,10 +257,18 @@ def test_sigkilled_daemon_converges_on_retry(tmp_path: Path, _scoped_home: Path)
 # ---------------------------------------------------------------------------
 
 
-def test_concurrent_retirement_is_idempotent(_scoped_home: Path) -> None:
+def test_concurrent_retirement_is_idempotent(
+    _scoped_home: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.sync import daemon as daemon_module
     from specify_cli.sync.retirement import retire_legacy_sync_daemon
 
-    harness = DaemonHarness(_scoped_home / "sync-daemon")
+    # See the matching comment in
+    # ``test_live_daemon_is_stopped_via_existing_no_drain_path`` for why this
+    # pin is required, not merely defensive.
+    state_file = _scoped_home / "sync-daemon"
+    monkeypatch.setattr(daemon_module, "DAEMON_STATE_FILE", state_file)
+    harness = DaemonHarness(state_file)
     port = find_free_port_in_range(9400, 9425)
     try:
         proc = harness.spawn_daemon(port, _TOKEN, home=str(_scoped_home))
