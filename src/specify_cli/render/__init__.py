@@ -15,10 +15,13 @@ from .engine import (
     RenderedDocument,
     render_markdown,
 )
+from .signing import SignedRenderedArtifact, sign_rendered_document
 
 __all__ = [
     "RENDERER_CONTRACT_VERSION",
     "NarrowRenderError",
     "RenderedDocument",
+    "SignedRenderedArtifact",
     "render_markdown",
+    "sign_rendered_document",
 ]

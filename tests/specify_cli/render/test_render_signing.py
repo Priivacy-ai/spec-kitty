@@ -14,7 +14,6 @@ from pathlib import Path
 from specify_cli.render import (
     RENDERER_CONTRACT_VERSION,
     RenderedDocument,
-    SignedRenderedArtifact,
     render_markdown,
     sign_rendered_document,
 )
