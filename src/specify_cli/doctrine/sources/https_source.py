@@ -84,7 +84,7 @@ class HttpsBundleSource:
         """Whether this source requires Artifactory provenance validation."""
         return (
             self.source_type == "artifactory"
-            or _artifactory_item(self.url) is not None
+            or _ARTIFACTORY_PATH_MARKER in urlsplit(self.url).path
         )
 
     # ------------------------------------------------------------------
@@ -95,7 +95,7 @@ class HttpsBundleSource:
         target_dir.mkdir(parents=True, exist_ok=True)
 
         artifactory_item = _artifactory_item(self.url)
-        if self.source_type == "artifactory" and artifactory_item is None:
+        if self.is_artifactory and artifactory_item is None:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
