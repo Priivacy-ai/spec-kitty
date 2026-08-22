@@ -110,7 +110,12 @@ test_no_dead_modules:
   # Z1-T1 zeitgeist_client.grammar); their sandboxes ran targeted suites and never this gate.
   # Registered as TODO(triage) so the fact is tracked, not hidden; follow-up bead: wire or delete
   # each and burn this back down.
-  category_7_grandfathered_orphans: 7
+  # 7 -> 6 (WIRE-M2-01, 2026-08-22): tracker.gateway wired into
+  # LocalTrackerService._build_engine (local_service.py) -- Beads mutations now build their
+  # connector via gateway.build_gateway_beads_connector, never the ungated factory.build_connector,
+  # so the module has a live src/ caller and is no longer an orphan. Shrink -- burns down one of
+  # the four M2-canonical-integration entries above.
+  category_7_grandfathered_orphans: 6
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
