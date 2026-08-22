@@ -103,6 +103,17 @@ def _clamp_timeout(timeout_s: float) -> float:
     return min(float(timeout_s), float(MAX_TIMEOUT_S))
 
 
+def _require_positive_max_frames(max_frames: int) -> int:
+    """Defense in depth: the CLI already enforces ``min=1`` via Typer, but
+    the MCP tool schema does not (Renata review, Z7-C attempt-6 handback).
+    A caller-supplied ``max_frames <= 0`` must not be able to make
+    :func:`watch` yield exactly one frame while looking like a "0 frames"
+    request — fail closed instead."""
+    if max_frames < 1:
+        raise ValueError("max_frames must be >= 1")
+    return max_frames
+
+
 def resolve_stream(repo: str) -> filtered_stream.FilteredStream:
     """Build exactly one ``FilteredStream`` for ``repo``'s already-stored
     credential. Raises :class:`NotCheckedOut` rather than constructing a
@@ -192,6 +203,7 @@ def watch(repo: str, *, timeout_s: float = DEFAULT_WATCH_TIMEOUT_S, max_frames: 
     axes: never an unbounded stream from one call.
     """
     timeout_s = _clamp_timeout(timeout_s)
+    max_frames = _require_positive_max_frames(max_frames)
     stream = resolve_stream(repo)
     gen = stream.watch(idle_timeout_s=timeout_s)
     count = 0
