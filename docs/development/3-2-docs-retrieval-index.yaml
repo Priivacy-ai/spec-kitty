@@ -2508,6 +2508,7 @@ pages:
     - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
     - {slug: "scope-the-migration-happens-now-in-this-mission", text: "Scope: the migration happens now, in this mission", level: 3}
     - {slug: "amendment-2026-07-26-three-decisions-taken-after-this-adr-was-first-accepted", text: "Amendment (2026-07-26) — three decisions taken after this ADR was first accepted", level: 3}
+    - {slug: "amendment-2026-08-22-relation-scope-s-two-grain-overload-is-deliberate-accepted-debt-3633", text: "Amendment (2026-08-22) — `Relation.SCOPE`'s two-grain overload is deliberate accepted debt (#3633)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 3}
     - {slug: "immediate-application-to-2935-the-mission-that-surfaced-this", text: "Immediate application to #2935 (the mission that surfaced this)", level: 3}
     - {slug: "confirmation", text: "Confirmation", level: 3}
