@@ -44,10 +44,12 @@ from specify_cli.cli.console import err_console
 from kernel._safe_re import re
 from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind
+from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.core.dependency_graph import detect_cycles
+from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
+from specify_cli.core.git_ops import get_current_branch
+from specify_cli.core.paths import assert_safe_path_segment, load_meta_fail_closed
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
 from specify_cli.lanes.models import LanesManifest
@@ -125,9 +127,9 @@ OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES = (
 #: computation was aborted before ``lanes.json`` could be written.
 LANE_COMPUTATION_ABORTED_EMPTY_INPUTS = "LANE_COMPUTATION_ABORTED_EMPTY_INPUTS"
 
-# SK3466-REV-001: the ONLY meta.json field finalize-tasks itself ever writes
-# (via ``_persist_target_branch_override`` -> ``mission_metadata.
-# set_target_branch``). A pending meta.json delta confined to these fields —
+# SK3466-REV-001 / #2938: the ONLY meta.json fields finalize-tasks itself writes
+# (via the explicit override or legacy PR-bound normalization). A pending
+# meta.json delta confined to these fields —
 # whether produced by THIS invocation's own persist call or dangling from an
 # earlier crashed finalize-tasks run (SK3466-RR-001) — is finalize-tasks'
 # business regardless of which run produced it. A delta touching any OTHER
@@ -135,7 +137,9 @@ LANE_COMPUTATION_ABORTED_EMPTY_INPUTS = "LANE_COMPUTATION_ABORTED_EMPTY_INPUTS"
 # ``_ensure_vcs_in_meta`` -> ``set_vcs_lock`` even under ``--no-auto-commit``)
 # belongs to a different command and must not silently ride finalize-tasks'
 # commit. See ``_meta_json_delta_is_finalize_attributable``.
-FINALIZE_ATTRIBUTABLE_META_FIELDS = frozenset({"target_branch"})
+FINALIZE_ATTRIBUTABLE_META_FIELDS = frozenset(
+    {"target_branch", "merge_target_branch"}
+)
 
 # Dynamic alias mirror of the canonical ``mission-specs`` validator (the
 # KITTY_SPECS_DIR identifier form, built via ``.replace("-", "_")`` to avoid a
@@ -543,14 +547,14 @@ def _resolve_target_branch(
     target_branch_override: str | None,
     json_output: bool,
 ) -> str:
-    """Phase: resolve the canonical merge target branch (WP07 / FR-012 / SC-04).
+    """Resolve the planning branch, including the narrow #2938 legacy repair.
 
-    The current checkout is NEVER consulted; ``_resolve_planning_branch`` reads
-    meta.json. Anchored on the PRIMARY feature dir for idempotency across
-    re-runs (WP05 / T020 / F-001).
+    Normal resolution remains metadata-only. The checkout-aware compatibility
+    arm applies only to PR-bound legacy metadata that conflated a protected
+    final target with its non-protected invoking planning branch.
     """
     try:
-        return _resolve_planning_branch_via_mission(
+        declared_target = _resolve_planning_branch_via_mission(
             repo_root, primary_dir, target_branch_override=target_branch_override
         )
     except PlanningBranchResolutionFailed as exc:
@@ -560,6 +564,103 @@ def _resolve_target_branch(
             console.print(f"[red]Error:[/red] {exc}")
             console.print("[yellow]Hint:[/yellow] re-run with [bold]--target-branch <ref>[/bold] to override.")
         raise typer.Exit(1) from exc
+
+    if target_branch_override and target_branch_override.strip():
+        return declared_target
+
+    meta = load_meta_fail_closed(primary_dir)
+    if not meta.get("pr_bound") or meta.get("merge_target_branch"):
+        return declared_target
+
+    identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
+    invoking_branch = get_current_branch(identity.invoking_root)
+    if not invoking_branch or invoking_branch == declared_target:
+        return declared_target
+
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy.resolve(repo_root)
+    if not policy.is_protected(declared_target) or policy.is_protected(
+        invoking_branch
+    ):
+        return declared_target
+    return cast(str, invoking_branch)
+
+
+def _resolve_merge_target_branch(primary_dir: Path, planning_branch: str) -> str:
+    """Resolve final landing without conflating it with planning placement."""
+    meta = load_meta_fail_closed(primary_dir)
+    explicit_target = meta.get("merge_target_branch")
+    if isinstance(explicit_target, str) and explicit_target.strip():
+        return explicit_target.strip()
+
+    declared_target = meta.get("target_branch")
+    if (
+        meta.get("pr_bound")
+        and isinstance(declared_target, str)
+        and declared_target.strip()
+        and declared_target.strip() != planning_branch
+    ):
+        return declared_target.strip()
+    return planning_branch
+
+
+def _preflight_recovered_pr_bound_contract(
+    repo_root: Path,
+    planning_dir: Path,
+    *,
+    planning_branch: str,
+    json_output: bool,
+) -> None:
+    """Refuse #2938 recovery when foreign meta.json changes are pending.
+
+    Recovery rewrites two canonical branch fields. Mixing that write with an
+    unrelated dirty field would make the attribution guard exclude meta.json
+    from the finalize commit, leaving the repair dangling. Refuse before the
+    first finalize mutation so the operator can commit or discard the foreign
+    edit explicitly.
+    """
+    meta = load_meta_fail_closed(planning_dir)
+    if not meta.get("pr_bound") or meta.get("target_branch") == planning_branch:
+        return
+    meta_path = planning_dir / META_JSON_FILENAME
+    if _meta_json_delta_is_finalize_attributable(meta_path, repo_root):
+        return
+
+    message = (
+        "Cannot recover the legacy PR-bound branch contract while foreign "
+        "meta.json changes are pending. Commit or discard those changes, then "
+        "run finalize-tasks again."
+    )
+    if json_output:
+        _emit_json(
+            {
+                "error": message,
+                "error_code": "PR_BOUND_RECOVERY_FOREIGN_META_DELTA",
+            }
+        )
+    else:
+        console.print(f"[red]Error:[/red] {message}")
+    raise typer.Exit(1)
+
+
+def _persist_recovered_pr_bound_contract(
+    planning_dir: Path,
+    *,
+    planning_branch: str,
+    merge_target_branch: str,
+) -> bool:
+    """Normalize #2938 legacy metadata; return whether bytes were written."""
+    meta = load_meta_fail_closed(planning_dir)
+    if not meta.get("pr_bound") or meta.get("target_branch") == planning_branch:
+        return False
+
+    meta["target_branch"] = planning_branch
+    meta["merge_target_branch"] = merge_target_branch
+    from specify_cli.mission_metadata import write_meta
+
+    write_meta(planning_dir, meta)
+    return True
 
 
 @dataclass(frozen=True)
@@ -1263,12 +1364,15 @@ class _BootstrapState:
     ownership_contradictions: list[str] = field(default_factory=list)
 
 
-def _branch_strategy_text(target_branch: str) -> str:
+def _branch_strategy_text(
+    target_branch: str, merge_target_branch: str | None = None
+) -> str:
     """Compute the long-form branch-strategy frontmatter value."""
+    final_target = merge_target_branch or target_branch
     return (
         f"Planning artifacts for this mission were generated on {target_branch}. "
         f"During /spec-kitty.implement this WP may branch from a dependency-specific base, "
-        f"but completed changes must merge back into {target_branch} unless the human explicitly redirects the landing branch."
+        f"but completed changes must merge back into {final_target} unless the human explicitly redirects the landing branch."
     )
 
 
@@ -1281,13 +1385,15 @@ def _apply_bootstrap_fields(
     requirement_refs: list[str],
     has_requirement_refs_line: bool,
     target_branch: str,
+    merge_target_branch: str | None = None,
 ) -> tuple[bool, dict[str, object]]:
     """Apply the 4 always-evaluated bootstrap fields, returning (changed, fields).
 
     Covers dependencies, planning_base_branch, merge_target_branch,
     branch_strategy, requirement_refs. Ownership fields are applied separately.
     """
-    branch_strategy = _branch_strategy_text(target_branch)
+    final_target = merge_target_branch or target_branch
+    branch_strategy = _branch_strategy_text(target_branch, final_target)
     changed_fields: dict[str, object] = {}
     frontmatter_changed = False
 
@@ -1299,9 +1405,9 @@ def _apply_bootstrap_fields(
         changed_fields["planning_base_branch"] = target_branch
         bld.set(planning_base_branch=target_branch)
         frontmatter_changed = True
-    if wp_meta.merge_target_branch != target_branch:
-        changed_fields["merge_target_branch"] = target_branch
-        bld.set(merge_target_branch=target_branch)
+    if wp_meta.merge_target_branch != final_target:
+        changed_fields["merge_target_branch"] = final_target
+        bld.set(merge_target_branch=final_target)
         frontmatter_changed = True
     if wp_meta.branch_strategy != branch_strategy:
         changed_fields["branch_strategy"] = branch_strategy
@@ -1376,6 +1482,7 @@ def _run_bootstrap_loop(
     requirement_extraction_warnings: list[str],
     *,
     eligible_wp_ids: frozenset[str] | None = None,
+    merge_target_branch: str | None = None,
     validate_only: bool,
     json_output: bool,
 ) -> _BootstrapState:
@@ -1440,6 +1547,7 @@ def _run_bootstrap_loop(
             requirement_refs=requirement_refs,
             has_requirement_refs_line=has_requirement_refs_line,
             target_branch=target_branch,
+            merge_target_branch=merge_target_branch,
         )
         is_eligible = eligible_wp_ids is None or wp_id in eligible_wp_ids
         if is_eligible:
@@ -2910,7 +3018,7 @@ def finalize_tasks(
         typer.Option(
             "--target-branch",
             help=(
-                "Override the canonical merge target branch read from meta.json. "
+                "Override the canonical planning target branch read from meta.json. "
                 "Use this for legacy missions created before WP07 persisted "
                 "target_branch in meta.json, or to correct a mission whose "
                 "target_branch is stale (FR-012 escape hatch). The override is "
@@ -2983,6 +3091,13 @@ def finalize_tasks(
 
         target_branch = _resolve_target_branch(
             repo_root, primary_dir, target_branch_override=target_branch_override, json_output=json_output
+        )
+        merge_target_branch = _resolve_merge_target_branch(primary_dir, target_branch)
+        _preflight_recovered_pr_bound_contract(
+            repo_root,
+            primary_dir,
+            planning_branch=target_branch,
+            json_output=json_output,
         )
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
@@ -3093,6 +3208,7 @@ def finalize_tasks(
             concern_coverage_warnings,
             requirement_extraction_warnings,
             eligible_wp_ids=frozenset(eligibility.eligible_wp_ids),
+            merge_target_branch=merge_target_branch,
             validate_only=validate_only,
             json_output=json_output,
         )
@@ -3149,6 +3265,15 @@ def finalize_tasks(
                 json_output=json_output,
             )
             return
+
+        recovered_contract_persisted = _persist_recovered_pr_bound_contract(
+            planning_dir,
+            planning_branch=target_branch,
+            merge_target_branch=merge_target_branch,
+        )
+        if recovered_contract_persisted:
+            meta_json_persisted = True
+            meta = _read_meta_for_emission(planning_dir)
 
         _run_commit_pipeline(
             planning_dir,

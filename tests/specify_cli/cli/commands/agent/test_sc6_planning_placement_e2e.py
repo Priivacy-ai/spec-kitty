@@ -295,7 +295,8 @@ def _repo_snapshot(repo: Path) -> tuple[tuple[tuple[str, str], ...], str]:
     for path in sorted(repo.rglob("*")):
         if not path.is_file() or ".git" in path.relative_to(repo).parts:
             continue
-        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        # File-integrity oracle, not charter content hashing.
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251
         files.append((path.relative_to(repo).as_posix(), digest))
     refs = _git(repo, "show-ref").stdout
     return tuple(files), refs
