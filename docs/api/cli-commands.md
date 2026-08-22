@@ -5499,20 +5499,145 @@ _Manage mission workflow definitions_
 _Read-only access to one team's live Zeitgeist presence/focus stream._
 
 ```
-Usage: spec-kitty zeitgeist [OPTIONS] COMMAND [ARGS]...
+ Usage: spec-kitty zeitgeist [OPTIONS] COMMAND [ARGS]...
 
-Read-only access to one team's live Zeitgeist presence/focus stream.
+ Read-only access to one team's live Zeitgeist presence/focus stream.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ status  One bounded snapshot of ``repo``'s live presence/focus state.        │
-│ watch   Print each live presence/focus frame for ``repo`` as it arrives,     │
-│         bounded by ``--timeout`` idleness and ``--max-frames`` count.        │
-│ outbox  Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every  │
-│         decision requires a real human at a real terminal — there is no      │
-│         --yes/--force option and no reachability from MCP or a script.       │
+│ status       One bounded snapshot of ``repo``'s live presence/focus state.   │
+│ watch        Print each live presence/focus frame for ``repo`` as it         │
+│              arrives,                                                        │
+│              bounded by ``--timeout`` idleness and ``--max-frames`` count.   │
+│ outbox       Inspect/approve/reject/revoke locally queued Zeitgeist prose.   │
+│              Every decision requires a real human at a real terminal — there │
+│              is no --yes/--force option and no reachability from MCP or a    │
+│              script.                                                         │
+│ operability  Payload-free self-report of this client's                       │
+│              liveness/connection/subscription/outbox status, plus local      │
+│              failure drills (relay unreachable, auth expiry, revoke          │
+│              fail-closed). Every subcommand here reuses                      │
+│              zeitgeist_client.operability's signals/drills — no second       │
+│              implementation, no relay-url/token option, no network beyond    │
+│              the one optional canary offer `report` makes when repo already  │
+│              has a stored checkout.                                          │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability
+
+_Payload-free self-report of this client's liveness/connection/subscription/outbox status, plus local failure drills (relay unreachable, auth expiry, revoke fail-closed). Every subcommand here reuses zeitgeist_client.operability's signals/drills — no second implementation, no relay-url/token option, no network beyond the one optional canary offer `report` makes when repo already has a stored checkout._
+
+```
+ Usage: spec-kitty zeitgeist operability [OPTIONS] COMMAND [ARGS]...
+
+ Payload-free self-report of this client's
+ liveness/connection/subscription/outbox status, plus local failure drills
+ (relay unreachable, auth expiry, revoke fail-closed). Every subcommand here
+ reuses zeitgeist_client.operability's signals/drills — no second
+ implementation, no relay-url/token option, no network beyond the one optional
+ canary offer `report` makes when repo already has a stored checkout.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ report          One payload-free snapshot of ``repo``'s operability signals. │
+│                 Runs a                                                       │
+│                 single canary offer probe only if ``repo`` already has a     │
+│                 stored                                                       │
+│                 checkout — otherwise reports honestly stale/inactive rather  │
+│                 than                                                         │
+│                 fabricating a live reading.                                  │
+│ drill-timeout   Local "relay unreachable" drill — one offer() against a      │
+│                 loopback                                                     │
+│                 address nothing listens on. Network-free (loopback only) and │
+│                 needs no                                                     │
+│                 repo/checkout.                                               │
+│ drill-rotation  Local "auth expiry" drill for ``repo``'s stored checkout —   │
+│                 reads only                                                   │
+│                 the stored ``token_issued_at`` timestamp, never the token    │
+│                 value.                                                       │
+│ drill-rollback  Local "rollback" drill: proves ``outbox_approval.revoke()``  │
+│                 fails                                                        │
+│                 closed on a never-approved item — never touches the          │
+│                 controlling                                                  │
+│                 terminal, never requires a human.                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability drill-rollback
+
+```
+ Usage: spec-kitty zeitgeist operability drill-rollback [OPTIONS] REPO
+
+ Local "rollback" drill: proves ``outbox_approval.revoke()`` fails closed on a
+ never-approved item — never touches the controlling terminal, never requires a
+ human.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
+│                      under (the one explicit team context).                  │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability drill-rotation
+
+```
+ Usage: spec-kitty zeitgeist operability drill-rotation [OPTIONS] REPO
+
+ Local "auth expiry" drill for ``repo``'s stored checkout — reads only the
+ stored ``token_issued_at`` timestamp, never the token value.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
+│                      under (the one explicit team context).                  │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability drill-timeout
+
+```
+ Usage: spec-kitty zeitgeist operability drill-timeout [OPTIONS]
+
+ Local "relay unreachable" drill — one offer() against a loopback address
+ nothing listens on. Network-free (loopback only) and needs no repo/checkout.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist operability report
+
+```
+ Usage: spec-kitty zeitgeist operability report [OPTIONS] REPO
+
+ One payload-free snapshot of ``repo``'s operability signals. Runs a single
+ canary offer probe only if ``repo`` already has a stored checkout — otherwise
+ reports honestly stale/inactive rather than fabricating a live reading.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
+│                      under (the one explicit team context).                  │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -5521,11 +5646,11 @@ Read-only access to one team's live Zeitgeist presence/focus stream.
 _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision requires a real human at a real terminal — there is no --yes/--force option and no reachability from MCP or a script._
 
 ```
-Usage: spec-kitty zeitgeist outbox [OPTIONS] COMMAND [ARGS]...
+ Usage: spec-kitty zeitgeist outbox [OPTIONS] COMMAND [ARGS]...
 
-Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision
-requires a real human at a real terminal — there is no --yes/--force option
-and no reachability from MCP or a script.
+ Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision
+ requires a real human at a real terminal — there is no --yes/--force option
+ and no reachability from MCP or a script.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │
@@ -5550,13 +5675,11 @@ and no reachability from MCP or a script.
 
 ## spec-kitty zeitgeist outbox approve
 
-_Approve ``item_id``. Requires typing back the item's own challenge at the controlling terminal when prompted — there is no flag to skip this._
-
 ```
-Usage: spec-kitty zeitgeist outbox approve [OPTIONS] ITEM_ID
+ Usage: spec-kitty zeitgeist outbox approve [OPTIONS] ITEM_ID
 
-Approve ``item_id``. Requires typing back the item's own challenge at the
-controlling terminal when prompted — there is no flag to skip this.
+ Approve ``item_id``. Requires typing back the item's own challenge at the
+ controlling terminal when prompted — there is no flag to skip this.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    item_id      TEXT  The content-addressed id of the pending/decided      │
@@ -5572,14 +5695,12 @@ controlling terminal when prompted — there is no flag to skip this.
 
 ## spec-kitty zeitgeist outbox list
 
-_Every item still awaiting a human disposition. Content is shown only as a bounded, redacted preview — never the exact prose (use ``show`` for that, by exact id)._
-
 ```
-Usage: spec-kitty zeitgeist outbox list [OPTIONS]
+ Usage: spec-kitty zeitgeist outbox list [OPTIONS]
 
-Every item still awaiting a human disposition. Content is shown only as a
-bounded, redacted preview — never the exact prose (use ``show`` for that, by
-exact id).
+ Every item still awaiting a human disposition. Content is shown only as a
+ bounded, redacted preview — never the exact prose (use ``show`` for that, by
+ exact id).
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --repo          TEXT  Only items queued for this repo.                       │
@@ -5590,12 +5711,10 @@ exact id).
 
 ## spec-kitty zeitgeist outbox reject
 
-_Reject ``item_id``. Same human-gesture requirement as ``approve``._
-
 ```
-Usage: spec-kitty zeitgeist outbox reject [OPTIONS] ITEM_ID
+ Usage: spec-kitty zeitgeist outbox reject [OPTIONS] ITEM_ID
 
-Reject ``item_id``. Same human-gesture requirement as ``approve``.
+ Reject ``item_id``. Same human-gesture requirement as ``approve``.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    item_id      TEXT  The content-addressed id of the pending/decided      │
@@ -5611,13 +5730,11 @@ Reject ``item_id``. Same human-gesture requirement as ``approve``.
 
 ## spec-kitty zeitgeist outbox revoke
 
-_Pull back an already-approved ``item_id``. Same human-gesture requirement as ``approve``; only valid from ``approved``._
-
 ```
-Usage: spec-kitty zeitgeist outbox revoke [OPTIONS] ITEM_ID
+ Usage: spec-kitty zeitgeist outbox revoke [OPTIONS] ITEM_ID
 
-Pull back an already-approved ``item_id``. Same human-gesture requirement as
-``approve``; only valid from ``approved``.
+ Pull back an already-approved ``item_id``. Same human-gesture requirement as
+ ``approve``; only valid from ``approved``.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    item_id      TEXT  The content-addressed id of the pending/decided      │
@@ -5633,13 +5750,11 @@ Pull back an already-approved ``item_id``. Same human-gesture requirement as
 
 ## spec-kitty zeitgeist outbox show
 
-_The exact full record for ``item_id`` — the one explicit, per-id disclosure action (see ``outbox_approval.py``'s module docstring)._
-
 ```
-Usage: spec-kitty zeitgeist outbox show [OPTIONS] ITEM_ID
+ Usage: spec-kitty zeitgeist outbox show [OPTIONS] ITEM_ID
 
-The exact full record for ``item_id`` — the one explicit, per-id disclosure
-action (see ``outbox_approval.py``'s module docstring).
+ The exact full record for ``item_id`` — the one explicit, per-id disclosure
+ action (see ``outbox_approval.py``'s module docstring).
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    item_id      TEXT  The content-addressed id of the pending/decided      │
@@ -5654,12 +5769,10 @@ action (see ``outbox_approval.py``'s module docstring).
 
 ## spec-kitty zeitgeist status
 
-_One bounded snapshot of ``repo``'s live presence/focus state._
-
 ```
-Usage: spec-kitty zeitgeist status [OPTIONS] REPO
+ Usage: spec-kitty zeitgeist status [OPTIONS] REPO
 
-One bounded snapshot of ``repo``'s live presence/focus state.
+ One bounded snapshot of ``repo``'s live presence/focus state.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
@@ -5679,13 +5792,11 @@ One bounded snapshot of ``repo``'s live presence/focus state.
 
 ## spec-kitty zeitgeist watch
 
-_Print each live presence/focus frame for ``repo`` as it arrives, bounded by ``--timeout`` idleness and ``--max-frames`` count._
-
 ```
-Usage: spec-kitty zeitgeist watch [OPTIONS] REPO
+ Usage: spec-kitty zeitgeist watch [OPTIONS] REPO
 
-Print each live presence/focus frame for ``repo`` as it arrives, bounded by
-``--timeout`` idleness and ``--max-frames`` count.
+ Print each live presence/focus frame for ``repo`` as it arrives, bounded by
+ ``--timeout`` idleness and ``--max-frames`` count.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
