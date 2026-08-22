@@ -22,6 +22,7 @@ from pathlib import Path
 import pytest
 from kernel.clock import now_utc
 
+import specify_cli.gitignore_manager as gitignore_manager_module
 from specify_cli.gitignore_manager import GitignoreManager
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
@@ -279,6 +280,40 @@ def test_apply_is_atomic_when_replacement_write_fails(
     assert result.success is False
     assert result.errors == ["injected replacement failure"]
     assert gitignore.read_bytes() == original
+
+
+def test_apply_uses_one_atomic_writer_for_removal_and_backfill(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A second manager write would reintroduce partial-migration failure."""
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, ".gemini/", ".cursor/", ".qwen/")
+    primary_write = migration_module.write_gitignore_text
+    primary_calls = 0
+    secondary_calls = 0
+
+    def count_primary(gitignore_path: Path, content: str) -> None:
+        nonlocal primary_calls
+        primary_calls += 1
+        primary_write(gitignore_path, content)
+
+    def reject_secondary(_gitignore_path: Path, _content: str) -> None:
+        nonlocal secondary_calls
+        secondary_calls += 1
+        raise OSError("obsolete second writer called")
+
+    monkeypatch.setattr(migration_module, "write_gitignore_text", count_primary)
+    monkeypatch.setattr(gitignore_manager_module, "write_gitignore_text", reject_secondary)
+
+    result = NarrowCursorGitignoreMigration().apply(tmp_path)
+
+    assert result.success is True
+    assert primary_calls == 1
+    assert secondary_calls == 0
+    content = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
+    assert ".cursor/\n" not in content
+    assert all(entry in content for entry in _NARROW_ENTRIES)
 
 
 def test_apply_only_collapses_blank_lines_at_removal_site(tmp_path: Path) -> None:

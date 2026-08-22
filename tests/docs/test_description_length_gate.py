@@ -516,6 +516,26 @@ class TestDiffScopeDescriptionCLI:
 
         assert exit_code == EXIT_COVERAGE_FAILURE
 
+    @pytest.mark.parametrize("operation", ["delete", "rename"])
+    def test_removed_publication_config_is_a_coverage_failure(
+        self,
+        tmp_path: Path,
+        operation: str,
+    ) -> None:
+        """Deleting or renaming docfx.json cannot produce scoped green over zero."""
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        config = docs / "docfx.json"
+        if operation == "delete":
+            config.unlink()
+        else:
+            config.rename(docs / "docfx-renamed.json")
+        commit_all_changes(tmp_path, f"{operation} publication config")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == EXIT_COVERAGE_FAILURE
+
     def test_diff_scoped_gate_asserts_the_floor_independently_of_the_resolver(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """The diff-scoped path re-asserts the floor itself, mirroring the whole-tree path.
 
