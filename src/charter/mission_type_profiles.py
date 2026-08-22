@@ -999,7 +999,9 @@ def _resolve_expected_artifacts_slot(
     from charter.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
 
     org_roots = resolve_existing_org_roots(repo_root)
-    org_result = resolve_org_expected_artifacts(org_roots, mission_type)
+    org_result: _ExpectedArtifactsManifest | None = resolve_org_expected_artifacts(
+        org_roots, mission_type
+    )
     if org_result is not None:
         return org_result
 
@@ -1224,7 +1226,8 @@ def _load_mission_type_profile(
     pydantic.ValidationError
         When a matching YAML is structurally malformed.
     """
-    return _mission_type_profile_repository(repo_root).get(mission_type)
+    profile: MissionTypeProfile | None = _mission_type_profile_repository(repo_root).get(mission_type)
+    return profile
 
 
 # ---------------------------------------------------------------------------
