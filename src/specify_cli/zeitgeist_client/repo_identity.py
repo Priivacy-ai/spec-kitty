@@ -401,6 +401,45 @@ def _canonical_git_dir(cwd: str) -> str:
             "guess which is canonical"
         )
 
+    # Exotic follow-up (Z6-M2-01, deferred by HIC-M1-Z6C-GOODENOUGH): the
+    # check above only fires when BOTH `raw` and `real` independently find a
+    # (different) checkout. It says nothing when one side finds NOTHING —
+    # which is not proof of agreement. Concretely: `cwd` = a symlink sitting
+    # in a directory with no git identity of its own (e.g. an isolated
+    # sandbox dir), pointing into a SUBDIRECTORY of a real, unrelated
+    # checkout (a subdirectory, so it carries no `.git` of its own — only
+    # its ancestor does). `raw`'s walk-up is a STRING (`os.path.dirname`)
+    # walk from `raw_abspath`; the OS transparently resolves the symlink for
+    # the FIRST candidate check (`raw_abspath/.git`), but every subsequent
+    # step walks up the SYNTACTIC ancestor chain, which never reaches the
+    # foreign checkout's `.git` — so `raw` comes back empty, not merely
+    # "different". `real`, walking up from the fully-resolved location,
+    # correctly reaches the foreign checkout and comes back non-empty. That
+    # asymmetry (real mints an identity that raw never independently
+    # corroborated) is exactly the "syntactic path and resolved path
+    # disagree about which checkout is meant" case this module already
+    # commits to rejecting for the "different checkout" shape — "no
+    # checkout at all" is just as much a disagreement as "a different one".
+    #
+    # The REVERSE asymmetry (raw finds a checkout, real finds nothing — a
+    # symlink INSIDE a real checkout pointing OUTSIDE any repo) is
+    # deliberately NOT raised here: `real` is what an actual `git`
+    # subprocess run at `cwd` would observe (the OS's own `chdir` follows
+    # symlinks the same way `os.path.realpath` does), so an empty `real`
+    # there means the live probe fails closed on its own and every fallback
+    # re-derives `raw`'s single candidate — repo_a's own identity for a path
+    # that is genuinely part of repo_a — with no competing identity to
+    # disagree with. See
+    # test_symlink_into_a_subdirectory_of_a_different_checkout_raises_ambiguous
+    # and test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise.
+    if raw_abspath != real_abspath and not raw and real:
+        raise AmbiguousRepositoryIdentity(
+            f"{cwd!r} only resolves to a repository root ({real!r}) when a "
+            "symlink in its path is followed — the literal path never "
+            "independently reaches that checkout (or any other); refusing "
+            "to mint an identity the syntactic path does not corroborate"
+        )
+
     # Belt-and-suspenders alongside the walk-level check inside
     # `_git_dir_from_filesystem` above (which already raises before this
     # line is reached whenever `real_abspath/.git` is a symlink): this

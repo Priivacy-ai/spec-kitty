@@ -310,6 +310,84 @@ def test_container_with_real_and_symlinked_checkout_raises_ambiguous_not_ancesto
         repo_identity.repo_name(str(container))
 
 
+@pytest.mark.requires_symlinks
+def test_symlink_into_a_subdirectory_of_a_different_checkout_raises_ambiguous(tmp_path, origin):
+    """Exotic follow-up (Z6-M2-01, deferred by HIC-M1-Z6C-GOODENOUGH beyond
+    the five M1-closed classes): ``test_symlink_into_a_different_checkout_
+    raises_conflicting_roots`` above only covers a symlink living INSIDE
+    another real checkout (``repo_a``) — there, both the syntactic and the
+    resolved walk-up independently find a ``.git`` (``repo_a``'s and
+    ``repo_b``'s), so they can be compared and found to disagree. This test
+    is the same identity-theft shape with the symlink's OWN container
+    carrying no git identity at all: an isolated, non-checkout directory
+    holds nothing but a symlink into a SUBDIRECTORY (not the root — a
+    subdirectory carries no ``.git`` of its own, only its ancestor does) of
+    an unrelated victim checkout. The syntactic walk-up from the isolated
+    container never independently reaches the victim's ``.git`` (it only
+    gets there via the OS's transparent, one-hop symlink resolution on the
+    FIRST candidate check; every subsequent step walks the isolated
+    container's OWN — checkout-free — ancestor chain), so it comes back
+    empty rather than "a different, non-empty match". Before this fix, an
+    empty `raw` short-circuited the raw/real comparison entirely
+    (`if raw and real and ...`), so the resolved side's foreign identity
+    went completely unchallenged — `repo_name()` minted `victim-widgets` for
+    a directory with no more relationship to that project than "one of its
+    subdirectories happens to be readable by symlink"."""
+    victim = _clone(origin, tmp_path / "victim")
+    (victim / "subdir").mkdir()
+
+    evil = tmp_path / "isolated-evil"
+    evil.mkdir()
+    link = evil / "link"
+    link.symlink_to(victim / "subdir")
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(link))
+
+
+@pytest.mark.requires_symlinks
+def test_symlink_into_a_subdirectory_of_a_different_checkout_raises_even_nested(
+    tmp_path, origin
+):
+    """Same theft, with `cwd` several directory levels below the symlink
+    jump itself — the syntactic-vs-resolved divergence must be caught
+    regardless of how deep under the jump `cwd` sits, not only when `cwd`
+    IS the symlink."""
+    victim = _clone(origin, tmp_path / "victim")
+    (victim / "subdir" / "deeper" / "still").mkdir(parents=True)
+
+    evil = tmp_path / "isolated-evil"
+    evil.mkdir()
+    link = evil / "link"
+    link.symlink_to(victim / "subdir")
+    nested_cwd = link / "deeper" / "still"
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(nested_cwd))
+
+
+@pytest.mark.requires_symlinks
+def test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise(tmp_path, origin):
+    """Regression guard pinning the deliberate asymmetry in the fix above:
+    a symlink living INSIDE a real checkout that happens to point OUTSIDE
+    any git repository must NOT raise. `real` (the resolved side) governs
+    what an actual `git` subprocess run at `cwd` would observe — the OS's
+    own `chdir` follows symlinks exactly like `os.path.realpath` does — so
+    an empty `real` here means the live probe already fails closed on its
+    own, and every fallback re-derives the checkout's OWN identity (there is
+    only ONE candidate: the checkout the symlink object itself lives in, not
+    a foreign one) with nothing to disagree with. Raising here would be
+    over-rejection of an ordinary, harmless symlink that a real checkout is
+    free to contain."""
+    repo_a = _clone(origin, tmp_path / "repo-a")
+    isolated_no_git = tmp_path / "isolated-no-git"
+    isolated_no_git.mkdir()
+    link = repo_a / "link-out"
+    link.symlink_to(isolated_no_git)
+
+    assert repo_identity.repo_name(str(link)) == "acme-widgets"
+
+
 # --- fabricated `gitdir:` FILE provenance (no symlink involved) ------------
 
 
