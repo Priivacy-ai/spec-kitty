@@ -549,8 +549,18 @@ def _is_valid_hostname(hostname: str) -> bool:
     if all(char.isdigit() or char == "." for char in candidate):
         return False
     try:
-        ascii_hostname = candidate.encode("idna").decode("ascii")
-    except UnicodeError:
+        prepared = requests.Request(
+            method="GET", url=f"https://{candidate}/"
+        ).prepare()
+    except (requests.RequestException, UnicodeError, ValueError):
+        return False
+    if prepared.url is None:
+        return False
+    prepared_url = _safe_urlsplit(prepared.url)
+    if prepared_url is None or prepared_url.hostname is None:
+        return False
+    ascii_hostname = prepared_url.hostname
+    if len(ascii_hostname) > 253:
         return False
     labels = ascii_hostname.split(".")
     return all(
