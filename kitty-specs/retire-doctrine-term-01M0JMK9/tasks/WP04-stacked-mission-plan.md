@@ -7,6 +7,9 @@ requirement_refs:
 - FR-009
 - FR-010
 - NFR-003
+planning_base_branch: feat/retire-doctrine-term
+merge_target_branch: feat/retire-doctrine-term
+branch_strategy: Planning artifacts for this mission were generated on feat/retire-doctrine-term. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/retire-doctrine-term unless the human explicitly redirects the landing branch.
 subtasks:
 - T013
 - T014
@@ -32,265 +35,79 @@ tracker_refs: []
 
 # Work Package Prompt: WP04 – Stacked Mission Plan
 
-## ⚡ Do This First: Load Agent Profile
+## Start
 
-Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
+Run `spec-kitty agent profile show planner-priti`, load it, then read both `contracts/stacked-plan-schema.md` and `contracts/operator-surface-map-schema.md`, the ADR, inventory + manifest, methodology, data model, and quickstart §§5–6. Check review feedback first.
 
-- **Profile**: `planner-priti`
-- **Role**: `implementer`
-- **Agent/tool**: (unset — operator assigns at dispatch)
+## Goal
 
-If no profile is specified, run `spec-kitty agent profile list` and select the best match for this work package's `task_type` and `authoritative_surface`.
+Create `stacked-plan.md` with schema-complete M1–M6 entries, the sole OC-to-mission assignment table, bounded local questions, rollback, and a recorded M1 zero-decision dry run.
 
----
+## Fixed stack
 
-## ⚠️ IMPORTANT: Review Feedback
+| Mission | Slug | Fixed responsibility | Invariant |
+|---------|------|----------------------|-----------|
+| M1 | `charter-authority-flip` | three glossary authorities; `docs/context/charter.md` plus active referrers; X2 refs retained as history/no dangling active refs; selection-key migration; owner-correct bundle operations; exact canon; guard/registry last | I1 |
+| M2 | `charter-cli-surface` | freeze exhaustive operator-surface map; canonical CLI + serialized/API values + old warning/read aliases; separate org-pack and tracker-ownership config migrations; every mapped producer/consumer same-wave | I2 |
+| M3 | `charter-packs-source` | built-in/org/project Charter Packs/overlays; fixed `.kittify/doctrine/` → `.kittify/charter-packs/` checked migration; canonical directive ID + alias | I3 |
+| M4 | `charter-skills-artifacts` | full ADR skill/profile map; non-route prompts/overrides/generated agents via upgrade; old warning aliases | I4 |
+| M5 | `charter-docs-prose` | remaining active human prose regardless directory; immutable ADR/history stays X2 | I5 |
+| M6 | `charter-removal-audit` | remove legacy aliases/keys/paths and prove terminal content+pathname audit at 4.0 | I6 |
 
-**Read this first if you are implementing this task!**
+Do not change granularity or reassign the fixed canonical ID mappings.
 
-- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent tasks status` or the Activity Log below).
-- **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
-- **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
+## T013 — Per-mission entries
 
----
+For each mission write: slug, purpose, inputs, outputs, explicit `depends_on`, OC IDs, `change_mode: bulk_edit`, occurrence-map obligation, invariant, local design questions, named verifiers, and rollback.
 
-## Review Feedback
+- All M1–M6 are bulk edits; M6 removal is occurrence-sensitive.
+- M1 local questions must be empty.
+- M2 may carry one question: exact canonical destination/name for each still-unfixed command,
+  M2-scope serialized/API token, supported public Python API import/name, or public distribution/wheel
+  surface. It owns every mapped consumer and freezes authoritative map plus CLI projection; M3–M5
+  exclude map hits. Public rows use one OC-backed aggregate `doctrine.api` facade row to enumerate
+  exact `__all__` membership without invented hit rows, plus separate legacy-bearing member rows,
+  `spec-kitty-doctrine` metadata, publication evidence, canonical charter facade/distribution,
+  re-exports/docs/build/install/wheel tests, evidence-required 3.x compatibility, and M6 removal.
+- No M4 mapping question remains: skill/profile canonical names are fixed. M3 directive name is fixed.
+- No path/config question remains: the active glossary pathname/referrer wave, three semantic config seams,
+  and `.kittify/charter-packs/` destination with canonical-write/dual-read/collision/migration contract
+  are fixed inputs. M3 owns all readers, writers, staging, migration, docs/config/tests same-wave.
+- Compatibility OC entries are assigned to M6 from the start. Each M1–M4 introduction wave may
+  relocate only registered exact fingerprints within its frozen maximum and must update named
+  enumeration plus behavior/migration tests. M6 empties registry and runtime/file/key inventory.
+- Rollback follows methodology's reverse-suffix/forward-fix contract.
 
-*[If this WP was returned from review, the reviewer feedback reference appears in the Activity Log below or in the status event log.]*
+## T014 — Assignment table
 
----
+Map every in-scope OC-## exactly once. `inventory.md` must not duplicate assignment. Cross-repo deferrals require surface, repo, owner, milestone, tracking reference/downstream process, and rationale; no `TBD`. Confirm each mission's `retires` list equals its assignment rows.
 
-## Objectives & Success Criteria
+## T015 — M1 readiness record
 
-- `stacked-plan.md` exists in the mission directory, conforming to
-  `contracts/stacked-plan-schema.md`, containing:
-  - **per-mission entries for M1–M6** (5 active + 1 deferred to 4.0 — the operator-approved
-    shape), each with slug, purpose, inputs, outputs, `depends_on`, the OC-## classes it
-    retires, `change_mode`, invariant-after, and `open_items`;
-  - the **assignment table** mapping every in-scope OC-## from `inventory.md` to exactly one
-    mission (or an explicit deferral with rationale) — SM-I1;
-  - the **M1 spec-readiness verification** (SM-I2): M1's `open_items` is empty and its full
-    spec is writable from this mission's artifacts alone.
-- **Success metric**: quickstart check 6 — taking M1 (`charter-authority-flip`) and attempting
-  to specify it using only this mission's artifacts requires **0 new operator decisions**
-  (US4-AS3 / FR-010).
+Draft a skeleton (not a new mission spec) using only current artifacts and mark each item determined with a precise citation:
 
----
+- Charter Pack/Bundle and Active/Inactive definitions;
+- all three glossary authority paths, parity, and #2727 coordination;
+- human-owned `charter.yaml` edit, curated `charter.md` handling, generate-only catalog/metadata, owning flows for other sections;
+- exact legacy-free Terminology Canon line in `charter.yaml`, not `AGENTS.md`;
+- exact ordinary pre-M1 OC/X fingerprint records with owner waves, same-wave shrink, X-only ordinary I6, and four ordinary mutation cases;
+- M6-owned compatibility registry covering every retained ID/route/key/path/parser/redirect/warning,
+  with full legacy value/path, canonical replacement, introduction wave, frozen maximum, exact
+  fingerprints, named tests, controlled relocation, and empty I6 inventory;
+- M1 occurrence classes/map, checks, output, I1, and rollback.
 
-## Context & Constraints
+Pass = zero gaps/local questions. A gap routes to owning WP artifact and blocks WP04; do not invent a decision here.
 
-**Mission**: `retire-doctrine-term-01M0JMK9` — planning-only (C-001). This WP expresses the
-retirement as an executable stack of missions. The shape is **operator-approved** (decision
-`01M0JWDEMKXQ5CMAE9PFEK8GF9`): 5 active + 1 deferred. Do not re-litigate granularity (IC-04
-risk a).
+## Verification
 
-**Read before starting** (all in `kitty-specs/retire-doctrine-term-01M0JMK9/`):
+Check every OC exactly once; every entry complete; M1→I1 … M6→I6; all M1–M6 bulk; M1 questions empty; later questions bounded/owned; no ownerless deferral; rollback present; M1 skeleton fully cited.
 
-- `contracts/stacked-plan-schema.md` — the exact per-mission entry schema
-- `plan.md` IC-04 + the stack table — the approved M1–M6 shape (reproduced below)
-- `inventory.md` (WP02) — the OC-## classes + counts you assign
-- `methodology.md` (WP03) — the ordering, invariants I0–I6, guard design, verification
-  assignment your entries cite
-- WP01's ADR — the vocabulary authority every mission entry references
-
-**The approved stack shape** (from `plan.md`; slugs and purposes are fixed — you fill the
-schema fields, not re-derive the shape):
-
-| Mission | Slug | Purpose (fixed) |
-|---------|------|-----------------|
-| M1 | `charter-authority-flip` | glossary rewrite (FR-011) + charter-bundle update via `charter.yaml` + regeneration (+ Terminology Canon line) + guard arming (last WP, single PR). Retires docs-glossary + charter-bundle classes; arms the ratchet for all later waves. |
-| M2 | `charter-cli-surface` | `spec-kitty doctrine` group (8 subcommands) + `doctor doctrine` → canonical names, hidden aliases + deprecation warnings, per-subcommand alias tests, **same-wave CI consumer updates**. Retires CLI-executable + scripted-consumer classes. |
-| M3 | `charter-packs-source` | user-facing strings/titles in `packs/built-in/` (canonical source of all agent copies). Retires packs-source classes. |
-| M4 | `charter-skills-artifacts` | `spk-doctrine-*` → new names + legacy alias skills during the window (old→new map recorded in M4's artifacts); agent dirs via migration/upgrade flow. Retires prompts-skills-agent-artifact classes (source: `src/doctrine/skills/`). |
-| M5 | `charter-docs-prose` | `docs/` prose + root-level `AGENTS.md`; ADR titles stay legacy (C-003). Retires docs-prose + root-docs classes. |
-| M6 *(deferred to 4.0)* | `charter-removal-audit` | strip aliases, run the NFR-001 zero-doctrine audit. Retires residual alias classes; verifies the 4.0 hard rule. |
-
-**Constraints to honor**:
-
-- **FR-010 (the sharp edge)**: M1 must be spec-ready from this mission's artifacts alone — its
-  inputs (ADR, glossary gap list FR-011, bundle topology, guard design) must all be fully
-  determined here. Any gap is an `open_items` entry that fails the WP (T015).
-- **Bulk-edit discipline**: every rename wave M1–M5 is a `change_mode: bulk_edit` mission with
-  its own scoped `occurrence_map.yaml` (8 standard categories) — recorded per mission entry.
-  M1's guard-arming WP is additive code, not a rename occurrence; note that split in M1's
-  entry. M6 is removal, not a rename wave (research R9).
-- **SM-I3**: any mission retiring an S1/S8 class updates its scripted CI consumers in the same
-  PR — recorded per mission entry (M2 is the canonical case).
-- **No double assignment, no silent drop** (SC-003): every in-scope OC-## appears exactly once
-  in the assignment table, or as an explicit deferral with rationale.
-
----
-
-## Branch Strategy
-
-- **Strategy**: Planning artifacts were generated on feat/retire-doctrine-term; completed changes must merge back into feat/retire-doctrine-term.
-- **Planning base branch**: `feat/retire-doctrine-term`
-- **Merge target branch**: `feat/retire-doctrine-term`
-
-> These fields are populated automatically by `spec-kitty agent mission tasks`.
-> Do NOT change them manually unless you are certain the branch topology has changed.
-
----
-
-## Subtasks & Detailed Guidance
-
-### Subtask T013 – Per-mission entries M1–M6 (all schema fields)
-
-- **Purpose**: Turn the approved stack shape into schema-conformant entries that a future
-  operator can take to `/spec-kitty.specify` one at a time, in order.
-- **Steps**:
-  1. For each of M1–M6, create an entry with **every** field from
-     `contracts/stacked-plan-schema.md`: slug, purpose, inputs, outputs, `depends_on`,
-     `retires` (OC-## class IDs), `change_mode`, invariant-after, `open_items`.
-  2. Fill the fields from the mission artifacts — not from memory:
-     - **inputs**: name the exact artifact + section (e.g. M1's inputs = WP01 ADR §glossary
-       decisions + `inventory.md` S2/S5 rows + `methodology.md` §3 guard design). An input that
-       does not exist yet is an `open_items` entry.
-     - **outputs**: the surfaces changed + the verification evidence the mission must produce
-       (cite `methodology.md` §4 mechanisms).
-     - **depends_on**: the stack order (M1 → M2 → … → M5; M6 after all alias waves). State
-       *why* each dependency exists (one clause, e.g. "M2 needs M1's armed ratchet so its
-       rename cannot regress terminology").
-     - **retires**: OC-## IDs from `inventory.md` — the same set you will use in T014's
-       assignment table (keep them consistent; the table is the mechanical check).
-     - **change_mode**: `bulk_edit` for M1–M5 (each with its own scoped
-       `occurrence_map.yaml`, 8 standard categories); M6 is removal — record the mode the
-       schema provides for it (research R9).
-     - **invariant_after**: the I# from `methodology.md` §2 that must hold when this mission
-       merges (e.g. M1 → I2: new vocabulary canonical AND guard armed, no conflict window).
-     - **open_items**: anything not fully determined by this mission's artifacts. M1–M5 should
-       end with **zero** open items (that is the point of FR-010); M6 may carry 4.0-timing
-       items, each with rationale.
-  3. Per-mission notes to include where relevant:
-     - **M1**: the atomic-flip structure — glossary rewrite + bundle update + guard arming in
-       ONE PR, guard-arming WP last (DIRECTIVE_048 / conflict C1). Note the split: rename
-       occurrences vs additive guard code.
-     - **M2**: same-wave CI consumer updates (SM-I3) — the scripted consumers of
-       `spec-kitty doctrine` output must be updated in M2's PR, not later.
-     - **M4**: the old→new skill-name map is recorded in M4's artifacts; legacy alias skills
-       exist during the 3.x window and are stripped by M6.
-     - **M5**: ADR titles stay legacy (C-003) — the rename covers prose, not historical
-       artifact titles.
-     - **M6**: deferred to 4.0; its spec can cite `methodology.md` §5's alias-removal
-       verification verbatim.
-  4. Keep entries parallel in structure — same field order, same level of detail for each
-     mission (a reviewer should be able to diff M2 against M3 structurally).
-- **Files**: lands in `stacked-plan.md` (file created and assembled here or in T015 — your
-  choice; the artifact is complete only when all three subtasks' content is in it).
-- **Parallel?**: No — consumes inventory (WP02) + methodology (WP03).
-- **Notes**: If a schema field has no sensible value for a mission (e.g. M6's `change_mode`
-  if the schema only models rename waves), record that as a schema gap in `open_items` with
-  your proposed value — do not leave the field blank silently.
-
-
-### Subtask T014 – Assignment table: every OC-## exactly once (SM-I1)
-
-- **Purpose**: The mechanical completeness check for the whole program (SC-003). If an
-  occurrence class is assigned to two missions, they will collide; if none, it silently never
-  gets retired. This table is the proof that neither happens.
-- **Steps**:
-  1. Build the assignment table: one row per in-scope OC-## class from `inventory.md`
-     (Section 3). Columns: OC-## ID, surface (S#), assigned mission (M1–M6) **or** `DEFERRED`
-     with rationale, hit count (from the inventory), and a one-clause note where the assignment
-     is non-obvious.
-  2. Verify **exactly-once**: no OC-## ID appears in two rows; every in-scope OC-## from
-     `inventory.md` has a row. Cross-check the counts: sum of assigned rows + deferred rows =
-     total in-scope classes.
-  3. Cross-check against T013: each mission's `retires` field lists exactly the OC-## IDs
-     assigned to it in this table. Any mismatch is an error — fix the entry or the row,
-     whichever is wrong against `inventory.md`.
-  4. Deferrals: only M6-eligible residual alias classes may be deferred (to the 4.0 removal
-     mission), and each deferral carries its rationale in the row. Deferring anything else is a
-     scope decision this WP does not get to make — report it as an open item.
-- **Files**: lands in `stacked-plan.md` (the assignment-table section).
-- **Parallel?**: No — consumes T013's `retires` fields and the inventory.
-- **Notes**: This table is what WP05's quickstart check 5 verifies mechanically. Make it
-  machine-checkable: consistent IDs, no prose inside the ID columns.
-
-### Subtask T015 – M1 spec-readiness verification (SM-I2); assemble stacked-plan.md
-
-- **Purpose**: FR-010's end-to-end proof. If M1 cannot be specified from this mission's
-  artifacts alone with zero new operator decisions, the whole planning-only strategy fails —
-  M1 would become a re-decision mission.
-- **Steps**:
-  1. Perform the dry run: using **only** `stacked-plan.md` (M1 entry), WP01's ADR,
-     `inventory.md` (S2/S5 rows), and `methodology.md` (§3 guard design, §5 alias
-     verification), draft M1's spec skeleton — mission purpose, scope (which OC-## classes),
-     the glossary rewrite content (from the ADR's FR-011 decisions), the bundle update
-     (`charter.yaml` + regeneration), the Terminology Canon line (verbatim from the ADR), and
-     the guard-arming design (from methodology §3). Do not write M1's actual spec — this is a
-     readiness probe.
-  2. For every element of the skeleton, mark: **determined** (cites an existing artifact
-     section) or **gap** (requires a new decision). Record gaps as M1 `open_items` entries.
-  3. **Pass condition**: zero gaps — M1's `open_items` is empty and every skeleton element
-     cites an artifact. If any gap exists, trace it to the owning WP's artifact (ADR /
-     inventory / methodology) and report which one is under-specified — do not paper over it
-     with a decision made here (this WP plans the stack; it does not make M1's decisions).
-  4. **Assemble `stacked-plan.md`**: create the file with frontmatter (`artifact:
-     stacked-plan`, `mission: retire-doctrine-term-01M0JMK9`, `generated_at`) and sections per
-     `contracts/stacked-plan-schema.md` — §1 Stack overview (the approved shape + ordering
-     pointer to methodology §2), §2 Per-mission entries M1–M6 (T013), §3 Assignment table
-     (T014), §4 M1 spec-readiness record (this subtask's dry-run result: determined/gap table
-     + the zero-gaps statement).
-- **Files**: create `kitty-specs/retire-doctrine-term-01M0JMK9/stacked-plan.md`.
-- **Parallel?**: No — assembles T013/T014 and probes the whole artifact set.
-- **Notes**: The dry-run record stays in the artifact (Section 4) — it is evidence for WP05's
-  quickstart check 6, not throwaway scratch.
-
-
----
-
-## Verification (no new tests — docs-only mission, C-001)
-
-This WP writes no code and adds no tests. Targeted verification surface (quickstart checks 5–6):
-
-- **Completeness (check 5)**: every in-scope OC-## from `inventory.md` appears exactly once in
-  the assignment table (or as a deferral with rationale); each mission's `retires` field
-  matches its table rows.
-- **Spec-readiness (check 6)**: the Section 4 dry-run record shows every M1 skeleton element
-  marked *determined* with an artifact citation; `open_items` for M1 is empty.
-
----
-
-## Risks & Mitigations
-
-- **FR-010 sharp edge — M1 not spec-ready** → T015 is an explicit dry-run gate with a recorded
-  determined/gap table; any gap fails the WP and is traced to the owning artifact, not decided
-  here.
-- **Double assignment or silent drop of an OC-## (SC-003)** → T014's exactly-once check with
-  count cross-check; deferrals restricted to M6-eligible residual alias classes with rationale.
-- **Drift from the operator-approved shape** → the approved M1–M6 table is reproduced in this
-  prompt as fixed context; entries fill schema fields, they do not re-derive slugs or purposes.
-  Renaming a slug requires an explicit note with reason, never silent reshaping.
-- **Schema gap (e.g. M6's change_mode)** → recorded as an `open_items` entry with a proposed
-  value, never left blank silently.
-
----
-
-## Review Guidance
-
-- Reviewer checkpoints for `/spec-kitty.review`:
-  1. All six entries carry every schema field; structure is parallel across missions.
-  2. M1's entry states the atomic-flip single-PR structure with guard arming last, and the
-     rename-vs-additive-code split.
-  3. M2's entry records same-wave CI consumer updates (SM-I3).
-  4. Assignment table: exactly-once, counts sum correctly, `retires` fields match the table.
-  5. Section 4 dry-run record: zero gaps, every M1 element cited to an artifact section;
-     `open_items` empty for M1–M5.
-  6. No re-litigation of the approved shape (slugs/purposes match `plan.md`'s stack table).
-
----
+Reject `assigned_mission` in inventory, M1→I2, M6 non-bulk, M1–M5 “zero questions” as a blanket rule, a partial/wildcard operator map, mapped hits assigned to M3–M5, a deferred M4 ID mapping, or hand-wavy bundle regeneration.
 
 ## Activity Log
 
-> **CRITICAL**: Activity log entries MUST be in chronological order (oldest first, newest last).
-> Append new entries at the END. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
-> (timestamp = current UTC via `date -u "+%Y-%m-%dT%H:%M:%SZ"`).
+The generation record below is immutable. Do not edit this prompt to append activity;
+status/history is event-log owned. Use
+`spec-kitty agent tasks move-task WP04 --to <status>`.
 
 - 2026-08-21T00:00:00Z – system – Prompt created.
-
----
-
-### Updating Status
-
-Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task WP04 --to <status>` to change WP status.

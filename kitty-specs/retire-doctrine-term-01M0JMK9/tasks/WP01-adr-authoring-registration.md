@@ -13,6 +13,9 @@ requirement_refs:
 - FR-005
 - FR-011
 - NFR-002
+planning_base_branch: feat/retire-doctrine-term
+merge_target_branch: feat/retire-doctrine-term
+branch_strategy: Planning artifacts for this mission were generated on feat/retire-doctrine-term. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/retire-doctrine-term unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -25,14 +28,16 @@ history:
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: scribe-sally
 authoritative_surface: docs/adr/
-create_intent: []
+create_intent:
+- kitty-specs/retire-doctrine-term-01M0JMK9/implementation-baseline.json
 execution_mode: planning_artifact
 model: ''
 owned_files:
+- kitty-specs/retire-doctrine-term-01M0JMK9/implementation-baseline.json
 - docs/adr/3.x/index.md
 - docs/development/3-2-page-inventory.yaml
 - docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
-- docs/adr/3.x/2026-08-21-*-retire-doctrine-term-charter-is-the-canonical-vocabulary.md
+- docs/adr/3.x/*-retire-doctrine-term-charter-is-the-canonical-vocabulary.md
 role: implementer
 tags: []
 task_type: implement
@@ -41,293 +46,78 @@ tracker_refs: []
 
 # Work Package Prompt: WP01 – ADR Authoring and Registration
 
-## ⚡ Do This First: Load Agent Profile
+## Start
 
-Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
+Run `spec-kitty agent profile show scribe-sally`, load that profile, then read `spec.md`, `plan.md`, `research.md`, `data-model.md`, both ADR/operator-map contracts, and `quickstart.md`. Check review feedback in mission status before editing.
 
-- **Profile**: `scribe-sally`
-- **Role**: `implementer`
-- **Agent/tool**: (unset — operator assigns at dispatch)
+## Goal
 
-If no profile is specified, run `spec-kitty agent profile list` and select the best match for this work package's `task_type` and `authoritative_surface`.
+Create and register one self-sufficient ADR that fixes the vocabulary and compatibility contract. Supersede only the terminology portion of `2026-07-15-1`; preserve its resolution mechanics and body.
 
----
+## T001 — Author ADR
 
-## ⚠️ IMPORTANT: Review Feedback
+Before any other edit, run `git rev-parse HEAD`. Persist the exact SHA in owned `implementation-baseline.json` with `implementation_base`, UTC `captured_at`, `captured_by`, `wp_id: WP01`, and `capture_command: git rev-parse HEAD`. This durable anchor is required by WP05; a shell variable is not evidence.
 
-**Read this first if you are implementing this task!**
+Use `docs/architecture/adr-template.md` and the next free dated sequence. Set `status: Accepted`, use the actual creation date, and record deciders/reviewers; mandatory item 1 keeps product-vocabulary effectiveness conditional on M1/I1. The ADR must state all content-contract items, including:
 
-- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent tasks status` or the Activity Log below).
-- **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
-- **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
+- “charter” is the user/operator-facing umbrella; `src/charter/` remains an unrelated existing code package;
+- Charter Pack = versioned distributable governance catalogue (offer side);
+- Charter Bundle = project-local materialized files under `.kittify/charter/` (consume side);
+- Active Charter = one governance artefact activated/wired in for the project;
+- Inactive Charter = an artefact available in a Charter Pack but not activated;
+- existing kind labels survive in their existing roles, without claiming all are activatable;
+- non-public internal package/module/import/symbol names remain out of scope; operator-visible
+  content/pathnames, supported public Python names/imports, exact `doctrine.api.__all__` exports, and
+  installable distribution/project/wheel metadata are in scope;
+- reproduce the complete ID table from the ADR contract, including both `spk-doctrine-charter` and `spec-kitty-charter-doctrine` → `spk-charter-lifecycle`, the six other named skill replacements, `charter-daphne`, and `018-charter-versioning-requirement`; every old ID is a 3.x warning alias removed by M6;
+- 3.x compatibility and 4.0 zero-user-visible rule;
+- the glossary must change all authorities and replace Doctrine Pack with Charter Pack;
+- the fixed non-command mappings: glossary `docs/context/doctrine.md` → `docs/context/charter.md` with active referrers in M1; distinct selection/org-pack/tracker mappings; target URN plus known serialized/API rows; and the operator-map requirement to enumerate exact `doctrine.api.__all__` and `spec-kitty-doctrine` distribution/wheel surfaces; project overlays `.kittify/doctrine/` → `.kittify/charter-packs/` in M3 under checked dual-read/collision/migration behavior;
+- exact guard intent: fingerprint every pre-M1 guard-root hit using exact ordinary OC/X records plus an M6-owned compatibility registry for retained IDs/routes/keys/paths/parser literals/redirects/warnings; only the introduction wave may relocate registered fingerprints; I6 is X-only with empty compatibility inventory; ordinary and compatibility-evasion mutations fail.
 
----
+Include this exact legacy-free line for M1 to place in the human-authored governance/directives section of `.kittify/charter/charter.yaml`:
 
-## Review Feedback
+> Terminology Canon: Use “charter” for the governance artefact layer: “charter pack” for a distributable catalogue, “charter bundle” for the project-local file set, “active charter” for an activated artefact, and “inactive charter” for an available but unactivated artefact.
 
-*[If this WP was returned from review, the reviewer feedback reference appears in the Activity Log below or in the status event log.]*
+State owner-correct bundle operations: direct-edit human-owned `charter.yaml` sections; directly curate `charter.md` if classified text requires it; `charter generate` refreshes catalog/metadata only; `charter sync` writes neither file; other sections use their owning workflows. M1, not this WP, executes those product changes.
 
----
+## T002 — Amend prior ADR
 
-## Objectives & Success Criteria
+Change `2026-07-15-1` status/pointer metadata only. Its body must remain byte-identical. The other ten matching-title ADRs remain immutable.
 
-- A new spec-kitty-style ADR exists in `docs/adr/3.x/` recording the terminology decision as the
-  **single canonical authority** — self-sufficient: a reader with no other context can state the
-  decision, the three-way distinction, surviving vocabulary, scope boundary (incl. the operator-typed
-  identifier split), compatibility policy, glossary decisions, and the exact Terminology Canon line.
-- `2026-07-15-1` is marked `Superseded` in its status frontmatter with a pointer to the new ADR;
-  its body is byte-for-byte untouched (C-003).
-- The ADR is registered: era index row + page-inventory lockfile updated by the freshen script, and
-  `--check` passes.
-- **Success metric**: quickstart check 3 (self-sufficiency) is passable from the ADR alone;
-  quickstart check 2 (registration) passes.
+## T003 — Register
 
----
+Run `python -m scripts.docs.freshen_adr_inventory`; do not hand-edit the generated index/lockfile. Verify using the script's supported check mode and docs freshness tests.
 
-## Context & Constraints
+## T004 — Self-check
 
-**Mission**: `retire-doctrine-term-01M0JMK9` — retire the user-facing term "doctrine" in favor of
-"charter". This mission is **planning-only** (C-001): it records the decision and plans the
-retirement; it renames nothing user-facing.
+Read only the new ADR and answer these exact six questions:
 
-**Read before starting** (all in `kitty-specs/retire-doctrine-term-01M0JMK9/`):
+1. What decision was made and what canonical term replaces the retired one?
+2. What distinguishes Charter Bundle, Active Charter, and Inactive Charter?
+3. Which kind labels survive in their existing roles?
+4. What is in/out of scope, including operator-ID mappings, the non-public-internal versus
+   supported-public-Python-API distinction, aggregate exact `doctrine.api.__all__` evidence, and
+   public distribution/wheel treatment?
+5. What is the 3.x policy and 4.0 removal rule?
+6. How does the governance term differ from `src/charter/`?
 
-- `spec.md` — FR-001..FR-011, NFRs, constraints C-001..C-005
-- `plan.md` — IC-01 (this WP), Charter Check, Parallel Work Analysis
-- `contracts/adr-content-contract.md` — the nine mandatory content items (your authoring checklist)
-- `data-model.md` §2 — the three-way distinction definitions (charter bundle / active charter /
-  inactive charter) and surviving kind vocabulary
-- `research.md` — R1 (ADR conventions), R3 (glossary decisions), R4 (compatibility policy)
-- `quickstart.md` — checks 2–3 are your verification surface
+All answers must come from the ADR. This author check does not replace WP05's one named independent reviewer.
 
-**Constraints to honor**:
-
-- **C-001 (planning-only)**: no surface renames, no `src/` or agent-directory changes. The only
-  files this WP touches are the new ADR, `2026-07-15-1`'s status frontmatter, and the two
-  registration surfaces (index + lockfile) via the freshen script.
-- **C-002**: registration goes through `python -m scripts.docs.freshen_adr_inventory` (module form)
-  — never hand-edit `docs/adr/3.x/index.md` or the lockfile.
-- **C-003**: `2026-07-15-1` is amended in its **status frontmatter only**. The body — including any
-  historical use of the word "doctrine" — is a legacy snapshot and stays byte-for-byte untouched.
-- **Anti-goals** (content contract): do not pin versions in the scope statement; do not mark any
-  ADR other than `2026-07-15-1` as superseded; do not re-decide the operator-approved shape.
-
-**Architectural decisions to honor**:
-
-- The ADR **supersedes the terminology portion** of `2026-07-15-1` (doctrine-offers /
-  charter-activates / runtime-consumes) and **reconciles** with `2026-07-18-1` (charter cascade) —
-  state both relationships explicitly.
-- The ADR is the root of authority for everything downstream: WP02's classification rules,
-  WP03's guard-arming intent (content-contract item 9), and M1's verbatim execution all cite it.
-
----
-
-## Branch Strategy
-
-- **Strategy**: Planning artifacts were generated on feat/retire-doctrine-term; completed changes must merge back into feat/retire-doctrine-term.
-- **Planning base branch**: `feat/retire-doctrine-term`
-- **Merge target branch**: `feat/retire-doctrine-term`
-
-> These fields are populated automatically by `spec-kitty agent mission tasks`.
-> Do NOT change them manually unless you are certain the branch topology has changed.
-
----
-
-## Subtasks & Detailed Guidance
-
-### Subtask T001 – Author the new ADR with all nine mandatory content items
-
-- **Purpose**: The ADR is the single canonical authority for the terminology decision (FR-001).
-  Every downstream artifact — inventory, methodology, stacked plan, and the M1 mission itself —
-  cites it. It must be self-sufficient (NFR-002): readable with zero other context.
-- **Steps**:
-  1. Verify the next free ADR number: `ls docs/adr/3.x/ | sort` — latest existing is
-     `2026-08-20-1`, so the new file is
-     `docs/adr/3.x/2026-08-21-N-retire-doctrine-term-charter-is-the-canonical-vocabulary.md`
-     with N = 1 unless a `2026-08-21-*` file already exists (re-check at creation time).
-  2. Copy the structure from `docs/architecture/adr-template.md` (spec-kitty ADR style: status
-     frontmatter, context, decision, consequences). Status: `Accepted` (the operator approved the
-     decision; this ADR records it — research R1).
-  3. Write the nine mandatory content items, in this order (checklist from
-     `contracts/adr-content-contract.md`):
-     1. **The decision** (FR-001): "charter" is the canonical user-facing term for what was called
-        "doctrine"; "doctrine" is retired from all user-facing surfaces. State it in one paragraph,
-        unambiguously.
-     2. **The three-way distinction** (FR-002): define *charter bundle* (the pack of doctrine
-        artifacts shipped/installed), *active charter* (what is activated in a project's config),
-        and *inactive charter* (installed but not activated) — using the definitions from
-        `data-model.md` §2. Include an explicit disambiguation note: the Python package
-        `src/charter/` is an internal identifier (X1, out of scope) and unrelated to the
-        user-facing term.
-     3. **Surviving kind vocabulary** (FR-003): the artifact kinds that keep their names —
-        `directive`, `tactic`, `styleguide`, `toolguide`, `procedure`, `paradigm` — plus the
-        non-charter-activatable kinds (`template`, `asset`, `anti_pattern`) and the
-        charter-activatable vocabulary tokens (agent profile, glossary pack, mission step contract).
-        Source: `data-model.md` §2 and the AGENTS.md kind-vocabulary table.
-     4. **Scope boundary + operator-typed identifier split** (FR-004): user-facing surfaces are in
-        scope; internal identifiers (`src/` code, module names, function names) are out of scope
-        (C-005). Then the operator-typed split, stated explicitly: **skill names are in scope and
-        get hidden aliases** (e.g. `spk-doctrine-*` → `spk-charter-*`); **profile IDs and directive
-        IDs are out of scope as a named exception** (they are operator-typed identifiers, not
-        user-facing prose). This split was folded in from the post-plan coverage squad (HIGH
-        finding) — do not leave it implicit.
-     5. **Compatibility policy** (FR-005): during 3.x, old skill names remain as **hidden aliases
-        that emit a deprecation warning**; by 4.0 the old names are **gone** (no alias, no
-        warning — removal). No version pins in the scope statement.
-     6. **Relationship to prior ADRs**: supersedes the terminology portion of
-        `2026-07-15-1` (doctrine-offers / charter-activates / runtime-consumes); reconciles with
-        `2026-07-18-1` (charter cascade). Name both with their filenames.
-     7. **FR-011 glossary decisions**: record the four sub-decisions from `research.md` R3 —
-        (a) which glossary entries are renamed, (b) which gain "doctrine" as a legacy alias with a
-        deprecation note, (c) the exact Terminology Canon line text M1 will add to AGENTS.md
-        verbatim, (d) the legacy-snapshot marking rule for historical artifacts. M1 must be able to
-        *execute* these, not re-decide them (FR-010).
-     8. **The exact Terminology Canon line** for M1 to add verbatim — quote it in a code block so
-        there is zero ambiguity about wording.
-     9. **Guard-arming intent** (C-004): state that the terminology guard
-        (`tests/architectural/test_no_legacy_terminology.py`) will be armed in M1 with a
-        file-level frozen exemption baseline, and that the detailed design lives in this mission's
-        `methodology.md` (WP03). The ADR carries the *intent*; methodology carries the *design*.
-  4. Keep the ADR tight: decision + rationale, not a restatement of the whole spec. Target
-     ~150–250 lines.
-- **Files**: create `docs/adr/3.x/2026-08-21-N-retire-doctrine-term-charter-is-the-canonical-vocabulary.md`
-  (N per step 1). Read-only inputs: `docs/architecture/adr-template.md`,
-  `contracts/adr-content-contract.md`, `data-model.md`, `research.md`.
-- **Parallel?**: No — T002's pointer line needs this file's final name.
-- **Notes**: If any of the nine items turns out to be under-determined by the mission artifacts,
-  STOP and report it as an open item — do not invent a decision (FR-010 depends on the ADR fixing
-  everything M1 needs).
-
-
-### Subtask T002 – Amend 2026-07-15-1 status frontmatter (Superseded + pointer)
-
-- **Purpose**: The old ADR's terminology framing (doctrine-offers / charter-activates /
-  runtime-consumes) is superseded by the new ADR. Marking it keeps the ADR corpus honest — a
-  reader must not find two conflicting authorities.
-- **Steps**:
-  1. Open `docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md`.
-  2. In the **status frontmatter only**: change `Proposed` → `Superseded` and add a pointer line
-     to the new ADR's filename (the final name from T001). Follow the frontmatter conventions of
-     neighboring ADRs in `docs/adr/3.x/` (check how other superseded ADRs record their pointer —
-     e.g. a `superseded_by:` field if the convention exists, otherwise a note line in the
-     frontmatter).
-  3. **Do not touch the body.** Every byte after the closing frontmatter delimiter stays exactly as
-     is — including historical uses of "doctrine" (C-003: legacy snapshot).
-  4. Verify: `git diff docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md`
-     must show changes **only** inside the frontmatter block. If any body line appears in the diff,
-     revert and redo.
-- **Files**: `docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md`
-  (frontmatter only).
-- **Parallel?**: No — needs T001's final filename.
-- **Notes**: Do NOT mark any other ADR superseded (anti-goal). `2026-07-18-1` is *reconciled*, not
-  superseded — it stays at its current status.
-
-### Subtask T003 – Register the ADR via the freshen script and verify with --check
-
-- **Purpose**: The docs-freshness CI gate requires every ADR to be registered in the era index and
-  the page-inventory lockfile. Hand-editing either surface is prohibited (C-002) — the canonical
-  script owns both.
-- **Steps**:
-  1. Run the freshen script in module form from the repo root:
-     ```bash
-     python -m scripts.docs.freshen_adr_inventory
-     ```
-  2. Inspect the diff it produces: `docs/adr/3.x/index.md` (new era-index row for the new ADR) and
-     `docs/development/3-2-page-inventory.yaml` (lockfile entry). Both changes come from the
-     script — do not hand-edit either file. If the script also touches unrelated entries, review
-     why before keeping them (stale lockfile from prior work is possible; keep only what the new
-     ADR requires unless the script's own logic demands more).
-  3. Verify: `python -m scripts.docs.freshen_adr_inventory --check` exits clean (no drift).
-- **Files**: `docs/adr/3.x/index.md`, `docs/development/3-2-page-inventory.yaml` (script-owned).
-- **Parallel?**: No — needs T001's file on disk.
-- **Notes**: If the script fails or reports unexpected drift, do not work around it by hand-editing
-  — report the failure (charter: trace the source and file an upstream gap; never improvise a
-  substitute).
-
-
-### Subtask T004 – Self-sufficiency pre-check + frontmatter-only diff verification
-
-- **Purpose**: Catch NFR-002 (self-sufficiency) and C-003 (frontmatter-only amendment) failures
-  before review, when they are cheap to fix. WP05 runs the *independent* pass; this is the author's
-  own pre-check.
-- **Steps**:
-  1. Walk `contracts/adr-content-contract.md`'s nine-item checklist against the finished ADR. For
-     each item, confirm it is present and unambiguous. Mark any gap and fix it in place.
-  2. Self-sufficiency dry run (quickstart check 3, author version): read **only** the new ADR and
-     answer the six questions — (1) What is the decision? (2) What are the three distinct things
-     "charter" refers to, and how do they differ? (3) Which artifact kinds survive unchanged?
-     (4) What is in scope vs out of scope, including the operator-typed identifier split?
-     (5) What happens to old skill names in 3.x and by 4.0? (6) What exact Terminology Canon line
-     does M1 add to AGENTS.md? If any answer requires consulting another file, the ADR is not
-     self-sufficient — fix it.
-  3. Re-verify T002's constraint: `git diff` on the old ADR shows frontmatter-only changes.
-  4. Re-run `python -m scripts.docs.freshen_adr_inventory --check` — still clean after all edits.
-- **Files**: none new (verification only).
-- **Parallel?**: No — runs after T001–T003.
-- **Notes**: This pre-check does not replace WP05's independent reviewer pass (Standing Order #8:
-  reviewer ≠ implementer). It only keeps the author's own bar honest.
-
----
-
-## Verification (no new tests — docs-only mission, C-001)
-
-This WP writes no code and adds no tests. Targeted verification surface:
+## Verification
 
 ```bash
-# Registration clean (quickstart check 2):
 python -m scripts.docs.freshen_adr_inventory --check
-
-# Old ADR diff is frontmatter-only (C-003):
 git diff docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
-
-# Guard still green (this WP must not trip the terminology guard):
-pytest tests/architectural/test_no_legacy_terminology.py -q
+pytest -q tests/architectural/test_no_legacy_terminology.py
 ```
 
-The guard check matters: the new ADR's *body* discusses the word "doctrine" as a subject. If the
-guard scans `docs/` and flags the new ADR, that is a real finding — report it (the guard's
-exclusion rules are M1's concern to arm, not this WP's to work around). Do NOT add the new ADR to
-any exclusion list in this mission.
-
----
-
-## Risks & Mitigations
-
-- **Self-sufficiency failure (NFR-002/SC-001)** → nine-item checklist at authoring time (T001) +
-  six-question dry run (T004); WP05's independent pass is the final gate.
-- **Old ADR body drift (C-003)** → T002 step 4 and T004 step 3 both verify via `git diff`; a body
-  line in the diff is an automatic redo.
-- **Freshen gate trip (docs-freshness CI)** → registration only via the canonical script (C-002);
-  `--check` after every edit round.
-- **Guard flags the new ADR's discussion of "doctrine"** → expected possible finding; report, do
-  not exclude (guard arming is M1's design per methodology.md).
-
----
-
-## Review Guidance
-
-- Reviewer checkpoints for `/spec-kitty.review`:
-  1. All nine content-contract items present and unambiguous (walk the checklist).
-  2. The operator-typed identifier split is stated explicitly (skill names in scope with aliases;
-     profile IDs + directive IDs out of scope as a named exception).
-  3. The Terminology Canon line is quoted verbatim in a code block — M1 will copy it exactly.
-  4. Old ADR diff is frontmatter-only; body byte-for-byte untouched.
-  5. Index + lockfile changes came from the freshen script; `--check` clean.
-  6. No anti-goal violations: no surface renames, no version pins in scope, no other ADR
-     superseded.
-
----
+Reject body drift, another ADR status change, a product rename, a Terminology Canon instruction for `AGENTS.md`, or any ambiguous Pack/Bundle/activation definition.
 
 ## Activity Log
 
-> **CRITICAL**: Activity log entries MUST be in chronological order (oldest first, newest last).
-> Append new entries at the END. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
-> (timestamp = current UTC via `date -u "+%Y-%m-%dT%H:%M:%SZ"`).
+The generation record below is immutable. Do not edit this prompt to append activity;
+status/history is event-log owned. Use
+`spec-kitty agent tasks move-task WP01 --to <status>`.
 
 - 2026-08-21T00:00:00Z – system – Prompt created.
-
----
-
-### Updating Status
-
-Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task WP01 --to <status>` to change WP status.

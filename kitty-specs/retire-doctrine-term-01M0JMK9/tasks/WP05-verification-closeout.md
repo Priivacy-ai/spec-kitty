@@ -15,6 +15,9 @@ requirement_refs:
 - NFR-001
 - NFR-002
 - NFR-003
+planning_base_branch: feat/retire-doctrine-term
+merge_target_branch: feat/retire-doctrine-term
+branch_strategy: Planning artifacts for this mission were generated on feat/retire-doctrine-term. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/retire-doctrine-term unless the human explicitly redirects the landing branch.
 subtasks:
 - T016
 - T017
@@ -42,305 +45,80 @@ tracker_refs: []
 
 # Work Package Prompt: WP05 – Verification and Closeout
 
-## ⚡ Do This First: Load Agent Profile
+## Start and role boundary
 
-Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
+Run `spec-kitty agent profile show reviewer-renata`, load it, then read all mission artifacts and `quickstart.md`. Check review feedback first. You verify; route substantive failures to WP01–WP04 and only write `verification-report.md`.
 
-- **Profile**: `reviewer-renata`
-- **Role**: `reviewer`
-- **Agent/tool**: (unset — operator assigns at dispatch)
+Every report check includes command/procedure, output excerpt or reviewer answers, timestamp, base SHA where relevant, and pass/fail. Missing evidence = fail.
 
-If no profile is specified, run `spec-kitty agent profile list` and select the best match for this work package's `task_type` and `authoritative_surface`.
+## T016 — CI, scope, and ADR
 
----
+Run the quickstart targeted tests and ADR freshness check. Verify the new ADR is `Accepted` with actual date/deciders/reviewers and explicit M1/I1 effectuation boundary; verify the old ADR body is byte-identical except `Superseded` status/pointer metadata.
 
-## ⚠️ IMPORTANT: Review Feedback
+Record two C-001 anchors:
 
-**Read this first if you are implementing this task!**
+- planning base = `git merge-base origin/main HEAD`; allowed planning/lifecycle artifacts, ADR/registration surfaces, squad evidence, and required docs-contract CI metadata;
+- implementation base loaded from WP01-owned `implementation-baseline.json`, captured before its first edit; validate schema, 40-character SHA, and ancestry; permit only the union of WP-owned implementation deliverables plus canonical runtime-owned `status.events.jsonl` and reduced `status.json`. Prompt files must remain unchanged during execution.
 
-- **Has review feedback?**: Check the `review_ref` field in the event log (via `spec-kitty agent tasks status` or the Activity Log below).
-- **You must address all feedback** before your work is complete. Feedback items are your implementation TODO list.
-- **Report progress**: As you address each feedback item, update the Activity Log explaining what you changed.
+Inspect committed delta plus working tree. Do not use an absolute file list that rejects pre-existing planning artifacts.
 
----
+## T017 — Exact ADR self-sufficiency pass
 
-## Review Feedback
+One named independent reviewer (squad **or** operator; a second review is optional) reads only the new ADR and answers:
 
-*[If this WP was returned from review, the reviewer feedback reference appears in the Activity Log below or in the status event log.]*
+1. What decision was made and replacement is canonical?
+2. What distinguishes Charter Bundle, Active Charter, and Inactive Charter?
+3. Which kind labels survive in their existing roles?
+4. What is in/out of scope, including operator-ID mappings and non-public internal versus supported public Python API, exact `doctrine.api.__all__`, and distribution/wheel treatment?
+5. What is the 3.x compatibility policy and 4.0 removal rule?
+6. How does the governance term differ from `src/charter/`?
 
----
+Record answers and reviewer identity. Do not replace question 6 with the Terminology Canon line.
 
-## Objectives & Success Criteria
+## T018 — Inventory proof
 
-- All seven `quickstart.md` checks pass with **recorded live evidence**:
-  1. guard green; 2. ADR registration clean + old-ADR diff frontmatter-only;
-  3. ADR self-sufficiency (named independent reviewer); 4. mechanical audit re-run +
-     inventory arithmetic; 5. stacked-plan completeness (every OC-## exactly once);
-  6. M1 spec-readiness dry run (0 new decisions); 7. methodology invariant check
-     (I0–I6 + one named mechanism per out-of-root class).
-- `verification-report.md` exists in the mission directory: per-check command, output excerpt,
-  pass/fail, timestamp — the durable merge evidence (the plan's "review evidence in the PR",
-  made reviewable).
-- **C-001 confirmed held**: no surface was renamed by this mission — the diff of the whole
-  mission touches only the ADR pair, the two registration surfaces (script-owned), and the four
-  mission artifacts.
-- **Success metric**: SC-001..SC-004 all green in the report; the merge-gate summary table is
-  fully pass.
+At `inventory.md`'s pinned SHA, rerun both exact audit commands from the contract. Verify:
 
----
+- one manifest row per content occurrence and matching pathname;
+- no duplicate coordinate, missing classification, or unknown S/OC/X ID;
+- manifest SHA and deterministic ordering;
+- `total = content + path = OC + X1 + X2 + X3`;
+- no active/unmerged-current-mission X2, active-glossary/alias X3, or supported-public-API/operator-ID X1;
+- X2 mission classification starts at merge and does not depend on later archival;
+- all deferrals have repo, owner, milestone, tracking reference/process, rationale, and no `TBD`.
 
-## Context & Constraints
+If current HEAD drifted from pinned base, record both SHAs and delta; do not rewrite the pinned evidence from this reviewer WP.
 
-**Mission**: `retire-doctrine-term-01M0JMK9` — planning-only (C-001). This WP is the merge gate:
-it proves SC-001..SC-004 with live evidence before the mission can merge.
+## T019 — Plan and M1 dry run
 
-**Read before starting** (all in `kitty-specs/retire-doctrine-term-01M0JMK9/`):
+Verify every OC appears exactly once; inventory owns no assignment. Confirm bulk/invariants/rollback/M1 zero questions. For M2's sole question, prove every command/serialized/API/supported-public-Python-API/public-distribution OC and consumer is M2-owned, both map/projection are required, mandatory catalog/selection/service rows, exact `doctrine.api.__all__`, `spec-kitty-doctrine` distribution/wheel contract, publication evidence, and external owners are complete, M3–M5 exclude mapped hits, and only non-public internals are X1.
 
-- `quickstart.md` — the seven-check runbook (your checklist, in order)
-- `spec.md` — SC-001..SC-004 (what each check proves)
-- The four deliverables under verification: the new ADR + amended `2026-07-15-1` (WP01),
-  `inventory.md` (WP02), `methodology.md` (WP03), `stacked-plan.md` (WP04)
-- `contracts/adr-content-contract.md` — the nine-item checklist for check 3
+Repeat the M1 dry run: `docs/context/charter.md` plus all active referrers and old-path redirect, byte-identical X2 historical refs plus zero dangling active refs, both YAML authorities under parity/#2727 coordination; owner-correct bundle edits; `governance.charter` migration; exact canon; complete pre-M1 ordinary preimage/M1 shrink plus repository-wide M6 registry, controlled relocation, and X-only/empty-compatibility I6. Verify M2 maps/projection/config and fixed M3 overlay migration require no decision.
 
-**Constraints to honor**:
+## T020 — Methodology and report closeout
 
-- **Reviewer ≠ implementer (Standing Order #8)**: this WP verifies; it does not rewrite. If a
-  check fails because a deliverable is wrong, the finding goes back to the owning WP (recorded
-  in the report + reported to the operator) — you do not fix another WP's artifact here.
-  Exception: trivial formatting fixes inside `verification-report.md` itself are yours.
-- **No green-washing**: a check passes only with recorded live evidence — the actual command,
-  an output excerpt (not "it passed"), and a timestamp. A pass without evidence is a failed
-  check.
-- **Independence for check 3**: the ADR self-sufficiency pass requires a *named independent*
-  reviewer — the author of WP01 does not perform it. The report records who stated what
-  (SC-001: post-implement squad lens + operator at PR review).
+Verify every S1–S10 class/mixed-root portion has one primary verifier, each ordering step has concrete rationale, each I0–I6 invariant has a named check, every wave regenerates per-hit evidence, and rollback is prefix-safe.
 
-**Architectural decisions to honor**:
+Specifically confirm methodology tests fail for:
 
-- The report is the **named home for merge evidence** — durable, in-repo, reviewable. It
-  complements (does not replace) the PR description's evidence summary.
-- Drift is recorded, never absorbed (INV-I1): if the audit re-run (check 4) differs from
-  `inventory.md`'s base, the delta is recorded with both SHAs.
+1. added hit in baselined file;
+2. equal-count user-facing substitution;
+3. removed source hit without baseline shrink;
+4. new file hit.
+5. unregistered or wrong-wave compatibility addition/move;
+6. compatibility fingerprints above a frozen per-entry maximum;
+7. product compatibility assembled from fragments.
 
----
+Write summary mapping SC-001..SC-004 to evidence and list routed findings. Ready only when all checks pass and no routed finding remains.
 
-## Branch Strategy
+## Verification/review guidance
 
-- **Strategy**: Planning artifacts were generated on feat/retire-doctrine-term; completed changes must merge back into feat/retire-doctrine-term.
-- **Planning base branch**: `feat/retire-doctrine-term`
-- **Merge target branch**: `feat/retire-doctrine-term`
-
-> These fields are populated automatically by `spec-kitty agent mission tasks`.
-> Do NOT change them manually unless you are certain the branch topology has changed.
-
----
-
-## Subtasks & Detailed Guidance
-
-### Subtask T016 – Quickstart checks 1–2: guard green + ADR registration
-
-- **Purpose**: Prove the mechanical merge gates — the terminology guard is still green (this
-  mission must not have tripped it) and the ADR registration is clean.
-- **Steps**:
-  1. **Check 1 — guard green**: run
-     ```bash
-     pytest tests/architectural/test_no_legacy_terminology.py -q
-     ```
-     Record the command, the tail of the output (pass count / any failures), and a timestamp.
-     If red: determine whether the failure is this mission's (e.g. the new ADR's body
-     discussing "doctrine" — a real finding for M1's guard-arming design) or pre-existing
-     (baseline-red policy: verify against the merge base before attributing). Record the
-     attribution in the report either way.
-  2. **Check 2 — ADR registration**: run
-     ```bash
-     python -m scripts.docs.freshen_adr_inventory --check
-     ```
-     Record command + output (must be clean). Then verify the old ADR's diff is
-     frontmatter-only:
-     ```bash
-     git diff <base>..HEAD -- docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md
-     ```
-     (or `git diff` against the mission's base commit) — every changed line must be inside the
-     frontmatter block. Record an excerpt showing the status change + pointer line and that no
-     body lines changed.
-  3. Write both results into `verification-report.md` (create the file now with frontmatter:
-     `artifact: verification-report`, `mission: retire-doctrine-term-01M0JMK9`,
-     `generated_at`) — one section per check: command, output excerpt, pass/fail, timestamp.
-- **Files**: create `kitty-specs/retire-doctrine-term-01M0JMK9/verification-report.md`
-  (checks 1–2 sections).
-- **Parallel?**: No — runbook order; both checks append to the same report.
-- **Notes**: These two checks are also what CI will re-run at merge — a local pass here is
-  necessary but the PR's CI run is the final word; note that in the report.
-
-### Subtask T017 – Quickstart check 3: ADR self-sufficiency (named independent reviewer)
-
-- **Purpose**: SC-001 / NFR-002 — the ADR is self-sufficient: a reader with no other context
-  can state everything downstream missions need. This is the check that cannot be done by the
-  author (Standing Order #8).
-- **Steps**:
-  1. Identify the named independent reviewer(s): the post-implement squad lens (advisory) and
-     the operator at PR review. If a squad is deployed for this mission, use its ADR-lens
-     member; the operator's pass happens at PR review — coordinate so both passes are recorded.
-  2. The reviewer reads **only** the new ADR (no inventory, no methodology, no plan) and
-     answers the six questions:
-     1. What is the decision?
-     2. What are the three distinct things "charter" refers to (bundle / active / inactive),
-        and how do they differ?
-     3. Which artifact kinds survive unchanged, and which tokens are charter-activatable?
-     4. What is in scope vs out of scope — including the operator-typed identifier split
-        (skill names vs profile IDs / directive IDs)?
-     5. What happens to old skill names in 3.x, and by 4.0?
-     6. What exact Terminology Canon line does M1 add to AGENTS.md (verbatim)?
-  3. Record in the report: reviewer name(s), each answer, and a pass/fail per question
-     (fail = the answer required consulting another file or was ambiguous). Any failure is a
-     finding routed back to WP01's artifact — recorded, not fixed here.
-  4. Also record the nine-item content-contract checklist result (walk
-     `contracts/adr-content-contract.md` against the ADR) as supporting evidence.
-- **Files**: `verification-report.md` (check 3 section).
-- **Parallel?**: No — the report is one file; also, this check gates nothing mechanically but
-  must be complete before closeout.
-- **Notes**: If the operator's pass is still pending at PR review when this WP completes,
-  record the squad-lens result now and mark the operator pass as *pending with named owner* —
-  do not claim SC-001 green until both are recorded.
-
-
-### Subtask T018 – Quickstart check 4: audit re-run + inventory arithmetic
-
-- **Purpose**: SC-002 / NFR-001 — the inventory is complete and reproducible: a fresh
-  mechanical audit accounts for every hit, and the completeness arithmetic holds.
-- **Steps**:
-  1. Re-run the mechanical audit at the **current** base:
-     ```bash
-     git rev-parse HEAD   # current SHA (compare against inventory.md base_commit)
-     git grep -ic 'doctrine' -- $(git ls-files) | sort -t: -k2 -rn
-     ```
-  2. Compare against `inventory.md` Section 2 (raw record at its `base_commit`):
-     - If the SHAs match: the raw records must be identical. Any difference is an inventory
-       error → finding routed to WP02.
-     - If the SHAs differ (catfooding drift): record both SHAs and the delta (files added /
-       removed / count changes) per INV-I1 — drift is recorded, never silently absorbed. The
-       arithmetic check below still applies to the inventory's own base.
-  3. Verify the **completeness arithmetic** in `inventory.md`: re-add the OC-## row counts and
-     the X-row counts; confirm `total_hits = sum(OC) + sum(X)` and `unclassified = 0`. Record
-     the re-added numbers in the report (a reviewer must be able to check your addition).
-  4. Record command(s), output excerpts, the arithmetic re-addition, and pass/fail in
-     `verification-report.md`.
-- **Files**: `verification-report.md` (check 4 section).
-- **Parallel?**: No — runbook order.
-- **Notes**: Do not "fix" inventory counts here to make the arithmetic pass — if it fails,
-  that is a WP02 finding. The report's job is to prove or disprove, not to repair.
-
-### Subtask T019 – Quickstart checks 5–6: plan completeness + M1 spec-readiness dry run
-
-- **Purpose**: SC-003 (every occurrence class assigned exactly once) and SC-004 / FR-010
-  (M1 spec-ready with zero new decisions) — the two checks that make the planning-only
-  strategy real.
-- **Steps**:
-  1. **Check 5 — stacked-plan completeness**: from `inventory.md` Section 3, take the full
-     in-scope OC-## set; from `stacked-plan.md` Section 3, take the assignment table. Verify:
-     - every in-scope OC-## appears exactly once (assigned or deferred-with-rationale);
-     - no OC-## appears twice; no table row references an ID absent from the inventory;
-     - each mission's `retires` field matches its table rows.
-     Record the ID sets used and the match result in the report.
-  2. **Check 6 — M1 spec-readiness dry run**: independently of WP04's Section 4 record,
-     attempt the M1 spec skeleton yourself from `stacked-plan.md` (M1 entry) + ADR +
-     `inventory.md` S2/S5 rows + `methodology.md` §3/§5. For each element (purpose, scope
-     classes, glossary rewrite content, bundle update, Terminology Canon line, guard-arming
-     design), mark determined (with citation) or gap. Compare your result against WP04's
-     recorded dry run — agreement strengthens the evidence; disagreement is a finding (record
-     both). Pass condition: zero gaps, M1 `open_items` empty.
-  3. Record both checks in `verification-report.md` with the ID sets / element tables and
-     pass/fail.
-- **Files**: `verification-report.md` (checks 5–6 sections).
-- **Parallel?**: No — runbook order.
-- **Notes**: Your dry run is a *second opinion* on WP04's — independence matters here exactly
-  as it does in check 3. If you find a gap WP04 missed, that is the highest-value finding in
-  this mission (FR-010's sharp edge).
-
-
-### Subtask T020 – Quickstart check 7: methodology invariant check; finalize verification-report.md
-
-- **Purpose**: Close the loop — verify the methodology's structural completeness (US3-AS1 /
-  C-004), confirm C-001 held across the whole mission, and finalize the report as the merge
-  evidence.
-- **Steps**:
-  1. **Check 7 — methodology invariant check** against `methodology.md`:
-     - I0–I6 all present in §2, each with a stated assertion and a named checking mechanism;
-     - every ordering choice in §2 has a concrete-risk rationale paragraph (spot-check at
-       least the atomic-flip choice and the removal-last choice in depth);
-     - §3 contains all five guard-design elements by name (frozen baseline, shrink-only
-       ratchet, self-mutation test, stated blind spot, string-fragment construction);
-     - §4 table: one row per out-of-root class (S5/S6/S8/S9 + S4's and S7's out-of-root
-       portions), exactly one primary mechanism each, and every OC-## class covered by guard or
-       table row (C-004).
-     Record the checklist result in the report.
-  2. **C-001 confirmation**: review the mission's full diff (base commit → HEAD): it must
-     touch only — the new ADR, `2026-07-15-1` (frontmatter only), the two script-owned
-     registration surfaces, and the four mission artifacts (`inventory.md`,
-     `methodology.md`, `stacked-plan.md`, this report). Any other changed file is a C-001
-     violation → finding. Record the file list in the report.
-  3. **Finalize `verification-report.md`**: add a closing summary table — one row per
-     success criterion (SC-001..SC-004) mapping to its check(s), overall pass/fail, and the
-     list of open findings (if any) with their routed owner (WP01–WP04). Add the merge-gate
-     statement: all checks green + C-001 held ⇒ mission ready for review/merge; any open
-     finding ⇒ not ready, with the blocking item named.
-- **Files**: `verification-report.md` (check 7 section + summary table — the file is
-  complete after this subtask).
-- **Parallel?**: No — final subtask; consumes all prior check results.
-- **Notes**: The report's summary table is what the operator reads at PR review — keep it to
-  one screen: criterion, check, result, evidence pointer (section in this report).
-
----
-
-## Verification (no new tests — docs-only mission, C-001)
-
-This WP writes no code and adds no tests. Its own verification surface is the report itself:
-every check section contains command + output excerpt + pass/fail + timestamp, and the summary
-table maps SC-001..SC-004 to checks. A report section missing any of those four elements is an
-incomplete check (treat as failed).
-
----
-
-## Risks & Mitigations
-
-- **Green-washing a check** → the four-element evidence rule (command, excerpt, result,
-  timestamp); a pass without recorded live evidence is a failed check by definition.
-- **Self-sufficiency pass run by the author (NFR-002)** → T017 requires a named independent
-  reviewer; the report records who stated what. Operator pass pending ⇒ SC-001 not claimed
-  green.
-- **Audit drift between inventory base and verification base** → T018 records both SHAs and
-  the delta (INV-I1: recorded, not absorbed); arithmetic is checked against the inventory's
-  own base.
-- **Fixing another WP's artifact from here (role bleed)** → findings are routed to the owning
-  WP and recorded; only `verification-report.md` itself is this WP's writable surface.
-
----
-
-## Review Guidance
-
-- Reviewer checkpoints for `/spec-kitty.review` (this WP's output is the merge evidence):
-  1. All seven check sections present, each with command + output excerpt + pass/fail +
-     timestamp.
-  2. Check 3 records a named independent reviewer (not the WP01 author); operator pass
-     recorded or explicitly pending with named owner.
-  3. Check 4 shows the re-added arithmetic (not just "it matches").
-  4. Checks 5–6 show the actual ID sets / element tables used — reproducible by a reader.
-  5. C-001 file list matches the mission diff exactly; no surface renamed anywhere.
-  6. Summary table: SC-001..SC-004 each mapped to checks with overall result; open findings
-     (if any) named with routed owner.
-
----
+Reject self-authored “independent” ADR review, requiring both squad and operator, the broken shell-expanded audit, pathname omission, file/count guard baselines, ownerless deferrals, M1 Terminology Canon in `AGENTS.md`, sync-as-writer, wrong invariant mapping, or an open M4 canonical-name decision.
 
 ## Activity Log
 
-> **CRITICAL**: Activity log entries MUST be in chronological order (oldest first, newest last).
-> Append new entries at the END. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
-> (timestamp = current UTC via `date -u "+%Y-%m-%dT%H:%M:%SZ"`).
+The generation record below is immutable. Do not edit this prompt to append activity;
+status/history is event-log owned. Use
+`spec-kitty agent tasks move-task WP05 --to <status>`.
 
 - 2026-08-21T00:00:00Z – system – Prompt created.
-
----
-
-### Updating Status
-
-Status is managed via `status.events.jsonl`. Use `spec-kitty agent tasks move-task WP05 --to <status>` to change WP status.
