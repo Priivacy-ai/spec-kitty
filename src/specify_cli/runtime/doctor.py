@@ -175,8 +175,10 @@ _VERSION_MARKER_HEAD_LINES = 15
 def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
     """Check all agent command files for correctness.
 
-    For each configured agent and each of the 15 consumer commands, this
-    function verifies that:
+    For each agent configured in the project and each of the 15 consumer
+    commands, this function verifies the file at that agent's user-global
+    command directory (see ``get_global_command_dir``, canonical since the
+    ``3.1.2_globalize_commands`` migration):
 
     - The command file exists.
     - The file head contains the current ``<!-- spec-kitty-command-version: X.Y.Z -->``
@@ -187,7 +189,8 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
       lines) and CLI-driven commands should be short (<15 non-empty lines).
 
     Args:
-        project_path: Root directory of the project.
+        project_path: Root directory of the project, used only to determine
+            which agents are configured (``get_agent_dirs_for_project``).
 
     Returns:
         List of issue dicts, each with keys:
@@ -199,6 +202,7 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
         from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY, get_agent_dirs_for_project
         from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
         from specify_cli.core.config import AGENT_COMMAND_CONFIG
+        from specify_cli.runtime.agent_commands import get_global_command_dir
     except ImportError:
         return []
 
@@ -223,19 +227,19 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
     issues: list[dict[str, str]] = []
     agent_dirs = get_agent_dirs_for_project(project_path)
 
-    for agent_root, subdir in agent_dirs:
-        agent_dir = project_path / agent_root / subdir
-        if not agent_dir.is_dir():
-            continue
-
+    for agent_root, _subdir in agent_dirs:
         agent_key = AGENT_DIR_TO_KEY.get(agent_root)
         if agent_key is None:
             continue
 
+        # Command files live in the user-global command dir since the
+        # 3.1.2_globalize_commands migration, not under the project root.
+        agent_dir = get_global_command_dir(agent_key)
+
         for command in sorted(PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS):
             filename = _compute_filename(command, agent_key)
             file_path = agent_dir / filename
-            rel_path = str(file_path.relative_to(project_path))
+            rel_path = str(file_path)
             is_prompt_driven = command in PROMPT_DRIVEN_COMMANDS
 
             if not file_path.exists():
