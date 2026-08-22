@@ -212,6 +212,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/dossiers/",
         ".kittify/encoding-provenance/",
         ".kittify/events/",
+        ".kittify/lint-report.json",
         ".kittify/logs/",
         ".kittify/merge-state.json",
         ".kittify/migrations/",
