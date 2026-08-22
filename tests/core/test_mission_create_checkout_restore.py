@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
+from mission_runtime import MissionTopology
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.mission_creation import (
     _restore_git_state_after_failed_create,
@@ -37,20 +39,12 @@ def _init_git_repo(repo: Path) -> None:
     provision_test_charter(repo)
     (repo / "kitty-specs").mkdir(exist_ok=True)
     subprocess.run(["git", "init"], cwd=repo, capture_output=True, check=True)
-    subprocess.run(
-        ["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True
-    )
-    subprocess.run(
-        ["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True
-    )
+    subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=repo, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
     # Deterministic, operator-named branch so the assertion is decoupled from
     # the ambient git ``init.defaultBranch`` (master vs main).
-    subprocess.run(
-        ["git", "branch", "-M", _ORIGINAL_BRANCH], cwd=repo, capture_output=True, check=True
-    )
+    subprocess.run(["git", "branch", "-M", _ORIGINAL_BRANCH], cwd=repo, capture_output=True, check=True)
 
 
 def _mission_summary(slug: str) -> dict[str, str]:
@@ -58,10 +52,7 @@ def _mission_summary(slug: str) -> dict[str, str]:
     return {
         "friendly_name": title.title(),
         "purpose_tldr": f"Deliver {title} cleanly for the team.",
-        "purpose_context": (
-            f"This mission delivers {title} so product and engineering can move "
-            "forward with a clear outcome and shared understanding."
-        ),
+        "purpose_context": (f"This mission delivers {title} so product and engineering can move forward with a clear outcome and shared understanding."),
     }
 
 
@@ -83,9 +74,18 @@ def _coordination_branches(repo: Path) -> list[str]:
     return [line.strip() for line in result.stdout.splitlines() if line.strip()]
 
 
-def test_failed_create_restores_branch_and_leaves_no_orphan(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _init_owned_checkout_pair(tmp_path: Path) -> tuple[Path, Path]:
+    primary = tmp_path / "primary"
+    linked = tmp_path / "linked"
+    primary.mkdir()
+    _init_git_repo(primary)
+    subprocess.run(["git", "add", "."], cwd=primary, capture_output=True, check=True)
+    subprocess.run(["git", "commit", "-m", "configure project"], cwd=primary, capture_output=True, check=True)
+    subprocess.run(["git", "worktree", "add", "-b", "owned-work", str(linked)], cwd=primary, capture_output=True, check=True)
+    return primary, linked
+
+
+def test_failed_create_restores_branch_and_leaves_no_orphan(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """AC2 / FR-011: a create that fails AFTER the coordination branch is minted
     restores the operator's original branch and leaves no orphan branch."""
     _init_git_repo(tmp_path)
@@ -115,23 +115,75 @@ def test_failed_create_restores_branch_and_leaves_no_orphan(
     assert _coordination_branches(tmp_path) == []
 
 
+def test_failed_create_restores_owned_checkout_ref_and_index(tmp_path: Path) -> None:
+    """Late failure rolls back the explicit checkout that received the commit."""
+    primary, linked = _init_owned_checkout_pair(tmp_path)
+    original_tip = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=linked,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    (linked / "staged-user-change.txt").write_text("preserve me\n", encoding="utf-8")
+    subprocess.run(["git", "add", "staged-user-change.txt"], cwd=linked, capture_output=True, check=True)
+    staged_before = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        cwd=linked,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+
+    with (
+        patch("specify_cli.status.emit_mission_created_local", return_value=None),
+        pytest.raises(RuntimeError, match="Local canonical MissionCreated persistence failed"),
+    ):
+        create_mission_core(
+            primary,
+            "owned-late-failure",
+            allow_worktree_context=True,
+            owned_checkout=linked,
+            topology=MissionTopology.SINGLE_BRANCH,
+            **_mission_summary("owned-late-failure"),
+        )
+
+    assert get_current_branch(linked) == "owned-work"
+    restored_tip = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=linked,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.strip()
+    staged_after = subprocess.run(
+        ["git", "diff", "--cached", "--name-only"],
+        cwd=linked,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.splitlines()
+    assert restored_tip == original_tip
+    assert staged_after == staged_before
+    assert list((primary / "kitty-specs").glob("owned-late-failure-*")) == []
+    assert len(list((linked / "kitty-specs").glob("owned-late-failure-*"))) == 1
+
+
 def test_restore_helper_switches_back_and_deletes_new_branches(tmp_path: Path) -> None:
     """Focused coverage: the rollback helper restores the checkout and deletes
     the coordination branch that appeared during the aborted create."""
     _init_git_repo(tmp_path)
     pre = frozenset(_coordination_branches(tmp_path))  # empty
     orphan = "kitty/mission-simulated-abcd1234"
-    subprocess.run(
-        ["git", "-C", str(tmp_path), "branch", orphan], capture_output=True, text=True, check=True
-    )
-    subprocess.run(
-        ["git", "-C", str(tmp_path), "checkout", orphan], capture_output=True, text=True, check=True
-    )
+    subprocess.run(["git", "-C", str(tmp_path), "branch", orphan], capture_output=True, text=True, check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "checkout", orphan], capture_output=True, text=True, check=True)
     assert get_current_branch(tmp_path) == orphan
 
     _restore_git_state_after_failed_create(
         tmp_path,
         original_branch=_ORIGINAL_BRANCH,
+        original_commit=None,
+        original_index_tree=None,
         pre_existing_coordination_branches=pre,
     )
 
@@ -230,18 +282,16 @@ def test_restore_helper_preserves_pre_existing_coordination_branches(tmp_path: P
     already present before the aborted create (no collateral deletion)."""
     _init_git_repo(tmp_path)
     keep = "kitty/mission-keep-me-00000000"
-    subprocess.run(
-        ["git", "-C", str(tmp_path), "branch", keep], capture_output=True, text=True, check=True
-    )
+    subprocess.run(["git", "-C", str(tmp_path), "branch", keep], capture_output=True, text=True, check=True)
     pre = frozenset(_coordination_branches(tmp_path))  # {keep}
     new = "kitty/mission-new-11111111"
-    subprocess.run(
-        ["git", "-C", str(tmp_path), "branch", new], capture_output=True, text=True, check=True
-    )
+    subprocess.run(["git", "-C", str(tmp_path), "branch", new], capture_output=True, text=True, check=True)
 
     _restore_git_state_after_failed_create(
         tmp_path,
         original_branch=_ORIGINAL_BRANCH,  # already on it
+        original_commit=None,
+        original_index_tree=None,
         pre_existing_coordination_branches=pre,
     )
 
