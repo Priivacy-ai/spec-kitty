@@ -25,6 +25,24 @@ performs — activating a **mission type**:
   is not itself an artifact kind, so it is dropped, and the cascade returns
   nothing.
 
+> **Superseding note (2026-08-22, #3633):** the "carries only `requires →
+> action:<mission>/<step>`" bullet above is now stale — issue `#3604` (merged
+> 2026-08-21, one day after this ADR's 2026-08-20 acceptance) added a second
+> edge shape from `mission_type` nodes: `mission_type --scope-->
+> {directive,tactic,paradigm,styleguide,toolguide,procedure,agent_profile,
+> mission_step_contract}`, projecting each type's `governance-profile.yaml`
+> `selected_*` selections directly (see
+> [ADR 2026-07-26-1](2026-07-26-1-drg-edges-are-the-canonical-relationship-authority.md)'s
+> own 2026-08-22 amendment on `Relation.SCOPE`'s two-grain overload). This does
+> not change this ADR's decision: `#3604`'s `mission_type --scope-->` edges are
+> still not `requires`/`suggests`/`refines`, so the dead-end this ADR fixes
+> (widening `REFERENCE_RELATIONS` to include `scope` at the mission-type ⋈
+> action hop) is unaffected — only the reason "the `mission_type` node has no
+> other outgoing edges at all" no longer holds; the reason "the cascade's
+> followed relation set does not include `scope`" still does, and is what this
+> ADR actually fixes. Left in place above as the historical record rather than
+> silently rewritten.
+
 **Measured on the shipped graph: the cascade from every one of the four built-in
 mission types (`documentation`, `plan`, `research`, `software-dev`) returns 0
 activated artifacts.** Governance an operator switched on by activating a mission
