@@ -2972,7 +2972,7 @@ pages:
   - path: "docs/adr/3.x/2026-08-22-1-canonical-mission-type-reader-legacy-retirement.md"
     title: "ADR 2026-08-22-1: Canonical mission-type reader; legacy `mission`-field resolution retired"
     divio_type: "none"
-    abstract: "One shared `read_mission_type(meta)` seam becomes the sole mission-type resolution authority; the legacy `{\"mission\": …}` field is no longer read and the silent `software-dev` default is removed. A deliberate behavior change, de-risked by the M0 `backfill-mission-type` migration that must run first."
+    abstract: "One shared `read_mission_type(meta)` seam becomes the sole mission-type resolution authority; the legacy `mission` field and silent `software-dev` default are retired."
     anchors:
     - {slug: "context", text: "Context", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
