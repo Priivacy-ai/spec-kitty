@@ -28,8 +28,9 @@ from __future__ import annotations
 
 import ast
 import json
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import pytest
 import yaml
@@ -148,6 +149,7 @@ IN_SCOPE_READER_MODULES: tuple[str, ...] = (
 )
 
 _LEGACY_KEY = "mission"
+_CANONICAL_KEY = "mission_type"
 _DEFAULT_LITERAL = "software-dev"
 
 
@@ -169,28 +171,40 @@ def _load_allowlist() -> dict[str, set[str]]:
     return exemptions
 
 
+def _is_legacy_const(node: ast.AST) -> bool:
+    return isinstance(node, ast.Constant) and node.value == _LEGACY_KEY
+
+
 def _legacy_mission_reads(tree: ast.AST) -> list[int]:
-    """Line numbers of ``x.get("mission")`` calls or ``x["mission"]`` subscripts."""
+    """Line numbers where the retired legacy ``"mission"`` key is read.
+
+    Catches three forms so a straight revert to the pre-M5 reader cannot slip
+    past (the loop/field-tuple form IS the old ``_canonical_meta_mission_type``
+    body — ``for field in ("mission_type", "mission"): meta.get(field)``):
+
+    * ``x.get("mission")`` — direct call arg;
+    * ``x["mission"]`` — subscript;
+    * a ``("mission_type", "mission")`` field tuple/list — the reader
+      loop-indirection form (``for field in (...): meta.get(field)``). Only a
+      collection that carries BOTH the canonical and the legacy key is flagged, so
+      an unrelated list that merely contains ``"mission"`` (e.g. a compat-ignore
+      key set) is not a false positive.
+
+    Known syntactic limit (defense-in-depth, not an open hole): a legacy key
+    bound to an intermediate *variable* (``k = "mission"; meta.get(k)``) is not
+    tracked — the Part-A parity registry is the semantic backstop for that.
+    """
     hits: list[int] = []
     for node in ast.walk(tree):
-        # dict.get("mission")
-        if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr == "get"
-            and node.args
-            and isinstance(node.args[0], ast.Constant)
-            and node.args[0].value == _LEGACY_KEY
-        ):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get":
+            hits.extend(arg.lineno for arg in node.args if _is_legacy_const(arg))
+        elif isinstance(node, ast.Subscript) and _is_legacy_const(node.slice):
             hits.append(node.lineno)
-        # dict["mission"]
-        elif (
-            isinstance(node, ast.Subscript)
-            and isinstance(node.slice, ast.Constant)
-            and node.slice.value == _LEGACY_KEY
-        ):
-            hits.append(node.lineno)
-    return hits
+        elif isinstance(node, (ast.Tuple, ast.List)):
+            values = {elt.value for elt in node.elts if isinstance(elt, ast.Constant)}
+            if _LEGACY_KEY in values and _CANONICAL_KEY in values:
+                hits.extend(elt.lineno for elt in node.elts if _is_legacy_const(elt))
+    return sorted(set(hits))
 
 
 def _software_dev_literals(tree: ast.AST) -> list[int]:
@@ -200,6 +214,26 @@ def _software_dev_literals(tree: ast.AST) -> list[int]:
         for node in ast.walk(tree)
         if isinstance(node, ast.Constant) and node.value == _DEFAULT_LITERAL
     ]
+
+
+@pytest.mark.parametrize(
+    ("snippet", "should_flag"),
+    [
+        ('y = meta.get("mission")', True),  # direct call
+        ('y = meta["mission"]', True),  # subscript
+        ('for f in ("mission_type", "mission"):\n    y = meta.get(f)', True),  # loop-revert
+        ('IGNORED = ("mission", "initial", "states")', False),  # innocent list — no false positive
+        ('y = meta.get("mission_type")', False),  # canonical read
+    ],
+)
+def test_scan_detector_catches_reverts_without_false_positives(snippet: str, should_flag: bool) -> None:
+    """Pin the Part-B detector's own reach (defense-in-depth against a weakened gate).
+
+    A straight revert to the pre-M5 reader — direct, subscript, or the
+    ``("mission_type", "mission")`` loop form — must be caught; an unrelated list
+    that merely mentions ``"mission"`` must not.
+    """
+    assert bool(_legacy_mission_reads(ast.parse(snippet))) is should_flag
 
 
 @pytest.mark.parametrize("module_path", IN_SCOPE_READER_MODULES)

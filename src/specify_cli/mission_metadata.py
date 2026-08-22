@@ -214,7 +214,14 @@ def mission_identity_fields(
     if not resolved_number:
         slug_number = mission_number_from_slug(resolved_slug)
         resolved_number = str(slug_number) if slug_number is not None else ""
-    resolved_type = str(mission_type or "").strip() or "software-dev"
+    # rc3 M5 (FR-003/AC-3): the identity payload carries the mission's TRUE type
+    # or neutral typeless ("") — it does NOT re-mask a typeless/legacy-only
+    # mission back to "software-dev". This normalizer is on the machine-facing
+    # read/serialize path (context/status/acceptance/merge/decision payloads);
+    # re-defaulting here would silently defeat the reader convergence one layer
+    # downstream (and regress a pre-backfill legacy-only mission from its real
+    # type to software-dev). Callers degrade on typeless at their own boundary.
+    resolved_type = str(mission_type or "").strip()
     return {
         "mission_slug": resolved_slug,
         "mission_number": resolved_number,
@@ -256,8 +263,8 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
     # rc3 M5 (FR-002/FR-003): canonical field only via the one shared reader —
     # the legacy `mission` fallback and the silent `software-dev` default are
     # retired. A typeless mission resolves to "" (neutral); callers degrade at
-    # their own boundary. (The create-time default in build_mission_identity
-    # below is a write-boundary, deliberately preserved.)
+    # their own boundary. The machine-facing `mission_identity_fields` normalizer
+    # (above) no longer re-masks that neutral result to "software-dev" either.
     resolved_type = read_mission_type(meta) or ""
 
     return MissionIdentity(
