@@ -19,7 +19,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlsplit, urlunsplit
+from urllib.parse import SplitResult, unquote, urlsplit, urlunsplit
 
 import requests
 
@@ -82,9 +82,13 @@ class HttpsBundleSource:
     @property
     def is_artifactory(self) -> bool:
         """Whether this source requires Artifactory provenance validation."""
+        parsed = _safe_urlsplit(self.url)
         return (
             self.source_type == "artifactory"
-            or _ARTIFACTORY_PATH_MARKER in urlsplit(self.url).path
+            or (
+                parsed is not None
+                and _ARTIFACTORY_PATH_MARKER in parsed.path
+            )
         )
 
     # ------------------------------------------------------------------
@@ -93,6 +97,15 @@ class HttpsBundleSource:
     def fetch(self, target_dir: Path) -> FetchResult:
         target_dir = Path(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
+
+        parsed = _safe_urlsplit(self.url)
+        if not _is_valid_https_url(parsed):
+            return FetchResult(
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                errors=["HTTPS doctrine source URL is invalid."],
+            )
 
         artifactory_item = _artifactory_item(self.url)
         if self.is_artifactory and artifactory_item is None:
@@ -432,9 +445,10 @@ class HttpsBundleSource:
 
 def _artifactory_item(artifact_url: str) -> _ArtifactoryItem | None:
     """Derive exact AQL item identity from an Artifactory download URL."""
-    parsed = urlsplit(artifact_url)
-    if parsed.scheme != "https" or not parsed.hostname:
+    parsed = _safe_urlsplit(artifact_url)
+    if not _is_valid_https_url(parsed):
         return None
+    assert parsed is not None
     if _ARTIFACTORY_PATH_MARKER not in parsed.path:
         return None
     prefix, item_path = parsed.path.split(_ARTIFACTORY_PATH_MARKER, maxsplit=1)
@@ -490,8 +504,29 @@ def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
 
 def _safe_url_for_error(url: str) -> str:
     """Return an archive URL safe to include in operator-visible errors."""
-    parsed = urlsplit(url)
+    parsed = _safe_urlsplit(url)
+    if parsed is None:
+        return "<invalid HTTPS URL>"
     return urlunsplit((parsed.scheme, _safe_netloc(parsed), parsed.path, "", ""))
+
+
+def _safe_urlsplit(url: str) -> SplitResult | None:
+    """Parse one URL without allowing malformed authorities to escape."""
+    try:
+        return urlsplit(url)
+    except ValueError:
+        return None
+
+
+def _is_valid_https_url(parsed: SplitResult | None) -> bool:
+    """Return whether a parsed URL has a valid HTTPS authority."""
+    if parsed is None or parsed.scheme != "https" or not parsed.hostname:
+        return False
+    try:
+        _ = parsed.port
+    except ValueError:
+        return False
+    return True
 
 
 def _safe_netloc(parsed: Any) -> str:

@@ -365,6 +365,38 @@ def _aql_payload(
 
 
 class TestHttpsBundleSource:
+    @pytest.mark.parametrize(
+        "invalid_url",
+        [
+            "https://[bad/artifactory/repo/pack.tar.gz",
+            "https://example.com:not-a-port/artifactory/repo/pack.tar.gz",
+            "http://example.com/artifactory/repo/pack.tar.gz",
+            "https:///artifactory/repo/pack.tar.gz",
+        ],
+    )
+    def test_invalid_authority_fails_without_request(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        invalid_url: str,
+    ) -> None:
+        calls: list[str] = []
+
+        def _unexpected_get(url: str, **kwargs: Any) -> _FakeResponse:
+            calls.append(url)
+            return _FakeResponse(status_code=500, url=url)
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get",
+            _unexpected_get,
+        )
+
+        result = HttpsBundleSource(url=invalid_url).fetch(tmp_path / "snapshot")
+
+        assert result.ok is False
+        assert any("URL is invalid" in error for error in result.errors)
+        assert calls == []
+
     def test_tar_gz_extraction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
