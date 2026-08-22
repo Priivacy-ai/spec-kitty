@@ -534,15 +534,29 @@ def _safe_urlsplit(url: str) -> SplitResult | None:
 
 def _canonical_https_url(url: str) -> str | None:
     """Normalize one HTTPS URL once, rejecting parser-differential inputs."""
-    if "\\" in url or any(ord(char) < 32 or ord(char) == 127 for char in url):
+    if (
+        "\\" in url
+        or re.search(r"%(?![0-9A-Fa-f]{2})", url)
+        or any(ord(char) < 32 or ord(char) == 127 for char in url)
+    ):
         return None
-    try:
-        prepared = requests.Request(method="GET", url=url).prepare()
-    except (requests.RequestException, UnicodeError, ValueError):
+    canonical_url = url
+    for _ in range(4):
+        try:
+            prepared = requests.Request(
+                method="GET", url=canonical_url
+            ).prepare()
+        except (requests.RequestException, UnicodeError, ValueError):
+            return None
+        if prepared.url is None:
+            return None
+        if prepared.url == canonical_url:
+            break
+        canonical_url = prepared.url
+    else:
         return None
-    if prepared.url is None:
-        return None
-    parsed = _safe_urlsplit(prepared.url)
+
+    parsed = _safe_urlsplit(canonical_url)
     if parsed is None or parsed.scheme != "https" or not parsed.hostname:
         return None
     try:
@@ -551,7 +565,7 @@ def _canonical_https_url(url: str) -> str | None:
         return None
     if not _is_valid_hostname(parsed.hostname):
         return None
-    return prepared.url
+    return canonical_url
 
 
 def _is_valid_hostname(hostname: str) -> bool:
