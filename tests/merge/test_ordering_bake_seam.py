@@ -339,7 +339,7 @@ def test_write_rejects_unsafe_mission_slug_before_git_or_file_io(tmp_path: Path)
         patch("subprocess.run") as run_mock,
         patch("specify_cli.missions._read_path_resolver.compose_meta_json_path") as compose_mock,
     ):
-        result = ordering._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "/tmp/evil", 99, _state())
+        result = ordering._write_mission_number_to_branch(tmp_path, "kitty/mission-m", "/outside-repo", 99, _state())
 
     assert result is False
     branch_mock.assert_not_called()
