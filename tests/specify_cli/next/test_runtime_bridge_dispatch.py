@@ -284,6 +284,7 @@ class TestGracefulDegradation:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 class TestPerformance:
     """NFR-001: charter.resolve_mission_type_context completes within 100ms (warm filesystem)."""
 

@@ -659,6 +659,7 @@ def test_live_real_tree_is_zero_violation_post_move() -> None:
     assert report.checked > 0
 
 
+@pytest.mark.performance
 def test_lint_completes_within_five_seconds_on_real_tree() -> None:
     """NFR-003 timing: a full run over the real tree completes in < 5s.
 

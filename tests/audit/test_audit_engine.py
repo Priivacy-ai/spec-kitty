@@ -293,6 +293,7 @@ def test_repo_summary_counts(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_performance_204_missions(tmp_path: Path) -> None:
     """204 minimal missions complete in under 30 seconds (NFR-003)."""
     specs_dir = tmp_path / "kitty-specs"

@@ -129,6 +129,7 @@ class TestGeneratorDeterminism:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 class TestGeneratorPerformance:
     """Wall-clock time constraint: largest fixture generates in < 2.0 seconds (NFR-005)."""
 

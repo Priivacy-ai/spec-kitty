@@ -258,6 +258,7 @@ class TestRejectCycleInRequires:
 # 6. NFR-004: fail-closed within 5 seconds
 # ---------------------------------------------------------------------------
 
+@pytest.mark.performance
 class TestFailClosedTiming:
     """NFR-004: validation failure detected and raised within 5 seconds."""
 

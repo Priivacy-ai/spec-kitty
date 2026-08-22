@@ -92,6 +92,7 @@ def _isolate_env(monkeypatch: pytest.MonkeyPatch) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_load_p95_under_250ms(tmp_path: Path) -> None:
     """NFR-001: 50 invocations of validate_custom_mission, p95 < 250 ms.
 
@@ -128,6 +129,7 @@ def test_load_p95_under_250ms(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_erp_load_under_2s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """NFR-004 sub-portion: ``run_custom_mission`` start phase < 2 s.
 

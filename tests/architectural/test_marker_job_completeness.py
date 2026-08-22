@@ -6,7 +6,8 @@ registered marker — can never be silently CI-invisible (#2034 root cause):
 
   (i)   ROUTED-BY-MARKER  — positively referenced (negation-aware token walk via
         pytest's own ``Expression``) by >=1 gate's ``-m`` expression across the
-        four suite-running workflows. Verified collection-free.
+        suite-running workflows (``_gate_coverage.WORKFLOW_FILES``). Verified
+        collection-free.
   (ii)  ROUTED-BY-PATH    — every collected test carrying the marker is selected
         by >=1 gate. VERIFIED against the ``_gate_coverage`` orphan model (a
         marker with even one orphan carrier is NOT routed-by-path).
@@ -23,8 +24,14 @@ Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
 37 registered markers; `_gate_coverage.load_gates()` + `collect_universe()`):
 
   ROUTED-BY-MARKER (11): architectural, contract, fast, git_repo, integration,
-      quarantine, regression, slow, timing, unit, windows_ci
-      (`quarantine` is routed by the NON-BLOCKING `quarantine-visibility` gate —
+      performance, quarantine, regression, slow, unit, windows_ci
+      (`performance` is routed by the NON-BLOCKING, off-PR `performance.yml`
+      pipeline (ADR 2026-08-22-1) — the sole `-m performance` selector, run on
+      a schedule + `workflow_dispatch`, never on the PR path. It replaces
+      `timing` in this state: the on-PR `timing-nfr-serial` gate that used to
+      route `timing` was retired by the same ADR, so `timing` moved to
+      CI_INVISIBLE below.
+      `quarantine` is routed by the NON-BLOCKING `quarantine-visibility` gate —
       the spec's documented edge case: a job selects it, so it is ROUTED;
       blocking-ness is a separate axis. Its held-out population is governed by
       #2295/#2309 (17) + #2342 (`test_200_missions_under_5s`) and is never
@@ -45,8 +52,9 @@ Honest three-state split (re-derived live at implement, 2026-07-04, NFR-004;
       `non_sandbox`/`timeout`/`asyncio`/`stress` invisible-guesses were
       SUPERSEDED by this live derivation: their carriers all reach a path gate,
       so they are routed-by-path, not invisible — shrink-preferred, C-003.)
-  CI_INVISIBLE (13): the ``CI_INVISIBLE`` ledger below — markers with ZERO
+  CI_INVISIBLE (14): the ``CI_INVISIBLE`` ledger below — markers with ZERO
       collected carriers today (reserved/opt-out markers no gate selects).
+      Includes `timing` (ADR 2026-08-22-1 retired its sole `-m timing` gate).
 
 The name-level completeness here is complementary to the set-level orphan
 route oracle (``test_ci_collection_completeness.py``): that pins every test's marker SET reaches a
@@ -94,6 +102,17 @@ CI_INVISIBLE: dict[str, str] = {
         "Mutation/forking instability debt marker retained in the taxonomy; "
         "the sanitation census removed its final carrier, so zero collected "
         "tests currently carry it."
+    ),
+    "timing": (
+        "ADR 2026-08-22-1: the on-PR `timing-nfr-serial` gate (the sole "
+        "`-m timing` selector) was retired -- its two wall-clock budget "
+        "carriers were converted to the `benchmark` fixture and re-marked "
+        "`performance` (the sole home for wall-clock/CPU-budget tests now), "
+        "run off-PR in performance.yml. `restart-daemon-nfr-timing` remains a "
+        "live CI job but selects its test by node id, not `-m timing` (a "
+        "functional daemon-health gate, not a wall-clock budget -- the ADR's "
+        "own guard-test-update note). Zero collected tests carry `timing` "
+        "today; the marker stays registered as a reserved/retired name."
     ),
     "platform_darwin": (
         "macOS-only tests; no suite-running workflow configures a macOS runner "

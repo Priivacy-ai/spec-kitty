@@ -993,12 +993,21 @@ class TestInternalValidation:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
 
-    def test_emitter_constructs_without_auth_arg(self, temp_queue, temp_clock, mock_config, mock_auth):
+    def test_emitter_constructs_without_auth_arg(
+        self, temp_queue, temp_clock, mock_config, mock_auth, mock_identity
+    ):
         """Post-WP08 EventEmitter no longer takes an ``_auth`` argument.
 
         The sync layer reaches for ``get_token_manager()`` internally; the
         mocked token manager installed by ``mock_auth`` provides the fake
         session state. This test documents the current contract.
+
+        ``_identity=mock_identity`` matches the ``temp_queue`` store owner so the
+        event durably lands — without it the emitter resolves a mismatched
+        project UUID and the event never queues, which #3517 now (correctly)
+        surfaces as a ``None`` return. The team_slug tagging this test asserts is
+        only observable on a durably-emitted event, so the fixture must own a
+        matching identity, exactly as the shared ``emitter`` fixture does.
         """
         del mock_auth  # side-effect-only
         em = EventEmitter(
@@ -1006,6 +1015,7 @@ class TestInternalValidation:
             config=mock_config,
             queue=temp_queue,
             ws_client=None,
+            _identity=mock_identity,
         )
         # With the fake TokenManager providing "test-team", the emitter
         # should produce an event tagged with that slug.

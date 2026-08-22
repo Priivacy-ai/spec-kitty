@@ -348,6 +348,7 @@ class TestMergeResumeAfterInterruption:
         assert "lane-b" in lane_merge_calls and "lane-c" in lane_merge_calls
 
 
+@pytest.mark.performance
 class TestMergeResumeBounded:
     """NFR-005: resumed merge of a 10-lane fixture is fast."""
 

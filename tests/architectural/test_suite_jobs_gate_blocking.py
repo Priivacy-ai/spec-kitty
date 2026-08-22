@@ -80,6 +80,15 @@ NON_BLOCKING_ALLOWLIST: dict[str, str] = {
         "incidental blind spot. Re-enabling it MUST be paired with either a "
         "`quality-gate.needs` edge or an updated rationale here."
     ),
+    "draft-fail-fast-cancel": (
+        "Non-blocking BY DESIGN (mission ci-flake-report-workflow WP04, "
+        "FR-009). It invokes no pytest — its single step calls the GitHub "
+        "Actions REST API to cancel the in-flight run when `lint` or "
+        "`kernel-tests` fails on a draft PR — so it is never itself a suite "
+        "whose result the gate should evaluate. It exists to shorten a "
+        "doomed draft run, not to report test outcomes; quality-gate stays "
+        "the sole blocking authority regardless of whether this job fires."
+    ),
 }
 
 # Jobs T082 requires an EXPLICIT state for (gate-blocking OR allowlisted),

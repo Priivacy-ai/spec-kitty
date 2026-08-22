@@ -320,6 +320,7 @@ class TestCharterContextActive:
         # Legacy non-canonical names must NOT leak into the review surface.
         assert "Non-functionals" not in joined
 
+    @pytest.mark.performance
     def test_performance_under_2s_active(self, tmp_path: Path) -> None:
         # NFR-002: one render call must complete well under 2s. The renderer
         # is in-memory and trivially fast; this guards against accidental

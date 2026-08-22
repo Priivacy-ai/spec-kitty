@@ -17,10 +17,10 @@ Covers:
 
 from __future__ import annotations
 
-import time
 from pathlib import Path
 
 import pytest
+from pytest_benchmark.fixture import BenchmarkFixture
 
 from charter.consistency_check import ConsistencyReport, run_consistency_check
 from charter.invocation_context import ProjectContext
@@ -240,6 +240,7 @@ def test_no_activation_keys_skips_doctrine_scan(
 
 @pytest.mark.doctrine
 @pytest.mark.performance
+@pytest.mark.benchmark(group="charter", warmup=True, min_rounds=5)
 # NFR-003 perf guard. ``run_consistency_check`` is pure in-process work,
 # nominal ~1.2s wall locally. Routing history: it first lived in the parallel
 # ``fast-tests-charter`` shard (`-n auto`), where CACHE CONTENTION (~4 xdist
@@ -251,25 +252,28 @@ def test_no_activation_keys_skips_doctrine_scan(
 # landing fold, 2026-08-21). A one-shot wall-clock budget on a shared runner is
 # inherently flaky as a *blocking* signal, so it now carries ``performance``
 # (env-gated: SPEC_KITTY_RUN_PERFORMANCE=1, see tests/conftest.py), which holds
-# it off every blocking PR/main run per pytest.ini. The durable answer is the
-# out-of-band Monte-Carlo harness tracked in #3595; the 3.0s ceiling (~2.5x
-# nominal) still trips a genuine algorithmic regression when the gate is run
-# explicitly.
-def test_run_consistency_check_completes_within_budget(tmp_path: Path) -> None:
+# it off every blocking PR/main run per pytest.ini. ADR 2026-08-22-1 replaces
+# the single-shot ceiling with a ``pytest-benchmark`` statistical measurement,
+# compared against a committed per-domain baseline in the off-PR
+# ``performance.yml`` pipeline (tracked in #3595 / superseding it).
+def test_run_consistency_check_completes_within_budget(
+    tmp_path: Path, benchmark: BenchmarkFixture
+) -> None:
     """NFR-003: consistency check against the built-in doctrine stays fast.
 
     Carries ``performance`` (env-gated, held off the blocking path): a
     single-shot wall-clock budget on a shared runner is too cold-start-sensitive
     to block a PR. Nominal ~1.2s; run explicitly with ``-m performance`` and
-    ``SPEC_KITTY_RUN_PERFORMANCE=1``, or via the out-of-band harness (#3595).
+    ``SPEC_KITTY_RUN_PERFORMANCE=1``, or via the off-PR benchmark pipeline.
     """
     ctx = _ctx_with_config(tmp_path, "# minimal valid project\n")
 
-    start = time.perf_counter()
-    run_consistency_check(ctx)
-    elapsed = time.perf_counter() - start
+    benchmark(lambda: run_consistency_check(ctx))
 
-    assert elapsed < 3.0, (
-        f"consistency check took {elapsed:.2f}s (limit: 3s; nominal ~1.2s, "
-        "performance gate)"
+    # Very loose sanity ceiling — the statistical baseline compare (off the PR
+    # path) is the primary regression signal, not this assert.
+    assert benchmark.stats.stats.median < 15.0, (
+        f"consistency check had a median of {benchmark.stats.stats.median:.2f}s "
+        "across benchmark rounds (nominal ~1.2s; single-shot limit was 3s), "
+        "wildly beyond the generous sanity ceiling."
     )
