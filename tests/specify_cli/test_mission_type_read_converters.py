@@ -71,7 +71,7 @@ class TestMissionMetadataReadPath:
 class TestDashboardFeaturesVisibleChange:
     """FR-005 / AC-1: the dashboard reads the canonical field, not legacy."""
 
-    def _resolve(self, meta: dict[str, object]) -> str:
+    def _resolve(self, project_dir: Path, meta: dict[str, object]) -> str:
         from specify_cli.dashboard.handlers import features
 
         captured: dict[str, str] = {}
@@ -84,15 +84,15 @@ class TestDashboardFeaturesVisibleChange:
             mock.patch.object(features, "resolve_active_feature", return_value={"name": "f", "meta": meta}),
             mock.patch.object(features, "get_mission_by_name", _fake_get_mission_by_name),
         ):
-            features._resolve_active_mission_context(Path("/tmp/proj"))
+            features._resolve_active_mission_context(project_dir)
         return captured["name"]
 
-    def test_canonical_field_is_read(self) -> None:
-        assert self._resolve({"mission_type": "research"}) == "research"
+    def test_canonical_field_is_read(self, tmp_path: Path) -> None:
+        assert self._resolve(tmp_path, {"mission_type": "research"}) == "research"
 
-    def test_legacy_only_is_typeless_not_software_dev(self) -> None:
+    def test_legacy_only_is_typeless_not_software_dev(self, tmp_path: Path) -> None:
         # Previously read meta.get("mission", "software-dev") → "software-dev".
-        assert self._resolve({"mission": "software-dev"}) == ""
+        assert self._resolve(tmp_path, {"mission": "software-dev"}) == ""
 
-    def test_absent_is_typeless(self) -> None:
-        assert self._resolve({}) == ""
+    def test_absent_is_typeless(self, tmp_path: Path) -> None:
+        assert self._resolve(tmp_path, {}) == ""
