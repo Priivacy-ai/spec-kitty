@@ -1432,3 +1432,19 @@ body.modal-open {
         font-size: 0.75em;
     }
 }
+
+@media print {
+    /* The dashboard is a single-viewport app shell: body/.container/.main-content
+       all use height:100vh + overflow:hidden|auto so the SPA never scrolls the
+       page itself, only its internal panes. Printing captures exactly that fixed
+       viewport, so any content past one screen's worth of height is silently
+       clipped instead of flowing onto additional printed pages (#323). Reset the
+       shell to natural flow so print renders the full scrollable content. */
+    body,
+    .container,
+    .sidebar,
+    .main-content {
+        height: auto;
+        overflow: visible;
+    }
+}
