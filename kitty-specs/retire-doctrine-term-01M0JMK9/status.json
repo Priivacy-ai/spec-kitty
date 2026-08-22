@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01M0MSK2GJVSSBZS9P8CBEMY1Z",
-  "materialized_at": "2026-08-22T13:12:03.346983+00:00",
+  "event_count": 5,
+  "last_event_id": "01M0MSK2ZMYBX95T5GCFDJE3RD",
+  "materialized_at": "2026-08-22T13:12:03.828839+00:00",
   "mission_number": "",
   "mission_slug": "retire-doctrine-term-01M0JMK9",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 4
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -44,6 +44,13 @@
       "lane": "planned",
       "last_event_id": "01M0MSK2GJVSSBZS9P8CBEMY1Z",
       "last_transition_at": "2026-08-22T13:12:03.346983+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M0MSK2ZMYBX95T5GCFDJE3RD",
+      "last_transition_at": "2026-08-22T13:12:03.828839+00:00"
     }
   }
 }
