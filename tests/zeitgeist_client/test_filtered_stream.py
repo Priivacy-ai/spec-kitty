@@ -14,6 +14,8 @@ these tests exercise the wire/loop mechanics that sit on top of it.
 
 from __future__ import annotations
 
+from kernel.clock import now_epoch
+
 import inspect
 import socket
 import threading
@@ -44,11 +46,11 @@ def _config(url: str, credential: str = "cred-team-a") -> filtered_stream.TeamSt
 
 
 def _frame(*, seq: int, frame: dict[str, object], epoch: str = "epoch-1") -> dict[str, object]:
-    return {"schema_version": "1.0.0", "epoch": epoch, "seq": seq, "emitted_at": time.time(), "frame": frame}
+    return {"schema_version": "1.0.0", "epoch": epoch, "seq": seq, "emitted_at": now_epoch(), "frame": frame}
 
 
 def _presence(session_ref: str = "a" * 12) -> dict[str, object]:
-    return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": time.time(), "ttl_s": 30}}
+    return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": now_epoch(), "ttl_s": 30}}
 
 
 def _focus(focus_ref: str = "mission-x", state: str = "active", session_ref: str = "b" * 12) -> dict[str, object]:
@@ -317,7 +319,7 @@ def test_non_finite_ttl_over_sse_is_clamped_not_fatal_to_the_watch_loop(managed_
     one frame; the frame after it must still arrive."""
     hostile = {
         "type": "presence",
-        "presence": {"actor": {"session_ref": "a" * 12}, "observed_at": time.time(), "ttl_s": float("inf")},
+        "presence": {"actor": {"session_ref": "a" * 12}, "observed_at": now_epoch(), "ttl_s": float("inf")},
     }
     stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
     gen = stream.watch()
@@ -333,7 +335,7 @@ def test_non_finite_ttl_over_sse_is_clamped_not_fatal_to_the_watch_loop(managed_
 def test_oversized_nested_payload_is_still_shape_checked_not_trusted_blindly(managed_stream_double) -> None:
     presence_payload = {
         "actor": {"session_ref": "a" * 12},
-        "observed_at": time.time(),
+        "observed_at": now_epoch(),
         "ttl_s": 30,
         "extra": {"nested": ["x"] * 500},
     }

@@ -31,9 +31,10 @@ the local, shared-team, self-hosted-relay bearer credential Z1 owns.
 
 from __future__ import annotations
 
-import datetime
 from dataclasses import dataclass
 from pathlib import Path
+
+from kernel.clock import now_utc_iso
 
 import tomllib
 import tomli_w
@@ -98,7 +99,7 @@ def store(*, repo: str, relay_url: str, token: str, token_kind: str) -> None:
         data[repo] = {
             "relay_url": relay_url,
             "token": token,
-            "token_issued_at": datetime.datetime.now(datetime.UTC).isoformat(),
+            "token_issued_at": now_utc_iso(),  # kernel.clock single door (M2 canonical integration)
             "token_kind": token_kind,
         }
         _write_all(data)

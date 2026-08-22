@@ -25,7 +25,7 @@ inventing a migration-only identity/clock scheme (F2.md section 3.3):
   ``sync/emitter.py``'s own live ``correlation_id = causation_id or
   event_id`` convention.
 * ``data_tier``: ``0`` -- matches the strict ``Event`` model's own default.
-* ``node_id``: :func:`specify_cli.sync.clock.generate_node_id` -- the one
+* ``node_id``: the same derivation as :func:`specify_cli.sync.clock.generate_node_id` (see ``_generate_node_id``) -- the one
   node-identity primitive already in the repo (sha256(hostname:username)).
   This is the identity of the MACHINE RUNNING THE MIGRATION, not a
   reconstruction of the original writer's identity (which was never
@@ -151,6 +151,25 @@ def _is_already_strict_shaped(row: dict[str, Any]) -> bool:
     return all(key in row for key in _SYNTHESIZED_KEYS) and "aggregate_type" not in row
 
 
+
+def _generate_node_id() -> str:
+    """Stable machine identifier: first 12 hex chars of SHA-256(hostname:username).
+
+    Byte-for-byte the same derivation as
+    :func:`specify_cli.sync.clock.generate_node_id` (pinned by
+    ``tests/status/test_migrate_lifecycle_envelope_node_id_parity.py``).
+    Duplicated here rather than imported because ``status/`` is a CORE package
+    and may not import ``specify_cli.sync`` (INTEGRATION) -- even lazily --
+    per tests/architectural/test_integration_boundary.py (closed allowlist)
+    and test_status_sync_boundary.py. Introduced at M2 canonical integration.
+    """
+    import getpass  # noqa: PLC0415
+    import hashlib  # noqa: PLC0415
+    import socket  # noqa: PLC0415
+
+    raw = f"{socket.gethostname()}:{getpass.getuser()}"
+    return hashlib.sha256(raw.encode()).hexdigest()[:12]  # noqa: TID251 - mirrors sync.clock.generate_node_id
+
 def _migrate_row(row: dict[str, Any]) -> tuple[dict[str, Any], MigrationAction]:
     """Return (possibly rewritten row, action) for one lifecycle envelope row.
 
@@ -167,16 +186,10 @@ def _migrate_row(row: dict[str, Any]) -> tuple[dict[str, Any], MigrationAction]:
     if row.get("project_uuid") is None:
         return dict(row), "skipped_no_project_uuid"
 
-    # Lazy import: status/*.py modules must not top-level import
-    # specify_cli.sync.* (tests/status/test_parity.py
-    # test_no_status_module_directly_imports_sync_at_toplevel), mirroring
-    # the existing pattern in status/emit.py's SaaS-fan-out imports.
-    from specify_cli.sync.clock import generate_node_id  # noqa: PLC0415
-
     migrated = {k: v for k, v in row.items() if k != "aggregate_type"}
     migrated["schema_version"] = _STRICT_SCHEMA_VERSION
 
-    node_id = generate_node_id()
+    node_id = _generate_node_id()
     project_uuid_str = str(row["project_uuid"])
     build_id = derive_build_id(UUID(project_uuid_str), node_id)
 

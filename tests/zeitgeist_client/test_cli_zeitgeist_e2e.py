@@ -9,8 +9,9 @@ layer in isolation.
 
 from __future__ import annotations
 
+from kernel.clock import now_epoch
+
 import json
-import time
 from pathlib import Path
 
 import pytest
@@ -31,11 +32,11 @@ def state_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def _frame(*, seq: int, frame: dict[str, object], epoch: str = "epoch-1") -> dict[str, object]:
-    return {"schema_version": "1.0.0", "epoch": epoch, "seq": seq, "emitted_at": time.time(), "frame": frame}
+    return {"schema_version": "1.0.0", "epoch": epoch, "seq": seq, "emitted_at": now_epoch(), "frame": frame}
 
 
 def _presence(session_ref: str = "a" * 12) -> dict[str, object]:
-    return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": time.time(), "ttl_s": 30}}
+    return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": now_epoch(), "ttl_s": 30}}
 
 
 def test_status_end_to_end_over_a_real_loopback_double(state_root: Path, managed_stream_double) -> None:

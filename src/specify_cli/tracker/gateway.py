@@ -32,6 +32,8 @@ package version.
 
 from __future__ import annotations
 
+from kernel.clock import now_epoch
+
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
@@ -337,7 +339,7 @@ class TrackerGatewayToken:
 
     def is_fresh(self, *, now: float | None = None) -> bool:
         """True strictly before ``expires_at`` -- expiry itself is stale (fail closed)."""
-        current = time.time() if now is None else now
+        current = now_epoch() if now is None else now  # kernel.clock single door (M2 canonical integration)
         return current < self.expires_at
 
     def covers(self, context: _ExecutionContextLike | LocalExecutionContext) -> bool:

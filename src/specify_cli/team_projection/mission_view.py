@@ -17,7 +17,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from specify_cli.status.reducer import materialize_snapshot
+from specify_cli.status import materialize_snapshot
 
 from .provenance import ExactCommitProvenance, capture_provenance
 

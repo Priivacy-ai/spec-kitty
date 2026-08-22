@@ -10,6 +10,8 @@ that neither function ever calls ``credentials.store``/``credentials.revoke``.
 
 from __future__ import annotations
 
+from kernel.clock import now_epoch
+
 import time
 from pathlib import Path
 
@@ -27,11 +29,11 @@ def state_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def _frame(*, seq: int, frame: dict[str, object], epoch: str = "epoch-1") -> dict[str, object]:
-    return {"schema_version": "1.0.0", "epoch": epoch, "seq": seq, "emitted_at": time.time(), "frame": frame}
+    return {"schema_version": "1.0.0", "epoch": epoch, "seq": seq, "emitted_at": now_epoch(), "frame": frame}
 
 
 def _presence(session_ref: str = "a" * 12) -> dict[str, object]:
-    return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": time.time(), "ttl_s": 30}}
+    return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": now_epoch(), "ttl_s": 30}}
 
 
 def _checkout(state_root: Path, double_url: str, *, repo: str = "spec-kitty", credential: str = "team-a-cred") -> None:

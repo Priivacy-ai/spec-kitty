@@ -53,8 +53,9 @@ Reported-live honesty, not reconstruction:
 
 from __future__ import annotations
 
+from kernel.clock import now_epoch
+
 import math
-import time
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, TypeGuard
@@ -281,7 +282,7 @@ class StreamState:
         }
 
     def snapshot(self, *, now: float | None = None) -> TeamSnapshot:
-        ts = now if now is not None else time.time()
+        ts = now if now is not None else now_epoch()  # kernel.clock single door (M2 canonical integration)
         # Lazy eviction, purged in place (not merely filtered from the
         # output): an expired entry is not "closed" by any signal the relay
         # sent, so nothing else would ever remove it — <=90s clear must hold

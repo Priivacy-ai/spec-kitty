@@ -25,6 +25,8 @@ from .public_view import (
     project_public_index,
     project_public_mission_snapshot,
 )
+from specify_cli.core.paths import assert_safe_path_segment
+
 from .team_index import build_team_index, resolve_feature_dir_for_mission_slug
 
 
@@ -83,6 +85,10 @@ def write_team_projection(project_dir: Path) -> AttestationManifest:
     # (2) per-mission team snapshots, same order as the index.
     team_snapshots = {}
     for entry in team_index.missions:
+        # Containment seam (tests/architectural/untrusted_path_audit): the slug is
+        # also checked inside resolve_feature_dir_for_mission_slug; re-asserted here
+        # so this module's own derived_dir joins below visibly route through it.
+        assert_safe_path_segment(entry.mission_slug)
         feature_dir = resolve_feature_dir_for_mission_slug(project_dir, entry.mission_slug)
         snapshot = build_team_mission_snapshot(
             feature_dir, project_dir, require_clean=True
@@ -101,6 +107,7 @@ def write_team_projection(project_dir: Path) -> AttestationManifest:
             public_index.model_dump(mode="json", by_alias=True),
         )
         for entry in team_index.missions:
+            assert_safe_path_segment(entry.mission_slug)
             public_snapshot = project_public_mission_snapshot(
                 team_snapshots[entry.mission_slug]
             )
