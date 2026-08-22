@@ -1028,6 +1028,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-22-1-canonical-mission-type-reader-legacy-retirement.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-08-22-1-performance-test-pipeline.md
   tag: current
   divio_type: none
