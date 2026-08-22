@@ -15,6 +15,7 @@ from specify_cli.tracker.config import (
 )
 from specify_cli.tracker.credentials import TrackerCredentialStore
 from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
+from specify_cli.tracker.gateway import TrackerGatewayToken, TrackerGatewayUnavailableError
 from specify_cli.tracker.local_service import (
     LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
     LocalTrackerEgressRefusedError,
@@ -530,6 +531,144 @@ class TestSyncOperations:
                 result = svc.sync_run(limit=50)
 
         assert result["provider"] == "beads"
+
+
+# ---------------------------------------------------------------------------
+# WIRE-M2-01: Beads mutations route through the local program gateway
+# (TRK-M1-04, deny-by-default `bd` allow-list) instead of the ungated
+# `factory.build_connector` default.
+# ---------------------------------------------------------------------------
+
+
+class TestBuildEngineGatewayWiring:
+    """`_build_engine`'s provider branch: beads -> gateway, fp -> ungated factory."""
+
+    @staticmethod
+    def _config(provider: str, workspace: str = "ws") -> TrackerProjectConfig:
+        return TrackerProjectConfig(provider=provider, workspace=workspace)
+
+    def test_beads_provider_calls_gateway_not_ungated_factory(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        mock_connector = MagicMock()
+        mock_runner = MagicMock()
+
+        with patch(
+            "specify_cli.tracker.local_service.build_gateway_beads_connector",
+            return_value=(mock_connector, mock_runner),
+        ) as mock_gateway_build:
+            with patch("specify_cli.tracker.local_service.build_connector") as mock_ungated_build:
+                connector, _engine = svc._build_engine(self._config("beads"), {}, MagicMock())
+
+        assert connector is mock_connector
+        mock_ungated_build.assert_not_called()
+        mock_gateway_build.assert_called_once()
+        _, kwargs = mock_gateway_build.call_args
+        assert kwargs["workspace"] == "ws"
+        assert kwargs["command"] == "bd"
+        assert kwargs["cwd"] is None
+        token = kwargs["token"]
+        assert isinstance(token, TrackerGatewayToken)
+        # Broad token: this service syncs the whole repo's binding, not one
+        # mission/task -- a narrow token would make every call a scope
+        # violation (TrackerGatewayToken.covers's fail-closed contract).
+        assert token.mission_id is None
+        assert token.task_id is None
+
+    def test_fp_provider_still_uses_ungated_factory_connector(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        mock_connector = MagicMock()
+        credentials = {"command": "fp"}
+
+        with patch(
+            "specify_cli.tracker.local_service.build_connector", return_value=mock_connector
+        ) as mock_ungated_build:
+            with patch("specify_cli.tracker.local_service.build_gateway_beads_connector") as mock_gateway_build:
+                connector, _engine = svc._build_engine(self._config("fp"), credentials, MagicMock())
+
+        assert connector is mock_connector
+        mock_gateway_build.assert_not_called()
+        mock_ungated_build.assert_called_once_with(provider="fp", workspace="ws", credentials=credentials)
+
+    def test_beads_command_and_cwd_credentials_forwarded_to_gateway(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        credentials = {"command": "custom-bd", "cwd": "/some/dir"}
+
+        with patch(
+            "specify_cli.tracker.local_service.build_gateway_beads_connector",
+            return_value=(MagicMock(), MagicMock()),
+        ) as mock_gateway_build:
+            svc._build_engine(self._config("beads"), credentials, MagicMock())
+
+        _, kwargs = mock_gateway_build.call_args
+        assert kwargs["command"] == "custom-bd"
+        assert kwargs["cwd"] == "/some/dir"
+
+    def test_beads_with_pinned_installed_tracker_never_falls_back_to_ungated_connector(
+        self, repo: Path, cred_path: Path
+    ) -> None:
+        """No mocking of the gateway wiring itself: proves the deny-by-default
+        contract against whatever `spec-kitty-tracker` is actually installed
+        (pyproject.toml pins `>=0.4,<0.5` at the time this WP landed, so this
+        currently exercises the fail-closed `TrackerGatewayUnavailableError`
+        path -- `spec_kitty_tracker.context.LocalExecutionContext` needs 0.5+).
+        Either way, the ungated `factory.build_connector` must never be the
+        fallback for a beads connector."""
+        import importlib.util
+
+        svc = _make_service(repo, cred_path=cred_path)
+        gateway_tracker_available = importlib.util.find_spec("spec_kitty_tracker.context") is not None
+
+        with patch("specify_cli.tracker.local_service.build_connector") as mock_ungated_build:
+            if gateway_tracker_available:
+                svc._build_engine(self._config("beads"), {}, MagicMock())
+            else:
+                with pytest.raises(TrackerGatewayUnavailableError):
+                    svc._build_engine(self._config("beads"), {}, MagicMock())
+            mock_ungated_build.assert_not_called()
+
+
+class TestGatewayToken:
+    """`LocalTrackerService._gateway_token` -- the capability minted per beads call."""
+
+    def test_actor_defaults_to_getpass_getuser(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        with patch("specify_cli.tracker.local_service.getpass.getuser", return_value="os-user"):
+            token = svc._gateway_token({})
+        assert token.actor == "os-user"
+
+    def test_actor_credential_override(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        token = svc._gateway_token({"actor": "explicit-actor"})
+        assert token.actor == "explicit-actor"
+
+    def test_repository_derived_from_repo_root(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        with patch(
+            "specify_cli.tracker.local_service.derive_project_slug", return_value="my-repo-slug"
+        ) as mock_slug:
+            token = svc._gateway_token({})
+        mock_slug.assert_called_once_with(repo)
+        assert token.repository == "my-repo-slug"
+
+    def test_token_is_broad_scope_with_no_team(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        token = svc._gateway_token({})
+        assert token.mission_id is None
+        assert token.task_id is None
+        assert token.team is None
+
+    def test_token_is_fresh_and_nonempty(self, repo: Path, cred_path: Path) -> None:
+        svc = _make_service(repo, cred_path=cred_path)
+        token = svc._gateway_token({})
+        assert token.token
+        assert token.is_fresh()
+
+    def test_two_tokens_are_distinct(self, repo: Path, cred_path: Path) -> None:
+        """Each `_build_engine` call mints its own token -- not a shared singleton."""
+        svc = _make_service(repo, cred_path=cred_path)
+        first = svc._gateway_token({})
+        second = svc._gateway_token({})
+        assert first.token != second.token
 
 
 # ---------------------------------------------------------------------------
