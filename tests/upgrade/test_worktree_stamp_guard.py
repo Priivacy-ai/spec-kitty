@@ -30,18 +30,45 @@ this WP's task file both flag).
 
 from __future__ import annotations
 
+import json
+import os
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
+import typer
 import yaml
+from typer.testing import CliRunner
 
+from specify_cli.cli.commands.upgrade import upgrade
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+_cli_app = typer.Typer(add_completion=False)
+_cli_app.command()(upgrade)
+_cli_runner = CliRunner()
+
+
+def _invoke_upgrade(args: list[str], cwd: Path):
+    """Invoke the real `upgrade` command from *cwd* (mirrors
+    ``tests/upgrade/test_upgrade_integration.py``'s harness)."""
+    old_cwd = os.getcwd()
+    try:
+        os.chdir(cwd)
+        return _cli_runner.invoke(_cli_app, args, catch_exceptions=False)
+    finally:
+        os.chdir(old_cwd)
+
+
+def _last_json_line(output: str) -> dict[str, Any]:
+    """Decode the final stdout line as JSON (banner/log lines may precede it)."""
+    lines = [line for line in output.strip().splitlines() if line.strip()]
+    return json.loads(lines[-1])
 
 _FROM_VERSION = "3.2.0"
 _TARGET_VERSION = "3.2.1"
@@ -235,5 +262,137 @@ def test_non_fatal_cannot_apply_note_does_not_populate_worktree_failures(tmp_pat
 
         assert result.worktree_failures == []
         assert any("Cannot apply" in w for w in result.warnings)
+    finally:
+        MigrationRegistry.clear()
+
+
+# ---------------------------------------------------------------------------
+# FR-012 errors-channel consistency: ``_combined_errors`` must fold
+# ``UpgradeOutcome.worktree_failures`` (upgrade.py), so a ``--json`` consumer
+# keying on ``errors`` to explain a non-zero exit code is never handed an
+# empty array.
+# ---------------------------------------------------------------------------
+
+
+def _init_no_migrations_project(root: Path, *, version: str = "1.0.0a1") -> None:
+    """A minimal, real git-backed project already at *version* (no migrations
+    pending) -- mirrors ``tests/upgrade/test_upgrade_integration.py``'s
+    ``_init_project`` fixture, kept local here so this file's worktree-stamp
+    concern stays self-contained."""
+    root.mkdir(parents=True, exist_ok=True)
+    kittify = root / ".kittify"
+    kittify.mkdir()
+    (kittify / "metadata.yaml").write_text(
+        (
+            "spec_kitty:\n"
+            f"  version: '{version}'\n"
+            "  initialized_at: '2026-01-01T00:00:00'\n"
+            "environment:\n"
+            "  python_version: '3.12'\n"
+            "  platform: linux\n"
+            "  platform_version: ''\n"
+            "migrations:\n"
+            "  applied: []\n"
+        ),
+        encoding="utf-8",
+    )
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "t@example.com")
+    _git(root, "config", "user.name", "t")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "init")
+
+
+def test_no_migrations_worktree_stamp_failure_surfaces_in_json_errors(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-012 errors-channel gap: the no-migrations branch's worktree-stamp
+    pass (``_build_no_migrations_outcome`` -> ``_run_no_migrations_worktree_stamp``
+    -> ``MigrationRunner.upgrade_worktrees_only``) records a fatal failure
+    ONLY into ``UpgradeOutcome.worktree_failures`` and ``warnings`` -- never
+    into ``result.errors``. ``UpgradeOutcome.effective_success`` already
+    flips ``success: false`` / ``status: "failed"`` off a non-empty
+    ``worktree_failures`` (FR-012), but ``_combined_errors`` -- the single
+    place both JSON renderers source ``errors`` from -- did not fold that
+    channel, so a ``--json`` consumer keying on ``errors`` to explain the
+    non-zero exit got an EMPTY array.
+
+    ``upgrade_worktrees_only`` always calls the private impl with an empty
+    ``migrations`` list (pinned by
+    ``test_upgrade_auto_commit_unit.py::test_upgrade_worktrees_only_delegates_to_private_impl``),
+    so today's real runner can never itself populate
+    ``worktree_failures`` through this exact call path -- the method is
+    stubbed here to simulate the failure and drive the real CLI entry point
+    end to end, pinning the ``_combined_errors`` contract regardless of how
+    the failure got into that channel.
+    """
+    project = tmp_path / "proj"
+    _init_no_migrations_project(project)
+    # A worktree must exist for the no-migrations branch's worktree-stamp
+    # guard to actually attempt the (stubbed) pass; its content is otherwise
+    # irrelevant since ``upgrade_worktrees_only`` is replaced below.
+    (project / ".worktrees" / "lane-x").mkdir(parents=True)
+
+    failure_reason = "Worktree lane-x: simulated worktree-stamp failure"
+
+    def _fake_upgrade_worktrees_only(
+        self: MigrationRunner,
+        target_version: str,  # noqa: ARG001
+        dry_run: bool = False,  # noqa: ARG001
+        auto_commit: bool = False,  # noqa: ARG001
+    ) -> dict[str, Any]:
+        return {
+            "warnings": [],
+            "errors": [failure_reason],
+            "worktree_failures": [failure_reason],
+        }
+
+    monkeypatch.setattr(MigrationRunner, "upgrade_worktrees_only", _fake_upgrade_worktrees_only)
+
+    result = _invoke_upgrade(["--target", "1.0.0a1", "--yes", "--json"], cwd=project)
+
+    assert result.exit_code == 1, result.output
+    payload = _last_json_line(result.output)
+    assert payload["status"] == "failed"
+    assert payload["success"] is False
+    assert payload["errors"], (
+        "errors channel must not be empty when success is false (FR-012 consistency)"
+    )
+    assert any(failure_reason in e for e in payload["errors"]), payload["errors"]
+
+
+def test_migrations_pending_worktree_failure_not_duplicated_in_json_errors(
+    tmp_path: Path,
+) -> None:
+    """Guard-rail: the migrations-pending path already mirrors a fatal
+    worktree failure into both ``UpgradeResult.errors`` and
+    ``UpgradeResult.worktree_failures`` from the SAME ``failure_messages``
+    list (``MigrationRunner._upgrade_worktrees``). Folding
+    ``worktree_failures`` into ``_combined_errors`` must be deduplicated
+    against messages already present in ``result.errors``, or this
+    pre-existing (already-correct) path would start reporting the same
+    worktree failure twice.
+    """
+    root = tmp_path / "repo"
+    _init_repo(root)
+    _add_worktree(root, "lane-e", "kitty/mission-lane-e")
+
+    try:
+        _register_stub_migration("test_no_dup_stub_failing", succeeds=False)
+
+        result = _invoke_upgrade(
+            ["--target", _TARGET_VERSION, "--yes", "--json"],
+            cwd=root,
+        )
+
+        assert result.exit_code == 1, result.output
+        payload = _last_json_line(result.output)
+        assert payload["status"] == "failed"
+        assert payload["success"] is False
+        matches = [e for e in payload["errors"] if "lane-e" in e]
+        assert matches, payload["errors"]
+        assert len(matches) == 1, (
+            f"worktree failure must appear exactly once in errors, got {matches!r}"
+        )
     finally:
         MigrationRegistry.clear()

@@ -833,10 +833,25 @@ def _combined_errors(
     outcome: UpgradeOutcome, surface_repair_summary: DriftPolicySummary | None
 ) -> list[str]:
     """Fold the errors channel (data-model.md): ``result.errors`` +
-    ``activation_errors`` + the surface-drift message, read from the
-    finalized outcome — the one place both renderers source errors from."""
+    ``activation_errors`` + ``worktree_failures`` + the surface-drift
+    message, read from the finalized outcome — the one place both renderers
+    source errors from.
+
+    ``worktree_failures`` is what ``effective_success`` keys on to flip
+    ``success: false`` (FR-012), so it must be visible here too — otherwise a
+    ``--json`` consumer sees a failed run with an empty ``errors`` array. The
+    migrations-pending path (``MigrationRunner._upgrade_worktrees``) already
+    mirrors the same failure strings into ``result.errors`` from the SAME
+    list, so folding is deduplicated against what's already present rather
+    than blindly extended, or that path would report each failure twice.
+    """
     errors = list(outcome.result.errors)
     errors.extend(outcome.activation_errors)
+    seen = set(errors)
+    for failure in outcome.worktree_failures:
+        if failure not in seen:
+            errors.append(failure)
+            seen.add(failure)
     if outcome.surface_drift_failed and surface_repair_summary is not None:
         errors.append(_surface_drift_error(surface_repair_summary))
     return errors
