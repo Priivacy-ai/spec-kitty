@@ -52,6 +52,8 @@ from specify_cli.missions._resolve_planning_branch import PlanningBranchResoluti
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership import infer_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
+from specify_cli.ownership.inference import detect_post_integration_acceptance
+from specify_cli.requirement_mapping import find_discarded_sc_refs
 from specify_cli.ownership.frontmatter_source import (
     FinalizeFrontmatterSource,
     resolve_wp_manifests,
@@ -1195,6 +1197,11 @@ class _BootstrapState:
     #: (raw requirement tokens that matched no declared shape) rather than
     #: folding it into an unrelated bucket.
     requirement_extraction_warnings: list[str] = field(default_factory=list)
+    #: #3590 INTERIM (warn-only) -- a code WP whose acceptance criteria are
+    #: observable only post-integration (an action, not a diff). Kept in its own
+    #: bucket so the JSON payload names the concern precisely. NEVER blocks
+    #: finalize and reaches no terminal state (C-002 / NFR-002).
+    post_integration_acceptance_warnings: list[str] = field(default_factory=list)
 
 
 def _branch_strategy_text(target_branch: str) -> str:
@@ -1359,6 +1366,15 @@ def _run_bootstrap_loop(
         state.inmemory_frontmatter[wp_id] = updated_meta
         state.inmemory_bodies[wp_id] = body
 
+        # #3590 INTERIM (warn-only): a code WP whose acceptance criteria are
+        # observable only post-integration cannot be honestly reviewed while its
+        # lane is open. Signal it at authoring time (fail-loud discipline,
+        # epics #3410/#3549) — never blocks finalize, touches no terminal state.
+        for warning in detect_post_integration_acceptance(
+            wp_file.read_text(encoding="utf-8"), list(updated_meta.owned_files)
+        ):
+            state.post_integration_acceptance_warnings.append(f"{wp_id}: {warning}")
+
         if frontmatter_changed:
             if not validate_only:
                 state.pending_writes.append((wp_file, updated_meta, body))
@@ -1370,6 +1386,21 @@ def _run_bootstrap_loop(
         elif wp_id not in state.preserved_wps:
             state.unchanged_wps.append(wp_id)
     return state
+
+
+def _surface_post_integration_acceptance_warnings(
+    state: _BootstrapState, *, json_output: bool
+) -> None:
+    """Print the #3590 INTERIM warn-only post-integration acceptance warnings.
+
+    Non-blocking (C-002 / NFR-002): finalize's exit code and success path are
+    unchanged whether or not any warning fires — the JSON payload always carries
+    the ``post_integration_acceptance_warnings`` list; this only mirrors it to the
+    console in human mode.
+    """
+    if state.post_integration_acceptance_warnings and not json_output:
+        for warning in state.post_integration_acceptance_warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
 
 
 def _assert_no_write_in_validate_only(state: _BootstrapState, *, validate_only: bool) -> None:
@@ -1561,6 +1592,7 @@ def _emit_validate_only_report(
                 "updated_wp_count": state.updated_count,
                 "ownership_warnings": state.ownership_warnings,
                 "requirement_extraction_warnings": state.requirement_extraction_warnings,
+                "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
                 "validation": {"bootstrap_preview": bootstrap_stats, "lanes_preview": lanes_stats},
                 "message": "All validations passed. Run without --validate-only to commit.",
             }
@@ -2179,6 +2211,7 @@ def _emit_success_report(
             },
             "ownership_warnings": state.ownership_warnings,
             "requirement_extraction_warnings": state.requirement_extraction_warnings,
+            "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
             "target_branch_override": {
                 "requested": target_branch_override,
                 "persisted": persist.persisted,
@@ -2638,6 +2671,16 @@ def finalize_tasks(
             requirement_extraction_warnings,
             spec_content,
         ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
+        # #2991: an ``SC-###`` (success-criteria) ref in a WP's requirement_refs
+        # is dropped by the graph scanner ``(?:FR|NFR|C)-\d+`` alternation with no
+        # signal — the author believes traceability exists when it does not. SC is
+        # not admitted as a first-class ref (operator decision (c)); instead the
+        # discard is signalled (fail-loud, epics #3410/#3549) through this existing
+        # advisory channel. Non-blocking: never appended to a failures list.
+        requirement_extraction_warnings = [
+            *requirement_extraction_warnings,
+            *find_discarded_sc_refs(tasks_dir),
+        ]
 
         # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
         # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
@@ -2696,6 +2739,7 @@ def finalize_tasks(
             json_output=json_output,
         )
         _assert_no_write_in_validate_only(state, validate_only=validate_only)
+        _surface_post_integration_acceptance_warnings(state, json_output=json_output)
 
         _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
         _flush_frontmatter_writes(state, validate_only=validate_only)

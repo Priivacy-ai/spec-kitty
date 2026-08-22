@@ -1441,3 +1441,128 @@ class TestOwnershipOverlapAcceptance:
         results = _run_finalize_validate_only(tmp_path, capsys)
         assert not [r for r in results if r.get("error") == "Ownership validation failed"], f"codebase-wide WP must be exempt from overlap; got {results}"
         assert any(r.get("result") == "validation_passed" for r in results), f"expected validation_passed; got {results}"
+
+
+def _write_post_integration_feature(
+    tmp_path: Path,
+    mission_slug: str = "060-test-feature",
+) -> None:
+    """Write a feature with one post-integration-only WP and one diff-observable control.
+
+    WP01's acceptance criteria are observable only after the WP is integrated
+    (#3590 fires-on); WP02's are diff-inspectable (false-positive control). Both
+    are code WPs so execution-mode inference does not exempt either.
+    """
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Test Feature\n---\n\n## Requirements\n\n- FR-001: First requirement\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nNo dependencies.\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
+    )
+    # The real ownership validator rejects literal owned_files matching zero
+    # files, so materialize the two distinct (non-overlapping) code paths.
+    for rel in ("src/pkg_a/mod_a.py", "src/pkg_b/mod_b.py"):
+        target = tmp_path / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text("# placeholder\n", encoding="utf-8")
+    wp01 = (
+        '---\nwork_package_id: "WP01"\ntitle: "Test WP01"\n'
+        "requirement_refs:\n  - FR-001\nexecution_mode: code_change\n"
+        "owned_files:\n  - src/pkg_a/mod_a.py\n"
+        'authoritative_surface: "src/pkg_a/"\ndependencies: []\n---\n\n'
+        "# WP01\n\nImplement the gate in `src/pkg_a/mod_a.py`.\n\n"
+        "## Objectives & Success Criteria\n\n"
+        "- The event is confirmed delivered to subscribers **post-merge**, once "
+        "the sync daemon runs against main.\n"
+        "- Verified after integration by observing the dashboard update.\n"
+    )
+    wp02 = (
+        '---\nwork_package_id: "WP02"\ntitle: "Test WP02"\n'
+        "requirement_refs:\n  - FR-001\nexecution_mode: code_change\n"
+        "owned_files:\n  - src/pkg_b/mod_b.py\n"
+        'authoritative_surface: "src/pkg_b/"\ndependencies: []\n---\n\n'
+        "# WP02\n\nEdit `src/pkg_b/mod_b.py`.\n\n"
+        "## Objectives & Success Criteria\n\n"
+        "- `mod_b.run(...)` returns a value whose fields carry both the message "
+        "and the structured data; a unit test asserts the dict contents.\n"
+    )
+    (tasks_dir / "WP01-test.md").write_text(wp01, encoding="utf-8")
+    (tasks_dir / "WP02-test.md").write_text(wp02, encoding="utf-8")
+
+
+class TestPostIntegrationAcceptanceWarning:
+    """#3590 INTERIM: finalize surfaces the post-integration warning, non-blocking."""
+
+    def test_warning_surfaces_for_fires_on_wp_and_run_still_passes(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Fires-on WP warns; control WP does not; finalize still passes (non-blocking)."""
+        _write_post_integration_feature(tmp_path)
+        results = _run_finalize_validate_only(tmp_path, capsys)
+
+        passed = [r for r in results if r.get("result") == "validation_passed"]
+        assert passed, f"finalize must still pass (warn-only, non-blocking); got {results}"
+        warnings = passed[0]["post_integration_acceptance_warnings"]
+        assert isinstance(warnings, list)
+        joined = " ".join(str(w) for w in warnings)
+        assert "WP01" in joined
+        assert "post-integration" in joined.lower()
+        assert "WP02" not in joined
+
+
+class TestScDiscardWarningSurfacedByFinalize:
+    """#2991: finalize surfaces a discarded SC-### ref through the advisory channel."""
+
+    def test_sc_ref_discard_warns_via_requirement_extraction_warnings(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """A WP citing SC-008 in requirement_refs yields an SC-discard warning."""
+        for rel in ("src/pkg_a/mod_a.py", "src/pkg_b/mod_b.py"):
+            target = tmp_path / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("# placeholder\n", encoding="utf-8")
+        feature_dir = tmp_path / "kitty-specs" / "060-test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (feature_dir / "spec.md").write_text(
+            "---\ntitle: T\n---\n\n## Requirements\n\n- FR-001: First\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "tasks.md").write_text(
+            "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nNo dependencies.\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_slug": "060-test-feature"}), encoding="utf-8"
+        )
+        (tasks_dir / "WP01-test.md").write_text(
+            '---\nwork_package_id: "WP01"\ntitle: "T WP01"\n'
+            "requirement_refs:\n  - FR-001\n  - SC-008\nexecution_mode: code_change\n"
+            'owned_files:\n  - src/pkg_a/mod_a.py\nauthoritative_surface: "src/pkg_a/"\n'
+            "dependencies: []\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02-test.md").write_text(
+            '---\nwork_package_id: "WP02"\ntitle: "T WP02"\n'
+            "requirement_refs:\n  - FR-001\nexecution_mode: code_change\n"
+            'owned_files:\n  - src/pkg_b/mod_b.py\nauthoritative_surface: "src/pkg_b/"\n'
+            "dependencies: []\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+
+        results = _run_finalize_validate_only(tmp_path, capsys)
+        passed = [r for r in results if r.get("result") == "validation_passed"]
+        assert passed, f"finalize must pass (SC-discard is advisory); got {results}"
+        warnings = passed[0]["requirement_extraction_warnings"]
+        assert isinstance(warnings, list)
+        joined = " ".join(str(w) for w in warnings)
+        assert "SC-008" in joined
+        assert "WP01" in joined
