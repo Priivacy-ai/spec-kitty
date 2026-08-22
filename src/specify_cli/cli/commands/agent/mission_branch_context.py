@@ -402,7 +402,13 @@ def branch_context(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        current_branch = _mission.get_current_branch(repo_root)
+        # ``locate_project_root`` deliberately re-anchors linked worktrees to
+        # the primary checkout for shared metadata reads.  The *current* branch
+        # is invocation-owned state, so read it from CWD and fall back to the
+        # primary only when CWD is not a git checkout (#3124 family).
+        current_branch = _mission.get_current_branch(Path.cwd()) or _mission.get_current_branch(
+            repo_root
+        )
         if not current_branch or current_branch == "HEAD":
             error_msg = "Must be on a branch to resolve branch context (detached HEAD detected)."
             if json_output:
