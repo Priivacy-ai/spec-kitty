@@ -107,7 +107,7 @@ occurrences; the completeness statement's arithmetic holds (SC-002).
 
 ### Included Subtasks
 
-T005 Pin `base_commit`; run the contract's `git grep -aino --column` all-blob audit and NUL-safe `git ls-tree -z` pathname audit verbatim
+T005 Fetch `origin/main`, require it is an ancestor of HEAD, pin that exact target tip as `base_commit`, then run the contract's `git grep -aino --column` all-blob audit and NUL-safe `git ls-tree -z` pathname audit verbatim
 T006 Build deterministic `inventory-hits.tsv`; classify every row into OC-## over S1–S10 or X1/X2/X3, including all operator IDs, serialized config, overlays, glossary authorities/referrers, overrides, workflow pathnames, active human prose under source directories, supported public APIs, exact `doctrine.api.__all__`, and distribution/wheel metadata
 T007 Derive OC and X totals mechanically from manifest rows; verify no duplicate/unclassified coordinates and compute manifest SHA-256
 T008 Write `inventory.md` per contract; include arithmetic and owner/milestone/tracking-complete out-of-repo deferrals; assignment remains solely in `stacked-plan.md`
@@ -152,7 +152,7 @@ consumes both.
 ## Work Package WP03: Ordering and Methodology Analysis (Priority: P1)
 
 **Goal**: State ordering and rationale, I0–I6, an exact ordinary occurrence-fingerprint guard plus
-repository-wide compatibility registry with ordinary and compatibility-evasion mutation proofs,
+repository-wide non-owning CR reservation/control overlay with ordinary and CR-evasion mutation proofs,
 S1–S10 verification assignment, catfooding controls, and prefix-safe rollback.
 **Independent Test**: A reviewer challenges each ordering choice and confirms every one has a stated
 rationale tied to a concrete risk, plus the per-level invariant (US3-AS1); quickstart check 7 passes.
@@ -162,7 +162,7 @@ rationale tied to a concrete risk, plus the per-level invariant (US3-AS1); quick
 ### Included Subtasks
 
 T009 Write the surface ordering with per-choice rationale (authority-first; atomic authority flip) and state invariants I0–I6 for each stack level
-T010 Seed the two-track guard for every pre-M1 guard-root hit including owner=M1; record complete preimage + scoped same-PR M1 shrink + post-M1 baseline; add the M6-owned repository-wide compatibility registry for retained identifier/route/key/path/parser/redirect/warning occurrences; constrain introduction-wave relocation; prove ordinary and compatibility-evasion mutations; require X-only plus empty compatibility inventory at I6
+T010 Seed the two-track guard for every pre-M1 guard-root hit including owner=M1; record complete preimage + scoped same-PR M1 shrink + post-M1 baseline; materialize the non-owning CR reservation overlay from WP02 candidates with actual-base drift reconciliation, disjoint source budgets, exact X3 controls, fail-closed M2 targets, bounded introduction, and M6 removal; prove ordinary and compatibility-evasion mutations; require X-only plus empty CR inventory at I6
 T011 Assign one named guard/audit/parity/runtime verifier to every S1–S10 class and every mixed-root portion
 T012 Write catfooding, per-wave manifest regeneration, alias introduction/removal proof, and rollback: revert alone before dependents; otherwise reverse suffix or forward-fix
 
@@ -190,8 +190,8 @@ cites the ordering's atomic-flip rationale).
 
 ### Risks & Mitigations
 
-- **Guard design becomes vacuous** → exact ordinary fingerprints plus four ordinary mutations and
-  compatibility registry/budget/fragment-evasion mutations reject new, substituted, or hidden hits;
+- **Guard design becomes vacuous** → exact ordinary fingerprints plus four ordinary and six CR
+  mutations reject new, substituted, hidden, double-funded, overlapping, or control-record-evading hits;
   there is no file/count blind spot delegated to later audit.
 - **Surface left unverified (C-004)** → T011 maps every S1–S10 category and mixed-root portion to
   one primary guard/audit/parity/runtime mechanism; quickstart check 7 verifies coverage.
@@ -214,8 +214,8 @@ this mission's artifacts requires 0 new operator decisions (US4-AS3 / FR-010).
 ### Included Subtasks
 
 T013 Write M1–M6 entries with every schema field, exact invariant map, rollback, M2 ownership of every command/serialized/API/public-Python-API/distribution-wheel producer and consumer (including exact `doctrine.api.__all__`, `spec-kitty-doctrine`, and publication evidence) plus authoritative operator map and set-equal frozen CLI projection, and the fixed glossary/config/overlay-path/target-URN contracts
-T014 Build the assignment table — every in-scope OC-## from `inventory.md` appears exactly once (assigned to one mission or deferred with rationale); verify SM-I1
-T015 Verify M1 spec-readiness — glossary pathname/referrers plus both YAML authorities, owner-correct bundle and selection-key operations, exact canon line, ordinary guard plus compatibility registry, and durable implementation anchor are writable with zero local questions
+T014 Build the assignment tables — every in-scope OC-## appears exactly once across M1–M5 and every CR appears once at its M1–M4 introduction plus M6 removal; every funded source OC owner equals introduction wave, mixed-owner rows split, and funding is disjoint; verify SM-I1
+T015 Verify M1 spec-readiness — glossary pathname/referrers plus both YAML authorities, owner-correct bundle and selection-key operations, exact canon line, ordinary guard plus CR candidate/materialization contract, and durable implementation anchor are writable with zero local questions
 
 ### Implementation Notes
 
@@ -269,9 +269,9 @@ summary table in `quickstart.md` is fully green.
 
 T016 Run quickstart checks 1–2 — guard green (`pytest tests/architectural/test_no_legacy_terminology.py -q`) and ADR registration (freshen `--check` clean; old-ADR diff frontmatter-only)
 T017 Run the exact six-question ADR pass with one named independent reviewer (squad or operator)
-T018 Re-run both canonical audits at the pinned base; verify manifest SHA, coordinate join, arithmetic, zero unclassified, and complete deferral ownership
-T019 Verify exactly-once assignments, M1 zero questions, bounded later questions, M1 dry run, M1–M6 bulk mode, rollback, and exact invariant mapping
-T020 Verify S1–S10 mechanisms and all seven guard mutations (four ordinary plus three compatibility-evasion); record SC-001..SC-004 evidence and both C-001 diff anchors in `verification-report.md`
+T018 Fetch target; reject stale branch-point state; re-run both canonical audits at `target_tip=base_commit=origin/main`; verify manifest SHA, coordinate join, arithmetic, zero unclassified, and complete deferral ownership
+T019 Verify exactly-once OC primary ownership and CR introduction/removal, source-owner=introduction joins, split mixed-owner rows, disjoint funding, M1 zero questions, bounded later questions, M1 dry run, M1–M6 bulk mode, rollback, and exact invariant mapping
+T020 Verify S1–S10 mechanisms and all ten guard mutations (four ordinary plus six CR-evasion), plus fail-closed M2 pre-edit blocking; record SC-001..SC-004 evidence and both C-001 diff anchors in `verification-report.md`
 
 ### Implementation Notes
 
@@ -354,11 +354,11 @@ Checks T016–T020 are order-independent in principle, but they all append to on
 | T007 | Build classification-out table (X1/X2/X3) | WP02 | P0 | No |
 | T008 | Write inventory.md + owner-complete deferrals | WP02 | P0 | No |
 | T009 | Surface ordering + rationale + invariants I0–I6 | WP03 | P1 | No |
-| T010 | Exact ordinary fingerprints + compatibility registry/evasion proofs | WP03 | P1 | No |
+| T010 | Exact ordinary fingerprints + CR reservation/control/evasion proofs | WP03 | P1 | No |
 | T011 | Per-surface verification assignment S1–S10 | WP03 | P1 | No |
 | T012 | Catfooding + per-wave evidence + alias proof + rollback | WP03 | P1 | No |
 | T013 | Per-mission entries M1–M6 (all schema fields) | WP04 | P1 | No |
-| T014 | Assignment table — every OC-## exactly once (SM-I1) | WP04 | P1 | No |
+| T014 | OC primary-owner + CR introduction/removal tables (SM-I1) | WP04 | P1 | No |
 | T015 | M1 spec-readiness verification (zero local questions) | WP04 | P1 | No |
 | T016 | Quickstart checks 1–2: guard green + ADR registration | WP05 | P1 | No |
 | T017 | Quickstart check 3: ADR self-sufficiency (named reviewer) | WP05 | P1 | No |

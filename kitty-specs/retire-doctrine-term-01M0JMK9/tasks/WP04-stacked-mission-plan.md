@@ -41,7 +41,8 @@ Run `spec-kitty agent profile show planner-priti`, load it, then read both `cont
 
 ## Goal
 
-Create `stacked-plan.md` with schema-complete M1–M6 entries, the sole OC-to-mission assignment table, bounded local questions, rollback, and a recorded M1 zero-decision dry run.
+Create `stacked-plan.md` with schema-complete M1–M6 entries, the sole OC primary-owner and CR
+introduction/removal tables, bounded local questions, rollback, and a recorded M1 zero-decision dry run.
 
 ## Fixed stack
 
@@ -52,13 +53,15 @@ Create `stacked-plan.md` with schema-complete M1–M6 entries, the sole OC-to-mi
 | M3 | `charter-packs-source` | built-in/org/project Charter Packs/overlays; fixed `.kittify/doctrine/` → `.kittify/charter-packs/` checked migration; canonical directive ID + alias | I3 |
 | M4 | `charter-skills-artifacts` | full ADR skill/profile map; non-route prompts/overrides/generated agents via upgrade; old warning aliases | I4 |
 | M5 | `charter-docs-prose` | remaining active human prose regardless directory; immutable ADR/history stays X2 | I5 |
-| M6 | `charter-removal-audit` | remove legacy aliases/keys/paths and prove terminal content+pathname audit at 4.0 | I6 |
+| M6 | `charter-removal-audit` | remove every active/closed-no-channel CR control/product record plus legacy aliases/keys/paths and prove terminal content+pathname audit at 4.0 | I6 |
 
 Do not change granularity or reassign the fixed canonical ID mappings.
 
 ## T013 — Per-mission entries
 
-For each mission write: slug, purpose, inputs, outputs, explicit `depends_on`, OC IDs, `change_mode: bulk_edit`, occurrence-map obligation, invariant, local design questions, named verifiers, and rollback.
+For each mission write: slug, purpose, inputs, outputs, explicit `depends_on`, `retires_oc`,
+`introduces_compatibility`, `removes_compatibility`, `change_mode: bulk_edit`, occurrence-map
+obligation, invariant, local design questions, named verifiers, and rollback.
 
 - All M1–M6 are bulk edits; M6 removal is occurrence-sensitive.
 - M1 local questions must be empty.
@@ -73,14 +76,23 @@ For each mission write: slug, purpose, inputs, outputs, explicit `depends_on`, O
 - No path/config question remains: the active glossary pathname/referrer wave, three semantic config seams,
   and `.kittify/charter-packs/` destination with canonical-write/dual-read/collision/migration contract
   are fixed inputs. M3 owns all readers, writers, staging, migration, docs/config/tests same-wave.
-- Compatibility OC entries are assigned to M6 from the start. Each M1–M4 introduction wave may
-  relocate only registered exact fingerprints within its frozen maximum and must update named
-  enumeration plus behavior/migration tests. M6 empties registry and runtime/file/key inventory.
+- OCs have one M1–M5 primary-use owner. CRs are non-owning overlays: each appears once at its declared
+  M1–M4 introduction and once in M6 removal. M1 materializes actual-base disjoint source/max/control
+  evidence; each funded source hit's OC owner equals its introduction wave, with mixed-owner OCs/CRs
+  split before assignment. Each introduction wave atomically replaces ordinary hits with at-budget OC
+  product compatibility and changes `reserved` to `active` (or M2 distribution-only `closed-no-channel`).
+  M2-owned targets remain fail-closed until the map/disposition is frozen before edits. M6 empties
+  active and closed-no-channel CR control/product records plus runtime/file/key inventory.
 - Rollback follows methodology's reverse-suffix/forward-fix contract.
 
 ## T014 — Assignment table
 
-Map every in-scope OC-## exactly once. `inventory.md` must not duplicate assignment. Cross-repo deferrals require surface, repo, owner, milestone, tracking reference/downstream process, and rationale; no `TBD`. Confirm each mission's `retires` list equals its assignment rows.
+Map every in-scope OC exactly once across M1–M5 and every CR exactly once to its introduction wave
+plus M6 removal. `inventory.md` must not duplicate assignment. Prove every funded source hit's OC
+primary owner equals the introduction wave; split mixed-owner OCs/CRs. Prove source/product coordinate
+sets are disjoint and no source funds two reservations. Cross-repo deferrals require surface, repo, owner,
+milestone, tracking reference/downstream process, and rationale; no `TBD`. Confirm each mission's
+three ID lists equal the OC/CR table rows.
 
 ## T015 — M1 readiness record
 
@@ -91,16 +103,21 @@ Draft a skeleton (not a new mission spec) using only current artifacts and mark 
 - human-owned `charter.yaml` edit, curated `charter.md` handling, generate-only catalog/metadata, owning flows for other sections;
 - exact legacy-free Terminology Canon line in `charter.yaml`, not `AGENTS.md`;
 - exact ordinary pre-M1 OC/X fingerprint records with owner waves, same-wave shrink, X-only ordinary I6, and four ordinary mutation cases;
-- M6-owned compatibility registry covering every retained ID/route/key/path/parser/redirect/warning,
-  with full legacy value/path, canonical replacement, introduction wave, frozen maximum, exact
-  fingerprints, named tests, controlled relocation, and empty I6 inventory;
+- CR candidates covering every semantic retained ID/route/key/path/parser/redirect/warning with
+  disjoint observed evidence; deterministic actual-base drift reconciliation; fixed registry path;
+  disjoint frozen product maxima; fixed or fail-closed M2 target references; exact X3 control records;
+  introduction/M6 lists; M2 pre-edit resolution; named tests including all six CR mutation cases;
+  and empty I6 control/product inventory;
 - M1 occurrence classes/map, checks, output, I1, and rollback.
 
 Pass = zero gaps/local questions. A gap routes to owning WP artifact and blocks WP04; do not invent a decision here.
 
 ## Verification
 
-Check every OC exactly once; every entry complete; M1→I1 … M6→I6; all M1–M6 bulk; M1 questions empty; later questions bounded/owned; no ownerless deferral; rollback present; M1 skeleton fully cited.
+Check every OC primary owner exactly once, every CR introduction + M6 removal exactly once, every
+funded source OC owner equals its introduction, and no double-funded/overlapping coordinate; every
+entry complete; M1→I1 … M6→I6; all M1–M6 bulk; M1
+questions empty; later questions bounded/owned; no ownerless deferral; rollback present; M1 skeleton fully cited.
 
 Reject `assigned_mission` in inventory, M1→I2, M6 non-bulk, M1–M5 “zero questions” as a blanket rule, a partial/wildcard operator map, mapped hits assigned to M3–M5, a deferred M4 ID mapping, or hand-wavy bundle regeneration.
 

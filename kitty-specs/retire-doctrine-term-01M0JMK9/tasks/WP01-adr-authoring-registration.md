@@ -73,7 +73,7 @@ Use `docs/architecture/adr-template.md` and the next free dated sequence. Set `s
 - 3.x compatibility and 4.0 zero-user-visible rule;
 - the glossary must change all authorities and replace Doctrine Pack with Charter Pack;
 - the fixed non-command mappings: glossary `docs/context/doctrine.md` → `docs/context/charter.md` with active referrers in M1; distinct selection/org-pack/tracker mappings; target URN plus known serialized/API rows; and the operator-map requirement to enumerate exact `doctrine.api.__all__` and `spec-kitty-doctrine` distribution/wheel surfaces; project overlays `.kittify/doctrine/` → `.kittify/charter-packs/` in M3 under checked dual-read/collision/migration behavior;
-- exact guard intent: fingerprint every pre-M1 guard-root hit using exact ordinary OC/X records plus an M6-owned compatibility registry for retained IDs/routes/keys/paths/parser literals/redirects/warnings; only the introduction wave may relocate registered fingerprints; I6 is X-only with empty compatibility inventory; ordinary and compatibility-evasion mutations fail.
+- exact guard intent: fingerprint every pre-M1 guard-root hit using exact ordinary OC/X records plus a non-owning semantic CR reservation overlay for retained IDs/routes/keys/paths/parser literals/redirects/warnings; each OC keeps one M1–M5 owner, each CR has a disjoint source budget, one M1–M4 introduction, exact X3 control, and M6 removal; every funded source OC owner equals introduction wave, which atomically sets `reserved` to `active` (or M2 distribution-only `closed-no-channel`); mutable M2 target resolution does not change CR identity and fails closed until frozen before edits; I6 is X-only with empty CR inventory; ordinary and CR-evasion mutations fail.
 
 Include this exact legacy-free line for M1 to place in the human-authored governance/directives section of `.kittify/charter/charter.yaml`:
 
@@ -94,8 +94,8 @@ Run `python -m scripts.docs.freshen_adr_inventory`; do not hand-edit the generat
 Read only the new ADR and answer these exact six questions:
 
 1. What decision was made and what canonical term replaces the retired one?
-2. What distinguishes Charter Bundle, Active Charter, and Inactive Charter?
-3. Which kind labels survive in their existing roles?
+2. How does Charter Pack differ from Charter Bundle, and what distinguishes Active Charter from Inactive Charter?
+3. Which kind labels survive in their existing roles, and what replaces the former “Doctrine Domain” glossary sense?
 4. What is in/out of scope, including operator-ID mappings, the non-public-internal versus
    supported-public-Python-API distinction, aggregate exact `doctrine.api.__all__` evidence, and
    public distribution/wheel treatment?

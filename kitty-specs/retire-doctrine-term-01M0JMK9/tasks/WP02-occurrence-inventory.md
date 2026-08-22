@@ -50,19 +50,29 @@ Create `inventory-hits.tsv` with one deterministic row per content occurrence an
 
 ## T005 — Pin and audit
 
-Capture the base SHA and run these exact commands; never expand `git ls-files` into argv:
+Fetch the target ref, prove this branch incorporates its tip, capture that exact tip, and run these
+exact commands; never accept a stale branch-point merge base or expand `git ls-files` into argv:
 
 ```bash
-base_commit="$(git merge-base origin/main HEAD)"
+git fetch origin main
+git merge-base --is-ancestor origin/main HEAD
+base_commit="$(git rev-parse origin/main)"
 git grep -aino --column -e 'doctrine' "$base_commit" -- .
 git ls-tree -r -z --name-only "$base_commit" | python -c 'import sys; paths=sys.stdin.buffer.read().split(b"\0"); sys.stdout.buffer.write(b"\0".join(p for p in paths if p and b"doctrine" in p.lower()))'
 ```
 
-The first forces all tracked blobs to text and yields one row per match, not per matching line; do not replace `-a` with `-I`, which drops NUL-containing migration/quarantine JSON/JSONL. The second yields one row per matching tracked pathname. Preserve raw counts and commands in inventory frontmatter.
+The ancestor check must exit 0; otherwise stop and incorporate `origin/main`. The first forces all
+tracked blobs to text and yields one row per match, not per matching line; do not replace `-a` with
+`-I`, which drops NUL-containing migration/quarantine JSON/JSONL. The second yields one row per
+matching tracked pathname. Preserve `target_ref`, `target_tip=base_commit`, raw counts, and commands
+in inventory frontmatter.
 
 ## T006 — Build and classify manifest
 
-Create `inventory-hits.tsv` with the fixed header from the contract. Sort by `kind,path,line,column`; assign deterministic `H-C-######` / `H-P-######` IDs. Each row receives exactly one OC-## or X1/X2/X3. OC rows also receive S1–S10.
+Create `inventory-hits.tsv` with the fixed eight-column header from the contract. Sort by
+`kind,path,line,column`; assign deterministic `H-C-######` / `H-P-######` IDs. Each row receives
+exactly one OC-## or X1/X2/X3. OC rows also receive S1–S10; the planning snapshot's
+`compatibility_registry_id` is empty because M1 has not introduced any CR product hit.
 
 Mandatory coverage includes:
 
@@ -77,31 +87,46 @@ Mandatory coverage includes:
 - every supported public Python name/import identified by `__all__`, package `__init__` re-export,
   public API/operator docs/skills, or external contract, including catalog/selection/service examples;
   record one aggregate `doctrine.api` facade/class input with exact `__all__` member evidence (without
-  inventing hit rows for legacy-free names), plus `src/doctrine/pyproject.toml`, the
+  inventing hit rows for legacy-free names), plus public metadata content inside
+  `src/doctrine/pyproject.toml`, the
   `spec-kitty-doctrine` project/distribution/wheel name, and wheel-closure consumers/tests;
-  non-public symbols alone are X1;
+  non-public symbols and non-emitted physical implementation pathnames such as
+  `src/doctrine/pyproject.toml`/`src/doctrine/api.py` alone are X1;
 - all eight doctrine-named skill directories, including `spec-kitty-charter-doctrine`, plus `doctrine-daphne` and `018-doctrine-versioning-requirement`, as in-scope operator IDs mapped by the ADR table.
 
 Apply classifications per hit:
 
 - X1 non-public internal code identifiers only; supported public APIs are OC;
-- X2 old ADR/event/merged-mission immutable history only; merged mission snapshots are X2 whether
-  or not archived, while active/unmerged mission artifacts are never X2;
-- X3 intentional non-user-facing quoted test/matcher/data only. Glossary authorities, aliases, warnings, keys, paths, and operator IDs remain in scope.
+- X2 every merged ADR body/title (including the new Accepted terminology ADR after merge), immutable
+  event journals, and merged mission snapshots whether or not archived; active/unmerged mission
+  artifacts are never X2, and ADR status/pointer metadata remains the narrow mutable carve-out;
+- X3 intentional non-user-facing quoted test/matcher/data only. Later exact CR registry control
+  records are X3 with an empty manifest CR column; product aliases/warnings/keys/paths/operator IDs
+  remain OC.
 
 Mixed files may contain OC and X rows. Path patterns/examples are summaries, not evidence.
 
-Separate `primary-use` from `3x-compatibility`. Every known retained identifier, route, key, path,
-parser/migrator literal, redirect, or warning is a compatibility OC with canonical replacement and
-introduction-wave evidence for M1's M6-owned registry; it is never hidden in X3.
+Every pre-M1 OC is ordinary primary use with one future M1–M5 owner. Separately build the CR-candidate
+table for every semantic legacy identifier/route/key/path/parser/migrator/redirect/warning form:
+stable CR ID, full form, semantic seam, source OC IDs, pairwise-disjoint observed coordinates/count,
+introduction wave, M6 removal, fixed target or fail-closed M2 owner/OC reference, fixed control path
+`tests/architectural/legacy_terminology_compatibility_registry.yaml`, and planned tests. The same
+literal may have several candidates only for disjoint semantic coordinates. These are planning
+observations; M1 reruns the actual-base audit and materializes frozen maxima/control fingerprints.
+WP04 must assign every funded source hit's OC primary owner to the same introduction wave; split any
+mixed-owner OC/CR before assignment.
 
 ## T007 — Derive and prove
 
-Derive each OC/X count from manifest rows. Confirm no duplicate `(kind,path,line,column)` coordinate, no empty classification, `manifest rows = content occurrences + pathname occurrences`, and `OC totals + X1 + X2 + X3 = total_hits`. Compute manifest SHA-256.
+Derive each OC/X count from manifest rows. Confirm no duplicate `(kind,path,line,column)` coordinate,
+no empty classification, empty CR column in this planning snapshot,
+`manifest rows = content occurrences + pathname occurrences`, and
+`OC totals + X1 + X2 + X3 = total_hits`. Prove CR candidate observed coordinate sets are pairwise
+disjoint and aggregate counts per form do not exceed unique matching hits. Compute manifest SHA-256.
 
 ## T008 — Write inventory
 
-Follow the five-section schema. Do not add `assigned_mission`; WP04 owns assignment. Out-of-repo rows require surface, repo, owner, milestone, tracking reference/downstream process, and rationale. No `TBD` may remain.
+Follow the five-section schema. Do not add OC/CR assignment fields; WP04 owns assignment. Out-of-repo rows require surface, repo, owner, milestone, tracking reference/downstream process, and rationale. No `TBD` may remain; a fail-closed M2 owner/OC target reference is the only allowed deferred target form.
 
 Record the glossary parity dependency and open issue #2727, but do not defer atomic authority consistency or invent another mission.
 

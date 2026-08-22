@@ -66,17 +66,23 @@ Diagnostic line numbers are not identity. Materialize the complete pre-M1 baseli
 scoped same-PR M1 source/baseline shrink before the final post-M1 guard lands. Later owner waves remove
 their OC records; I6 may retain only justified X fingerprints.
 
-Every intentionally retained 3.x identifier, command route, serialized key, project path,
-parser/migrator literal, redirect, or warning is an OC assigned to M6 from the start. Its registry
-entry records full legacy literal/path, canonical replacement, M1–M4 introduction wave, M6 removal,
-pre-M1 frozen maximum, exact current source/path fingerprints, and a named enumeration plus
-behavior/migration test. Only the declared introduction wave may atomically relocate exact
-fingerprints, never grow the maximum. It must prove canonical replacement, legacy behavior/migration,
-warning where executable, and runtime/file/key enumeration. M6 deletes registry, implementation,
-and exposure; terminal enumeration is empty.
+Every OC keeps one M1–M5 primary-use owner. WP02 supplies non-owning semantic CR candidates with
+disjoint observed coordinates. At its actual base, M1 reruns the audit, records fail-closed drift,
+and materializes `tests/architectural/legacy_terminology_compatibility_registry.yaml`: disjoint actual
+source coordinates/OCs, frozen product maximum, fixed target or fail-closed M2 owner/OC reference,
+M1–M4 introduction wave, M6 removal, `reserved` disposition, exact X3 control fingerprint, and named
+tests. Each actual source coordinate funds one CR maximum; its OC primary owner equals the CR
+introduction wave, with mixed-owner OCs/CRs split before assignment; control literals never consume
+product budget. Only the declared introduction wave may remove ordinary fingerprints, transition
+`reserved` to `active`, and create/relocate at most that budget of OC product compatibility
+fingerprints. For M2-owned reservations, M2 first freezes any referenced target/map row without
+changing CR identity, then sets `active` or distribution-only `closed-no-channel`; the latter creates
+no product alias and remains an evidence tombstone until M6. M6 deletes all CR control/product records,
+implementation, and exposure; terminal enumeration is empty.
 
-Ordinary current fingerprints and registered compatibility fingerprints must equal their respective
-baselines outside a declared relocation. Shrink source and baseline together. Define tests that fail for:
+Ordinary current fingerprints and CR product/control fingerprints must equal their respective exact
+baselines outside a declared introduction/relocation. Shrink source and ordinary baseline together.
+Define tests that fail for:
 
 - new hit in a baselined file;
 - replacement of an allowed internal hit with user-facing text at equal count;
@@ -85,6 +91,9 @@ baselines outside a declared relocation. Shrink source and baseline together. De
 - unregistered or undeclared-wave compatibility addition/move;
 - compatibility fingerprints above the frozen per-entry maximum;
 - a product compatibility literal constructed from fragments to evade the registry.
+- a source coordinate funding multiple CRs or overlapping product fingerprints;
+- a missing, duplicated, moved, or stale X3 registry control record;
+- an introduction while an M2 target/disposition is still fail-closed.
 
 Only detector fixtures may construct the literal from fragments and remain X3. Product aliases,
 parsers, redirects, warnings, keys, and paths remain in-scope. No file/directory/count allowlist and
@@ -103,8 +112,8 @@ M1 authority operations must be owner-correct:
 
 ## T012 — Catfooding, evidence, compatibility, rollback
 
-Require each M1–M6 wave to pin its base, regenerate content/path manifest and scoped occurrence map,
-shrink ordinary guard fingerprints, apply only its registered compatibility relocations, update
+Require each M1–M6 wave to pin its base, regenerate the eight-column content/path manifest and scoped occurrence map,
+shrink ordinary guard fingerprints, apply only its registered CR introduction/relocations, update
 same-wave consumers, and record invariant evidence. M1 owns the glossary pathname/referrers and
 selection key. M2 freezes authoritative `canonical-operator-surface-map.md` plus mechanically derived
 set-equal `canonical-cli-route-map.md`, owns every mapped command, serialized/API occurrence,
@@ -134,7 +143,7 @@ Rollback contract:
 
 ## Verification
 
-A reviewer must be able to challenge every ordering choice and locate a risk/rationale, invariant, and named check. Validate S1–S10 coverage, four ordinary mutations plus compatibility relocation/budget/fragment mutations, per-wave manifest trigger, compatibility proof, and rollback rules. M1 implementer must be able to build guard machinery from this document without a new decision.
+A reviewer must be able to challenge every ordering choice and locate a risk/rationale, invariant, and named check. Validate S1–S10 coverage, four ordinary mutations plus six CR mutations (unregistered/wrong-wave, product budget, fragment, double-funded source, overlapping product, duplicate/moved/stale control), the fail-closed M2 pre-edit block, per-wave manifest trigger, compatibility proof, and rollback rules. M1 implementer must be able to build guard machinery from this document without a new decision.
 
 Reject M1→I2, file allowlists, count-only budgets, “audit will catch it later” gaps, `charter sync` as writer, or missing config/path/operator-ID surfaces.
 

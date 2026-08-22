@@ -57,8 +57,8 @@ Run the quickstart targeted tests and ADR freshness check. Verify the new ADR is
 
 Record two C-001 anchors:
 
-- planning base = `git merge-base origin/main HEAD`; allowed planning/lifecycle artifacts, ADR/registration surfaces, squad evidence, and required docs-contract CI metadata;
-- implementation base loaded from WP01-owned `implementation-baseline.json`, captured before its first edit; validate schema, 40-character SHA, and ancestry; permit only the union of WP-owned implementation deliverables plus canonical runtime-owned `status.events.jsonl` and reduced `status.json`. Prompt files must remain unchanged during execution.
+- planning base = fetched `git rev-parse origin/main`, after its ancestor check passes; allowed planning/lifecycle artifacts, ADR/registration surfaces, squad evidence, and required docs-contract CI metadata;
+- implementation base loaded from WP01-owned `implementation-baseline.json`, captured before its first edit; validate schema, 40-character SHA, and ancestry; permit only the union of WP-owned implementation deliverables plus exact mission-relative runtime placements: `status.events.jsonl`, reduced `status.json`, `lanes.json`, `acceptance-matrix.json`, `issue-matrix.md`, `analysis-report.md`, `.kittify/dossiers/<mission>/...`, and `tasks/<WP-slug>/review-cycle-N.md` (all below `kitty-specs/<mission>/`). Prompt files must remain unchanged during execution.
 
 Inspect committed delta plus working tree. Do not use an absolute file list that rejects pre-existing planning artifacts.
 
@@ -67,8 +67,8 @@ Inspect committed delta plus working tree. Do not use an absolute file list that
 One named independent reviewer (squad **or** operator; a second review is optional) reads only the new ADR and answers:
 
 1. What decision was made and replacement is canonical?
-2. What distinguishes Charter Bundle, Active Charter, and Inactive Charter?
-3. Which kind labels survive in their existing roles?
+2. How does Charter Pack differ from Charter Bundle, and what distinguishes Active Charter from Inactive Charter?
+3. Which kind labels survive in their existing roles, and what replaces the former “Doctrine Domain” glossary sense?
 4. What is in/out of scope, including operator-ID mappings and non-public internal versus supported public Python API, exact `doctrine.api.__all__`, and distribution/wheel treatment?
 5. What is the 3.x compatibility policy and 4.0 removal rule?
 6. How does the governance term differ from `src/charter/`?
@@ -77,10 +77,15 @@ Record answers and reviewer identity. Do not replace question 6 with the Termino
 
 ## T018 — Inventory proof
 
-At `inventory.md`'s pinned SHA, rerun both exact audit commands from the contract. Verify:
+Fetch `origin/main`, require `git merge-base --is-ancestor origin/main HEAD` to pass, and verify
+`target_tip=base_commit=$(git rev-parse origin/main)` before rerunning both exact audit commands. A
+stale branch-point snapshot fails. Then verify:
 
 - one manifest row per content occurrence and matching pathname;
+- fixed eight-column header including nullable `compatibility_registry_id`;
 - no duplicate coordinate, missing classification, or unknown S/OC/X ID;
+- the CR column empty in the planning snapshot and for every X row; later product-compatibility rows remain OC and join exactly one CR;
+- CR candidate observed coordinates/counts pairwise disjoint, with no source coordinate funding two candidates;
 - manifest SHA and deterministic ordering;
 - `total = content + path = OC + X1 + X2 + X3`;
 - no active/unmerged-current-mission X2, active-glossary/alias X3, or supported-public-API/operator-ID X1;
@@ -91,9 +96,9 @@ If current HEAD drifted from pinned base, record both SHAs and delta; do not rew
 
 ## T019 — Plan and M1 dry run
 
-Verify every OC appears exactly once; inventory owns no assignment. Confirm bulk/invariants/rollback/M1 zero questions. For M2's sole question, prove every command/serialized/API/supported-public-Python-API/public-distribution OC and consumer is M2-owned, both map/projection are required, mandatory catalog/selection/service rows, exact `doctrine.api.__all__`, `spec-kitty-doctrine` distribution/wheel contract, publication evidence, and external owners are complete, M3–M5 exclude mapped hits, and only non-public internals are X1.
+Verify every OC appears exactly once across M1–M5 and every CR appears once at its M1–M4 introduction plus once at M6 removal; inventory owns no assignment, every funded source hit's OC primary owner equals its CR introduction wave, mixed-owner OCs/CRs are split, and no source/product coordinate is double-funded. Confirm bulk/invariants/rollback/M1 zero questions. For M2's sole question, prove every command/serialized/API/supported-public-Python-API/public-distribution OC and consumer is M2-owned, both map/projection are required, mandatory catalog/selection/service rows, exact `doctrine.api.__all__`, `spec-kitty-doctrine` distribution/wheel contract, publication evidence, and external owners are complete, M3–M5 exclude mapped hits, and only non-public internals or non-emitted physical paths are X1.
 
-Repeat the M1 dry run: `docs/context/charter.md` plus all active referrers and old-path redirect, byte-identical X2 historical refs plus zero dangling active refs, both YAML authorities under parity/#2727 coordination; owner-correct bundle edits; `governance.charter` migration; exact canon; complete pre-M1 ordinary preimage/M1 shrink plus repository-wide M6 registry, controlled relocation, and X-only/empty-compatibility I6. Verify M2 maps/projection/config and fixed M3 overlay migration require no decision.
+Repeat the M1 dry run: `docs/context/charter.md` plus all active referrers and old-path redirect, byte-identical X2 historical refs plus zero dangling active refs, both YAML authorities under parity/#2727 coordination; owner-correct bundle edits; `governance.charter` migration; exact canon; canonical Charter Pack vs Charter Bundle semantics; and replacement of the former “Doctrine Domain” entry with the governance-artefact-layer sense without a new domain brand. Verify complete pre-M1 ordinary preimage/M1 shrink plus the non-owning CR candidate overlay, actual-base drift reconciliation, owner=introduction joins, disjoint source budgets, fixed X3 control path/fingerprints, M2 fail-closed target/disposition resolution before edits, controlled introductions, and X-only/empty-CR I6. Verify M2 maps/projection/config and fixed M3 overlay migration require no decision.
 
 ## T020 — Methodology and report closeout
 
@@ -108,6 +113,11 @@ Specifically confirm methodology tests fail for:
 5. unregistered or wrong-wave compatibility addition/move;
 6. compatibility fingerprints above a frozen per-entry maximum;
 7. product compatibility assembled from fragments.
+8. one pre-M1 source coordinate funding two CRs;
+9. one product fingerprint belonging to two CRs;
+10. a duplicated, moved, or stale X3 control record.
+
+Also prove a fail-closed M2 target/disposition prevents introduction before any source edit.
 
 Write summary mapping SC-001..SC-004 to evidence and list routed findings. Ready only when all checks pass and no routed finding remains.
 
