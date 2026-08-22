@@ -23,7 +23,11 @@ from specify_cli.core.dependency_graph import (
     detect_cycles,
     topological_sort,
 )
-from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+from specify_cli.core.paths import (
+    MissionMetaReadError,
+    assert_safe_path_segment,
+    load_meta_fail_closed,
+)
 from specify_cli.coordination.coherence import is_toolchain_generated_churn
 from specify_cli.git.ref_advance import advance_branch_ref
 from specify_cli.merge._constants import logger as _merge_logger
@@ -298,24 +302,38 @@ def _compute_next_mission_number_or_none(
             scan_root = tmp_path
             scan_specs = tmp_path / KITTY_SPECS_DIR
 
-        target_meta_path = scan_specs / mission_slug / "meta.json"
-        if target_meta_path.exists():
-            # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
-            # JSON-syntax error AND a non-dict top level to None -- this is a
-            # best-effort idempotency peek (not a #2091 identity guard site), so
-            # a corrupt/foreign meta.json on the target branch must not abort the
-            # merge-time numbering step; it falls through to normal assignment
-            # below, matching the pre-existing non-dict-tolerant branch.
-            target_meta = load_meta(scan_specs / mission_slug, on_malformed="none")
-            existing_on_target = (
-                target_meta.get("mission_number") if isinstance(target_meta, dict) else None
+        # #2037: mission_slug threads back to the operator-typed `--mission`/
+        # target slug (no `assert_safe_path_segment` upstream on this path).
+        # This idempotency peek is read-only (`.exists()` + best-effort meta
+        # read), so an unsafe slug fails closed by skipping the peek entirely
+        # and falling through to normal assignment below, rather than raising.
+        try:
+            assert_safe_path_segment(mission_slug)
+        except ValueError:
+            _merge_logger.warning(
+                "Refusing to probe target-branch meta.json with unsafe mission_slug %r "
+                "(traversal guard); skipping the idempotency peek.",
+                mission_slug,
             )
-            if _is_assigned_mission_number(existing_on_target):
-                _merge_logger.debug(
-                    "Mission %s already has mission_number=%d on target branch %s; no-op",
-                    mission_slug, existing_on_target, target_branch,
+        else:
+            target_meta_path = scan_specs / mission_slug / "meta.json"
+            if target_meta_path.exists():
+                # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
+                # JSON-syntax error AND a non-dict top level to None -- this is a
+                # best-effort idempotency peek (not a #2091 identity guard site), so
+                # a corrupt/foreign meta.json on the target branch must not abort the
+                # merge-time numbering step; it falls through to normal assignment
+                # below, matching the pre-existing non-dict-tolerant branch.
+                target_meta = load_meta(scan_specs / mission_slug, on_malformed="none")
+                existing_on_target = (
+                    target_meta.get("mission_number") if isinstance(target_meta, dict) else None
                 )
-                return None
+                if _is_assigned_mission_number(existing_on_target):
+                    _merge_logger.debug(
+                        "Mission %s already has mission_number=%d on target branch %s; no-op",
+                        mission_slug, existing_on_target, target_branch,
+                    )
+                    return None
 
         return assign_next_mission_number(scan_root, scan_specs)
     finally:

@@ -314,6 +314,37 @@ def test_compute_next_returns_none_when_target_already_assigned(tmp_path: Path) 
     assert result is None
 
 
+def test_compute_next_skips_idempotency_peek_for_unsafe_mission_slug(tmp_path: Path) -> None:
+    """#2037: a traversal-shaped mission_slug must not reach the meta.json join.
+
+    Without the ``assert_safe_path_segment`` guard, ``scan_specs /
+    "../evil" / "meta.json"`` collapses to ``tmp_path / "evil" / "meta.json"``
+    (escaping the intended ``kitty-specs/`` scan root) — planting an
+    already-assigned ``mission_number`` there would make the function
+    wrongly return ``None`` (no-op) instead of assigning a fresh number. The
+    guard must skip the peek entirely and fall through to normal assignment.
+    """
+    import json as _json
+
+    def _fake_run(args: list[str], **kwargs: object) -> CompletedProcess[str]:
+        if args[:3] == ["git", "worktree", "add"]:
+            return CompletedProcess(args, 1, stdout="", stderr="cannot add worktree")
+        return CompletedProcess(args, 0, stdout="", stderr="")
+
+    escape_target = tmp_path / "evil" / "meta.json"
+    escape_target.parent.mkdir(parents=True)
+    escape_target.write_text(_json.dumps({"mission_number": 5}), encoding="utf-8")
+
+    with (
+        patch("subprocess.run", side_effect=_fake_run),
+        patch.object(ordering, "assign_next_mission_number", return_value=11) as assign_mock,
+    ):
+        result = ordering._compute_next_mission_number_or_none(tmp_path, "../evil", "main")
+
+    assert result == 11
+    assign_mock.assert_called_once()
+
+
 # --- _write_mission_number_to_branch: error/cleanup branches ----------------
 
 
