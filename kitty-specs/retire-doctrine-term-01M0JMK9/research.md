@@ -33,9 +33,9 @@ Every item below is a resolved unknown: **Decision / Rationale / Alternatives co
 
 ## R4 — CLI executable surface: the `spec-kitty doctrine` group does not map 1:1 onto `charter`
 
-**Decision**: This plan fixes only the **alias policy** (old names become hidden aliases with deprecation warnings during 3.x; per-subcommand alias tests; removal at 4.0 verified by audit). The **per-subcommand canonical naming** (which of the 9 `doctrine` subcommands maps onto the existing `spec-kitty charter` group vs. gets a new name under it) is a design decision owned by M2's spec, informed by the inventory. Same-wave CI consumer updates are a hard requirement of M2 (see R5).
+**Decision**: This plan fixes only the **alias policy** (old names become hidden aliases with deprecation warnings during 3.x; per-subcommand alias tests; removal at 4.0 verified by audit). The **per-subcommand canonical naming** (which of the 8 `doctrine` subcommands maps onto the existing `spec-kitty charter` group vs. gets a new name under it) is a design decision owned by M2's spec, informed by the inventory. Same-wave CI consumer updates are a hard requirement of M2 (see R5).
 
-**Rationale**: Verified live: `spec-kitty doctrine --help` shows 9 subcommands (`fetch`, `regenerate-graph`, `new`, `validate`, `pack`, `org`, `mission-type`, `asset`) plus `spec-kitty doctor doctrine`; the existing `charter` group has a different shape (`activate/deactivate/generate/synthesize/resynthesize/list/context/sync`). A 1:1 rename is impossible; forcing one here would pre-empt M2's design with an unreviewed choice.
+**Rationale**: Verified live: `spec-kitty doctrine --help` shows 8 subcommands (`fetch`, `regenerate-graph`, `new`, `validate`, `pack`, `org`, `mission-type`, `asset`) plus `spec-kitty doctor doctrine`; the existing `charter` group has a different shape (`activate/deactivate/generate/synthesize/resynthesize/list/context/sync`). A 1:1 rename is impossible; forcing one here would pre-empt M2's design with an unreviewed choice.
 
 **Alternatives considered**: Deciding the full command mapping in this plan — rejected (out of scope for a planning mission; the inventory + M2 spec are the right home). Hard break without aliases — rejected (operator decision moment `specify.compatibility.alias-policy` resolved to 3.x deprecation).
 

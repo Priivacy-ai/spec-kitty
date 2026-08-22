@@ -18,15 +18,17 @@ Nine categories, fixed by this plan; the inventory assigns every in-scope hit to
 
 | ID | Category | What it covers (evidence at base) | Verification mechanism (C-004 assignment) |
 |----|----------|-----------------------------------|-------------------------------------------|
-| S1 | `cli-executable` | `spec-kitty doctrine` group (9 subcommands), `spec-kitty doctor doctrine`; help text, errors, emitted output | Guard (scan roots) + per-subcommand alias tests (M2) |
+| S1 | `cli-executable` | `spec-kitty doctrine` group (8 subcommands), `spec-kitty doctor doctrine`; help text, errors, emitted output | Guard (scan roots) + per-subcommand alias tests (M2) |
 | S2 | `docs-glossary` | `docs/context/doctrine.md` (685 lines / 124 doctrine lines) + cross-references | Guard (scan roots) — file leaves baseline at zero |
 | S3 | `docs-prose` | Remaining `docs/` prose (430 files contain the term; ADRs excluded as legacy) | Guard (scan roots) — file leaves baseline at zero |
-| S4 | `prompts-skills-agent-artifacts` | Skills at `src/doctrine/skills/` (55 dirs, 7 `spk-doctrine-*`), generated agent dirs (`.claude/`, `.agents/skills/`, …), `.github/prompts/spec-kitty-standalone.md` | NFR-001 audit (outside guard roots) + migration/upgrade flow for generated copies |
+| S4 | `prompts-skills-agent-artifacts` | Skills at `src/doctrine/skills/` (55 dirs, 7 `spk-doctrine-*`), generated agent dirs (`.claude/`, `.agents/skills/`, …), `.github/prompts/spec-kitty-standalone.md` | Mixed-root (see note below): in-root `src/doctrine/skills/` → guard baseline; out-of-root `.github/prompts/` → NFR-001 audit + migration/upgrade flow for generated copies |
 | S5 | `charter-bundle` | `.kittify/charter/` — `charter.yaml` (53 lines), `charter.md` (13), `graph.yml` (2), `interview/answers.yaml` (9) | NFR-001 audit + bundle regeneration check (`charter sync`) |
 | S6 | `packs-source` | `packs/built-in/` — canonical YAML source for all artifact kinds (103 files contain the term) | NFR-001 audit + upgrade-flow verification (agent copies derive from packs) |
-| S7 | `generated-output` | Runtime-emitted strings: "Action Doctrine" heading (`src/charter/context_renderers/bootstrap_text.py`), pack paths in `charter context` output, `scripts/generate_schemas.py:548` | Guard (scan roots) for the source strings; NFR-001 audit for emitted-text verification |
+| S7 | `generated-output` | Runtime-emitted strings: "Action Doctrine" heading (`src/charter/context_renderers/bootstrap_text.py`), pack paths in `charter context` output, `scripts/generate_schemas.py:548` | Mixed-root (see note below): in-root source strings → guard; out-of-root `scripts/` + emitted text → NFR-001 audit |
 | S8 | `scripted-consumers` | `.github/workflows/ci-quality.yml:4055` (`doctor doctrine --json` + assertion), 3 workflow filenames, `uses:` references | NFR-001 audit + same-wave CI update requirement (hard) |
 | S9 | `root-docs` | Root-level operator docs: `AGENTS.md` (10 doctrine lines, case-insensitive), `README.md`, `CONTRIBUTING.md` | NFR-001 audit (outside guard roots) |
+
+**Mixed-root classes (S4, S7)**: these span both sides of the guard's scan roots (`src`, `tests`, `docs`). The in-root portion is verified by the guard itself (frozen baseline at arming, shrinks to zero); only the out-of-root portion needs a C-004 named mechanism — S4: `.github/prompts/` (NFR-001 audit) + generated agent copies (migration/upgrade flow); S7: `scripts/` source strings and emitted text (NFR-001 audit).
 
 **Classification-out categories** (not surface classes — recorded in the inventory as classified out, with reason):
 

@@ -61,7 +61,7 @@ From `stacked-plan.md` + the ADR + `inventory.md` (S2/S5 rows) + `methodology.md
 
 ## 7. Methodology invariant check (FR-008)
 
-Verify `methodology.md` states, for each stack level I0–I6: the invariant that must hold, and — for every surface class outside the guard's scan roots (S4/S5/S6/S8/S9) — exactly one named verification mechanism (C-004). Also verify the guard design carries: concrete floor + shrink-only ratchet + self-mutation test (Standing Order #5) and the stated blind spot (count growth inside baseline files; caught by per-wave re-baselining).
+Verify `methodology.md` states, for each stack level I0–I6: the invariant that must hold, and — for every surface class outside the guard's scan roots (S5/S6/S8/S9, plus the out-of-root portions of mixed-root classes S4 and S7 — `data-model.md` §1) — exactly one named verification mechanism (C-004). Also verify the guard design carries: concrete floor + shrink-only ratchet + self-mutation test (Standing Order #5) and the stated blind spot (count growth inside baseline files; caught by per-wave re-baselining).
 
 ## Merge gate summary
 
@@ -69,7 +69,7 @@ Verify `methodology.md` states, for each stack level I0–I6: the invariant that
 |---|-------|----------------|
 | 1 | Guard green | `test_no_legacy_terminology.py` PASS |
 | 2 | ADR registered + old-ADR diff minimal | freshen `--check` clean; frontmatter-only diff |
-| 3 | SC-001 self-sufficiency | all 5 items stated from ADR alone |
+| 3 | SC-001 self-sufficiency | all six items stated from ADR alone |
 | 4 | SC-002 audit completeness | arithmetic holds; 0 unclassified |
 | 5 | SC-003 assignment completeness | every OC-## exactly once; M1 open_items empty |
 | 6 | SC-004 first-mission spec-readiness | M1 spec draftable with 0 new decisions |
