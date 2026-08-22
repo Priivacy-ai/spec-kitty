@@ -18,6 +18,7 @@ import json
 import logging
 import subprocess
 import tempfile
+import time
 import xml.etree.ElementTree as ET
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -480,39 +481,61 @@ def _run_command_for_baseline(command: list[str], *, cwd: Path) -> RawRunResult:
     ``parse_results`` runs. ``GateCoverageScopeSource`` already emits an
     absolute path in its own tempdir (unrelated to ``cwd``), so this is a
     no-op for it — ``is_absolute()`` short-circuits.
+
+    Issue #3612 fast-follow (regression review finding, post-#3612):
+    ``DeclaredCommandScopeSource.test_command()`` now renders a ``["sh",
+    "-c", "export ...; <command>"]`` COMPOUND statement (the #3612 shell +
+    ``{output_file}`` fix) — ``sh`` forks the real command as its OWN child,
+    so a bare ``subprocess.run(..., timeout=...)`` here would SIGKILL only
+    ``sh`` on timeout, orphaning the real command as a grandchild that keeps
+    running (with its cwd inside the baseline worktree) after
+    ``_baseline_worktree``'s ``finally`` removes that very worktree out from
+    under it. Delegates to the head runner's OWN tested scoped-launch +
+    reap machinery (:func:`pre_review_gate._run_raw_command`, itself
+    ``_launch_scoped_process`` + ``_observe_process``) instead of
+    hand-replicating ``start_new_session``/``os.killpg`` here — one
+    group-safe launcher for both capture and head, so they cannot re-drift.
+    Lazy import: ``pre_review_gate.py`` imports FROM this module at its own
+    top level (``CAPTURE_BASELINE_TIMEOUT_SECONDS``, ``_parse_junit_xml``,
+    ...), so a module-level import here would be a two-way cycle.
     """
+    from specify_cli.review.pre_review_gate import HeadRunState, _default_process_wait, _run_raw_command
+
     junit_path = _extract_junit_output_path(command)
     if junit_path is not None and not junit_path.is_absolute():
         junit_path = cwd / junit_path
-    try:
-        result = subprocess.run(
-            command,
-            cwd=str(cwd),
-            capture_output=True,
-            text=True,
-            check=False,
-            timeout=CAPTURE_BASELINE_TIMEOUT_SECONDS,
-        )
-    except subprocess.TimeoutExpired:
+
+    state, raw, error = _run_raw_command(
+        command,
+        repo_root=cwd,
+        timeout=CAPTURE_BASELINE_TIMEOUT_SECONDS,
+        progress_callback=None,
+        monotonic=time.monotonic,
+        wait=_default_process_wait,
+    )
+    if state is HeadRunState.TIMED_OUT:
         return RawRunResult(
             returncode=-1,
             stdout="",
             stderr=f"baseline command timed out after {CAPTURE_BASELINE_TIMEOUT_SECONDS}s",
             output_artifact_path=junit_path,
         )
-    except OSError as exc:
+    if state is HeadRunState.CANCELLED:
         return RawRunResult(
             returncode=-1,
             stdout="",
-            stderr=f"baseline command failed to execute: {exc}",
+            stderr=f"baseline command cancelled: {error}",
             output_artifact_path=junit_path,
         )
-    return RawRunResult(
-        returncode=result.returncode,
-        stdout=result.stdout,
-        stderr=result.stderr,
-        output_artifact_path=junit_path,
-    )
+    if state is HeadRunState.LAUNCH_FAILED:
+        return RawRunResult(
+            returncode=-1,
+            stdout="",
+            stderr=f"baseline command failed to execute: {error}",
+            output_artifact_path=junit_path,
+        )
+    assert raw is not None  # guaranteed by _run_raw_command for every non-{TIMED_OUT,CANCELLED,LAUNCH_FAILED} state
+    return raw
 
 
 def _capture_baseline_via_scope_source(

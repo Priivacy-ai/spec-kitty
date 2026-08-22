@@ -5,16 +5,19 @@ import json
 import subprocess
 import sys
 import textwrap
+import time
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import (
     BaselineTestResult,
     BaselineFailure,
     _get_test_command,
     _parse_junit_xml,
+    _run_command_for_baseline,
     capture_baseline,
     diff_baseline,
 )
@@ -384,6 +387,128 @@ class TestCaptureBaseline:
 
         assert result is not None
         assert result.failed == -1
+
+
+# ---------------------------------------------------------------------------
+# Issue #3612 fast-follow (post-#3612 review finding) — process-group reap
+# safety for the compound shell-wrapped command
+# ---------------------------------------------------------------------------
+#
+# DeclaredCommandScopeSource.test_command() (#3612) now renders
+# ["sh", "-c", "export ...; <real command>"] -- a COMPOUND statement where
+# `sh` forks the real command as its own child. A bare
+# `subprocess.run(..., timeout=...)` here would SIGKILL only the direct
+# child (`sh`) on timeout, orphaning the real command as a grandchild that
+# keeps running -- with its cwd inside the baseline worktree -- exactly
+# while `_baseline_worktree`'s `finally` removes that worktree out from
+# under it. `_run_command_for_baseline` now delegates to the head runner's
+# own group-safe launcher (`pre_review_gate._run_raw_command` ->
+# `_launch_scoped_process` + `_observe_process` -> `os.killpg` on the whole
+# process GROUP). These two tests are fully deterministic (an injected fake
+# Popen + a monotonic clock forced past the deadline) -- no real sleeping
+# subprocess or timing race.
+
+
+class TestRunCommandForBaselineProcessGroupSafety:
+    """Proves ``_run_command_for_baseline`` launches -- and reaps on
+    timeout -- through the SAME process-group-safe machinery the head
+    runner uses, not a bare ``subprocess.run``."""
+
+    class _FakeProcess:
+        """Minimal ``Popen`` double: enough surface for ``_observe_process``/
+        ``_terminate_and_reap`` to drive without a real subprocess."""
+
+        def __init__(self, *, returncode: int = 0, stderr: str = "") -> None:
+            self.pid = 424242
+            self.returncode = returncode
+            self.stderr_text = stderr
+
+        def communicate(self, timeout: float | None = None) -> tuple[str, str]:
+            del timeout
+            return "", self.stderr_text
+
+        def terminate(self) -> None:
+            pass
+
+        def kill(self) -> None:
+            pass
+
+        def poll(self) -> int | None:
+            return self.returncode
+
+    def test_launches_with_process_group_isolation(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    ) -> None:
+        """``Popen`` is invoked with ``start_new_session=True`` (POSIX) -- the
+        SAME flag ``pre_review_gate._launch_scoped_process`` uses for the
+        head run -- proving baseline capture reuses that launcher instead of
+        a bare ``subprocess.run`` with no process-group isolation at all."""
+        calls: list[dict[str, object]] = []
+
+        def _popen(command: list[str], **kwargs: object) -> TestRunCommandForBaselineProcessGroupSafety._FakeProcess:
+            del command
+            calls.append(kwargs)
+            return TestRunCommandForBaselineProcessGroupSafety._FakeProcess()
+
+        monkeypatch.setattr(pre_review_gate.subprocess, "Popen", _popen)
+
+        raw = _run_command_for_baseline(
+            ["sh", "-c", "export SPEC_KITTY_CMD_OUTPUT_FILE=/tmp/x; pytest"],
+            cwd=tmp_path,
+        )
+
+        assert len(calls) == 1
+        assert calls[0].get("start_new_session") is True
+        assert raw.returncode == 0
+
+    def test_kills_the_whole_process_group_on_timeout(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    ) -> None:
+        """On timeout, ``os.killpg`` fires (the process GROUP, not just the
+        direct ``sh`` child) -- proving a compound ``sh -c "export ...;
+        pytest"`` command's grandchild ``pytest`` process is reaped alongside
+        ``sh``, never orphaned while ``_baseline_worktree`` removes the
+        worktree it is still running in.
+
+        Determinism: ``time.monotonic`` is patched to an unboundedly
+        increasing counter (each call returns ``N * 10_000_000``) rather than
+        a fixed "first call small, rest huge" sequence -- the scoped-run
+        advisory lock (``_scoped_run_lock``) makes its OWN ``time.monotonic``
+        call before ``_observe_process`` ever starts, so which call index
+        becomes its ``started_at`` is an implementation detail this test must
+        not hardcode. An unboundedly increasing counter guarantees the delta
+        between ANY two calls vastly exceeds the real timeout regardless of
+        that index, so ``_observe_process`` reads "the deadline has already
+        elapsed" on its very first loop iteration and ``_terminate_and_reap``
+        (and its ``os.killpg`` call) fires immediately -- zero real sleeping,
+        zero timing sensitivity.
+        """
+        process = TestRunCommandForBaselineProcessGroupSafety._FakeProcess(stderr="timed out")
+        killpg_calls: list[tuple[int, int]] = []
+        monotonic_calls = {"n": 0}
+
+        def _fake_monotonic() -> float:
+            monotonic_calls["n"] += 1
+            return monotonic_calls["n"] * 10_000_000.0
+
+        monkeypatch.setattr(pre_review_gate.subprocess, "Popen", lambda *a, **k: process)
+        monkeypatch.setattr(
+            pre_review_gate.os, "killpg", lambda pid, sig: killpg_calls.append((pid, sig))
+        )
+        monkeypatch.setattr(time, "monotonic", _fake_monotonic)
+
+        raw = _run_command_for_baseline(
+            ["sh", "-c", "export SPEC_KITTY_CMD_OUTPUT_FILE=/tmp/x; pytest"],
+            cwd=tmp_path,
+        )
+
+        assert killpg_calls, (
+            "the process GROUP must be signaled (os.killpg) on timeout, not "
+            "just the direct sh child -- otherwise a shell-wrapped compound "
+            "command's real grandchild process is orphaned"
+        )
+        assert raw.returncode == -1
+        assert "timed out" in (raw.stderr or "")
 
 
 # ---------------------------------------------------------------------------
