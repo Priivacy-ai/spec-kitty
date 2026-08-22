@@ -1983,7 +1983,8 @@ def _mt_shell_pid_baseline(pid: int) -> str | None:
     """
     from specify_cli.core.process_liveness import capture_creation_time_baseline
 
-    return capture_creation_time_baseline(pid)
+    baseline: str | None = capture_creation_time_baseline(pid)
+    return baseline
 
 
 def _mt_hop_policy_metadata(
