@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 from ..api_types import DecayWatchTileResponse
+from ..csp import send_csp_header
 from .base import DashboardHandler
 
 __all__ = ["LintTileHandler"]
@@ -33,6 +34,7 @@ class LintTileHandler(DashboardHandler):
     def handle_charter_lint(self) -> None:
         """Return GET /api/charter-lint with a DecayWatchTileResponse."""
         self.send_response(200)
+        send_csp_header(self)
         self.send_header("Content-type", "application/json")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()

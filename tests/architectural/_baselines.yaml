@@ -110,7 +110,11 @@ test_no_dead_modules:
   # Z1-T1 zeitgeist_client.grammar); their sandboxes ran targeted suites and never this gate.
   # Registered as TODO(triage) so the fact is tracked, not hidden; follow-up bead: wire or delete
   # each and burn this back down.
-  category_7_grandfathered_orphans: 7
+  # 7 -> 6 (WIRE-M2-02, 2026-08-22): D2-T1 dashboard.csp wired -- send_csp_header() is now
+  # called from every send_response() site in handlers/{base,api,features,glossary,lint,
+  # static}.py, so the module has live src/ callers. Shrink -- burns down one of the four
+  # M2 canonical-integration entries.
+  category_7_grandfathered_orphans: 6
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:

@@ -445,9 +445,11 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         # landed a module with no src/ runtime caller; each candidate's own
         # sandbox ran targeted suites and never this gate. Registered here so the
         # fact is visible, not hidden (M2-CANONICAL-INTEGRATION.json lists them).
-        #   TODO(triage): D2-T1 dashboard CSP header helper -- wire from the
-        #   dashboard HTTP handler or fold into the renderer; tests-only today.
-        "specify_cli.dashboard.csp",
+        # D2-T1 dashboard.csp: REMOVED (WIRE-M2-02, 2026-08-22). send_csp_header()
+        # is now called from all 35 send_response() sites across
+        # handlers/{base,api,features,glossary,lint,static}.py, so the module has
+        # live src/ callers and is no longer an orphan. Shrink -- reverses the M2
+        # canonical-integration bump.
         #   TODO(triage): F2-T1 one-shot F1-strict lifecycle envelope migration --
         #   no CLI/upgrade entry point invokes it yet; wire (upgrade migration or
         #   `spec-kitty` subcommand) or delete after the migration window.

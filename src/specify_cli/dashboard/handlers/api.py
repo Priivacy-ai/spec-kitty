@@ -10,6 +10,7 @@ from pathlib import Path
 
 from ..api_types import HealthResponse
 from ..charter_path import resolve_project_charter_path, resolve_project_charter_presence
+from ..csp import send_csp_header
 from ..diagnostics import run_diagnostics
 from ..templates import get_dashboard_html_bytes
 from .base import DashboardHandler
@@ -52,6 +53,7 @@ class APIHandler(DashboardHandler):
     def handle_root(self) -> None:
         """Return the rendered dashboard HTML shell."""
         self.send_response(200)
+        send_csp_header(self)
         self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
         self.wfile.write(get_dashboard_html_bytes())
@@ -59,6 +61,7 @@ class APIHandler(DashboardHandler):
     def handle_health(self) -> None:
         """Return project health metadata."""
         self.send_response(200)
+        send_csp_header(self)
         self.send_header("Content-type", "application/json")
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
@@ -163,6 +166,7 @@ class APIHandler(DashboardHandler):
             feature_dir: Path | None = None
             diagnostics = run_diagnostics(project_path, feature_dir=feature_dir)
             self.send_response(200)
+            send_csp_header(self)
             self.send_header("Content-type", "application/json")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
@@ -188,6 +192,7 @@ class APIHandler(DashboardHandler):
 
             if resolve_project_charter_presence(project_dir) is None:
                 self.send_response(404)
+                send_csp_header(self)
                 self.send_header("Content-type", "text/plain")
                 self.end_headers()
                 self.wfile.write(b"Charter not found")
@@ -200,6 +205,7 @@ class APIHandler(DashboardHandler):
                 # charter.md prose companion to serve -- distinct from "no
                 # charter" (C-001: presence and body are separate signals).
                 self.send_response(200)
+                send_csp_header(self)
                 self.send_header("Content-type", "text/plain; charset=utf-8")
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
@@ -208,6 +214,7 @@ class APIHandler(DashboardHandler):
 
             content = charter_path.read_text(encoding="utf-8")
             self.send_response(200)
+            send_csp_header(self)
             self.send_header("Content-type", "text/plain; charset=utf-8")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
@@ -215,6 +222,7 @@ class APIHandler(DashboardHandler):
         except Exception:  # pragma: no cover - fallback safety
             logger.exception("Dashboard charter load failed")
             self.send_response(500)
+            send_csp_header(self)
             self.send_header("Content-type", "text/plain; charset=utf-8")
             self.end_headers()
             self.wfile.write(b"Error loading charter")
@@ -239,6 +247,7 @@ class APIHandler(DashboardHandler):
         mission_slug = query.get("feature", [None])[0]
         if not mission_slug:
             self.send_response(400)
+            send_csp_header(self)
             self.send_header("Content-type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Missing feature parameter"}).encode())
@@ -272,6 +281,7 @@ class APIHandler(DashboardHandler):
                 response = handler.handle_dossier_snapshot_export(mission_slug)
             else:
                 self.send_response(404)
+                send_csp_header(self)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": "Dossier endpoint not found"}).encode())
@@ -281,12 +291,14 @@ class APIHandler(DashboardHandler):
             if isinstance(response, dict) and "error" in response:
                 status_code = response.get("status_code", 500)
                 self.send_response(status_code)
+                send_csp_header(self)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(response).encode())
             else:
                 # Success response
                 self.send_response(200)
+                send_csp_header(self)
                 self.send_header("Content-type", "application/json")
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()

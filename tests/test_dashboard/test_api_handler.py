@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.dashboard.csp import DASHBOARD_CSP
 from specify_cli.sync.daemon import DaemonStartOutcome, SyncDaemonStatus
 from specify_cli.mission import MissionError
 
@@ -357,7 +358,11 @@ class TestDashboardApiSecurityHardening:
             api_module.APIHandler.handle_root(handler)
 
         handler.send_response.assert_called_once_with(200)
-        handler.send_header.assert_called_once_with("Content-type", "text/html; charset=utf-8")
+        # D2-T1 (HIC-M1-D5-DOMCSP): every dashboard response also carries the
+        # Content-Security-Policy header alongside its content-type header.
+        handler.send_header.assert_any_call("Content-type", "text/html; charset=utf-8")
+        handler.send_header.assert_any_call("Content-Security-Policy", DASHBOARD_CSP)
+        assert handler.send_header.call_count == 2
         handler.wfile.seek(0)
         assert handler.wfile.read() == b"<html>ok</html>"
 

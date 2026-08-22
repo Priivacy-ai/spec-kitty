@@ -111,10 +111,14 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.cli.commands.team_projection::publish -- M2 canonical integration 2026-08-22: D1-T1 `spec-kitty team-projection publish` Typer command body; registered by add_typer, not imported by name. TODO(triage): wire or drop from __all__ (follow-up bead).
         SymbolKey("publish", "d12cf55043a9a3d8004d4e40955110df1015bfe3006aa1d8a291ece568baa8f8", source_module="specify_cli.cli.commands.team_projection"),
-        # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy; module has no src caller yet (see test_no_dead_modules TODO(triage)). TODO(triage): wire or drop from __all__ (follow-up bead).
+        # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant.
+        # WIRE-M2-02 (2026-08-22): send_csp_header() (below) is now wired into all 35 send_response()
+        # sites across handlers/{base,api,features,glossary,lint,static}.py, so the module itself is no
+        # longer an orphan (see test_no_dead_modules). The DASHBOARD_CSP constant is still only consumed
+        # from inside send_csp_header()'s own body, never imported by name from another src/ module, so
+        # it stays here per this gate's rules. TODO(triage): drop from __all__ if no direct consumer of
+        # the raw string ever appears (follow-up bead).
         SymbolKey("DASHBOARD_CSP", "87a67e7d3a60f84c30f950054f8a23e897e4e6be2ab27089f7c1a8e9cbb968ac", source_module="specify_cli.dashboard.csp"),
-        # specify_cli.dashboard.csp::send_csp_header -- M2 canonical integration 2026-08-22: D2-T1 CSP header helper; module has no src caller yet. TODO(triage): wire or drop from __all__ (follow-up bead).
-        SymbolKey("send_csp_header", "44e59f8ea2795fa2723a2754718cea84b0b4b1a19f7c2bbba8dafa5d1dbe5040", source_module="specify_cli.dashboard.csp"),
         # specify_cli.status.lifecycle_events::append_lifecycle_event -- M2 canonical integration 2026-08-22: F2-T1 journal append entry point exported for callers that land with the F1-strict cutover. TODO(triage): wire or drop from __all__ (follow-up bead).
         SymbolKey("append_lifecycle_event", "6695d4df0c44533bb9ae576a365562e7c79745ec7e2b8b0fe4e7b3571fbc2c0e", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired yet. TODO(triage): wire or drop from __all__ (follow-up bead).

@@ -18,6 +18,7 @@ from ..api_types import (
     MissionContext,
     ResearchResponse,
 )
+from ..csp import send_csp_header
 from ..scanner import (
     format_path_for_display,
     read_only_weighted_percentage,
@@ -185,6 +186,7 @@ class FeatureHandler(DashboardHandler):
             }
 
             self.send_response(200)
+            send_csp_header(self)
             self.send_header("Content-type", "application/json")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
@@ -192,6 +194,7 @@ class FeatureHandler(DashboardHandler):
             return
 
         self.send_response(404)
+        send_csp_header(self)
         self.end_headers()
 
     def handle_research(self, path: str) -> None:
@@ -199,6 +202,7 @@ class FeatureHandler(DashboardHandler):
         parts = path.split("/")
         if len(parts) < 4:
             self.send_response(404)
+            send_csp_header(self)
             self.end_headers()
             return
 
@@ -249,6 +253,7 @@ class FeatureHandler(DashboardHandler):
                             )
 
             self.send_response(200)
+            send_csp_header(self)
             self.send_header("Content-type", "application/json")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
@@ -264,11 +269,13 @@ class FeatureHandler(DashboardHandler):
                 artifact_file.relative_to(feature_dir.resolve())
             except ValueError:
                 self.send_response(404)
+                send_csp_header(self)
                 self.end_headers()
                 return
 
             if artifact_file.exists() and artifact_file.is_file():
                 self.send_response(200)
+                send_csp_header(self)
                 self.send_header("Content-type", "text/plain")
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
@@ -289,6 +296,7 @@ class FeatureHandler(DashboardHandler):
                 return
 
         self.send_response(404)
+        send_csp_header(self)
         self.end_headers()
 
     def _handle_artifact_directory(self, path: str, directory_name: str, md_icon: str = "📝") -> None:
@@ -302,6 +310,7 @@ class FeatureHandler(DashboardHandler):
         parts = path.split("/")
         if len(parts) < 4:
             self.send_response(404)
+            send_csp_header(self)
             self.end_headers()
             return
 
@@ -338,6 +347,7 @@ class FeatureHandler(DashboardHandler):
                             )
 
             self.send_response(200)
+            send_csp_header(self)
             self.send_header("Content-type", "application/json")
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
@@ -354,11 +364,13 @@ class FeatureHandler(DashboardHandler):
                 artifact_file.relative_to(feature_dir.resolve())
             except ValueError:
                 self.send_response(404)
+                send_csp_header(self)
                 self.end_headers()
                 return
 
             if artifact_file.exists() and artifact_file.is_file():
                 self.send_response(200)
+                send_csp_header(self)
                 self.send_header("Content-type", "text/plain")
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
@@ -379,6 +391,7 @@ class FeatureHandler(DashboardHandler):
                 return
 
         self.send_response(404)
+        send_csp_header(self)
         self.end_headers()
 
     def handle_contracts(self, path: str) -> None:
@@ -394,6 +407,7 @@ class FeatureHandler(DashboardHandler):
         parts = path.split("/")
         if len(parts) < 4:
             self.send_response(404)
+            send_csp_header(self)
             self.end_headers()
             return
 
@@ -422,6 +436,7 @@ class FeatureHandler(DashboardHandler):
             artifact_file = feature_dir / filename
             if artifact_file.exists():
                 self.send_response(200)
+                send_csp_header(self)
                 self.send_header("Content-type", "text/plain")
                 self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
@@ -442,4 +457,5 @@ class FeatureHandler(DashboardHandler):
                 return
 
         self.send_response(404)
+        send_csp_header(self)
         self.end_headers()
