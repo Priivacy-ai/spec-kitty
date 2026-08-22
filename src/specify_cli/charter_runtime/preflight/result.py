@@ -82,8 +82,11 @@ class CharterPreflightResult:
         auto_refresh_actions: Ordered list of exact commands executed.
             Empty when ``auto_refresh_applied`` is ``False``.
         blocked_reason: Non-``None`` iff ``passed`` is ``False`` AND
-            ``auto_refresh_applied`` is ``False``.  The string MUST include
-            an actionable next command.
+            ``auto_refresh_applied`` is ``False``.  For each non-passing
+            check that names a remediation, the string names an actionable
+            next command; for a check on the declared exemption set (no
+            effective self-service remediation — R-006, C-EFF-2) it instead
+            names the check and explains why, with no command.
         warnings: Structured non-blocking operator notes.  Machine consumers
             read these from JSON instead of scraping human warning text.
     """
