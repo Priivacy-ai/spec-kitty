@@ -35,12 +35,13 @@ import json
 import math
 import subprocess
 import sys
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
 
 import pytest
+
+from kernel.clock import datetime, now_utc, timedelta
 
 pytestmark = pytest.mark.fast
 
@@ -764,14 +765,14 @@ class TestArgParser:
             captured.update(kwargs)
             return FR.ReportState(
                 schema=1,
-                generated_at=datetime.now(UTC),
+                generated_at=now_utc(),
                 target_workflow=kwargs["workflow"],
-                cursor=FR.Cursor(completed_through=datetime.now(UTC), in_progress_low_water=None),
+                cursor=FR.Cursor(completed_through=now_utc(), in_progress_low_water=None),
                 enumerated_run_ids=(),
                 lineage=FR.LINEAGE_FIRST_RUN,
                 headline=FR.Headline(
-                    window_start=datetime.now(UTC),
-                    window_end=datetime.now(UTC),
+                    window_start=now_utc(),
+                    window_end=now_utc(),
                     completed_runs=0,
                     failures=0,
                     false_red_rate=0.0,
@@ -803,7 +804,7 @@ class TestRunReportIntegration:
     def test_run_report_end_to_end_with_timed_out_and_startup_failure_runs(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        now = datetime.now(UTC)
+        now = now_utc()
 
         def _mk_run(run_id: int, conclusion: str, days_ago: int) -> Any:
             completed = now - timedelta(days=days_ago)

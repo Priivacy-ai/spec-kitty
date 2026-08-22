@@ -49,7 +49,6 @@ import subprocess
 import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +56,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from kernel.clock import UTC, datetime, now_utc, parse_iso  # noqa: E402
 from scripts.ci import flake_report as FR  # noqa: E402
 
 # ---------------------------------------------------------------------------
@@ -247,7 +247,7 @@ def _run_from_entry(entry: Mapping[str, Any]) -> FR.Run:
 
 
 def _parse_timestamp(value: str) -> datetime:
-    return datetime.fromisoformat(value)
+    return parse_iso(value)
 
 
 def parse_failed_job_names(raw_json: str) -> dict[int, list[str]]:
@@ -643,7 +643,7 @@ def _render_caveat_lines(durations: Mapping[str, Any], caps_applied: Mapping[str
 
 def run_report(*, workflow: str, since: datetime | None, state_path: Path | None, out_dir: Path) -> FR.ReportState:
     """End-to-end live run: fetch via ``gh``, classify, mine durations, write the bundle."""
-    now = datetime.now(UTC)
+    now = now_utc()
     loaded = load_state(state_path)
     window = FR.resolve_window(loaded.cursor, now, baseline_valid=loaded.baseline_valid)
     if since is not None:
@@ -731,7 +731,7 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_arg_parser()
     args = parser.parse_args(argv)
-    since = datetime.fromisoformat(args.since) if args.since else None
+    since = parse_iso(args.since) if args.since else None
     state = run_report(workflow=args.workflow, since=since, state_path=args.state, out_dir=args.out)
     print(
         f"flake-report: {state.headline.failures} failure(s), "
