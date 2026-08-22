@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 
 import pytest
+from pytest_benchmark.fixture import BenchmarkFixture
 from ruamel.yaml import YAML
 
 from doctrine.agent_profiles.profile import AgentProfile, Role
@@ -499,18 +500,29 @@ class TestShippedProfilesContextSources:
 class TestShippedProfilesPerformance:
     """Performance gate: loading all shipped profiles must complete quickly."""
 
-    def test_shipped_profile_load_time(self) -> None:
-        """Loading all 12 shipped profiles must complete in under 2 seconds."""
-        import time
+    @pytest.mark.benchmark(group="doctrine", warmup=True, min_rounds=5)
+    def test_shipped_profile_load_time(self, benchmark: BenchmarkFixture) -> None:
+        """Loading all 12 shipped profiles, measured statistically (ADR 2026-08-22-1).
 
-        start = time.perf_counter()
-        repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
-        profiles = repo.list_all()
-        elapsed = time.perf_counter() - start
+        The regression signal is the per-domain baseline compare in the
+        off-PR ``performance.yml`` pipeline, not a single-shot ceiling.
+        """
+        loaded_profiles: list[list[AgentProfile]] = []
 
+        def _load_all_profiles() -> None:
+            repo = AgentProfileRepository(built_in_dir=BUILT_IN_DIR, project_dir=None)
+            loaded_profiles.append(repo.list_all())
+
+        benchmark(_load_all_profiles)
+
+        profiles = loaded_profiles[-1]
         assert len(profiles) == len(EXPECTED_PROFILE_IDS), (
             f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(profiles)}"
         )
-        assert elapsed < 2.0, (
-            f"Loading all shipped profiles took {elapsed:.3f}s, expected < 2.0s"
+        # Very loose sanity ceiling — the statistical baseline compare (off the
+        # PR path) is the primary regression signal, not this assert.
+        assert benchmark.stats.stats.median < 10.0, (
+            f"Loading all shipped profiles had a median of "
+            f"{benchmark.stats.stats.median:.3f}s across benchmark rounds, "
+            "wildly beyond the generous sanity ceiling."
         )

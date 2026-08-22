@@ -28,11 +28,11 @@ type in isolation — the squad's non-vacuity concern).
 from __future__ import annotations
 
 import json
-import time
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from pytest_benchmark.fixture import BenchmarkFixture
 from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
@@ -327,12 +327,24 @@ class TestDoctorDoctrineGlossaryPackJson:
 
 @pytest.mark.performance
 class TestDoctorDoctrinePerformance:
+    @pytest.mark.benchmark(group="doctrine", warmup=True, min_rounds=5)
     def test_doctor_doctrine_json_completes_under_two_seconds(
-        self, bare_repo_root: Path
+        self, bare_repo_root: Path, benchmark: BenchmarkFixture
     ) -> None:
-        start = time.perf_counter()
-        exit_code, _payload = _invoke_doctrine_json(bare_repo_root)
-        elapsed = time.perf_counter() - start
+        """Measured statistically (ADR 2026-08-22-1); baseline compare is off-PR."""
+        exit_codes: list[int] = []
 
-        assert exit_code == 0
-        assert elapsed < 2.0, f"doctor doctrine --json took {elapsed:.2f}s (budget: 2.0s)"
+        def _invoke() -> None:
+            exit_code, _payload = _invoke_doctrine_json(bare_repo_root)
+            exit_codes.append(exit_code)
+
+        benchmark(_invoke)
+
+        assert exit_codes and all(code == 0 for code in exit_codes)
+        # Very loose sanity ceiling — the statistical baseline compare (off the
+        # PR path) is the primary regression signal, not this assert.
+        assert benchmark.stats.stats.median < 10.0, (
+            f"doctor doctrine --json had a median of {benchmark.stats.stats.median:.2f}s "
+            "across benchmark rounds, wildly beyond the generous sanity ceiling "
+            "(budget: 2.0s nominal)."
+        )
