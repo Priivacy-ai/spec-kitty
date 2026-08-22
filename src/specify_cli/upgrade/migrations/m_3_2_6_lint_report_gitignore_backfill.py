@@ -1,0 +1,86 @@
+"""Migration: backfill ``.kittify/lint-report.json`` gitignore coverage (#3435).
+
+``spec-kitty charter lint`` writes its decay-scan report to
+``.kittify/lint-report.json`` as a side effect of what is otherwise a
+read-only diagnostic. That surface is registered ``IGNORED`` in the state
+contract (``charter_lint_report``), so a fresh ``spec-kitty init`` gitignores
+it -- but already-initialised projects had no backfill for it. Running
+``charter lint`` on such a project leaves the report untracked, which then
+trips ``record-analysis``'s dirty-tree guard on a file the operator never
+knowingly created.
+
+Sibling to ``3.2.4_runtime_dirs_gitignore_backfill`` (#2384) and
+``3.2.5_agents_skills_gitignore_backfill`` (#2412). Following the same
+precedent, the entry is **hardcoded here** rather than sourced from the live
+contract so the migration's behaviour is frozen and deterministic regardless
+of future contract changes.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+from specify_cli.gitignore_manager import GitignoreManager
+
+from ..registry import MigrationRegistry
+from .base import BaseMigration, MigrationResult
+
+_LINT_REPORT_ENTRY = ".kittify/lint-report.json"
+# A hand-added entry without the leading directory dedup concern doesn't apply
+# here (this is a single file, not a directory), but keep the same
+# any-equivalent-form check shape as the sibling migrations for consistency.
+_EQUIVALENT_ENTRIES: frozenset[str] = frozenset({_LINT_REPORT_ENTRY})
+
+
+def _read_gitignore_entries(project_path: Path) -> set[str]:
+    gitignore_path = project_path / ".gitignore"
+    if not gitignore_path.exists():
+        return set()
+    return {
+        line.strip()
+        for line in gitignore_path.read_text(encoding="utf-8-sig").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+
+
+def _is_missing(present: set[str]) -> bool:
+    return _EQUIVALENT_ENTRIES.isdisjoint(present)
+
+
+@MigrationRegistry.register
+class LintReportGitignoreBackfillMigration(BaseMigration):
+    """Ensure ``.kittify/lint-report.json`` is gitignored."""
+
+    migration_id = "3.2.6_lint_report_gitignore_backfill"
+    description = "Backfill .kittify/lint-report.json gitignore coverage"
+    target_version = "3.2.6"
+
+    def detect(self, project_path: Path) -> bool:
+        return _is_missing(_read_gitignore_entries(project_path))
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        if not project_path.exists():
+            return False, f"Project path does not exist: {project_path}"
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        missing = _is_missing(_read_gitignore_entries(project_path))
+
+        if dry_run:
+            if missing:
+                return MigrationResult(
+                    success=True,
+                    changes_made=[f"Would add {_LINT_REPORT_ENTRY} to .gitignore"],
+                )
+            return MigrationResult(success=True, changes_made=[])
+
+        if not missing:
+            return MigrationResult(
+                success=True, changes_made=["gitignore entry already present"]
+            )
+
+        GitignoreManager(project_path).ensure_entries([_LINT_REPORT_ENTRY])
+        return MigrationResult(
+            success=True,
+            changes_made=[f"Added gitignore entry: {_LINT_REPORT_ENTRY}"],
+        )
