@@ -430,7 +430,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The branch where completed work-package code must ultimately land. Stored in every WP prompt's frontmatter (alongside `planning_base_branch`) to give implementing agents an explicit merge destination. In `meta.json`: legacy alias for `target_branch`, read as a fallback by `resolve_planning_branch_from_meta()` for pre-WP03 missions. In 3.x all three — `target_branch`, `planning_base_branch`, and `merge_target_branch` — carry the same value; the separation makes intent explicit in agent-facing prompts and prevents the "prep branch leak" (pre-WP07 pattern). JSON key: `merge_target_branch`. |
+| **Definition** | The branch where completed work-package code must ultimately land. Stored in every WP prompt's frontmatter (alongside `planning_base_branch`) and, when it differs from the planning branch, in mission `meta.json`. Most missions use the same value for both fields. A PR-bound mission may instead plan on a non-protected feature branch while retaining a protected integration branch such as `main` as `merge_target_branch`. JSON key: `merge_target_branch`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -442,7 +442,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The branch active in the repository root checkout when WP prompts were generated (at `finalize-tasks` time). Stored in every WP prompt's frontmatter and in `lanes.json` to root lane-worktree allocation correctly regardless of which branch the operator is on when running `finalize-tasks`. In 3.x equals `target_branch`. Introduced alongside `merge_target_branch` to close the "prep branch leak" bug (pre-WP07): when `finalize-tasks` ran from a temporary `prep/...` branch, that branch leaked into WP frontmatter and crashed lane allocation once the prep branch was deleted. JSON key: `planning_base_branch`. |
+| **Definition** | The durable branch that owns a mission's planning artifacts and from which WP work is based. Stored in every WP prompt's frontmatter and in `lanes.json` to root lane-worktree allocation. It normally equals mission `target_branch`; for the legacy PR-bound #2938 shape, `finalize-tasks` recovers the invoking non-protected feature branch as the planning branch and preserves the old protected target as `merge_target_branch`. JSON key: `planning_base_branch`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -491,7 +491,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The git branch on which a mission's code, planning artifacts, and status events must ultimately land. Persisted in `meta.json` under the key `target_branch` at `mission create` time and never overwritten. Read by `resolve_planning_branch_from_meta()` as the canonical key; `merge_target_branch` is its legacy alias in older `meta.json` fixtures. Since WP07 (FR-012), all downstream commands — `finalize-tasks`, `implement`, `review`, `merge` — derive the branch contract from this stored value, not from `current_branch` at invocation time. In branch-context JSON output, `target_branch` and `base_branch` carry the same value at the mission level. |
+| **Definition** | The git branch that owns a mission's planning artifacts and status contract. Persisted in `meta.json` under `target_branch`; `merge_target_branch` separately records a different final landing branch when required. Downstream commands derive planning placement from this stored value. A narrow compatibility migration in `finalize-tasks` repairs the legacy PR-bound #2938 shape (`pr_bound=true`, protected `target_branch`, no `merge_target_branch`) by recording the invoking feature branch as `target_branch` and retaining the previous target as `merge_target_branch`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |
