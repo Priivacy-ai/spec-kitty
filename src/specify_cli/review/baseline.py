@@ -560,6 +560,37 @@ def _capture_baseline_via_scope_source(
         failures = tuple(scope_source.parse_results(raw))
         source_identity = scope_source_identity(scope_source, raw)
 
+    # Issue #3612 (refuse-not-store): a "text"-mode run with NO parseable
+    # per-failure identity and a clean (zero) exit is genuinely ambiguous —
+    # unlike GateCoverageScopeSource (always junit_xml, always a REAL parsed
+    # count) or a text-mode run that ended non-zero (parse_results always
+    # surfaces at least one whole-run failure for that case, never empty),
+    # this specific combination cannot distinguish "a suite of zero tests
+    # ran cleanly" from "the declared command produced nothing this capture
+    # could verify at all". Storing it as total=0/passed=0/failed=0 would be
+    # a FABRICATED clean baseline — refuse to store it; the sentinel makes
+    # the gate treat it as UNVERIFIED_BASELINE instead of verified-clean.
+    if not failures and source_identity.rsplit("/", 1)[-1] == "text":
+        logger.warning(
+            "Declared test command exited cleanly but produced no verifiable "
+            "output (no JUnit artifact, no parseable failure line) for %s; "
+            "refusing to store an ambiguous zero-failure baseline.",
+            wp_id,
+        )
+        return _make_sentinel(wp_id, base_branch, base_commit)
+
+    # NOTE (issue #3612, documented rather than redesigned — see PR notes):
+    # total/passed below are DERIVED from the failure count, not real suite
+    # counts. Unlike the legacy config-driven path (_capture_baseline_via_config,
+    # which parses REAL total/passed/skipped out of JUnit XML), the
+    # ScopeSource.parse_results() port only returns per-failure identities —
+    # it has no channel to report suite size. A junit_xml-mode declared
+    # command with a real artifact DOES have real total/passed/skipped
+    # available (parse_results computes them internally) but they are
+    # discarded before reaching here. Fixing this fully would mean widening
+    # the ScopeSource port (an optional richer-capability refinement, the
+    # same pattern as ScopeBreakdownSource) — out of scope for this fix;
+    # flagged for a follow-up rather than silently left unexplained.
     result = BaselineTestResult(
         wp_id=wp_id,
         captured_at=now_utc_stamp(),
