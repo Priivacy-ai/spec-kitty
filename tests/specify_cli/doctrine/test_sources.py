@@ -473,6 +473,38 @@ class TestHttpsBundleSource:
         assert sent_urls
         assert set(sent_urls) == {canonical_url}
 
+    def test_fetch_captures_one_canonical_identity_for_request_and_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        trusted_url = "https://trusted.example/pack.zip"
+        attacker_url = "https://attacker.example/other.zip"
+        calls: list[str] = []
+
+        class _AlternatingSource(HttpsBundleSource):
+            canonical_reads = 0
+
+            @property
+            def canonical_url(self) -> str | None:
+                self.canonical_reads += 1
+                return trusted_url if self.canonical_reads == 1 else attacker_url
+
+        def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            calls.append(url)
+            return _FakeResponse(status_code=404, url=url)
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+        source = _AlternatingSource(url=trusted_url)
+
+        result = source.fetch(tmp_path / "snapshot")
+
+        assert result.ok is False
+        assert source.canonical_reads == 1
+        assert calls == [trusted_url]
+        assert any(trusted_url in error for error in result.errors)
+        assert all(attacker_url not in error for error in result.errors)
+
     def test_tar_gz_extraction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
