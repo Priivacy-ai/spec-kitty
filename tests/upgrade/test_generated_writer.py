@@ -8,6 +8,38 @@ Covers:
   skill migration cannot reintroduce a bare ``write_text`` on a read-only-
   destined path without the guard catching it (prose audits alone silently
   regress).
+
+T004 guard strategy — chosen approach and why:
+
+A fully general AST/data-flow scan that proves *which* ``Path`` a given
+``.write_text(...)`` call targets (to decide "is this a read-only-destined
+generated command/skill surface?") requires tracing variable assignments
+across branches and helper calls — fragile and easy to get subtly wrong in
+a text-based guard. Instead this file uses the two-part strategy the FR-002
+research explicitly allows as a fallback:
+
+1. **Known in-scope list** (``_IN_SCOPE_GENERATED_SURFACE_MIGRATIONS``):
+   every migration confirmed (by manual research + the #3679 adversarial
+   review that found the 5 missed sites) to write a generated agent
+   command/skill file. Each must contain zero bare ``.write_text(`` calls
+   and must use ``write_generated_file``.
+2. **Full-scan anti-pattern net** (``test_no_unrouted_bare_write_text_on_agent_surface_paths``):
+   every migration file under ``_MIGRATIONS_DIR`` — not just the known
+   list — is scanned for the *combination* of (a) a bare ``.write_text(``
+   call and (b) any reference to the agent-command/skill-directory helpers
+   (``get_agent_dirs_for_project``, ``AGENT_DIRS``, or a literal
+   ``.agents`` + ``skills`` path-segment pair). This heuristic is
+   deliberately broad (recall over precision — a docstring mention is
+   enough to flag a file): a false positive only costs an explicit,
+   rationale-carrying entry in ``_EXEMPT_AGENT_DIR_REFERENCING_WRITERS``,
+   never a silent miss. This is the part of the guard that catches a
+   *future* migration nobody enumerated yet — "cannot be forgotten again"
+   for the whole class, not just the 21 files known today.
+
+The exemption set requires a one-line rationale per entry (never bare
+omission) and the test asserts *exact* set equality against what the scan
+currently finds, so a stale exemption (the file changed and no longer
+matches) fails loudly too.
 """
 
 from __future__ import annotations
@@ -128,6 +160,12 @@ _IN_SCOPE_GENERATED_SURFACE_MIGRATIONS = [
     "m_0_10_6_workflow_simplification.py",
     "m_0_11_1_improved_workflow_templates.py",
     "m_0_11_2_improved_workflow_templates.py",
+    # --- routed by the #3679 adversarial-review follow-up (5 missed sites) ---
+    "m_3_2_0rc35_kittify_profile_handoff.py",
+    "m_0_11_3_workflow_agent_flag.py",
+    "m_2_1_3_fix_planning_repository_terminology.py",
+    "m_3_2_0rc35_repository_root_checkout_terminology.py",
+    "m_3_1_1_charter_rename.py",
 ]
 
 
@@ -151,4 +189,98 @@ def test_in_scope_migration_has_no_bare_write_text(filename: str) -> None:
     assert "write_generated_file" in source, (
         f"{filename} is in-scope for the canonical writer but does not import/use "
         "write_generated_file — has its write site been converted?"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T004 (full scan) — anti-pattern net over every migration, not just the
+# known in-scope list. See module docstring for the strategy rationale.
+# ---------------------------------------------------------------------------
+
+# Migrations that reference the agent-command/skill-directory helpers (so the
+# broad heuristic below flags them) but whose bare ``.write_text()`` call
+# provably targets a plain, non-read-only project file — never a generated
+# command/skill surface the runtime layer chmods read-only. Every entry
+# carries a one-line rationale; a file may not be dropped from the scan by
+# omission, only added here with justification.
+_EXEMPT_AGENT_DIR_REFERENCING_WRITERS: dict[str, str] = {
+    "m_0_9_1_complete_lane_migration.py": (
+        "Defines/re-exports get_agent_dirs_for_project() — it is the "
+        "canonical source of AGENT_DIRS (see CLAUDE.md) — but its own "
+        ".write_text() call targets a kitty-specs WP task file during "
+        "lane-flattening (`target = tasks_dir / item.name`), not a "
+        "generated agent command/skill surface."
+    ),
+    "m_0_9_3_surface_repair_wiring.py": (
+        "Mentions get_agent_dirs_for_project() only in a docstring "
+        "describing C-005 compliance elsewhere in the codebase; its own "
+        ".write_text() call writes a sentinel marker at "
+        "`.kittify/surface_repair_wired`, not a generated agent "
+        "command/skill surface."
+    ),
+    "m_2_0_6_consistency_sweep.py": (
+        "Imports AGENT_DIRS only to unlink/rmtree stale worktree agent-"
+        "command symlinks/dirs during cleanup (no write_text on any agent "
+        "surface); its two .write_text() calls target a kitty-specs WP "
+        "task file (frontmatter-lane normalization) and tasks.md (prompt-"
+        "path rewrite), neither a generated agent command/skill surface."
+    ),
+}
+
+
+def _references_agent_dir_or_skill_paths(source: str) -> bool:
+    """Broad (recall-over-precision) heuristic: does *source* touch the
+    agent-command/skill-directory surface in any way?
+
+    Matches the canonical helper/constant names in any form (call, import,
+    re-export, or docstring mention) plus the literal ``.agents`` + ``skills``
+    path-segment pair used by the Codex/Vibe/Pi/Letta skill-surface agents.
+    A false positive here only costs an explicit exemption entry above —
+    never a silent miss of a real read-only-destined write site.
+    """
+    if "get_agent_dirs_for_project" in source or "AGENT_DIRS" in source:
+        return True
+    return ".agents" in source and "skills" in source
+
+
+def test_no_unrouted_bare_write_text_on_agent_surface_paths() -> None:
+    """Full-scan guard: a migration cannot reintroduce #3651 by omission.
+
+    Unlike ``test_in_scope_migration_has_no_bare_write_text`` (which only
+    checks the migrations already known to be in-scope), this test scans
+    *every* migration file. A migration that combines a bare
+    ``.write_text(`` call with any reference to the agent command/skill
+    directory helpers must either route the write through
+    ``write_generated_file`` or be listed in
+    ``_EXEMPT_AGENT_DIR_REFERENCING_WRITERS`` with a rationale — so a
+    *future* migration writing to a read-only-destined surface cannot slip
+    through unnoticed, and a stale exemption (the file changed and no
+    longer matches) is caught too via the exact-set-equality assertion.
+    """
+    flagged = {
+        module_path.name
+        for module_path in sorted(_MIGRATIONS_DIR.glob("*.py"))
+        for source in [module_path.read_text(encoding="utf-8")]
+        if ".write_text(" in source
+        and "write_generated_file" not in source
+        and _references_agent_dir_or_skill_paths(source)
+    }
+
+    exempted = set(_EXEMPT_AGENT_DIR_REFERENCING_WRITERS)
+    unexplained = flagged - exempted
+    stale = exempted - flagged
+
+    assert not unexplained, (
+        "Migration(s) write via bare .write_text() and reference agent "
+        "command/skill directory helpers, but are neither routed through "
+        f"write_generated_file() nor exempted with a rationale: {sorted(unexplained)}. "
+        "If the write targets a generated read-only command/skill surface, "
+        "route it through write_generated_file() (see FR-002 / #3651). If it "
+        "targets a plain project file, add it to "
+        "_EXEMPT_AGENT_DIR_REFERENCING_WRITERS with a one-line rationale."
+    )
+    assert not stale, (
+        f"Stale exemption entries no longer match the scan: {sorted(stale)}. "
+        "Remove them from _EXEMPT_AGENT_DIR_REFERENCING_WRITERS or confirm "
+        "the migration still needs the exemption."
     )
