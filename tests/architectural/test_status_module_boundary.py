@@ -33,12 +33,27 @@ Residual allow-list (post-WP10):
   promoting the relevant symbols into ``status/__init__.__all__``
   (lifecycle_events, work_package_lifecycle, reducer.materialize_snapshot,
   doctor.run_doctor, aggregate.InvalidMissionSlug) and refactoring the sync
-  SaaS fan-out handler onto facade helpers. The only remaining entry is the
-  permanent import-time cycle-breaker:
+  SaaS fan-out handler onto facade helpers. Two entries remain:
   - ``workspace/context.py`` — ``status.wp_metadata``
     (cycle-breaker: status/__init__ → .emit → workspace → .context; facade
     is not yet initialized when workspace.context loads at import time —
     permanent).
+  - ``upgrade/migrations/m_3_2_9_migrate_lifecycle_envelope.py`` —
+    ``status.migrate_lifecycle_envelope`` (WIRE-M2-03, 2026-08-22,
+    rework cycle 2 — temporary, needs a follow-up bead). The one symbol
+    this file still reaches directly, the ``migrate_lifecycle_envelope``
+    function, cannot be promoted onto the facade under its own name: that
+    name is identical to its home submodule's filename
+    (``status/migrate_lifecycle_envelope.py``), so promoting it would make
+    ``from specify_cli.status import migrate_lifecycle_envelope`` resolve
+    to the function everywhere — silently breaking the two pre-existing
+    tests that already use that exact shape to reach the MODULE via
+    Python's implicit submodule-fallback (``tests/status/
+    test_migrate_lifecycle_envelope.py``, ``tests/status/
+    test_migrate_lifecycle_envelope_node_id_parity.py``). The file's other
+    two symbols (``mission_event_log_path``, ``project_event_log_path``)
+    ARE routed through the facade — only this one colliding name is
+    deferred.
 
 See also:
   - ``tests/architectural/test_shared_package_boundary.py`` — template / pattern
@@ -96,8 +111,10 @@ _EXEMPT_FILES: frozenset[Path] = frozenset(
 # aggregate.InvalidMissionSlug symbols were promoted onto the ``status`` facade
 # (``status/__init__.__all__``), and the sync SaaS fan-out handler now consumes
 # ``build_saas_lifecycle_queue_event`` / ``repo_root_for_lifecycle_log`` from the
-# facade instead of reaching into ``status.lifecycle_events`` internals. The only
-# remaining entry is the permanent import-time cycle-breaker.
+# facade instead of reaching into ``status.lifecycle_events`` internals. Two
+# entries remain: the permanent import-time cycle-breaker, and one temporary
+# WIRE-M2-03 entry pending a follow-up bead (see the module docstring above
+# for the full name-collision rationale on the latter).
 _WP10_DEFERRED_FILES: frozenset[Path] = frozenset(
     {
         # cycle-breaker (permanent): status/__init__ → .emit → workspace →
@@ -105,6 +122,33 @@ _WP10_DEFERRED_FILES: frozenset[Path] = frozenset(
         # import time, so it must import status.wp_metadata directly. Cannot be
         # routed through the facade without an import cycle.
         _SRC / "specify_cli" / "workspace" / "context.py",
+        # TEMPORARY (WIRE-M2-03, 2026-08-22, rework cycle 2): the sole
+        # remaining direct import in this file is
+        # ``from specify_cli.status.migrate_lifecycle_envelope import
+        # migrate_lifecycle_envelope`` -- the function's bare name is
+        # identical to its home submodule's filename
+        # (status/migrate_lifecycle_envelope.py), so promoting it onto the
+        # facade under that name would make ``from specify_cli.status
+        # import migrate_lifecycle_envelope`` resolve to the function
+        # everywhere and silently break the two pre-existing tests that
+        # rely on that exact shape resolving to the MODULE (via Python's
+        # implicit submodule fallback): tests/status/
+        # test_migrate_lifecycle_envelope.py (monkeypatches
+        # ``migrate_lifecycle_envelope_module.os.replace``) and
+        # tests/status/test_migrate_lifecycle_envelope_node_id_parity.py
+        # (calls the private ``_generate_node_id`` helper). This file's
+        # other two status imports (mission_event_log_path,
+        # project_event_log_path) ARE routed through the facade -- only
+        # this one colliding name is deferred. Follow-up bead: either
+        # rename the function to something that does not collide with its
+        # module's filename, or teach the SR-2 AST scanner to consult
+        # status/__init__.__all__ as an override for names that
+        # legitimately collide with a submodule filename.
+        _SRC
+        / "specify_cli"
+        / "upgrade"
+        / "migrations"
+        / "m_3_2_9_migrate_lifecycle_envelope.py",
     }
 )
 

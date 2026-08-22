@@ -30,7 +30,23 @@ Reuse, not re-implementation
 -----------------------------
 The one and only rewrite spine is
 :func:`specify_cli.status.migrate_lifecycle_envelope.migrate_lifecycle_envelope`.
-This module adds only the two-target corpus walk; it never re-implements the
+``mission_event_log_path`` / ``project_event_log_path`` are imported as
+``from specify_cli.status import ...`` -- this module is a ``src/``
+consumer, so it goes through the curated ``specify_cli.status`` facade
+rather than reaching into ``status.lifecycle_events`` directly, per the
+repo-wide boundary (``tests/architectural/test_status_module_boundary.py``
+SR-2). ``migrate_lifecycle_envelope`` itself is the one exception: its bare
+name collides with its own home submodule's filename
+(``status/migrate_lifecycle_envelope.py``), so promoting it onto the facade
+under that name would silently break two pre-existing tests that already
+resolve ``specify_cli.status.migrate_lifecycle_envelope`` to the MODULE
+(``tests/status/test_migrate_lifecycle_envelope.py``, ``tests/status/
+test_migrate_lifecycle_envelope_node_id_parity.py``) -- see the
+``_WP10_DEFERRED_FILES`` entry for this file in
+``test_status_module_boundary.py`` for the full rationale and the
+follow-up-bead note. It is imported directly from its submodule instead,
+as a documented, temporary boundary exception. This module adds only the
+two-target corpus walk; it never re-implements the
 per-row rewrite, the whole-file-atomic write, the ``.pre-migration.bak``
 snapshot, or the symlink-safe read -- all of that stays exactly where F2-T1
 put it. Mirrors the corpus-walk shape of the two sibling backfill migrations
@@ -86,11 +102,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.status.lifecycle_events import (
+from specify_cli.status import (
     mission_event_log_path,
     project_event_log_path,
 )
-from specify_cli.status.migrate_lifecycle_envelope import migrate_lifecycle_envelope
+# migrate_lifecycle_envelope is imported directly from its home submodule,
+# not the facade: its bare name collides with the submodule's own filename
+# (status/migrate_lifecycle_envelope.py), so promoting it onto
+# specify_cli.status.__all__ would silently break two pre-existing tests
+# that already resolve `specify_cli.status.migrate_lifecycle_envelope` to
+# the MODULE. This is a documented, temporary boundary exception -- see
+# this file's entry in test_status_module_boundary.py's
+# _WP10_DEFERRED_FILES for the full rationale and the follow-up-bead note.
+from specify_cli.status.migrate_lifecycle_envelope import (
+    migrate_lifecycle_envelope,
+)
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult

@@ -252,9 +252,31 @@ from .lifecycle_events import (
     emit_wp_created_local,
     has_non_bootstrap_status_history,
     mission_event_log_path,
+    project_event_log_path,
     read_lifecycle_events,
     repo_root_for_lifecycle_log,
 )
+# NOTE (WIRE-M2-03, 2026-08-22, rework cycle 2): ``migrate_lifecycle_envelope``
+# (the F2-T1 rewrite entry point) is deliberately NOT promoted onto this
+# facade, even though ``project_event_log_path`` above was. Its bare name is
+# IDENTICAL to its own home submodule's filename
+# (``status/migrate_lifecycle_envelope.py``). Promoting it here would make
+# ``from specify_cli.status import migrate_lifecycle_envelope`` resolve to
+# the FUNCTION (the last name bound in this module's namespace wins over the
+# submodule attribute Python's import system auto-sets on this package) --
+# which silently breaks the two pre-existing tests
+# (tests/status/test_migrate_lifecycle_envelope.py,
+# tests/status/test_migrate_lifecycle_envelope_node_id_parity.py) that
+# already use that exact import shape to reach the MODULE (via Python's
+# implicit "attribute not found on package -> import as submodule"
+# fallback, e.g. to monkeypatch ``migrate_lifecycle_envelope_module.os.replace``
+# or call the private ``_generate_node_id`` helper). The sole src/ caller
+# (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope) reaches the
+# function via a direct submodule import instead, and that one file is a
+# documented, temporary entry in
+# tests/architectural/test_status_module_boundary.py's
+# ``_WP10_DEFERRED_FILES`` pending a follow-up bead to either rename the
+# function or teach the AST scanner about this name collision.
 from .views import (
     format_post_mission_events,
 )
@@ -374,6 +396,7 @@ __all__ = [
     "MISSION_REOPENED",
     "WP_CREATED",
     "mission_event_log_path",
+    "project_event_log_path",
     "read_lifecycle_events",
     "MissionStatus",
     "PLAN_COMPLETED",
