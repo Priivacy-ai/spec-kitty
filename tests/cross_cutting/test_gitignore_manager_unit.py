@@ -44,7 +44,7 @@ class TestGitignoreManager:
     @pytest.fixture
     def temp_file(self):
         """Create a temporary file for testing."""
-        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tmpfile:
+        with tempfile.NamedTemporaryFile(mode="w", delete=False) as tmpfile:
             tmpfile.write("test content")
             tmpfile_path = Path(tmpfile.name)
         yield tmpfile_path
@@ -90,6 +90,21 @@ class TestGitignoreManager:
         assert len(result.entries_added) == _TOTAL_ENTRIES  # All agent directories + runtime entries
         assert len(result.entries_skipped) == 0
         assert manager.gitignore_path.exists()
+
+    @pytest.mark.parametrize("dangling", [False, True])
+    def test_ensure_entries_refuses_symlinked_gitignore(self, temp_dir: Path, dangling: bool) -> None:
+        external = temp_dir.parent / f"manager-external-{temp_dir.name}.txt"
+        if not dangling:
+            external.write_text("outside\n", encoding="utf-8")
+        temp_dir.joinpath(".gitignore").symlink_to(external)
+
+        with pytest.raises(GitignorePathError, match="symlinked .gitignore"):
+            GitignoreManager(temp_dir).ensure_entries([".codex/"])
+
+        if not dangling:
+            assert external.read_text(encoding="utf-8") == "outside\n"
+        else:
+            assert not external.exists()
 
     def test_protect_all_agents_with_empty_gitignore(self, manager, temp_dir):
         """Test protect_all_agents adds to empty .gitignore."""
@@ -382,12 +397,12 @@ class TestGitignoreManager:
         """Test ProtectionResult object has expected structure."""
         result = manager.protect_all_agents()
 
-        assert hasattr(result, 'success')
-        assert hasattr(result, 'modified')
-        assert hasattr(result, 'entries_added')
-        assert hasattr(result, 'entries_skipped')
-        assert hasattr(result, 'errors')
-        assert hasattr(result, 'warnings')
+        assert hasattr(result, "success")
+        assert hasattr(result, "modified")
+        assert hasattr(result, "entries_added")
+        assert hasattr(result, "entries_skipped")
+        assert hasattr(result, "errors")
+        assert hasattr(result, "warnings")
 
         assert isinstance(result.entries_added, list)
         assert isinstance(result.entries_skipped, list)

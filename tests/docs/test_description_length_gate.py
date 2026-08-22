@@ -67,10 +67,7 @@ def _desc(length: int) -> str:
 
 def _unique_desc(index: int) -> str:
     """A distinct, in-band description for filler page ``index``."""
-    text = (
-        f"Filler page {index:05d} describing a synthetic documentation page that "
-        "exists only to clear the coverage floor."
-    )
+    text = f"Filler page {index:05d} describing a synthetic documentation page that exists only to clear the coverage floor."
     assert MIN_DESCRIPTION_LENGTH <= len(text) <= MAX_DESCRIPTION_LENGTH
     return text
 
@@ -119,9 +116,7 @@ def _build_tree(
 def _reasons(root: Path, docs: Path) -> dict[str, str]:
     """Validate ``docs`` and return ``{path: reason}`` for non-filler pages."""
     report = validate_descriptions(docs_root=docs, repo_root=root)
-    return {
-        v.path: v.reason for v in report.violations if not v.path.startswith("docs/filler/")
-    }
+    return {v.path: v.reason for v in report.violations if not v.path.startswith("docs/filler/")}
 
 
 # --- check_description_length: the boundary contract (preserved) ------------
@@ -287,9 +282,7 @@ def test_gate_asserts_the_floor_independently_of_the_resolver() -> None:
     with pytest.raises(CoverageError, match="zero pages"):
         _assert_coverage(empty, docs_root=Path("docs"))
 
-    collapsed = PublishedPageSet(
-        pages=frozenset({Path("docs/a.md")}), source_globs=("**.md",), exclusions=()
-    )
+    collapsed = PublishedPageSet(pages=frozenset({Path("docs/a.md")}), source_globs=("**.md",), exclusions=())
     with pytest.raises(CoverageError) as excinfo:
         _assert_coverage(collapsed, docs_root=Path("docs"))
 
@@ -415,6 +408,16 @@ class TestDiffScopeDescriptionCLI:
 
         assert exit_code == 1
 
+    def test_changed_unicode_path_length_violation_reds(self, tmp_path: Path) -> None:
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "café.md", _desc(49))
+        commit_all_changes(tmp_path, "add Unicode short description")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == 1
+
     def test_unchanged_preexisting_violation_passes(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """A violation confined to an unchanged page is not reported on a PR."""
         docs = _build_tree(tmp_path, {"preexisting.md": _desc(49)})
@@ -497,6 +500,17 @@ class TestDiffScopeDescriptionCLI:
         base_sha = init_git_repo_with_base(tmp_path)
         _write_page(docs / "existing.md", _desc(101))
         commit_all_changes(tmp_path, "touch a page in a collapsed tree")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == EXIT_COVERAGE_FAILURE
+
+    def test_config_only_corpus_collapse_is_a_coverage_failure(self, tmp_path: Path) -> None:
+        """Changing only docfx.json cannot bypass the PR corpus floor."""
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_docfx(docs, ["existing.md"])
+        commit_all_changes(tmp_path, "collapse published corpus config only")
 
         exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
 
@@ -594,12 +608,5 @@ def test_live_tree_is_clean() -> None:
     """
     report = validate_descriptions(docs_root=LIVE_DOCS_ROOT, repo_root=REPO_ROOT)
 
-    detail = "\n".join(
-        f"  {v.reason.upper()} {v.path}"
-        + (f" (also on: {', '.join(v.peers)})" if v.peers else "")
-        for v in report.violations
-    )
-    assert not report.violations, (
-        f"{len(report.violations)} description violation(s) across "
-        f"{report.checked_count} published page(s):\n{detail}"
-    )
+    detail = "\n".join(f"  {v.reason.upper()} {v.path}" + (f" (also on: {', '.join(v.peers)})" if v.peers else "") for v in report.violations)
+    assert not report.violations, f"{len(report.violations)} description violation(s) across {report.checked_count} published page(s):\n{detail}"
