@@ -477,24 +477,26 @@ def test_commit_skipped_on_detached_head(
     assert warning == autocommit.DETACHED_HEAD_WARNING
 
 
-def test_commit_falls_back_to_main_when_branch_detection_fails(
+def test_commit_skipped_when_branch_detection_fails(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
-    """When `git branch --show-current` raises, destination_ref falls back to
-    "main" and the commit fires normally — no warning is emitted."""
+    """When `git branch --show-current` raises, the commit is skipped with a
+    warning — never fabricate "main" (FR-013/C7). A prior version of this
+    behavior fell back to a hardcoded "main" ref and committed anyway; that
+    risked landing upgrade churn on a branch the checkout was never on."""
     monkeypatch.setattr(
         autocommit,
         "prepare_upgrade_commit_files",
         lambda _checkout, baseline_paths: [Path(".kittify/metadata.yaml")],
     )
-    captured: dict[str, object] = {}
-
-    def _fake_safe_commit(**kwargs: object) -> object:
-        captured.update(kwargs)
-        return object()
-
-    monkeypatch.setattr(autocommit, "safe_commit", _fake_safe_commit)
+    monkeypatch.setattr(
+        autocommit,
+        "safe_commit",
+        lambda **_kw: (_ for _ in ()).throw(
+            AssertionError("safe_commit must not run when branch detection fails")
+        ),
+    )
     monkeypatch.setattr(
         subprocess,
         "check_output",
@@ -503,16 +505,16 @@ def test_commit_falls_back_to_main_when_branch_detection_fails(
         ),
     )
 
-    committed, _paths, warning = autocommit.commit_touched_checkout(
+    committed, committed_paths, warning = autocommit.commit_touched_checkout(
         checkout=tmp_path,
         baseline_paths=set(),
         from_version="3.2.3",
         to_version="3.2.4",
     )
 
-    assert committed is True
-    assert warning is None
-    assert captured["target"].ref == "main"
+    assert committed is False
+    assert committed_paths == [".kittify/metadata.yaml"]
+    assert warning == autocommit.BRANCH_DETECTION_FAILED_WARNING
 
 
 def test_collect_manual_review_paths_deduplicates() -> None:
@@ -547,7 +549,14 @@ def test_collect_manual_review_paths_deduplicates() -> None:
 
 
 def _setup_upgrade_project(tmp_path: Path) -> Path:
-    """Create a minimal .kittify project structure for upgrade() tests."""
+    """Create a minimal .kittify project structure for upgrade() tests.
+
+    Also a real (if minimal) git repo: ``commit_touched_checkout`` (FR-013/C7)
+    genuinely runs ``git branch --show-current`` in this checkout and, since
+    the fail-safe fix, no longer fabricates a "main" ref when that fails — a
+    non-git tmp_path would now legitimately skip every auto-commit in these
+    tests with a warning instead of the fixture's intended "committed" outcome.
+    """
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
     metadata_file = kittify_dir / "metadata.yaml"
@@ -562,6 +571,11 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
         "migrations:\n"
         "  applied: []\n"
     )
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
     return tmp_path
 
 
