@@ -1144,6 +1144,10 @@ def sync_push_command(
         if "summary" in payload:
             summary = payload.get("summary", {})
             typer.echo(f"Push {payload.get('status', 'complete')}")
+            if payload.get("identity_path"):
+                ip = payload["identity_path"]
+                typer.echo(f"- provider: {ip.get('provider', 'unknown')}")
+                typer.echo(f"- type: {ip.get('type', 'unknown')}")
             typer.echo(f"- total: {summary.get('total', 0)}")
             typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
             typer.echo(f"- failed: {summary.get('failed', 0)}")
@@ -1191,6 +1195,10 @@ def sync_run_command(
         if "summary" in payload:
             summary = payload.get("summary", {})
             typer.echo(f"Sync run {payload.get('status', 'complete')}")
+            if payload.get("identity_path"):
+                ip = payload["identity_path"]
+                typer.echo(f"- provider: {ip.get('provider', 'unknown')}")
+                typer.echo(f"- type: {ip.get('type', 'unknown')}")
             typer.echo(f"- total: {summary.get('total', 0)}")
             typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
             typer.echo(f"- failed: {summary.get('failed', 0)}")
