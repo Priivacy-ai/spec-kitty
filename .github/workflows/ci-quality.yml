@@ -1557,20 +1557,64 @@ jobs:
         with:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
-      - run: mkdir -p out/reports/coverage
+      - run: mkdir -p out/reports/coverage out/reports/xunit-reports
+      # ---------------------------------------------------------------------
+      # FR-018 red-first re-run ordering (mission ci-flake-report-workflow
+      # WP05): a STEP inside this EXISTING job, not a new job -- no new gate
+      # context, no allowlist entry needed. On a `synchronize` push to an
+      # already-open PR, restore the previous run's failing nodeids and seed
+      # pytest's OWN lastfailed cache from them so the single `--ff` run
+      # below tries them first -- no double-run. Absent prior state (first
+      # push, cache miss, corrupt file) this whole block degrades to a
+      # harmless no-op and the suite below runs in normal order; see
+      # scripts/ci/collect_failed_nodeids.py's module docstring for the full
+      # defensive contract. `continue-on-error: true` on the restore/seed/
+      # collect helper steps: this is an ergonomics optimization and must
+      # never itself gate or error the run. The primary "Run fast tests —
+      # cli" step is deliberately NOT continue-on-error, so a real failure
+      # still fails the gating job (FR-011).
+      # ---------------------------------------------------------------------
+      - name: "[FR-018] Restore red-first lastfailed cache (PR sync only)"
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        continue-on-error: true
+        uses: actions/cache@v4
+        with:
+          path: .ci-cache/flake-lastfailed.txt
+          key: flake-lastfailed-${{ github.event.pull_request.number }}-${{ github.run_id }}
+          restore-keys: |
+            flake-lastfailed-${{ github.event.pull_request.number }}-
+      - name: "[FR-018] Seed pytest lastfailed cache from prior red run"
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        continue-on-error: true
+        run: |
+          uv run python scripts/ci/collect_failed_nodeids.py seed \
+            --persisted .ci-cache/flake-lastfailed.txt \
+            --cache-dir .pytest_cache
       # PENDING-CI: T019 flip — collection-equivalence verified locally
       # (serial == parallel nodeids); requires CI green x3 (run-twice/thrice
       # ratchet) before trusting this flip. Safe after WP04 HOME isolation.
       # See mission test-suite-acceleration.
+      #
+      # `--ff` (FR-018): unconditional and harmless when no lastfailed cache
+      # was seeded above (normal-order run, pytest's own no-op fallback) --
+      # only meaningfully reorders when the restore/seed steps above ran.
       - name: "Run fast tests — cli"
         run: |
           uv run python -m pytest tests/cli/ tests/specify_cli/cli/ -m "fast and not windows_ci" -q --tb=short \
             --timeout=240 --timeout-method=signal \
-            -n auto --dist loadfile \
+            -n auto --dist loadfile --ff \
             --durations=50 \
             --cov=src/specify_cli/cli \
             --cov-report=xml:out/reports/coverage/coverage-fast-cli.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-fast-cli-${{ github.run_id }}.xml \
             || test $? -eq 5
+      - name: "[FR-018] Persist failing nodeids for next push (PR sync only)"
+        if: always() && github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        continue-on-error: true
+        run: |
+          uv run python scripts/ci/collect_failed_nodeids.py collect \
+            --junit-xml out/reports/xunit-reports/xunit-result-fast-cli-${{ github.run_id }}.xml \
+            --out .ci-cache/flake-lastfailed.txt
       - name: "Upload fast-cli coverage"
         if: always()
         uses: actions/upload-artifact@v7
@@ -4188,6 +4232,40 @@ jobs:
             --package spec-kitty-cli \
             "${MANIFEST_ARGS[@]}" \
             --consumer-contract "${{ steps.fetch_contract.outputs.consumer_contract }}"
+
+  # ---------------------------------------------------------------------------
+  # draft-fail-fast-cancel (FR-009, mission ci-flake-report-workflow WP04):
+  # draft PRs already skip the heavy DRAFT_GATED_JOBS suites
+  # (integration-tests-core-misc, e2e-cross-cutting — see the DRAFT_GATED_JOBS
+  # note in quality-gate's decision step below), but the rest of the fan-out
+  # still runs to completion even after an early suite has already failed.
+  # This job cancels the whole workflow run the moment `lint` or
+  # `kernel-tests` — the two earliest, unconditional gates the majority of the
+  # fan-out is chained behind — fails on a draft PR, instead of burning CI
+  # minutes on the remaining suites before the author even asked for review.
+  # Race with in-flight jobs is accepted (some may already be finishing when
+  # the cancel API call lands): this is a fail-fast optimization, not a
+  # correctness gate — quality-gate (below) remains the sole blocking
+  # authority and is unaffected by whether this job fires or not.
+  # `if: failure()` reads the run status of its own `needs:`, never a literal
+  # `needs.<job>.result` comparison, so it does not trip
+  # test_no_shard_gates_execution_on_a_predecessor_result. Allowlisted (not
+  # gate-blocking) in NON_BLOCKING_ALLOWLIST — it invokes no pytest and exists
+  # to shorten a doomed draft run, not to report suite results.
+  # ---------------------------------------------------------------------------
+  draft-fail-fast-cancel:
+    name: draft-fail-fast-cancel
+    needs: [lint, kernel-tests]
+    runs-on: ubuntu-latest
+    if: failure() && github.event.pull_request.draft == true
+    permissions:
+      actions: write
+    steps:
+      - name: "Cancel workflow run (draft fail-fast)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api -X POST repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/cancel
 
   # ---------------------------------------------------------------------------
   # quality-gate: single check that aggregates all required job results.
