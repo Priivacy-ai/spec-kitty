@@ -2972,7 +2972,7 @@ pages:
   - path: "docs/adr/3.x/2026-08-22-1-performance-test-pipeline.md"
     title: "ADR: Statistical performance-test pipeline (pytest-benchmark), off the PR path, per-domain"
     divio_type: "none"
-    abstract: "Adopt pytest-benchmark and a dedicated per-domain performance.yml pipeline; ALL wall-clock performance tests run there ONLY, never on the PR/blocking path; the single-shot on-PR timing gate is retired."
+    abstract: "Adopt pytest-benchmark + a per-domain performance.yml pipeline; all wall-clock performance tests run there only, off the PR path; the single-shot on-PR timing gate is retired."
     anchors:
     - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
     - {slug: "decision", text: "Decision", level: 2}
