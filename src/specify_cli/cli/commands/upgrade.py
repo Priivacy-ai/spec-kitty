@@ -38,9 +38,11 @@ See also: docs/guides/install-and-upgrade.md
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import sys
+from collections.abc import Sequence
 from kernel.clock import now_utc
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -49,7 +51,7 @@ import typer
 
 if TYPE_CHECKING:
     from specify_cli.tool_surface.repair import DriftPolicySummary
-    from specify_cli.upgrade.runner import UpgradeResult
+    from specify_cli.upgrade.migrations.base import BaseMigration
 from rich.panel import Panel
 from rich.table import Table
 
@@ -61,9 +63,16 @@ from specify_cli.cli.commands._teamspace_mission_state_gate import (
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
 from specify_cli.upgrade import autocommit
+from specify_cli.upgrade.outcome import RepairOutcome, UpgradeOutcome
+from specify_cli.upgrade.runner import UpgradeResult
 
 
 _PROJECT_COMPAT_CHECK_COMMAND = ("__project_compat_check__",)
+
+_LEFT_UNCOMMITTED_MESSAGE = (
+    "[yellow]⚠ Changes were left uncommitted (auto_commit is disabled)"
+    " — commit them yourself.[/yellow]"
+)
 
 
 def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[str]:
@@ -300,6 +309,36 @@ def _record_agent_choice(
     raise typer.Exit(0)
 
 
+def _dispatch_agent_flags(
+    *,
+    agent_check: bool,
+    agent_choice: str | None,
+    agent_latest: str | None,
+    json_output: bool,
+) -> None:
+    """T018: handle the ``--agent-check``/``--agent-choice`` mux.
+
+    Every reachable branch here raises ``typer.Exit`` (via ``_run_agent_check``
+    / ``_record_agent_choice`` / the mutual-exclusion error) — this function
+    only returns normally when NEITHER flag was supplied, in which case the
+    caller continues the normal upgrade flow. Pure extraction; behavior
+    identical to the pre-extraction inline checks.
+    """
+    if agent_check and agent_choice is not None:
+        console.print("[red]Error:[/red] --agent-check and --agent-choice are mutually exclusive.")
+        raise typer.Exit(2)
+    if agent_check:
+        _run_agent_check(json_output=json_output)
+        return
+    if agent_choice is not None:
+        _record_agent_choice(
+            choice_raw=agent_choice,
+            latest_version=agent_latest,
+            json_output=json_output,
+        )
+        return
+
+
 # ---------------------------------------------------------------------------
 # T036 — helpers for project mode (skip CLI nag in output)
 # ---------------------------------------------------------------------------
@@ -308,6 +347,41 @@ def _record_agent_choice(
 def _is_in_project(project_path: Path) -> bool:
     """Return True when *project_path* appears to be a Spec Kitty project."""
     return (project_path / ".kittify").exists() or (project_path / ".specify").exists()
+
+
+def _guard_project_or_fallback_to_cli(
+    project_path: Path,
+    *,
+    project: bool,
+    json_output: bool,
+    dry_run: bool,
+    no_nag: bool,
+) -> None:
+    """T019: fail fast for ``--project`` outside a project, or fall back to
+    ``--cli`` guidance for the default (bare) invocation.
+
+    Pure extraction of the pre-refactor inline guard — detection semantics are
+    unchanged (#3652 stays out of scope, C-001). Returns normally only when
+    *project_path* is a real Spec Kitty project; every other path raises
+    ``typer.Exit`` (directly, or via ``_run_cli_mode``, which always exits).
+    """
+    if _is_in_project(project_path):
+        return
+
+    if project:
+        # --project was explicit; surface a clear "no project" error.
+        if json_output:
+            print(json.dumps({"error": "Not a Spec Kitty project", "case": "project_not_initialized"}))
+        else:
+            console.print("[red]Error:[/red] Not a Spec Kitty project.")
+            console.print("[dim]Run 'spec-kitty init' to initialize a project.[/dim]")
+            console.print("[dim]Tip: use 'spec-kitty upgrade --cli' for CLI guidance outside a project.[/dim]")
+        raise typer.Exit(1)
+
+    # Default mode (bare `spec-kitty upgrade` outside any project):
+    # FR-014 says this should fall through to CLI guidance behavior rather
+    # than erroring. Only error when --project is explicit.
+    _run_cli_mode(json_output=json_output, dry_run=dry_run, no_nag=no_nag)
 
 
 def _repair_stale_command_manifest(project_path: Path, *, json_output: bool) -> None:
@@ -373,6 +447,12 @@ def _run_upgrade_surface_repair(
     requires an explicit ``--repair-drift=overwrite`` flag (not yet exposed,
     defaults False). FR-006: a non-interactive run exits non-zero when drift is
     detected and was not explicitly overwritten.
+
+    T017/C4: this is one of the finalizer's injected callables (the caller
+    wraps it to return a bool). It reports drift but no longer raises
+    ``typer.Exit`` itself (D-5) — the caller derives ``surface_drift_failed``
+    from the returned summary via :func:`_surface_drift_exit_required` and
+    folds it into the single, outcome-derived exit code.
     """
     if dry_run:
         return None
@@ -392,11 +472,7 @@ def _run_upgrade_surface_repair(
         if not json_output:
             for line in render_surface_summary_lines(summary):
                 console.print(line)
-            if summary.drifted_reported and confirm:
-                raise typer.Exit(1)
         return summary
-    except typer.Exit:
-        raise
     except Exception as surf_exc:  # noqa: BLE001
         # Never fail upgrade due to surface repair errors; report and continue.
         if not json_output:
@@ -610,7 +686,442 @@ def _check_project_not_too_new(
 # ---------------------------------------------------------------------------
 
 
-def upgrade(  # noqa: C901
+def _show_migration_plan_and_confirm(
+    migrations_needed: Sequence[BaseMigration],
+    *,
+    project_path: Path,
+    json_output: bool,
+    dry_run: bool,
+    verbose: bool,
+    confirm: bool,
+) -> None:
+    """T021: render the migration-plan table and gate on the confirm prompt.
+
+    Pure display plus a legitimate PRE-finalizer gate: no migration has run
+    yet at this point, so a decline here (``raise typer.Exit(0)``) is a
+    user-cancellation exit, not one of the tail's outcome-derived exits (C4
+    reviewer note — pre-finalizer exits are allowed; only the tail must derive
+    its exit code exactly once).
+    """
+    if not json_output:
+        table = Table(title="Migration Plan", show_lines=False, header_style="bold cyan")
+        table.add_column("Migration", style="bright_white")
+        table.add_column("Description", style="dim")
+        table.add_column("Target", style="cyan")
+
+        for migration in migrations_needed:
+            table.add_row(
+                migration.migration_id,
+                migration.description,
+                migration.target_version,
+            )
+
+        console.print(table)
+        console.print()
+
+        _print_dry_run_provisioning_notice(project_path, dry_run=dry_run, json_output=json_output)
+
+        if verbose:
+            # Show detection results
+            console.print("[dim]Detection results:[/dim]")
+            for migration in migrations_needed:
+                detected = migration.detect(project_path)
+                can_apply, reason = migration.can_apply(project_path)
+                status = "[green]ready[/green]" if detected and can_apply else "[yellow]skipped[/yellow]"
+                console.print(f"  {migration.migration_id}: {status}")
+                if not can_apply and reason:
+                    console.print(f"    [dim]{reason}[/dim]")
+            console.print()
+
+    # T034 — confirm uses `confirm` (yes or force) instead of bare `force`
+    if not dry_run and not confirm:
+        proceed = typer.confirm(
+            f"Apply {len(migrations_needed)} migration(s)?",
+            default=True,
+        )
+        if not proceed:
+            console.print("[yellow]Upgrade cancelled.[/yellow]")
+            raise typer.Exit(0)
+
+
+def _stamp_no_migrations_metadata(kittify_dir: Path, *, target_version: str, dry_run: bool) -> None:
+    """Bump the version stamp (and repair a missing schema stamp, #1158) when
+    no migrations ran but the target version differs from the recorded one."""
+    from specify_cli.upgrade.metadata import ProjectMetadata
+
+    metadata = ProjectMetadata.load(kittify_dir)
+    if metadata and metadata.version != target_version and not dry_run:
+        metadata.version = target_version
+        metadata.last_upgraded_at = now_utc()
+        metadata.save(kittify_dir)
+
+    if not dry_run:
+        from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
+        from specify_cli.upgrade.runner import MigrationRunner
+
+        if REQUIRED_SCHEMA_VERSION is not None:
+            MigrationRunner._stamp_schema_version(kittify_dir, REQUIRED_SCHEMA_VERSION)
+
+
+def _run_no_migrations_worktree_stamp(
+    project_path: Path,
+    *,
+    target_version: str,
+    current_version: str,
+    dry_run: bool,
+    no_worktrees: bool,
+) -> tuple[list[str], list[str]]:
+    """Stamp worktree metadata when the main checkout is already current.
+
+    Mirrors the pre-refactor no-migrations branch's worktree-only stamp pass
+    (unchanged semantics). Returns ``(warnings, worktree_failures)`` for the
+    caller to fold into the synthesized outcome (FR-012).
+    """
+    if no_worktrees or current_version != target_version:
+        return [], []
+
+    from specify_cli.upgrade.runner import MigrationRunner
+
+    # auto_commit: each worktree's upgrade churn lands on its own branch
+    # (#2385) so a later `spec-kitty merge` isn't blocked by dirty coord/lane
+    # worktrees. D-10: the worktree-scope decision, not a bare `not dry_run`.
+    worktrees_result = MigrationRunner(project_path, console).upgrade_worktrees_only(
+        target_version,
+        dry_run=dry_run,
+        auto_commit=autocommit.should_auto_commit_for_worktree(project_path, dry_run=dry_run),
+    )
+    warnings = list(worktrees_result.get("warnings", []))
+    if worktrees_result.get("errors"):
+        warnings.extend(worktrees_result["errors"])
+        warnings.append("Some worktrees had issues - check errors above")
+    worktree_failures = list(worktrees_result.get("worktree_failures", []))
+    return warnings, worktree_failures
+
+
+def _build_no_migrations_outcome(
+    *,
+    project_path: Path,
+    kittify_dir: Path,
+    current_version: str,
+    target_version: str,
+    dry_run: bool,
+    no_worktrees: bool,
+) -> UpgradeOutcome:
+    """T017/D-3: normalize the no-migrations branch into a synthetic
+    ``UpgradeResult`` wrapped in an ``UpgradeOutcome`` — the SAME shape the
+    finalizer consumes for the migrations-pending branch, so both branches
+    converge on one tail (one finalizer call, one renderer, one exit code)."""
+    _stamp_no_migrations_metadata(kittify_dir, target_version=target_version, dry_run=dry_run)
+    worktree_warnings, worktree_failures = _run_no_migrations_worktree_stamp(
+        project_path,
+        target_version=target_version,
+        current_version=current_version,
+        dry_run=dry_run,
+        no_worktrees=no_worktrees,
+    )
+    result = UpgradeResult(
+        success=True,
+        from_version=current_version,
+        to_version=target_version,
+        dry_run=dry_run,
+        warnings=worktree_warnings,
+    )
+    return UpgradeOutcome(result=result, worktree_failures=worktree_failures)
+
+
+def _combined_errors(
+    outcome: UpgradeOutcome, surface_repair_summary: DriftPolicySummary | None
+) -> list[str]:
+    """Fold the errors channel (data-model.md): ``result.errors`` +
+    ``activation_errors`` + the surface-drift message, read from the
+    finalized outcome — the one place both renderers source errors from."""
+    errors = list(outcome.result.errors)
+    errors.extend(outcome.activation_errors)
+    if outcome.surface_drift_failed and surface_repair_summary is not None:
+        errors.append(_surface_drift_error(surface_repair_summary))
+    return errors
+
+
+def _build_migration_json_payload(
+    outcome: UpgradeOutcome,
+    migrations_needed: Sequence[BaseMigration],
+    *,
+    manual_review_paths: list[str],
+    auto_commit_paths: list[str],
+    surface_repair_summary: DriftPolicySummary | None,
+) -> dict[str, object]:
+    """T020: build the JSON payload for the migrations-pending path.
+
+    A pure function of the finalized ``UpgradeOutcome`` — no printing, no
+    exit derivation (that happens exactly once, at the command boundary, D-5).
+    """
+    result = outcome.result
+    migrations_detail = []
+    for migration in migrations_needed:
+        if migration.migration_id in result.migrations_applied:
+            status = "applied"
+        elif migration.migration_id in result.migrations_skipped:
+            status = "skipped"
+        else:
+            status = "pending"
+        migrations_detail.append(
+            {
+                "id": migration.migration_id,
+                "description": migration.description,
+                "target_version": migration.target_version,
+                "status": status,
+                "manual_review_required": (
+                    result.migration_results.get(migration.migration_id).manual_review_required
+                    if migration.migration_id in result.migration_results
+                    else False
+                ),
+                "preserved_paths": (
+                    result.migration_results.get(migration.migration_id).preserved_paths
+                    if migration.migration_id in result.migration_results
+                    else []
+                ),
+            }
+        )
+
+    # Surface per-migration schema-shaped JSON reports (e.g. the
+    # 3.2.0rc35_unified_bundle contract-shaped payload). Each migration emits
+    # its report as a single JSON string inside
+    # ``MigrationResult.changes_made[0]``; decode it so operators see a
+    # structured object rather than an opaque string.
+    migration_reports: dict[str, object] = {}
+    for mid, mres in result.migration_results.items():
+        if not mres.changes_made:
+            continue
+        payload = mres.changes_made[0]
+        try:
+            migration_reports[mid] = json.loads(payload)
+        except (TypeError, ValueError):
+            # Migration emitted a non-JSON change string; skip rather than
+            # break the operator contract.
+            continue
+
+    success = outcome.effective_success
+    return {
+        "status": "success" if success else "failed",
+        "current_version": result.from_version,
+        "target_version": result.to_version,
+        "dry_run": result.dry_run,
+        "migrations": migrations_detail,
+        "migrations_applied": result.migrations_applied,
+        "migrations_skipped": result.migrations_skipped,
+        "migration_reports": migration_reports,
+        "success": success,
+        "errors": _combined_errors(outcome, surface_repair_summary),
+        "warnings": result.warnings,
+        "manual_review_required": bool(manual_review_paths),
+        "manual_review_paths": manual_review_paths,
+        "auto_committed": outcome.committed,
+        "auto_commit_paths": auto_commit_paths,
+        "surface_repair": _surface_repair_payload(surface_repair_summary),
+    }
+
+
+def _build_no_migrations_json_payload(
+    outcome: UpgradeOutcome,
+    *,
+    auto_commit_paths: list[str],
+    surface_repair_summary: DriftPolicySummary | None,
+) -> dict[str, object]:
+    """Build the JSON payload for the up-to-date (no-migrations) path.
+
+    Keeps the pre-existing ``status: up_to_date`` contract shape (pinned by
+    ``tests/upgrade/test_upgrade_auto_commit_unit.py``) while sourcing every
+    value from the finalized ``UpgradeOutcome`` (D-3/D-5) instead of the old,
+    separately-computed ``upgrade_failed`` formula (#3392).
+    """
+    result = outcome.result
+    success = outcome.effective_success
+    return {
+        "status": "up_to_date" if success else "failed",
+        "current_version": result.from_version,
+        "target_version": result.to_version,
+        "success": success,
+        "errors": _combined_errors(outcome, surface_repair_summary),
+        "auto_committed": outcome.committed,
+        "auto_commit_paths": auto_commit_paths,
+        "warnings": result.warnings,
+        "surface_repair": _surface_repair_payload(surface_repair_summary),
+    }
+
+
+def _display_no_migrations_results(
+    outcome: UpgradeOutcome, *, auto_commit_paths: list[str], left_uncommitted: bool = False
+) -> None:
+    """Render the human-readable up-to-date (no-migrations) outcome.
+
+    Pure rendering (T022): never raises. The caller derives the exit code
+    exactly once, from ``UpgradeOutcome.exit_code`` (D-5).
+    """
+    result = outcome.result
+    console.print("[green]Project is already up to date![/green]")
+    for warning in result.warnings:
+        console.print(f"[yellow]Warning:[/yellow] {warning}")
+    for error in outcome.activation_errors:
+        console.print(f"[red]Error:[/red] {error}")
+    if outcome.committed:
+        console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
+    elif left_uncommitted:
+        console.print(_LEFT_UNCOMMITTED_MESSAGE)
+
+
+class _FinalizerRenderContext:
+    """Mutable side-channel for the finalizer's injected callables (T017/T018-21).
+
+    ``finalize_upgrade``'s step contracts return only what the exit-code
+    computation needs (``list[str]``/``bool``/``RepairOutcome`` — see C4).
+    The renderers additionally need the surface-repair summary object and the
+    concrete committed paths, which are not part of that contract — this
+    small holder threads them out of the ``functools.partial``-bound step
+    functions below without resorting to closures (closures nested inside
+    ``upgrade()`` inflate its cyclomatic complexity past the NFR-004 ceiling,
+    D-12).
+    """
+
+    def __init__(self) -> None:
+        self.surface_repair_summary: DriftPolicySummary | None = None
+        self.commit_paths: list[str] = []
+        self.commit_warning: str | None = None
+
+
+def _finalizer_step_provision(project_path: Path, *, dry_run: bool) -> list[str]:
+    """Injected ``provision_activations`` step (C4 order position 1)."""
+    return _provision_missing_mission_type_activations(project_path, dry_run=dry_run)
+
+
+def _finalizer_step_surface_repair(
+    outcome: UpgradeOutcome,
+    ctx: _FinalizerRenderContext,
+    *,
+    project_path: Path,
+    confirm: bool,
+    dry_run: bool,
+    json_output: bool,
+) -> bool:
+    """Injected ``run_surface_repair`` step (C4 order position 2).
+
+    Gated on ``outcome.result.success`` — surface repair (and its own
+    JSON/human output) never runs after a failed migration, mirroring the
+    pre-refactor behavior.
+    """
+    if not outcome.result.success:
+        return False
+    ctx.surface_repair_summary = _run_upgrade_surface_repair(
+        project_path,
+        confirm=confirm,
+        dry_run=dry_run,
+        json_output=json_output,
+    )
+    return _surface_drift_exit_required(ctx.surface_repair_summary, confirm=confirm)
+
+
+def _finalizer_step_commit_churn(
+    outcome: UpgradeOutcome,
+    ctx: _FinalizerRenderContext,
+    *,
+    project_path: Path,
+    baseline_changed_paths: set[str] | None,
+) -> bool:
+    """Injected ``commit_churn`` step (C4 order position 3) — the single
+    main-checkout churn commit, run only when ``should_commit`` is True."""
+    committed, paths, warning = autocommit.commit_touched_checkout(
+        project_path,
+        baseline_changed_paths,
+        outcome.result.from_version,
+        outcome.result.to_version,
+    )
+    ctx.commit_paths = paths
+    ctx.commit_warning = warning
+    return committed
+
+
+def _churn_left_uncommitted_by_config(
+    outcome: UpgradeOutcome,
+    *,
+    dry_run: bool,
+    should_commit_main: bool,
+    project_path: Path,
+    baseline_changed_paths: set[str] | None,
+) -> bool:
+    """True when main-checkout churn exists but was left uncommitted purely
+    because the project's ``auto_commit`` config is disabled (FR-003 /
+    User Story 2 scenario 1: "the command reports that changes were left
+    uncommitted").
+
+    Deliberately excludes two other "not committed" paths that already
+    report their own state and must not be double-warned: ``--dry-run``
+    (nothing was ever meant to be written or committed, FR-003 scenario 3)
+    and manual-review preservation (its own warning is already appended to
+    ``result.warnings``, D-10). What remains — ``should_commit_main`` False
+    for neither of those reasons — can only be the config opt-out
+    (``autocommit.should_auto_commit``'s sole remaining gate, C2).
+
+    Uses :func:`autocommit.prepare_upgrade_commit_files` — the same,
+    side-effect-free churn-detection routine ``commit_touched_checkout``
+    itself uses — so "would there have been anything to commit" never
+    duplicates or drifts from the real eligibility/baseline-diff rules.
+    """
+    if dry_run or outcome.manual_review_paths or should_commit_main or outcome.committed:
+        return False
+    return bool(autocommit.prepare_upgrade_commit_files(project_path, baseline_changed_paths))
+
+
+def _finalizer_step_offer_repair(
+    outcome: UpgradeOutcome,
+    *,
+    project_path: Path,
+    confirm: bool,
+    dry_run: bool,
+    json_output: bool,
+) -> RepairOutcome:
+    """Injected ``offer_repair`` step (C4 order position 4).
+
+    Mirrors the pre-refactor gating: the interactive mission-state prompt
+    never runs under ``--json``, nor after a failed migration.
+    """
+    if json_output or not outcome.result.success:
+        return RepairOutcome(pending=True, message="Repair prompt skipped (json output or failed migration).")
+    return offer_teamspace_mission_state_migration(
+        project_path,
+        console=console,
+        dry_run=dry_run,
+        assume_yes=confirm,
+    )
+
+
+def _reject_downgrade_target(
+    validation_error: str | None, *, current_version: str, target_version: str, json_output: bool
+) -> None:
+    """Raise ``typer.Exit(1)`` when *validation_error* is set (a downgrade
+    target); a no-op otherwise. Pure extraction — this is a legitimate
+    pre-finalizer gate (no ``UpgradeOutcome`` exists yet at this point)."""
+    if not validation_error:
+        return
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "status": "failed",
+                    "current_version": current_version,
+                    "target_version": target_version,
+                    "success": False,
+                    "errors": [validation_error],
+                    "warnings": [],
+                    "auto_committed": False,
+                    "auto_commit_paths": [],
+                }
+            )
+        )
+    else:
+        console.print(f"[red]Error:[/red] {validation_error}")
+    raise typer.Exit(1)
+
+
+def upgrade(
     dry_run: bool = typer.Option(False, "--dry-run", help="Preview changes without applying"),
     force: bool = typer.Option(False, "--force", help="Skip confirmation prompts"),
     target: str | None = typer.Option(None, "--target", help="Target version (defaults to current CLI version)"),
@@ -661,19 +1172,12 @@ def upgrade(  # noqa: C901
         spec-kitty upgrade --yes        # Non-interactive (same as --force)
         spec-kitty upgrade --dry-run --json  # Machine-readable plan
     """
-    if agent_check and agent_choice is not None:
-        console.print("[red]Error:[/red] --agent-check and --agent-choice are mutually exclusive.")
-        raise typer.Exit(2)
-    if agent_check:
-        _run_agent_check(json_output=json_output)
-        return
-    if agent_choice is not None:
-        _record_agent_choice(
-            choice_raw=agent_choice,
-            latest_version=agent_latest,
-            json_output=json_output,
-        )
-        return
+    _dispatch_agent_flags(
+        agent_check=agent_check,
+        agent_choice=agent_choice,
+        agent_latest=agent_latest,
+        json_output=json_output,
+    )
 
     # T034 — mutual exclusion check
     if cli and project:
@@ -695,31 +1199,17 @@ def upgrade(  # noqa: C901
 
     # --- Project-mode and default upgrade flow ---
 
-    # T036 — in --project mode, fail fast outside a project
+    # T036/T019 — in --project mode, fail fast outside a project; the
+    # default (bare) invocation falls back to --cli guidance instead.
     project_path = Path.cwd()
     kittify_dir = project_path / ".kittify"
-    specify_dir = project_path / ".specify"  # Old name
-
-    if not kittify_dir.exists() and not specify_dir.exists():
-        if project:
-            # --project was explicit; surface a clear "no project" error
-            if json_output:
-                print(json.dumps({"error": "Not a Spec Kitty project", "case": "project_not_initialized"}))
-            else:
-                console.print("[red]Error:[/red] Not a Spec Kitty project.")
-                console.print("[dim]Run 'spec-kitty init' to initialize a project.[/dim]")
-                console.print("[dim]Tip: use 'spec-kitty upgrade --cli' for CLI guidance outside a project.[/dim]")
-            raise typer.Exit(1)
-        else:
-            # Default mode (bare `spec-kitty upgrade` outside any project):
-            # FR-014 says this should fall through to CLI guidance behavior
-            # rather than erroring.  Only error when --project is explicit.
-            _run_cli_mode(
-                json_output=json_output,
-                dry_run=dry_run,
-                no_nag=no_nag,
-            )
-            return  # _run_cli_mode always raises typer.Exit; belt-and-suspenders
+    _guard_project_or_fallback_to_cli(
+        project_path,
+        project=project,
+        json_output=json_output,
+        dry_run=dry_run,
+        no_nag=no_nag,
+    )
 
     # CHK037 / A-006 — Check if project is too new for this CLI.
     # This check runs BEFORE the existing upgrade flow so that
@@ -779,25 +1269,12 @@ def upgrade(  # noqa: C901
         target_version = target
 
     validation_error = validate_upgrade_target(current_version, target_version)
-    if validation_error:
-        if json_output:
-            print(
-                json.dumps(
-                    {
-                        "status": "failed",
-                        "current_version": current_version,
-                        "target_version": target_version,
-                        "success": False,
-                        "errors": [validation_error],
-                        "warnings": [],
-                        "auto_committed": False,
-                        "auto_commit_paths": [],
-                    }
-                )
-            )
-        else:
-            console.print(f"[red]Error:[/red] {validation_error}")
-        raise typer.Exit(1)
+    _reject_downgrade_target(
+        validation_error,
+        current_version=current_version,
+        target_version=target_version,
+        json_output=json_output,
+    )
 
     if not json_output:
         console.print(f"[cyan]Current version:[/cyan] {current_version}")
@@ -809,305 +1286,143 @@ def upgrade(  # noqa: C901
     version_for_migration = "0.0.0" if current_version == "unknown" else current_version
     migrations_needed = MigrationRegistry.get_applicable(version_for_migration, target_version, project_path=project_path)
 
+    manual_review_paths: list[str] = []
     if not migrations_needed:
-        auto_committed = False
-        auto_commit_paths: list[str] = []
-        auto_commit_warning: str | None = None
-        worktree_warnings: list[str] = []
-
-        # Still stamp the version even when no migrations are needed
-        from specify_cli.upgrade.metadata import ProjectMetadata
-
-        metadata = ProjectMetadata.load(kittify_dir)
-        if metadata and metadata.version != target_version and not dry_run:
-            metadata.version = target_version
-            metadata.last_upgraded_at = now_utc()
-            metadata.save(kittify_dir)
-
-        if not dry_run:
-            from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
-
-            if REQUIRED_SCHEMA_VERSION is not None:
-                MigrationRunner._stamp_schema_version(kittify_dir, REQUIRED_SCHEMA_VERSION)
-
-        if not no_worktrees and current_version == target_version:
-            # auto_commit: each worktree's upgrade churn lands on its own
-            # branch (#2385) so a later `spec-kitty merge` isn't blocked by
-            # dirty coord/lane worktrees.
-            worktrees_result = MigrationRunner(project_path, console).upgrade_worktrees_only(
-                target_version,
-                dry_run=dry_run,
-                auto_commit=not dry_run,
-            )
-            worktree_warnings.extend(worktrees_result.get("warnings", []))
-            if worktrees_result.get("errors"):
-                worktree_warnings.extend(worktrees_result["errors"])
-                worktree_warnings.append("Some worktrees had issues - check errors above")
-
-        if not dry_run:
-            auto_committed, auto_commit_paths, auto_commit_warning = autocommit.commit_touched_checkout(
-                project_path,
-                baseline_changed_paths,
-                current_version,
-                target_version,
-            )
-
-        if not json_output:
-            offer_teamspace_mission_state_migration(
-                project_path,
-                console=console,
-                dry_run=dry_run,
-                assume_yes=confirm,
-            )
-
-        # FR-001/FR-002: heal generated surfaces even when no migrations are
-        # pending. Missing agent profiles or stale manifests on an already
-        # up-to-date project would otherwise never be repaired.
-        surface_repair_summary = _run_upgrade_surface_repair(
-            project_path,
-            confirm=confirm,
+        outcome = _build_no_migrations_outcome(
+            project_path=project_path,
+            kittify_dir=kittify_dir,
+            current_version=current_version,
+            target_version=target_version,
             dry_run=dry_run,
-            json_output=json_output,
+            no_worktrees=no_worktrees,
         )
-        surface_drift_failed = _surface_drift_exit_required(
-            surface_repair_summary,
+    else:
+        _show_migration_plan_and_confirm(
+            migrations_needed,
+            project_path=project_path,
+            json_output=json_output,
+            dry_run=dry_run,
+            verbose=verbose,
             confirm=confirm,
         )
-        # Heal a missing mission_type_activations key even when no
-        # migrations are pending (fold #3246) — the exact rc36-rc38 stranded
-        # case never reaches the version-pinned migration below.
-        mission_type_activation_errors = _provision_missing_mission_type_activations(
-            project_path, dry_run=dry_run
+
+        # auto_commit: the runner commits each worktree's upgrade churn on its
+        # own branch (#2385) so a later `spec-kitty merge` isn't blocked by
+        # dirty coord/lane worktrees. D-10: the worktree-scope decision, not a
+        # bare `not dry_run`. The main checkout is committed by the finalizer
+        # below.
+        result = MigrationRunner(project_path, console).upgrade(
+            target_version,
+            dry_run=dry_run,
+            force=confirm,  # pass the unified confirm flag
+            include_worktrees=not no_worktrees,
+            auto_commit=autocommit.should_auto_commit_for_worktree(project_path, dry_run=dry_run),
         )
-        _print_dry_run_provisioning_notice(
-            project_path, dry_run=dry_run, json_output=json_output
-        )
-        upgrade_failed = surface_drift_failed or bool(mission_type_activation_errors)
-
-        if json_output:
-            warnings = list(worktree_warnings)
-            if auto_commit_warning:
-                warnings.append(auto_commit_warning)
-            errors: list[str] = list(mission_type_activation_errors)
-            if surface_drift_failed and surface_repair_summary is not None:
-                errors.append(_surface_drift_error(surface_repair_summary))
-            print(
-                json.dumps(
-                    {
-                        "status": "failed" if upgrade_failed else "up_to_date",
-                        "current_version": current_version,
-                        "target_version": target_version,
-                        "success": not upgrade_failed,
-                        "errors": errors,
-                        "auto_committed": auto_committed,
-                        "auto_commit_paths": auto_commit_paths,
-                        "warnings": warnings,
-                        "surface_repair": _surface_repair_payload(
-                            surface_repair_summary
-                        ),
-                    }
-                )
-            )
-            if upgrade_failed:
-                raise typer.Exit(1)
-        else:
-            console.print("[green]Project is already up to date![/green]")
-            for warning in worktree_warnings:
-                console.print(f"[yellow]Warning:[/yellow] {warning}")
-            for error in mission_type_activation_errors:
-                console.print(f"[red]Error:[/red] {error}")
-            if auto_committed:
-                console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
-            if auto_commit_warning:
-                console.print(f"[yellow]Warning:[/yellow] {auto_commit_warning}")
-            if mission_type_activation_errors:
-                raise typer.Exit(1)
-        return
-
-    # Show migration plan
-    if not json_output:
-        table = Table(title="Migration Plan", show_lines=False, header_style="bold cyan")
-        table.add_column("Migration", style="bright_white")
-        table.add_column("Description", style="dim")
-        table.add_column("Target", style="cyan")
-
-        for migration in migrations_needed:
-            table.add_row(
-                migration.migration_id,
-                migration.description,
-                migration.target_version,
-            )
-
-        console.print(table)
-        console.print()
-
-        _print_dry_run_provisioning_notice(
-            project_path, dry_run=dry_run, json_output=json_output
-        )
-
-        if verbose:
-            # Show detection results
-            console.print("[dim]Detection results:[/dim]")
-            for migration in migrations_needed:
-                detected = migration.detect(project_path)
-                can_apply, reason = migration.can_apply(project_path)
-                status = "[green]ready[/green]" if detected and can_apply else "[yellow]skipped[/yellow]"
-                console.print(f"  {migration.migration_id}: {status}")
-                if not can_apply and reason:
-                    console.print(f"    [dim]{reason}[/dim]")
-            console.print()
-
-    # T034 — confirm uses `confirm` (yes or force) instead of bare `force`
-    if not dry_run and not confirm:
-        proceed = typer.confirm(
-            f"Apply {len(migrations_needed)} migration(s)?",
-            default=True,
-        )
-        if not proceed:
-            console.print("[yellow]Upgrade cancelled.[/yellow]")
-            raise typer.Exit(0)
-
-    # Run migrations
-    runner = MigrationRunner(project_path, console)
-    # auto_commit: the runner commits each worktree's upgrade churn on its own
-    # branch (#2385) so a later `spec-kitty merge` isn't blocked by dirty
-    # coord/lane worktrees. The main checkout is committed below by the CLI.
-    result = runner.upgrade(
-        target_version,
-        dry_run=dry_run,
-        force=confirm,  # pass the unified confirm flag
-        include_worktrees=not no_worktrees,
-        auto_commit=not dry_run,
-    )
-
-    auto_committed = False
-    auto_commit_paths_list: list[str] = []
-    auto_commit_warning: str | None = None
-    manual_review_paths = _collect_manual_review_paths(result.migration_results)
-    if result.success and not dry_run:
+        manual_review_paths = _collect_manual_review_paths(result.migration_results)
         if manual_review_paths:
-            auto_commit_warning = "Skipped auto-commit because the upgrade preserved customized files that require manual review."
-            result.warnings.append(auto_commit_warning)
-        else:
-            auto_committed, auto_commit_paths_list, auto_commit_warning = autocommit.commit_touched_checkout(
-                project_path,
-                baseline_changed_paths,
-                result.from_version,
-                result.to_version,
+            result.warnings.append(
+                "Skipped auto-commit because the upgrade preserved customized files that require manual review."
             )
-            if auto_commit_warning:
-                result.warnings.append(auto_commit_warning)
-
-    if result.success and not json_output:
-        offer_teamspace_mission_state_migration(
-            project_path,
-            console=console,
-            dry_run=dry_run,
-            assume_yes=confirm,
+        outcome = UpgradeOutcome(
+            result=result,
+            manual_review_paths=[Path(p) for p in manual_review_paths],
+            worktree_failures=list(result.worktree_failures),
         )
 
-    # Run tool-surface repair after migrations have been applied.
-    surface_repair_summary = None
-    if result.success:
-        surface_repair_summary = _run_upgrade_surface_repair(
-            project_path,
+    # T017/C4 — one shared tail: wire the finalizer with the step
+    # implementations as injected callables (the finalizer itself does not
+    # import cli.commands — see upgrade/finalize.py's module docstring).
+    should_commit_main = autocommit.should_auto_commit(
+        project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths)
+    )
+    render_ctx = _FinalizerRenderContext()
+
+    from specify_cli.upgrade.finalize import finalize_upgrade
+
+    outcome = finalize_upgrade(
+        outcome,
+        provision_activations=functools.partial(_finalizer_step_provision, project_path, dry_run=dry_run),
+        run_surface_repair=functools.partial(
+            _finalizer_step_surface_repair,
+            outcome,
+            render_ctx,
+            project_path=project_path,
             confirm=confirm,
             dry_run=dry_run,
             json_output=json_output,
-        )
-    surface_drift_failed = _surface_drift_exit_required(
-        surface_repair_summary,
-        confirm=confirm,
+        ),
+        commit_churn=functools.partial(
+            _finalizer_step_commit_churn,
+            outcome,
+            render_ctx,
+            project_path=project_path,
+            baseline_changed_paths=baseline_changed_paths,
+        ),
+        offer_repair=functools.partial(
+            _finalizer_step_offer_repair,
+            outcome,
+            project_path=project_path,
+            confirm=confirm,
+            dry_run=dry_run,
+            json_output=json_output,
+        ),
+        should_commit=should_commit_main,
     )
-    # Heal a missing mission_type_activations key after migrations run
-    # (fold #3246): the version-pinned rc35 migration may not have applied
-    # (project first initialised on rc36-rc38), leaving the key absent even
-    # though other, unrelated migrations were needed and ran above. Mutating
-    # `result` here so both the JSON and human-readable output below (which
-    # read `result.errors`/`result.success` directly) surface the failure.
-    mission_type_activation_errors = _provision_missing_mission_type_activations(
-        project_path, dry_run=dry_run
+
+    surface_repair_summary = render_ctx.surface_repair_summary
+    if render_ctx.commit_warning:
+        outcome.result.warnings.append(render_ctx.commit_warning)
+    auto_commit_paths = list(render_ctx.commit_paths)
+    # Human-mode-only (FR-003/US2 scenario 1): the JSON contract already
+    # reports the config opt-out honestly via `auto_committed: false`, so
+    # this extra churn-detection git-status call is skipped for `--json`.
+    left_uncommitted = not json_output and _churn_left_uncommitted_by_config(
+        outcome,
+        dry_run=dry_run,
+        should_commit_main=should_commit_main,
+        project_path=project_path,
+        baseline_changed_paths=baseline_changed_paths,
     )
-    if mission_type_activation_errors:
-        result.errors.extend(mission_type_activation_errors)
-        result.success = False
-    errors = list(result.errors)
-    if surface_drift_failed and surface_repair_summary is not None:
-        errors.append(_surface_drift_error(surface_repair_summary))
-    success = result.success and not surface_drift_failed
 
     if json_output:
-        # Build detailed migrations array
-        migrations_detail = []
-        for migration in migrations_needed:
-            if migration.migration_id in result.migrations_applied:
-                status = "applied"
-            elif migration.migration_id in result.migrations_skipped:
-                status = "skipped"
-            else:
-                status = "pending"
-            migrations_detail.append(
-                {
-                    "id": migration.migration_id,
-                    "description": migration.description,
-                    "target_version": migration.target_version,
-                    "status": status,
-                    "manual_review_required": (
-                        result.migration_results.get(migration.migration_id).manual_review_required if migration.migration_id in result.migration_results else False
-                    ),
-                    "preserved_paths": (
-                        result.migration_results.get(migration.migration_id).preserved_paths if migration.migration_id in result.migration_results else []
-                    ),
-                }
+        json_payload = (
+            _build_migration_json_payload(
+                outcome,
+                migrations_needed,
+                manual_review_paths=manual_review_paths,
+                auto_commit_paths=auto_commit_paths,
+                surface_repair_summary=surface_repair_summary,
             )
+            if migrations_needed
+            else _build_no_migrations_json_payload(
+                outcome,
+                auto_commit_paths=auto_commit_paths,
+                surface_repair_summary=surface_repair_summary,
+            )
+        )
+        print(json.dumps(json_payload))
+    elif migrations_needed:
+        _display_upgrade_results(
+            outcome.result,
+            manual_review_paths=manual_review_paths,
+            auto_committed=outcome.committed,
+            auto_commit_paths=auto_commit_paths,
+            effective_success=outcome.effective_success,
+            errors=_combined_errors(outcome, surface_repair_summary),
+            left_uncommitted=left_uncommitted,
+        )
+    else:
+        _display_no_migrations_results(
+            outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted
+        )
 
-        # Surface per-migration schema-shaped JSON reports (e.g. the
-        # 3.2.0rc35_unified_bundle contract-shaped payload). Each migration
-        # emits its report as a single JSON string inside
-        # ``MigrationResult.changes_made[0]``; decode it so operators see a
-        # structured object rather than an opaque string.
-        migration_reports: dict[str, object] = {}
-        for mid, mres in result.migration_results.items():
-            if not mres.changes_made:
-                continue
-            payload = mres.changes_made[0]
-            try:
-                migration_reports[mid] = json.loads(payload)
-            except (TypeError, ValueError):
-                # Migration emitted a non-JSON change string; skip rather
-                # than break the operator contract.
-                continue
-
-        output = {
-            "status": "success" if success else "failed",
-            "current_version": result.from_version,
-            "target_version": result.to_version,
-            "dry_run": result.dry_run,
-            "migrations": migrations_detail,
-            "migrations_applied": result.migrations_applied,
-            "migrations_skipped": result.migrations_skipped,
-            "migration_reports": migration_reports,
-            "success": success,
-            "errors": errors,
-            "warnings": result.warnings,
-            "manual_review_required": bool(manual_review_paths),
-            "manual_review_paths": manual_review_paths,
-            "auto_committed": auto_committed,
-            "auto_commit_paths": auto_commit_paths_list,
-            "surface_repair": _surface_repair_payload(surface_repair_summary),
-        }
-        print(json.dumps(output))
-        if surface_drift_failed:
-            raise typer.Exit(1)
-        return
-
-    # Display results
-    _display_upgrade_results(
-        result,
-        manual_review_paths=manual_review_paths,
-        auto_committed=auto_committed,
-        auto_commit_paths=auto_commit_paths_list,
-    )
+    # D-5 — the exit code is derived exactly once, here, from the finalized
+    # outcome. No other site in the tail may raise typer.Exit. A successful
+    # outcome falls through to a bare return (exit code 0 either via Click's
+    # normal command-return path, or — for tests that call this function
+    # directly — without raising at all, matching the pre-refactor contract).
+    if outcome.exit_code != 0:
+        raise typer.Exit(outcome.exit_code)
 
 
 def _print_upgrade_section(header: str, items: list[str], item_prefix: str) -> None:
@@ -1125,16 +1440,25 @@ def _display_upgrade_results(
     manual_review_paths: list[str],
     auto_committed: bool,
     auto_commit_paths: list[str],
+    effective_success: bool,
+    errors: list[str],
+    left_uncommitted: bool = False,
 ) -> None:
     """Render the human-readable upgrade outcome.
+
+    Pure rendering (T022, FR-008/#3392): this function never raises. The
+    caller derives the exit code exactly once, from
+    ``UpgradeOutcome.exit_code`` (D-5), after every renderer has run.
 
     WP02 / FR-013 (#1784 P3 crumb): a ``--dry-run`` invocation must never print
     a success line implying changes were applied — the closing line is
     dry-run-specific ("Dry run complete — no changes applied."), while a real
     successful run keeps the "Upgrade complete!" line unchanged.
 
-    Raises:
-        typer.Exit: with code 1 when ``result.success`` is False.
+    ``effective_success``/``errors`` come from the finalized
+    ``UpgradeOutcome`` rather than ``result.success``/``result.errors``
+    directly: activation errors and surface-repair drift are finalizer-owned
+    signals that are not folded into ``result`` itself (D-3).
     """
     console.print()
 
@@ -1155,15 +1479,15 @@ def _display_upgrade_results(
         "  [dim]○[/dim] ",
     )
     _print_upgrade_section("[yellow]Warnings:[/yellow]", result.warnings, "  [yellow]![/yellow] ")
-    _print_upgrade_section("[red]Errors:[/red]", result.errors, "  [red]✗[/red] ")
+    _print_upgrade_section("[red]Errors:[/red]", errors, "  [red]✗[/red] ")
     _print_upgrade_section(
         "[yellow]Manual review required:[/yellow]", manual_review_paths, "  [yellow]![/yellow] "
     )
 
     console.print()
-    if not result.success:
+    if not effective_success:
         console.print("[bold red]Upgrade failed.[/bold red]")
-        raise typer.Exit(1)
+        return
     if result.dry_run:
         # Honest dry-run: nothing was applied, so do not imply it was.
         console.print(
@@ -1174,6 +1498,8 @@ def _display_upgrade_results(
         console.print(f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}")
         if auto_committed:
             console.print(f"[cyan]→ Auto-committed upgrade changes ({len(auto_commit_paths)} files)[/cyan]")
+        elif left_uncommitted:
+            console.print(_LEFT_UNCOMMITTED_MESSAGE)
 
 
 # ---------------------------------------------------------------------------
