@@ -87,37 +87,22 @@ def _write_resume_scaffold(
         encoding="utf-8",
     )
     (feature_dir / "spec.md").write_text("# Mission Specification\n", encoding="utf-8")
-    event_payload = {
-        field: meta[field]
-        for field in (
-            "mission_id",
-            "mission_number",
-            "mission_slug",
-            "mission_type",
-            "friendly_name",
-            "purpose_tldr",
-            "purpose_context",
-            "target_branch",
-            "created_at",
-        )
-    }
-    event_payload["mission_number"] = None
-    event_payload["wp_count"] = 0
-    (feature_dir / "status.events.jsonl").write_text(
-        json.dumps(
-            {
-                "event_id": "01ABCDEF000000000000000001",
-                "event_type": "MissionCreated",
-                "aggregate_id": mission_id,
-                "aggregate_type": "Mission",
-                "schema_version": "5.0.0",
-                "timestamp": "2026-08-22T09:00:00+00:00",
-                "payload": event_payload,
-            }
-        )
-        + "\n",
-        encoding="utf-8",
+    from specify_cli.status import emit_mission_created_local
+
+    emitted = emit_mission_created_local(
+        feature_dir,
+        mission_slug=meta["mission_slug"],
+        mission_id=mission_id,
+        mission_number=None,
+        mission_type=mission_type,
+        target_branch=meta["target_branch"],
+        wp_count=0,
+        friendly_name=meta["friendly_name"],
+        purpose_tldr=meta["purpose_tldr"],
+        purpose_context=meta["purpose_context"],
+        created_at=meta["created_at"],
     )
+    assert emitted is not None
     return feature_dir
 
 
