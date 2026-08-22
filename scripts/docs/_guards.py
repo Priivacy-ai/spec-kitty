@@ -50,10 +50,13 @@ class GitDiffError(RuntimeError):
 def resolve_changed_files(repo_root: Path, base_ref: str) -> list[str]:
     """Return repo-relative POSIX paths added/copied/modified/renamed since *base_ref*.
 
-    Runs ``git diff --name-only --diff-filter=ACMR <base_ref>...HEAD`` in
-    *repo_root*. The three-dot form asks git to diff against the merge-base of
-    *base_ref* and ``HEAD``, so a normal PR (base branch has moved on) reports
-    only the PR's own changes.
+    Runs ``git diff --name-only -z --no-renames --diff-filter=ACMD
+    <base_ref>...HEAD`` in *repo_root*. Rename detection is disabled so both
+    the deleted source and added destination are returned; publication gates
+    must see removal of a config path as well as its replacement. The
+    three-dot form asks git to diff against the merge-base of *base_ref* and
+    ``HEAD``, so a normal PR (base branch has moved on) reports only the PR's
+    own changes.
 
     Fail-closed (B-WP02): a non-zero git return code — an unresolvable or
     unfetched *base_ref*, a missing ``git`` executable, or any other
@@ -64,7 +67,15 @@ def resolve_changed_files(repo_root: Path, base_ref: str) -> list[str]:
     """
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", "-z", "--diff-filter=ACMR", f"{base_ref}...HEAD"],
+            [
+                "git",
+                "diff",
+                "--name-only",
+                "-z",
+                "--no-renames",
+                "--diff-filter=ACMD",
+                f"{base_ref}...HEAD",
+            ],
             cwd=repo_root,
             capture_output=True,
             check=False,
@@ -73,7 +84,7 @@ def resolve_changed_files(repo_root: Path, base_ref: str) -> list[str]:
         raise GitDiffError(f"resolve_changed_files: could not run git (base_ref={base_ref!r}): {exc}") from exc
     if result.returncode != 0:
         stderr = os.fsdecode(result.stderr).strip()
-        raise GitDiffError(f"resolve_changed_files: `git diff --name-only -z {base_ref}...HEAD` failed (exit {result.returncode}): {stderr}")
+        raise GitDiffError(f"resolve_changed_files: `git diff --name-only -z --no-renames {base_ref}...HEAD` failed (exit {result.returncode}): {stderr}")
     return [os.fsdecode(path) for path in result.stdout.split(b"\0") if path]
 
 
