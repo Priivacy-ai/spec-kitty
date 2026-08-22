@@ -44,8 +44,6 @@ __all__ = [
     "_already_baked",
     "_mark_mission_number_baked",
     "_is_assigned_mission_number",
-    "_compute_next_mission_number_or_none",
-    "_write_mission_number_to_branch",
     "_bake_mission_number_into_mission_branch",
     "_assign_planning_only_mission_number_if_needed",
 ]
