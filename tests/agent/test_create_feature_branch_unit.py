@@ -44,14 +44,15 @@ def _run_create_feature(
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value=current_branch),
         patch(f"{_CORE_MODULE}.safe_commit", return_value=True),
-        # The MissionCreated projection now flows via emit_mission_created_local
-        # -> the registered SaaS-fanout observer (leak #1 fix removed the direct
-        # emit_mission_created import from core.mission_creation). In this unit
-        # context no SaaS/dossier handlers are registered, so the lifecycle and
-        # dossier fan-outs are inert no-ops; we still patch the canonical status
-        # facade entry points to keep the create path hermetic (no network).
+        # Keep the create path hermetic (no network) by patching the SaaS/dossier
+        # fan-out only. We deliberately do NOT mock emit_mission_created_local:
+        # since #3660 the create flow persists the canonical MissionCreated event
+        # to the mission's local status.events.jsonl and reads it back to verify
+        # exactly one was written. That persistence is purely local (an on-disk
+        # append, no network — the SaaS outbox is a separate best-effort step), so
+        # letting it run keeps the test hermetic while exercising the real
+        # local-persistence contract instead of defeating it with a mock.
         patch("specify_cli.status.fire_dossier_sync"),
-        patch("specify_cli.status.emit_mission_created_local"),
     ):
         result = runner.invoke(app, args)
 

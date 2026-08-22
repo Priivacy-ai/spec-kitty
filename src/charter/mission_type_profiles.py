@@ -62,7 +62,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from charter.action_grain import aggregate_action_grain
 from charter.activations import ActivationEntry
-from charter.mission_type_key import canonical_mission_type_key
+from charter.mission_type_key import canonical_mission_type_key, read_mission_type
 
 if TYPE_CHECKING:
     from charter.mission_type_profile_repository import MissionTypeProfileRepository
@@ -744,12 +744,18 @@ def _resolve_type_key(mission_type: str | None, feature_dir: Path | None) -> str
         return canonical_mission_type_key(mission_type)
     if feature_dir is None:
         return None
-    raw = _read_meta_mission_type(feature_dir)
-    return canonical_mission_type_key(raw)
+    return _read_meta_mission_type(feature_dir)
 
 
 def _read_meta_mission_type(feature_dir: Path) -> str | None:
-    """Return the raw ``mission_type`` string from ``feature_dir/meta.json``.
+    """Return the canonical ``mission_type`` key from ``feature_dir/meta.json``.
+
+    Loads the mission's ``meta.json`` (file I/O stays here, per the dict-in seam
+    design) and delegates the field-extract + canonicalization to the one shared
+    runtime reader :func:`charter.mission_type_key.read_mission_type` (rc3 M5
+    FR-001 — the M3↔M5 reconciliation: the charter path and the CLI path resolve
+    through the *same* authority so they cannot re-diverge). Reads only the
+    canonical ``mission_type`` field (never legacy ``mission``, FR-002).
 
     Best-effort: a missing / unreadable / malformed ``meta.json`` — or a
     ``meta.json`` without a ``mission_type`` key — degrades to ``None`` (the
@@ -762,8 +768,7 @@ def _read_meta_mission_type(feature_dir: Path) -> str | None:
         return None
     if not isinstance(data, dict):
         return None
-    raw = data.get("mission_type")
-    return raw if isinstance(raw, str) else None
+    return read_mission_type(data)
 
 
 #: Layers whose per-type ``governance-profile.yaml`` witnesses a "genuinely
@@ -1036,7 +1041,9 @@ def _resolve_expected_artifacts_slot(
     from charter.org_expected_artifacts import resolve_org_expected_artifacts  # noqa: PLC0415
 
     org_roots = resolve_existing_org_roots(repo_root)
-    org_result = resolve_org_expected_artifacts(org_roots, mission_type)
+    org_result: _ExpectedArtifactsManifest | None = resolve_org_expected_artifacts(
+        org_roots, mission_type
+    )
     if org_result is not None:
         return org_result
 
@@ -1261,7 +1268,8 @@ def _load_mission_type_profile(
     pydantic.ValidationError
         When a matching YAML is structurally malformed.
     """
-    return _mission_type_profile_repository(repo_root).get(mission_type)
+    profile: MissionTypeProfile | None = _mission_type_profile_repository(repo_root).get(mission_type)
+    return profile
 
 
 # ---------------------------------------------------------------------------

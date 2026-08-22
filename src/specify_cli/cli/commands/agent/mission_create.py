@@ -549,7 +549,9 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         "mission_slug": result.mission_slug,
         "mission_number": result.mission_number,
         "mission_id": str(result.meta.get("mission_id", "")),
-        "mission_type": str(result.meta.get("mission_type", result.meta.get("mission", ""))),
+        # rc3 M5 (FR-002): echo the canonical field only — the legacy `mission`
+        # echo is retired (a just-created mission always carries `mission_type`).
+        "mission_type": str(result.meta.get("mission_type", "")),
         "slug": str(result.meta.get("slug", "")),
         "friendly_name": str(result.meta.get("friendly_name", "")),
         "purpose_tldr": str(result.meta.get("purpose_tldr", "")),
