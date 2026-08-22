@@ -46,7 +46,7 @@ pytest.importorskip(
     reason="pytest-playwright optional dep; run `uv sync --extra test` / "
     "`playwright install chromium` to exercise tests/ui/",
 )
-from playwright.sync_api import Page, expect  # noqa: E402  (after importorskip)
+from playwright.sync_api import Page, Route, expect  # noqa: E402  (after importorskip)
 
 pytestmark = pytest.mark.e2e
 
@@ -128,3 +128,97 @@ def test_kanban_card_shows_assigned_profile_avatar(page: Page, dashboard: dict[s
     # hyphen-separated words, uppercased.
     expect(avatar).to_have_text("II")
     expect(avatar).to_have_attribute("title", dashboard["agent_profile"])
+
+
+def test_kanban_card_treats_identity_and_card_copy_as_text(
+    page: Page, dashboard: dict[str, str]
+) -> None:
+    """Hostile card copy cannot become markup; blank profile falls through."""
+    hostile_id = 'WP01<img src=x onerror="globalThis.__cardPwned=true">'
+    hostile_title = 'Unsafe <svg onload="globalThis.__cardPwned=true"> title'
+    hostile_role = 'reviewer" onmouseover="globalThis.__avatarPwned=true'
+
+    def _rewrite_kanban(route: Route) -> None:
+        response = route.fetch()
+        payload = response.json()
+        lanes = payload.get("lanes", payload)
+        task = lanes["planned"][0]
+        task.update(
+            {
+                "id": hostile_id,
+                "title": hostile_title,
+                "agent_profile": "   ",
+                "role": hostile_role,
+            }
+        )
+        route.fulfill(response=response, json=payload)
+
+    page.route("**/api/kanban/*", _rewrite_kanban)
+    page.goto(dashboard["base_url"])
+    kanban_nav = page.locator('.sidebar-item[data-page="kanban"]')
+    expect(kanban_nav).not_to_have_class(_DISABLED_CLASS_RE)
+    kanban_nav.click()
+
+    card = page.locator(".lane.planned .card").first
+    expect(card.locator(".card-id")).to_have_text(hostile_id)
+    expect(card.locator(".card-title")).to_have_text(hostile_title)
+    expect(card.locator("img")).to_have_count(0)
+    expect(card.locator("svg")).to_have_count(0)
+
+    avatar = card.locator(".card-avatar")
+    expect(avatar).to_have_attribute("title", hostile_role)
+    expect(avatar).not_to_have_attribute("onmouseover", re.compile(".+"))
+    assert page.evaluate("globalThis.__cardPwned === true") is False
+    assert page.evaluate("globalThis.__avatarPwned === true") is False
+    assert page.evaluate("profileAvatarHtml({})") == ""
+
+
+def test_print_media_allows_below_fold_content_to_flow(
+    page: Page, dashboard: dict[str, str]
+) -> None:
+    """Chromium computed layout must expand the SPA shell under print media."""
+    page.set_viewport_size({"width": 1000, "height": 600})
+    page.goto(dashboard["base_url"])
+    page.evaluate(
+        """
+        () => {
+          const sentinel = document.createElement('div');
+          sentinel.id = 'print-below-fold-sentinel';
+          sentinel.style.height = '1800px';
+          sentinel.textContent = 'PRINT-END-SENTINEL';
+          document.querySelector('.main-content').appendChild(sentinel);
+        }
+        """
+    )
+
+    screen = page.evaluate(
+        """
+        () => {
+          const main = document.querySelector('.main-content');
+          const style = getComputedStyle(main);
+          return {height: main.getBoundingClientRect().height, overflowY: style.overflowY};
+        }
+        """
+    )
+    assert screen["height"] <= 600
+    assert screen["overflowY"] == "auto"
+
+    page.emulate_media(media="print")
+    printed = page.evaluate(
+        """
+        () => {
+          const main = document.querySelector('.main-content');
+          const sentinel = document.querySelector('#print-below-fold-sentinel');
+          const style = getComputedStyle(main);
+          return {
+            height: main.getBoundingClientRect().height,
+            overflowY: style.overflowY,
+            sentinelBottom: sentinel.getBoundingClientRect().bottom,
+            documentHeight: document.documentElement.scrollHeight,
+          };
+        }
+        """
+    )
+    assert printed["overflowY"] == "visible"
+    assert printed["height"] > 1600
+    assert printed["sentinelBottom"] <= printed["documentHeight"]

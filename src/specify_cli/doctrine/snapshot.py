@@ -6,8 +6,8 @@ partial snapshot:
 1. Stage into ``<local_path>.parent/.tmp-<uuid>``.
 2. Validate that the staged tree (or ``subdir`` within it, when configured)
    contains at least one recognised artifact subdirectory.
-3. Replace ``local_path`` with the staged tree using a single rename.
-4. Write ``pack-manifest.yaml`` at the effective root describing the snapshot.
+3. Write ``pack-manifest.yaml`` into the staged effective root.
+4. Replace ``local_path`` with the complete staged tree using a single rename.
 
 :class:`specify_cli.doctrine.sources.git_source.GitSource` deliberately
 does NOT use this helper.  Git owns ``target_dir`` and provides its own
@@ -16,12 +16,13 @@ consistency story via ``fetch`` + ``reset --hard``.
 
 from __future__ import annotations
 
-import re
+import hashlib
 import shutil
 from dataclasses import replace
 from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
+from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -122,6 +123,10 @@ def write_snapshot(
             errors=[f"Unexpected error during fetch: {exc}"],
         )
 
+    if not result.ok:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        return result
+
     if result.unchanged:
         shutil.rmtree(tmp_dir, ignore_errors=True)
         return _finish_unchanged_snapshot(
@@ -129,10 +134,6 @@ def write_snapshot(
             result,
             subdir=subdir,
         )
-
-    if not result.ok:
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-        return result
 
     try:
         validate_root = _resolve_snapshot_validate_root(tmp_dir, subdir)
@@ -163,39 +164,58 @@ def write_snapshot(
             ],
         )
 
-    # Replace local_path by first moving the old snapshot aside. This avoids
-    # the delete-then-move ENOENT window and preserves the old tree if promote
-    # fails before the new snapshot is in place.
-    old_dir: Path | None = None
+    # Make metadata part of the staged snapshot. A manifest write failure must
+    # leave the last-good installed tree untouched, just like a fetch or
+    # validation failure.
     try:
-        if local_path.exists():
-            old_dir = local_path.parent / f".old-{local_path.name}-{uuid4().hex}"
-            local_path.replace(old_dir)
-        tmp_dir.replace(local_path)
+        write_pack_manifest(
+            validate_root,
+            result,
+            source_url=str(resolved_url or ""),
+            source_type=resolved_type,
+        )
     except OSError as exc:
         shutil.rmtree(tmp_dir, ignore_errors=True)
-        if old_dir is not None and old_dir.exists() and not local_path.exists():
-            old_dir.replace(local_path)
         return FetchResult(
             ok=False,
             artifacts_written=result.artifacts_written,
             pack_version=result.pack_version,
             etag=result.etag,
-            errors=[f"Failed to replace snapshot: {exc}"],
+            errors=[f"Failed to write staged snapshot manifest: {exc}"],
+        )
+
+    # Replace local_path by first moving the old snapshot aside. This avoids
+    # the delete-then-move ENOENT window and preserves the old tree if promote
+    # fails before the new snapshot is in place.
+    old_dir: Path | None = None
+    promoted = False
+    try:
+        if local_path.exists():
+            old_dir = local_path.parent / f".old-{local_path.name}-{uuid4().hex}"
+            local_path.replace(old_dir)
+        tmp_dir.replace(local_path)
+        promoted = True
+    except OSError as exc:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+        errors = [f"Failed to replace snapshot: {exc}"]
+        if old_dir is not None and old_dir.exists() and not local_path.exists():
+            try:
+                old_dir.replace(local_path)
+            except OSError as restore_exc:
+                errors.append(
+                    "Automatic restore failed; the previous snapshot is preserved "
+                    f"at {old_dir}: {restore_exc}"
+                )
+        return FetchResult(
+            ok=False,
+            artifacts_written=result.artifacts_written,
+            pack_version=result.pack_version,
+            etag=result.etag,
+            errors=errors,
         )
     finally:
-        if old_dir is not None and old_dir.exists():
+        if promoted and old_dir is not None and old_dir.exists():
             shutil.rmtree(old_dir, ignore_errors=True)
-
-    # Manifest lands at the effective root so ``doctor doctrine`` (which
-    # resolves via ``effective_root``) finds ``pack_version`` / counts.
-    manifest_root = _resolve_snapshot_validate_root(local_path, subdir)
-    write_pack_manifest(
-        manifest_root,
-        result,
-        source_url=str(resolved_url or ""),
-        source_type=resolved_type,
-    )
     return result
 
 
@@ -263,10 +283,13 @@ def _manifest_matches_source(
     data = _read_existing_manifest(local_path, subdir)
     if data is None:
         return False
-    return (
-        data.get("source_type") == source_type
-        and data.get("source_url") == _strip_credentials(source_url)
-    )
+    if data.get("source_type") != source_type:
+        return False
+    expected_url = _strip_credentials(source_url)
+    fingerprint = data.get("source_fingerprint")
+    if isinstance(fingerprint, str) and fingerprint:
+        return fingerprint == _source_fingerprint(expected_url)
+    return data.get("source_url") == expected_url
 
 
 def _read_stored_etag(
@@ -402,16 +425,19 @@ def write_pack_manifest(
 ) -> None:
     """Write ``pack-manifest.yaml`` to ``local_path``.
 
-    The manifest is read-only metadata for tooling and humans.  Credentials in
-    ``source_url`` are stripped before persistence.
+    The manifest is read-only metadata for tooling and humans. Credentials,
+    query parameters, and fragments in ``source_url`` are stripped before
+    persistence.
     """
     local_path = Path(local_path)
     manifest_path = local_path / "pack-manifest.yaml"
+    safe_source_url = _strip_credentials(source_url)
     payload: dict[str, Any] = {
         "pack_version": result.pack_version,
         "fetched_at": _iso_now(),
         "source_type": source_type,
-        "source_url": _strip_credentials(source_url),
+        "source_url": safe_source_url,
+        "source_fingerprint": _source_fingerprint(safe_source_url),
         "artifact_counts": _manifest_artifact_counts(local_path),
     }
     if result.etag:
@@ -461,10 +487,28 @@ def _count_artifacts(snapshot_dir: Path) -> dict[str, int]:
 
 
 def _strip_credentials(url: str) -> str:
-    """Remove ``user:pass@`` from an HTTPS URL before logging/persisting."""
+    """Return a remote URL safe for durable metadata and comparisons."""
     if not url:
         return ""
-    return re.sub(r"^(https?://)[^/@]+@", r"\1", url)
+    parsed = urlsplit(url)
+    if parsed.scheme not in {"http", "https"}:
+        return url
+    hostname = parsed.hostname or ""
+    if ":" in hostname:
+        hostname = f"[{hostname}]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    netloc = f"{hostname}:{port}" if port is not None else hostname
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+
+
+def _source_fingerprint(safe_url: str) -> str:
+    """Return a stable non-secret identity for a sanitized source URL."""
+    return hashlib.sha256(  # noqa: TID251 - URL identity fingerprint, not charter freshness
+        safe_url.encode("utf-8")
+    ).hexdigest()
 
 
 def _infer_source_type(source: OrgDoctrineSource) -> str:
