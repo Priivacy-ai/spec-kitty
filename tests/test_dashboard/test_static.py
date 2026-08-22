@@ -10,6 +10,7 @@ pytestmark = [pytest.mark.integration]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DASHBOARD_JS = REPO_ROOT / "src" / "specify_cli" / "dashboard" / "static" / "dashboard" / "dashboard.js"
+DASHBOARD_CSS = REPO_ROOT / "src" / "specify_cli" / "dashboard" / "static" / "dashboard" / "dashboard.css"
 
 
 def test_dashboard_template_references_static_assets():
@@ -36,6 +37,26 @@ def test_static_assets_exist():
     for asset in (css, js, logo):
         assert asset.exists(), f"{asset} should exist"
         assert asset.stat().st_size > 0, f"{asset} should not be empty"
+
+
+def test_dashboard_css_print_media_resets_shell_overflow():
+    """Regression for #323: the app-shell body/.container/.main-content stack uses
+    height:100vh + overflow:hidden|auto to keep the SPA single-viewport on screen.
+    Left as-is, that clips any content past one screen height when printed instead
+    of flowing it onto additional pages. A `@media print` block must reset those
+    elements to natural height/overflow so printed pages carry the full content.
+    """
+    css = DASHBOARD_CSS.read_text(encoding="utf-8")
+
+    print_media_start = css.find("@media print")
+    assert print_media_start != -1, "dashboard.css must define an @media print block"
+
+    print_media_end = css.find("\n}", print_media_start)
+    print_block = css[print_media_start:print_media_end]
+
+    for selector in ("body", ".container", ".sidebar", ".main-content"):
+        assert selector in print_block, f"@media print block must reset {selector}"
+    assert "overflow: visible" in print_block
 
 
 def test_dashboard_javascript_has_valid_syntax():
