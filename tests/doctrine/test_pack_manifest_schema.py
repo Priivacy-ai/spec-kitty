@@ -140,6 +140,16 @@ class TestSchemaVersionAndRoundTrip:
         assert json.loads(manifest.model_dump_json())["pack_version"] is None
         assert TypeAdapter(PackManifest).dump_python(manifest)["pack_version"] is None
 
+    def test_serialization_schema_preserves_validation_field_contract(self) -> None:
+        validation = PackManifest.model_json_schema(mode="validation")
+        serialization = PackManifest.model_json_schema(mode="serialization")
+        adapter = TypeAdapter(PackManifest).json_schema(mode="serialization")
+
+        assert set(serialization["properties"]) == set(validation["properties"])
+        assert serialization["additionalProperties"] is False
+        assert set(adapter["properties"]) == set(validation["properties"])
+        assert adapter["additionalProperties"] is False
+
     def test_non_null_provenance_changes_hash_without_artifact_counts(self) -> None:
         first = PackManifest(
             source_type="custom",
