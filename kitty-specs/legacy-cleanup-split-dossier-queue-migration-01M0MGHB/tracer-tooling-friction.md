@@ -326,3 +326,116 @@ territory), now also observed on `record-analysis`.
 via `git log`/`git status --porcelain` rather than trusting the command's own
 JSON/exit behavior, per this phase's standing instruction. Recording for the
 operator; not filing a ledger entry (operator owns the ledger).
+
+## 2026-08-22 — WP01 implement phase: T001 baseline, a self-inflicted contamination near-miss, and a process gap (never ran `implement`)
+
+### Process gap: `implement` was never invoked
+
+Wrangler Wendy (this WP01 implementer session) worked directly in the primary
+checkout against `src/specify_cli/dossier/events.py` and
+`tests/sync/test_dossier_pipeline.py` without ever running
+`.venv/bin/spec-kitty agent action implement WP01 --agent claude`. This was
+not a tool failure — the command was simply never invoked. The WP prompt's
+subtask list (T001-T006) was read and worked directly as a plain
+implementation brief, skipping the canonical loop entirely. Consequence: no
+`.worktrees/<slug>-lane-a` was ever created despite `lanes.json` defining
+`lane-a` for WP01, and no `spec-kitty`-owned state transition (status.json /
+status.events.jsonl) was ever driven for WP01 by this session. The operator
+has confirmed working in the primary checkout is acceptable for this
+mission's strictly-sequential WP topology, so no worktree retrofit was
+attempted — but the `implement` command itself was never exercised or proven
+working (or broken) by this session, which is a real gap: it means WP02-WP04
+still need their own first real exercise of that command, this session
+provides no evidence either way.
+
+### T001 baseline: a self-inflicted contamination near-miss
+
+The first baseline run (started 2026-08-22T14:01:10Z, PWHEADLESS=1
+`pytest tests/dossier/ tests/sync/test_events_namespace.py
+tests/sync/test_dossier_pipeline.py tests/sync/test_diagnose.py
+tests/architectural/ -q -p no:cacheprovider`) was launched correctly *before*
+any functional edit to `events.py` began. Because the harness moved it to a
+background job (>120s), this session then proceeded to edit
+`src/specify_cli/dossier/events.py` *while that baseline run was still
+executing* (~12 minutes wall time) — a direct violation of the "run the
+baseline against a clean, unmodified tree" precondition, self-inflicted, not
+a tool defect.
+
+Effect: that run reported `5 failed, 2088 passed, 2 skipped, 2 xfailed` — all
+5 failures in `tests/architectural/test_execution_context_parity.py`, each
+with the exact same traceback:
+```
+NameError: name 'BaseModel' is not defined
+  ...alNamespaceTuple(BaseModel):
+```
+That test file's tests shell out to `python -m specify_cli agent tasks
+move-task ...` as real subprocesses, which import `specify_cli.dossier.events`
+fresh from disk at subprocess-start time — not from the already-imported,
+cached module the parent pytest process was using. Because this session's
+`Edit` calls to `events.py` were in transient, syntactically-broken
+intermediate states at the moment those particular subprocesses spawned
+(mid-way through deleting the `BaseModel` import while class bodies still
+referenced it), the subprocess import failed and the test's subprocess-return
+assertion failed. This is a real, reproducible hazard for any future
+implementer who runs a long background baseline and then edits
+subprocess-import-sensitive files (anything under `src/specify_cli/`) before
+that baseline exits — the two are not isolated from each other. **Not filing
+a ledger entry** (operator owns the ledger) — flagging as a process note:
+background-baseline-then-edit-concurrently is unsafe for any file that a
+subprocess-spawning architectural test imports fresh from disk.
+
+**Verified not a real regression, two ways:**
+1. Re-ran `tests/architectural/test_execution_context_parity.py` alone
+   against this WP's finished, internally-consistent `events.py` (all T002-T006
+   edits complete, no further concurrent edits) — `22 passed`.
+2. Temporarily swapped `events.py` back to the exact pristine pre-mission
+   content (`git show HEAD:src/specify_cli/dossier/events.py`, no hand-edits,
+   restored via `cp` immediately after) and re-ran the same file —
+   `22 passed`. Confirms the true pre-change baseline for this file is clean;
+   restored this WP's finished file immediately after (`diff` confirmed byte-
+   identical restoration).
+
+### T001 baseline: the real, clean result
+
+A second, fully clean run (no concurrent edits this time — started only
+after all of T002-T006's code edits were finished) over the same NFR-003
+scope:
+
+```
+PWHEADLESS=1 .venv/bin/python -m pytest \
+  tests/dossier/ tests/sync/test_events_namespace.py \
+  tests/sync/test_dossier_pipeline.py tests/sync/test_diagnose.py \
+  tests/architectural/ -q -p no:cacheprovider
+→ 1 failed, 2094 passed, 2 skipped, 2 xfailed in 771.01s (0:12:51)
+```
+
+The single failure, `tests/dossier/test_events.py::TestContentHashRef::test_lowercases_hash`,
+is **new, genuine, and introduced by this WP's own FR-001 change** — not
+pre-existing (confirmed: this exact test was absent from the first
+contaminated run's failure list, meaning it passed against the pristine
+pre-change local-mirror `ContentHashRef`, which had a `field_validator`
+lowercasing the hash on construction; the canonical `spec_kitty_events`
+`ContentHashRef` has no such validator — verified directly via
+`inspect.getsource(spec_kitty_events.ContentHashRef)`). This is a structural
+conflict between FR-001 (SC-001: zero locally-defined Pydantic classes
+duplicating `spec_kitty_events` shapes) and this one pinned test: the
+lowercasing behavior can only be restored by re-wrapping `ContentHashRef` in
+a local subclass, which would satisfy SC-001's literal grep
+(`^class.*BaseModel`) while violating its actual intent. Not fixed here:
+`tests/dossier/test_events.py` is WP04's `owned_files`, not WP01's, and this
+WP was explicitly told to investigate rather than silently adjust that file.
+No production caller is affected — `content_hash_sha256` always flows from
+`hashlib.sha256(...).hexdigest()`, already lowercase, confirmed by grep
+across `src/specify_cli/dossier/`. Flagging for an explicit operator/WP04
+decision: retire the test as pinning now-impossible-to-preserve mirror-only
+behavior, or accept the one-test regression.
+
+Total test count is consistent across both runs: 2097 collected pre-change
+(5+2088+2+2), 2099 collected post-change (1+2094+2+2) — the +2 delta is
+exactly this WP's two new T006 regression tests.
+
+Cross-referenced against issue #3284's known-red set (23 tests + 2 errors on
+`main`): none of #3284's named tests fall inside this WP's NFR-003 scope, and
+the one new red (`test_lowercases_hash`) is not in that set either (it is
+newly red, not pre-existing) — consistent with the operator's separately-
+measured baseline of zero pre-existing failures on this surface.
