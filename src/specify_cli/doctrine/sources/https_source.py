@@ -7,7 +7,10 @@ semantics are layered on by :func:`specify_cli.doctrine.snapshot.write_snapshot`
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import os
+import re
 import tarfile
 import tempfile
 import time
@@ -29,6 +32,22 @@ _ARTIFACTORY_PATH_MARKER = "/artifactory/"
 
 class ArchiveSizeLimitError(Exception):
     """Raised when a fetched archive exceeds doctrine source safety limits."""
+
+
+@dataclass(frozen=True)
+class _ArtifactoryMetadata:
+    """Version provenance bound to one immutable archive body."""
+
+    version: str
+    sha256: str
+
+
+@dataclass(frozen=True)
+class _BufferedArchive:
+    """Temporary archive plus its exact downloaded-body checksum."""
+
+    path: Path
+    sha256: str
 
 
 @dataclass
@@ -56,6 +75,20 @@ class HttpsBundleSource:
         target_dir = Path(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
 
+        storage_url: str | None = None
+        if self.source_type == "artifactory":
+            storage_url = _artifactory_storage_url(self.url)
+            if storage_url is None:
+                return FetchResult(
+                    ok=False,
+                    artifacts_written=0,
+                    pack_version=None,
+                    errors=[
+                        "Artifactory source requires a valid Artifactory item URL "
+                        "containing /artifactory/<repo>/<item>."
+                    ],
+                )
+
         try:
             response = self._get_with_retry()
         except requests.RequestException as exc:
@@ -63,12 +96,50 @@ class HttpsBundleSource:
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
-                errors=[f"Network error fetching {self.url}: {exc}"],
+                errors=[
+                    f"Network error fetching {_safe_url_for_error(self.url)}: "
+                    f"{type(exc).__name__}"
+                ],
             )
 
-        if response.status_code == 304:
-            # Conditional request: body is empty; keep the existing snapshot.
+        try:
+            return self._consume_response(response, target_dir, storage_url)
+        finally:
             response.close()
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+    def _headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        custom_header = os.environ.get("SPEC_KITTY_ORG_AUTH_HEADER")
+        if custom_header:
+            headers["Authorization"] = custom_header
+        else:
+            token = os.environ.get("SPEC_KITTY_ORG_TOKEN")
+            if token:
+                headers["Authorization"] = f"Bearer {token}"
+        if self.if_none_match:
+            headers["If-None-Match"] = self.if_none_match
+        return headers
+
+    def _consume_response(
+        self,
+        response: requests.Response,
+        target_dir: Path,
+        storage_url: str | None,
+    ) -> FetchResult:
+        """Validate, buffer, provenance-check, then extract one response."""
+        if response.status_code == 304:
+            if not self.if_none_match:
+                return FetchResult(
+                    ok=False,
+                    artifacts_written=0,
+                    pack_version=None,
+                    errors=[
+                        "Remote returned HTTP 304 without an If-None-Match validator."
+                    ],
+                )
             return FetchResult(
                 ok=True,
                 artifacts_written=0,
@@ -93,8 +164,8 @@ class HttpsBundleSource:
                 artifacts_written=0,
                 pack_version=None,
                 errors=[
-                    f"HTTP {response.status_code} fetching {self.url}: "
-                    f"{response.reason}"
+                    f"HTTP {response.status_code} fetching "
+                    f"{_safe_url_for_error(self.url)}."
                 ],
             )
 
@@ -111,14 +182,71 @@ class HttpsBundleSource:
                 ],
             )
 
-        # Artifactory metadata is required; fail before downloading bytes.
-        jfrog_version, version_error = self._fetch_artifactory_version()
-        if version_error is not None:
+        buffered, buffer_error = self._buffer_archive(response, archive_kind)
+        if buffer_error is not None:
             return FetchResult(
-                ok=False, artifacts_written=0, pack_version=None, errors=[version_error]
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                errors=[buffer_error],
             )
+        assert buffered is not None
 
+        metadata: _ArtifactoryMetadata | None = None
+        if storage_url is not None:
+            metadata, metadata_error = self._fetch_artifactory_metadata(storage_url)
+            if metadata_error is not None:
+                buffered.path.unlink(missing_ok=True)
+                return FetchResult(
+                    ok=False,
+                    artifacts_written=0,
+                    pack_version=None,
+                    errors=[metadata_error],
+                )
+            assert metadata is not None
+            if not hmac.compare_digest(metadata.sha256, buffered.sha256):
+                buffered.path.unlink(missing_ok=True)
+                return FetchResult(
+                    ok=False,
+                    artifacts_written=0,
+                    pack_version=None,
+                    errors=[
+                        "JFrog metadata checksum does not match the downloaded "
+                        "archive; the mutable artifact changed during fetch."
+                    ],
+                )
+
+        try:
+            extracted = self._extract(buffered.path, target_dir, archive_kind)
+        except (
+            ArchiveSizeLimitError,
+            tarfile.TarError,
+            zipfile.BadZipFile,
+            OSError,
+        ) as exc:
+            return FetchResult(
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                errors=[f"Archive extraction failed: {exc}"],
+            )
+        finally:
+            buffered.path.unlink(missing_ok=True)
+
+        return FetchResult(
+            ok=True,
+            artifacts_written=extracted,
+            pack_version=metadata.version if metadata is not None else self.ref,
+            etag=response.headers.get("ETag"),
+        )
+
+    @staticmethod
+    def _buffer_archive(
+        response: requests.Response, archive_kind: str
+    ) -> tuple[_BufferedArchive | None, str | None]:
+        """Stream one bounded response body to disk and hash those exact bytes."""
         tmp_path: Path | None = None
+        digest = hashlib.sha256()  # noqa: TID251 - downloaded-body integrity checksum
         try:
             content_length = _parse_content_length(response.headers.get("Content-Length"))
             if content_length is not None and content_length > MAX_ARCHIVE_BYTES:
@@ -131,115 +259,112 @@ class HttpsBundleSource:
                 tmp_path = Path(tmp.name)
                 total = 0
                 for chunk in response.iter_content(chunk_size=64 * 1024):
-                    if chunk:
-                        total += len(chunk)
-                        if total > MAX_ARCHIVE_BYTES:
-                            raise ArchiveSizeLimitError(
-                                f"Archive exceeds raw byte limit: {total} > {MAX_ARCHIVE_BYTES}"
-                            )
-                        tmp.write(chunk)
-        except (ArchiveSizeLimitError, OSError) as exc:
+                    if not chunk:
+                        continue
+                    total += len(chunk)
+                    if total > MAX_ARCHIVE_BYTES:
+                        raise ArchiveSizeLimitError(
+                            f"Archive exceeds raw byte limit: {total} > {MAX_ARCHIVE_BYTES}"
+                        )
+                    digest.update(chunk)
+                    tmp.write(chunk)
+        except (ArchiveSizeLimitError, OSError, requests.RequestException) as exc:
             if tmp_path is not None:
                 tmp_path.unlink(missing_ok=True)
-            return FetchResult(
-                ok=False,
-                artifacts_written=0,
-                pack_version=None,
-                errors=[f"Failed to buffer archive: {exc}"],
+            detail = (
+                str(exc)
+                if not isinstance(exc, requests.RequestException)
+                else type(exc).__name__
             )
+            return None, f"Failed to buffer archive: {detail}"
+        assert tmp_path is not None
+        return _BufferedArchive(path=tmp_path, sha256=digest.hexdigest()), None
 
-        try:
-            assert tmp_path is not None
-            extracted = self._extract(tmp_path, target_dir, archive_kind)
-        except (ArchiveSizeLimitError, tarfile.TarError, zipfile.BadZipFile, OSError) as exc:
-            return FetchResult(
-                ok=False,
-                artifacts_written=0,
-                pack_version=None,
-                errors=[f"Archive extraction failed: {exc}"],
-            )
-        finally:
-            tmp_path.unlink(missing_ok=True)
+    def _fetch_artifactory_metadata(
+        self, storage_url: str
+    ) -> tuple[_ArtifactoryMetadata | None, str | None]:
+        """Read the two real JFrog Storage API metadata representations.
 
-        etag = response.headers.get("ETag")
-        # Non-Artifactory HTTPS: leave pack_version unset (or honour an
-        # operator ``ref`` pin). Only JFrog ``version`` properties become a
-        # persisted doctrine version; ETag is stored separately for caching.
-        pack_version = jfrog_version or self.ref
-        return FetchResult(
-            ok=True,
-            artifacts_written=extracted,
-            pack_version=pack_version,
-            etag=etag,
-        )
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-    def _headers(self) -> dict[str, str]:
-        headers: dict[str, str] = {}
-        custom_header = os.environ.get("SPEC_KITTY_ORG_AUTH_HEADER")
-        if custom_header:
-            headers["Authorization"] = custom_header
-        else:
-            token = os.environ.get("SPEC_KITTY_ORG_TOKEN")
-            if token:
-                headers["Authorization"] = f"Bearer {token}"
-        if self.if_none_match:
-            headers["If-None-Match"] = self.if_none_match
-        return headers
-
-    def _fetch_artifactory_version(self) -> tuple[str | None, str | None]:
-        """Read the artifact's standard JFrog ``version`` property.
-
-        Returns ``(None, None)`` for non-Artifactory URLs so ordinary HTTPS
-        bundles continue without a version property lookup or a saved
-        doctrine version. For detected Artifactory URLs the property is
-        required: a missing/unreadable value fails the fetch so an
-        unversioned JFrog snapshot is never promoted.
+        A filtered ``?properties=version`` request returns ``ItemProperties``
+        without checksums. The unfiltered item request returns ``FileInfo``
+        with checksums. Query both after the archive body, property first and
+        checksum second, so a mutable ``latest`` item fails closed if its body
+        changes while provenance is being resolved.
         """
-        storage_url = (
-            _artifactory_storage_url(self.url)
-            if self.source_type == "artifactory"
-            else None
+        version_payload, version_error = self._get_artifactory_json(
+            storage_url,
+            params={"properties": "version"},
+            label="version property",
         )
-        if storage_url is None:
-            return None, None
-        try:
-            response = requests.get(  # noqa: S113 - timeout supplied below
-                storage_url,
-                headers=_without_conditional_header(self._headers()),
-                params={"properties": "version"},
-                timeout=30,
-            )
-            if response.status_code == 429 or 500 <= response.status_code < 600:
-                status_code = response.status_code
-                response.close()
-                time.sleep(2.0 if status_code >= 500 else 1.0)
-                response = requests.get(
-                    storage_url,
-                    headers=_without_conditional_header(self._headers()),
-                    params={"properties": "version"},
-                    timeout=30,
-                )
-        except requests.RequestException as exc:
-            return None, f"Failed to read JFrog version property: {exc}"
-        if response.status_code >= 400:
-            return None, (
-                "Failed to read JFrog version property: "
-                f"HTTP {response.status_code} {response.reason}"
-            )
-        try:
-            payload = response.json()
-        except (ValueError, TypeError):
-            return None, "Failed to read JFrog version property: invalid JSON response"
-        version = _extract_jfrog_version(payload)
+        if version_error is not None:
+            return None, version_error
+        version = _extract_jfrog_version(version_payload)
         if version is None:
             return None, (
                 "JFrog artifact has no non-empty version property: "
                 f"{_safe_url_for_error(self.url)}"
             )
-        return version, None
+
+        file_payload, file_error = self._get_artifactory_json(
+            storage_url,
+            params=None,
+            label="file checksum",
+        )
+        if file_error is not None:
+            return None, file_error
+        checksum = _extract_jfrog_sha256(file_payload)
+        if checksum is None:
+            return None, (
+                "JFrog artifact has no valid SHA-256 checksum: "
+                f"{_safe_url_for_error(self.url)}"
+            )
+        return _ArtifactoryMetadata(version=version, sha256=checksum), None
+
+    def _get_artifactory_json(
+        self,
+        storage_url: str,
+        *,
+        params: dict[str, str] | None,
+        label: str,
+    ) -> tuple[object | None, str | None]:
+        """Fetch, decode, and close one JFrog Storage API representation."""
+        try:
+            response = self._get_artifactory_metadata_with_retry(
+                storage_url, params=params
+            )
+        except requests.RequestException as exc:
+            return None, f"Failed to read JFrog {label}: {type(exc).__name__}"
+        try:
+            if response.status_code >= 400:
+                return None, (
+                    f"Failed to read JFrog {label}: HTTP {response.status_code}"
+                )
+            try:
+                return response.json(), None
+            except (ValueError, TypeError):
+                return None, f"Failed to read JFrog {label}: invalid JSON response"
+        finally:
+            response.close()
+
+    def _get_artifactory_metadata_with_retry(
+        self, storage_url: str, *, params: dict[str, str] | None
+    ) -> requests.Response:
+        headers = _without_conditional_header(self._headers())
+        kwargs: dict[str, Any] = {"headers": headers, "timeout": 30}
+        if params is not None:
+            kwargs["params"] = params
+        response = requests.get(  # noqa: S113 - timeout supplied below
+            storage_url, **kwargs
+        )
+        if response.status_code == 429 or 500 <= response.status_code < 600:
+            delay = 2.0 if response.status_code >= 500 else 1.0
+            response.close()
+            time.sleep(delay)
+            response = requests.get(  # noqa: S113 - timeout supplied in kwargs
+                storage_url,
+                **kwargs,
+            )
+        return response
 
     def _get_with_retry(self) -> requests.Response:
         response = requests.get(  # noqa: S113 - timeout supplied below
@@ -249,6 +374,7 @@ class HttpsBundleSource:
             timeout=30,
         )
         if 500 <= response.status_code < 600:
+            response.close()
             time.sleep(2.0)
             response = requests.get(
                 self.url,
@@ -258,6 +384,7 @@ class HttpsBundleSource:
             )
         elif response.status_code == 429:
             retry_after = _parse_retry_after(response.headers.get("Retry-After"))
+            response.close()
             time.sleep(retry_after)
             response = requests.get(
                 self.url,
@@ -297,15 +424,18 @@ class HttpsBundleSource:
 def _artifactory_storage_url(artifact_url: str) -> str | None:
     """Translate an Artifactory download URL to its Storage API item URL."""
     parsed = urlsplit(artifact_url)
+    if parsed.scheme != "https" or not parsed.hostname:
+        return None
     if _ARTIFACTORY_PATH_MARKER not in parsed.path:
         return None
     prefix, item_path = parsed.path.split(_ARTIFACTORY_PATH_MARKER, maxsplit=1)
-    if "/" not in item_path:
+    repository, separator, artifact_path = item_path.partition("/")
+    if not separator or not repository or not artifact_path:
         return None
     storage_path = (
         f"{prefix}{_ARTIFACTORY_PATH_MARKER}api/storage/{item_path}"
     )
-    return urlunsplit((parsed.scheme, parsed.netloc, storage_path, "", ""))
+    return urlunsplit((parsed.scheme, _safe_netloc(parsed), storage_path, "", ""))
 
 
 def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
@@ -320,10 +450,19 @@ def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
 def _safe_url_for_error(url: str) -> str:
     """Return an archive URL safe to include in operator-visible errors."""
     parsed = urlsplit(url)
-    netloc = parsed.hostname or ""
-    if parsed.port is not None:
-        netloc = f"{netloc}:{parsed.port}"
-    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+    return urlunsplit((parsed.scheme, _safe_netloc(parsed), parsed.path, "", ""))
+
+
+def _safe_netloc(parsed: Any) -> str:
+    """Rebuild a URL authority without embedded credentials."""
+    hostname = parsed.hostname or ""
+    if ":" in hostname:
+        hostname = f"[{hostname}]"
+    try:
+        port = parsed.port
+    except ValueError:
+        port = None
+    return f"{hostname}:{port}" if port is not None else hostname
 
 
 def _extract_jfrog_version(payload: object) -> str | None:
@@ -340,6 +479,20 @@ def _extract_jfrog_version(payload: object) -> str | None:
         if isinstance(value, str) and value.strip():
             return value.strip()
     return None
+
+
+def _extract_jfrog_sha256(payload: object) -> str | None:
+    """Return a normalized SHA-256 from JFrog Storage API metadata."""
+    if not isinstance(payload, dict):
+        return None
+    checksums = payload.get("checksums")
+    if not isinstance(checksums, dict):
+        return None
+    checksum = checksums.get("sha256")
+    if not isinstance(checksum, str):
+        return None
+    normalized = checksum.strip().lower()
+    return normalized if re.fullmatch(r"[0-9a-f]{64}", normalized) else None
 
 
 def _parse_retry_after(value: Any) -> float:

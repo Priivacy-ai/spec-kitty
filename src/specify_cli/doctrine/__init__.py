@@ -1,7 +1,8 @@
 """Doctrine fetch/pack tooling for spec-kitty org doctrine layer.
 
 This package provides the OrgDoctrineSource protocol and concrete fetch-source
-implementations (git, https bundle, api) plus snapshot management utilities.
+implementations (git, HTTPS/Artifactory bundle, API) plus snapshot management
+utilities.
 
 Layer: ``specify_cli`` (depends on ``charter``, ``doctrine``, ``kernel``).
 
