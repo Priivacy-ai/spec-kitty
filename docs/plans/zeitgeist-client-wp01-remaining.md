@@ -11,6 +11,56 @@ Landed so far: `grammar.py`, `sanitizer.py`, `budget.py`, `transport.py`
 `presence()`), `credentials.py` (local storage primitive: `store()`/`load()`/
 `revoke()`).
 
+**Z4-C** (a separate Bead, branched from this WP01 base at `afa4020d`) added
+`live_frame.py` (pure `LiveFrame` parsing + `StreamState`: gap/epoch/revoke
+handling via full local-state reset, <=90s TTL clamp enforced client-side
+regardless of what a relay sends, closed `focus.state=="ended"` signals
+dropped rather than queued) and `filtered_stream.py`
+(`FilteredStream.watch()`/`.check()`/`.current_focus()` — one SSE
+subscription per team-bound `X-Zeitgeist-Capability` credential against F3's
+managed-runtime `GET /managed/stream`, landed separately by Z3-T1 in the
+`zeitgeist` repo). This does **not** resolve item 1/2 below: Z4-C's own
+frame parsing is a deliberately narrower, hand-checked shape gate (exactly
+the fields `StreamState` reads), not a general JSON-Schema validator run
+against a bundled/pinned `managed_live.schema.json` — `ZeitgeistClient.
+watch()`/`.status()` on `transport.py` are untouched by Z4-C and still raise
+`NotImplementedError`; Z4-C's surfaces live on the new
+`filtered_stream.FilteredStream` class instead, deliberately not folded into
+`transport.ZeitgeistClient` (see `zeitgeist_client/__init__.py`'s module
+docstring for why the two stay independent).
+
+**Z7-C** (a separate Bead, branched from Z4-C's tip at `7fac07d1`) added
+`subscription.py` (the shared, explicit-`repo`-only `status()`/`watch()`
+surface both adapters below call — no `relay_url`/`token` parameter exists on
+it, the credential comes solely from `credentials.py`'s existing store,
+`NotCheckedOut` on a missing one rather than auto-provisioning), `mcp_stdio.py`
+(the official-SDK — `mcp>=1.27.1,<2.0.0` — stdio MCP adapter: two tools,
+`zeitgeist_status`/`zeitgeist_watch`), and
+`cli/commands/zeitgeist.py` (`spec-kitty zeitgeist status`/`watch` plus a
+hidden `mcp-serve` command, registered in `cli/commands/__init__.py`). This
+resolves item 3, most of item 4, and item 8 below — but deliberately not all
+of item 4: `checkout`/`focus` are still absent (see the updated item 4/5 notes).
+
+**Z8-C** (a separate Bead) added `outbox_approval.py` (the bundled,
+human-gesture-gated outside-model approval surface for locally queued
+Zeitgeist prose — content-addressed, TTL-bounded, default-deny) and the
+`outbox` sub-group on `cli/commands/zeitgeist.py`, deliberately NOT wired
+into `mcp_stdio.py` (a model over MCP has no tool that reaches it).
+
+**O1-C** (program-graph handle O1-C, "Spec Kitty client operability", built
+on Z7-C's subscription adapters + Z8-C's approval surface) added
+`operability.py`: seven payload-free signals (offer/drop/lease/revoke/mcp/
+repair, each carrying its own denominator where one applies — 750ms for
+offer, 90s for lease) built entirely from state `transport`/`credentials`/
+`outbox_approval`/`mcp_stdio` already own (no second data store), plus
+three local, network-free drills (`timeout_drill`/`rotation_drill`/
+`rollback_drill` — relay-unreachable, auth-expiry, and revoke-fails-closed
+respectively), and the `spec-kitty zeitgeist operability` CLI sub-group
+(`report`, `drill-timeout`, `drill-rotation`, `drill-rollback`) over it.
+`subscription.status()`/`.watch()` themselves are untouched by this —
+O1-C reports on the client's own operational health, it does not add a
+new subscription surface.
+
 ## Not yet implemented
 
 1. **`validator.py` + bundled schemas + `DIGESTS.json`** — blocked on F1-T1
@@ -22,25 +72,46 @@ Landed so far: `grammar.py`, `sanitizer.py`, `budget.py`, `transport.py`
 2. **`ZeitgeistClient.status()` / `.watch()`** — both raise
    `NotImplementedError`; both depend on `validator.py` above (no LiveFrame
    streaming, no version-skew or unknown-kind rejection yet).
-3. **`mcp_stdio.py`** — the stdio MCP adapter (FastMCP-based). No CLI/MCP
-   parity coverage, no SDK/protocol interop test. The `mcp` dependency has not
-   been added to `pyproject.toml` — nothing needs it yet.
-4. **CLI adapter** — `src/specify_cli/cli/commands/zeitgeist.py` (a
-   `status`/`watch`/`checkout`/`focus` sub-group plus a hidden `mcp-serve`
-   command) and its registration in `cli/commands/__init__.py`.
+3. ~~`mcp_stdio.py`~~ — **landed by Z7-C**: the official-SDK (`mcp>=1.27.1,
+   <2.0.0`, FastMCP-based) stdio adapter, two tools
+   (`zeitgeist_status`/`zeitgeist_watch`) over `subscription.py`. In-process
+   client/server coverage via `mcp.shared.memory` in
+   `tests/zeitgeist_client/test_mcp_stdio.py`.
+4. **CLI adapter** — `src/specify_cli/cli/commands/zeitgeist.py`. **`status`/
+   `watch` plus a hidden `mcp-serve` command landed by Z7-C**, registered in
+   `cli/commands/__init__.py`. `checkout`/`focus` remain unimplemented (see
+   item 5) — Z7-C's own node criterion ("no administration/human approval")
+   forbids a credential-writing command on this surface; `focus` belongs to
+   `transport.ZeitgeistClient`'s control-envelope path, not the
+   `FilteredStream` subscription surface Z7-C scoped ("watch/status/
+   subscribe").
 5. **`checkout`/auth network half** — `spec-kitty zeitgeist checkout
    <relay-url>` (health-reachability probe + canary `offer`, per
    `install.py`'s `cmd_verify` precedent). `credentials.py`'s storage
    primitive is implemented and tested; nothing calls it from a CLI flow yet.
    Also not ported: `repo_identity.py` (`Deadline`, `repo_name`,
    `branch_name`, `identity()`) for deriving the canonical `repo` key
-   `credentials.py` stores against — tests use a literal `"spec-kitty"`
-   string today.
+   `credentials.py` stores against — `subscription.py`/`status`/`watch`
+   require the caller to name `repo` explicitly (Z7-C's own "one explicit
+   authorized team context" criterion), the same scope reduction Z6-C's own
+   `repo_identity.py` was built against but has not landed on this branch's
+   lineage; tests still use literal repo strings (e.g. `"spec-kitty"`) today.
 6. **Harness-asset staging** — `.mcp.json` companion asset, the
    `ClaudeCodeHookRegistrar` `PostToolUse` event-constant extension, per-harness
    hook re-homing under `zeitgeist_client/assets/hooks/<harness>/`, and
    `tool_surface.repair` registration.
-7. **`CHANGELOG.md` entry and `docs/zeitgeist-client.md`** — not written.
+7. **`docs/zeitgeist-client.md`** — not written (`CHANGELOG.md` now carries a
+   Z7-C entry).
+8. ~~CLI/MCP wiring for Z4-C's `FilteredStream`~~ — **landed by Z7-C**:
+   `subscription.py` is the one shared surface both the CLI (item 4) and the
+   MCP adapter (item 3) call — neither re-derives bounded-read/bounded-watch
+   logic independently. Still not covered: any server-side
+   capability-credential issuance flow (Z2a/Z2b's job, not this client's) — a
+   caller must already hold a valid `X-Zeitgeist-Capability` token, stored via
+   `credentials.py`, before `status()`/`watch()` (or their CLI/MCP callers)
+   can do anything; nothing here mints or requests one.
 
-See the module docstrings of `transport.py` and `credentials.py` for the
-specific contract clauses each gap corresponds to.
+See the module docstrings of `transport.py`, `credentials.py`,
+`live_frame.py`, `filtered_stream.py`, `subscription.py`, `mcp_stdio.py`,
+`outbox_approval.py`, `operability.py`, and `cli/commands/zeitgeist.py` for
+the specific contract clauses each gap corresponds to.

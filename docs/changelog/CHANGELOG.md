@@ -21,6 +21,52 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 - **New `spec-kitty team-projection publish` command produces read-only, byte-deterministic team-index and per-mission snapshot artifacts (plus an explicit-opt-in public variant and an attestation manifest) with exact-commit provenance (D1-T1).** Every artifact is a closed, allowlist-filtered projection of the existing status event log — orchestration-only runtime state (`shell_pid`, unbounded operator `notes`) never reaches a team or public consumer — and public output stays absent unless a project explicitly sets `public_projection.enabled: true` in `.kittify/config.yaml`. Refuses (non-zero exit, zero files written) on a dirty working tree, since the attestation manifest's whole purpose is a truthful commit-to-content binding for downstream consumers. New `specify_cli/team_projection/` package; no new runtime dependency.
 
+- **`spec-kitty zeitgeist operability` gives the bundled Zeitgeist client a
+  payload-free self-report of its own liveness/connection/subscription/
+  outbox status, plus local failure drills (`O1-C`).** `operability report`
+  is one snapshot of seven signals — offer/drop/lease/revoke/mcp/repair,
+  each carrying its own denominator where one applies (`OfferSignal.
+  budget_s` is always the hard 750ms bound; `LeaseSignal.ttl_s` is always
+  the 90s current-focus ceiling, present even when no focus is active) —
+  built from state the already-landed `transport`/`credentials`/
+  `outbox_approval`/`mcp_stdio` modules already own; there is no second
+  data store. A repo with no stored checkout gets an honestly stale/
+  inactive report rather than a fabricated live one. `drill-timeout`
+  (relay unreachable), `drill-rotation` (auth expiry — reads only the
+  stored `token_issued_at` timestamp, never the token), and
+  `drill-rollback` (proves `outbox_approval.revoke()` fails closed on a
+  never-approved item, without ever opening `/dev/tty`) are network-free
+  and deterministic. No sensitive field ever appears in a report — proven
+  by running it through `sanitizer.py`'s own forbidden-key gate, the same
+  one the rest of the client already trusts.
+
+- **`spec-kitty zeitgeist outbox` gives a human a bundled, outside-model
+  approval surface over locally queued Zeitgeist prose (`Z8-C`).** `list`/
+  `show` inspect pending items (exact content is disclosed only via `show`
+  or the decision prompt itself — never in `list`'s redacted preview);
+  `approve`/`reject`/`revoke` require the human to type back a per-item
+  challenge at the real controlling terminal (`outbox_approval.py`'s
+  `_capture_human_gesture`), and raise `HumanGestureRequired` whenever none
+  is available — there is no `--yes`/`--force`/`--non-interactive` flag on
+  any of the three, no environment-variable escape hatch, and the hidden
+  stdio MCP adapter (`mcp_stdio.py`) is untouched: a model talking over MCP
+  has no tool that reaches this surface. Pending items are content-addressed
+  (SHA-256 over repo/audience/content/context) and TTL-bounded
+  (default-deny: an expired item can never be approved); receipts are
+  content-addressed and idempotent on retry.
+
+- **`spec-kitty zeitgeist status`/`watch` and a hidden stdio MCP adapter give a
+  terminal or an MCP client bounded, read-only access to one team's live
+  Zeitgeist presence/focus stream (`Z7-C`).** Both surfaces call the same
+  shared `zeitgeist_client.subscription` functions over the already-landed
+  `filtered_stream.FilteredStream` client — one team context per call (the
+  existing `credentials.py` checkout, never a `--relay-url`/`--token` flag),
+  a <=90s honest reported-live timeout ceiling, a bounded frame count on
+  `watch`, and no payload ever written to disk. The MCP adapter
+  (`zeitgeist_client/mcp_stdio.py`) uses the official `mcp` SDK
+  (`mcp>=1.27.1,<2.0.0`) and exposes the matching `zeitgeist_status`/
+  `zeitgeist_watch` tools.
+
 - **Spec Kitty now ships a `spk-doctrine-show-me` skill that guides any agent to
   explain work with compact, checkable visuals — the smallest diagram,
   pseudocode, or tree that answers the question — recommended from the specify

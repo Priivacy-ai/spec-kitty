@@ -40,6 +40,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Literal
 
+from kernel.clock import datetime, now_utc
+
 from . import budget, sanitizer
 
 # ≤90s current-focus bound (O1-C's operability drills exercise this
@@ -97,7 +99,17 @@ class ZeitgeistClient:
     def __init__(self, config: ClientConfig):
         self._config = config
         self._focus_ref: str | None = None
+        self._focus_started_at: datetime | None = None
         self._lock = threading.Lock()
+
+    # -- read-only lease state (O1-C's operability report reads this) ---
+
+    def focus_lease(self) -> tuple[str | None, datetime | None]:
+        """The current ``focus_ref`` and when it started, if any — Z1's own
+        in-process state, read-only and payload-free (no relay_url/token
+        accompanies it). ``(None, None)`` whenever no focus is active."""
+        with self._lock:
+            return self._focus_ref, self._focus_started_at
 
     # -- the primitive ------------------------------------------------
 
@@ -171,6 +183,7 @@ class ZeitgeistClient:
                 )
             focus_ref = mission_slug if wp_id is None else f"{mission_slug}/{wp_id}"
             self._focus_ref = focus_ref
+            self._focus_started_at = now_utc()
         return self.offer(
             "focus.start", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S)
         )
@@ -211,6 +224,7 @@ class ZeitgeistClient:
         with self._lock:
             focus_ref = self._focus_ref
             self._focus_ref = None
+            self._focus_started_at = None
         if focus_ref is None:
             return OfferResult(
                 outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0

@@ -1,0 +1,139 @@
+"""Z7-C: ``spec-kitty zeitgeist`` — the thin CLI adapter over
+``subscription.py``'s shared team-scoped surface.
+
+Covers: ``status``/``watch`` call subscription.py (not a second
+implementation), no ``--relay-url``/``--token`` option exists on either
+command (no runtime URL/credential), the ``NotCheckedOut``/network-fault
+error paths exit non-zero without a stack trace, ``--json`` emits plain
+JSON via the canonical console seam, the hidden ``mcp-serve`` command is
+registered but not listed in ``--help``, and one true end-to-end run
+against a real loopback double proves the whole CLI-to-relay wire-up
+(not just the mocked unit path).
+"""
+
+from __future__ import annotations
+
+import json
+import urllib.error
+
+import pytest
+from typer.testing import CliRunner
+
+from specify_cli.cli.commands.zeitgeist import app
+from specify_cli.zeitgeist_client import subscription
+
+pytestmark = pytest.mark.fast
+
+runner = CliRunner()
+
+
+# --- no runtime URL/credential option on either command ---------------------
+
+
+def test_status_command_has_no_relay_url_or_credential_option() -> None:
+    result = runner.invoke(app, ["status", "--help"])
+    assert result.exit_code == 0
+    for forbidden in ("--relay-url", "--token", "--credential", "--runtime-url"):
+        assert forbidden not in result.stdout
+
+
+def test_watch_command_has_no_relay_url_or_credential_option() -> None:
+    result = runner.invoke(app, ["watch", "--help"])
+    assert result.exit_code == 0
+    for forbidden in ("--relay-url", "--token", "--credential", "--runtime-url"):
+        assert forbidden not in result.stdout
+
+
+# --- mcp-serve is registered but hidden --------------------------------------
+
+
+def test_mcp_serve_is_hidden_from_help() -> None:
+    result = runner.invoke(app, ["--help"])
+    assert result.exit_code == 0
+    assert "mcp-serve" not in result.stdout
+
+
+def test_mcp_serve_dispatches_to_mcp_stdio_run_stdio(monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.zeitgeist_client import mcp_stdio
+
+    calls: list[bool] = []
+
+    async def _fake_run_stdio() -> None:
+        calls.append(True)
+
+    monkeypatch.setattr(mcp_stdio, "run_stdio", _fake_run_stdio)
+    result = runner.invoke(app, ["mcp-serve"])
+    assert result.exit_code == 0
+    assert calls == [True]
+
+
+# --- status: mocked-unit paths -----------------------------------------------
+
+
+def test_status_json_emits_the_subscription_result(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_result = {"repo": "spec-kitty", "epoch": "e1", "presence": [], "focus": [], "reset_count": 0, "last_reset_reason": None}
+    monkeypatch.setattr(subscription, "status", lambda repo, *, timeout_s=2.0: fake_result)
+
+    result = runner.invoke(app, ["status", "spec-kitty", "--json"])
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == fake_result
+
+
+def test_status_not_checked_out_exits_nonzero_with_a_clear_message(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(repo: str, *, timeout_s: float = 2.0) -> dict[str, object]:
+        raise subscription.NotCheckedOut(repo)
+
+    monkeypatch.setattr(subscription, "status", _raise)
+    result = runner.invoke(app, ["status", "spec-kitty"])
+    assert result.exit_code == 1
+    assert "spec-kitty" in result.stdout
+    assert "checked out" in result.stdout.lower() or "checkout" in result.stdout.lower()
+
+
+def test_status_connection_fault_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(repo: str, *, timeout_s: float = 2.0) -> dict[str, object]:
+        raise urllib.error.URLError("connection refused")
+
+    monkeypatch.setattr(subscription, "status", _raise)
+    result = runner.invoke(app, ["status", "spec-kitty"])
+    assert result.exit_code == 1
+    assert "connection refused" in result.stdout
+
+
+# --- watch: mocked-unit paths -------------------------------------------------
+
+
+def test_watch_json_emits_one_json_line_per_frame(monkeypatch: pytest.MonkeyPatch) -> None:
+    frames = [
+        {"schema_version": "1.0.0", "epoch": "e1", "seq": 1, "emitted_at": 1.0, "frame_type": "presence", "payload": {}},
+        {"schema_version": "1.0.0", "epoch": "e1", "seq": 2, "emitted_at": 2.0, "frame_type": "focus", "payload": {}},
+    ]
+
+    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500):
+        yield from frames
+
+    monkeypatch.setattr(subscription, "watch", _fake_watch)
+    result = runner.invoke(app, ["watch", "spec-kitty", "--json"])
+    assert result.exit_code == 0
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    assert [json.loads(line) for line in lines] == frames
+
+
+def test_watch_not_checked_out_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _raise(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500):
+        raise subscription.NotCheckedOut(repo)
+        yield  # pragma: no cover - never reached, makes this a generator function
+
+    monkeypatch.setattr(subscription, "watch", _raise)
+    result = runner.invoke(app, ["watch", "spec-kitty"])
+    assert result.exit_code == 1
+    assert "spec-kitty" in result.stdout
+
+
+# The true end-to-end run (CLI -> subscription.py -> FilteredStream -> a real
+# loopback SSE double) lives in
+# tests/zeitgeist_client/test_cli_zeitgeist_e2e.py — it needs the
+# managed_stream_double fixture, which that directory's conftest.py owns
+# (pytest.ini deliberately keeps `.` off pythonpath, so fixtures are not
+# shared across top-level test directories; see test_filtered_stream.py's
+# own local-helper-duplication precedent for the same constraint).
