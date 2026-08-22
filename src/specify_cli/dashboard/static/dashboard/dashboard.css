@@ -532,11 +532,32 @@ body {
     border-left-width: 4px;
 }
 
+.card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
 .card-id {
     font-weight: 600;
     color: #6b7280;
     font-size: 0.85em;
-    margin-bottom: 5px;
+}
+
+.card-avatar {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.7em;
+    font-weight: 700;
+    line-height: 1;
 }
 
 .card-title {

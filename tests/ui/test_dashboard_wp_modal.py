@@ -101,3 +101,30 @@ def test_kanban_card_click_opens_modal_with_agent_identity(
     expect(identity_section.locator(".badge.role")).to_have_text(dashboard["role"])
 
     expect(page.locator(PROMPT_CONTENT_SELECTOR)).to_contain_text(dashboard["prompt_body"])
+
+
+def test_kanban_card_shows_assigned_profile_avatar(page: Page, dashboard: dict[str, str]) -> None:
+    """The WP card itself (pre-click) renders a profile avatar (issue #647).
+
+    Deliberately card-scoped (`.lane.planned .card .card-avatar`), the mirror
+    image of the module docstring's warning about the modal test above: this
+    one is *only* about the card, so it must never assert against
+    `#prompt-modal` — that would make it pass even if `createCard()` dropped
+    the avatar but the modal still built one independently.
+    """
+    page.goto(dashboard["base_url"])
+
+    kanban_nav = page.locator('.sidebar-item[data-page="kanban"]')
+    expect(kanban_nav).not_to_have_class(_DISABLED_CLASS_RE)
+    kanban_nav.click()
+
+    card = page.locator(".lane.planned .card").first
+    expect(card).to_be_visible()
+
+    avatar = card.locator(".card-avatar")
+    expect(avatar).to_be_visible()
+    # dashboard["agent_profile"] is "implementer-ivan" (tests/ui/conftest.py);
+    # profileAvatarHtml() takes the first letter of each of the first two
+    # hyphen-separated words, uppercased.
+    expect(avatar).to_have_text("II")
+    expect(avatar).to_have_attribute("title", dashboard["agent_profile"])
