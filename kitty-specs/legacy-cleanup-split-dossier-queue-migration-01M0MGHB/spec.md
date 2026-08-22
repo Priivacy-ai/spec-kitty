@@ -192,7 +192,7 @@ MUST treat them as settled, not re-litigate them.
   positional-order bug, and does it still apply after this mission?**
   **A: Yes, and it must be preserved unmodified.**
   `tests/dossier/test_events.py::TestEmitSnapshotComputed::test_
-  preserves_legacy_positional_order` (lines 317-341) calls `emit_snapshot_computed`
+  preserves_legacy_positional_order` (lines 317-342) calls `emit_snapshot_computed`
   with ten purely positional arguments in the exact order PR #1056 regressed, and
   asserts the resulting payload's `artifact_count`, `anomaly_count`, and
   `context_diagnostics` land correctly. Because `emit_snapshot_computed` never had the
@@ -372,7 +372,7 @@ confirm the guard passes clean against the real, unmodified `src/` tree.
 | FR-007 | Keep the four dossier event-type strings as keys in `_PAYLOAD_RULES` / `VALID_EVENT_TYPES` so `_validate_event`'s unknown-event-type rejection check (`if event_type not in VALID_EVENT_TYPES:`, `emitter.py:2514`, block context `emitter.py:2513-2516`) is unaffected for dossier and every other event type. See Key Entities for how this is reconciled with FR-006's change to what a dossier `_PAYLOAD_RULES` value means. | As a maintainer, I want this change scoped to how dossier payloads are validated, not whether they are recognized at all. | Medium | Open |
 | FR-008 | Add an AST-based guard test that fails if any production code (`src/`) calls `emit_artifact_indexed`, `emit_artifact_missing`, `emit_snapshot_computed`, or `emit_parity_drift_detected` with a positional argument, including a planted-violation positive control proving the detector actually fires (per the charter's "a gate-unmask cannot self-validate" rule). | As a maintainer, I want the class of bug PR #1056 patched around (positional-argument drift) to be closed by construction, not by convention. | High | Open |
 | FR-009 | Re-point `tests/dossier/test_events.py`'s seven mirror-type imports (`ArtifactIdentity`, `ContentHashRef`, `LocalNamespaceTuple`, and the four `MissionDossier*Payload` classes; lines 23-30) to import from `spec_kitty_events` instead of `specify_cli.dossier.events`; leave the four `emit_*` function imports pointed at `specify_cli.dossier.events` unchanged. `tests/dossier/test_emitter_adapter.py` and `tests/sync/test_events_namespace.py` require no import changes (verified: neither imports any mirror type today). | As a maintainer, I want the test suite to import types from the same place production code now does, so a future drift between "what the test asserts against" and "what production builds" cannot recur. | Medium | Open |
-| FR-010 | Preserve `tests/dossier/test_events.py::TestEmitSnapshotComputed::test_preserves_legacy_positional_order` (lines 317-341) unmodified as the live regression coverage for the PR #1056 snapshot positional-order bug. | As a maintainer, I want the #1056 regression to stay covered exactly because `emit_snapshot_computed`'s parameter order is untouched by this mission. | High | Open |
+| FR-010 | Preserve `tests/dossier/test_events.py::TestEmitSnapshotComputed::test_preserves_legacy_positional_order` (lines 317-342) unmodified as the live regression coverage for the PR #1056 snapshot positional-order bug. | As a maintainer, I want the #1056 regression to stay covered exactly because `emit_snapshot_computed`'s parameter order is untouched by this mission. | High | Open |
 
 ### Non-Functional Requirements
 
