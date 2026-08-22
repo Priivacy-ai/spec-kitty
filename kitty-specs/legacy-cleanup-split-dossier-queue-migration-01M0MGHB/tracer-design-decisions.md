@@ -52,3 +52,33 @@ all authored content was preserved and ported).
 
 We PR into `main` and never run `spec-kitty merge`, so `target_branch` pointing at the
 feature branch rather than `main` has no downstream effect on this mission's merge path.
+
+## Plan phase (2026-08-22)
+
+Full rationale lives in `plan.md`'s "Mission-Specific Design Decisions" section;
+this entry is a pointer plus the headline decisions, not a duplicate:
+
+- **FR-006/FR-007 sentinel shape**: a single module-level `object()` sentinel
+  (`_DOSSIER_VALIDATE_EVENT_DELEGATE`) is the value for all four dossier keys in
+  `_PAYLOAD_RULES`; `_validate_payload` gains an `is`-identity early-return branch
+  ahead of the generic `rules["required"]`/`rules["validators"]` access, dispatching
+  to a new `_validate_dossier_payload` method that lazily imports and calls
+  `spec_kitty_events.conformance.validate_event(payload, event_type, strict=True)`.
+  `VALID_EVENT_TYPES` is untouched (still `frozenset(_PAYLOAD_RULES.keys())`) since
+  the four dossier keys never leave the dict.
+- **FR-004 contract**: parameter promotion (`wp_id`/`step_id`/`required_status` on
+  `emit_artifact_indexed`; `reason_detail`/`blocking` on `emit_artifact_missing`) and
+  bridge removal must land in the same commit (same functions, same file) — a naive
+  bridge-only removal would silently regress `dossier_pipeline.py` behind its broad
+  `except Exception` handlers. The regression test proving this must not reuse the
+  existing plain-`MagicMock` `@patch` decorators in `test_dossier_pipeline.py`
+  (verified during planning: neither uses `autospec=True`, so neither would go red on
+  a reverted promotion) — a new `autospec=True`/real-call test is required.
+- **Phasing**: 6 phases (baseline → mirror deletion+Literal remap → bridge
+  removal+kwarg promotion+last_known_ref drop → validate_event delegation → guard
+  test → test import re-pointing), sequenced by same-file/same-function dependency,
+  not by parallel work streams (single sequential PR, ~500-700 LOC estimate,
+  recommended NOT to split).
+- **Campsite-clean scope**: read both touched files end-to-end for domain-matched
+  debt beyond FR-001..FR-010's own scope; found none — no separate preceding
+  campsite-clean step is proposed for this mission.
