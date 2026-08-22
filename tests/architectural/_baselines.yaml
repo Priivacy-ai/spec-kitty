@@ -234,11 +234,12 @@ test_reference_enum_ratchet:
 # sink carries no project data, or why its consent seam is sound.
 test_egress_consent_boundary:
   # justification: 27 files hold a transmit primitive with a recorded reason —
-  # 12 gated by a named consent seam on the data's own project_uuid (E1/E2/E3
-  # and E6-E13), 1 per-project transport whose every caller is separately
-  # seamed (E14), and 14 that are
+  # 10 gated by a named consent seam on the data's own project_uuid (E1/E2/E3,
+  # E6-E10, and E13; E9 spans two sink files), 1 per-project transport whose
+  # every caller is separately
+  # seamed (E14), and 16 that are
   # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
-  # the readiness probe, four localhost control endpoints and `sync doctor`'s
+  # the readiness probe, five localhost control endpoints and `sync doctor`'s
   # empty-body connectivity probe (E18). Each was verified individually, not
   # assumed. 12 + 1 + 14 = 27. Earlier, 27 -> 28: the callee-agnostic
   # injected-transport rule (added after
@@ -260,8 +261,13 @@ test_egress_consent_boundary:
   # userinfo-confused, path-bearing, and portless URLs are rejected before I/O.
   # This is loopback control, not project-data egress, and its exact sink count
   # is independently pinned in test_egress_consent_boundary.py.
+  # 28 -> 27 (#3165): live recomputation before this change found 26 entries,
+  # below the stale ceiling of 28. The HTTPS doctrine source adds one E18
+  # not-project-data sender: its JFrog AQL POST contains only the
+  # operator-configured repository/path/name needed for an inbound fetch. Reset
+  # the ceiling to the exact new live count rather than spending hidden room.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 28
+  egress_allowlist_files: 27
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
