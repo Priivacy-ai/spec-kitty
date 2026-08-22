@@ -289,3 +289,40 @@ refusing on a protected branch — it succeeded here because
 `refactor/dossier-emitters-canonical-only-1058` is a non-protected feature
 branch, i.e. the branch-first re-scaffold for this mission is paying off as
 intended.
+
+## 2026-08-22 — Analyze phase: `record-analysis` leaks host-absolute paths into the committed PUBLIC artifact (SK-32-class, upstream #3398), and hangs well past its own commit
+
+**Command**: `.venv/bin/spec-kitty agent mission record-analysis --mission
+legacy-cleanup-split-dossier-queue-migration-01M0MGHB --input-file
+<scratchpad>/analysis-report-round1.md --json`
+
+**Absolute-path leak**: the committed `kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/analysis-report.md`
+(commit `a6513c6f9`) has an `input_artifacts` block whose `path` values are
+host-absolute, e.g. `path: /home/jeroennouws/dev/SK-missions/1058/kitty-specs/
+legacy-cleanup-split-dossier-queue-migration-01M0MGHB/spec.md`, for all four
+input artifacts (spec.md, plan.md, tasks.md, charter). This repo is PUBLIC —
+the committed artifact permanently leaks the local operator's home-directory
+username (`jeroennouws`) and machine layout. Matches the tracked defect class
+in ledger SK-32 (upstream #3398). **Not hand-edited out** per this mission's
+explicit instruction; reported to the operator instead. The `sha256` values
+alongside each path were independently re-verified against the live committed
+files and are correct (SK-47's "hash matching no committed state" variant did
+**not** fire here).
+
+**Hang past its own commit**: the wrapping process (`timeout 170 .venv/bin/
+spec-kitty agent mission record-analysis ...`) was still alive in `ps aux`
+more than 2.5 minutes after its own commit (`a6513c6f9`, authored
+2026-08-22T15:29:56+02:00) had already landed on disk — confirmed via `git
+log`/`git status` while the OS-level process was still resident. It exited on
+its own sometime before the `timeout 170` boundary was reached, without any
+manual kill. Net effect: the persist succeeded (verified via git, not via the
+command's own return), but the command occupied a foreground/background slot
+for materially longer than its actual work required — consistent with the
+"machine layout cutover did not publish within the bounded wait" stall pattern
+this mission's spec- and tasks-phase tracer entries already recorded (SK-65
+territory), now also observed on `record-analysis`.
+
+**Workaround/resolution**: none needed — state was verified authoritatively
+via `git log`/`git status --porcelain` rather than trusting the command's own
+JSON/exit behavior, per this phase's standing instruction. Recording for the
+operator; not filing a ledger entry (operator owns the ledger).
