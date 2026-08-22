@@ -30,18 +30,6 @@ exemptions:
       reader's correctness is guarded separately by the Part-A parity registry,
       so exempting the literal scan here does not weaken the reader invariant.
 
-  - path: src/specify_cli/mission_metadata.py
-    kinds: [default]
-    issue: "#3598"
-    rationale: >-
-      The `"software-dev"` literal at build_mission_identity (line ~216) is a
-      CREATE-time write default — the value stamped into a NEW mission's
-      meta.json when the operator gives no explicit `--mission-type`, not a
-      runtime reader default. The read path (resolve_mission_identity) was
-      converged to read_mission_type in WP02 (neutral typeless). Neutralizing the
-      create-time default is a separate mission-authoring decision, out of M5's
-      reader scope.
-
   - path: src/specify_cli/upgrade/feature_meta.py
     kinds: [default]
     issue: "#3598"
@@ -71,3 +59,22 @@ domain_exempt_notes:
       Reads `data.get("mission")` from the INTERVIEW form payload (self.mission),
       not a mission's meta.json `mission_type`. Interview-domain input, not a
       runtime meta reader.
+  - path: src/specify_cli/migration/mission_state.py
+    issue: "#3598 / census row M"
+    rationale: >-
+      Line ~1617 `meta["mission_type"] = str(meta.get("mission_type") or
+      meta.get("mission") or "software-dev")` is a legacy->canonical backfill
+      WRITE inside a frozen migration step (reads legacy `mission` by design to
+      synthesize the canonical field). The operator-facing typed backfill is M0's
+      `spec-kitty migrate backfill-mission-type`; this internal migration write is
+      frozen. Not in IN_SCOPE_READER_MODULES (a backfill write, not a runtime
+      resolver) — recorded here for census completeness (AC-7).
+  - path: src/specify_cli/core/mission_creation.py
+    issue: "#3598 / census completeness"
+    rationale: >-
+      Line ~766 `mission_type=str(meta.get(...) or mission or "software-dev")` in
+      `emit_mission_created_local` is a CREATE-time write default — the value
+      stamped into a NEW mission's event/meta when the operator gives no explicit
+      `--mission-type` (`mission` here is the create param, not the legacy field).
+      Same class as feature_meta.infer_mission. Not a runtime resolver; recorded
+      for census completeness (AC-7).
