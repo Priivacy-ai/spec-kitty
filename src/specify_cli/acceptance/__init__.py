@@ -104,15 +104,18 @@ RESEARCH_FILE = "research.md"
 
 
 def _spec_file() -> str:
-    return resolve_configured_artifact_name("input.spec.main")
+    value: str = resolve_configured_artifact_name("input.spec.main")
+    return value
 
 
 def _plan_file() -> str:
-    return resolve_configured_artifact_name("output.plan.main")
+    value: str = resolve_configured_artifact_name("output.plan.main")
+    return value
 
 
 def _tasks_file() -> str:
-    return resolve_configured_artifact_name("output.tasks.list")
+    value: str = resolve_configured_artifact_name("output.tasks.list")
+    return value
 
 
 def _primary_artifact_files() -> tuple[str, str, str, str, str, str]:

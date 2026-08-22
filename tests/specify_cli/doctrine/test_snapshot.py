@@ -387,6 +387,9 @@ class TestEtagConditionalFetch:
             "https://\u0301bad.example/artifactory/repo/pack.tar.gz",
             f"https://{'.'.join(['é' * 20] * 10)}/artifactory/repo/pack.tar.gz",
             "https://[v1.fe]/artifactory/repo/pack.tar.gz",
+            "https://download.example\\@metadata.example/artifactory/repo/pack.tar.gz",
+            "https://download.example\t@metadata.example/artifactory/repo/pack.tar.gz",
+            "https://download.example\n@metadata.example/artifactory/repo/pack.tar.gz",
         ],
     )
     def test_invalid_authority_preserves_existing_snapshot_without_request(
@@ -422,6 +425,10 @@ class TestEtagConditionalFetch:
             "specify_cli.doctrine.sources.https_source.requests.get",
             _unexpected_get,
         )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post",
+            _unexpected_get,
+        )
 
         result = write_snapshot(
             HttpsBundleSource(url=invalid_url),
@@ -434,6 +441,35 @@ class TestEtagConditionalFetch:
         assert any("URL is invalid" in error for error in result.errors)
         assert marker.read_text() == "preserve\n"
         assert calls == []
+
+    def test_snapshot_persists_the_canonical_request_identity(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+
+        seen_urls: list[str] = []
+
+        def _fake_fetch(
+            source: HttpsBundleSource, target_dir: Path
+        ) -> FetchResult:
+            seen_urls.append(source.url)
+            _populate_valid_pack(target_dir)
+            return FetchResult(ok=True, artifacts_written=2, pack_version="v1")
+
+        monkeypatch.setattr(HttpsBundleSource, "fetch", _fake_fetch)
+        local_path = tmp_path / "doctrine"
+
+        result = write_snapshot(
+            HttpsBundleSource(url="https://bücher.example/pack.tar.gz"),
+            local_path,
+            source_type="https",
+        )
+
+        canonical_url = "https://xn--bcher-kva.example/pack.tar.gz"
+        manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
+        assert result.ok is True
+        assert seen_urls == [canonical_url]
+        assert manifest["source_url"] == canonical_url
 
     def test_query_bearing_source_never_reuses_persisted_etag(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

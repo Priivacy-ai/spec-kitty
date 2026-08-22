@@ -104,6 +104,14 @@ def write_snapshot(
     resolved_url = source_url if source_url is not None else getattr(source, "url", "")
     resolved_type = source_type or _infer_source_type(source)
 
+    from .sources.https_source import HttpsBundleSource
+
+    if isinstance(source, HttpsBundleSource):
+        canonical_url = source.canonical_url
+        if canonical_url is not None:
+            source = replace(source, url=canonical_url)
+            resolved_url = canonical_url
+
     source = _with_stored_etag(
         source,
         local_path,

@@ -81,9 +81,15 @@ class HttpsBundleSource:
     source_type: str = "https"
 
     @property
+    def canonical_url(self) -> str | None:
+        """Return the single Requests-normalized URL used by every boundary."""
+        return _canonical_https_url(self.url)
+
+    @property
     def is_artifactory(self) -> bool:
         """Whether this source requires Artifactory provenance validation."""
-        parsed = _safe_urlsplit(self.url)
+        canonical_url = self.canonical_url
+        parsed = _safe_urlsplit(canonical_url) if canonical_url is not None else None
         return (
             self.source_type == "artifactory"
             or (
@@ -99,8 +105,8 @@ class HttpsBundleSource:
         target_dir = Path(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        parsed = _safe_urlsplit(self.url)
-        if not _is_valid_https_url(self.url, parsed):
+        canonical_url = self.canonical_url
+        if canonical_url is None:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
@@ -108,8 +114,14 @@ class HttpsBundleSource:
                 errors=["HTTPS doctrine source URL is invalid."],
             )
 
-        artifactory_item = _artifactory_item(self.url)
-        if self.is_artifactory and artifactory_item is None:
+        parsed = _safe_urlsplit(canonical_url)
+        assert parsed is not None
+        is_artifactory = (
+            self.source_type == "artifactory"
+            or _ARTIFACTORY_PATH_MARKER in parsed.path
+        )
+        artifactory_item = _artifactory_item(canonical_url)
+        if is_artifactory and artifactory_item is None:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
@@ -121,14 +133,14 @@ class HttpsBundleSource:
             )
 
         try:
-            response = self._get_with_retry()
+            response = self._get_with_retry(canonical_url)
         except requests.RequestException as exc:
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
                 pack_version=None,
                 errors=[
-                    f"Network error fetching {_safe_url_for_error(self.url)}: "
+                    f"Network error fetching {_safe_url_for_error(canonical_url)}: "
                     f"{type(exc).__name__}"
                 ],
             )
@@ -389,9 +401,9 @@ class HttpsBundleSource:
             )
         return response
 
-    def _get_with_retry(self) -> requests.Response:
+    def _get_with_retry(self, request_url: str) -> requests.Response:
         response = requests.get(  # noqa: S113 - timeout supplied below
-            self.url,
+            request_url,
             headers=self._headers(),
             stream=True,
             timeout=30,
@@ -400,7 +412,7 @@ class HttpsBundleSource:
             response.close()
             time.sleep(2.0)
             response = requests.get(
-                self.url,
+                request_url,
                 headers=self._headers(),
                 stream=True,
                 timeout=30,
@@ -410,7 +422,7 @@ class HttpsBundleSource:
             response.close()
             time.sleep(retry_after)
             response = requests.get(
-                self.url,
+                request_url,
                 headers=self._headers(),
                 stream=True,
                 timeout=30,
@@ -446,9 +458,10 @@ class HttpsBundleSource:
 
 def _artifactory_item(artifact_url: str) -> _ArtifactoryItem | None:
     """Derive exact AQL item identity from an Artifactory download URL."""
-    parsed = _safe_urlsplit(artifact_url)
-    if not _is_valid_https_url(artifact_url, parsed):
+    canonical_url = _canonical_https_url(artifact_url)
+    if canonical_url is None:
         return None
+    parsed = _safe_urlsplit(canonical_url)
     assert parsed is not None
     if _ARTIFACTORY_PATH_MARKER not in parsed.path:
         return None
@@ -519,21 +532,26 @@ def _safe_urlsplit(url: str) -> SplitResult | None:
         return None
 
 
-def _is_valid_https_url(url: str, parsed: SplitResult | None) -> bool:
-    """Return whether a parsed URL has a valid HTTPS authority."""
-    if parsed is None or parsed.scheme != "https" or not parsed.hostname:
-        return False
-    try:
-        _ = parsed.port
-    except ValueError:
-        return False
+def _canonical_https_url(url: str) -> str | None:
+    """Normalize one HTTPS URL once, rejecting parser-differential inputs."""
+    if "\\" in url or any(ord(char) < 32 or ord(char) == 127 for char in url):
+        return None
     try:
         prepared = requests.Request(method="GET", url=url).prepare()
     except (requests.RequestException, UnicodeError, ValueError):
-        return False
+        return None
     if prepared.url is None:
-        return False
-    return _is_valid_hostname(parsed.hostname)
+        return None
+    parsed = _safe_urlsplit(prepared.url)
+    if parsed is None or parsed.scheme != "https" or not parsed.hostname:
+        return None
+    try:
+        _ = parsed.port
+    except ValueError:
+        return None
+    if not _is_valid_hostname(parsed.hostname):
+        return None
+    return prepared.url
 
 
 def _is_valid_hostname(hostname: str) -> bool:
