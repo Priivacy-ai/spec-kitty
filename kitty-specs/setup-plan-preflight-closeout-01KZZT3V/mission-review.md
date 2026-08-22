@@ -11,7 +11,7 @@
 
 ### Gate 1 — Contract tests
 
-- Команда: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 .\.venv\Scripts\python.exe -m pytest tests\contract -q --tb=short --confcutdir=tests\contract -p no:cacheprovider`
+- Команда: `.\.venv\Scripts\python.exe -m pytest tests\contract -q --tb=short --confcutdir=tests\contract -p no:cacheprovider`
 - Результат: **FAIL**, exit code `1`.
 - Итог: `293 passed, 3 skipped, 1 failed`.
 - Единственный failure: `tests/contract/test_machine_facing_canonical_fields.py::test_verify_enhanced_feature_detection_emits_canonical_mission_fields` открывает `/dev/null` на Windows. Строка появилась в commit `c0ef5d284a` от 2026-04-08 и не относится к diff этой миссии. Политика hard-gate не допускает исключение даже для baseline-дефекта.

@@ -13,7 +13,7 @@
 
 ### Gate 1 — Contract tests
 
-- Команда: `SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run --offline --with pytest --with pytest-timeout python -m pytest tests/contract -v -p no:cacheprovider --timeout=180`
+- Команда: `uv run --offline --with pytest --with pytest-timeout python -m pytest tests/contract -v -p no:cacheprovider --timeout=180`
 - Exit code: `1`
 - Результат: **FAIL**
 - Доказательство: `292 passed, 3 skipped, 1 failed, 1 error`. `test_verify_enhanced_feature_detection_emits_canonical_mission_fields` использует отсутствующий на Windows `/dev/null`; `test_wheel_does_not_contain_vendored_spec_kitty_events` не собрал wheel, потому что build isolation не смог получить `hatchling` в offline-окружении. Contract gate не имеет exception path, поэтому ненулевой результат блокирует PASS независимо от вероятной платформенной/окруженческой природы этих двух сбоев.
