@@ -62,6 +62,22 @@ _MIN_PROBE_S = 0.05
 # shape as `[remote "origin"]`, so it is read by the identical minimal walk.
 _QUARANTINE_SECTION = 'kitty "quarantine"'
 
+# `git`'s own repository-discovery env overrides. Left ambient, any one of
+# these can make `git` resolve to (and therefore report the `origin` of) a
+# DIFFERENT repository than the one at `cwd` — e.g. an ambient `GIT_DIR`
+# pointing at another checkout entirely. `Deadline.run` strips all of them
+# before every probe so discovery is forced to start from `cwd`, the same
+# starting point the filesystem-based canonical resolution above it already
+# used — the live-git probe must corroborate that resolution, not be
+# spoofable into contradicting it.
+_GIT_DISCOVERY_ENV_VARS = (
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_COMMON_DIR",
+    "GIT_CEILING_DIRECTORIES",
+    "GIT_DISCOVERY_ACROSS_FILESYSTEM",
+)
+
 
 class RepoIdentityError(Exception):
     """Base for every way `identity()`/`repo_name()` refuse to mint an
@@ -115,13 +131,25 @@ class Deadline:
 
     def run(self, args: list[str], cwd: str) -> str:
         """One ``git`` probe against the remaining budget. ``""`` on any
-        failure, including a spent budget."""
+        failure, including a spent budget.
+
+        Runs with ``git``'s own repository-discovery env overrides
+        (``_GIT_DISCOVERY_ENV_VARS``) stripped from the inherited
+        environment, so an ambient ``GIT_DIR``/``GIT_WORK_TREE``/etc.
+        pointing at a different repository cannot make this probe report
+        that repository's identity instead of ``cwd``'s."""
         left = self.remaining()
         if left < _MIN_PROBE_S:
             return ""
+        env = {k: v for k, v in os.environ.items() if k not in _GIT_DISCOVERY_ENV_VARS}
         try:
             out = subprocess.run(
-                ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=left
+                ["git", *args],
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                timeout=left,
+                env=env,
             )
             return out.stdout.strip() if out.returncode == 0 else ""
         except Exception:
@@ -213,7 +241,16 @@ def _sibling_checkouts(path: str) -> list[str]:
     checkouts (contain their own ``.git``). Two or more make ``path`` an
     ambiguous "session-container directory" — Z6-C's own term for e.g. this
     program's ``.sandboxes/`` — when queried directly rather than from
-    inside one specific checkout."""
+    inside one specific checkout.
+
+    ``entry.is_dir()`` is resolved WITH symlinks followed
+    (``follow_symlinks=True``, the default): a symlinked child checkout is
+    exactly as real a checkout as a plain-directory one for ambiguity
+    purposes, and gating on ``follow_symlinks=False`` (which reports a
+    symlink as "not a directory" even when it resolves to one) previously
+    let a symlinked sibling go uncounted — a container with one real
+    checkout and one symlinked checkout would then mint an ancestor
+    directory's identity instead of raising."""
     try:
         entries = list(os.scandir(path))
     except OSError:
@@ -221,7 +258,7 @@ def _sibling_checkouts(path: str) -> list[str]:
     found = []
     for entry in entries:
         try:
-            is_dir = entry.is_dir(follow_symlinks=False)
+            is_dir = entry.is_dir()
         except OSError:
             continue
         if is_dir and os.path.exists(os.path.join(entry.path, ".git")):
