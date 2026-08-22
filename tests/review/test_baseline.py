@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -17,6 +18,7 @@ from specify_cli.review.baseline import (
     capture_baseline,
     diff_baseline,
 )
+from specify_cli.review.scope_source import DeclaredCommandScopeSource
 
 pytestmark = pytest.mark.git_repo
 
@@ -815,3 +817,156 @@ class TestCoverageEdgeCases:
         # result is fully parsed (never a sentinel) — pin the documented
         # custom-runner label (baseline.py: "custom" when the command has no "pytest").
         assert result.test_runner == "custom"
+
+
+# ---------------------------------------------------------------------------
+# Issue #3612 — DeclaredCommandScopeSource capture path
+# ---------------------------------------------------------------------------
+#
+# Unlike TestCaptureBaseline above (the LEGACY config-driven path, which
+# already substitutes {output_file} and shell-wraps via
+# run_configured_command_template — a mocked-subprocess fake repo suffices
+# there), the injected-ScopeSource path
+# (_capture_baseline_via_scope_source / DeclaredCommandScopeSource) had ZERO
+# coverage in this file before #3612 — exactly the gap that let the three
+# behaviours below regress silently. These drive a REAL git repo + REAL
+# subprocess (mirroring test_baseline_lifecycle.py / test_baseline_head_parity.py's
+# established style for this code path) rather than mocking subprocess.run,
+# since the fix is precisely about what actually reaches exec().
+
+
+def _init_git_repo_3612(path: Path) -> None:
+    path.mkdir(parents=True, exist_ok=True)
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=path, check=True)
+
+
+def _write_file_3612(repo: Path, relative_path: str, content: str) -> None:
+    target = repo / relative_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+
+
+def _git_commit_all_3612(path: Path, message: str) -> None:
+    subprocess.run(["git", "add", "-A"], cwd=path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", message], cwd=path, check=True)
+
+
+def _build_repo_with_command_3612(
+    tmp_path: Path, *, name: str, test_command: str, extra_files: dict[str, str]
+) -> Path:
+    repo = tmp_path / name
+    _init_git_repo_3612(repo)
+    for relative_path, content in extra_files.items():
+        _write_file_3612(repo, relative_path, content)
+    _write_file_3612(repo, ".kittify/config.yaml", f"review:\n  test_command: {test_command!r}\n")
+    _git_commit_all_3612(repo, "base commit")
+    return repo
+
+
+def _capture_via_scope_source(repo: Path, *, wp_slug: str) -> BaselineTestResult | None:
+    feature_dir = repo.parent / "kitty-specs" / "issue-3612"
+    return capture_baseline(
+        worktree_path=repo,
+        base_branch="main",
+        wp_id="WP01",
+        mission_slug="issue-3612",
+        feature_dir=feature_dir,
+        wp_slug=wp_slug,
+        scope_source=DeclaredCommandScopeSource(repo_root=repo),
+    )
+
+
+class TestCaptureBaselineViaScopeSourceDeclaredCommand:
+    """Focused units for the three #3612 fixes on the ScopeSource capture path."""
+
+    def test_output_file_placeholder_is_substituted_to_a_real_path(self, tmp_path: Path) -> None:
+        """A ``--report={output_file}`` flag (not the sniffed ``--junitxml=``
+        literal) must resolve to a REAL path this source controls, never the
+        literal 8-character string ``{output_file}`` — proving substitution
+        independent of the ``--junitxml=`` special case (which can
+        accidentally "work" for that one flag spelling since a real test
+        runner happily writes to a literally-braced filename, masking the
+        underlying defect)."""
+        script = textwrap.dedent(
+            """\
+            import sys
+            from pathlib import Path
+
+            report_arg = next(a for a in sys.argv if a.startswith("--report="))
+            report_path = report_arg.split("=", 1)[1]
+            assert report_path != "{output_file}", f"substitution never happened: {report_path!r}"
+            junit_xml = (
+                '<?xml version="1.0" encoding="utf-8"?>\\n'
+                '<testsuites><testsuite name="pytest" tests="1" failures="1">'
+                '<testcase classname="tests.test_thing" name="test_boom">'
+                '<failure message="boom">boom</failure></testcase>'
+                '</testsuite></testsuites>\\n'
+            )
+            Path(report_path).write_text(junit_xml, encoding="utf-8")
+            sys.exit(1)
+            """
+        )
+        repo = _build_repo_with_command_3612(
+            tmp_path,
+            name="case-a-output-file",
+            test_command=f"{sys.executable} run_tests.py --report={{output_file}}",
+            extra_files={"run_tests.py": script},
+        )
+
+        baseline = _capture_via_scope_source(repo, wp_slug="WP01-case-a")
+
+        assert baseline is not None
+        assert baseline.failed != -1
+        assert baseline.failures
+        assert baseline.failures[0].test == "tests.test_thing.test_boom"
+
+    def test_shell_variable_expansion(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A configured command referencing an exported shell variable (a
+        common, portable way to point at a project-local interpreter) must
+        be expanded — never passed to ``exec`` as the literal token
+        ``$PYBIN_3612``."""
+        monkeypatch.setenv("PYBIN_3612", sys.executable)
+        script = "print('FAIL tests.test_thing.test_boom: boom')\nraise SystemExit(1)\n"
+        repo = _build_repo_with_command_3612(
+            tmp_path,
+            name="case-b-shell-var",
+            test_command="$PYBIN_3612 run_tests.py",
+            extra_files={"run_tests.py": script},
+        )
+
+        baseline = _capture_via_scope_source(repo, wp_slug="WP01-case-b")
+
+        assert baseline is not None
+        assert baseline.failed != -1
+        assert not any("Errno 2" in f.error for f in baseline.failures), (
+            "an unexpanded $VAR reaching exec() as a literal token produces a "
+            "launch failure ([Errno 2] No such file or directory), never a "
+            "real test failure"
+        )
+        assert any(f.test == "tests.test_thing.test_boom" for f in baseline.failures)
+
+    def test_refuse_not_store_on_unparseable_clean_exit(self, tmp_path: Path) -> None:
+        """A declared command that exits 0 but produces NEITHER a JUnit
+        artifact NOR any ``FAIL <test>`` line is indistinguishable, under a
+        naive ``total=len(failures)`` encoding, from "ran a suite of zero
+        tests successfully" — both collapse to ``total=0, passed=0,
+        failed=0``. Capture must refuse to store that fabricated clean
+        baseline and surface the sentinel (``failed == -1``) instead, so the
+        gate treats it as ``UNVERIFIED_BASELINE``, never verified-clean."""
+        script = "print('nothing parseable here')\nraise SystemExit(0)\n"
+        repo = _build_repo_with_command_3612(
+            tmp_path,
+            name="case-c-refuse-not-store",
+            test_command=f"{sys.executable} run_tests.py",
+            extra_files={"run_tests.py": script},
+        )
+
+        baseline = _capture_via_scope_source(repo, wp_slug="WP01-case-c")
+
+        assert baseline is not None
+        assert baseline.failed == -1, (
+            f"got a fabricated total={baseline.total}/passed={baseline.passed}/"
+            f"failed={baseline.failed} 'clean' baseline instead of the sentinel"
+        )

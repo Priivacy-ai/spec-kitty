@@ -187,10 +187,14 @@ _JUNIT_SCRIPT = textwrap.dedent(
         '</testsuites>\\n'
     )
 
-    # Worktree-relative (the B1 shape): written against the process's OWN
-    # cwd, which both capture_baseline (a detached worktree) and the head
-    # run (the repo root) invoke this script from.
-    Path("results.xml").write_text(JUNIT_XML, encoding="utf-8")
+    # Issue #3612: the command declares --junitxml={output_file}, substituted
+    # by DeclaredCommandScopeSource.test_command() into a REAL absolute path
+    # (this source's own _output_file) -- read it back from argv rather than
+    # hardcoding a worktree-relative literal, so this fixture exercises the
+    # ACTUAL substitution path instead of a pre-#3612 relative-filename
+    # convention argv-sniffing can no longer see through the shell wrap.
+    junit_arg = next(a for a in sys.argv if a.startswith("--junitxml="))
+    Path(junit_arg.split("=", 1)[1]).write_text(JUNIT_XML, encoding="utf-8")
     sys.exit(1)
     """
 )
@@ -203,7 +207,7 @@ def _build_declared_command_repo(tmp_path: Path, *, script_name: str, script_bod
     _init_git_repo(repo)
     _write_file(repo, script_name, script_body)
     test_command = (
-        f"{sys.executable} {script_name} --junitxml=results.xml"
+        f"{sys.executable} {script_name} --junitxml={{output_file}}"
         if script_name.endswith("junit.py")
         else f"{sys.executable} {script_name}"
     )

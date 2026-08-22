@@ -297,12 +297,39 @@ def _write_config(repo_root: Path, *, test_command: str | None) -> None:
     )
 
 
-def test_declared_command_test_command_returns_shlex_split_of_configured_command(tmp_path: Path) -> None:
+def test_declared_command_test_command_wraps_in_a_posix_shell(tmp_path: Path) -> None:
+    """Issue #3612 rewrite: previously pinned a bare ``shlex.split`` argv with
+    no shell involved at all, which meant ``$VAR``/``~`` in a configured
+    command were never expanded (they reached ``exec`` as literal tokens).
+    ``test_command()`` now always wraps the configured command in ``["sh",
+    "-c", ...]`` so it gets real POSIX shell semantics, matching every OTHER
+    configured-command consumer in the codebase
+    (``configured_command.run_configured_command``)."""
     _write_config(tmp_path, test_command="./run-tests.sh --ci")
 
     command = DeclaredCommandScopeSource(repo_root=tmp_path).test_command()
 
-    assert command == ["./run-tests.sh", "--ci"]
+    assert command is not None
+    assert command[:2] == ["sh", "-c"]
+    assert command[2] == "./run-tests.sh --ci"
+
+
+def test_declared_command_test_command_substitutes_output_file_placeholder(tmp_path: Path) -> None:
+    """Issue #3612: a configured ``{output_file}`` placeholder must resolve
+    to a REAL, absolute path this source owns — never the literal 8-char
+    token ``{output_file}`` — so a declared command's own output-file flag
+    (whatever its name — ``--junitxml=``, ``--report=``, ...) always
+    receives something the source can actually read back later."""
+    _write_config(tmp_path, test_command="./run-tests.sh --report={output_file}")
+
+    source = DeclaredCommandScopeSource(repo_root=tmp_path)
+    command = source.test_command()
+
+    assert command is not None
+    assert command[:2] == ["sh", "-c"]
+    rendered = command[2]
+    assert "{output_file}" not in rendered
+    assert str(source._output_file) in rendered
 
 
 def test_declared_command_no_config_yields_none_test_command(tmp_path: Path) -> None:

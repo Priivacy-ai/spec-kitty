@@ -1551,9 +1551,16 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
         # parse_mode/parse_results were stabilized to an outcome-invariant
         # strategy label (SOURCE_MISMATCH fail-open fix), moving the class body
         # hash 0ed7a0e -> fac6a9d. Symbol is still same-module-constructed only.
+        # Content-hash re-pin (issue #3612): test_command() now substitutes
+        # {output_file} and shell-wraps via configured_command.py, and
+        # parse_mode/parse_results gained the _output_file/_resolved_artifact_path
+        # fallback (the shell wrap hides --junitxml= from argv-sniffing), moving
+        # the class body hash fac6a9d -> 700b4a0. Symbol is still
+        # same-module-constructed only (refreshed via
+        # _refresh_dead_symbol_hashes.py).
         # specify_cli.review.scope_source::DeclaredCommandScopeSource
         SymbolKey(
-            "DeclaredCommandScopeSource", "fac6a9dffbf00049014f5397114a40ed36ebc4be66a09a23028dd7422400e6b9", source_module="specify_cli.review.scope_source"
+            "DeclaredCommandScopeSource", "700b4a061a61f42c12a40d49333fd8527112de68f121ecfa865b2493e343efbd", source_module="specify_cli.review.scope_source"
         ),
         # specify_cli.review.scope_source::FileScopeBreakdown -- the return value
         # of GateCoverageScopeSource.scope_breakdown(); consumed structurally

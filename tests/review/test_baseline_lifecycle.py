@@ -135,10 +135,13 @@ _WRITE_JUNIT_SCRIPT = textwrap.dedent(
         '</testsuites>\\n'
     )
 
-    # Worktree-relative -- written against the process's OWN cwd, which the
-    # baseline capture path invokes with cwd=<tmp_worktree> (the B1 bug
-    # surface: this file lives INSIDE the baseline worktree, not beside it).
-    Path("results.xml").write_text(JUNIT_XML, encoding="utf-8")
+    # Issue #3612: the command declares --junitxml={output_file}, substituted
+    # by DeclaredCommandScopeSource.test_command() into a REAL absolute path
+    # (this source's own _output_file) -- read it back from argv rather than
+    # a hardcoded worktree-relative literal (the pre-#3612 convention argv
+    # sniffing can no longer see through the now-shell-wrapped command).
+    junit_arg = next(a for a in sys.argv if a.startswith("--junitxml="))
+    Path(junit_arg.split("=", 1)[1]).write_text(JUNIT_XML, encoding="utf-8")
     sys.exit(1)
     """
 )
@@ -174,7 +177,7 @@ def _build_declared_command_repo(tmp_path: Path) -> Path:
     repo = tmp_path / "declared-command-repo"
     _init_git_repo(repo)
     _write_file(repo, "write_junit.py", _WRITE_JUNIT_SCRIPT)
-    test_command = f"{sys.executable} write_junit.py --junitxml=results.xml"
+    test_command = f"{sys.executable} write_junit.py --junitxml={{output_file}}"
     _write_file(
         repo,
         ".kittify/config.yaml",

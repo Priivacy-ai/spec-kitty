@@ -187,6 +187,53 @@ def run_configured_command(
     )
 
 
+def build_shell_command_with_substitutions(
+    command_template: str,
+    substitutions: Mapping[str, str | Path],
+) -> list[str]:
+    """Render a configured command template into a self-contained ``["sh", "-c", ...]`` argv.
+
+    For callers that can only return a plain argv (no side channel for an
+    ``env=`` mapping alongside it) — e.g. ``ScopeSource.test_command() ->
+    list[str] | None`` (issue #3612): ``{name}`` placeholders are substituted
+    with safely shell-quoted literal values via inline ``export`` statements
+    prepended to the rendered command, rather than requiring the caller to
+    also thread a separate environment dict through to ``subprocess.run``.
+    Running the result through ``sh -c`` (POSIX only — see
+    :func:`run_configured_command_template` for the Windows fallback shape)
+    also means ``$VAR``/``~`` already present in the configured command
+    itself expand normally, matching the shell semantics
+    :func:`run_configured_command` already gives POSIX callers.
+
+    Reuses :func:`_format_shell_template_with_env`'s placeholder-scanning
+    (the same quote-aware scanner ``run_configured_command_template`` uses)
+    so both callers agree on placeholder syntax and quoting — only how the
+    substituted values are DELIVERED to the shell (inline ``export`` vs. a
+    separate ``env=`` mapping) differs.
+
+    Raises :class:`ConfiguredCommandUnsupported` on ``win32`` — there is no
+    ``sh`` to hand a self-contained argv to; callers there must fall back to
+    :func:`run_configured_command_template`'s ``.format()`` shape instead.
+    """
+    if sys.platform == "win32":
+        raise ConfiguredCommandUnsupported(
+            "build_shell_command_with_substitutions requires a POSIX shell (sh -c) "
+            "and has no Windows equivalent; use run_configured_command_template instead."
+        )
+    # Only feed keys the template actually references to the scanner — a
+    # substitution the template never uses (e.g. a plain command with no
+    # {output_file} placeholder at all) must not grow an unused `export`
+    # prefix onto every rendered command.
+    raw_substitutions = {
+        key: str(value) for key, value in substitutions.items() if f"{{{key}}}" in command_template
+    }
+    if not raw_substitutions:
+        return ["sh", "-c", command_template]
+    shell_command, substitution_env = _format_shell_template_with_env(command_template, raw_substitutions)
+    exports = "; ".join(f"export {name}={shlex.quote(value)}" for name, value in substitution_env.items())
+    return ["sh", "-c", f"{exports}; {shell_command}"]
+
+
 def run_configured_command_template(
     command_template: str,
     substitutions: Mapping[str, str | Path],
