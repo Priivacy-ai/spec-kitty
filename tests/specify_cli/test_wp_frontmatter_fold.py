@@ -74,21 +74,29 @@ class TestSingleTolerantReaderAuthority:
     """The routable consumers reference the shared reader, not a private one."""
 
     @pytest.mark.parametrize(
-        ("module", "symbol"),
+        ("module", "shared_reader_call"),
         [
             ("specify_cli.sync.history_import.scan", "read_authored_wp_frontmatter_lenient"),
-            ("specify_cli.mission_v1.guards", "_read_lane_from_frontmatter"),
+            ("specify_cli.mission_v1.guards", "read_wp_frontmatter"),
         ],
     )
-    def test_consumer_uses_shared_reader(self, module: str, symbol: str) -> None:
+    def test_consumer_actually_calls_shared_reader(self, module: str, shared_reader_call: str) -> None:
+        """AST call-node check (not a substring): the consumer genuinely invokes
+        the tolerant reader from status/wp_metadata — a comment mentioning it is
+        not enough to satisfy this pin."""
+        import ast
         import importlib
         import inspect
 
-        mod = importlib.import_module(module)
-        source = inspect.getsource(mod)
-        # Each routes WP-frontmatter reads through status/wp_metadata's tolerant
-        # readers (directly, or via the specify_cli.status re-export).
-        assert "read_wp_frontmatter" in source or "read_authored_wp_frontmatter" in source
+        tree = ast.parse(inspect.getsource(importlib.import_module(module)))
+        called = {
+            node.func.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+        assert shared_reader_call in called, (
+            f"{module} must CALL {shared_reader_call} (the shared tolerant reader), not just reference it"
+        )
 
 
 class TestAuditClassifierKeepsRawDict:

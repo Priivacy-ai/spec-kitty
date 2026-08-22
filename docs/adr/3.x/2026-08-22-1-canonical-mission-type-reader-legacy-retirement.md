@@ -52,20 +52,30 @@ defect M5 exists to kill). File I/O stays per-reader; the seam is pure.
 ### 2. Legacy `mission` read and silent `software-dev` default retired
 
 Every in-scope runtime **reader** is routed through the seam, dropping the legacy
-field and the silent default. Create-time / inference **writers**
-(`build_mission_identity`, `feature_meta.infer_mission`) and the template
-selection boundary in `get_mission_for_feature` (C-006) legitimately retain a
-`software-dev` value; these are encoded, rationale-bearing exemptions in
+field and the silent default. This includes the machine-facing identity
+normalizer `mission_metadata.mission_identity_fields` — the terminal serializer
+for the context / status / acceptance / merge-gate / decision payloads — whose
+`or "software-dev"` default is **removed** so a typeless or (pre-backfill)
+legacy-only mission surfaces its true type or neutral typeless there too, rather
+than being silently re-masked one layer downstream of the seam. Genuine
+**create-time / upgrade writers** (`core/mission_creation.emit_mission_created_local`,
+`feature_meta.infer_mission`) and the template-selection boundary in
+`get_mission_for_feature` (C-006) legitimately retain a `software-dev` value;
+these are encoded, rationale-bearing exemptions/notes in
 `tests/architectural/mission_type_reader_allowlist.yaml`. The field-aware
 census/audit tool (`_mission_type_audit`) keeps reading both fields by design.
 
 ### 3. Structural gate (FR-010)
 
-`tests/architectural/test_mission_type_reader_invariants.py` asserts (a) every
-in-scope reader returns exactly `read_mission_type(meta)` for the same dict
-(parity registry) and (b) no in-scope module carries a legacy `mission` read or a
-`software-dev` fallback (AST source-scan, allow-list for encoded exemptions). A
-newly-added reader that reintroduces either pattern trips the build.
+`tests/architectural/test_mission_type_reader_invariants.py` asserts (a) a
+**parity registry** of the dict-expressible readers returns exactly
+`read_mission_type(meta)` for the same dict, and (b) **no in-scope module** (all
+twelve) carries a legacy `mission` read or a `software-dev` fallback (AST
+source-scan, allow-list for encoded exemptions). The scan catches the direct
+`.get("mission")`/subscript forms and the field-tuple loop-indirection form (a
+straight revert to the old reader); the parity registry is the semantic backstop
+for the readers it covers. A newly-added reader that reintroduces either pattern
+trips the build.
 
 ### 4. FR-009 inline reads unchanged
 
