@@ -86,6 +86,12 @@ _OVERSIZED_ERROR = "payload too large (oversized, permanent)"
 _BATCH_OVERSIZED_ERROR = "batch payload too large; retry with a smaller batch"
 _TRANSPORT_ERROR_PREFIX = "transport failure"
 
+#: HTTP 412 on the batch endpoint means the server rejected ``_H_SYNC_PROTOCOL``
+#: (missing/mismatched version) — a CLI/server protocol skew that no retry can
+#: ever clear, unlike the other batch-level statuses (#1553).
+_PROTOCOL_MISMATCH_STATUS = 412
+_PROTOCOL_MISMATCH_ERROR = "spec-kitty is out of date with the server. Please upgrade: pip install --upgrade spec-kitty-cli"
+
 
 # -- §4 result vocabulary ------------------------------------------------------
 
@@ -614,11 +620,21 @@ def _http_error_text(http_status: int, body: Mapping[str, Any] | None) -> str:
 def _map_batch_failure(events: Sequence[OutboundEvent], *, http_status: int, body: Mapping[str, Any] | None) -> list[DeliveryResult]:
     """Classify a non-200 batch response.
 
-    Oversized/permanent → ``terminal_failed`` (FR-015); 400 content failure →
-    per-event ``rejected``; 401/403/408/429/5xx/other → ``transient`` for the whole
-    batch (do **not** poison per-event retry counts — spec "content rejection vs
-    transient failure").
+    Oversized/permanent → ``terminal_failed`` (FR-015); protocol mismatch (412) →
+    ``terminal_failed`` with an upgrade prompt (#1553 — a version skew a retry can
+    never fix); 400 content failure → per-event ``rejected``; 401/403/408/429/5xx/
+    other → ``transient`` for the whole batch (do **not** poison per-event retry
+    counts — spec "content rejection vs transient failure").
     """
+    if http_status == _PROTOCOL_MISMATCH_STATUS:
+        return _all_outcome(
+            events,
+            DeliveryOutcome.TERMINAL_FAILED,
+            http_status=http_status,
+            error=_PROTOCOL_MISMATCH_ERROR,
+            body=body,
+            effect_certainty=DeliveryEffectCertainty.TERMINAL,
+        )
     if _is_oversized(http_status, body) and len(events) == 1:
         return _all_outcome(
             events,

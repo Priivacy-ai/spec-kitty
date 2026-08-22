@@ -379,6 +379,14 @@ def test_batch_level_failure_maps_transient_for_every_event(status_code: int) ->
     assert all(r.http_status == status_code for r in results)
 
 
+def test_protocol_mismatch_412_maps_terminal_failed_with_upgrade_prompt() -> None:
+    batch = [_event("01JMBY0000000000000000000Q"), _event("01JMBY0000000000000000000R")]
+    results = map_batch_response(batch, http_status=412, body={"error": "protocol version mismatch"})
+    assert all(r.outcome is DeliveryOutcome.TERMINAL_FAILED for r in results)
+    assert all(r.effect_certainty is DeliveryEffectCertainty.TERMINAL for r in results)
+    assert all("upgrade" in (r.error or "").lower() for r in results)
+
+
 def test_oversized_413_maps_terminal_failed() -> None:
     batch = [_event("01JMBY0000000000000000000N")]
     results = map_batch_response(batch, http_status=413, body={"error": "payload too large"})
