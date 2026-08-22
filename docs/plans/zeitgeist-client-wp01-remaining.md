@@ -8,8 +8,12 @@ current in this repo instead of in a document that never lands here.
 
 Landed so far: `grammar.py`, `sanitizer.py`, `budget.py`, `transport.py`
 (`offer()`/`focus_start()`/`focus_heartbeat()`/`focus_pause()`/`focus_end()`/
-`presence()`), `credentials.py` (local storage primitive: `store()`/`load()`/
-`revoke()`).
+`presence()`/`ClientConfig.for_repository()`), `credentials.py` (local
+storage primitive: `store()`/`load()`/`revoke()`), `repo_identity.py`
+(`Deadline`, `repo_name()`, `branch_name()`, `commit_oid()`, `identity()` —
+landed by Z6-C, NOT a literal port of `zeitgeist/integrations/
+repo_identity.py`; see its module docstring for the deliberate divergence:
+no directory-basename fallback, fail-closed on ambiguity).
 
 **Z4-C** (a separate Bead, branched from this WP01 base at `afa4020d`) added
 `live_frame.py` (pure `LiveFrame` parsing + `StreamState`: gap/epoch/revoke
@@ -89,13 +93,14 @@ new subscription surface.
    <relay-url>` (health-reachability probe + canary `offer`, per
    `install.py`'s `cmd_verify` precedent). `credentials.py`'s storage
    primitive is implemented and tested; nothing calls it from a CLI flow yet.
-   Also not ported: `repo_identity.py` (`Deadline`, `repo_name`,
-   `branch_name`, `identity()`) for deriving the canonical `repo` key
-   `credentials.py` stores against — `subscription.py`/`status`/`watch`
-   require the caller to name `repo` explicitly (Z7-C's own "one explicit
-   authorized team context" criterion), the same scope reduction Z6-C's own
-   `repo_identity.py` was built against but has not landed on this branch's
-   lineage; tests still use literal repo strings (e.g. `"spec-kitty"`) today.
+    `repo_identity.identity()` (landed, Z6-C) is what this future CLI flow
+    should call to get the canonical `repo` key to store against — tests use
+    a literal `"spec-kitty"` string today because no CLI flow exists to wire
+    it through yet, not because the derivation is missing.
+    `subscription.py`/`status`/`watch` (Z7-C) still require the caller to
+    name `repo` explicitly (Z7-C's own "one explicit authorized team context"
+    criterion); wiring `repo_identity.identity()` into those flows is
+    deferred follow-up work (integration note, M2 canonical integration).
 6. **Harness-asset staging** — `.mcp.json` companion asset, the
    `ClaudeCodeHookRegistrar` `PostToolUse` event-constant extension, per-harness
    hook re-homing under `zeitgeist_client/assets/hooks/<harness>/`, and

@@ -7,10 +7,13 @@ co-owner of an unrelated file format). TOML, ``filelock``-guarded (decision
 4: the existing declared-but-unused dependency, ``pyproject.toml:85``,
 rather than tracker's hand-rolled ``fcntl``/``msvcrt``).
 
-Keyed by canonical ``repo`` (from ``repo_identity.identity()`` — not yet
-ported in this pass, see ``docs/plans/zeitgeist-client-wp01-remaining.md``),
-so two projects on one machine hold independent tokens (N-row precedent:
-two repos, two entries).
+Keyed by canonical ``repo`` (from ``repo_identity.identity()``, Z6-C), so two
+projects on one machine hold independent tokens (N-row precedent: two repos,
+two entries). This module's own ``store()``/``load()``/``revoke()`` still
+take ``repo`` as a plain caller-supplied string — a general storage primitive
+independent of how the caller derived it; the not-yet-implemented CLI
+adapter (see ``docs/plans/zeitgeist-client-wp01-remaining.md``) is expected
+to pass ``repo_identity.identity(cwd).repo`` rather than a literal.
 
 This module owns only the *storage* primitive. The network canary-offer
 probe (``spec-kitty zeitgeist checkout <relay-url>``, "refresh re-derives",
