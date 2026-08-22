@@ -82,3 +82,73 @@ this entry is a pointer plus the headline decisions, not a duplicate:
 - **Campsite-clean scope**: read both touched files end-to-end for domain-matched
   debt beyond FR-001..FR-010's own scope; found none — no separate preceding
   campsite-clean step is proposed for this mission.
+
+## Plan-review fix round (R1-R6, 2026-08-22)
+
+An adversarial plan review (`reviews/plan.confirmed.yaml`) confirmed 6 findings
+against the FR-006/FR-007 sentinel design and the Gate Set / FR-004 test-bar
+sections; `plan.md` was revised in place. Headline decisions, full rationale
+stays in `plan.md`:
+
+- **`diagnose.py` was an unaccounted-for `_PAYLOAD_RULES` consumer
+  (PLAN-ARCH-001, sev 5)**: `src/specify_cli/sync/diagnose.py::_validate_payload`
+  imports `_PAYLOAD_RULES` directly (`diagnose.py:51`) and does
+  `rules.get("required", set())`/`rules.get("validators", {})` with no shape
+  guard — the sentinel would crash `spec-kitty sync diagnose` on any dossier
+  event with an uncaught `AttributeError`. Fix mechanism chosen: a small shared
+  predicate `is_dossier_delegate(rules) -> bool` exported alongside the sentinel
+  in `emitter.py`; `diagnose.py::_validate_payload` calls it before any
+  dict-shaped access and delegates to `validate_event()` the same way
+  `emitter.py::_validate_dossier_payload` does, folding `ConformanceResult`
+  violations into `diagnose.py`'s existing `errors` list rather than printing a
+  warning (matches `diagnose.py`'s own return-structured-errors contract). A new
+  regression test lands in `tests/sync/test_diagnose.py` driving a dossier event
+  through `diagnose_events()`. This fix must land in the **same commit** as the
+  sentinel (Phase 3), not a follow-up phase, so no intermediate commit leaves
+  `diagnose.py` broken.
+- **`tests/dossier/test_snapshot_emit.py` breaks under the sentinel
+  (PLAN-ARCH-002, sev 4)**: `test_emit_rule_wires_canonical_validator_for_hash_fields`
+  subscripts `_PAYLOAD_RULES["MissionDossierSnapshotComputed"]["validators"]` /
+  `[...ParityDriftDetected"]["validators"]` directly — `TypeError: 'object' object
+  is not subscriptable` once those keys hold the sentinel. Rewritten to assert
+  against the `ConformanceResult` delegation behavior (malformed hash value ->
+  violation surfaces via `_validate_dossier_payload`) instead of asserting a
+  specific validator callable is wired into a dict that no longer exists for
+  these two event types.
+- **`_PAYLOAD_RULES` type annotation (PLAN-ARCH-003, sev 2)**: corrected from
+  `dict[str, dict[str, Any]]` to `dict[str, dict[str, Any] | object]` in the
+  same commit as the sentinel — a narrower `Literal`/sentinel-aware alias was
+  considered and rejected as unnecessary ceremony for one private sentinel value.
+- **Full `_PAYLOAD_RULES` blast radius (PLAN-ARCH-004, sev 3)**: re-ran
+  `grep -rn "_PAYLOAD_RULES" src/ tests/` and classified every hit
+  (read-only-safe / needs-code-change / needs-test-rewrite) in `plan.md`'s
+  Scale/Scope section. Beyond `diagnose.py` and `test_snapshot_emit.py`, the
+  remaining hits (`tests/contract/test_handoff_fixtures.py`,
+  `tests/status/test_actor_boundary_normalize.py`,
+  `tests/status/test_sync_lane_mapping.py`) only ever look up non-dossier keys
+  (`WPStatusChanged`, `WPCreated`, etc.) and are read-only-safe;
+  `tests/contract/test_identity_contract_matrix.py`'s hit is a source comment,
+  not a real consumer.
+- **Corrected CI shard names (PLAN-VERIFY-001, sev 3)**: this mission's touched
+  tests are actually collected by `integration-tests-core-misc` (`tests/dossier/`,
+  `tests/architectural/` via the misc path-filter group), the always-on
+  `arch-adversarial` job (`tests/architectural/`), and
+  `fast-tests-sync`/`integration-tests-sync` (`tests/sync/`) — NOT
+  "fast-doctrine"/"slow", which don't exist as job names on this surface (an
+  earlier plan draft misnamed them). None of these four jobs carries a
+  `--cov-fail-under` floor; only `kernel-tests`/`mission-loader-coverage` (90%),
+  `fast-tests-charter` (55%), and `fast-tests-agent` (10%) do, and none of those
+  collect this mission's tests. The only coverage-floor-style protection this
+  mission's new tests get is SonarCloud's project-level Quality Gate.
+- **FR-004 test bar strengthened (PLAN-VERIFY-002, sev 4)**: `autospec=True`
+  alone only proves the call *binds* to the real signature — since
+  `dossier_pipeline.py`'s `_emit_artifact_events` wraps both emitter calls in a
+  broad `except Exception`, an autospec mock cannot exercise AC1 (diagnostics
+  folding into `context_diagnostics`/`step_id`) or AC2 (the `blocking`
+  short-circuit), both of which live inside the mocked-away function bodies.
+  Binding test bar is now explicit two-part: (a) at least one new test must call
+  the real, unmocked emitters end-to-end and assert on the returned payload's
+  `context_diagnostics`/`step_id` (AC1) and on the emit/no-emit outcome via
+  `events_emitted` (AC2); (b) an `autospec=True` mock, if added, is supplementary
+  only and must assert on a try/except-surviving observable (`events_emitted`
+  count or `mock_emit.call_args`), never merely that the outer call didn't raise.
