@@ -260,26 +260,25 @@ def _load_traces(repo_root: Path, feature_dir: Path) -> list[tuple[str, str]]:
     with zero tracer evidence can grep for *why* rather than mistake it for a
     mission that genuinely had no tracer files.
     """
-    from mission_runtime import MissionArtifactKind, placement_seam
+    from mission_runtime import (
+        MissionArtifactKind,
+        ReadDegradeStrategy,
+        resolve_read_dir_or_degrade,
+    )
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
-    try:
-        traces_home = placement_seam(repo_root, feature_dir.name).read_dir(
-            MissionArtifactKind.TRACER_FILE
-        )
-    except (CoordinationBranchDeleted, StatusReadPathNotFound) as exc:
-        _LOGGER.warning(
-            "Tracer surface unreachable for mission %s (coordination_branch=%s): %s. "
-            "Degrading to zero tracer evidence rather than crashing generation "
-            "(best-effort FR-007 contract) — this omission may hide real tracer "
-            "content; see #1848.",
-            feature_dir.name,
-            load_meta_or_empty(feature_dir).get("coordination_branch", "<unknown>"),
-            exc,
-        )
+    decision = resolve_read_dir_or_degrade(
+        repo_root,
+        feature_dir.name,
+        MissionArtifactKind.TRACER_FILE,
+        strategy=ReadDegradeStrategy.ZERO_EVIDENCE,
+        caught=(CoordinationBranchDeleted, StatusReadPathNotFound),
+        degrade_target=feature_dir,
+    )
+    if decision.degraded:
         return []
-    traces_dir = traces_home / "traces"
+    traces_dir = decision.read_dir / "traces"
     if not traces_dir.is_dir():
         return []
     result: list[tuple[str, str]] = []

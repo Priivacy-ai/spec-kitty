@@ -70,6 +70,11 @@ from mission_runtime.resolution import (
     translate_surface,
 )
 from mission_runtime.mission_resolver_port import MissionResolver
+from mission_runtime.read_dir_degrade import (
+    ReadDegradeStrategy,
+    ReadDirDecision,
+    resolve_read_dir_or_degrade,
+)
 from mission_runtime.write_target_degrade import resolve_write_target_or_degrade
 
 __all__ = [
@@ -87,6 +92,8 @@ __all__ = [
     "MissionResolver",
     "MissionTopology",
     "PlacementSeam",
+    "ReadDegradeStrategy",
+    "ReadDirDecision",
     "ResolvedSurface",
     "StatusSurfaceFragment",
     "SurfaceLocations",
@@ -108,6 +115,7 @@ __all__ = [
     "resolve_create_time_write_target",
     "resolve_mid8",
     "resolve_placement_only",
+    "resolve_read_dir_or_degrade",
     "resolve_topology",
     "resolve_write_target_or_degrade",
     "routes_through_coordination",
