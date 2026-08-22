@@ -44,6 +44,9 @@ env/
 *.log
 # Investigation mission evidence logs are first-class review artifacts.
 !kitty-specs/**/research/*.log
+# Frozen CI-log fixtures for the flake-report fidelity test (NFR-003) are
+# committed golden data, not runtime logs.
+!tests/ci/fixtures/flake_report/logs/*.log
 .env
 .env.local
 .codex/
