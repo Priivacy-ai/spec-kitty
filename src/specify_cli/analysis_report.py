@@ -25,12 +25,38 @@ from specify_cli.core.atomic import atomic_write
 from kernel.clock import now_utc_iso
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 
 ANALYSIS_REPORT_FILENAME = "analysis-report.md"
 ANALYSIS_REPORT_ARTIFACT_TYPE = "spec-kitty.analysis-report"
 ANALYSIS_REPORT_COMMAND = "/spec-kitty.analyze"
 ANALYSIS_REPORT_REASON_CARRIER_FORMAT = "carrier_format_not_wrapped"
-_HASH_INPUTS = ("spec.md", "plan.md", "tasks.md")
+
+
+# FR-009/FR-010 (#3599): sourced from the per-type expected-artifacts.yaml
+# path_pattern authority, not hardcoded literals -- byte-compatible with
+# the prior ("spec.md", "plan.md", "tasks.md") literal for software-dev
+# (NFR-003). See tests/specify_cli/runtime/test_configured_artifact_name.py.
+#
+# #3622: resolved lazily (call-time, not import-time) so a malformed built-in
+# expected-artifacts.yaml raises at point-of-use rather than on
+# `import specify_cli.analysis_report`. `_HASH_INPUTS` stays readable as a
+# module attribute (module __getattr__ below) for existing external/test
+# access; in-module call sites use `_hash_inputs()` directly since bare-name
+# global lookups don't route through module __getattr__.
+def _hash_inputs() -> tuple[str, str, str]:
+    return (
+        resolve_configured_artifact_name("input.spec.main"),
+        resolve_configured_artifact_name("output.plan.main"),
+        resolve_configured_artifact_name("output.tasks.list"),
+    )
+
+
+def __getattr__(name: str) -> tuple[str, str, str]:
+    if name == "_HASH_INPUTS":
+        return _hash_inputs()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 # --- analysis-findings/v1 structured carrier (FR-004 / #1819) ---------------
 #
@@ -210,7 +236,7 @@ def collect_input_artifact_hashes(feature_dir: Path, repo_root: Path) -> dict[st
 
     inputs = {
         name: _artifact_hash_entry(feature_dir / name)
-        for name in _HASH_INPUTS
+        for name in _hash_inputs()
     }
     charter = _charter_path(repo_root)
     inputs["charter"] = {"path": str(charter) if charter else None, "sha256": _sha256_file(charter) if charter else None}
@@ -394,7 +420,7 @@ def write_analysis_report(
 ) -> AnalysisReportResult:
     """Persist `analysis-report.md` with source-artifact hashes."""
 
-    for required in _HASH_INPUTS:
+    for required in _hash_inputs():
         required_path = feature_dir / required
         if not required_path.exists():
             raise AnalysisReportError(f"Required artifact missing: {required_path}")
@@ -505,7 +531,7 @@ def check_analysis_report_current(feature_dir: Path, repo_root: Path) -> Analysi
 
     current = collect_input_artifact_hashes(feature_dir, repo_root)
     mismatches: dict[str, dict[str, str | None]] = {}
-    for key in (*_HASH_INPUTS, "charter"):
+    for key in (*_hash_inputs(), "charter"):
         saved_entry = saved_inputs.get(key)
         saved_hash = saved_entry.get("sha256") if isinstance(saved_entry, dict) else None
         current_hash = current.get(key, {}).get("sha256")
