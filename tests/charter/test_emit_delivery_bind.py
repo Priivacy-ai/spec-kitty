@@ -299,6 +299,17 @@ class _ProjectedChannel:
     renderer *composition* through this field, by function identity, rather
     than by a hand-counted literal. ``None`` for the synthetic/hypothetical
     channels below, which exercise no real renderer.
+
+    ``emitted_requires_edge_kind`` is the target-node *kind* string an
+    ``agent_profile --requires--> <kind>:bind-fixture`` edge lands as when
+    :func:`~doctrine.drg.migration.extractor.extract_artifact_edges` walks
+    this channel's citation field for a profile that cites it (#3633 item 1,
+    the emit-side enumeration binding below). ``None`` for channels whose
+    delivery does NOT depend on a citation-to-requires DRG edge at all:
+    ``styleguide``/``toolguide`` render straight from the profile's own
+    schema field (no DRG involved — see ``render_profile_styleguides``/
+    ``render_profile_toolguides``), and ``suggested_doctrine`` is delivered
+    via transitive ``suggests``-reachability, not a direct citation edge.
     """
 
     name: str
@@ -306,6 +317,7 @@ class _ProjectedChannel:
     fetch_selector: str
     attested_reason: str | None
     renderer: Callable[..., list[str]] | None = None
+    emitted_requires_edge_kind: str | None = None
 
 
 def _fetch_stanza_line(selector: str) -> str:
@@ -363,6 +375,7 @@ _REAL_PROJECTED_CHANNELS: tuple[_ProjectedChannel, ...] = (
         fetch_selector="directive:DIRECTIVE_999",
         attested_reason=None,
         renderer=_render_profile_directives,
+        emitted_requires_edge_kind="directive",
     ),
     _ProjectedChannel(
         name="tactic",
@@ -370,6 +383,7 @@ _REAL_PROJECTED_CHANNELS: tuple[_ProjectedChannel, ...] = (
         fetch_selector="tactic:fixture-tactic",
         attested_reason=None,
         renderer=_render_profile_tactics,
+        emitted_requires_edge_kind="tactic",
     ),
     _ProjectedChannel(
         name="operating-procedures",
@@ -377,6 +391,7 @@ _REAL_PROJECTED_CHANNELS: tuple[_ProjectedChannel, ...] = (
         fetch_selector="procedure:fixture-procedure",
         attested_reason=None,
         renderer=render_profile_procedures,
+        emitted_requires_edge_kind="procedure",
     ),
     _ProjectedChannel(
         name="styleguide",
@@ -590,6 +605,102 @@ def test_directive_tactic_operating_procedures_are_emitted_as_drg_edges(
         artifact_to_urn("procedure", "bind-fixture"),
         Relation.REQUIRES,
     ) in edge_triples
+
+
+def test_direct_citation_channels_are_emitted_by_enumeration_over_the_delivery_roster(
+    tmp_path: Path,
+) -> None:
+    """#3633 item 1: the emit half above was a hand-listed 3-channel spot
+    check with no structural tie to the delivery roster
+    (``_REAL_PROJECTED_CHANNELS``) -- a channel added to or dropped from the
+    roster's direct-citation set could drift from what
+    ``extract_artifact_edges`` actually emits, and nothing here would
+    notice. This test drives the same fixture-and-assert shape generically
+    off ``_ProjectedChannel.emitted_requires_edge_kind`` instead, so it is
+    a genuine enumeration bind rather than three independent literals:
+
+    * A channel present in the roster with a non-``None``
+      ``emitted_requires_edge_kind`` whose edge stops being emitted (an
+      **delivered-but-unemitted** regression) fails the per-channel assert
+      below.
+    * A channel added to the roster's direct-citation set without a
+      matching real edge in the fixture also fails, the same way.
+
+    The `emitted_requires_edge_kind is not None` filter is itself asserted
+    against the three known direct-citation channels so silently dropping a
+    channel from that set (or expanding it without updating this test's own
+    understanding) reddens too, rather than only shrinking the loop body.
+
+    ``styleguide``/``toolguide`` (profile-field-only delivery, no DRG edge)
+    and ``suggested_doctrine`` (transitive ``suggests``-reachability, not a
+    direct citation edge) are deliberately excluded -- see
+    ``_ProjectedChannel.emitted_requires_edge_kind``'s docstring for why
+    those three have no citation-to-requires edge shape to check here.
+    """
+    direct_citation_channels = [
+        channel
+        for channel in _REAL_PROJECTED_CHANNELS
+        if channel.emitted_requires_edge_kind is not None
+    ]
+    assert {channel.name for channel in direct_citation_channels} == {
+        "directive",
+        "tactic",
+        "operating-procedures",
+    }, (
+        "the set of _REAL_PROJECTED_CHANNELS entries carrying a non-None "
+        "emitted_requires_edge_kind has drifted from the three known "
+        "direct-citation channels -- update this test alongside the roster"
+    )
+
+    doctrine_root = tmp_path / "pack"
+    (doctrine_root / "directives").mkdir(parents=True)
+    (doctrine_root / "tactics").mkdir(parents=True)
+    (doctrine_root / "procedures").mkdir(parents=True)
+    (doctrine_root / "agent_profiles").mkdir(parents=True)
+    (doctrine_root / "directives" / "bind-fixture.directive.yaml").write_text(
+        "schema_version: '1.0'\nid: bind-fixture\ntitle: Bind Fixture Directive\n",
+        encoding="utf-8",
+    )
+    (doctrine_root / "tactics" / "bind-fixture.tactic.yaml").write_text(
+        "schema_version: '1.0'\nid: bind-fixture\nname: Bind Fixture Tactic\n",
+        encoding="utf-8",
+    )
+    (doctrine_root / "procedures" / "bind-fixture.procedure.yaml").write_text(
+        "schema_version: '1.0'\nid: bind-fixture\nname: Bind Fixture Procedure\npurpose: test\n",
+        encoding="utf-8",
+    )
+    (doctrine_root / "agent_profiles" / "bind-fixture.agent.yaml").write_text(
+        "\n".join(
+            [
+                "profile-id: bind-fixture",
+                "name: Bind Fixture Profile",
+                "context-sources:",
+                "  directives: [bind-fixture]",
+                "tactic-references:",
+                "  - id: bind-fixture",
+                "collaboration:",
+                "  operating-procedures: [bind-fixture]",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    _nodes, edges = extract_artifact_edges(doctrine_root)
+    edge_triples = {(edge.source, edge.target, edge.relation) for edge in edges}
+    profile_urn = artifact_to_urn("agent_profile", "bind-fixture")
+
+    for channel in direct_citation_channels:
+        expected_edge = (
+            profile_urn,
+            artifact_to_urn(channel.emitted_requires_edge_kind, "bind-fixture"),
+            Relation.REQUIRES,
+        )
+        assert expected_edge in edge_triples, (
+            f"channel {channel.name!r} is delivery-attested in "
+            "_REAL_PROJECTED_CHANNELS but extract_artifact_edges does not "
+            f"emit its expected DRG edge {expected_edge}"
+        )
 
 
 # ---------------------------------------------------------------------------
