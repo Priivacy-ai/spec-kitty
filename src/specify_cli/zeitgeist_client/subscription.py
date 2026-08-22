@@ -58,8 +58,8 @@ computed from what a team is presently doing.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, Mapping
-from typing import Any
+from collections.abc import Generator, Iterator, Mapping
+from typing import Any, cast
 
 from . import credentials, filtered_stream
 from .live_frame import LiveFrame, MAX_TTL_S, TeamSnapshot
@@ -85,6 +85,16 @@ class NotCheckedOut(Exception):
     def __init__(self, repo: str) -> None:
         super().__init__(f"no stored Zeitgeist credential for repo {repo!r}; run the checkout flow first")
         self.repo = repo
+
+
+def _close(gen: Iterator[LiveFrame]) -> None:
+    """``FilteredStream.watch()``'s own declared return type is the narrower
+    ``Iterator[LiveFrame]`` (its public contract never promises a
+    generator specifically), but its concrete implementation is always a
+    generator — ``test_filtered_stream.py`` itself relies on
+    ``gen.close()`` throughout. This cast documents that gap once instead
+    of two identical ``# type: ignore`` comments at each call site."""
+    cast(Generator[LiveFrame, None, None], gen).close()
 
 
 def _clamp_timeout(timeout_s: float) -> float:
@@ -169,7 +179,7 @@ def status(repo: str, *, timeout_s: float = DEFAULT_STATUS_TIMEOUT_S) -> dict[st
         for _ in gen:
             pass  # apply every frame that arrives inside the bounded window
     finally:
-        gen.close()
+        _close(gen)
     result = _serialize_snapshot(stream.check())
     result["repo"] = repo
     return result
@@ -192,4 +202,4 @@ def watch(repo: str, *, timeout_s: float = DEFAULT_WATCH_TIMEOUT_S, max_frames: 
             if count >= max_frames:
                 return
     finally:
-        gen.close()
+        _close(gen)
