@@ -151,11 +151,20 @@ def _matching_resume_probe_dirs(repo_root: Path, handle: str) -> list[Path]:
     return sorted(matches)
 
 
+def _load_resume_probe_meta(feature_dir: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """Read resume metadata once through the fail-closed authority."""
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+
+    try:
+        return load_meta_fail_closed(feature_dir), None
+    except MissionMetaReadError as exc:
+        return None, str(exc.cause)
+
+
 def _resume_probe_candidate_summary(feature_dir: Path) -> dict[str, object]:
     """Build a non-throwing identity summary for ambiguity diagnostics."""
-    from specify_cli.mission_metadata import load_meta
-
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none") or {}
+    meta, _read_error = _load_resume_probe_meta(feature_dir)
+    meta = meta or {}
     return {
         "mission_slug": feature_dir.name,
         "mission_id": str(meta.get("mission_id", "")),
@@ -261,7 +270,6 @@ def _build_resume_probe_payload(repo_root: Path, handle: str) -> dict[str, objec
     """Return a structured resume result without misclassifying valid history."""
     from specify_cli.core.paths import get_main_repo_root
     from specify_cli.lanes.branch_naming import mid8_from_slug
-    from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._substantive import is_committed, is_substantive
 
     candidates = _matching_resume_probe_dirs(repo_root, handle)
@@ -282,10 +290,13 @@ def _build_resume_probe_payload(repo_root: Path, handle: str) -> dict[str, objec
         }
 
     feature_dir = candidates[0]
-    meta = load_meta(feature_dir, allow_missing=True, on_malformed="none")
     invalid: list[str] = []
+    meta, meta_read_error = _load_resume_probe_meta(feature_dir)
+    if meta_read_error is not None:
+        invalid.append(f"meta.json is malformed or unreadable: {meta_read_error}")
     if meta is None:
-        invalid.append("meta.json is missing, malformed, or not an object")
+        if meta_read_error is None:
+            invalid.append("meta.json is missing")
         meta = {}
     invalid.extend(_resume_meta_problems(meta, feature_dir))
     mission_number = meta.get("mission_number")

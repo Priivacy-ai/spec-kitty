@@ -28,6 +28,7 @@ from specify_cli.core.mission_creation import MissionCreationResult
 
 from specify_cli.cli.commands.agent.mission import app as mission_app
 from specify_cli.core.mission_creation import create_mission_core
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.missions._create import (
     CoordinationBranchDiverged,
     coordination_branch_name,
@@ -809,6 +810,76 @@ def test_resume_probe_command_returns_nonzero_for_malformed_partial_scaffold(tmp
     payload = _json_payload_from_output(result.output)
     assert payload["resume_state"] == "malformed"
     assert payload["error_code"] == "MISSION_RESUME_MALFORMED"
+
+
+@pytest.mark.parametrize("meta_text", ["{not-json}", "[]"])
+def test_resume_probe_command_rejects_corrupt_or_non_object_meta(
+    tmp_path: Path,
+    meta_text: str,
+) -> None:
+    """Invalid metadata never degrades into duplicate-creation permission."""
+    _init_repo(tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / "invalid-meta-01ABCDEF"
+    feature_dir.mkdir()
+    (feature_dir / "meta.json").write_text(meta_text, encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Partial\n", encoding="utf-8")
+
+    runner = CliRunner()
+    with (
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission._enforce_git_preflight"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "check-prerequisites",
+                "--mission",
+                "invalid-meta",
+                "--resume-probe",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 1
+    payload = _json_payload_from_output(result.output)
+    assert payload["resume_state"] == "malformed"
+    assert payload["error_code"] == "MISSION_RESUME_MALFORMED"
+    assert [path.name for path in (tmp_path / "kitty-specs").iterdir()] == [feature_dir.name]
+
+
+def test_resume_probe_command_rejects_unreadable_meta(tmp_path: Path) -> None:
+    """A typed I/O failure stays fail-closed at the public CLI boundary."""
+    _init_repo(tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / "unreadable-meta-01ABCDEF"
+    feature_dir.mkdir()
+    meta_path = feature_dir / "meta.json"
+    meta_path.write_text("{}", encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Partial\n", encoding="utf-8")
+    read_error = MissionMetaReadError(meta_path, OSError("permission denied"))
+
+    runner = CliRunner()
+    with (
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission._enforce_git_preflight"),
+        patch("specify_cli.core.paths.load_meta_fail_closed", side_effect=read_error),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "check-prerequisites",
+                "--mission",
+                "unreadable-meta",
+                "--resume-probe",
+                "--json",
+            ],
+        )
+
+    assert result.exit_code == 1
+    payload = _json_payload_from_output(result.output)
+    assert payload["resume_state"] == "malformed"
+    assert payload["error_code"] == "MISSION_RESUME_MALFORMED"
+    assert "permission denied" in " ".join(payload["problems"])
+    assert [path.name for path in (tmp_path / "kitty-specs").iterdir()] == [feature_dir.name]
 
 
 def test_explicit_research_create_keeps_scaffold_meta_and_event_type_coherent(tmp_path: Path) -> None:

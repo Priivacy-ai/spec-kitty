@@ -42,6 +42,7 @@ from specify_cli.core.mission_payload import (
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
+from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
@@ -301,20 +302,13 @@ def _restore_git_state_after_failed_create(
                 # A late failure can occur after the metadata commit. Restore
                 # only this branch ref with compare-and-swap; keep the partial
                 # scaffold in the worktree for resume-probe diagnosis.
-                subprocess.run(
-                    [
-                        "git",
-                        "-C",
-                        str(repo_root),
-                        "update-ref",
-                        f"refs/heads/{original_branch}",
+                with contextlib.suppress(RefRestoreError):
+                    restore_branch_ref(
+                        repo_root,
+                        original_branch,
                         original_commit,
-                        current_tip,
-                    ],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                )
+                        expected_current_sha=current_tip,
+                    )
             if original_index_tree is not None:
                 # Restore the exact pre-invocation index, including unrelated
                 # staged user changes, without touching worktree files.

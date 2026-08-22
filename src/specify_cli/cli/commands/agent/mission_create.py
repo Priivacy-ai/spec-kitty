@@ -37,6 +37,7 @@ import typer
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.diagnostics import mark_invocation_succeeded
+from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
@@ -174,19 +175,11 @@ def _restore_start_branch_after_failure(state: _StartBranchRollbackState) -> Non
             )
             current_tip = current_tip_result.stdout.strip()
             if current_tip != original_tip:
-                subprocess.run(
-                    [
-                        "git",
-                        "-C",
-                        str(state.repo_root),
-                        "update-ref",
-                        f"refs/heads/{state.start_branch}",
-                        original_tip,
-                        current_tip,
-                    ],
-                    capture_output=True,
-                    text=True,
-                    check=True,
+                restore_branch_ref(
+                    state.repo_root,
+                    state.start_branch,
+                    original_tip,
+                    expected_current_sha=current_tip,
                 )
     elif state.start_branch != state.original_branch:
         branch_result = subprocess.run(
@@ -233,7 +226,7 @@ def _rollback_start_branch_on_failure(
         if state is not None:
             try:
                 _restore_start_branch_after_failure(state)
-            except (OSError, subprocess.CalledProcessError) as rollback_error:
+            except (OSError, subprocess.CalledProcessError, RefRestoreError) as rollback_error:
                 error.add_note(f"Failed to restore checkout after create failure: {rollback_error}")
         raise
 
