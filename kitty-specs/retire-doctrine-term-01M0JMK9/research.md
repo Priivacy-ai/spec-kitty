@@ -92,6 +92,6 @@ Every item below is a resolved unknown: **Decision / Rationale / Alternatives co
 
 **Decision**: Amend per US1-AS2: the new ADR explicitly supersedes the *terminology portion* of `2026-07-15-1` while leaving its resolution mechanics intact; the old ADR's frontmatter `status:` changes from `Proposed` to `Superseded` with a pointer to the new ADR; its body stays byte-for-byte untouched (C-003 carve-out for status frontmatter).
 
-**Rationale**: Verified live: `2026-07-15-1` carries `status: Proposed` (amending a proposed ADR is low-risk — squad Lens 1, MEDIUM); the repo's `Superseded` convention is frontmatter-based (5 ADRs); 10 ADRs in `docs/adr/3.x/` carry "doctrine" in their titles — all retain-as-legacy under C-003 except the one amended (squad Lens 4).
+**Rationale**: Verified live: `2026-07-15-1` carries `status: Proposed` (amending a proposed ADR is low-risk — squad Lens 1, MEDIUM); the repo's `Superseded` convention is frontmatter-based (5 ADRs); 11 ADRs in `docs/adr/3.x/` carry "doctrine" in their titles — 10 retain-as-legacy under C-003 + the one amended (`2026-07-15-1`) (squad Lens 4; count corrected by the post-plan coverage squad, 2026-08-21).
 
-**Alternatives considered**: Marking all 10 doctrine-titled ADRs `Superseded` — rejected (only an ADR whose *decision* is amended gets a status change; titles are immutable snapshots). Editing the old ADR's body to fix terminology — rejected (C-003: historical artifacts immutable).
+**Alternatives considered**: Marking all 11 doctrine-titled ADRs `Superseded` — rejected (only an ADR whose *decision* is amended gets a status change; titles are immutable snapshots). Editing the old ADR's body to fix terminology — rejected (C-003: historical artifacts immutable).

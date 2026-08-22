@@ -57,6 +57,10 @@ total_hits = sum(Section 2 occurrence_count) + sum(Section 3 occurrence_count)
 
 **0 unclassified hits is the pass condition.** Any hit not covered by Section 2 or 3 fails SC-002.
 
+### Section 5 — Out-of-repo surfaces (spec assumption 5)
+
+Known user-facing "doctrine" surfaces in sibling repositories (e.g. the spec-kitty-saas dashboard) are recorded here as **deferred with rationale** — not silently dropped. These surfaces are outside this repo's `git ls-files` audit and therefore **outside the Section 4 arithmetic** (they are out-of-repo, not unclassified). Each row: `surface | repo | rationale for deferral`.
+
 ## Invariants
 
 - **INV-I1 (per-wave snapshot)**: each stack wave re-runs this audit at its base commit and records drift. Expected drift source: concurrent catfooding missions adding `kitty-specs/` hits (self-classify as X2 at merge). Drift is recorded, not silently absorbed.

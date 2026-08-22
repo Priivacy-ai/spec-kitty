@@ -85,6 +85,7 @@ Structure:
 - **Raw audit record**: per-file hit counts (the mechanical output — evidence before conclusion, ATDD-first analog).
 - **Class table**: one row per OC-## (fields from §2) + classification-out rows (X1/X2/X3 with counts and the rule applied).
 - **Completeness statement**: `total_hits = sum(class rows) + sum(classification-out rows)` — the arithmetic check that 0 hits are unclassified (SC-002).
+- **Out-of-repo surfaces** (spec assumption 5): known sibling-repo user-facing surfaces (e.g. spec-kitty-saas dashboard) recorded as deferred with rationale — outside the audit arithmetic (out-of-repo, not unclassified).
 
 **Invariant INV-I1**: the inventory is a **per-wave snapshot**, not one-time — each wave re-runs the audit at its base and records drift (expected: concurrent catfooding missions add `kitty-specs/` hits, which self-classify as X2 at merge).
 
@@ -98,7 +99,7 @@ The state that must hold at each level of the stack — the methodology's core c
 | **I1** — post-M1 (authority flip) | New vocabulary canonical in glossary + charter bundle; Terminology Canon line loads at every session start (self-correcting lever); guard armed with file-level frozen baseline (shrink-only + self-mutation test); new `src/tests/docs` content outside the baseline containing "doctrine" fails CI; `kitty-specs/` drift expected and re-baselined per wave. |
 | **I2** — post-M2 (CLI) | `spec-kitty doctrine` subcommands are hidden aliases with deprecation warnings; canonical names work; per-subcommand alias tests green; CI consumers (`ci-quality.yml:4055`, workflow filenames) updated same-wave. |
 | **I3** — post-M3 (packs) | `packs/built-in/` user-facing strings/titles use the new vocabulary; agent copies regenerate via upgrade flow from packs (no hand-edited generated dirs). |
-| **I4** — post-M4 (skills) | `spk-doctrine-*` renamed with legacy alias skills during the window; harness routing works on both names until 4.0; generated agent dirs updated via migration/upgrade flow. |
+| **I4** — post-M4 (skills) | `spk-doctrine-*` renamed with legacy alias skills during the window; old→new map recorded in M4's artifacts (alias skills are its executable form); harness routing works on both names until 4.0; generated agent dirs updated via migration/upgrade flow. |
 | **I5** — post-M5 (docs prose) | `docs/` prose + root docs use the new vocabulary; ADR titles/bodies remain legacy-marked (C-003); guard baseline for `docs/` at or near zero. |
 | **I6** — 4.0 end state (post-M6) | Aliases removed; NFR-001 audit finds **zero** user-visible "doctrine" outside X2 (legacy-marked) + X1 (internal identifiers); the 4.0 hard rule verified by audit, not assumption. |
 

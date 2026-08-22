@@ -31,10 +31,11 @@ A reviewer with **no other context** reads only the new ADR and states, from it 
 1. what is being retired and what replaces it;
 2. the three-way distinction (charter bundle / active charter / inactive charter);
 3. which kind vocabulary survives;
-4. the scope boundary (in: user-facing language; out: internal identifiers, legacy-marked artifacts) **including the operator-typed identifier classification**;
-5. the compatibility policy (3.x hidden aliases + warnings; 4.0 zero user-visible "doctrine").
+4. the scope boundary (in: user-facing language; out: internal identifiers, legacy-marked artifacts) **including the operator-typed identifier classification** (skill names in scope with aliases; profile/directive IDs out of scope as a named exception);
+5. the compatibility policy (3.x hidden aliases + warnings; 4.0 zero user-visible "doctrine");
+6. that "charter" the term is disambiguated from `src/charter/` the pre-existing code package.
 
-Named reviewers: post-implement squad lens (advisory) + operator at PR review. All five stated correctly = PASS.
+Named reviewers: post-implement squad lens (advisory) + operator at PR review. All six stated correctly = PASS.
 
 ## 4. Mechanical audit — inventory completeness (SC-002, NFR-001)
 

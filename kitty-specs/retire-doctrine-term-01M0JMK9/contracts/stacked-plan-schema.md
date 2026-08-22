@@ -13,7 +13,7 @@
 | M1 | `charter-authority-flip` | Glossary rewrite (FR-011) + charter-bundle update (`charter.yaml` + regeneration, incl. Terminology Canon line from the ADR) + guard arming (last WP) — one mission, one PR |
 | M2 | `charter-cli-surface` | `spec-kitty doctrine` group (9 subcommands) + `doctor doctrine` → canonical names; hidden aliases + deprecation warnings; per-subcommand alias tests; same-wave CI consumer updates |
 | M3 | `charter-packs-source` | User-facing strings/titles in `packs/built-in/` (canonical source of all agent copies) |
-| M4 | `charter-skills-artifacts` | `spk-doctrine-*` → new names + legacy alias skills during the window; agent dirs via migration/upgrade flow |
+| M4 | `charter-skills-artifacts` | `spk-doctrine-*` → new names + legacy alias skills during the window (old→new map recorded in M4's artifacts; the alias skills are its executable form); agent dirs via migration/upgrade flow |
 | M5 | `charter-docs-prose` | `docs/` prose + root-level operator docs (`AGENTS.md`, …); ADR titles stay legacy (C-003) |
 | M6 *(deferred to 4.0)* | `charter-removal-audit` | Strip aliases; run the NFR-001 zero-doctrine audit (verifies the 4.0 hard rule) |
 
