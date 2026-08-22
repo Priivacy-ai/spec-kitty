@@ -844,14 +844,15 @@ touched surface identified above):
 | `src/specify_cli/sync/emitter.py` | ~100 (delete ~70 lines of 4 hand-maintained dict entries; add ~50 lines: sentinel, `_DOSSIER_EVENT_TYPES`, `is_dossier_delegate()`, `_validate_dossier_payload`, branch in `_validate_payload`, corrected `_PAYLOAD_RULES` type annotation) |
 | `src/specify_cli/sync/diagnose.py` (FR-011; plan-review remediation, closes PLAN-ARCH-001) | ~15 (import `is_dossier_delegate`; early-return branch in `diagnose.py::_validate_payload` mirroring `emitter.py`'s branch, folding `ConformanceResult` violations into the existing `errors` accumulator) |
 | `tests/dossier/test_events.py` | ~10 (import re-point only, FR-009) |
+| `tests/sync/test_events.py` (FR-006/FR-007; tasks-review remediation, closes TASKS-DECOMP-001) | ~30-50 (new SC-005 invalid-dossier-payload test against `EventEmitter._validate_payload()`, plus a small FR-007 `VALID_EVENT_TYPES` membership regression, per WP02/T012) |
 | `tests/sync/test_dossier_pipeline.py` | ~80-120 (new FR-004 regression test(s): a real, unmocked end-to-end test asserting AC1/AC2 payload/behavior content, plus an optional supplementary `autospec=True` test) |
 | `tests/dossier/test_snapshot_emit.py` (plan-review remediation, closes PLAN-ARCH-002) | ~15 (rewrite `test_emit_rule_wires_canonical_validator_for_hash_fields` to assert against the `ConformanceResult` delegation behavior instead of subscripting `_PAYLOAD_RULES[...]["validators"]` directly) |
 | `tests/sync/test_diagnose.py` (FR-011; plan-review remediation, closes PLAN-ARCH-001's coverage gap) | ~40-60 (new regression test(s) driving a dossier event, valid and invalid payload, through `diagnose_events()`) |
 | `tests/architectural/test_dossier_emitter_positional_guard.py` (new) | ~150-200 (detector + clean-tree assertion + positive-control fixture + docstring) |
 | `tests/dossier/test_emitter_adapter.py`, `tests/sync/test_events_namespace.py` | 0 (verified no change needed, FR-009) |
 
-**Total estimate: roughly 570-820 LOC changed across 8 files with a real
-diff** (3 source files — `events.py`, `emitter.py`, `diagnose.py` — plus 5
+**Total estimate: roughly 600-870 LOC changed across 9 files with a real
+diff** (3 source files — `events.py`, `emitter.py`, `diagnose.py` — plus 6
 test files touched, including 1 brand-new file,
 `test_dossier_emitter_positional_guard.py`; 2 further test files verified
 to need zero changes). This still fits comfortably in **one PR, reviewable
@@ -1008,9 +1009,10 @@ emitter signatures do not add branching, only additional named parameters.
 ## Parallel Work Analysis
 
 **Not applicable — this mission is a single sequential work stream, not
-parallelized across multiple agents/developers.** The ~570-820 LOC estimate
+parallelized across multiple agents/developers.** The ~600-870 LOC estimate
 (see "PR Shape", corrected by plan-review remediation to include
-`diagnose.py` and its coordinated tests) and the tight file-level coupling
+`diagnose.py` and its coordinated tests, and by tasks-review remediation to
+include `tests/sync/test_events.py`) and the tight file-level coupling
 between phases (Phase 1 and Phase 2 both edit the same ~150 contiguous
 lines of `events.py`; Phase 3 is the only phase touching different files —
 `emitter.py`, `diagnose.py`, and their coordinated tests, landing atomically

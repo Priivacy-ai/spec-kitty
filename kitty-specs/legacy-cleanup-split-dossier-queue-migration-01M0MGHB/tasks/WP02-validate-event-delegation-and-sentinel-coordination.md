@@ -85,6 +85,14 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 ## Objectives & Success Criteria
 
+This WP bundles two sub-concerns that must land together, atomically, in one
+commit (tasks-review remediation, closes TASKS-DECOMP-002): **(1)** the sentinel
+delegation mechanism in `emitter.py` (FR-006/FR-007 — replacing the four
+hand-maintained dossier `_PAYLOAD_RULES` entries with a reconciling sentinel),
+and **(2)** the coordinated `diagnose.py` consumer fix (FR-011 — the second,
+independent consumer of the same `_PAYLOAD_RULES` dict that would otherwise
+crash on the sentinel alone).
+
 - `src/specify_cli/sync/emitter.py`'s `_PAYLOAD_RULES` table replaces its four
   hand-maintained dossier validation rules with a delegation to
   `spec_kitty_events.conformance.validate_event(payload, event_type,
