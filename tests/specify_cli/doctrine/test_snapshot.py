@@ -382,6 +382,10 @@ class TestEtagConditionalFetch:
             "https://exa mple.com/artifactory/repo/pack.tar.gz",
             "https://%ZZ/artifactory/repo/pack.tar.gz",
             "https://./artifactory/repo/pack.tar.gz",
+            "https://💩.example/artifactory/repo/pack.tar.gz",
+            "https://a\u200db.example/artifactory/repo/pack.tar.gz",
+            "https://\u0301bad.example/artifactory/repo/pack.tar.gz",
+            f"https://{'.'.join(['é' * 20] * 10)}/artifactory/repo/pack.tar.gz",
         ],
     )
     def test_invalid_authority_preserves_existing_snapshot_without_request(

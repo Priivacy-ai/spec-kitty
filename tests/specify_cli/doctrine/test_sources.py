@@ -375,6 +375,10 @@ class TestHttpsBundleSource:
             "https://exa mple.com/artifactory/repo/pack.tar.gz",
             "https://%ZZ/artifactory/repo/pack.tar.gz",
             "https://./artifactory/repo/pack.tar.gz",
+            "https://💩.example/artifactory/repo/pack.tar.gz",
+            "https://a\u200db.example/artifactory/repo/pack.tar.gz",
+            "https://\u0301bad.example/artifactory/repo/pack.tar.gz",
+            f"https://{'.'.join(['é' * 20] * 10)}/artifactory/repo/pack.tar.gz",
         ],
     )
     def test_invalid_authority_fails_without_request(
@@ -399,6 +403,39 @@ class TestHttpsBundleSource:
         assert result.ok is False
         assert any("URL is invalid" in error for error in result.errors)
         assert calls == []
+
+    @pytest.mark.parametrize(
+        "valid_url",
+        [
+            "https://bücher.example/pack.tar.gz",
+            "https://xn--bcher-kva.example/pack.tar.gz",
+            "https://127.0.0.1/pack.tar.gz",
+            "https://[2001:db8::1]/pack.tar.gz",
+            "https://artifactory/pack.tar.gz",
+        ],
+    )
+    def test_valid_authority_reaches_request(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        valid_url: str,
+    ) -> None:
+        calls: list[str] = []
+
+        def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            calls.append(url)
+            return _FakeResponse(status_code=500, url=url)
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get",
+            _fake_get,
+        )
+
+        result = HttpsBundleSource(url=valid_url).fetch(tmp_path / "snapshot")
+
+        assert result.ok is False
+        assert calls
+        assert set(calls) == {valid_url}
 
     def test_tar_gz_extraction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

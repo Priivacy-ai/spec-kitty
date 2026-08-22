@@ -35,6 +35,7 @@ from typing import Any
 from pydantic import (
     BaseModel,
     ConfigDict,
+    GetJsonSchemaHandler,
     SerializerFunctionWrapHandler,
     model_serializer,
 )
@@ -158,6 +159,16 @@ class PackManifest(BaseModel):
         if self.constituents is None:
             data.pop("constituents", None)
         return data
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: Any, handler: GetJsonSchemaHandler
+    ) -> dict[str, Any]:
+        """Keep the declared serialization schema as strict as validation."""
+        schema = dict(core_schema)
+        if handler.mode == "serialization":
+            schema.pop("serialization", None)
+        return handler(schema)
 
     def sorted_constituents(self) -> list[Constituent]:
         """Return the constituents in canonical ``(kind, id)`` order."""
