@@ -150,7 +150,7 @@ def _read_wp_frontmatter(wp_file: Path) -> tuple[WPMetadata, str]:
     """Route ``read_wp_frontmatter`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return _mission.read_wp_frontmatter(wp_file)
+    return cast(tuple[WPMetadata, str], _mission.read_wp_frontmatter(wp_file))
 
 
 def _resolve_planning_branch_via_mission(
@@ -159,8 +159,11 @@ def _resolve_planning_branch_via_mission(
     """Route ``_resolve_planning_branch`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return _mission._resolve_planning_branch(
-        repo_root, primary_dir, target_branch_override=target_branch_override
+    return cast(
+        str,
+        _mission._resolve_planning_branch(
+            repo_root, primary_dir, target_branch_override=target_branch_override
+        ),
     )
 
 
@@ -423,7 +426,7 @@ def _resolve_repo_root(json_output: bool) -> Path:
         else:
             console.print(f"[red]Error:[/red] {PROJECT_ROOT_NOT_FOUND}")
         raise typer.Exit(1)
-    return repo_root
+    return cast(Path, repo_root)
 
 
 def _run_saas_boundary_preflight(repo_root: Path, *, json_output: bool, validate_only: bool) -> None:
@@ -475,7 +478,7 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
         ambiguous = None
 
     if mission_dir_name is not None:
-        return mission_dir_name
+        return cast(str, mission_dir_name)
 
     try:
         feature_dir = _mission._find_feature_directory(repo_root, cwd, explicit_feature=feature)
@@ -497,7 +500,7 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
             if "example_command" in payload:
                 console.print(f"  {payload['example_command']}")
         raise typer.Exit(1) from None
-    return feature_dir.name
+    return cast(str, feature_dir.name)
 
 
 def _resolve_target_branch(
@@ -1961,7 +1964,7 @@ def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path) -> Path
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 
     try:
-        return _acceptance_matrix_read_dir(repo_root, planning_dir)
+        return cast(Path, _acceptance_matrix_read_dir(repo_root, planning_dir))
     except CoordinationBranchDeleted:
         return planning_dir
 
