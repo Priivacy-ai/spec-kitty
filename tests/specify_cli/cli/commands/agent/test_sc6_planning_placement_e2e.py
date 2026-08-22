@@ -377,6 +377,47 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
     )
 
 
+def test_pr_bound_finalize_uses_feature_planning_branch_not_protected_final_target(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2938: legacy PR-bound metadata must not make finalize write to ``main``.
+
+    The affected 3.2.x shape records only ``target_branch=main`` plus
+    ``pr_bound=true`` even though the mission is authored on a non-protected
+    feature branch.  Finalization must recover that split contract: planning
+    artifacts stay on the invoking feature branch, while completed work keeps
+    ``main`` as its final merge target.
+    """
+    repo = protected_target_repo
+    topology = _TOPOLOGIES[0]
+    assert isinstance(topology, _Topology)
+    mission_slug, feature_dir, _placement_ref = _scaffold_mission(
+        repo.repo_root, topology
+    )
+
+    planning_branch = "op/sc6-pr-bound-planning"
+    _git(repo.repo_root, "checkout", "-q", "-b", planning_branch)
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["pr_bound"] = True
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
+    _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
+
+    monkeypatch.chdir(repo.repo_root)
+    from specify_cli.cli.commands.agent import mission_finalize as finalize_seam
+
+    resolved_planning_branch = finalize_seam._resolve_target_branch(
+        repo.repo_root,
+        feature_dir,
+        target_branch_override=None,
+        json_output=False,
+    )
+
+    assert resolved_planning_branch == planning_branch
+
+
 @pytest.mark.parametrize("topology", _TOPOLOGIES, ids=lambda t: t.name)
 def test_sc6_finalize_is_idempotent_on_rerun(
     protected_target_repo: ProtectedTargetRepo,  # noqa: F811
