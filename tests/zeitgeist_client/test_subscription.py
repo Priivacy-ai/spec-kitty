@@ -162,6 +162,27 @@ def test_non_positive_timeout_raises_value_error() -> None:
         subscription._clamp_timeout(-1.0)
 
 
+# --- max_frames boundary: 0 must not yield exactly one frame ----------------
+# Renata review (Z7-C attempt-6 handback, LOW finding, subscription.py:188-205):
+# without a floor, watch(max_frames=0) still yielded one frame before the
+# `count >= max_frames` check ever tripped, so "0 frames" was unreachable
+# via this parameter even though it reads as a boundary knob. The CLI's own
+# `typer.Option(min=1)` masked this from `spec-kitty zeitgeist watch`, but the
+# MCP tool schema enforces no such floor, so a hostile/buggy MCP client could
+# still observe one frame while asking for zero.
+
+
+def test_watch_rejects_non_positive_max_frames(state_root: Path, managed_stream_double) -> None:
+    _checkout(state_root, managed_stream_double.url)
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
+    managed_stream_double.close_stream()
+
+    with pytest.raises(ValueError):
+        next(subscription.watch("spec-kitty", timeout_s=2.0, max_frames=0))
+    with pytest.raises(ValueError):
+        next(subscription.watch("spec-kitty", timeout_s=2.0, max_frames=-1))
+
+
 # --- no multi-team aggregate: two repos never share resolved state ----------
 
 
