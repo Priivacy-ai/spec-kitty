@@ -163,15 +163,47 @@ def _name_from_url(url: str) -> str:
     return name
 
 
+def _reject_symlinked_git_entry(candidate: str) -> None:
+    """Raise ``AmbiguousRepositoryIdentity`` if the ``.git`` entry at
+    ``candidate`` is itself a symlink (to a directory OR to a file).
+
+    Git never legitimately produces a symlinked ``.git`` entry: a worktree
+    or submodule always uses a plain FILE containing a ``gitdir:`` line, not
+    a symlink to a directory (or to another file). A directory whose ONLY
+    ``.git`` entry is a symlink pointing at a different checkout's real
+    ``.git`` — no sibling ambiguity, no env var, no clone needed — would
+    otherwise have that foreign checkout's ``origin``/branch/commit read
+    straight through the symlink by ``isdir``/``isfile``/``exists``, all of
+    which follow symlinks by default. That is exactly the "symlink that
+    makes the syntactic path and the resolved path disagree about which
+    checkout is meant" the module docstring already commits to rejecting —
+    checked here at ``.git``-entry granularity, at every level a discovery
+    walk considers (``cwd`` itself or any ancestor), not only when the
+    disagreement shows up in an outer path component."""
+    if os.path.islink(candidate):
+        raise AmbiguousRepositoryIdentity(
+            f"{candidate!r} is a symlink — git never legitimately produces a "
+            "symlinked `.git` entry (a worktree/submodule `.git` is always a "
+            "plain file with a `gitdir:` line, never a symlink); refusing to "
+            "trust it as provenance for a checkout identity"
+        )
+
+
 def _git_dir_from_filesystem(cwd: str) -> str:
     """Locate the common ``.git`` directory by reading files, never running
     git. Ported unchanged from ``zeitgeist/integrations/repo_identity.py``: a
     worktree's ``.git`` is a plain text file containing
     ``gitdir: /path/to/main/.git/worktrees/<name>``, so the whole layout is
-    readable without a subprocess."""
+    readable without a subprocess.
+
+    Raises ``AmbiguousRepositoryIdentity`` — rather than resolving through it
+    — the moment any ``.git`` entry considered along the upward walk (at
+    ``cwd`` or any ancestor) is itself a symlink; see
+    ``_reject_symlinked_git_entry``."""
     path = os.path.abspath(cwd)
     while True:
         candidate = os.path.join(path, ".git")
+        _reject_symlinked_git_entry(candidate)
         if os.path.isdir(candidate):
             return candidate
         if os.path.isfile(candidate):
@@ -294,7 +326,16 @@ def _canonical_git_dir(cwd: str) -> str:
             "guess which is canonical"
         )
 
-    cwd_is_own_checkout = os.path.exists(os.path.join(real_abspath, ".git"))
+    # Belt-and-suspenders alongside the walk-level check inside
+    # `_git_dir_from_filesystem` above (which already raises before this
+    # line is reached whenever `real_abspath/.git` is a symlink): this
+    # `.git`-entry existence check is exactly the kind `os.path.islink` must
+    # gate before `os.path.exists` (which follows symlinks) is trusted, so
+    # it is asserted explicitly here too rather than relying only on the
+    # call above never being reordered or bypassed.
+    real_git_entry = os.path.join(real_abspath, ".git")
+    _reject_symlinked_git_entry(real_git_entry)
+    cwd_is_own_checkout = os.path.exists(real_git_entry)
     if not cwd_is_own_checkout:
         siblings = _sibling_checkouts(real_abspath)
         if len(siblings) >= 2:
