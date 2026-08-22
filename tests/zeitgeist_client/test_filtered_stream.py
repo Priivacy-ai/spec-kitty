@@ -94,7 +94,7 @@ def test_team_stream_config_has_no_team_deployment_or_repo_field() -> None:
     field a caller could use to smuggle a client-supplied team filter — the
     credential IS the selector. Every one of these names is a member of
     ``sanitizer.FORBIDDEN_CONTROL_KEYS``."""
-    field_names = {f for f in filtered_stream.TeamStreamConfig.__dataclass_fields__}
+    field_names = set(filtered_stream.TeamStreamConfig.__dataclass_fields__)
     assert field_names == {"relay_url", "capability_credential"}
     assert field_names.isdisjoint(sanitizer.FORBIDDEN_CONTROL_KEYS)
 
@@ -309,7 +309,13 @@ def test_binary_garbage_chunk_between_valid_frames_is_dropped(managed_stream_dou
 
 
 def test_oversized_nested_payload_is_still_shape_checked_not_trusted_blindly(managed_stream_double) -> None:
-    hostile = _frame(seq=1, frame={"type": "presence", "presence": {"actor": {"session_ref": "a" * 12}, "observed_at": time.time(), "ttl_s": 30, "extra": {"nested": ["x"] * 500}}})
+    presence_payload = {
+        "actor": {"session_ref": "a" * 12},
+        "observed_at": time.time(),
+        "ttl_s": 30,
+        "extra": {"nested": ["x"] * 500},
+    }
+    hostile = _frame(seq=1, frame={"type": "presence", "presence": presence_payload})
     stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
     gen = stream.watch()
     managed_stream_double.push_frame(hostile)

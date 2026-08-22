@@ -170,7 +170,7 @@ class ManagedStreamDouble:
     ``127.0.0.1`` and models only the wire shape ``filtered_stream`` reads.
     """
 
-    outgoing: "queue.Queue[bytes | None]" = field(default_factory=queue.Queue)
+    outgoing: queue.Queue[bytes | None] = field(default_factory=queue.Queue)
     received_headers: list[dict[str, str]] = field(default_factory=list)
     response_status: int = 200
 
