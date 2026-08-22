@@ -190,6 +190,89 @@ class TestWriteSnapshot:
         assert not list(tmp_path.glob(".tmp-*"))
         assert not list(tmp_path.glob(".old-*"))
 
+    def test_replace_and_restore_failure_preserves_recovery_backup(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A double filesystem fault must never delete the only last-good tree."""
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        (local_path / "marker").write_text("last-good\n")
+        source = _ScriptedSource(
+            layout=_populate_valid_pack,
+            result=FetchResult(ok=True, artifacts_written=2, pack_version="v2"),
+        )
+        original_replace = Path.replace
+
+        def _double_fault(self: Path, target: Path) -> Path:
+            if self.name.startswith(".tmp-"):
+                raise OSError("promote failed")
+            if self.name.startswith(".old-"):
+                raise OSError("restore failed")
+            return original_replace(self, target)
+
+        monkeypatch.setattr(Path, "replace", _double_fault)
+
+        result = write_snapshot(source, local_path)
+
+        assert result.ok is False
+        assert "promote failed" in " ".join(result.errors)
+        assert "restore failed" in " ".join(result.errors)
+        backups = list(tmp_path.glob(".old-*"))
+        assert len(backups) == 1
+        assert (backups[0] / "marker").read_text() == "last-good\n"
+        assert str(backups[0]) in " ".join(result.errors)
+
+    def test_failed_unchanged_result_cannot_be_promoted_to_success(
+        self, tmp_path: Path
+    ) -> None:
+        """FetchResult invariants fail closed even for third-party adapters."""
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        source = _ScriptedSource(
+            layout=lambda _target: None,
+            result=FetchResult(
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                unchanged=True,
+                errors=["adapter failed"],
+            ),
+        )
+
+        result = write_snapshot(source, local_path)
+
+        assert result.ok is False
+        assert result.unchanged is True
+        assert result.errors == ["adapter failed"]
+
+    def test_manifest_write_failure_preserves_last_good_snapshot(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Manifest construction is staged before the atomic promotion."""
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        (local_path / "marker").write_text("last-good\n")
+        source = _ScriptedSource(
+            layout=_populate_valid_pack,
+            result=FetchResult(ok=True, artifacts_written=2, pack_version="v2"),
+        )
+        original_write_text = Path.write_text
+
+        def _fail_manifest(self: Path, data: str, *args: object, **kwargs: object) -> int:
+            if self.name == "pack-manifest.yaml":
+                raise OSError("manifest disk full")
+            return original_write_text(self, data, *args, **kwargs)
+
+        monkeypatch.setattr(Path, "write_text", _fail_manifest)
+
+        result = write_snapshot(source, local_path)
+
+        assert result.ok is False
+        assert "manifest disk full" in " ".join(result.errors)
+        assert (local_path / "marker").read_text() == "last-good\n"
+        assert not list(tmp_path.glob(".tmp-*"))
+        assert not list(tmp_path.glob(".old-*"))
+
     def test_empty_snapshot_rejected(self, tmp_path: Path) -> None:
         local_path = tmp_path / "doctrine"
 
@@ -450,6 +533,27 @@ class TestPackManifest:
         )
         assert "secret" not in manifest["source_url"]
         assert manifest["source_url"] == "https://example.com/pack.tar.gz"
+
+    def test_manifest_omits_signed_query_fragment_and_records_fingerprint(
+        self, tmp_path: Path
+    ) -> None:
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+
+        write_pack_manifest(
+            local_path,
+            FetchResult(ok=True, artifacts_written=2, pack_version="v1"),
+            source_url=(
+                "https://oauth2:secret@example.com/pack.tar.gz"
+                "?X-JFrog-Art-Api=signed-secret#private-fragment"
+            ),
+            source_type="https",
+        )
+
+        manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
+        assert manifest["source_url"] == "https://example.com/pack.tar.gz"
+        assert "secret" not in str(manifest)
+        assert len(manifest["source_fingerprint"]) == 64
 
     def test_manifest_counts_top_level_graph_fragments(self, tmp_path: Path) -> None:
         """FR-014 (mission #2680): top-level ``*.graph.yaml`` fragments count.

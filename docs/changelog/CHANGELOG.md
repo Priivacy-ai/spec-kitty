@@ -427,7 +427,7 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 🐛 Fixed
 
-- **HTTPS doctrine bundle fetches now persist ETags separately from pack versions and can use explicit Artifactory `version` metadata.** Unchanged downloads reuse a validated source-matching cache validator, while missing or invalid Artifactory version metadata fails before archive bytes are downloaded.
+- **HTTPS doctrine bundle fetches now persist ETags separately from pack versions and can use explicit Artifactory `version` metadata.** Unchanged downloads reuse a validated source-matching cache validator. Explicit Artifactory sources download into staging, then require both the `version` property and a File Info SHA-256 matching those downloaded bytes before extraction or snapshot promotion.
 
 - **A checkout-controlled `.kittify/saas-auth.json` carrying only `team_slug` no longer scopes the operator's stored OAuth session (EXPERIMENTAL-spec-kitty#765).** Before, with no service token in the environment or auth file, the file could choose the per-request team while `load_auth_context` supplied the personal OAuth bearer and canonical server target. `team_slug` from that file is now honoured only alongside the file's own `token`; set `SPEC_KITTY_TEAM_SLUG` to choose a team for an OAuth-backed session.
 

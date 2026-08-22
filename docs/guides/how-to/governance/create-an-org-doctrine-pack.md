@@ -416,9 +416,16 @@ Field reference:
 |---|---|---|
 | `name` | yes | Unique pack name (used by `--pack` flag, displayed in `doctor doctrine`) |
 | `local_path` | yes | Filesystem path where the snapshot lives (`~` and `${VAR}`/`$VAR` env-var indirection expanded at resolution time — see below) |
-| `source_type` | no | One of `git`, `https`, `api`; omit if pre-provisioned |
+| `source_type` | no | One of `git`, `https`, `artifactory`, `api`; omit if pre-provisioned |
 | `url` | required if `source_type` set | Remote URL |
 | `ref` | no | Version pin (git tag/SHA; HTTPS advisory; API query param) |
+
+Use `source_type: artifactory` explicitly for a JFrog item; Artifactory is not
+inferred from the hostname. Its HTTPS URL must contain
+`/artifactory/<repository>/<item>`. After staging the download, Spec Kitty
+queries the item's `version` property and File Info SHA-256. Both are required,
+and the checksum must match the downloaded bytes before extraction or snapshot
+promotion.
 
 ### Env-var indirection in `local_path`
 

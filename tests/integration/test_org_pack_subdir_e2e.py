@@ -229,15 +229,10 @@ def test_fetch_pack_int_contract(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     )
 
 
-def test_fetch_pack_wrong_subdir_zero_count(
+def test_fetch_pack_wrong_subdir_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """FR-007 / SC-003: fetch_pack with a wrong subdir reports artifacts_written == 0.
-
-    The source fetch succeeds (writes to local_path), but the effective root
-    (local_path / "nonexistent-subdir") doesn't exist → _count_artifacts returns
-    {} → sum({}.values()) == 0.  artifacts_written must still be int, not a dict.
-    """
+    """A configured effective root with no artifacts must not replace last-good."""
     from specify_cli.doctrine.config import load_pack_registry  # noqa: PLC0415
     from specify_cli.doctrine.snapshot import fetch_pack  # noqa: PLC0415
 
@@ -258,15 +253,13 @@ def test_fetch_pack_wrong_subdir_zero_count(
 
     result = fetch_pack(pack, repo_root)
 
-    assert result.ok, f"Expected fetch to succeed, got errors={result.errors!r}"
+    assert result.ok is False
     assert isinstance(result.artifacts_written, int), (
-        f"FR-007/SC-003: artifacts_written must be int even for wrong subdir, "
+        f"artifacts_written must be int even for wrong subdir, "
         f"got {type(result.artifacts_written)!r}: {result.artifacts_written!r}"
     )
-    assert result.artifacts_written == 0, (
-        f"FR-007/SC-003: wrong subdir → effective root missing → 0 artifacts, "
-        f"got {result.artifacts_written!r}"
-    )
+    assert any("nonexistent-subdir" in error for error in result.errors)
+    assert not local_path.exists()
 
 
 def test_config_schema_contract_documents_subdir() -> None:

@@ -37,10 +37,10 @@ class FetchResult:
             written to the target directory.  Implementations are free to
             count distinctly (e.g. ``GitSource`` counts ``*.yaml`` files,
             ``ApiSource`` counts every artifact body it persisted).
-        pack_version: Best-effort version identifier for the snapshot (e.g.
-            a git tag/sha from ``git describe``, an ``ETag``, or the
-            ``/version`` endpoint response).  ``None`` when no version is
-            available.
+        pack_version: Best-effort source version identifier for the snapshot
+            (e.g. a git tag/sha from ``git describe``, an Artifactory
+            ``version`` property, or an API ``/version`` response). ``None``
+            when no version is available. HTTP ETags belong in ``etag``.
         errors: List of human-readable error messages.  Empty when ``ok``.
         unchanged: True when a conditional fetch (e.g. HTTP 304) confirmed the
             existing snapshot is current.  Callers MUST NOT treat
