@@ -35,6 +35,7 @@ from specify_cli.core.checkout_ownership import (
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.mission_payload import (
+    build_mission_created_payload,
     default_mission_display_name,
     default_mission_purpose_context,
 )
@@ -212,13 +213,7 @@ def _commit_feature_file(
     # commit; this caller does not duplicate that decision (T010).
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
     effective_worktree = worktree_root or repo_root
-    seam_target = (
-        create_time_target
-        if create_time_target is not None
-        else placement_seam(repo_root, mission_slug).write_target(
-            MissionArtifactKind.SPEC
-        )
-    )
+    seam_target = create_time_target if create_time_target is not None else placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC)
     safe_commit(
         repo_root=repo_root,
         worktree_root=effective_worktree,
@@ -265,6 +260,8 @@ def _restore_git_state_after_failed_create(
     repo_root: Path,
     *,
     original_branch: str | None,
+    original_commit: str | None,
+    original_index_tree: str | None,
     pre_existing_coordination_branches: frozenset[str],
 ) -> None:
     """Best-effort rollback of a failed mission-create's git side-effects.
@@ -292,6 +289,41 @@ def _restore_git_state_after_failed_create(
                 text=True,
                 check=False,
             )
+        if original_commit is not None:
+            current_tip_result = subprocess.run(
+                ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            current_tip = current_tip_result.stdout.strip() if current_tip_result.returncode == 0 else None
+            if current_tip and current_tip != original_commit:
+                # A late failure can occur after the metadata commit. Restore
+                # only this branch ref with compare-and-swap; keep the partial
+                # scaffold in the worktree for resume-probe diagnosis.
+                subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        str(repo_root),
+                        "update-ref",
+                        f"refs/heads/{original_branch}",
+                        original_commit,
+                        current_tip,
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+            if original_index_tree is not None:
+                # Restore the exact pre-invocation index, including unrelated
+                # staged user changes, without touching worktree files.
+                subprocess.run(
+                    ["git", "-C", str(repo_root), "read-tree", original_index_tree],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
     # 2. Delete only the coordination branches that appeared during this create.
     orphaned = _list_coordination_branches(repo_root) - pre_existing_coordination_branches
     for branch in sorted(orphaned):
@@ -317,6 +349,7 @@ def create_mission_core(
     friendly_name: str | None = None,
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
+    pr_bound: bool = False,
     topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
@@ -330,11 +363,34 @@ def create_mission_core(
     and deletes the orphan coordination branch the aborted run minted (#3339).
     See :func:`_create_mission_core_impl` for the full parameter contract.
     """
-    rollback_root = repo_root if repo_root is not None else locate_project_root()
+    # An explicit owned checkout is the write/commit surface. Snapshot that
+    # checkout rather than the canonical primary so a late failure restores
+    # the branch ref and index that this invocation actually mutated.
+    rollback_root = owned_checkout.resolve() if owned_checkout is not None else repo_root
+    if rollback_root is None:
+        rollback_root = locate_project_root()
     original_branch: str | None = None
+    original_commit: str | None = None
+    original_index_tree: str | None = None
     pre_existing_coordination_branches: frozenset[str] = frozenset()
     if rollback_root is not None and is_git_repo(rollback_root):
         original_branch = get_current_branch(rollback_root)
+        original_commit_result = subprocess.run(
+            ["git", "-C", str(rollback_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if original_commit_result.returncode == 0:
+            original_commit = original_commit_result.stdout.strip()
+        original_index_result = subprocess.run(
+            ["git", "-C", str(rollback_root), "write-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if original_index_result.returncode == 0:
+            original_index_tree = original_index_result.stdout.strip()
         pre_existing_coordination_branches = _list_coordination_branches(rollback_root)
 
     try:
@@ -346,6 +402,7 @@ def create_mission_core(
             friendly_name=friendly_name,
             purpose_tldr=purpose_tldr,
             purpose_context=purpose_context,
+            pr_bound=pr_bound,
             topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             allow_worktree_context=allow_worktree_context,
@@ -358,6 +415,8 @@ def create_mission_core(
             _restore_git_state_after_failed_create(
                 rollback_root,
                 original_branch=original_branch,
+                original_commit=original_commit,
+                original_index_tree=original_index_tree,
                 pre_existing_coordination_branches=pre_existing_coordination_branches,
             )
         raise
@@ -372,6 +431,7 @@ def _create_mission_core_impl(
     friendly_name: str | None = None,
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
+    pr_bound: bool = False,
     topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
     allow_worktree_context: bool = False,
@@ -406,6 +466,9 @@ def _create_mission_core_impl(
     purpose_context:
         Optional short paragraph explaining the mission in stakeholder terms.
         When omitted, it defaults to a branch-aware summary sentence.
+    pr_bound:
+        Persist the confirmed pull-request binding in the initial metadata
+        write and commit. Defaults to ``False``.
     topology:
         Operator's create-time mission shape (#2218). Defaults to
         :attr:`MissionTopology.COORD` for backward-compat. The coordination
@@ -501,10 +564,7 @@ def _create_mission_core_impl(
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
     effective_root = (
-        ownership_claim.claimed_checkout
-        if ownership_claim is not None
-        and ownership_claim.validation_result is OwnershipValidationResult.OWNED
-        else resolved_root
+        ownership_claim.claimed_checkout if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else resolved_root
     )
 
     if not is_git_repo(resolved_root):
@@ -520,8 +580,7 @@ def _create_mission_core_impl(
     planning_branch = target_branch if target_branch else current_branch
     create_time_target = (
         resolve_create_time_write_target(planning_branch)
-        if ownership_claim is not None
-        and ownership_claim.validation_result is OwnershipValidationResult.OWNED
+        if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED
         else None
     )
     if not normalized_friendly_name:
@@ -529,9 +588,7 @@ def _create_mission_core_impl(
 
     normalized_purpose_tldr = " ".join((purpose_tldr or "").split()) if purpose_tldr is not None else normalized_friendly_name
     normalized_purpose_context = (
-        " ".join((purpose_context or "").split())
-        if purpose_context is not None
-        else default_mission_purpose_context(normalized_friendly_name, planning_branch)
+        " ".join((purpose_context or "").split()) if purpose_context is not None else default_mission_purpose_context(normalized_friendly_name, planning_branch)
     )
     purpose_errors = validate_purpose_summary(normalized_purpose_tldr, normalized_purpose_context)
     if purpose_errors:
@@ -653,6 +710,8 @@ def _create_mission_core_impl(
     meta.setdefault(_META_KEY_MISSION_TYPE, mission or "software-dev")
     meta.setdefault("target_branch", planning_branch)
     meta.setdefault(_META_KEY_CREATED_AT, now_utc_iso())
+    if pr_bound:
+        meta["pr_bound"] = True
 
     # ------------------------------------------------------------------
     # 6.5 Coordination branch (WP03 / issue #1348, #2218)
@@ -755,9 +814,25 @@ def _create_mission_core_impl(
     # ------------------------------------------------------------------
     try:
         from specify_cli.identity.project import load_identity
-        from specify_cli.status import emit_mission_created_local
+        from specify_cli.status import (
+            MISSION_CREATED,
+            emit_mission_created_local,
+            read_lifecycle_events,
+        )
 
         _identity = load_identity(resolved_root / ".kittify" / "config.yaml")
+        expected_created_payload = build_mission_created_payload(
+            mission_slug=mission_slug_formatted,
+            mission_id=meta.get("mission_id"),
+            mission_number=None,
+            mission_type=str(meta.get(_META_KEY_MISSION_TYPE) or mission or "software-dev"),
+            target_branch=planning_branch,
+            wp_count=0,
+            friendly_name=normalized_friendly_name,
+            purpose_tldr=normalized_purpose_tldr,
+            purpose_context=normalized_purpose_context,
+            created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
+        )
         emit_mission_created_local(
             feature_dir,
             mission_slug=mission_slug_formatted,
@@ -773,12 +848,23 @@ def _create_mission_core_impl(
             purpose_context=normalized_purpose_context,
             created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
         )
+        created_events = [event for event in read_lifecycle_events(feature_dir / "status.events.jsonl") if event.get("event_type") == MISSION_CREATED]
+        if len(created_events) != 1:
+            raise MissionCreationError(f"expected exactly one persisted MissionCreated event, found {len(created_events)}")
+        persisted_created = created_events[0]
+        if (
+            persisted_created.get("aggregate_id") != meta.get("mission_id")
+            or persisted_created.get("aggregate_type") != "Mission"
+            or persisted_created.get("payload") != expected_created_payload
+        ):
+            raise MissionCreationError("persisted MissionCreated event does not match the canonical creation snapshot")
     except Exception as _local_evt_exc:  # noqa: BLE001
-        logger.warning(
-            "Local canonical MissionCreated persistence failed for %s: %s",
-            mission_slug_formatted,
-            _local_evt_exc,
-        )
+        raise MissionCreationError(
+            "Local canonical MissionCreated persistence failed for "
+            f"{mission_slug_formatted!r}: {_local_evt_exc}. The partial scaffold "
+            "is retained for explicit resume-probe diagnosis; do not retry create "
+            "until it is repaired or removed."
+        ) from _local_evt_exc
 
     # Mission creation immediately scaffolds ``spec.md`` and opens
     # the specify phase. Record ``SpecifyStarted`` against the canonical
@@ -799,9 +885,7 @@ def _create_mission_core_impl(
             event_type=SPECIFY_STARTED,
             mission_slug=mission_slug_formatted,
             actor="spec-kitty mission create",
-            artifact_path=str(spec_file.relative_to(effective_root))
-            if spec_file.is_relative_to(effective_root)
-            else "spec.md",
+            artifact_path=str(spec_file.relative_to(effective_root)) if spec_file.is_relative_to(effective_root) else "spec.md",
         )
     except Exception as _phase_evt_exc:  # noqa: BLE001
         logger.debug(
@@ -825,12 +909,10 @@ def _create_mission_core_impl(
     origin_binding_succeeded = False
     origin_binding_error: str | None = None
 
-    origin_binding_attempted, origin_binding_succeeded, origin_binding_error, meta = (
-        _consume_pending_origin_if_present(
-            repo_root=resolved_root,
-            feature_dir=feature_dir,
-            meta=meta,
-        )
+    origin_binding_attempted, origin_binding_succeeded, origin_binding_error, meta = _consume_pending_origin_if_present(
+        repo_root=resolved_root,
+        feature_dir=feature_dir,
+        meta=meta,
     )
 
     # ------------------------------------------------------------------
@@ -852,10 +934,7 @@ def _create_mission_core_impl(
         coordination_branch=coordination_branch_value,
         coordination_branch_created=coordination_branch_created_flag,
         owned_checkout=(
-            ownership_claim.claimed_checkout
-            if ownership_claim is not None
-            and ownership_claim.validation_result is OwnershipValidationResult.OWNED
-            else None
+            ownership_claim.claimed_checkout if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else None
         ),
         canonical_repo_root=resolved_root,
     )
@@ -882,7 +961,5 @@ def _consume_pending_origin_if_present(
     # so the return of consume_pending_origin is seen as Any here; the
     # explicit annotation re-introduces the correct return type so the caller
     # does not propagate Any (no blanket suppression needed).
-    result: tuple[bool, bool, str | None, dict[str, Any]] = consume_pending_origin(
-        repo_root, feature_dir, meta
-    )
+    result: tuple[bool, bool, str | None, dict[str, Any]] = consume_pending_origin(repo_root, feature_dir, meta)
     return result
