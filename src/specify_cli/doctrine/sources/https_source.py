@@ -133,7 +133,7 @@ class HttpsBundleSource:
             )
 
         try:
-            response = self._get_with_retry(canonical_url)
+            response = self._get_with_retry()
         except requests.RequestException as exc:
             return FetchResult(
                 ok=False,
@@ -401,7 +401,9 @@ class HttpsBundleSource:
             )
         return response
 
-    def _get_with_retry(self, request_url: str) -> requests.Response:
+    def _get_with_retry(self) -> requests.Response:
+        request_url = self.canonical_url
+        assert request_url is not None
         response = requests.get(  # noqa: S113 - timeout supplied below
             request_url,
             headers=self._headers(),
