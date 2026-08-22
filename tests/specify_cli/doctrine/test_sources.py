@@ -430,7 +430,9 @@ class TestHttpsBundleSource:
             "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
         )
 
-        result = HttpsBundleSource(url=artifact_url).fetch(target)
+        result = HttpsBundleSource(
+            url=artifact_url, source_type="artifactory"
+        ).fetch(target)
 
         assert result.ok is True
         assert result.pack_version == "3.2.7"
@@ -469,7 +471,9 @@ class TestHttpsBundleSource:
             "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
         )
 
-        result = HttpsBundleSource(url=artifact_url).fetch(tmp_path / "snapshot")
+        result = HttpsBundleSource(
+            url=artifact_url, source_type="artifactory"
+        ).fetch(tmp_path / "snapshot")
 
         assert result.ok is False
         assert any("version property" in error for error in result.errors)
@@ -496,6 +500,7 @@ class TestHttpsBundleSource:
         assert result.ok is True
         assert result.unchanged is True
         assert result.etag == '"abc123"'
+        assert result.pack_version is None
         assert result.artifacts_written == 0
         assert captured["headers"].get("If-None-Match") == '"abc123"'
         assert list(target.iterdir()) == []  # nothing extracted

@@ -425,7 +425,7 @@ def _manifest_artifact_counts(local_path: Path) -> dict[str, int]:
     """Resolve manifest counts through the canonical derived-view seam."""
     from .pack_manifest import resolve_counts
 
-    return resolve_counts(None, _count_artifacts(local_path))
+    return cast(dict[str, int], resolve_counts(None, _count_artifacts(local_path)))
 
 
 # ----------------------------------------------------------------------
