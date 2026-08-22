@@ -12,6 +12,7 @@ related:
 - docs/development/how-to/manage-issue-tracker.md
 - docs/development/how-to/create-a-doctrine-artifact.md
 - docs/development/testing/testing-parallel.md
+- docs/development/ci-draft-ready.md
 - docs/guides/how-to/installation/diagnose-installation.md
 ---
 
@@ -395,6 +396,21 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - If your change is user-facing, add a consumer-focused entry to `docs/changelog/CHANGELOG.md` under `[Unreleased]` — impact-first, one line a user understands, not an internal-mechanism summary. See [Review gates: Changelog update and style](how-to/review-gates.md#changelog-update-and-style).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
 - Don't request review while your PR title is prefixed `WIP` / `[WIP]` -- a non-draft WIP-titled PR fails the `quality-gate` by design. Drop the prefix or keep the PR in draft. See [Review Gates](how-to/review-gates.md#pr-draft-and-wip-title-conventions).
+- **Before marking your PR ready for review, watch your draft CI run to a full green.** A draft run fails fast and can cancel early, so a red draft run never tells you the full story — see [Draft vs ready CI](#draft-vs-ready-ci) below.
+
+### Draft vs ready CI
+
+CI runs a different shape of signal depending on draft state: a **draft** PR
+fails fast (the run cancels on the first failure in `lint`/`kernel-tests`,
+so a red draft run is only ever partial), while a **ready** PR runs every
+diff-relevant chain to completion, giving you the full relevant failure list
+in one pass. A new push to a previously-red PR also re-runs the
+previously-failed tests first, so a still-broken fix surfaces fastest.
+
+**The rule:** monitor your draft run until every job concludes `success`
+before flipping the PR to ready for review — don't spend a reviewer's
+full-signal pass on a PR you already know is red. Full contract, including a
+diagram: [CI contract: draft vs ready, and green-before-RFR](ci-draft-ready.md).
 
 ## Maintainer guides
 

@@ -6660,6 +6660,18 @@ pages:
     - {slug: "cluster-b-8212-ci-14", text: "Cluster B &#8212; CI (14)", level: 2}
     - {slug: "cluster-c-8212-status-mission-sync-18", text: "Cluster C &#8212; Status / mission / sync (18)", level: 2}
     - {slug: "corrections-surfaced-this-run", text: "Corrections surfaced this run", level: 2}
+  - path: "docs/development/ci-draft-ready.md"
+    title: "CI contract: draft vs ready, and green-before-RFR"
+    divio_type: "how-to"
+    abstract: "How CI Quality behaves differently for draft and ready PRs, the red-first re-run, and the rule to monitor a draft run green before flipping to ready-for-review."
+    anchors:
+    - {slug: "the-contract-in-one-picture", text: "The contract in one picture", level: 2}
+    - {slug: "draft-pr-fail-fast-for-quick-iteration", text: "Draft PR: fail-fast for quick iteration", level: 2}
+    - {slug: "ready-pr-full-relevant-signal", text: "Ready PR: full *relevant* signal", level: 2}
+    - {slug: "red-first-re-run-fail-fastest-on-a-still-broken-fix", text: "Red-first re-run: fail fastest on a still-broken fix", level: 2}
+    - {slug: "the-rule-monitor-draft-to-green-before-flipping-to-ready-sc-006", text: "The rule: monitor draft to green before flipping to ready (SC-006)", level: 2}
+    - {slug: "merge-gate-unchanged-in-both-modes", text: "Merge-gate: unchanged in both modes", level: 2}
+    - {slug: "see-also", text: "See also", level: 2}
   - path: "docs/development/contributing.md"
     title: "Contributing to Spec Kitty"
     divio_type: "how-to"
@@ -6681,6 +6693,7 @@ pages:
     - {slug: "troubleshooting-shared-package-import-issues", text: "Troubleshooting Shared Package Import Issues", level: 3}
     - {slug: "how-test-isolation-works", text: "How Test Isolation Works", level: 3}
     - {slug: "submitting-a-pull-request", text: "Submitting a pull request", level: 2}
+    - {slug: "draft-vs-ready-ci", text: "Draft vs ready CI", level: 3}
     - {slug: "maintainer-guides", text: "Maintainer guides", level: 2}
     - {slug: "development-workflow", text: "Development workflow", level: 2}
     - {slug: "release-process", text: "Release Process", level: 2}
