@@ -7,6 +7,7 @@
   "mission_number": null,
   "mission_slug": "ox-alpha-spec-reviewer-01M0N82A",
   "mission_type": "software-dev",
+  "pr_bound": true,
   "purpose_context": "Автор спецификации вручную запускает внешнее advisory-ревью только для выбранного обезличенного spec.md. Результат сохраняется как структурированные замечания, не изменяет спецификацию автоматически и не блокирует основной workflow при недоступности внешней модели.",
   "purpose_tldr": "Добавить ручное независимое ревью спецификаций через бесплатную модель Ox Alpha.",
   "slug": "ox-alpha-spec-reviewer-01M0N82A",
