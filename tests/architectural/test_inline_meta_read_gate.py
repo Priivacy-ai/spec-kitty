@@ -308,8 +308,13 @@ FLOOR_MARGIN = 2
 # against the corrected 144 (``floor == live - 3``; band
 # ``live - MARGIN(4) <= floor < live`` holds: 140 <= 141 < 144), strictly
 # satisfying the anti-vacuity check (same convention as the entries above).
+# RAISED 2026-08-22 (post-#3659 main refresh): the consolidated landing added
+# two genuine routed sites: mission-check-prerequisites resume metadata now
+# uses ``load_meta_fail_closed``, and merge-baseline decoding now uses
+# ``decode_meta``. Live rises 144 -> 146; floor raised 141 -> 143 to preserve
+# the established 3-below-live gap (``142 <= 143 < 146``).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 141
+ROUTED_LOAD_META_FLOOR = 143
 
 
 # --------------------------------------------------------------------------- #
