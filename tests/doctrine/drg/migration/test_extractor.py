@@ -10,6 +10,7 @@ Includes:
 from __future__ import annotations
 
 import hashlib
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +26,7 @@ from charter.offering.drg.migration.extractor import (
     _discover_built_in_nodes_in_dir,
     _partition_by_kind,
     _relation_for_procedure_ref_type,
+    assert_governance_scope_edges_resolve,
     extract_action_edges,
     extract_artifact_edges,
     extract_governance_profile_scope_edges,
@@ -1555,3 +1557,138 @@ class TestExtractGovernanceProfileScopeEdges:
                 Relation.SCOPE,
             ),
         }
+
+    def test_selected_agent_profiles_and_step_contracts_project_scope_edges(
+        self, tmp_path: Path
+    ) -> None:
+        """#3633 item 3: the two fields ``TestMultipleProfilesAndFields``
+        (and the rest of this class) never exercises --
+        ``selected_agent_profiles`` / ``selected_mission_step_contracts`` --
+        each still project a ``scope`` edge to the right node kind. Uses
+        real, resolvable ids (an actual shipped agent profile + step
+        contract) rather than the class's usual fictional fixtures, so this
+        case remains valid once #3629's fail-loud contract is wired to a
+        real node universe (:func:`assert_governance_scope_edges_resolve`)
+        -- unlike the fictional-id tests above, which only ever exercise
+        the pure, existence-check-free extractor."""
+        profile_dir = tmp_path / "missions" / "software-dev"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "governance-profile.yaml").write_text(
+            "mission_type: software-dev\n"
+            "selected_agent_profiles:\n"
+            "  - implementer-ivan\n"
+            "selected_mission_step_contracts:\n"
+            "  - software-dev/implement\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        triples = {(e.source, e.target, e.relation) for e in edges}
+        assert triples == {
+            (
+                artifact_to_urn("mission_type", "software-dev"),
+                artifact_to_urn("agent_profile", "implementer-ivan"),
+                Relation.SCOPE,
+            ),
+            (
+                artifact_to_urn("mission_type", "software-dev"),
+                artifact_to_urn("mission_step_contract", "software-dev/implement"),
+                Relation.SCOPE,
+            ),
+        }
+
+
+# ---------------------------------------------------------------------------
+# #3629 item 2 — fail-loud on unresolved governance-profile scope selections
+# ---------------------------------------------------------------------------
+
+
+class TestAssertGovernanceScopeEdgesResolve:
+    """Unit coverage for :func:`assert_governance_scope_edges_resolve`, the
+    fail-closed check :func:`generate_graph` runs against
+    ``extract_governance_profile_scope_edges``'s output before the
+    calibration-target loop that used to phantom-mint a node for any
+    fictional ``selected_*`` id (#3629)."""
+
+    def test_raises_with_mission_type_field_and_id_for_unresolved_target(self) -> None:
+        edge = DRGEdge(
+            source=artifact_to_urn("mission_type", "research"),
+            target=artifact_to_urn("agent_profile", "does-not-exist"),
+            relation=Relation.SCOPE,
+        )
+
+        with pytest.raises(ValueError, match=r"research:selected_agent_profiles=does-not-exist"):
+            assert_governance_scope_edges_resolve(edges=[edge], nodes_by_urn={})
+
+    def test_passes_silently_when_every_target_is_minted(self) -> None:
+        target_urn = artifact_to_urn("directive", "DIRECTIVE_001")
+        edge = DRGEdge(
+            source=artifact_to_urn("mission_type", "plan"),
+            target=target_urn,
+            relation=Relation.SCOPE,
+        )
+        nodes_by_urn = {
+            target_urn: DRGNode(urn=target_urn, kind=NodeKind.DIRECTIVE, label="DIRECTIVE_001")
+        }
+
+        # Must not raise.
+        assert_governance_scope_edges_resolve(edges=[edge], nodes_by_urn=nodes_by_urn)
+
+    def test_reports_every_unresolved_edge_not_just_the_first(self) -> None:
+        edges = [
+            DRGEdge(
+                source=artifact_to_urn("mission_type", "research"),
+                target=artifact_to_urn("tactic", "phantom-tactic"),
+                relation=Relation.SCOPE,
+            ),
+            DRGEdge(
+                source=artifact_to_urn("mission_type", "plan"),
+                target=artifact_to_urn("paradigm", "phantom-paradigm"),
+                relation=Relation.SCOPE,
+            ),
+        ]
+
+        with pytest.raises(ValueError) as exc_info:
+            assert_governance_scope_edges_resolve(edges=edges, nodes_by_urn={})
+
+        message = str(exc_info.value)
+        assert "research:selected_tactics=phantom-tactic" in message
+        assert "plan:selected_paradigms=phantom-paradigm" in message
+
+
+# ---------------------------------------------------------------------------
+# #3629 item 2 — end-to-end: generate_graph fails loud, no phantom node
+# ---------------------------------------------------------------------------
+
+
+class TestGenerateGraphFailsLoudOnFictionalGovernanceSelection:
+    """End-to-end companion to ``TestAssertGovernanceScopeEdgesResolve``:
+    proves the check is actually wired into :func:`generate_graph` against
+    a real, fully-minted node universe -- not merely correct in isolation.
+    Mirrors this module's own ``_emit_operating_procedure_edges`` fail-
+    closed precedent."""
+
+    @staticmethod
+    def _copy_real_pack_root(tmp_path: Path) -> Path:
+        repo_root = Path(__file__).resolve().parents[4]
+        packs_built_in = repo_root / "packs" / "built-in"
+        pack_copy = tmp_path / "pack-root"
+        shutil.copytree(packs_built_in, pack_copy)
+        return pack_copy
+
+    def test_fictional_selected_agent_profile_raises_not_phantom_mints(
+        self, tmp_path: Path
+    ) -> None:
+        pack_root = self._copy_real_pack_root(tmp_path)
+        profile_path = pack_root / "missions" / "research" / "governance-profile.yaml"
+        original = profile_path.read_text(encoding="utf-8")
+        marker = "selected_agent_profiles: []"
+        assert marker in original
+        profile_path.write_text(
+            original.replace(marker, "selected_agent_profiles:\n  - does-not-exist", 1),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(ValueError, match="does-not-exist"):
+            generate_graph(pack_root, tmp_path / "output" / "graph.yaml")
