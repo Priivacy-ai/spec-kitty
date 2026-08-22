@@ -27,11 +27,13 @@ import pytest
 
 from mission_runtime import MissionArtifactKind, TopologySurface
 from specify_cli.acceptance.execution_context import (
+    _DETACHED_HEAD_SENTINEL,
     CannotEvaluate,
     CannotEvaluateReason,
     GateExecutionContext,
     GateSurfaceRefMismatch,
     LifecyclePhase,
+    _git_head_of,
     build_gate_execution_context,
     declared_home_surface,
 )
@@ -243,6 +245,28 @@ def test_assert_at_ref_passes_on_agreement() -> None:
     """C5: when the surface is at its ref, the gate proceeds (no raise)."""
     ctx = _plain_context(surface=Path("/p"), surface_kind=TopologySurface.COORD, ref="sha-abc")
     ctx.assert_at_ref(head_of=lambda _s: "sha-abc")  # must not raise
+
+
+def test_git_head_of_detached_checkout_returns_sentinel(tmp_path: Path) -> None:
+    """A detached checkout resolves to the ``"HEAD"`` sentinel (#2909 item 1).
+
+    ``git symbolic-ref --short HEAD`` fails on a detached checkout; the caller's own
+    no-branch fallback in ``gates_core._acceptance_gate_context`` is the same literal
+    ``"HEAD"``, so this is the value that makes "no expectation" compare equal on
+    both sides of :meth:`GateExecutionContext.assert_at_ref`.
+    """
+    repo = ctf._make_git_repo(tmp_path)
+    commit_sha = ctf._git(repo, "rev-parse", "HEAD")
+    ctf._git(repo, "checkout", "--detach", commit_sha)
+
+    assert _git_head_of(repo) == _DETACHED_HEAD_SENTINEL
+
+
+def test_git_head_of_attached_checkout_returns_branch_name(tmp_path: Path) -> None:
+    """Companion sanity check: an attached checkout resolves the real branch, not the sentinel."""
+    repo = ctf._make_git_repo(tmp_path)
+
+    assert _git_head_of(repo) == "main"
 
 
 # ===========================================================================
