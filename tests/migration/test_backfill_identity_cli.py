@@ -295,6 +295,7 @@ class TestDryRun:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 class TestNFR001Timing:
     """T022 — NFR-001: 200-mission synthetic fixture completes in < 5 seconds.
 

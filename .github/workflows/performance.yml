@@ -30,6 +30,24 @@
 # ("no tests ran") -- guarded by ``|| test $? -eq 5`` so an empty domain is a
 # pass, not a failure, as the ~60-test residue migrates in per ADR
 # 2026-08-22-1's "migration is per-domain and incremental" section.
+#
+# No ``--benchmark-only``: that flag SKIPS every test not written against the
+# ``benchmark`` fixture, which is exactly the ~60-test marker-only residue
+# this pipeline exists to run (per-domain fixture conversion is deliberately
+# deferred follow-through, not this pass). Dropping it means both single-shot
+# ``@pytest.mark.performance`` asserts and fixture-based benchmarks execute
+# here; single-shot tests just run their own assert (no stats, no compare).
+#
+# The compare step additionally tolerates exit 4 (pytest's USAGE_ERROR).
+# Verified against pytest-benchmark 5.2.3 (this repo's pinned version):
+# ``--benchmark-compare-fail`` raises ``pytest.UsageError`` (exit 4) -- not a
+# regression failure -- when ``--benchmark-compare`` found no prior run to
+# compare against for this platform/storage (e.g. a domain whose benchmark
+# fixture tests are newly converted and have no committed baseline yet). A
+# genuine statistical regression instead raises pytest_benchmark's
+# ``PerformanceRegression`` and exits 1, which this guard does NOT swallow --
+# only exit 4 (missing baseline) and exit 5 (no tests collected) are treated
+# as pass.
 
 name: performance
 
@@ -141,13 +159,22 @@ jobs:
             ${{ matrix.paths }} \
             -m performance \
             -n0 \
-            --benchmark-only \
             --benchmark-storage=file://tests/performance/baselines \
             --benchmark-compare \
             --benchmark-compare-fail=median:50% \
             --benchmark-json=out/reports/benchmark/benchmark-${{ matrix.domain }}.json \
-            -q --tb=short \
-          || test $? -eq 5
+            -q --tb=short
+          ec=$?
+          # ec 5 = no performance-marked tests under this domain's paths (not
+          # yet migrated -- pass). ec 4 = pytest-benchmark USAGE_ERROR because
+          # --benchmark-compare found no prior run for this domain/platform to
+          # compare against (no baseline committed yet -- pass, nothing to
+          # regress against). A genuine statistical regression instead exits 1
+          # (PerformanceRegression) and is NOT in this allow-list, so it still
+          # fails the leg.
+          if [ "$ec" -ne 0 ] && [ "$ec" -ne 5 ] && [ "$ec" -ne 4 ]; then
+            exit "$ec"
+          fi
 
       - name: "Save a fresh ${{ matrix.domain }} baseline (workflow_dispatch update_baseline only)"
         if: ${{ inputs.update_baseline }}
@@ -156,7 +183,6 @@ jobs:
             ${{ matrix.paths }} \
             -m performance \
             -n0 \
-            --benchmark-only \
             --benchmark-storage=file://tests/performance/baselines \
             --benchmark-save=${{ matrix.domain }} \
             --benchmark-json=out/reports/benchmark/benchmark-${{ matrix.domain }}.json \

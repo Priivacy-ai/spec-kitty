@@ -370,6 +370,7 @@ def _generate_synthetic_ops(ops_dir: Path, count: int, started_at: str) -> None:
         (ops_dir / f"{invocation_id}.jsonl").write_text(line + "\n", encoding="utf-8")
 
 
+@pytest.mark.performance
 def test_sweep_enumeration_perf_1k_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -400,6 +401,7 @@ def test_sweep_enumeration_perf_1k_files(
 
 
 @pytest.mark.slow
+@pytest.mark.performance
 def test_sweep_nfr_002_10k_files_under_5s(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
