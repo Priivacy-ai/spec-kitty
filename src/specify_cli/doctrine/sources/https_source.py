@@ -19,7 +19,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import unquote, urlsplit, urlunsplit
 
 import requests
 
@@ -355,7 +355,7 @@ class HttpsBundleSource:
         )
         query = (
             f"items.find({criteria})"
-            '.include("repo","path","name","sha256","@version")'
+            '.include("repo","path","name","sha256","virtual_repos","@version")'
         )
         kwargs: dict[str, Any] = {
             "headers": headers,
@@ -438,20 +438,12 @@ def _artifactory_item(artifact_url: str) -> _ArtifactoryItem | None:
     if _ARTIFACTORY_PATH_MARKER not in parsed.path:
         return None
     prefix, item_path = parsed.path.split(_ARTIFACTORY_PATH_MARKER, maxsplit=1)
-    repository, separator, artifact_path = item_path.partition("/")
-    if (
-        not separator
-        or not repository
-        or not artifact_path
-        or artifact_path.endswith("/")
-    ):
+    segments = _decode_artifactory_segments(item_path)
+    if segments is None or len(segments) < 2:
         return None
-    path, separator, name = artifact_path.rpartition("/")
-    if not separator:
-        path = "."
-        name = artifact_path
-    if not name:
-        return None
+    repository = segments[0]
+    path = "/".join(segments[1:-1]) or "."
+    name = segments[-1]
     aql_path = f"{prefix}{_ARTIFACTORY_PATH_MARKER}api/search/aql"
     return _ArtifactoryItem(
         aql_url=urlunsplit(
@@ -461,6 +453,30 @@ def _artifactory_item(artifact_url: str) -> _ArtifactoryItem | None:
         path=path,
         name=name,
     )
+
+
+def _decode_artifactory_segments(item_path: str) -> list[str] | None:
+    """Decode URL path segments without allowing encoded structure changes."""
+    raw_segments = item_path.split("/")
+    if not raw_segments or any(not segment for segment in raw_segments):
+        return None
+    decoded_segments: list[str] = []
+    for raw_segment in raw_segments:
+        if re.search(r"%(?![0-9A-Fa-f]{2})", raw_segment):
+            return None
+        try:
+            decoded = unquote(raw_segment, errors="strict")
+        except UnicodeDecodeError:
+            return None
+        if (
+            decoded in {".", ".."}
+            or "/" in decoded
+            or "\\" in decoded
+            or any(ord(character) < 32 or ord(character) == 127 for character in decoded)
+        ):
+            return None
+        decoded_segments.append(decoded)
+    return decoded_segments
 
 
 def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
@@ -502,8 +518,12 @@ def _extract_aql_metadata(
     result = results[0]
     if not isinstance(result, dict):
         return None
+    virtual_repos = result.get("virtual_repos")
+    repo_matches = result.get("repo") == item.repo or (
+        isinstance(virtual_repos, list) and item.repo in virtual_repos
+    )
     if (
-        result.get("repo") != item.repo
+        not repo_matches
         or result.get("path") != item.path
         or result.get("name") != item.name
     ):

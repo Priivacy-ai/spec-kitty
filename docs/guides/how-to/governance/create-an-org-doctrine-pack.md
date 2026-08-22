@@ -427,9 +427,12 @@ network access when the URL is not a valid item path. After buffering a
 successful download, Spec Kitty sends one exact-item AQL query that returns the
 item's `version` property and SHA-256 together. Both are required, and that
 co-attested checksum must match the downloaded bytes before extraction or
-snapshot promotion. A conditional HTTP 304 performs no AQL query and preserves
-the prior snapshot and manifest byte-for-byte, including its previously sampled
-version.
+snapshot promotion. Because Artifactory AQL requires authenticated read access,
+set `SPEC_KITTY_ORG_TOKEN` (sent as a bearer token) or
+`SPEC_KITTY_ORG_AUTH_HEADER` (sent verbatim) to credentials authorized to
+download the item and query AQL. A conditional HTTP 304 performs no AQL query
+and preserves the prior snapshot and manifest byte-for-byte, including its
+previously sampled version.
 
 ### Env-var indirection in `local_path`
 
