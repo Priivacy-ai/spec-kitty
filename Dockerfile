@@ -1,0 +1,67 @@
+# DKR-M1-02-CORE — spec-kitty CLI reproducible local image contract.
+#
+# Governance: HIC-BOOT-012a (out-of-fabric M1 prework).
+# Build authority: HIC-M1-DOCKER-SUPPLY (docs/decisions/HIC-M1-DOCKER-SUPPLY.md)
+# authorizes network for `docker build` (base-image pulls) and for
+# pip/uv/npm dependency installs from PyPI/registries. The one hard
+# prohibition carried forward unconditionally is: never git push/fetch/pull
+# any checked-out repo. Build with:
+#   docker build -t dkr-m1-02-spec-kitty:contract .
+#
+# Base pin: python:3.12-slim-bookworm, pinned by pullable registry manifest
+# digest (RepoDigest) per docs/bootstrap/DKR-M1-01-DIGEST-CORRECTION.json,
+# which supersedes the CONFIG .Id originally recorded in
+# DKR-M1-01-TOPOLOGY-CONTRACT.json (a different, non-pullable digest space).
+# Verified on this host: `docker image inspect python:3.12-slim-bookworm
+# --format '{{.RepoDigests}}'` returns exactly this digest (see HANDOFF.json
+# `base_image.local_repo_digest`).
+FROM python:3.12-slim-bookworm@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3 AS builder
+
+# --- Reproducible dependency install --------------------------------------
+# The project is uv-managed (uv.lock is the single source of truth for pinned
+# versions/hashes; see Makefile `dev-setup` / `test` targets and run_tests.sh).
+# Reproducible install: pin the uv build-tool version, then let uv install
+# exactly what uv.lock names (frozen — no resolution, no upgrade).
+WORKDIR /app
+RUN pip install --no-cache-dir uv==0.5.13
+
+COPY pyproject.toml uv.lock README.md LICENSE ./
+COPY src/ ./src/
+# hatchling force-includes packs/built-in into the wheel (public product
+# doctrine only — see pyproject.toml [tool.hatch.build.targets.wheel]
+# force-include comment); packs/internal is maintainer-only and deliberately
+# NOT copied into the build context, so it can never end up in this image.
+COPY packs/built-in/ ./packs/built-in/
+
+RUN uv sync --frozen --all-extras
+
+# --- Runtime image ----------------------------------------------------------
+FROM python:3.12-slim-bookworm@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3 AS runtime
+
+# No Docker socket, no host home, no canonical/control-state mount, no SSH
+# agent, no provider credentials, no external endpoint are declared anywhere
+# in this Dockerfile — the image talks to nothing outside its own filesystem.
+WORKDIR /app
+COPY --from=builder /app /app
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+
+# Reproducibility evidence: freeze the exact resolved environment into the
+# image itself (still root here, so the write succeeds) so `docker run --rm
+# dkr-m1-02-spec-kitty:contract cat /app/dependency-manifest.txt` reproduces
+# the SBOM-ish manifest without re-running uv.
+RUN /app/.venv/bin/python -m pip freeze > /app/dependency-manifest.txt
+
+# Native smoke gate: prove the installed CLI actually runs before the image
+# is considered built successfully.
+RUN /app/.venv/bin/spec-kitty --help > /dev/null
+
+# Unprivileged runtime user — the product-container prohibitions forbid a
+# host-home mount, and running as root inside the container is unnecessary.
+# Applied last so the app tree (owned by root from the builder COPY) stays
+# readable/executable for uid 10001 without needing a recursive chown.
+RUN useradd --create-home --uid 10001 speckitty
+USER speckitty
+
+ENTRYPOINT ["spec-kitty"]
+CMD ["--help"]
