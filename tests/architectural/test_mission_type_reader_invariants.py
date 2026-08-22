@@ -146,6 +146,8 @@ IN_SCOPE_READER_MODULES: tuple[str, ...] = (
     "src/specify_cli/verify_enhanced.py",
     "src/specify_cli/cli/commands/agent/mission_create.py",
     "src/specify_cli/upgrade/feature_meta.py",
+    "src/specify_cli/doc_analysis/doc_state.py",
+    "src/specify_cli/cli/commands/agent/mission_check_prerequisites.py",
 )
 
 _LEGACY_KEY = "mission"

@@ -42,6 +42,21 @@ exemptions:
       which resolves by governance profile. Changing infer_mission's upgrade
       default is a separate upgrade-behavior decision, out of M5's reader scope.
 
+  - path: src/specify_cli/cli/commands/agent/mission_check_prerequisites.py
+    kinds: [default]
+    issue: "#3598 / #3410"
+    rationale: >-
+      The reader itself is canonical: line 359 reads `str(meta["mission_type"])`
+      with NO legacy `mission` fallback and NO resolution default. The
+      `"software-dev"` literal at line 364 is a BEHAVIORAL branch key, not a
+      type default — `mission_type != "software-dev"` selects which mission types
+      must clear the extra spec-substantiveness gate before
+      `spec_committed_and_substantive` is true (software-dev specs are held to the
+      substantiveness bar; other types are not). Removing the literal would change
+      the prerequisite policy, not the reader. In IN_SCOPE_READER_MODULES so the
+      no-legacy invariant on line 359 is enforced; the default-kind is exempted
+      for the policy comparison only.
+
 # --- Domain-exempt readers (intentionally NOT in IN_SCOPE_READER_MODULES) ---
 # These read a `mission`/`mission_type` field but are NOT runtime mission-type
 # resolvers, so they are deliberately excluded from the scanned set rather than
@@ -72,9 +87,22 @@ domain_exempt_notes:
   - path: src/specify_cli/core/mission_creation.py
     issue: "#3598 / census completeness"
     rationale: >-
-      Line ~766 `mission_type=str(meta.get(...) or mission or "software-dev")` in
-      `emit_mission_created_local` is a CREATE-time write default — the value
-      stamped into a NEW mission's event/meta when the operator gives no explicit
-      `--mission-type` (`mission` here is the create param, not the legacy field).
-      Same class as feature_meta.infer_mission. Not a runtime resolver; recorded
-      for census completeness (AC-7).
+      The `"software-dev"` literals (lines 623 `selected_mission_type = mission or
+      "software-dev"`, 704 `meta.setdefault(_META_KEY_MISSION_TYPE, ...)`, and 822/835
+      `mission_type=str(meta.get(_META_KEY_MISSION_TYPE) or mission or "software-dev")`
+      as call-site args) are all CREATE-time write defaults — the value stamped into
+      a NEW mission's meta/event when the operator gives no explicit `--mission-type`
+      (`mission` here is the create param, not the legacy field). `emit_mission_created_local`
+      is imported here (line 813), not defined; lines 822/835 are its call arguments.
+      Same class as feature_meta.infer_mission. Not a runtime resolver; recorded for
+      census completeness (AC-7).
+  - path: src/specify_cli/upgrade/migrations/m_0_13_0_research_csv_schema_check.py
+    issue: "#3598 / census completeness"
+    rationale: >-
+      Lines 57 and 114 read `meta.get("mission") != "research"` — a legacy `mission`
+      field read inside a FROZEN migration that, by design, inspects pre-migration
+      meta.json (which predates the canonical `mission_type` field) to decide whether
+      a legacy research mission needs the CSV schema check. Reading the legacy field
+      is correct for a frozen migration operating on old projects; it is not a runtime
+      resolver. Same class as migration/mission_state.py. Not in IN_SCOPE_READER_MODULES;
+      recorded here for census completeness (AC-7).
