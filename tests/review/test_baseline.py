@@ -453,7 +453,7 @@ class TestRunCommandForBaselineProcessGroupSafety:
         monkeypatch.setattr(pre_review_gate.subprocess, "Popen", _popen)
 
         raw = _run_command_for_baseline(
-            ["sh", "-c", "export SPEC_KITTY_CMD_OUTPUT_FILE=/tmp/x; pytest"],
+            ["sh", "-c", f"export SPEC_KITTY_CMD_OUTPUT_FILE={tmp_path}/x; pytest"],
             cwd=tmp_path,
         )
 
@@ -498,7 +498,7 @@ class TestRunCommandForBaselineProcessGroupSafety:
         monkeypatch.setattr(time, "monotonic", _fake_monotonic)
 
         raw = _run_command_for_baseline(
-            ["sh", "-c", "export SPEC_KITTY_CMD_OUTPUT_FILE=/tmp/x; pytest"],
+            ["sh", "-c", f"export SPEC_KITTY_CMD_OUTPUT_FILE={tmp_path}/x; pytest"],
             cwd=tmp_path,
         )
 
