@@ -194,3 +194,43 @@ stays in `plan.md`:
   comment that referenced a nonexistent `_is_dossier_delegate` (underscore,
   private) name left over from spec.md's illustrative Key Entities sketch —
   the plan's actual, binding name is the public `is_dossier_delegate()`.
+
+## Round 3 fixes (plan-fresh-2, FINAL fresh-sweep round; PLAN-FRESH2-001..004)
+
+- **PLAN-FRESH2-001 (sev 2)**: round 2's PLAN-FRESH-002 fix (see above) renamed
+  the predicate in plan.md's code samples but missed spec.md's own Key
+  Entities "Reconciling FR-006 and FR-007" pseudocode, which still read `if
+  _is_dossier_delegate(rules):` — the underscore-prefixed name plan.md never
+  actually settled on. **Fix**: changed spec.md's snippet to `if
+  is_dossier_delegate(rules):`, matching plan.md's public, no-underscore
+  binding name everywhere else.
+- **PLAN-FRESH2-002 (sev 3)**: FR-011 (the `diagnose.py` fix promoted to a
+  real FR in round 1, see PLAN-FRESH-001 above) had no Acceptance Scenario in
+  "User Scenarios & Testing" — every other FR traces to a Given/When/Then
+  scenario, but FR-011's acceptance behaviour existed only as FR-table prose.
+  **Fix**: added Acceptance Scenario 4 to User Story 1 (closest fit — payload
+  validation correctness) covering `diagnose_events()` processing a
+  dossier-typed event with a valid and an invalid payload: no crash, and the
+  invalid case's violation lands in `DiagnoseResult.errors`.
+- **PLAN-FRESH2-003 (sev 3)**: Success Criteria had SC-001..SC-005 but no
+  measurable outcome for FR-011, even though FR-006 (the other High-priority
+  FR in this pairing) has its own SC-005. **Fix**: added SC-006 stating
+  FR-011's measurable outcome — `diagnose_events()` no longer raises
+  `AttributeError` on a dossier-typed queued event, and a hand-constructed
+  invalid dossier payload reports a real `ConformanceResult`-sourced
+  violation in `DiagnoseResult.errors`.
+- **PLAN-FRESH2-004 (sev 3)**: NFR-002's binding visibility contract (printed
+  `[yellow]Warning...` + drop-not-queue) was written as if it governed *the*
+  `_validate_payload` function, but FR-011 introduced a second function of
+  that name (`diagnose.py`'s) with a genuinely different visibility
+  mechanism — accumulate into `DiagnoseResult.errors`, not print a warning.
+  Left unscoped, NFR-002 reads as contradicted by FR-011's own design.
+  **Fix**: scoped NFR-002's spec.md row explicitly to
+  `emitter.py::_validate_payload` and added a parallel sentence stating
+  `diagnose.py::_validate_payload`'s (FR-011) contract — surface the
+  violation in `DiagnoseResult.errors` — as separately binding. Applied the
+  same scoping to plan.md's Technical Context "Constraints" line, which
+  restated NFR-002 verbatim with no `diagnose.py` exception noted; the
+  "`diagnose.py` coordinated fix" section elsewhere in plan.md already
+  described the correct behaviour, so this was a cross-reference fix, not new
+  design.

@@ -69,9 +69,13 @@ with no new hot path; existing `<2s` CLI operation budget is unaffected
 since no new I/O or computation is introduced (emitters still build one
 payload object and hand it to `fire_dossier_event`).
 **Constraints**: NFR-001 (no net-new dependency, no version-constraint
-change), NFR-002 (validation failures stay visible via the existing
-`[yellow]Warning: ...]` + drop-not-queue contract), C-001 (queue-drain out of
-scope), C-002 (no transitional deprecated wrapper).
+change), NFR-002 — scoped to `emitter.py::_validate_payload`: validation
+failures stay visible via the existing `[yellow]Warning: ...]` +
+drop-not-queue contract; `diagnose.py::_validate_payload` (FR-011) carries
+its own, equally binding NFR-002 contract, not "print a warning" but
+"surface the violation in `DiagnoseResult.errors`" — see the "`diagnose.py`
+coordinated fix" section below — C-001 (queue-drain out of scope), C-002 (no
+transitional deprecated wrapper).
 **Scale/Scope**: 3 production source files
 (`src/specify_cli/dossier/events.py`, 653 lines;
 `src/specify_cli/sync/emitter.py`, 2,671 lines — only ~90 of which

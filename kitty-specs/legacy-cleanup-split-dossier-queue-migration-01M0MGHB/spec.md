@@ -269,6 +269,10 @@ that names the real violation, not a generic message.
    today) and the printed warning includes the real violation detail from
    `ConformanceResult.model_violations` / `.schema_violations`, not merely "payload
    missing required fields: {...}" with no schema-level detail.
+4. **Given** the FR-006 sentinel lands in `_PAYLOAD_RULES`, **When**
+   `diagnose_events()` processes a dossier-typed event with a valid and an invalid
+   payload, **Then** it does not crash and the invalid case's violation appears in
+   `DiagnoseResult.errors` (FR-011).
 
 ---
 
@@ -380,7 +384,7 @@ confirm the guard passes clean against the real, unmodified `src/` tree.
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | No net-new external dependency | This mission adds no new PyPI dependency and does not change the `spec-kitty-events` version constraint (`pyproject.toml:80`, already `>=6.0.0,<7.0.0`, already satisfied by installed 6.1.0). | Technical | High | Open |
-| NFR-002 | Validation failure stays visible, not silent | An invalid dossier payload reaching `_validate_payload` after this mission still produces a printed `[yellow]Warning: ...` message identifying the event type and the real violation (from `ConformanceResult`), and the event is still dropped (not queued) — consistent with, not weaker than, today's behaviour for every other `_PAYLOAD_RULES` entry. | Reliability | High | Open |
+| NFR-002 | Validation failure stays visible, not silent | Scoped to `emitter.py::_validate_payload`: an invalid dossier payload reaching it after this mission still produces a printed `[yellow]Warning: ...` message identifying the event type and the real violation (from `ConformanceResult`), and the event is still dropped (not queued) — consistent with, not weaker than, today's behaviour for every other `_PAYLOAD_RULES` entry. `diagnose.py::_validate_payload` (FR-011) is a separate function with a different, equally binding visibility contract: it does not print a warning — it surfaces the violation by appending it to `DiagnoseResult.errors`, `diagnose.py`'s existing structured-error-reporting shape. Neither contract weakens or contradicts the other; each governs its own function. | Reliability | High | Open |
 | NFR-003 | Test suite scope stays bounded | Per-WP validation targets `tests/dossier/`, `tests/sync/test_events_namespace.py`, `tests/sync/test_dossier_pipeline.py`, `tests/sync/test_diagnose.py` (FR-011's `diagnose.py` regression coverage), and `tests/architectural/` (for the new guard test and `test_shared_package_boundary.py`); the full `pytest tests/` run is reserved for pre-merge / post-merge validation per the charter's Testing Requirements section. | Process | Medium | Open |
 
 ### Constraints
@@ -421,7 +425,7 @@ confirm the guard passes clean against the real, unmodified `src/` tree.
   the four dossier types becomes a sentinel value/marker (concrete tag left to
   planning) — with `_validate_payload` gaining an explicit early-return branch that
   recognizes the sentinel and delegates, e.g. `rules = _PAYLOAD_RULES.get(event_type);
-  if _is_dossier_delegate(rules): return self._validate_dossier_payload(event_type,
+  if is_dossier_delegate(rules): return self._validate_dossier_payload(event_type,
   payload)`, ahead of the generic `rules["required"]`/`rules["validators"]` access —
   so the two code paths never both try to interpret the same dict value the same way.
   **This same sentinel shape change also reaches `sync/diagnose.py::_validate_payload`**,
@@ -459,3 +463,7 @@ confirm the guard passes clean against the real, unmodified `src/` tree.
   `EventEmitter._validate_payload()` returns `False` and the captured warning
   text contains a real field/violation identifier sourced from `ConformanceResult`,
   not only the field-name-and-generic-message format used today.
+- **SC-006**: `diagnose_events()` no longer raises `AttributeError` on a
+  dossier-typed queued event; a hand-constructed invalid dossier payload run
+  through it reports a real `ConformanceResult`-sourced violation in
+  `DiagnoseResult.errors`.
