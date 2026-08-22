@@ -133,7 +133,7 @@ class HttpsBundleSource:
             )
 
         try:
-            response = self._get_with_retry()
+            response = self._get_with_retry(canonical_url)
         except requests.RequestException as exc:
             return FetchResult(
                 ok=False,
@@ -146,7 +146,9 @@ class HttpsBundleSource:
             )
 
         try:
-            return self._consume_response(response, target_dir, artifactory_item)
+            return self._consume_response(
+                response, target_dir, artifactory_item, canonical_url
+            )
         finally:
             response.close()
 
@@ -171,6 +173,7 @@ class HttpsBundleSource:
         response: requests.Response,
         target_dir: Path,
         artifactory_item: _ArtifactoryItem | None,
+        canonical_url: str,
     ) -> FetchResult:
         """Validate, buffer, provenance-check, then extract one response."""
         if response.status_code == 304:
@@ -208,7 +211,7 @@ class HttpsBundleSource:
                 pack_version=None,
                 errors=[
                     f"HTTP {response.status_code} fetching "
-                    f"{_safe_url_for_error(self.url)}."
+                    f"{_safe_url_for_error(canonical_url)}."
                 ],
             )
 
@@ -238,7 +241,7 @@ class HttpsBundleSource:
         metadata: _ArtifactoryMetadata | None = None
         if artifactory_item is not None:
             metadata, metadata_error = self._fetch_artifactory_metadata(
-                artifactory_item
+                artifactory_item, canonical_url
             )
             if metadata_error is not None:
                 buffered.path.unlink(missing_ok=True)
@@ -326,7 +329,7 @@ class HttpsBundleSource:
         return _BufferedArchive(path=tmp_path, sha256=digest.hexdigest()), None
 
     def _fetch_artifactory_metadata(
-        self, item: _ArtifactoryItem
+        self, item: _ArtifactoryItem, canonical_url: str
     ) -> tuple[_ArtifactoryMetadata | None, str | None]:
         """Read one AQL result that co-attests version and body checksum."""
         payload, error = self._post_artifactory_aql(item)
@@ -337,7 +340,7 @@ class HttpsBundleSource:
             return None, (
                 "JFrog AQL did not return the exact artifact with one non-empty "
                 "version property and a valid SHA-256 checksum: "
-                f"{_safe_url_for_error(self.url)}"
+                f"{_safe_url_for_error(canonical_url)}"
             )
         return metadata, None
 
@@ -401,9 +404,7 @@ class HttpsBundleSource:
             )
         return response
 
-    def _get_with_retry(self) -> requests.Response:
-        request_url = self.canonical_url
-        assert request_url is not None
+    def _get_with_retry(self, request_url: str) -> requests.Response:
         response = requests.get(  # noqa: S113 - timeout supplied below
             request_url,
             headers=self._headers(),
