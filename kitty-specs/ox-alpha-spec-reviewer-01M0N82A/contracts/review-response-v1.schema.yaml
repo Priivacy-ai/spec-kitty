@@ -1,0 +1,51 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: spec-kitty/review-response/v1
+title: ReviewResponse
+type: object
+additionalProperties: false
+required: [schema, findings]
+properties:
+  schema:
+    const: review-response/v1
+  findings:
+    type: array
+    maxItems: 100
+    items:
+      type: object
+      additionalProperties: false
+      required: [id, lens, severity, title, evidence, claim, remediation]
+      properties:
+        id:
+          type: string
+          pattern: '^[A-Za-z0-9_-]+$'
+        lens:
+          type: string
+          minLength: 1
+          maxLength: 100
+        severity:
+          type: integer
+          minimum: 1
+          maximum: 5
+        title:
+          type: string
+          minLength: 1
+          maxLength: 300
+        evidence:
+          type: object
+          additionalProperties: false
+          required: [line_start, line_end]
+          properties:
+            line_start:
+              type: integer
+              minimum: 1
+            line_end:
+              type: integer
+              minimum: 1
+        claim:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        remediation:
+          type: string
+          minLength: 1
+          maxLength: 4000
