@@ -256,14 +256,14 @@ class TestWriteSnapshot:
             layout=_populate_valid_pack,
             result=FetchResult(ok=True, artifacts_written=2, pack_version="v2"),
         )
-        original_write_text = Path.write_text
+        original_write_bytes = Path.write_bytes
 
-        def _fail_manifest(self: Path, data: str, *args: object, **kwargs: object) -> int:
+        def _fail_manifest(self: Path, data: bytes) -> int:
             if self.name == "pack-manifest.yaml":
                 raise OSError("manifest disk full")
-            return original_write_text(self, data, *args, **kwargs)
+            return original_write_bytes(self, data)
 
-        monkeypatch.setattr(Path, "write_text", _fail_manifest)
+        monkeypatch.setattr(Path, "write_bytes", _fail_manifest)
 
         result = write_snapshot(source, local_path)
 
@@ -627,6 +627,40 @@ class TestEtagConditionalFetch:
 
 
 class TestPackManifest:
+    def test_fetched_manifest_round_trips_through_canonical_schema(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.doctrine.pack_manifest import load_pack_manifest
+
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        write_pack_manifest(
+            local_path,
+            FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="release-42",
+                etag='"etag-42"',
+            ),
+            source_url="https://example.com/pack.tar.gz",
+            source_type="https",
+        )
+
+        loaded = load_pack_manifest(local_path / "pack-manifest.yaml")
+
+        assert loaded.pack_version == "release-42"
+        assert loaded.etag == '"etag-42"'
+        assert loaded.source_type == "https"
+        assert loaded.source_uses_query is False
+        assert loaded.snapshot_sha256 is not None
+        assert len(loaded.snapshot_sha256) == 64
+        assert loaded.source_fingerprint is not None
+        assert len(loaded.source_fingerprint) == 64
+        assert loaded.artifact_counts == {
+            "agent_profiles": 1,
+            "directives": 1,
+        }
+
     def test_manifest_contains_required_fields(self, tmp_path: Path) -> None:
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
