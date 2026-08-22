@@ -115,7 +115,12 @@ test_no_dead_modules:
   # connector via gateway.build_gateway_beads_connector, never the ungated factory.build_connector,
   # so the module has a live src/ caller and is no longer an orphan. Shrink -- burns down one of
   # the four M2-canonical-integration entries above.
-  category_7_grandfathered_orphans: 6
+  # 6 -> 5 (WIRE-M2-02, 2026-08-22): D2-T1 dashboard.csp wired -- send_csp_header() is now
+  # called from every send_response() site in handlers/{base,api,features,glossary,lint,
+  # static}.py, so the module has live src/ callers. Shrink -- burns down one of the four
+  # M2 canonical-integration entries.
+  # (integration lrc-w1: WIRE-M2-01 and WIRE-M2-02 each burned one entry from the same 7 baseline; combined 7 -> 5.)
+  category_7_grandfathered_orphans: 5
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
