@@ -345,6 +345,7 @@ def _aql_payload(
     name: str = "pack-latest.tar.gz",
     version: str | None = "3.2.7",
     sha256: str | None = None,
+    virtual_repos: list[str] | None = None,
 ) -> dict[str, object]:
     result: dict[str, object] = {
         "repo": repo,
@@ -358,6 +359,8 @@ def _aql_payload(
         result["sha256"] = sha256
     else:
         result["sha256"] = hashlib.sha256(bundle).hexdigest()  # noqa: TID251
+    if virtual_repos is not None:
+        result["virtual_repos"] = virtual_repos
     return {"results": [result]}
 
 
@@ -429,16 +432,27 @@ class TestHttpsBundleSource:
         assert urls == ["https://cdn.example.com/pack.tar.gz"]
 
     @pytest.mark.parametrize("source_type", ["https", "artifactory"])
+    @pytest.mark.parametrize(
+        ("auth_env", "auth_value", "expected_authorization"),
+        [
+            ("SPEC_KITTY_ORG_TOKEN", "token-123", "Bearer token-123"),
+            ("SPEC_KITTY_ORG_AUTH_HEADER", "Basic dXNlcjpwYXNz", "Basic dXNlcjpwYXNz"),
+        ],
+    )
     def test_artifactory_version_property_becomes_pack_version(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
         source_type: str,
+        auth_env: str,
+        auth_value: str,
+        expected_authorization: str,
     ) -> None:
         target = tmp_path / "snapshot"
         bundle = _make_tar_gz_bundle()
         aql_calls: list[tuple[str, dict[str, Any]]] = []
         streamed: list[bool] = []
+        download_headers: list[dict[str, str]] = []
         metadata_responses: list[_FakeResponse] = []
         artifact_url = (
             "https://artifactory.example.com/artifactory/raf-generic-local/"
@@ -451,6 +465,7 @@ class TestHttpsBundleSource:
                 streamed.append(True)
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            download_headers.append(dict(kwargs.get("headers") or {}))
             return _TrackingDownload(
                 status_code=200,
                 body=bundle,
@@ -479,6 +494,7 @@ class TestHttpsBundleSource:
 
         monkeypatch.delenv("SPEC_KITTY_ORG_AUTH_HEADER", raising=False)
         monkeypatch.delenv("SPEC_KITTY_ORG_TOKEN", raising=False)
+        monkeypatch.setenv(auth_env, auth_value)
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
         )
@@ -493,6 +509,7 @@ class TestHttpsBundleSource:
         assert result.ok is True
         assert result.pack_version == "3.2.7"
         assert result.etag == '"etag-7"'
+        assert len(aql_calls) == 1
         assert aql_calls[0][0] == (
             "https://artifactory.example.com/artifactory/api/search/aql"
         )
@@ -500,10 +517,192 @@ class TestHttpsBundleSource:
         assert '"repo":"raf-generic-local"' in query
         assert '"path":"doctrines"' in query
         assert '"name":"doctrine-rnd-latest.tar.gz"' in query
-        assert '"sha256","@version"' in query
+        assert '"sha256"' in query
+        assert '"virtual_repos"' in query
+        assert '"@version"' in query
         assert "If-None-Match" not in aql_calls[0][1]["headers"]
-        assert "Authorization" not in aql_calls[0][1]["headers"]
+        assert download_headers == [{"Authorization": expected_authorization}]
+        assert aql_calls[0][1]["headers"]["Authorization"] == expected_authorization
         assert all(response.closed for response in metadata_responses)
+
+    def test_artifactory_virtual_repo_and_encoded_item_are_validated(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        bundle = _make_tar_gz_bundle()
+        artifact_url = (
+            "https://artifactory.example.com/artifactory/my-virtual/folder/"
+            "My%20Pack-%E2%9C%93.tar.gz"
+        )
+        captured_criteria: dict[str, object] = {}
+
+        def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            return _FakeResponse(
+                status_code=200,
+                body=bundle,
+                headers={"Content-Type": "application/gzip"},
+                url=url,
+            )
+
+        def _fake_post(url: str, **kwargs: Any) -> _FakeResponse:
+            query = kwargs["data"]
+            criteria_json = query.removeprefix("items.find(").split(").include", 1)[
+                0
+            ]
+            captured_criteria.update(json.loads(criteria_json))
+            payload = _aql_payload(
+                bundle,
+                repo="backing-local",
+                path="folder",
+                name="My Pack-✓.tar.gz",
+                virtual_repos=["my-virtual"],
+            )
+            return _FakeResponse(
+                status_code=200,
+                body=json.dumps(payload).encode(),
+                url=url,
+            )
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
+        )
+
+        result = HttpsBundleSource(url=artifact_url).fetch(tmp_path / "snapshot")
+
+        assert result.ok is True
+        assert result.pack_version == "3.2.7"
+        assert captured_criteria == {
+            "repo": "my-virtual",
+            "path": "folder",
+            "name": "My Pack-✓.tar.gz",
+            "type": "file",
+        }
+
+    @pytest.mark.parametrize(
+        "case",
+        [
+            "wrong-repo",
+            "wrong-path",
+            "wrong-name",
+            "no-results",
+            "duplicate-results",
+            "no-version",
+            "duplicate-version",
+        ],
+    )
+    def test_artifactory_rejects_non_exact_aql_result(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, case: str
+    ) -> None:
+        bundle = _make_tar_gz_bundle()
+        artifact_url = (
+            "https://artifactory.example.com/artifactory/repo/"
+            "folder/pack-latest.tar.gz"
+        )
+
+        def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
+            return _FakeResponse(
+                status_code=200,
+                body=bundle,
+                headers={"Content-Type": "application/gzip"},
+                url=url,
+            )
+
+        def _fake_post(url: str, **kwargs: Any) -> _FakeResponse:
+            payload = _aql_payload(bundle, path="folder")
+            results = payload["results"]
+            assert isinstance(results, list) and isinstance(results[0], dict)
+            result = results[0]
+            if case == "wrong-repo":
+                result["repo"] = "another-repo"
+            elif case == "wrong-path":
+                result["path"] = "another-folder"
+            elif case == "wrong-name":
+                result["name"] = "another-pack.tar.gz"
+            elif case == "no-results":
+                results.clear()
+            elif case == "duplicate-results":
+                results.append(dict(result))
+            elif case == "no-version":
+                result["properties"] = []
+            elif case == "duplicate-version":
+                properties = result["properties"]
+                assert isinstance(properties, list)
+                properties.append({"key": "version", "value": "3.2.8"})
+            return _FakeResponse(
+                status_code=200,
+                body=json.dumps(payload).encode(),
+                url=url,
+            )
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
+        )
+
+        result = HttpsBundleSource(url=artifact_url).fetch(tmp_path / "snapshot")
+
+        assert result.ok is False
+        assert any("exact artifact" in error for error in result.errors)
+        assert not (tmp_path / "snapshot" / "directives").exists()
+
+    def test_artifactory_aql_retry_closes_responses_and_strips_validator(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        bundle = _make_tar_gz_bundle()
+        artifact_url = (
+            "https://artifactory.example.com/artifactory/repo/pack-latest.tar.gz"
+        )
+        download_response = _FakeResponse(
+            status_code=200,
+            body=bundle,
+            headers={"Content-Type": "application/gzip"},
+            url=artifact_url,
+        )
+        first_aql = _FakeResponse(status_code=503, url=artifact_url)
+        final_aql = _FakeResponse(
+            status_code=200,
+            body=json.dumps(_aql_payload(bundle)).encode(),
+            url=artifact_url,
+        )
+        responses = iter([first_aql, final_aql])
+        aql_headers: list[dict[str, str]] = []
+
+        monkeypatch.setenv("SPEC_KITTY_ORG_TOKEN", "retry-token")
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get",
+            lambda _url, **_kwargs: download_response,
+        )
+
+        def _fake_post(url: str, **kwargs: Any) -> _FakeResponse:
+            aql_headers.append(dict(kwargs.get("headers") or {}))
+            return next(responses)
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.time.sleep", lambda _s: None
+        )
+
+        result = HttpsBundleSource(
+            url=artifact_url,
+            if_none_match='"old-etag"',
+        ).fetch(tmp_path / "snapshot")
+
+        assert result.ok is True
+        assert len(aql_headers) == 2
+        assert all(
+            headers.get("Authorization") == "Bearer retry-token"
+            for headers in aql_headers
+        )
+        assert all("If-None-Match" not in headers for headers in aql_headers)
+        assert download_response.closed is True
+        assert first_aql.closed is True
+        assert final_aql.closed is True
 
     def test_artifactory_source_rejects_non_derivable_storage_url(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

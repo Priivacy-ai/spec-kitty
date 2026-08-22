@@ -109,6 +109,12 @@ class PackManifest(BaseModel):
     source_url: str | None = None
     source_type: str | None = None
     fetched_at: str | None = None
+    pack_version: str | None = None
+    etag: str | None = None
+    source_fingerprint: str | None = None
+    source_uses_query: bool | None = None
+    snapshot_sha256: str | None = None
+    artifact_counts: dict[str, int] | None = None
     manifest_hash: str | None = None
     constituents: list[Constituent] = Field(default_factory=list)
     charter: CharterProfile | None = None
