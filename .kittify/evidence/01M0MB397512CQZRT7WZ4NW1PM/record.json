@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M0MB397512CQZRT7WZ4NW1PM",
+  "completed_at": "2026-08-22T09:28:56.574311+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "architectural_dead_symbols=1 passed"
+}
