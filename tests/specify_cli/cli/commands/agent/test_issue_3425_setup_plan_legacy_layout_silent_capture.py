@@ -1,7 +1,7 @@
-"""Regression contract for #3425 — a fresh, un-migrated host must journal its
+"""Regression guard for #3425 — a fresh, un-migrated host must journal its
 setup-plan capture instead of silently swallowing it.
 
-Open P0: https://github.com/Priivacy-ai/spec-kitty/issues/3425
+Fixed: https://github.com/Priivacy-ai/spec-kitty/issues/3425
 
 Correct root cause (the swallowed error is the **journal guard**, not a queue
 default-path helper):
@@ -58,7 +58,7 @@ from unittest.mock import patch
 import pytest
 import typer
 
-pytestmark = pytest.mark.regression
+pytestmark = pytest.mark.integration
 
 MODULE = "specify_cli.cli.commands.agent.mission"
 

@@ -1,34 +1,31 @@
-"""Red-first reproduction of #3307 — the CLI emits ``force=False`` for
+"""Regression guard for #3307 — the CLI must emit ``force=True`` for
 review-rejection rollbacks that the vendored ``spec-kitty-events`` contract
-declares invalid without ``force=True``.
+declares invalid without it.
 
-Open P0: https://github.com/Priivacy-ai/spec-kitty/issues/3307
+Fixed: https://github.com/Priivacy-ai/spec-kitty/issues/3307
 
-Root cause: two independently-authored ``validate_transition`` functions with the
-same name and opposite answers.
+Root cause was two independently-authored ``validate_transition`` functions with
+the same name and opposite answers.
 
 * ``build_transition_plan`` (``src/specify_cli/cli/commands/agent/tasks_transition_core.py``)
   asks the CLI-LOCAL FSM (``specify_cli.status``) whether a backward review-rejection
-  edge is legal force-free given the evidence carried at the plan layer, and emits
-  ``emit_force=False`` when it is.
+  edge is legal force-free given the evidence carried at the plan layer.
 * The SHARED, vendored ``spec_kitty_events.validate_transition`` — the contract
   package both this repo and ``spec-kitty-saas`` pin (``spec-kitty-events==6.1.0``)
   — declares exactly these "review-rejection family" backward edges invalid unless
-  ``force=True``. The CLI emit path never calls the shared validator, so
-  contract-invalid events are produced and queued silently and are only rejected
-  later at sync time (10 real ``in_review -> planned`` events were rejected by the
-  SaaS ingestion endpoint in the reported case).
+  ``force=True``. Before the fix, the CLI emit path never consulted the shared
+  validator, so contract-invalid events were produced and queued silently and
+  were only rejected later at sync time (10 real ``in_review -> planned`` events
+  were rejected by the SaaS ingestion endpoint in the reported case).
+
+``build_transition_plan`` now also asks the shared wire contract
+(``_wire_contract_allows_force_free``) and only stays force-free when both the
+local FSM and the shared contract agree; otherwise it emits ``force=True``.
 
 This drives the REAL emit-decision function (``build_transition_plan``) and then
 validates the wire payload it would emit against the REAL shared contract
-validator — proving the CLI emits events its own vendored dependency rejects.
-
-Desired post-fix outcome (either maintainer resolution turns this green): every
-event ``build_transition_plan`` emits for these edges must be accepted by the
-shared ``spec_kitty_events`` contract — whether by emitting ``force=True`` (make
-the CLI conform) or by amending the shared contract to carry a wire-representable
-evidence exemption and having the CLI emit that evidence (issue #3307 options a/b).
-This test pins the conformance contract, not the chosen mechanism.
+validator — pinning the conformance contract as a permanent guard against the
+defect recurring, not the chosen mechanism.
 """
 
 from __future__ import annotations
@@ -40,7 +37,7 @@ from specify_cli.status import ReviewResult
 from spec_kitty_events import validate_transition as shared_validate_transition
 from spec_kitty_events.status import StatusTransitionPayload
 
-pytestmark = pytest.mark.regression
+pytestmark = pytest.mark.fast
 
 _REVIEW_RESULT = ReviewResult(
     reviewer="claude",
