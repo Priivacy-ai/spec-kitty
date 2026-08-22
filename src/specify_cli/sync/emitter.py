@@ -2350,7 +2350,36 @@ class EventEmitter:
                 self._queue_event_locally(event)
                 return event
 
-            self._route_event(event)
+            if not self._route_event(event):
+                # ``_route_event`` returns ``True`` iff the event durably landed
+                # in a project-owned outbox; ``False`` means it did NOT (no
+                # resolvable outbox, the queue refused/was full, or the append
+                # raised and was caught). The old behavior discarded this bool and
+                # returned the envelope truthy (#3517), so the 11 ``if event is
+                # not None`` gates in ``events.py`` still fired
+                # ``_publish_event_via_sync_daemon`` — which publishes the
+                # in-memory event over loopback WITHOUT reading the outbox.
+                #
+                # Tradeoff (adversarial review finding 2a): live publish and local
+                # durability are independent channels, so on a *transient* outbox
+                # failure with a healthy daemon the old path did achieve a
+                # best-effort live delivery — but with no durable record behind
+                # it, so nothing could re-deliver it if the daemon/downstream
+                # dropped it. That "delivered but unrecoverable" state is the
+                # silent-false-success #3517/#3549 target: the outbox is the
+                # eventual-delivery source of truth, and publishing what it can't
+                # back reports success the system can't stand behind. We
+                # deliberately trade that best-effort live window for a legible
+                # failure — warn on the same stderr surface the sibling
+                # non-durable arms above use, and return ``None`` so the publish
+                # gates skip it. The transient-vs-permanent distinction (retry
+                # past a busy queue) is the bounded-retry redesign that stays with
+                # #3549's sync owners — out of scope here. Never-raise preserved.
+                _console.print(
+                    "[yellow]Warning: Event did not durably queue; "
+                    "dropping from publication[/yellow]"
+                )
+                return None
             return event
 
         except Exception as e:
