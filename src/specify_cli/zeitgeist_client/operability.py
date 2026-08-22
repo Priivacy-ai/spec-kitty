@@ -73,7 +73,12 @@ deterministic:
   — it proves the fail-closed guard, not a full approve-then-revoke round
   trip (which Z8-C's own hard-trust requirement makes structurally
   impossible to script in the first place; see ``outbox_approval.py``'s
-  module docstring).
+  module docstring). Content-addressed submission means a re-run of this
+  drill for the same repo more than ``_ROLLBACK_DRILL_TTL_S`` after a prior
+  run collides with that prior run's now-expired row, so ``revoke()`` can
+  also fail closed with ``Expired`` instead of ``InvalidTransition`` — both
+  are handled and both report ``outcome="pass"`` (see
+  :func:`rollback_drill`'s own docstring).
 
 No second data store: every signal reads state an existing module
 (``transport``, ``credentials``, ``outbox_approval``, ``mcp_stdio``)
@@ -188,7 +193,13 @@ def lease_signal(client: transport.ZeitgeistClient, *, at: datetime | None = Non
         return LeaseSignal(active=False, ttl_s=transport.FOCUS_TTL_S, remaining_s=None)
     now = at if at is not None else now_utc()
     elapsed_s = (now - started_at).total_seconds()
-    remaining_s = max(0.0, float(transport.FOCUS_TTL_S) - elapsed_s)
+    # Clamped on BOTH ends against the ttl_s denominator: the lower bound
+    # (0.0) covers the ordinary "already past TTL" case; the upper bound
+    # (transport.FOCUS_TTL_S) covers a negative elapsed_s (a backward clock
+    # adjustment, or a caller-supplied `at` earlier than the lease start) --
+    # without it remaining_s could read ABOVE ttl_s, breaking the module
+    # docstring's "<=90s current-focus bound" guarantee.
+    remaining_s = max(0.0, min(float(transport.FOCUS_TTL_S), float(transport.FOCUS_TTL_S) - elapsed_s))
     return LeaseSignal(active=True, ttl_s=transport.FOCUS_TTL_S, remaining_s=remaining_s)
 
 
@@ -392,7 +403,21 @@ def rollback_drill(*, repo: str) -> RollbackDrillResult:
     ``repo``, then immediately calls ``revoke()`` on it. See the module
     docstring for why this proves the fail-closed guard (never a human
     gesture, never ``/dev/tty``) rather than a full approve-then-revoke
-    round trip."""
+    round trip.
+
+    ``outbox_approval.submit`` is content-addressed, so every call for the
+    SAME ``repo`` hashes to the SAME ``item_id`` (fixed audience/content).
+    The first call within :data:`_ROLLBACK_DRILL_TTL_S` of a prior call
+    resubmits that same still-pending row and blocks on
+    ``InvalidTransition`` as above; a call made AFTER that TTL has lapsed
+    instead resubmits/returns that same row already flipped to
+    ``"expired"`` by ``submit()``'s own sweep, so ``revoke()`` raises
+    ``outbox_approval.Expired`` instead. An expired item is exactly as
+    unrevoke-able as a never-approved one -- both are the fail-closed guard
+    holding -- so this drill treats both as an equally valid ``"pass"``,
+    distinguished only by ``blocked_reason``. Without this, a second
+    invocation of the drill more than ~1s after the first (the ordinary
+    "run it again" usage pattern) would raise an unhandled exception."""
     item = outbox_approval.submit(
         repo=repo,
         audience=_ROLLBACK_DRILL_AUDIENCE,
@@ -403,4 +428,6 @@ def rollback_drill(*, repo: str) -> RollbackDrillResult:
         outbox_approval.revoke(item.item_id, actor="operability-drill")
     except outbox_approval.InvalidTransition:
         return RollbackDrillResult(outcome="pass", item_id=item.item_id, blocked_reason="not_yet_approved")
+    except outbox_approval.Expired:
+        return RollbackDrillResult(outcome="pass", item_id=item.item_id, blocked_reason="expired_before_disposition")
     return RollbackDrillResult(outcome="fail", item_id=item.item_id, blocked_reason="")
