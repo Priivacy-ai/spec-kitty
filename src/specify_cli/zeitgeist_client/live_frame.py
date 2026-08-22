@@ -44,11 +44,16 @@ Reported-live honesty, not reconstruction:
   is the write side; re-declared here rather than imported so this read-side
   module stays independent of ``transport``'s network stack, checked against
   it by ``test_live_frame.py``). This clamp is defense in depth: "<=90s
-  clear" must hold even if a hostile or buggy relay sends a larger value.
+  clear" must hold even if a hostile or buggy relay sends a larger value —
+  including a non-finite one: JSON's ``Infinity``/``-Infinity``/``NaN``
+  tokens survive ``json.loads`` (the parser ``filtered_stream._accept_line``
+  uses) unrejected by default, so ``_clamp_ttl`` treats any non-finite
+  ``ttl_s`` the same as an absent one rather than let ``int()`` raise on it.
 """
 
 from __future__ import annotations
 
+import math
 import time
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -133,6 +138,16 @@ def parse_live_frame(raw: object) -> LiveFrame | None:
 
 def _clamp_ttl(value: object) -> int:
     if not _is_number(value):
+        return MAX_TTL_S
+    # A hostile or buggy relay can send JSON's `Infinity`/`NaN`/`-Infinity`
+    # tokens — Python's own ``json.loads`` (used by
+    # ``filtered_stream._accept_line``) accepts them by default, and
+    # ``int()`` on a non-finite float raises (OverflowError for +/-inf,
+    # ValueError for nan). Treat any non-finite value the same as "absent":
+    # clamp to the ceiling rather than let it propagate out of
+    # ``StreamState.apply``/``FilteredStream.watch()`` and end the whole
+    # subscription generator over one bad field in one frame.
+    if isinstance(value, float) and not math.isfinite(value):
         return MAX_TTL_S
     return max(1, min(int(value), MAX_TTL_S))
 
