@@ -1024,11 +1024,18 @@ def _render_upgrade_outcome(result: Any) -> str:
     from specify_cli.cli.helpers import console
 
     with console.capture() as capture:
+        # WP04/T022: _display_upgrade_results is pure rendering — it no
+        # longer raises typer.Exit itself; the exit code is derived exactly
+        # once, at the command boundary, from UpgradeOutcome.exit_code (D-5).
+        # These fixtures have no finalizer-level signal beyond `result.success`
+        # itself, so `effective_success`/`errors` mirror it directly here.
         _display_upgrade_results(
             result,
             manual_review_paths=[],
             auto_committed=False,
             auto_commit_paths=[],
+            effective_success=result.success,
+            errors=result.errors,
         )
     return capture.get()
 
@@ -1051,14 +1058,18 @@ def test_real_run_success_line_unchanged() -> None:
     assert "Dry run complete" not in output
 
 
-def test_failed_run_exits_1_for_both_modes() -> None:
-    """Failure still exits 1 regardless of dry-run flag."""
+def test_failed_run_prints_failure_without_raising() -> None:
+    """WP04/T022: a failed render never raises — it is pure rendering.
+
+    The exit code is derived exactly once, at the command boundary, from
+    ``UpgradeOutcome.exit_code`` (D-5); see ``tests/upgrade/test_finalizer.py``
+    and ``tests/upgrade/test_upgrade_integration.py`` for that boundary proof.
+    """
     for dry_run in (False, True):
-        with pytest.raises(typer.Exit) as excinfo:
-            _render_upgrade_outcome(
-                _make_upgrade_result(dry_run=dry_run, success=False)
-            )
-        assert excinfo.value.exit_code == 1
+        output = _render_upgrade_outcome(_make_upgrade_result(dry_run=dry_run, success=False))
+        assert "Upgrade failed." in output
+        assert "Upgrade complete!" not in output
+        assert "Dry run complete" not in output
 
 
 # ---------------------------------------------------------------------------
