@@ -454,28 +454,33 @@ def write_pack_manifest(
     local_path = Path(local_path)
     manifest_path = local_path / "pack-manifest.yaml"
     safe_source_url = _strip_credentials(source_url)
-    payload: dict[str, Any] = {
-        "pack_version": result.pack_version,
-        "fetched_at": _iso_now(),
-        "source_type": source_type,
-        "source_url": safe_source_url,
-        "source_fingerprint": _source_fingerprint(safe_source_url),
-        "source_uses_query": bool(urlsplit(source_url).query),
-        "snapshot_sha256": _snapshot_sha256(local_path),
-        "artifact_counts": _manifest_artifact_counts(local_path),
-    }
-    if result.etag:
-        payload["etag"] = result.etag
-    manifest_path.write_text(
-        yaml.safe_dump(payload, sort_keys=True), encoding="utf-8"
+    from .pack_manifest import (
+        PackManifest,
+        dump_pack_manifest_bytes,
+        finalize_pack_manifest,
     )
+
+    manifest = finalize_pack_manifest(
+        PackManifest(
+            pack_version=result.pack_version,
+            fetched_at=_iso_now(),
+            source_type=source_type,
+            source_url=safe_source_url,
+            source_fingerprint=_source_fingerprint(safe_source_url),
+            source_uses_query=bool(urlsplit(source_url).query),
+            snapshot_sha256=_snapshot_sha256(local_path),
+            artifact_counts=_manifest_artifact_counts(local_path),
+            etag=result.etag,
+        )
+    )
+    manifest_path.write_bytes(dump_pack_manifest_bytes(manifest))
 
 
 def _manifest_artifact_counts(local_path: Path) -> dict[str, int]:
     """Resolve manifest counts through the canonical derived-view seam."""
     from .pack_manifest import resolve_counts
 
-    return cast(dict[str, int], resolve_counts(None, _count_artifacts(local_path)))
+    return resolve_counts(None, _count_artifacts(local_path))
 
 
 # ----------------------------------------------------------------------
