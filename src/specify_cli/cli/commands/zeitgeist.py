@@ -44,6 +44,14 @@ why a model talking over MCP must have no tool that reaches it.
 ``HumanGestureRequired`` whenever no controlling terminal is available to
 capture a real human gesture — that fault, not a CLI flag, is what a
 non-interactive caller here hits.
+
+O1-C adds the ``operability`` sub-group: ``report`` (one payload-free
+snapshot of ``zeitgeist_client.operability``'s offer/drop/lease/revoke/mcp/
+repair signals) plus ``drill-timeout``/``drill-rotation``/``drill-rollback``
+(the three local, network-free failure drills O1-C's own node criterion
+names). Same "no relay-url/token option, no second implementation"
+discipline as ``status``/``watch``/``outbox`` above — every subcommand here
+is a thin pass-through to ``operability.py``'s functions.
 """
 
 from __future__ import annotations
@@ -57,7 +65,7 @@ from typing import Any
 import typer
 
 from specify_cli.cli.console import console
-from specify_cli.zeitgeist_client import outbox_approval, subscription
+from specify_cli.zeitgeist_client import credentials, operability, outbox_approval, subscription, transport
 
 app = typer.Typer(
     name="zeitgeist",
@@ -273,3 +281,116 @@ def outbox_revoke(item_id: str = _ITEM_ID_ARGUMENT, actor: str | None = _ACTOR_O
     """Pull back an already-approved ``item_id``. Same human-gesture
     requirement as ``approve``; only valid from ``approved``."""
     _run_decision(item_id, actor, outbox_approval.revoke, "revoked")
+
+
+# --- O1-C: operability (payload-free self-report + local drills) -----------
+
+operability_app = typer.Typer(
+    name="operability",
+    help="Payload-free self-report of this client's liveness/connection/subscription/outbox "
+    "status, plus local failure drills (relay unreachable, auth expiry, revoke fail-closed). "
+    "Every subcommand here reuses zeitgeist_client.operability's signals/drills — no second "
+    "implementation, no relay-url/token option, no network beyond the one optional canary "
+    "offer `report` makes when repo already has a stored checkout.",
+)
+app.add_typer(operability_app, name="operability")
+
+
+def _report_client(repo: str) -> transport.ZeitgeistClient | None:
+    """Build a throwaway probe client from repo's already-stored checkout,
+    if any — never a second credential source, never a --relay-url/--token
+    option on this command."""
+    stored = credentials.load(repo=repo)
+    if stored is None:
+        return None
+    return transport.ZeitgeistClient(
+        transport.ClientConfig(
+            relay_url=stored.relay_url,
+            token=stored.token,
+            harness="operability",
+            session_id="operability-report",
+            agent_id=None,
+            repo=repo,
+            branch="operability",
+        )
+    )
+
+
+def _print_operability_report(report: operability.OperabilityReport) -> None:
+    console.print(f"[bold]{report.repo}[/bold]  checked_at={report.checked_at}")
+    console.print(f"  credential_checked_out={report.credential_checked_out}")
+    if report.offer is None or report.drop is None:
+        console.print("  offer/drop/latency: (no stored checkout — no live probe attempted)")
+    else:
+        console.print(
+            f"  offer     outcome={report.offer.outcome}  elapsed_s={report.offer.elapsed_s:.3f}  "
+            f"budget_s={report.offer.budget_s}  within_budget={report.offer.within_budget}"
+        )
+        console.print(f"  drop      dropped={report.drop.dropped}  reason={report.drop.reason}")
+    console.print(
+        f"  lease     active={report.lease.active}  ttl_s={report.lease.ttl_s}  remaining_s={report.lease.remaining_s}"
+    )
+    console.print(
+        f"  revoke    revocable_count={report.revoke.revocable_count}  model_reachable={report.revoke.model_reachable}"
+    )
+    console.print(f"  mcp       reachable={report.mcp.reachable}  tools={list(report.mcp.tool_names)}")
+    console.print(
+        f"  repair    observed={report.repair.observed}  reset_count={report.repair.reset_count}  "
+        f"last_reset_reason={report.repair.last_reset_reason}"
+    )
+
+
+@operability_app.command("report")
+def operability_report(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
+    """One payload-free snapshot of ``repo``'s operability signals. Runs a
+    single canary offer probe only if ``repo`` already has a stored
+    checkout — otherwise reports honestly stale/inactive rather than
+    fabricating a live reading."""
+    report = operability.collect_report(repo=repo, client=_report_client(repo))
+    if as_json:
+        console.emit_json(dataclasses.asdict(report))
+        return
+    _print_operability_report(report)
+
+
+@operability_app.command("drill-timeout")
+def operability_drill_timeout(as_json: bool = _JSON_OPTION) -> None:
+    """Local "relay unreachable" drill — one offer() against a loopback
+    address nothing listens on. Network-free (loopback only) and needs no
+    repo/checkout."""
+    result = operability.timeout_drill()
+    if as_json:
+        console.emit_json(dataclasses.asdict(result))
+        return
+    color = "green" if result.outcome == "pass" else "red"
+    console.print(
+        f"[{color}]{result.outcome}[/{color}]  offer={result.offer.outcome}  "
+        f"elapsed_s={result.offer.elapsed_s:.3f}  budget_s={result.offer.budget_s}"
+    )
+
+
+@operability_app.command("drill-rotation")
+def operability_drill_rotation(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
+    """Local "auth expiry" drill for ``repo``'s stored checkout — reads only
+    the stored ``token_issued_at`` timestamp, never the token value."""
+    result = operability.rotation_drill(repo)
+    if as_json:
+        console.emit_json(dataclasses.asdict(result))
+        return
+    console.print(
+        f"[green]{result.outcome}[/green]  checked_out={result.checked_out}  age_s={result.age_s}  "
+        f"rotation_window_s={result.rotation_window_s}  rotation_due={result.rotation_due}"
+    )
+
+
+@operability_app.command("drill-rollback")
+def operability_drill_rollback(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
+    """Local "rollback" drill: proves ``outbox_approval.revoke()`` fails
+    closed on a never-approved item — never touches the controlling
+    terminal, never requires a human."""
+    result = operability.rollback_drill(repo=repo)
+    if as_json:
+        console.emit_json(dataclasses.asdict(result))
+        return
+    color = "green" if result.outcome == "pass" else "red"
+    console.print(f"[{color}]{result.outcome}[/{color}]  item={result.item_id[:12]}  blocked_reason={result.blocked_reason}")
