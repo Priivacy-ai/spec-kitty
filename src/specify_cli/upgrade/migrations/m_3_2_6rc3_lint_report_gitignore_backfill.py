@@ -26,9 +26,9 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 _LINT_REPORT_ENTRY = ".kittify/lint-report.json"
-# A hand-added entry without the leading directory dedup concern doesn't apply
-# here (this is a single file, not a directory), but keep the same
-# any-equivalent-form check shape as the sibling migrations for consistency.
+# Single file; no equivalent forms (unlike the sibling directory backfills,
+# where `.foo` / `.foo/` / `/.foo/` all count). The frozenset keeps the same
+# any-equivalent-form check shape as the siblings for consistency.
 _EQUIVALENT_ENTRIES: frozenset[str] = frozenset({_LINT_REPORT_ENTRY})
 
 
@@ -36,11 +36,7 @@ def _read_gitignore_entries(project_path: Path) -> set[str]:
     gitignore_path = project_path / ".gitignore"
     if not gitignore_path.exists():
         return set()
-    return {
-        line.strip()
-        for line in gitignore_path.read_text(encoding="utf-8-sig").splitlines()
-        if line.strip() and not line.lstrip().startswith("#")
-    }
+    return {line.strip() for line in gitignore_path.read_text(encoding="utf-8-sig").splitlines() if line.strip() and not line.lstrip().startswith("#")}
 
 
 def _is_missing(present: set[str]) -> bool:
@@ -51,9 +47,9 @@ def _is_missing(present: set[str]) -> bool:
 class LintReportGitignoreBackfillMigration(BaseMigration):
     """Ensure ``.kittify/lint-report.json`` is gitignored."""
 
-    migration_id = "3.2.6_lint_report_gitignore_backfill"
-    description = "Backfill .kittify/lint-report.json gitignore coverage"
-    target_version = "3.2.6"
+    migration_id = "3.2.6rc3_lint_report_gitignore_backfill"
+    description = "Backfill .kittify/lint-report.json gitignore coverage (#3435)"
+    target_version = "3.2.6rc3"
 
     def detect(self, project_path: Path) -> bool:
         return _is_missing(_read_gitignore_entries(project_path))
@@ -75,9 +71,7 @@ class LintReportGitignoreBackfillMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=[])
 
         if not missing:
-            return MigrationResult(
-                success=True, changes_made=["gitignore entry already present"]
-            )
+            return MigrationResult(success=True, changes_made=["gitignore entry already present"])
 
         GitignoreManager(project_path).ensure_entries([_LINT_REPORT_ENTRY])
         return MigrationResult(

@@ -239,14 +239,14 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
         for command in sorted(PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS):
             filename = _compute_filename(command, agent_key)
             file_path = agent_dir / filename
-            rel_path = str(file_path)
+            file_display = str(file_path)
             is_prompt_driven = command in PROMPT_DRIVEN_COMMANDS
 
             if not file_path.exists():
                 issues.append({
                     "agent": agent_key,
                     "command": command,
-                    "file": rel_path,
+                    "file": file_display,
                     "issue": "missing",
                     "severity": "error",
                 })
@@ -258,7 +258,7 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
                 issues.append({
                     "agent": agent_key,
                     "command": command,
-                    "file": rel_path,
+                    "file": file_display,
                     "issue": f"unreadable: {exc}",
                     "severity": "error",
                 })
@@ -273,7 +273,7 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
                 issues.append({
                     "agent": agent_key,
                     "command": command,
-                    "file": rel_path,
+                    "file": file_display,
                     "issue": f"stale or missing version marker (expected: {expected_marker})",
                     "severity": "warning",
                 })
@@ -286,7 +286,7 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
                 issues.append({
                     "agent": agent_key,
                     "command": command,
-                    "file": rel_path,
+                    "file": file_display,
                     "issue": f"prompt-driven command has only {line_count} non-empty lines (expected >50)",
                     "severity": "warning",
                 })
@@ -294,7 +294,7 @@ def check_command_file_health(project_path: Path) -> list[dict[str, str]]:
                 issues.append({
                     "agent": agent_key,
                     "command": command,
-                    "file": rel_path,
+                    "file": file_display,
                     "issue": f"CLI-driven command has {line_count} non-empty lines (expected <15 for thin shim)",
                     "severity": "warning",
                 })

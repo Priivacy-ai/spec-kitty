@@ -380,104 +380,80 @@ def test_live_tree_covers_the_adr_subtree() -> None:
 
 
 # --- diff scope: PRs report only changed published pages (#3316) ------------
+#
+# Every fixture here builds a *real* above-floor tree through ``_build_tree``
+# (real ``docfx.json``, ``_FILLER_COUNT`` filler pages) and drives ``main``
+# through a real git repo, so the shared published-page authority is exercised,
+# never stubbed. That matters: the diff-scoped path re-asserts the corpus floor
+# exactly as the whole-tree path does, and a stubbed authority would hide that.
 
 
-def _stub_published_pages(
-    monkeypatch: pytest.MonkeyPatch, *relative_paths: str
-) -> None:
-    """Stub the published-page authority with the named repo-relative pages."""
-    page_set = PublishedPageSet(
-        pages=frozenset(Path("docs") / relative for relative in relative_paths),
-        source_globs=("**.md",),
-        exclusions=(),
-    )
-
-    def _resolve_page_set(**_kwargs: object) -> PublishedPageSet:
-        return page_set
-
-    monkeypatch.setattr(
-        "scripts.docs.description_length_check._resolve_page_set",
-        _resolve_page_set,
-    )
+def _diff_scoped_argv(docs: Path, root: Path, base: str, *extra: str) -> list[str]:
+    """CLI argv for a strict, diff-scoped run of the gate over ``docs``."""
+    return [
+        "--docs-root",
+        str(docs),
+        "--repo-root",
+        str(root),
+        "--strict",
+        *extra,
+        "--changed-from",
+        base,
+    ]
 
 
 class TestDiffScopeDescriptionCLI:
     """``--changed-from`` behavior through :func:`main` over real git repos."""
 
-    def test_changed_length_violation_reds(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        docs = tmp_path / "docs"
-        _write_page(docs / "existing.md", _desc(100))
+    def test_changed_length_violation_reds(self, tmp_path: Path) -> None:
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
         base_sha = init_git_repo_with_base(tmp_path)
         _write_page(docs / "changed.md", _desc(49))
         commit_all_changes(tmp_path, "add short description")
-        _stub_published_pages(monkeypatch, "existing.md", "changed.md")
 
-        exit_code = main(
-            [
-                "--docs-root",
-                str(docs),
-                "--repo-root",
-                str(tmp_path),
-                "--strict",
-                "--changed-from",
-                base_sha,
-            ]
-        )
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
 
         assert exit_code == 1
 
-    def test_unchanged_preexisting_violation_passes(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        docs = tmp_path / "docs"
-        _write_page(docs / "preexisting.md", _desc(49))
+    def test_unchanged_preexisting_violation_passes(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """A violation confined to an unchanged page is not reported on a PR."""
+        docs = _build_tree(tmp_path, {"preexisting.md": _desc(49)})
         base_sha = init_git_repo_with_base(tmp_path)
         _write_page(docs / "changed.md", _desc(100))
         commit_all_changes(tmp_path, "add valid description")
-        _stub_published_pages(monkeypatch, "preexisting.md", "changed.md")
 
-        exit_code = main(
-            [
-                "--docs-root",
-                str(docs),
-                "--repo-root",
-                str(tmp_path),
-                "--strict",
-                "--changed-from",
-                base_sha,
-            ]
-        )
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha, "--json"))
 
         assert exit_code == 0
+        payload = json.loads(capsys.readouterr().out)
+        # Only the changed page was *reported on*; the corpus was still read.
+        assert payload["checked_count"] == 1
+        assert payload["violations"] == []
 
-    def test_changed_duplicate_compares_with_unchanged_peer(
-        self,
-        tmp_path: Path,
-        monkeypatch: pytest.MonkeyPatch,
-        capsys: pytest.CaptureFixture[str],
-    ) -> None:
-        docs = tmp_path / "docs"
+    def test_only_changed_page_violations_are_reported(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """With violations on both sides of the diff, only the changed one shows."""
+        docs = _build_tree(tmp_path, {"preexisting.md": _desc(49)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "changed.md", _desc(181))
+        commit_all_changes(tmp_path, "add long description")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha, "--json"))
+
+        assert exit_code == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["checked_count"] == 1
+        assert [v["path"] for v in payload["violations"]] == ["docs/changed.md"]
+        assert payload["violations"][0]["reason"] == "too_long"
+
+    def test_changed_duplicate_compares_with_unchanged_peer(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """Uniqueness stays corpus-aware: the unchanged peer is named."""
         shared = _desc(120)
-        _write_page(docs / "existing.md", shared)
+        docs = _build_tree(tmp_path, {"existing.md": shared})
         base_sha = init_git_repo_with_base(tmp_path)
         _write_page(docs / "changed.md", shared)
         commit_all_changes(tmp_path, "add duplicate description")
-        _stub_published_pages(monkeypatch, "existing.md", "changed.md")
 
-        exit_code = main(
-            [
-                "--docs-root",
-                str(docs),
-                "--repo-root",
-                str(tmp_path),
-                "--strict",
-                "--json",
-                "--changed-from",
-                base_sha,
-            ]
-        )
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha, "--json"))
 
         assert exit_code == 1
         payload = json.loads(capsys.readouterr().out)
@@ -491,51 +467,64 @@ class TestDiffScopeDescriptionCLI:
             }
         ]
 
-    def test_resolved_zero_docs_passes(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        docs = tmp_path / "docs"
-        _write_page(docs / "preexisting.md", _desc(49))
+    def test_resolved_zero_docs_passes(self, tmp_path: Path) -> None:
+        """A resolved diff touching no published docs is a clean pass."""
+        docs = _build_tree(tmp_path, {"preexisting.md": _desc(49)})
         base_sha = init_git_repo_with_base(tmp_path)
         (tmp_path / "README.md").write_text("# changed\n", encoding="utf-8")
         commit_all_changes(tmp_path, "change non-docs file")
-        _stub_published_pages(monkeypatch, "preexisting.md")
 
-        exit_code = main(
-            [
-                "--docs-root",
-                str(docs),
-                "--repo-root",
-                str(tmp_path),
-                "--strict",
-                "--changed-from",
-                base_sha,
-            ]
-        )
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
 
         assert exit_code == 0
 
-    def test_unresolvable_base_errors(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        docs = tmp_path / "docs"
-        _write_page(docs / "existing.md", _desc(100))
+    def test_unresolvable_base_errors(self, tmp_path: Path) -> None:
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
         init_git_repo_with_base(tmp_path)
-        _stub_published_pages(monkeypatch, "existing.md")
 
-        exit_code = main(
-            [
-                "--docs-root",
-                str(docs),
-                "--repo-root",
-                str(tmp_path),
-                "--strict",
-                "--changed-from",
-                "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-            ]
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"))
+
+        assert exit_code == EXIT_COVERAGE_FAILURE
+
+    def test_collapsed_corpus_is_a_coverage_failure_on_a_pr(self, tmp_path: Path) -> None:
+        """Diff scoping filters the report, not the corpus floor (FR-003).
+
+        A PR whose published corpus has collapsed below the floor must red with
+        a coverage failure even though the changed subset is tiny — the same
+        malfunction signal the whole-tree path raises.
+        """
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)}, filler=3)
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "existing.md", _desc(101))
+        commit_all_changes(tmp_path, "touch a page in a collapsed tree")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == EXIT_COVERAGE_FAILURE
+
+    def test_diff_scoped_gate_asserts_the_floor_independently_of_the_resolver(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The diff-scoped path re-asserts the floor itself, mirroring the whole-tree path.
+
+        Companion to :func:`test_gate_asserts_the_floor_independently_of_the_resolver`:
+        the resolver raises first in every real run, so the only way to prove the
+        gate's own assertion is load-bearing on this path is to hand it a
+        collapsed set the resolver would not have refused. This is the one
+        place the authority is bypassed, and only to prove the double-assert.
+        """
+        from scripts.docs import description_length_check as gate
+
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        collapsed = PublishedPageSet(
+            pages=frozenset({Path("docs/existing.md")}),
+            source_globs=("**.md",),
+            exclusions=(),
         )
+        monkeypatch.setattr(gate, "_resolve_page_set", lambda **_kw: collapsed)
 
-        assert exit_code not in (0, 1)
+        with pytest.raises(CoverageError) as excinfo:
+            gate.validate_descriptions_diff_scoped(docs_root=docs, repo_root=tmp_path, changed_files=["docs/existing.md"])
+
+        assert str(MINIMUM_EXPECTED_PAGES) in str(excinfo.value)
 
 
 # --- main: the report-only / --strict exit contract (preserved) ------------

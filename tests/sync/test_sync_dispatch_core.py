@@ -28,11 +28,14 @@ import typer
 from specify_cli.delivery.dispatcher import DispatchFailure, DispatchSummary
 from specify_cli.sync.sync_dispatch_core import (
     _OVERSIZED_SYNC_NOW_MESSAGE,
+    _PROTOCOL_MISMATCH_SYNC_NOW_MESSAGE,
     _TRANSIENT_SYNC_NOW_MESSAGE,
     _UNAUTHENTICATED_SYNC_NOW_MESSAGE,
     SyncNowExitAction,
     _batch_is_oversized,
+    _batch_is_protocol_mismatch,
     _combine_dispatch_summaries,
+    _protocol_mismatch_guidance,
     _transient_block_message,
     decide_sync_now_exit,
 )
@@ -254,6 +257,51 @@ class TestBatchIsOversized:
 
 
 # --------------------------------------------------------------------------- #
+# _batch_is_protocol_mismatch / _protocol_mismatch_guidance (#1553)           #
+# --------------------------------------------------------------------------- #
+
+
+def _mismatch_failures(count: int, *, error: str | None = "Run `spec-kitty upgrade` to update to a supported release.") -> tuple[DispatchFailure, ...]:
+    return tuple(DispatchFailure(event_id=f"e{i}", outcome="transient", http_status=412, error=error) for i in range(count))
+
+
+class TestBatchIsProtocolMismatch:
+    def test_wholesale_412_transient_is_protocol_mismatch(self) -> None:
+        assert _batch_is_protocol_mismatch(_summary(selected=2, transient=2, failures=_mismatch_failures(2))) is True
+
+    def test_partial_412_is_not_protocol_mismatch(self) -> None:
+        assert _batch_is_protocol_mismatch(_summary(selected=2, transient=1, failures=_mismatch_failures(1))) is False
+
+    def test_wholesale_413_is_not_protocol_mismatch(self) -> None:
+        failures = tuple(DispatchFailure(event_id=f"e{i}", outcome="transient", http_status=413) for i in range(2))
+        assert _batch_is_protocol_mismatch(_summary(selected=2, transient=2, failures=failures)) is False
+        # ...and the two wholesale predicates never both fire for one batch.
+        assert _batch_is_oversized(_summary(selected=2, transient=2, failures=_mismatch_failures(2))) is False
+
+    def test_empty_batch_is_not_protocol_mismatch(self) -> None:
+        assert _batch_is_protocol_mismatch(DispatchSummary.empty()) is False
+
+
+class TestProtocolMismatchGuidance:
+    def test_surfaces_the_server_guidance_from_the_first_412_failure(self) -> None:
+        summary = _summary(selected=2, transient=2, failures=_mismatch_failures(2))
+        assert _protocol_mismatch_guidance(summary) == "Run `spec-kitty upgrade` to update to a supported release."
+
+    def test_found_even_after_partial_progress_in_the_same_pass(self) -> None:
+        # Earlier batches delivered, then the 412 halted the pass: the combined
+        # summary is not wholesale-transient, but the guidance must still surface.
+        delivered = _summary(selected=3, delivered=3)
+        halted = _summary(selected=2, transient=2, failures=_mismatch_failures(2, error="Pin spec-kitty to a supported release."))
+        combined = _combine_dispatch_summaries(delivered, halted)
+        assert _protocol_mismatch_guidance(combined) == "Pin spec-kitty to a supported release."
+
+    def test_none_when_no_412_failure(self) -> None:
+        failures = (DispatchFailure(event_id="e0", outcome="transient", http_status=503, error="boom"),)
+        assert _protocol_mismatch_guidance(_summary(selected=1, transient=1, failures=failures)) is None
+        assert _protocol_mismatch_guidance(DispatchSummary.empty()) is None
+
+
+# --------------------------------------------------------------------------- #
 # _transient_block_message                                                    #
 # --------------------------------------------------------------------------- #
 
@@ -266,6 +314,11 @@ class TestTransientBlockMessage:
     def test_auth_status_reports_unauthenticated(self) -> None:
         failures = (DispatchFailure(event_id="e0", outcome="transient", http_status=401),)
         assert _transient_block_message(_summary(selected=1, transient=1, failures=failures)) == _UNAUTHENTICATED_SYNC_NOW_MESSAGE
+
+    def test_412_reports_protocol_mismatch_not_auth(self) -> None:
+        # A halted-on-412 pass is a wholesale-transient drain; it must not be
+        # relabeled "not authenticated" nor "batch too large".
+        assert _transient_block_message(_summary(selected=2, transient=2, failures=_mismatch_failures(2))) == _PROTOCOL_MISMATCH_SYNC_NOW_MESSAGE
 
     def test_other_status_reports_generic_transient(self) -> None:
         failures = (DispatchFailure(event_id="e0", outcome="transient", http_status=503),)

@@ -433,7 +433,7 @@ class TestSetupPlanPreflightIntegration:
         must cause ``setup-plan`` to refuse with exit code 2 — and no
         scoped / legacy queue rows may exist after refusal.
 
-        RED today (#3425): the FR-011 auth-refusal gate fires first
+        Before the #3425 fix: the FR-011 auth-refusal gate fires first
         ("SaaS sync cannot be guaranteed") instead of the boundary
         preflight's daemon-owner-mismatch "Refusing" banner, because
         scope resolution on this un-migrated host cannot confirm the
@@ -512,7 +512,7 @@ class TestSetupPlanPreflightIntegration:
         valid auth) — ``setup-plan`` runs through the preflight and
         reaches the queue-write call sites successfully.
 
-        RED today (#3425): even a fully coherent, authenticated host is
+        Before the #3425 fix: even a fully coherent, authenticated host is
         refused with exit code 2 by the FR-011 auth gate, because scope
         resolution depends on the same LayoutMode.LEGACY-broken chain.
         """

@@ -97,7 +97,11 @@ def test_collect_finalize_artifacts_omits_dossiers_candidate_for_unsafe_slug(
     (feature / "tasks.md").write_text("x", encoding="utf-8")
     # A file that a traversal payload could plausibly resolve to, so the
     # assertion is "never collected", not just "path string never equal".
-    escape_target = tmp_path / "kitty-specs" / "evil" / "snapshot-latest.json"
+    # ``feature/.kittify/dossiers/../evil/snapshot-latest.json`` resolves to
+    # ``feature/.kittify/evil/snapshot-latest.json``; the ``dossiers/`` dir must
+    # exist for the unguarded join to traverse there, otherwise the test is vacuous.
+    (feature / ".kittify" / "dossiers").mkdir(parents=True)
+    escape_target = feature / ".kittify" / "evil" / "snapshot-latest.json"
     escape_target.parent.mkdir(parents=True)
     escape_target.write_text("x", encoding="utf-8")
 

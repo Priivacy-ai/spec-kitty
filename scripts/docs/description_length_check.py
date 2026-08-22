@@ -268,7 +268,15 @@ def validate_descriptions_diff_scoped(
     so a changed description cannot duplicate an unchanged peer unnoticed.
     Deleted paths and resolved diffs with no changed docs produce an empty
     report. Changed but unpublished pages are excluded by the shared page-set
-    authority; no non-vacuity floor is applied to the changed subset itself.
+    authority. The corpus-level non-vacuity floor (:func:`_assert_coverage`)
+    is still asserted once the corpus is resolved; no floor is applied to the
+    changed *subset* itself, because zero changed published pages is a valid
+    scoped result.
+
+    Raises
+    ------
+    CoverageError
+        The resolved published corpus is empty or below the non-vacuity floor.
     """
     docs_root_rel = _repo_relative(docs_root, repo_root)
     changed_docs = {
@@ -281,11 +289,14 @@ def validate_descriptions_diff_scoped(
     if not changed_docs:
         return LengthReport()
 
-    # The shared resolver remains the publication authority and enforces the
-    # complete corpus floor in production. No additional non-vacuity floor is
-    # applied to the changed subset: zero published pages in a resolved PR diff
-    # is a valid scoped result.
+    # The shared resolver remains the publication authority, and the corpus
+    # floor is re-asserted here exactly as on the whole-tree path: diff scoping
+    # filters only the *violation report* down to changed pages, never the
+    # corpus the gate trusts. A collapsed corpus is a gate malfunction on a PR
+    # too. Zero published pages in the changed subset is still a valid scoped
+    # result — that check is on the corpus, not on the subset.
     page_set = _resolve_page_set(docs_root=docs_root, docfx_config=docfx_config)
+    _assert_coverage(page_set, docs_root=docs_root)
     descriptions = _collect_descriptions(
         sorted(page_set.pages), docs_root=docs_root, repo_root=repo_root
     )

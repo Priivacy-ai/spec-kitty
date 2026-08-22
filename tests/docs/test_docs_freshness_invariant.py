@@ -228,9 +228,7 @@ def test_all_blocking_per_page_gates_receive_diffscope_flag() -> None:
         "Relative body-link gate",
     )
     for step_name in expected_steps:
-        assert _step_run_contains(
-            workflow, step_name, "steps.diffscope.outputs.flag"
-        ), f"{step_name} step must pass steps.diffscope.outputs.flag"
+        assert _step_run_contains(workflow, step_name, "steps.diffscope.outputs.flag"), f"{step_name} step must pass steps.diffscope.outputs.flag"
 
 
 # --------------------------------------------------------------------------- #

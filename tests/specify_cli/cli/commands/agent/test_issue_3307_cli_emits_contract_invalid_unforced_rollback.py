@@ -48,7 +48,7 @@ _REVIEW_RESULT = ReviewResult(
 
 # The four "review-rejection family" backward edges that spec-kitty-events==6.1.0
 # declares force-required, each with the plan-layer evidence that makes the
-# CLI-local FSM resolve them force-free today.
+# CLI-local FSM resolved them force-free before the #3307 fix.
 _REVIEW_REJECTION_EDGES = [
     (
         "in_review",
@@ -107,7 +107,7 @@ def test_cli_emit_conforms_to_shared_events_contract(
     )
     result = shared_validate_transition(payload)
 
-    # RED today: the CLI emits force=False and the shared contract rejects it.
+    # Guard: the CLI must emit a payload the shared contract accepts (force=True on these edges).
     assert result.valid, (
         f"CLI's build_transition_plan emitted force={plan.emit_force} for "
         f"{old_lane} -> {target_lane}, which the vendored spec-kitty-events "

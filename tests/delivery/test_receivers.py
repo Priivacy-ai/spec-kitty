@@ -379,12 +379,58 @@ def test_batch_level_failure_maps_transient_for_every_event(status_code: int) ->
     assert all(r.http_status == status_code for r in results)
 
 
-def test_protocol_mismatch_412_maps_terminal_failed_with_upgrade_prompt() -> None:
+# -- HTTP 412: protocol-version skew (#1553) ------------------------------------
+#
+# The server's compatibility handshake (spec-kitty-saas ``apps/sync/compatibility.py``)
+# answers 412 when the CLI's advertised protocol version is outside the supported
+# range. That is ENVIRONMENT skew, not a per-event fault: parking the events would
+# strand them in the ledger forever (``TERMINAL_STATUSES`` are never re-selected
+# and ``target_id`` does not change on upgrade). The mapper therefore keeps them
+# selectable and the dispatch loop halts the pass (tested in test_dispatcher /
+# test_sync_routes / test_sync_dispatch_exec).
+
+
+def test_protocol_mismatch_412_keeps_events_selectable_not_parked() -> None:
     batch = [_event("01JMBY0000000000000000000Q"), _event("01JMBY0000000000000000000R")]
     results = map_batch_response(batch, http_status=412, body={"error": "protocol version mismatch"})
-    assert all(r.outcome is DeliveryOutcome.TERMINAL_FAILED for r in results)
-    assert all(r.effect_certainty is DeliveryEffectCertainty.TERMINAL for r in results)
-    assert all("upgrade" in (r.error or "").lower() for r in results)
+    assert all(r.outcome is DeliveryOutcome.TRANSIENT for r in results)
+    assert all(r.effect_certainty is DeliveryEffectCertainty.KNOWN_NO_EFFECT for r in results)
+    assert all(r.http_status == 412 for r in results)
+    # No server error code -> the CLI's own distinct category, never None.
+    assert all(r.error_category == "protocol_mismatch" for r in results)
+    # Neutral fallback: the mapper must not assume "upgrade" (a too-NEW client
+    # must pin, not upgrade) nor invent a pip command the server never sent.
+    assert all(r.error and "412" in r.error for r in results)
+    assert not any("pip install" in (r.error or "") for r in results)
+
+
+def test_protocol_mismatch_412_prefers_server_upgrade_guidance_and_error_code() -> None:
+    batch = [_event("01JMBY0000000000000000000S")]
+    body = {
+        "ok": False,
+        "error_code": "client-too-new",
+        "error_description": "Client protocol version is above the supported maximum.",
+        "sync_protocol": {
+            "contract_version": "sync-protocol-handshake.v1",
+            "upgrade_guidance": "Pin spec-kitty to a supported release or wait for the SaaS rollout.",
+        },
+    }
+    (result,) = map_batch_response(batch, http_status=412, body=body)
+    assert result.outcome is DeliveryOutcome.TRANSIENT
+    assert result.error == "Pin spec-kitty to a supported release or wait for the SaaS rollout."
+    assert result.error_category == "client-too-new"
+
+
+def test_protocol_mismatch_412_falls_back_to_error_description() -> None:
+    batch = [_event("01JMBY0000000000000000000T")]
+    body = {
+        "error_code": "client-too-old",
+        "error_description": "Client protocol version is below the supported minimum. Run `spec-kitty upgrade` to update.",
+        "sync_protocol": {"upgrade_guidance": ""},
+    }
+    (result,) = map_batch_response(batch, http_status=412, body=body)
+    assert result.error == body["error_description"]
+    assert result.error_category == "client-too-old"
 
 
 def test_oversized_413_maps_terminal_failed() -> None:

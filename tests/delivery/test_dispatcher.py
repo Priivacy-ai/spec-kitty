@@ -476,6 +476,38 @@ class _AdaptiveOversizedStub:
         )
 
 
+class _ProtocolMismatchStub:
+    """A real DeliveryReceiver whose server answers every POST with HTTP 412 (#1553).
+
+    Routes through the canonical :func:`map_batch_response` so the ledger rows
+    it produces are exactly what a Teamspace 412 produces.
+    """
+
+    _BODY = {
+        "error_code": "client-too-old",
+        "error_description": "Client protocol version is below the supported minimum.",
+        "sync_protocol": {"upgrade_guidance": "Run `spec-kitty upgrade` to update to a supported release."},
+    }
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, ...]] = []
+
+    @property
+    def endpoint_url(self) -> str:
+        return "http://localhost/__protocol-mismatch-stub__/api/v1/events/batch/"
+
+    def auth_headers(self) -> dict[str, str]:
+        return {}
+
+    def gates(self) -> tuple[Any, ...]:
+        return ()
+
+    def deliver(self, batch: Any) -> list[DeliveryResult]:
+        events = list(batch)
+        self.calls.append(tuple(event.event_id for event in events))
+        return map_batch_response(events, http_status=412, body=self._BODY)
+
+
 class _KnownNoEffectOnceStub:
     """First call proves no remote effect for evt-0; later calls succeed."""
 
@@ -1491,3 +1523,60 @@ def test_dispatch_activates_coalescing_on_live_path(
     # delivery ledger (D-020): without this, FR-011 coalescing is dead in production.
     assert isinstance(fake.installed_with, SqliteDeliveryLedger)
     assert fake.installed_with.project_uuid == _TEST_PROJECT_UUID
+
+
+# -- HTTP 412 protocol skew halts the pass and parks nothing (#1553) ------------
+
+
+def test_protocol_mismatch_412_halts_pass_after_first_post_and_parks_nothing(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One 412 -> one POST; the rest of the journal is never sent, no row is terminal."""
+    receiver = _ProtocolMismatchStub()
+    runtime = SimpleNamespace(store=store, journal=None, ledger=None, context=context)
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 1)
+
+    summary = sync_module._run_dispatch_batches(runtime, receiver, target_a)
+
+    # Halted after the FIRST POST: evt-1 / evt-2 were never attempted this pass.
+    assert receiver.calls == [("evt-0",)]
+    assert summary.selected == 1
+    assert summary.transient == 1
+    assert summary.terminal_failed == 0
+    assert summary.delivered == 0
+    # The one attempted row is retained as retryable, never parked.
+    assert _ledger_get(store, "evt-0", target_a.target_id).status == "failed_transient"
+    assert _ledger_get(store, "evt-1", target_a.target_id) is None
+    assert _ledger_get(store, "evt-2", target_a.target_id) is None
+    # The server's guidance rides the failure record for the command to print.
+    assert [f.error for f in summary.failures] == ["Run `spec-kitty upgrade` to update to a supported release."]
+
+
+def test_protocol_mismatch_412_events_are_reselected_and_deliver_after_skew_clears(
+    store: ProjectSyncStore,
+    context: ProjectSyncContext,
+    target_a: DeliveryTarget,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The next ``sync now`` (CLI/server now agree) drains everything the 412 halted."""
+    runtime = SimpleNamespace(store=store, journal=None, ledger=None, context=context)
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    halted = sync_module._run_dispatch_batches(runtime, _ProtocolMismatchStub(), target_a)
+    assert halted.transient == 2
+    assert halted.terminal_failed == 0
+    # Everything is still selectable for the next pass (nothing terminal/parked).
+    remaining = _select_with_store(store, target_a.target_id)
+    assert sorted(event.event_id for event in remaining.events) == ["evt-0", "evt-1", "evt-2"]
+
+    healed = StubReceiver()
+    drained = sync_module._run_dispatch_batches(runtime, healed, target_a)
+
+    assert drained.delivered == 3
+    assert drained.terminal_failed == 0
+    assert set(healed.received_event_ids()) == {"evt-0", "evt-1", "evt-2"}
+    for event_id in ("evt-0", "evt-1", "evt-2"):
+        assert _ledger_get(store, event_id, target_a.target_id).status == STATUS_SUCCESS

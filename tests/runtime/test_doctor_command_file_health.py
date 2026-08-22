@@ -263,13 +263,15 @@ def test_oversized_shim_emits_warning(tmp_path: Path, monkeypatch: pytest.Monkey
     assert length_issues, "expected length warning for oversized shim"
 
 
-def test_globalized_project_with_no_local_dir_is_healthy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Regression for #1794: no project-local .claude/commands/ (removed by the
-    3.1.2_globalize_commands migration) must not be reported as 15 missing files
-    when the global command dir has healthy files."""
+def test_globalized_project_with_empty_local_dir_is_healthy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Regression for #1794: a project-local .claude/commands/ left behind by the
+    3.1.2_globalize_commands migration (dir present, spec-kitty files removed)
+    must not be reported as 15 missing files when the global dir is healthy."""
     _patch_global_command_dir(monkeypatch, tmp_path)
     project = _bootstrap_project(tmp_path)
-    assert not (project / ".claude" / "commands").exists()
+    local_dir = project / ".claude" / "commands"
+    local_dir.mkdir(parents=True)  # the migration removes files; the dir often remains
+    assert not list(local_dir.glob("spec-kitty.*"))
 
     def factory(command: str, is_prompt: bool) -> str:
         return _new_layout_prompt() if is_prompt else _new_layout_shim()
@@ -277,7 +279,7 @@ def test_globalized_project_with_no_local_dir_is_healthy(tmp_path: Path, monkeyp
     _write_full_consumer_file_set(tmp_path, factory=factory)
     issues = check_command_file_health(project)
     assert issues == []
-    assert not (project / ".claude" / "commands").exists()
+    assert not list(local_dir.glob("spec-kitty.*"))
 
 
 def test_short_prompt_emits_warning(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

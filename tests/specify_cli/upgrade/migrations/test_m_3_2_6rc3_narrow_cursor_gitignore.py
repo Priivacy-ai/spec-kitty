@@ -61,7 +61,22 @@ def _is_ignored(project_root: Path, path: str) -> bool:
 
 
 class TestIsBlanketCursorLine:
-    @pytest.mark.parametrize("line", [".cursor", ".cursor/", "/.cursor", "/.cursor/"])
+    @pytest.mark.parametrize(
+        "line",
+        [
+            ".cursor",
+            ".cursor/",
+            "/.cursor",
+            "/.cursor/",
+            ".cursor/**",
+            ".cursor/*",
+            "/.cursor/**",
+            "**/.cursor/",
+            "**/.cursor",
+            "**/.cursor/**",
+            "  .cursor/  ",  # surrounding whitespace is stripped
+        ],
+    )
     def test_blanket_patterns_detected(self, line: str):
         assert _is_blanket_cursor_line(line) is True
 
@@ -73,9 +88,15 @@ class TestIsBlanketCursorLine:
             ".cursor/commands/",
             ".cursor/skills/",
             ".cursor/plans",
+            ".cursor/rules/**",
+            "!.cursor/",  # negation re-includes; never a blanket block
+            "!.cursor/rules/contributing.mdc",
             "# .cursor/",
+            "#.cursor",
             "",
             "node_modules/",
+            ".cursorignore",
+            "my.cursor/",
         ],
     )
     def test_non_blanket_patterns_ignored(self, line: str):
@@ -103,9 +124,26 @@ def test_detect_false_when_already_narrowed(tmp_path: Path) -> None:
     assert NarrowCursorGitignoreMigration().detect(tmp_path) is False
 
 
-def test_detect_false_no_gitignore(tmp_path: Path) -> None:
+def test_detect_true_when_no_gitignore_because_narrow_entries_missing(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
-    assert NarrowCursorGitignoreMigration().detect(tmp_path) is True  # narrow entries missing
+    assert NarrowCursorGitignoreMigration().detect(tmp_path) is True
+
+
+def test_apply_without_gitignore_creates_file_with_narrow_entries(tmp_path: Path) -> None:
+    """detect()/can_apply() are True for a project with no .gitignore, so
+    apply() must create the file with the narrow entries rather than raise
+    FileNotFoundError (which would abort ``spec-kitty upgrade``)."""
+    _init_git_repo(tmp_path)
+    assert not tmp_path.joinpath(".gitignore").exists()
+
+    result = NarrowCursorGitignoreMigration().apply(tmp_path)
+
+    assert result.success
+    assert result.changes_made == [f"Added gitignore entry: {entry}" for entry in _NARROW_ENTRIES]
+    content = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
+    for entry in _NARROW_ENTRIES:
+        assert content.count(entry) == 1
+    assert not any(_is_blanket_cursor_line(line) for line in content.splitlines())
 
 
 def test_apply_removes_blanket_and_backfills_narrow_entries(tmp_path: Path) -> None:
@@ -144,6 +182,51 @@ def test_apply_adds_only_missing_narrow_entry(tmp_path: Path) -> None:
     assert result.changes_made == ["Added gitignore entry: .cursor/skills/"]
     content = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
     assert content.count(".cursor/rules/spec-kitty.mdc") == 1
+
+
+def test_apply_removes_every_blanket_form(tmp_path: Path) -> None:
+    """`.cursor/**`-style variants block the directory just as hard as
+    `.cursor/` and must be removed; narrower and negated lines survive."""
+    _init_git_repo(tmp_path)
+    _write_gitignore(
+        tmp_path,
+        ".cursor/**",
+        "**/.cursor/",
+        "/.cursor/",
+        "!.cursor/rules/contributing.mdc",
+        ".cursor/plans",
+        "# .cursor/ is tooling state",
+    )
+
+    result = NarrowCursorGitignoreMigration().apply(tmp_path)
+
+    assert result.success
+    lines = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8").splitlines()
+    assert not any(_is_blanket_cursor_line(line) for line in lines)
+    assert "!.cursor/rules/contributing.mdc" in lines
+    assert ".cursor/plans" in lines
+    assert "# .cursor/ is tooling state" in lines
+    assert sum("blanket line" in c for c in result.changes_made) == 3
+
+
+def test_apply_only_collapses_blank_lines_at_removal_site(tmp_path: Path) -> None:
+    """Removing the blanket line must not rewrite blank-line runs elsewhere in
+    the operator's .gitignore -- an unrelated ``a\n\n\n\nb`` run is preserved
+    byte-for-byte, while the hole left by the removed line is closed."""
+    _init_git_repo(tmp_path)
+    unrelated_run = "a\n\n\n\nb\n"
+    tmp_path.joinpath(".gitignore").write_text(
+        unrelated_run + "\n.cursor/\n\nnode_modules/\n",
+        encoding="utf-8",
+    )
+
+    NarrowCursorGitignoreMigration().apply(tmp_path)
+
+    content = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
+    assert content.startswith(unrelated_run)
+    assert "\n\n\n" not in content[len(unrelated_run) :]
+    assert "node_modules/" in content
+    assert ".cursor/\n" not in content
 
 
 def test_apply_is_idempotent(tmp_path: Path) -> None:

@@ -541,13 +541,12 @@ def test_resolve_git_context_branch_forwards_through_check_lane_gates(
     """#2909 item 2: the invocation-checkout ``branch`` is not dropped mid-chain.
 
     ``test_gec2_real_cross_checkout_branch_drift_gate_refuses`` proves GEC-2/C5 at
-    the ``_evaluate_acceptance_matrix(branch=...)`` entry point directly, and
-    ``test_trio_pure_cores.py`` characterizes (with mocked I/O) that
-    ``collect_feature_summary`` calls ``_resolve_git_context`` and threads its
-    ``branch`` into ``_check_lane_gates``. Neither proves, with REAL git, that a
+    the ``_evaluate_acceptance_matrix(branch=...)`` entry point directly, while
+    ``test_trio_pure_cores.py`` stubs ``_check_lane_gates`` entirely and does not
+    assert which ``branch`` reaches it. Neither proves, with REAL git, that a
     ``branch`` genuinely resolved off a real invocation checkout's HEAD
     (``_resolve_git_context``) survives the ``_check_lane_gates(branch=branch)``
-    hop on its way to the acceptance-matrix gate. This test closes that gap: if
+    hop on its way to the acceptance-matrix gate. This test covers that hop: if
     ``_check_lane_gates`` (or ``_evaluate_branch_gate`` inside it) dropped the
     ``branch`` kwarg mid-chain, this gate would silently judge the drifted
     surface instead of refusing — the exact regression #2909 asks to be closed
@@ -555,8 +554,11 @@ def test_resolve_git_context_branch_forwards_through_check_lane_gates(
 
     (``collect_feature_summary`` itself is not used as the entry point here: it
     also drives WP-metadata collection, which — separately from anything #2909
-    asks for — does not support being invoked from a linked worktree. That gap is
-    out of scope for this branch-forwarding test.)
+    asks for — does not support being invoked from a linked worktree
+    (``summary_core.py`` ``wp.path.relative_to(repo_root)`` raises ``ValueError``).
+    So the top-level ``collect_feature_summary -> _check_lane_gates(branch)`` hop
+    remains uncovered pending that defect; #2909 item 2 is therefore only
+    partially covered by this test.)
     """
     ctx = flat_topology_mission
     mission_branch = f"kitty/mission-{ctx.slug}"

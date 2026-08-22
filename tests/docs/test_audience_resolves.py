@@ -296,4 +296,4 @@ class TestDiffScopeAudienceCLI:
             ]
         )
 
-        assert exit_code not in (0, 1)
+        assert exit_code == 2
