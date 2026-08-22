@@ -452,10 +452,12 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   no CLI/upgrade entry point invokes it yet; wire (upgrade migration or
         #   `spec-kitty` subcommand) or delete after the migration window.
         "specify_cli.status.migrate_lifecycle_envelope",
-        #   TODO(triage): TRK-M1-04 deny-by-default bd gateway -- exercised by the
-        #   tracker Docker-local E2E (docker-cp) but not imported by any src/
-        #   runtime caller; wire from the Beads/native tracker adapter.
-        "specify_cli.tracker.gateway",
+        # tracker.gateway: REMOVED (WIRE-M2-01, 2026-08-22). Wired into
+        #   LocalTrackerService._build_engine (local_service.py) -- Beads
+        #   mutations now build their connector via
+        #   gateway.build_gateway_beads_connector instead of the ungated
+        #   factory.build_connector, so the module has a live src/ caller and
+        #   is no longer an orphan. Shrink 7 -> 6.
         #   TODO(triage): Z1-T1 zeitgeist_client grammar -- consumed only by tests;
         #   wire from the client/adapters or delete.
         "specify_cli.zeitgeist_client.grammar",

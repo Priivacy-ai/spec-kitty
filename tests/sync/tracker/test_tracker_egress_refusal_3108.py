@@ -106,6 +106,7 @@ import asyncio
 import contextlib
 import hashlib
 import importlib
+import importlib.util
 import json
 import os
 import stat
@@ -177,6 +178,43 @@ CONSENTING_PROJECT_UUID = "6f1c2f2e-59a1-4a1f-9a2e-0f1c2f2e59a1"
 _ARMING_DISABLED_FRAGMENT = "Hosted SaaS sync is not enabled on this machine. Set"
 
 RUNNER = CliRunner()
+
+# ---------------------------------------------------------------------------
+# WIRE-M2-01 (2026-08-22): a *consenting* cell's ``_build_local_fixture`` binds a
+# ``beads`` connector, and ``LocalTrackerService._build_engine`` now routes ``beads``
+# connector construction through the local program gateway (TRK-M1-04,
+# ``tracker/gateway.py``'s ``build_gateway_beads_connector``), never the ungated
+# ``factory.build_connector`` this file's own H2 hazard-defeat measured as having
+# "no injection seam to patch" -- that was a true description of the pre-WIRE-M2-01
+# tree and is no longer true of this one. The gateway needs
+# ``spec_kitty_tracker.context.LocalExecutionContext``, added in the landed
+# TRK-M1-02/03 kernel (0.5.x) but not yet published to PyPI --
+# ``pyproject.toml`` pins ``spec-kitty-tracker>=0.4,<0.5`` deliberately (see
+# ``docs/development/how-to/local-overrides.md`` Pattern A). Every cell below whose
+# consenting/remedied path must actually *reach the recorder script* (exit_code == 0,
+# argv captured) is therefore skipped under the pinned range, mirroring the same
+# version gate already applied to ``tests/sync/tracker/test_gateway.py``'s
+# ``_require_gateway_tracker()`` and
+# ``tests/contract/spec_kitty_tracker_consumer/test_consumer_contract.py``.
+#
+# This is purely additive to what this file exists to pin: the #3108 egress-consent
+# gate (``tracker_egress_verdict``) still refuses *before* ``_build_engine`` ever
+# runs, so every *refusing* cell in this file -- the actual subject of the Mission
+# this file belongs to -- is completely unaffected and stays green, unskipped, here.
+# Once spec-kitty-tracker>=0.5 is published and the pin in ``pyproject.toml`` is
+# bumped, every skipped cell below reactivates automatically and now additionally
+# proves the consenting call survives TRK-M1-04's deny-by-default allow-list.
+_BEADS_GATEWAY_TRACKER_AVAILABLE = importlib.util.find_spec("spec_kitty_tracker.context") is not None
+requires_beads_gateway_tracker = pytest.mark.skipif(
+    not _BEADS_GATEWAY_TRACKER_AVAILABLE,
+    reason=(
+        "WIRE-M2-01: a beads connector now requires spec-kitty-tracker>=0.5 "
+        "(TRK-M1-04 program gateway, tracker/gateway.py build_gateway_beads_connector); "
+        "the pinned range is >=0.4,<0.5 (pyproject.toml). Does not touch the #3108 "
+        "egress-consent gate this file pins -- only consenting/remedied cells that must "
+        "reach the connector are skipped; refusing cells are unaffected."
+    ),
+)
 
 
 # ---------------------------------------------------------------------------
@@ -657,6 +695,7 @@ class TestT004PositiveControls:
     un-gated base, before any refusing pin in this file means anything.
     """
 
+    @requires_beads_gateway_tracker
     def test_seeded_push_control_captures_exactly_3_argv_with_sentinel(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -686,6 +725,7 @@ class TestT004PositiveControls:
             "the consenting control must actually change the tracker db's bytes, or the refusing members' byte-identity assertion is vacuous (NFR-002a)"
         )
 
+    @requires_beads_gateway_tracker
     def test_unseeded_push_control_captures_exactly_1_argv(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -703,6 +743,7 @@ class TestT004PositiveControls:
         assert argvs[0][1:] == ["--json", "list"]
         assert not _sentinel_in_argvs(argvs)
 
+    @requires_beads_gateway_tracker
     def test_pull_control_argv_shape(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -755,6 +796,7 @@ class TestUS1TrackerRefusesWithoutRefusingHostedSync:
         assert result.exit_code != 0
         assert "Channel 2" in result.output or "tracker.egress" in result.output
 
+    @requires_beads_gateway_tracker
     def test_sc2_channel2_absent_is_the_positive_control(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Must pass: this is what makes sc1's absence assertion mean anything."""
         fx = _build_local_fixture(
@@ -792,6 +834,7 @@ class TestUS1TrackerRefusesWithoutRefusingHostedSync:
 class TestUS2LocalTrackerWithoutHostedConsent:
     """US2: no hosted-sync consent record at any level; Channel 2 (tracker key) varies."""
 
+    @requires_beads_gateway_tracker
     def test_sc1_channel2_permits_independent_of_channel1(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Green on the base (nothing gates the local path today) and green after (Channel 2
         grants independently of Channel 1)."""
@@ -825,6 +868,7 @@ class TestUS2LocalTrackerWithoutHostedConsent:
         assert result.exit_code != 0
         assert "Channel 1" in result.output
 
+    @requires_beads_gateway_tracker
     def test_sc3_recorded_hosted_refusal_does_not_veto_explicit_tracker_grant(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Green on the base (nothing gates the local path today) and green after (Channel 2's
         grant is independent of a recorded hosted-sync refusal)."""
@@ -895,6 +939,7 @@ class TestUS3UngatedLocalPathRefusesWhenNeitherChannelPermits:
         # Distinct from sc1's "no record" wording -- both refuse, but for a different reason.
         assert "no record" not in result.output.lower()
 
+    @requires_beads_gateway_tracker
     def test_sc3_positive_control_three_argv(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -934,6 +979,7 @@ class TestUS3UngatedLocalPathRefusesWhenNeitherChannelPermits:
         assert "no record" in result.output.lower()
         assert "tracker.egress" in result.output or "Channel 2" in result.output
 
+    @requires_beads_gateway_tracker
     def test_sc4_unseeded_pair_consenting_creates_file_and_one_argv(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -981,6 +1027,7 @@ class TestUS4TotalityAcrossThreeEntryPoints:
         assert "no record" in result.output.lower()
         assert "tracker.egress" in result.output or "Channel 2" in result.output
 
+    @requires_beads_gateway_tracker
     def test_pull_consenting_control(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -1013,6 +1060,7 @@ class TestUS4TotalityAcrossThreeEntryPoints:
         assert "no record" in result.output.lower()
         assert "tracker.egress" in result.output or "Channel 2" in result.output
 
+    @requires_beads_gateway_tracker
     def test_run_consenting_both_halves_carry_sentinel(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -1171,6 +1219,7 @@ class TestUS6ExecutedRemedies:
     re-run, and assert the sentinel now reaches the recorder. All committed red on the base: the
     pre-remedy refusal assertion itself is what is red today (nothing gates the local path yet)."""
 
+    @requires_beads_gateway_tracker
     def test_no_record_remedy_sync_enabled_true_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -1202,6 +1251,7 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
+    @requires_beads_gateway_tracker
     def test_no_record_remedy_spec_kitty_sync_opt_in_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.sync.routing import enable_checkout_sync
 
@@ -1227,6 +1277,7 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
+    @requires_beads_gateway_tracker
     def test_no_record_remedy_tracker_egress_permitted_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -1259,6 +1310,7 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
+    @requires_beads_gateway_tracker
     def test_recorded_refusal_remedy_change_decision_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -1288,6 +1340,7 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
+    @requires_beads_gateway_tracker
     def test_recorded_refusal_remedy_channel2_grant_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         fx = _build_local_fixture(
             tmp_path,
@@ -1315,6 +1368,7 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
+    @requires_beads_gateway_tracker
     def test_not_consentable_remedy_channel2_grant_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Not-consentable: no project.uuid at all, so `enable_checkout_sync` would raise
         `ConsentIdentityUnresolvedError` and hand-authoring `sync.enabled: true` still denies
@@ -1346,6 +1400,7 @@ class TestUS6ExecutedRemedies:
         assert post.exit_code == 0, post.output
         assert _sentinel_in_argvs(fx.captured())
 
+    @requires_beads_gateway_tracker
     def test_not_consentable_remedy_mint_identity_then_channel1_committed_red(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """SC-007's **first** not-consentable remedy: mint an identity, *then* record Channel 1.
 
