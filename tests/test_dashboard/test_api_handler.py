@@ -177,7 +177,7 @@ class TestFeaturesEndpointErrorHandling:
             "id": "001-test",
             "name": "Test Feature",
             "path": "kitty-specs/001-test",
-            "meta": {"mission": "mystery-mission"},
+            "meta": {"mission_type": "mystery-mission"},
         }
 
         handler = MagicMock()
