@@ -380,6 +380,9 @@ class TestHttpsBundleSource:
             "https://\u0301bad.example/artifactory/repo/pack.tar.gz",
             f"https://{'.'.join(['é' * 20] * 10)}/artifactory/repo/pack.tar.gz",
             "https://[v1.fe]/artifactory/repo/pack.tar.gz",
+            "https://download.example\\@metadata.example/artifactory/repo/pack.tar.gz",
+            "https://download.example\t@metadata.example/artifactory/repo/pack.tar.gz",
+            "https://download.example\n@metadata.example/artifactory/repo/pack.tar.gz",
         ],
     )
     def test_invalid_authority_fails_without_request(
@@ -396,6 +399,10 @@ class TestHttpsBundleSource:
 
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.get",
+            _unexpected_get,
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post",
             _unexpected_get,
         )
 
@@ -437,7 +444,9 @@ class TestHttpsBundleSource:
 
         assert result.ok is False
         assert calls
-        assert set(calls) == {valid_url}
+        prepared_url = requests.Request(method="GET", url=valid_url).prepare().url
+        assert prepared_url is not None
+        assert set(calls) == {prepared_url}
 
     def test_tar_gz_extraction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
