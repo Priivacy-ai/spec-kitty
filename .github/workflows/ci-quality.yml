@@ -391,6 +391,14 @@ jobs:
               # selected by a CI gate rather than tripping
               # test_no_new_orphan_surfaces (C-006 gate-coverage registration).
               - 'tests/acceptance/**'
+              # Z1-T1 (m1-contract-drafts/Z1.md): the bundled Zeitgeist client
+              # subpackage. New test/src roots — claimed here (the catch-all
+              # misc shard) rather than a dedicated group, matching
+              # tests/kernel, tests/core, etc. above, so a change confined to
+              # either root is structurally collected on push
+              # (tests/architectural/test_ci_collection_completeness.py).
+              - 'src/specify_cli/zeitgeist_client/**'
+              - 'tests/zeitgeist_client/**'
             e2e:
               - '.github/workflows/ci-quality.yml'
               - 'tests/e2e/**'
