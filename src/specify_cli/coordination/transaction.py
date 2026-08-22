@@ -418,7 +418,9 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 operation=operation,
                 capability=capability,
             )
-            caller_verdict = WorkflowMutationPolicy.assert_allowed(caller_change_set)
+            caller_verdict = WorkflowMutationPolicy.assert_allowed(
+                caller_change_set, coord_available=True
+            )
             if isinstance(caller_verdict, Refused):
                 explicit_coord_branch = _coordination_branch_from_meta(
                     repo_root, safe_mission_slug, safe_mid8,
@@ -491,7 +493,19 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             operation=operation,
             capability=capability,
         )
-        verdict = WorkflowMutationPolicy.assert_allowed(change_set)
+        # #3536: thread coord-availability so the PROTECTED_BRANCH_REFUSED remedy
+        # branches (coord-available keeps the coordination-transaction remedy;
+        # lanes/single_branch gets a followable no-coord remedy). The topology fact
+        # is sourced from the commit_router SSOT, not a local surrogate. Imported
+        # inside the function to avoid a coordination-package import cycle.
+        from specify_cli.coordination.commit_router import (
+            mission_has_coordination_branch,
+        )
+
+        coord_available = mission_has_coordination_branch(repo_root, safe_mission_slug)
+        verdict = WorkflowMutationPolicy.assert_allowed(
+            change_set, coord_available=coord_available
+        )
         if isinstance(verdict, Refused):
             raise BookkeepingPolicyRefused(verdict)
         # ``Allowed`` — fall through.

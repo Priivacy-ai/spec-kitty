@@ -120,6 +120,32 @@ class CommitRouterResult:
 
 
 # ---------------------------------------------------------------------------
+# Shared coord-availability predicate (#3536 / FR-005; #2739 convergence)
+# ---------------------------------------------------------------------------
+
+
+def mission_has_coordination_branch(repo_root: Path, mission_slug: str) -> bool:
+    """Return ``True`` iff the mission's stored topology mints a coordination branch.
+
+    The SINGLE authoritative coord-availability answer at the commit-routing seam
+    (FR-005). It composes ``routes_through_coordination(resolve_topology(...))`` —
+    the very predicate this router already uses to decide ``use_coord`` — so it
+    never restates the 2×2 routing subset and never re-derives a surrogate:
+    ``COORD`` / ``LANES_WITH_COORD`` → ``True``; ``LANES`` / ``SINGLE_BRANCH`` →
+    ``False`` (no coord branch is ever minted).
+
+    Consumed by the #3536 no-coord refusal-remedy branch in
+    :meth:`specify_cli.coordination.policy.WorkflowMutationPolicy.assert_allowed`
+    (threaded in as ``coord_available``) AND by epic **#2739**'s protected-primary
+    sub-issues, so both fixes converge on ONE predicate rather than each minting a
+    local ``coordination_branch is None`` check (INV-3536-3). The policy layer
+    stays a pure function of its inputs: it consumes this answer, never re-computes
+    it.
+    """
+    return routes_through_coordination(resolve_topology(repo_root, mission_slug))
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 
