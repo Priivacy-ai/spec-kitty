@@ -80,7 +80,7 @@ JobKey = tuple[str, str]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
-# The five workflows that actually run the pytest suite (the others lint, build,
+# The workflows that actually run the pytest suite (the others lint, build,
 # or sync and select no tests). ``ui-e2e.yml`` is the scoped Playwright
 # dashboard e2e gate (issue #1008): a standalone, drift-detector-shaped
 # workflow (own trigger, single job, no dorny filter, no quality-gate
@@ -88,6 +88,13 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 # ``discover_pytest_workflows`` (FR-008 fail-closed) stays equal to this
 # allowlist and the ``tests/ui/`` e2e carrier is a covered — not orphan —
 # surface (so the ``e2e`` marker keeps its ROUTED-BY-PATH home).
+# ``performance.yml`` (ADR 2026-08-22-1) is the same shape as ``ui-e2e.yml``:
+# a standalone, non-gating, off-PR (schedule + workflow_dispatch only)
+# per-domain ``pytest-benchmark`` pipeline with no dorny filter and no
+# ``quality-gate`` membership — it is the sole real CI home of the
+# ``performance`` marker (the retired on-PR ``timing-nfr-serial`` gate is not
+# replaced by a gating equivalent; see ci-quality.yml's `unit-contract-residual`
+# job comment for the companion residual-negation update).
 # ``module-kernel.yml`` (mission #3447) is a reusable ``on: workflow_call``
 # workflow that ci-quality invokes for the ``kernel-tests`` job. It is NOT an
 # independent suite runner: :func:`_splice_local_uses` inlines its steps into
@@ -101,6 +108,7 @@ WORKFLOW_FILES: tuple[str, ...] = (
     "ci-windows.yml",
     "doctrine-charter-tests.yml",
     "drift-detector.yml",
+    "performance.yml",
     "release.yml",
     "ui-e2e.yml",
 )
@@ -349,7 +357,7 @@ def parse_workflow(path: Path) -> list[Gate]:
 
 
 def load_gates() -> list[Gate]:
-    """Parse all five suite-running workflows into the full gate list."""
+    """Parse all suite-running workflows (:data:`WORKFLOW_FILES`) into the full gate list."""
     gates: list[Gate] = []
     for name in WORKFLOW_FILES:
         gates.extend(parse_workflow(WORKFLOWS_DIR / name))
@@ -1480,7 +1488,7 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
 
 
 def load_workflow_models() -> dict[str, WorkflowModel]:
-    """Parse all five suite-running workflows into ``name -> WorkflowModel``."""
+    """Parse all suite-running workflows (:data:`WORKFLOW_FILES`) into ``name -> WorkflowModel``."""
     return {
         name: load_workflow_model(WORKFLOWS_DIR / name) for name in WORKFLOW_FILES
     }

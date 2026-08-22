@@ -44,7 +44,7 @@ _TRIGGER_DISJOINT_FAST_JOBS = frozenset({"fast-tests-corpus"})
 
 @pytest.fixture(scope="module")
 def gates() -> list[gc.Gate]:
-    """All parsed CI selection gates across the four suite-running workflows."""
+    """All parsed CI selection gates across the suite-running workflows."""
     return gc.load_gates()
 
 

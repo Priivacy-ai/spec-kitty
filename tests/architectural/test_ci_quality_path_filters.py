@@ -59,7 +59,6 @@ _CORE_MISC_REPLACEMENT_JOBS = frozenset(
     {
         "integration-tests-core-misc",
         "arch-adversarial",
-        "timing-nfr-serial",
         "regression-tests",
         "quarantine-visibility",
         "e2e-cross-cutting",

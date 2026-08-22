@@ -2206,63 +2206,6 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # timing-nfr-serial: issue #2032 (mission
-  # wp-prompt-latency-flake-isolation-01KWWWAC). The two
-  # test_wp_prompt_build_latency.py tests were moved off the parallel
-  # arch-adversarial pole (``and not timing`` added to both its selectors
-  # above) because co-scheduled CPU contention there corrupted their
-  # single-sample wall-clock measurement (#2032: a CHANGELOG-only diff
-  # flipped PASSED->FAILED). This job is their new home: a dedicated serial
-  # (``-n0``) ``-m timing`` run where no concurrent load can corrupt the
-  # sample.
-  #
-  # Scoped to the WHOLE tree by marker (not just the WP-prompt file): the
-  # ``and not timing`` addition above is a shared expression across every
-  # shard of ``integration-tests-core-misc`` / ``arch-adversarial``, so it
-  # also newly excludes ``tests/git/test_protection_config_honoring.py``'s
-  # pre-existing ``@pytest.mark.timing`` class (whose own docstring already
-  # said "do not wall-clock in the parallel shard" — that intent was never
-  # wired into CI until now). Selecting ``-m timing`` over ``tests/`` picks up
-  # every such carrier by construction, so this fix cannot silently orphan an
-  # existing timing-marked test the same way it rescues the WP-prompt ones
-  # (Issue #2034 anti-pattern). ``--ignore`` excludes
-  # ``test_doctor_restart_daemon_timing.py``: that file's tests stay the sole
-  # responsibility of ``restart-daemon-nfr-timing`` below (the historical job
-  # id is retained for aggregation compatibility; it uses the controlled Linux
-  # runner and is cli-gated by design) — ignoring it here prevents a double-run.
-  #
-  # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group ``if:``
-  # gate, no ``needs`` edge — mirrors the arch-adversarial pole above, NOT the
-  # ``restart-daemon-nfr-timing`` job below. That job gates on
-  # ``needs.changes.outputs.cli`` (the ``cli`` filter covers only
-  # ``src/specify_cli/cli/**``), but the code under test here
-  # (``src/runtime/next/prompt_builder.py``) is NOT under that path — gating
-  # this job the same way would silently skip the NFR on the very
-  # prompt-builder PRs it exists to guard (defeats SC-003). Emits no
-  # coverage XML (a pure timing gate), so it is absent from any
-  # ``--cov``-consumer's ``needs:`` by construction — it IS added to
-  # ``quality-gate.needs`` below so a red timing gate still blocks merge.
-  # ---------------------------------------------------------------------------
-  timing-nfr-serial:
-    name: Timing NFR gate (serial, -m timing)
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    if: ${{ (always()) && !contains(github.event.pull_request.labels.*.name, 'pr:deferred') && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-      - run: uv sync --frozen --all-extras
-      - name: "Run timing-marked NFR gates (serial, -m timing)"
-        run: |
-          uv run python -m pytest \
-            tests/ \
-            --ignore=tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py \
-            -m timing \
-            -n0 \
-            -q --tb=short
-
-  # ---------------------------------------------------------------------------
   # stress-tests-serial: issue #3256 (mission
   # verdict-seam-boundary-hardening-01KZG179).
   # ``tests/status/test_emit_durability.py::test_two_concurrent_distinct_
@@ -2277,23 +2220,24 @@ jobs:
   # mark cannot be selectively withheld from one test without also stripping
   # it from the other five. This job is the dedicated home for the whole
   # ``stress`` family: the pre-existing ``tests/stress/test_concurrent_
-  # emits.py`` plus the durability test above. Mirrors ``timing-nfr-serial``
-  # immediately above: a dedicated serial (``-n0``) run so concurrent CI load
-  # can never corrupt a multi-process, timing-sensitive assertion. A generous
+  # emits.py`` plus the durability test above. A dedicated serial (``-n0``)
+  # run so concurrent CI load can never corrupt a multi-process,
+  # timing-sensitive assertion (the pattern the retired ``timing-nfr-serial``
+  # job — ADR 2026-08-22-1, folded into the off-PR ``performance.yml``
+  # pipeline — used to follow too). A generous
   # ``--timeout`` guards against a hung fork leaving the job open
   # indefinitely -- well above the durability test's own internal 30s waits
   # and the concurrent-emits suite's nominal runtime.
   #
   # POSIX-only (fork): ``multiprocessing.get_context("fork")`` is POSIX-only,
   # so this job only ever needs to run on a Linux runner. ``-m "stress and
-  # not windows_ci"`` mirrors the same narrowing ``timing-nfr-serial`` and the
-  # arch-adversarial pole apply, so a future ``windows_ci``-marked stress test
-  # (none exist today) is excluded here by construction rather than by
-  # runner-OS luck.
+  # not windows_ci"`` mirrors the same narrowing the arch-adversarial pole
+  # applies, so a future ``windows_ci``-marked stress test (none exist today)
+  # is excluded here by construction rather than by runner-OS luck.
   #
   # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group
-  # ``if:`` gate, no ``needs`` edge -- mirrors ``timing-nfr-serial`` above,
-  # not the OS-matrixed ``restart-daemon-nfr-timing`` job below. Emits no
+  # ``if:`` gate, no ``needs`` edge -- not the OS-matrixed
+  # ``restart-daemon-nfr-timing`` job below. Emits no
   # coverage XML (a pure NFR gate), so it is absent from any
   # ``--cov``-consumer's ``needs:`` by construction -- it IS added to
   # ``quality-gate.needs`` below so a red stress gate still blocks merge.
@@ -2987,8 +2931,16 @@ jobs:
           # onto the -n auto pool AND double-run vs its own serial job. The
           # marker negation alone does not cover it; the ignore is the structural
           # guard (mirrors slow-tests). See tests/_real_port_suites.py.
+          #
+          # `performance` (ADR 2026-08-22-1): negated here so a future
+          # unit/contract-marked performance test is not double-swept by both
+          # this whole-tree residual AND the dedicated off-PR performance.yml
+          # pipeline -- pytest.ini's conftest chokepoint already skips it at
+          # runtime, but the residual expression must still name it (pinned by
+          # tests/architectural/test_marker_job_completeness.py's
+          # test_residual_expression_excludes_every_routed_runnable_marker).
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or stress or docs_scoped or corpus or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or performance or stress or docs_scoped or corpus or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
             -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \
             --ignore=tests/sync/test_daemon_orphan_classification.py \
@@ -4341,7 +4293,6 @@ jobs:
       - integration-tests-agent
       - integration-tests-core-misc
       - arch-adversarial
-      - timing-nfr-serial
       - stress-tests-serial
       - e2e-cross-cutting
       - restart-daemon-nfr-timing
