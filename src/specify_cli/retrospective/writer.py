@@ -205,10 +205,11 @@ def _atomic_write_yaml(data: dict[str, Any], canonical: Path, target_dir: Path) 
     a diff or terminal; the #3057 normalizer (invoked inside
     ``write_mapping_atomic``) strips the trailing-whitespace artifact that
     wrapping produces, so the two are a deliberate pairing, not competing
-    patches. ``test_atomic_write_yaml_strips_trailing_whitespace_from_wrapped_scalars``
-    (tests/retrospective/test_writer_atomicity.py) asserts the wrap actually
-    happens at 120 and would need updating if this width ever changes — do
-    not raise it to 4096 to "align" with the kernel default.
+    patches. ``test_atomic_write_yaml_wraps_prose_scalars_at_120_columns``
+    (tests/retrospective/test_writer_atomicity.py) writes a >120-char prose
+    scalar through this function and asserts it wraps with no line over 120
+    columns, so it goes RED if this width is raised — do not raise it to 4096
+    to "align" with the kernel default.
 
     Raises:
         WriterError: On any IO or serialization error.  The tempfile is

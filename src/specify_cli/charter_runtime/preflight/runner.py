@@ -237,6 +237,9 @@ def _build_checks(freshness: CharterFreshness) -> list[CharterPreflightCheck]:
         result.append(
             CharterPreflightCheck(
                 name=layer_key,
+                # FreshnessState is a strict subset of CheckState and the fail-closed
+                # "invalid" fallback above is itself a CheckState member, so the cast
+                # narrows an honest value; it is not a suppression.
                 state=cast(CheckState, state),
                 detail=str(detail),
                 remediation=str(remediation) if remediation else None,

@@ -1236,7 +1236,7 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[SymbolKey] = frozenset(
         ),  # specify_cli.merge.ordering::_already_baked
         # specify_cli.merge.ordering::_compute_next_mission_number_or_none
         SymbolKey(
-            "_compute_next_mission_number_or_none", "a1b9c06e3368d481c463b2c09a7a9055923219ddc4de8cd33d6d52bc5f73182d", source_module="specify_cli.merge.ordering"
+            "_compute_next_mission_number_or_none", "32f0afcfac598370943cc22e92dd3d6a872ed577a777fef381130351ec3a1529", source_module="specify_cli.merge.ordering"
         ),
         # specify_cli.merge.ordering::_is_assigned_mission_number
         SymbolKey("_is_assigned_mission_number", "4da9f3fde4e20df83693697787af0a7ef0e4399b21c99bd102b9b3a899e34fe1", source_module="specify_cli.merge.ordering"),

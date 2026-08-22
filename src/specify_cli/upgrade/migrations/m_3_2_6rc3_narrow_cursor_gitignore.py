@@ -41,10 +41,12 @@ _NARROW_ENTRIES = [
     ".cursor/skills/",
 ]
 
-# Matches a line that blocks the entire .cursor directory: `.cursor`,
-# `.cursor/`, or either form anchored with a leading slash. Does not match
-# narrower subpath patterns like `.cursor/rules/` or `.cursor/plans`.
-_BLANKET_PATTERN = re.compile(r"^/?\.cursor/?$")
+# Matches a line that blocks the entire .cursor directory in any of the
+# forms git treats as equivalent: `.cursor`, `.cursor/`, `.cursor/*`,
+# `.cursor/**`, optionally anchored with a leading `/` or prefixed with
+# `**/`. Does not match narrower subpath patterns like `.cursor/rules/` or
+# `.cursor/plans`, nor negations (`!.cursor/...`) or comments.
+_BLANKET_PATTERN = re.compile(r"^(/|\*\*/)?\.cursor(/|/\*{1,2})?$")
 
 
 def _is_blanket_cursor_line(line: str) -> bool:
@@ -61,15 +63,35 @@ def _find_blanket_lines(gitignore_path: Path) -> list[str]:
     return [line for line in content.splitlines() if _is_blanket_cursor_line(line)]
 
 
+def _strip_blanket_lines(lines: list[str]) -> tuple[list[str], int]:
+    """Drop blanket lines, closing only the hole each removal leaves behind.
+
+    When a removed line sat between two blank lines, the trailing blank is
+    dropped so the removal does not create a new double-blank run at that
+    spot. Blank-line runs elsewhere in the operator's file are untouched.
+    """
+    kept: list[str] = []
+    removed = 0
+    just_removed = False
+    for line in lines:
+        if _is_blanket_cursor_line(line):
+            removed += 1
+            just_removed = True
+            continue
+        if just_removed and not line.strip() and kept and not kept[-1].strip():
+            continue
+        just_removed = False
+        kept.append(line)
+    return kept, removed
+
+
 def _remove_blanket_lines(gitignore_path: Path) -> int:
+    if not gitignore_path.exists():
+        return 0
     content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
-    lines = content.splitlines(keepends=True)
-    kept = [line for line in lines if not _is_blanket_cursor_line(line)]
-    removed = len(lines) - len(kept)
+    kept, removed = _strip_blanket_lines(content.splitlines(keepends=True))
     if removed:
-        new_content = "".join(kept)
-        new_content = re.sub(r"\n{3,}", "\n\n", new_content)
-        gitignore_path.write_text(new_content, encoding="utf-8")
+        gitignore_path.write_text("".join(kept), encoding="utf-8")
     return removed
 
 

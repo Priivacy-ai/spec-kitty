@@ -171,6 +171,12 @@ def resolve_audiences_diff_scoped(
     outside ``docs_root/**/*.md`` are skipped. Unlike the whole-tree walk, this
     mode deliberately has no non-vacuity floor: a successfully resolved diff
     with no in-scope docs is a clean pass.
+
+    Accepted limitation (same as #3312): a PR that deletes or renames a persona
+    under ``docs/context/audience/`` without touching any referring page passes
+    this PR-scoped gate, because no referrer is in the diff. The ``push:main``
+    whole-tree run (:func:`resolve_audiences`) is the backstop that catches the
+    newly dangling references.
     """
     catalog = (catalog_root or repo_root / DEFAULT_CATALOG_ROOT).resolve()
     docs_root_rel = _repo_relative(docs_root, repo_root)

@@ -419,7 +419,7 @@ When working on spec-kitty:
 
 ## Release Process
 
-Spec Kitty follows a structured release process using GitHub Actions for automated PyPI publishing. The "Quick Release" and "Full Release" sections below are the canonical, step-by-step runbook for AI agents and humans alike — there is no separate `/release` skill.
+Spec Kitty follows a structured release process using GitHub Actions for automated PyPI publishing. The "Quick Release" and "Full Release" sections below are the canonical, step-by-step runbook for AI agents and humans alike.
 
 ### Branch Strategy
 

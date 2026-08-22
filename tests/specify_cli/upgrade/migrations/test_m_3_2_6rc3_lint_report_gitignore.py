@@ -10,18 +10,18 @@ knowingly created.
 from __future__ import annotations
 
 import subprocess
-from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
+from kernel.clock import now_utc
 
+from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
-from specify_cli.upgrade.registry import MigrationRegistry
-from specify_cli.upgrade.migrations.m_3_2_6_lint_report_gitignore_backfill import (
+from specify_cli.upgrade.migrations.m_3_2_6rc3_lint_report_gitignore_backfill import (
     LintReportGitignoreBackfillMigration,
     _LINT_REPORT_ENTRY,
 )
-from specify_cli.upgrade.metadata import ProjectMetadata
+from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -39,9 +39,7 @@ def _write_gitignore(project_root: Path, *entries: str) -> None:
 
 
 def _write_metadata(project_root: Path, version: str) -> None:
-    ProjectMetadata(version=version, initialized_at=now_utc()).save(
-        project_root / ".kittify"
-    )
+    ProjectMetadata(version=version, initialized_at=now_utc()).save(project_root / ".kittify")
 
 
 def _read_gitignore(project_root: Path) -> str:
@@ -112,17 +110,15 @@ def test_apply_is_idempotent(tmp_path: Path) -> None:
     assert _read_gitignore(tmp_path).count(_LINT_REPORT_ENTRY) == 1
 
 
-def test_backfill_fires_on_already_current_3_2_6_project(tmp_path: Path) -> None:
+def test_backfill_fires_on_already_current_3_2_6rc3_project(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
-    _write_metadata(tmp_path, "3.2.6")
+    _write_metadata(tmp_path, "3.2.6rc3")
     _write_gitignore(tmp_path, ".kittify/logs/")  # logs present, lint-report absent
 
     MigrationRegistry.clear()
     auto_discover_migrations()
-    result = MigrationRunner(tmp_path).upgrade("3.2.6", include_worktrees=False)
+    result = MigrationRunner(tmp_path).upgrade("3.2.6rc3", include_worktrees=False)
 
     assert result.success
-    assert (
-        LintReportGitignoreBackfillMigration.migration_id in result.migrations_applied
-    )
+    assert LintReportGitignoreBackfillMigration.migration_id in result.migrations_applied
     assert _LINT_REPORT_ENTRY in _read_gitignore(tmp_path)

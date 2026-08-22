@@ -334,6 +334,10 @@ def test_compute_next_skips_idempotency_peek_for_unsafe_mission_slug(tmp_path: P
     escape_target = tmp_path / "evil" / "meta.json"
     escape_target.parent.mkdir(parents=True)
     escape_target.write_text(_json.dumps({"mission_number": 5}), encoding="utf-8")
+    # The scan root must exist so that ``scan_specs / "../evil" / "meta.json"``
+    # can actually traverse to the planted file without the guard (otherwise the
+    # peek fails on ENOENT and this test would be vacuous).
+    (tmp_path / "kitty-specs").mkdir()
 
     with (
         patch("subprocess.run", side_effect=_fake_run),

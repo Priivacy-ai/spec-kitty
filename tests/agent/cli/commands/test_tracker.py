@@ -708,9 +708,7 @@ def test_sync_push_json(mock_service_fn, monkeypatch) -> None:
 @patch("specify_cli.cli.commands.tracker.require_repo_root")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 @patch("specify_cli.cli.commands.tracker._service")
-def test_sync_push_saas_human_output_includes_identity_path(
-    mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path
-) -> None:
+def test_sync_push_saas_human_output_includes_identity_path(mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path) -> None:
     """sync push human output shows identity_path (#1221), matching sync pull."""
     from specify_cli.tracker.config import TrackerProjectConfig
 

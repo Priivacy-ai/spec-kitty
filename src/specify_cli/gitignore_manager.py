@@ -125,11 +125,23 @@ AGENT_DIRECTORIES = [
     AgentDirectory("windsurf", ".windsurf/", False, "Windsurf"),
     AgentDirectory("gemini", ".gemini/", False, "Google Gemini"),
     # Narrow, not blanket .cursor/ (#2498): many teams version-control their
-    # own rules under .cursor/rules/, so only the paths Spec Kitty itself
-    # generates are ignored — mirrors the copilot precedent below.
+    # own rules under .cursor/rules/, so only Spec Kitty-owned paths under
+    # .cursor/ are ignored — mirrors the copilot precedent below. The rules
+    # file and the commands dir are written by Spec Kitty today; .cursor/skills/
+    # is a *declared* secondary skill root (AGENT_SKILL_CONFIG["cursor"]
+    # ["skill_roots"] in core/config.py) that the skill installer does not yet
+    # populate (it writes only the primary .agents/skills/ root) — it is ignored
+    # for consistency with the canonical config. .cursor/hooks.json is
+    # deliberately NOT ignored: it is team-owned and Spec Kitty only writes it
+    # on an explicit `agent config set lint_on_edit`.
     AgentDirectory("cursor", ".cursor/rules/spec-kitty.mdc", False, "Cursor (Spec Kitty orientation rule)"),
     AgentDirectory("cursor", ".cursor/commands/", False, "Cursor (Spec Kitty slash commands)"),
-    AgentDirectory("cursor", ".cursor/skills/", False, "Cursor (Spec Kitty shared skills root)"),
+    AgentDirectory(
+        "cursor",
+        ".cursor/skills/",
+        False,
+        "Cursor (declared Spec Kitty skill root; AGENT_SKILL_CONFIG)",
+    ),
     AgentDirectory("qwen", ".qwen/", False, "Qwen"),
     AgentDirectory("kilocode", ".kilocode/", False, "Kilocode"),
     AgentDirectory("auggie", ".augment/", False, "Auggie"),
