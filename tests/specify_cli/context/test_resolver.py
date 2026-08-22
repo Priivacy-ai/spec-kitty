@@ -138,7 +138,12 @@ class TestResolveContext:
         # when the source is an int). Canonical identity is mission_id.
         assert ctx.mission_number == "057"
         assert ctx.mission_id == _DEFAULT_TEST_MISSION_ID
-        assert ctx.mission_type == "software-dev"
+        # rc3 M5: the fixture carries only the retired legacy `mission` field
+        # (no canonical `mission_type`), so it resolves to neutral typeless — the
+        # legacy `{"mission": …}` value no longer masks as its type, and the
+        # identity payload is no longer re-defaulted to "software-dev" downstream.
+        # A real project runs `spec-kitty migrate backfill-mission-type` first.
+        assert ctx.mission_type == ""
         assert ctx.project_uuid == "test-project-uuid-1234"
         assert ctx.target_branch == "main"
         assert ctx.authoritative_repo == str(repo)

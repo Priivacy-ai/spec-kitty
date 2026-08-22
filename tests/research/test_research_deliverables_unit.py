@@ -43,7 +43,7 @@ class TestGetDeliverablesPath:
         feature_dir.mkdir(parents=True)
         meta_file = feature_dir / "meta.json"
         meta_file.write_text(json.dumps({
-            "mission": "research",
+            "mission_type": "research",
             "slug": "001-market-research"
         }))
 
@@ -227,7 +227,7 @@ class TestMetaJsonDeliverablesPath:
 
         # Write meta.json WITHOUT deliverables_path but WITH research mission
         meta_data = {
-            "mission": "research",
+            "mission_type": "research",
             "slug": "018-literature-review"
         }
         meta_file.write_text(json.dumps(meta_data))

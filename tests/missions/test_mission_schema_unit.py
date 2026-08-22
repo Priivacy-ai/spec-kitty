@@ -153,14 +153,16 @@ def sample_kittify_dir(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def feature_with_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
-    """Create a feature directory with mission field in meta.json."""
+    """Create a feature directory with the canonical mission_type in meta.json."""
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
     meta = {
         "feature_number": "001",
         "slug": "001-test-feature",
         "friendly_name": "Test Feature",
-        "mission": "software-dev",
+        # Canonical mission_type field (the legacy `mission` field was retired in
+        # rc3 M5 / #3598 — readers no longer resolve it).
+        "mission_type": "software-dev",
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta))
     return feature_dir
@@ -168,14 +170,14 @@ def feature_with_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
 
 @pytest.fixture
 def feature_with_research_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
-    """Create a feature directory with research mission in meta.json."""
+    """Create a feature directory with a research mission_type in meta.json."""
     feature_dir = tmp_path / "kitty-specs" / "002-research-feature"
     feature_dir.mkdir(parents=True)
     meta = {
         "feature_number": "002",
         "slug": "002-research-feature",
         "friendly_name": "Research Feature",
-        "mission": "research",
+        "mission_type": "research",
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta))
     return feature_dir
@@ -198,14 +200,14 @@ def legacy_feature(tmp_path: Path, sample_kittify_dir: Path) -> Path:
 
 @pytest.fixture
 def feature_with_invalid_mission(tmp_path: Path, sample_kittify_dir: Path) -> Path:
-    """Create a feature with a mission that doesn't exist."""
+    """Create a feature with a mission_type that doesn't exist."""
     feature_dir = tmp_path / "kitty-specs" / "003-invalid"
     feature_dir.mkdir(parents=True)
     meta = {
         "feature_number": "003",
         "slug": "003-invalid",
         "friendly_name": "Invalid Mission Feature",
-        "mission": "nonexistent-mission",
+        "mission_type": "nonexistent-mission",
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta))
     return feature_dir
