@@ -23,6 +23,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
@@ -39,17 +40,30 @@ from charter.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.core.paths import assert_safe_path_segment
 
+if TYPE_CHECKING:
+    from doctrine.missions import ExpectedArtifactManifest
+
 __all__ = [
     "ResolutionResult",
     "ResolutionTier",
     "TemplateConfigurationError",
     "TemplateURNError",
     "resolve_command",
+    "resolve_configured_artifact_name",
     "resolve_configured_template",
     "resolve_mission",
     "resolve_template",
     "resolve_template_by_urn",
 ]
+# NOTE: ``ArtifactNameConfigurationError`` and ``required_artifacts_for``
+# (FR-009) are deliberately NOT in __all__ yet. Neither has a runtime caller
+# under src/ outside this module until WP04b wires ``required_artifacts_for``
+# into the live per-type presence gate (``gather_artifact_presence``, plan.md
+# WP04b item 4) and a caller starts catching the error type -- adding either
+# to __all__ before that caller exists reds
+# ``tests/architectural/test_no_dead_symbols.py``. Both are still directly
+# importable and unit-tested (tests/specify_cli/runtime/test_configured_artifact_name.py);
+# re-add them here in WP04b alongside their first real cross-module caller.
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
@@ -86,6 +100,39 @@ class TemplateConfigurationError(ValueError):
         super().__init__(
             f"Template configuration for mission type {self.mission_type!r} "
             f"and artifact kind {artifact_kind!r} {reason}."
+        )
+
+
+class ArtifactNameConfigurationError(ValueError):
+    """Raised when the per-type manifest cannot resolve an artifact filename.
+
+    Twin of :class:`TemplateConfigurationError` for the artifact-*filename*
+    seam (FR-009): ``resolve_configured_artifact_name`` sources the mapping
+    from ``expected-artifacts.yaml``'s ``path_pattern`` (the single per-type
+    filename authority, squad §S2) rather than a template mapping.
+
+    Attributes:
+        mission_type: Mission-type id passed by the caller.
+        artifact_key: Manifest key requested by the caller, e.g.
+            ``"input.spec.main"``.
+        mapped_filename: Configured filename, when resolution reached that
+            far (``None`` for earlier failures).
+    """
+
+    def __init__(
+        self,
+        *,
+        mission_type: str,
+        artifact_key: str,
+        reason: str,
+        mapped_filename: str | None = None,
+    ) -> None:
+        self.mission_type = mission_type
+        self.artifact_key = artifact_key
+        self.mapped_filename = mapped_filename
+        super().__init__(
+            f"Artifact-name configuration for mission type {mission_type!r} "
+            f"and artifact key {artifact_key!r} {reason}."
         )
 
 
@@ -503,6 +550,108 @@ def resolve_configured_template(
             mapped_filename=mapped_filename,
             reason=f"maps to unresolved filename {mapped_filename!r}",
         ) from exc
+
+
+def _load_expected_artifact_manifest(mission_type: str) -> ExpectedArtifactManifest | None:
+    """Load and validate *mission_type*'s expected-artifacts manifest (read-only).
+
+    Consumes :meth:`charter.missions.MissionTemplateRepository.get_expected_artifacts`
+    -- the single per-type filename authority (FR-009) -- without modifying
+    ``doctrine/missions/repository.py``. Built-in/project tier only (no org
+    lookup; matches :meth:`~specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s
+    default, repo-root-less behavior), which is sufficient for the four
+    built-in mission types this seam guarantees byte-compatible output for
+    (NFR-003). Returns ``None`` when the doctrine tree has no manifest for
+    *mission_type* (unregistered/custom type -- degrades gracefully, mirrors
+    ``ManifestRegistry.load_manifest``).
+    """
+    from charter.missions import (  # noqa: PLC0415
+        ExpectedArtifactManifest,
+        MissionTemplateRepository,
+    )
+
+    config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)
+    if config is None:
+        return None
+    return ExpectedArtifactManifest.model_validate(config.parsed)
+
+
+def resolve_configured_artifact_name(
+    artifact_key: str,
+    mission_type: str = "software-dev",
+) -> str:
+    """Resolve the canonical filename for *artifact_key* under *mission_type* (FR-009).
+
+    Twins :func:`resolve_configured_template`'s per-type filename seam
+    without adding a second filename authority (squad §S2): the mapping is
+    projected from ``expected-artifacts.yaml``'s ``path_pattern`` (via
+    :func:`charter.missions.project_artifact_name_set`, the runtime->charter->
+    doctrine facade),
+    never from :attr:`~doctrine.missions.models.MissionStepTemplateRef.template_file`.
+
+    Args:
+        artifact_key: Stable manifest key, e.g. ``"input.spec.main"``.
+        mission_type: Mission-type id (default ``"software-dev"``).
+
+    Returns:
+        The configured ``path_pattern`` filename.
+
+    Raises:
+        ArtifactNameConfigurationError: If *mission_type* is an unsafe path
+            segment, has no expected-artifacts manifest, or has no mapping
+            for *artifact_key*.
+    """
+    try:
+        assert_safe_path_segment(mission_type)
+    except ValueError as exc:
+        raise ArtifactNameConfigurationError(
+            mission_type=mission_type,
+            artifact_key=artifact_key,
+            reason=f"has unsafe mission type {mission_type!r} ({exc})",
+        ) from exc
+
+    manifest = _load_expected_artifact_manifest(mission_type)
+    if manifest is None:
+        raise ArtifactNameConfigurationError(
+            mission_type=mission_type,
+            artifact_key=artifact_key,
+            reason="has no expected-artifacts manifest",
+        )
+
+    from charter.missions import project_artifact_name_set  # noqa: PLC0415
+
+    name_set = project_artifact_name_set(manifest) or {}
+    mapped_filename = name_set.get(artifact_key)
+    if mapped_filename is None:
+        raise ArtifactNameConfigurationError(
+            mission_type=mission_type,
+            artifact_key=artifact_key,
+            reason="is missing the requested mapping key",
+        )
+    return mapped_filename
+
+
+def required_artifacts_for(step: str, mission_type: str = "software-dev") -> list[str]:
+    """Return the blocking artifact filenames required at *step* (FR-009).
+
+    Combines ``required_always`` with ``required_by_step[step]`` (mirroring
+    :meth:`~specify_cli.dossier.manifest.ManifestRegistry.get_required_artifacts`
+    /  ``get_blocking_artifacts``) and returns only the ``blocking`` specs'
+    filenames -- the live per-type presence-gate consumer shape (WP04b).
+
+    Args:
+        step: Mission step id (e.g. ``"specify"``, ``"plan"``).
+        mission_type: Mission-type id (default ``"software-dev"``).
+
+    Returns:
+        Blocking filenames for *step*, or an empty list when *mission_type*
+        has no expected-artifacts manifest (unregistered/custom type).
+    """
+    manifest = _load_expected_artifact_manifest(mission_type)
+    if manifest is None:
+        return []
+    specs = [*manifest.required_always, *manifest.required_by_step.get(step, [])]
+    return [spec.path_pattern for spec in specs if spec.blocking]
 
 
 #: URN prefix identifying a template node's DRG identity, mirroring

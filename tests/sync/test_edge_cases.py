@@ -436,8 +436,17 @@ class TestNonBlockingEmission:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
 
-    def test_queue_exception_returns_event(self, tmp_path: Path, mock_auth: MagicMock):
-        """Queue failure during routing doesn't prevent event creation."""
+    def test_queue_exception_is_not_publication_eligible(self, tmp_path: Path, mock_auth: MagicMock):
+        """A queue failure during routing yields a non-publication-eligible result.
+
+        Regression for the bool-discard silent drop (#3517). ``_route_event``
+        catches the queue exception and reports ``False`` (the event did NOT
+        durably land); ``_emit`` must therefore drop it from publication
+        (``return None``, which every ``if event is not None`` publish gate
+        skips) AND make the drop legible — never hand back a truthy envelope
+        that reaches the sync daemon with nothing durably queued. The public
+        call still must not raise (SC-008 non-blocking contract preserved).
+        """
         queue = MagicMock(spec=OfflineQueue)
         queue.queue_event.side_effect = Exception("SQLite locked")
 
@@ -447,9 +456,11 @@ class TestNonBlockingEmission:
 
         em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
-        # _route_event catches the exception, so _emit still returns the event
+        # Non-blocking: still no exception escapes the public emit surface.
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None
+        # Fail-loud: the non-durable event is dropped from publication, not
+        # returned truthy (which encoded the old silent-drop bug).
+        assert event is None
 
     def test_auth_exception_queues_event_locally(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """Auth exception during team-slug resolution still queues durably.

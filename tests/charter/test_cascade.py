@@ -15,6 +15,8 @@ Covers the pure cascade engine:
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from charter.cascade import (
@@ -26,15 +28,26 @@ from charter.cascade import (
     deactivation_plan,
     referenced_but_not_cascaded,
 )
+from charter.mission_type_profile_repository import MissionTypeProfileRepository
 from doctrine.artifact_kinds import (
     CHARTER_ACTIVATABLE_KINDS,
     ArtifactKind,
     MissionTypeNotAnArtifactKind,
 )
 from doctrine.drg.loader import load_built_in_graph
+from doctrine.drg.migration.hand_authored_overlay import (
+    generate_reference_graph_with_overlay,
+)
+from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 
 pytestmark = pytest.mark.unit
+
+#: Root of the shipped doctrine tree, resolved the same way as
+#: ``tests/doctrine/drg/migration/test_extractor.py::DOCTRINE_ROOT`` (this file
+#: is two directories shallower: ``tests/charter/test_cascade.py`` ->
+#: ``tests/charter`` -> ``tests`` -> repo root).
+_DOCTRINE_ROOT: Path = Path(__file__).resolve().parents[2] / "src" / "doctrine"
 
 
 # ---------------------------------------------------------------------------
@@ -395,16 +408,31 @@ _BUILT_IN_MISSION_TYPE_URNS: tuple[str, ...] = (
     "mission_type:software-dev",
 )
 
-#: The mission types whose action steps ``scope`` onto governance artifacts in the
-#: shipped graph — so following the action hop yields a non-empty cascade (C-CAS-1).
-#: ``mission_type:plan`` is intentionally absent: its action steps carry only
-#: ``instantiates → template`` edges (no ``scope``), so after the ADR 2026-08-20-1
-#: activatable-kind filter it cascades to nothing. That is a *graph-data* property
-#: (the plan step contracts scope no governance), not a cascade-code defect, and
-#: wiring plan governance is outside WP01's code-only scope (see
+#: The mission types whose action steps AND/OR type-wide
+#: ``governance-profile.yaml`` selections ``scope`` onto governance artifacts in
+#: the graph — so following the action hop and/or the direct
+#: ``mission_type --scope--> gov`` edges yields a non-empty cascade (C-CAS-1).
+#: ``mission_type:plan`` used to be excluded here: its action steps carry only
+#: ``instantiates → template`` edges (no ``scope``), so before #3604 it cascaded
+#: to nothing after the ADR 2026-08-20-1 activatable-kind filter dropped those
+#: templates (a *graph-data* property, not a cascade-code defect — see the
+#: prior rationale, preserved in git history on
 #: ``test_plan_cascade_is_empty_because_its_actions_scope_no_governance``).
+#: #3604 (T007, ``extract_governance_profile_scope_edges``) closes that gap by
+#: projecting plan's type-wide governance-profile.yaml selections (1 directive,
+#: 9 tactics, 3 paradigms, 1 styleguide) as direct
+#: ``mission_type:plan --scope--> <gov>`` edges, so all four built-in mission
+#: types are now governance-bearing. See
+#: ``test_plan_cascade_reaches_its_authored_governance`` below for the specific
+#: membership assertions, and ``freshly_extracted_graph``'s docstring for why
+#: these two tests assert against a freshly-extracted graph rather than
+#: ``built_in_graph`` (the committed goldens ARE re-ledgered in this mission —
+#: byte-identical to the canonical overlay regen, locked by
+#: ``test_extractor_projection.py``'s ``test_shipped_graph_is_fresh_and_
+#: byte_identical`` — so this re-extraction now matches the shipped artifact).
 _GOVERNANCE_BEARING_MISSION_TYPE_URNS: tuple[str, ...] = (
     "mission_type:documentation",
+    "mission_type:plan",
     "mission_type:research",
     "mission_type:software-dev",
 )
@@ -431,36 +459,130 @@ def built_in_graph() -> DRGGraph:
     return load_built_in_graph()
 
 
+@pytest.fixture(scope="module")
+def freshly_extracted_graph() -> DRGGraph:
+    """A live re-extraction of the built-in DRG, asserted equal to the
+    committed goldens.
+
+    ``built_in_graph`` (above) loads the shipped ``packs/built-in/*.graph.yaml``
+    fragments via :func:`load_built_in_graph` — those are committed goldens,
+    refreshed by ``spec-kitty doctrine regenerate-graph``. #3604's new
+    ``mission_type --scope--> gov`` pass (T007,
+    :func:`extract_governance_profile_scope_edges`) IS re-ledgered into those
+    goldens in this mission (``packs/built-in/mission_type.graph.yaml`` and
+    ``procedure.graph.yaml`` are updated in the landing commit), and
+    ``test_extractor_projection.py``'s ``test_shipped_graph_is_fresh_and_
+    byte_identical`` locks the shipped fragments byte-identical to a fresh
+    canonical regen — so this fixture's cascade assertions now validate the
+    same content the goldens carry.
+
+    This fixture calls
+    :func:`~doctrine.drg.migration.hand_authored_overlay.generate_reference_graph_with_overlay`
+    directly against the real shipped doctrine tree rather than loading the
+    goldens through :func:`load_built_in_graph`. That function -- NOT bare
+    :func:`~doctrine.drg.migration.extractor.generate_graph` -- is the correct
+    live-extraction reference: it is the exact pipeline
+    ``spec-kitty doctrine regenerate-graph`` runs (pure extraction, written to
+    a throwaway scratch dir, then merged with the hand-authored overlay via
+    :func:`merge_hand_authored_overlay`). A first version of this fixture
+    called bare ``generate_graph``, which omits that overlay; two of the
+    shipped overlay-authored edges reference nodes the bare extractor prunes
+    as dangling, silently collapsing cascade reachability for several mission
+    types (post-review finding, #3604 WP02). Bare ``generate_graph`` output
+    therefore does not match any shipped artifact --
+    ``generate_reference_graph_with_overlay`` does (proof:
+    ``spec-kitty doctrine regenerate-graph --check`` is clean against
+    ``built_in_graph``).
+
+    Kept as a live re-extraction (rather than switched to ``built_in_graph``)
+    so these tests keep validating the extractor's actual output, not just
+    the committed snapshot of it; the two are byte-identical today by
+    construction of the ``test_extractor_projection.py`` guard above.
+    """
+    return generate_reference_graph_with_overlay(_DOCTRINE_ROOT)
+
+
 @pytest.mark.parametrize("mission_type_urn", _GOVERNANCE_BEARING_MISSION_TYPE_URNS)
 def test_cascade_from_governance_bearing_mission_types_is_non_empty(
-    built_in_graph: DRGGraph, mission_type_urn: str
+    freshly_extracted_graph: DRGGraph, mission_type_urn: str
 ) -> None:
     # C-CAS-1 (RED baseline: returned 0 — the #2829 action-hop dead-end).
     # Following the action hop (requires -> action -> scope -> governance) makes
-    # the cascade reachable for every mission type whose steps scope governance.
+    # the cascade reachable for every mission type whose steps scope governance;
+    # #3604 (T007) additionally wires ``mission_type:plan``'s direct scope edges,
+    # so all four built-in mission types now satisfy this assertion. Asserted
+    # against ``freshly_extracted_graph``, not ``built_in_graph`` — see that
+    # fixture's docstring for why.
     result = cascade_activation_targets(
-        built_in_graph, mission_type_urn, CascadeScope.all()
+        freshly_extracted_graph, mission_type_urn, CascadeScope.all()
     )
     assert result.activated, (
         f"cascade from {mission_type_urn} was empty — the #2829 action-hop dead-end"
     )
 
 
-def test_plan_cascade_is_empty_because_its_actions_scope_no_governance(
-    built_in_graph: DRGGraph,
+def test_plan_cascade_reaches_its_authored_governance(
+    freshly_extracted_graph: DRGGraph,
 ) -> None:
-    # SURFACED FINDING (WP01, code-only scope): the #2829 dead-end (the closure
-    # stopping at the action node) IS closed for plan too — the traversal now
-    # passes *through* its actions. But ``mission_type:plan``'s action steps carry
-    # only ``instantiates → template`` edges and no ``scope`` edges in the shipped
-    # graph, so after the ADR 2026-08-20-1 activatable-kind filter drops those
-    # templates there is nothing left to cascade. This is a graph-data property
-    # (plan step contracts scope no governance), NOT a cascade-code defect; wiring
-    # plan governance would be a graph-data change outside WP01's owned surface.
+    # #3604 (T007) rewrite of the WP01 finding this test used to pin (preserved
+    # in git history as ``test_plan_cascade_is_empty_because_its_actions_scope_
+    # no_governance``): WP01 closed the #2829 action-hop dead-end for plan too
+    # (the closure now passes *through* its actions), but ``mission_type:plan``'s
+    # action steps carried only ``instantiates -> template`` edges and no
+    # ``scope`` edges, so after the ADR 2026-08-20-1 activatable-kind filter
+    # dropped those templates there was nothing left to cascade — a graph-data
+    # gap (plan's step contracts scope no governance), not a cascade-code
+    # defect, and wiring plan governance was explicitly out of WP01's code-only
+    # scope.
+    #
+    # #3604 (this mission, WP02) closes that graph-data gap: plan's type-wide
+    # ``governance-profile.yaml`` selections (research.md grounding) are now
+    # emitted as direct ``mission_type:plan --scope--> <gov>`` edges by
+    # :func:`extract_governance_profile_scope_edges`, so the cascade reaches
+    # plan's full authored governance: 1 directive (031-context-aware-design),
+    # 9 tactics, 3 paradigms, and 1 styleguide (planning-and-tracking). Asserted
+    # against ``freshly_extracted_graph``, not ``built_in_graph`` — see that
+    # fixture's docstring for why (the committed goldens ARE re-ledgered in
+    # this mission, byte-identical to the canonical regen).
     result = cascade_activation_targets(
-        built_in_graph, "mission_type:plan", CascadeScope.all()
+        freshly_extracted_graph, "mission_type:plan", CascadeScope.all()
     )
-    assert result.activated == {}
+    assert result.activated, (
+        "mission_type:plan cascade is still empty after #3604's "
+        "governance-profile scope pass"
+    )
+    assert "DIRECTIVE_031" in result.activated.get("directive", []), (
+        f"031-context-aware-design missing from plan's cascaded directives: "
+        f"{result.activated.get('directive', [])}"
+    )
+    expected_tactics = {
+        "problem-decomposition",
+        "bounded-context-identification",
+        "deepening-opportunity-assessment",
+        "moscow-scoping-lens",
+        "eisenhower-prioritisation",
+        "adr-drafting-workflow",
+        "traceable-decisions",
+        "decision-marker-capture",
+        "premortem-risk-identification",
+    }
+    cascaded_tactics = set(result.activated.get("tactic", []))
+    assert expected_tactics <= cascaded_tactics, (
+        f"missing from plan's cascaded tactics: {expected_tactics - cascaded_tactics}"
+    )
+    expected_paradigms = {
+        "domain-driven-design",
+        "deep-module-design",
+        "c4-incremental-detail-modeling",
+    }
+    cascaded_paradigms = set(result.activated.get("paradigm", []))
+    assert expected_paradigms <= cascaded_paradigms, (
+        f"missing from plan's cascaded paradigms: {expected_paradigms - cascaded_paradigms}"
+    )
+    assert "planning-and-tracking" in result.activated.get("styleguide", []), (
+        f"planning-and-tracking missing from plan's cascaded styleguides: "
+        f"{result.activated.get('styleguide', [])}"
+    )
 
 
 def test_cascade_from_documentation_reaches_governance_kinds(
@@ -615,4 +737,127 @@ def test_instantiates_targets_are_all_non_activatable_today(
         "instantiates now targets charter-activatable kind(s); following it would "
         "change cascade output. Update ADR 2026-08-20-1 + the cascade tests before "
         f"shipping: {sorted(set(offenders))}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# T008 (#3604) — governance-profile.yaml scope-edge coverage
+# ---------------------------------------------------------------------------
+
+#: The four built-in mission types' governance-profile.yaml ``selected_*``
+#: field names, paired with the artifact kind their bare-id entries name.
+#: Mirrors ``extract_governance_profile_scope_edges``'s
+#: ``_GOVERNANCE_PROFILE_SCOPE_FIELDS`` (kept independent here rather than
+#: importing it, so this coverage test does not silently pass if a future edit
+#: to that production table drops a field it should still cover).
+_GOVERNANCE_PROFILE_SELECTED_FIELDS: tuple[tuple[str, str], ...] = (
+    ("selected_directives", "directive"),
+    ("selected_tactics", "tactic"),
+    ("selected_paradigms", "paradigm"),
+    ("selected_styleguides", "styleguide"),
+    ("selected_toolguides", "toolguide"),
+    ("selected_procedures", "procedure"),
+    ("selected_agent_profiles", "agent_profile"),
+    ("selected_mission_step_contracts", "mission_step_contract"),
+)
+
+
+@pytest.mark.parametrize(
+    "mission_type_id", ("documentation", "plan", "research", "software-dev")
+)
+def test_mission_type_scope_edges_cover_every_governance_profile_selection(
+    freshly_extracted_graph: DRGGraph, mission_type_id: str
+) -> None:
+    """T008 primary (robust) coverage: #3604's T007 pass must emit a ``scope``
+    edge for EVERY entry of a type's shipped ``governance-profile.yaml``
+    ``selected_*`` lists -- across all four built-in mission types, not just
+    ``plan`` (whose emptiness the named test above already covers in detail).
+    A membership check survives doctrine content growing or shrinking, unlike
+    a hard edge-count pin (that ratchet is the separate, secondary test
+    below).
+
+    Loads each profile through the canonical
+    :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
+    (shipped-only, no project overlay) rather than re-parsing the YAML by
+    hand -- the same authority :func:`extract_governance_profile_scope_edges`
+    itself is grounded against.
+    """
+    profile = MissionTypeProfileRepository().get(mission_type_id)
+    assert profile is not None, (
+        f"no shipped governance-profile.yaml for mission_type:{mission_type_id!r}"
+    )
+
+    source_urn = f"mission_type:{mission_type_id}"
+    scope_targets = {
+        edge.target
+        for edge in freshly_extracted_graph.edges_from(source_urn, Relation.SCOPE)
+    }
+
+    missing: list[str] = []
+    for field_name, kind in _GOVERNANCE_PROFILE_SELECTED_FIELDS:
+        for raw_id in getattr(profile, field_name):
+            target_urn = artifact_to_urn(kind, raw_id)
+            if target_urn not in scope_targets:
+                missing.append(f"{field_name}: {raw_id!r} ({target_urn!r})")
+
+    assert not missing, (
+        f"mission_type:{mission_type_id} is missing scope edges for governance-"
+        f"profile.yaml selections: {missing}"
+    )
+
+
+#: T008 secondary (ratchet) — total cascade-target counts
+#: (``sum(len(v) for v in result.activated.values())``) for each built-in
+#: mission type, measured against ``freshly_extracted_graph`` (NOT
+#: ``built_in_graph`` -- see that fixture's docstring for why: the goldens ARE
+#: re-ledgered in this mission and are byte-identical to a fresh canonical
+#: regen, locked by ``test_extractor_projection.py``). ``freshly_extracted_
+#: graph`` calls the CANONICAL ``generate_reference_graph_with_overlay``
+#: pipeline -- the same one ``spec-kitty doctrine regenerate-graph`` runs --
+#: so these totals are what the shipped goldens actually carry, verified two
+#: ways:
+#: (1) ``spec-kitty doctrine regenerate-graph --check`` is clean on the base
+#: commit (goldens == canonical regenerate, pre-#3604); (2) with
+#: ``extract_governance_profile_scope_edges`` temporarily no-op'd, the SAME
+#: canonical pipeline reproduces research.md's pre-mission 31/23/160/0 exactly
+#: -- confirming #3604's own isolated contribution (T007's new pass) is a
+#: clean, additive +9/+86/+0/+140 for documentation/research/software-dev/plan
+#: respectively (software-dev's governance-profile.yaml is entirely empty, so
+#: T007 adds nothing there -- the ONE type whose total is unchanged from
+#: research.md's baseline). A first version of this ratchet used bare
+#: ``generate_graph`` (omitting the hand-authored overlay), which prunes
+#: overlay-referenced edges as dangling and undercounts every type except
+#: research -- a post-review finding, not a doctrine-drift phenomenon: fixed
+#: by pointing the fixture at the canonical pipeline instead. These counts
+#: WILL move as doctrine grows -- that is expected; a diff here is a prompt to
+#: re-verify the new total, not a regression by itself.
+_EXPECTED_CASCADE_TOTALS: dict[str, int] = {
+    "documentation": 40,
+    "research": 109,
+    "software-dev": 160,
+    "plan": 140,
+}
+
+
+@pytest.mark.parametrize(
+    "mission_type_id", ("documentation", "plan", "research", "software-dev")
+)
+def test_mission_type_cascade_total_ratchet(
+    freshly_extracted_graph: DRGGraph, mission_type_id: str
+) -> None:
+    """T008 secondary (ratchet): pins the total cascade-target count per
+    built-in mission type against ``freshly_extracted_graph`` (see
+    ``_EXPECTED_CASCADE_TOTALS`` for why these values, not research.md's
+    pre-mission snapshot). Every type is non-empty ("populated"), including
+    ``plan`` -- #3604's headline fix.
+    """
+    result = cascade_activation_targets(
+        freshly_extracted_graph, f"mission_type:{mission_type_id}", CascadeScope.all()
+    )
+    total = sum(len(ids) for ids in result.activated.values())
+    assert total == _EXPECTED_CASCADE_TOTALS[mission_type_id], (
+        f"mission_type:{mission_type_id} cascade total moved from "
+        f"{_EXPECTED_CASCADE_TOTALS[mission_type_id]} to {total} "
+        f"({ {k: len(v) for k, v in result.activated.items()} }) -- update "
+        "_EXPECTED_CASCADE_TOTALS if this is an expected doctrine-growth move."
     )

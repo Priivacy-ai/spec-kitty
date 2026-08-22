@@ -101,6 +101,7 @@ class TestRenderOpenOpsSection:
         section = render_open_ops_section(tmp_path, now=_NOW)
         assert "01KTBROKEN0000000000000001 — close:" in section
 
+    @pytest.mark.performance
     def test_perf_1k_open_ops_under_half_second(self, tmp_path: Path) -> None:
         """NFR pro-rata budget: 1,000 Op files rendered in < 0.5 s, no git calls."""
         ops_dir = tmp_path / EVENTS_DIR

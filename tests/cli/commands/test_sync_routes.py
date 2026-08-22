@@ -643,6 +643,60 @@ def test_run_dispatch_batches_grows_limit_back_after_oversized_park(
     assert len(tail_calls) < len(tail)
 
 
+def _protocol_mismatch_summary(sel: int) -> DispatchSummary:
+    """A batch the server 412'd wholesale: protocol skew, nothing delivered, all retained."""
+    return DispatchSummary(
+        target_id="t",
+        selected=sel,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=sel,
+        terminal_failed=0,
+        failures=tuple(
+            DispatchFailure(
+                event_id=f"e{i}",
+                outcome="transient",
+                http_status=412,
+                error="Run `spec-kitty upgrade` to update to a supported release.",
+            )
+            for i in range(sel)
+        ),
+        retryable_event_ids=tuple(f"e{i}" for i in range(sel)),
+    )
+
+
+def test_run_dispatch_batches_halts_pass_on_protocol_mismatch_412(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One HTTP 412 halts the pass after the FIRST POST (#1553).
+
+    A protocol-version skew answers every batch identically, so advancing to
+    the next batch (the generic transient/rejected "skip and drain behind"
+    rule) would POST the entire journal for nothing. The loop must stop, not
+    halve (it is not a 413), and must not park anything (it is not per-event).
+    """
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    calls: list[int] = []
+
+    def fake_dispatch(*, journal, ledger, receiver, target, store, context, limit, exclude=frozenset(), recovery_event_ids=frozenset()):  # type: ignore[no-untyped-def]  # noqa: ANN001, ANN202
+        calls.append(limit)
+        # Five events behind the head; every POST would 412 the same way.
+        return _protocol_mismatch_summary(min(limit, 5))
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    assert calls == [2], "the pass must halt after the first 412, never POST the next batch or halve"
+    assert combined.selected == 2
+    assert combined.transient == 2
+    assert combined.terminal_failed == 0
+    assert combined.delivered == 0
+
+
 def test_run_dispatch_batches_skips_pending_and_reports_each_event_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

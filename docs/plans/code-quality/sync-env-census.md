@@ -2,7 +2,7 @@
 title: SPEC_KITTY_* env census — sync surface
 description: 'Env census of the sync surface: a live or retired verdict for every SPEC_KITTY_* reference, proving the Wave-4 de-god deleted no environment name.'
 doc_status: active
-updated: '2026-08-20'
+updated: '2026-08-21'
 related:
 - docs/plans/code-quality/index.md
 - docs/plans/code-quality/targeted-cleanup-scoping.md
@@ -27,6 +27,12 @@ the real `DAEMON_*_FILE` lazy attributes but nothing in production ever read it 
 were removed outright) and the shim was deleted from `daemon.py`. The census below reflects the
 post-retirement state (7 references, all `live`).
 
+**Update (#3626, 2026-08-21).** The negotiated-admission fix (restoring hosted event-sync
+delivery, #3564/#3620) added one new `live` reference — `SPEC_KITTY_SYNC_STRICT_ADMISSION`, the
+operator opt-in that flips the admission gate from its non-strict default to strict enforcement
+(read by `sync/admission_negotiation.py`). This is a **growth**, not a relocation or deletion:
+the frozen set and the census table below now carry 8 `live` references.
+
 **Surface scanned.** `src/specify_cli/cli/commands/sync.py` (the husk) plus every `*.py` under
 `src/specify_cli/sync/` (recursively). The frozen expected set and the executable guard live in
 [`tests/architectural/test_sync_env_census.py`](../../../tests/architectural/test_sync_env_census.py);
@@ -38,7 +44,7 @@ token on the surface is the wildcard `SPEC_KITTY_SYNC_*` written in a `restart.p
 (`# ... the #2573b disable-env skip (SPEC_KITTY_SYNC_*)`), which is a family reference, not a
 distinct name.
 
-## Census (7 references, all `live`; 1 historical `retired`)
+## Census (8 references, all `live`; 1 historical `retired`)
 
 | # | Reference | Kind | Verdict | Where / role |
 |---|-----------|------|---------|--------------|
@@ -49,13 +55,15 @@ distinct name.
 | 5 | `SPEC_KITTY_SYNC_READONLY_IDENTITY` | env var | **live** | Read-only-identity flag (`events.py`, `READ_ONLY_IDENTITY_ENV`) gating identity mutation on event emission. |
 | 6 | `SPEC_KITTY_NO_AUTO_CUTOVER` | env var | **live** | Refuses legacy-root auto-cutover (`layout_generation.py`, `NO_AUTO_CUTOVER_ENV`). Active operator escape hatch. |
 | 7 | `SPEC_KITTY_CLI_VERSION` | env var | **live** | Pins the CLI version across daemon respawn (`daemon.py`): read on start, re-exported onto the respawned child's env. |
-| ~~8~~ | `SPEC_KITTY_DIR` | module-attribute shim | **retired (#3569)** | *Was not* an `os.environ` variable — a legacy lazily-resolved module attribute on `daemon.py` (`_LAZY_PATH_RESOLVERS`, served via `__getattr__`), superseded at runtime by `SPEC_KITTY_HOME` + `get_runtime_root()`. Had no production readers; the only remaining bindings were defensive `monkeypatch`/`patch` calls in daemon tests (alongside the still-live `DAEMON_*_FILE` lazy attributes) that had no effect on behaviour. Those bindings were deleted and the shim removed from `daemon.py` and `_LAZY_PATH_RESOLVERS`. |
+| 8 | `SPEC_KITTY_SYNC_STRICT_ADMISSION` | env var | **live** | Strict-admission opt-in (`admission_negotiation.py`, `STRICT_ADMISSION_ENV_VAR`). Flips the negotiated admission gate from its non-strict default (mint a local self-admission so a consented, authenticated project delivers) to strict enforcement (require a server-issued admission). Added #3626 for the hosted event-sync delivery restore (#3564/#3620); dormant until the SaaS admission endpoint (spec-kitty-saas#795) deploys. |
+| ~~9~~ | `SPEC_KITTY_DIR` | module-attribute shim | **retired (#3569)** | *Was not* an `os.environ` variable — a legacy lazily-resolved module attribute on `daemon.py` (`_LAZY_PATH_RESOLVERS`, served via `__getattr__`), superseded at runtime by `SPEC_KITTY_HOME` + `get_runtime_root()`. Had no production readers; the only remaining bindings were defensive `monkeypatch`/`patch` calls in daemon tests (alongside the still-live `DAEMON_*_FILE` lazy attributes) that had no effect on behaviour. Those bindings were deleted and the shim removed from `daemon.py` and `_LAZY_PATH_RESOLVERS`. |
 
 ### Verdict rationale
 
-- **`live` (7)** — every entry except the retired #8 is a genuine, actively-consumed environment
-  variable whose deletion would change `sync` behaviour. None is a de-god artefact; all pre-date
-  the mission and survive the relocation unchanged.
+- **`live` (8)** — every entry except the retired #9 is a genuine, actively-consumed environment
+  variable whose deletion would change `sync` behaviour. Entries #1–#7 pre-date the Wave-4
+  mission and survive its relocation unchanged; #8 (`SPEC_KITTY_SYNC_STRICT_ADMISSION`) was added
+  later by #3626 as a new live opt-in, not a de-god artefact.
 - **`retired` (1, was `retire-candidate`)** — `SPEC_KITTY_DIR` was a backward-compatibility module
   shim, not an env var. Its runtime authority had already moved to `SPEC_KITTY_HOME` /
   `get_runtime_root()`; the only remaining callers were test monkeypatches that did nothing (they
@@ -75,7 +83,9 @@ SPEC_KITTY_NO_AUTO_CUTOVER
 SPEC_KITTY_SAAS_URL
 SPEC_KITTY_SYNC_MINIMAL_IMPORT
 SPEC_KITTY_SYNC_READONLY_IDENTITY
+SPEC_KITTY_SYNC_STRICT_ADMISSION
 ```
 
 (`SPEC_KITTY_DIR` was removed from this frozen set by #3569's deliberate retirement — see the
-census row above.)
+census row above. `SPEC_KITTY_SYNC_STRICT_ADMISSION` was added by #3626's deliberate growth —
+a new live opt-in, likewise recorded in the census row above.)

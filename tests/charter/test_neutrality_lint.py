@@ -431,6 +431,7 @@ def test_banned_terms_remain_case_sensitive_by_default(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_runtime_budget() -> None:
     """The full baseline lint must complete in under 5 seconds."""
     start = time.perf_counter()

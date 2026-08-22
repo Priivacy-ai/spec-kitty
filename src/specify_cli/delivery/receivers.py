@@ -86,6 +86,34 @@ _OVERSIZED_ERROR = "payload too large (oversized, permanent)"
 _BATCH_OVERSIZED_ERROR = "batch payload too large; retry with a smaller batch"
 _TRANSPORT_ERROR_PREFIX = "transport failure"
 
+#: HTTP 412 on the batch endpoint is the server's compatibility handshake refusing
+#: the CLI's advertised protocol version — the gate keys on
+#: ``X-SpecKitty-Protocol-Version`` (spec-kitty-saas ``apps/sync/compatibility.py``;
+#: NOT on ``_H_SYNC_PROTOCOL``, which the handshake does not read) and answers with
+#: ``error_code`` ∈ {``client-too-old``, ``client-too-new``,
+#: ``client-protocol-unparseable``}, an ``error_description`` and
+#: ``sync_protocol.upgrade_guidance`` (a single string for the active code).
+#:
+#: This is ENVIRONMENT skew, not a per-event fault (#1553): every event in the
+#: journal gets the same answer, and the answer changes only when the operator
+#: upgrades/pins the CLI or the server rolls out. So the mapper keeps the events
+#: selectable (``transient`` / ``known_no_effect`` — a retained row the next pass
+#: re-selects, exactly like a multi-event 413) instead of parking them: a
+#: ``terminal_failed`` row is excluded by ``select_undelivered`` forever and
+#: ``target_id`` does not change on upgrade, so a parked journal would never be
+#: redelivered. The dispatch loop halts the pass on this signal
+#: (``sync_dispatch_core._batch_is_protocol_mismatch``) rather than POSTing the
+#: rest of the journal, and the command prints the server's guidance.
+_PROTOCOL_MISMATCH_STATUS = 412
+#: The CLI's own category when the 412 body carries no ``error_code``.
+_PROTOCOL_MISMATCH_CATEGORY = "protocol_mismatch"
+#: Neutral fallback when the body carries neither guidance nor description. It
+#: deliberately does not say "upgrade": a ``client-too-new`` CLI must PIN, and the
+#: server's own text is the authority on which.
+_PROTOCOL_MISMATCH_FALLBACK_ERROR = (
+    "the server rejected this CLI's sync protocol version (HTTP 412); align the spec-kitty CLI release with the server, then re-run `spec-kitty sync now`"
+)
+
 
 # -- §4 result vocabulary ------------------------------------------------------
 
@@ -479,6 +507,7 @@ def _all_outcome(
     error: str | None,
     body: Mapping[str, Any] | None,
     effect_certainty: DeliveryEffectCertainty = DeliveryEffectCertainty.POSSIBLY_EFFECTIVE,
+    error_category: str | None = None,
 ) -> list[DeliveryResult]:
     """Map every event in a batch to the same outcome (batch-level classification)."""
     return [
@@ -487,7 +516,7 @@ def _all_outcome(
             outcome=outcome,
             http_status=http_status,
             error=error,
-            error_category=None,
+            error_category=error_category,
             raw=body,
             effect_certainty=effect_certainty,
         )
@@ -611,14 +640,57 @@ def _http_error_text(http_status: int, body: Mapping[str, Any] | None) -> str:
     return str(reason) if reason else f"HTTP {http_status}"
 
 
+def _non_blank(value: object) -> str | None:
+    """``value`` stripped when it is a non-blank string, else ``None``."""
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return None
+
+
+def _protocol_mismatch_guidance(body: Mapping[str, Any] | None) -> str:
+    """The operator-facing text for a 412: server guidance first, neutral fallback last.
+
+    Preference order mirrors what the server's 412 body carries
+    (``build_compat_412_response``): ``sync_protocol.upgrade_guidance`` (the one
+    string matching the active error code — "pin" for a too-new client, "upgrade"
+    for a too-old one), then ``error_description``, then the CLI's neutral
+    fallback. The CLI never hardcodes an upgrade command the server did not send.
+    """
+    if not body:
+        return _PROTOCOL_MISMATCH_FALLBACK_ERROR
+    sync_protocol = body.get("sync_protocol")
+    guidance = _non_blank(sync_protocol.get("upgrade_guidance")) if isinstance(sync_protocol, Mapping) else None
+    return guidance or _non_blank(body.get("error_description")) or _PROTOCOL_MISMATCH_FALLBACK_ERROR
+
+
+def _protocol_mismatch_category(body: Mapping[str, Any] | None) -> str:
+    """The server's ``error_code`` (``client-too-old`` …) when sent, else the CLI's own category."""
+    code = _non_blank(body.get("error_code")) if body else None
+    return code.lower() if code else _PROTOCOL_MISMATCH_CATEGORY
+
+
 def _map_batch_failure(events: Sequence[OutboundEvent], *, http_status: int, body: Mapping[str, Any] | None) -> list[DeliveryResult]:
     """Classify a non-200 batch response.
 
-    Oversized/permanent → ``terminal_failed`` (FR-015); 400 content failure →
-    per-event ``rejected``; 401/403/408/429/5xx/other → ``transient`` for the whole
-    batch (do **not** poison per-event retry counts — spec "content rejection vs
-    transient failure").
+    Oversized/permanent → ``terminal_failed`` (FR-015); protocol mismatch (412) →
+    ``transient`` / ``known_no_effect`` for the whole batch carrying the server's
+    upgrade/pin guidance as ``error`` and its ``error_code`` as ``error_category``
+    (#1553 — environment skew: the events stay selectable and the dispatch loop
+    halts the pass; parking is reserved for per-event-permanent failures); 400
+    content failure → per-event ``rejected``; 401/403/408/429/5xx/other →
+    ``transient`` for the whole batch (do **not** poison per-event retry counts —
+    spec "content rejection vs transient failure").
     """
+    if http_status == _PROTOCOL_MISMATCH_STATUS:
+        return _all_outcome(
+            events,
+            DeliveryOutcome.TRANSIENT,
+            http_status=http_status,
+            error=_protocol_mismatch_guidance(body),
+            body=body,
+            effect_certainty=DeliveryEffectCertainty.KNOWN_NO_EFFECT,
+            error_category=_protocol_mismatch_category(body),
+        )
     if _is_oversized(http_status, body) and len(events) == 1:
         return _all_outcome(
             events,

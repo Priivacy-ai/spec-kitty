@@ -86,8 +86,9 @@ __all__ = [
 #: refines — this is the wiring that keeps ``REFINES`` from being born inert.
 #:
 #: ``SCOPE`` and ``INSTANTIATES`` join the set per ADR 2026-08-20-1 (#2829) to
-#: follow the **action hop**. A ``mission_type`` node carries only
-#: ``requires → action`` edges; an ``action`` node carries ``scope → governance``
+#: follow the **action hop**. A ``mission_type`` node carries
+#: ``requires → action`` edges and, since #3604, ``scope → governance`` edges
+#: for its type-wide selections; an ``action`` node carries ``scope → governance``
 #: ({directive, tactic, styleguide, …}) and ``instantiates → template`` — it has
 #: no requires/suggests/refines edges. Without ``scope``/``instantiates`` the
 #: forward closure reaches the ``action`` node and stops, so activating any of the

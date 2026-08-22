@@ -10,10 +10,10 @@ and the ``gate``/``noun``/``fr_id``/``extra`` parameterization surfacing in
 the message — are covered independently of either caller.
 
 The second half exercises :func:`scripts.docs._guards.resolve_changed_files`,
-the shared diff-scope resolver both blocking docs gates' ``--changed-from``
-mode is built on. **B-WP02 is the load-bearing distinction pinned here:**
-fail-closed keys on git base RESOLVABILITY (a non-zero ``git`` return code),
-never on the resolved changed-set being empty.
+the shared diff-scope resolver used by all four blocking per-page gates'
+``--changed-from`` modes. **B-WP02 is the load-bearing distinction pinned
+here:** fail-closed keys on git base RESOLVABILITY (a non-zero ``git`` return
+code), never on the resolved changed-set being empty.
 """
 
 from __future__ import annotations
@@ -130,6 +130,26 @@ def test_resolved_base_with_changes_returns_changed_paths(tmp_path: Path) -> Non
     changed = resolve_changed_files(repo, base_sha)
 
     assert changed == ["docs/new.md"]
+
+
+def test_changed_paths_are_lossless_with_unicode_and_newlines(tmp_path: Path) -> None:
+    """NUL framing avoids Git's quotePath encoding and line-delimiter ambiguity."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / "README.md").write_text("# hi\n", encoding="utf-8")
+    base_sha = init_git_repo_with_base(repo)
+
+    docs = repo / "docs"
+    docs.mkdir()
+    unicode_path = docs / "café.md"
+    newline_path = docs / "line\nbreak.md"
+    unicode_path.write_text("# Unicode\n", encoding="utf-8")
+    newline_path.write_text("# Newline\n", encoding="utf-8")
+    commit_all_changes(repo, "add unusual doc paths")
+
+    changed = resolve_changed_files(repo, base_sha)
+
+    assert changed == ["docs/café.md", "docs/line\nbreak.md"]
 
 
 def test_unresolvable_base_raises_git_diff_error(tmp_path: Path) -> None:

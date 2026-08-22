@@ -56,6 +56,11 @@ _EXPECTED_ENV_REFS: frozenset[str] = frozenset(
         "SPEC_KITTY_SAAS_URL",
         "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
         "SPEC_KITTY_SYNC_READONLY_IDENTITY",
+        # Added #3626 (2026-08-21): the strict-admission opt-in read by
+        # ``sync/admission_negotiation.py`` to flip the negotiated gate from
+        # its non-strict default to strict enforcement. A new live reference on
+        # the surface, recorded with a ``live`` verdict in the census doc.
+        "SPEC_KITTY_SYNC_STRICT_ADMISSION",
     }
 )
 

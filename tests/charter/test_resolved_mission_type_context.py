@@ -382,6 +382,7 @@ class TestResolvedTemplateSet:
         assert bundle.action_sequence == []
         assert bundle.template_set is None
 
+    @pytest.mark.performance
     def test_action_sequence_hot_path_does_not_resolve_template_mapping(
         self, tmp_path: Path
     ) -> None:

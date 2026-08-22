@@ -22,8 +22,9 @@ from pathlib import Path
 from collections.abc import Iterator
 
 from kernel.clock import now_utc
+from charter.missions import ExpectedArtifactManifest
 from specify_cli.dossier.hasher import hash_file_with_validation, hash_wp_static_projection
-from specify_cli.dossier.manifest import ManifestRegistry, ExpectedArtifactManifest
+from specify_cli.dossier.manifest import ManifestRegistry
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 
 logger = logging.getLogger(__name__)

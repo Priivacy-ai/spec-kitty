@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 __all__ = [
     "infer_execution_mode",
@@ -16,6 +16,7 @@ __all__ = [
     "infer_authoritative_surface",
     "infer_ownership",
     "score_execution_mode_signals",
+    "detect_post_integration_acceptance",
     "SRC_FALLBACK_GLOB",
     "SRC_FALLBACK_WARNING",
 ]
@@ -57,7 +58,7 @@ _PATH_PATTERN = re.compile(
 )
 
 
-def infer_execution_mode(wp_content: str, wp_files: list[str]) -> ExecutionMode:
+def infer_execution_mode(wp_content: str, wp_files: list[str]) -> WorkProductKind:
     """Infer whether a WP is a code_change or planning_artifact.
 
     Heuristic (in order of precedence):
@@ -71,15 +72,15 @@ def infer_execution_mode(wp_content: str, wp_files: list[str]) -> ExecutionMode:
         wp_files: Optional list of file paths explicitly listed as WP deliverables.
 
     Returns:
-        Inferred ExecutionMode.
+        Inferred WorkProductKind.
     """
     planning_score, code_score = score_execution_mode_signals(wp_content, wp_files)
 
     if planning_score > 0 and code_score == 0:
-        return ExecutionMode.PLANNING_ARTIFACT
+        return WorkProductKind.PLANNING_ARTIFACT
 
     # Default: code_change
-    return ExecutionMode.CODE_CHANGE
+    return WorkProductKind.CODE_CHANGE
 
 
 def score_execution_mode_signals(wp_content: str, wp_files: list[str]) -> tuple[int, int]:
@@ -88,6 +89,108 @@ def score_execution_mode_signals(wp_content: str, wp_files: list[str]) -> tuple[
     planning_score = sum(1 for p in _PLANNING_SIGNALS if re.search(p, combined))
     code_score = sum(1 for p in _CODE_SIGNALS if re.search(p, combined))
     return planning_score, code_score
+
+
+# --- #3590 INTERIM: post-integration acceptance-criteria detector --------------
+#
+# The "silent-drop / fake-green" discipline (epics #3410 / #3549) applied at
+# authoring time: a code-bearing WP whose acceptance criteria are observable only
+# AFTER the WP is integrated (an *action* against the merged/deployed system, not
+# a *diff* inspectable in isolation) cannot be honestly reviewed while the lane is
+# open — the reviewer has nothing to check yet. This is the INTERIM authoring-time
+# WARNING only (issue #3590); the deep terminal-state fix is Mission M6
+# (#3550 / #3432 / #3433 / #2745). It NEVER blocks finalize and touches NO
+# terminal state, gate, or lane exit (C-002 / NFR-002).
+
+# Markers that name an observation only possible once THIS work package lands — a
+# temporal "after this WP is merged/integrated/deployed" form, not a generic
+# location qualifier. Deliberately narrow (precision-sensitive, warn-only): a
+# noisy heuristic trains operators to ignore the signal, defeating the fail-loud
+# intent. Bare "in production" / "after release" are intentionally EXCLUDED — they
+# routinely qualify diff-inspectable criteria ("must not double-write in
+# production", "latency improves after release") and false-fire (adversarial
+# review finding 2a, M4 #3590); only the temporal "after <this lands>" forms stay.
+_POST_INTEGRATION_MARKERS: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\bpost[-\s]?merge\b",
+        r"\bafter (?:the )?merge\b",
+        r"\bonce merged\b",
+        r"\bpost[-\s]?integration\b",
+        r"\bafter integration\b",
+        r"\bonce integrated\b",
+        r"\bafter (?:the )?deploy(?:ment)?\b",
+        r"\bonce deployed\b",
+    )
+)
+
+# Headings under which acceptance/success-criteria prose lives in a WP body. The
+# detector scopes to these sections (not the whole body) so an incidental mention
+# of "post-merge" in, say, a Notes section does not trip a false positive.
+# ``objectives`` is intentionally EXCLUDED — an Objectives section states goals
+# ("ship so latency improves after release"), not diff-inspectable termination
+# criteria, and widens the false-positive surface (review finding 2b, M4 #3590).
+_ACCEPTANCE_HEADING = re.compile(
+    r"(?i)(?:acceptance|success\s+crit|review\s+guidance)",
+)
+_HEADING_LINE = re.compile(r"^#{1,6}\s")
+
+
+def _acceptance_criteria_scope(wp_body: str) -> str:
+    """Return the WP-body text under acceptance/success-criteria headings.
+
+    Returns ``""`` when the WP body carries no acceptance-criteria section — the
+    conservative choice for a precision-sensitive, warn-only heuristic (an absent
+    section yields no warning rather than a whole-body scan).
+    """
+    scoped: list[str] = []
+    capturing = False
+    for line in wp_body.splitlines():
+        if _HEADING_LINE.match(line):
+            capturing = bool(_ACCEPTANCE_HEADING.search(line))
+            continue
+        if capturing:
+            scoped.append(line)
+    return "\n".join(scoped)
+
+
+def detect_post_integration_acceptance(wp_content: str, wp_files: list[str]) -> list[str]:
+    """Warn (never block) when a code WP's acceptance criteria are post-integration only.
+
+    Consumes execution-mode inference (:func:`infer_execution_mode`): only a
+    ``code_change`` WP is flagged — a ``planning_artifact`` WP legitimately
+    describes downstream/integration outcomes and is exempt (this both matches the
+    intent and suppresses the most common false positive). Returns human-readable
+    warning strings (empty when nothing fires) for the finalize bootstrap to
+    surface through its existing warn-only channel; it emits no signal of its own
+    and reaches no terminal state (NFR-001 / C-002).
+
+    Args:
+        wp_content: Full text of the WP prompt file (frontmatter + body).
+        wp_files: File paths declared as the WP's deliverables (owned_files).
+    """
+    if infer_execution_mode(wp_content, wp_files) is not WorkProductKind.CODE_CHANGE:
+        return []
+    scope = _acceptance_criteria_scope(wp_content)
+    if not scope:
+        return []
+    matched = sorted(
+        {
+            match.group(0).strip().lower()
+            for pattern in _POST_INTEGRATION_MARKERS
+            for match in pattern.finditer(scope)
+        }
+    )
+    if not matched:
+        return []
+    phrases = ", ".join(f"'{phrase}'" for phrase in matched)
+    return [
+        "acceptance criteria appear observable only post-integration "
+        f"({phrases}) — an action, not a diff. The work package cannot be "
+        "honestly reviewed while its lane is open; re-home this observation at "
+        "planning time (e.g. a mission-level acceptance check) so the WP can "
+        "terminate on a diff-inspectable criterion."
+    ]
 
 
 def infer_owned_files(wp_content: str, mission_slug: str) -> tuple[list[str], list[str]]:
@@ -107,7 +210,7 @@ def infer_owned_files(wp_content: str, mission_slug: str) -> tuple[list[str], li
     """
     execution_mode = infer_execution_mode(wp_content, [])
 
-    if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+    if execution_mode == WorkProductKind.PLANNING_ARTIFACT:
         return [f"kitty-specs/{mission_slug}/**"], []
 
     # Extract path tokens mentioned in the WP

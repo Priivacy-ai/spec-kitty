@@ -299,6 +299,7 @@ def test_renders_legacy_session(monkeypatch: pytest.MonkeyPatch) -> None:
     assert all(f.severity != "critical" for f in report.findings)
 
 
+@pytest.mark.performance
 def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Healthy state + simulated 50-port scan ⇒ wall-clock < 3 s.
 

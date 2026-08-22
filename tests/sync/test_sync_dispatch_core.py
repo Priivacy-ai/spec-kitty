@@ -28,11 +28,14 @@ import typer
 from specify_cli.delivery.dispatcher import DispatchFailure, DispatchSummary
 from specify_cli.sync.sync_dispatch_core import (
     _OVERSIZED_SYNC_NOW_MESSAGE,
+    _PROTOCOL_MISMATCH_SYNC_NOW_MESSAGE,
     _TRANSIENT_SYNC_NOW_MESSAGE,
     _UNAUTHENTICATED_SYNC_NOW_MESSAGE,
     SyncNowExitAction,
     _batch_is_oversized,
+    _batch_is_protocol_mismatch,
     _combine_dispatch_summaries,
+    _protocol_mismatch_guidance,
     _transient_block_message,
     decide_sync_now_exit,
 )
@@ -156,6 +159,44 @@ class TestDecideSyncNowExit:
         summary = _summary(selected=3, delivered=1, transient=2)
         assert decide_sync_now_exit(False, 0, summary) is SyncNowExitAction.NONE
 
+    # ----------------------------------------------------------------- #
+    # admission_gated (#3620 Finding 2 + AC-9 regression guard)         #
+    # ----------------------------------------------------------------- #
+
+    def test_admission_gated_zero_recorded_is_admission_blocked_not_unauthenticated(self) -> None:
+        # Same shape as test_selected_no_progress_no_records_is_unauthenticated
+        # (a pure gate/admission block records no rows) but admission_gated=True
+        # means the exec layer identified it as a gate/admission block, not a
+        # real 401/403 — so the verdict must NOT be HANDLE_UNAUTHENTICATED.
+        summary = _summary(selected=4)
+        assert decide_sync_now_exit(True, 0, summary, admission_gated=True) is SyncNowExitAction.ADMISSION_BLOCKED
+
+    def test_admission_gated_pending_nothing_attempted_is_admission_blocked(self) -> None:
+        assert decide_sync_now_exit(True, 5, DispatchSummary.empty(), admission_gated=True) is SyncNowExitAction.ADMISSION_BLOCKED
+
+    def test_admission_gated_false_preserves_legacy_unauthenticated_routing(self) -> None:
+        # AC-9 regression guard, direction 1: without the marker, the legacy
+        # "nothing attempted" shape still routes through teamspace-aware
+        # recovery — admission_gated must never become the default behavior.
+        summary = _summary(selected=4)
+        assert decide_sync_now_exit(True, 0, summary, admission_gated=False) is SyncNowExitAction.HANDLE_UNAUTHENTICATED
+
+    def test_genuine_401_batch_stays_transient_block_even_when_admission_gated(self) -> None:
+        # AC-9 regression guard, direction 2 (Finding 2's other half): a REAL
+        # 401/403 must never be relabeled as admission_blocked, even if a
+        # caller mistakenly passed admission_gated=True. The transient-with-
+        # recorded-rows shape takes precedence over the zero-recorded arm this
+        # parameter touches, so genuine auth failures are untouched by design.
+        summary = _summary(
+            selected=2,
+            transient=2,
+            failures=(
+                DispatchFailure(event_id="e1", outcome="transient", http_status=401),
+                DispatchFailure(event_id="e2", outcome="transient", http_status=401),
+            ),
+        )
+        assert decide_sync_now_exit(True, 0, summary, admission_gated=True) is SyncNowExitAction.TRANSIENT_BLOCK
+
 
 # --------------------------------------------------------------------------- #
 # _combine_dispatch_summaries                                                 #
@@ -216,6 +257,60 @@ class TestBatchIsOversized:
 
 
 # --------------------------------------------------------------------------- #
+# _batch_is_protocol_mismatch / _protocol_mismatch_guidance (#1553)           #
+# --------------------------------------------------------------------------- #
+
+
+def _mismatch_failures(count: int, *, error: str | None = "Run `spec-kitty upgrade` to update to a supported release.") -> tuple[DispatchFailure, ...]:
+    return tuple(DispatchFailure(event_id=f"e{i}", outcome="transient", http_status=412, error=error) for i in range(count))
+
+
+class TestBatchIsProtocolMismatch:
+    def test_wholesale_412_transient_is_protocol_mismatch(self) -> None:
+        assert _batch_is_protocol_mismatch(_summary(selected=2, transient=2, failures=_mismatch_failures(2))) is True
+
+    def test_412_with_local_terminal_failure_is_protocol_mismatch(self) -> None:
+        summary = _summary(
+            selected=2,
+            transient=1,
+            terminal_failed=1,
+            failures=(
+                *_mismatch_failures(1),
+                DispatchFailure(event_id="local", outcome="terminal_failed"),
+            ),
+        )
+        assert _batch_is_protocol_mismatch(summary) is True
+
+    def test_wholesale_413_is_not_protocol_mismatch(self) -> None:
+        failures = tuple(DispatchFailure(event_id=f"e{i}", outcome="transient", http_status=413) for i in range(2))
+        assert _batch_is_protocol_mismatch(_summary(selected=2, transient=2, failures=failures)) is False
+        # ...and the two wholesale predicates never both fire for one batch.
+        assert _batch_is_oversized(_summary(selected=2, transient=2, failures=_mismatch_failures(2))) is False
+
+    def test_empty_batch_is_not_protocol_mismatch(self) -> None:
+        assert _batch_is_protocol_mismatch(DispatchSummary.empty()) is False
+
+
+class TestProtocolMismatchGuidance:
+    def test_surfaces_the_server_guidance_from_the_first_412_failure(self) -> None:
+        summary = _summary(selected=2, transient=2, failures=_mismatch_failures(2))
+        assert _protocol_mismatch_guidance(summary) == "Run `spec-kitty upgrade` to update to a supported release."
+
+    def test_found_even_after_partial_progress_in_the_same_pass(self) -> None:
+        # Earlier batches delivered, then the 412 halted the pass: the combined
+        # summary is not wholesale-transient, but the guidance must still surface.
+        delivered = _summary(selected=3, delivered=3)
+        halted = _summary(selected=2, transient=2, failures=_mismatch_failures(2, error="Pin spec-kitty to a supported release."))
+        combined = _combine_dispatch_summaries(delivered, halted)
+        assert _protocol_mismatch_guidance(combined) == "Pin spec-kitty to a supported release."
+
+    def test_none_when_no_412_failure(self) -> None:
+        failures = (DispatchFailure(event_id="e0", outcome="transient", http_status=503, error="boom"),)
+        assert _protocol_mismatch_guidance(_summary(selected=1, transient=1, failures=failures)) is None
+        assert _protocol_mismatch_guidance(DispatchSummary.empty()) is None
+
+
+# --------------------------------------------------------------------------- #
 # _transient_block_message                                                    #
 # --------------------------------------------------------------------------- #
 
@@ -228,6 +323,11 @@ class TestTransientBlockMessage:
     def test_auth_status_reports_unauthenticated(self) -> None:
         failures = (DispatchFailure(event_id="e0", outcome="transient", http_status=401),)
         assert _transient_block_message(_summary(selected=1, transient=1, failures=failures)) == _UNAUTHENTICATED_SYNC_NOW_MESSAGE
+
+    def test_412_reports_protocol_mismatch_not_auth(self) -> None:
+        # A halted-on-412 pass is a wholesale-transient drain; it must not be
+        # relabeled "not authenticated" nor "batch too large".
+        assert _transient_block_message(_summary(selected=2, transient=2, failures=_mismatch_failures(2))) == _PROTOCOL_MISMATCH_SYNC_NOW_MESSAGE
 
     def test_other_status_reports_generic_transient(self) -> None:
         failures = (DispatchFailure(event_id="e0", outcome="transient", http_status=503),)
@@ -281,6 +381,27 @@ class TestEnforceSyncNowExitWrapper:
         # selected>0, no progress, no records → HANDLE_UNAUTHENTICATED.
         sync_module._enforce_sync_now_exit_from_dispatch(True, 0, _summary(selected=4))
         assert calls == [True]
+
+    def test_admission_blocked_action_never_calls_unauthenticated_recovery(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        # #3620 Finding 2: the same "selected>0, no progress, no records" shape
+        # as the unauthenticated test above, but admission_gated=True. The
+        # wrapper must NOT print/route the "not authenticated" message — that
+        # is exactly the misreport this fix closes.
+        import specify_cli.cli.commands.sync as sync_module
+
+        calls: list[bool] = []
+        monkeypatch.setattr(sync_module, "_handle_sync_now_unauthenticated", lambda strict: calls.append(strict))
+        with pytest.raises(typer.Exit) as exc:
+            sync_module._enforce_sync_now_exit_from_dispatch(True, 0, _summary(selected=4), admission_gated=True)
+        assert exc.value.exit_code == 1
+        assert calls == [], "admission_gated must never route through unauthenticated recovery"
+
+    def test_admission_blocked_action_not_strict_returns_without_raise(self) -> None:
+        import specify_cli.cli.commands.sync as sync_module
+
+        # Under --no-strict, an admission-gated block is reported (by the exec
+        # layer, upstream) but does not raise.
+        sync_module._enforce_sync_now_exit_from_dispatch(False, 0, _summary(selected=4), admission_gated=True)
 
     def test_logged_out_on_connected_teamspace_raises_exit_4(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import specify_cli.cli.commands.sync as sync_module

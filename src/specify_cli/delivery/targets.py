@@ -13,6 +13,21 @@ from specify_cli.sync.target_authority import AdmissionAudience
 
 _DEFAULT_PORTS = {"https": 443, "http": 80}
 
+#: Label prefix for a locally self-admitted target (#3620, negotiated
+#: admission). Distinguishes a local stand-in — minted while the server's
+#: admission endpoint stays undeployed/non-strict — from a real
+#: server-acknowledged ``binding_audience`` written by
+#: ``AdmissionOperationService.perform``, so the source of an ADMITTED row is
+#: always auditable from the stored value alone.
+LOCAL_NONSTRICT_AUDIENCE_PREFIX = "local-nonstrict:"
+
+#: Fixed admission generation used for every locally self-admitted row. Kept
+#: separate from ``AdmissionAudience.configuration_generation`` (which is
+#: always ``1`` for local self-admission too, but names a different concept):
+#: this is the *admission* generation a real ``perform()`` acknowledgement
+#: would otherwise stamp.
+_LOCAL_NONSTRICT_ADMISSION_GENERATION = 1
+
 
 class InvalidTargetUrlError(ValueError):
     """A target URL cannot be normalized safely."""
@@ -168,6 +183,64 @@ class ProjectDeliveryTargetRegistry:
         target = self.get_current(unit)
         if target is None:  # pragma: no cover - INSERT is verified in the same transaction
             raise RuntimeError("target registration did not persist")
+        return target
+
+    def admit_locally(
+        self,
+        unit: ProjectUnitOfWork,
+        audience: AdmissionAudience,
+    ) -> DeliveryTarget:
+        """Mint a LABELED local self-admission for *audience* (#3620, negotiated admission).
+
+        Mirrors :meth:`register` but writes ``admission_state='admitted'``
+        directly, with ``binding_audience`` prefixed
+        :data:`LOCAL_NONSTRICT_AUDIENCE_PREFIX` so the row is auditably
+        distinct from one a real server acknowledgement would write. Callers
+        (:func:`specify_cli.sync.admission_negotiation.maybe_admit_locally`)
+        are responsible for the consent/session/non-strict/not-already-admitted
+        guards; this method only performs the write and is idempotent for a
+        repeat call with the identical audience (AC-3): a current row that
+        already carries this exact identity, generation, and label is
+        returned unchanged rather than rewritten.
+        """
+        self._verify(unit, audience)
+        binding_audience = f"{LOCAL_NONSTRICT_AUDIENCE_PREFIX}{audience.normalized_server_origin}"
+        current = self.get_current(unit)
+        if (
+            current is not None
+            and current.admission_state is AdmissionState.ADMITTED
+            and current.target_identity == audience.target_identity
+            and current.account_identity == audience.account_identity
+            and current.private_teamspace_id == audience.private_teamspace_id
+            and current.configuration_generation == audience.configuration_generation
+            and current.binding_audience == binding_audience
+        ):
+            return current
+        unit.execute(
+            "INSERT INTO project_target_admissions ("
+            "project_uuid, target_identity, account_identity, private_teamspace_id, "
+            "configuration_generation, admission_state, admission_generation, "
+            "binding_audience, last_error_category) VALUES (?, ?, ?, ?, ?, 'admitted', ?, ?, NULL) "
+            "ON CONFLICT(project_uuid) DO UPDATE SET "
+            "target_identity = excluded.target_identity, "
+            "account_identity = excluded.account_identity, "
+            "private_teamspace_id = excluded.private_teamspace_id, "
+            "configuration_generation = excluded.configuration_generation, "
+            "admission_state = 'admitted', admission_generation = excluded.admission_generation, "
+            "binding_audience = excluded.binding_audience, last_error_category = NULL",
+            (
+                audience.project_uuid.storage_token,
+                audience.target_identity,
+                audience.account_identity,
+                audience.private_teamspace_id,
+                audience.configuration_generation,
+                _LOCAL_NONSTRICT_ADMISSION_GENERATION,
+                binding_audience,
+            ),
+        )
+        target = self.get_current(unit)
+        if target is None:  # pragma: no cover - INSERT is verified in the same transaction
+            raise RuntimeError("local self-admission did not persist")
         return target
 
     def list_targets(self, unit: ProjectUnitOfWork) -> list[DeliveryTarget]:

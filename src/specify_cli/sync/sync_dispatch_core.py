@@ -48,12 +48,26 @@ if TYPE_CHECKING:
 # HTTP 413 is how the SaaS sync ingress (Fly proxy + edge) rejects an
 # over-cap batch; see apps/sync/limits.py (512 KiB decompressed ceiling).
 _HTTP_PAYLOAD_TOO_LARGE = 413
+# HTTP 412 is the SaaS compatibility handshake refusing the CLI's advertised
+# protocol version (apps/sync/compatibility.py, keyed on
+# ``X-SpecKitty-Protocol-Version``). Environment skew, not a per-event fault:
+# the receiver maps it to a batch-wide ``transient`` and the batch driver HALTS
+# the pass on it instead of POSTing the rest of the journal (#1553).
+_HTTP_PRECONDITION_FAILED = 412
 _OVERSIZED_ERROR_MARKER = "retry with a smaller batch"
 _HTTP_AUTH_STATUSES = frozenset({401, 403})
 
 _UNAUTHENTICATED_SYNC_NOW_MESSAGE = "not authenticated: no valid access token. Run `spec-kitty auth login`."
 _OVERSIZED_SYNC_NOW_MESSAGE = "sync batch exceeded the server size limit; the CLI retried with smaller batches. Re-run `spec-kitty sync now` if events remain."
 _TRANSIENT_SYNC_NOW_MESSAGE = "sync delivery failed transiently; no events were lost. Re-run `spec-kitty sync now` (see `--report` for per-event detail)."
+_PROTOCOL_MISMATCH_SYNC_NOW_MESSAGE = (
+    "sync delivery halted: the server rejected this CLI's sync protocol version (HTTP 412); "
+    "no events were lost and none were parked. Follow the guidance above, then re-run `spec-kitty sync now`."
+)
+#: Printed by the command that hit the 412, followed by the server's own guidance.
+_PROTOCOL_MISMATCH_HALT_NOTICE = (
+    "Event sync halted: the server rejected this CLI's sync protocol version (HTTP 412); the remaining events were retained for the next run, not parked."
+)
 
 
 class SyncNowExitAction(Enum):
@@ -72,12 +86,19 @@ class SyncNowExitAction(Enum):
     * :attr:`TRANSIENT_BLOCK` — a wholesale-transient drain; the wrapper prints
       the classified :func:`_transient_block_message` and, under ``strict``,
       raises ``typer.Exit(1)``.
+    * :attr:`ADMISSION_BLOCKED` — a gate/admission block (``admission_gated``),
+      NOT a real 401/403 (#3620, Finding 2). The real reason was already
+      printed by the exec layer (``_AdmissionGatedNoDelivery.reason``); the
+      wrapper must NOT route this through unauthenticated recovery — it only
+      honors ``strict`` (``typer.Exit(1)``) like :attr:`EXIT_STRICT_FAILURE`,
+      without the misleading "not authenticated" message.
     """
 
     NONE = "none"
     EXIT_STRICT_FAILURE = "exit_strict_failure"
     HANDLE_UNAUTHENTICATED = "handle_unauthenticated"
     TRANSIENT_BLOCK = "transient_block"
+    ADMISSION_BLOCKED = "admission_blocked"
 
 
 def _combine_dispatch_summaries(left: DispatchSummary, right: DispatchSummary) -> DispatchSummary:
@@ -100,6 +121,11 @@ def _combine_dispatch_summaries(left: DispatchSummary, right: DispatchSummary) -
     )
 
 
+def _is_wholesale_transient(summary: DispatchSummary) -> bool:
+    """Whether every selected event of *summary* came back ``transient`` (one failure each)."""
+    return bool(summary.selected > 0 and summary.transient == summary.selected and len(summary.failures) == summary.selected)
+
+
 def _batch_is_oversized(summary: DispatchSummary) -> bool:
     """Whether a batch was rejected wholesale for exceeding the server size cap.
 
@@ -110,24 +136,49 @@ def _batch_is_oversized(summary: DispatchSummary) -> bool:
     error (``_BATCH_OVERSIZED_ERROR`` = "retry with a smaller batch"). This is
     the signal that we should honor that documented contract and shrink.
     """
-    failures = summary.failures
-    is_wholesale_transient = summary.selected > 0 and summary.transient == summary.selected and len(failures) == summary.selected
-    return is_wholesale_transient and all(
+    return _is_wholesale_transient(summary) and all(
         failure.outcome == "transient"
         and (failure.http_status == _HTTP_PAYLOAD_TOO_LARGE or (failure.error is not None and _OVERSIZED_ERROR_MARKER in failure.error.lower()))
-        for failure in failures
+        for failure in summary.failures
     )
+
+
+def _batch_is_protocol_mismatch(summary: DispatchSummary) -> bool:
+    """Whether any attempted event hit the server protocol handshake (HTTP 412).
+
+    The receiver maps each correlated 412 to ``transient`` (retained,
+    re-selectable) with the server's upgrade/pin guidance. A selected row may
+    also have failed locally before transport, so the halt predicate keys on
+    any 412 rather than requiring the whole summary to be transient. Every
+    further POST this pass would get the same answer (#1553).
+    """
+    return any(failure.outcome == "transient" and failure.http_status == _HTTP_PRECONDITION_FAILED for failure in summary.failures)
+
+
+def _protocol_mismatch_guidance(summary: DispatchSummary) -> str | None:
+    """The server's upgrade/pin guidance if a 412 halted this pass, else ``None``.
+
+    Read off the first 412 failure so it is found even when earlier batches of the
+    same pass delivered (the combined summary is then not wholesale-transient).
+    """
+    for failure in summary.failures:
+        if failure.outcome == "transient" and failure.http_status == _HTTP_PRECONDITION_FAILED:
+            error = failure.error
+            return None if error is None else str(error)
+    return None
 
 
 def _transient_block_message(summary: DispatchSummary) -> str:
     """Explain a wholesale-transient drain accurately instead of always blaming auth.
 
     The legacy heuristic reported every all-transient batch as "not
-    authenticated", which mislabels a 413 (batch too large) or a 5xx as a
-    logged-out session and sends operators chasing auth. Classify by the actual
-    failure status instead.
+    authenticated", which mislabels a 413 (batch too large), a 412 (protocol
+    skew, #1553) or a 5xx as a logged-out session and sends operators chasing
+    auth. Classify by the actual failure status instead.
     """
     statuses = {f.http_status for f in summary.failures if f.http_status is not None}
+    if _HTTP_PRECONDITION_FAILED in statuses:
+        return _PROTOCOL_MISMATCH_SYNC_NOW_MESSAGE
     if _HTTP_PAYLOAD_TOO_LARGE in statuses:
         return _OVERSIZED_SYNC_NOW_MESSAGE
     if statuses & _HTTP_AUTH_STATUSES:
@@ -142,6 +193,7 @@ def decide_sync_now_exit(
     *,
     retained_work_present: bool = False,
     intentional_no_delivery: bool = False,
+    admission_gated: bool = False,
 ) -> SyncNowExitAction:
     """Map the dispatch outcome to the strict ``sync now`` exit **decision** (pure).
 
@@ -176,6 +228,16 @@ def decide_sync_now_exit(
 
     A ``None`` summary means dispatch infrastructure was unavailable. Under
     ``strict`` that is a failure only when retained or legacy work exists.
+
+    ``admission_gated`` (#3620, Finding 2) narrows the two "nothing attempted"
+    arms below: when the exec layer explicitly detected a gate/admission
+    block (``_AdmissionGatedNoDelivery``) rather than a genuine 401/403, the
+    verdict is :attr:`SyncNowExitAction.ADMISSION_BLOCKED` instead of
+    :attr:`SyncNowExitAction.HANDLE_UNAUTHENTICATED`, so the host does not
+    route it through unauthenticated recovery and print "not authenticated"
+    for a problem that has nothing to do with the local session. The true
+    401/403 path (``_HTTP_AUTH_STATUSES`` / :attr:`SyncNowExitAction.TRANSIENT_BLOCK`)
+    is untouched by this parameter.
     """
     if summary is None:
         if strict and (queue_size > 0 or retained_work_present):
@@ -194,10 +256,12 @@ def decide_sync_now_exit(
         return SyncNowExitAction.EXIT_STRICT_FAILURE
 
     # Selected work made no durable progress. A pure gate/auth block records no
-    # rows, so route it through teamspace-aware recovery; transport/content
-    # failures still use the legacy strict exit.
+    # rows, so route it through teamspace-aware recovery — UNLESS the exec
+    # layer identified it as a gate/admission block rather than a real
+    # unauthenticated shape (admission_gated, #3620 Finding 2). Transport/
+    # content failures still use the legacy strict exit.
     if selected > 0 and progressed == 0 and summary.recorded == 0:
-        return SyncNowExitAction.HANDLE_UNAUTHENTICATED
+        return SyncNowExitAction.ADMISSION_BLOCKED if admission_gated else SyncNowExitAction.HANDLE_UNAUTHENTICATED
     if selected > 0 and progressed == 0 and summary.transient > 0:
         return SyncNowExitAction.TRANSIENT_BLOCK
     if selected > 0 and progressed == 0 and summary.recorded > 0:
@@ -206,10 +270,11 @@ def decide_sync_now_exit(
         # semantics without sending the operator through auth recovery.
         return SyncNowExitAction.EXIT_STRICT_FAILURE if strict else SyncNowExitAction.NONE
 
-    # Pending work but nothing was even attempted → teamspace-aware recovery.
+    # Pending work but nothing was even attempted → teamspace-aware recovery,
+    # unless it is the same admission_gated shape as above.
     work_present = queue_size > 0 or selected > 0
     if work_present and progressed == 0:
-        return SyncNowExitAction.HANDLE_UNAUTHENTICATED
+        return SyncNowExitAction.ADMISSION_BLOCKED if admission_gated else SyncNowExitAction.HANDLE_UNAUTHENTICATED
     errors = summary.rejected + summary.transient + summary.terminal_failed
     if strict and errors > 0:
         return SyncNowExitAction.EXIT_STRICT_FAILURE

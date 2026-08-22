@@ -39,19 +39,6 @@ if TYPE_CHECKING:
     from mission_runtime.artifacts import MissionArtifactKind
 
 
-class ExecutionMode(enum.Enum):
-    """How an action's execution context is resolved.
-
-    ``WORKTREE`` resolves against a lane worktree; ``CODE_CHANGE`` resolves
-    against an in-place checkout. The resolved string mode is surfaced on
-    :attr:`MissionExecutionContext.execution_mode` (which carries the raw workspace
-    string), so this enum is the typed vocabulary callers may compare against.
-    """
-
-    WORKTREE = "worktree"
-    CODE_CHANGE = "code_change"
-
-
 class MissionTopology(enum.Enum):
     """The four mission shapes of the orthogonal coordination × lanes grid.
 
@@ -356,7 +343,6 @@ __all__ = [
     "ArtifactPlacementFragment",
     "BranchRefFragment",
     "CommitTarget",
-    "ExecutionMode",
     "IdentityFragment",
     "MissionArtifactContext",
     "MissionContext",

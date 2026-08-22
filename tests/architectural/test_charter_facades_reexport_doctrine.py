@@ -132,6 +132,14 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("builtin_mission_type_ids", "doctrine.missions.mission_type_repository"),
         ("project_template_set", "doctrine.missions.step_projection"),
         ("MissionStepRepository", "doctrine.missions.mission_step_repository"),
+        # Added by mission ``rc3-charter-gate-predicate-inversion-01M0GGT1`` (M3,
+        # #3599): the artifact-filename seam relocated the expected-artifact
+        # manifest into doctrine (C-001) and specify_cli reaches it through this
+        # facade (runtime -> charter -> doctrine, test_runtime_charter_doctrine_boundary).
+        ("ArtifactClassEnum", "doctrine.missions.expected_artifact_manifest"),
+        ("ExpectedArtifactManifest", "doctrine.missions.expected_artifact_manifest"),
+        ("ExpectedArtifactSpec", "doctrine.missions.expected_artifact_manifest"),
+        ("project_artifact_name_set", "doctrine.missions.step_projection"),
         # Added by mission ``up-mission-type-seam-01KZY1JB`` WP07 (FR-006):
         # the CLI layer (``specify_cli.cli.commands.charter.mission_type``)
         # needs direct reach to the FR-001 layered factory to report a real

@@ -227,10 +227,23 @@ def _fail(command: str, error_code: str, message: str, data: dict | None = None)
     mypy proves any code after a ``_fail(...)`` call is unreachable — callers
     need no sentinel ``raise`` to satisfy their return type.
     """
+    # #3548 (fail-loud / silent-drop, epics #3410/#3549): the retired
+    # ``data or {"message": message}`` expression DROPPED the human-readable
+    # ``message`` whenever a caller passed truthy structured ``data`` — silencing
+    # 16 of 33 call sites, preferentially the most actionable errors. Merge the
+    # explanation INTO the payload so BOTH reach the operator; ``message`` (the
+    # param, the canonical explanation) is guaranteed present and last-wins over
+    # any caller-supplied ``data["message"]``. The two callers that seed their own
+    # ``data["message"]`` (the read-path seam, and the LANE_ALLOCATION_FAILED site
+    # via ``StructuredError.to_dict()``) both pass the identical ``str(exc)`` the
+    # param already carries, so param-wins never destroys distinct information — it
+    # only guarantees the explanation is never dropped. The structured
+    # ``data["error_code"]`` those callers carry is untouched (NFR-003).
+    payload = {**(data or {}), "message": message}
     envelope = make_envelope(
         command=command,
         success=False,
-        data=data or {"message": message},
+        data=payload,
         error_code=error_code,
     )
     _emit(envelope)
@@ -896,6 +909,7 @@ def _resolve_start_workspace(
         DependencyLaneMergeConflictError,
         DirtyWorktreeError,
         LaneNotFoundError,
+        UnhonorableBaseError,
         allocate_lane_worktree,
     )
 
@@ -910,8 +924,16 @@ def _resolve_start_workspace(
         LaneNotFoundError,
         DirtyWorktreeError,
         DependencyLaneMergeConflictError,
+        UnhonorableBaseError,
         RuntimeError,
     ) as exc:
+        # NFR-004: UnhonorableBaseError carries a machine-readable error_code
+        # (and route/wp_id/base) via to_dict() — merge it into the data
+        # payload so a caller can branch on data["error_code"] ==
+        # "UNHONORABLE_BASE" rather than substring-matching the message. The
+        # top-level envelope error_code stays "LANE_ALLOCATION_FAILED" (the
+        # generic allocation-failure surface); to_dict() is a no-op {} for
+        # the other exception types in this tuple, which lack it.
         _fail(
             cmd,
             "LANE_ALLOCATION_FAILED",
@@ -920,7 +942,12 @@ def _resolve_start_workspace(
             # orchestrator can surface a diagnostic without parsing the envelope
             # message string.  The message field already carries str(exc) but is
             # not structurally queryable; "reason" makes the cause machine-readable.
-            {**_mission_identity_payload(mission_dir), "wp_id": wp, "reason": str(exc)},
+            {
+                **_mission_identity_payload(mission_dir),
+                "wp_id": wp,
+                "reason": str(exc),
+                **(exc.to_dict() if isinstance(exc, UnhonorableBaseError) else {}),
+            },
         )
 
     # _fail is NoReturn (always raises typer.Exit), so this is reached only on the

@@ -23,6 +23,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import ast
+import json
 
 import pytest
 
@@ -81,6 +82,13 @@ def _make_ctx(
     real ``_BufferingRuntimeEmitter`` in its own tests below)."""
     feature_dir = tmp_path / "kitty-specs" / "042-mission"
     feature_dir.mkdir(parents=True, exist_ok=True)
+    # Keep the synthetic feature_dir consistent with ``mission_type`` below:
+    # the non-WP CLI guard pre-check in ``_dn_dependency_gate`` is scoped to
+    # the ``software-dev`` family via ``get_mission_type(feature_dir)`` (#3407
+    # M3), which reads this meta.json. Without it the pre-check no-ops.
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_type": "software-dev"}), encoding="utf-8"
+    )
     resolved_run_dir = run_dir if run_dir is not None else (tmp_path / "run")
     resolved_run_dir.mkdir(parents=True, exist_ok=True)
     return rb.DecideNextContext(

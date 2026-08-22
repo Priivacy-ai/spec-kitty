@@ -123,11 +123,13 @@ def _build_minimal_repo(tmp_path: Path, mission_slug: str) -> Path:
 #
 # ``TestAuthenticatedSetupPlanLandsInScoped::test_authenticated_setup_plan_lands_in_scoped``
 # was extracted to
-# ``tests/regression/test_issue_3425_setup_plan_legacy_layout_silent_capture.py``
-# (2026-08-14 landing fold) — it is a red-first reproduction of open bug #3425
-# (un-migrated hosts raise ``LegacyQueueMigrationRequiredError`` before any
-# queue write is attempted), not a stale test of this module. See that
-# module's docstring for the mechanism.
+# ``tests/specify_cli/cli/commands/agent/test_issue_3425_setup_plan_legacy_layout_silent_capture.py``
+# (2026-08-14 landing fold; relocated out of ``tests/regression/`` once the
+# reproduction turned green — see that module's exit-rule note) — it is a
+# regression guard for fixed bug #3425 (un-migrated hosts raised
+# ``LegacyQueueMigrationRequiredError`` before any queue write was attempted),
+# not a stale test of this module. See that module's docstring for the
+# mechanism.
 
 
 # ---------------------------------------------------------------------------
@@ -336,11 +338,13 @@ class TestSetupPlanPreflightIntegration:
 
     ``test_setup_plan_refuses_on_daemon_owner_mismatch`` and
     ``test_setup_plan_authenticated_coherent_succeeds`` were extracted to
-    ``tests/regression/test_issue_3425_setup_plan_legacy_layout_silent_capture.py``
-    (2026-08-14 landing fold) — both are red-first reproductions of open bug
-    #3425 (the FR-011 auth-refusal gate fires before the boundary preflight
-    can be exercised on an un-migrated host), not stale tests of this class.
-    See that module's docstring for the mechanism.
+    ``tests/specify_cli/cli/commands/agent/test_issue_3425_setup_plan_legacy_layout_silent_capture.py``
+    (2026-08-14 landing fold; relocated out of ``tests/regression/`` once the
+    reproduction turned green — see that module's exit-rule note) — both are
+    regression guards for fixed bug #3425 (the FR-011 auth-refusal gate fired
+    before the boundary preflight could be exercised on an un-migrated host),
+    not stale tests of this class. See that module's docstring for the
+    mechanism.
     """
 
     def test_setup_plan_refuses_on_orphan_owner_record(

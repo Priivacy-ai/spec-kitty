@@ -17,7 +17,10 @@ delivery target. They are **two distinct functions** — deliberately not
 de-duplicated. ``_open_project_dispatch_runtime`` irreducibly mixes read+write
 authority at the flow level and is **frozen verbatim (C-007)**: its authority
 calls are relocated in the same order, with the same arguments, never purified
-or merged.
+or merged. (#3620: one negotiated-admission step —
+``admission_negotiation.maybe_admit_locally`` — is inserted before
+``store.create_context()`` / the delivery-target lookup; this is an addition
+to the sequence, not a reordering or removal of the frozen calls above.)
 
 **Late-bound host access (INV-4 / WP03 convention).** A relocated opener that
 must call a monkeypatched ``sync`` seam callee — or reach a host helper that
@@ -151,6 +154,15 @@ def _open_project_dispatch_runtime(
             )
     if not create and not store.database_path.exists():
         raise FileNotFoundError(f"event-sync project store DB absent: {store.database_path}")
+    from specify_cli.sync.admission_negotiation import maybe_admit_locally
+
+    # #3620: negotiated admission. A no-op unless the project is consented,
+    # authenticated, not already admitted, and the resolved server has not
+    # advertised strict admission (dormant until SaaS #795 ships) — see the
+    # module docstring above and admission_negotiation.py for the full guard
+    # matrix. Must run BEFORE create_context()/get_current below so a fresh
+    # local self-admission is visible to both.
+    maybe_admit_locally(store, target=target, routing_project_uuid=str(routing.project_uuid))
     context = store.create_context()
     delivery_target = None
     with store.unit_of_work() as unit:

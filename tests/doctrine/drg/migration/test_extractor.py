@@ -24,12 +24,15 @@ from doctrine.drg.migration.extractor import (
     _SKIP_REF_TYPES,
     _discover_built_in_nodes_in_dir,
     _partition_by_kind,
+    _relation_for_procedure_ref_type,
     extract_action_edges,
     extract_artifact_edges,
+    extract_governance_profile_scope_edges,
     extract_mission_type_edges,
     generate_graph,
 )
 from doctrine.drg.migration.hand_authored_overlay import write_reference_graph_with_overlay
+from doctrine.drg.migration.id_normalizer import artifact_to_urn
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.query import resolve_context
 from doctrine.drg.validator import validate_graph
@@ -356,6 +359,183 @@ class TestExtractArtifactEdges:
         step = next(e for e in edges if e.target == "toolguide:step-with-reason")
         assert step.when == "at the step level"
         assert step.reason == "because the step suggests it"
+
+    def test_procedure_reference_reason_roundtrips(self, tmp_path: Path) -> None:
+        """A procedure ``references`` entry carries ``reason`` symmetrically with
+        ``when`` (#3605, WP01/T001), matching the directive/tactic/paradigm
+        branches. Backward-compatible: an entry with no ``reason`` yields
+        ``reason=None``.
+
+        Before WP01 the procedures loop minted its ``DRGEdge`` inline, bypassing
+        the single authority :func:`_reference_edge_kwargs` -- so a procedure
+        reference's authored ``when``/``reason`` never reached the DRG edge even
+        though shipped procedure fixtures already author ``reason`` in YAML.
+        """
+        doctrine_root = tmp_path / "pack"
+        procedures_dir = doctrine_root / "procedures"
+        procedures_dir.mkdir(parents=True)
+        (procedures_dir / "reason-roundtrip.procedure.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: '1.0'",
+                    "id: reason-roundtrip",
+                    "name: Reason Roundtrip",
+                    "purpose: test",
+                    "references:",
+                    "  - type: styleguide",
+                    "    id: with-reason",
+                    "    when: applying the styleguide",
+                    "    reason: because the procedure suggests it here",
+                    "  - type: toolguide",
+                    "    id: without-reason",
+                    "    when: running the tool",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        _, edges = extract_artifact_edges(doctrine_root)
+
+        with_reason = next(
+            e for e in edges if e.target == "styleguide:with-reason"
+        )
+        assert with_reason.relation == Relation.SUGGESTS
+        assert with_reason.when == "applying the styleguide"
+        assert with_reason.reason == "because the procedure suggests it here"
+
+        without_reason = next(
+            e for e in edges if e.target == "toolguide:without-reason"
+        )
+        assert without_reason.when == "running the tool"
+        assert without_reason.reason is None
+
+    def test_procedure_reference_metadata_addition_preserves_triples(
+        self, tmp_path: Path
+    ) -> None:
+        """T003/NFR-002/AC-009 triple-identity guard: adding ``when``/``reason``
+        metadata to procedure references must never change the edge
+        **(source, target, relation)** triple set -- only the two metadata
+        fields differ.
+
+        Builds two fixtures with IDENTICAL references (same type/id pairs,
+        same order, one REQUIRES-class ref and one SUGGESTS-class ref) -- one
+        authoring ``when``/``reason``, one bare -- and asserts the extracted
+        triple sets are byte-identical between them. This is the guard the
+        re-ledger (WP04) relies on: WP01 only ever adds metadata to an edge
+        that already exists, it never mints, drops, or retargets one.
+        """
+        def _make_fixture(root: Path, *, with_metadata: bool) -> Path:
+            procedures_dir = root / "procedures"
+            procedures_dir.mkdir(parents=True)
+            metadata_lines = (
+                [
+                    "    when: doing the thing",
+                    "    reason: because triples must not move",
+                ]
+                if with_metadata
+                else []
+            )
+            lines = [
+                "schema_version: '1.0'",
+                "id: triple-identity",
+                "name: Triple Identity",
+                "purpose: test",
+                "references:",
+                "  - type: procedure",
+                "    id: required-sibling",
+                *metadata_lines,
+                "  - type: styleguide",
+                "    id: suggested-guide",
+                "",
+            ]
+            (procedures_dir / "triple-identity.procedure.yaml").write_text(
+                "\n".join(lines), encoding="utf-8"
+            )
+            return root
+
+        def _procedure_triples(
+            edges: list[DRGEdge],
+        ) -> set[tuple[str, str, str]]:
+            return {
+                (e.source, e.target, e.relation.value)
+                for e in edges
+                if e.source == "procedure:triple-identity"
+            }
+
+        _, bare_edges = extract_artifact_edges(
+            _make_fixture(tmp_path / "bare", with_metadata=False)
+        )
+        _, annotated_edges = extract_artifact_edges(
+            _make_fixture(tmp_path / "annotated", with_metadata=True)
+        )
+
+        bare_triples = _procedure_triples(bare_edges)
+        annotated_triples = _procedure_triples(annotated_edges)
+
+        assert bare_triples == annotated_triples, (
+            "adding when/reason metadata changed the procedure edge triple set"
+        )
+        assert bare_triples == {
+            ("procedure:triple-identity", "procedure:required-sibling", "requires"),
+            ("procedure:triple-identity", "styleguide:suggested-guide", "suggests"),
+        }
+
+        # The metadata itself DID change -- proving this isn't a vacuously
+        # true "nothing changed at all" assertion.
+        bare_by_target = {e.target: e for e in bare_edges}
+        annotated_by_target = {e.target: e for e in annotated_edges}
+        annotated_required = annotated_by_target["procedure:required-sibling"]
+        bare_required = bare_by_target["procedure:required-sibling"]
+        assert bare_required.reason is None
+        assert annotated_required.reason == "because triples must not move"
+        assert bare_required.relation == annotated_required.relation
+
+    def test_procedure_edge_relation_matches_ref_type_over_built_in_corpus(
+        self,
+    ) -> None:
+        """Corpus-level companion to the fixture-based triple-identity guard:
+        every edge the ``references:`` loop produces for a real shipped
+        procedure has the relation :func:`_relation_for_procedure_ref_type`
+        computes from its raw YAML ``type`` field -- confirming WP01's
+        re-route through :func:`_add_ref_edge`/:func:`_reference_edge_kwargs`
+        kept the relation computation unchanged; it only added
+        ``when``/``reason``.
+
+        Deliberately walks the raw YAML ``references:`` entries (not the
+        assembled edge list) so hand-curated edges in
+        ``_CURATED_ARTIFACT_EDGES`` -- which carry their own explicit,
+        independently-reasoned relation and never flow through
+        ``_relation_for_procedure_ref_type`` -- cannot produce a false
+        mismatch here.
+        """
+        procedures_dir = built_in_graph_source() / "procedures"
+        procedure_files = sorted(procedures_dir.glob("*.procedure.yaml"))
+        assert procedure_files, "expected at least one shipped procedure"
+
+        _, edges = extract_artifact_edges(built_in_graph_source())
+        edges_by_triple = {(e.source, e.target, e.relation) for e in edges}
+
+        checked = 0
+        for path in procedure_files:
+            data = _yaml.load(path)
+            if not isinstance(data, dict):
+                continue
+            procedure_id = data.get("id", "")
+            src_urn = f"procedure:{procedure_id}"
+            for ref in data.get("references", []) or []:
+                ref_type = ref.get("type", "")
+                ref_id = ref.get("id", "")
+                if not ref_type or not ref_id:
+                    continue
+                expected_relation = _relation_for_procedure_ref_type(ref_type)
+                tgt_urn = f"{ref_type}:{ref_id}"
+                assert (src_urn, tgt_urn, expected_relation) in edges_by_triple, (
+                    f"{src_urn} -> {tgt_urn}: expected extracted edge with "
+                    f"relation {expected_relation}, not found in graph"
+                )
+                checked += 1
+        assert checked > 0, "expected at least one procedure reference to check"
 
     def _write_profile(self, root: Path, op_entries: list[str]) -> None:
         profiles_dir = root / "agent_profiles"
@@ -1233,3 +1413,145 @@ class TestAgentProfileImplementerIvanConstant:
         # is here to preserve.
         assert len(lineage_targets) == 4  # golden-count: cardinality-is-contract
         assert all(t is _AGENT_PROFILE_IMPLEMENTER_IVAN for t in lineage_targets)
+
+
+class TestExtractGovernanceProfileScopeEdges:
+    """Focused unit tests for ``extract_governance_profile_scope_edges``
+    (#3604), which was previously only exercised end-to-end against the real
+    shipped doctrine tree. Mirrors ``TestDiscoverBuiltInNodesInDir``'s
+    tmp_path fixture-pack style. Covers the branches the end-to-end path
+    never isolates: the ``mission_type`` fallback to the profile's own
+    parent-directory name, the ``seen_triples`` dedup guard, and the
+    missing-``missions/``-dir early return.
+    """
+
+    def test_missing_missions_dir_returns_no_edges(self, tmp_path: Path) -> None:
+        """A doctrine root with no ``missions/`` directory at all degrades to
+        an empty edge list rather than raising -- mirrors every other
+        extraction pass's missing-source-dir tolerance."""
+        assert not (tmp_path / "missions").exists()
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        assert edges == []
+
+    def test_mission_type_falls_back_to_parent_dir_name(self, tmp_path: Path) -> None:
+        """When ``governance-profile.yaml`` omits the ``mission_type`` key,
+        the source mission-type id is the profile's own parent directory
+        name (``profile_path.parent.name``) -- not left unresolved or
+        defaulted to some other constant."""
+        profile_dir = tmp_path / "missions" / "research"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "governance-profile.yaml").write_text(
+            "selected_directives:\n  - DIRECTIVE_999\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        assert {(e.source, e.target, e.relation) for e in edges} == {
+            (
+                artifact_to_urn("mission_type", "research"),
+                artifact_to_urn("directive", "DIRECTIVE_999"),
+                Relation.SCOPE,
+            )
+        }
+
+    def test_explicit_mission_type_overrides_parent_dir_name(
+        self, tmp_path: Path
+    ) -> None:
+        """When authored, the ``mission_type`` key wins over the parent
+        directory name -- proving the fallback above really is a fallback,
+        not an always-preferred value."""
+        profile_dir = tmp_path / "missions" / "on-disk-dir-name"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "governance-profile.yaml").write_text(
+            "mission_type: authored-type\n"
+            "selected_paradigms:\n"
+            "  - fixture-paradigm\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        assert {(e.source, e.target, e.relation) for e in edges} == {
+            (
+                artifact_to_urn("mission_type", "authored-type"),
+                artifact_to_urn("paradigm", "fixture-paradigm"),
+                Relation.SCOPE,
+            )
+        }
+
+    def test_duplicate_selected_id_is_deduplicated_via_seen_triples(
+        self, tmp_path: Path
+    ) -> None:
+        """The same target id repeated within a ``selected_*`` list collapses
+        to a single ``(source, target, relation)`` edge via the
+        ``seen_triples`` guard, instead of emitting a duplicate edge per
+        repeated entry."""
+        profile_dir = tmp_path / "missions" / "plan"
+        profile_dir.mkdir(parents=True)
+        (profile_dir / "governance-profile.yaml").write_text(
+            "mission_type: plan\n"
+            "selected_tactics:\n"
+            "  - fixture-tactic\n"
+            "  - fixture-tactic\n"
+            "  - fixture-tactic\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        # List-equality (not set): proves the three duplicate entries collapse to
+        # exactly one emitted edge, not merely to one unique triple.
+        assert [(e.source, e.target, e.relation) for e in edges] == [
+            (
+                artifact_to_urn("mission_type", "plan"),
+                artifact_to_urn("tactic", "fixture-tactic"),
+                Relation.SCOPE,
+            )
+        ]
+
+    def test_multiple_profiles_and_fields_each_emit_their_own_edge(
+        self, tmp_path: Path
+    ) -> None:
+        """Sanity check the dedup guard is scoped per-triple, not global: two
+        distinct mission types, and two distinct fields on the same profile,
+        each still produce their own edge."""
+        research_dir = tmp_path / "missions" / "research"
+        research_dir.mkdir(parents=True)
+        (research_dir / "governance-profile.yaml").write_text(
+            "mission_type: research\n"
+            "selected_directives:\n"
+            "  - DIRECTIVE_999\n"
+            "selected_tactics:\n"
+            "  - fixture-tactic\n",
+            encoding="utf-8",
+        )
+        plan_dir = tmp_path / "missions" / "plan"
+        plan_dir.mkdir(parents=True)
+        (plan_dir / "governance-profile.yaml").write_text(
+            "mission_type: plan\nselected_directives:\n  - DIRECTIVE_999\n",
+            encoding="utf-8",
+        )
+
+        edges = extract_governance_profile_scope_edges(tmp_path)
+
+        triples = {(e.source, e.target, e.relation) for e in edges}
+        assert triples == {
+            (
+                artifact_to_urn("mission_type", "research"),
+                artifact_to_urn("directive", "DIRECTIVE_999"),
+                Relation.SCOPE,
+            ),
+            (
+                artifact_to_urn("mission_type", "research"),
+                artifact_to_urn("tactic", "fixture-tactic"),
+                Relation.SCOPE,
+            ),
+            (
+                artifact_to_urn("mission_type", "plan"),
+                artifact_to_urn("directive", "DIRECTIVE_999"),
+                Relation.SCOPE,
+            ),
+        }
