@@ -227,7 +227,14 @@ def _cutover_corpus(
         try:
             result = cutover_mission(feature_dir, dry_run=dry_run)
         except PlacementMismatchError as exc:
-            result = CutoverResult(slug=feature_dir.name, flipped=False, error=str(exc))
+            # FR-015 (#3390): a live abort here happens AFTER the seed phase
+            # already wrote real events to disk -- preserve that true count
+            # (carried on the exception) so _partial_writes below reports the
+            # genuine on-disk residue instead of silently under-reporting it
+            # via a fresh CutoverResult defaulting seeded_count back to 0.
+            result = CutoverResult(
+                slug=feature_dir.name, flipped=False, error=str(exc), seeded_count=exc.seeded_count
+            )
         results.append(result)
         if _mission_failed(result, dry_run=dry_run):
             return results, _abort_message(result)

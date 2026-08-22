@@ -30,6 +30,7 @@ from pathlib import Path
 
 from mission_runtime import CommitTarget
 
+from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import safe_commit
 from kernel.paths import to_posix
@@ -39,6 +40,40 @@ UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please rev
 DETACHED_HEAD_WARNING = (
     "Checkout is on a detached HEAD; skipped auto-committing upgrade changes — please review and commit manually."
 )
+
+BRANCH_DETECTION_FAILED_WARNING = (
+    "Could not determine the current branch; skipped auto-committing upgrade changes — "
+    "please review and commit manually."
+)
+
+
+def should_auto_commit(repo_root: Path, *, dry_run: bool, manual_review: bool) -> bool:
+    """Decide whether the **main** checkout should auto-commit upgrade churn.
+
+    The sole gate consulted by the main-checkout commit path (C2, FR-003/
+    FR-004): dry-run and manual-review (preserved-customized-files) always
+    suppress the commit; otherwise the decision defers to the project's
+    configured ``auto_commit`` default. Deliberately does not read or
+    duplicate the ``$HOME`` eligibility guard in
+    :func:`is_upgrade_commit_eligible` (C-001, D-7) — that stays where it is.
+    """
+    if dry_run or manual_review:
+        return False
+    return bool(get_auto_commit_default(repo_root))
+
+
+def should_auto_commit_for_worktree(repo_root: Path, *, dry_run: bool) -> bool:
+    """Decide whether the **worktree fan-out** should auto-commit upgrade churn.
+
+    Deliberately excludes the main checkout's ``manual_review`` signal (D-10):
+    manual review is evaluated *per worktree* by the runner's own
+    ``worktree_manual_review`` gate, so folding the main checkout's
+    manual-review state into this decision would wrongly suppress every
+    worktree commit — an NFR-002 breach of observable (e).
+    """
+    if dry_run:
+        return False
+    return bool(get_auto_commit_default(repo_root))
 
 
 def git_status_paths(repo_path: Path) -> set[str] | None:
@@ -180,7 +215,11 @@ def commit_touched_checkout(
             stderr=subprocess.DEVNULL,
         ).strip()
     except Exception:
-        destination_ref = "main"
+        # Branch detection genuinely failed (git error, missing binary, ...).
+        # Never fabricate "main" here (FR-013/C7) — that risks landing upgrade
+        # churn on a branch the checkout was never actually on. Skip with a
+        # warning, same shape as the detached-HEAD path below.
+        return False, committed_paths, BRANCH_DETECTION_FAILED_WARNING
 
     if not destination_ref:
         # Detached HEAD (or bare checkout): there is no branch to land the
