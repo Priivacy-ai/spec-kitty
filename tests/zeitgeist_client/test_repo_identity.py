@@ -240,6 +240,44 @@ def test_symlink_within_the_same_checkout_does_not_raise(tmp_path, origin):
 
 
 @pytest.mark.requires_symlinks
+def test_symlinked_git_entry_at_cwd_raises_ambiguous_not_foreign_identity(tmp_path, origin):
+    """A PLAIN, non-symlinked directory whose ONLY ``.git`` entry is itself a
+    SYMLINK pointing at a different repo's real ``.git`` directory must not
+    mint that foreign repo's identity — no sibling ambiguity, no env var, no
+    clone involved, just a symlinked ``.git`` entry at ``cwd`` itself. Git
+    never legitimately produces a directory-symlink ``.git`` entry —
+    worktrees and submodules always use a plain FILE containing a
+    ``gitdir:`` line, never a symlink to a directory — so a symlinked
+    ``.git`` is illegitimate provenance and must fail closed rather than be
+    trusted the way a real ``.git`` dir or worktree file would be."""
+    victim = _clone(origin, tmp_path / "victim")
+    evil = tmp_path / "evil"
+    evil.mkdir()
+    (evil / ".git").symlink_to(victim / ".git")
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(evil))
+
+
+@pytest.mark.requires_symlinks
+def test_symlinked_git_entry_at_an_ancestor_level_raises_ambiguous(tmp_path, origin):
+    """Same illegitimate provenance as above, one (or more) levels up the
+    upward filesystem walk: ``cwd`` itself has no ``.git`` at all, but an
+    ANCESTOR directory the walk reaches does — and that ancestor's ``.git``
+    is itself a symlink into a foreign checkout. The whole discovery path,
+    not just the cwd level, must fail closed on a symlinked ``.git`` entry."""
+    victim = _clone(origin, tmp_path / "victim")
+    evil_parent = tmp_path / "evil-parent"
+    evil_parent.mkdir()
+    (evil_parent / ".git").symlink_to(victim / ".git")
+    nested = evil_parent / "nested" / "deeper"
+    nested.mkdir(parents=True)
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(nested))
+
+
+@pytest.mark.requires_symlinks
 def test_container_with_real_and_symlinked_checkout_raises_ambiguous_not_ancestor(
     tmp_path, origin
 ):
