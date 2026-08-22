@@ -439,3 +439,71 @@ Cross-referenced against issue #3284's known-red set (23 tests + 2 errors on
 the one new red (`test_lowercases_hash`) is not in that set either (it is
 newly red, not pre-existing) — consistent with the operator's separately-
 measured baseline of zero pre-existing failures on this surface.
+
+## WP04 close-out (T021 final validation + T020/`test_lowercases_hash` disposition)
+
+**Correction to WP01's T001 entry above**: that entry framed
+`test_lowercases_hash`'s hash-case behavior as "now-impossible-to-preserve."
+That framing was wrong and was caught in review: `events.py::_build_content_ref`
+could normalize with a one-line `.lower()`, exactly as `_normalize_artifact_class`
+already does for the analogous `artifact_class` legacy-value problem — no
+subclassing or re-vendoring required. The operator considered that option and
+explicitly chose retirement instead, because adding normalization behavior no
+FR requires would be scope-widening beyond spec.md. Recording this correction
+here rather than editing the WP01 entry above, per this file's append-only
+convention. The test was deleted in WP04 (`tests/dossier/test_events.py`), with
+the accurate rationale (possible-but-deliberately-not-done, not impossible)
+recorded inline as a comment above `TestContentHashRef` in that file.
+
+**T020 binding isinstance/identity proof (FR-001/Acceptance Scenario 1)**: added
+`test_payload_is_canonical_class_instance` to both `TestEmitArtifactIndexed` and
+`TestEmitArtifactMissing`, capturing the pre-serialization payload object via a
+`monkeypatch.setattr(..., "model_dump", _capturing_model_dump)` wrapper (mirrors
+this file's existing `captured_emissions` idiom) and asserting
+`isinstance(captured_payload_objects[0], MissionDossier...Payload)` directly.
+Mandatory revert-and-confirm-red step performed as a scratch, throwaway pytest
+file (never touched the repo) that swapped a field-identical but
+distinctly-identitied mirror `BaseModel` into `specify_cli.dossier.events`'s
+module namespace for each of the two payload classes in turn: confirmed the new
+isinstance assertion goes red (`AssertionError`, `isinstance(_MirrorPayload(...),
+MissionDossier...Payload)` → `False`) while the existing
+`jsonschema.validate(...)` shape check on the same mirror-shaped payload stays
+green — concretely demonstrating the isinstance check, not the shape check, is
+what would catch an FR-001 revert. Scratch files discarded after the proof; no
+production or shipped-test code was ever swapped.
+
+**T021 final targeted-surface validation vs. WP01's T001 baseline**: ran the
+full declared scope twice (both `-n0`, avoiding the sync-suite's known xdist
+flakiness):
+
+```
+PWHEADLESS=1 .venv/bin/python -m pytest \
+  tests/dossier/ tests/sync/test_events_namespace.py \
+  tests/sync/test_dossier_pipeline.py tests/sync/test_diagnose.py \
+  tests/architectural/ -q -n0
+→ 2103 passed, 2 skipped, 2 xfailed in 709.64s (0:11:49)
+
+PWHEADLESS=1 .venv/bin/python -m pytest tests/sync/test_events.py -q -n0
+→ 78 passed in 0.59s
+```
+
+Combined: 2181 passed, 2 skipped, 2 xfailed, **zero failures**. Diffed against
+WP01's T001 baseline (2094 passed, 1 failed — `test_lowercases_hash` — 2
+skipped, 2 xfailed on the first scope, plus `tests/sync/test_events.py` not
+separately enumerated there): the one known-red is gone (retired, not silently
+fixed), and the count grew by this WP's own additions (2 new
+`test_payload_is_canonical_class_instance` tests, minus 1 retired
+`test_lowercases_hash`, net +1 on the dossier/sync/architectural scope) plus
+`tests/sync/test_events.py`'s 78 tests which WP01's T001 entry didn't run as a
+separate invocation. No regression beyond the Phase 0 baseline. `ruff check`
+and `ruff format --check` both clean on the changed file.
+
+SC-001 through SC-006 (spec.md) all hold across the combined 4-WP diff:
+SC-001/SC-002 verified by WP01/WP02's own tracer entries and this run's clean
+pass; SC-003 (`test_extras_rejected`, `test_preserves_legacy_positional_order`)
+re-verified directly in this WP, both green and the latter byte-for-byte
+unmodified (confirmed via the diff hunk boundaries — `TestEmitSnapshotComputed`
+falls entirely outside every hunk this WP's edit touched); SC-004 covered by
+WP03's AST guard (`tests/architectural/`, in this run's green scope); SC-005
+covered by WP02's `_PAYLOAD_RULES` delegation tests (in-scope, green); SC-006
+(FR-001/Acceptance Scenario 1 isinstance proof) closed by this WP's T020.
