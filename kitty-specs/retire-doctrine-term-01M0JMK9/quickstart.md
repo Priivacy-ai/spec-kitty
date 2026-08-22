@@ -6,21 +6,32 @@ Run in order from the repository root. SaaS sync stays disabled for local missio
 
 ## 1. Planning-scope and CI checks
 
-Fetch the target and fail closed unless this branch incorporates its exact tip; a stale branch-point
-base is not a valid inventory. Capture that target tip as the planning anchor. Before any WP01 edit,
-persist the implementation anchor in `kitty-specs/retire-doctrine-term-01M0JMK9/implementation-baseline.json`; the shell variable alone is not evidence.
+Immediately before WP01's first edit, fetch the target and fail closed unless this branch incorporates
+its exact tip; a stale branch-point base is not a valid inventory. Atomically persist that target tip
+and the implementation anchor in
+`kitty-specs/retire-doctrine-term-01M0JMK9/implementation-baseline.json`; shell variables alone are not
+evidence. This one snapshot binds WP01–WP05: later WPs never silently refetch/repoint it.
 
 ```bash
 git fetch origin main
 git merge-base --is-ancestor origin/main HEAD
 planning_base="$(git rev-parse origin/main)"
+implementation_base="$(git rev-parse HEAD)"
 git diff --name-only "$planning_base"
 git diff --name-only
 ```
 
-WP01's first operation is `git rev-parse HEAD`, before any other edit. Record that exact 40-character SHA as `implementation_base` plus `captured_at` (UTC), `captured_by`, `wp_id` (`WP01`), and `capture_command` in the owned JSON artifact, then commit it with WP01. WP05 loads the SHA from that file, verifies it is an ancestor of `HEAD`, and runs both `git diff --name-only <implementation_base>` and `git diff --name-only` so committed and working-tree deltas are covered.
+Before any edit, WP01 records `target_ref: origin/main`, exact 40-character `target_tip` from
+`git rev-parse origin/main`, exact 40-character `implementation_base` from `git rev-parse HEAD`, UTC
+`captured_at`, `captured_by`, `wp_id: WP01`, and both capture commands in the owned JSON artifact,
+then commits it with WP01. It proves `target_tip` is an ancestor of `implementation_base`. WP02–WP05
+load the frozen values from that artifact. WP05 verifies both are ancestors of `HEAD` and runs
+`git diff --name-only <implementation_base>` plus `git diff --name-only` so committed and working-tree
+deltas are covered. If a different target tip is incorporated after capture, all WP evidence is
+invalid: create a fresh branch from that target, replay only planning commits, and restart at WP01.
+The mechanical no-repoint check is `git merge-base <target_ref> HEAD == target_tip`.
 
-The planning diff may contain mission planning/lifecycle files, ADR deliverables/registration surfaces, squad evidence, and docs-contract CI metadata. The implementation diff must remain within the union of WP-owned deliverables and these exact mission-relative runtime placements: `status.events.jsonl`, reduced `status.json`, `lanes.json`, `acceptance-matrix.json`, `issue-matrix.md`, `analysis-report.md`, `.kittify/dossiers/<mission>/...`, and `tasks/<WP-slug>/review-cycle-N.md` (all below `kitty-specs/<mission>/`). WP prompts are immutable inputs and must not be edited for activity logs. Both checks include committed changes; the final command includes working-tree changes.
+The planning diff may contain mission planning/lifecycle files, ADR deliverables/registration surfaces, squad evidence, and docs-contract CI metadata. The implementation diff must remain within the union of WP-owned deliverables and these exact mission-relative runtime placements: `status.events.jsonl`, reduced `status.json`, `lanes.json`, `acceptance-matrix.json`, `issue-matrix.json`, `analysis-report.md`, `.kittify/dossiers/<mission>/...`, and `tasks/<WP-slug>/review-cycle-N.md` (all below `kitty-specs/<mission>/`). WP prompts are immutable inputs and must not be edited for activity logs. Both checks include committed changes; the final command includes working-tree changes.
 
 ```bash
 pytest -q tests/contract/test_example_round_trip.py tests/architectural/test_ratchet_baselines.py
@@ -68,7 +79,7 @@ Verify:
 - class/X totals are mechanically derived from manifest rows;
 - `total_hits = content_occurrences + pathname_occurrences = OC totals + X1 + X2 + X3`;
 - manifest SHA-256 matches frontmatter;
-- `target_ref=origin/main`, `target_tip=base_commit`, and the target tip is an ancestor of current `HEAD`;
+- frozen `target_ref=origin/main`, `target_tip=base_commit`, target→implementation→HEAD ancestry, and no post-capture target incorporation;
 - all out-of-repo deferrals name repo, owner, milestone, tracking reference/process, and rationale; no `TBD`.
 
 ## 5. Stacked-plan determinism (SC-003)
@@ -84,6 +95,7 @@ Verify:
   mapped hits; non-public implementation remains X1.
 - Fixed known rows need no question: M1 moves active glossary referrers to `docs/context/charter.md` and maps `governance.doctrine` → `governance.charter`; M2 separately maps org-pack config, tracker ownership, target URNs, and the known schema/category/policy/hash/tool-enum/JSON forms in the operator-map contract; M3 moves `.kittify/doctrine/` → `.kittify/charter-packs/` under the checked dual-read/collision contract.
 - Every M1–M6 entry is `change_mode: bulk_edit`, owns an occurrence map, and states prefix-safe rollback.
+- Each future M1–M6 mission freezes its own current target/implementation snapshot before that wave's first edit; it never inherits this planning mission's WP01 snapshot.
 - Invariant map is exact: M1→I1, M2→I2, M3→I3, M4→I4, M5→I5, M6→I6.
 
 ## 6. M1 spec-readiness (SC-004)

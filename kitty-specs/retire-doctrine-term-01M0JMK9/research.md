@@ -68,8 +68,11 @@ Existing kind labels survive in their existing roles; the ADR must not imply eve
 
 ## R8 — Pinned, non-fakeable audit
 
-**Decision**: After `git fetch origin main`, inventory fails unless `origin/main` is an ancestor of
-`HEAD`, then pins that exact target tip as `base_commit`; a stale branch-point merge base is forbidden.
+**Decision**: Immediately before WP01's first edit, `git fetch origin main` and the target-ancestor
+check must pass; WP01 atomically stores that exact `target_tip` with `implementation_base`. WP02–WP05
+load the same frozen tip as `base_commit`; a stale branch-point merge base or mid-mission refetch/repoint
+is forbidden. Incorporating a different target invalidates evidence and requires a fresh target-based
+branch, replay of planning commits only, and restart at WP01.
 It uses `git grep -aino --column` for every occurrence, forcing NUL-containing tracked blobs to text,
 plus `git ls-tree -r -z --name-only` with a NUL-safe filter for matched pathnames.
 `inventory-hits.tsv` records one row per hit and drives every summary/count. Unit: one content
@@ -119,7 +122,13 @@ Each wave regenerates per-hit evidence and updates same-wave consumers. New plan
 
 ## R15 — Durable implementation diff anchor
 
-**Decision**: Before any WP01 edit, WP01 records `git rev-parse HEAD` in mission artifact `implementation-baseline.json` with fields `implementation_base`, `captured_at`, `captured_by`, `wp_id` (`WP01`), and `capture_command`. WP01 owns and commits that artifact. WP05 validates a 40-character SHA, ancestry to `HEAD`, and the complete committed plus working-tree delta from that SHA. A transient shell variable is orientation only.
+**Decision**: Before any WP01 edit, WP01 fetches/ancestry-checks `origin/main` and atomically records
+`target_ref`, its exact 40-character `target_tip`, exact `implementation_base`, both capture commands,
+`captured_at`, `captured_by`, and `wp_id` (`WP01`) in mission artifact
+`implementation-baseline.json`. WP01 owns and commits it; WP02–WP05 never repoint it. WP05 validates
+target→implementation→HEAD ancestry and the complete committed plus working-tree implementation delta.
+A transient shell variable is orientation only; a post-capture target incorporation requires the
+fresh-branch/planning-replay/WP01-restart procedure.
 
 **Rejected**: relying on shell-session state or reconstructing the anchor from commit-message conventions.
 

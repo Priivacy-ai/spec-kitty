@@ -1,8 +1,8 @@
 # Adversarial Squad Findings — Post-Tasks Correction and Reroll
 
-**Point-cut**: post-tasks / pre-implementation  
-**Date**: 2026-08-22  
-**Profiles**: architect-alphonso, reviewer-renata, planner-priti  
+**Point-cut**: post-tasks / pre-implementation
+**Date**: 2026-08-22
+**Profiles**: architect-alphonso, reviewer-renata, planner-priti
 **Sharp question**: Is this a coherent, exhaustive, executable program for retiring the user-facing word “doctrine”, and can a fresh clone continue the mission without re-deciding scope or repairing lifecycle state?
 
 ## Initial verdict
@@ -30,9 +30,21 @@ All three lenses requested changes. Renata identified two critical contract fail
 | Compatibility ownership collided across waves | Ordinary hits retain one M1–M5 OC owner; non-owning semantic CR reservations carry disjoint source budgets, exact X3 controls, owner=introduction joins, bounded state transitions, and M6 removal. |
 | Public API/distribution scope was incomplete | M2's authoritative operator map covers supported Python facade/export contracts, exact aggregate `doctrine.api.__all__` evidence, distribution/wheel metadata, publication disposition, and every consumer; non-emitted physical implementation paths remain X1. |
 | Lifecycle ownership rejected normal execution | C-001 permits the exact mission-relative runtime placements, including status/lanes/matrices/dossiers and `review-cycle-N.md`, while WP prompts remain immutable inputs. |
+| Target freshness could deadlock C-001 | WP01 atomically freezes current `target_tip` plus `implementation_base`; WP02–WP05 reuse it and verify exact merge-base identity. Post-capture target incorporation requires a fresh target-based branch, planning-only replay, and WP01 restart. Each future M1–M6 wave freezes its own wave-local snapshot. |
+| Runtime issue-matrix placement drifted | C-001 now permits canonical mission-relative `issue-matrix.json` from merged `main`; obsolete `.md` is not treated as a normal writer output. |
+| Open #2727 had no approval-gate artifact | The canonical writer created `issue-matrix.json`; its WP04-owned `deferred-with-followup` row names #2727 and the atomic glossary-authority/parity obligation. Approval and merge-gate completeness both pass. |
 
 Historical `squad-findings-post-spec.md`, `squad-findings-post-plan.md`, and `squad-findings-post-plan-coverage.md` remain untouched snapshots.
 
 ## Reroll verdict
 
-Pending same-profile reroll against the corrected diff.
+| Lens | Profile | Verdict |
+|------|---------|---------|
+| Architecture | architect-alphonso | PASS |
+| Contract | reviewer-renata | PASS |
+| Planning/execution | planner-priti | PASS |
+
+All three profiles independently reran against the corrected tree on 2026-08-22 and returned
+`VERDICT: PASS`. The reroll covered the complete planning graph, executable WP topology, frozen
+snapshot semantics, compatibility-reservation lifecycle, issue-matrix approval path, validators, and
+fresh-clone continuation at WP01. No implementation work was performed.

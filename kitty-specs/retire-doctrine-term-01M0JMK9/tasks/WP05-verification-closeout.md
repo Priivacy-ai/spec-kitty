@@ -57,8 +57,8 @@ Run the quickstart targeted tests and ADR freshness check. Verify the new ADR is
 
 Record two C-001 anchors:
 
-- planning base = fetched `git rev-parse origin/main`, after its ancestor check passes; allowed planning/lifecycle artifacts, ADR/registration surfaces, squad evidence, and required docs-contract CI metadata;
-- implementation base loaded from WP01-owned `implementation-baseline.json`, captured before its first edit; validate schema, 40-character SHA, and ancestry; permit only the union of WP-owned implementation deliverables plus exact mission-relative runtime placements: `status.events.jsonl`, reduced `status.json`, `lanes.json`, `acceptance-matrix.json`, `issue-matrix.md`, `analysis-report.md`, `.kittify/dossiers/<mission>/...`, and `tasks/<WP-slug>/review-cycle-N.md` (all below `kitty-specs/<mission>/`). Prompt files must remain unchanged during execution.
+- planning base = WP01-frozen `target_tip` from `implementation-baseline.json`; validate `target_ref: origin/main`, 40-character commit, capture metadata, and ancestry to the frozen implementation base; allowed planning/lifecycle artifacts, ADR/registration surfaces, squad evidence, and required docs-contract CI metadata;
+- implementation base from the same atomic WP01 snapshot, captured before its first edit; validate schema, 40-character SHA, ancestry to `HEAD`, and `git merge-base <target_ref> HEAD == target_tip`; permit only the union of WP-owned implementation deliverables plus exact mission-relative runtime placements: `status.events.jsonl`, reduced `status.json`, `lanes.json`, `acceptance-matrix.json`, `issue-matrix.json`, `analysis-report.md`, `.kittify/dossiers/<mission>/...`, and `tasks/<WP-slug>/review-cycle-N.md` (all below `kitty-specs/<mission>/`). Prompt files must remain unchanged during execution. If the merge-base equality shows a different target was incorporated after capture, require the fresh-branch/replay-planning/restart-WP01 procedure.
 
 Inspect committed delta plus working tree. Do not use an absolute file list that rejects pre-existing planning artifacts.
 
@@ -77,9 +77,9 @@ Record answers and reviewer identity. Do not replace question 6 with the Termino
 
 ## T018 — Inventory proof
 
-Fetch `origin/main`, require `git merge-base --is-ancestor origin/main HEAD` to pass, and verify
-`target_tip=base_commit=$(git rev-parse origin/main)` before rerunning both exact audit commands. A
-stale branch-point snapshot fails. Then verify:
+Load the same WP01-frozen `target_tip`, verify `target_tip=base_commit`, target→implementation→HEAD
+ancestry, and no post-capture target incorporation before rerunning both exact audit commands. A stale
+branch-point or silently repointed snapshot fails. Then verify:
 
 - one manifest row per content occurrence and matching pathname;
 - fixed eight-column header including nullable `compatibility_registry_id`;
@@ -92,7 +92,8 @@ stale branch-point snapshot fails. Then verify:
 - X2 mission classification starts at merge and does not depend on later archival;
 - all deferrals have repo, owner, milestone, tracking reference/process, rationale, and no `TBD`.
 
-If current HEAD drifted from pinned base, record both SHAs and delta; do not rewrite the pinned evidence from this reviewer WP.
+Reproduce evidence at the frozen base. Record the expected mission-authored HEAD delta separately;
+do not repoint or rewrite the pinned evidence from this reviewer WP.
 
 ## T019 — Plan and M1 dry run
 

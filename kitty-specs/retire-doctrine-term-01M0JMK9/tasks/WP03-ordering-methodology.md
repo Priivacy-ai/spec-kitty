@@ -112,7 +112,9 @@ M1 authority operations must be owner-correct:
 
 ## T012 — Catfooding, evidence, compatibility, rollback
 
-Require each M1–M6 wave to pin its base, regenerate the eight-column content/path manifest and scoped occurrence map,
+Require each future M1–M6 wave, immediately before that wave's first edit, to independently
+fetch/incorporate and atomically freeze its own exact current target tip plus implementation base;
+all WPs inside that wave reuse the wave-local snapshot. Then regenerate the eight-column content/path manifest and scoped occurrence map,
 shrink ordinary guard fingerprints, apply only its registered CR introduction/relocations, update
 same-wave consumers, and record invariant evidence. M1 owns the glossary pathname/referrers and
 selection key. M2 freezes authoritative `canonical-operator-surface-map.md` plus mechanically derived

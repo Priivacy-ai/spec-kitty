@@ -50,21 +50,26 @@ Create `inventory-hits.tsv` with one deterministic row per content occurrence an
 
 ## T005 — Pin and audit
 
-Fetch the target ref, prove this branch incorporates its tip, capture that exact tip, and run these
-exact commands; never accept a stale branch-point merge base or expand `git ls-files` into argv:
+Load WP01's frozen snapshot and run these exact commands; never refetch/repoint the target mid-mission,
+accept a stale branch-point merge base, or expand `git ls-files` into argv:
 
 ```bash
-git fetch origin main
-git merge-base --is-ancestor origin/main HEAD
-base_commit="$(git rev-parse origin/main)"
+baseline_file="kitty-specs/retire-doctrine-term-01M0JMK9/implementation-baseline.json"
+target_ref="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["target_ref"])' "$baseline_file")"
+base_commit="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["target_tip"])' "$baseline_file")"
+implementation_base="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["implementation_base"])' "$baseline_file")"
+git merge-base --is-ancestor "$base_commit" "$implementation_base"
+git merge-base --is-ancestor "$implementation_base" HEAD
+test "$(git merge-base "$target_ref" HEAD)" = "$base_commit"
 git grep -aino --column -e 'doctrine' "$base_commit" -- .
 git ls-tree -r -z --name-only "$base_commit" | python -c 'import sys; paths=sys.stdin.buffer.read().split(b"\0"); sys.stdout.buffer.write(b"\0".join(p for p in paths if p and b"doctrine" in p.lower()))'
 ```
 
-The ancestor check must exit 0; otherwise stop and incorporate `origin/main`. The first forces all
+Both ancestor checks and exact target merge-base equality must pass, and the JSON SHAs must be
+40-character commits; otherwise stop. The first forces all
 tracked blobs to text and yields one row per match, not per matching line; do not replace `-a` with
 `-I`, which drops NUL-containing migration/quarantine JSON/JSONL. The second yields one row per
-matching tracked pathname. Preserve `target_ref`, `target_tip=base_commit`, raw counts, and commands
+matching tracked pathname. Preserve the frozen `target_ref`, `target_tip=base_commit`, raw counts, and commands
 in inventory frontmatter.
 
 ## T006 — Build and classify manifest

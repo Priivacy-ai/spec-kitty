@@ -6,20 +6,29 @@
 
 ## Canonical pinned audit
 
-Fetch the target ref and fail closed unless the branch already incorporates its tip. Capture that
-exact target tip as `base_commit` before classification. A branch-point merge base is not current
-enough. Run both audit commands verbatim at that commit; do not shell-expand `git ls-files` (the
-repository exceeds `ARG_MAX`).
+WP01 fetches the target immediately before its first edit, fails closed unless the branch incorporates
+that tip, and atomically records `target_ref`, `target_tip`, and `implementation_base` in
+`implementation-baseline.json`. WP02 loads that frozen `target_tip` as `base_commit`; WP02–WP05 never
+refetch/repoint it mid-mission. A branch-point merge base is not current enough. Run both audit
+commands verbatim at that commit; do not shell-expand `git ls-files` (the repository exceeds
+`ARG_MAX`).
 
 ```bash
-git fetch origin main
-git merge-base --is-ancestor origin/main HEAD
-base_commit="$(git rev-parse origin/main)"
+baseline_file="kitty-specs/retire-doctrine-term-01M0JMK9/implementation-baseline.json"
+target_ref="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["target_ref"])' "$baseline_file")"
+base_commit="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["target_tip"])' "$baseline_file")"
+implementation_base="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["implementation_base"])' "$baseline_file")"
+git merge-base --is-ancestor "$base_commit" "$implementation_base"
+git merge-base --is-ancestor "$implementation_base" HEAD
+test "$(git merge-base "$target_ref" HEAD)" = "$base_commit"
 git grep -aino --column -e 'doctrine' "$base_commit" -- .
 git ls-tree -r -z --name-only "$base_commit" | python -c 'import sys; paths=sys.stdin.buffer.read().split(b"\0"); sys.stdout.buffer.write(b"\0".join(p for p in paths if p and b"doctrine" in p.lower()))'
 ```
 
-The ancestor check must exit 0; otherwise stop and incorporate `origin/main` before inventory work.
+Both ancestor checks and the exact merge-base equality must pass; both JSON SHAs must resolve to
+40-character commits. If a
+different target tip was incorporated after capture, the mission evidence is invalid: create a fresh
+branch from that target, replay only planning commits, and restart at WP01.
 The first command forces every tracked blob to text (`-a`) and emits one coordinate per
 case-insensitive occurrence, including NUL-containing JSON/JSONL migration data. The second emits one
 NUL-delimited record per tracked pathname containing the term. Content and pathname hits are
@@ -99,8 +108,10 @@ OC/CR-to-mission assignment does not appear in the inventory. `stacked-plan.md` 
 
 ## Per-wave contract
 
-Every M1–M6 mission first fetches/incorporates the target tip, then reruns the same ancestor check and
-two commands at its exact target-tip base, regenerates its scoped
+This planning mission's WP02–WP05 share its WP01 snapshot. Each future M1–M6 mission independently,
+immediately before that wave's first edit, fetches/incorporates and freezes its own exact current
+target tip plus wave implementation base; all WPs inside that wave reuse the wave-local snapshot. Each
+wave reruns the ancestry/merge-base checks and two commands at its own exact base, and regenerates its scoped
 occurrence map and hit manifest, records drift, and proves zero unclassified hits in scope. Manifests
 retain one OC/X classification per hit and may add one CR overlay ID only to introduced OC product
 compatibility hits, without double-counting. X rows always leave it empty. M6

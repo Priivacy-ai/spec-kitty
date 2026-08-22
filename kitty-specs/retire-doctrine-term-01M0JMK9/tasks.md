@@ -52,7 +52,7 @@ six self-sufficiency items (quickstart check 3) — US1-AS3 / NFR-002.
 
 ### Included Subtasks
 
-T001 Before any other edit, persist `git rev-parse HEAD` and capture metadata in owned `implementation-baseline.json`; then author the new ADR from `docs/architecture/adr-template.md` with all nine mandatory content items per `contracts/adr-content-contract.md`
+T001 Before any edit, fetch/ancestry-check `origin/main` and atomically persist its `target_tip`, `implementation_base`, both capture commands, and metadata in owned `implementation-baseline.json`; bind WP01–WP05 to it; then author the new ADR from `docs/architecture/adr-template.md` with all nine mandatory content items per `contracts/adr-content-contract.md`
 T002 Amend `docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md` — status frontmatter only (`Proposed` → `Superseded` + pointer); body byte-for-byte untouched
 T003 Register the ADR with `python -m scripts.docs.freshen_adr_inventory` (era index row + page-inventory lockfile in one command) and verify with `--check`
 T004 Self-sufficiency pre-check against the content-contract checklist; verify the old ADR's diff is frontmatter-only via `git diff`
@@ -107,7 +107,7 @@ occurrences; the completeness statement's arithmetic holds (SC-002).
 
 ### Included Subtasks
 
-T005 Fetch `origin/main`, require it is an ancestor of HEAD, pin that exact target tip as `base_commit`, then run the contract's `git grep -aino --column` all-blob audit and NUL-safe `git ls-tree -z` pathname audit verbatim
+T005 Load WP01's frozen `target_tip` as `base_commit`, verify target→implementation→HEAD ancestry without refetch/repoint, then run the contract's `git grep -aino --column` all-blob audit and NUL-safe `git ls-tree -z` pathname audit verbatim
 T006 Build deterministic `inventory-hits.tsv`; classify every row into OC-## over S1–S10 or X1/X2/X3, including all operator IDs, serialized config, overlays, glossary authorities/referrers, overrides, workflow pathnames, active human prose under source directories, supported public APIs, exact `doctrine.api.__all__`, and distribution/wheel metadata
 T007 Derive OC and X totals mechanically from manifest rows; verify no duplicate/unclassified coordinates and compute manifest SHA-256
 T008 Write `inventory.md` per contract; include arithmetic and owner/milestone/tracking-complete out-of-repo deferrals; assignment remains solely in `stacked-plan.md`
@@ -164,7 +164,7 @@ rationale tied to a concrete risk, plus the per-level invariant (US3-AS1); quick
 T009 Write the surface ordering with per-choice rationale (authority-first; atomic authority flip) and state invariants I0–I6 for each stack level
 T010 Seed the two-track guard for every pre-M1 guard-root hit including owner=M1; record complete preimage + scoped same-PR M1 shrink + post-M1 baseline; materialize the non-owning CR reservation overlay from WP02 candidates with actual-base drift reconciliation, disjoint source budgets, exact X3 controls, fail-closed M2 targets, bounded introduction, and M6 removal; prove ordinary and compatibility-evasion mutations; require X-only plus empty CR inventory at I6
 T011 Assign one named guard/audit/parity/runtime verifier to every S1–S10 class and every mixed-root portion
-T012 Write catfooding, per-wave manifest regeneration, alias introduction/removal proof, and rollback: revert alone before dependents; otherwise reverse suffix or forward-fix
+T012 Write independent wave-local target/implementation snapshot capture, catfooding, per-wave manifest regeneration, alias introduction/removal proof, and rollback: revert alone before dependents; otherwise reverse suffix or forward-fix
 
 ### Implementation Notes
 
@@ -269,7 +269,7 @@ summary table in `quickstart.md` is fully green.
 
 T016 Run quickstart checks 1–2 — guard green (`pytest tests/architectural/test_no_legacy_terminology.py -q`) and ADR registration (freshen `--check` clean; old-ADR diff frontmatter-only)
 T017 Run the exact six-question ADR pass with one named independent reviewer (squad or operator)
-T018 Fetch target; reject stale branch-point state; re-run both canonical audits at `target_tip=base_commit=origin/main`; verify manifest SHA, coordinate join, arithmetic, zero unclassified, and complete deferral ownership
+T018 Load the same frozen target; reject stale branch-point/repointed state; re-run both canonical audits at `target_tip=base_commit`; verify ancestry, manifest SHA, coordinate join, arithmetic, zero unclassified, and complete deferral ownership
 T019 Verify exactly-once OC primary ownership and CR introduction/removal, source-owner=introduction joins, split mixed-owner rows, disjoint funding, M1 zero questions, bounded later questions, M1 dry run, M1–M6 bulk mode, rollback, and exact invariant mapping
 T020 Verify S1–S10 mechanisms and all ten guard mutations (four ordinary plus six CR-evasion), plus fail-closed M2 pre-edit blocking; record SC-001..SC-004 evidence and both C-001 diff anchors in `verification-report.md`
 
@@ -297,9 +297,10 @@ Checks T016–T020 are order-independent in principle, but they all append to on
   `verification-report.md`; a pass without recorded evidence is a failed check.
 - **Self-sufficiency pass run by the author (NFR-002)** → T017 requires a *named independent*
   reviewer; the author of WP01 does not perform this check.
-- **Audit drift between inventory base and verification base** → T018 re-runs the audit at the
-  current base and records drift against `inventory.md`'s `base_commit` under the inventory-schema
-  per-wave contract; drift is recorded, not silently absorbed.
+- **Audit base silently repointed** → T018 re-runs at the identical WP01-frozen `base_commit` and
+  requires byte-reproducible evidence plus target→implementation→HEAD ancestry/merge-base identity.
+  Current HEAD delta is reported separately; actual-base drift reconciliation belongs to each future
+  M1–M6 mission's independently frozen wave-local snapshot.
 
 ---
 

@@ -41,9 +41,10 @@ The exact audit governs counts. Orientation only at the reviewed base: 429 `src/
 
 ## 2. Occurrence hit (`inventory-hits.tsv`)
 
-One row represents one case-insensitive textual occurrence or one matched tracked pathname at the
-pinned `origin/main` target tip. Inventory first fetches that ref and requires it is an ancestor of
-`HEAD`; a stale branch-point merge base is not a valid snapshot.
+One row represents one case-insensitive textual occurrence or one matched tracked pathname at WP01's
+frozen `origin/main` target tip. Immediately before its first edit, WP01 fetches that ref, requires it
+is an ancestor of `HEAD`, and atomically persists target plus implementation anchors. WP02–WP05 never
+repoint that snapshot; a stale branch point or post-capture target incorporation invalidates evidence.
 
 | Field | Type | Rule |
 |-------|------|------|

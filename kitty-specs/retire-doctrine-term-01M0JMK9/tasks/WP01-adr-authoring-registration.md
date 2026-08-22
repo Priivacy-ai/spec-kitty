@@ -56,7 +56,13 @@ Create and register one self-sufficient ADR that fixes the vocabulary and compat
 
 ## T001 — Author ADR
 
-Before any other edit, run `git rev-parse HEAD`. Persist the exact SHA in owned `implementation-baseline.json` with `implementation_base`, UTC `captured_at`, `captured_by`, `wp_id: WP01`, and `capture_command: git rev-parse HEAD`. This durable anchor is required by WP05; a shell variable is not evidence.
+Before any edit, run `git fetch origin main`, require
+`git merge-base --is-ancestor origin/main HEAD`, then capture `git rev-parse origin/main` and
+`git rev-parse HEAD`. Atomically persist both exact SHAs in owned `implementation-baseline.json` with
+`target_ref: origin/main`, `target_tip`, `implementation_base`, UTC `captured_at`, `captured_by`,
+`wp_id: WP01`, and both capture commands. Prove target is an ancestor of implementation base. This
+durable snapshot binds WP01–WP05; later WPs do not refetch/repoint it. If a different target is
+incorporated later, restart on a fresh branch from that target with only planning commits replayed.
 
 Use `docs/architecture/adr-template.md` and the next free dated sequence. Set `status: Accepted`, use the actual creation date, and record deciders/reviewers; mandatory item 1 keeps product-vocabulary effectiveness conditional on M1/I1. The ADR must state all content-contract items, including:
 
