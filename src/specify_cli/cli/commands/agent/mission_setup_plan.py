@@ -485,9 +485,12 @@ def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResu
     equivalent.  Read metadata exactly once through the canonical strict-
     malformed reader.  Only an absent file may produce the neutral context used
     by the temporary #2660 selector.  Present metadata must carry a non-blank
-    canonical ``mission_type`` or supported legacy ``mission`` field; that
-    captured value is passed explicitly into the charter seam so a subsequent
-    filesystem mutation cannot change authority.
+    canonical ``mission_type`` field; the legacy ``mission`` field is retired
+    (rc3 M5, FR-002) and is no longer read here -- a legacy-only meta.json must
+    be backfilled via ``spec-kitty migrate backfill-mission-type`` before a
+    plan template can resolve.  That captured value is passed explicitly into
+    the charter seam so a subsequent filesystem mutation cannot change
+    authority.
     """
     from specify_cli.cli.commands.agent import mission as _mission
 
@@ -514,7 +517,11 @@ def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResu
             raise TemplateConfigurationError(
                 mission_type=None,
                 artifact_kind="plan",
-                reason=(f"cannot be resolved because {feature_dir / 'meta.json'} must contain a non-blank string field 'mission_type' or legacy field 'mission'"),
+                reason=(
+                    f"cannot be resolved because {feature_dir / 'meta.json'} must contain a non-blank "
+                    "string field 'mission_type' (the legacy 'mission' field is retired and no longer "
+                    "read -- run 'spec-kitty migrate backfill-mission-type' to populate 'mission_type')"
+                ),
             )
         resolved_mission_type = resolve_mission_type_context(
             repo_root,
