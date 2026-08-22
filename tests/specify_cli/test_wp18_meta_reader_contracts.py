@@ -100,10 +100,18 @@ def test_resolve_mission_from_feature_returns_mission_type(tmp_path: Path) -> No
     assert result == "research"
 
 
-def test_resolve_mission_from_feature_falls_back_to_legacy_mission_field(
+def test_resolve_mission_from_feature_returns_none_for_legacy_only_mission_field(
     tmp_path: Path,
 ) -> None:
-    """Legacy meta.json with ``mission`` key (no mission_type) → returns that value."""
+    """Legacy-only meta.json (``mission`` key, no ``mission_type``) → returns None.
+
+    rc3 M5 (FR-002, ADR 2026-08-22-1) retires the legacy ``mission`` fallback:
+    ``_resolve_mission_from_feature`` routes through the single canonical
+    ``read_mission_type`` seam, which reads only ``mission_type``. A
+    legacy-only mission is therefore typeless here (not resolved to its old
+    legacy value) until backfilled via ``spec-kitty migrate
+    backfill-mission-type``.
+    """
     from specify_cli.verify_enhanced import _resolve_mission_from_feature
 
     meta = _valid_meta()
@@ -112,4 +120,4 @@ def test_resolve_mission_from_feature_falls_back_to_legacy_mission_field(
     write_meta(tmp_path, meta, validate=False)
 
     result = _resolve_mission_from_feature(tmp_path)
-    assert result == "documentation"
+    assert result is None
