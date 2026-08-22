@@ -390,6 +390,29 @@ def list_pending(*, repo: str | None = None) -> list[PendingItem]:
     return items
 
 
+_ALL_STATUSES: tuple[str, ...] = (_PENDING, _APPROVED, _REJECTED, _EXPIRED, _REVOKED)
+
+
+def status_counts(*, repo: str | None = None) -> dict[str, int]:
+    """Counts of items by status, optionally scoped to ``repo`` — never
+    content (O1-C's operability report's "revoke" signal reads this, not
+    :func:`list_pending`, so a signal built purely from aggregate counts can
+    never carry even a redacted preview). Sweeps expired items first, same
+    as :func:`list_pending`/:func:`show`, so the counts are current."""
+    lock = FileLock(str(_lock_path()))
+    with lock:
+        data = _read_all()
+        if _sweep_expired(data):
+            _write_all(data)
+        rows = list(data["items"].values())
+    counts = dict.fromkeys(_ALL_STATUSES, 0)
+    for row in rows:
+        if repo is not None and row["repo"] != repo:
+            continue
+        counts[row["status"]] = counts.get(row["status"], 0) + 1
+    return counts
+
+
 def show(item_id: str) -> PendingItem:
     """The exact full record for ``item_id``, in any status — an explicit,
     per-id inspect action the caller named by hash. This is one of the two
