@@ -50,6 +50,11 @@ HASH_EXCLUDED_FIELDS: frozenset[str] = frozenset(
 )
 
 
+def _exclude_none(value: object) -> bool:
+    """Keep fetched-only optional fields out of built-in manifest bytes."""
+    return value is None
+
+
 class Constituent(BaseModel):
     """One artifact enumerated in a pack manifest (data-model.md § Constituent)."""
 
@@ -109,19 +114,23 @@ class PackManifest(BaseModel):
     source_url: str | None = None
     source_type: str | None = None
     fetched_at: str | None = None
-    pack_version: str | None = None
-    etag: str | None = None
-    source_fingerprint: str | None = None
-    source_uses_query: bool | None = None
-    snapshot_sha256: str | None = None
-    artifact_counts: dict[str, int] | None = None
+    pack_version: str | None = Field(default=None, exclude_if=_exclude_none)
+    etag: str | None = Field(default=None, exclude_if=_exclude_none)
+    source_fingerprint: str | None = Field(default=None, exclude_if=_exclude_none)
+    source_uses_query: bool | None = Field(default=None, exclude_if=_exclude_none)
+    snapshot_sha256: str | None = Field(default=None, exclude_if=_exclude_none)
+    artifact_counts: dict[str, int] | None = Field(
+        default=None, exclude_if=_exclude_none
+    )
     manifest_hash: str | None = None
-    constituents: list[Constituent] = Field(default_factory=list)
+    constituents: list[Constituent] | None = Field(
+        default=None, exclude_if=_exclude_none
+    )
     charter: CharterProfile | None = None
 
     def sorted_constituents(self) -> list[Constituent]:
         """Return the constituents in canonical ``(kind, id)`` order."""
-        return sort_constituents(self.constituents)
+        return sort_constituents(self.constituents or ())
 
 
 # ---------------------------------------------------------------------------
@@ -154,9 +163,12 @@ def finalize_pack_manifest(manifest: PackManifest) -> PackManifest:
     Constituents are normalized to canonical ``(kind, id)`` order first so the
     hash and serialized bytes are order-independent of the caller.
     """
-    ordered = manifest.model_copy(
-        update={"constituents": sort_constituents(manifest.constituents)}
+    ordered_constituents = (
+        None
+        if manifest.constituents is None
+        else sort_constituents(manifest.constituents)
     )
+    ordered = manifest.model_copy(update={"constituents": ordered_constituents})
     return ordered.model_copy(
         update={"manifest_hash": compute_pack_manifest_hash(ordered)}
     )
@@ -174,9 +186,12 @@ def dump_pack_manifest_bytes(manifest: PackManifest) -> bytes:
     single source of truth for YAML serialization) so the bytes are stable
     under identical inputs. Constituents are canonically ordered first.
     """
-    ordered = manifest.model_copy(
-        update={"constituents": sort_constituents(manifest.constituents)}
+    ordered_constituents = (
+        None
+        if manifest.constituents is None
+        else sort_constituents(manifest.constituents)
     )
+    ordered = manifest.model_copy(update={"constituents": ordered_constituents})
     serialized: bytes = canonical_yaml(ordered.model_dump(mode="json"))
     return serialized
 

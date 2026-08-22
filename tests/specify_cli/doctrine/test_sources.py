@@ -704,8 +704,35 @@ class TestHttpsBundleSource:
         assert first_aql.closed is True
         assert final_aql.closed is True
 
-    def test_artifactory_source_rejects_non_derivable_storage_url(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize(
+        ("item_url", "source_type"),
+        [
+            ("https://artifactory.example.com/repo/pack.tar.gz", "artifactory"),
+            (
+                "https://artifactory.example.com/artifactory/repo/"
+                "folder%2Fpack.tar.gz",
+                "https",
+            ),
+            (
+                "https://artifactory.example.com/artifactory/repo/%ZZpack.tar.gz",
+                "https",
+            ),
+            (
+                "https://artifactory.example.com/artifactory/repo//pack.tar.gz",
+                "https",
+            ),
+            (
+                "https://artifactory.example.com/artifactory/repo/../pack.tar.gz",
+                "https",
+            ),
+        ],
+    )
+    def test_artifactory_source_rejects_non_derivable_item_url(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        item_url: str,
+        source_type: str,
     ) -> None:
         calls: list[str] = []
 
@@ -718,8 +745,8 @@ class TestHttpsBundleSource:
         )
 
         result = HttpsBundleSource(
-            url="https://artifactory.example.com/repo/pack.tar.gz",
-            source_type="artifactory",
+            url=item_url,
+            source_type=source_type,
         ).fetch(tmp_path / "snapshot")
 
         assert result.ok is False

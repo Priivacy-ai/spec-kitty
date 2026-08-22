@@ -630,7 +630,10 @@ class TestPackManifest:
     def test_fetched_manifest_round_trips_through_canonical_schema(
         self, tmp_path: Path
     ) -> None:
-        from specify_cli.doctrine.pack_manifest import load_pack_manifest
+        from specify_cli.doctrine.pack_manifest import (
+            load_pack_manifest,
+            resolve_counts,
+        )
 
         local_path = tmp_path / "doctrine"
         _populate_valid_pack(local_path)
@@ -657,6 +660,11 @@ class TestPackManifest:
         assert loaded.source_fingerprint is not None
         assert len(loaded.source_fingerprint) == 64
         assert loaded.artifact_counts == {
+            "agent_profiles": 1,
+            "directives": 1,
+        }
+        assert loaded.constituents is None
+        assert resolve_counts(loaded.constituents, loaded.artifact_counts) == {
             "agent_profiles": 1,
             "directives": 1,
         }
