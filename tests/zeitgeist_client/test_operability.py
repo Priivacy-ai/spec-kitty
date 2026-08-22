@@ -164,6 +164,21 @@ def test_lease_signal_remaining_clamps_to_zero_past_the_ttl(team_kitty_double):
     assert signal.remaining_s == 0.0
 
 
+def test_lease_signal_remaining_clamps_to_ttl_when_at_predates_lease_start(team_kitty_double):
+    """Renata HIGH-adjacent LOW finding: a backward clock adjustment (or an
+    `at` earlier than the lease's own started_at) must never report
+    remaining_s ABOVE the ttl_s denominator it is measured against."""
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    client.focus_start("mission-x")
+    _focus_ref, started_at = client.focus_lease()
+    assert started_at is not None
+    before_start = started_at - timedelta(seconds=1000)
+
+    signal = operability.lease_signal(client, at=before_start)
+
+    assert signal.remaining_s == float(transport.FOCUS_TTL_S)
+
+
 def test_lease_signal_inactive_after_focus_end(team_kitty_double):
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     client.focus_start("mission-x")
@@ -347,3 +362,35 @@ def test_rollback_drill_is_content_addressed_and_idempotent(state_root: Path, mo
     second = operability.rollback_drill(repo="spec-kitty")
     assert first.item_id == second.item_id
     assert outbox_approval.status_counts(repo="spec-kitty")["pending"] == 1
+
+
+def test_rollback_drill_rerun_after_its_own_ttl_lapses_still_passes(state_root: Path, monkeypatch: pytest.MonkeyPatch):
+    """Renata HIGH finding: `rollback_drill` is content-addressed, so a
+    second call for the same repo made AFTER `_ROLLBACK_DRILL_TTL_S` has
+    lapsed resubmits/returns the SAME item_id, now already swept to
+    "expired" by outbox_approval.submit()'s own sweep. revoke() on that row
+    raises outbox_approval.Expired (not InvalidTransition) -- this must be
+    caught and reported as an honest "pass" (fail-closed either way), never
+    left to propagate as an unhandled exception. Reproduces the exact
+    "run the drill again a bit later" usage pattern that crashed."""
+
+    def _boom():
+        raise AssertionError("rollback_drill must never open the controlling terminal")
+
+    monkeypatch.setattr(outbox_approval, "_controlling_tty", _boom)
+
+    first = operability.rollback_drill(repo="spec-kitty")
+    assert first.outcome == "pass"
+    assert first.blocked_reason == "not_yet_approved"
+
+    # Advance past the drill's own 1.0s TTL so the SAME content-addressed
+    # item_id is now expired, not merely pending.
+    past_ttl = now_utc() + timedelta(seconds=operability._ROLLBACK_DRILL_TTL_S + 1)
+    monkeypatch.setattr(outbox_approval, "_now", lambda: past_ttl)
+
+    second = operability.rollback_drill(repo="spec-kitty")
+
+    assert second.item_id == first.item_id
+    assert second.outcome == "pass"
+    assert second.blocked_reason == "expired_before_disposition"
+    assert outbox_approval.show(second.item_id).status == "expired"
