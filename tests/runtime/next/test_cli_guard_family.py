@@ -30,9 +30,11 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
+from runtime.next import runtime_bridge as rb
 from runtime.next.runtime_bridge import _check_cli_guards
 from runtime.next.runtime_bridge_cores import (
     _GUARD_TABLES,
@@ -204,3 +206,79 @@ class TestTypelessMissionFamily:
 
         with pytest.raises(UnregisteredMissionFamilyError):
             _check_cli_guards("review", feature_dir)
+
+
+# ---------------------------------------------------------------------------
+# #3627 — WP-iteration branch must degrade, not raise, for an unregistered
+# custom family (unlike the direct ``_check_cli_guards`` call above, whose
+# fail-closed raise is deliberate and stays pinned by
+# ``TestTypelessMissionFamily``).
+# ---------------------------------------------------------------------------
+
+
+CUSTOM_UNREGISTERED_FAMILY = "custom-onboarding-mission"
+
+
+class TestIssue3627WpIterationUnregisteredFamilyDegrades:
+    def _make_ctx(self, tmp_path: Path) -> rb.DecideNextContext:
+        feature_dir = tmp_path / "kitty-specs" / "042-custom-mission"
+        _write_meta(feature_dir, CUSTOM_UNREGISTERED_FAMILY)
+        # Advance-ready: the single WP is already approved, so
+        # ``_should_advance_wp_step`` returns True and execution reaches the
+        # WP-iteration branch's ``_check_cli_guards`` call.
+        _seed_wp(feature_dir, "WP01", "approved")
+
+        run_dir = tmp_path / "run"
+        run_dir.mkdir(parents=True, exist_ok=True)
+        run_ref = rb.MissionRunRef(
+            run_id="run-042", run_dir=str(run_dir), mission_key="042-custom-mission"
+        )
+
+        return rb.DecideNextContext(
+            agent="agent-x",
+            mission_slug="042-custom-mission",
+            result="success",
+            repo_root=tmp_path,
+            feature_dir=feature_dir,
+            now="2026-08-22T00:00:00+00:00",
+            mission_type=CUSTOM_UNREGISTERED_FAMILY,
+            sync_emitter=cast(Any, object()),
+            emitter_for_engine=cast(Any, object()),
+            origin={"mission_tier": "custom", "mission_path": CUSTOM_UNREGISTERED_FAMILY},
+            progress={"total_wps": 1},
+            run_ref=run_ref,
+            run_dir=run_dir,
+            current_step_id="implement",
+        )
+
+    def test_wp_iteration_guard_degrades_instead_of_raising(self, tmp_path: Path) -> None:
+        """A custom family with no ``_GUARD_TABLES`` entry, current step
+        ``implement``, and advance-ready WPs must NOT raise
+        ``UnregisteredMissionFamilyError`` out of the WP-iteration branch --
+        it degrades to "no guard failures" and falls through (``None``),
+        matching how every other custom family is already treated
+        everywhere else in the runtime (composition-dispatch's own tolerant
+        ``evaluate_guards``)."""
+        ctx = self._make_ctx(tmp_path)
+
+        decision = rb._dn_dependency_gate(ctx)
+
+        assert decision is None
+
+    def test_wp_iteration_guard_only_swallows_the_unregistered_family_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Companion negative case: the fix's ``except`` clause is scoped to
+        ``UnregisteredMissionFamilyError`` alone -- any other exception
+        raised by ``_check_cli_guards`` (a genuinely unexpected failure, not
+        the "family not in the guard table" case) must still propagate out
+        of ``_dn_dependency_gate`` uncaught."""
+        ctx = self._make_ctx(tmp_path)
+
+        def _raise_something_else(*_args: object, **_kwargs: object) -> list[str]:
+            raise RuntimeError("unexpected guard evaluation failure")
+
+        monkeypatch.setattr(rb, "_check_cli_guards", _raise_something_else)
+
+        with pytest.raises(RuntimeError, match="unexpected guard evaluation failure"):
+            rb._dn_dependency_gate(ctx)
