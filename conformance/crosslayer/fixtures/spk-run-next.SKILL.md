@@ -1,0 +1,1 @@
+../../../src/doctrine/skills/spk-run-next/SKILL.md

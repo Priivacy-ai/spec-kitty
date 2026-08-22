@@ -1,0 +1,386 @@
+cases:
+  - id: ad-hoc-profile-load
+    type: static
+    skillDir: ../../src/doctrine/skills/ad-hoc-profile-load
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: adversarial-squad
+    type: static
+    skillDir: ../../src/doctrine/skills/adversarial-squad
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-bulk-edit-classification
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-bulk-edit-classification
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-charter-doctrine
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-charter-doctrine
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-git-workflow
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-git-workflow
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-glossary-context
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-glossary-context
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-implement-review
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-implement-review
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-mission-review
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-mission-review
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-mission-system
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-mission-system
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-orchestrator-api-operator
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-orchestrator-api-operator
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-program-orchestrate
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-program-orchestrate
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-runtime-next
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-runtime-next
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-runtime-review
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-runtime-review
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-setup-doctor
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-setup-doctor
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spec-kitty-spdd-reasons
+    type: static
+    skillDir: ../../src/doctrine/skills/spec-kitty-spdd-reasons
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-admin-agent-config
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-admin-agent-config
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-admin-dashboard
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-admin-dashboard
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-admin-git-workflow
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-admin-git-workflow
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-admin-setup-doctor
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-admin-setup-doctor
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-admin-upgrade
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-admin-upgrade
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-doctrine-bulk-edit
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-doctrine-bulk-edit
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-doctrine-charter
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-doctrine-charter
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-doctrine-glossary
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-doctrine-glossary
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-doctrine-profile-load
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-doctrine-profile-load
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-doctrine-semantic-compression
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-doctrine-semantic-compression
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-doctrine-spdd-reasons
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-doctrine-spdd-reasons
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-gate-accept
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-gate-accept
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-gate-merge
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-gate-merge
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-gate-mission-review
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-gate-mission-review
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-gate-retrospective
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-gate-retrospective
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-integrate-orchestrator-api
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-integrate-orchestrator-api
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-meta-skill-authoring
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-meta-skill-authoring
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-meta-skill-map
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-meta-skill-map
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-mission-documentation
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-mission-documentation
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-mission-plan
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-mission-plan
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-mission-research
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-mission-research
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-mission-specify
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-mission-specify
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-mission-tasks
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-mission-tasks
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-mission-types
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-mission-types
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-run-blocked-recovery
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-run-blocked-recovery
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-run-implement-review
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-run-implement-review
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-run-next
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-run-next
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-run-program-orchestrate
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-run-program-orchestrate
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-run-review-wp
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-run-review-wp
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-run-verdict-capture
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-run-verdict-capture
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-start-agent-surface
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-start-agent-surface
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-start-command-map
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-start-command-map
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-start-first-feature
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-start-first-feature
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-start-here
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-start-here
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-team-auth
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-team-auth
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-team-connectors
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-team-connectors
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-team-sync
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-team-sync
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: spk-team-tracker
+    type: static
+    skillDir: ../../src/doctrine/skills/spk-team-tracker
+    profile: base
+    expectations:
+      ok: true
+      violations: []
+  - id: control-name-mismatch
+    type: static
+    skillDir: control/name-mismatch
+    profile: base
+    expectations:
+      ok: false
+      violations: []

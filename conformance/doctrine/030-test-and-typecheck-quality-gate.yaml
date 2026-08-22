@@ -1,0 +1,33 @@
+version: "1.0.0"
+sopFile: "../../packs/built-in/directives/030-test-and-typecheck-quality-gate.directive.yaml"
+rules:
+  - ruleId: "030-r1"
+    ruleText: "New behavior is not ready for review while relevant tests or applicable static validation gates are red."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#2-tool-order"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/27d0af8de36692c42409e2184f862f177a408894/src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
+  - ruleId: "030-r2"
+    ruleText: "Configured supply-chain or compliance gates must not be skipped silently when they are part of the repository's expected validation flow."
+    probeIds: []
+    gradingClass: "judge"
+    aggregation: "k-of-n"
+    k: 5
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#judge-required-rule-classes"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/27d0af8de36692c42409e2184f862f177a408894/src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
+  - ruleId: "030-r3"
+    ruleText: "Pre-existing validation debt must not be hidden inside new work."
+    probeIds: []
+    gradingClass: "binary"
+    aggregation: "pass-k"
+    k: 3
+    passThreshold: 3
+    source:
+      normative: "docs/rubric/sop-rule-taxonomy.md#5-output-format"
+      supporting: "https://github.com/Priivacy-ai/spec-kitty/blob/27d0af8de36692c42409e2184f862f177a408894/src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"

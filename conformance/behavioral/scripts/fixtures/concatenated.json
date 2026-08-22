@@ -1,0 +1,32 @@
+{
+  "adapter": "openclaw-sop",
+  "passed": false,
+  "verdicts": [
+    {
+      "probeId": "CONTROL-JUDGE-IMPOSSIBLE-probe",
+      "ruleId": "CONTROL-JUDGE-IMPOSSIBLE",
+      "passed": false,
+      "runs": [
+        { "run": 1, "passed": false, "grades": [] },
+        { "run": 2, "passed": false, "grades": [] },
+        { "run": 3, "passed": false, "grades": [] }
+      ]
+    }
+  ]
+}
+{
+  "adapter": "openclaw-sop",
+  "passed": false,
+  "verdicts": [
+    {
+      "probeId": "CONTROL-JUDGE-IMPOSSIBLE-probe",
+      "ruleId": "CONTROL-JUDGE-IMPOSSIBLE",
+      "passed": false,
+      "runs": [
+        { "run": 1, "passed": false, "grades": [] },
+        { "run": 2, "passed": false, "grades": [] },
+        { "run": 3, "passed": false, "grades": [] }
+      ]
+    }
+  ]
+}

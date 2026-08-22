@@ -1,0 +1,26 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-31T09:36:36.148412Z",
+      "decision_id": "01KYVRGR9MVG1BXY2SAPTS262T",
+      "final_answer": "M1's work is done and merged (commit 08930a32b, mission sk-skills-static-conformance-01KYG7GE, which authored the 53-case static manifest + FR-005 control fixture) even though GitHub issue MOES-Media/spec-kitty#22 itself remains open/unclosed -- a bookkeeping gap, not a blocker. conformance/ directory scaffolding is real and present; M6 can treat M1's deliverable as satisfied.",
+      "input_key": "m1_merge_status",
+      "mission_id": "01KYVRB95WNBGE13NRHFMQV2X3",
+      "mission_slug": "skill-trigger-routing-suite-01KYVRB9",
+      "opened_by": "cli",
+      "options": [],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Is MOES-Media/spec-kitty#22 (M1, directory + CI skeleton) merged? conformance/ already exists in this repo but that is circumstantial, not conclusive.",
+      "rationale": null,
+      "resolved_at": "2026-07-31T09:36:59.037909Z",
+      "resolved_by": null,
+      "slot_key": "specify.dependencies.m1-merge-status",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KYVRB95WNBGE13NRHFMQV2X3",
+  "version": 1
+}

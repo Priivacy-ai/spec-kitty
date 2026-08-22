@@ -1,0 +1,24 @@
+id: spk-run-review-wp
+source: "docs/rubric/skills-trigger-taxonomy.md"
+threshold: 0.5
+shouldTrigger:
+  - "Claim this work package from the runtime review queue"
+  - "Compare this implementation against the WP's acceptance checks"
+  - "Approve this work package now"
+  - "Reject this work package with structured feedback"
+  - "Operate the review workflow surface for this WP"
+  - "Let spk-run-implement-review continue after this review"
+  - "Review whether this WP satisfies its spec and plan"
+  - "Approve or reject work through the runtime review surface"
+nearMiss:
+  - "What is the next runtime step for this mission?"
+  - "Coordinate the implement and review loop end to end"
+  - "Repair a stale spec-kitty setup"
+  - "Load the architect profile for this session"
+  - "Explain the mission's git merge workflow"
+  - "Dispatch implementers for the remaining work packages"
+  - "What does DDR-011 profile matching do?"
+  # FR-002 twin phrase: byte-identical to a shouldTrigger entry in
+  # spec-kitty-runtime-review-duplicate-pair-queries.yaml. This file is
+  # duplicate-pair only; not the run-family purpose (WP02's territory).
+  - "review this work package"
