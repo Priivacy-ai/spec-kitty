@@ -1051,7 +1051,7 @@ def _enforce_saas_sync_auth_refusal(*, json_output: bool) -> None:
     """
     if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
         return
-    from specify_cli.sync.queue import (
+    from specify_cli.sync.queue_scope import (
         read_queue_scope_from_credentials,
         read_queue_scope_from_session,
     )

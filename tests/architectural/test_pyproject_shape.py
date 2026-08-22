@@ -103,3 +103,46 @@ def test_wheel_contains_every_first_party_runtime_import() -> None:
     packages = omitted["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"]
     omitted["tool"]["hatch"]["build"]["targets"]["wheel"]["packages"] = [path for path in packages if Path(path).name != victim]
     assert _missing_wheel_packages(omitted, _SRC) == {victim}
+
+
+def _dependency_line(name: str) -> str:
+    """Return the raw ``pyproject.toml`` line declaring dependency ``name``.
+
+    ``tomllib`` discards comments, so the inline justification comment (e.g.
+    ``# HTTP client for batch sync``) can only be checked against the raw text.
+    """
+    for line in _PYPROJECT.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith(f'"{name}') or stripped.startswith(f"'{name}"):
+            return line
+    raise AssertionError(f"no pyproject.toml dependency line found for {name!r}")
+
+
+def test_requests_dependency_comment_names_its_real_retained_consumer() -> None:
+    """R3-T1 (m1-contract-drafts/R3.md §2.7): ``requests`` is kept because
+    ``doctrine/sources/{https_source,api_source}.py`` import it — a
+    consumer unrelated to the retired batch-sync/dossier transport
+    (``delivery/receivers.py``, R2's physical-deletion scope). The stale
+    "batch sync" justification comment must not survive the transport
+    module's eventual removal and mislead a future reader into deleting a
+    dependency the doctrine-pack fetchers still need (§2.7 false-positive
+    guard, D1).
+    """
+    line = _dependency_line("requests")
+    assert "batch sync" not in line.lower(), (
+        f"requests' pyproject.toml comment still cites the retired batch-sync "
+        f"transport as its reason to exist: {line!r}"
+    )
+
+    # The dependency itself must stay declared — doctrine-pack HTTP/API
+    # sources are retained, non-transport consumers (§2.7).
+    doctrine_sources = _SRC / "specify_cli" / "doctrine" / "sources"
+    consumers = [
+        path
+        for path in ("https_source.py", "api_source.py")
+        if "import requests" in (doctrine_sources / path).read_text(encoding="utf-8")
+    ]
+    assert consumers == ["https_source.py", "api_source.py"], (
+        "expected both doctrine-source fetchers to import requests directly; "
+        f"found: {consumers}"
+    )

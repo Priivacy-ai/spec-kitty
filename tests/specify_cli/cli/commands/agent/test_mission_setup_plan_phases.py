@@ -75,8 +75,8 @@ def test_auth_refusal_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch) -
 
 def test_auth_refusal_exits_when_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_credentials", lambda: None)
+    monkeypatch.setattr("specify_cli.sync.queue_scope.read_queue_scope_from_session", lambda: None)
+    monkeypatch.setattr("specify_cli.sync.queue_scope.read_queue_scope_from_credentials", lambda: None)
     with pytest.raises(typer.Exit) as exc:
         seam._enforce_saas_sync_auth_refusal(json_output=True)
     assert exc.value.exit_code == 2
@@ -84,7 +84,7 @@ def test_auth_refusal_exits_when_unauthenticated(monkeypatch: pytest.MonkeyPatch
 
 def test_auth_refusal_passes_with_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: "scope-x")
+    monkeypatch.setattr("specify_cli.sync.queue_scope.read_queue_scope_from_session", lambda: "scope-x")
     # Returns without raising (scope resolved).
     seam._enforce_saas_sync_auth_refusal(json_output=True)
 
