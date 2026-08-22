@@ -636,6 +636,15 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="Fetches doctrine content inbound; the request carries no project data.",
     ),
+    "specify_cli/doctrine/sources/https_source.py": Allowance(
+        kind=AllowanceKind.NOT_PROJECT_DATA,
+        inventory_id="E18",
+        note=(
+            "Fetches doctrine content inbound. The JFrog AQL POST carries only "
+            "the operator-configured repository, path, and item name; it sends "
+            "no project identity, mission data, or local doctrine content."
+        ),
+    ),
     "specify_cli/dashboard/handlers/api.py": Allowance(
         kind=AllowanceKind.LOOPBACK_CONTROL,
         inventory_id="E18",
