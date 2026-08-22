@@ -28,6 +28,7 @@ from kernel.paths import MISSION_ASSETS_SIBLING_PATTERN
 from kernel.sibling_paths import SiblingPathNotFound, resolve_installed_sibling
 from specify_cli.core.config import DEFAULT_MISSION_KEY
 from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
+from specify_cli.runtime.generated_writer import write_generated_file
 from specify_cli.runtime.home import get_kittify_home
 
 logger = logging.getLogger(__name__)
@@ -117,7 +118,10 @@ def _get_command_templates_dir() -> Path:
         from specify_cli.runtime.home import get_package_asset_root
 
         package_asset_root = get_package_asset_root()
-        legacy_command_templates = package_asset_root / DEFAULT_MISSION_KEY / "command-templates"
+        # Typed pin: ``specify_cli.*`` is ``follow_imports = "skip"`` in pyproject, so
+        # ``DEFAULT_MISSION_KEY`` resolves to ``Any`` to mypy even though its module
+        # annotates it as ``str`` -- the runtime type of this expression is ``Path``.
+        legacy_command_templates: Path = package_asset_root / DEFAULT_MISSION_KEY / "command-templates"
         if legacy_command_templates.exists():
             return legacy_command_templates
 
@@ -148,7 +152,10 @@ def _get_command_templates_dir() -> Path:
         raise FileNotFoundError(
             "doctrine package has no search location; installation may be corrupted"
         ) from exc
-    return missions_root / "mission-steps" / DEFAULT_MISSION_KEY
+    # Typed pin: see the ``legacy_command_templates`` comment above -- same
+    # ``DEFAULT_MISSION_KEY``-resolves-to-``Any`` mypy artifact.
+    resolved: Path = missions_root / "mission-steps" / DEFAULT_MISSION_KEY
+    return resolved
 
 
 def _resolve_script_type() -> str:
@@ -312,10 +319,7 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
             )
             continue
         out_path = output_dir / filename
-        if out_path.exists():
-            out_path.chmod(out_path.stat().st_mode | 0o222)
-        out_path.write_text(content, encoding="utf-8")
-        out_path.chmod(out_path.stat().st_mode & ~0o222)
+        write_generated_file(out_path, content)
 
     # --- CLI-driven shims ---
     for command in sorted(CLI_DRIVEN_COMMANDS):
@@ -332,10 +336,7 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
             )
             continue
         out_path = output_dir / filename
-        if out_path.exists():
-            out_path.chmod(out_path.stat().st_mode | 0o222)
-        out_path.write_text(content, encoding="utf-8")
-        out_path.chmod(out_path.stat().st_mode & ~0o222)
+        write_generated_file(out_path, content)
 
     # --- Remove stale spec-kitty.* files no longer in canonical set ---
     for existing in output_dir.iterdir():
