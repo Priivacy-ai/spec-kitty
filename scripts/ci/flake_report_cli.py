@@ -85,7 +85,14 @@ LIST_RUNS_LIMIT = 500
 #: own failure-like scoping can never drift from this module's selection.
 FAILURE_LIKE_CONCLUSIONS: frozenset[str] = FR.FAILURE_LIKE_CONCLUSIONS
 
-RUN_LIST_JSON_FIELDS = "databaseId,attempt,conclusion,status,event,headBranch,createdAt,updatedAt,pullRequests,isDraft"
+#: Fields requested from ``gh run list --json``. NOTE: ``gh run list`` does NOT
+#: expose ``pullRequests`` or ``isDraft`` (those live on ``gh run view`` / ``gh
+#: pr``); requesting them makes ``gh`` exit non-zero with "Unknown JSON field".
+#: ``pr_number`` therefore stays ``None`` on the live path and ``pr_identity``
+#: falls back to ``headBranch`` by design; ``draft`` is unused. The recorded
+#: golden fixture may still carry these keys -- ``_run_from_entry`` reads them
+#: tolerantly via ``.get()`` -- so fixture-driven tests are unaffected.
+RUN_LIST_JSON_FIELDS = "databaseId,attempt,conclusion,status,event,headBranch,createdAt,updatedAt"
 
 #: Matches all three pytest ``--durations`` phase lines so setup/teardown
 #: lines are correctly recognized and skipped rather than accidentally
