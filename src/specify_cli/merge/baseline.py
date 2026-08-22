@@ -12,10 +12,10 @@ this cluster here introduces no import cycle.
 
 from __future__ import annotations
 
-import json
 import logging
 from pathlib import Path
 
+from kernel.meta_decode import MetaDecodeError, decode_meta
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.mission_metadata import write_meta
@@ -148,19 +148,19 @@ def _read_committed_meta_json(
         )
 
     try:
-        committed_meta = json.loads(out)
-    except json.JSONDecodeError as exc:
+        committed_meta = decode_meta(out, on_malformed="raise")
+    except MetaDecodeError as exc:
+        message = str(exc)
+        if message.startswith("Expected JSON object, got "):
+            raise BaselineMergeCommitError(
+                f"Post-merge baseline validation failed for {mission_slug}: "
+                f"committed {meta_rel} on {target_branch} is not a JSON object."
+            ) from exc
         raise BaselineMergeCommitError(
             f"Post-merge baseline validation failed for {mission_slug}: "
             f"committed {meta_rel} on {target_branch} is not valid JSON ({exc})."
         ) from exc
-
-    if not isinstance(committed_meta, dict):
-        raise BaselineMergeCommitError(
-            f"Post-merge baseline validation failed for {mission_slug}: "
-            f"committed {meta_rel} on {target_branch} is not a JSON object."
-        )
-    return committed_meta
+    return committed_meta if committed_meta is not None else {}
 
 
 def assert_baseline_merge_commit_on_target(
