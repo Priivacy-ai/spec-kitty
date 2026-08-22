@@ -1,6 +1,6 @@
 ---
 title: 'ADR: Statistical performance-test pipeline (pytest-benchmark), off the PR path, per-domain'
-description: 'Adopt pytest-benchmark and a dedicated per-domain performance.yml pipeline; ALL wall-clock performance tests run there ONLY, never on the PR/blocking path; the single-shot on-PR timing gate is retired.'
+description: 'Adopt pytest-benchmark + a per-domain performance.yml pipeline; all wall-clock performance tests run there only, off the PR path; the single-shot on-PR timing gate is retired.'
 status: Accepted
 date: '2026-08-22'
 ---
