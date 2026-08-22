@@ -30,8 +30,15 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    GetJsonSchemaHandler,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 from ruamel.yaml import YAML
 
 from charter.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
@@ -47,6 +54,21 @@ SCHEMA_VERSION = "1"
 #: perturb a re-generation of otherwise-identical content (NFR-003).
 HASH_EXCLUDED_FIELDS: frozenset[str] = frozenset(
     {"manifest_hash", "generated_at", "generated_by"}
+)
+
+_FETCHED_PROVENANCE_FIELDS: frozenset[str] = frozenset(
+    {
+        "pack_version",
+        "etag",
+        "source_fingerprint",
+        "source_uses_query",
+        "snapshot_sha256",
+        "artifact_counts",
+    }
+)
+
+_GENERATED_PACK_SOURCE_TYPES: frozenset[str] = frozenset(
+    {"api", "artifactory", "assemble", "git", "https"}
 )
 
 
@@ -109,18 +131,64 @@ class PackManifest(BaseModel):
     source_url: str | None = None
     source_type: str | None = None
     fetched_at: str | None = None
+    pack_version: str | None = None
+    etag: str | None = None
+    source_fingerprint: str | None = None
+    source_uses_query: bool | None = None
+    snapshot_sha256: str | None = None
+    artifact_counts: dict[str, int] | None = None
     manifest_hash: str | None = None
-    constituents: list[Constituent] = Field(default_factory=list)
+    constituents: list[Constituent] | None = None
     charter: CharterProfile | None = None
+
+    @model_serializer(mode="wrap")
+    def _serialize_manifest(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        """Serialize manifest variants consistently on every Pydantic path."""
+        data: dict[str, Any] = handler(self)
+        for field_name in _FETCHED_PROVENANCE_FIELDS:
+            if data.get(field_name) is not None:
+                continue
+            if (
+                field_name == "pack_version"
+                and self.source_type in _GENERATED_PACK_SOURCE_TYPES
+            ):
+                continue
+            data.pop(field_name, None)
+        if self.constituents is None:
+            data.pop("constituents", None)
+        return data
+
+    @classmethod
+    def __get_pydantic_json_schema__(
+        cls, core_schema: Any, handler: GetJsonSchemaHandler
+    ) -> dict[str, Any]:
+        """Keep the declared serialization schema as strict as validation."""
+        schema = dict(core_schema)
+        if handler.mode == "serialization":
+            schema.pop("serialization", None)
+        return handler(schema)
 
     def sorted_constituents(self) -> list[Constituent]:
         """Return the constituents in canonical ``(kind, id)`` order."""
-        return sort_constituents(self.constituents)
+        return sort_constituents(self.constituents or ())
 
 
 # ---------------------------------------------------------------------------
 # Determinism + hashing
 # ---------------------------------------------------------------------------
+
+
+def _manifest_payload(manifest: PackManifest) -> dict[str, object]:
+    """Return canonical data without leaking fetched-only null fields.
+
+    Built-in and charter manifests keep their historical bytes and hashes.
+    Generated fetched/assembled variants retain an explicit
+    ``pack_version: null`` required by pack recognisability. Non-null
+    provenance is always retained and therefore bound into the manifest hash.
+    """
+    return manifest.model_dump(mode="json")
 
 
 def sort_constituents(constituents: Sequence[Constituent]) -> list[Constituent]:
@@ -137,7 +205,7 @@ def compute_pack_manifest_hash(manifest: PackManifest) -> str:
     :class:`ArtifactKind` enum members to their string values so the payload is
     plain data.
     """
-    data = manifest.model_dump(mode="json")
+    data = _manifest_payload(manifest)
     # hash_manifest_payload is untyped (Any) upstream; narrow to the str it returns.
     return str(hash_manifest_payload(data, exclude_keys=HASH_EXCLUDED_FIELDS))
 
@@ -148,9 +216,12 @@ def finalize_pack_manifest(manifest: PackManifest) -> PackManifest:
     Constituents are normalized to canonical ``(kind, id)`` order first so the
     hash and serialized bytes are order-independent of the caller.
     """
-    ordered = manifest.model_copy(
-        update={"constituents": sort_constituents(manifest.constituents)}
+    ordered_constituents = (
+        None
+        if manifest.constituents is None
+        else sort_constituents(manifest.constituents)
     )
+    ordered = manifest.model_copy(update={"constituents": ordered_constituents})
     return ordered.model_copy(
         update={"manifest_hash": compute_pack_manifest_hash(ordered)}
     )
@@ -168,10 +239,13 @@ def dump_pack_manifest_bytes(manifest: PackManifest) -> bytes:
     single source of truth for YAML serialization) so the bytes are stable
     under identical inputs. Constituents are canonically ordered first.
     """
-    ordered = manifest.model_copy(
-        update={"constituents": sort_constituents(manifest.constituents)}
+    ordered_constituents = (
+        None
+        if manifest.constituents is None
+        else sort_constituents(manifest.constituents)
     )
-    serialized: bytes = canonical_yaml(ordered.model_dump(mode="json"))
+    ordered = manifest.model_copy(update={"constituents": ordered_constituents})
+    serialized: bytes = canonical_yaml(_manifest_payload(ordered))
     return serialized
 
 

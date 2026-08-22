@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import copy
 import importlib
+import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import cast
@@ -44,6 +46,49 @@ from specify_cli.runtime.resolver import (
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _BUILT_IN_TYPES = ("software-dev", "documentation", "research", "plan")
+
+
+@pytest.mark.parametrize(
+    ("module_name", "attribute"),
+    [
+        ("specify_cli.acceptance", "SPEC_FILE"),
+        ("specify_cli.analysis_report", "_HASH_INPUTS"),
+    ],
+)
+def test_malformed_artifact_manifest_fails_on_first_use_not_import(
+    module_name: str, attribute: str
+) -> None:
+    """#3622: an import survives; the first lazy constant read fails loudly."""
+    script = f"""
+import importlib
+import specify_cli.runtime.resolver as resolver
+
+def fail(_key: str) -> str:
+    raise RuntimeError('poisoned expected-artifacts manifest')
+
+resolver.resolve_configured_artifact_name = fail
+module = importlib.import_module({module_name!r})
+print('IMPORT_OK')
+try:
+    getattr(module, {attribute!r})
+except RuntimeError as exc:
+    print(f'FIRST_USE_ERROR={{exc}}')
+else:
+    raise AssertionError('lazy constant unexpectedly resolved')
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.splitlines() == [
+        "IMPORT_OK",
+        "FIRST_USE_ERROR=poisoned expected-artifacts manifest",
+    ]
 
 # The 10 built-in filename "tags" referenced by AC-9 / FR-011 (the
 # _PRESENCE_FILE_TAGS 10-tuple, WP05 scope for the *conversion*; WP04 audits

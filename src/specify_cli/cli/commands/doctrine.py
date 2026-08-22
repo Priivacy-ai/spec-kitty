@@ -160,9 +160,10 @@ def fetch(
     for pack in target_packs:
         result = fetch_pack(pack, repo_root)
         if result.ok:
+            suffix = " (unchanged)" if result.unchanged else ""
             console.print(
                 f"[green]Pack '{pack.name}': {result.artifacts_written} "
-                "artifacts[/green]"
+                f"artifacts{suffix}[/green]"
             )
             if result.pack_version:
                 console.print(f"  Version: {result.pack_version}")

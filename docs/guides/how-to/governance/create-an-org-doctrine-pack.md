@@ -416,9 +416,23 @@ Field reference:
 |---|---|---|
 | `name` | yes | Unique pack name (used by `--pack` flag, displayed in `doctor doctrine`) |
 | `local_path` | yes | Filesystem path where the snapshot lives (`~` and `${VAR}`/`$VAR` env-var indirection expanded at resolution time — see below) |
-| `source_type` | no | One of `git`, `https`, `api`; omit if pre-provisioned |
+| `source_type` | no | One of `git`, `https`, `artifactory`, `api`; omit if pre-provisioned |
 | `url` | required if `source_type` set | Remote URL |
-| `ref` | no | Version pin (git tag/SHA; HTTPS advisory; API query param) |
+| `ref` | no | Version pin (git tag/SHA; non-Artifactory HTTPS advisory; API query param) |
+
+Existing `source_type: https` JFrog item URLs are recognized by the path
+`/artifactory/<repository>/<item>` (never by hostname). You may instead use
+`source_type: artifactory` to declare that intent explicitly and fail before
+network access when the URL is not a valid item path. After buffering a
+successful download, Spec Kitty sends one exact-item AQL query that returns the
+item's `version` property and SHA-256 together. Both are required, and that
+co-attested checksum must match the downloaded bytes before extraction or
+snapshot promotion. Because Artifactory AQL requires authenticated read access,
+set `SPEC_KITTY_ORG_TOKEN` (sent as a bearer token) or
+`SPEC_KITTY_ORG_AUTH_HEADER` (sent verbatim) to credentials authorized to
+download the item and query AQL. A conditional HTTP 304 performs no AQL query
+and preserves the prior snapshot and manifest byte-for-byte, including its
+previously sampled version.
 
 ### Env-var indirection in `local_path`
 
