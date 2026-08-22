@@ -1588,8 +1588,26 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 origin,
                 run_ref,
             )
-        # All WPs done for this step — check guards before advancing
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+        # All WPs done for this step — check guards before advancing.
+        #
+        # Unlike the non-WP pre-check below (deliberately scoped to
+        # ``software-dev`` only, #3407), this WP-iteration branch runs for
+        # every mission family whose current step is ``implement``/``review``
+        # (``_WP_ITERATION_STEPS``) — including ``software-dev`` and
+        # ``plan``, both of which ARE registered in ``_GUARD_TABLES``, but
+        # also any custom mission family that has no guard-table entry at
+        # all (#3627). ``_check_cli_guards`` -> ``evaluate_guards_strict``
+        # fails closed with ``UnregisteredMissionFamilyError`` for such a
+        # family by design (see its own docstring); that is correct for the
+        # scoped non-WP pre-check, but here it must degrade to "no guard
+        # failures" instead of crashing the WP-iteration advance decision —
+        # composition-dispatch's own tolerant ``evaluate_guards`` remains the
+        # authority for those custom families, exactly as it already is for
+        # every non-WP-iteration step of theirs.
+        try:
+            guard_failures = _check_cli_guards(current_step_id, feature_dir)
+        except _cores.UnregisteredMissionFamilyError:
+            guard_failures = []
         if guard_failures:
             return _build_wp_iteration_decision(
                 current_step_id,
