@@ -309,16 +309,23 @@ class TestEtagConditionalFetch:
                 "https://artifactory.example.com/artifactory/repo/"
                 "doctrine-rnd-latest.tar.gz"
             ),
-            source_type="https",
+            source_type="artifactory",
         )
         source = HttpsBundleSource(
             url=(
                 "https://artifactory.example.com/artifactory/repo/"
                 "doctrine-rnd-latest.tar.gz"
-            )
+            ),
+            source_type="artifactory",
         )
 
-        prepared = _with_stored_etag(source, local_path, None)
+        prepared = _with_stored_etag(
+            source,
+            local_path,
+            None,
+            source_url=source.url,
+            source_type="artifactory",
+        )
 
         assert isinstance(prepared, HttpsBundleSource)
         assert prepared.if_none_match is None
