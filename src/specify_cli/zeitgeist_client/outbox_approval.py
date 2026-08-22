@@ -93,7 +93,6 @@ first: no network call anywhere in this module.
 from __future__ import annotations
 
 import dataclasses
-import datetime
 import hashlib
 import json
 from collections.abc import Mapping
@@ -102,6 +101,7 @@ from typing import Any, Protocol, cast
 
 from filelock import FileLock
 
+from kernel.clock import datetime, now_utc, parse_iso, timedelta
 from kernel.paths import get_runtime_state_root
 
 OUTBOX_FILENAME = "zeitgeist-outbox.json"
@@ -204,11 +204,11 @@ class _TTY(Protocol):
 # --- time / hashing primitives ----------------------------------------------
 
 
-def _now() -> datetime.datetime:
-    return datetime.datetime.now(datetime.UTC)
+def _now() -> datetime:
+    return now_utc()
 
 
-def _iso(moment: datetime.datetime) -> str:
+def _iso(moment: datetime) -> str:
     return moment.isoformat()
 
 
@@ -282,7 +282,7 @@ def _sweep_expired(data: dict[str, Any]) -> bool:
     changed = False
     now = _now()
     for row in data["items"].values():
-        if row["status"] == _PENDING and datetime.datetime.fromisoformat(row["expires_at"]) <= now:
+        if row["status"] == _PENDING and parse_iso(row["expires_at"]) <= now:
             row["status"] = _EXPIRED
             changed = True
     return changed
@@ -364,7 +364,7 @@ def submit(
             "content": content,
             "context": ctx,
             "created_at": _iso(now),
-            "expires_at": _iso(now + datetime.timedelta(seconds=bounded_ttl_s)),
+            "expires_at": _iso(now + timedelta(seconds=bounded_ttl_s)),
             "status": _PENDING,
         }
         data["items"][item_id] = row

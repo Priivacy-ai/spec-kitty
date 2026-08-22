@@ -14,11 +14,11 @@ criterion 1's two distinct concerns: "bundle inspect/approve/reject" here,
 
 from __future__ import annotations
 
-import datetime
 from pathlib import Path
 
 import pytest
 
+from kernel.clock import parse_iso, timedelta
 from specify_cli.zeitgeist_client import outbox_approval
 
 pytestmark = pytest.mark.fast
@@ -93,8 +93,8 @@ def test_submit_with_different_context_yields_a_different_id(state_root: Path) -
 
 def test_submit_clamps_ttl_to_the_max_ceiling(state_root: Path) -> None:
     item = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="x", ttl_s=outbox_approval.MAX_TTL_S * 100)
-    created = datetime.datetime.fromisoformat(item.created_at)
-    expires = datetime.datetime.fromisoformat(item.expires_at)
+    created = parse_iso(item.created_at)
+    expires = parse_iso(item.expires_at)
     assert (expires - created).total_seconds() == pytest.approx(outbox_approval.MAX_TTL_S, rel=0.01)
 
 
@@ -160,7 +160,7 @@ def test_redacted_preview_returns_short_content_unchanged(state_root: Path) -> N
 
 def test_pending_item_expires_after_its_ttl_and_is_swept_out_of_list_pending(state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     item = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="stale by the time anyone looks", ttl_s=1.0)
-    future = datetime.datetime.fromisoformat(item.expires_at) + datetime.timedelta(seconds=1)
+    future = parse_iso(item.expires_at) + timedelta(seconds=1)
     monkeypatch.setattr(outbox_approval, "_now", lambda: future)
 
     assert outbox_approval.list_pending() == []
@@ -169,7 +169,7 @@ def test_pending_item_expires_after_its_ttl_and_is_swept_out_of_list_pending(sta
 
 def test_approve_on_an_expired_item_fails_closed_and_never_transitions_it(state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     item = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="stale", ttl_s=1.0)
-    future = datetime.datetime.fromisoformat(item.expires_at) + datetime.timedelta(seconds=1)
+    future = parse_iso(item.expires_at) + timedelta(seconds=1)
     monkeypatch.setattr(outbox_approval, "_now", lambda: future)
 
     with pytest.raises(outbox_approval.Expired):
