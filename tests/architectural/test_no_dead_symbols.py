@@ -109,6 +109,22 @@ _SRC_ROOT = _REPO_ROOT / "src"
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
+        # specify_cli.cli.commands.team_projection::publish -- M2 canonical integration 2026-08-22: D1-T1 `spec-kitty team-projection publish` Typer command body; registered by add_typer, not imported by name. TODO(triage): wire or drop from __all__ (follow-up bead).
+        SymbolKey("publish", "d12cf55043a9a3d8004d4e40955110df1015bfe3006aa1d8a291ece568baa8f8", source_module="specify_cli.cli.commands.team_projection"),
+        # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy; module has no src caller yet (see test_no_dead_modules TODO(triage)). TODO(triage): wire or drop from __all__ (follow-up bead).
+        SymbolKey("DASHBOARD_CSP", "87a67e7d3a60f84c30f950054f8a23e897e4e6be2ab27089f7c1a8e9cbb968ac", source_module="specify_cli.dashboard.csp"),
+        # specify_cli.dashboard.csp::send_csp_header -- M2 canonical integration 2026-08-22: D2-T1 CSP header helper; module has no src caller yet. TODO(triage): wire or drop from __all__ (follow-up bead).
+        SymbolKey("send_csp_header", "44e59f8ea2795fa2723a2754718cea84b0b4b1a19f7c2bbba8dafa5d1dbe5040", source_module="specify_cli.dashboard.csp"),
+        # specify_cli.status.lifecycle_events::append_lifecycle_event -- M2 canonical integration 2026-08-22: F2-T1 journal append entry point exported for callers that land with the F1-strict cutover. TODO(triage): wire or drop from __all__ (follow-up bead).
+        SymbolKey("append_lifecycle_event", "6695d4df0c44533bb9ae576a365562e7c79745ec7e2b8b0fe4e7b3571fbc2c0e", source_module="specify_cli.status.lifecycle_events"),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired yet. TODO(triage): wire or drop from __all__ (follow-up bead).
+        SymbolKey("MigrationAction", "120fd17dcda7ba500409b2ee13ee0e7c4426cfaf5756927dc9de14965c4834fc", source_module="specify_cli.status.migrate_lifecycle_envelope"),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationManifest -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired yet. TODO(triage): wire or drop from __all__ (follow-up bead).
+        SymbolKey("MigrationManifest", "c39cc76b8426569d7c3bb6f9b0b70c621b99101f3f13fe97b79c15afbfe67594", source_module="specify_cli.status.migrate_lifecycle_envelope"),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationRowResult -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired yet. TODO(triage): wire or drop from __all__ (follow-up bead).
+        SymbolKey("MigrationRowResult", "0c79465d23a8dfa43650ce146809dfff916378f55f3bfa0321fb8d8129ead618", source_module="specify_cli.status.migrate_lifecycle_envelope"),
+        # specify_cli.status.migrate_lifecycle_envelope::migrate_lifecycle_envelope -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration entry point; no CLI/upgrade caller yet. TODO(triage): wire or drop from __all__ (follow-up bead).
+        SymbolKey("migrate_lifecycle_envelope", "519aabd28f38c7ed39e90b06e6562617f3aa4b62386cee53d5ebf01dc4c1abb4", source_module="specify_cli.status.migrate_lifecycle_envelope"),
         SymbolKey(
             "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter._catalog_miss"
         ),  # charter._catalog_miss::CatalogMissCause
@@ -670,16 +686,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "MISSION_EVENTS_FILENAME", "725b94e955667ce901d7080717a134b4f0b6da5c5efc829f5fc9e98353d9afc9", source_module="specify_cli.status.lifecycle_events"
         ),
-        # specify_cli.status.lifecycle_events::PROJECT_EVENTS_FILENAME
-        SymbolKey(
-            "PROJECT_EVENTS_FILENAME", "27f95adf27cd2fb348df3cd92afb8f6bd3c015697e237d232da23bfa900f74fe", source_module="specify_cli.status.lifecycle_events"
-        ),
         # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
         SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723", source_module="specify_cli.status.lifecycle_events"),
-        # specify_cli.status.lifecycle_events::append_lifecycle_event
-        SymbolKey(
-            "append_lifecycle_event", "44bbd8d10caea88cf4765a3952d39b9c790cb33de16111d5110aa3fb2d574659", source_module="specify_cli.status.lifecycle_events"
-        ),
         # specify_cli.status.lifecycle_events::has_lifecycle_event
         SymbolKey("has_lifecycle_event", "ded63398ebd799f9cbdb0519033bf4ed4cb4dee39e51837f7c1b1fe7d562e69d", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.lifecycle_events::project_event_log_path

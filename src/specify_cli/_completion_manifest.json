@@ -1397,6 +1397,18 @@
    "hidden": false,
    "deprecated": false
   },
+  "team-projection": {
+   "help": "Read-only team/public mission projections with exact-commit provenance.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "publish": {
+     "help": "Build and write every team/public projection artifact for HEAD.\n\nRefuses (non-zero exit) on a dirty working tree — the manifest-mode\nguarantee is all-or-nothing (§3.4, §4 N10): zero files are written on\nrefusal.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
   "tracker": {
    "help": "Task tracker commands",
    "hidden": false,
@@ -1518,6 +1530,87 @@
      "help": "Import a workflow YAML into `.kittify/overrides/workflows`.",
      "hidden": false,
      "deprecated": false
+    }
+   }
+  },
+  "zeitgeist": {
+   "help": "Read-only access to one team's live Zeitgeist presence/focus stream.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "status": {
+     "help": "One bounded snapshot of ``repo``'s live presence/focus state.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "watch": {
+     "help": "Print each live presence/focus frame for ``repo`` as it arrives,\nbounded by ``--timeout`` idleness and ``--max-frames`` count.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "mcp-serve": {
+     "help": "Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the\nclient disconnects. Process entry point for an MCP client's launcher —\nnot meant for direct interactive use, hence hidden.",
+     "hidden": true,
+     "deprecated": false
+    },
+    "outbox": {
+     "help": "Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision requires a real human at a real terminal — there is no --yes/--force option and no reachability from MCP or a script.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "list": {
+       "help": "Every item still awaiting a human disposition. Content is shown only\nas a bounded, redacted preview — never the exact prose (use ``show`` for\nthat, by exact id).",
+       "hidden": false,
+       "deprecated": false
+      },
+      "show": {
+       "help": "The exact full record for ``item_id`` — the one explicit, per-id\ndisclosure action (see ``outbox_approval.py``'s module docstring).",
+       "hidden": false,
+       "deprecated": false
+      },
+      "approve": {
+       "help": "Approve ``item_id``. Requires typing back the item's own challenge at\nthe controlling terminal when prompted — there is no flag to skip this.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "reject": {
+       "help": "Reject ``item_id``. Same human-gesture requirement as ``approve``.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "revoke": {
+       "help": "Pull back an already-approved ``item_id``. Same human-gesture\nrequirement as ``approve``; only valid from ``approved``.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "operability": {
+     "help": "Payload-free self-report of this client's liveness/connection/subscription/outbox status, plus local failure drills (relay unreachable, auth expiry, revoke fail-closed). Every subcommand here reuses zeitgeist_client.operability's signals/drills — no second implementation, no relay-url/token option, no network beyond the one optional canary offer `report` makes when repo already has a stored checkout.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "report": {
+       "help": "One payload-free snapshot of ``repo``'s operability signals. Runs a\nsingle canary offer probe only if ``repo`` already has a stored\ncheckout — otherwise reports honestly stale/inactive rather than\nfabricating a live reading.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "drill-timeout": {
+       "help": "Local \"relay unreachable\" drill — one offer() against a loopback\naddress nothing listens on. Network-free (loopback only) and needs no\nrepo/checkout.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "drill-rotation": {
+       "help": "Local \"auth expiry\" drill for ``repo``'s stored checkout — reads only\nthe stored ``token_issued_at`` timestamp, never the token value.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "drill-rollback": {
+       "help": "Local \"rollback\" drill: proves ``outbox_approval.revoke()`` fails\nclosed on a never-approved item — never touches the controlling\nterminal, never requires a human.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
     }
    }
   }

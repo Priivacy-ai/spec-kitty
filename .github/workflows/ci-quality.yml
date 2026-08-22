@@ -399,6 +399,14 @@ jobs:
               # (tests/architectural/test_ci_collection_completeness.py).
               - 'src/specify_cli/zeitgeist_client/**'
               - 'tests/zeitgeist_client/**'
+              # M2 canonical integration: D1-T1 team projection (new src/test
+              # roots; tests are unit+git_repo -> integration-core-misc `misc`
+              # shard) and D2-T1 signed narrow renderer (tests/specify_cli/render is
+              # inside the specify-cli-rest shards' tests/specify_cli path; src root
+              # claimed here like zeitgeist_client above).
+              - 'src/specify_cli/team_projection/**'
+              - 'tests/team_projection/**'
+              - 'src/specify_cli/render/**'
             e2e:
               - '.github/workflows/ci-quality.yml'
               - 'tests/e2e/**'
@@ -1974,6 +1982,7 @@ jobs:
               tests/tasks
               tests/unit
               tests/zeitgeist_client
+              tests/team_projection
             ignore_args: ''
             marker_extra: ''
     steps:

@@ -23,6 +23,9 @@ def _render(source: str, asset_root: Path, **kwargs: Any) -> RenderedDocument:
 # --- D1: no raw HTML passthrough --------------------------------------------------
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]  # M2 canonical integration: route via the specify-cli-rest fast shard
+
+
 @pytest.mark.parametrize(
     "payload",
     [

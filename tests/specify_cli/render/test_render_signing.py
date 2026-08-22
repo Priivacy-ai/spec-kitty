@@ -9,6 +9,8 @@ cryptographic keypair signature (D2.md §6 decision 2).
 
 from __future__ import annotations
 
+import pytest
+
 from pathlib import Path
 
 from specify_cli.render import (
@@ -24,6 +26,9 @@ def _rendered(tmp_path: Path, source: str) -> tuple[RenderedDocument, str]:
 
 
 # --- D16: determinism + sensitivity to source and version -------------------
+
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]  # M2 canonical integration: route via the specify-cli-rest fast shard
 
 
 def test_d16_same_source_same_version_yields_identical_digest(tmp_path: Path) -> None:

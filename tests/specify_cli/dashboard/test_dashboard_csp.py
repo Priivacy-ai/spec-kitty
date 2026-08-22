@@ -14,12 +14,17 @@ D2-T1 handoff) — a larger, independently reviewable mechanical change across
 
 from __future__ import annotations
 
+import pytest
+
 from unittest.mock import MagicMock
 
 from specify_cli.dashboard.csp import DASHBOARD_CSP, send_csp_header
 
 
 # --- D4: the policy string itself blocks inline script execution -----------
+
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]  # M2 canonical integration: route via the specify-cli-rest fast shard
 
 
 def test_d4_script_src_has_no_unsafe_inline() -> None:

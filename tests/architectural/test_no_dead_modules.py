@@ -441,6 +441,24 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   saas_client.admission as part of #3262 WP11 — do not delete: the
         #   schema row it owns is live in project_store.py.
         "specify_cli.sync.admission_operations",
+        # ---- M2 canonical integration (2026-08-22): reviewed M1 candidates that
+        # landed a module with no src/ runtime caller; each candidate's own
+        # sandbox ran targeted suites and never this gate. Registered here so the
+        # fact is visible, not hidden (M2-CANONICAL-INTEGRATION.json lists them).
+        #   TODO(triage): D2-T1 dashboard CSP header helper -- wire from the
+        #   dashboard HTTP handler or fold into the renderer; tests-only today.
+        "specify_cli.dashboard.csp",
+        #   TODO(triage): F2-T1 one-shot F1-strict lifecycle envelope migration --
+        #   no CLI/upgrade entry point invokes it yet; wire (upgrade migration or
+        #   `spec-kitty` subcommand) or delete after the migration window.
+        "specify_cli.status.migrate_lifecycle_envelope",
+        #   TODO(triage): TRK-M1-04 deny-by-default bd gateway -- exercised by the
+        #   tracker Docker-local E2E (docker-cp) but not imported by any src/
+        #   runtime caller; wire from the Beads/native tracker adapter.
+        "specify_cli.tracker.gateway",
+        #   TODO(triage): Z1-T1 zeitgeist_client grammar -- consumed only by tests;
+        #   wire from the client/adapters or delete.
+        "specify_cli.zeitgeist_client.grammar",
         # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
         #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06). The
         #   eventual-wiring follow-up (#3236) landed: the FR-012/SC-008 backfill
