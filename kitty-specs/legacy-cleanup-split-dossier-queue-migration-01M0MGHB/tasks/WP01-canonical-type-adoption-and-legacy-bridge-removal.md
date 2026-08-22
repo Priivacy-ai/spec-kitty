@@ -272,11 +272,13 @@ Shape Recommendation").
   4. Confirm the rest of the function body is unchanged — it already reads
      `wp_id`, `step_id`, `required_status` as local names; those names now bind
      directly to the promoted parameters instead of to `legacy[...]` lookups.
-  5. Also delete `_consume_legacy_values` itself (currently `events.py:288-306`)
-     — but only after confirming (grep) that `emit_artifact_missing` (T005,
-     below) is edited in the **same commit/subtask sequence**, since it is the
-     bridge's only other caller. Do not leave `_consume_legacy_values` dead-but-
-     present; delete it once both call sites are gone.
+  5. Do **not** delete `_consume_legacy_values` in this subtask. Grep-verify
+     that `emit_artifact_missing` (T005, below) still has its own
+     `_consume_legacy_values(...)` call site at this point — confirming both
+     call sites are not yet gone — so the physical deletion is correctly left
+     to T005 step 7, which runs after both call sites (this one and T005's)
+     are actually removed. Deleting the helper here would break
+     `emit_artifact_missing`'s still-unedited call to it.
 - **Files**: `src/specify_cli/dossier/events.py`.
 - **Parallel?**: No — T005 must land in the same commit (both edit the shared
   `_consume_legacy_values` helper this subtask deletes).

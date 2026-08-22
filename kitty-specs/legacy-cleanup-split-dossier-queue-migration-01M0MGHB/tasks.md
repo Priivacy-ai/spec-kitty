@@ -39,7 +39,7 @@ is not a good candidate for parallel-agent decomposition.
 
 ## ⚠️ PR Shape Recommendation (carried forward from plan.md, not decided here)
 
-plan.md's own "PR Shape" section estimates **~600-870 LOC changed across 9 files**
+plan.md's own "PR Shape" section estimates **~620-750 LOC changed across 9 files**
 (3 source files + 6 test files, 1 brand-new) and explicitly recommends **one PR for
 the whole mission**, reviewable in a single sitting, with sequential WP commits inside
 it — not a PR split. The estimate holds after this WP decomposition (21 subtasks
@@ -51,8 +51,9 @@ own instruction to flag rather than silently decide.
 > PR Shape LOC table, as this section originally restated it, silently omitted
 > `tests/sync/test_events.py` — WP02 owns that file and its T012 subtask adds
 > real new SC-005/FR-006 and FR-007 test content to it. The file count and LOC
-> total above (9 files, ~600-870 LOC) are the corrected figures; plan.md's PR
-> Shape table has been updated in place with a matching row.
+> total above (9 files, ~620-750 LOC) are the corrected figures, recomputed
+> directly from plan.md's own per-file row ranges; plan.md's PR Shape table
+> has been updated in place with a matching row.
 
 **If, during implementation, the
 real diff meaningfully exceeds this estimate (e.g. WP02's coordinated
@@ -264,7 +265,8 @@ imports sourced from `spec_kitty_events`; `test_preserves_legacy_positional_orde
 passes unmodified; the full NFR-003 targeted surface shows no regressions beyond
 the Phase 0 baseline.
 **Prompt**: `tasks/WP04-test-import-repointing-and-final-validation.md`
-**Requirement Refs**: FR-009, FR-010
+**Requirement Refs**: FR-009, FR-010, FR-001 (secondary — T020 is a binding
+regression/identity proof for WP01's FR-001; WP01 remains the implementing WP)
 **Owned files**: `tests/dossier/test_events.py`
 **Dependencies**: WP03
 
@@ -305,7 +307,7 @@ T021 Final targeted-surface re-run across all 4 WPs' combined changes; diff agai
 - **Sequence**: WP01 → WP02 → WP03 → WP04 (strictly linear; no parallel `[P]`
   work packages — see plan.md "Parallel Work Analysis").
 - **Parallelization**: None. This mission is explicitly not a good candidate for
-  parallel-agent decomposition (tight file-level coupling between phases, ~600-870
+  parallel-agent decomposition (tight file-level coupling between phases, ~620-750
   LOC total — see the TASKS-DECOMP-001 correction above).
 - **MVP Scope**: WP01 is the mission's core deliverable (removes the boundary
   violation's two structural halves — mirror + bridge — that motivate the whole
@@ -321,7 +323,7 @@ T021 Final targeted-surface re-run across all 4 WPs' combined changes; diff agai
 
 | Requirement ID | Covered By Work Package(s) |
 |----------------|----------------------------|
-| FR-001 | WP01 |
+| FR-001 | WP01, WP04 (WP04's T020 adds a binding regression/identity proof; WP01 remains the implementing WP) |
 | FR-002 | WP01 |
 | FR-003 | WP01 |
 | FR-004 | WP01 |

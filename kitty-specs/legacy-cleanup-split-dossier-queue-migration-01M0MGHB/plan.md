@@ -851,8 +851,10 @@ touched surface identified above):
 | `tests/architectural/test_dossier_emitter_positional_guard.py` (new) | ~150-200 (detector + clean-tree assertion + positive-control fixture + docstring) |
 | `tests/dossier/test_emitter_adapter.py`, `tests/sync/test_events_namespace.py` | 0 (verified no change needed, FR-009) |
 
-**Total estimate: roughly 600-870 LOC changed across 9 files with a real
-diff** (3 source files — `events.py`, `emitter.py`, `diagnose.py` — plus 6
+**Total estimate: roughly 620-750 LOC changed across 9 files with a real
+diff** (recomputed directly from the table's own per-file row ranges above —
+summing each row's low end gives ~620, summing each row's high end gives
+~750) (3 source files — `events.py`, `emitter.py`, `diagnose.py` — plus 6
 test files touched, including 1 brand-new file,
 `test_dossier_emitter_positional_guard.py`; 2 further test files verified
 to need zero changes). This still fits comfortably in **one PR, reviewable
@@ -868,7 +870,7 @@ references it) or artificially reordered in a way that obscures the
 FR-006/FR-007 reconciliation's single coherent story. Sequential WP commits
 within the one PR (see Phasing) already give reviewers bite-sized,
 independently-diffable units without the overhead of multiple PRs for a
-~600 LOC mission.
+~620-750 LOC mission.
 
 ---
 
@@ -1009,7 +1011,7 @@ emitter signatures do not add branching, only additional named parameters.
 ## Parallel Work Analysis
 
 **Not applicable — this mission is a single sequential work stream, not
-parallelized across multiple agents/developers.** The ~600-870 LOC estimate
+parallelized across multiple agents/developers.** The ~620-750 LOC estimate
 (see "PR Shape", corrected by plan-review remediation to include
 `diagnose.py` and its coordinated tests, and by tasks-review remediation to
 include `tests/sync/test_events.py`) and the tight file-level coupling

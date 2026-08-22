@@ -5,6 +5,7 @@ dependencies: ["WP03"]
 requirement_refs:
 - FR-009
 - FR-010
+- FR-001
 planning_base_branch: refactor/dossier-emitters-canonical-only-1058
 merge_target_branch: refactor/dossier-emitters-canonical-only-1058
 branch_strategy: Planning artifacts for this mission were generated on refactor/dossier-emitters-canonical-only-1058. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into refactor/dossier-emitters-canonical-only-1058 unless the human explicitly redirects the landing branch.
@@ -93,6 +94,11 @@ mission's final validation pass against the Phase 0 baseline WP01 recorded.
   preserved **unmodified** and still passes (FR-010).
 - SC-001 through SC-006 all hold across the mission's combined diff — this WP's
   T021 is the final confirmation pass, not a new claim.
+- T020's isinstance assertion — including its mandatory revert-and-confirm-red
+  step — is a **binding** proof of FR-001/Acceptance Scenario 1's
+  runtime-identity claim (tasks-review remediation, closes TASKS-VERIFY-001):
+  it is not a judgment call or an optional addition, and this WP's scope is
+  not complete without it.
 
 ## Context & Constraints
 
@@ -216,9 +222,9 @@ mission's final validation pass against the Phase 0 baseline WP01 recorded.
   change, because it is easy for an import-sweep edit to accidentally reflow
   or touch nearby code without noticing.
 
-### Subtask T020 – Add canonical-type identity assertions (binding, FR-001/SC-001)
+### Subtask T020 – Add canonical-type identity assertions (binding, FR-001/Acceptance Scenario 1)
 
-- **Purpose**: Prove SC-001/Acceptance Scenario 1's isinstance claim directly:
+- **Purpose**: Prove FR-001/Acceptance Scenario 1's isinstance claim directly:
   after WP01 deletes the local mirror, the payload each emitter builds is
   actually an instance of the `spec_kitty_events`-owned class, not merely "a
   dict that happens to look the same." **This is a binding requirement, not
@@ -259,14 +265,23 @@ mission's final validation pass against the Phase 0 baseline WP01 recorded.
      ```
      (mirror the same pattern for `MissionDossierArtifactMissingPayload` in
      `TestEmitArtifactMissing`). This is a test-side seam only — no production
-     code changes.
+     code changes. **Note for step 3**: this patches `model_dump` on the
+     canonical class object specifically. Step 3's revert-and-confirm-red swap
+     rebinds the name inside `specify_cli.dossier.events`'s module namespace to
+     a *different* class object, so `emit_artifact_indexed`/
+     `emit_artifact_missing` construct an instance of that swapped-in class
+     instead — the canonical class's patched `model_dump` above would never
+     fire and `captured_payload_objects` would stay empty. Step 3 extends this
+     same `_capturing_model_dump` wrapper to the swapped-in mirror class too,
+     so the capture seam keeps recording whichever class is actually bound at
+     call time.
   2. Assert `isinstance(captured_payload_objects[0], MissionDossierArtifactIndexedPayload)`
      — and the `MissionDossierArtifactMissingPayload` equivalent in
      `TestEmitArtifactMissing` — directly, on at least one emitted payload per
      emitter under test in this subtask's scope (`emit_artifact_indexed`,
      `emit_artifact_missing`). This isinstance assertion is the binding proof
-     of SC-001; it must be present in the diff, not merely considered and
-     skipped.
+     of FR-001/Acceptance Scenario 1; it must be present in the diff, not
+     merely considered and skipped.
   3. **Mandatory revert-and-confirm-red step** (matching the pattern already
      required by T006/WP01, T011/T012/WP02, and T016/WP03 — do not skip this):
      temporarily stub/reintroduce a mirror-shaped class in place of the
@@ -274,13 +289,24 @@ mission's final validation pass against the Phase 0 baseline WP01 recorded.
      `MissionDossierArtifactIndexedPayload` but a distinct identity (e.g.
      define it inline in the test module and
      `monkeypatch.setattr(specify_cli.dossier.events, "MissionDossierArtifactIndexedPayload", <mirror class>)`,
-     or temporarily edit the production import) — and confirm:
-     - the new isinstance assertion (step 2) goes **red**, and
+     or temporarily edit the production import). **Also apply the same
+     `_capturing_model_dump` wrapper from step 1 to this mirror class's
+     `model_dump`** (patch it at definition time, before swapping it in) — the
+     emitters construct whichever class is currently bound to the name in
+     `specify_cli.dossier.events`'s module namespace, so without this the
+     canonical class's step-1 patch never fires post-swap and
+     `captured_payload_objects` stays empty, producing an `IndexError` at step
+     2 instead of a real isinstance comparison. With both classes' `model_dump`
+     patched, confirm:
+     - the new isinstance assertion (step 2) goes **red** — it evaluates
+       against the captured mirror-class instance and `isinstance(...)`
+       returns `False`, not an `IndexError` from an empty capture list — and
      - this file's existing `jsonschema.validate`/`_assert_valid` assertions
        stay **green** against the same mirror-shaped payload.
      That divergence is the concrete demonstration that the isinstance check,
      not the shape-only schema check, is what actually detects an FR-001
-     revert. Revert your temporary change before finishing.
+     revert. Revert your temporary change (including the mirror class's
+     `model_dump` patch) before finishing.
 - **Files**: `tests/dossier/test_events.py`.
 - **Parallel?**: No — depends on T018.
 - **Notes**: This file's existing `jsonschema.validate`-based assertions
@@ -360,9 +386,9 @@ mission's final validation pass against the Phase 0 baseline WP01 recorded.
   satisfied by a jsonschema-only shape check — and that its revert-and-confirm-
   red step was actually performed (mirror-shaped class swapped in, isinstance
   assertion observed red, existing jsonschema assertions observed still green)
-  and reverted afterward. SC-001's isinstance claim must be proven directly by
-  this new assertion, not only via schema validation (closes
-  TASKS-VERIFY-001).
+  and reverted afterward. FR-001/Acceptance Scenario 1's isinstance claim must
+  be proven directly by this new assertion, not only via schema validation
+  (closes TASKS-VERIFY-001).
 - Confirm the final targeted-surface run's red/error set was actually diffed
   against WP01's recorded baseline, and that any surplus red found was fixed
   (not deferred).
