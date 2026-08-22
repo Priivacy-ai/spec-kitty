@@ -27,7 +27,6 @@ from specify_cli.gitignore_manager import (
     AGENT_DIRECTORIES,
     RUNTIME_PROTECTED_ENTRIES,
     SPEC_KITTY_GITIGNORE_MARKER,
-    GitignoreManager,
     GitignorePathError,
     read_gitignore_text,
     write_gitignore_text,
@@ -58,6 +57,8 @@ _BLANKET_PATTERN = re.compile(r"^(/|\*\*/)?\.cursor(/|/\*{1,2})?$")
 # rows. A blanket variant or a row outside this marker-labelled block has no
 # trustworthy Spec Kitty provenance and must remain operator-owned.
 _LEGACY_MANAGED_CURSOR_ENTRY = ".cursor/"
+_LEGACY_CURSOR_PREDECESSOR = ".gemini/"
+_LEGACY_CURSOR_SUCCESSOR = ".qwen/"
 _KNOWN_MANAGED_ENTRIES = frozenset(
     [
         *(entry.directory for entry in AGENT_DIRECTORIES),
@@ -74,13 +75,24 @@ def _is_blanket_cursor_line(line: str) -> bool:
     return bool(_BLANKET_PATTERN.match(stripped))
 
 
+def _is_historical_managed_cursor_position(lines: list[str], index: int) -> bool:
+    """Prove the legacy row by its exact deterministic manager neighbours."""
+    return (
+        0 < index < len(lines) - 1
+        and lines[index].strip() == _LEGACY_MANAGED_CURSOR_ENTRY
+        and lines[index - 1].strip() == _LEGACY_CURSOR_PREDECESSOR
+        and lines[index + 1].strip() == _LEGACY_CURSOR_SUCCESSOR
+    )
+
+
 def _classify_blanket_lines(content: str) -> tuple[list[int], list[str]]:
     """Return owned line indexes and preserved, unattributed blanket rows."""
     owned_indexes: list[int] = []
     unowned_lines: list[str] = []
     in_managed_block = False
+    lines = content.splitlines(keepends=True)
 
-    for index, line in enumerate(content.splitlines(keepends=True)):
+    for index, line in enumerate(lines):
         stripped = line.strip()
         if stripped == SPEC_KITTY_GITIGNORE_MARKER:
             in_managed_block = True
@@ -91,7 +103,7 @@ def _classify_blanket_lines(content: str) -> tuple[list[int], list[str]]:
             in_managed_block = False
             continue
         if _is_blanket_cursor_line(line):
-            if in_managed_block and stripped == _LEGACY_MANAGED_CURSOR_ENTRY:
+            if in_managed_block and _is_historical_managed_cursor_position(lines, index):
                 owned_indexes.append(index)
             else:
                 unowned_lines.append(line)
@@ -129,15 +141,36 @@ def _strip_owned_blanket_lines(lines: list[str], owned_indexes: set[int]) -> tup
     return kept, removed
 
 
-def _remove_blanket_lines(gitignore_path: Path) -> int:
-    content = read_gitignore_text(gitignore_path)
-    if content is None:
-        return 0
-    owned_indexes, _ = _classify_blanket_lines(content)
-    kept, removed = _strip_owned_blanket_lines(content.splitlines(keepends=True), set(owned_indexes))
-    if removed:
-        write_gitignore_text(gitignore_path, "".join(kept))
-    return removed
+def _append_missing_entries(content: str, entries: list[str]) -> str:
+    """Append manager rows in memory, preserving the existing newline style."""
+    if not entries:
+        return content
+
+    newline = "\r\n" if "\r\n" in content else "\n"
+    updated = content
+    lines = content.splitlines()
+    if SPEC_KITTY_GITIGNORE_MARKER not in lines:
+        if updated and not updated.endswith(("\n", "\r")):
+            updated += newline
+        if updated and lines and lines[-1].strip():
+            updated += newline
+        updated += SPEC_KITTY_GITIGNORE_MARKER + newline
+    elif updated and not updated.endswith(("\n", "\r")):
+        updated += newline
+
+    return updated + "".join(f"{entry}{newline}" for entry in entries)
+
+
+def _build_updated_content(
+    content: str,
+    owned_indexes: list[int],
+    missing_entries: list[str],
+) -> tuple[str, int]:
+    kept, removed = _strip_owned_blanket_lines(
+        content.splitlines(keepends=True),
+        set(owned_indexes),
+    )
+    return _append_missing_entries("".join(kept), missing_entries), removed
 
 
 def _missing_narrow_entries(gitignore_path: Path) -> list[str]:
@@ -160,8 +193,8 @@ class NarrowCursorGitignoreMigration(BaseMigration):
         gitignore_path = project_path / ".gitignore"
         try:
             content = _read_gitignore(gitignore_path)
-            owned_indexes, _ = _classify_blanket_lines(content)
-            if owned_indexes:
+            owned_indexes, unowned_lines = _classify_blanket_lines(content)
+            if owned_indexes or unowned_lines:
                 return True
             return bool(_missing_narrow_entries(gitignore_path))
         except (GitignorePathError, OSError):
@@ -208,24 +241,18 @@ class NarrowCursorGitignoreMigration(BaseMigration):
                 preserved_paths=[str(gitignore_path)] if warnings else [],
             )
 
-        applied_changes: list[str] = []
+        updated_content, removed = _build_updated_content(content, owned_indexes, missing)
         try:
-            removed = _remove_blanket_lines(gitignore_path)
+            if updated_content != content:
+                write_gitignore_text(gitignore_path, updated_content)
         except (GitignorePathError, OSError) as exc:
             return MigrationResult(success=False, errors=[str(exc)])
+
+        applied_changes: list[str] = []
         if removed:
             applied_changes.extend(f"Removed managed blanket line: '{line.strip()}'" for line in owned_lines)
 
         if missing:
-            try:
-                GitignoreManager(project_path).ensure_entries(missing)
-            except (GitignorePathError, OSError) as exc:
-                return MigrationResult(
-                    success=False,
-                    changes_made=applied_changes,
-                    errors=[str(exc)],
-                    warnings=warnings,
-                )
             applied_changes.extend(f"Added gitignore entry: {entry}" for entry in missing)
 
         if not applied_changes:

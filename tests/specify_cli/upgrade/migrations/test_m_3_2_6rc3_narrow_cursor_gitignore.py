@@ -22,8 +22,10 @@ from pathlib import Path
 import pytest
 from kernel.clock import now_utc
 
+from specify_cli.gitignore_manager import GitignoreManager
 from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations import auto_discover_migrations
+from specify_cli.upgrade.migrations import m_3_2_6rc3_narrow_cursor_gitignore as migration_module
 from specify_cli.upgrade.migrations.m_3_2_6rc3_narrow_cursor_gitignore import (
     NarrowCursorGitignoreMigration,
     _NARROW_ENTRIES,
@@ -105,7 +107,7 @@ class TestIsBlanketCursorLine:
 
 def test_detect_true_when_blanket_line_present(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
-    _write_gitignore(tmp_path, ".cursor/", *_NARROW_ENTRIES)
+    _write_gitignore(tmp_path, ".gemini/", ".cursor/", ".qwen/", *_NARROW_ENTRIES)
 
     assert NarrowCursorGitignoreMigration().detect(tmp_path) is True
 
@@ -149,7 +151,7 @@ def test_apply_without_gitignore_creates_file_with_narrow_entries(tmp_path: Path
 def test_apply_removes_blanket_and_backfills_narrow_entries(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
     tmp_path.joinpath(".gitignore").write_text(
-        "node_modules/\n\n# Added by Spec Kitty CLI (auto-managed)\n.cursor/\n.env\n",
+        "node_modules/\n\n# Added by Spec Kitty CLI (auto-managed)\n.gemini/\n.cursor/\n.qwen/\n.env\n",
         encoding="utf-8",
     )
 
@@ -167,7 +169,7 @@ def test_apply_removes_blanket_and_backfills_narrow_entries(tmp_path: Path) -> N
 def test_apply_preserves_narrower_cursor_patterns(tmp_path: Path) -> None:
     """A team's own .cursor/rules/contributing.mdc-style commit must survive."""
     _init_git_repo(tmp_path)
-    _write_gitignore(tmp_path, ".cursor/", ".cursor/plans")
+    _write_gitignore(tmp_path, ".gemini/", ".cursor/", ".qwen/", ".cursor/plans")
 
     NarrowCursorGitignoreMigration().apply(tmp_path)
 
@@ -192,7 +194,9 @@ def test_apply_removes_every_blanket_form(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
     _write_gitignore(
         tmp_path,
+        ".gemini/",
         ".cursor/",
+        ".qwen/",
         ".cursor/**",
         "**/.cursor/",
         "/.cursor/",
@@ -235,6 +239,48 @@ def test_apply_preserves_unmarked_operator_blanket_and_secret_coverage(
     assert any("Preserved operator-owned" in warning for warning in result.warnings)
 
 
+def test_apply_preserves_operator_blanket_appended_after_generated_block(
+    tmp_path: Path,
+) -> None:
+    """The marker has no end delimiter, so EOF rows are not manager-owned."""
+    _init_git_repo(tmp_path)
+    manager = GitignoreManager(tmp_path)
+    assert manager.protect_all_agents().success
+    gitignore = tmp_path / ".gitignore"
+    gitignore.write_text(gitignore.read_text(encoding="utf-8") + ".cursor/\n", encoding="utf-8")
+    secret = tmp_path / ".cursor" / "local-secrets.json"
+    secret.parent.mkdir()
+    secret.write_text("secret\n", encoding="utf-8")
+
+    result = NarrowCursorGitignoreMigration().apply(tmp_path)
+
+    assert result.success
+    assert result.manual_review_required is True
+    assert gitignore.read_text(encoding="utf-8").splitlines()[-1] == ".cursor/"
+    assert _is_ignored(tmp_path, ".cursor/local-secrets.json")
+    assert any("Preserved operator-owned" in warning for warning in result.warnings)
+
+
+def test_apply_is_atomic_when_replacement_write_fails(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, ".gemini/", ".cursor/", ".qwen/")
+    gitignore = tmp_path / ".gitignore"
+    original = gitignore.read_bytes()
+
+    def fail_write(_gitignore_path: Path, _content: str) -> None:
+        raise OSError("injected replacement failure")
+
+    monkeypatch.setattr(migration_module, "write_gitignore_text", fail_write)
+    result = NarrowCursorGitignoreMigration().apply(tmp_path)
+
+    assert result.success is False
+    assert result.errors == ["injected replacement failure"]
+    assert gitignore.read_bytes() == original
+
+
 def test_apply_only_collapses_blank_lines_at_removal_site(tmp_path: Path) -> None:
     """Removing the blanket line must not rewrite blank-line runs elsewhere in
     the operator's .gitignore -- an unrelated ``a\n\n\n\nb`` run is preserved
@@ -242,7 +288,7 @@ def test_apply_only_collapses_blank_lines_at_removal_site(tmp_path: Path) -> Non
     _init_git_repo(tmp_path)
     unrelated_run = "a\n\n\n\nb\n"
     tmp_path.joinpath(".gitignore").write_text(
-        unrelated_run + "\n# Added by Spec Kitty CLI (auto-managed)\n.cursor/\n\nnode_modules/\n",
+        unrelated_run + "\n# Added by Spec Kitty CLI (auto-managed)\n.gemini/\n.cursor/\n.qwen/\n\nnode_modules/\n",
         encoding="utf-8",
     )
 
@@ -257,7 +303,7 @@ def test_apply_only_collapses_blank_lines_at_removal_site(tmp_path: Path) -> Non
 
 def test_apply_is_idempotent(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
-    _write_gitignore(tmp_path, ".cursor/")
+    _write_gitignore(tmp_path, ".gemini/", ".cursor/", ".qwen/")
 
     first = NarrowCursorGitignoreMigration().apply(tmp_path)
     second = NarrowCursorGitignoreMigration().apply(tmp_path)
@@ -271,7 +317,7 @@ def test_apply_is_idempotent(tmp_path: Path) -> None:
 
 def test_dry_run_reports_without_mutating(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
-    _write_gitignore(tmp_path, ".cursor/")
+    _write_gitignore(tmp_path, ".gemini/", ".cursor/", ".qwen/")
 
     result = NarrowCursorGitignoreMigration().apply(tmp_path, dry_run=True)
 
@@ -331,7 +377,7 @@ def test_migration_fires_and_unignores_tracked_rule_file(tmp_path: Path) -> None
     become stageable again once the blanket entry is narrowed."""
     _init_git_repo(tmp_path)
     _write_metadata(tmp_path, "3.2.6rc2")
-    _write_gitignore(tmp_path, ".cursor/")
+    _write_gitignore(tmp_path, ".gemini/", ".cursor/", ".qwen/")
     rules_dir = tmp_path / ".cursor" / "rules"
     rules_dir.mkdir(parents=True)
     (rules_dir / "contributing.mdc").write_text("# team rules\n", encoding="utf-8")
