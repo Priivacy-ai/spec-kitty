@@ -116,7 +116,7 @@ from specify_cli.coordination.atomic_write import (
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.env import first_set_sync_disable_env
-from specify_cli.core.paths import is_worktree_context
+from specify_cli.core.paths import assert_safe_path_segment, is_worktree_context
 from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.review import pre_review_gate
@@ -284,7 +284,22 @@ def _mt_warn_worktree_kitty_specs(st: _MoveTaskState) -> None:
             worktree_kitty = current / KITTY_SPECS_DIR
             break
         current = current.parent
-    if worktree_kitty and (worktree_kitty / st.mission_slug / "tasks").exists():
+    if worktree_kitty is None:
+        return
+    # #2037: st.mission_slug threads back to the operator-typed `--mission` CLI
+    # value (no `assert_safe_path_segment` upstream on this path). This is a
+    # read-only `.exists()` probe feeding an informational note, so an unsafe
+    # slug fails closed by skipping the note rather than raising.
+    try:
+        assert_safe_path_segment(st.mission_slug)
+    except ValueError:
+        logging.getLogger(__name__).warning(
+            "Refusing to probe worktree kitty-specs/ with unsafe mission_slug %r "
+            "(traversal guard); skipping the informational note.",
+            st.mission_slug,
+        )
+        return
+    if (worktree_kitty / st.mission_slug / "tasks").exists():
         _tasks.console.print(
             f"[dim]Note: Using planning repo's kitty-specs/ on {st.target_branch} "
             "(worktree copy ignored)[/dim]"
