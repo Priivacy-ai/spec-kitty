@@ -35,6 +35,29 @@ ParsedConfig = dict[str, Any] | list[Any]
 _MISSIONS_ROOT_SIBLING_PATTERN = MISSION_ASSETS_SIBLING_PATTERN
 
 
+class MalformedManifestError(Exception):
+    """Raised when a mission's ``expected-artifacts.yaml`` is present but YAML-malformed.
+
+    Fail-loud signal, distinct from absence (FR-007/SC-005,
+    `#3412 <https://github.com/Priivacy-ai/spec-kitty/issues/3412>`_): a
+    syntactically-corrupt manifest previously degraded to ``None`` -- byte-for-byte
+    identical to "file not found" -- so an operator debugging a mission saw
+    "not found" when the file was actually present-but-broken. This carries the
+    offending ``path`` and the underlying parse error (``cause``) so the failure
+    surfaces to the operator instead of being silently dropped.
+
+    Only YAML-syntax malformation is widened to this raise. A genuinely
+    absent/unreadable manifest (path ``None``, ``OSError``, ``UnicodeDecodeError``)
+    still degrades to ``None`` -- that ``None`` truthfully means "absent", which
+    is exactly the distinction this error restores.
+    """
+
+    def __init__(self, path: Path, cause: Exception) -> None:
+        self.path = path
+        self.cause = cause
+        super().__init__(f"Malformed expected-artifacts manifest at {path}: {cause}")
+
+
 class MissionsRootNotFound(Exception):
     """Raised when the missions-content root cannot be located (fail-closed).
 
@@ -366,7 +389,17 @@ class MissionTemplateRepository:
             mission: Mission name (e.g. ``"software-dev"``).
 
         Returns:
-            ConfigResult with raw YAML text and parsed data, or ``None`` if not found.
+            ConfigResult with raw YAML text and parsed data, or ``None`` if the
+            manifest is genuinely absent/unreadable (path ``None``, ``OSError``,
+            ``UnicodeDecodeError``, or an empty file).
+
+        Raises:
+            MalformedManifestError: If the manifest file is present but fails to
+                parse as YAML (a ``YAMLError``). Fail-loud, distinct from absence
+                (FR-007/SC-005, #3412): a syntax-broken manifest previously
+                degraded to ``None``, indistinguishable from "not found". It now
+                surfaces the offending path and the underlying parse error rather
+                than being silently dropped.
         """
         path = self._expected_artifacts_path(mission)
         if path is None:
@@ -375,12 +408,14 @@ class MissionTemplateRepository:
             content = path.read_text(encoding="utf-8")
             yaml = YAML(typ="safe")
             parsed = cast(ParsedConfig | None, yaml.load(content))
-            if parsed is None:
-                return None
-            origin = f"doctrine/{mission}/expected-artifacts.yaml"
-            return ConfigResult(content=content, origin=origin, parsed=parsed)
-        except (OSError, UnicodeDecodeError, YAMLError):
+        except YAMLError as exc:
+            raise MalformedManifestError(path, exc) from exc
+        except (OSError, UnicodeDecodeError):
             return None
+        if parsed is None:
+            return None
+        origin = f"doctrine/{mission}/expected-artifacts.yaml"
+        return ConfigResult(content=content, origin=origin, parsed=parsed)
 
     # ------------------------------------------------------------------
     # Private path methods (internal use only)
