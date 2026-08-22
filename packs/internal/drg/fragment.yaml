@@ -12,6 +12,10 @@ nodes:
     kind: procedures
     title: "Landing Contributor PRs (maintainer runbook)"
     body_path: procedures/landing-contributor-prs.procedure.yaml
+  - id: OPERATOR_SIGNAL_CONTRACT
+    kind: directives
+    title: "Operator-Signal Contract — a path that decides must also signal"
+    body_path: directives/operator-signal-contract.directive.yaml
 edges:
   # Reference-not-duplicate: the landing runbook refines built-in doctrine that
   # already ships publicly, rather than re-authoring it. Targets are
