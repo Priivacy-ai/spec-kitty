@@ -6,6 +6,8 @@ import re
 import shutil
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -305,7 +307,7 @@ class PythonOnlyMigration(BaseMigration):
         # Write if changes were made
         if content != original_content:
             if not dry_run:
-                template_path.write_text(content, encoding="utf-8")
+                write_generated_file(template_path, content)
             return True, replacements_made
 
         return False, 0

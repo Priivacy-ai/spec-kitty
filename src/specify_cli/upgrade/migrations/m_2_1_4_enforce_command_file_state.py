@@ -29,6 +29,8 @@ import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -367,7 +369,7 @@ class EnforceCommandFileStateMigration(BaseMigration):
                     continue
 
                 try:
-                    output_path.write_text(rendered, encoding="utf-8")
+                    write_generated_file(output_path, rendered)
                     changes.append(f"Wrote prompt: {rel_path}")
                 except OSError as exc:
                     errors.append(f"Failed to write {rel_path}: {exc}")
@@ -384,7 +386,7 @@ class EnforceCommandFileStateMigration(BaseMigration):
 
                 shim_content = _render_shim(command, agent_key)
                 try:
-                    output_path.write_text(shim_content, encoding="utf-8")
+                    write_generated_file(output_path, shim_content)
                     changes.append(f"Wrote shim: {rel_path}")
                 except OSError as exc:
                     errors.append(f"Failed to write {rel_path}: {exc}")
