@@ -17,6 +17,7 @@ Design decision:
 
 from __future__ import annotations
 
+from charter.mission_type_key import read_mission_type
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import read_target_branch_from_meta
@@ -1315,7 +1316,9 @@ def generate_retrospective(
     mission_id = str(meta.get("mission_id") or "")
     mission_slug = str(meta.get("mission_slug") or meta.get("slug") or feature_dir.name)
     friendly_name = str(meta.get("friendly_name") or meta.get("name") or mission_slug)
-    mission_type = str(meta.get("mission_type") or "software-dev")
+    # rc3 M5 (FR-003): canonical field via the one shared reader — drop the
+    # silent `software-dev` default; a typeless mission records "" (neutral).
+    mission_type = read_mission_type(meta) or ""
     # FR-008 / #2139: delegate to the single read_target_branch_from_meta
     # authority instead of re-embedding a local "main" default; apply the
     # documented primary-branch fallback only when the field is genuinely

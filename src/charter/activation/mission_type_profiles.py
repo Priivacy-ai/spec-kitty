@@ -64,7 +64,7 @@ from charter.activation.action_grain import aggregate_action_grain
 from charter.activation.activations import ActivationEntry
 from charter.bundle import CHARTER_YAML
 from charter.activation.charter_yaml_io import load_charter_yaml
-from charter.activation.mission_type_key import canonical_mission_type_key
+from charter.activation.mission_type_key import canonical_mission_type_key, read_mission_type
 from charter.activation.sync import apply_legacy_governance_selection_key_compat
 
 if TYPE_CHECKING:
@@ -742,12 +742,18 @@ def _resolve_type_key(mission_type: str | None, feature_dir: Path | None) -> str
         return canonical_mission_type_key(mission_type)
     if feature_dir is None:
         return None
-    raw = _read_meta_mission_type(feature_dir)
-    return canonical_mission_type_key(raw)
+    return _read_meta_mission_type(feature_dir)
 
 
 def _read_meta_mission_type(feature_dir: Path) -> str | None:
-    """Return the raw ``mission_type`` string from ``feature_dir/meta.json``.
+    """Return the canonical ``mission_type`` key from ``feature_dir/meta.json``.
+
+    Loads the mission's ``meta.json`` (file I/O stays here, per the dict-in seam
+    design) and delegates the field-extract + canonicalization to the one shared
+    runtime reader :func:`charter.mission_type_key.read_mission_type` (rc3 M5
+    FR-001 — the M3↔M5 reconciliation: the charter path and the CLI path resolve
+    through the *same* authority so they cannot re-diverge). Reads only the
+    canonical ``mission_type`` field (never legacy ``mission``, FR-002).
 
     Best-effort: a missing / unreadable / malformed ``meta.json`` — or a
     ``meta.json`` without a ``mission_type`` key — degrades to ``None`` (the
@@ -760,8 +766,7 @@ def _read_meta_mission_type(feature_dir: Path) -> str | None:
         return None
     if not isinstance(data, dict):
         return None
-    raw = data.get("mission_type")
-    return raw if isinstance(raw, str) else None
+    return read_mission_type(data)
 
 
 def _resolve_governance_slot(

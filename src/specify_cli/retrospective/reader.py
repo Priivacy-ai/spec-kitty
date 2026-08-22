@@ -13,6 +13,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.mission_type_key import read_mission_type
 from specify_cli.retrospective.schema import (
     GenActor,
     GenEvidenceRef,
@@ -309,7 +310,7 @@ def _gen_record_from_mapping(data: YamlMapping) -> GenRetrospectiveRecord:
         mission_slug=data.get("mission_slug", ""),
         mission_number=data.get("mission_number"),
         friendly_name=data.get("friendly_name", ""),
-        mission_type=data.get("mission_type", ""),
+        mission_type=read_mission_type(data) or "",  # rc3 M5 (FR-001): shared reader parity
         target_branch=data.get("target_branch", ""),
         created_at=data.get("created_at", ""),
         created_by=_actor(data.get("created_by")),
