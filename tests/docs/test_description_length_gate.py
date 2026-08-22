@@ -43,6 +43,7 @@ from scripts.docs.description_length_check import (
 # first. Reaching the gate's own assertion directly is the only way to prove it
 # is load-bearing rather than decorative.
 from scripts.docs.description_length_check import _assert_coverage  # noqa: E402
+from tests.docs.conftest import commit_all_changes, init_git_repo_with_base
 
 pytestmark = pytest.mark.architectural
 
@@ -66,10 +67,7 @@ def _desc(length: int) -> str:
 
 def _unique_desc(index: int) -> str:
     """A distinct, in-band description for filler page ``index``."""
-    text = (
-        f"Filler page {index:05d} describing a synthetic documentation page that "
-        "exists only to clear the coverage floor."
-    )
+    text = f"Filler page {index:05d} describing a synthetic documentation page that exists only to clear the coverage floor."
     assert MIN_DESCRIPTION_LENGTH <= len(text) <= MAX_DESCRIPTION_LENGTH
     return text
 
@@ -118,9 +116,7 @@ def _build_tree(
 def _reasons(root: Path, docs: Path) -> dict[str, str]:
     """Validate ``docs`` and return ``{path: reason}`` for non-filler pages."""
     report = validate_descriptions(docs_root=docs, repo_root=root)
-    return {
-        v.path: v.reason for v in report.violations if not v.path.startswith("docs/filler/")
-    }
+    return {v.path: v.reason for v in report.violations if not v.path.startswith("docs/filler/")}
 
 
 # --- check_description_length: the boundary contract (preserved) ------------
@@ -286,9 +282,7 @@ def test_gate_asserts_the_floor_independently_of_the_resolver() -> None:
     with pytest.raises(CoverageError, match="zero pages"):
         _assert_coverage(empty, docs_root=Path("docs"))
 
-    collapsed = PublishedPageSet(
-        pages=frozenset({Path("docs/a.md")}), source_globs=("**.md",), exclusions=()
-    )
+    collapsed = PublishedPageSet(pages=frozenset({Path("docs/a.md")}), source_globs=("**.md",), exclusions=())
     with pytest.raises(CoverageError) as excinfo:
         _assert_coverage(collapsed, docs_root=Path("docs"))
 
@@ -378,6 +372,195 @@ def test_live_tree_covers_the_adr_subtree() -> None:
     assert report.checked_count > len(adr_pages)
 
 
+# --- diff scope: PRs report only changed published pages (#3316) ------------
+#
+# Every fixture here builds a *real* above-floor tree through ``_build_tree``
+# (real ``docfx.json``, ``_FILLER_COUNT`` filler pages) and drives ``main``
+# through a real git repo, so the shared published-page authority is exercised,
+# never stubbed. That matters: the diff-scoped path re-asserts the corpus floor
+# exactly as the whole-tree path does, and a stubbed authority would hide that.
+
+
+def _diff_scoped_argv(docs: Path, root: Path, base: str, *extra: str) -> list[str]:
+    """CLI argv for a strict, diff-scoped run of the gate over ``docs``."""
+    return [
+        "--docs-root",
+        str(docs),
+        "--repo-root",
+        str(root),
+        "--strict",
+        *extra,
+        "--changed-from",
+        base,
+    ]
+
+
+class TestDiffScopeDescriptionCLI:
+    """``--changed-from`` behavior through :func:`main` over real git repos."""
+
+    def test_changed_length_violation_reds(self, tmp_path: Path) -> None:
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "changed.md", _desc(49))
+        commit_all_changes(tmp_path, "add short description")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == 1
+
+    def test_changed_unicode_path_length_violation_reds(self, tmp_path: Path) -> None:
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "café.md", _desc(49))
+        commit_all_changes(tmp_path, "add Unicode short description")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == 1
+
+    def test_unchanged_preexisting_violation_passes(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """A violation confined to an unchanged page is not reported on a PR."""
+        docs = _build_tree(tmp_path, {"preexisting.md": _desc(49)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "changed.md", _desc(100))
+        commit_all_changes(tmp_path, "add valid description")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha, "--json"))
+
+        assert exit_code == 0
+        payload = json.loads(capsys.readouterr().out)
+        # Only the changed page was *reported on*; the corpus was still read.
+        assert payload["checked_count"] == 1
+        assert payload["violations"] == []
+
+    def test_only_changed_page_violations_are_reported(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """With violations on both sides of the diff, only the changed one shows."""
+        docs = _build_tree(tmp_path, {"preexisting.md": _desc(49)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "changed.md", _desc(181))
+        commit_all_changes(tmp_path, "add long description")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha, "--json"))
+
+        assert exit_code == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["checked_count"] == 1
+        assert [v["path"] for v in payload["violations"]] == ["docs/changed.md"]
+        assert payload["violations"][0]["reason"] == "too_long"
+
+    def test_changed_duplicate_compares_with_unchanged_peer(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """Uniqueness stays corpus-aware: the unchanged peer is named."""
+        shared = _desc(120)
+        docs = _build_tree(tmp_path, {"existing.md": shared})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "changed.md", shared)
+        commit_all_changes(tmp_path, "add duplicate description")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha, "--json"))
+
+        assert exit_code == 1
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["checked_count"] == 1
+        assert payload["violations"] == [
+            {
+                "length": 120,
+                "path": "docs/changed.md",
+                "peers": ["docs/existing.md"],
+                "reason": "duplicate",
+            }
+        ]
+
+    def test_resolved_zero_docs_passes(self, tmp_path: Path) -> None:
+        """A resolved diff touching no published docs is a clean pass."""
+        docs = _build_tree(tmp_path, {"preexisting.md": _desc(49)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        (tmp_path / "README.md").write_text("# changed\n", encoding="utf-8")
+        commit_all_changes(tmp_path, "change non-docs file")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == 0
+
+    def test_unresolvable_base_errors(self, tmp_path: Path) -> None:
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        init_git_repo_with_base(tmp_path)
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"))
+
+        assert exit_code == EXIT_COVERAGE_FAILURE
+
+    def test_collapsed_corpus_is_a_coverage_failure_on_a_pr(self, tmp_path: Path) -> None:
+        """Diff scoping filters the report, not the corpus floor (FR-003).
+
+        A PR whose published corpus has collapsed below the floor must red with
+        a coverage failure even though the changed subset is tiny — the same
+        malfunction signal the whole-tree path raises.
+        """
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)}, filler=3)
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_page(docs / "existing.md", _desc(101))
+        commit_all_changes(tmp_path, "touch a page in a collapsed tree")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == EXIT_COVERAGE_FAILURE
+
+    def test_config_only_corpus_collapse_is_a_coverage_failure(self, tmp_path: Path) -> None:
+        """Changing only docfx.json cannot bypass the PR corpus floor."""
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        _write_docfx(docs, ["existing.md"])
+        commit_all_changes(tmp_path, "collapse published corpus config only")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == EXIT_COVERAGE_FAILURE
+
+    @pytest.mark.parametrize("operation", ["delete", "rename"])
+    def test_removed_publication_config_is_a_coverage_failure(
+        self,
+        tmp_path: Path,
+        operation: str,
+    ) -> None:
+        """Deleting or renaming docfx.json cannot produce scoped green over zero."""
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        base_sha = init_git_repo_with_base(tmp_path)
+        config = docs / "docfx.json"
+        if operation == "delete":
+            config.unlink()
+        else:
+            config.rename(docs / "docfx-renamed.json")
+        commit_all_changes(tmp_path, f"{operation} publication config")
+
+        exit_code = main(_diff_scoped_argv(docs, tmp_path, base_sha))
+
+        assert exit_code == EXIT_COVERAGE_FAILURE
+
+    def test_diff_scoped_gate_asserts_the_floor_independently_of_the_resolver(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """The diff-scoped path re-asserts the floor itself, mirroring the whole-tree path.
+
+        Companion to :func:`test_gate_asserts_the_floor_independently_of_the_resolver`:
+        the resolver raises first in every real run, so the only way to prove the
+        gate's own assertion is load-bearing on this path is to hand it a
+        collapsed set the resolver would not have refused. This is the one
+        place the authority is bypassed, and only to prove the double-assert.
+        """
+        from scripts.docs import description_length_check as gate
+
+        docs = _build_tree(tmp_path, {"existing.md": _desc(100)})
+        collapsed = PublishedPageSet(
+            pages=frozenset({Path("docs/existing.md")}),
+            source_globs=("**.md",),
+            exclusions=(),
+        )
+        monkeypatch.setattr(gate, "_resolve_page_set", lambda **_kw: collapsed)
+
+        with pytest.raises(CoverageError) as excinfo:
+            gate.validate_descriptions_diff_scoped(docs_root=docs, repo_root=tmp_path, changed_files=["docs/existing.md"])
+
+        assert str(MINIMUM_EXPECTED_PAGES) in str(excinfo.value)
+
+
 # --- main: the report-only / --strict exit contract (preserved) ------------
 
 
@@ -445,12 +628,5 @@ def test_live_tree_is_clean() -> None:
     """
     report = validate_descriptions(docs_root=LIVE_DOCS_ROOT, repo_root=REPO_ROOT)
 
-    detail = "\n".join(
-        f"  {v.reason.upper()} {v.path}"
-        + (f" (also on: {', '.join(v.peers)})" if v.peers else "")
-        for v in report.violations
-    )
-    assert not report.violations, (
-        f"{len(report.violations)} description violation(s) across "
-        f"{report.checked_count} published page(s):\n{detail}"
-    )
+    detail = "\n".join(f"  {v.reason.upper()} {v.path}" + (f" (also on: {', '.join(v.peers)})" if v.peers else "") for v in report.violations)
+    assert not report.violations, f"{len(report.violations)} description violation(s) across {report.checked_count} published page(s):\n{detail}"

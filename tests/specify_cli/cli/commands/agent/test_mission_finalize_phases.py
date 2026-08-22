@@ -80,6 +80,38 @@ def test_collect_finalize_artifacts_dedupes_and_filters_missing(tmp_path: Path) 
     assert all(p.exists() for p in artifacts)
 
 
+def test_collect_finalize_artifacts_omits_dossiers_candidate_for_unsafe_slug(
+    tmp_path: Path,
+) -> None:
+    """#2037: an unsafe ``--mission`` slug must not escape the dossiers join.
+
+    The dossiers-snapshot candidate is the only entry keyed on ``mission_slug``
+    directly; every other candidate is keyed on the already-resolved
+    ``feature_dir``/``tasks_dir``. A hostile slug must be dropped (fail-closed
+    by omission, not by raising) while the rest of the candidate list is
+    collected as usual.
+    """
+    feature = tmp_path / "kitty-specs" / "001-m"
+    tasks = feature / "tasks"
+    tasks.mkdir(parents=True)
+    (feature / "tasks.md").write_text("x", encoding="utf-8")
+    # A file that a traversal payload could plausibly resolve to, so the
+    # assertion is "never collected", not just "path string never equal".
+    # ``feature/.kittify/dossiers/../evil/snapshot-latest.json`` resolves to
+    # ``feature/.kittify/evil/snapshot-latest.json``; the ``dossiers/`` dir must
+    # exist for the unguarded join to traverse there, otherwise the test is vacuous.
+    (feature / ".kittify" / "dossiers").mkdir(parents=True)
+    escape_target = feature / ".kittify" / "evil" / "snapshot-latest.json"
+    escape_target.parent.mkdir(parents=True)
+    escape_target.write_text("x", encoding="utf-8")
+
+    artifacts = seam._collect_finalize_artifacts(feature, tasks, "../evil")
+
+    assert (feature / "tasks.md") in artifacts
+    assert escape_target not in artifacts
+    assert not any(".kittify" in p.parts and "dossiers" in p.parts for p in artifacts)
+
+
 # ---------------------------------------------------------------------------
 # _branch_strategy_text
 # ---------------------------------------------------------------------------

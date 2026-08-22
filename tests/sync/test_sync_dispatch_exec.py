@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -27,7 +28,7 @@ from kernel.clock import now_utc, timedelta
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.sync import _AdmissionGatedNoDelivery, _EventSyncScope
 from specify_cli.delivery.config import DefaultReceiverFactory
-from specify_cli.delivery.dispatcher import DispatchSummary
+from specify_cli.delivery.dispatcher import DispatchFailure, DispatchSummary
 from specify_cli.delivery.receivers import TeamspaceReceiver
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
@@ -165,7 +166,28 @@ def _prepare_consented_checkout(
     return store
 
 
-def _wire_delivery_doubles(monkeypatch: pytest.MonkeyPatch, *, event_id: str) -> None:
+def _protocol_mismatch_poster(
+    *,
+    error_code: str = "client-too-new",
+    guidance: str = "Pin spec-kitty to a supported release or wait for the SaaS rollout.",
+):
+    """A network-free ``HttpPoster`` double answering the server's 412 handshake body (#1553)."""
+
+    def _poster(url: str, *, data: bytes, headers: dict[str, str], timeout: float) -> _FakeHttpResponse:
+        return _FakeHttpResponse(
+            412,
+            {
+                "ok": False,
+                "error_code": error_code,
+                "error_description": "Client protocol version is outside the supported range.",
+                "sync_protocol": {"contract_version": "sync-protocol-handshake.v1", "upgrade_guidance": guidance},
+            },
+        )
+
+    return _poster
+
+
+def _wire_delivery_doubles(monkeypatch: pytest.MonkeyPatch, *, event_id: str, poster: Any = None) -> None:
     """Real routing/store/dispatcher; only the outermost HTTP POST is faked."""
     manager = _FakeTokenManager(_session())
     monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: manager)
@@ -179,7 +201,7 @@ def _wire_delivery_doubles(monkeypatch: pytest.MonkeyPatch, *, event_id: str) ->
         return TeamspaceReceiver(
             resolved_server_url=resolved_server_url,
             auth_token=self.teamspace_auth_token,
-            poster=_success_poster(event_id),
+            poster=_success_poster(event_id) if poster is None else poster,
         )
 
     monkeypatch.setattr(DefaultReceiverFactory, "build_teamspace", _fake_build_teamspace)
@@ -264,3 +286,88 @@ class TestStrictAdmissionStaysGated:
         assert isinstance(result, _AdmissionGatedNoDelivery)
         assert result.reason == "admission_not_current"
         assert result.summary.delivered == 0
+
+
+class TestProtocolMismatchHaltsAndGuides:
+    """#1553: an HTTP 412 halts the pass, parks nothing, and prints the server's guidance."""
+
+    def test_412_prints_server_guidance_and_retains_event(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from rich.console import Console
+
+        event_id = "evt-1553-protocol-skew"
+        store = _prepare_consented_checkout(tmp_path, monkeypatch, event_id=event_id)
+        _wire_delivery_doubles(monkeypatch, event_id=event_id, poster=_protocol_mismatch_poster())
+        recorder = Console(record=True, width=400, soft_wrap=True)
+        monkeypatch.setattr("specify_cli.cli.commands.sync.console", recorder)
+
+        from specify_cli.sync.sync_dispatch_exec import _run_event_sync_dispatch
+
+        result = _run_event_sync_dispatch()
+
+        assert isinstance(result, DispatchSummary)
+        assert result.selected == 1
+        assert result.transient == 1
+        assert result.terminal_failed == 0
+        assert result.delivered == 0
+
+        rendered = recorder.export_text()
+        # The command that hit the 412 surfaces the server's own guidance (for a
+        # too-NEW client that is "pin", not "upgrade") — not a hardcoded pip line.
+        assert "Pin spec-kitty to a supported release or wait for the SaaS rollout." in rendered
+        assert "412" in rendered
+        assert "pip install" not in rendered
+
+        # The journal row is retained and still selectable: not parked.
+        from specify_cli.delivery.ledger import SqliteDeliveryLedger
+
+        with store.unit_of_work() as unit:
+            ledger = SqliteDeliveryLedger(unit, store.layout_generation())
+            row = ledger.get(event_id, result.target_id or "")
+        assert row is not None
+        assert row.status == "failed_transient"
+
+    def test_mixed_local_failure_and_412_halts_before_next_batch(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A local terminal row must not hide a correlated 412 halt signal."""
+        mixed = DispatchSummary(
+            target_id="target",
+            selected=2,
+            delivered=0,
+            duplicate=0,
+            pending=0,
+            rejected=0,
+            transient=1,
+            terminal_failed=1,
+            failures=(
+                DispatchFailure(
+                    event_id="remote",
+                    outcome="transient",
+                    http_status=412,
+                    error="Pin this CLI.",
+                ),
+                DispatchFailure(event_id="local", outcome="terminal_failed"),
+            ),
+            retryable_event_ids=("remote",),
+        )
+        calls = 0
+
+        def _dispatch_once(**_: object) -> DispatchSummary:
+            nonlocal calls
+            calls += 1
+            if calls > 1:
+                pytest.fail("batch driver continued after HTTP 412")
+            return mixed
+
+        monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", _dispatch_once)
+        monkeypatch.setattr("specify_cli.cli.commands.sync._EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+        from specify_cli.sync.sync_dispatch_exec import _run_dispatch_batches
+
+        result = _run_dispatch_batches(SimpleNamespace(store=object(), context=object()), object(), object())
+
+        assert calls == 1
+        assert result.transient == 1
+        assert result.terminal_failed == 1

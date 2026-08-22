@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M0MAC5TRN88VA21C8MDF6FGZ",
+  "completed_at": "2026-08-22T08:58:28.642511+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "blockers=cursor_provenance,gitignore_symlink,unsafe_mission_slug,docs_path_quoting,docfx_config_scope,sync_412_batch,release_docs_drift"
+}

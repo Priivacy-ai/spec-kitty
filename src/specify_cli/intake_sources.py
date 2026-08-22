@@ -206,7 +206,7 @@ def scan_for_plans(cwd: Path) -> list[tuple[Path, str, str | None]]:
                     except (ValueError, OSError):
                         continue
                     # Expand directory: collect all *.md files (non-recursive)
-                    for child in sorted(abs_path.iterdir()):
+                    for child in sorted(abs_path.iterdir(), key=lambda p: p.name):
                         try:
                             # T023: Symlink exclusion
                             if child.is_symlink():

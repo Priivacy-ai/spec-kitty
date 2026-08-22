@@ -45,6 +45,7 @@ from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
@@ -245,8 +246,22 @@ def _collect_finalize_artifacts(
         # never authored by any canonical path any more (WP05), so it is no
         # longer a finalize-commit candidate.
         feature_dir / "issue-matrix.json",
-        feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
     ]
+    # #2037: mission_slug threads back to the operator-typed `--mission` CLI
+    # value (no `assert_safe_path_segment` upstream on this path). This is a
+    # read-only `.exists()` candidate list, not a write sink, so an unsafe
+    # slug fails closed by dropping the candidate rather than raising —
+    # finalize-tasks still commits every other artifact.
+    try:
+        assert_safe_path_segment(mission_slug)
+    except ValueError:
+        logger.warning(
+            "Refusing to build a dossiers-snapshot candidate from unsafe mission_slug %r "
+            "(traversal guard); omitting it from the finalize commit candidates.",
+            mission_slug,
+        )
+    else:
+        candidates.append(feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json")
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
     if lanes_path is not None:
         candidates.append(lanes_path)

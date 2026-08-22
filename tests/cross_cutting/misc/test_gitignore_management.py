@@ -204,6 +204,28 @@ def test_protect_selected_agents():
         assert ".cursor/" not in content  # Not selected
 
 
+def test_protect_selected_agents_cursor_is_narrow():
+    """#2498: selecting cursor must not blanket-ignore .cursor/, only the
+    paths Spec Kitty itself generates there."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        project_path = Path(temp_dir)
+
+        manager = GitignoreManager(project_path)
+        result = manager.protect_selected_agents(["cursor"])
+
+        assert result.success
+        assert result.modified
+
+        content = manager.gitignore_path.read_text()
+        assert ".cursor/rules/spec-kitty.mdc" in content
+        assert ".cursor/commands/" in content
+        assert ".cursor/skills/" in content
+
+        # No line blocks the whole .cursor/ directory.
+        blanket_lines = [line for line in content.splitlines() if line.strip() in (".cursor", ".cursor/")]
+        assert blanket_lines == []
+
+
 def test_protect_selected_agents_with_unknown():
     """Test that protect_selected_agents handles unknown agent names."""
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -234,6 +256,7 @@ if __name__ == "__main__":
         test_protect_all_agents_adds_all_directories,
         test_protect_all_agents_with_existing_directory,
         test_protect_selected_agents,
+        test_protect_selected_agents_cursor_is_narrow,
         test_protect_selected_agents_with_unknown,
     ]
 

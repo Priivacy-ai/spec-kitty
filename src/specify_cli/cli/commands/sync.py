@@ -454,7 +454,15 @@ def _report_empty_selection(summary: DispatchSummary | None, journal: EventJourn
 
 
 def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
-    """Render the dispatcher's per-outcome counts (sourced, never recomputed)."""
+    """Render the dispatcher's per-outcome counts (sourced, never recomputed).
+
+    When a protocol-mismatch 412 halted the pass (#1553) the server's own
+    upgrade/pin guidance — carried on the summary's failure record — is printed
+    right after the counts, so the command that hit the skew tells the operator
+    what to do (not a later ``sync status`` they may never run).
+    """
+    from rich.markup import escape as _escape_markup  # noqa: PLC0415
+
     console.print(
         f"Event sync ([cyan]{mode_name}[/cyan]): "
         f"[green]delivered {summary.delivered}[/green]  "
@@ -464,7 +472,9 @@ def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
         f"[red]terminal-failed {summary.terminal_failed}[/red]  "
         f"(selected {summary.selected})"
     )
-
+    guidance = _protocol_mismatch_guidance(summary)
+    if guidance is not None:
+        console.print(f"[yellow]{_PROTOCOL_MISMATCH_HALT_NOTICE} {_escape_markup(guidance)}[/yellow]")
 
 
 # Create a Typer app for sync subcommands
@@ -779,6 +789,7 @@ def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
 
 
 _TRACKER_EGRESS_SECTION_TITLE = "Tracker egress"
+
 
 def _render_tracker_egress_row(
     console_out: Any,
@@ -1907,6 +1918,8 @@ def _gateway_unavailable_note(server_url: str, status_code: int) -> str:
         f"`spec-kitty sync server <url>` (e.g. {EXAMPLE_HOSTED_SAAS_URL}), then "
         "`spec-kitty auth login --force`."
     )
+
+
 #: Server-connection verdicts (from :func:`_check_server_connection`) that are
 #: healthy or a deliberate non-problem state. "Connected" = the live probe
 #: succeeded; "Disabled" = hosted sync is off by design. Any verdict NOT matching
@@ -3243,9 +3256,7 @@ def _gather_status_facts(check_connection: bool) -> StatusFacts:
     daemon_status = get_sync_daemon_status()
 
     queue_size = 0 if local_report is None else int(local_report["event_journal"]["retained_event_count"])
-    body_queue_count = (
-        0 if local_report is None else int(local_report["body_upload_compatibility"]["body_upload_queue_count"])
-    )
+    body_queue_count = 0 if local_report is None else int(local_report["body_upload_compatibility"]["body_upload_queue_count"])
 
     # Optional --check network probe + live-daemon singleton scan (#829 / #1071).
     connection_status: str | None = None
@@ -3311,9 +3322,7 @@ def _render_status_body(facts: StatusFacts, view: StatusView) -> None:
     console.print()
 
     if view.orphan_detail_lines:
-        console.print(
-            "[yellow]Other live ``run_sync_daemon`` processes detected outside the registered singleton (#1071):[/yellow]"
-        )
+        console.print("[yellow]Other live ``run_sync_daemon`` processes detected outside the registered singleton (#1071):[/yellow]")
         for orphan_line in view.orphan_detail_lines:
             console.print(orphan_line)
         console.print("[dim]Run `spec-kitty sync doctor` for a guided cleanup, or kill the rogue processes manually.[/dim]")
@@ -3617,9 +3626,7 @@ def _gather_doctor_facts() -> DoctorFacts:
     try:
         consent_repo_root = locate_project_root(Path.cwd())
         consent_repo_root_present = consent_repo_root is not None
-        consent_local_fault = (
-            None if consent_repo_root is None else project_local_consent_fault(consent_repo_root)
-        )
+        consent_local_fault = None if consent_repo_root is None else project_local_consent_fault(consent_repo_root)
     except Exception as exc:  # noqa: BLE001 — reported, never silently skipped
         consent_local_error = str(exc)
 
@@ -4109,10 +4116,12 @@ from specify_cli.sync.sync_dispatch_core import (  # noqa: E402
     _HTTP_PAYLOAD_TOO_LARGE as _HTTP_PAYLOAD_TOO_LARGE,
     _OVERSIZED_ERROR_MARKER as _OVERSIZED_ERROR_MARKER,
     _OVERSIZED_SYNC_NOW_MESSAGE as _OVERSIZED_SYNC_NOW_MESSAGE,
+    _PROTOCOL_MISMATCH_HALT_NOTICE as _PROTOCOL_MISMATCH_HALT_NOTICE,
     _TRANSIENT_SYNC_NOW_MESSAGE as _TRANSIENT_SYNC_NOW_MESSAGE,
     _UNAUTHENTICATED_SYNC_NOW_MESSAGE as _UNAUTHENTICATED_SYNC_NOW_MESSAGE,
     _batch_is_oversized as _batch_is_oversized,
     _combine_dispatch_summaries as _combine_dispatch_summaries,
+    _protocol_mismatch_guidance as _protocol_mismatch_guidance,
     _transient_block_message as _transient_block_message,
     SyncNowExitAction as SyncNowExitAction,
     decide_sync_now_exit as decide_sync_now_exit,

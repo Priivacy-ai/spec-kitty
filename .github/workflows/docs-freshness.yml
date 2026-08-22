@@ -77,16 +77,17 @@ jobs:
         run: uv python install 3.11
       - name: Install project
         run: uv sync
-      # Diff-scope flag (#3147, B-WP02): on `pull_request`, scope the two
-      # blocking dead-link/related-edge gates below to the PR's own changed
-      # docs/**/*.md files via `--changed-from <base-sha>`, so a docs PR is no
-      # longer failed for pre-existing broken links it never touched. On
-      # `push` (the unfiltered push:main backstop, FR-005/M3) the flag is
-      # empty — those steps run whole-tree exactly as before, `min_files=1`
-      # floor intact. Fail-closed keys on git base RESOLVABILITY (B-WP02): a
-      # resolved diff that touches zero docs files (common — this workflow
-      # also triggers on non-`.md` paths like `src/specify_cli/**`) exits 0,
-      # never errors; only an unresolvable/unfetched base does.
+      # Diff-scope flag (#3147, #3316): on `pull_request`, scope the four
+      # blocking per-page gates below (related edges, audience references,
+      # descriptions, and body links) to the PR's own changed docs/**/*.md
+      # files via `--changed-from <base-sha>`, so a docs PR is no longer failed
+      # for a pre-existing violation it never touched. On `push` (the
+      # unfiltered push:main backstop, FR-005/M3) the flag is empty — those
+      # steps run whole-tree exactly as before, with their coverage floors
+      # intact. Fail-closed keys on git base RESOLVABILITY (B-WP02): a resolved
+      # diff that touches zero docs files (common — this workflow also triggers
+      # on non-`.md` paths like `src/specify_cli/**`) exits 0, never errors;
+      # only an unresolvable/unfetched base does.
       - name: Compute diff-scope flag (PR only)
         id: diffscope
         run: |
@@ -106,9 +107,9 @@ jobs:
       # must resolve to a persona under docs/context/audience/. --strict reds CI
       # on any dangling reference (mirror of the related-edge resolver).
       - name: Audience resolver (NFR-002, --strict)
-        run: uv run python scripts/docs/audience_resolver.py --strict --repo-root .
+        run: uv run python scripts/docs/audience_resolver.py --strict --repo-root . ${{ steps.diffscope.outputs.flag }}
       - name: Description-length gate (NFR-003, --strict)
-        run: uv run python scripts/docs/description_length_check.py --strict --repo-root .
+        run: uv run python scripts/docs/description_length_check.py --strict --repo-root . ${{ steps.diffscope.outputs.flag }}
       - name: Relative body-link gate (WP18, --check)
         run: uv run python scripts/docs/relative_link_fixer.py --check --repo-root . ${{ steps.diffscope.outputs.flag }}
       # Structural docs lint (FR-008): index completeness, point-in-time

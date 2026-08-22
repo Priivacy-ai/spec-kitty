@@ -17,7 +17,8 @@ What lives here:
   receiver-resolution **execution** path. The gate-context builder
   (``_event_sync_gate_context``) stays on the host and is reached late-bound.
 * **Batch driver** — ``_run_dispatch_batches``: the count-limit + byte-cap retry
-  loop that drives ``delivery.dispatcher.dispatch`` until the selection drains.
+  loop that drives ``delivery.dispatcher.dispatch`` until the selection drains
+  (or a protocol-mismatch 412 halts the pass, #1553).
 * **The sole event-delivery path** — ``_run_event_sync_dispatch``: opens the
   project dispatch runtime, resolves the gated receiver, drives the batches and
   returns the ``DispatchSummary`` (or an ``_IntentionalNoDelivery`` wrapper, or
@@ -54,6 +55,7 @@ from typing import TYPE_CHECKING, Any
 from specify_cli.sync.sync_dispatch_core import (
     _HTTP_PAYLOAD_TOO_LARGE,
     _batch_is_oversized,
+    _batch_is_protocol_mismatch,
     _combine_dispatch_summaries,
 )
 
@@ -137,6 +139,16 @@ def _run_dispatch_batches(
             exclude=frozenset(skip),
             recovery_event_ids=frozenset(retry_no_effect),
         )
+        # HTTP 412 is the server's protocol handshake refusing this CLI's
+        # version (#1553): environment skew, so every further POST this pass
+        # would get the same answer. Fold the batch (its rows are retained as
+        # transient / re-selectable, never parked) and HALT the pass — do not
+        # halve (it is not a 413) and do not skip-and-advance to the next batch
+        # (that would POST the whole journal for nothing). The command prints
+        # the server's upgrade/pin guidance off the summary.
+        if _batch_is_protocol_mismatch(batch):
+            combined = _combine_dispatch_summaries(combined, batch)
+            break
         # Honor the documented "retry with a smaller batch" contract: a
         # byte-oversized batch (HTTP 413, nothing delivered) is halved and
         # retried rather than surrendered as transient. dispatch() leaves those
