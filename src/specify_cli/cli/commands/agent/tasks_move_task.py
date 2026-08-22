@@ -260,6 +260,12 @@ class _MoveTaskState:
     # whether T048's revert-compensator has anything to undo after a later
     # ``_mt_execute`` failure.
     pending_verdict_write: VerdictDurabilitySignal | None = None
+    # #3578: the operator signal for the otherwise-silent rollback-to-``planned``
+    # delta (subtask reset + claim release + review-override clear), including the
+    # FR-003 work-state split. Set by ``_build_claim_review_override`` whenever the
+    # target lane is ``planned``; read by ``_mt_output`` to emit the human line +
+    # JSON fields. ``None`` on every non-rollback move.
+    rollback_reset_summary: _RollbackResetSummary | None = None
 
 
 # --- phase A: resolve targets (I/O) -----------------------------------------
@@ -2099,6 +2105,68 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
 # --- phase F: persist the WP file + primary commit via commit_artifact --------
 
 
+@dataclass(frozen=True)
+class _RollbackResetSummary:
+    """Operator signal for the otherwise-silent rollback-to-``planned`` delta (#3578).
+
+    A rollback to ``planned`` applies three deltas the operator never saw: it
+    resets every roster subtask to ``planned`` (so the review gate re-blocks off
+    the snapshot, #2513), releases the runtime claim (``release_runtime_claim``),
+    and clears the review-override slot. Each half of the fail-loud discipline
+    (epics #3410/#3549) needs a signal — this value object carries the count and
+    the two sibling actions, plus the FR-003 work-state split: ``previously_
+    completed`` names roster ids that were DONE in an earlier cycle (re-verify,
+    do not rebuild), kept distinct from ``never_completed`` ones so the flat reset
+    no longer conflates work-state with review-state (SC-003).
+    """
+
+    reset_ids: tuple[str, ...]
+    previously_completed: tuple[str, ...]
+    never_completed: tuple[str, ...]
+    claim_released: bool
+    review_override_cleared: bool
+
+    @property
+    def reset_count(self) -> int:
+        return len(self.reset_ids)
+
+
+def _mt_build_rollback_summary(
+    st: _MoveTaskState, ports: TasksPorts, reset: Mapping[str, Lane]
+) -> _RollbackResetSummary:
+    """Compute the #3578 operator summary for a rollback-to-``planned`` delta.
+
+    ``reset`` is the already-resolved reset map (its keys are the authored
+    roster). The work-state split reads the PRE-reset reduced snapshot: a roster
+    id whose snapshot status is DONE was completed in an earlier cycle. The read
+    fails closed exactly like the review gate — an absent/silent snapshot reports
+    every roster id incomplete (never a false "already done") — so an operator is
+    never told work is preserved when it is not.
+    """
+    from specify_cli.core.subtask_rows import unchecked_subtask_ids_from_snapshot
+
+    roster = tuple(reset.keys())
+    previously_completed: tuple[str, ...] = ()
+    never_completed: tuple[str, ...] = ()
+    if roster:
+        handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+        feature_dir = ports.fs.planning_read_dir(
+            handle, kind=MissionArtifactKind.TASKS_INDEX
+        )
+        not_done = set(
+            unchecked_subtask_ids_from_snapshot(feature_dir, st.task_id, roster)
+        )
+        previously_completed = tuple(tid for tid in roster if tid not in not_done)
+        never_completed = tuple(tid for tid in roster if tid in not_done)
+    return _RollbackResetSummary(
+        reset_ids=roster,
+        previously_completed=previously_completed,
+        never_completed=never_completed,
+        claim_released=True,
+        review_override_cleared=True,
+    )
+
+
 def _mt_rollback_subtasks_reset(
     st: _MoveTaskState, ports: TasksPorts
 ) -> dict[str, Lane]:
@@ -2141,6 +2209,14 @@ def _build_claim_review_override(
     st: _MoveTaskState, ports: TasksPorts
 ) -> dict[str, Any]:
     """Compute the rollback-to-``planned`` off-axis field additions.
+
+    SIDE EFFECT (#3578, adversarial review finding 1a): besides returning the
+    ``additions`` dict, this records the operator signal for the three deltas on
+    ``st.rollback_reset_summary`` (read later by :func:`_mt_output`). The summary
+    is built HERE because this is the one place that resolves the reset map, and
+    the completion split it carries must read the PRE-reset snapshot — which is
+    still intact at this point (the reset delta is not emitted until
+    :func:`_mt_emit_runtime_state` returns from this helper).
 
     Campsite extraction (WP02, verdict-seam-boundary-hardening-01KZG179,
     T007/NFR-004): pulled out of :func:`_mt_emit_runtime_state` (cc=14, close
@@ -2186,6 +2262,11 @@ def _build_claim_review_override(
         additions["subtasks"] = reset
     additions["release_runtime_claim"] = True
     additions["review"] = ReviewOverride(at="", actor="", wp_id="", reason="")
+    # #3578: capture the operator signal for all three otherwise-silent deltas
+    # (subtask reset + claim release + review-override clear) so ``_mt_output``
+    # can surface them as a human line + JSON fields. Set unconditionally on a
+    # rollback-to-``planned`` — the siblings apply even for an empty roster.
+    st.rollback_reset_summary = _mt_build_rollback_summary(st, ports, reset)
     return additions
 
 
@@ -2395,15 +2476,59 @@ def _mt_output(st: _MoveTaskState) -> None:
         result["verdict_durably_persisted"] = st.pending_verdict_write.durably_persisted
         if st.pending_verdict_write.skip_reason is not None:
             result["verdict_durability_skip_reason"] = st.pending_verdict_write.skip_reason
-    _tasks._output_result(
-        st.json_output,
-        result,
-        f"[green]✓[/green] Moved {st.task_id} from {st.old_lane} to {st.target_lane}",
-    )
+    message = f"[green]✓[/green] Moved {st.task_id} from {st.old_lane} to {st.target_lane}"
+    # #3578: surface the rollback-to-``planned`` deltas that were previously
+    # silent — the subtask reset count (+ work-state split, FR-003) and the two
+    # sibling actions (claim release, review-override clear) — as BOTH JSON fields
+    # and a human line, so an operator knows what to re-mark before re-review.
+    if st.rollback_reset_summary is not None:
+        _mt_apply_rollback_signal(result, st.rollback_reset_summary)
+        message += "\n" + _mt_rollback_signal_lines(st.rollback_reset_summary)
+    _tasks._output_result(st.json_output, result, message)
     # Check for dependent WP warnings when moving to for_review (T083).
     _tasks._check_dependent_warnings(
         st.repo_root, st.mission_slug, st.task_id, st.target_lane, st.json_output
     )
+
+
+def _mt_apply_rollback_signal(
+    result: dict[str, object], summary: _RollbackResetSummary
+) -> None:
+    """Add the #3578 rollback operator signal to the ``--json`` envelope."""
+    result["subtasks_reset_count"] = summary.reset_count
+    result["subtasks_reset_ids"] = list(summary.reset_ids)
+    result["subtasks_previously_completed"] = list(summary.previously_completed)
+    result["subtasks_never_completed"] = list(summary.never_completed)
+    result["runtime_claim_released"] = summary.claim_released
+    result["review_override_cleared"] = summary.review_override_cleared
+
+
+def _mt_rollback_signal_lines(summary: _RollbackResetSummary) -> str:
+    """Render the #3578 rollback operator signal as human-readable lines."""
+    # Wording stays accurate for EVERY move to ``planned`` — a review rollback,
+    # but also a plain ``claimed -> planned`` un-claim or ``blocked -> planned``
+    # (adversarial review finding 1b): all three reset the roster, so avoid
+    # implying the WP necessarily came from review.
+    lines = [
+        f"[yellow]↺ Reset {summary.reset_count} subtask(s) to planned[/yellow] "
+        "— re-mark completed work before this WP re-enters review."
+    ]
+    if summary.previously_completed:
+        lines.append(
+            f"  • {len(summary.previously_completed)} completed in an earlier "
+            f"cycle ({', '.join(summary.previously_completed)}): re-verify, "
+            "don't rebuild from scratch."
+        )
+    if summary.never_completed:
+        lines.append(
+            f"  • {len(summary.never_completed)} never completed "
+            f"({', '.join(summary.never_completed)})."
+        )
+    lines.append(
+        "  • runtime claim released; any review-override cleared "
+        "(the WP exposes no live claim and no superseded approval)."
+    )
+    return "\n".join(lines)
 
 
 @dataclass(frozen=True)

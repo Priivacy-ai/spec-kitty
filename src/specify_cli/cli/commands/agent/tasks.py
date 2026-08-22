@@ -508,6 +508,13 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_plan_review_result as _mt_plan_review_result,
     _mt_rollback_subtasks_reset as _mt_rollback_subtasks_reset,
     _mt_shell_pid_baseline as _mt_shell_pid_baseline,
+    # #3578: the rollback-to-``planned`` operator signal (summary value object +
+    # its builder + the JSON/human emitters) — native defs, so they join the
+    # family surface like every other one.
+    _RollbackResetSummary as _RollbackResetSummary,
+    _mt_build_rollback_summary as _mt_build_rollback_summary,
+    _mt_apply_rollback_signal as _mt_apply_rollback_signal,
+    _mt_rollback_signal_lines as _mt_rollback_signal_lines,
 )
 
 

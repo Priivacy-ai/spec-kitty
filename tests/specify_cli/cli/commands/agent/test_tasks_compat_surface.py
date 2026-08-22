@@ -153,7 +153,7 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 23 symbols (#2816: +g
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 (_binding_role_for_lane) = 76, -1 (_mt_pre_review_gate_verdict retired, WP04) = 75
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 (_binding_role_for_lane) = 76, -1 (_mt_pre_review_gate_verdict retired, WP04) = 75; +4 (#3578 rollback-signal quartet) = 79
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
     # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
     # #2639: +complete-deferred-readiness + pre-review-dirty-paths;
@@ -215,6 +215,12 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2); grown to 75 via WP09, +1 
     "_mt_plan_review_result",
     "_mt_rollback_subtasks_reset",
     "_mt_shell_pid_baseline",
+    # #3578 (M4 operator-signal sweep): the rollback-to-``planned`` operator
+    # signal — summary value object + builder + JSON/human emitters.
+    "_RollbackResetSummary",
+    "_mt_build_rollback_summary",
+    "_mt_apply_rollback_signal",
+    "_mt_rollback_signal_lines",
     "_mt_execute",
     "_mt_output",
     "_do_move_task",
@@ -434,7 +440,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_161_symbol_surface() -> None:
+def test_guard_covers_full_165_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -528,5 +534,15 @@ def test_guard_covers_full_161_symbol_surface() -> None:
     162 -> 163. sync-transport deletion (issue #5) retired the two
     mark-status helpers whose only job was the deleted HistoryAdded /
     dossier-push emissions (_ms_emit_history, _ms_dossier_sync):
-    163 -> 161."""
-    assert len(SYMBOL_TO_MODULE) == 161  # golden-count: cardinality-is-contract
+    163 -> 161. #3578 (M4 operator-signal sweep) added the four rollback-to-
+    ``planned`` signal symbols — ``_RollbackResetSummary``,
+    ``_mt_build_rollback_summary``, ``_mt_apply_rollback_signal`` and
+    ``_mt_rollback_signal_lines`` (tasks_move_task 75 -> 79): 161 -> 165."""
+    # TODO(under-investigation, operator-flagged): the operator doubts this
+    # consolidated compat guard earns its ROI. Every seam-local symbol addition
+    # costs a three-part edit — register in the per-seam tuple, add an identity
+    # re-export in tasks.py, AND bump this hardcoded cardinality — for arguably
+    # low incremental regression-catch value over the identity-re-export guard
+    # alone. Revisit whether the golden-count ratchet should be relaxed or
+    # dropped (see M4 #3578 integration, which paid this tax for 4 helpers).
+    assert len(SYMBOL_TO_MODULE) == 165  # golden-count: cardinality-is-contract
