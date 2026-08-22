@@ -17,6 +17,7 @@ consistency story via ``fetch`` + ``reset --hard``.
 from __future__ import annotations
 
 import hashlib
+import hmac
 import shutil
 from dataclasses import replace
 from kernel.clock import now_utc_stamp
@@ -240,7 +241,7 @@ def _with_stored_etag(
     # Artifactory downloads, do one unconditional migration fetch when the
     # dedicated ``etag`` field is absent so we can also read and persist the
     # artifact's JFrog ``version`` property.
-    is_artifactory = source.source_type == "artifactory"
+    is_artifactory = source.is_artifactory
     if is_artifactory and _artifactory_manifest_needs_version_migration(
         local_path, subdir
     ):
@@ -284,6 +285,13 @@ def _manifest_matches_source(
     if data is None:
         return False
     if data.get("source_type") != source_type:
+        return False
+    # Queries may select distinct resources or carry credentials. Never persist
+    # them, and never reuse a validator when either side used one because a
+    # secret-free comparison cannot prove resource identity.
+    if urlsplit(source_url).query or data.get("source_uses_query") is True:
+        return False
+    if not _snapshot_manifest_is_intact(local_path, subdir, data):
         return False
     expected_url = _strip_credentials(source_url)
     fingerprint = data.get("source_fingerprint")
@@ -391,6 +399,20 @@ def _finish_unchanged_snapshot(
                 "has no recognised artifact directories."
             ],
         )
+    manifest = _read_existing_manifest(local_path, subdir)
+    if manifest is None or not _snapshot_manifest_is_intact(
+        local_path, subdir, manifest
+    ):
+        return FetchResult(
+            ok=False,
+            artifacts_written=0,
+            pack_version=result.pack_version,
+            etag=result.etag,
+            errors=[
+                "Remote reported unchanged (HTTP 304) but the local snapshot "
+                "does not match its recorded integrity digest."
+            ],
+        )
     counts = _count_artifacts(manifest_root)
     return FetchResult(
         ok=True,
@@ -438,6 +460,8 @@ def write_pack_manifest(
         "source_type": source_type,
         "source_url": safe_source_url,
         "source_fingerprint": _source_fingerprint(safe_source_url),
+        "source_uses_query": bool(urlsplit(source_url).query),
+        "snapshot_sha256": _snapshot_sha256(local_path),
         "artifact_counts": _manifest_artifact_counts(local_path),
     }
     if result.etag:
@@ -511,7 +535,58 @@ def _source_fingerprint(safe_url: str) -> str:
     ).hexdigest()
 
 
+def _snapshot_sha256(snapshot_root: Path) -> str:
+    """Hash installed snapshot files, excluding the manifest itself."""
+    digest = hashlib.sha256()  # noqa: TID251 - local snapshot integrity checksum
+    for path in sorted(
+        snapshot_root.rglob("*"),
+        key=lambda candidate: candidate.relative_to(snapshot_root).as_posix(),
+    ):
+        relative = path.relative_to(snapshot_root)
+        if path.is_symlink():
+            raise OSError(f"Snapshot contains unsupported symlink: {relative}")
+        if relative == Path("pack-manifest.yaml"):
+            continue
+        if path.is_dir():
+            continue
+        if not path.is_file():
+            raise OSError(f"Snapshot contains unsupported file type: {relative}")
+        relative_bytes = relative.as_posix().encode("utf-8")
+        digest.update(len(relative_bytes).to_bytes(8, "big"))
+        digest.update(relative_bytes)
+        size = path.stat().st_size
+        digest.update(size.to_bytes(8, "big"))
+        with path.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(64 * 1024), b""):
+                digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _snapshot_manifest_is_intact(
+    local_path: Path,
+    subdir: str | None,
+    manifest: dict[str, Any],
+) -> bool:
+    """Return whether installed files match the manifest's safe digest."""
+    stored = manifest.get("snapshot_sha256")
+    if (
+        not isinstance(stored, str)
+        or len(stored) != 64
+        or any(character not in "0123456789abcdef" for character in stored)
+    ):
+        return False
+    try:
+        snapshot_root = _resolve_snapshot_validate_root(local_path, subdir)
+        current = _snapshot_sha256(snapshot_root)
+    except (OSError, ValueError):
+        return False
+    return hmac.compare_digest(stored, current)
+
+
 def _infer_source_type(source: OrgDoctrineSource) -> str:
+    declared = getattr(source, "source_type", None)
+    if declared in {"git", "https", "artifactory", "api"}:
+        return cast(str, declared)
     cls_name = type(source).__name__.lower()
     if "git" in cls_name:
         return "git"
