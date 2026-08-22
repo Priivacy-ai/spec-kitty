@@ -269,3 +269,53 @@ def test_approving_an_already_approved_item_again_returns_the_same_receipt_witho
     monkeypatch.setattr(outbox_approval, "_controlling_tty", _boom)
     second_receipt = outbox_approval.approve(item.item_id, actor="robert")
     assert second_receipt.receipt_id == first_receipt.receipt_id
+
+
+# --- O1-C: status_counts() — counts only, never content ----------------------
+
+
+def test_status_counts_on_an_empty_store_is_all_zero(state_root: Path) -> None:
+    counts = outbox_approval.status_counts()
+    assert counts == {"pending": 0, "approved": 0, "rejected": 0, "expired": 0, "revoked": 0}
+
+
+def test_status_counts_reflects_every_terminal_state(state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    pending = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="still pending")
+    approved = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="approve me")
+    _approve_with_correct_challenge(monkeypatch, approved)
+    rejected = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="reject me")
+    tty = FakeTTY(rejected.item_id[:8])
+    monkeypatch.setattr(outbox_approval, "_controlling_tty", lambda: tty)
+    outbox_approval.reject(rejected.item_id, actor="robert")
+    revoked = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="revoke me")
+    _approve_with_correct_challenge(monkeypatch, revoked)
+    tty2 = FakeTTY(revoked.item_id[:8])
+    monkeypatch.setattr(outbox_approval, "_controlling_tty", lambda: tty2)
+    outbox_approval.revoke(revoked.item_id, actor="robert")
+
+    counts = outbox_approval.status_counts()
+    assert counts["pending"] == 1
+    assert counts["approved"] == 1
+    assert counts["rejected"] == 1
+    assert counts["revoked"] == 1
+    assert pending.status == "pending"  # sanity: fixture item unchanged
+
+
+def test_status_counts_sweeps_expired_items_first(state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    item = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="will expire", ttl_s=1.0)
+    future = parse_iso(item.expires_at) + timedelta(seconds=1)
+    monkeypatch.setattr(outbox_approval, "_now", lambda: future)
+    counts = outbox_approval.status_counts()
+    assert counts["expired"] == 1
+    assert counts["pending"] == 0
+
+
+def test_status_counts_filters_by_repo_and_never_exposes_content(state_root: Path) -> None:
+    outbox_approval.submit(repo="repo-a", audience="team-a", content="repo-a item")
+    outbox_approval.submit(repo="repo-b", audience="team-a", content="repo-b item")
+    counts_a = outbox_approval.status_counts(repo="repo-a")
+    assert counts_a["pending"] == 1
+    counts_b = outbox_approval.status_counts(repo="repo-b")
+    assert counts_b["pending"] == 1
+    # only ints — no way for content to leak through this surface
+    assert all(isinstance(v, int) for v in counts_a.values())

@@ -21,6 +21,7 @@ from unittest.mock import patch
 
 import pytest
 
+from kernel.clock import now_utc
 from specify_cli.zeitgeist_client import budget, transport
 
 # See tests/zeitgeist_client/test_grammar.py's pytestmark comment. This file
@@ -262,3 +263,42 @@ def test_r1_concurrent_heartbeats_produce_independent_request_ids(team_kitty_dou
     ]
     assert len(heartbeat_posts) == 2
     assert len({r.body["request_id"] for r in heartbeat_posts}) == 2
+
+
+# --- O1-C: focus_lease() — read-only lease state for the operability report -
+
+
+def test_focus_lease_is_none_before_any_focus_start(team_kitty_double):
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    focus_ref, started_at = client.focus_lease()
+    assert focus_ref is None
+    assert started_at is None
+
+
+def test_focus_lease_reports_ref_and_start_time_after_focus_start(team_kitty_double):
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    before = now_utc()
+    client.focus_start("mission-x", wp_id="WP03")
+    after = now_utc()
+    focus_ref, started_at = client.focus_lease()
+    assert focus_ref == "mission-x/WP03"
+    assert started_at is not None
+    assert before <= started_at <= after
+
+
+def test_focus_lease_clears_after_focus_end(team_kitty_double):
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    client.focus_start("mission-x")
+    client.focus_end(reason="user")
+    focus_ref, started_at = client.focus_lease()
+    assert focus_ref is None
+    assert started_at is None
+
+
+def test_focus_lease_unchanged_by_heartbeat(team_kitty_double):
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    client.focus_start("mission-x")
+    _, started_at_before = client.focus_lease()
+    client.focus_heartbeat()
+    _, started_at_after = client.focus_lease()
+    assert started_at_before == started_at_after
