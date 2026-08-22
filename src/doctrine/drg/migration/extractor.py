@@ -554,9 +554,9 @@ def _reference_edge_kwargs(ref: dict[str, Any]) -> dict[str, str | None]:
     The ``procedure`` references branch was wired through this helper in #3605
     (WP01): shipped procedure references already author ``reason`` in YAML,
     which that branch previously dropped at the extractor -- a silent metadata
-    loss, not a triple change, so no golden re-ledger was required (the edge
-    (source, target, relation) set is unchanged; only ``when``/``reason`` gained
-    values). Note also that end-to-end frontmatter promotion for a non-directive
+    loss, not a triple change, so no golden-count update was required -- the
+    edge (source, target, relation) set is unchanged; only ``when``/``reason``
+    gained values. Note also that end-to-end frontmatter promotion for a non-directive
     source additionally needs that kind's reference *model* + generated schema
     to accept ``reason`` (only :class:`DirectiveReference` does today); the
     extractor carrying the field is necessary but not sufficient.
@@ -1394,6 +1394,55 @@ def extract_governance_profile_scope_edges(doctrine_root: Path) -> list[DRGEdge]
     return edges
 
 
+#: Reverse of :data:`_GOVERNANCE_PROFILE_SCOPE_FIELDS` (kind -> field name),
+#: used only to phrase :func:`assert_governance_scope_edges_resolve`'s error
+#: message in terms of the authoring surface (the ``selected_*`` field name),
+#: not the internal edge/kind vocabulary.
+_GOVERNANCE_SCOPE_KIND_TO_FIELD: dict[str, str] = {
+    kind: field_name for field_name, kind in _GOVERNANCE_PROFILE_SCOPE_FIELDS
+}
+
+
+def assert_governance_scope_edges_resolve(
+    edges: list[DRGEdge], nodes_by_urn: dict[str, DRGNode]
+) -> None:
+    """Fail loud on any governance-profile ``scope`` edge whose target is not
+    an already-minted node (#3629).
+
+    Mirrors :func:`_emit_operating_procedure_edges`'s fail-closed contract:
+    :func:`extract_governance_profile_scope_edges` mints no nodes of its own
+    (see its docstring) -- every ``selected_*`` target is documented as
+    minted by an earlier :func:`generate_graph` pass. Before this check, a
+    fictional id in any ``selected_*`` list (a typo, a renamed/removed
+    artifact) reached no error at all: :func:`generate_graph`'s own
+    calibration-target loop (the ``all_urns``-driven ``_ensure_node`` pass
+    after :func:`~doctrine.drg.migration.calibrator.calibrate_surfaces`)
+    silently minted a phantom node for it instead, fabricating a real-looking
+    DRG node + edge pair for a governance selection that names nothing.
+
+    Must be called with *edges* being exactly
+    :func:`extract_governance_profile_scope_edges`'s own return value and
+    *nodes_by_urn* the node universe built by every :func:`generate_graph`
+    pass that already ran (artifact/action/discovery/mission-type/
+    mission-step-contract/template) -- i.e. everything the docstring above
+    promises has already minted these targets.
+    """
+    unresolved: list[str] = []
+    for edge in edges:
+        if edge.target in nodes_by_urn:
+            continue
+        _, _, mission_type_id = edge.source.partition(":")
+        target_kind, _, target_id = edge.target.partition(":")
+        field_name = _GOVERNANCE_SCOPE_KIND_TO_FIELD.get(target_kind, target_kind)
+        unresolved.append(f"{mission_type_id}:{field_name}={target_id}")
+    if unresolved:
+        detail = ", ".join(unresolved)
+        raise ValueError(
+            "governance-profile.yaml selected_* entries do not resolve to an "
+            f"existing node (triage required): {detail}"
+        )
+
+
 def extract_template_instantiation_edges(
     doctrine_root: Path,
 ) -> tuple[list[DRGNode], list[DRGEdge]]:
@@ -1518,6 +1567,12 @@ def generate_graph(
     governance_profile_scope_edges = extract_governance_profile_scope_edges(
         doctrine_root
     )
+    # #3629: fail loud on any fictional ``selected_*`` entry (an id naming no
+    # node minted by any pass above) instead of letting it reach the
+    # calibration-target loop below, which would otherwise phantom-mint a
+    # node for it — see ``assert_governance_scope_edges_resolve``'s docstring.
+    assert_governance_scope_edges_resolve(governance_profile_scope_edges, nodes_by_urn)
+    governance_scope_targets = {edge.target for edge in governance_profile_scope_edges}
     all_edges = (
         artifact_edges
         + action_edges
@@ -1535,6 +1590,19 @@ def generate_graph(
     for edge in calibrated_edges:
         for urn in (edge.source, edge.target):
             if urn not in all_urns:
+                if urn in governance_scope_targets:
+                    # assert_governance_scope_edges_resolve (above) already
+                    # guarantees every governance scope-edge target is a
+                    # pre-existing node; reaching here would mean that
+                    # guarantee broke silently between the two checks. Fail
+                    # loud rather than let this generic phantom-mint
+                    # fallback fabricate a governance-selection node (#3629)
+                    # -- narrowed so this loop can never re-swallow the
+                    # defect the upfront check exists to catch.
+                    raise ValueError(
+                        f"governance scope-edge target {urn!r} unresolved "
+                        "after upfront validation (fail-closed defense-in-depth)"
+                    )
                 # Infer kind from URN prefix
                 prefix = urn.split(":", 1)[0]
                 kind = _KIND_MAP.get(prefix)
