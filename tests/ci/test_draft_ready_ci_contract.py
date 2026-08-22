@@ -322,3 +322,37 @@ def test_ready_for_review_is_a_pull_request_trigger_type() -> None:
         "a draft->ready flip re-runs the suites the draft-gated jobs and "
         f"{_CANCELLER_JOB!r} skipped while the PR was still a draft"
     )
+
+
+# ---------------------------------------------------------------------------
+# C-002 / FR-002 / ADR 2026-08-22-1: the measurement + performance workflows
+# stay OFF the PR path. A future edit adding a `pull_request:` (or `push:`)
+# trigger to either would re-introduce the wall-clock/flake false-red noise the
+# mission moved off-band (the ~92% false-red-on-main class). Both are already
+# non-gating (absent from `quality-gate.needs`), so a stray PR trigger would
+# not false-green the gate -- but it would silently defeat the whole point.
+# Pin the `on:` surface. (Landing-pass fold, 2026-08-22: closes the guard gap
+# the pre-merge architect review lens flagged -- the "off-PR" half of the
+# contract was asserted only in prose, never in a test.)
+# ---------------------------------------------------------------------------
+
+_OFF_PR_WORKFLOWS = ("performance.yml", "ci-flake-report.yml")
+_ALLOWED_OFF_PR_TRIGGERS = frozenset({"schedule", "workflow_dispatch"})
+
+
+@pytest.mark.parametrize("workflow_name", _OFF_PR_WORKFLOWS)
+def test_off_pr_workflows_carry_no_pr_or_push_trigger(workflow_name: str) -> None:
+    path = _REPO_ROOT / ".github" / "workflows" / workflow_name
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    # PyYAML (YAML 1.1 resolver) parses the bare `on:` key as the boolean
+    # `True`, not the string `"on"` (same footgun handled above for
+    # ci-quality.yml).
+    triggers = set(data[True])
+    stray = triggers - _ALLOWED_OFF_PR_TRIGGERS
+    assert not stray, (
+        f"{workflow_name} must stay OFF the PR path: its `on:` triggers may "
+        f"only be {sorted(_ALLOWED_OFF_PR_TRIGGERS)} (scheduled + on-demand), "
+        f"but found stray trigger(s) {sorted(stray)}. A `pull_request`/`push` "
+        f"trigger here re-introduces the wall-clock false-red noise "
+        f"ADR 2026-08-22-1 deliberately moved off-band."
+    )
