@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import os
 import re
 import tarfile
@@ -36,10 +37,20 @@ class ArchiveSizeLimitError(Exception):
 
 @dataclass(frozen=True)
 class _ArtifactoryMetadata:
-    """Version provenance bound to one immutable archive body."""
+    """Version and checksum co-attested by one Artifactory AQL result."""
 
     version: str
     sha256: str
+
+
+@dataclass(frozen=True)
+class _ArtifactoryItem:
+    """Exact Artifactory item identity plus its AQL endpoint."""
+
+    aql_url: str
+    repo: str
+    path: str
+    name: str
 
 
 @dataclass(frozen=True)
@@ -68,6 +79,14 @@ class HttpsBundleSource:
     if_none_match: str | None = None
     source_type: str = "https"
 
+    @property
+    def is_artifactory(self) -> bool:
+        """Whether this source requires Artifactory provenance validation."""
+        return (
+            self.source_type == "artifactory"
+            or _artifactory_item(self.url) is not None
+        )
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -75,19 +94,17 @@ class HttpsBundleSource:
         target_dir = Path(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        storage_url: str | None = None
-        if self.source_type == "artifactory":
-            storage_url = _artifactory_storage_url(self.url)
-            if storage_url is None:
-                return FetchResult(
-                    ok=False,
-                    artifacts_written=0,
-                    pack_version=None,
-                    errors=[
-                        "Artifactory source requires a valid Artifactory item URL "
-                        "containing /artifactory/<repo>/<item>."
-                    ],
-                )
+        artifactory_item = _artifactory_item(self.url)
+        if self.source_type == "artifactory" and artifactory_item is None:
+            return FetchResult(
+                ok=False,
+                artifacts_written=0,
+                pack_version=None,
+                errors=[
+                    "Artifactory source requires a valid Artifactory item URL "
+                    "containing /artifactory/<repo>/<item>."
+                ],
+            )
 
         try:
             response = self._get_with_retry()
@@ -103,7 +120,7 @@ class HttpsBundleSource:
             )
 
         try:
-            return self._consume_response(response, target_dir, storage_url)
+            return self._consume_response(response, target_dir, artifactory_item)
         finally:
             response.close()
 
@@ -127,7 +144,7 @@ class HttpsBundleSource:
         self,
         response: requests.Response,
         target_dir: Path,
-        storage_url: str | None,
+        artifactory_item: _ArtifactoryItem | None,
     ) -> FetchResult:
         """Validate, buffer, provenance-check, then extract one response."""
         if response.status_code == 304:
@@ -193,8 +210,10 @@ class HttpsBundleSource:
         assert buffered is not None
 
         metadata: _ArtifactoryMetadata | None = None
-        if storage_url is not None:
-            metadata, metadata_error = self._fetch_artifactory_metadata(storage_url)
+        if artifactory_item is not None:
+            metadata, metadata_error = self._fetch_artifactory_metadata(
+                artifactory_item
+            )
             if metadata_error is not None:
                 buffered.path.unlink(missing_ok=True)
                 return FetchResult(
@@ -281,87 +300,77 @@ class HttpsBundleSource:
         return _BufferedArchive(path=tmp_path, sha256=digest.hexdigest()), None
 
     def _fetch_artifactory_metadata(
-        self, storage_url: str
+        self, item: _ArtifactoryItem
     ) -> tuple[_ArtifactoryMetadata | None, str | None]:
-        """Read the two real JFrog Storage API metadata representations.
-
-        A filtered ``?properties=version`` request returns ``ItemProperties``
-        without checksums. The unfiltered item request returns ``FileInfo``
-        with checksums. Query both after the archive body, property first and
-        checksum second, so a mutable ``latest`` item fails closed if its body
-        changes while provenance is being resolved.
-        """
-        version_payload, version_error = self._get_artifactory_json(
-            storage_url,
-            params={"properties": "version"},
-            label="version property",
-        )
-        if version_error is not None:
-            return None, version_error
-        version = _extract_jfrog_version(version_payload)
-        if version is None:
+        """Read one AQL result that co-attests version and body checksum."""
+        payload, error = self._post_artifactory_aql(item)
+        if error is not None:
+            return None, error
+        metadata = _extract_aql_metadata(payload, item)
+        if metadata is None:
             return None, (
-                "JFrog artifact has no non-empty version property: "
+                "JFrog AQL did not return the exact artifact with one non-empty "
+                "version property and a valid SHA-256 checksum: "
                 f"{_safe_url_for_error(self.url)}"
             )
+        return metadata, None
 
-        file_payload, file_error = self._get_artifactory_json(
-            storage_url,
-            params=None,
-            label="file checksum",
-        )
-        if file_error is not None:
-            return None, file_error
-        checksum = _extract_jfrog_sha256(file_payload)
-        if checksum is None:
-            return None, (
-                "JFrog artifact has no valid SHA-256 checksum: "
-                f"{_safe_url_for_error(self.url)}"
-            )
-        return _ArtifactoryMetadata(version=version, sha256=checksum), None
-
-    def _get_artifactory_json(
+    def _post_artifactory_aql(
         self,
-        storage_url: str,
-        *,
-        params: dict[str, str] | None,
-        label: str,
+        item: _ArtifactoryItem,
     ) -> tuple[object | None, str | None]:
-        """Fetch, decode, and close one JFrog Storage API representation."""
+        """Fetch, decode, and close one co-attested JFrog AQL result."""
         try:
-            response = self._get_artifactory_metadata_with_retry(
-                storage_url, params=params
-            )
+            response = self._post_artifactory_aql_with_retry(item)
         except requests.RequestException as exc:
-            return None, f"Failed to read JFrog {label}: {type(exc).__name__}"
+            return None, f"Failed to read JFrog AQL metadata: {type(exc).__name__}"
         try:
             if response.status_code >= 400:
                 return None, (
-                    f"Failed to read JFrog {label}: HTTP {response.status_code}"
+                    "Failed to read JFrog AQL metadata: "
+                    f"HTTP {response.status_code}"
                 )
             try:
                 return response.json(), None
             except (ValueError, TypeError):
-                return None, f"Failed to read JFrog {label}: invalid JSON response"
+                return None, (
+                    "Failed to read JFrog AQL metadata: invalid JSON response"
+                )
         finally:
             response.close()
 
-    def _get_artifactory_metadata_with_retry(
-        self, storage_url: str, *, params: dict[str, str] | None
+    def _post_artifactory_aql_with_retry(
+        self, item: _ArtifactoryItem
     ) -> requests.Response:
         headers = _without_conditional_header(self._headers())
-        kwargs: dict[str, Any] = {"headers": headers, "timeout": 30}
-        if params is not None:
-            kwargs["params"] = params
-        response = requests.get(  # noqa: S113 - timeout supplied below
-            storage_url, **kwargs
+        headers["Content-Type"] = "text/plain"
+        criteria = json.dumps(
+            {
+                "repo": item.repo,
+                "path": item.path,
+                "name": item.name,
+                "type": "file",
+            },
+            separators=(",", ":"),
+        )
+        query = (
+            f"items.find({criteria})"
+            '.include("repo","path","name","sha256","@version")'
+        )
+        kwargs: dict[str, Any] = {
+            "headers": headers,
+            "data": query,
+            "timeout": 30,
+        }
+        response = requests.post(  # noqa: S113 - timeout supplied below
+            item.aql_url, **kwargs
         )
         if response.status_code == 429 or 500 <= response.status_code < 600:
             delay = 2.0 if response.status_code >= 500 else 1.0
             response.close()
             time.sleep(delay)
-            response = requests.get(  # noqa: S113 - timeout supplied in kwargs
-                storage_url,
+            response = requests.post(  # noqa: S113 - timeout supplied in kwargs
+                item.aql_url,
                 **kwargs,
             )
         return response
@@ -421,8 +430,8 @@ class HttpsBundleSource:
         return sum(1 for _ in target_dir.rglob("*.yaml"))
 
 
-def _artifactory_storage_url(artifact_url: str) -> str | None:
-    """Translate an Artifactory download URL to its Storage API item URL."""
+def _artifactory_item(artifact_url: str) -> _ArtifactoryItem | None:
+    """Derive exact AQL item identity from an Artifactory download URL."""
     parsed = urlsplit(artifact_url)
     if parsed.scheme != "https" or not parsed.hostname:
         return None
@@ -430,12 +439,28 @@ def _artifactory_storage_url(artifact_url: str) -> str | None:
         return None
     prefix, item_path = parsed.path.split(_ARTIFACTORY_PATH_MARKER, maxsplit=1)
     repository, separator, artifact_path = item_path.partition("/")
-    if not separator or not repository or not artifact_path:
+    if (
+        not separator
+        or not repository
+        or not artifact_path
+        or artifact_path.endswith("/")
+    ):
         return None
-    storage_path = (
-        f"{prefix}{_ARTIFACTORY_PATH_MARKER}api/storage/{item_path}"
+    path, separator, name = artifact_path.rpartition("/")
+    if not separator:
+        path = "."
+        name = artifact_path
+    if not name:
+        return None
+    aql_path = f"{prefix}{_ARTIFACTORY_PATH_MARKER}api/search/aql"
+    return _ArtifactoryItem(
+        aql_url=urlunsplit(
+            (parsed.scheme, _safe_netloc(parsed), aql_path, "", "")
+        ),
+        repo=repository,
+        path=path,
+        name=name,
     )
-    return urlunsplit((parsed.scheme, _safe_netloc(parsed), storage_path, "", ""))
 
 
 def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
@@ -465,34 +490,43 @@ def _safe_netloc(parsed: Any) -> str:
     return f"{hostname}:{port}" if port is not None else hostname
 
 
-def _extract_jfrog_version(payload: object) -> str | None:
-    """Return the first non-empty value from ``properties.version``."""
+def _extract_aql_metadata(
+    payload: object, item: _ArtifactoryItem
+) -> _ArtifactoryMetadata | None:
+    """Validate one exact AQL item and return its co-attested provenance."""
     if not isinstance(payload, dict):
         return None
-    properties = payload.get("properties")
-    if not isinstance(properties, dict):
+    results = payload.get("results")
+    if not isinstance(results, list) or len(results) != 1:
         return None
-    versions = properties.get("version")
-    if not isinstance(versions, list):
+    result = results[0]
+    if not isinstance(result, dict):
         return None
-    for value in versions:
-        if isinstance(value, str) and value.strip():
-            return value.strip()
-    return None
-
-
-def _extract_jfrog_sha256(payload: object) -> str | None:
-    """Return a normalized SHA-256 from JFrog Storage API metadata."""
-    if not isinstance(payload, dict):
+    if (
+        result.get("repo") != item.repo
+        or result.get("path") != item.path
+        or result.get("name") != item.name
+    ):
         return None
-    checksums = payload.get("checksums")
-    if not isinstance(checksums, dict):
-        return None
-    checksum = checksums.get("sha256")
+    checksum = result.get("sha256")
     if not isinstance(checksum, str):
         return None
     normalized = checksum.strip().lower()
-    return normalized if re.fullmatch(r"[0-9a-f]{64}", normalized) else None
+    if re.fullmatch(r"[0-9a-f]{64}", normalized) is None:
+        return None
+    properties = result.get("properties")
+    if not isinstance(properties, list):
+        return None
+    versions: list[str] = []
+    for prop in properties:
+        if not isinstance(prop, dict) or prop.get("key") != "version":
+            continue
+        value = prop.get("value")
+        if isinstance(value, str) and value.strip():
+            versions.append(value.strip())
+    if len(versions) != 1:
+        return None
+    return _ArtifactoryMetadata(version=versions[0], sha256=normalized)
 
 
 def _parse_retry_after(value: Any) -> float:
