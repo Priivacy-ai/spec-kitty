@@ -261,8 +261,8 @@ def _load_traces(repo_root: Path, feature_dir: Path) -> list[tuple[str, str]]:
     with zero tracer evidence can grep for *why* rather than mistake it for a
     mission that genuinely had no tracer files.
     """
-    from mission_runtime import MissionArtifactKind
-    from mission_runtime.read_dir_degrade import (
+    from mission_runtime import (
+        MissionArtifactKind,
         ReadDegradeStrategy,
         resolve_read_dir_or_degrade,
     )

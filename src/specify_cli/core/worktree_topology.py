@@ -129,10 +129,11 @@ def _planning_claim_commit(repo_root: Path, wp_path: Path, wp_id: str) -> str | 
 
 def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
     """Gather the full lane worktree topology for a feature."""
-    from mission_runtime import MissionArtifactKind, placement_seam
-    from mission_runtime.read_dir_degrade import (
+    from mission_runtime import (
+        MissionArtifactKind,
         ReadDegradeStrategy,
         ReadDirDecision,
+        placement_seam,
         resolve_read_dir_or_degrade,
     )
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
