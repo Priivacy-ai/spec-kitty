@@ -21,6 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, TypedDict
 
+from charter.mission_type_key import read_mission_type
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
 from kernel.clock import now_utc_iso
@@ -252,7 +253,12 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
     raw_slug = meta.get("mission_slug") or meta.get("slug")
     raw_slug_str = str(raw_slug) if raw_slug is not None else None
     resolved_slug = safe_mission_slug(raw_slug_str, feature_dir.name)
-    resolved_type = str(meta.get("mission_type") or meta.get("mission") or "").strip() or "software-dev"
+    # rc3 M5 (FR-002/FR-003): canonical field only via the one shared reader —
+    # the legacy `mission` fallback and the silent `software-dev` default are
+    # retired. A typeless mission resolves to "" (neutral); callers degrade at
+    # their own boundary. (The create-time default in build_mission_identity
+    # below is a write-boundary, deliberately preserved.)
+    resolved_type = read_mission_type(meta) or ""
 
     return MissionIdentity(
         mission_slug=resolved_slug,
