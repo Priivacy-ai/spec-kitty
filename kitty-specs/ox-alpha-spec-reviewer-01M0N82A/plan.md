@@ -5,7 +5,7 @@
 
 ## Резюме
 
-Добавить отдельную provider-neutral команду `spec-kitty spec-review`, которая разрешает канонический `spec.md`, выполняет локальный privacy-preflight, показывает disclosure summary, требует одноразовое подтверждение и только затем вызывает OpenCode через отдельный subprocess-runner. Ответ валидируется по `review-findings/v1` и сохраняется append-only артефактом на PRIMARY planning surface. Существующие `spec-kitty review` и `ProfileInvocationExecutor` не меняют семантику.
+Добавить отдельную provider-neutral команду `spec-kitty spec-review`, которая разрешает канонический `spec.md`, выполняет локальный privacy-preflight, показывает disclosure manifest, требует одноразовое подтверждение и только затем вызывает OpenCode через отдельный subprocess-runner. Недоверенный `review-response/v1` валидируется, а host строит append-only `spec-review-run/v1` на PRIMARY planning surface. Существующие `spec-kitty review` и `ProfileInvocationExecutor` не меняют семантику.
 
 ## Technical Context
 
