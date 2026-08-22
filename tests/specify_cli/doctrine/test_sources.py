@@ -379,6 +379,7 @@ class TestHttpsBundleSource:
             "https://a\u200db.example/artifactory/repo/pack.tar.gz",
             "https://\u0301bad.example/artifactory/repo/pack.tar.gz",
             f"https://{'.'.join(['é' * 20] * 10)}/artifactory/repo/pack.tar.gz",
+            "https://[v1.fe]/artifactory/repo/pack.tar.gz",
         ],
     )
     def test_invalid_authority_fails_without_request(
@@ -411,6 +412,7 @@ class TestHttpsBundleSource:
             "https://xn--bcher-kva.example/pack.tar.gz",
             "https://127.0.0.1/pack.tar.gz",
             "https://[2001:db8::1]/pack.tar.gz",
+            "https://[fe80::1%25eth0]/pack.tar.gz",
             "https://artifactory/pack.tar.gz",
         ],
     )
