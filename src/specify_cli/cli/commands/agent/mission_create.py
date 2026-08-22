@@ -23,6 +23,10 @@ pre-decomposition ``mission.py``; the WP01 golden harness is the regression net.
 
 from __future__ import annotations
 
+import subprocess
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
 
@@ -33,6 +37,7 @@ import typer
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.constants import MISSION_TYPE_DOCUMENTATION
 from specify_cli.diagnostics import mark_invocation_succeeded
+from specify_cli.git.ref_advance import RefRestoreError, restore_branch_ref
 
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
@@ -53,6 +58,177 @@ START_TARGET_MISMATCH_MESSAGE = (
     "creation stores one planning branch. Omit --target-branch for "
     "the recommended PR-bound feature-branch flow."
 )
+
+
+@dataclass(frozen=True)
+class _StartBranchRollbackState:
+    """Git state captured before ``--start-branch`` changes the checkout."""
+
+    repo_root: Path
+    start_branch: str
+    start_branch_preexisted: bool
+    start_branch_original_commit: str | None
+    original_branch: str | None
+    original_commit: str
+    original_index_tree: str | None
+
+
+def _capture_start_branch_rollback_state(
+    repo_root: Path | None,
+    start_branch: str | None,
+) -> _StartBranchRollbackState | None:
+    """Capture enough state to undo a failed early-create branch switch."""
+    if repo_root is None or start_branch is None:
+        return None
+
+    normalized_start_branch = start_branch.strip()
+    if not normalized_start_branch:
+        return None
+
+    try:
+        original_commit = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        original_index_result = subprocess.run(
+            ["git", "-C", str(repo_root), "write-tree"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        branch_result = subprocess.run(
+            ["git", "-C", str(repo_root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        start_branch_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_root),
+                "show-ref",
+                "--verify",
+                "--quiet",
+                f"refs/heads/{normalized_start_branch}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        start_branch_commit_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(repo_root),
+                "rev-parse",
+                "--verify",
+                f"refs/heads/{normalized_start_branch}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        # Preserve the established structured error path when the checkout is
+        # not a usable git repository; the branch-switch phase reports it.
+        return None
+
+    return _StartBranchRollbackState(
+        repo_root=repo_root,
+        start_branch=normalized_start_branch,
+        start_branch_preexisted=start_branch_result.returncode == 0,
+        start_branch_original_commit=(start_branch_commit_result.stdout.strip() if start_branch_commit_result.returncode == 0 else None),
+        original_branch=branch_result.stdout.strip() if branch_result.returncode == 0 else None,
+        original_commit=original_commit,
+        original_index_tree=(original_index_result.stdout.strip() if original_index_result.returncode == 0 else None),
+    )
+
+
+def _restore_start_branch_after_failure(state: _StartBranchRollbackState) -> None:
+    """Restore the original checkout and delete only a newly created branch."""
+    restore_args = ["switch", state.original_branch] if state.original_branch is not None else ["switch", "--detach", state.original_commit]
+    subprocess.run(
+        ["git", "-C", str(state.repo_root), *restore_args],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+
+    if state.start_branch_preexisted:
+        original_tip = state.start_branch_original_commit
+        if original_tip is not None:
+            current_tip_result = subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(state.repo_root),
+                    "rev-parse",
+                    "--verify",
+                    f"refs/heads/{state.start_branch}",
+                ],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            current_tip = current_tip_result.stdout.strip()
+            if current_tip != original_tip:
+                restore_branch_ref(
+                    state.repo_root,
+                    state.start_branch,
+                    original_tip,
+                    expected_current_sha=current_tip,
+                )
+    elif state.start_branch != state.original_branch:
+        branch_result = subprocess.run(
+            [
+                "git",
+                "-C",
+                str(state.repo_root),
+                "show-ref",
+                "--verify",
+                "--quiet",
+                f"refs/heads/{state.start_branch}",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if branch_result.returncode == 0:
+            subprocess.run(
+                ["git", "-C", str(state.repo_root), "branch", "-D", state.start_branch],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+    if state.original_index_tree is not None:
+        subprocess.run(
+            ["git", "-C", str(state.repo_root), "read-tree", state.original_index_tree],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
+@contextmanager
+def _rollback_start_branch_on_failure(
+    repo_root: Path | None,
+    start_branch: str | None,
+) -> Iterator[None]:
+    """Make ``--start-branch`` failure-atomic across the CLI pre-core phases."""
+    state = _capture_start_branch_rollback_state(repo_root, start_branch)
+    try:
+        yield
+    except BaseException as error:
+        if state is not None:
+            try:
+                _restore_start_branch_after_failure(state)
+            except (OSError, subprocess.CalledProcessError, RefRestoreError) as rollback_error:
+                error.add_note(f"Failed to restore checkout after create failure: {rollback_error}")
+        raise
 
 
 def _resolve_start_branch_phase(
@@ -256,6 +432,7 @@ def _run_create_core_phase(
     friendly_name: str | None,
     purpose_tldr: str | None,
     purpose_context: str | None,
+    pr_bound: bool,
     force_recreate_coordination_branch: bool,
     owned_checkout: Path | None,
     json_output: bool,
@@ -285,6 +462,7 @@ def _run_create_core_phase(
             friendly_name=friendly_name,
             purpose_tldr=purpose_tldr,
             purpose_context=purpose_context,
+            pr_bound=pr_bound,
             topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
             owned_checkout=owned_checkout.resolve() if owned_checkout is not None else None,
@@ -528,60 +706,60 @@ def create_mission(
     repo_root = _mission.locate_project_root()
     command_checkout = owned_checkout.resolve() if owned_checkout is not None else repo_root
 
-    _resolve_start_branch_phase(
-        repo_root=command_checkout,
-        start_branch=start_branch,
-        target_branch=target_branch,
-        json_output=json_output,
-    )
+    with _rollback_start_branch_on_failure(command_checkout, start_branch):
+        _resolve_start_branch_phase(
+            repo_root=command_checkout,
+            start_branch=start_branch,
+            target_branch=target_branch,
+            json_output=json_output,
+        )
 
-    resolved_mission_type = _resolve_mission_type_phase(
-        mission_type=mission_type,
-        mission=mission,
-        json_output=json_output,
-    )
+        resolved_mission_type = _resolve_mission_type_phase(
+            mission_type=mission_type,
+            mission=mission,
+            json_output=json_output,
+        )
 
-    current_branch = _mission.get_current_branch(command_checkout)
-    _enforce_branch_strategy_gate_phase(
-        pr_bound=pr_bound,
-        current_branch=current_branch,
-        target_branch=target_branch,
-        branch_strategy=branch_strategy,
-        start_branch=start_branch,
-        json_output=json_output,
-    )
+        current_branch = _mission.get_current_branch(command_checkout)
+        _enforce_branch_strategy_gate_phase(
+            pr_bound=pr_bound,
+            current_branch=current_branch,
+            target_branch=target_branch,
+            branch_strategy=branch_strategy,
+            start_branch=start_branch,
+            json_output=json_output,
+        )
 
-    resolved_topology = _resolve_default_topology_phase(
-        explicit_topology=topology,
-        repo_root=command_checkout,
-        current_branch=current_branch,
-        pr_bound=pr_bound,
-    )
+        resolved_topology = _resolve_default_topology_phase(
+            explicit_topology=topology,
+            repo_root=command_checkout,
+            current_branch=current_branch,
+            pr_bound=pr_bound,
+        )
 
-    # Import the tracker package here (NOT at module scope) so ``tracker/__init__.py``
-    # registers ``consume_pending_origin_impl`` with ``core.adapters`` BEFORE
-    # ``create_mission_core`` runs ``consume_pending_origin`` (register-before-use,
-    # T012). Keeping this import inside the command body — rather than at module
-    # scope — keeps the whole tracker/sync/SaaS stack off the CLI cold-start path
-    # (NFR-003), while preserving the CLI-layer placement so no CORE→INTEGRATION
-    # import edge is introduced in ``core/mission_creation.py`` (#614 leak fix).
-    import specify_cli.tracker  # noqa: F401  (import side-effect: origin-consumer registration)
+        # Import the tracker package here (NOT at module scope) so ``tracker/__init__.py``
+        # registers ``consume_pending_origin_impl`` with ``core.adapters`` BEFORE
+        # ``create_mission_core`` runs ``consume_pending_origin`` (register-before-use,
+        # T012). Keeping this import inside the command body — rather than at module
+        # scope — keeps the whole tracker/sync/SaaS stack off the CLI cold-start path
+        # (NFR-003), while preserving the CLI-layer placement so no CORE→INTEGRATION
+        # import edge is introduced in ``core/mission_creation.py`` (#614 leak fix).
+        import specify_cli.tracker  # noqa: F401  (import side-effect: origin-consumer registration)
 
-    result = _run_create_core_phase(
-        repo_root=repo_root,
-        mission_slug=mission_slug,
-        resolved_mission_type=resolved_mission_type,
-        target_branch=target_branch,
-        friendly_name=friendly_name,
-        purpose_tldr=purpose_tldr,
-        purpose_context=purpose_context,
-        topology=resolved_topology,
-        force_recreate_coordination_branch=force_recreate_coordination_branch,
-        owned_checkout=owned_checkout,
-        json_output=json_output,
-    )
-
-    _persist_pr_bound_phase(result, pr_bound=pr_bound)
+        result = _run_create_core_phase(
+            repo_root=repo_root,
+            mission_slug=mission_slug,
+            resolved_mission_type=resolved_mission_type,
+            target_branch=target_branch,
+            friendly_name=friendly_name,
+            purpose_tldr=purpose_tldr,
+            purpose_context=purpose_context,
+            pr_bound=pr_bound,
+            topology=resolved_topology,
+            force_recreate_coordination_branch=force_recreate_coordination_branch,
+            owned_checkout=owned_checkout,
+            json_output=json_output,
+        )
     _emit_create_result_phase(
         result,
         resolved_mission_type=resolved_mission_type,
