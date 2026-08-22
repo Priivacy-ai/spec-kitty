@@ -360,6 +360,7 @@ __all__ = [
     "CharterProfile",
     "PackManifest",
     "sort_constituents",
+    "compute_pack_manifest_hash",
     "finalize_pack_manifest",
     "dump_pack_manifest_bytes",
     "load_pack_manifest",
