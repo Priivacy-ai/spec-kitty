@@ -61,12 +61,12 @@ def test_specify_template_creates_requirements_checklist() -> None:
     )
 
 
-def test_specify_template_blocks_artifacts_until_intent_confirmed() -> None:
-    """`specify.md` must keep discovery before artifact creation.
+def test_specify_template_creates_mission_before_discovery_questions() -> None:
+    """`specify.md` must establish a Mission before its Decision Moments.
 
-    The `/spec-kitty.specify` flow is prompt-driven for agent hosts. This static
-    check protects the instruction that prevents agents from skipping the user
-    interview and calling `mission create` before confirming intent.
+    Agent-host specify is prompt-driven.  Creating the scaffold early gives the
+    discovery interview a real Mission handle, while the separate readiness
+    gate still prevents an unconfirmed intent from becoming a substantive spec.
     """
     assert SPECIFY_PROMPT.exists(), (
         f"Source prompt missing: {SPECIFY_PROMPT}.\n"
@@ -74,18 +74,24 @@ def test_specify_template_blocks_artifacts_until_intent_confirmed() -> None:
         "owner of the discovery gate."
     )
     text = SPECIFY_PROMPT.read_text(encoding="utf-8")
+    normalized_text = " ".join(text.split())
     required_phrases = [
-        'This workflow answers "What are we building?"',
-        "Before `mission create`, before writing `spec.md`, and before committing",
-        "A completed discovery interview with an acknowledged Intent Summary.",
-        "A brief-intake summary and extracted requirement set explicitly confirmed",
-        "primary actor",
-        "one rule or invariant",
-        "canonical domain term",
+        "Create the Mission scaffold before asking any discovery or brief-intake question.",
+        "does not authorize writing substantive spec content",
+        "Only after `create` succeeds, begin brief intake or the Discovery Gate",
+        "operational preflight, not a discovery interview",
+        "Do not ask a product, requirements, or implementation question before `create` succeeds.",
+        "one bootstrap identity prompt is permitted before `create`",
+        "`spec.md` and `meta.json` together",
+        "`friendly_name`: provisional title",
     ]
     for phrase in required_phrases:
-        assert phrase in text, (
+        assert phrase in normalized_text, (
             f"specify.md no longer contains the discovery-gate phrase: {phrase!r}. "
-            "Do not weaken /spec-kitty.specify's interview-first invariant "
-            "without an explicit migration plan."
+            "Do not remove the create-before-interview contract without an "
+            "explicit migration plan."
         )
+
+    assert text.index(required_phrases[0]) < text.index("## Decision Moment Protocol")
+    assert text.index("## Decision Moment Protocol") < text.index("## Discovery Gate (mandatory)")
+    assert text.index("## Branch Strategy Confirmation") < text.index("## Decision Moment Protocol")

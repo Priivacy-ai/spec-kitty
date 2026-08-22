@@ -62,13 +62,19 @@ cd /path/to/project<!-- glossary:glossary:project -->/root  # Your repository ro
 
 ## Mission Handle Rule
 
-Before `mission create`, there is no mission handle yet.
+Create the Mission scaffold before asking any discovery or brief-intake question.
+The initial invocation text is enough to derive a provisional identity; it is
+not the final specification. Mission creation establishes the handle and empty
+scaffold only: it does not authorize writing substantive spec content or
+committing it.
 
-- Do **not** pass `--mission` to `spec-kitty agent mission branch-context`.
-- Do **not** pass `--mission` to `spec-kitty agent mission create`.
-- After `create` succeeds, use `--mission <handle>` for commands that operate on
-  the created mission.
-- `<handle>` can be the mission's `mission_id<!-- glossary:glossary:mission_id -->` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of
+- Do **not** pass `--mission` to `spec-kitty agent mission branch-context` or
+  to the initial `spec-kitty agent mission create` command.
+- Derive a concise provisional title and kebab-case slug from the initial user
+  input, resolve branch intent, then run `mission create` before interview.
+- After `create` succeeds, use the returned `mission_slug` or `mission_id<!-- glossary:glossary:mission_id -->` as
+  `<handle>` for every Decision Moment<!-- glossary:glossary:decision-moment --> and command that operates on the Mission.
+- `<handle>` can be the mission's `mission_id` (ULID), `mid8<!-- glossary:glossary:mid8 -->` (first 8 chars of
   the ULID), or `mission_slug`.
 - The resolver disambiguates by `mission_id` and returns a structured
   `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
@@ -83,11 +89,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Primary Invariant: What Are We Building?
 
-This workflow answers "What are we building?" before it creates artifacts. The
-raw invocation text is only a starting point for discovery, not the final truth.
+This workflow answers "What are we building?" before it writes substantive
+artifacts. The raw invocation text is only a starting point for discovery, not
+the final truth.
 
-Before `mission create`, before writing `spec.md`, and before committing
-anything, you **MUST** have one of these:
+Before writing substantive `spec.md` content or committing it, you **MUST** have
+one of these:
 
 - A completed discovery interview with an acknowledged Intent Summary.
 - A brief-intake summary and extracted requirement set explicitly confirmed by
@@ -99,7 +106,18 @@ For non-trivial work, the confirmed Intent Summary must cover the primary actor,
 trigger, desired outcome, one rule or invariant, and any canonical domain term
 or boundary that materially affects the work.
 
+The early Mission scaffold exists so the interview can record Decision Moments;
+it does not weaken this confirmed-intent gate.
+
 ## Branch Strategy Confirmation (MANDATORY)
+
+Branch target and strategy confirmation is operational preflight, not a
+discovery interview. It may require a user response before `create`, but do
+not open a Decision Moment for it. Do not ask a product, requirements, or
+implementation question before `create` succeeds. For an empty invocation,
+one bootstrap identity prompt is permitted before `create` solely to obtain a
+working Mission name; it is not a discovery question. The Decision Moment
+Protocol begins only after `create` succeeds.
 
 Before discovery, resolve branch intent through the Python helper, not by probing git directly:
 
@@ -135,7 +153,7 @@ The helper JSON also returns a primary-branch recommendation payload:
 When `current_is_primary` is `true`, you **must** have an explicit branching-strategy conversation **before** calling `create`:
 
 1. Relay the `reason` to the user and ask whether they expect to open a pull request for this work later (the default assumption for mission work is yes).
-2. **If they expect a PR (recommended path):** recommend starting on a dedicated feature branch<!-- glossary:glossary:feature-branch --> now, and propose a name derived from the confirmed slug — e.g. `feat/<slug>` (use `fix/<slug>` for a bug-fix mission). Pass that branch to `create` with `--start-branch` so the CLI creates/switches to it before writing any mission artifacts:
+2. **If they expect a PR (recommended path):** recommend starting on a dedicated feature branch<!-- glossary:glossary:feature-branch --> now, and propose a name derived from the provisional slug — e.g. `feat/<slug>` (use `fix/<slug>` for a bug-fix mission). Pass that branch to `create` with `--start-branch` so the CLI creates/switches to it before writing any mission artifacts:
 
    ```bash
    spec-kitty agent mission create "<slug>" \
@@ -170,9 +188,14 @@ Workflow:
 1. Run `spec-kitty agent mission create …`. Note that `spec.md` is left
    untracked.
 2. Populate `spec.md` with real Functional / Non-Functional / Constraint rows.
-3. Commit `spec.md` yourself using the mission-aware entrypoint:
+3. Commit `spec.md` yourself using the mission-aware entrypoint. If discovery
+   refined mutable Mission metadata, commit `spec.md` and `meta.json` together:
    ```bash
    spec-kitty spec-commit --mission <slug> --message "Add spec for <slug>" <feature_dir>/spec.md
+   ```
+   ```bash
+   spec-kitty spec-commit --mission <slug> --message "Add spec for <slug>" \
+     <feature_dir>/spec.md <feature_dir>/meta.json
    ```
    On a protected `main`/`master` primary this materializes the coordination worktree and lands the commit on the coordination branch (no deadlock); on an unprotected or flattened primary the commit is direct.
 4. Only then will `spec-kitty agent mission setup-plan` accept the spec phase<!-- glossary:glossary:phase -->
@@ -295,7 +318,7 @@ Check in priority order:
 
 No change to current behaviour. Continue to the Discovery Gate section below.
 
-## Decision Moment<!-- glossary:glossary:decision-moment --> Protocol
+## Decision Moment Protocol
 
 Before asking **any** interview question during this command, you MUST:
 
@@ -344,7 +367,9 @@ Before asking **any** interview question during this command, you MUST:
 
 ## Discovery Gate (mandatory)
 
-Before running `mission create`, writing `spec.md`, committing, or otherwise creating planning artifacts, you **must** conduct or verify a structured discovery interview.
+Only after `create` succeeds, begin brief intake or the Discovery Gate. Before
+writing substantive `spec.md` content, committing it, or otherwise advancing
+planning, you **must** conduct or verify a structured discovery interview.
 
 - **Scope<!-- glossary:glossary:scope --> proportionality (CRITICAL)**: FIRST, gauge the inherent complexity of the request:
   - **Trivial/Test Features** (hello world, simple pages, proof-of-concept): Ask 1-2 questions maximum, then proceed. Examples: "a simple hello world page", "tic-tac-toe game", "basic contact form"
@@ -447,7 +472,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 **Planning happens in the repository root checkout - NO worktree created!**
 
 1. Creates `kitty-specs/<mission_slug>/spec.md` directly in project root (the optional `NNN-` prefix is display-only metadata assigned at merge time)
-2. Automatically commits to target branch
+2. Commits creation metadata; `spec.md` remains untracked until it is substantive and explicitly committed
 3. No worktree created during specify
 
 **Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP<!-- glossary:glossary:wp -->## --agent <name>` for each WP. Each lane<!-- glossary:glossary:lane --> gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`).
@@ -460,25 +485,41 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 ## Outline
 
-### 0. Generate a Friendly Feature Title
+### 0. Establish a Provisional Mission Identity
 
-- Summarize the agreed intent into a short, descriptive title (aim for ≤7 words; avoid filler like "feature" or "thing").
-- Read that title back during the Intent Summary and revise it if the user requests changes.
-- Use the confirmed title to derive the kebab-case feature slug<!-- glossary:glossary:feature-slug --> for the create command.
+- Before interview, derive a short provisional title and kebab-case slug from
+  the initial request (avoid filler like "feature" or "thing"). This identity
+  only establishes the Mission handle; do not treat it as confirmed intent.
+- Resolve branch intent, then create the Mission scaffold using that provisional
+  identity before asking any discovery or brief-intake question.
+- Read the confirmed Intent Summary back to the user during discovery. It
+  governs the substantive spec even though the Mission identity is immutable.
 
 The text the user typed after `/spec-kitty.specify` in the triggering message **is** the initial feature description. Capture it verbatim, but treat it only as a starting point for discovery—not the final truth. Your job is to interrogate the request, surface gaps, and co-create a complete specification with the user.
 
 Given that feature description, do this:
 
 - **Generation Mode (arguments provided)**: Use the provided text as a starting point, validate it through discovery, and fill gaps with explicit questions or clearly documented assumptions (limit `[NEEDS CLARIFICATION: …] <!-- decision_id: <id> -->` to at most three critical decisions the user has postponed; call `decision defer` before writing each such marker).
-- **Interactive Interview Mode (no arguments)**: Use the discovery interview to elicit all necessary context, synthesize the working feature description, and confirm it with the user before you generate any specification artifacts.
+- **Interactive Interview Mode (no arguments)**: Ask the single bootstrap identity prompt, create the scaffold, then use the discovery interview to elicit all necessary context and confirm it before writing substantive `spec.md` content.
 
-1. **Check discovery status**:
-   - If this is your first message or discovery questions remain unanswered, stay in the one-question loop, capture the user's response, update your internal table, and end with `WAITING_FOR_DISCOVERY_INPUT`. Do **not** surface the table; keep it internal. Do **not** call the creation command yet.
+1. **Create the Mission before interview**:
+   - From the initial request, derive a provisional title, purpose summary, and
+     kebab-case slug. Resolve branch intent as required above, then call the
+     creation command now. This must happen before the first discovery or
+     brief-intake question so each question can open a Decision Moment against
+     the created Mission.
+   - If this is your first message or discovery questions remain unanswered,
+     stay in the one-question loop, capture the user's response, update your
+     internal table, and end with `WAITING_FOR_DISCOVERY_INPUT`. Do **not**
+     surface the table; keep it internal.
    - Only proceed once every discovery question has an explicit answer and the user has acknowledged the Intent Summary.
-   - Empty invocation rule: stay in interview mode until you can restate the agreed-upon feature description. Do **not** call the creation command while the description is missing or provisional.
+   - Empty invocation rule: use the response to the one bootstrap identity
+     prompt as the provisional slug, then create before any discovery question.
+     Stay in interview mode until you can restate the agreed-upon description.
+     Do not write substantive spec content while the description is missing or
+     provisional.
 
-2. When discovery is complete and the intent summary, **title**, **purpose TLDR**, **purpose context paragraph**, and **mission type** are confirmed, run the mission creation command from repo root:
+2. Run the creation command from repo root before the interview:
 
    ```bash
    spec-kitty agent mission create "<slug>" \
@@ -488,7 +529,8 @@ Given that feature description, do this:
      --json
    ```
 
-   Where `<slug>` is a kebab-case version of the friendly title (e.g., "Checkout Upsell Flow" → "checkout-upsell-flow").
+   Where `<slug>` is a kebab-case version of the provisional title (e.g.,
+   "Checkout Upsell Flow" → "checkout-upsell-flow").
 
    If the user expects a pull request for this work, add `--pr-bound --branch-strategy already-confirmed`. When `current_is_primary` is true and they accept the recommended feature-branch path, also add `--start-branch <branch>` so no mission artifacts are written on the primary branch.
 
@@ -499,9 +541,9 @@ Given that feature description, do this:
    - `mission_number<!-- glossary:glossary:mission_number -->`: **Display-only** numeric prefix, `null` pre-merge. Assigned at merge time. **Never** use this as a selector or identity.
    - `mission_type`: Mission type key (for example `software-dev`)
    - `slug`: Unnumbered mission slug (e.g., `checkout-upsell-flow`)
-   - `friendly_name<!-- glossary:glossary:friendly_name -->`: Confirmed mission title
-   - `purpose_tldr`: One-line stakeholder-facing mission summary
-   - `purpose_context`: Short stakeholder-facing context paragraph
+   - `friendly_name<!-- glossary:glossary:friendly_name -->`: provisional title
+   - `purpose_tldr`: provisional one-line stakeholder-facing Mission summary
+   - `purpose_context`: provisional stakeholder-facing context paragraph
    - `feature_dir`: Absolute path to the feature directory inside the repository root checkout
    - `current_branch`: the branch you started from
    - `target_branch` / `base_branch`: deterministic branch contract for downstream commands
