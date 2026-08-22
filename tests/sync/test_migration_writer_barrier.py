@@ -159,6 +159,7 @@ def test_post_cutover_old_binary_write_is_residue_not_live_delivery(
 
 def test_hard_kill_after_each_phase_resumes_to_one_exact_copy(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     package_root = Path(__file__).resolve().parents[2] / "src"
     script = (
@@ -201,7 +202,20 @@ def test_hard_kill_after_each_phase_resumes_to_one_exact_copy(
             check=False,
         )
         assert killed.returncode == 73
-        os.environ["SPEC_KITTY_HOME"] = str(runtime)
+        # ``monkeypatch.setenv`` (not a raw ``os.environ[...] =``) so pytest
+        # restores the pre-test value at this test's own teardown instead of
+        # leaking this iteration's now-deleted ``tmp_path`` into every later
+        # test that shares this worker process and does not set its own
+        # ``SPEC_KITTY_HOME`` -- confirmed live: with the raw assignment this
+        # left ``SPEC_KITTY_HOME`` pointed at this test's RESTARTED-phase
+        # runtime dir for the rest of the worker, and
+        # ``tests/sync/test_routing.py::test_resolve_checkout_sync_routing_uses_global_repo_default``
+        # (which only overrides ``HOME``, not ``SPEC_KITTY_HOME``, and
+        # ``get_runtime_root()`` prefers ``SPEC_KITTY_HOME`` when set) then
+        # silently read that stale directory and saw no config, observing
+        # ``repo_default_sync_enabled=None`` instead of ``False`` whenever
+        # xdist scheduled the two onto the same worker.
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime))
         completed = LegacyProjectStoreMigration(runtime, (source,)).migrate(migration_id)
         assert completed.phase is MigrationPhase.COMPLETE
         with ProjectSyncStore(PROJECT).unit_of_work() as unit:

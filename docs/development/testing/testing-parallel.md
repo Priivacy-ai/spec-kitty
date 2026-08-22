@@ -84,15 +84,37 @@ worry about a parallel run truncating your real `queue.db`.
 
 Per-worker HOME isolation protects per-user state, but it does **not** protect
 OS-global resources such as real TCP ports or singleton daemons. Tests that bind
-the reserved daemon port range (9400–9449) — `tests/sync/test_orphan_sweep.py` —
-must run in their own serial pass:
+the reserved fixed daemon port range (9400–9449) must run in their own serial
+pass. That family is **five** files, not just `test_orphan_sweep.py` — the
+single-source registry is `tests/_real_port_suites.py`'s `FIXED_RANGE_SUITES`
+(verified there via `grep -rl find_free_port_in_range tests/sync/*.py`):
+
+- `tests/sync/test_orphan_sweep.py`
+- `tests/sync/test_daemon_orphan_classification.py`
+- `tests/sync/test_daemon_cleanup_boundary.py`
+- `tests/sync/test_issue_1071_singleton_reconfirmation.py`
+- `tests/sync/test_legacy_daemon_retirement_r2t1.py`
 
 ```bash
-PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py -n0 -q
+PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py \
+  tests/sync/test_daemon_orphan_classification.py \
+  tests/sync/test_daemon_cleanup_boundary.py \
+  tests/sync/test_issue_1071_singleton_reconfirmation.py \
+  tests/sync/test_legacy_daemon_retirement_r2t1.py \
+  -n0 -q
 ```
 
 `-n0` forces serial execution even when xdist is installed. These tests are
-excluded from the parallel pool so two workers never contend for the same port.
+excluded from the parallel pool (and, critically, from a bare `pytest tests/sync
+-n <N>` invocation with no `--ignore`s — CI's `integration-tests-sync` /
+`integration-tests-sync-real-port` job split enforces the `--ignore`s itself;
+nothing at the pytest-collection level auto-routes these five away from a
+plain local `-n <N>` run) so two workers never contend for the same fixed
+port. A local run that skips the `--ignore`s can flake exactly this way —
+e.g. `RuntimeError: daemon on port 9401 (version=None) never published health
+identity` — under `-n <N>`, which is expected and not a regression; rerun with
+the five files isolated as above (`tests/architectural/test_serial_port_preservation.py`
+enforces that the CI workflow YAML keeps doing this).
 
 ## Volume env gates (`SPEC_KITTY_ULID_VOLUME_FULL`)
 

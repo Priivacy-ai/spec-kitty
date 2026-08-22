@@ -918,10 +918,28 @@ def _project_b_progress(
         native_identity=f"project-b-native:{family}",
     )
     opened_projects: list[str] = []
+    caller_thread = threading.current_thread()
     original_init = ProjectSyncStore.__init__
 
     def _record_open(active: ProjectSyncStore, project_uuid: object) -> None:
-        opened_projects.append(str(project_uuid))
+        # ``patch.object`` mutates the ``ProjectSyncStore`` class attribute for
+        # the whole process, not just this thread. Every caller of this helper
+        # (see the three call sites above) invokes it while a deliberately
+        # concurrent ``wp09-opt-out-*`` background thread is still live,
+        # racing to open its own ``ProjectSyncStore(PROJECT_A)`` (via
+        # ``disable_checkout_sync`` -> ``record_project_opt_out``) through the
+        # exact same patched ``__init__``. Recording unconditionally made this
+        # assertion nondeterministic: under CPU contention the opt-out thread
+        # is more likely to land its own open inside this window, so
+        # ``opened_projects`` would intermittently gain ``PROJECT_A`` too and
+        # fail an assertion this helper's own docstring-equivalent intent
+        # ("processing project B's request opens nothing but project B")
+        # never meant to make about a thread it does not own. Filtering to the
+        # thread that is actually running this helper's own call to
+        # ``invoke_production_adapter`` restores that intent without weakening
+        # it: a genuine extra open made BY this call path still fails loudly.
+        if threading.current_thread() is caller_thread:
+            opened_projects.append(str(project_uuid))
         original_init(active, project_uuid)
 
     with patch.object(ProjectSyncStore, "__init__", _record_open):

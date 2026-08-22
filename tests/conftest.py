@@ -37,6 +37,7 @@ from tests._support.wall_clock_assertions import (
     find_test_python_paths,
     format_wall_clock_assertion_violations,
 )
+from tests._support.xdist_scheduling import upgrade_unspecified_xdist_load_to_loadfile
 from tests.branch_contract import IS_2X_BRANCH
 from tests.mutmut_env import prepare_mutants_environment_from_cwd
 from tests.test_isolation_helpers import get_installed_version
@@ -203,6 +204,17 @@ def pytest_addoption(parser: pytest.Parser) -> None:
 
 
 def pytest_configure(config: pytest.Config) -> None:
+    # TEST-M2-03 (xdist-order-sensitive families): promote a silently-scattered
+    # bare `-n <N>` to `--dist loadfile`. See
+    # tests/_support/xdist_scheduling.py for the full rationale and evidence
+    # -- the function is defined there rather than here because this module
+    # is under tests/architectural/test_home_owner_behaviour.py::
+    # test_conftest_definition_order_is_unchanged_with_the_owner_removed,
+    # which permits exactly one new top-level definition beyond a frozen
+    # merge-base snapshot; an imported call is not an AST-visible
+    # ``FunctionDef`` here.
+    upgrade_unspecified_xdist_load_to_loadfile(config)
+
     os.environ.setdefault(_REAL_HOME_ENV_VAR, str(Path.home()))
 
     # #3213: set the SaaS-sync feature flag ONCE, collection-wide, before any test
