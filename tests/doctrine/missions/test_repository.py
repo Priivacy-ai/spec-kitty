@@ -15,7 +15,10 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.missions.repository import MissionTemplateRepository
+from doctrine.missions.repository import (
+    MalformedManifestError,
+    MissionTemplateRepository,
+)
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -393,3 +396,32 @@ class TestGetExpectedArtifacts:
         assert result.content == yaml_text
         assert result.origin == "doctrine/software-dev/expected-artifacts.yaml"
         assert isinstance(result.parsed, dict)
+
+    def test_malformed_manifest_fails_loud_distinct_from_absent(self, tmp_path: Path):
+        """SC-005/#3412: a present-but-YAML-broken manifest must FAIL LOUD.
+
+        The whole point of the fix is that a syntactically-corrupt manifest is
+        NOT conflated with an absent one. Absence degrades to ``None``
+        ("absent"); a broken-syntax file surfaces a distinct, operator-legible
+        failure instead of the identical ``None``.
+        """
+        repo = MissionTemplateRepository(tmp_path)
+
+        # Contrast control: an ABSENT manifest degrades to "absent" (None).
+        absent_outcome = repo.get_expected_artifacts("nonexistent")
+
+        # A PRESENT-but-YAML-broken manifest fails loud rather than masquerading
+        # as "absent".
+        mission_dir = tmp_path / "broken-mission"
+        mission_dir.mkdir()
+        manifest_path = mission_dir / "expected-artifacts.yaml"
+        manifest_path.write_text("invalid: yaml: {")
+
+        with pytest.raises(MalformedManifestError) as excinfo:
+            repo.get_expected_artifacts("broken-mission")
+
+        # The two outcomes must NOT be conflated: absence -> None; malformed ->
+        # raised, distinct, operator-legible signal naming the offending file.
+        assert absent_outcome is None
+        assert excinfo.value.path == manifest_path
+        assert "broken-mission" in str(excinfo.value)
