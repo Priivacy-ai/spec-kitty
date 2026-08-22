@@ -32,7 +32,12 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+)
 from ruamel.yaml import YAML
 
 from charter.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
@@ -59,6 +64,10 @@ _FETCHED_PROVENANCE_FIELDS: frozenset[str] = frozenset(
         "snapshot_sha256",
         "artifact_counts",
     }
+)
+
+_GENERATED_PACK_SOURCE_TYPES: frozenset[str] = frozenset(
+    {"api", "artifactory", "assemble", "git", "https"}
 )
 
 
@@ -131,12 +140,21 @@ class PackManifest(BaseModel):
     constituents: list[Constituent] | None = None
     charter: CharterProfile | None = None
 
-    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
-        """Serialize the built-in and fetched variants without field leakage."""
-        data = super().model_dump(**kwargs)
-        if self.artifact_counts is None:
-            for field_name in _FETCHED_PROVENANCE_FIELDS:
-                data.pop(field_name, None)
+    @model_serializer(mode="wrap")
+    def _serialize_manifest(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        """Serialize manifest variants consistently on every Pydantic path."""
+        data: dict[str, Any] = handler(self)
+        for field_name in _FETCHED_PROVENANCE_FIELDS:
+            if data.get(field_name) is not None:
+                continue
+            if (
+                field_name == "pack_version"
+                and self.source_type in _GENERATED_PACK_SOURCE_TYPES
+            ):
+                continue
+            data.pop(field_name, None)
         if self.constituents is None:
             data.pop("constituents", None)
         return data
@@ -154,10 +172,10 @@ class PackManifest(BaseModel):
 def _manifest_payload(manifest: PackManifest) -> dict[str, object]:
     """Return canonical data without leaking fetched-only null fields.
 
-    ``artifact_counts`` is the fetched/assembled variant marker while that
-    transitional format has no constituent inventory. Built-in and charter
-    manifests keep their historical bytes and hashes; fetched variants retain
-    an explicit ``pack_version: null`` required by pack recognisability.
+    Built-in and charter manifests keep their historical bytes and hashes.
+    Generated fetched/assembled variants retain an explicit
+    ``pack_version: null`` required by pack recognisability. Non-null
+    provenance is always retained and therefore bound into the manifest hash.
     """
     return manifest.model_dump(mode="json")
 
