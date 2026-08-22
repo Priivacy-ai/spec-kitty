@@ -2969,6 +2969,18 @@ pages:
     - {slug: "resolved-design-decisions-pushed-here-by-the-post-spec-squad", text: "Resolved design decisions (pushed here by the POST-SPEC squad)", level: 3}
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+  - path: "docs/adr/3.x/2026-08-22-1-performance-test-pipeline.md"
+    title: "ADR: Statistical performance-test pipeline (pytest-benchmark), off the PR path, per-domain"
+    divio_type: "none"
+    abstract: "Adopt pytest-benchmark and a dedicated per-domain performance.yml pipeline; ALL wall-clock performance tests run there ONLY, never on the PR/blocking path; the single-shot on-PR timing gate is retired."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision", text: "Decision", level: 2}
+    - {slug: "what-moves-and-what-explicitly-does-not", text: "What moves and what explicitly does NOT", level: 3}
+    - {slug: "migration-is-per-domain-and-incremental", text: "Migration is per-domain and incremental", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 2}
+    - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
+    - {slug: "references", text: "References", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
