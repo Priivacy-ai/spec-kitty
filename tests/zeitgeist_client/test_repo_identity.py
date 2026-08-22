@@ -310,6 +310,102 @@ def test_container_with_real_and_symlinked_checkout_raises_ambiguous_not_ancesto
         repo_identity.repo_name(str(container))
 
 
+# --- fabricated `gitdir:` FILE provenance (no symlink involved) ------------
+
+
+def test_fabricated_gitdir_file_at_cwd_raises_ambiguous_not_foreign_identity(tmp_path, origin):
+    """A PLAIN (non-symlink) ``.git`` FILE at ``cwd`` containing a
+    hand-crafted ``gitdir: <foreign>/.git`` line must not mint the foreign
+    repo's identity. No symlink, no env var, no sibling ambiguity — just a
+    fabricated pointer with no back-reference registering it as a real
+    worktree/submodule of that foreign repo. Real ``git`` itself would also
+    follow this pointer and report the foreign origin, so the live-git probe
+    corroborates rather than catches the spoof — the filesystem-level check
+    must refuse before a probe is ever run."""
+    victim = _clone(origin, tmp_path / "victim")
+    evil = tmp_path / "evil"
+    evil.mkdir()
+    (evil / ".git").write_text(f"gitdir: {victim / '.git'}\n")
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(evil))
+
+
+def test_fabricated_gitdir_file_at_an_ancestor_level_raises_ambiguous(tmp_path, origin):
+    """Same fabricated pointer, discovered one or more levels up the upward
+    walk rather than at ``cwd`` itself."""
+    victim = _clone(origin, tmp_path / "victim")
+    evil_parent = tmp_path / "evil-parent"
+    evil_parent.mkdir()
+    (evil_parent / ".git").write_text(f"gitdir: {victim / '.git'}\n")
+    nested = evil_parent / "nested" / "deeper"
+    nested.mkdir(parents=True)
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(nested))
+
+
+def test_fabricated_gitdir_file_with_synthetic_worktrees_segment_raises_ambiguous(
+    tmp_path, origin
+):
+    """A fabricated ``gitdir:`` pointer can also masquerade as a legitimate
+    worktree by including a synthetic ``/worktrees/<name>`` path segment,
+    hoping the marker-based fast path is trusted without checking for the
+    real worktree admin directory's back-reference. ``<name>`` here does not
+    correspond to any worktree the victim repo actually registered, so the
+    back-reference (``<victim>/.git/worktrees/<name>/gitdir``) does not
+    exist and this must still fail closed."""
+    victim = _clone(origin, tmp_path / "victim")
+    evil = tmp_path / "evil"
+    evil.mkdir()
+    fake_worktree_path = victim / ".git" / "worktrees" / "not-a-real-worktree"
+    (evil / ".git").write_text(f"gitdir: {fake_worktree_path}\n")
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(evil))
+
+
+def test_real_worktree_add_still_resolves_correctly(tmp_path, origin):
+    """Regression guard against over-rejection: a REAL ``git worktree add``
+    checkout's genuine ``gitdir:`` file — with a matching back-reference at
+    ``<main>/.git/worktrees/<name>/gitdir`` — must keep resolving to the main
+    repo's identity, exactly as before this fix."""
+    clone = _clone(origin, tmp_path / "work" / "acme-widgets")
+    wt = tmp_path / "elsewhere" / "a-worktree-checkout"
+    _git("worktree", "add", "-q", "-b", "lane-real", str(wt), cwd=clone)
+    assert repo_identity.repo_name(str(wt)) == "acme-widgets"
+
+
+def test_real_submodule_still_resolves_to_its_own_origin(tmp_path, origin):
+    """Regression guard: a REAL ``git submodule add`` checkout's genuine
+    ``gitdir:`` file (a bare pointer with no ``/worktrees/`` marker) — with a
+    matching ``core.worktree`` back-reference in the submodule's admin
+    ``config`` — must keep resolving to the submodule's OWN origin, not
+    raise."""
+    sub_origin = tmp_path / "sub-widget.git"
+    sub_origin.mkdir()
+    _git("init", "--bare", "-q", cwd=sub_origin)
+    sub_seed = _clone(sub_origin, tmp_path / "sub-seed")
+    default_ref = subprocess.run(
+        ["git", "symbolic-ref", "HEAD"],
+        cwd=sub_origin,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    _git("push", "-q", "origin", f"HEAD:{default_ref}", cwd=sub_seed)
+
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    _git("init", "-q", cwd=parent)
+    _git(
+        "-c", "protocol.file.allow=always", "submodule", "-q", "add", str(sub_origin), "sub",
+        cwd=parent,
+    )
+
+    assert repo_identity.repo_name(str(parent / "sub")) == "sub-widget"
+
+
 # --- GIT_DIR / GIT_WORK_TREE env bypass -------------------------------------
 
 
