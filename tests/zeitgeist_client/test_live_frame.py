@@ -205,6 +205,57 @@ def test_focus_heartbeat_refreshes_expiry() -> None:
     assert snap.focus[0].expires_at == 1035.0
 
 
+def test_presence_ttl_infinity_is_clamped_not_crashed() -> None:
+    """A hostile/buggy relay can send JSON's ``Infinity`` token —
+    Python's own ``json.loads`` accepts it by default. ``int(float("inf"))``
+    raises ``OverflowError``; ``_clamp_ttl`` must not let that escape and
+    kill the caller's apply/watch loop over one bad field."""
+    state = live_frame.StreamState()
+    lf = live_frame.parse_live_frame(_raw(frame=_presence_frame(ttl_s=float("inf"), observed_at=1000.0)))
+    assert lf is not None
+    state.apply(lf)  # must not raise
+    snap = state.snapshot(now=1000.0)
+    assert snap.presence[0].expires_at == 1000.0 + live_frame.MAX_TTL_S
+
+
+def test_presence_ttl_nan_is_clamped_not_crashed() -> None:
+    """Same as the ``Infinity`` case: ``int(float("nan"))`` raises
+    ``ValueError``, and NaN is likewise a JSON token ``json.loads`` accepts
+    by default."""
+    state = live_frame.StreamState()
+    lf = live_frame.parse_live_frame(_raw(frame=_presence_frame(ttl_s=float("nan"), observed_at=1000.0)))
+    assert lf is not None
+    state.apply(lf)  # must not raise
+    snap = state.snapshot(now=1000.0)
+    assert snap.presence[0].expires_at == 1000.0 + live_frame.MAX_TTL_S
+
+
+def test_presence_ttl_negative_infinity_is_clamped_not_crashed() -> None:
+    state = live_frame.StreamState()
+    lf = live_frame.parse_live_frame(_raw(frame=_presence_frame(ttl_s=float("-inf"), observed_at=1000.0)))
+    assert lf is not None
+    state.apply(lf)  # must not raise
+    snap = state.snapshot(now=1000.0)
+    assert snap.presence[0].expires_at == 1000.0 + live_frame.MAX_TTL_S
+
+
+def test_focus_ttl_infinity_is_clamped_not_crashed() -> None:
+    """Same defense-in-depth guarantee reached via ``_apply_focus``."""
+    state = live_frame.StreamState()
+    lf = live_frame.parse_live_frame(_raw(emitted_at=1000.0, frame=_focus_frame(ttl_s=float("inf"))))
+    assert lf is not None
+    state.apply(lf)  # must not raise
+    assert state.snapshot(now=1000.0).focus[0].expires_at == 1000.0 + live_frame.MAX_TTL_S
+
+
+def test_focus_ttl_nan_is_clamped_not_crashed() -> None:
+    state = live_frame.StreamState()
+    lf = live_frame.parse_live_frame(_raw(emitted_at=1000.0, frame=_focus_frame(ttl_s=float("nan"))))
+    assert lf is not None
+    state.apply(lf)  # must not raise
+    assert state.snapshot(now=1000.0).focus[0].expires_at == 1000.0 + live_frame.MAX_TTL_S
+
+
 def test_focus_ttl_over_90_is_clamped() -> None:
     state = live_frame.StreamState()
     lf = live_frame.parse_live_frame(_raw(emitted_at=1000.0, frame=_focus_frame(ttl_s=99999)))

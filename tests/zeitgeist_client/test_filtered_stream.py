@@ -308,6 +308,28 @@ def test_binary_garbage_chunk_between_valid_frames_is_dropped(managed_stream_dou
     gen.close()
 
 
+def test_non_finite_ttl_over_sse_is_clamped_not_fatal_to_the_watch_loop(managed_stream_double) -> None:
+    """A hostile/buggy relay can send JSON's ``Infinity``/``NaN`` tokens as
+    ``ttl_s`` inside an otherwise well-formed presence frame — Python's own
+    ``json.loads`` (used by ``FilteredStream._accept_line``) accepts them by
+    default. Verified over a real loopback SSE connection: this must not
+    raise out of ``next()`` and end the subscription for one bad field in
+    one frame; the frame after it must still arrive."""
+    hostile = {
+        "type": "presence",
+        "presence": {"actor": {"session_ref": "a" * 12}, "observed_at": time.time(), "ttl_s": float("inf")},
+    }
+    stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
+    gen = stream.watch()
+    managed_stream_double.push_frame(_frame(seq=1, frame=hostile))
+    managed_stream_double.push_frame(_frame(seq=2, frame=_presence(session_ref="b" * 12)))
+    frames = _drain(gen, 2)  # neither call raises; both frames arrive
+    assert [f.frame_type for f in frames] == ["presence", "presence"]  # type: ignore[attr-defined]
+    refs = {p.session_ref for p in stream.check().presence}
+    assert refs == {"a" * 12, "b" * 12}
+    gen.close()
+
+
 def test_oversized_nested_payload_is_still_shape_checked_not_trusted_blindly(managed_stream_double) -> None:
     presence_payload = {
         "actor": {"session_ref": "a" * 12},
