@@ -1,0 +1,176 @@
+"""Z7-C: ``subscription.py`` — the shared, team-scoped bounded status()/watch()
+surface CLI/MCP adapters both call.
+
+Covers: explicit-repo credential resolution (no runtime URL/credential
+parameter exists to accept one), ``NotCheckedOut`` on a missing credential
+(no auto-provisioning/administration), bounded status()/watch() over a real
+loopback SSE double, the <=90s timeout clamp, the ``max_frames`` bound, and
+that neither function ever calls ``credentials.store``/``credentials.revoke``.
+"""
+
+from __future__ import annotations
+
+import time
+from pathlib import Path
+
+import pytest
+
+from specify_cli.zeitgeist_client import credentials, subscription
+
+pytestmark = pytest.mark.fast
+
+
+@pytest.fixture()
+def state_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "spec-kitty-home"))
+    return tmp_path / "spec-kitty-home"
+
+
+def _frame(*, seq: int, frame: dict[str, object], epoch: str = "epoch-1") -> dict[str, object]:
+    return {"schema_version": "1.0.0", "epoch": epoch, "seq": seq, "emitted_at": time.time(), "frame": frame}
+
+
+def _presence(session_ref: str = "a" * 12) -> dict[str, object]:
+    return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": time.time(), "ttl_s": 30}}
+
+
+def _checkout(state_root: Path, double_url: str, *, repo: str = "spec-kitty", credential: str = "team-a-cred") -> None:
+    del state_root  # env var already set by the fixture; kept for readability at call sites
+    credentials.store(repo=repo, relay_url=double_url, token=credential, token_kind="shared_team")
+
+
+# --- explicit team context / no runtime URL or credential parameter ---------
+
+
+def test_no_public_function_accepts_a_relay_url_or_credential_parameter() -> None:
+    import inspect
+
+    for name in ("status", "watch", "resolve_stream"):
+        sig = inspect.signature(getattr(subscription, name))
+        params = set(sig.parameters)
+        assert "relay_url" not in params
+        assert "token" not in params
+        assert "capability_credential" not in params
+        assert "runtime_url" not in params
+
+
+def test_status_and_watch_require_an_explicit_repo_argument() -> None:
+    import inspect
+
+    for name in ("status", "watch", "resolve_stream"):
+        sig = inspect.signature(getattr(subscription, name))
+        first = next(iter(sig.parameters))
+        assert first == "repo"
+        assert sig.parameters["repo"].default is inspect.Parameter.empty
+
+
+# --- no administration: missing credential is NotCheckedOut, never minted ---
+
+
+def test_status_raises_not_checked_out_when_nothing_stored(state_root: Path) -> None:
+    with pytest.raises(subscription.NotCheckedOut):
+        subscription.status("spec-kitty")
+
+
+def test_watch_raises_not_checked_out_when_nothing_stored(state_root: Path) -> None:
+    with pytest.raises(subscription.NotCheckedOut):
+        next(subscription.watch("spec-kitty"))
+
+
+def test_module_never_calls_credentials_store_or_revoke(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:
+    """Read-only surface: no path through status()/watch() may provision or
+    wipe a credential — that stays the (separate, not-yet-built) checkout
+    command's job."""
+
+    def _forbidden(*args: object, **kwargs: object) -> None:
+        raise AssertionError("subscription.py must never call credentials.store/revoke")
+
+    monkeypatch.setattr(credentials, "store", _forbidden)
+    monkeypatch.setattr(credentials, "revoke", _forbidden)
+    with pytest.raises(subscription.NotCheckedOut):
+        subscription.status("spec-kitty")
+
+
+# --- bounded status()/watch() over a real loopback double --------------------
+
+
+def test_status_reports_the_snapshot_observed_within_the_bounded_window(state_root: Path, managed_stream_double) -> None:
+    _checkout(state_root, managed_stream_double.url)
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="a" * 12)))
+    managed_stream_double.close_stream()  # ends watch() promptly instead of waiting out the idle timeout
+
+    result = subscription.status("spec-kitty", timeout_s=2.0)
+    assert result["repo"] == "spec-kitty"
+    assert len(result["presence"]) == 1
+    assert result["presence"][0]["session_ref"] == "a" * 12
+
+
+def test_status_sends_only_the_stored_capability_credential(state_root: Path, managed_stream_double) -> None:
+    _checkout(state_root, managed_stream_double.url, credential="team-a-cred")
+    managed_stream_double.close_stream()
+
+    subscription.status("spec-kitty", timeout_s=2.0)
+    assert managed_stream_double.received_headers
+    assert managed_stream_double.received_headers[0].get("X-Zeitgeist-Capability") == "team-a-cred"
+
+
+def test_watch_yields_serialized_frames_then_stops(state_root: Path, managed_stream_double) -> None:
+    _checkout(state_root, managed_stream_double.url)
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
+    managed_stream_double.close_stream()
+
+    frames = list(subscription.watch("spec-kitty", timeout_s=2.0))
+    assert len(frames) == 1
+    assert frames[0]["frame_type"] == "presence"
+    assert frames[0]["seq"] == 1
+
+
+def test_watch_stops_at_max_frames_bound(state_root: Path, managed_stream_double) -> None:
+    _checkout(state_root, managed_stream_double.url)
+    for n in range(1, 6):
+        managed_stream_double.push_frame(_frame(seq=n, frame=_presence(session_ref=f"{n:012d}")))
+    managed_stream_double.close_stream()
+
+    frames = list(subscription.watch("spec-kitty", timeout_s=2.0, max_frames=3))
+    assert len(frames) == 3
+
+
+def test_status_timeout_is_clamped_to_max_timeout_s(state_root: Path, managed_stream_double) -> None:
+    """A caller cannot ask for a longer-than-honest wait: an absurd
+    ``timeout_s`` is silently clamped to the <=90s ceiling, not honored."""
+    _checkout(state_root, managed_stream_double.url)
+    managed_stream_double.close_stream()
+
+    start = time.monotonic()
+    subscription.status("spec-kitty", timeout_s=10_000.0)
+    elapsed = time.monotonic() - start
+    # The double closes the stream immediately, so this exercises the
+    # "closed stream ends promptly" path, not the timeout itself — the
+    # clamp is verified directly below.
+    assert elapsed < 5.0
+
+
+def test_timeout_s_is_clamped_not_rejected() -> None:
+    assert subscription._clamp_timeout(10_000.0) == subscription.MAX_TIMEOUT_S
+    assert subscription.MAX_TIMEOUT_S == 90
+
+
+def test_non_positive_timeout_raises_value_error() -> None:
+    with pytest.raises(ValueError):
+        subscription._clamp_timeout(0.0)
+    with pytest.raises(ValueError):
+        subscription._clamp_timeout(-1.0)
+
+
+# --- no multi-team aggregate: two repos never share resolved state ----------
+
+
+def test_resolve_stream_builds_an_independent_stream_per_repo(state_root: Path, managed_stream_double) -> None:
+    _checkout(state_root, managed_stream_double.url, repo="repo-a", credential="cred-a")
+    _checkout(state_root, managed_stream_double.url, repo="repo-b", credential="cred-b")
+
+    stream_a = subscription.resolve_stream("repo-a")
+    stream_b = subscription.resolve_stream("repo-b")
+    assert stream_a is not stream_b
+    assert stream_a._config.capability_credential == "cred-a"
+    assert stream_b._config.capability_credential == "cred-b"
