@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Test Import Re-Pointing & Final Validation
-dependencies: []
+dependencies: ["WP03"]
 requirement_refs:
 - FR-009
 - FR-010

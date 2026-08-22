@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Architectural Guard — AST Positional-Call Detector
-dependencies: []
+dependencies: ["WP02"]
 requirement_refs:
 - FR-008
 planning_base_branch: refactor/dossier-emitters-canonical-only-1058

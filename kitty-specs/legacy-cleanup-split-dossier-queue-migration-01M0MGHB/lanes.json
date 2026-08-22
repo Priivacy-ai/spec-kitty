@@ -41,8 +41,10 @@
         "legacy-cleanup",
         "tracker-integration"
       ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
     },
     {
       "lane_id": "lane-c",
@@ -59,8 +61,10 @@
         "tests",
         "tracker-integration"
       ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
     },
     {
       "lane_id": "lane-d",
@@ -76,12 +80,14 @@
         "legacy-cleanup",
         "tracker-integration"
       ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
     }
   ],
-  "computed_at": "2026-08-22T12:34:43.853764+00:00",
+  "computed_at": "2026-08-22T12:41:37.954312+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "dbc3ab4702757ef4a99ddf21264470c6e171425e"
+  "planning_commit_sha": "be560464bab3f2b636e0224fcee57a6d8a827291"
 }

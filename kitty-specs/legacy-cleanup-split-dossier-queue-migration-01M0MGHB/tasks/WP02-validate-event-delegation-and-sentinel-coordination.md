@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: validate_event() Delegation & Sentinel Coordination
-dependencies: []
+dependencies: ["WP01"]
 requirement_refs:
 - FR-006
 - FR-007
