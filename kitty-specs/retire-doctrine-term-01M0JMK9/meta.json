@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-08-21T17:06:18.253177+00:00",
+  "flattened": true,
+  "friendly_name": "Retire the Doctrine Term",
+  "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+  "mission_number": null,
+  "mission_slug": "retire-doctrine-term-01M0JMK9",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Spec Kitty's governance vocabulary currently splits 'doctrine' (the artefact layer) from 'charter' (project materialization and activation language). The operator has decided that 'doctrine' is retired from user-facing language. The replacement distinguishes Charter Pack (a distributable catalogue), Charter Bundle (the project-local file set), Active Charter (an activated governance artefact), and Inactive Charter (an available but unactivated artefact). This mission produces the ADR, a complete content-and-path occurrence inventory, ordering/methodology analysis, and a stacked Spec Kitty mission plan. It does not execute product renames.",
+  "purpose_tldr": "Plan and sequence the retirement of 'doctrine' as a user-facing term in Spec Kitty, replaced by 'charter': ADR, full occurrence inventory, ordering/methodology analysis, and a stacked mission plan.",
+  "slug": "retire-doctrine-term-01M0JMK9",
+  "target_branch": "feat/retire-doctrine-term",
+  "topology": "single_branch",
+  "vcs": "git"
+}

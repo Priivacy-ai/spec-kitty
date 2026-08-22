@@ -170,7 +170,9 @@ test_example_round_trip:
   # +1 (#2873): scopesource-gate-followup .../contracts/baseline-identity-contract.md
   # illustrative BaselineTestResult.source_identity field-add snippet — permanent
   # non-executable exemption; the executable round-trip lives in tests/review/test_baseline.py.
-  skip_marker_blocks: 13
+  # +1 (#3664): retire-doctrine-term inventory frontmatter is an illustrative
+  # documentation-artifact shape; executable evidence is inventory-hits.tsv + audit arithmetic.
+  skip_marker_blocks: 14
 
 # tests/architectural/test_no_inert_schema_slots.py — the zero-producer lint
 # (mission doctrine-silence-guards-01KYFV7Q, WP01).

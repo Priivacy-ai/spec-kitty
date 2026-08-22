@@ -1,0 +1,101 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-21T17:12:24.977397Z",
+      "decision_id": "01M0JMYF4HK6Q2WF6CHE3PDSJR",
+      "final_answer": "User/operator-facing language only. Internal identifiers (src/doctrine/ package, module names, import paths) are out of scope for the retirement.",
+      "input_key": "scope_internal_identifiers",
+      "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+      "mission_slug": "retire-doctrine-term-01M0JMK9",
+      "opened_by": "cli",
+      "options": [
+        "User/operator-facing language only",
+        "Full retirement including internal identifiers with shims",
+        "Full retirement, hard break, no shims"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Does the retirement of 'doctrine' cover internal code identifiers (src/doctrine/ package, module names, import paths), or only user/operator-facing language?",
+      "rationale": null,
+      "resolved_at": "2026-08-21T17:13:29.483685Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.internal-identifiers",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-21T17:14:02.832914Z",
+      "decision_id": "01M0JN1EPG5MMXC2J7W6GRS44E",
+      "final_answer": "Kinds survive. 'Charter' is the umbrella for the layer and its activation state, with a three-way distinction: the charter.md file / active charter (wired in) / inactive charter. The kind vocabulary (directive, tactic, styleguide, toolguide, paradigm, procedure) remains canonical.",
+      "input_key": "vocabulary_kind_vocabulary",
+      "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+      "mission_slug": "retire-doctrine-term-01M0JMK9",
+      "opened_by": "cli",
+      "options": [
+        "Kinds survive; charter is the umbrella",
+        "Kinds retire too; everything is just a charter"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "After retirement, do the artefact kind terms (directive, tactic, styleguide, toolguide, paradigm, procedure) survive as canonical, with 'charter' as the umbrella for the layer and activation state?",
+      "rationale": null,
+      "resolved_at": "2026-08-21T17:14:03.969870Z",
+      "resolved_by": null,
+      "slot_key": "specify.vocabulary.kind-vocabulary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-21T17:14:30.352336Z",
+      "decision_id": "01M0JN29JGRA2GVEJJ89JZH3R2",
+      "final_answer": "Deprecate in 3.x: old executable names become hidden aliases with deprecation warnings. Hard rule: by 4.0, zero user-visible 'doctrine' remains.",
+      "input_key": "compatibility_alias_policy",
+      "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+      "mission_slug": "retire-doctrine-term-01M0JMK9",
+      "opened_by": "cli",
+      "options": [
+        "Hard break, no aliases",
+        "Deprecate in 3.x (hidden aliases + warnings), all user-visible doctrine gone by 4.0",
+        "Split: prose renames outright, executable surfaces get aliases"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Compatibility policy for executable user-facing surfaces (CLI command/flag names, skill names): hard break now, or deprecate in 3.x with removal by 4.0?",
+      "rationale": null,
+      "resolved_at": "2026-08-21T17:14:31.493043Z",
+      "resolved_by": null,
+      "slot_key": "specify.compatibility.alias-policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-21T19:22:56.019764Z",
+      "decision_id": "01M0JWDEMKXQ5CMAE9PFEK8GF9",
+      "final_answer": "Per-wave stack with atomic authority flip: M1 = glossary rewrite + charter-bundle update + guard arming in one mission/PR (closes the catfooding conflict where the guard would forbid 'doctrine' before replacement terms are canonical); M2 = CLI executable surfaces with hidden aliases + same-wave CI consumer updates; M3 = packs source rename; M4 = skills/agent artifacts with legacy alias skills; M5 = docs prose + AGENTS.md (ADR titles stay legacy); M6 = deferred to 4.0 milestone (alias removal + NFR-001 zero-doctrine audit). 5 active missions + 1 deferred. Operator approved 2026-08-21.",
+      "input_key": "stack_shape",
+      "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+      "mission_slug": "retire-doctrine-term-01M0JMK9",
+      "opened_by": "cli",
+      "options": [
+        "Per-wave: 6 active missions + deferred 4.0 removal (recommended)",
+        "Coarser: ~3 grouped missions + deferred 4.0 removal",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should the stacked retirement plan be shaped? The spec prescribes ordering (canonical authority first, then executable CLI surfaces with 3.x aliases, then prose/docs/prompts) but not granularity. Evidence-grounded recommendation: one mission per surface wave \u2014 (1) guard wave 0, (2) glossary + charter-bundle authority rewrite, (3) CLI executable surfaces with hidden aliases, (4) packs source rename, (5) skills/agent artifacts, (6) docs prose \u2014 plus a 7th mission explicitly deferred to the 4.0 milestone (alias removal + zero-doctrine audit). Alternative: coarser grouping into ~3 missions. Which shape do you want?",
+      "rationale": null,
+      "resolved_at": "2026-08-21T19:46:09.232301Z",
+      "resolved_by": null,
+      "slot_key": "plan.stack.shape",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+  "version": 1
+}
