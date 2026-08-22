@@ -280,8 +280,9 @@ Shape Recommendation").
      are actually removed. Deleting the helper here would break
      `emit_artifact_missing`'s still-unedited call to it.
 - **Files**: `src/specify_cli/dossier/events.py`.
-- **Parallel?**: No — T005 must land in the same commit (both edit the shared
-  `_consume_legacy_values` helper this subtask deletes).
+- **Parallel?**: No — T005 must land in the same commit; T005 step 7 deletes
+  the shared `_consume_legacy_values` helper only after both this subtask's
+  and T005's call sites are gone.
 - **Notes**: `mission_slug`, `artifact_key`, `artifact_class`, `relative_path`,
   `content_hash_sha256`, `size_bytes` stay positional-or-keyword (unchanged) —
   only the promoted three plus the existing keyword-only block change shape.
