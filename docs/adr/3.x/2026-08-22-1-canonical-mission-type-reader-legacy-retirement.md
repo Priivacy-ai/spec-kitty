@@ -10,8 +10,8 @@ date: '2026-08-22'
 A single blessed canonical reader existed
 (`specify_cli.mission._canonical_meta_mission_type`), yet ~10–12 **hand-rolled**
 `meta.json` mission-type readers each re-derived their own field order and their
-own default, and they **disagreed** (issue #3598, "second inconsistency"; epic
-#3410 — charter/doctrine silent-drop, fail loud):
+own default, and they **disagreed** (issue #3598, "second inconsistency"; epic #3410
+— charter/doctrine silent-drop, fail loud):
 
 - The **charter path** read only `mission_type`, while the **CLI path** also
   honored the legacy `mission` field — so `{"mission": "software-dev"}` resolved
@@ -80,8 +80,8 @@ trips the build.
 ### 4. FR-009 inline reads unchanged
 
 The frozen-migration and charter-layer inline `meta.json` reads (#2477–#2480) are
-already exempted in the pre-existing `inline_meta_read_allowlist.yaml` (mission
-#883). That gate governs a **different** invariant (raw `json.loads` bypassing
+already exempted in the pre-existing `inline_meta_read_allowlist.yaml` (mission #883).
+That gate governs a **different** invariant (raw `json.loads` bypassing
 `load_meta`); this ADR does not duplicate it. The charter reader now delegates
 its *field extraction* to the shared seam while its inline *file read* stays
 exempt (the charter package cannot import `specify_cli.load_meta`).
