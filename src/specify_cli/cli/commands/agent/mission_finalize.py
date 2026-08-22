@@ -54,6 +54,8 @@ from specify_cli.missions._resolve_planning_branch import PlanningBranchResoluti
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership import infer_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
+from specify_cli.ownership.inference import detect_post_integration_acceptance
+from specify_cli.requirement_mapping import find_discarded_sc_refs
 from specify_cli.ownership.frontmatter_source import (
     FinalizeFrontmatterSource,
     resolve_wp_manifests,
@@ -150,7 +152,8 @@ def _read_wp_frontmatter(wp_file: Path) -> tuple[WPMetadata, str]:
     """Route ``read_wp_frontmatter`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return cast(tuple[WPMetadata, str], _mission.read_wp_frontmatter(wp_file))
+    frontmatter: tuple[WPMetadata, str] = _mission.read_wp_frontmatter(wp_file)
+    return frontmatter
 
 
 def _resolve_planning_branch_via_mission(
@@ -159,12 +162,10 @@ def _resolve_planning_branch_via_mission(
     """Route ``_resolve_planning_branch`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return cast(
-        str,
-        _mission._resolve_planning_branch(
-            repo_root, primary_dir, target_branch_override=target_branch_override
-        ),
+    branch: str = _mission._resolve_planning_branch(
+        repo_root, primary_dir, target_branch_override=target_branch_override
     )
+    return branch
 
 
 def _bootstrap_canonical_state_via_mission(
@@ -419,14 +420,14 @@ def _resolve_repo_root(json_output: bool) -> Path:
     """
     from specify_cli.cli.commands.agent import mission as _mission
 
-    repo_root = _mission.locate_project_root()
+    repo_root: Path | None = _mission.locate_project_root()
     if repo_root is None:
         if json_output:
             _emit_json({"error": PROJECT_ROOT_NOT_FOUND})
         else:
             console.print(f"[red]Error:[/red] {PROJECT_ROOT_NOT_FOUND}")
         raise typer.Exit(1)
-    return cast(Path, repo_root)
+    return repo_root
 
 
 def _run_saas_boundary_preflight(repo_root: Path, *, json_output: bool, validate_only: bool) -> None:
@@ -471,17 +472,21 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
     cwd = Path.cwd().resolve()
     ambiguous: ActionContextError | None
     try:
-        mission_dir_name = _resolve_mission_dir_name_primary_anchored(repo_root, feature)
+        mission_dir_name: str | None = _resolve_mission_dir_name_primary_anchored(
+            repo_root, feature
+        )
     except MissionSelectorAmbiguous as ambiguous_error:
         ambiguous = ActionContextError(ambiguous_error.error_code, str(ambiguous_error))
     else:
         ambiguous = None
 
     if mission_dir_name is not None:
-        return cast(str, mission_dir_name)
+        return mission_dir_name
 
     try:
-        feature_dir = _mission._find_feature_directory(repo_root, cwd, explicit_feature=feature)
+        feature_dir: Path = _mission._find_feature_directory(
+            repo_root, cwd, explicit_feature=feature
+        )
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(
             repo_root,
@@ -500,7 +505,7 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
             if "example_command" in payload:
                 console.print(f"  {payload['example_command']}")
         raise typer.Exit(1) from None
-    return cast(str, feature_dir.name)
+    return feature_dir.name
 
 
 def _resolve_target_branch(
@@ -1261,6 +1266,11 @@ class _BootstrapState:
     #: (raw requirement tokens that matched no declared shape) rather than
     #: folding it into an unrelated bucket.
     requirement_extraction_warnings: list[str] = field(default_factory=list)
+    #: #3590 INTERIM (warn-only) -- a code WP whose acceptance criteria are
+    #: observable only post-integration (an action, not a diff). Kept in its own
+    #: bucket so the JSON payload names the concern precisely. NEVER blocks
+    #: finalize and reaches no terminal state (C-002 / NFR-002).
+    post_integration_acceptance_warnings: list[str] = field(default_factory=list)
 
 
 def _branch_strategy_text(target_branch: str, merge_target_branch: str | None = None) -> str:
@@ -1430,6 +1440,15 @@ def _run_bootstrap_loop(
         state.inmemory_frontmatter[wp_id] = updated_meta
         state.inmemory_bodies[wp_id] = body
 
+        # #3590 INTERIM (warn-only): a code WP whose acceptance criteria are
+        # observable only post-integration cannot be honestly reviewed while its
+        # lane is open. Signal it at authoring time (fail-loud discipline,
+        # epics #3410/#3549) — never blocks finalize, touches no terminal state.
+        for warning in detect_post_integration_acceptance(
+            wp_file.read_text(encoding="utf-8"), list(updated_meta.owned_files)
+        ):
+            state.post_integration_acceptance_warnings.append(f"{wp_id}: {warning}")
+
         if frontmatter_changed:
             if not validate_only:
                 state.pending_writes.append((wp_file, updated_meta, body))
@@ -1441,6 +1460,21 @@ def _run_bootstrap_loop(
         elif wp_id not in state.preserved_wps:
             state.unchanged_wps.append(wp_id)
     return state
+
+
+def _surface_post_integration_acceptance_warnings(
+    state: _BootstrapState, *, json_output: bool
+) -> None:
+    """Print the #3590 INTERIM warn-only post-integration acceptance warnings.
+
+    Non-blocking (C-002 / NFR-002): finalize's exit code and success path are
+    unchanged whether or not any warning fires — the JSON payload always carries
+    the ``post_integration_acceptance_warnings`` list; this only mirrors it to the
+    console in human mode.
+    """
+    if state.post_integration_acceptance_warnings and not json_output:
+        for warning in state.post_integration_acceptance_warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
 
 
 def _assert_no_write_in_validate_only(state: _BootstrapState, *, validate_only: bool) -> None:
@@ -1632,6 +1666,7 @@ def _emit_validate_only_report(
                 "updated_wp_count": state.updated_count,
                 "ownership_warnings": state.ownership_warnings,
                 "requirement_extraction_warnings": state.requirement_extraction_warnings,
+                "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
                 "validation": {"bootstrap_preview": bootstrap_stats, "lanes_preview": lanes_stats},
                 "message": "All validations passed. Run without --validate-only to commit.",
             }
@@ -1964,9 +1999,10 @@ def _resolve_acceptance_matrix_home(repo_root: Path, planning_dir: Path) -> Path
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
 
     try:
-        return cast(Path, _acceptance_matrix_read_dir(repo_root, planning_dir))
+        read_dir: Path = _acceptance_matrix_read_dir(repo_root, planning_dir)
     except CoordinationBranchDeleted:
         return planning_dir
+    return read_dir
 
 
 def _scaffold_acceptance_matrix_if_lane_based(
@@ -2250,6 +2286,7 @@ def _emit_success_report(
             },
             "ownership_warnings": state.ownership_warnings,
             "requirement_extraction_warnings": state.requirement_extraction_warnings,
+            "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
             "target_branch_override": {
                 "requested": target_branch_override,
                 "persisted": persist.persisted,
@@ -2710,6 +2747,16 @@ def finalize_tasks(
             requirement_extraction_warnings,
             spec_content,
         ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
+        # #2991: an ``SC-###`` (success-criteria) ref in a WP's requirement_refs
+        # is dropped by the graph scanner ``(?:FR|NFR|C)-\d+`` alternation with no
+        # signal — the author believes traceability exists when it does not. SC is
+        # not admitted as a first-class ref (operator decision (c)); instead the
+        # discard is signalled (fail-loud, epics #3410/#3549) through this existing
+        # advisory channel. Non-blocking: never appended to a failures list.
+        requirement_extraction_warnings = [
+            *requirement_extraction_warnings,
+            *find_discarded_sc_refs(tasks_dir),
+        ]
 
         # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
         # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
@@ -2769,6 +2816,7 @@ def finalize_tasks(
             json_output=json_output,
         )
         _assert_no_write_in_validate_only(state, validate_only=validate_only)
+        _surface_post_integration_acceptance_warnings(state, json_output=json_output)
 
         _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
         _flush_frontmatter_writes(state, validate_only=validate_only)
