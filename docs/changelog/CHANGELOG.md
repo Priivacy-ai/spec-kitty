@@ -19,6 +19,21 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **`spec-kitty zeitgeist outbox` gives a human a bundled, outside-model
+  approval surface over locally queued Zeitgeist prose (`Z8-C`).** `list`/
+  `show` inspect pending items (exact content is disclosed only via `show`
+  or the decision prompt itself — never in `list`'s redacted preview);
+  `approve`/`reject`/`revoke` require the human to type back a per-item
+  challenge at the real controlling terminal (`outbox_approval.py`'s
+  `_capture_human_gesture`), and raise `HumanGestureRequired` whenever none
+  is available — there is no `--yes`/`--force`/`--non-interactive` flag on
+  any of the three, no environment-variable escape hatch, and the hidden
+  stdio MCP adapter (`mcp_stdio.py`) is untouched: a model talking over MCP
+  has no tool that reaches this surface. Pending items are content-addressed
+  (SHA-256 over repo/audience/content/context) and TTL-bounded
+  (default-deny: an expired item can never be approved); receipts are
+  content-addressed and idempotent on retry.
+
 - **`spec-kitty zeitgeist status`/`watch` and a hidden stdio MCP adapter give a
   terminal or an MCP client bounded, read-only access to one team's live
   Zeitgeist presence/focus stream (`Z7-C`).** Both surfaces call the same

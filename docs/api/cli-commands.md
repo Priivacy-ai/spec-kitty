@@ -5476,6 +5476,145 @@ Read-only access to one team's live Zeitgeist presence/focus stream.
 │ status  One bounded snapshot of ``repo``'s live presence/focus state.        │
 │ watch   Print each live presence/focus frame for ``repo`` as it arrives,     │
 │         bounded by ``--timeout`` idleness and ``--max-frames`` count.        │
+│ outbox  Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every  │
+│         decision requires a real human at a real terminal — there is no      │
+│         --yes/--force option and no reachability from MCP or a script.       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox
+
+_Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision requires a real human at a real terminal — there is no --yes/--force option and no reachability from MCP or a script._
+
+```
+Usage: spec-kitty zeitgeist outbox [OPTIONS] COMMAND [ARGS]...
+
+Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision
+requires a real human at a real terminal — there is no --yes/--force option
+and no reachability from MCP or a script.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ list     Every item still awaiting a human disposition. Content is shown     │
+│          only                                                                │
+│          as a bounded, redacted preview — never the exact prose (use         │
+│          ``show`` for                                                        │
+│          that, by exact id).                                                 │
+│ show     The exact full record for ``item_id`` — the one explicit, per-id    │
+│          disclosure action (see ``outbox_approval.py``'s module docstring).  │
+│ approve  Approve ``item_id``. Requires typing back the item's own challenge  │
+│          at                                                                  │
+│          the controlling terminal when prompted — there is no flag to skip   │
+│          this.                                                               │
+│ reject   Reject ``item_id``. Same human-gesture requirement as ``approve``.  │
+│ revoke   Pull back an already-approved ``item_id``. Same human-gesture       │
+│          requirement as ``approve``; only valid from ``approved``.           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox approve
+
+_Approve ``item_id``. Requires typing back the item's own challenge at the controlling terminal when prompted — there is no flag to skip this._
+
+```
+Usage: spec-kitty zeitgeist outbox approve [OPTIONS] ITEM_ID
+
+Approve ``item_id``. Requires typing back the item's own challenge at the
+controlling terminal when prompted — there is no flag to skip this.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    item_id      TEXT  The content-addressed id of the pending/decided      │
+│                         item.                                                │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --actor          TEXT  Attribution recorded on the receipt. Defaults to the  │
+│                        local OS user.                                        │
+│ --help   -h            Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox list
+
+_Every item still awaiting a human disposition. Content is shown only as a bounded, redacted preview — never the exact prose (use ``show`` for that, by exact id)._
+
+```
+Usage: spec-kitty zeitgeist outbox list [OPTIONS]
+
+Every item still awaiting a human disposition. Content is shown only as a
+bounded, redacted preview — never the exact prose (use ``show`` for that, by
+exact id).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --repo          TEXT  Only items queued for this repo.                       │
+│ --json                Emit plain JSON instead of a human-readable summary.   │
+│ --help  -h            Show this message and exit.                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox reject
+
+_Reject ``item_id``. Same human-gesture requirement as ``approve``._
+
+```
+Usage: spec-kitty zeitgeist outbox reject [OPTIONS] ITEM_ID
+
+Reject ``item_id``. Same human-gesture requirement as ``approve``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    item_id      TEXT  The content-addressed id of the pending/decided      │
+│                         item.                                                │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --actor          TEXT  Attribution recorded on the receipt. Defaults to the  │
+│                        local OS user.                                        │
+│ --help   -h            Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox revoke
+
+_Pull back an already-approved ``item_id``. Same human-gesture requirement as ``approve``; only valid from ``approved``._
+
+```
+Usage: spec-kitty zeitgeist outbox revoke [OPTIONS] ITEM_ID
+
+Pull back an already-approved ``item_id``. Same human-gesture requirement as
+``approve``; only valid from ``approved``.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    item_id      TEXT  The content-addressed id of the pending/decided      │
+│                         item.                                                │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --actor          TEXT  Attribution recorded on the receipt. Defaults to the  │
+│                        local OS user.                                        │
+│ --help   -h            Show this message and exit.                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist outbox show
+
+_The exact full record for ``item_id`` — the one explicit, per-id disclosure action (see ``outbox_approval.py``'s module docstring)._
+
+```
+Usage: spec-kitty zeitgeist outbox show [OPTIONS] ITEM_ID
+
+The exact full record for ``item_id`` — the one explicit, per-id disclosure
+action (see ``outbox_approval.py``'s module docstring).
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    item_id      TEXT  The content-addressed id of the pending/decided      │
+│                         item.                                                │
+│                         [required]                                           │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
