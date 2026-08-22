@@ -124,7 +124,12 @@ AGENT_DIRECTORIES = [
     AgentDirectory("opencode", ".opencode/", False, "opencode CLI"),
     AgentDirectory("windsurf", ".windsurf/", False, "Windsurf"),
     AgentDirectory("gemini", ".gemini/", False, "Google Gemini"),
-    AgentDirectory("cursor", ".cursor/", False, "Cursor"),
+    # Narrow, not blanket .cursor/ (#2498): many teams version-control their
+    # own rules under .cursor/rules/, so only the paths Spec Kitty itself
+    # generates are ignored — mirrors the copilot precedent below.
+    AgentDirectory("cursor", ".cursor/rules/spec-kitty.mdc", False, "Cursor (Spec Kitty orientation rule)"),
+    AgentDirectory("cursor", ".cursor/commands/", False, "Cursor (Spec Kitty slash commands)"),
+    AgentDirectory("cursor", ".cursor/skills/", False, "Cursor (Spec Kitty shared skills root)"),
     AgentDirectory("qwen", ".qwen/", False, "Qwen"),
     AgentDirectory("kilocode", ".kilocode/", False, "Kilocode"),
     AgentDirectory("auggie", ".augment/", False, "Auggie"),
@@ -328,14 +333,18 @@ class GitignoreManager:
         """
         result = ProtectionResult(success=True, modified=False)
 
-        # Build mapping of agent names to directories
-        agent_map = {agent.name: agent for agent in AGENT_DIRECTORIES}
+        # Build mapping of agent names to directories. An agent name may own
+        # more than one entry (e.g. cursor, #2498), so collect a list per
+        # name rather than the last match.
+        agent_map: dict[str, list[AgentDirectory]] = {}
+        for agent in AGENT_DIRECTORIES:
+            agent_map.setdefault(agent.name, []).append(agent)
 
         # Collect directories for selected agents
-        directories_to_add = []
+        directories_to_add: list[str] = []
         for agent_name in agents:
             if agent_name in agent_map:
-                directories_to_add.append(agent_map[agent_name].directory)
+                directories_to_add.extend(entry.directory for entry in agent_map[agent_name])
             else:
                 result.warnings.append(f"Unknown agent name: {agent_name}")
 

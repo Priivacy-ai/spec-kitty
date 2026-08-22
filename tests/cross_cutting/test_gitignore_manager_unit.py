@@ -152,6 +152,20 @@ class TestGitignoreManager:
         assert ".codex/" in result.entries_added
         assert ".gemini/" in result.entries_added
 
+    def test_protect_selected_agent_with_multiple_entries(self, manager):
+        """cursor owns 3 AGENT_DIRECTORIES rows (#2498) -- selecting it must add
+        all 3, not just the last one registered under that name."""
+        cursor_entries = [agent.directory for agent in AGENT_DIRECTORIES if agent.name == "cursor"]
+        assert len(cursor_entries) > 1  # guards against this test going stale
+
+        result = manager.protect_selected_agents(["cursor"])
+
+        assert result.success
+        assert result.modified
+        assert len(result.entries_added) == len(cursor_entries)
+        for entry in cursor_entries:
+            assert entry in result.entries_added
+
     def test_protect_selected_unknown_agent(self, manager):
         """Test warning for unknown agent name."""
         result = manager.protect_selected_agents(["unknown_agent"])
@@ -355,10 +369,13 @@ class TestGitignoreManager:
         assert len(dirs2) == len(AGENT_DIRECTORIES)
 
     def test_all_agent_directories_have_trailing_slash(self):
-        """Test that all agent directories end with trailing slash."""
+        """Test that all agent directories end with trailing slash, except
+        explicit generated-file entries (e.g. cursor's rule file, #2498)."""
         dirs = GitignoreManager.get_agent_directories()
 
         for agent_dir in dirs:
+            if agent_dir.directory.endswith(".mdc"):
+                continue
             assert agent_dir.directory.endswith("/"), f"{agent_dir.directory} missing trailing slash"
 
     def test_result_object_structure(self, manager):
