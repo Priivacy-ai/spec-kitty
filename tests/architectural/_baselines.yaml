@@ -241,7 +241,7 @@ test_egress_consent_boundary:
   # not project egress at all — auth/OAuth token traffic, the doctrine fetch,
   # the readiness probe, five localhost control endpoints and `sync doctor`'s
   # empty-body connectivity probe (E18). Each was verified individually, not
-  # assumed. 12 + 1 + 14 = 27. Earlier, 27 -> 28: the callee-agnostic
+  # assumed. 10 + 1 + 16 = 27. Earlier, 27 -> 28: the callee-agnostic
   # injected-transport rule (added after
   # E20 showed a `poster(...)` parameter is invisible to any method-name rule)
   # surfaced cli/commands/sync.py, which calls request_with_fallback_sync
