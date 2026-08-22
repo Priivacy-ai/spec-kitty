@@ -100,7 +100,7 @@ class HttpsBundleSource:
         target_dir.mkdir(parents=True, exist_ok=True)
 
         parsed = _safe_urlsplit(self.url)
-        if not _is_valid_https_url(parsed):
+        if not _is_valid_https_url(self.url, parsed):
             return FetchResult(
                 ok=False,
                 artifacts_written=0,
@@ -447,7 +447,7 @@ class HttpsBundleSource:
 def _artifactory_item(artifact_url: str) -> _ArtifactoryItem | None:
     """Derive exact AQL item identity from an Artifactory download URL."""
     parsed = _safe_urlsplit(artifact_url)
-    if not _is_valid_https_url(parsed):
+    if not _is_valid_https_url(artifact_url, parsed):
         return None
     assert parsed is not None
     if _ARTIFACTORY_PATH_MARKER not in parsed.path:
@@ -519,7 +519,7 @@ def _safe_urlsplit(url: str) -> SplitResult | None:
         return None
 
 
-def _is_valid_https_url(parsed: SplitResult | None) -> bool:
+def _is_valid_https_url(url: str, parsed: SplitResult | None) -> bool:
     """Return whether a parsed URL has a valid HTTPS authority."""
     if parsed is None or parsed.scheme != "https" or not parsed.hostname:
         return False
@@ -527,14 +527,18 @@ def _is_valid_https_url(parsed: SplitResult | None) -> bool:
         _ = parsed.port
     except ValueError:
         return False
+    try:
+        prepared = requests.Request(method="GET", url=url).prepare()
+    except (requests.RequestException, UnicodeError, ValueError):
+        return False
+    if prepared.url is None:
+        return False
     return _is_valid_hostname(parsed.hostname)
 
 
 def _is_valid_hostname(hostname: str) -> bool:
     """Validate an IP literal or IDNA DNS hostname before network access."""
-    if "%" in hostname or any(
-        ord(char) <= 0x20 or ord(char) == 0x7F for char in hostname
-    ):
+    if any(ord(char) <= 0x20 or ord(char) == 0x7F for char in hostname):
         return False
     try:
         ipaddress.ip_address(hostname)
@@ -542,6 +546,9 @@ def _is_valid_hostname(hostname: str) -> bool:
         pass
     else:
         return True
+
+    if "%" in hostname:
+        return False
 
     candidate = hostname[:-1] if hostname.endswith(".") else hostname
     if not candidate or len(candidate) > 253:
