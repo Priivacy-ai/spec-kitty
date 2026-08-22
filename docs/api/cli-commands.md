@@ -5459,4 +5459,78 @@ _Manage mission workflow definitions_
 │ --help          -h            Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
+
+## spec-kitty zeitgeist
+
+_Read-only access to one team's live Zeitgeist presence/focus stream._
+
+```
+Usage: spec-kitty zeitgeist [OPTIONS] COMMAND [ARGS]...
+
+Read-only access to one team's live Zeitgeist presence/focus stream.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ status  One bounded snapshot of ``repo``'s live presence/focus state.        │
+│ watch   Print each live presence/focus frame for ``repo`` as it arrives,     │
+│         bounded by ``--timeout`` idleness and ``--max-frames`` count.        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist status
+
+_One bounded snapshot of ``repo``'s live presence/focus state._
+
+```
+Usage: spec-kitty zeitgeist status [OPTIONS] REPO
+
+One bounded snapshot of ``repo``'s live presence/focus state.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
+│                      under (the one explicit team context).                  │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --timeout          FLOAT RANGE [x>=0.001]  Seconds to listen before          │
+│                                            reporting (clamped to <= 90s, the │
+│                                            honest reported-live ceiling).    │
+│                                            [default: 2.0]                    │
+│ --json                                     Emit plain JSON instead of a      │
+│                                            human-readable summary.           │
+│ --help     -h                              Show this message and exit.       │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty zeitgeist watch
+
+_Print each live presence/focus frame for ``repo`` as it arrives, bounded by ``--timeout`` idleness and ``--max-frames`` count._
+
+```
+Usage: spec-kitty zeitgeist watch [OPTIONS] REPO
+
+Print each live presence/focus frame for ``repo`` as it arrives, bounded by
+``--timeout`` idleness and ``--max-frames`` count.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
+│                      under (the one explicit team context).                  │
+│                      [required]                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --timeout             FLOAT RANGE [x>=0.001]  Idle seconds before the watch  │
+│                                               ends (clamped to <= 90s, the   │
+│                                               honest reported-live ceiling). │
+│                                               [default: 5.0]                 │
+│ --max-frames          INTEGER RANGE [x>=1]    Stop after this many frames    │
+│                                               even if the window has not     │
+│                                               elapsed.                       │
+│                                               [default: 500]                 │
+│ --json                                        Emit plain JSON instead of a   │
+│                                               human-readable summary.        │
+│ --help        -h                              Show this message and exit.    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
 <!-- END GENERATED -->

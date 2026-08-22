@@ -19,6 +19,18 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **`spec-kitty zeitgeist status`/`watch` and a hidden stdio MCP adapter give a
+  terminal or an MCP client bounded, read-only access to one team's live
+  Zeitgeist presence/focus stream (`Z7-C`).** Both surfaces call the same
+  shared `zeitgeist_client.subscription` functions over the already-landed
+  `filtered_stream.FilteredStream` client — one team context per call (the
+  existing `credentials.py` checkout, never a `--relay-url`/`--token` flag),
+  a <=90s honest reported-live timeout ceiling, a bounded frame count on
+  `watch`, and no payload ever written to disk. The MCP adapter
+  (`zeitgeist_client/mcp_stdio.py`) uses the official `mcp` SDK
+  (`mcp>=1.27.1,<2.0.0`) and exposes the matching `zeitgeist_status`/
+  `zeitgeist_watch` tools.
+
 - **Spec Kitty now ships a `spk-doctrine-show-me` skill that guides any agent to
   explain work with compact, checkable visuals — the smallest diagram,
   pseudocode, or tree that answers the question — recommended from the specify

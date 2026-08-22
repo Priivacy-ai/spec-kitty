@@ -235,6 +235,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import validate_tasks as validate_tasks_module
     from . import verify as verify_module
     from . import workflow as workflow_module
+    from . import zeitgeist as zeitgeist_module
     from specify_cli import orchestrator_api as orchestrator_api_module
     from specify_cli.saas.rollout import is_saas_sync_enabled
 
@@ -312,6 +313,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)
     app.command()(verify_module.verify_setup)
     app.add_typer(workflow_module.app, name="workflow", help="Manage mission workflow definitions")
+    app.add_typer(zeitgeist_module.app, name="zeitgeist", help="Read-only access to one team's live Zeitgeist presence/focus stream.")
     app.add_typer(profiles_cmd_module.app, name="profiles")
     app.command(name="dispatch", help="Dispatch a request to a governed Op (canonical surface).")(dispatch_module.dispatch)
     app.add_typer(profile_invocation_module.profile_invocation_app, name="profile-invocation")
