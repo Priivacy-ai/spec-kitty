@@ -1,19 +1,19 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M0N1QPRQ9S7C9ZVR4BDBXXE2",
-  "materialized_at": "2026-08-22T15:34:23.767214+00:00",
+  "event_count": 10,
+  "last_event_id": "01M0N1R89GG4B2GEGW9WDNQYTG",
+  "materialized_at": "2026-08-22T15:34:41.712248+00:00",
   "mission_number": "",
   "mission_slug": "legacy-cleanup-split-dossier-queue-migration-01M0MGHB",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 2
   },
   "work_packages": {
@@ -32,9 +32,14 @@
     "WP02": {
       "actor": "claude",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01M0N1QPRQ9S7C9ZVR4BDBXXE2",
-      "last_transition_at": "2026-08-22T15:34:23.767214+00:00"
+      "lane": "approved",
+      "last_event_id": "01M0N1R89GG4B2GEGW9WDNQYTG",
+      "last_transition_at": "2026-08-22T15:34:41.712248+00:00",
+      "review_result": {
+        "reference": "WP02: red-first reproduced independently (AttributeError at diagnose.py:307, TypeError at emitter.py:2547); FR-011 single shared predicate confirmed; NFR-002 dual visibility contracts verified; 2 non-blocking findings - canonical validator hash-format relaxation (disclose in PR body) and assert-vs-raise style inconsistency (severity 2)",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
     },
     "WP03": {
       "actor": "finalize-tasks",
