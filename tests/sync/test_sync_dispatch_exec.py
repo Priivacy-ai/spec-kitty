@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -27,7 +28,7 @@ from kernel.clock import now_utc, timedelta
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.sync import _AdmissionGatedNoDelivery, _EventSyncScope
 from specify_cli.delivery.config import DefaultReceiverFactory
-from specify_cli.delivery.dispatcher import DispatchSummary
+from specify_cli.delivery.dispatcher import DispatchFailure, DispatchSummary
 from specify_cli.delivery.receivers import TeamspaceReceiver
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
@@ -328,3 +329,45 @@ class TestProtocolMismatchHaltsAndGuides:
             row = ledger.get(event_id, result.target_id or "")
         assert row is not None
         assert row.status == "failed_transient"
+
+    def test_mixed_local_failure_and_412_halts_before_next_batch(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A local terminal row must not hide a correlated 412 halt signal."""
+        mixed = DispatchSummary(
+            target_id="target",
+            selected=2,
+            delivered=0,
+            duplicate=0,
+            pending=0,
+            rejected=0,
+            transient=1,
+            terminal_failed=1,
+            failures=(
+                DispatchFailure(
+                    event_id="remote",
+                    outcome="transient",
+                    http_status=412,
+                    error="Pin this CLI.",
+                ),
+                DispatchFailure(event_id="local", outcome="terminal_failed"),
+            ),
+            retryable_event_ids=("remote",),
+        )
+        calls = 0
+
+        def _dispatch_once(**_: object) -> DispatchSummary:
+            nonlocal calls
+            calls += 1
+            if calls > 1:
+                pytest.fail("batch driver continued after HTTP 412")
+            return mixed
+
+        monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", _dispatch_once)
+        monkeypatch.setattr("specify_cli.cli.commands.sync._EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+        from specify_cli.sync.sync_dispatch_exec import _run_dispatch_batches
+
+        result = _run_dispatch_batches(SimpleNamespace(store=object(), context=object()), object(), object())
+
+        assert calls == 1
+        assert result.transient == 1
+        assert result.terminal_failed == 1

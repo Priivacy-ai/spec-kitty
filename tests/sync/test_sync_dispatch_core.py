@@ -269,8 +269,17 @@ class TestBatchIsProtocolMismatch:
     def test_wholesale_412_transient_is_protocol_mismatch(self) -> None:
         assert _batch_is_protocol_mismatch(_summary(selected=2, transient=2, failures=_mismatch_failures(2))) is True
 
-    def test_partial_412_is_not_protocol_mismatch(self) -> None:
-        assert _batch_is_protocol_mismatch(_summary(selected=2, transient=1, failures=_mismatch_failures(1))) is False
+    def test_412_with_local_terminal_failure_is_protocol_mismatch(self) -> None:
+        summary = _summary(
+            selected=2,
+            transient=1,
+            terminal_failed=1,
+            failures=(
+                *_mismatch_failures(1),
+                DispatchFailure(event_id="local", outcome="terminal_failed"),
+            ),
+        )
+        assert _batch_is_protocol_mismatch(summary) is True
 
     def test_wholesale_413_is_not_protocol_mismatch(self) -> None:
         failures = tuple(DispatchFailure(event_id=f"e{i}", outcome="transient", http_status=413) for i in range(2))

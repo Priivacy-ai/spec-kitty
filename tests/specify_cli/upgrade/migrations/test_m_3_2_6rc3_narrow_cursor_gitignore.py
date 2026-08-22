@@ -148,7 +148,10 @@ def test_apply_without_gitignore_creates_file_with_narrow_entries(tmp_path: Path
 
 def test_apply_removes_blanket_and_backfills_narrow_entries(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
-    _write_gitignore(tmp_path, "node_modules/", ".cursor/", ".env")
+    tmp_path.joinpath(".gitignore").write_text(
+        "node_modules/\n\n# Added by Spec Kitty CLI (auto-managed)\n.cursor/\n.env\n",
+        encoding="utf-8",
+    )
 
     result = NarrowCursorGitignoreMigration().apply(tmp_path)
 
@@ -185,11 +188,11 @@ def test_apply_adds_only_missing_narrow_entry(tmp_path: Path) -> None:
 
 
 def test_apply_removes_every_blanket_form(tmp_path: Path) -> None:
-    """`.cursor/**`-style variants block the directory just as hard as
-    `.cursor/` and must be removed; narrower and negated lines survive."""
+    """Only the exact legacy manager row is owned; variants are preserved."""
     _init_git_repo(tmp_path)
     _write_gitignore(
         tmp_path,
+        ".cursor/",
         ".cursor/**",
         "**/.cursor/",
         "/.cursor/",
@@ -202,11 +205,34 @@ def test_apply_removes_every_blanket_form(tmp_path: Path) -> None:
 
     assert result.success
     lines = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8").splitlines()
-    assert not any(_is_blanket_cursor_line(line) for line in lines)
+    assert ".cursor/" not in lines
+    assert ".cursor/**" in lines
+    assert "**/.cursor/" in lines
+    assert "/.cursor/" in lines
     assert "!.cursor/rules/contributing.mdc" in lines
     assert ".cursor/plans" in lines
     assert "# .cursor/ is tooling state" in lines
-    assert sum("blanket line" in c for c in result.changes_made) == 3
+    assert sum("managed blanket line" in c for c in result.changes_made) == 1
+    assert len(result.warnings) == 3
+    assert result.manual_review_required is True
+
+
+def test_apply_preserves_unmarked_operator_blanket_and_secret_coverage(
+    tmp_path: Path,
+) -> None:
+    _init_git_repo(tmp_path)
+    tmp_path.joinpath(".gitignore").write_text(".cursor/\n", encoding="utf-8")
+    secret = tmp_path / ".cursor" / "local-secrets.json"
+    secret.parent.mkdir()
+    secret.write_text("secret\n", encoding="utf-8")
+
+    result = NarrowCursorGitignoreMigration().apply(tmp_path)
+
+    assert result.success
+    assert result.manual_review_required is True
+    assert ".cursor/" in tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
+    assert _is_ignored(tmp_path, ".cursor/local-secrets.json")
+    assert any("Preserved operator-owned" in warning for warning in result.warnings)
 
 
 def test_apply_only_collapses_blank_lines_at_removal_site(tmp_path: Path) -> None:
@@ -216,7 +242,7 @@ def test_apply_only_collapses_blank_lines_at_removal_site(tmp_path: Path) -> Non
     _init_git_repo(tmp_path)
     unrelated_run = "a\n\n\n\nb\n"
     tmp_path.joinpath(".gitignore").write_text(
-        unrelated_run + "\n.cursor/\n\nnode_modules/\n",
+        unrelated_run + "\n# Added by Spec Kitty CLI (auto-managed)\n.cursor/\n\nnode_modules/\n",
         encoding="utf-8",
     )
 
@@ -250,7 +276,7 @@ def test_dry_run_reports_without_mutating(tmp_path: Path) -> None:
     result = NarrowCursorGitignoreMigration().apply(tmp_path, dry_run=True)
 
     assert result.success
-    assert any("Would remove blanket line" in c for c in result.changes_made)
+    assert any("Would remove managed blanket line" in c for c in result.changes_made)
     assert any("Would add gitignore entry" in c for c in result.changes_made)
     content = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
     assert ".cursor/" in content  # unchanged
@@ -260,6 +286,44 @@ def test_can_apply_rejects_nonexistent_path() -> None:
     ok, reason = NarrowCursorGitignoreMigration().can_apply(Path("/nonexistent/path"))
     assert not ok
     assert "does not exist" in reason
+
+
+@pytest.mark.parametrize("dangling", [False, True])
+def test_symlinked_gitignore_is_rejected_without_external_write(tmp_path: Path, dangling: bool) -> None:
+    _init_git_repo(tmp_path)
+    external = tmp_path.parent / f"external-{tmp_path.name}.txt"
+    if not dangling:
+        external.write_text("outside\n", encoding="utf-8")
+    tmp_path.joinpath(".gitignore").symlink_to(external)
+
+    migration = NarrowCursorGitignoreMigration()
+    assert migration.detect(tmp_path) is True
+    ok, reason = migration.can_apply(tmp_path)
+    result = migration.apply(tmp_path)
+
+    assert ok is False
+    assert "symlink" in reason.lower()
+    assert result.success is False
+    if not dangling:
+        assert external.read_text(encoding="utf-8") == "outside\n"
+    else:
+        assert not external.exists()
+
+
+def test_invalid_utf8_is_rejected_without_byte_loss(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    raw = b"node_modules/\n\xff.cursor/\n"
+    tmp_path.joinpath(".gitignore").write_bytes(raw)
+
+    migration = NarrowCursorGitignoreMigration()
+    assert migration.detect(tmp_path) is True
+    ok, reason = migration.can_apply(tmp_path)
+    result = migration.apply(tmp_path)
+
+    assert ok is False
+    assert "UTF-8" in reason
+    assert result.success is False
+    assert tmp_path.joinpath(".gitignore").read_bytes() == raw
 
 
 def test_migration_fires_and_unignores_tracked_rule_file(tmp_path: Path) -> None:

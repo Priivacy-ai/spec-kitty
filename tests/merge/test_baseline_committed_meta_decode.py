@@ -42,6 +42,18 @@ def test_committed_meta_non_object_routes_through_kernel_decode(tmp_path: Path) 
 
 
 def test_committed_meta_object_is_returned(tmp_path: Path) -> None:
-    with patch.object(baseline, "run_command", _git_show_returning('{"mission_number": 7}')):
+    with (
+        patch.object(
+            baseline,
+            "run_command",
+            _git_show_returning('{"mission_number": 7}'),
+        ),
+        patch.object(
+            baseline,
+            "decode_meta",
+            wraps=baseline.decode_meta,
+        ) as decode_mock,
+    ):
         meta = _read_committed_meta_json(tmp_path, "main", "kitty-specs/m/meta.json", "m")
     assert meta == {"mission_number": 7}
+    decode_mock.assert_called_once_with('{"mission_number": 7}', on_malformed="raise")

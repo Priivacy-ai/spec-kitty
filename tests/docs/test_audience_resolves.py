@@ -67,10 +67,7 @@ def test_dangling_reference_is_detected(tmp_path: Path) -> None:
     report = resolve_audiences(docs_root=repo / "docs", repo_root=repo)
 
     assert report.checked_count > 0
-    assert (
-        DanglingReference(from_path="docs/page.md", to_path=_MISSING_REL)
-        in report.dangling_references
-    )
+    assert DanglingReference(from_path="docs/page.md", to_path=_MISSING_REL) in report.dangling_references
 
 
 def test_valid_scalar_reference_resolves(tmp_path: Path) -> None:
@@ -124,10 +121,7 @@ def test_reference_outside_catalog_is_dangling(tmp_path: Path) -> None:
 
     report = resolve_audiences(docs_root=repo / "docs", repo_root=repo)
 
-    assert (
-        DanglingReference(from_path="docs/page.md", to_path="docs/elsewhere.md")
-        in report.dangling_references
-    )
+    assert DanglingReference(from_path="docs/page.md", to_path="docs/elsewhere.md") in report.dangling_references
 
 
 def test_zero_examined_walk_raises(tmp_path: Path) -> None:
@@ -159,9 +153,7 @@ def test_strict_flag_reds_on_dangling(tmp_path: Path) -> None:
         dangling=True,
     )
 
-    exit_code = main(
-        ["--repo-root", str(repo), "--docs-root", str(repo / "docs"), "--strict"]
-    )
+    exit_code = main(["--repo-root", str(repo), "--docs-root", str(repo / "docs"), "--strict"])
 
     assert exit_code != 0
 
@@ -174,9 +166,7 @@ def test_strict_flag_stays_green_on_clean_tree(tmp_path: Path) -> None:
         dangling=False,
     )
 
-    exit_code = main(
-        ["--repo-root", str(repo), "--docs-root", str(repo / "docs"), "--strict"]
-    )
+    exit_code = main(["--repo-root", str(repo), "--docs-root", str(repo / "docs"), "--strict"])
 
     assert exit_code == 0
 
@@ -222,9 +212,32 @@ class TestDiffScopeAudienceCLI:
 
         assert exit_code == 1
 
-    def test_unchanged_preexisting_dangling_reference_passes(
-        self, tmp_path: Path
-    ) -> None:
+    def test_changed_unicode_path_dangling_reference_reds(self, tmp_path: Path) -> None:
+        repo = tmp_path / "repo"
+        _stage_catalog(repo)
+        base_sha = init_git_repo_with_base(repo)
+        _write(
+            repo / "docs" / "café.md",
+            ["audience:", f"  - {_MISSING_REL}"],
+            body="changed",
+        )
+        commit_all_changes(repo, "add Unicode dangling audience reference")
+
+        exit_code = main(
+            [
+                "--repo-root",
+                str(repo),
+                "--docs-root",
+                str(repo / "docs"),
+                "--strict",
+                "--changed-from",
+                base_sha,
+            ]
+        )
+
+        assert exit_code == 1
+
+    def test_unchanged_preexisting_dangling_reference_passes(self, tmp_path: Path) -> None:
         repo = _stage_repo(
             tmp_path,
             audience=["audience:", f"  - {_MISSING_REL}"],

@@ -110,6 +110,28 @@ def test_apply_is_idempotent(tmp_path: Path) -> None:
     assert _read_gitignore(tmp_path).count(_LINT_REPORT_ENTRY) == 1
 
 
+@pytest.mark.parametrize("dangling", [False, True])
+def test_symlinked_gitignore_is_rejected_without_external_write(tmp_path: Path, dangling: bool) -> None:
+    _init_git_repo(tmp_path)
+    external = tmp_path.parent / f"lint-external-{tmp_path.name}.txt"
+    if not dangling:
+        external.write_text("outside\n", encoding="utf-8")
+    tmp_path.joinpath(".gitignore").symlink_to(external)
+
+    migration = LintReportGitignoreBackfillMigration()
+    assert migration.detect(tmp_path) is True
+    ok, reason = migration.can_apply(tmp_path)
+    result = migration.apply(tmp_path)
+
+    assert ok is False
+    assert "symlink" in reason.lower()
+    assert result.success is False
+    if not dangling:
+        assert external.read_text(encoding="utf-8") == "outside\n"
+    else:
+        assert not external.exists()
+
+
 def test_backfill_fires_on_already_current_3_2_6rc3_project(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
     _write_metadata(tmp_path, "3.2.6rc3")
