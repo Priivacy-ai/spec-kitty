@@ -1300,11 +1300,29 @@ class _TransitionGateInputs:
     (:func:`_mt_resolve_transition_gate_verdicts`) is resolved alongside these
     inputs but returned separately — it is transient bookkeeping, not part of
     the shared per-transition surface.
+
+    ``gate_repo_root`` and ``scope_source_root`` are deliberately DIFFERENT
+    roots (issue #3611 fix): ``gate_repo_root`` is where the scoped test
+    subprocess actually RUNS (the worktree, when one exists — the run must
+    execute against the code under review); ``scope_source_root`` is where
+    ``ScopeSource`` SELECTION happens and is always ``st.main_repo_root`` —
+    the SAME root ``implement_capture_baseline`` passes to
+    ``resolve_scope_source`` at capture time
+    (``workflow_executor.py``'s ``resolve_scope_source(main_repo_root)``).
+    Resolving selection from ``gate_repo_root`` (the worktree) instead let a
+    lane worktree whose checked-out ``.kittify/config.yaml`` lacks
+    ``review.test_command`` silently diverge from the planning root's
+    selection — capture picks ``DeclaredCommandScopeSource``, the head gate
+    picks ``GateCoverageScopeSource`` for the SAME WP — which defeats the
+    ``SOURCE_MISMATCH`` safety check before it ever gets a chance to compare
+    identities. Splitting the two roots keeps selection stable while still
+    running the tests where the changes actually live.
     """
 
     worktree_path: Path | None
     changed_files: tuple[str, ...]
     gate_repo_root: Path
+    scope_source_root: Path
 
 
 @dataclass(frozen=True)
@@ -1419,7 +1437,7 @@ def _mt_build_transition_gate_context(
     """Assemble the ``TransitionGateContext`` handed to every handler (data-model §8)."""
     return TransitionGateContext(
         changed_files=inputs.changed_files,
-        scope_source=_mt_resolve_scope_source(inputs.gate_repo_root),
+        scope_source=_mt_resolve_scope_source(inputs.scope_source_root),
         baseline=_mt_resolve_gate_baseline(st),
         repo_root=inputs.gate_repo_root,
         force=st.force,
@@ -1602,6 +1620,7 @@ def _mt_resolve_transition_gate_inputs(
         worktree_path=worktree_path,
         changed_files=changed_files,
         gate_repo_root=worktree_path or st.main_repo_root,
+        scope_source_root=st.main_repo_root,
     )
     return inputs, dirty_before
 
