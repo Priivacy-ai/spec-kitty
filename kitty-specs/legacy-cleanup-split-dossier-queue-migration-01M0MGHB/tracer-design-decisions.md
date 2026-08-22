@@ -152,3 +152,45 @@ stays in `plan.md`:
   `events_emitted` (AC2); (b) an `autospec=True` mock, if added, is supplementary
   only and must assert on a try/except-surviving observable (`events_emitted`
   count or `mock_emit.call_args`), never merely that the outer call didn't raise.
+
+## Round 2 — fresh-sweep plan review (plan-fresh.yaml, 2026-08-22)
+
+- **`diagnose.py` fix promoted to a real FR (PLAN-FRESH-001, sev 4)**: round 1's
+  `diagnose.py` coordinated fix (predicate-guarded branch in
+  `diagnose.py::_validate_payload` + new `tests/sync/test_diagnose.py`
+  regression test) was real, necessary, verified work but had no owning FR in
+  spec.md's FR-001..FR-010 table, and `tests/sync/test_diagnose.py` was
+  missing from NFR-003's bounded test-scope list — leaving it at real risk of
+  being silently dropped when tasks.md generates WPs from the FR table.
+  **Fix**: added `FR-011` to spec.md naming the `diagnose.py::_validate_payload`
+  coordinated fix and its `tests/sync/test_diagnose.py` regression test
+  explicitly, added a cross-reference to FR-011 in spec.md's Key Entities
+  "Reconciling FR-006 and FR-007" paragraph, and added
+  `tests/sync/test_diagnose.py` to NFR-003's bounded scope list. Re-pointed
+  every plan.md citation of this work (Technical Context, Scale/Scope, Seam
+  Identification, the "diagnose.py coordinated fix" section, Phasing Phase 3,
+  PR Shape table) from bare "plan-review remediation, closes PLAN-ARCH-001" to
+  "FR-011". Split the Red-First/ATDD Test Mapping table's FR-006 row: the
+  `test_diagnose.py` regression test now has its own FR-011 row with its own
+  revert-behavior justification; FR-006's row keeps only the emitter-side test
+  and the `test_snapshot_emit.py` rewrite (PLAN-ARCH-002), which stays
+  correctly FR-006-scoped since it exercises the same sentinel change on the
+  emitter side, not diagnose.py.
+- **Predicate unification (PLAN-FRESH-002, sev 3)**: the plan's
+  `emitter.py::_validate_payload` code sample in "FR-006/FR-007 sentinel
+  shape" still checked the sentinel via a raw `rules is
+  _DOSSIER_VALIDATE_EVENT_DELEGATE` identity comparison, while the
+  `diagnose.py` remediation section defined and used a wrapped
+  `is_dossier_delegate(rules)` predicate — claiming behavioral parity between
+  the two files without actually sharing one implementation. **Fix**: moved
+  the `is_dossier_delegate()` definition up to sit immediately after the
+  sentinel's own definition (before its first use), updated
+  `emitter.py::_validate_payload`'s code sample to call
+  `is_dossier_delegate(rules)` instead of the raw `is` comparison, and removed
+  the now-duplicate `is_dossier_delegate()` definition from the `diagnose.py`
+  coordinated-fix section (it now just references the one definition above).
+  Both consumers share one predicate; only the predicate's own body references
+  `_DOSSIER_VALIDATE_EVENT_DELEGATE` directly. Also fixed a stray inline
+  comment that referenced a nonexistent `_is_dossier_delegate` (underscore,
+  private) name left over from spec.md's illustrative Key Entities sketch —
+  the plan's actual, binding name is the public `is_dossier_delegate()`.

@@ -48,7 +48,7 @@ scope.
 `test_snapshot_emit.py`, which FR-006 requires rewriting — see
 "Mission-Specific Design Decisions" below), `tests/sync/test_events_namespace.py`,
 `tests/sync/test_dossier_pipeline.py`, `tests/sync/test_diagnose.py` (new
-regression test closing the FR-006/FR-007 `diagnose.py` gap — see below),
+regression test closing FR-011's `diagnose.py` gap — see below),
 and `tests/architectural/` (new guard test + `test_shared_package_boundary.py`),
 per NFR-003 and the charter's "Run only the affected test packages" rule.
 Full `pytest tests/` reserved for pre-merge/post-merge validation only.
@@ -78,7 +78,8 @@ scope), C-002 (no transitional deprecated wrapper).
 (`_PAYLOAD_RULES` dossier entries + `_validate_payload`) are touched;
 `src/specify_cli/sync/diagnose.py` — a second, independent consumer of the
 same module-level `_PAYLOAD_RULES` dict, requiring a small coordinated
-change, added by plan-review remediation, closes PLAN-ARCH-001 — see
+change, added by plan-review remediation (closes PLAN-ARCH-001; now traced
+to spec.md FR-011, added in the PLAN-FRESH-001 remediation round) — see
 "FR-006/FR-007 sentinel shape" below), plus
 `src/specify_cli/sync/dossier_pipeline.py` (535 lines) is read-only evidence
 (its call sites do not change, see FR-004 analysis below) and
@@ -180,9 +181,9 @@ src/specify_cli/
 │   ├── emitter.py            # FR-006/FR-007: _PAYLOAD_RULES sentinel +
 │   │                         #   is_dossier_delegate() + _validate_payload
 │   │                         #   delegation branch + corrected type annotation
-│   ├── diagnose.py           # plan-review remediation (closes PLAN-ARCH-001):
-│   │                         #   is_dossier_delegate()-guarded branch in
-│   │                         #   diagnose.py::_validate_payload
+│   ├── diagnose.py           # FR-011 (plan-review remediation, closes
+│   │                         #   PLAN-ARCH-001): is_dossier_delegate()-
+│   │                         #   guarded branch in diagnose.py::_validate_payload
 │   └── dossier_pipeline.py   # READ-ONLY evidence: existing call sites prove
 │                             #   FR-004's promoted kwargs are sufficient;
 │                             #   zero lines change here
@@ -203,7 +204,7 @@ tests/
 │   │                              #   test(s) asserting AC1/AC2 content;
 │   │                              #   existing plain-Mock-patched tests
 │   │                              #   stay as-is for their own (unrelated) purpose
-│   └── test_diagnose.py          # plan-review remediation (closes
+│   └── test_diagnose.py          # FR-011 (plan-review remediation, closes
 │                                  #   PLAN-ARCH-001's coverage gap): new
 │                                  #   dossier-event regression test(s) through
 │                                  #   diagnose_events()
@@ -238,7 +239,8 @@ no mission-step-contract/action-index surface is touched.
   under `src/specify_cli/` — the "Internal Runtime Boundary" the charter
   describes as "CLI-owned implementation code, not an external shared
   dependency." **`sync/diagnose.py` is added to this list by plan-review
-  remediation (closes PLAN-ARCH-001, PLAN-ARCH-004)**: it is a second,
+  remediation (closes PLAN-ARCH-001, PLAN-ARCH-004; now traced to spec.md
+  FR-011)**: it is a second,
   in-seam consumer of `emitter.py`'s module-level `_PAYLOAD_RULES` dict
   (imported directly at `diagnose.py:51`, not re-implemented), so it shares
   the same seam as `emitter.py` itself — the FR-006/FR-007 sentinel change
@@ -360,7 +362,7 @@ loop misinterpreting the new dossier value shape.
 module-level in `emitter.py` next to `_PAYLOAD_RULES`:
 
 ```python
-_DOSSIER_VALIDATE_EVENT_DELEGATE = object()  # sentinel: see _is_dossier_delegate
+_DOSSIER_VALIDATE_EVENT_DELEGATE = object()  # sentinel: see is_dossier_delegate() below
 
 _DOSSIER_EVENT_TYPES = frozenset({
     "MissionDossierArtifactIndexed",
@@ -369,6 +371,24 @@ _DOSSIER_EVENT_TYPES = frozenset({
     "MissionDossierParityDriftDetected",
 })
 ```
+
+**Predicate-unification (plan-review remediation, round 2, closes
+PLAN-FRESH-002)**: a single public predicate wraps the sentinel's identity
+check, defined once, module-level in `emitter.py`, alongside the sentinel:
+
+```python
+def is_dossier_delegate(rules: object) -> bool:
+    """True if *rules* is the dossier validate_event() delegation sentinel."""
+    return rules is _DOSSIER_VALIDATE_EVENT_DELEGATE
+```
+
+Every consumer that needs to recognize the sentinel — `emitter.py`'s own
+`_validate_payload` below, and (per FR-011's coordinated fix, see
+"`diagnose.py` coordinated fix" below) `diagnose.py::_validate_payload` —
+calls this one predicate rather than re-implementing the `is` comparison
+independently. Only `is_dossier_delegate()`'s own body references
+`_DOSSIER_VALIDATE_EVENT_DELEGATE` directly; no other call site anywhere in
+this mission's diff does.
 
 Each of the four dossier entries in `_PAYLOAD_RULES` becomes:
 
@@ -399,10 +419,16 @@ def _validate_payload(self, event_type: str, payload: dict[str, Any]) -> bool:
     rules = _PAYLOAD_RULES.get(event_type)
     if rules is None:
         return True
-    if rules is _DOSSIER_VALIDATE_EVENT_DELEGATE:
+    if is_dossier_delegate(rules):
         return self._validate_dossier_payload(event_type, payload)
     # ... existing generic required/validators loop, unchanged ...
 ```
+
+(Round-2 plan-review remediation, closes PLAN-FRESH-002: this sample now
+calls the shared `is_dossier_delegate()` predicate defined above instead of
+a raw `rules is _DOSSIER_VALIDATE_EVENT_DELEGATE` identity comparison, so
+`emitter.py::_validate_payload` and `diagnose.py::_validate_payload` share
+one predicate rather than each open-coding the sentinel check.)
 
 `_validate_dossier_payload` is a small new private method that performs the
 lazy local import (matching this file's existing convention — e.g.
@@ -455,7 +481,8 @@ non-dict sentinel value; `dict[str, Any] | object` is honest about the
 actual union without inventing new public API surface.)
 
 **`diagnose.py` coordinated fix (plan-review remediation, closes
-PLAN-ARCH-001 and the `diagnose.py` half of PLAN-ARCH-004)**: the sentinel
+PLAN-ARCH-001 and the `diagnose.py` half of PLAN-ARCH-004; traced to
+spec.md FR-011 as of the round-2 PLAN-FRESH-001 remediation)**: the sentinel
 design above was verified only against `emitter.py::_validate_payload`. A
 repo-wide `grep -rn "_PAYLOAD_RULES" src/ tests/` (re-run during this
 remediation pass — see the consumer inventory table under "Technical
@@ -476,17 +503,15 @@ offline queue (the normal case for any active mission using dossier
 tracking) crashes `diagnose_events()` with an uncaught `AttributeError:
 'object' object has no attribute 'get'`.
 
-Fix mechanism: expose a small public predicate alongside the sentinel in
-`emitter.py`:
-
-```python
-def is_dossier_delegate(rules: object) -> bool:
-    """True if *rules* is the dossier validate_event() delegation sentinel."""
-    return rules is _DOSSIER_VALIDATE_EVENT_DELEGATE
-```
-
-`diagnose.py::_validate_payload` imports and calls this predicate before
-doing any `rules["required"]`/`rules.get(...)` access, and delegates to
+Fix mechanism: `diagnose.py::_validate_payload` imports the
+`is_dossier_delegate()` predicate already defined module-level in
+`emitter.py`, alongside the sentinel (see "FR-006/FR-007 sentinel shape"
+above — `emitter.py::_validate_payload` itself now also calls this exact
+predicate, per the round-2 PLAN-FRESH-002 remediation, so both consumers
+share one definition and only the predicate's own body references
+`_DOSSIER_VALIDATE_EVENT_DELEGATE` directly). `diagnose.py::_validate_payload`
+calls this predicate before doing any `rules["required"]`/`rules.get(...)`
+access, and delegates to
 `spec_kitty_events.conformance.validate_event()` the same way
 `emitter.py::_validate_dossier_payload` does — folding the returned
 `ConformanceResult`'s violations into `diagnose.py`'s existing `errors:
@@ -519,9 +544,10 @@ exercises a dossier event type — grepped: zero `dossier` hits) that runs
 `diagnose_events()` against a dossier-typed event dict, both valid and
 invalid payload, asserting (a) no crash and (b) the invalid case reports a
 real violation string in `DiagnoseResult.errors` via the `ConformanceResult`
-translation path. This is this mission's ATDD red-first proof for the
-`diagnose.py` half of FR-006 — see the FR-006 row in "Red-First / ATDD Test
-Mapping" below.
+translation path. This is this mission's ATDD red-first proof for FR-011
+(the `diagnose.py` coordinated fix, spec.md FR-011 as of the round-2
+PLAN-FRESH-001 remediation) — see the new FR-011 row in "Red-First / ATDD
+Test Mapping" below.
 
 **`test_snapshot_emit.py` rewrite required (plan-review remediation, closes
 PLAN-ARCH-002)**:
@@ -812,11 +838,11 @@ touched surface identified above):
 |---|---|
 | `src/specify_cli/dossier/events.py` | ~180 (delete ~140 lines of mirror classes + `_consume_legacy_values`; ~40 lines of signature/import changes across both bridged emitters) |
 | `src/specify_cli/sync/emitter.py` | ~100 (delete ~70 lines of 4 hand-maintained dict entries; add ~50 lines: sentinel, `_DOSSIER_EVENT_TYPES`, `is_dossier_delegate()`, `_validate_dossier_payload`, branch in `_validate_payload`, corrected `_PAYLOAD_RULES` type annotation) |
-| `src/specify_cli/sync/diagnose.py` (plan-review remediation, closes PLAN-ARCH-001) | ~15 (import `is_dossier_delegate`; early-return branch in `diagnose.py::_validate_payload` mirroring `emitter.py`'s branch, folding `ConformanceResult` violations into the existing `errors` accumulator) |
+| `src/specify_cli/sync/diagnose.py` (FR-011; plan-review remediation, closes PLAN-ARCH-001) | ~15 (import `is_dossier_delegate`; early-return branch in `diagnose.py::_validate_payload` mirroring `emitter.py`'s branch, folding `ConformanceResult` violations into the existing `errors` accumulator) |
 | `tests/dossier/test_events.py` | ~10 (import re-point only, FR-009) |
 | `tests/sync/test_dossier_pipeline.py` | ~80-120 (new FR-004 regression test(s): a real, unmocked end-to-end test asserting AC1/AC2 payload/behavior content, plus an optional supplementary `autospec=True` test) |
 | `tests/dossier/test_snapshot_emit.py` (plan-review remediation, closes PLAN-ARCH-002) | ~15 (rewrite `test_emit_rule_wires_canonical_validator_for_hash_fields` to assert against the `ConformanceResult` delegation behavior instead of subscripting `_PAYLOAD_RULES[...]["validators"]` directly) |
-| `tests/sync/test_diagnose.py` (plan-review remediation, closes PLAN-ARCH-001's coverage gap) | ~40-60 (new regression test(s) driving a dossier event, valid and invalid payload, through `diagnose_events()`) |
+| `tests/sync/test_diagnose.py` (FR-011; plan-review remediation, closes PLAN-ARCH-001's coverage gap) | ~40-60 (new regression test(s) driving a dossier event, valid and invalid payload, through `diagnose_events()`) |
 | `tests/architectural/test_dossier_emitter_positional_guard.py` (new) | ~150-200 (detector + clean-tree assertion + positive-control fixture + docstring) |
 | `tests/dossier/test_emitter_adapter.py`, `tests/sync/test_events_namespace.py` | 0 (verified no change needed, FR-009) |
 
@@ -886,19 +912,22 @@ this section states the *dependencies*, not the final WP numbering).
 4. **Phase 3 — FR-006/FR-007: `validate_event` delegation with sentinel
    reconciliation, plus its full coordinated blast radius (plan-review
    remediation folds PLAN-ARCH-001/002/003 into this single phase).** In
-   `sync/emitter.py`: add the sentinel + 4 dossier entries pointing at it,
-   add `is_dossier_delegate()`, add `_validate_dossier_payload`, add the
-   early-return branch in `_validate_payload`, and correct
-   `_PAYLOAD_RULES`'s type annotation to `dict[str, dict[str, Any] |
-   object]` (closes PLAN-ARCH-003) (see "FR-006/FR-007 sentinel shape"
-   above). **In the same commit** — not a follow-up phase, since an
-   intermediate commit that lands the sentinel alone would leave
-   `diagnose.py` crashing on any dossier event and
+   `sync/emitter.py`: add the sentinel, add `is_dossier_delegate()`, add
+   the 4 dossier entries pointing at the sentinel, add
+   `_validate_dossier_payload`, add the early-return branch in
+   `_validate_payload` (now calling `is_dossier_delegate(rules)` rather
+   than a raw `is` comparison, per round-2 remediation closing
+   PLAN-FRESH-002), and correct `_PAYLOAD_RULES`'s type annotation to
+   `dict[str, dict[str, Any] | object]` (closes PLAN-ARCH-003) (see
+   "FR-006/FR-007 sentinel shape" above). **In the same commit** — not a
+   follow-up phase, since an intermediate commit that lands the sentinel
+   alone would leave `diagnose.py` crashing on any dossier event and
    `test_snapshot_emit.py` red: update
-   `src/specify_cli/sync/diagnose.py::_validate_payload` to call
-   `is_dossier_delegate()` before any dict-shaped access and delegate to
-   `validate_event()` (closes PLAN-ARCH-001); add the new dossier-event
-   regression test(s) to `tests/sync/test_diagnose.py`; and rewrite
+   `src/specify_cli/sync/diagnose.py::_validate_payload` to call the same
+   `is_dossier_delegate()` predicate before any dict-shaped access and
+   delegate to `validate_event()` (FR-011; closes PLAN-ARCH-001); add the
+   new dossier-event regression test(s) to `tests/sync/test_diagnose.py`
+   (FR-011); and rewrite
    `tests/dossier/test_snapshot_emit.py::test_emit_rule_wires_canonical_validator_for_hash_fields`
    to assert against the `ConformanceResult` delegation behavior instead of
    a specific validator-callable wiring (closes PLAN-ARCH-002). Independent
@@ -946,11 +975,12 @@ re-run and baseline diff (see "Baseline Red Policy" step 3) before proceeding.
 | FR-003 | The FR-008 guard test's clean-tree assertion, plus a new/updated unit test asserting `inspect.signature(emit_artifact_indexed)`/`inspect.signature(emit_artifact_missing)` have no `VAR_POSITIONAL` parameter kind | Reverting FR-003 restores `*args: object`, which reintroduces a `VAR_POSITIONAL` parameter — the signature assertion goes red immediately, independent of any call-site behavior. |
 | FR-004 | **Binding test bar (plan-review remediation, closes PLAN-VERIFY-002)**: (a) at least one **new, unmocked** test in `tests/sync/test_dossier_pipeline.py` (e.g. `test_emit_artifact_indexed_keyword_promotion_preserves_diagnostics` / `test_emit_artifact_missing_blocking_short_circuit_survives_bridge_removal`) calling the real `emit_artifact_indexed`/`emit_artifact_missing` end-to-end — via `_emit_artifact_events`/`sync_feature_dossier`, with only unrelated collaborators (e.g. `Indexer`, `ManifestRegistry`) mocked — asserting directly on the returned/fired payload's `context_diagnostics` (contains `artifact_key`, `required_status`) and `step_id` fields (AC1), and on the blocking-driven emit/no-emit outcome via `_emit_artifact_events`'s `events_emitted` return-value count or an equivalent captured-event assertion (AC2); (b) an **additional**, supplementary `autospec=True`/`spec=emit_artifact_indexed`/`spec=emit_artifact_missing` test MAY also pin the signature-binding property, but if used must assert on a try/except-surviving observable (`events_emitted` count or `mock_emit.call_args`), never merely that the outer call did not raise — NOT the existing plain-`MagicMock` `@patch` decorators, which were verified during this planning phase to accept any keyword and therefore would NOT go red on a reverted promotion | Reverting FR-004's parameter promotion (while FR-003 still deletes `**kwargs`) makes `dossier_pipeline.py`'s `step_id=`/`required_status=`/`blocking=` keyword calls raise `TypeError` at the real call boundary, caught and swallowed by `_emit_artifact_events`'s per-artifact `except Exception`. The real-call test in (a) goes red because the call never actually completed — `context_diagnostics`/`step_id` are never populated, or the blocking short-circuit's expected `events_emitted` count no longer matches — which is the only test shape that can observe AC1/AC2's in-function behavior, since an `autospec` mock alone replaces the function body those acceptance criteria live inside; if used, the supplementary `autospec=True` mock in (b) still enforces the real signature and raises the same `TypeError` through the mock, so it also goes red, but only because it asserts on `events_emitted`/`call_args`, not merely on "no exception propagated." |
 | FR-005 | **New** test asserting `inspect.signature(emit_artifact_missing)` has no `VAR_KEYWORD` parameter kind, plus a direct call with only the surviving parameters | Reverting FR-005 (re-adding `last_known_content_hash_sha256`/`last_known_size_bytes` as explicit params, or re-adding `**kwargs`) either changes the signature shape the `inspect.signature` assertion checks, or (if `**kwargs` returns) fails the same `VAR_KEYWORD` assertion FR-003's sibling check performs. |
-| FR-006 | **New** test driving a hand-constructed invalid dossier payload (e.g. missing `namespace`) through `EventEmitter._validate_payload()`, asserting it returns `False` **and** the captured warning text contains a real field/violation identifier sourced from `ConformanceResult` (not the old generic "field has invalid value" string) — this is SC-005 made concrete. **Plus (plan-review remediation, closes PLAN-ARCH-001/PLAN-ARCH-002)**: a new test in `tests/sync/test_diagnose.py` driving a dossier-typed event (valid and invalid payload) through `diagnose_events()`, asserting no crash and that the invalid case reports a real `ConformanceResult`-sourced violation in `DiagnoseResult.errors`; and a rewrite of `tests/dossier/test_snapshot_emit.py::test_emit_rule_wires_canonical_validator_for_hash_fields` asserting the same delegation behavior instead of subscripting `_PAYLOAD_RULES[...]["validators"]` directly | Reverting FR-006 (restoring the 4 hand-maintained dict entries) makes the warning text revert to the old generic format — the assertion on real-violation-detail content in the warning string fails. The `test_diagnose.py` addition fails when reverted because, without the sentinel + `is_dossier_delegate()` branch, `diagnose.py::_validate_payload` would once again treat the dossier keys as plain dicts and never exercise the `ConformanceResult` path this test asserts on — or, if `is_dossier_delegate()` itself is dropped while the sentinel stays, the test's "no crash" assertion catches the uncaught `AttributeError` this remediation exists to prevent (PLAN-ARCH-001's own regression coverage). |
+| FR-006 | **New** test driving a hand-constructed invalid dossier payload (e.g. missing `namespace`) through `EventEmitter._validate_payload()`, asserting it returns `False` **and** the captured warning text contains a real field/violation identifier sourced from `ConformanceResult` (not the old generic "field has invalid value" string) — this is SC-005 made concrete. **Plus (plan-review remediation, closes PLAN-ARCH-002)**: a rewrite of `tests/dossier/test_snapshot_emit.py::test_emit_rule_wires_canonical_validator_for_hash_fields` asserting the same delegation behavior instead of subscripting `_PAYLOAD_RULES[...]["validators"]` directly. (The `diagnose.py` coordinated fix and its regression test are FR-011's own row below, not FR-006's, as of the round-2 PLAN-FRESH-001 remediation.) | Reverting FR-006 (restoring the 4 hand-maintained dict entries) makes the warning text revert to the old generic format — the assertion on real-violation-detail content in the warning string fails; the rewritten `test_snapshot_emit.py` assertion also fails because the subscripted validator-callable wiring it now asserts against no longer exists. |
 | FR-007 | **New** test (or extension of an existing `_validate_event`-level test) confirming all four dossier event-type strings are still members of `VALID_EVENT_TYPES` and that an unknown/typo'd event type is still rejected via the existing unknown-event-type branch, unaffected by the sentinel | Reverting FR-007 (e.g. accidentally dropping a dossier key from `_PAYLOAD_RULES` while doing FR-006) removes it from `VALID_EVENT_TYPES`, and the membership assertion fails. |
 | FR-008 | The guard test's own positive-control assertion (planted 6-positional-argument call must be flagged) | Gutting the detector to always report "no violations" is precisely what the positive control exists to catch — it is the test's own red-first proof, not a separate revert scenario. |
 | FR-009 | Collection-time failure of `tests/dossier/test_events.py` itself (an `ImportError` if the import re-point is reverted while FR-001 has already deleted the mirror classes) | Once FR-001 lands, reverting FR-009 alone (pointing imports back at `specify_cli.dossier.events`) makes the import statement fail at collection — the whole test file goes red as a collection error, which is maximally visible. |
 | FR-010 | `tests/dossier/test_events.py::TestEmitSnapshotComputed::test_preserves_legacy_positional_order` (existing, unmodified) | This test already fails today if `emit_snapshot_computed`'s positional parameter order is disturbed (that is PR #1056's original regression coverage) — this mission's commitment is that nothing in Phases 1-5 touches that function's signature, so the test's continued passing (re-verified, not re-authored) is FR-010's own proof. |
+| FR-011 (added round-2 remediation, closes PLAN-FRESH-001) | **New** test in `tests/sync/test_diagnose.py` driving a dossier-typed event (valid and invalid payload) through `diagnose_events()`, asserting (a) no crash and (b) the invalid case reports a real `ConformanceResult`-sourced violation in `DiagnoseResult.errors` | Reverting FR-011 (dropping the `is_dossier_delegate()`-guarded branch from `diagnose.py::_validate_payload` while FR-006's sentinel stays in `_PAYLOAD_RULES`) makes `diagnose.py::_validate_payload` once again treat the dossier keys as plain dicts — the test's "no crash" assertion catches the resulting uncaught `AttributeError: 'object' object has no attribute 'get'` this FR exists to prevent. |
 
 ---
 
