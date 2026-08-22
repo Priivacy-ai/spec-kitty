@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances M5 - Canonical mission-type reader on pr/rc3-friction-mission-specs so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "One canonical meta.json mission-type reader; drop legacy resolution",
   "slug": "rc3-canonical-mission-type-reader-01M0GGWM",
+  "status_phase": "1",
   "target_branch": "rc3-canonical-mission-type-reader-01M0GGWM",
   "topology": "single_branch"
 }
