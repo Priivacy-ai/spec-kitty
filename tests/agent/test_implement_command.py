@@ -52,7 +52,7 @@ def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
         "mission_slug": feature_dir.name,
         "created_at": "2026-01-17T00:00:00Z",
         "friendly_name": feature_dir.name,
-        "mission": "software-dev",
+        "mission_type": "software-dev",
         "slug": feature_dir.name,
         "target_branch": "main",
     }
