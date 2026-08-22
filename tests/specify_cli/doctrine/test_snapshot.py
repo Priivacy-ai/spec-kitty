@@ -372,6 +372,137 @@ class TestWriteSnapshot:
 
 
 class TestEtagConditionalFetch:
+    def test_query_bearing_source_never_reuses_persisted_etag(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        source_a = "https://example.com/pack.tar.gz?artifact=A&signature=one"
+        source_b = "https://example.com/pack.tar.gz?artifact=B&signature=two"
+        write_pack_manifest(
+            local_path,
+            FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="A",
+                etag='"etag-A"',
+            ),
+            source_url=source_a,
+            source_type="https",
+        )
+        validators: list[str | None] = []
+
+        def _fetch(source: HttpsBundleSource, target: Path) -> FetchResult:
+            validators.append(source.if_none_match)
+            _populate_valid_pack(target)
+            (target / "directives" / "sec-001.directive.yaml").write_text(
+                "id: B\n"
+            )
+            return FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="B",
+                etag='"etag-B"',
+            )
+
+        monkeypatch.setattr(HttpsBundleSource, "fetch", _fetch)
+
+        result = write_snapshot(
+            HttpsBundleSource(url=source_b),
+            local_path,
+            source_url=source_b,
+            source_type="https",
+        )
+
+        assert result.ok is True
+        assert validators == [None]
+        assert (
+            local_path / "directives" / "sec-001.directive.yaml"
+        ).read_text() == "id: B\n"
+
+    def test_locally_modified_snapshot_disables_conditional_fetch(
+        self, tmp_path: Path
+    ) -> None:
+        from specify_cli.doctrine.snapshot import _with_stored_etag
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        source_url = "https://example.com/pack.tar.gz"
+        write_pack_manifest(
+            local_path,
+            FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="v1",
+                etag='"v1"',
+            ),
+            source_url=source_url,
+            source_type="https",
+        )
+        (local_path / "directives" / "sec-001.directive.yaml").write_text(
+            "id: locally-mutated\n"
+        )
+
+        prepared = _with_stored_etag(
+            HttpsBundleSource(url=source_url),
+            local_path,
+            None,
+            source_url=source_url,
+            source_type="https",
+        )
+
+        assert isinstance(prepared, HttpsBundleSource)
+        assert prepared.if_none_match is None
+
+    def test_304_fails_when_local_snapshot_changed_after_preparation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        source_url = "https://example.com/pack.tar.gz"
+        write_pack_manifest(
+            local_path,
+            FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="v1",
+                etag='"v1"',
+            ),
+            source_url=source_url,
+            source_type="https",
+        )
+        (local_path / "directives" / "sec-001.directive.yaml").write_text(
+            "id: changed-after-preparation\n"
+        )
+
+        class _NotModified:
+            status_code = 304
+            headers: dict[str, str] = {}
+            reason = "Not Modified"
+            url = "https://example.com/pack.tar.gz"
+
+            def close(self) -> None:
+                return None
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get",
+            lambda _url, **_kwargs: _NotModified(),
+        )
+
+        result = write_snapshot(
+            HttpsBundleSource(url=source_url, if_none_match='"v1"'),
+            local_path,
+            source_type="https",
+        )
+
+        assert result.ok is False
+        assert any("integrity digest" in error for error in result.errors)
+
     def test_legacy_artifactory_manifest_forces_one_versioned_download(
         self, tmp_path: Path
     ) -> None:
@@ -492,6 +623,7 @@ class TestEtagConditionalFetch:
         manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert manifest["etag"] == '"abc"'
         assert manifest["pack_version"] == "v1"
+        assert len(manifest["snapshot_sha256"]) == 64
 
 
 class TestPackManifest:
@@ -554,6 +686,7 @@ class TestPackManifest:
         assert manifest["source_url"] == "https://example.com/pack.tar.gz"
         assert "secret" not in str(manifest)
         assert len(manifest["source_fingerprint"]) == 64
+        assert manifest["source_uses_query"] is True
 
     def test_manifest_counts_top_level_graph_fragments(self, tmp_path: Path) -> None:
         """FR-014 (mission #2680): top-level ``*.graph.yaml`` fragments count.

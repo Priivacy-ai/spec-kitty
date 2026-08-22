@@ -337,6 +337,30 @@ def _make_zip_bundle() -> bytes:
     return buf.getvalue()
 
 
+def _aql_payload(
+    bundle: bytes,
+    *,
+    repo: str = "repo",
+    path: str = ".",
+    name: str = "pack-latest.tar.gz",
+    version: str | None = "3.2.7",
+    sha256: str | None = None,
+) -> dict[str, object]:
+    result: dict[str, object] = {
+        "repo": repo,
+        "path": path,
+        "name": name,
+        "properties": (
+            [{"key": "version", "value": version}] if version is not None else []
+        ),
+    }
+    if sha256 is not None:
+        result["sha256"] = sha256
+    else:
+        result["sha256"] = hashlib.sha256(bundle).hexdigest()  # noqa: TID251
+    return {"results": [result]}
+
+
 class TestHttpsBundleSource:
     def test_tar_gz_extraction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -356,6 +380,10 @@ class TestHttpsBundleSource:
 
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post",
+            lambda *_args, **_kwargs: pytest.fail("non-Artifactory source used AQL"),
         )
 
         result = HttpsBundleSource(
@@ -398,14 +426,18 @@ class TestHttpsBundleSource:
 
         assert result.ok is True
         assert result.pack_version is None
-        assert all("/api/storage/" not in url for url in urls)
+        assert urls == ["https://cdn.example.com/pack.tar.gz"]
 
+    @pytest.mark.parametrize("source_type", ["https", "artifactory"])
     def test_artifactory_version_property_becomes_pack_version(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        source_type: str,
     ) -> None:
         target = tmp_path / "snapshot"
         bundle = _make_tar_gz_bundle()
-        calls: list[tuple[str, dict[str, Any]]] = []
+        aql_calls: list[tuple[str, dict[str, Any]]] = []
         streamed: list[bool] = []
         metadata_responses: list[_FakeResponse] = []
         artifact_url = (
@@ -419,26 +451,6 @@ class TestHttpsBundleSource:
                 streamed.append(True)
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
-            calls.append((url, kwargs))
-            if "/api/storage/" in url:
-                assert streamed == [True], "metadata queried before body completed"
-                if kwargs.get("params") == {"properties": "version"}:
-                    payload = {"properties": {"version": ["3.2.7"]}}
-                else:
-                    payload = {
-                        "checksums": {
-                            # Archive-integrity checksum, not charter hashing.
-                            "sha256": hashlib.sha256(bundle).hexdigest()  # noqa: TID251
-                        }
-                    }
-                metadata_response = _FakeResponse(
-                    status_code=200,
-                    body=json.dumps(payload).encode(),
-                    headers={"Content-Type": "application/json"},
-                    url=url,
-                )
-                metadata_responses.append(metadata_response)
-                return metadata_response
             return _TrackingDownload(
                 status_code=200,
                 body=bundle,
@@ -446,26 +458,51 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
+        def _fake_post(url: str, **kwargs: Any) -> _FakeResponse:
+            assert streamed == [True], "metadata queried before body completed"
+            aql_calls.append((url, kwargs))
+            metadata_response = _FakeResponse(
+                status_code=200,
+                body=json.dumps(
+                    _aql_payload(
+                        bundle,
+                        repo="raf-generic-local",
+                        path="doctrines",
+                        name="doctrine-rnd-latest.tar.gz",
+                    )
+                ).encode(),
+                headers={"Content-Type": "application/json"},
+                url=url,
+            )
+            metadata_responses.append(metadata_response)
+            return metadata_response
+
         monkeypatch.delenv("SPEC_KITTY_ORG_AUTH_HEADER", raising=False)
         monkeypatch.delenv("SPEC_KITTY_ORG_TOKEN", raising=False)
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
         )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
+        )
 
-        result = HttpsBundleSource(
-            url=artifact_url, source_type="artifactory"
-        ).fetch(target)
+        result = HttpsBundleSource(url=artifact_url, source_type=source_type).fetch(
+            target
+        )
 
         assert result.ok is True
         assert result.pack_version == "3.2.7"
         assert result.etag == '"etag-7"'
-        assert calls[1][0] == (
-            "https://artifactory.example.com/artifactory/api/storage/"
-            "raf-generic-local/doctrines/doctrine-rnd-latest.tar.gz"
+        assert aql_calls[0][0] == (
+            "https://artifactory.example.com/artifactory/api/search/aql"
         )
-        assert calls[1][1]["params"] == {"properties": "version"}
-        assert "params" not in calls[2][1]
-        assert "Authorization" not in calls[1][1]["headers"]
+        query = aql_calls[0][1]["data"]
+        assert '"repo":"raf-generic-local"' in query
+        assert '"path":"doctrines"' in query
+        assert '"name":"doctrine-rnd-latest.tar.gz"' in query
+        assert '"sha256","@version"' in query
+        assert "If-None-Match" not in aql_calls[0][1]["headers"]
+        assert "Authorization" not in aql_calls[0][1]["headers"]
         assert all(response.closed for response in metadata_responses)
 
     def test_artifactory_source_rejects_non_derivable_storage_url(
@@ -499,17 +536,6 @@ class TestHttpsBundleSource:
         )
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
-            if "/api/storage/" in url:
-                payload = (
-                    {"properties": {"version": ["version-for-other-bytes"]}}
-                    if kwargs.get("params") == {"properties": "version"}
-                    else {"checksums": {"sha256": "0" * 64}}
-                )
-                return _FakeResponse(
-                    status_code=200,
-                    body=json.dumps(payload).encode(),
-                    url=url,
-                )
             return _FakeResponse(
                 status_code=200,
                 body=bundle,
@@ -517,8 +543,24 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
+        def _fake_post(url: str, **kwargs: Any) -> _FakeResponse:
+            return _FakeResponse(
+                status_code=200,
+                body=json.dumps(
+                    _aql_payload(
+                        bundle,
+                        version="version-for-other-bytes",
+                        sha256="0" * 64,
+                    )
+                ).encode(),
+                url=url,
+            )
+
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
         )
 
         result = HttpsBundleSource(
@@ -539,12 +581,6 @@ class TestHttpsBundleSource:
         )
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
-            if "/api/storage/" in url:
-                return _FakeResponse(
-                    status_code=200,
-                    body=json.dumps({"properties": {}}).encode(),
-                    url=url,
-                )
             return _FakeResponse(
                 status_code=200,
                 body=bundle,
@@ -552,8 +588,26 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
+        def _fake_post(url: str, **kwargs: Any) -> _FakeResponse:
+            return _FakeResponse(
+                status_code=200,
+                body=json.dumps(
+                    _aql_payload(
+                        bundle,
+                        repo="raf-generic-local",
+                        path="doctrines",
+                        name="doctrine-rnd-latest.tar.gz",
+                        version=None,
+                    )
+                ).encode(),
+                url=url,
+            )
+
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
         )
 
         result = HttpsBundleSource(
@@ -572,17 +626,6 @@ class TestHttpsBundleSource:
         )
 
         def _fake_get(url: str, **kwargs: Any) -> _FakeResponse:
-            if "/api/storage/" in url:
-                payload = (
-                    {"properties": {"version": ["3.2.7"]}}
-                    if kwargs.get("params") == {"properties": "version"}
-                    else {"checksums": {}}
-                )
-                return _FakeResponse(
-                    status_code=200,
-                    body=json.dumps(payload).encode(),
-                    url=url,
-                )
             return _FakeResponse(
                 status_code=200,
                 body=bundle,
@@ -590,8 +633,22 @@ class TestHttpsBundleSource:
                 url=url,
             )
 
+        def _fake_post(url: str, **kwargs: Any) -> _FakeResponse:
+            payload = _aql_payload(bundle)
+            result = payload["results"]
+            assert isinstance(result, list) and isinstance(result[0], dict)
+            result[0].pop("sha256")
+            return _FakeResponse(
+                status_code=200,
+                body=json.dumps(payload).encode(),
+                url=url,
+            )
+
         monkeypatch.setattr(
             "specify_cli.doctrine.sources.https_source.requests.get", _fake_get
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.post", _fake_post
         )
 
         result = HttpsBundleSource(
