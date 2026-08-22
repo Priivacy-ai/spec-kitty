@@ -20,6 +20,7 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: architect-alphonso
+agent: codex
 authoritative_surface: docs/codemap/
 create_intent:
 - docs/codemap/codemap.json

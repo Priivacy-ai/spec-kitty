@@ -38,6 +38,7 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: implementer-ivan
+agent: codex
 authoritative_surface: src/specify_cli/spec_review/
 create_intent:
 - src/specify_cli/spec_review/__init__.py

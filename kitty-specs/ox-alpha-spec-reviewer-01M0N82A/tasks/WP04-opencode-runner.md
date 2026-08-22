@@ -31,6 +31,7 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: implementer-ivan
+agent: codex
 authoritative_surface: src/specify_cli/spec_review/runner.py
 create_intent:
 - src/specify_cli/spec_review/runner.py

@@ -27,6 +27,7 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: architect-alphonso
+agent: codex
 authoritative_surface: src/mission_runtime/
 create_intent:
 - src/specify_cli/spec_review/storage.py
@@ -42,7 +43,7 @@ owned_files:
 - tests/mission_runtime/test_spec_review_artifact_placement.py
 - tests/specify_cli/spec_review/test_storage.py
 - docs/adr/3.x/2026-08-22-spec-review-is-primary-planning-evidence.md
-role: implementer
+role: architect
 tags: []
 task_type: implement
 tracker_refs: []

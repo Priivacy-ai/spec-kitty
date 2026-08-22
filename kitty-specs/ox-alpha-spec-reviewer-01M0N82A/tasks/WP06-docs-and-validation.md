@@ -32,6 +32,7 @@ history:
   actor: system
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: curator-carla
+agent: codex
 authoritative_surface: docs/guides/spec-review.md
 create_intent:
 - docs/guides/spec-review.md
@@ -44,7 +45,7 @@ owned_files:
 - CHANGELOG.md
 - tests/integration/test_spec_review_integration.py
 - tests/integration/test_spec_review_live.py
-role: implementer
+role: curator
 tags: []
 task_type: implement
 tracker_refs: []
