@@ -4948,6 +4948,40 @@ _Synchronization commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty team-projection
+
+_Read-only team/public mission projections with exact-commit provenance._
+
+```
+ Usage: spec-kitty team-projection [OPTIONS] COMMAND [ARGS]...
+
+ Read-only team/public mission projections with exact-commit provenance.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ publish  Build and write every team/public projection artifact for HEAD.     │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty team-projection publish
+
+```
+ Usage: spec-kitty team-projection publish [OPTIONS]
+
+ Build and write every team/public projection artifact for HEAD.
+
+ Refuses (non-zero exit) on a dirty working tree — the manifest-mode
+ guarantee is all-or-nothing (§3.4, §4 N10): zero files are written on
+ refusal.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit the attestation manifest as JSON.                     │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty tracker
 
 _Task tracker commands_
