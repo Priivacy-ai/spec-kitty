@@ -110,7 +110,12 @@ test_no_dead_modules:
   # Z1-T1 zeitgeist_client.grammar); their sandboxes ran targeted suites and never this gate.
   # Registered as TODO(triage) so the fact is tracked, not hidden; follow-up bead: wire or delete
   # each and burn this back down.
-  category_7_grandfathered_orphans: 7
+  # 7 -> 6 (WIRE-M2-04, HIC-M2-DISPOSITIONS-2026-08-22 item 2): zeitgeist_client.grammar
+  # wired into live_frame.py's identity-field parsing; it now has a live src/ caller and
+  # its Cat-7 allowlist entry was removed. Shrink -- reverses the M2-canonical-integration
+  # deferral bump for this one module; the other three (dashboard.csp,
+  # status.migrate_lifecycle_envelope, tracker.gateway) remain open under WIRE-M2-01..03.
+  category_7_grandfathered_orphans: 6
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
