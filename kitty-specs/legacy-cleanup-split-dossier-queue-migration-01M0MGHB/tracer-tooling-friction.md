@@ -129,3 +129,11 @@ Seeded at spec phase. Append entries as friction is hit during planning/implemen
   prohibits in favour of "Mission" for the domain object this literally is (a mission
   slug). Left untouched — history rewriting is out of scope for this phase; recorded for
   PR-prep / operator ledger tracking.
+
+- **Advisory only, not a failure**: `spec-kitty safe-commit kitty-specs/.../reviews/ -m "..." --json`
+  (plain, no `--to-branch`) succeeded but printed to stderr: `warning: --to-branch will be
+  required in v3.3; pass it explicitly`. Noted for the record since `--to-branch` was
+  central to this mission's earlier BLOCKED episode (SK-12) — future missions on this repo
+  should pass `--to-branch <current-branch>` explicitly once available/required, though
+  omitting it here was correct per the operator's explicit instruction not to add
+  `--target-branch`/`--to-branch` flags while HEAD already matched the resolved target.
