@@ -33,6 +33,7 @@ NOT route the diff-scope emptiness case through :func:`assert_examined_floor`
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -63,17 +64,17 @@ def resolve_changed_files(repo_root: Path, base_ref: str) -> list[str]:
     """
     try:
         result = subprocess.run(
-            ["git", "diff", "--name-only", "--diff-filter=ACMR", f"{base_ref}...HEAD"],
+            ["git", "diff", "--name-only", "-z", "--diff-filter=ACMR", f"{base_ref}...HEAD"],
             cwd=repo_root,
             capture_output=True,
-            text=True,
             check=False,
         )
     except OSError as exc:
         raise GitDiffError(f"resolve_changed_files: could not run git (base_ref={base_ref!r}): {exc}") from exc
     if result.returncode != 0:
-        raise GitDiffError(f"resolve_changed_files: `git diff --name-only {base_ref}...HEAD` failed (exit {result.returncode}): {result.stderr.strip()}")
-    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        stderr = os.fsdecode(result.stderr).strip()
+        raise GitDiffError(f"resolve_changed_files: `git diff --name-only -z {base_ref}...HEAD` failed (exit {result.returncode}): {stderr}")
+    return [os.fsdecode(path) for path in result.stdout.split(b"\0") if path]
 
 
 def assert_examined_floor(

@@ -108,10 +108,7 @@ def get_merge_order(
     # Check if we have any dependency info
     if not has_dependency_info(graph):
         # No dependency info - fall back to numerical order with warning
-        logger.warning(
-            "No dependency information found in WP frontmatter. "
-            "Falling back to numerical order (WP01, WP02, ...)."
-        )
+        logger.warning("No dependency information found in WP frontmatter. Falling back to numerical order (WP01, WP02, ...).")
         return sorted(wp_workspaces, key=lambda x: x[1])  # Sort by wp_id
 
     # Detect cycles - show full cycle path in error
@@ -120,10 +117,7 @@ def get_merge_order(
         # Format the cycle path clearly: WP01 → WP02 → WP03 → WP01
         cycle = cycles[0]
         cycle_str = " → ".join(cycle)
-        raise MergeOrderError(
-            f"Circular dependency detected: {cycle_str}\n"
-            "Fix the dependencies in the WP frontmatter to remove this cycle."
-        )
+        raise MergeOrderError(f"Circular dependency detected: {cycle_str}\nFix the dependencies in the WP frontmatter to remove this cycle.")
 
     # Topological sort
     try:
@@ -258,6 +252,7 @@ def _mark_mission_number_baked(
         return
     merge_state.mission_number_baked = True
     from specify_cli.merge.state import save_state as _save_state
+
     _save_state(merge_state, main_repo)
 
 
@@ -281,6 +276,15 @@ def _compute_next_mission_number_or_none(
     import subprocess as _subprocess
     import tempfile as _tempfile
 
+    try:
+        assert_safe_path_segment(mission_slug)
+    except ValueError:
+        _merge_logger.warning(
+            "Refusing mission_number assignment for unsafe mission_slug %r (traversal guard).",
+            mission_slug,
+        )
+        return None
+
     tmp_dir = _tempfile.mkdtemp(prefix="kitty-numassign-")
     tmp_path = Path(tmp_dir)
     try:
@@ -302,38 +306,24 @@ def _compute_next_mission_number_or_none(
             scan_root = tmp_path
             scan_specs = tmp_path / KITTY_SPECS_DIR
 
-        # #2037: mission_slug threads back to the operator-typed `--mission`/
-        # target slug (no `assert_safe_path_segment` upstream on this path).
-        # This idempotency peek is read-only (`.exists()` + best-effort meta
-        # read), so an unsafe slug fails closed by skipping the peek entirely
-        # and falling through to normal assignment below, rather than raising.
-        try:
-            assert_safe_path_segment(mission_slug)
-        except ValueError:
-            _merge_logger.warning(
-                "Refusing to probe target-branch meta.json with unsafe mission_slug %r "
-                "(traversal guard); skipping the idempotency peek.",
-                mission_slug,
-            )
-        else:
-            target_meta_path = scan_specs / mission_slug / "meta.json"
-            if target_meta_path.exists():
-                # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
-                # JSON-syntax error AND a non-dict top level to None -- this is a
-                # best-effort idempotency peek (not a #2091 identity guard site), so
-                # a corrupt/foreign meta.json on the target branch must not abort the
-                # merge-time numbering step; it falls through to normal assignment
-                # below, matching the pre-existing non-dict-tolerant branch.
-                target_meta = load_meta(scan_specs / mission_slug, on_malformed="none")
-                existing_on_target = (
-                    target_meta.get("mission_number") if isinstance(target_meta, dict) else None
+        target_meta_path = scan_specs / mission_slug / "meta.json"
+        if target_meta_path.exists():
+            # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
+            # JSON-syntax error AND a non-dict top level to None -- this is a
+            # best-effort idempotency peek (not a #2091 identity guard site), so
+            # a corrupt/foreign meta.json on the target branch must not abort the
+            # merge-time numbering step; it falls through to normal assignment
+            # below, matching the pre-existing non-dict-tolerant branch.
+            target_meta = load_meta(scan_specs / mission_slug, on_malformed="none")
+            existing_on_target = target_meta.get("mission_number") if isinstance(target_meta, dict) else None
+            if _is_assigned_mission_number(existing_on_target):
+                _merge_logger.debug(
+                    "Mission %s already has mission_number=%d on target branch %s; no-op",
+                    mission_slug,
+                    existing_on_target,
+                    target_branch,
                 )
-                if _is_assigned_mission_number(existing_on_target):
-                    _merge_logger.debug(
-                        "Mission %s already has mission_number=%d on target branch %s; no-op",
-                        mission_slug, existing_on_target, target_branch,
-                    )
-                    return None
+                return None
 
         return assign_next_mission_number(scan_root, scan_specs)
     finally:
@@ -362,6 +352,15 @@ def _write_mission_number_to_branch(
     """
     import subprocess as _subprocess
     import tempfile as _tempfile
+
+    try:
+        assert_safe_path_segment(mission_slug)
+    except ValueError:
+        _merge_logger.warning(
+            "Refusing to bake mission_number for unsafe mission_slug %r (traversal guard).",
+            mission_slug,
+        )
+        return False
 
     if not _has_branch_ref(main_repo, mission_branch):
         _merge_logger.warning(
@@ -402,8 +401,7 @@ def _write_mission_number_to_branch(
         meta_path = _compose_meta(mission_tmp_path, mission_slug)
         if path_is_under_worktrees(meta_path):
             _merge_logger.warning(
-                "Refusing to bake mission_number for %s: resolved meta path is under "
-                "%s (%s)",
+                "Refusing to bake mission_number for %s: resolved meta path is under %s (%s)",
                 mission_slug,
                 WORKTREES_DIR,
                 meta_path,
@@ -432,10 +430,7 @@ def _write_mission_number_to_branch(
 
         # T025 / FR-010 — idempotency check INSIDE the merge-state lock.
         existing_on_mission = meta_data.get("mission_number")
-        if (
-            _is_assigned_mission_number(existing_on_mission)
-            and existing_on_mission == next_number
-        ):
+        if _is_assigned_mission_number(existing_on_mission) and existing_on_mission == next_number:
             _merge_logger.info(
                 "mission_number=%d already present on mission branch %s for %s; skipping write (idempotency check)",
                 next_number,
@@ -590,19 +585,13 @@ def _bake_mission_number_into_mission_branch(
         return None
 
     if dry_run:
-        console.print(
-            f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}"
-        )
+        console.print(f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}")
         return None
 
-    if not _write_mission_number_to_branch(
-        main_repo, mission_branch, mission_slug, next_number, merge_state
-    ):
+    if not _write_mission_number_to_branch(main_repo, mission_branch, mission_slug, next_number, merge_state):
         return None
 
-    console.print(
-        f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}"
-    )
+    console.print(f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}")
     _merge_logger.info("Assigned mission_number=%d to mission %s", next_number, mission_slug)
     _mark_mission_number_baked(merge_state, main_repo)
 
@@ -630,7 +619,5 @@ def _assign_planning_only_mission_number_if_needed(
     meta = load_meta_fail_closed(feature_dir) or {}
     meta["mission_number"] = next_number
     write_meta(feature_dir, meta, validate=False)
-    console.print(
-        f"  [green]✓[/green] Assigned mission_number={next_number} on target branch"
-    )
+    console.print(f"  [green]✓[/green] Assigned mission_number={next_number} on target branch")
     return feature_dir / "meta.json"

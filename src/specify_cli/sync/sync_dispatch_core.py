@@ -144,18 +144,15 @@ def _batch_is_oversized(summary: DispatchSummary) -> bool:
 
 
 def _batch_is_protocol_mismatch(summary: DispatchSummary) -> bool:
-    """Whether a batch was refused wholesale by the server's protocol handshake (HTTP 412).
+    """Whether any attempted event hit the server protocol handshake (HTTP 412).
 
-    The receiver maps a 412 to a batch-wide ``transient`` (retained, re-selectable)
-    carrying the server's upgrade/pin guidance as the failure error. Unlike a 413
-    the right reaction is neither to halve nor to skip-and-advance: every further
-    POST this pass would get the same answer, so the batch driver halts the pass
-    (#1553). Parking is never correct here — the skew is environmental, and a
-    parked (``terminal_failed``) row is excluded from selection forever.
+    The receiver maps each correlated 412 to ``transient`` (retained,
+    re-selectable) with the server's upgrade/pin guidance. A selected row may
+    also have failed locally before transport, so the halt predicate keys on
+    any 412 rather than requiring the whole summary to be transient. Every
+    further POST this pass would get the same answer (#1553).
     """
-    return _is_wholesale_transient(summary) and all(
-        failure.outcome == "transient" and failure.http_status == _HTTP_PRECONDITION_FAILED for failure in summary.failures
-    )
+    return any(failure.outcome == "transient" and failure.http_status == _HTTP_PRECONDITION_FAILED for failure in summary.failures)
 
 
 def _protocol_mismatch_guidance(summary: DispatchSummary) -> str | None:

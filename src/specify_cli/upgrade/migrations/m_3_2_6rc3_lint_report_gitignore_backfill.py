@@ -20,7 +20,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.gitignore_manager import GitignoreManager
+from specify_cli.gitignore_manager import (
+    GitignoreManager,
+    GitignorePathError,
+    read_gitignore_text,
+)
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -34,9 +38,10 @@ _EQUIVALENT_ENTRIES: frozenset[str] = frozenset({_LINT_REPORT_ENTRY})
 
 def _read_gitignore_entries(project_path: Path) -> set[str]:
     gitignore_path = project_path / ".gitignore"
-    if not gitignore_path.exists():
+    content = read_gitignore_text(gitignore_path)
+    if content is None:
         return set()
-    return {line.strip() for line in gitignore_path.read_text(encoding="utf-8-sig").splitlines() if line.strip() and not line.lstrip().startswith("#")}
+    return {line.strip() for line in content.splitlines() if line.strip() and not line.lstrip().startswith("#")}
 
 
 def _is_missing(present: set[str]) -> bool:
@@ -52,15 +57,27 @@ class LintReportGitignoreBackfillMigration(BaseMigration):
     target_version = "3.2.6rc3"
 
     def detect(self, project_path: Path) -> bool:
-        return _is_missing(_read_gitignore_entries(project_path))
+        try:
+            return _is_missing(_read_gitignore_entries(project_path))
+        except (GitignorePathError, OSError):
+            # Route unsafe/unreadable files through can_apply() so the runner
+            # records a loud migration failure instead of silently skipping it.
+            return True
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         if not project_path.exists():
             return False, f"Project path does not exist: {project_path}"
+        try:
+            _read_gitignore_entries(project_path)
+        except (GitignorePathError, OSError) as exc:
+            return False, str(exc)
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        missing = _is_missing(_read_gitignore_entries(project_path))
+        try:
+            missing = _is_missing(_read_gitignore_entries(project_path))
+        except (GitignorePathError, OSError) as exc:
+            return MigrationResult(success=False, errors=[str(exc)])
 
         if dry_run:
             if missing:
@@ -73,7 +90,10 @@ class LintReportGitignoreBackfillMigration(BaseMigration):
         if not missing:
             return MigrationResult(success=True, changes_made=["gitignore entry already present"])
 
-        GitignoreManager(project_path).ensure_entries([_LINT_REPORT_ENTRY])
+        try:
+            GitignoreManager(project_path).ensure_entries([_LINT_REPORT_ENTRY])
+        except (GitignorePathError, OSError) as exc:
+            return MigrationResult(success=False, errors=[str(exc)])
         return MigrationResult(
             success=True,
             changes_made=[f"Added gitignore entry: {_LINT_REPORT_ENTRY}"],
