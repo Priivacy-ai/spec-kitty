@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import os
 import re
@@ -526,7 +527,43 @@ def _is_valid_https_url(parsed: SplitResult | None) -> bool:
         _ = parsed.port
     except ValueError:
         return False
-    return True
+    return _is_valid_hostname(parsed.hostname)
+
+
+def _is_valid_hostname(hostname: str) -> bool:
+    """Validate an IP literal or IDNA DNS hostname before network access."""
+    if "%" in hostname or any(
+        ord(char) <= 0x20 or ord(char) == 0x7F for char in hostname
+    ):
+        return False
+    try:
+        ipaddress.ip_address(hostname)
+    except ValueError:
+        pass
+    else:
+        return True
+
+    candidate = hostname[:-1] if hostname.endswith(".") else hostname
+    if not candidate or len(candidate) > 253:
+        return False
+    if all(char.isdigit() or char == "." for char in candidate):
+        return False
+    try:
+        ascii_hostname = candidate.encode("idna").decode("ascii")
+    except UnicodeError:
+        return False
+    labels = ascii_hostname.split(".")
+    return all(
+        label
+        and len(label) <= 63
+        and label[0] != "-"
+        and label[-1] != "-"
+        and all(
+            char.isascii() and (char.isalnum() or char == "-")
+            for char in label
+        )
+        for label in labels
+    )
 
 
 def _safe_netloc(parsed: Any) -> str:
