@@ -189,6 +189,80 @@ def _reject_symlinked_git_entry(candidate: str) -> None:
         )
 
 
+_WORKTREE_MARKER = os.sep + "worktrees" + os.sep
+
+
+def _worktree_backref_target(mainrepo_git_dir: str, name: str) -> str:
+    """Read ``<mainrepo_git_dir>/worktrees/<name>/gitdir`` — a real
+    ``git worktree add`` writes this file itself, containing the absolute
+    path of the worktree checkout's OWN ``.git`` file (the back-reference a
+    legitimate worktree registration always carries). ``""`` if the
+    registration does not exist — exactly the case for a fabricated
+    ``gitdir:`` pointer using a synthetic/unregistered worktree name."""
+    backref = os.path.join(mainrepo_git_dir, "worktrees", name, "gitdir")
+    try:
+        with open(backref) as f:
+            return f.read().strip()
+    except OSError:
+        return ""
+
+
+def _submodule_backref_target(gitdir: str) -> str:
+    """Read ``core.worktree`` out of ``<gitdir>/config`` — a real
+    ``git submodule add`` writes this into the submodule's admin directory,
+    recording the working-tree path whose ``.git`` file points back at it.
+    ``""`` if absent, which is exactly the case for a hand-crafted
+    ``gitdir:`` pointer at an arbitrary foreign ``.git`` directory that
+    carries no such record."""
+    worktree = _read_ini_value(gitdir, "[core]", "worktree")
+    if not worktree:
+        return ""
+    if not os.path.isabs(worktree):
+        worktree = os.path.normpath(os.path.join(gitdir, worktree))
+    return worktree
+
+
+def _verify_gitdir_provenance(candidate: str, path: str, gitdir: str) -> str:
+    """A ``.git`` FILE's ``gitdir:`` pointer is trusted ONLY when the target
+    is a VERIFIABLY registered worktree or submodule of that repository — a
+    matching back-reference the real ``git worktree add``/``git submodule
+    add`` machinery itself wrote, not merely a path that happens to exist.
+
+    Without this, a hand-crafted ``.git`` FILE containing
+    ``gitdir: <foreign>/.git`` (no symlink, no env var, no sibling
+    ambiguity — just a fabricated pointer) would mint the foreign repo's
+    identity: real ``git`` itself also follows such a pointer, so the
+    live-git probe would corroborate the spoof rather than catch it. This
+    check is what stands between "a `.git` file points somewhere" and "that
+    pointer is legitimate provenance."
+
+    Raises ``AmbiguousRepositoryIdentity`` for any pointer that cannot be
+    corroborated this way — covering a bare (non-worktree) pointer at an
+    unregistered foreign ``.git`` directory, and a pointer forged with a
+    synthetic/unregistered ``/worktrees/<name>`` segment."""
+    if _WORKTREE_MARKER in gitdir:
+        mainrepo_git_dir, _, rest = gitdir.partition(_WORKTREE_MARKER)
+        name = rest.split(os.sep, 1)[0]
+        backref = _worktree_backref_target(mainrepo_git_dir, name)
+        if backref and os.path.realpath(backref) == os.path.realpath(candidate):
+            return mainrepo_git_dir
+        raise AmbiguousRepositoryIdentity(
+            f"{candidate!r} points to {gitdir!r}, claiming to be a worktree "
+            f"of {mainrepo_git_dir!r} — but no matching back-reference "
+            f"({mainrepo_git_dir!r}/worktrees/{name!r}/gitdir) registers it "
+            "as one; refusing to trust unregistered `gitdir:` provenance"
+        )
+
+    backref = _submodule_backref_target(gitdir)
+    if backref and os.path.realpath(backref) == os.path.realpath(path):
+        return gitdir
+    raise AmbiguousRepositoryIdentity(
+        f"{candidate!r} points to {gitdir!r} with no `/worktrees/` marker "
+        "and no matching submodule back-reference (`core.worktree`) — "
+        "refusing to trust unregistered `gitdir:` provenance"
+    )
+
+
 def _git_dir_from_filesystem(cwd: str) -> str:
     """Locate the common ``.git`` directory by reading files, never running
     git. Ported unchanged from ``zeitgeist/integrations/repo_identity.py``: a
@@ -199,7 +273,10 @@ def _git_dir_from_filesystem(cwd: str) -> str:
     Raises ``AmbiguousRepositoryIdentity`` — rather than resolving through it
     — the moment any ``.git`` entry considered along the upward walk (at
     ``cwd`` or any ancestor) is itself a symlink; see
-    ``_reject_symlinked_git_entry``."""
+    ``_reject_symlinked_git_entry``. Also raises it when a ``.git`` FILE's
+    ``gitdir:`` pointer cannot be corroborated as a registered
+    worktree/submodule of the target repository; see
+    ``_verify_gitdir_provenance``."""
     path = os.path.abspath(cwd)
     while True:
         candidate = os.path.join(path, ".git")
@@ -214,10 +291,8 @@ def _git_dir_from_filesystem(cwd: str) -> str:
                             gitdir = line.split(":", 1)[1].strip()
                             if not os.path.isabs(gitdir):
                                 gitdir = os.path.join(path, gitdir)
-                            marker = os.sep + "worktrees" + os.sep
-                            if marker in gitdir:
-                                return gitdir.split(marker)[0]
-                            return gitdir
+                            gitdir = os.path.normpath(gitdir)
+                            return _verify_gitdir_provenance(candidate, path, gitdir)
             except OSError:
                 return ""
         parent = os.path.dirname(path)
