@@ -34,6 +34,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -199,15 +201,23 @@ def _patch_task_prompt_template(content: str) -> tuple[str, list[str]]:
 
 
 def _apply_patch_to_file(
-    path: Path, patch_fn: object, dry_run: bool
+    path: Path, patch_fn: object, dry_run: bool, *, read_only: bool = False
 ) -> list[str]:
-    """Read file, apply patch function, write back if changed. Return change list."""
+    """Read file, apply patch function, write back if changed. Return change list.
+
+    ``read_only`` must be ``True`` for targets the generation layer marks
+    read-only after writing (currently the ``.agents/skills/spec-kitty.*``
+    SKILL.md files) so a re-write does not raise ``PermissionError`` on a
+    previously-generated file (#3651) and the file is left in the same
+    managed, read-only state afterward. The ``.kittify`` command-template and
+    override targets are plain project files and stay writable.
+    """
     if not path.exists():
         return []
     content = path.read_text(encoding="utf-8")
     new_content, changes = patch_fn(content)  # type: ignore[operator]
     if changes and not dry_run:
-        path.write_text(new_content, encoding="utf-8")
+        write_generated_file(path, new_content, read_only=read_only)
     return [f"{path}: {c}" for c in changes]
 
 
@@ -301,13 +311,15 @@ class KittifyProfileHandoffMigration(BaseMigration):
             project_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
         )
         all_changes += _apply_patch_to_file(
-            skill_implement, _patch_implement, dry_run
+            skill_implement, _patch_implement, dry_run, read_only=True
         )
 
         skill_review = (
             project_path / ".agents" / "skills" / "spec-kitty.review" / "SKILL.md"
         )
-        all_changes += _apply_patch_to_file(skill_review, _patch_review, dry_run)
+        all_changes += _apply_patch_to_file(
+            skill_review, _patch_review, dry_run, read_only=True
+        )
 
         return MigrationResult(
             success=True,
