@@ -1,15 +1,21 @@
 """SC-007: NFR-001's budget, the enumerated-set criterion, and both parallel modes (T021).
 
-**The wall-clock budget test in this module carries ``performance``, not ``architectural``.**
+**The whole module carries ``pytestmark = pytest.mark.architectural`` so the arch-adversarial
+pole (``ci-quality.yml::arch-adversarial``, selecting on ``arch_shard_N and (git_repo or
+integration or architectural)``) picks up the three correctness tests below — otherwise they
+collect with an ``arch_shard_N`` marker (applied unconditionally by path via
+``tests/_arch_shard_map.py``'s ``default_fallback=True``) but no gate marker, and orphan
+(``test_ci_collection_completeness.py`` / ``test_same_tier_uniqueness.py``).**
 Per ADR 2026-08-22-1 the single-shot on-PR ``timing`` gate (``-m timing -n0``,
-``timing-nfr-serial``) is retired for this test:
+``timing-nfr-serial``) is retired for the wall-clock budget test:
 ``test_the_guard_completes_inside_the_budget_on_three_warm_runs`` now measures via the
 ``pytest-benchmark`` ``benchmark.pedantic`` fixture and carries
-``@pytest.mark.performance`` (env-gated off every PR/blocking run per ``tests/conftest.py``,
+``@pytest.mark.performance`` in ADDITION to the module's ``architectural`` mark — it is
+env-gated off every PR/blocking run per ``tests/conftest.py`` regardless of ``architectural``,
 statistically compared against a committed per-domain baseline in the off-PR
-``performance.yml`` pipeline — never a single-shot ceiling on a shared runner). The other three
-tests in this module are correctness checks, not budget tests (ADR 2026-08-22-1's "stays on the
-PR path" carve-out), and carry no timing/performance marker.
+``performance.yml`` pipeline instead — never a single-shot ceiling on a shared runner. The
+other three tests in this module are correctness checks, not budget tests (ADR 2026-08-22-1's
+"stays on the PR path" carve-out), and carry no timing/performance marker.
 
 ``time.perf_counter()``, never ``time.time()``
 ------------------------------------------------
@@ -50,6 +56,19 @@ from pytest_benchmark.fixture import BenchmarkFixture
 
 from tests.architectural import _home_pin_scan as scan
 from tests.architectural._home_pin_verdict import hash_of_key_set
+
+#: Routes every test in this module into the arch-adversarial pole
+#: (``ci-quality.yml::arch-adversarial`` selects on
+#: ``arch_shard_N and (git_repo or integration or architectural)``). The three
+#: correctness tests below need this to avoid orphaning (ADR 2026-08-22-1:
+#: they stay on the PR path). The wall-clock budget test also picks this up —
+#: harmless, since it is independently env-gated off every PR run by its own
+#: ``performance`` marker (see ``tests/conftest.py``'s
+#: ``apply_performance_skip``), and the ``arch_shard_N`` marker it needs for
+#: shard-marker completeness is applied unconditionally by path via
+#: ``tests/_arch_shard_map.py``'s ``default_fallback=True`` regardless of this
+#: mark.
+pytestmark = pytest.mark.architectural
 
 #: The real walk root, exactly as the shipped guard roots it.
 TESTS_ROOT = Path("tests")
