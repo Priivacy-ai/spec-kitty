@@ -19,7 +19,10 @@ Topologies parametrized (FR-002 "must hold for protected-main, flattened, AND
 coordination topologies"):
 
 * ``protected-main``  — target == ``main`` (protected); the planning commit is
-  REFUSED (G-4 / FR-008) with guidance to start a feature branch.
+  REFUSED (G-4 / FR-008) with guidance to start a feature branch. The explicit
+  legacy PR-bound #2938 case below is the narrow exception: when invoked from a
+  non-protected feature branch it normalizes planning there and preserves
+  ``main`` as the final merge target.
 * ``coordination``    — a coordination-topology mission on a NON-protected feature
   ``target_branch``; the operator is on that feature branch (D-3 invariant), so
   the planning commit lands directly on it (G-1). Status still routes to coord.
@@ -400,7 +403,15 @@ def test_pr_bound_finalize_uses_feature_planning_branch_not_protected_final_targ
     _git(repo.repo_root, "checkout", "-q", "-b", planning_branch)
     meta_path = feature_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    meta["pr_bound"] = True
+    meta.update(
+        {
+            "pr_bound": True,
+            "slug": mission_slug,
+            "friendly_name": "SC6 PR-bound planning",
+            "mission_type": "software-dev",
+            "created_at": "2026-07-26T00:00:00+00:00",
+        }
+    )
     meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
     _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
     _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
@@ -416,6 +427,78 @@ def test_pr_bound_finalize_uses_feature_planning_branch_not_protected_final_targ
     )
 
     assert resolved_planning_branch == planning_branch
+    assert (
+        finalize_seam._resolve_merge_target_branch(
+            feature_dir, resolved_planning_branch
+        )
+        == "main"
+    )
+
+    before_validate_only = meta_path.read_bytes()
+    finalize_seam._persist_recovered_pr_bound_contract(
+        feature_dir,
+        planning_branch=planning_branch,
+        merge_target_branch="main",
+        validate_only=True,
+    )
+    assert meta_path.read_bytes() == before_validate_only
+
+    finalize_seam._persist_recovered_pr_bound_contract(
+        feature_dir,
+        planning_branch=planning_branch,
+        merge_target_branch="main",
+        validate_only=False,
+    )
+    normalized_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert normalized_meta["target_branch"] == planning_branch
+    assert normalized_meta["merge_target_branch"] == "main"
+
+
+def test_pr_bound_finalize_completes_without_touching_protected_final_target(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2938 full boundary: finalize, normalize, and commit on the feature branch."""
+    repo = protected_target_repo
+    topology = _TOPOLOGIES[0]
+    assert isinstance(topology, _Topology)
+    mission_slug, feature_dir, _placement_ref = _scaffold_mission(
+        repo.repo_root, topology
+    )
+    planning_branch = "op/sc6-pr-bound-full-boundary"
+    _git(repo.repo_root, "checkout", "-q", "-b", planning_branch)
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta.update(
+        {
+            "pr_bound": True,
+            "slug": mission_slug,
+            "friendly_name": "SC6 PR-bound full boundary",
+            "mission_type": "software-dev",
+            "created_at": "2026-07-26T00:00:00+00:00",
+        }
+    )
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
+    _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
+
+    protected_tip_before = _git(repo.repo_root, "rev-parse", "main").stdout.strip()
+    monkeypatch.chdir(repo.repo_root)
+    result = _run_finalize(repo.repo_root, mission_slug)
+
+    assert result.exit_code == 0, result.output
+    assert _parse_json_from_output(result.output).get("result") == "success"
+    assert _git(repo.repo_root, "rev-parse", "main").stdout.strip() == protected_tip_before
+    assert "Add tasks for feature" in _git(
+        repo.repo_root, "log", "--oneline", "-10", planning_branch
+    ).stdout
+    normalized_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert normalized_meta["target_branch"] == planning_branch
+    assert normalized_meta["merge_target_branch"] == "main"
+    wp_text = (feature_dir / "tasks" / "WP01-task.md").read_text(encoding="utf-8")
+    assert f"planning_base_branch: {planning_branch}" in wp_text
+    assert "merge_target_branch: main" in wp_text
 
 
 @pytest.mark.parametrize("topology", _TOPOLOGIES, ids=lambda t: t.name)
