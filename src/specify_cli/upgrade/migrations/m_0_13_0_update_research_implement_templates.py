@@ -14,6 +14,8 @@ try:
 except ImportError:
     from importlib_resources import files  # type: ignore
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
@@ -108,7 +110,7 @@ class UpdateResearchImplementTemplatesMigration(BaseMigration):
                         changes.append(f"Would update: {agent_dir}/{subdir}/{self.SLASH_COMMAND_FILE}")
                     else:
                         try:
-                            slash_cmd.write_text(template_content, encoding="utf-8")
+                            write_generated_file(slash_cmd, template_content)
                             changes.append(f"Updated: {agent_dir}/{subdir}/{self.SLASH_COMMAND_FILE}")
                             agents_updated += 1
                         except Exception as e:
