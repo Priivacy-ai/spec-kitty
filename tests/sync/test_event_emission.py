@@ -256,14 +256,21 @@ class TestEmissionFailureNonBlocking:
         assert len(tasks) == 1
         assert tasks[0].event["payload"]["wp_id"] == "INVALID_ID"
 
-    def test_queue_failure_returns_event(
+    def test_queue_failure_is_not_publication_eligible(
         self,
         temp_queue: OfflineQueue,
         temp_clock: LamportClock,
         mock_config: MagicMock,
         mock_auth: MagicMock,
     ) -> None:
-        """Queue write failure still returns the event (non-blocking)."""
+        """Queue write failure fails loud: non-blocking (no raise) but dropped from publication.
+
+        #3517: an event that never durably landed in the outbox must not be
+        returned truthy — that made it publication-eligible at the ``events.py``
+        gates (a silent drop). ``_emit`` still never raises (the non-blocking
+        contract, NFR-003) but now returns ``None`` so every ``if event is not
+        None`` publish gate skips it.
+        """
         broken_queue = MagicMock(spec=OfflineQueue)
         broken_queue.queue_event.side_effect = Exception("Disk full")
         mock_auth.is_authenticated = False
@@ -274,8 +281,10 @@ class TestEmissionFailureNonBlocking:
             queue=broken_queue,
             ws_client=None,
         )
+        # Non-blocking preserved: the call returns rather than raising ...
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
-        assert event is not None  # Event still created, just not queued
+        # ... but the non-durable event is NOT publication-eligible (#3517).
+        assert event is None
 
 
 class TestErrorLoggedEmission:
