@@ -1804,17 +1804,10 @@ def _preserve_or_capture_planning_commit_sha(
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
-    # Suppression rationale (not a real type error): this module's
-    # [[tool.mypy.overrides]] sets ``follow_imports = "skip"`` for all
-    # ``specify_cli.*`` modules (to avoid walking the CLI bootstrap graph), so
-    # a single-file mypy invocation loses ``LanesManifest``'s real field types
-    # across that import boundary and reports a spurious no-any-return here —
-    # the SAME pre-existing pattern already present at 6 other return sites in
-    # this file (e.g. lines 136, 145). ``planning_commit_sha`` is genuinely
-    # ``str | None`` (specify_cli/lanes/models.py); `mypy
-    # src/specify_cli/lanes/models.py src/specify_cli/lanes/persistence.py` in
-    # isolation reports zero issues.
-    return existing.planning_commit_sha  # type: ignore[no-any-return]
+    # ``planning_commit_sha`` is genuinely ``str | None`` (specify_cli/lanes/models.py);
+    # under the authoritative full-package ``mypy --strict`` invocation the type is
+    # resolved correctly through the import graph, so no suppression is needed here.
+    return existing.planning_commit_sha
 
 
 def _compute_and_write_lanes(
