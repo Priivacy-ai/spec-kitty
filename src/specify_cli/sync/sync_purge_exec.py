@@ -243,8 +243,12 @@ def _purge_resolve_project(
 
     candidates: dict[str, set[str]] = {}
 
-    def _offer(name: str | None, uuid: str | None) -> None:
+    def _offer(name: str | None, uuid: str | UUID | None) -> None:
         """Record *name* as a selector for *uuid*, if both were recorded.
+
+        *uuid* accepts both the journal's ``str`` projection and the
+        checkout identity's ``UUID`` field; the ``str(uuid)`` below already
+        normalizes either shape before it lands in ``candidates``.
 
         The uuid guard is deliberately plain truthiness and NOT ``.strip()`` —
         matching what this function did before repo slugs were added. Whether a

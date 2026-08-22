@@ -9,13 +9,12 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from specify_cli.dossier.manifest import ManifestSchemaError
 
 if TYPE_CHECKING:
-    from specify_cli.dossier.models import MissionDossier
-    from specify_cli.dossier.snapshot import MissionDossierSnapshot
+    from specify_cli.dossier.models import MissionDossier, MissionDossierSnapshot
     from specify_cli.identity.project import ProjectIdentity
 
     from .body_queue import OfflineBodyUploadQueue
@@ -75,7 +74,7 @@ def _emit_artifact_events(
     dossier: MissionDossier,
     namespace_ref: NamespaceRef,
     step_id: str | None,
-    ns_dict: dict[str, object],
+    ns_dict: dict[str, Any],
     *,
     project_context: ProjectSyncContext | None = None,
     project_unit: ProjectUnitOfWork | None = None,
@@ -150,7 +149,7 @@ def _emit_snapshot(
     dossier: MissionDossier,
     feature_dir: Path,
     namespace_ref: NamespaceRef,
-    ns_dict: dict[str, object],
+    ns_dict: dict[str, Any],
     *,
     project_context: ProjectSyncContext | None = None,
     project_unit: ProjectUnitOfWork | None = None,
@@ -199,7 +198,7 @@ def _emit_drift(
     snapshot: MissionDossierSnapshot,
     feature_dir: Path,
     namespace_ref: NamespaceRef,
-    ns_dict: dict[str, object],
+    ns_dict: dict[str, Any],
     repo_root: Path,
     project_identity: ProjectIdentity,
     *,

@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 
 import typer
 from rich.console import Console
-from specify_cli.cli.console import console
+from specify_cli.cli.console import console as console
 from rich.table import Table
 
 if TYPE_CHECKING:
@@ -57,7 +57,7 @@ from specify_cli.core.saas_sync_config import saas_sync_opt_in_recorded_message
 from kernel.clock import now_utc_iso
 from specify_cli.sync.feature_flags import (
     SAAS_SYNC_ENV_VAR,
-    is_saas_sync_enabled,
+    is_saas_sync_enabled as is_saas_sync_enabled,
     saas_sync_disabled_message,
 )
 from specify_cli.tracker.egress_verdict import (

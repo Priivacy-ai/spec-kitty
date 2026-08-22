@@ -92,6 +92,7 @@ from specify_cli.sync.project_context import (
     ProjectSyncContext,
     validate_project_sync_context_authority,
 )
+from specify_cli.sync.project_identity import CanonicalProjectUUID
 from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
 from specify_cli.sync.transport_attempts import (
     DeliveryAttemptSpec,
@@ -629,7 +630,7 @@ def _assert_target_matches_context(
         audience.target_identity,
         audience.account_identity,
         audience.private_teamspace_id,
-        audience.project_uuid.storage_token,
+        CanonicalProjectUUID.parse(audience.project_uuid).storage_token,
         audience.configuration_generation,
         str(context.admission_generation),
         context.binding_audience,

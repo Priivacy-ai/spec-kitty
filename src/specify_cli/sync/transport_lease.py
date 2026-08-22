@@ -20,12 +20,12 @@ from threading import Lock
 from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.sync.project_context import (
     AdmissionState,
-    CanonicalProjectUUID,
     ConsentState,
     ProjectSyncContext,
     TargetAudience,
     _new_project_sync_context,
 )
+from specify_cli.sync.project_identity import CanonicalProjectUUID
 from specify_cli.sync.project_store import (
     ProjectStoreError,
     ProjectStoreLockedError,
