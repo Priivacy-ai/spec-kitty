@@ -11,6 +11,24 @@ Landed so far: `grammar.py`, `sanitizer.py`, `budget.py`, `transport.py`
 `presence()`), `credentials.py` (local storage primitive: `store()`/`load()`/
 `revoke()`).
 
+**Z4-C** (a separate Bead, branched from this WP01 base at `afa4020d`) added
+`live_frame.py` (pure `LiveFrame` parsing + `StreamState`: gap/epoch/revoke
+handling via full local-state reset, <=90s TTL clamp enforced client-side
+regardless of what a relay sends, closed `focus.state=="ended"` signals
+dropped rather than queued) and `filtered_stream.py`
+(`FilteredStream.watch()`/`.check()`/`.current_focus()` — one SSE
+subscription per team-bound `X-Zeitgeist-Capability` credential against F3's
+managed-runtime `GET /managed/stream`, landed separately by Z3-T1 in the
+`zeitgeist` repo). This does **not** resolve item 1/2 below: Z4-C's own
+frame parsing is a deliberately narrower, hand-checked shape gate (exactly
+the fields `StreamState` reads), not a general JSON-Schema validator run
+against a bundled/pinned `managed_live.schema.json` — `ZeitgeistClient.
+watch()`/`.status()` on `transport.py` are untouched by Z4-C and still raise
+`NotImplementedError`; Z4-C's surfaces live on the new
+`filtered_stream.FilteredStream` class instead, deliberately not folded into
+`transport.ZeitgeistClient` (see `zeitgeist_client/__init__.py`'s module
+docstring for why the two stay independent).
+
 ## Not yet implemented
 
 1. **`validator.py` + bundled schemas + `DIGESTS.json`** — blocked on F1-T1
@@ -41,6 +59,16 @@ Landed so far: `grammar.py`, `sanitizer.py`, `budget.py`, `transport.py`
    hook re-homing under `zeitgeist_client/assets/hooks/<harness>/`, and
    `tool_surface.repair` registration.
 7. **`CHANGELOG.md` entry and `docs/zeitgeist-client.md`** — not written.
+8. **CLI/MCP wiring for Z4-C's `FilteredStream`** — the `status`/`watch`
+   CLI sub-group in item 4 above and the stdio MCP adapter in item 3 above
+   should eventually call `filtered_stream.FilteredStream`, once they exist;
+   Z4-C landed only the client-library surfaces it was scoped to
+   ("watch/check/current-focus surfaces over Z1 service"), not a CLI/MCP
+   adapter. Also not covered by Z4-C: any server-side capability-credential
+   issuance flow (Z2a/Z2b's job, not this client's) — a caller must already
+   hold a valid `X-Zeitgeist-Capability` token to construct a
+   `filtered_stream.TeamStreamConfig`; nothing here mints or requests one.
 
-See the module docstrings of `transport.py` and `credentials.py` for the
-specific contract clauses each gap corresponds to.
+See the module docstrings of `transport.py`, `credentials.py`,
+`live_frame.py`, and `filtered_stream.py` for the specific contract clauses
+each gap corresponds to.
