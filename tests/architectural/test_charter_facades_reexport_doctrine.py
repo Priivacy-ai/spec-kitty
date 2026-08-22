@@ -132,6 +132,14 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
         ("builtin_mission_type_ids", "doctrine.missions.mission_type_repository"),
         ("project_template_set", "doctrine.missions.step_projection"),
         ("MissionStepRepository", "doctrine.missions.mission_step_repository"),
+        # Added by mission ``rc3-charter-gate-predicate-inversion-01M0GGT1`` (M3,
+        # #3599): the artifact-filename seam relocated the expected-artifact
+        # manifest into doctrine (C-001) and specify_cli reaches it through this
+        # facade (runtime -> charter -> doctrine, test_runtime_charter_doctrine_boundary).
+        ("ArtifactClassEnum", "doctrine.missions.expected_artifact_manifest"),
+        ("ExpectedArtifactManifest", "doctrine.missions.expected_artifact_manifest"),
+        ("ExpectedArtifactSpec", "doctrine.missions.expected_artifact_manifest"),
+        ("project_artifact_name_set", "doctrine.missions.step_projection"),
         # Added by mission ``up-mission-type-seam-01KZY1JB`` WP07 (FR-006):
         # the CLI layer (``specify_cli.cli.commands.charter.mission_type``)
         # needs direct reach to the FR-001 layered factory to report a real
@@ -173,6 +181,16 @@ _FACADE_TABLE: dict[str, list[tuple[str, str]]] = {
     "charter.pack_paths": [
         ("built_in_dir", "doctrine.pack_paths"),
         ("built_in_root", "doctrine.pack_paths"),
+    ],
+    # Added by mission ``operator-config-ergonomics`` (portable provenance):
+    # the runtime provenance-normalizer reach-through routes through this
+    # facade exactly like ``charter.pack_paths`` above, closing the direct
+    # ``specify_cli``/``runtime`` -> ``doctrine.provenance`` import that
+    # ``test_runtime_charter_doctrine_boundary.py`` forbids. Same source
+    # module, same identity-reexport shape. FACADE-ONLY.
+    "charter.provenance": [
+        ("is_built_in_pack_path", "doctrine.provenance"),
+        ("to_portable_source_path", "doctrine.provenance"),
     ],
     # Widened by WP03/T015: ``resolve_template_by_id`` (WP01 found it missing;
     # ``runtime/resolver.py`` needs it in WP07/T036). FACADE-ONLY.

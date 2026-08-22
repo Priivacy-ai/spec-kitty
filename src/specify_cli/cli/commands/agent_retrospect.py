@@ -36,7 +36,14 @@ from specify_cli.retrospective import (
     RetrospectiveActor,
 )
 from specify_cli.retrospective.lifecycle_events import Actor as LifecycleActor
-from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_gen_record, read_record
+from specify_cli.retrospective.reader import (
+    FINDING_CATEGORIES,
+    PROPOSAL_CATEGORIES,
+    SchemaError,
+    YAMLParseError,
+    read_gen_record,
+    read_record,
+)
 from specify_cli.retrospective.schema import (
     ActorRef,
     GenActor,
@@ -57,6 +64,7 @@ from specify_cli.retrospective.writer import (
 )
 from specify_cli.status import reduce as reduce_status_events
 from specify_cli.status import read_events
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 
 app = typer.Typer(
     name="retrospect",
@@ -224,6 +232,23 @@ def _canonical_events_dir(repo_root: Path, mission_slug: str, fallback_dir: Path
     return surface.parent
 
 
+def _required_planning_artifact_filenames() -> tuple[str, str, str]:
+    """Return today's (spec, plan, tasks) filenames via the resolved artifact-name seam.
+
+    FR-009/FR-010 (#3599): sourced from the per-type expected-artifacts.yaml
+    path_pattern authority, not hardcoded literals -- byte-compatible with
+    the prior ``("spec.md", "plan.md", "tasks.md")`` literal for software-dev
+    (NFR-003). Evaluated at call time (not cached at import) so this stays
+    live for tests that patch the underlying manifest source -- see
+    tests/specify_cli/runtime/test_configured_artifact_name.py.
+    """
+    return (
+        resolve_configured_artifact_name("input.spec.main"),
+        resolve_configured_artifact_name("output.plan.main"),
+        resolve_configured_artifact_name("output.tasks.list"),
+    )
+
+
 def _mission_artifacts_sufficient_for_empty_record(
     feature_dir: Path,
     *,
@@ -237,7 +262,7 @@ def _mission_artifacts_sufficient_for_empty_record(
     status surface (FR-009 / #1735), which diverges from ``feature_dir`` under
     coordination topology.
     """
-    for required in ("spec.md", "plan.md", "tasks.md"):
+    for required in _required_planning_artifact_filenames():
         if not (feature_dir / required).is_file():
             return False
     tasks_dir = feature_dir / "tasks"
@@ -528,11 +553,13 @@ def synthesize_cmd(
             _err_console.print(f"[red]Error:[/red] {msg}")
             raise typer.Exit(3) from missing_record_exc
     except (YAMLParseError, SchemaError) as exc:
+        gen_exc: Exception | None = None
         try:
             generator_record = read_gen_record(retro_file)
             record = None
-        except (FileNotFoundError, YAMLParseError, SchemaError):
+        except (FileNotFoundError, YAMLParseError, SchemaError) as gen_error:
             generator_record = None
+            gen_exc = gen_error
         else:
             outcome = "retrospective_synthesized"
             if generator_record.proposals:
@@ -542,12 +569,31 @@ def synthesize_cmd(
                     "so synthesize will run as an empty dry-run batch."
                 )
         if generator_record is None:
-            msg = f"Retrospective record malformed: {exc}"
+            # #3533: report the GENERATOR reader's diagnosis, not the Pydantic one.
+            # A record written by `retrospect create` is generator-shaped, so the
+            # nested-schema reader ALWAYS fails on it and its ~100 field errors
+            # describe a schema the file was never meant to satisfy. The generator
+            # reader's message is one line and names the offending field, e.g.
+            # "not_helpful[0].category is invalid" — the only actionable half.
+            # Surfacing the wrong one has twice led readers to conclude the tool
+            # contradicts itself when a single enum value was wrong.
+            detail = str(gen_exc) if gen_exc is not None else str(exc)
+            if gen_exc is not None and "category is invalid" in detail:
+                # Findings and proposals both raise "<label>.category is invalid"
+                # but draw from DIFFERENT allow-lists (#3537 landing). Pick by the
+                # label so a bad proposal category is not handed the finding set.
+                if "proposals[" in detail:
+                    allowed = ", ".join(sorted(PROPOSAL_CATEGORIES))
+                    detail = f"{detail}\nAllowed proposal categories: {allowed}"
+                else:
+                    allowed = ", ".join(sorted(FINDING_CATEGORIES))
+                    detail = f"{detail}\nAllowed finding categories: {allowed}"
+            msg = f"Retrospective record malformed: {detail}"
             if json_only:
-                _err_console.print_json(json.dumps({"error": "record_malformed", "detail": str(exc)}))
+                _err_console.print_json(json.dumps({"error": "record_malformed", "detail": detail}))
             else:
                 _err_console.print(f"[red]Error:[/red] {msg}")
-            raise typer.Exit(3) from exc
+            raise typer.Exit(3) from (gen_exc if gen_exc is not None else exc)
     except OSError as exc:
         msg = f"I/O error reading retrospective: {exc}"
         if json_only:

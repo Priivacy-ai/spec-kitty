@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: >-
+      Commit 8e38e022a rewrote WP05's Review Guidance to name only the three guards
+      that actually call _tasks_dir_ready (packages/composed-packages/composed-terminal,
+      confirmed at lines 487/517/528 of runtime_bridge_cores.py) for the before/after
+      check, and separately describes _evaluate_tasks_finalize_guard's distinct
+      no-short-circuit inline-check shape (confirmed at lines 492-504) with its own
+      correct instruction to verify unconditional first-statement placement.

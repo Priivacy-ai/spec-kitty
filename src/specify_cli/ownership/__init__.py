@@ -13,13 +13,13 @@ from specify_cli.ownership.audit_targets import (
     validate_audit_coverage,
 )
 from specify_cli.ownership.inference import infer_ownership
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest, SCOPE_CODEBASE_WIDE
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest, SCOPE_CODEBASE_WIDE
 from specify_cli.ownership.validation import ValidationResult, validate_ownership
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 
 __all__ = [
     "AUDIT_TEMPLATE_TARGETS",
-    "ExecutionMode",
+    "WorkProductKind",
     "OwnershipManifest",
     "SCOPE_CODEBASE_WIDE",
     "ValidationResult",

@@ -739,7 +739,6 @@ class TestDaemonBoundedFlock:
         state_file = tmp_path / "sync-daemon"
         lock_file = tmp_path / "sync-daemon.lock"
         log_file = tmp_path / "sync-daemon.log"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
         monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
         monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
         monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", log_file)
@@ -1083,7 +1082,6 @@ class TestFullQueueExpiredSessionIntegration:
         from specify_cli.sync import daemon
         from specify_cli.sync.config import BackgroundDaemonPolicy
 
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
         monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", tmp_path / "sync-daemon")
         monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", tmp_path / "sync-daemon.lock")
         monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")

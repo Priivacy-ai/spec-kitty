@@ -325,6 +325,7 @@ class TestDoctorDoctrineGlossaryPackJson:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 class TestDoctorDoctrinePerformance:
     def test_doctor_doctrine_json_completes_under_two_seconds(
         self, bare_repo_root: Path

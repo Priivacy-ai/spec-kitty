@@ -165,8 +165,79 @@ class PreflightRejected(RuntimeError):
 
     def __init__(self, payload: Mapping[str, Any]) -> None:
         self.payload = dict(payload)
-        reconciliation = self.payload.get("reconciliation") or self.payload.get("error") or self.payload
-        super().__init__(f"server preflight rejected the batch: {reconciliation}")
+        super().__init__(f"server preflight rejected the batch: {_preflight_rejection_message(self.payload)}")
+
+
+_PREFLIGHT_TOP_LEVEL_DIAGNOSTIC_FIELDS = ("category", "code")
+_PREFLIGHT_DETAIL_FIELDS = ("event_id", "path", "detail")
+
+
+def _first_preflight_detail(payload: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Return the first per-event entry of a deployed 400 ``details[]`` array.
+
+    ``apps/sync/serializers.py::serialize_live_ingress_failure`` (deployed SaaS)
+    shapes a rejection as one ``detail`` per offending event
+    (``category``/``code``/``detail``/``event_id``/``index``/``path``/``value``);
+    the first entry is the same one the server's own ``error`` summary is
+    derived from.
+    """
+    raw = payload.get("details")
+    if isinstance(raw, list) and raw and isinstance(raw[0], Mapping):
+        return raw[0]
+    return None
+
+
+def _preflight_structured_diagnostic(payload: Mapping[str, Any]) -> dict[str, Any] | None:
+    """Extract the deployed server's structured rejection diagnostic, if sent.
+
+    ``None`` when the payload carries no top-level ``error`` summary --
+    callers fall back to whatever legacy shape they have (#3582 backward
+    compatibility). The deployed rejection shape carries the summary as
+    top-level ``error``/``category``/``code`` plus a ``details[]`` array (one
+    entry per offending event); older/test shapes may only carry a per-event
+    ``error_category`` alias, which :func:`_canonical_preflight_error_category`
+    already resolves.
+    """
+    error_message = payload.get("error")
+    if not (isinstance(error_message, str) and error_message.strip()):
+        return None
+    diagnostic: dict[str, Any] = {"error": error_message.strip()}
+    for field_name in _PREFLIGHT_TOP_LEVEL_DIAGNOSTIC_FIELDS:
+        value = payload.get(field_name)
+        if isinstance(value, str) and value.strip():
+            diagnostic[field_name] = value.strip()
+    first_detail = _first_preflight_detail(payload)
+    if first_detail is not None:
+        for field_name in _PREFLIGHT_DETAIL_FIELDS:
+            value = first_detail.get(field_name)
+            if value:
+                diagnostic.setdefault(field_name, value)
+        if "category" not in diagnostic:
+            category = _canonical_preflight_error_category(first_detail)
+            if category:
+                diagnostic["category"] = category
+    return diagnostic
+
+
+def _preflight_rejection_message(payload: Mapping[str, Any]) -> str:
+    """Prefer the server's structured diagnostic over reconciliation counters.
+
+    Preflight never mutates state (``/api/v1/events/preflight/`` runs no
+    ingestion), so its ``reconciliation`` counters are structurally always
+    null/zero -- surfacing them for a genuine rejection hides the real cause
+    (#3582). Prefer the top-level ``error``/``category``/``code`` plus the
+    first ``details[]`` entry whenever the server actually sent one; keep the
+    reconciliation counters as secondary context rather than discarding them.
+    Payloads that only carry ``error`` (e.g. a local transport failure) or
+    neither fall back to the pre-existing rendering.
+    """
+    diagnostic = _preflight_structured_diagnostic(payload)
+    if diagnostic is not None:
+        reconciliation = payload.get("reconciliation")
+        if isinstance(reconciliation, Mapping) and reconciliation:
+            diagnostic = {**diagnostic, "reconciliation": dict(reconciliation)}
+        return str(diagnostic)
+    return str(payload.get("reconciliation") or payload.get("error") or payload)
 
 
 class HistoryTransportAuthorityError(RuntimeError):
@@ -185,9 +256,18 @@ class _PreflightResponse:
         if self.status_code != 200 or self.payload is None:
             return False
         results = _correlated_preflight_results(self.payload)
-        if results is None or set(results) != set(self.expected_event_ids):
+        if results is not None:
+            if set(results) != set(self.expected_event_ids):
+                return False
+            return all(str(result.get("status") or "").strip().lower() in {"success", "duplicate"} for result in results.values())
+        # Deployed contract (#3581): a 200 response with NO ``results`` key at
+        # all (preflight never mutates state, so it has nothing to correlate)
+        # is accepted only when the server's own top-level verdict says so. A
+        # ``results`` that IS present but does not correlate is a malformed or
+        # partial verdict -- fail closed, never waive (F1).
+        if "results" in self.payload:
             return False
-        return all(str(result.get("status") or "").strip().lower() in {"success", "duplicate"} for result in results.values())
+        return self.payload.get("accepted") is True
 
 
 def _admission_bound_event(
@@ -723,13 +803,18 @@ def _preflight_classification(
     if response.status_code == 200 and response.payload is not None:
         results = _correlated_preflight_results(response.payload)
         if results is None:
-            return {
-                disclosure.attempt_id: (
-                    TransportDeliveryOutcome.UNKNOWN.value,
-                    None,
-                )
-                for disclosure in disclosures
-            }
+            # #3581/#3582: the deployed contract sends no results[] on a 200
+            # accepted verdict. Record every preflighted event as DELIVERED so
+            # the attempt ledger reaches a genuine terminal state -- leaving
+            # it UNKNOWN would make a re-run crash trying to recover a
+            # perpetually nonterminal attempt instead of replaying the
+            # accepted verdict (_prior_preflight_response /
+            # _exact_terminal_history require TERMINAL or ABSENT, never
+            # NONTERMINAL). A non-accepted 200 with no results[] carries no
+            # per-event information at all, so it stays UNKNOWN -- gracefully
+            # inert, never a crash or a silently-dropped event.
+            no_results_outcome = TransportDeliveryOutcome.DELIVERED.value if response.accepted else TransportDeliveryOutcome.UNKNOWN.value
+            return {disclosure.attempt_id: (no_results_outcome, None) for disclosure in disclosures}
         mapped: dict[str, tuple[str, str | None]] = {}
         for disclosure in disclosures:
             result = results.get(disclosure.native_identity)

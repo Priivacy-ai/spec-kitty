@@ -594,3 +594,140 @@ def test_default_discovery_context_is_built_when_none_supplied(
     result = run_custom_mission("ok-mission", "tracked-slug", repo_root)
     assert result.exit_code == 0
     assert result.envelope["mission_key"] == "ok-mission"
+
+
+def test_org_tier_mission_discovered_via_third_wiring_site(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """DEC-006 / User Story 3 Acceptance Scenario 4: this module's own,
+    independently-duplicated `_build_discovery_context` (the "third wiring
+    site" the originating research missed) populates `org_roots` and
+    discovers a mission there -- proving `mission run <key>` sees the org
+    tier, not just the generic `spec-kitty next` engine.
+
+    Uses the REAL discovery context (no `discovery_context=` override) so
+    `resolve_org_roots` actually runs through this module's own code path,
+    not a test-injected shortcut.
+    """
+    from runtime.next._internal_runtime.discovery import discover_missions_with_warnings
+    from specify_cli.mission_loader import command as command_mod
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    org_root = tmp_path / "org-pack"
+    _write_mission(org_root, "missions", "org-custom-mission", _VALID_BODY)
+
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True)
+    (config_dir / "config.yaml").write_text(
+        "doctrine:\n"
+        "  org:\n"
+        "    packs:\n"
+        "      - name: acme\n"
+        f"        local_path: {org_root}\n",
+        encoding="utf-8",
+    )
+
+    # Isolate the user-home tier so it cannot leak a real mission in.
+    monkeypatch.setenv("HOME", str(tmp_path / "fake-home"))
+    (tmp_path / "fake-home").mkdir(exist_ok=True)
+
+    # Unit-level proof: this module's own _build_discovery_context (not an
+    # injected override) resolves the org root and surfaces the mission at
+    # tier "org".
+    ctx = command_mod._build_discovery_context(repo_root)
+    assert org_root in ctx.org_roots
+    discovered = discover_missions_with_warnings(ctx).missions
+    match = next(d for d in discovered if d.key == "org-custom-mission")
+    assert match.precedence_tier == "org"
+    assert match.selected is True
+
+    # End-to-end proof: run_custom_mission (no discovery_context override)
+    # succeeds using this same org-tier mission.
+    fake_run_dir = tmp_path / "runs" / "org-run"
+    fake_run_dir.mkdir(parents=True)
+
+    from runtime.next import runtime_bridge
+
+    monkeypatch.setattr(
+        runtime_bridge,
+        "get_or_start_run",
+        lambda **_: _FakeRunRef(run_id="org-run", run_dir=str(fake_run_dir)),
+    )
+
+    result = run_custom_mission("org-custom-mission", "org-tracked-slug", repo_root)
+    assert result.exit_code == 0, result.envelope
+    assert result.envelope["result"] == "success"
+    assert result.envelope["mission_key"] == "org-custom-mission"
+
+
+def test_build_discovery_context_malformed_config_emits_no_warning_stream(
+    tmp_path: Path,
+) -> None:
+    """Regression guard (pre-merge lens, mission
+    ``up-org-template-fsm-01M06F9K``): this module's own
+    `_build_discovery_context` -- the "third wiring site" (DEC-006) -- is a
+    resolution hot path that may run many times per invocation. A project
+    with no readable org-pack intent (this config can't even be parsed by
+    `load_pack_registry`) must see ZERO new warning output: NFR-005/SC-007
+    requires byte-identical behaviour, explicitly including "same log
+    output, no new warnings", for a project with no org pack configured."""
+    import warnings
+
+    from specify_cli.mission_loader import command as command_mod
+
+    repo_root = tmp_path / "repo"
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True)
+    (config_dir / "config.yaml").write_text(
+        "not: [valid, doctrine.org.packs shape\n", encoding="utf-8"
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        ctx = command_mod._build_discovery_context(repo_root)
+
+    assert caught == []
+    assert ctx.org_roots == []
+    assert ctx.project_dir == repo_root
+
+
+def test_build_discovery_context_declared_but_broken_org_pack_still_warns(
+    tmp_path: Path,
+) -> None:
+    """Positive case for the fix above: a config that DOES declare
+    ``doctrine.org.packs`` but fails schema validation (here, two packs
+    sharing the same ``name``) is a genuinely misconfigured org pack -- the
+    operator demonstrably opted in and deserves to know it's broken. That
+    signal must remain diagnosable through this same resolution hot path,
+    unlike the "can't even parse the file" case above."""
+    import warnings
+
+    from specify_cli.mission_loader import command as command_mod
+
+    repo_root = tmp_path / "repo"
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True)
+    acme_one = tmp_path / "acme-one"
+    acme_two = tmp_path / "acme-two"
+    (config_dir / "config.yaml").write_text(
+        "doctrine:\n"
+        "  org:\n"
+        "    packs:\n"
+        "      - name: acme\n"
+        f"        local_path: {acme_one}\n"
+        "      - name: acme\n"
+        f"        local_path: {acme_two}\n",
+        encoding="utf-8",
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        ctx = command_mod._build_discovery_context(repo_root)
+
+    assert len(caught) == 1  # golden-count: cardinality-is-contract
+    assert "Invalid doctrine.org config" in str(caught[0].message)
+    # Fails soft to zero org roots -- resolution still proceeds, it just
+    # can't trust the broken declaration.
+    assert ctx.org_roots == []

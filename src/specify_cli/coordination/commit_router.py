@@ -264,7 +264,7 @@ def _commit_partition_group(
             diagnostic=(
                 f"Refusing to commit planning artifacts to the protected branch "
                 f"'{placement.ref}'. Start a non-protected feature branch and "
-                f"commit there: 'spec-kitty mission create --start-branch "
+                f"commit there: 'spec-kitty agent mission create --start-branch "
                 f"<feature-branch>' (or check out an existing feature branch). "
                 f"Planning artifacts must land on a feature branch."
             ),

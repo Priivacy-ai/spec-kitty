@@ -29,7 +29,7 @@ from specify_cli.lanes.branch_naming import (
     parse_mission_slug_from_branch,
 )
 from specify_cli.lanes.compute import compute_lanes
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 pytestmark = [pytest.mark.fast]
 
@@ -85,7 +85,7 @@ class TestComputeManifestDualEra:
     def _manifest() -> dict[str, OwnershipManifest]:
         return {
             "WP01": OwnershipManifest(
-                execution_mode=ExecutionMode("code_change"),
+                execution_mode=WorkProductKind("code_change"),
                 owned_files=("src/a.py",),
                 authoritative_surface="src/a.py",
             )

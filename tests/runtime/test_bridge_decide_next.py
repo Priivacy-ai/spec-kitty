@@ -9,9 +9,9 @@ phase helper stay <=15 (the WP09 headline: the module's last ``# noqa:
 C901`` is gone).
 
 End-to-end behavior (side-effect order/content across the 29 ``Decision``
-sites) stays proven by the WP01 parity oracle (``test_bridge_parity.py``)
-and the WP02 compat guard (``test_bridge_compat_surface.py``); this file is
-the phase-local unit layer FR-006 asks for, mirroring the
+sites) stays proven by the WP01 parity oracle (``test_bridge_parity.py``); the
+WP02 re-export compat guard that also covered it was retired in #3285. This
+file is the phase-local unit layer FR-006 asks for, mirroring the
 ``test_bridge_decision_builder.py`` / ``test_bridge_composition.py``
 stub-based pattern from WP07/WP08.
 """
@@ -23,6 +23,7 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import ast
+import json
 
 import pytest
 
@@ -81,6 +82,13 @@ def _make_ctx(
     real ``_BufferingRuntimeEmitter`` in its own tests below)."""
     feature_dir = tmp_path / "kitty-specs" / "042-mission"
     feature_dir.mkdir(parents=True, exist_ok=True)
+    # Keep the synthetic feature_dir consistent with ``mission_type`` below:
+    # the non-WP CLI guard pre-check in ``_dn_dependency_gate`` is scoped to
+    # the ``software-dev`` family via ``get_mission_type(feature_dir)`` (#3407
+    # M3), which reads this meta.json. Without it the pre-check no-ops.
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_type": "software-dev"}), encoding="utf-8"
+    )
     resolved_run_dir = run_dir if run_dir is not None else (tmp_path / "run")
     resolved_run_dir.mkdir(parents=True, exist_ok=True)
     return rb.DecideNextContext(

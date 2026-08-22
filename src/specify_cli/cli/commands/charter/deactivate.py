@@ -24,7 +24,6 @@ safe cascade engine on the removal side:
 from __future__ import annotations
 
 from pathlib import Path
-from typing import cast
 
 import typer
 from specify_cli.cli.console import console
@@ -32,6 +31,7 @@ from specify_cli.cli.console import console
 from charter.activation_engine import NoActivationRestrictionsError
 from charter.cascade import CascadeScope, deactivation_plan
 from charter.catalog import resolve_doctrine_root
+from charter.drg import load_org_drg
 from charter.invocation_context import ProjectContext
 from charter.kind_vocabulary import (
     UnknownArtifactIdError,
@@ -48,7 +48,10 @@ from specify_cli.cli.commands.charter.activate import (
     run_full_synthesize,
     validate_pack_config,
 )
-from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
+from specify_cli.cli.commands.charter._layer_roots import (
+    resolve_layer_roots,
+    resolve_org_root_chain,
+)
 
 __all__ = ["deactivate_cmd"]
 
@@ -58,27 +61,26 @@ def _source_urn(
     kind: str,
     artifact_id: str,
     layer_roots: dict[str, Path] | None,
+    org_roots: list[Path] | None = None,
 ) -> str | None:
-    """Resolve the DRG source URN for ``(kind, config-stem artifact_id)`` or ``None``."""
+    """Resolve the DRG source URN for ``(kind, config-stem artifact_id)`` or ``None``.
+
+    ``org_roots`` (T008/T010, mission ``cascade-org-inert-01M07E9P``): the
+    full declaration-ordered org-pack chain, additive to ``layer_roots``'s
+    single-pack-only ``roots["org"]`` — see
+    ``specify_cli.cli.commands.charter._layer_roots.resolve_org_root_chain``.
+    """
     try:
         kind_enum = ArtifactKind.from_operator_token(kind)
     except MissionTypeNotAnArtifactKind:
         return None
     try:
-        # ``resolve_artifact_urn`` is declared ``-> str`` in charter/kind_vocabulary.py,
-        # but the project's mypy config sets ``follow_imports = "skip"`` for the
-        # ``charter.*`` module pattern (pyproject.toml), so mypy treats the imported
-        # symbol's return as ``Any`` here rather than reading its real signature.
-        # The cast is an honest re-statement of the already-declared type, not a
-        # suppression of a real type error.
-        return cast(
-            str,
-            resolve_artifact_urn(
-                kind_enum,
-                artifact_id,
-                doctrine_root=resolve_doctrine_root(),
-                layer_roots=layer_roots,
-            ),
+        return resolve_artifact_urn(
+            kind_enum,
+            artifact_id,
+            doctrine_root=resolve_doctrine_root(),
+            org_roots=org_roots,
+            layer_roots=layer_roots,
         )
     except UnknownArtifactIdError:
         return None
@@ -88,12 +90,20 @@ def _active_urns(
     manager: CharterPackManager,
     ctx_project: ProjectContext,
     layer_roots: dict[str, Path] | None,
+    org_roots: list[Path] | None = None,
 ) -> set[str]:
     """Return the set of currently-activated artifact URNs across all kinds.
 
     Resolves each activated config-stem ID back to its DRG URN. IDs with no
     resolvable DRG node (or mission-type, which is not an artifact kind) are
     skipped — they cannot participate in DRG reachability anyway.
+
+    ``org_roots`` (T008/T010): full org-pack chain — without it, a currently-
+    active artifact whose config-stem lives only in org pack 2..N could not
+    resolve its DRG URN at all here, so it would silently drop out of the
+    ``active`` set that :func:`charter.cascade.deactivation_plan` uses for
+    Contract C3.4 shared-reference safety (NFR-002: a dropped active URN is a
+    silent-wrong-data risk, not merely a display gap).
     """
     doctrine_root = resolve_doctrine_root()
     urns: set[str] = set()
@@ -111,6 +121,7 @@ def _active_urns(
                         kind_enum,
                         config_id,
                         doctrine_root=doctrine_root,
+                        org_roots=org_roots,
                         layer_roots=layer_roots,
                     )
                 )
@@ -133,11 +144,21 @@ def _render_cascade_deactivation(
     Exclusive candidates are removed through the same activation seam; shared
     candidates are reported (never removed — Contract C3.4) with the still-
     referencing active source named.
+
+    T010 (mission ``cascade-org-inert-01M07E9P``): threads the full org-pack
+    chain into the DRG load, the active-URN resolution, and the ID mapping
+    below — same rationale as ``activate.py``'s ``_render_cascade_activation``.
+    Previously this call carried NO org roots at all.
     """
     from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
 
-    graph = load_validated_graph(repo_root)
-    active = _active_urns(manager, ctx_project, layer_roots)
+    org_roots = resolve_org_root_chain(repo_root)
+    graph = load_validated_graph(
+        repo_root,
+        org_roots=org_roots,
+        org_fragments=load_org_drg(repo_root, strict=False),
+    )
+    active = _active_urns(manager, ctx_project, layer_roots, org_roots)
     plan = deactivation_plan(graph, target_urn, scope, active_urns=active)
     doctrine_root = resolve_doctrine_root()
 
@@ -146,7 +167,7 @@ def _render_cascade_deactivation(
         kind_token = ArtifactKind(kind_value).operator_token
         try:
             config_id = resolve_config_id(
-                urn, doctrine_root=doctrine_root, layer_roots=layer_roots
+                urn, doctrine_root=doctrine_root, org_roots=org_roots, layer_roots=layer_roots
             )
         except (UnknownArtifactIdError, ValueError):
             config_id = urn.partition(":")[2]
@@ -247,7 +268,7 @@ def deactivate_cmd(
     # Only runs when a scope was supplied and the direct deactivation actually
     # removed the target (so we never cascade off a no-op removal).
     if scope is not None and result.deactivated:
-        target_urn = _source_urn(kind, artifact_id, layer_roots)
+        target_urn = _source_urn(kind, artifact_id, layer_roots, resolve_org_root_chain(repo_root))
         if target_urn is not None:
             _render_cascade_deactivation(
                 manager, ctx_project, target_urn, scope, repo_root, layer_roots

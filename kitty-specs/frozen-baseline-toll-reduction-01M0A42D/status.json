@@ -1,0 +1,118 @@
+{
+  "event_count": 21,
+  "last_event_id": "01M0AEC1Y7XNJD3XTB07CS4X9M",
+  "materialized_at": "2026-08-18T12:43:34.727235+00:00",
+  "mission_number": "",
+  "mission_slug": "frozen-baseline-toll-reduction-01M0A42D",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M0AEBZKHAB5WPYY8NZ4QH8XR",
+      "last_transition_at": "2026-08-18T12:43:32.337486+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Normalization complete (329 content-tier entries, comments-only, gate green: 25 passed, ruff+mypy clean). --force per #3271 known coord-topology kitty-specs lane-hygiene false-positive. Canonical form = trailing-or-immediately-preceding (E501/164 forces preceding for 137 long entries; Contract A-norm-supported).",
+        "all merits approved; issue-matrix fully resolved (#3552 evidence fixed); --force per #3271"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "all merits approved; issue-matrix fully resolved (#3552 evidence fixed); --force per #3271",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2228259,
+      "shell_pid_created_at": "1787053275.72",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M0AEC1Y7XNJD3XTB07CS4X9M",
+      "last_transition_at": "2026-08-18T12:43:34.727235+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Fail-closed refresh helper; NFR-001 regression proves structural non-admit (positive control + candidate-set + differential stub)"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: safety property is REAL not asserted. Structural non-append confirmed (_apply only column-slice-overwrites existing hash tokens; parse iterates existing SymbolKey calls; no append path). Unrecoverable/ambiguous module_path REFUSES with NO bare-name-only fallback (decide(): entry_module None -> UNRECOVERABLE/AMBIGUOUS; _new_hash_for requires (bare_name AND module_path) match; compute_still_dead drops un-keyable offenders, never guesses). Single hashing authority (_compute_offenders(...,frozenset()) + _resolve_final_key + classify_collisions; no private recompute). Tier preserved (collision-tier module_path= kwarg untouched by rewrite; T010 asserts). T009 non-fakeable: (a) X refreshed to new hash, (b) Y same-bare_name not admitted + gate REDs on Y, (c) candidate-set >=2 narrowed to exactly {X}, (d) all four refuse branches run via decide(). Differential stub differs only in module_path-narrowing, passes (a), fails (b) admits mod_e::Solo real helper refuses, fails (c) un-narrowed. 13 WP02 tests + 25 frozen-gate tests green; test_no_dead_symbols untouched by WP02 commit; ruff+mypy --strict clean; C901<=15; zero suppressions.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2374648,
+      "shell_pid_created_at": "1787056511.57",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done",
+        "T011": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "claude",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01M0AEC0TC9PSVGAET53BEBYT7",
+      "last_transition_at": "2026-08-18T12:43:33.580819+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "All four toll drains landed; load-bearing gates green; both arms/lists edited. --force per #3271 known coord-topology kitty-specs lane-hygiene false-positive (same remediation the sibling WP01 recorded in this mission; canonical planning tree lives on fix/, status on coord).",
+        "Review passed: FR-004 both arms derive category_1 via _category_baseline() dynamic _import_module_attr read (no NameError, no re-globbed predicate); non-vacuous derivation tests drive real production arms + non-derived controls red/record (not len(x)==len(x)); decorative YAML category_1==len(frozenset) asserted. FR-003 _SKIP_MARKED_BLOCKS removed from BOTH single_baselines lists; growth routed via record_property and ASSERTED through request.node.user_properties (write-only hole closed); legacy_contract_allowlist=151 proven still a growth-fail. FR-005 test_no_dead_symbols YAML block deleted, _GRANDFATHERED_UNREGISTERED_KEYS->frozenset() with coupled :530 equality literal in lockstep, re-entry rejection proven, RL-030 prose retired. FR-006 fast marker on both gate modules; arch-adversarial CI selector confirmed inclusion-based ((git_repo or integration or architectural) and not timing, ci-quality.yml:1999/2148) so fast not excluded; -m fast collection import-hygiene test present (subprocess). C-001 fence intact (151/orphans=3/skip=13 unchanged, test_artifact_kinds untouched, no src touched). 82 gate tests + no_dead_modules green; ruff + mypy --strict clean; zero new suppressions."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: FR-004 both arms derive category_1 via _category_baseline() dynamic _import_module_attr read (no NameError, no re-globbed predicate); non-vacuous derivation tests drive real production arms + non-derived controls red/record (not len(x)==len(x)); decorative YAML category_1==len(frozenset) asserted. FR-003 _SKIP_MARKED_BLOCKS removed from BOTH single_baselines lists; growth routed via record_property and ASSERTED through request.node.user_properties (write-only hole closed); legacy_contract_allowlist=151 proven still a growth-fail. FR-005 test_no_dead_symbols YAML block deleted, _GRANDFATHERED_UNREGISTERED_KEYS->frozenset() with coupled :530 equality literal in lockstep, re-entry rejection proven, RL-030 prose retired. FR-006 fast marker on both gate modules; arch-adversarial CI selector confirmed inclusion-based ((git_repo or integration or architectural) and not timing, ci-quality.yml:1999/2148) so fast not excluded; -m fast collection import-hygiene test present (subprocess). C-001 fence intact (151/orphans=3/skip=13 unchanged, test_artifact_kinds untouched, no src touched). 82 gate tests + no_dead_modules green; ruff + mypy --strict clean; zero new suppressions.",
+        "reviewer": "Stijn Dejongh",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 2294424,
+      "shell_pid_created_at": "1787054517.86",
+      "subtasks": {
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done"
+      }
+    }
+  }
+}

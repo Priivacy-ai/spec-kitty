@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-08-16T23:42:44.931715+00:00",
+  "flattened": false,
+  "friendly_name": "Org tier for the template resolution chain and FSM discovery",
+  "mission_id": "01M06F9K630FKJ8NVY89QKDA3C",
+  "mission_number": null,
+  "mission_slug": "up-org-template-fsm-01M06F9K",
+  "mission_type": "software-dev",
+  "purpose_context": "Two defects compound: the two template resolvers (doctrine.resolver and specify_cli.runtime.resolver) have drifted (the production path is missing the mission-scoped override tier the doctrine-layer one has), and neither the template chain nor FSM discovery has a tier for an org pack's own mission content. This mission converges the resolvers, adds an ORG resolution tier to both the template chain and both FSM discovery walks, and de-silences swallowed load failures on the FSM path — sourced from resolve_org_roots(), per issue #3523.",
+  "purpose_tldr": "Add an org doctrine-pack tier to the template resolver and FSM mission discovery, after converging the two forked template resolvers.",
+  "slug": "up-org-template-fsm-01M06F9K",
+  "status_phase": "1",
+  "target_branch": "up-org-template-fsm",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-17T01:00:51.432930+00:00"
+}

@@ -1,0 +1,88 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+round: 3
+reviewer: debugger-debbie (R5 verifier)
+verdict: VERIFIED
+summary: >-
+  All 5 remedy items from the arbiter ruling applied in commit 3e82324d2 (which resolved
+  spec-fresh-2.yaml's SPEC-FRESH2-001..005) are closed against the current spec.md. No
+  orphaned references remain: the FR-006 gap (FR-005 -> FR-007) is a deliberate deletion,
+  consistent with this repo's non-renumbering convention, and both remaining
+  "description-column"/"invented ceiling" mentions in Story 4 are explanatory prose about
+  what was removed and why, not dangling forward-references to deleted apparatus.
+results:
+  - id: SPEC-FRESH2-001
+    status: closed
+    reason: >-
+      The finding's premise (a post-plan R1-R6 squad approval step with no valid time slot
+      relative to implementation-time re-measurement) no longer applies: the arbiter ruling
+      deleted the post-plan-squad exception-approval clause entirely, along with the invented
+      ceiling it gated, because the false-positive rate is now a measured, recorded fact
+      (9/368 = 2.45%) rather than an unmeasured risk requiring a timing-dependent exception
+      process. A repo-wide grep of spec.md confirms no "independently reviewed" / post-plan
+      exception-approval language remains.
+  - id: SPEC-FRESH2-002
+    status: closed
+    reason: >-
+      FR-005 and SC-006 now specify a frozen, shrink-only corpus fixture committed under
+      `tests/` (per-spec detector signatures snapshotted, asserted against the live detector
+      on every run) explicitly instead of a live re-run over `kitty-specs/` — SC-006 states
+      this "avoids both horns of squad finding SPEC-FRESH2-002": it does not let an unrelated,
+      later-merged mission's spec.md determine the gate's colour, and it does not ship
+      already-red at 2.45%.
+  - id: SPEC-FRESH2-003
+    status: closed
+    reason: >-
+      The ambiguous-block ceiling and the three-bin (true-positive/false-positive/
+      ambiguous-block) classification scheme that created the "narrow the detector to hit
+      the ceiling" incentive were deleted outright, not narrowed or reworded. Story 5 AC2's
+      unqualified blocking mandate for ambiguous, cannot-classify cases stands with no ceiling
+      apparatus left to create a countervailing incentive to reclassify likely-genuine findings
+      out of the ambiguous bucket.
+  - id: SPEC-FRESH2-004
+    status: closed
+    reason: >-
+      The per-spec three-bin classification scheme this finding's tiebreak question was about
+      no longer exists in spec.md — it was deleted along with the ceiling apparatus it served.
+      Story 4/FR-005 now record only the two measured flag rates (document-scoped 9/368,
+      section-scoped 139/368) plus a separate, differently-scoped false-negative sample; there
+      is no per-spec/per-occurrence classification left to require a tiebreak rule for.
+  - id: SPEC-FRESH2-005
+    status: closed
+    reason: >-
+      The arbiter ruling directly addresses the scope-creep signal: it removed the ceiling,
+      the three-bin scheme, the CI-gate live-vs-frozen ambiguity, and the post-plan-squad
+      exception clause, replacing all four with a single frozen shrink-only corpus fixture
+      (FR-005). Per tracer-approach.md, the net result is spec.md shorter by 2 lines / 2,580
+      chars in the diff while recording strictly more information (both measured rates, the
+      scope-decision rationale, the zero-true-positive finding) than before — the disproportionate
+      apparatus this finding flagged was cut, not deferred to plan phase.
+reproduction:
+  method: >-
+    Ran `_declared_ids` / `_requirement_named_sections` / `find_undeclared_requirement_citations`
+    directly from `src/specify_cli/requirement_mapping.py` (loaded via importlib to avoid the
+    package `__init__.py`'s unrelated `typer` dependency) against all 368
+    `kitty-specs/*/spec.md` files in this checkout, and against the issue's exact mixed-repro
+    fixture (declared NFR-001 table row + bare-prose FR-001/FR-002 under a "Functional
+    Requirements" heading).
+  document_scoped_flag_rate: "9/368 = 2.45%"
+  section_scoped_flag_rate: "139/368 = 37.77%"
+  document_scoped_flagged_specs:
+    - kitty-specs/charter-p7-schema-versioning-provenance-01KQEG13/spec.md
+    - kitty-specs/do-dispatch-open-op-lifecycle-01KTSJ2H/spec.md
+    - kitty-specs/documentation-mission-composition-fixup-01KQ6N5X/spec.md
+    - kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md
+    - kitty-specs/execution-context-unification-01KTPKST/spec.md
+    - kitty-specs/retrospective-durable-home-01KVYM1W/spec.md
+    - kitty-specs/tasks-py-degod-01KWF08S/spec.md
+    - kitty-specs/tooling-stability-guard-coherence-01KTRC04/spec.md
+    - kitty-specs/verdict-seam-write-unification-01KZ9Q35/spec.md
+  find_undeclared_requirement_citations_on_mixed_repro: []
+  new_per_token_predicate_on_mixed_repro: ["FR-001", "FR-002"]
+  note: >-
+    Confirms both the document-scoped/section-scoped rates C-006 requires be recorded together,
+    and the Context section's central claim that the existing advisory function's zero-declared
+    trigger never fires on the mixed-declaration case this mission exists to catch, while a
+    document-scoped per-token predicate does fire on exactly the two bare-prose ids.
+orphaned_references: none found

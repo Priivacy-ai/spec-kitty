@@ -21,6 +21,7 @@ SPK_SKILLS = {
     "spk-doctrine-charter",
     "spk-doctrine-glossary",
     "spk-doctrine-profile-load",
+    "spk-doctrine-show-me",
     "spk-doctrine-semantic-compression",
     "spk-doctrine-spdd-reasons",
     "spk-gate-accept",

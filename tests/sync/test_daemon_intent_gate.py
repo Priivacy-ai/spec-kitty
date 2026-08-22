@@ -106,7 +106,6 @@ class TestDecisionMatrix:
             ),
             patch("specify_cli.sync.daemon.DAEMON_STATE_FILE", fake_state_file),
             patch("specify_cli.sync.daemon.DAEMON_LOCK_FILE", tmp_path / "sync-daemon.lock"),
-            patch("specify_cli.sync.daemon.SPEC_KITTY_DIR", tmp_path),
         ):
             outcome = ensure_sync_daemon_running(
                 intent=DaemonIntent.REMOTE_REQUIRED,
@@ -125,7 +124,6 @@ class TestDecisionMatrix:
                 side_effect=RuntimeError("port unavailable"),
             ),
             patch("specify_cli.sync.daemon.DAEMON_LOCK_FILE", tmp_path / "sync-daemon.lock"),
-            patch("specify_cli.sync.daemon.SPEC_KITTY_DIR", tmp_path),
         ):
             outcome = ensure_sync_daemon_running(
                 intent=DaemonIntent.REMOTE_REQUIRED,

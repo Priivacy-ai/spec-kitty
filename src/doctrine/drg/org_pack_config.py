@@ -10,8 +10,6 @@ parser so it cannot drift independently.
 from __future__ import annotations
 
 import logging
-import os
-import re
 import warnings
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Literal
@@ -19,6 +17,8 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 from ruamel.yaml import YAML
 from ulid import ULID
+
+from kernel.env_expand import expand_raw_template, find_empty_env_token, find_unresolved_token
 
 logger = logging.getLogger(__name__)
 
@@ -83,15 +83,18 @@ class OrgPackEnvVarUnsetError(ValueError):
         )
 
 
-# ``re.ASCII`` is required, not cosmetic: ``os.path.expandvars`` (via
-# ``posixpath``/``ntpath``) recognizes only ASCII variable-name characters
-# internally (``re.compile(_varpattern, re.ASCII)``). Without this flag,
-# ``\w`` would match Unicode word characters too, so this detector could
-# report a longer/different token than the one ``expandvars`` actually
-# considered for non-ASCII input (e.g. ``$naïve`` — ``expandvars`` only
-# looks up ``na``, but plain ``\w+`` would greedily match ``naïve``). The
-# flag keeps ``\w`` exactly equivalent to the previous ``[A-Za-z0-9_]``.
-_ENV_VAR_TOKEN_RE = re.compile(r"\$\{[^}]+\}|\$[A-Za-z_]\w*", re.ASCII)
+# WP01 (kernel-env-expansion-seam, T004): the pure transform and the two
+# detection primitives below now DELEGATE to kernel.env_expand -- the single
+# ``${VAR}``/``$VAR`` expansion authority shared by every layer above kernel
+# (contracts/env-expander.md C-EXP-4). This module keeps its own function
+# names, its own ``OrgPackEnvVarUnsetError`` exception TYPE, and its own
+# set-but-blank fail-loud guard -- all byte-preserved -- because kernel's
+# raising primitive (``expand_env_template(..., inject_defaults=False)``)
+# would raise ``UnresolvedEnvTokenError`` before this module ever got a
+# chance to construct its OWN structured exception. Only the pure transform
+# and the shared detector regex are shared; the raise policy for THIS caller
+# stays here. See ``kernel.env_expand``'s module docstring for the fuller
+# rationale.
 
 
 def _expand_path_template(raw: str) -> str:
@@ -100,25 +103,27 @@ def _expand_path_template(raw: str) -> str:
     Pure string transform — no filesystem access, no exceptions raised here
     for the happy path. Callers are responsible for detecting any
     unresolved ``$``-tokens left behind by an unset variable (see
-    :class:`OrgPackEnvVarUnsetError`).
+    :class:`OrgPackEnvVarUnsetError`). Delegates to
+    :func:`kernel.env_expand.expand_raw_template` (WP01 T004).
     """
-    return os.path.expanduser(os.path.expandvars(raw))
+    return expand_raw_template(raw)
 
 
 def _unresolved_env_token(expanded: str) -> str | None:
-    """Return the first unresolved ``${VAR}``/``$VAR`` token, if any survives."""
-    match = _ENV_VAR_TOKEN_RE.search(expanded)
-    return match.group(0) if match else None
+    """Return the first unresolved ``${VAR}``/``$VAR`` token, if any survives.
+
+    Delegates to :func:`kernel.env_expand.find_unresolved_token` (WP01 T004)
+    -- the single shared token detector.
+    """
+    return find_unresolved_token(expanded)
 
 
 def _empty_expanded_env_token(raw: str) -> str | None:
-    """Return the first env-var token expanded to empty string (var set but blank)."""
-    for match in _ENV_VAR_TOKEN_RE.finditer(raw):
-        token = match.group(0)
-        var_name = token[2:-1] if token.startswith("${") else token[1:]
-        if os.environ.get(var_name) == "":
-            return token
-    return None
+    """Return the first env-var token expanded to empty string (var set but blank).
+
+    Delegates to :func:`kernel.env_expand.find_empty_env_token` (WP01 T004).
+    """
+    return find_empty_env_token(raw)
 
 
 def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
@@ -382,7 +387,7 @@ class PackRegistry(BaseModel):
         return [pack.name for pack in self.packs]
 
 
-def load_pack_registry(repo_root: Path) -> PackRegistry:
+def load_pack_registry(repo_root: Path, *, quiet: bool = False) -> PackRegistry:
     """Read configured org packs from ``repo_root/.kittify/config.yaml``.
 
     Canonical shape:
@@ -394,15 +399,36 @@ def load_pack_registry(repo_root: Path) -> PackRegistry:
     top-level ``organisation_packs[]`` with ``name`` and ``path``. This is
     accepted only here so old fixtures/operators degrade consistently across
     all consumers.
+
+    ``quiet`` (default ``False``, preserves prior behaviour for every
+    existing caller): governs ONLY the "file could not be parsed at all"
+    signal below (a YAML syntax error, not a schema/validation defect). When
+    the file is unparseable there is no way to tell whether the operator
+    ever declared org-pack intent, so a resolution hot path that calls this
+    function many times per invocation (template/mission/FSM resolution)
+    should not repeat a ``UserWarning`` on every call for what -- as far as
+    we can tell -- is a project with no org pack configured at all
+    (NFR-005/SC-007: byte-identical, silent behaviour for that case).
+    ``quiet=True`` demotes that one signal to a DEBUG-level log line instead.
+
+    This does NOT weaken diagnosis of a *genuinely* misconfigured org pack:
+    a config that DOES declare ``doctrine.org`` but fails schema validation
+    (below) stays a loud ``UserWarning`` unconditionally, on every calling
+    surface, regardless of ``quiet`` -- that operator has demonstrably
+    opted in to org doctrine and deserves to know it's broken. Diagnostic
+    surfaces such as ``spec-kitty doctor doctrine`` and ``charter list``
+    call this function without ``quiet`` and so keep the full, unchanged,
+    always-loud behaviour for both signals.
     """
 
     try:
         data = _load_yaml_data(_config_path(repo_root))
     except Exception as exc:  # pragma: no cover - defensive unreadable YAML
-        warnings.warn(
-            f"Failed to read .kittify/config.yaml; org doctrine disabled: {exc}",
-            stacklevel=2,
-        )
+        msg = f"Failed to read .kittify/config.yaml; org doctrine disabled: {exc}"
+        if quiet:
+            logger.debug(msg)
+        else:
+            warnings.warn(msg, stacklevel=2)
         return PackRegistry()
 
     try:
@@ -460,15 +486,21 @@ def save_pack_registry(repo_root: Path, registry: PackRegistry) -> None:
         yaml.dump(data, file)
 
 
-def resolve_org_roots(repo_root: Path) -> list[Path]:
+def resolve_org_roots(repo_root: Path, *, quiet: bool = False) -> list[Path]:
     """Return configured org doctrine local roots in declaration order.
 
     Each entry is the pack's ``effective_root`` — i.e. the ``local_path``
     normalised relative to ``repo_root`` and joined with ``subdir`` (when
     present).  The ~9 ``DoctrineService`` consumers that call this function
     therefore inherit the ``subdir`` seam for free.
+
+    ``quiet``: forwarded verbatim to :func:`load_pack_registry` — see its
+    docstring for exactly which signal it does (and does not) silence.
     """
-    return [pack.effective_root(repo_root) for pack in load_pack_registry(repo_root).packs]
+    return [
+        pack.effective_root(repo_root)
+        for pack in load_pack_registry(repo_root, quiet=quiet).packs
+    ]
 
 
 def resolve_existing_org_roots(repo_root: Path) -> list[Path]:

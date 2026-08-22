@@ -199,7 +199,7 @@ Orchestration lifecycle event triggers:
 
 ### Tiered Template Resolution Pipeline
 
-Template resolution uses a 5-tier precedence chain implemented in
+Template resolution uses a 6-tier precedence chain implemented in
 `src/specify_cli/runtime/resolver.py`. The resolver checks each tier in order
 and returns the first file that exists:
 
@@ -207,12 +207,13 @@ and returns the first file that exists:
 |---|---|---|---|
 | 1 | **Project Override** | `.kittify/overrides/{templates,command-templates}/{name}` | Highest precedence. User's explicit project-level override. |
 | 2 | **Legacy** (deprecated) | `.kittify/{templates,command-templates}/{name}` | Pre-migration project files. Emits deprecation warning or one-time "run `spec-kitty migrate`" nudge. Will be removed in next major version. |
-| 3 | **Global Mission-Specific** | `~/.kittify/missions/{mission}/{templates,command-templates}/{name}` | User-global, scoped to a specific mission type. Populated by `spec-kitty migrate` / `ensure_runtime`. |
-| 4 | **Global Non-Mission** | `~/.kittify/{templates,command-templates}/{name}` | User-global, cross-mission. |
-| 5 | **Package Default** | `doctrine/missions/{mission}/{templates,command-templates}/{name}` | Lowest precedence. Bundled with the `doctrine` package. Resolved via `kernel.paths.get_package_asset_root()`. |
+| 3 | **Org** | `<org_root>/missions/{mission}/{templates,command-templates}/{name}` | Org-provided doctrine pack roots, checked in declaration order. No-op when no org packs are configured. |
+| 4 | **Global Mission-Specific** | `~/.kittify/missions/{mission}/{templates,command-templates}/{name}` | User-global, scoped to a specific mission type. Populated by `spec-kitty migrate` / `ensure_runtime`. |
+| 5 | **Global Non-Mission** | `~/.kittify/{templates,command-templates}/{name}` | User-global, cross-mission. |
+| 6 | **Package Default** | `doctrine/missions/{mission}/{templates,command-templates}/{name}` | Lowest precedence. Bundled with the `doctrine` package. Resolved via `kernel.paths.get_package_asset_root()`. |
 
 **Special cases:**
-- `resolve_mission()` uses a 4-tier variant — it skips tier 4 (Global Non-Mission) because missions are inherently mission-scoped.
+- `resolve_mission()` uses a 5-tier variant — it skips tier 5 (Global Non-Mission) because missions are inherently mission-scoped.
 - Tier 2 (Legacy) shows a one-time stderr nudge when the global runtime is already configured.
 - If no tier provides the asset, `FileNotFoundError` is raised.
 

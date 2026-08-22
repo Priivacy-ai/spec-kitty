@@ -50,6 +50,14 @@ not a semantic oracle over ~2000 sites:
   (``errors``, ``calls``, ``retries``, ``events``, ``results``, ... — the vocabulary
   of a runtime-measured quantity, where WHICH items occurred doesn't matter, only how
   many) -> ``keep``.
+* the counted expression is a single lower-case past-participle identifier
+  (``blanked``, ``filtered``, ``collected`` — a collection *produced by an operation*,
+  see :func:`_is_dynamic_result_participle`) -> ``keep``. This closes #3458 (a facet of
+  #2853): a dynamically-produced result count whose variable name isn't in the fixed
+  vocabulary no longer defaults to ``convert`` and no longer forces a spurious escape-
+  hatch annotation. It stays narrow — a *single* lower-case ``-ed`` word — so CapWords
+  enum references (``Lane``) and multi-word snake_case registry names
+  (``supported_colors``) remain ``convert``, preserving the gate's real value (NFR-E).
 * otherwise -> ``convert`` (the default: a bare/attribute collection reference with no
   dynamic-measurement vocabulary — the WP07 ``len(Lane) == 10`` shape, and the common
   case in the mission's batch-owned "clean" directories, which were chosen precisely
@@ -187,6 +195,43 @@ def _collection_words(collection_expr: str) -> frozenset[str]:
     return frozenset(w.lower() for w in _WORD_RE.findall(collection_expr))
 
 
+# Minimum length for a single ``-ed`` participle to count as a dynamic result name.
+# Excludes short accidental ``-ed`` endings (``bed``, ``red``, ``fed``) while
+# admitting genuine participles (``added`` is the shortest we care about).
+_MIN_PARTICIPLE_LEN = 5
+
+
+def _is_dynamic_result_participle(collection_expr: str) -> bool:
+    """``True`` when *collection_expr* is a single lower-case past-participle
+    identifier (``blanked``, ``filtered``, ``collected``) — the name of a collection
+    *produced by an operation*, whose contract is genuinely its cardinality (#3458).
+
+    Deliberately narrow so it broadens dynamic-result recognition without blanket-
+    allowing anything (the #3458 fix must not weaken the gate):
+
+    * a **single** identifier only — multi-word snake_case registry names such as
+      ``supported_colors`` (whose ``supported`` word ends in ``-ed``) are excluded,
+      staying ``convert``;
+    * **lower-case** only — a bare enumerable-domain reference is a CapWords type name
+      (``Lane``, ``Color``), which is never lower-case, so enum golden counts stay
+      ``convert`` (NFR-E);
+    * ending in the ``-ed`` participle suffix — enum / registry *domain* names are
+      nouns (``lanes``, ``colors``, ``kinds``), never verb participles.
+
+    Lossy by design: common fixed-collection names that happen to be lowercase ``-ed``
+    identifiers (``expected``, ``allowed``, ``required``) are also admitted to ``keep``.
+    A false ``keep`` is a missed nudge — the escape hatch remains the backstop — never a
+    broken invariant, consistent with this classifier being heuristic-and-lossy by design.
+    """
+    expr = collection_expr.strip()
+    return (
+        expr.isidentifier()
+        and expr.islower()
+        and expr.endswith("ed")
+        and len(expr) >= _MIN_PARTICIPLE_LEN
+    )
+
+
 def classify_golden_count(collection_expr: str, n: int) -> str:
     """Classify one ``len(collection_expr) == n`` site as ``"keep"`` or ``"convert"``.
 
@@ -197,6 +242,8 @@ def classify_golden_count(collection_expr: str, n: int) -> str:
     if n == 0:
         return "keep"
     if _collection_words(collection_expr) & _DYNAMIC_RUNTIME_WORDS:
+        return "keep"
+    if _is_dynamic_result_participle(collection_expr):
         return "keep"
     return "convert"
 
@@ -356,6 +403,47 @@ def test_fresh_unannotated_golden_count_is_classified_convert() -> None:
     """
     assert classify_golden_count("Lane", 10) == "convert"
     assert classify_golden_count("supported_colors", 3) == "convert"
+
+
+def test_dynamic_result_participle_count_is_kept() -> None:
+    """#3458 (a front-loadable facet of #2853): a dynamically-produced result count
+    whose identifier is a past-participle result name *outside* the fixed
+    :data:`_DYNAMIC_RUNTIME_WORDS` vocabulary is ``keep``, not ``convert``.
+
+    ``len(blanked) == 1`` is the exact false-positive from PR #3456's WP10 test: the
+    contract is genuinely the *cardinality* of a runtime result (how many fields were
+    blanked), not membership — WHICH items were produced does not matter. Before the
+    fix this defaulted to ``convert``, forcing a spurious
+    ``# golden-count: cardinality-is-contract`` annotation for zero real catches. A
+    single lowercase ``-ed`` participle is never an enumerable-domain reference (enum /
+    registry domains are nouns, referenced bare as CapWords like ``Lane``), so
+    broadening recognition here reduces the toll without weakening the gate.
+    """
+    assert classify_golden_count("blanked", 1) == "keep"
+    assert classify_golden_count("filtered", 2) == "keep"
+    assert classify_golden_count("collected", 4) == "keep"
+
+
+def test_enumerable_domain_enum_count_still_converts() -> None:
+    """NFR-E (gate-value guard): the #3458 false-positive fix must NOT let the real
+    failure mode escape. A bare enum reference — ``len(Lane) == 10``, the
+    ``tests/status/test_models.py::test_lane_member_names_exact`` exemplar — is a
+    *swap-tolerant* golden count over an enumerable domain: add one member and remove
+    another and the count is unchanged, so the assertion silently passes. Such sites
+    are still forced to ``convert`` (into an exact frozenset of member names). If the
+    participle broadening ever lets a CapWords enum or a snake_case registry domain
+    escape to ``keep``, the fix is wrong and must be tightened.
+    """
+    assert classify_golden_count("Lane", 10) == "convert"
+    assert classify_golden_count("Color", 7) == "convert"
+    assert classify_golden_count("supported_colors", 3) == "convert"
+    # Lock the load-bearing ``islower()`` branch specifically: a CapWords identifier
+    # that DOES end in ``-ed`` (``Fixed``, ``Provisioned``) must still ``convert``.
+    # ``Lane``/``Color`` above are excluded by ``endswith("ed")``, so without these two
+    # the ``islower()`` discriminator would be untested — drop ``islower()`` and this
+    # is the only assertion that goes red.
+    assert classify_golden_count("Fixed", 3) == "convert"
+    assert classify_golden_count("Provisioned", 5) == "convert"
 
 
 def test_escape_hatch_on_own_line_excludes_site() -> None:

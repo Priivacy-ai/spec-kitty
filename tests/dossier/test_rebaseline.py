@@ -14,6 +14,14 @@ Key invariants exercised:
 
 See: kitty-specs/dossier-parity-reconciler-01KXYXVP/spec.md (FR-009, NFR-003,
 A-003) and tasks/WP05-rebaseline-migration.md (T019-T021).
+
+``TestRebaselineOrgAwareness`` below covers a SEPARATE, later mission
+(``cascade-org-inert-01M07E9P``, FR-003, WP01): making rebaseline consult a
+configured org pack's ``expected-artifacts.yaml`` override by deriving
+``repo_root`` per-snapshot inside ``rebaseline_snapshot_file``, instead of the
+permanent ``Indexer(ManifestRegistry())`` (``repo_root=None``) that predates
+it. See ``kitty-specs/cascade-org-inert-01M07E9P/spec.md`` (FR-003) and
+``tasks/WP01-rebaseline-org-awareness.md``.
 """
 
 from __future__ import annotations
@@ -23,6 +31,7 @@ import json
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from specify_cli.dossier.indexer import Indexer
 from specify_cli.dossier.manifest import ManifestRegistry
@@ -381,3 +390,372 @@ class TestRebaselineErrorBranches:
         assert outcome.error.startswith("reindex_failed")
         assert outcome.changed is False
         assert snapshot_path.read_text(encoding="utf-8") == before  # not rewritten
+
+    def test_rebaseline_skips_one_mission_on_malformed_manifest(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """WP01 (FR-016, AS5): one bad mission must not abort the backlog sweep.
+
+        Exercises rebaseline.py's own pre-existing `except Exception` at
+        dossier/rebaseline.py:168-170 ("one bad mission must not abort the
+        backlog sweep") — no new exception handling is added to rebaseline.py
+        itself (tracer-design-decisions.md Decision 3). One of two missions in
+        the sweep resolves to a malformed manifest (routed through the real
+        `ManifestRegistry.load_manifest()` via the T002 typo'd fixture, same
+        `_doctrine_repository` seam); pre-T006/T007 the typo is silently
+        swallowed (manifest=None) and both missions rebaseline cleanly;
+        post-T006 the raised `ValidationError` propagates through
+        `Indexer.index_feature()` for the bad mission only, captured here as a
+        per-mission `error="reindex_failed: ..."` while the other mission's
+        outcome is unaffected (sweep continues).
+        """
+        import ruamel.yaml
+
+        import specify_cli.dossier.manifest as manifest_module
+        import specify_cli.mission as mission_module
+        from doctrine.missions.repository import ConfigResult
+        from specify_cli.dossier.manifest import ManifestRegistry
+        from specify_cli.dossier.rebaseline import rebaseline_recorded_snapshots
+
+        good_slug = "062-alpha-good"
+        bad_slug = "062-beta-bad"
+        good_dir = tmp_path / good_slug
+        bad_dir = tmp_path / bad_slug
+        _write_source_mission(good_dir)
+        _write_source_mission(bad_dir)
+        _record_old_form_snapshot(good_dir, good_slug)
+        _record_old_form_snapshot(bad_dir, bad_slug)
+        ManifestRegistry.clear_cache()
+
+        fixture_path = Path(__file__).parent / "fixtures" / "expected_artifacts_typo.yaml"
+        content = fixture_path.read_text(encoding="utf-8")
+        yaml = ruamel.yaml.YAML(typ="safe")
+        parsed = yaml.load(content)
+        real_repository = manifest_module._doctrine_repository()
+
+        class _FakeRepository:
+            def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+                if mission == "typo-fixture":
+                    return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
+                return real_repository.get_expected_artifacts(mission)
+
+        monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+
+        def _fake_mission_type(feature_dir: Path) -> str:
+            return "typo-fixture" if feature_dir.name == bad_slug else "software-dev"
+
+        monkeypatch.setattr(mission_module, "get_mission_type", _fake_mission_type)
+
+        outcomes = rebaseline_recorded_snapshots(tmp_path)
+
+        assert len(outcomes) == 2  # golden-count: cardinality-is-contract
+        by_slug = {o.mission_slug: o for o in outcomes}
+
+        bad_outcome = by_slug[bad_slug]
+        assert bad_outcome.error is not None
+        assert bad_outcome.error.startswith("reindex_failed")
+        assert bad_outcome.changed is False
+
+        good_outcome = by_slug[good_slug]
+        assert good_outcome.error is None  # sweep continued past the bad mission
+
+
+# ── FR-003 (cascade-org-inert-01M07E9P, WP01): org-awareness ──────────────────
+#
+# T001 investigation finding (see rebaseline.py's ``_derive_repo_root``
+# docstring for the full evidence trail): every production writer of a
+# recorded dossier snapshot resolves ``feature_dir``/``repo_root`` through
+# ``locate_project_root()`` (or the placement seam's PRIMARY-partition
+# ``TASKS_INDEX`` kind) -- both fold worktree paths back to the MAIN/primary
+# checkout. ``.kittify/dossiers/`` is also gitignored, so a worktree checkout
+# never inherits one via git either. Outcome (a): worktrees never carry their
+# own dossier snapshots, so derivation (B) -- ``repo_root =
+# feature_dir.parent.parent``, per-snapshot -- is correct as specced, with a
+# fail-safe fallback (``repo_root=None``) when the fixed
+# ``<repo_root>/kitty-specs/<slug>/...`` layout is not recognized.
+
+
+def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
+    """Write ``<repo_root>/.kittify/config.yaml`` with a ``doctrine.org.packs``
+    registry -- mirrors ``tests/dossier/test_manifest.py``'s helper of the
+    same name/shape (duplicated locally to keep this owned test file
+    self-contained rather than cross-importing another test module's
+    private helper).
+    """
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = ["doctrine:", "  org:", "    packs:"]
+    for name, local_path in packs:
+        lines.append(f"      - name: {name}")
+        lines.append(f"        local_path: {local_path}")
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_org_manifest(org_root: Path, mission_type: str, data: dict) -> None:
+    """Write ``<org_root>/<mission_type>/expected-artifacts.yaml`` (raw-root shape)."""
+    target_dir = org_root / mission_type
+    target_dir.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (target_dir / "expected-artifacts.yaml").open("w") as fh:
+        yaml.dump(data, fh)
+
+
+_ORG_REQUIRED_KEY = "policy.org-required"
+
+
+def _org_manifest_data(manifest_version: str) -> dict:
+    """An org-tier manifest declaring one extra required artifact absent from
+    every fixture mission tree built by ``_write_source_mission`` -- so its
+    presence as a "ghost" (``is_present=False``) entry in the rebaselined
+    snapshot's ``artifact_summaries`` is a direct, non-inert proof that
+    ``load_manifest`` actually consulted the org pack (not merely that a
+    ``repo_root`` parameter is now threaded through unused).
+    """
+    return {
+        "schema_version": "1.0",
+        "mission_type": "software-dev",
+        "manifest_version": manifest_version,
+        "required_always": [
+            {
+                "artifact_key": _ORG_REQUIRED_KEY,
+                "artifact_class": "policy",
+                "path_pattern": "org-policy.md",
+                "blocking": True,
+            }
+        ],
+    }
+
+
+def _snapshot_artifact_keys(snapshot_path: Path) -> set[str]:
+    data = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    return {a["artifact_key"] for a in data["artifact_summaries"]}
+
+
+class TestRebaselineOrgAwareness:
+    """FR-003: `rebaseline_snapshot_file` derives `repo_root` per-snapshot and
+    threads it into `Indexer`, so a configured org pack is consulted instead
+    of silently falling back to built-in-only (the pre-fix, permanently
+    `repo_root=None` behavior).
+    """
+
+    def setup_method(self):
+        ManifestRegistry.clear_cache()
+
+    def teardown_method(self):
+        ManifestRegistry.clear_cache()
+
+    def test_indexer_receives_repo_root_matching_project_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """SC-005 / AC1 / T004: red-first — `Indexer` must receive a non-`None`
+        `repo_root` matching the real project root after
+        `rebaseline_snapshot_file` runs.
+
+        RED on this WP's starting commit: `Indexer(ManifestRegistry())` is
+        called with no `repo_root` kwarg at all, so the spy captures `[None]`
+        and this assertion fails. GREEN once `repo_root` is threaded.
+        """
+        import specify_cli.dossier.rebaseline as rb
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        real_indexer_cls = rb.Indexer
+
+        project_root = tmp_path / "project"
+        slug = "042-example-mission"
+        feature_dir = project_root / "kitty-specs" / slug
+        _write_source_mission(feature_dir)
+        snapshot_path = _record_old_form_snapshot(feature_dir, slug)
+
+        captured_repo_roots: list[Path | None] = []
+
+        class _SpyIndexer(real_indexer_cls):  # type: ignore[misc, valid-type]
+            def __init__(self, manifest_registry, repo_root=None):  # noqa: ANN001
+                captured_repo_roots.append(repo_root)
+                super().__init__(manifest_registry, repo_root=repo_root)
+
+        monkeypatch.setattr(rb, "Indexer", _SpyIndexer)
+
+        rebaseline_snapshot_file(snapshot_path)
+
+        assert captured_repo_roots == [project_root], (
+            f"Indexer must receive repo_root={project_root!r}, got {captured_repo_roots!r}"
+        )
+
+    def test_org_pack_required_artifact_reaches_rebaselined_snapshot(
+        self, tmp_path: Path
+    ) -> None:
+        """AC1 / T004 non-inert proof: a healthy org pack's extra required
+        artifact must surface as a missing ("ghost") entry in the rebaselined
+        snapshot's `artifact_summaries` — proving the org pack was actually
+        *consulted* (`load_manifest` reached the override), not merely that a
+        `repo_root` parameter is now silently passed through unused.
+        """
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        project_root = tmp_path / "project"
+        slug = "042-example-mission"
+        feature_dir = project_root / "kitty-specs" / slug
+        _write_source_mission(feature_dir)
+        snapshot_path = _record_old_form_snapshot(feature_dir, slug)
+
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(org_root, "software-dev", _org_manifest_data("org-1"))
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+
+        rebaseline_snapshot_file(snapshot_path)
+
+        assert _ORG_REQUIRED_KEY in _snapshot_artifact_keys(snapshot_path), (
+            "org-pack-required artifact must appear in the rebaselined snapshot "
+            "— the org pack was not consulted"
+        )
+
+    def test_no_org_pack_configured_matches_org_blind_behavior(
+        self, tmp_path: Path
+    ) -> None:
+        """FR-003 AC2 (revert-discipline companion): with `repo_root` now
+        threaded but NO org pack configured, rebaseline output must be
+        byte-identical to the pre-fix, permanently org-blind
+        (`repo_root=None`) path — a required regression check, not merely a
+        nice-to-have.
+        """
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        project_root = tmp_path / "project"
+        slug = "042-example-mission"
+        feature_dir = project_root / "kitty-specs" / slug
+        _write_source_mission(feature_dir)
+        # No `.kittify/config.yaml` at project_root at all — org-agnostic project.
+
+        org_blind_dossier = Indexer(ManifestRegistry(), repo_root=None).index_feature(
+            feature_dir, "software-dev"
+        )
+        org_blind_hash = compute_snapshot(org_blind_dossier).parity_hash_sha256
+
+        snapshot_path = _record_old_form_snapshot(feature_dir, slug)
+        rebaseline_snapshot_file(snapshot_path)
+
+        assert _recorded_hash(snapshot_path) == org_blind_hash, (
+            "no-org-pack rebaseline must match the org-blind reindex exactly"
+        )
+        assert _ORG_REQUIRED_KEY not in _snapshot_artifact_keys(snapshot_path)
+
+    def test_malformed_org_pack_does_not_raise(self, tmp_path: Path) -> None:
+        """FR-003 AC4: a malformed org pack must not raise an unhandled
+        exception to the operator's `migrate` command. Rebaseline's org-pack
+        lookup (`ManifestRegistry.load_manifest` ->
+        `resolve_org_expected_artifacts` -> `_read_yaml_mapping`) already
+        degrades gracefully on any read/parse failure — logs a WARNING and
+        falls back as if no override were present — independent of this WP's
+        fix and NOT the same DRG-graph-loading subsystem #3401 targets. This
+        test proves that graceful degrade still holds once `repo_root` is
+        actually threaded in (previously the org branch was unreachable, so
+        this path could never even run).
+        """
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        project_root = tmp_path / "project"
+        slug = "042-example-mission"
+        feature_dir = project_root / "kitty-specs" / slug
+        _write_source_mission(feature_dir)
+        snapshot_path = _record_old_form_snapshot(feature_dir, slug)
+
+        org_root = tmp_path / "org-pack"
+        malformed_dir = org_root / "software-dev"
+        malformed_dir.mkdir(parents=True, exist_ok=True)
+        # Malformed: not a YAML mapping (unbalanced flow sequence) — this must
+        # not raise; it must degrade to "no org override for this pack".
+        (malformed_dir / "expected-artifacts.yaml").write_text(
+            "required_always: [this, is, not: valid\n", encoding="utf-8"
+        )
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+
+        outcome = rebaseline_snapshot_file(snapshot_path)  # must not raise
+
+        assert outcome.error is None
+        assert outcome.changed is True
+        # Degrades to built-in manifest — the org-required ghost never appears.
+        assert _ORG_REQUIRED_KEY not in _snapshot_artifact_keys(snapshot_path)
+
+    def test_two_pack_chain_second_pack_reaches_rebaseline(self, tmp_path: Path) -> None:
+        """FR-003 AC3 / T007: `ManifestRegistry.load_manifest` already calls
+        the PLURAL `_resolve_existing_org_roots(repo_root)` once `repo_root`
+        is non-`None` — confirm this delivers pack-2 content once this WP's
+        fix threads `repo_root` in, i.e. multi-pack chain support for
+        rebaseline is inherited for free rather than needing separate
+        implementation. Pack 1 declares no override for this mission type at
+        all (a real chain, not a single-pack disguise); pack 2 (later in
+        declaration order) is the one that actually supplies the override.
+        """
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        project_root = tmp_path / "project"
+        slug = "042-example-mission"
+        feature_dir = project_root / "kitty-specs" / slug
+        _write_source_mission(feature_dir)
+        snapshot_path = _record_old_form_snapshot(feature_dir, slug)
+
+        org_root_1 = tmp_path / "org-pack-1"
+        org_root_1.mkdir(parents=True, exist_ok=True)  # exists, no override for software-dev
+        org_root_2 = tmp_path / "org-pack-2"
+        _write_org_manifest(org_root_2, "software-dev", _org_manifest_data("org-2"))
+        _write_org_pack_config(
+            project_root, packs=[("pack-one", org_root_1), ("pack-two", org_root_2)]
+        )
+
+        rebaseline_snapshot_file(snapshot_path)
+
+        assert _ORG_REQUIRED_KEY in _snapshot_artifact_keys(snapshot_path), (
+            "second (pack-2) org root in the chain must be reached, proving "
+            "the full chain is walked, not just the first configured org root"
+        )
+
+    def test_unrecognized_layout_does_not_derive_bogus_repo_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Negative case: a snapshot NOT nested under the fixed
+        `<repo_root>/kitty-specs/<slug>/...` layout must fail SAFE
+        (`repo_root=None`, today's org-blind behavior) rather than deriving a
+        bogus `repo_root` two parents up. A wrong `repo_root` is worse than
+        none — it would read a *different* project's org config.
+
+        The two-hops-up ancestor deliberately DOES have an org pack
+        configured, to prove it is never consulted: a naive
+        `feature_dir.parent.parent` derivation with no layout check would
+        silently read this unrelated config.
+        """
+        import specify_cli.dossier.rebaseline as rb
+        from specify_cli.dossier.rebaseline import rebaseline_snapshot_file
+
+        real_indexer_cls = rb.Indexer
+
+        # Legacy/unrecognized layout: feature_dir is NOT under a `kitty-specs`
+        # parent (mirrors this file's own pre-existing `tmp_path / slug`
+        # fixture convention used throughout the rest of this test module).
+        feature_dir = tmp_path / "042-example-mission"
+        _write_source_mission(feature_dir)
+        snapshot_path = _record_old_form_snapshot(feature_dir, "042-example-mission")
+
+        # An org pack IS configured two hops up from feature_dir — the naive
+        # derivation's landing spot — but must never be reached.
+        org_root = tmp_path.parent / "org-pack"
+        _write_org_manifest(org_root, "software-dev", _org_manifest_data("wrong-project-org"))
+        _write_org_pack_config(tmp_path.parent, packs=[("acme", org_root)])
+
+        captured_repo_roots: list[Path | None] = []
+
+        class _SpyIndexer(real_indexer_cls):  # type: ignore[misc, valid-type]
+            def __init__(self, manifest_registry, repo_root=None):  # noqa: ANN001
+                captured_repo_roots.append(repo_root)
+                super().__init__(manifest_registry, repo_root=repo_root)
+
+        monkeypatch.setattr(rb, "Indexer", _SpyIndexer)
+
+        rebaseline_snapshot_file(snapshot_path)
+
+        assert captured_repo_roots == [None], (
+            f"unrecognized layout must fail safe to repo_root=None, got {captured_repo_roots!r}"
+        )
+        assert _ORG_REQUIRED_KEY not in _snapshot_artifact_keys(snapshot_path), (
+            "the wrong-project org pack must never be consulted"
+        )

@@ -26,8 +26,9 @@ from typing import Any
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .git_preflight import GitPreflightError
 from .vcs import get_vcs
-from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.status import WPMetadata
 
 logger = logging.getLogger(__name__)
@@ -193,17 +194,17 @@ def create_wp_workspace(
         FileExistsError: If ``workspace_path`` already exists and is not a
             valid git worktree (``code_change`` only).
     """
-    raw_mode = wp_frontmatter.execution_mode or ExecutionMode.CODE_CHANGE
+    raw_mode = wp_frontmatter.execution_mode or WorkProductKind.CODE_CHANGE
     owned_files_raw: list[str] = list(wp_frontmatter.owned_files)
     wp_code = wp_frontmatter.work_package_id
     mission_slug = wp_frontmatter.feature_slug or ""
 
     try:
-        mode = ExecutionMode(raw_mode)
+        mode = WorkProductKind(raw_mode)
     except ValueError:
-        mode = ExecutionMode.CODE_CHANGE
+        mode = WorkProductKind.CODE_CHANGE
 
-    if mode == ExecutionMode.PLANNING_ARTIFACT:
+    if mode == WorkProductKind.PLANNING_ARTIFACT:
         result_path = create_planning_workspace(
             mission_slug=mission_slug,
             wp_code=wp_code,
@@ -605,9 +606,12 @@ spec-kitty agent tasks move-task WP01 --to doing
             if template.exists():
                 shutil.copy2(template, spec_file)
                 break
-        else:
-            # No template found, create empty spec.md
-            spec_file.touch()
+        # FR-012 (#3597): no ``else: spec_file.touch()`` branch here anymore --
+        # an unread, empty spec.md vacuously satisfied downstream existence
+        # gates (a bugfix, distinct from the two policy reversals; see
+        # docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md). When
+        # no template is found, spec.md is simply not created; the
+        # per-type presence gate (FR-011) then correctly reports it absent.
 
 
 # Structural directories that anchor a mission's layout regardless of the
@@ -750,15 +754,19 @@ def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> 
             "AVAILABLE_DOCS": available_docs,
         }
 
-    # Check required files exist
-    spec_file = feature_dir / "spec.md"
+    # Check required files exist. FR-011 (#3597): the required filename is
+    # sourced from the per-type expected-artifacts.yaml `path_pattern`
+    # authority (WP04's seam, #3599) instead of a hardcoded literal --
+    # byte-compatible with "spec.md" for software-dev (NFR-003).
+    spec_filename = resolve_configured_artifact_name("input.spec.main")
+    spec_file = feature_dir / spec_filename
     if not spec_file.exists():
-        errors.append("Missing required file: spec.md")
+        errors.append(f"Missing required file: {spec_filename}")
     else:
         spec_file_str = str(spec_file)
         paths["spec_file"] = spec_file_str
         artifact_files["spec_file"] = spec_file_str
-        available_docs.append("spec.md")
+        available_docs.append(spec_filename)
 
     plan_file = feature_dir / "plan.md"
     if plan_file.exists():

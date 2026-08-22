@@ -20,197 +20,388 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZP0NDSHZ6Y97XWVP8C64RSD",
       "last_transition_at": "2026-08-10T14:19:13.073248+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review",
+        "T001-T003 complete; T004 reconciled to WP04 (three-way schema/LintConfig/YAML parity guard). Styleguide fix green (41 passed).",
+        "Review passed (cycle 1): T001-T003 verified independently; T004 reconciled to WP04 (three-way parity guard); 51 targeted tests green; C-012 respected; diff confined; issue-matrix resolved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Review passed (cycle 1): T001-T003 verified independently; T004 reconciled to WP04 (three-way parity guard); 51 targeted tests green; C-012 respected; diff confined; issue-matrix resolved.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1684779,
-      "shell_pid_created_at": "1786340115.39"
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786340115.39",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "planned"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NFHNX44GM24560EQFJX6",
       "last_transition_at": "2026-08-10T14:19:14.869030+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: catalog kebab-clean + per-level index.md (README->index rename, intra-catalog refs fixed); non-vacuous audience_resolver (scalar-or-list, --strict, assert_examined_floor, FR-003); test covers dangling + zero-examined + free-text",
+        "Review passed: T005-T007 verified (catalog kebab-clean+per-level index.md, resolver examines 13/0 dangling via _guards floor, tests cover dangling+zero-examined+valid). (A) README->index renames coherent w/ one-index-per-dir target, git-detected renames preserve history. (B) External refs to renamed landing pages are body-links/generated path: entries not related: edges (related_validator not newly red); FOLLOW-UP for WP03/WP13: capture the 3 audience README->index renames in the occurrence-map spine so rename-reconcile + redirect regen don't miss them."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: T005-T007 verified (catalog kebab-clean+per-level index.md, resolver examines 13/0 dangling via _guards floor, tests cover dangling+zero-examined+valid). (A) README->index renames coherent w/ one-index-per-dir target, git-detected renames preserve history. (B) External refs to renamed landing pages are body-links/generated path: entries not related: edges (related_validator not newly red); FOLLOW-UP for WP03/WP13: capture the 3 audience README->index renames in the occurrence-map spine so rename-reconcile + redirect regen don't miss them.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 1753872,
-      "shell_pid_created_at": "1786342489.85"
+      "shell_pid_created_at": "1786342489.85",
+      "subtasks": {
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NH3WDXD1J0Q9PHX8N1A8",
       "last_transition_at": "2026-08-10T14:19:16.476417+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: collapsed cumulative spine (OB-1 default) authored on planning branch, tool default repointed, regen-reproduces-all-149 test; folded WP02 catalog README->index renames into moves",
+        "Review passed: collapsed cumulative spine reproduces all 149 prior keys (0 regression), 13 archive->changelog value shifts point at live changelog/ (0 dead archive targets), tool repointed to convergence mission, test has teeth (empty-moves + genuine RED without spine; 23/23 green in integrated state), WP02 3x README->index catalog renames captured, redirect_map.yaml untouched (WP13 owns)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: collapsed cumulative spine reproduces all 149 prior keys (0 regression), 13 archive->changelog value shifts point at live changelog/ (0 dead archive targets), tool repointed to convergence mission, test has teeth (empty-moves + genuine RED without spine; 23/23 green in integrated state), WP02 3x README->index catalog renames captured, redirect_map.yaml untouched (WP13 owns).",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 1784940,
-      "shell_pid_created_at": "1786343668.13"
+      "shell_pid_created_at": "1786343668.13",
+      "subtasks": {
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NJQ9QTYGCKJFT1ZFQ8D3",
       "last_transition_at": "2026-08-10T14:19:18.121596+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: T004 three-way parity restored (fields+schema+regenerated artifact+dataclass+integrity pin); extended-lint (advisory), touched-set gates (audience/description/placement/root-allowlist), rename-reconcile; docs-freshness wired",
+        "Review passed: T004 parity restored (4 surfaces, schema in-sync, parity+integrity green); extended-lint advisory config-driven; touched-set gates non-vacuous w/ red-first tests; rename-reconcile path-configurable; CI wired. WP13 follow-up: styleguide 3-way merge (WP01 audience/routing + WP04 T004 fields)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: T004 parity restored (4 surfaces, schema in-sync, parity+integrity green); extended-lint advisory config-driven; touched-set gates non-vacuous w/ red-first tests; rename-reconcile path-configurable; CI wired. WP13 follow-up: styleguide 3-way merge (WP01 audience/routing + WP04 T004 fields).",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 1828070,
-      "shell_pid_created_at": "1786345568.53"
+      "shell_pid_created_at": "1786345568.53",
+      "subtasks": {
+        "T004": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T041": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NM9ZPM19Z31TREEYX9AX",
       "last_transition_at": "2026-08-10T14:19:19.743153+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: retired research/ (16 files, zero live inbound), docs/core-concepts/, docs/updates/, docs/output/ (RETIRE entries already in spine); mission.yaml deliverables repointed docs/output/ -> docs/. WP13 reference-sweep flags (non-owned inbound to retired paths): docs/toc.yml, docs/docfx.json, docs/index.md, docs/guides/index.md, docs/development/3-2-page-inventory.yaml + 3-2-docs-retrieval-index.yaml, docs/plans/engineering-notes/common-docs-section-audit.md (core-concepts/updates nav); packs/built-in/missions/documentation/mission.yaml:41 (generated copy still docs/output/); docs/architecture/documentation-mission.md:523,526 (rustdoc example uses docs/output/). No research survivor distilled.",
+        "Review passed: 4 zero-value dirs retired (no valuable loss), mission.yaml repointed off docs/output, inbound refs correctly flagged for WP13; scope confined; doc-mission + terminology tests green."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: 4 zero-value dirs retired (no valuable loss), mission.yaml repointed off docs/output, inbound refs correctly flagged for WP13; scope confined; doc-mission + terminology tests green.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 1888791,
-      "shell_pid_created_at": "1786348100.27"
+      "shell_pid_created_at": "1786348100.27",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZP0NNWCC029B7HWW6DG17B6",
       "last_transition_at": "2026-08-10T14:19:21.356256+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: docs/reference/ folded into docs/api/ (skills/, agent-profiles/), umbrella retired; contracts/batch-api-contract.md rehomed to docs/api/batch-api-contract.md, fixtures/*.json intact (C-002); three api index pages reconciled to single docs/api/index.md (README.md removed); docs/api/ kebab-case; section docs/api/toc.yml regenerated; audience:/type:/description on touched pages (paths resolve under docs/context/audience/). RENAMES: contracts/batch-api-contract.md->docs/api/batch-api-contract.md; docs/reference/skills/*->docs/api/skills/*; docs/reference/agent_profiles/*->docs/api/agent-profiles/* (underscore->hyphen); docs/reference/index.md & docs/api/README.md DELETED. WP13 REF-SWEEP: (1) docs/docfx.json drop dead globs 'reference/**.md' L24 (vacuous->reds description gate) + 'apidoc/**.md' L57; (2) global docs/toc.yml L33/L35 -> docs/api/skills+agent-profiles; (3) regen docs/development/3-2-page-inventory.yaml + 3-2-docs-retrieval-index.yaml (stale reference/ + api/README.md); (4) dangling links: docs/architecture/charter-pack-usage-journey.md, docs/guides/index.md, docs/context/identity.md; (5) docstrings tests/contract/test_handoff_fixtures.py + src/specify_cli/delivery/receivers.py (old contract path); (6) stale fixture tests/docs/test_docs_query_cli.py:69; (7) scripts/docs comments. CHANGELOG/adr/kitty-specs historical - leave.",
+        "Fix cycle 1: corrected batch-api-contract.md relative link depth (../->../../kitty-specs); verified no other owned-file body links dangle at new depth",
+        "Fix cycle 1 verified: batch-api-contract relative link depth corrected (resolves to repo-root kitty-specs), sole owned-file link defect closed; no regression; related_validator + terminology green; description-gate reds remain WP13 docfx.json dead-glob handoff."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Fix cycle 1 verified: batch-api-contract relative link depth corrected (resolves to repo-root kitty-specs), sole owned-file link defect closed; no regression; related_validator + terminology green; description-gate reds remain WP13 docfx.json dead-glob handoff.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 1917869,
-      "shell_pid_created_at": "1786348931.91"
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786348931.91",
+      "subtasks": {
+        "T017": "done",
+        "T018": "done",
+        "T019": "done"
+      }
     },
     "WP07": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NQEF8628DQF0CXADJJG2",
       "last_transition_at": "2026-08-10T14:19:22.959735+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: version-shadow collapsed (3 architecture/README-*.x deleted, diagram README anchors repointed to surviving 2.x C4 pages, WP08 authors adr era content from its own base), explanations (status-model/trail-model/host-surface-parity/doctrine-kinds/spdd-reasons) + canonical spec-kitty-mission-workflow.md rehomed to docs/architecture/, docs/doctrine/ fully retired, 4 canonical-producer refs updated, index/kebab/audience+type migrated, 0 body-prose rewrites (behavior-doc guardrail; frontmatter+link migration only), structural-lint 0. RENAMES: docs/status-model.md->docs/architecture/status-model.md; docs/trail-model.md->docs/architecture/trail-model.md; docs/host-surface-parity.md->docs/architecture/host-surface-parity.md; docs/doctrine/doctrine-kinds.md->docs/architecture/doctrine-kinds.md; docs/doctrine/spdd-reasons.md->docs/architecture/spdd-reasons.md; spec-kitty-mission-workflow.md->docs/architecture/spec-kitty-mission-workflow.md. DELETIONS: README-1.x/2.x/3.x.md, docs/doctrine/{create-a-doctrine-artifact.md,index.md,README.md}. WP13 ref-sweep: docs/toc.yml:20 doctrine/index.md dangling; doctrine-kinds.md forward-refs ../development/create-a-doctrine-artifact.md (WP10 dest); non-owned inbound refs (README.md, AGENTS.md, docs/plans/**, docs/development/3-2-*.yaml, tests/docs/test_asset_howto.py, tests/charter/test_charter_context_spdd_reasons.py:290).",
+        "Review passed: version shadow collapsed (3 era stubs deleted, no adr/ writes, diagram anchors repointed to live C4 pages that resolve), explanations+workflow rehomed w/ history, 4 canonical-producer refs updated + gates green, one living architecture index/kebab/audience, 0 unsafe rewrites (fidelity preserved); structural-lint + terminology green; WP13 flags complete."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: version shadow collapsed (3 era stubs deleted, no adr/ writes, diagram anchors repointed to live C4 pages that resolve), explanations+workflow rehomed w/ history, 4 canonical-producer refs updated + gates green, one living architecture index/kebab/audience, 0 unsafe rewrites (fidelity preserved); structural-lint + terminology green; WP13 flags complete.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 1976806,
-      "shell_pid_created_at": "1786350740.2"
+      "shell_pid_created_at": "1786350740.2",
+      "subtasks": {
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done"
+      }
     },
     "WP08": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NZCB1QH4RR2HV76DYJTF",
       "last_transition_at": "2026-08-10T14:19:31.083973+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: era history distilled into adr/1.x-3.x index pages (WP07 handoff); era README->index (#2227 done via git mv; redirect stubs at old README paths keep old URLs + 3 non-owned README-reading tests green). #2887: 2 non-dated ADRs dated (2026-04-06-2/-3) + redundant doc_status/updated removed (MADR status kept); 6 date-sequence duplicate renumbers (kept highest-ref member at -1-). Migrations: 4 completed runbooks reclassified (upgrade-to-0-12-0->superseded; 2-1-cutover/teamspace-repair/teamspace-920->deprecated); 06_migration_and_shim_rules.md->migration-and-shim-rules.md kebab. #3227 freshen cmd fixed to 'python -m' form. adr/3.x charter content preserved; targeted tests green. RENAMES recorded for WP13 redirect/lockfile regen (see full list in commit a2b396db5). WP13/config FLAGS: (1) docs/development/3-2-page-inventory.yaml lockfile STALE re: ADR renames -> regenerate in place; (2) common-docs.styleguide.yaml era-README frontmatter exclusion + test_docs_structural_lint::test_live_adr_readmes + test_adr_readme_prose still reference README.md (green via stubs but #2227-superseded) -> config owner reconcile; (3) dated-prefix old-path refs in src/ docstrings + archives are redirect-covered, no assertions broken.",
+        "Review passed: era history distilled into adr/1.x-3.x (fact-preserving, charter adr/3.x content preserved+resolves), era README->index (#2227, stubs description-prefixed), #2887 non-dated ADRs dated + redundant doc_status removed (MADR status kept), migrations reclassified+kebab; scope confined; structural-lint/terminology/charter-paths + ADR tests green; WP13 flags complete."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: era history distilled into adr/1.x-3.x (fact-preserving, charter adr/3.x content preserved+resolves), era README->index (#2227, stubs description-prefixed), #2887 non-dated ADRs dated + redundant doc_status removed (MADR status kept), migrations reclassified+kebab; scope confined; structural-lint/terminology/charter-paths + ADR tests green; WP13 flags complete.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 2052286,
-      "shell_pid_created_at": "1786352814.21"
+      "role": "reviewer",
+      "shell_pid": 2110550,
+      "shell_pid_created_at": "1786354782.82",
+      "subtasks": {
+        "T024": "done",
+        "T025": "done"
+      }
     },
     "WP09": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NS08W8RA4FHS4H590F0G",
       "last_transition_at": "2026-08-10T14:19:24.552563+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: examples/(9)->guides/how-to/scenarios/ + tutorials/how-to split (8 tutorials, 55 how-tos across 8 concern subdirs), Divio-typed all 93 guides pages, subdivided by concern (folds #3273) w/ per-subdir index.md, kebab, resolvable audience on all non-index pages, 2 bounded scanability+terminology rewrites w/ fidelity ledger. RENAMES(off-feature): merge-feature->how-to/missions/merge-mission; multi-agent-feature-development->scenarios/multi-agent-mission-development; worktree-parallel-features->scenarios/worktree-parallel-missions. 80 git-mv. Collapsed 3 root indexes+3 toc into 1 nested toc.yml+index tree. FLAGGED WP10 (internal-audience in guides): gstack-glossary-observations.md; fork-packaging-hooks.md. WP13 ref-sweep: ~34 non-owned docs files w/ related/inline links + redirect_map.yaml/redirect_baseline_urls.json/seo_verify.py/test_published_pages.py CANARY(install-spec-kitty.md); docfx guides/**.md glob still matches nested. Follow-on: residual feature prose + stale --push/--feature examples in other scenarios (beyond bounded ceiling).",
+        "Review passed: examples->guides (feature->mission renames incl. worktree-parallel-missions/multi-agent-mission-development), all guides pages Divio-typed (exactly one type: each; tutorials/how-to/reference/explanation), subdivided by concern w/ per-subdir index.md (folds #3273), kebab-case throughout, all 5 audience: paths resolve under docs/context/audience/, description 50-180 on touched pages; 2 fact-safe bounded rewrites (terminology+scanability; --push removed as canon fact-correction, git checkout feature-a literal preserved); intra-guides links recomputed for new depth + rename retargeting; related-validator + structural-lint + terminology guard green (48 passed); scope confined to docs/guides+examples. Published-pages canary RED: hardcoded constant docs/guides/install-spec-kitty.md moved to how-to/installation/ — WP13/enumerated-set Python-constant-update handoff (nav-regen won't fix a code literal); WP09 flagged the code-referenced-path hazard class (install-and-upgrade, use-retrospective-learning) but not install-spec-kitty specifically — non-owned surface, noted not rejected."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: examples->guides (feature->mission renames incl. worktree-parallel-missions/multi-agent-mission-development), all guides pages Divio-typed (exactly one type: each; tutorials/how-to/reference/explanation), subdivided by concern w/ per-subdir index.md (folds #3273), kebab-case throughout, all 5 audience: paths resolve under docs/context/audience/, description 50-180 on touched pages; 2 fact-safe bounded rewrites (terminology+scanability; --push removed as canon fact-correction, git checkout feature-a literal preserved); intra-guides links recomputed for new depth + rename retargeting; related-validator + structural-lint + terminology guard green (48 passed); scope confined to docs/guides+examples. Published-pages canary RED: hardcoded constant docs/guides/install-spec-kitty.md moved to how-to/installation/ — WP13/enumerated-set Python-constant-update handoff (nav-regen won't fix a code literal); WP09 flagged the code-referenced-path hazard class (install-and-upgrade, use-retrospective-learning) but not install-spec-kitty specifically — non-owned surface, noted not rejected.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 2125835,
-      "shell_pid_created_at": "1786355368.77"
+      "shell_pid_created_at": "1786355368.77",
+      "subtasks": {
+        "T026": "done",
+        "T027": "done",
+        "T028": "done"
+      }
     },
     "WP10": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NTKENC3G0KT7Y3B228D9",
       "last_transition_at": "2026-08-10T14:19:26.190055+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: development subdivided (getting-started/how-to/reference/testing, each with index.md); create-a-doctrine-artifact re-authored at how-to/ (WP07 handoff; test_asset_howto _HOWTO constant still points at docs/doctrine/ - FLAG WP13 repoint to docs/development/how-to/create-a-doctrine-artifact.md); gap_analysis.py DEVELOPMENT_CONCERN_SUBDIRS pin + most-specific area match + 3 tests; kebab (isolated_dev_environments->isolated-dev-environments); audience on all 22 pages (internal personas, all resolve); terminology-exemptions gained type:reference; 0 behavior-doc rewrites. RENAMES: 20 flat->subdir, contributing.md stays at root (symlink target). WP13 flags: (1) test_asset_howto _HOWTO path constant; (2) 13 related + 21 body-link inbound refs from docs/adr,docs/changelog,docs/doctrine,docs/plans at OLD flat docs/development/*.md need occurrence-map intra-dev move entries to heal; (3) live shadow_tree red is transient cross-lane (WP07 deletes docs/doctrine/create-a-doctrine-artifact.md); (4) CLAUDE.md ~4 refs + CONTRIBUTING symlink unchanged.",
+        "Review passed: development subdivided (4 concern dirs, per-subdir index, 3-2-*.yaml untouched), create-a-doctrine-artifact re-authored with asset-manifest content test_asset_howto needs (path-constant flagged for WP13), gap_analysis subdir pins updated + tests green, kebab/audience/type; intra-dev links + terminology green; structural-lint failure = expected WP07 cross-lane transient; WP13 flags complete."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: development subdivided (4 concern dirs, per-subdir index, 3-2-*.yaml untouched), create-a-doctrine-artifact re-authored with asset-manifest content test_asset_howto needs (path-constant flagged for WP13), gap_analysis subdir pins updated + tests green, kebab/audience/type; intra-dev links + terminology green; structural-lint failure = expected WP07 cross-lane transient; WP13 flags complete.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 2184272,
-      "shell_pid_created_at": "1786357345.93"
+      "shell_pid_created_at": "1786357345.93",
+      "subtasks": {
+        "T029": "done",
+        "T030": "done"
+      }
     },
     "WP11": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NW7GFKTWERY76GWJ71QW",
       "last_transition_at": "2026-08-10T14:19:27.856284+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: glossary/ folded (README->docs/context/glossary-conventions.md) + contextive-glossaries.md & spec-driven.md rehomed to docs/context/ (charter-paths test updated + spec-driven frontmatter added). 3 dead authority paths repaired: glossary/contexts/, architecture/3.x/adr/, architecture/adrs/ removed; only live docs/context/ + docs/adr/3.x/ remain (all resolve; new FR-019 resolution test added; doctor doctrine healthy). context index/kebab/audience done. Footgun anchors preserved (execution.md/orchestration.md untouched). plans/notes exemption RECONCILED in test_terminology_guards.py (stale/nonexistent). RENAMES: glossary/README.md->docs/context/glossary-conventions.md, docs/contextive-glossaries.md->docs/context/contextive-glossaries.md, spec-driven.md->docs/context/spec-driven.md. Flags: contributing.md:388,663->WP10; docs/changelog/CHANGELOG.md->WP12; docs/plans/3-2-doc-publication/* + docs/development/3-2-*.yaml + AGENTS.md/docs/architecture/README.md glossary refs->WP13; charter.md:559-568 dual-read legacy paths->WP08 (do NOT 'charter sync' until dropped).",
+        "Review passed: 3 dead charter authority paths repaired (glossary/contexts/, architecture/3.x/adr/, architecture/adrs/ removed; docs/context/ + docs/adr/3.x/ preserved) — all remaining paths resolve on disk, doctor doctrine healthy (all errors []), governance semantics preserved + new FR-019 resolution test added; glossary/README folded into docs/context/glossary-conventions.md, contextive-glossaries.md (R098) + spec-driven.md (R099) rehomed with history, charter-paths test updated; context index single/kebab/audience resolvable; all 8 CLAUDE.md footgun anchors intact in orchestration.md/execution.md; plans/notes exemption reconciled (no live path lost coverage); structural-lint/terminology/charter tests green (66 passed). REVIEWER-RAISED HAZARD for WP13 (implementer did not pre-flag this): charter.md prose (non-owned by WP11) still lists the 3 dead paths at lines 375/563/565/567 — 'spec-kitty charter sync' derives authority_paths and would REVERT the T032 repair. WP13 must reconcile charter.md prose and must NOT run charter sync before that reconciliation."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: 3 dead charter authority paths repaired (glossary/contexts/, architecture/3.x/adr/, architecture/adrs/ removed; docs/context/ + docs/adr/3.x/ preserved) — all remaining paths resolve on disk, doctor doctrine healthy (all errors []), governance semantics preserved + new FR-019 resolution test added; glossary/README folded into docs/context/glossary-conventions.md, contextive-glossaries.md (R098) + spec-driven.md (R099) rehomed with history, charter-paths test updated; context index single/kebab/audience resolvable; all 8 CLAUDE.md footgun anchors intact in orchestration.md/execution.md; plans/notes exemption reconciled (no live path lost coverage); structural-lint/terminology/charter tests green (66 passed). REVIEWER-RAISED HAZARD for WP13 (implementer did not pre-flag this): charter.md prose (non-owned by WP11) still lists the 3 dead paths at lines 375/563/565/567 — 'spec-kitty charter sync' derives authority_paths and would REVERT the T032 repair. WP13 must reconcile charter.md prose and must NOT run charter sync before that reconciliation.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 2200730,
-      "shell_pid_created_at": "1786359235.58"
+      "shell_pid_created_at": "1786359235.58",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T042": "done"
+      }
     },
     "WP12": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZP0NXT96C3ZTST1PBG8W81H",
       "last_transition_at": "2026-08-10T14:19:29.481581+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: media->docs/assets (root; README <img> rewritten to absolute raw/main/docs/assets/logo_small.webp), HOW_TO_MAINTAIN->operations/how-to-maintain.md + p0-baseline-refresh->operations, release-goals+archive folded into changelog (README+index deduped to release-goals.md; archive 1x/2x collapsed to changelog/1x,2x per twice-move spine), index/kebab/audience/type set, section toc.yml created, 0 FR-014 prose rewrites (fact-safe). RENAMES in report. WP13 FLAGS: 14 archive redirect targets + 13 non-owned dangling related edges (docs/index.md, docs/migrations/**, docs/updates/index.md, docs/plans/**) + publish-manifest/toc/inventory regen - see report.",
+        "Review passed: media->assets + README logo <img> absolute URL correct (docs/assets/logo_small.webp, no media/ refs remain), HOW_TO_MAINTAIN/p0-baseline->operations, release-goals+archive->changelog (not plans, CHANGELOG record intact), index/kebab/audience; owned-file links + structural-lint + terminology green; 14 archive redirect targets + broader dangling set flagged for WP13."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Review passed: media->assets + README logo <img> absolute URL correct (docs/assets/logo_small.webp, no media/ refs remain), HOW_TO_MAINTAIN/p0-baseline->operations, release-goals+archive->changelog (not plans, CHANGELOG record intact), index/kebab/audience; owned-file links + structural-lint + terminology green; 14 archive redirect targets + broader dangling set flagged for WP13.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
+      "role": "reviewer",
       "shell_pid": 2221533,
-      "shell_pid_created_at": "1786360640.8"
+      "shell_pid_created_at": "1786360640.8",
+      "subtasks": {
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
     },
     "WP13": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01KZP0P0ZCJ9X3DVBR3EZDDJ5C",
       "last_transition_at": "2026-08-10T14:19:32.716212+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready: redirect_map regen (163, 0 dead, 149/149 prior, 0 regression), nav+inventory regen, 0 dangling (225 fixer + 26 manual + 102 audience canonicalized), test constants fixed, docfx dead globs dropped, charter consistent (doctor healthy), pre-merge docfx build workflow, structural gates blocking (--extended OB-2) + nested-dir fix + fixtures, FR-022 verified; final green 1480 targeted + script gates. occurrence_map committed on primary planning branch. DocFX build CI-only.",
+        "Fix cycle 1: flipped the stale charter dual-read guard to assert legacy homes dropped post-fold (test_runtime_read_resolution 15 passed); all prior WP13 verifications hold (redirect 0-regression, 0 dangling, docfx dead globs dropped, charter collapsed + doctor healthy, gates blocking + nested fix, FR-022, docs-build-pr workflow). Occurrence_map spine on primary branch."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "reference": "Fix cycle 1 verified: stale charter dual-read guard flipped to post-fold invariant (legacy homes dropped) — doctrinally correct, siblings cover new homes; charter collapsed + doctor healthy; audience --strict 0 dangling + link --check 0 dead; final-green clean except the 2 documented occurrence_map-on-primary artifacts (green post-merge). WP13 approved — mission ready for accept+merge.",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "shell_pid": 2834897,
-      "shell_pid_created_at": "1786370293.75"
+      "role": "reviewer",
+      "shell_pid": 0,
+      "shell_pid_created_at": "1786370293.75",
+      "subtasks": {
+        "T037": "done",
+        "T038": "done",
+        "T039": "done",
+        "T040": "done"
+      }
     }
   }
 }

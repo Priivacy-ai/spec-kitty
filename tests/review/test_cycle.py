@@ -23,6 +23,7 @@ from specify_cli.review.cycle import (
     build_review_cycle_pointer,
     create_rejected_review_cycle,
     resolve_review_cycle_pointer,
+    review_feedback_source_path,
     validate_review_artifact_file,
     validate_review_cycle_pointer,
 )
@@ -266,6 +267,59 @@ def test_self_referential_feedback_source_is_rejected(tmp_path: Path) -> None:
     latest = ReviewCycleArtifact.latest(wp_dir)
     assert latest is not None
     assert latest.reviewer_agent == "reviewer-renata"
+
+
+def test_review_prompt_feedback_path_is_accepted_as_a_feedback_source(
+    tmp_path: Path,
+) -> None:
+    """Guard for #3430: the rejection command ``agent action review`` prints
+    must be runnable verbatim.
+
+    The prompt names ``review_feedback_path`` twice -- once as the file the
+    reviewer writes, once as the ``--review-feedback-file`` argument -- so
+    whatever :func:`review_feedback_source_path` returns has to survive
+    ``_guard_feedback_source_provenance``. It did not: the prompt advertised
+    the WP's own ``review-cycle-N.md``, which is precisely what the guard
+    refuses, so every rejection cost a cycle to discover the printed command
+    could not be followed.
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+    tasks_dir = repo / "kitty-specs" / MISSION_SLUG / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / f"{WP_SLUG}.md").write_text("# WP03\n", encoding="utf-8")
+    wp_dir = tasks_dir / WP_SLUG
+    wp_dir.mkdir()
+
+    # The path the review prompt tells the reviewer to write feedback to, for
+    # the first cycle (``len(glob("review-cycle-*.md")) + 1`` in workflow.py).
+    feedback = review_feedback_source_path(wp_dir, 1)
+    assert feedback.parent == wp_dir, "the prompt promises an in-repo path"
+    feedback.write_text(
+        "**Issue 1**: Ledger grammar drops the census delimiter.\n",
+        encoding="utf-8",
+    )
+
+    created = create_rejected_review_cycle(
+        main_repo_root=repo,
+        mission_slug=MISSION_SLUG,
+        wp_id=WP_ID,
+        wp_slug=WP_SLUG,
+        feedback_source=feedback,
+        reviewer_agent="reviewer-renata",
+    )
+
+    # The tool authors the verdict artifact itself, so the reviewer's feedback
+    # file and the generated cycle must be two distinct files.
+    assert created.artifact_path == wp_dir / "review-cycle-1.md"
+    assert created.artifact_path != feedback
+
+    # The next cycle's advertised path does not collide with the artifact just
+    # written either.
+    assert review_feedback_source_path(wp_dir, 2).name not in {
+        path.name for path in wp_dir.glob("review-cycle-*.md")
+    }
 
 
 def test_guard_feedback_source_provenance_refuses_by_parse_alone_no_verdict_read(

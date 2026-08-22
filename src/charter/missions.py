@@ -21,6 +21,11 @@ doctrine.missions.repository.MissionTemplateRepository``), enforced by
 ``tests/architectural/test_charter_facades_reexport_doctrine.py``.
 """
 
+from doctrine.missions.expected_artifact_manifest import (
+    ArtifactClassEnum,
+    ExpectedArtifactManifest,
+    ExpectedArtifactSpec,
+)
 from doctrine.missions.mission_step_repository import MissionStepRepository
 from doctrine.missions.mission_type_repository import (
     MissionTypeRepository,
@@ -31,14 +36,21 @@ from doctrine.missions.repository import (
     MissionsRootNotFound,
     MissionTemplateRepository,
 )
-from doctrine.missions.step_projection import project_template_set
+from doctrine.missions.step_projection import (
+    project_artifact_name_set,
+    project_template_set,
+)
 
 __all__ = [
+    "ArtifactClassEnum",
+    "ExpectedArtifactManifest",
+    "ExpectedArtifactSpec",
     "MissionsRootNotFound",
     "MissionStepRepository",
     "MissionTemplateRepository",
     "MissionTypeRepository",
     "builtin_mission_type_ids",
+    "project_artifact_name_set",
     "project_template_set",
     "resolve_layered_mission_types",
 ]

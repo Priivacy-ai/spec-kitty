@@ -307,7 +307,7 @@
     },
     "WP08": {
       "actor": "user",
-      "agent": "",
+      "agent": "codex",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 2,
@@ -389,7 +389,7 @@
     },
     "WP10": {
       "actor": "root-arbiter",
-      "agent": "",
+      "agent": "wp10-reviewer3",
       "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 1,

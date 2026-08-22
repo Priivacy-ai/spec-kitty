@@ -1,3 +1,21 @@
+# DEPRECATED / INERT -- this file is not consumed by any resolver.
+#
+# MissionTemplateRepository._expected_artifacts_path()
+# (src/doctrine/missions/repository.py) composes only the built-in pack path
+# (packs/built-in/missions/software-dev/expected-artifacts.yaml), with no
+# override tier for this asset type -- unlike mission.yaml/templates/
+# command-templates, which DO resolve through .kittify/overrides/ first
+# (src/doctrine/resolver.py wires the mission-scoped override tier for those
+# three asset types only). Editing this file has no runtime effect.
+#
+# The canonical, consumed copy is
+# packs/built-in/missions/software-dev/expected-artifacts.yaml.
+#
+# A future correction (wiring an override-resolution tier for this asset
+# type) is a named follow-up candidate, not implemented here -- see
+# kitty-specs/expected-artifacts-manifest-repair-01KZY498/spec.md's
+# "Out of Scope" section / C-004.
+#
 # Expected artifact manifest for software-dev mission
 #
 # Defines which artifacts are required/optional at each mission step.

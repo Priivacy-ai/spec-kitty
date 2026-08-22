@@ -11,6 +11,10 @@
 
 schema_version: "1.0"
 mission_type: "software-dev"
+# manifest_version is a sync-namespace identity key (feeds NamespaceRef), not
+# a content-freshness counter; do not bump on content-only changes -- see
+# kitty-specs/expected-artifacts-manifest-repair-01KZY498/tracer-design-decisions.md
+# Decision 2.
 manifest_version: "1"
 
 # Artifacts required regardless of mission step
@@ -29,20 +33,44 @@ required_by_step:
       blocking: true
 
   plan:
+    # Plan step requires only plan.md (matches _evaluate_software_dev_guards'
+    # "plan" branch); tasks.md is produced/checked by the separate CLI-native
+    # tasks_outline/tasks_packages/tasks_finalize steps below.
     - artifact_key: "output.plan.main"
       artifact_class: "output"
       path_pattern: "plan.md"
       blocking: true
+
+  tasks_outline:
     - artifact_key: "output.tasks.list"
       artifact_class: "output"
       path_pattern: "tasks.md"
       blocking: true
 
-  implement:
-    - artifact_key: "evidence.analysis-report"
-      artifact_class: "evidence"
-      path_pattern: "analysis-report.md"
+  tasks_packages:
+    # _evaluate_tasks_packages_guard also enforces requirement_mapping_failures,
+    # a non-filesystem-expressible check this schema has no field for.
+    - artifact_key: "output.tasks.per_wp"
+      artifact_class: "output"
+      path_pattern: "tasks/WP*.md"
       blocking: true
+
+  tasks_finalize:
+    # _evaluate_tasks_finalize_guard also enforces the occurrence gate and
+    # dependency-frontmatter checks, non-filesystem-expressible checks this
+    # schema has no field for.
+    - artifact_key: "output.tasks.per_wp"
+      artifact_class: "output"
+      path_pattern: "tasks/WP*.md"
+      blocking: true
+
+  implement:
+    # Implement step has no filesystem requirement: _evaluate_wp_iteration_guard
+    # only checks WP status (wp_advance_ready), never analysis-report.md on
+    # disk. Reconciled to match guard behavior (C-001) -- the guard is not
+    # touched here even though this reads like the guard may be the actual
+    # bug; see tracer-approach.md.
+    []
 
   review:
     # Review step checks code quality and completeness

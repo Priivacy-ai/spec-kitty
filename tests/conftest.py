@@ -26,6 +26,7 @@ from runtime.next._tmp_namespace import prompt_tmp_dir
 from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group registration via register()
 from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
 from tests._shard_registry import all_groups, shard_for
+from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
     quarantine_opted_in,
@@ -53,8 +54,8 @@ from tests.utils import REPO_ROOT, run, write_wp
 # Two layers are required:
 #   1. ``pytest_configure`` sets the HOME/XDG env vars *before collection* so
 #      that modules which bind a home-derived path at import time (e.g.
-#      ``specify_cli.sync.daemon.SPEC_KITTY_DIR = Path.home() / ".spec-kitty"``
-#      at module top level, ``daemon.py:94``) resolve into the isolated home.
+#      ``specify_cli.paths.get_runtime_root()``, which ``daemon.py`` calls
+#      lazily on every access) resolve into the isolated home.
 #   2. An autouse, function-scoped fixture re-asserts the ``Path.home``
 #      monkeypatch + env for every test, keyed by worker id, so call-time
 #      ``Path.home()`` reads are isolated too. Never session-only: a single
@@ -222,10 +223,11 @@ def pytest_configure(config: pytest.Config) -> None:
     os.environ.setdefault("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     # WP04: isolate this worker's home BEFORE collection so modules that bind a
-    # home-derived path at import time (e.g. ``daemon.SPEC_KITTY_DIR`` at
-    # ``daemon.py:94``) resolve into the per-worker isolated home, never the
-    # developer's real ``~/.spec-kitty``. The autouse fixture below re-applies
-    # the same mapping per test for call-time reads.
+    # home-derived path at import time (e.g. ``daemon.py`` calling
+    # ``get_runtime_root()`` lazily on every access) resolve into the
+    # per-worker isolated home, never the developer's real ``~/.spec-kitty``.
+    # The autouse fixture below re-applies the same mapping per test for
+    # call-time reads.
     _apply_home_env(_worker_home_base(config))
 
     try:
@@ -275,11 +277,25 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     # visibility CI job sets SPEC_KITTY_RUN_QUARANTINE=1 to run it for real.
     apply_quarantine_skip = not quarantine_opted_in(os.environ)
     skip_quarantine = quarantine_skip_mark()
+    # Performance chokepoint (env-gated, mirrors quarantine). A single-shot
+    # wall-clock budget test is cold-start / shared-runner bound, so it is held
+    # out of every normal PR/blocking run — it can never turn main red or block
+    # an unrelated PR. The proper out-of-band harness (Monte-Carlo
+    # iterate-and-aggregate, off the PR path) is tracked in #3595; it sets
+    # SPEC_KITTY_RUN_PERFORMANCE=1 to run these for real.
+    apply_performance_skip = os.environ.get("SPEC_KITTY_RUN_PERFORMANCE") != "1"
+    skip_performance = pytest.mark.skip(
+        reason="performance: single-shot wall-clock budget test held out of "
+        "normal runs (cold-start/runner-bound). Set SPEC_KITTY_RUN_PERFORMANCE=1 "
+        "to run it; the out-of-band perf harness is tracked in #3595."
+    )
     for item in items:
         if item.get_closest_marker("windows_ci") and sys.platform != "win32":
             item.add_marker(skip_windows)
         if apply_quarantine_skip and item.get_closest_marker(QUARANTINE_MARKER):
             item.add_marker(skip_quarantine)
+        if apply_performance_skip and item.get_closest_marker("performance"):
+            item.add_marker(skip_performance)
         _apply_shard_markers(item)
     _fail_on_wall_clock_assertions(items)
 
@@ -1568,6 +1584,7 @@ def test_project(tmp_path: Path) -> Path:
         project / ".kittify",
         symlinks=True,
     )
+    scrub_repo_mission_overrides(project)
 
     # Copy missions from new location (src/specify_cli/missions/ -> .kittify/missions/)
     missions_src = REPO_ROOT / "src" / "specify_cli" / "missions"

@@ -41,8 +41,8 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _validate_ready_for_review as _seam_validate_ready_for_review,
 )
 from specify_cli.cli.selector_resolution import resolve_mission_handle
-from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.vcs.git import merge_base_changed_files
+from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
+from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 
@@ -567,42 +567,24 @@ def _filter_by_planning_tip_content(
 ) -> list[str]:
     """Drop candidates byte-identical to the planning-branch tip (FR-007 / #2274).
 
-    Runs ``git diff <planning_tip> HEAD -- <path>`` for each candidate.  An
-    empty diff means the file is byte-identical to the planning tip (e.g. after
-    a planning-branch rebase that brought no content change) and must not be
-    flagged as a lane-hygiene violation.  On any git failure the candidate is
-    kept conservatively so the guard never silently loses signal.
+    Compares the candidates against the planning tip through the canonical
+    ``vcs.git`` seam — the same seam pass 1 uses (``merge_base_changed_files``)
+    rather than a hand-rolled ``git diff`` subprocess. A candidate that does not
+    appear in ``git diff <base_branch> HEAD -- kitty-specs/`` is byte-identical
+    to the planning tip (e.g. after a planning-branch rebase that brought no
+    content change) and must not be flagged as a lane-hygiene violation. On any
+    git failure — including an unresolvable ``base_branch`` —
+    ``git_diff_names_checked`` returns ``None`` and every candidate is kept
+    conservatively so the guard never silently loses signal.
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    planning_tip_result = _tasks.subprocess.run(
-        ["git", "rev-parse", base_branch],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
+    diverged = git_diff_names_checked(
+        worktree_path, base_branch, "HEAD", pathspec=f"{KITTY_SPECS_DIR}/"
     )
-    if planning_tip_result.returncode != 0 or not planning_tip_result.stdout.strip():
+    if diverged is None:
+        # git failure or unresolvable base ref → keep conservatively.
         return candidates
-
-    planning_tip = planning_tip_result.stdout.strip()
-    files: list[str] = []
-    for path in candidates:
-        content_diff = _tasks.subprocess.run(
-            ["git", "diff", planning_tip, "HEAD", "--", path],
-            cwd=worktree_path,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
-        )
-        # Non-empty diff or git error → genuinely diverges from planning tip; keep.
-        if content_diff.returncode != 0 or content_diff.stdout.strip():
-            files.append(path)
-    return files
+    diverged_set = set(diverged)
+    return [path for path in candidates if path in diverged_set]
 
 
 def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str) -> list[str]:
@@ -631,6 +613,12 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
         if not path or not path.startswith(f"{KITTY_SPECS_DIR}/"):
             continue
         if path in seen:
+            continue
+        # #2980: a bulk-edit mission's own occurrence map is the single permitted
+        # kitty-specs/ lane write (DIRECTIVE_035). Honor the same exception the
+        # pre-commit guard applies, expressed once in is_occurrence_map_path, so
+        # the two kitty-specs guards agree instead of warn-here / block-there.
+        if is_occurrence_map_path(path):
             continue
         seen.add(path)
         candidates.append(path)

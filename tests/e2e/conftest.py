@@ -18,6 +18,7 @@ from textwrap import dedent
 import pytest
 import yaml
 
+from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests.test_isolation_helpers import get_installed_version, run_cli_subprocess
 from specify_cli.migration.schema_version import MAX_SUPPORTED_SCHEMA, SCHEMA_CAPABILITIES
 from charter.sync import sync as sync_charter
@@ -246,6 +247,7 @@ def e2e_project(tmp_path: Path) -> Path:
         project / ".kittify",
         symlinks=True,
     )
+    scrub_repo_mission_overrides(project)
     charter_path = project / ".kittify" / "charter" / "charter.md"
     if charter_path.exists():
         sync_charter(charter_path, charter_path.parent, force=True)

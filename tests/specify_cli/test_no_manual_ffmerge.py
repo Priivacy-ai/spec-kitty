@@ -29,6 +29,8 @@ from specify_cli.git.ref_advance import (
     advance_branch_ref,
     RefAdvanceDirtyWorktreeError,
     RefAdvanceNonFastForwardError,
+    RefRestoreError,
+    restore_branch_ref,
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -117,10 +119,7 @@ def test_primary_ref_up_to_date_after_coord_write(tmp_path: Path) -> None:
 
     # Primary is now at coord HEAD — no manual ff-merge needed
     primary_sha = _sha(repo, primary_branch)
-    assert primary_sha == coord_sha, (
-        f"Primary branch should be at coord HEAD after advance_branch_ref; "
-        f"primary={primary_sha[:12]} coord={coord_sha[:12]}"
-    )
+    assert primary_sha == coord_sha, f"Primary branch should be at coord HEAD after advance_branch_ref; primary={primary_sha[:12]} coord={coord_sha[:12]}"
 
     # Confirm git log shows empty gap (primary up-to-date with coord)
     gap = _git(
@@ -129,9 +128,34 @@ def test_primary_ref_up_to_date_after_coord_write(tmp_path: Path) -> None:
         "--oneline",
         f"{primary_branch}..{coord_branch}",
     ).stdout.strip()
-    assert gap == "", (
-        f"git log {primary_branch}..{coord_branch} should be empty after advance; got: {gap!r}"
-    )
+    assert gap == "", f"git log {primary_branch}..{coord_branch} should be empty after advance; got: {gap!r}"
+
+
+def test_restore_branch_ref_refuses_to_clobber_concurrent_advance(tmp_path: Path) -> None:
+    """Rollback CAS leaves a branch alone after another writer advances it."""
+    coord_branch = "kitty/mission-myslug-01ABCDEF"
+    repo, coord_wt = _init_repo(tmp_path, coord_branch=coord_branch)
+    restored_sha = _sha(repo, "main")
+
+    (coord_wt / "first.txt").write_text("first\n", encoding="utf-8")
+    _git(coord_wt, "add", "first.txt")
+    _git(coord_wt, "commit", "-q", "-m", "first advance")
+    expected_current_sha = _sha(coord_wt)
+
+    (coord_wt / "concurrent.txt").write_text("concurrent\n", encoding="utf-8")
+    _git(coord_wt, "add", "concurrent.txt")
+    _git(coord_wt, "commit", "-q", "-m", "concurrent advance")
+    concurrent_sha = _sha(coord_wt)
+
+    with pytest.raises(RefRestoreError):
+        restore_branch_ref(
+            repo,
+            coord_branch,
+            restored_sha,
+            expected_current_sha=expected_current_sha,
+        )
+
+    assert _sha(repo, coord_branch) == concurrent_sha
 
 
 # ---------------------------------------------------------------------------
@@ -172,9 +196,7 @@ def test_coord_owned_residue_does_not_abort_advance(tmp_path: Path) -> None:
     )
 
     primary_sha = _sha(repo, primary_branch)
-    assert primary_sha == coord_sha, (
-        "Primary should be at coord HEAD even when coord-owned residue is present"
-    )
+    assert primary_sha == coord_sha, "Primary should be at coord HEAD even when coord-owned residue is present"
 
 
 def test_tracked_coord_owned_status_change_no_longer_blocks_advance(tmp_path: Path) -> None:
@@ -220,10 +242,7 @@ def test_tracked_coord_owned_status_change_no_longer_blocks_advance(tmp_path: Pa
         is_residue=is_toolchain_generated_churn,
     )
 
-    assert _sha(repo, primary_branch) == coord_sha, (
-        "a tracked, locally-edited status.json is toolchain churn post-WP13; "
-        "the advance must succeed, not refuse."
-    )
+    assert _sha(repo, primary_branch) == coord_sha, "a tracked, locally-edited status.json is toolchain churn post-WP13; the advance must succeed, not refuse."
 
 
 def test_diverged_primary_ref_is_not_rewound(tmp_path: Path) -> None:

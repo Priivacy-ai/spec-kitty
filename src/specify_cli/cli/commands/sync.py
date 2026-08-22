@@ -11,41 +11,28 @@ import contextlib
 import logging
 import re
 import subprocess
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from kernel.clock import UTC, now_utc, parse_iso, timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Final
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
-from uuid import UUID
 
 import typer
 from rich.console import Console
 from specify_cli.cli.console import console
-from rich.panel import Panel
 from rich.table import Table
 
 if TYPE_CHECKING:
-    from specify_cli.identity.project import ProjectIdentity
-    from specify_cli.delivery.config import EventSyncConfig, Mode
     from specify_cli.delivery.dispatcher import DispatchSummary
-    from specify_cli.delivery.ledger import SqliteDeliveryLedger
-    from specify_cli.delivery.receivers import DeliveryReceiver, GateDecision
-    from specify_cli.delivery.retention import ProjectPurgeResult, RetentionResult
+    from specify_cli.delivery.receivers import DeliveryReceiver
+    from specify_cli.delivery.retention import ProjectPurgeResult
     from specify_cli.delivery.status_report import (
         PerProjectStoreReport,
         ProjectStoreRow,
-        UnresolvedIdentityCandidate,
     )
     from specify_cli.event_journal.journal import EventJournal
     from specify_cli.sync.history_import import UploadReport
-    from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-    from specify_cli.sync.project_identity import IdentityBackfillResult
     from specify_cli.sync.project_store import ProjectSyncStore
-    from specify_cli.sync.migrate_journal import (
-        CleanupResult,
-        ConflictResolution,
-        MigrationResult,
-    )
     from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 from specify_cli.cli.commands._auth_recovery import (
@@ -60,7 +47,6 @@ from specify_cli.core.vcs import (
     ChangeInfo,
     ConflictInfo,
     SyncResult,
-    SyncStatus,
     get_vcs,
 )
 
@@ -75,12 +61,6 @@ from specify_cli.sync.feature_flags import (
     saas_sync_disabled_message,
 )
 from specify_cli.tracker.egress_verdict import (
-    CHANNEL1_GRANTED,
-    CHANNEL1_NOT_CONSENTABLE,
-    CHANNEL1_NO_RECORD,
-    CHANNEL1_RECORDED_REFUSAL,
-    CHANNEL1_UNCLASSIFIED,
-    CHANNEL1_UNDETERMINED,
     EgressDestination,
     TrackerEgressVerdict,
     tracker_egress_verdict,
@@ -91,31 +71,62 @@ _LOG = logging.getLogger(__name__)
 
 _STATUS_ACCESS_TOKEN_LABEL = "Access token"  # noqa: S105
 _STATUS_REFRESH_TOKEN_LABEL = "Refresh token"  # noqa: S105
-_STATUS_LAST_SYNC_LABEL = "Last Sync"
-_UNAUTHENTICATED_SYNC_NOW_MESSAGE = "not authenticated: no valid access token. Run `spec-kitty auth login`."
-_OVERSIZED_SYNC_NOW_MESSAGE = "sync batch exceeded the server size limit; the CLI retried with smaller batches. Re-run `spec-kitty sync now` if events remain."
-_TRANSIENT_SYNC_NOW_MESSAGE = "sync delivery failed transiently; no events were lost. Re-run `spec-kitty sync now` (see `--report` for per-event detail)."
-# HTTP 413 is how the SaaS sync ingress (Fly proxy + edge) rejects an
-# over-cap batch; see apps/sync/limits.py (512 KiB decompressed ceiling).
-_HTTP_PAYLOAD_TOO_LARGE = 413
-_OVERSIZED_ERROR_MARKER = "retry with a smaller batch"
-_HTTP_AUTH_STATUSES = frozenset({401, 403})
+# WP09: ``_STATUS_LAST_SYNC_LABEL`` + the ``_BOUNDARY_LABEL_*`` / ``_ABSENT_VALUE``
+# / ``_UNSET_VALUE`` / ``_ZERO_STATUS`` / ``_MISMATCHED_FIELDS_LABEL`` display
+# constants moved to the pure ``specify_cli.sync.sync_status_core`` seam and are
+# re-established as ``sync.<name>`` module attributes by the husk re-export block
+# below (the WP06/WP07 relocation pattern).
+# WP08: the ``sync now`` dispatch message constants and HTTP-413 markers moved to
+# the pure ``specify_cli.sync.sync_dispatch_core`` seam (``_UNAUTHENTICATED_SYNC_NOW_MESSAGE``
+# / ``_OVERSIZED_SYNC_NOW_MESSAGE`` / ``_TRANSIENT_SYNC_NOW_MESSAGE`` /
+# ``_HTTP_PAYLOAD_TOO_LARGE`` / ``_OVERSIZED_ERROR_MARKER`` / ``_HTTP_AUTH_STATUSES``).
+# They are re-established as ``sync.<name>`` module attributes by the husk
+# re-export block below so ``_handle_sync_now_unauthenticated`` and the
+# ``test_sync_routes`` message assertions still resolve them on this host.
 _WARNING_HEADER_STYLE = "bold yellow"
-_ABSENT_VALUE = "<absent>"
-_UNSET_VALUE = "<unset>"
-_ZERO_STATUS = "[green]0[/green]"
-_BOUNDARY_LABEL_PACKAGE_VERSION = "  Package version"
-_BOUNDARY_LABEL_EXECUTABLE_PATH = "  Executable path"
-_BOUNDARY_LABEL_SOURCE_PATH = "  Source path"
-_BOUNDARY_LABEL_SERVER_URL = "  Server URL"
-_BOUNDARY_LABEL_TEAM_USER = "  Team/User"
-_BOUNDARY_LABEL_QUEUE_DB_PATH = "  Queue DB path"
-_MISMATCHED_FIELDS_LABEL = "Mismatched fields"
+_UNAVAILABLE_VALUE = "[dim]Unavailable[/dim]"
 
 
 def _string_or(value: object | None, fallback: str) -> str:
     """Return *fallback* when *value* is falsey, otherwise coerce to ``str``."""
     return str(value) if value else fallback
+
+
+def _depth_color(pct: float) -> str:
+    """Return the Rich color token for a queue-depth percentage band.
+
+    Single home for the depth->color mapping duplicated across the queue-health
+    panel and the ``doctor`` render (S3358: collapses two byte-identical nested
+    ternaries into one shared band lookup).
+    """
+    if pct >= 100:
+        return "red"
+    if pct >= 80:
+        return "yellow"
+    return "green"
+
+
+def _override_label(value: bool | None) -> str:
+    """Render a tri-state sync-override flag: unset / enabled / disabled.
+
+    Flattens the nested ternary the routing table used for the local-override
+    and repo-default rows (S3358); the values are byte-identical to the inline
+    form it replaces.
+    """
+    if value is None:
+        return "[dim]Not set[/dim]"
+    return "enabled" if value else "disabled"
+
+
+def _selector_kind(project: object | None, identity_less: bool) -> str:
+    """Classify a purge/preview selector as project / identity-less / all.
+
+    Flattens the nested ternary in the purge ``--report`` selector envelope
+    (S3358); byte-identical to the inline expression it replaces.
+    """
+    if project is not None:
+        return "project"
+    return "identity-less" if identity_less else "all"
 
 
 def _add_boundary_identity_rows(
@@ -169,101 +180,6 @@ def humanize_timedelta(td: timedelta) -> str:
     return f"{seconds}s"
 
 
-_DRAIN_BLOCKED_HELP = {
-    "ready": "Ready to drain.",
-    "saas_disabled": "SaaS sync disabled for this checkout — run `spec-kitty sync opt-in`.",
-    "missing_auth": "Not authenticated — run `spec-kitty auth login`.",
-    "missing_team": "No Private Teamspace available — refresh membership in dashboard.",
-}
-
-
-def _build_queue_summary_lines(stats: QueueStats) -> list[str]:
-    """Build the queue-health summary lines shown in the panel."""
-    summary_lines: list[str] = []
-    pct = (stats.total_queued / stats.max_queue_size * 100) if stats.max_queue_size > 0 else 0
-    depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
-    summary_lines.append(f"[bold]Queue Depth:[/bold] [{depth_color}]{stats.total_queued:,} / {stats.max_queue_size:,}[/{depth_color}] ({pct:.0f}%)")
-    summary_lines.append(f"[bold]Retried:[/bold]    {stats.total_retried:,}")
-    if stats.oldest_event_age is not None:
-        age_str = humanize_timedelta(stats.oldest_event_age)
-        summary_lines.append(f"[bold]Oldest Event:[/bold] {age_str} ago")
-
-    if stats.drain_blocked_counts:
-        ready = stats.drain_blocked_counts.get("ready", 0)
-        blocked = stats.total_queued - ready
-        ready_color = "green" if blocked == 0 else "yellow"
-        summary_lines.append(f"[bold]Drain Ready:[/bold] [{ready_color}]{ready:,} ready[/{ready_color}] / [yellow]{blocked:,} blocked[/yellow]")
-    return summary_lines
-
-
-def _render_drain_blockers(stats: QueueStats, target_console: Console) -> None:
-    """Render the drain-blocker breakdown when blocked items exist."""
-    blocked_only = {k: v for k, v in stats.drain_blocked_counts.items() if k != "ready" and v > 0}
-    if not blocked_only:
-        return
-
-    block_table = Table(
-        title="Drain Blockers",
-        show_header=True,
-        header_style="bold",
-        show_lines=False,
-        expand=False,
-    )
-    block_table.add_column("Reason", style="yellow")
-    block_table.add_column("Count", justify="right")
-    block_table.add_column("Remediation", style="dim")
-    for reason, count in sorted(blocked_only.items(), key=lambda kv: -kv[1]):
-        block_table.add_row(
-            reason,
-            str(count),
-            _DRAIN_BLOCKED_HELP.get(reason, ""),
-        )
-    target_console.print(block_table)
-
-
-def _render_retry_distribution(stats: QueueStats, target_console: Console) -> None:
-    """Render retry buckets when queue retry stats are present."""
-    if not stats.retry_distribution:
-        return
-
-    retry_table = Table(
-        title="Retry Distribution",
-        show_header=True,
-        header_style="bold",
-        show_lines=False,
-        expand=False,
-    )
-    retry_table.add_column("Bucket", style="dim")
-    retry_table.add_column("Count", justify="right")
-
-    for bucket in ("0 retries", "1-3 retries", "4+ retries"):
-        if bucket in stats.retry_distribution:
-            retry_table.add_row(bucket, str(stats.retry_distribution[bucket]))
-
-    target_console.print(retry_table)
-
-
-def _render_top_event_types(stats: QueueStats, target_console: Console) -> None:
-    """Render the top event types table when data is available."""
-    if not stats.top_event_types:
-        return
-
-    type_table = Table(
-        title="Top Event Types",
-        show_header=True,
-        header_style="bold",
-        show_lines=False,
-        expand=False,
-    )
-    type_table.add_column("Event Type", style="cyan")
-    type_table.add_column("Count", justify="right")
-
-    for event_type, count in stats.top_event_types:
-        type_table.add_row(event_type, str(count))
-
-    target_console.print(type_table)
-
-
 def _handle_sync_now_unauthenticated(strict: bool) -> None:
     """Route the unauthenticated/blocked ``sync now`` case through recovery.
 
@@ -294,6 +210,23 @@ class _IntentionalNoDelivery:
     summary: DispatchSummary
 
 
+@dataclass(frozen=True)
+class _AdmissionGatedNoDelivery:
+    """A gate/admission block, carrying the REAL reason (#3620, Finding 2).
+
+    Distinguishes "the receiver's gates refused" or "no ADMITTED delivery
+    target" from a genuine 401/403 — see
+    ``sync_dispatch_exec._run_event_sync_dispatch`` (the two gate branches)
+    and ``sync_dispatch_core.SyncNowExitAction.ADMISSION_BLOCKED``. Without
+    this marker the host cannot tell a gate/admission block apart from the
+    legacy "nothing attempted" unauthenticated shape, and misreports it as
+    "not authenticated" — exactly the bug this type exists to close.
+    """
+
+    summary: DispatchSummary
+    reason: str
+
+
 def _enforce_sync_now_exit_from_dispatch(
     strict: bool,
     queue_size: int,
@@ -301,76 +234,51 @@ def _enforce_sync_now_exit_from_dispatch(
     *,
     retained_work_present: bool = False,
     intentional_no_delivery: bool = False,
+    admission_gated: bool = False,
 ) -> None:
     """Apply the strict ``spec-kitty sync now`` exit contract to the dispatch outcome.
 
-    The journal-based dispatcher is now the sole event-delivery path, so the
-    legacy ``_enforce_sync_now_exit`` semantics are mapped onto its
-    :class:`DispatchSummary` plus the pending-work signal. The base code drew a
-    deliberate line between two unauthenticated shapes and this mapping keeps it:
-
-    * The dispatcher *selected* events and attempted delivery but none
-      progressed (every selected event came back rejected / transient /
-      terminal-failed — a logged-out 401 maps the whole batch to ``transient``;
-      see :mod:`specify_cli.delivery.receivers`). This is the dispatch analogue
-      of the legacy per-event ``unauthenticated`` result (the old
-      ``error_count > 0`` shape) → the *graceful* "unauthenticated / sync-blocked"
-      report with exit 1 (Issue #829). It must NOT be reclassified as the
-      "nothing attempted / blocked" teamspace-recovery case below.
-    * There is pending work (a non-empty legacy queue, or events selected) but
-      the dispatcher attempted *nothing* — the dispatch analogue of the legacy
-      "queue non-empty but all-zero result". This is routed through the
-      teamspace-aware recovery so the unauthenticated UX (interactive login,
-      structured exit 4, legacy exit 1) is preserved regardless of ``--strict``.
-    * Partial progress with any rejected, transient, or terminal failure → exit
-      1 under ``--strict``.
-
-    A ``None`` summary means dispatch infrastructure was unavailable. Under
-    ``--strict`` that is a failure only when retained or legacy work exists.
+    WP08: this is now a **thin wrapper**. The branchy
+    ``DispatchSummary → exit`` mapping — its former cc22 complexity concentration
+    — is extracted verbatim into the pure, unit-tested
+    :func:`specify_cli.sync.sync_dispatch_core.decide_sync_now_exit`, which
+    returns a :class:`SyncNowExitAction` and performs no I/O. The only impure
+    steps remain here: apply that decision by printing (``console.print``),
+    routing through teamspace-aware recovery
+    (:func:`_handle_sync_now_unauthenticated`), or ``raise typer.Exit``. Freezing
+    the ``now`` exit-code contract (contract item 5) is now the decision core's
+    responsibility; this wrapper is a stable dispatch over five outcomes.
     """
-    if summary is None:
-        if strict and (queue_size > 0 or retained_work_present):
-            raise typer.Exit(1)
+    action = decide_sync_now_exit(
+        strict,
+        queue_size,
+        summary,
+        retained_work_present=retained_work_present,
+        intentional_no_delivery=intentional_no_delivery,
+        admission_gated=admission_gated,
+    )
+    if action is SyncNowExitAction.NONE:
         return
-
-    selected = summary.selected if summary is not None else 0
-    progressed = summary.delivered + summary.duplicate + summary.pending if summary is not None else 0
-
-    if strict and retained_work_present and selected == 0 and not intentional_no_delivery:
-        # A zero-selection summary does not prove the canonical store is empty;
-        # gate/admission failures can produce this shape while retained reads are
-        # unavailable. Only the dispatcher's explicit receiver=None outcome for
-        # an operator-selected retention mode is a clean deliberate no-delivery;
-        # unknown or refused selection remains a strict failure.
+    if action is SyncNowExitAction.EXIT_STRICT_FAILURE:
         raise typer.Exit(1)
-
-    # Selected work made no durable progress. A pure gate/auth block records no
-    # rows, so route it through teamspace-aware recovery; transport/content
-    # failures still use the legacy strict exit.
-    if selected > 0 and progressed == 0 and summary.recorded == 0:
+    if action is SyncNowExitAction.ADMISSION_BLOCKED:
+        # #3620 Finding 2: the real gate/admission reason was already printed
+        # by the exec layer (_run_event_sync_dispatch). Honor --strict without
+        # routing through _handle_sync_now_unauthenticated, which would print
+        # the misleading "not authenticated" message for a problem that has
+        # nothing to do with the local session.
+        if strict:
+            raise typer.Exit(1)
+        return
+    if action is SyncNowExitAction.HANDLE_UNAUTHENTICATED:
         _handle_sync_now_unauthenticated(strict)
         return
-    if selected > 0 and progressed == 0 and summary.transient > 0:
+    # SyncNowExitAction.TRANSIENT_BLOCK: a wholesale-transient drain — print the
+    # classified cause, then honor --strict. ``summary`` is never None on this arm
+    # (the decision only returns it for a non-None summary with recorded rows).
+    if summary is not None:
         console.print(f"[yellow]{_transient_block_message(summary)}[/yellow]")
-        if strict:
-            raise typer.Exit(1)
-        return
-    if selected > 0 and progressed == 0 and summary.recorded > 0:
-        # Rejected and terminal-failed rows are concrete delivery outcomes, not
-        # evidence that authentication blocked the attempt. The dispatch
-        # summary already exposes their counts; preserve --strict semantics
-        # without sending the operator through auth recovery.
-        if strict:
-            raise typer.Exit(1)
-        return
-
-    # Pending work but nothing was even attempted → teamspace-aware recovery.
-    work_present = queue_size > 0 or selected > 0
-    if work_present and progressed == 0:
-        _handle_sync_now_unauthenticated(strict)
-        return
-    errors = summary.rejected + summary.transient + summary.terminal_failed
-    if strict and errors > 0:
+    if strict:
         raise typer.Exit(1)
 
 
@@ -430,75 +338,13 @@ def _maybe_write_dispatch_report(report: Path | None, summary: DispatchSummary |
     console.print(f"\n[cyan]Dispatch report written to {report}[/cyan]")
 
 
-def format_queue_health(stats: QueueStats, target_console: Console) -> None:
-    """Render queue health metrics as Rich panels/tables.
-
-    Displays:
-    - Summary panel with queue depth, retried count, and oldest event age
-    - Retry distribution table (bucketed)
-    - Top event types table (up to 5)
-    - Drain-blocker breakdown (issue #1075) — only when non-empty.
-
-    Args:
-        stats: Aggregate queue statistics from OfflineQueue.get_queue_stats()
-        target_console: Rich Console to print to (allows testing with captured output)
-    """
-    summary_lines = _build_queue_summary_lines(stats)
-    target_console.print(
-        Panel(
-            "\n".join(summary_lines),
-            title="Queue Health",
-            border_style="cyan",
-            expand=False,
-        )
-    )
-
-    _render_drain_blockers(stats, target_console)
-    _render_retry_distribution(stats, target_console)
-    _render_top_event_types(stats, target_console)
-
-
 # --------------------------------------------------------------------------- #
 # Event-sync wiring (WP12) — THIN glue over WP01/WP07/WP09/WP11 domain modules. #
 # Every count/decision is owned by a domain module; this layer only resolves    #
 # already-canonical handles and prints/serialises their results (plan IC-08).   #
 # --------------------------------------------------------------------------- #
 
-# Operator event-sync mode is persisted under a dedicated config.toml table so
-# it never collides with the [sync] target-authority keys (FR-016 / C-007).
-_EVENT_SYNC_TABLE = "event_sync"
-_EVENT_SYNC_MODE_KEY = "mode"
-_EVENT_SYNC_ENDPOINT_KEY = "external_endpoint"
 _EVENT_SYNC_DISPATCH_BATCH_LIMIT = 1000
-
-
-@dataclass
-class _EventSyncRuntime:
-    """The already-resolved domain handles the thin CLI hands to the dispatcher
-    / status-report / retention modules. The CLI never derives scope or URLs
-    itself — it only opens these and passes them through (contract §1)."""
-
-    target: ResolvedSyncTarget | None
-    store: Any
-    context: Any
-    delivery_target: Any | None
-    checkout_identity: ProjectIdentity | None = None
-
-    def close(self) -> None:
-        return None
-
-
-@dataclass(frozen=True)
-class _ProjectDispatchRuntime:
-    """ProjectSyncStore-backed handles for canonical live dispatcher sends only."""
-
-    target: ResolvedSyncTarget
-    store: Any
-    context: Any
-    delivery_target: Any | None
-
-    def close(self) -> None:
-        return None
 
 
 @dataclass(frozen=True)
@@ -519,271 +365,6 @@ def _current_event_sync_scope() -> _EventSyncScope:
     return _EventSyncScope(team_slug=team_slug)
 
 
-def _open_event_sync_runtime(*, include_target: bool = True) -> _EventSyncRuntime:
-    """Open local project state for status/retention without auth or network."""
-    from specify_cli.identity.project import ProjectIdentity
-    from specify_cli.sync.layout_generation import LayoutMode
-    from specify_cli.sync.project_store import ProjectSyncStore
-    from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
-    from specify_cli.sync.target_authority import resolve_sync_target
-
-    routing = resolve_checkout_sync_routing_readonly()
-    if routing is None or routing.project_uuid is None:
-        raise FileNotFoundError("event-sync project store unavailable: active checkout has no project_uuid")
-    store = ProjectSyncStore(routing.project_uuid)
-    layout = store.layout_generation().peek_state()
-    if layout.mode is not LayoutMode.PROJECT_ONLY:
-        raise RuntimeError(
-            f"event-sync project store migration required before status or retention (layout={layout.mode.value}); run `spec-kitty sync project-store-migrate`"
-        )
-    if not store.database_path.exists():
-        raise FileNotFoundError(f"event-sync project store DB absent: {store.database_path}")
-    scope = _current_event_sync_scope() if include_target else None
-    return _EventSyncRuntime(
-        target=(resolve_sync_target(user_id=scope.user_id, team_slug=scope.team_slug) if scope is not None else None),
-        store=store,
-        context=None,
-        delivery_target=None,
-        checkout_identity=ProjectIdentity(
-            project_uuid=(UUID(str(routing.project_uuid)) if routing.project_uuid is not None else None),
-            project_slug=routing.project_slug,
-            repo_slug=routing.repo_slug,
-            build_id=routing.build_id,
-        ),
-    )
-
-
-def _open_project_dispatch_runtime(
-    *,
-    create: bool = True,
-    require_project_only: bool = False,
-) -> _ProjectDispatchRuntime:
-    """Resolve ProjectSyncStore-backed authority for canonical live dispatch only."""
-    from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
-    from specify_cli.sync.project_store import ProjectSyncStore
-    from specify_cli.sync.routing import resolve_checkout_sync_routing, resolve_checkout_sync_routing_readonly
-    from specify_cli.sync.target_authority import resolve_sync_target
-
-    scope = _current_event_sync_scope()
-    target = resolve_sync_target(user_id=scope.user_id, team_slug=scope.team_slug)
-    routing = resolve_checkout_sync_routing() if create else resolve_checkout_sync_routing_readonly()
-    if routing is None or routing.project_uuid is None:
-        raise FileNotFoundError("event-sync project store unavailable: active checkout has no project_uuid")
-    store = ProjectSyncStore(routing.project_uuid)
-    if require_project_only:
-        from specify_cli.sync.layout_generation import LayoutMode
-
-        layout = store.layout_generation().peek_state()
-        if layout.mode is not LayoutMode.PROJECT_ONLY:
-            raise RuntimeError(
-                f"event-sync project store migration required before status or retention (layout={layout.mode.value}); run `spec-kitty sync project-store-migrate`"
-            )
-    if not create and not store.database_path.exists():
-        raise FileNotFoundError(f"event-sync project store DB absent: {store.database_path}")
-    context = store.create_context()
-    delivery_target = None
-    with store.unit_of_work() as unit:
-        registry = ProjectDeliveryTargetRegistry(store)
-        delivery_target = registry.get_current(unit)
-    if delivery_target is not None:
-        _assert_event_sync_runtime_authority(
-            target=target,
-            delivery_target=delivery_target,
-            routing_project_uuid=str(routing.project_uuid),
-        )
-        _assert_delivery_target_matches_context(
-            delivery_target=delivery_target,
-            context=context,
-        )
-    return _ProjectDispatchRuntime(
-        target=target,
-        context=context,
-        store=store,
-        delivery_target=delivery_target,
-    )
-
-
-def _open_event_sync_runtime_readonly() -> _EventSyncRuntime:
-    """Open runtime handles only when DBs already exist."""
-    return _open_event_sync_runtime()
-
-
-def _open_retention_runtime_or_exit() -> _EventSyncRuntime:
-    """Open canonical local retention state with user-facing migration guidance."""
-    try:
-        return _open_event_sync_runtime(include_target=False)
-    except (FileNotFoundError, RuntimeError) as exc:
-        console.print(f"[red]Retention unavailable:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-
-def _assert_event_sync_runtime_authority(
-    *,
-    target: Any,
-    delivery_target: Any,
-    routing_project_uuid: str,
-) -> None:
-    """Fail closed when receiver/auth authority diverges from stored admission."""
-    from specify_cli.auth import get_token_manager
-    from specify_cli.auth.session import require_private_team_id
-    from specify_cli.sync.target_authority import build_admission_audience
-
-    audience = build_admission_audience(
-        target,
-        account_identity=str(delivery_target.account_identity),
-        private_teamspace_id=str(delivery_target.private_teamspace_id),
-        project_uuid=delivery_target.project_uuid,
-        configuration_generation=int(delivery_target.configuration_generation),
-    )
-    if audience.normalized_server_origin != str(delivery_target.target_identity):
-        raise RuntimeError("event-sync receiver URL does not match admitted delivery target")
-    if routing_project_uuid != str(delivery_target.project_uuid.storage_token):
-        raise RuntimeError("event-sync routing project does not match admitted delivery target")
-    session = get_token_manager().get_current_session()
-    if session is None:
-        raise RuntimeError("event-sync admitted delivery target requires a local authenticated session")
-    private_teamspace_id = require_private_team_id(session)
-    account_candidates = {str(session.email), str(session.user_id)}
-    if str(delivery_target.account_identity) not in account_candidates:
-        raise RuntimeError("event-sync local authenticated account does not match admitted delivery target")
-    if private_teamspace_id != str(delivery_target.private_teamspace_id):
-        raise RuntimeError("event-sync local Private Teamspace does not match admitted delivery target")
-
-
-def _assert_delivery_target_matches_context(
-    *,
-    delivery_target: Any,
-    context: Any,
-) -> None:
-    """Bind the selected delivery target to the immutable context tuple."""
-    target_audience = getattr(context, "target_audience", None)
-    if target_audience is None:
-        raise RuntimeError("event-sync selected context has no admitted target audience")
-    checks = (
-        str(delivery_target.target_identity) == str(target_audience.target_identity),
-        str(delivery_target.account_identity) == str(target_audience.account_identity),
-        str(delivery_target.private_teamspace_id) == str(target_audience.private_teamspace_id),
-        str(delivery_target.project_uuid.storage_token) == str(target_audience.project_uuid.storage_token),
-        int(delivery_target.configuration_generation) == int(target_audience.configuration_generation),
-        str(delivery_target.admission_generation) == str(context.admission_generation),
-        str(delivery_target.binding_audience) == str(context.binding_audience),
-    )
-    if not all(checks):
-        raise RuntimeError("event-sync delivery target does not match immutable project context")
-
-
-def _event_sync_config_path() -> Path:
-    from specify_cli.sync.config import SyncConfig
-
-    return Path(SyncConfig().config_file)
-
-
-def _read_event_sync_table() -> dict[str, Any]:
-    """Best-effort read of the ``[event_sync]`` config table (empty when absent)."""
-    import toml
-
-    path = _event_sync_config_path()
-    if not path.exists():
-        return {}
-    try:
-        data = toml.load(path)
-    except (toml.TomlDecodeError, OSError):
-        return {}
-    table = data.get(_EVENT_SYNC_TABLE)
-    return table if isinstance(table, dict) else {}
-
-
-def _load_event_sync_config() -> EventSyncConfig:
-    """Reconstruct the persisted :class:`EventSyncConfig` (defaults to TEAMSPACE).
-
-    Mode semantics are owned by WP09 — the CLI only stores/reads the token and
-    rebuilds the config through ``EventSyncConfig.from_mode``.
-    """
-    from specify_cli.delivery.config import EventSyncConfig, EventSyncConfigError, Mode
-
-    table = _read_event_sync_table()
-    token = table.get(_EVENT_SYNC_MODE_KEY)
-    if not token:
-        return EventSyncConfig.from_mode(Mode.TEAMSPACE)
-    endpoint = table.get(_EVENT_SYNC_ENDPOINT_KEY)
-    try:
-        return EventSyncConfig.from_mode(
-            Mode.from_token(str(token)),
-            external_endpoint=str(endpoint) if endpoint else None,
-        )
-    except EventSyncConfigError as exc:
-        # A corrupt persisted token must not break read paths (status/now).
-        _LOG.debug("event-sync mode %r unusable, defaulting to TEAMSPACE: %s", token, exc)
-        return EventSyncConfig.from_mode(Mode.TEAMSPACE)
-
-
-def _write_event_sync_config(mode: Mode, external_endpoint: str | None) -> None:
-    """Persist the operator's event-sync mode token (and optional endpoint)."""
-    import toml
-
-    from specify_cli.core.atomic import atomic_write
-
-    path = _event_sync_config_path()
-    data: dict[str, Any] = {}
-    if path.exists():
-        try:
-            data = toml.load(path)
-        except (toml.TomlDecodeError, OSError):
-            data = {}
-    table = data.get(_EVENT_SYNC_TABLE)
-    if not isinstance(table, dict):
-        table = {}
-        data[_EVENT_SYNC_TABLE] = table
-    table[_EVENT_SYNC_MODE_KEY] = mode.value
-    if external_endpoint:
-        table[_EVENT_SYNC_ENDPOINT_KEY] = external_endpoint
-    else:
-        table.pop(_EVENT_SYNC_ENDPOINT_KEY, None)
-    atomic_write(path, toml.dumps(data), mkdir=True)
-
-
-def _event_sync_access_token() -> str:
-    """Best-effort Bearer token for the Teamspace receiver (empty when absent).
-
-    The dispatcher never POSTs an empty selection, so an absent token degrades
-    safely to no delivery rather than an error.
-    """
-    import asyncio
-
-    from specify_cli.auth import get_token_manager
-
-    try:
-        token_manager = get_token_manager()
-        if not token_manager.is_authenticated:
-            return ""
-        loop = asyncio.new_event_loop()
-        try:
-            asyncio.set_event_loop(loop)
-            token = loop.run_until_complete(token_manager.get_access_token())
-        finally:
-            with contextlib.suppress(Exception):
-                asyncio.set_event_loop(None)
-            loop.close()
-        return token or ""
-    except Exception as exc:  # best-effort credential read; never block a drain
-        _LOG.debug("event-sync access token unavailable: %s", exc)
-        return ""
-
-
-def _resolve_active_receiver(target: ResolvedSyncTarget, config: EventSyncConfig, *, auth_token: str | None = None) -> DeliveryReceiver | None:
-    """Resolve the WP06 receiver for the active mode via WP09 (or ``None``).
-
-    Mode→receiver resolution is owned by ``EventSyncConfig.resolve``; the CLI
-    only supplies the Teamspace Bearer token to the default factory.
-    """
-    from specify_cli.delivery.config import DefaultReceiverFactory
-
-    token = _event_sync_access_token() if auth_token is None else auth_token
-    factory = DefaultReceiverFactory(teamspace_auth_token=token)
-    policy = config.resolve(resolved_target=target, receiver_factory=factory)
-    return policy.receiver
-
-
 def _event_sync_gate_context(receiver: DeliveryReceiver, target: ResolvedSyncTarget, *, auth_token: str) -> Any:
     """Build the explicit receiver-gate context for the active target."""
     from specify_cli.delivery.receivers import GateContext
@@ -794,27 +375,6 @@ def _event_sync_gate_context(receiver: DeliveryReceiver, target: ResolvedSyncTar
         auth_present=bool(auth_token),
         endpoint_configured=bool(getattr(receiver, "endpoint_url", "")),
     )
-
-
-def _resolve_gated_receiver(target: ResolvedSyncTarget, config: EventSyncConfig, *, auth_token: str) -> tuple[DeliveryReceiver | None, GateDecision | None]:
-    """Resolve the active receiver and evaluate its gates — data only, no policy.
-
-    Shared by ``sync now`` (:func:`_run_event_sync_dispatch`) and
-    ``import-history --apply`` (:func:`_resolve_history_import_receiver`); the
-    two callers previously duplicated this resolve+evaluate sequence and had
-    already diverged (#2884 P2). Returns ``(None, None)`` when the mode has no
-    receiver (retention-only). Otherwise returns the receiver and its
-    :class:`GateDecision` — each caller decides what a blocked decision means:
-    ``sync now`` degrades to a dim best-effort notice, ``import-history`` fails
-    closed with ``typer.Exit(1)``. Neither policy lives here.
-    """
-    from specify_cli.delivery.receivers import evaluate_gates
-
-    receiver = _resolve_active_receiver(target, config, auth_token=auth_token)
-    if receiver is None:
-        return None, None
-    gate_decision = evaluate_gates(receiver, _event_sync_gate_context(receiver, target, auth_token=auth_token))
-    return receiver, gate_decision
 
 
 def _count_retained_events(runtime: _EventSyncRuntime) -> int:
@@ -847,144 +407,6 @@ def _event_sync_retained_work_present() -> bool:
             runtime.close()
 
 
-def _combine_dispatch_summaries(left: DispatchSummary, right: DispatchSummary) -> DispatchSummary:
-    from specify_cli.delivery.dispatcher import DispatchSummary
-
-    return DispatchSummary(
-        target_id=left.target_id or right.target_id,
-        selected=left.selected + right.selected,
-        delivered=left.delivered + right.delivered,
-        duplicate=left.duplicate + right.duplicate,
-        pending=left.pending + right.pending,
-        rejected=left.rejected + right.rejected,
-        transient=left.transient + right.transient,
-        terminal_failed=left.terminal_failed + right.terminal_failed,
-        failures=(*left.failures, *right.failures),
-        retryable_event_ids=(
-            *left.retryable_event_ids,
-            *right.retryable_event_ids,
-        ),
-    )
-
-
-def _batch_is_oversized(summary: DispatchSummary) -> bool:
-    """Whether a batch was rejected wholesale for exceeding the server size cap.
-
-    The count-based batch limit cannot see decompressed byte size, so a backlog
-    whose events fit the 1000-event limit can still crowd the SaaS 512 KiB
-    ceiling (apps/sync/limits.py). The edge proxy answers HTTP 413 and the WP06
-    receiver maps that to a batch-wide ``transient`` carrying the oversized
-    error (``_BATCH_OVERSIZED_ERROR`` = "retry with a smaller batch"). This is
-    the signal that we should honor that documented contract and shrink.
-    """
-    failures = summary.failures
-    is_wholesale_transient = summary.selected > 0 and summary.transient == summary.selected and len(failures) == summary.selected
-    return is_wholesale_transient and all(
-        failure.outcome == "transient"
-        and (failure.http_status == _HTTP_PAYLOAD_TOO_LARGE or (failure.error is not None and _OVERSIZED_ERROR_MARKER in failure.error.lower()))
-        for failure in failures
-    )
-
-
-def _transient_block_message(summary: DispatchSummary) -> str:
-    """Explain a wholesale-transient drain accurately instead of always blaming auth.
-
-    The legacy heuristic reported every all-transient batch as "not
-    authenticated", which mislabels a 413 (batch too large) or a 5xx as a
-    logged-out session and sends operators chasing auth. Classify by the actual
-    failure status instead.
-    """
-    statuses = {f.http_status for f in summary.failures if f.http_status is not None}
-    if _HTTP_PAYLOAD_TOO_LARGE in statuses:
-        return _OVERSIZED_SYNC_NOW_MESSAGE
-    if statuses & _HTTP_AUTH_STATUSES:
-        return _UNAUTHENTICATED_SYNC_NOW_MESSAGE
-    return _TRANSIENT_SYNC_NOW_MESSAGE
-
-
-def _run_dispatch_batches(
-    runtime: _ProjectDispatchRuntime,
-    receiver: DeliveryReceiver,
-    delivery_target: Any,
-) -> DispatchSummary:
-    from specify_cli.delivery.dispatcher import DispatchSummary, dispatch
-
-    combined = DispatchSummary.empty()
-    limit = _EVENT_SYNC_DISPATCH_BATCH_LIMIT
-    skip: set[str] = set()
-    retry_no_effect: set[str] = set()
-    while True:
-        batch = dispatch(
-            store=runtime.store,
-            journal=None,
-            ledger=None,
-            receiver=receiver,
-            target=delivery_target,
-            context=runtime.context,
-            limit=limit,
-            exclude=frozenset(skip),
-            recovery_event_ids=frozenset(retry_no_effect),
-        )
-        # Honor the documented "retry with a smaller batch" contract: a
-        # byte-oversized batch (HTTP 413, nothing delivered) is halved and
-        # retried rather than surrendered as transient. dispatch() leaves those
-        # events undelivered, so the smaller re-selection picks the same events
-        # up. A single oversized event is terminal-failed by the receiver (not
-        # transient), so limit==1 can never loop forever.
-        if limit > 1 and batch.delivered == 0 and _batch_is_oversized(batch):
-            retry_no_effect.update(failure.event_id for failure in batch.failures)
-            limit = max(1, limit // 2)
-            continue
-        combined = _combine_dispatch_summaries(combined, batch)
-        retry_no_effect.difference_update(
-            failure.event_id for failure in batch.failures if failure.outcome != "transient" or failure.http_status != _HTTP_PAYLOAD_TOO_LARGE
-        )
-        # Advance past retryable events that made no terminal-success this pass
-        # (pending, content rejection, persistent transient). Skipping them for
-        # the REST OF THIS PASS lets deliverable events behind them drain
-        # instead of a poison batch halting the loop; the ledger keeps them
-        # selectable for the next `sync now`, so retryability is preserved.
-        before = len(skip)
-        skip.update(batch.retryable_event_ids)
-        skip.update(failure.event_id for failure in batch.failures if failure.outcome == "terminal_failed")
-        terminal_progress = (batch.delivered + batch.duplicate + batch.terminal_failed) > 0
-        # Grow a shrunk limit back after terminal progress. A single event over
-        # the server byte cap forces `limit` down to 1 and is parked
-        # (terminal_failed); without recovery the entire *healthy* tail would
-        # then drain one-event-per-POST for the rest of the pass -- correct but
-        # a throughput cliff. Multiplicative increase mirrors the halving and is
-        # capped at the count default, so throughput recovers within a few
-        # batches while the per-batch byte contract is still honored: an
-        # over-grown batch simply 413s and re-halves, which is bounded.
-        if terminal_progress and limit < _EVENT_SYNC_DISPATCH_BATCH_LIMIT:
-            limit = min(_EVENT_SYNC_DISPATCH_BATCH_LIMIT, limit * 2)
-        advanced = terminal_progress or len(skip) > before
-        if batch.selected == 0 or not advanced:
-            break
-    return combined
-
-
-def _open_active_body_queue(
-    runtime: _EventSyncRuntime,
-    unit: Any,
-    *,
-    max_queue_size: int,
-) -> Any:
-    """Open the body-upload queue for the WP11 ``body_upload_compatibility``
-    section, or ``None`` when it cannot be read (the section then reports zeros)."""
-    try:
-        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
-
-        return OfflineBodyUploadQueue(
-            unit,
-            runtime.store.layout_generation(),
-            max_queue_size=max_queue_size,
-        )
-    except Exception as exc:  # read-only diagnostic; never fail status on it
-        _LOG.debug("body-upload queue unavailable for status report: %s", exc)
-        return None
-
-
 def _read_migration_conflicts_readonly() -> tuple[Any, ...]:
     """Read legacy conflict evidence without opening a writable audit store."""
     from specify_cli.paths import get_runtime_root
@@ -998,99 +420,10 @@ def _read_migration_conflicts_readonly() -> tuple[Any, ...]:
         return ()
 
 
-def _event_sync_report(base: dict[str, Any], runtime: _EventSyncRuntime) -> dict[str, Any]:
-    """Merge the seven WP11 additive sections onto *base* (CLI serialises only).
-
-    Opens the WP10 migration-audit store (read-only, best-effort) so the
-    ``migration_conflicts`` section surfaces real divergent-duplicate conflicts
-    that block cleanup (SC-011) rather than always reporting an empty set.
-    """
-    from specify_cli.delivery.status_report import build_status_report
-
-    from specify_cli.delivery.ledger import SqliteDeliveryLedger
-    from specify_cli.event_journal.journal import EventJournal
-    from specify_cli.sync.queue import get_max_queue_size
-
-    if runtime.target is None:
-        raise RuntimeError("status target diagnostics were not requested")
-
-    # Both reads can stat/open files.  Resolve them before the project UoW owns
-    # BEGIN IMMEDIATE so local diagnostics never hold SQLite across filesystem
-    # or a second read-only SQLite boundary.
-    max_queue_size = get_max_queue_size()
-    migration_conflicts = _read_migration_conflicts_readonly()
-    with runtime.store.unit_of_work() as unit:
-        return build_status_report(
-            resolved_target=runtime.target,
-            journal=EventJournal(unit, runtime.store.layout_generation()),
-            ledger=SqliteDeliveryLedger(unit, runtime.store.layout_generation()),
-            context=runtime.store.create_context_from_unit(unit),
-            body_upload_queue=_open_active_body_queue(
-                runtime,
-                unit,
-                max_queue_size=max_queue_size,
-            ),
-            migration_conflicts=migration_conflicts,
-            base=base,
-        )
-
-
 #: Opening words of the empty-selection diagnosis. One constant because three tests
 #: and two surfaces key on it, and because "nothing was selected" has to be sayable
 #: in words — ``(selected 0)`` inside a counts line is not a diagnosis.
 _NOTHING_TO_DELIVER = "Nothing to deliver."
-
-
-def _empty_selection_cause(report: PerProjectStoreReport) -> str:
-    """Explain WHY a drain selected nothing, using only what the report can prove.
-
-    FR-005 asks the drain to "report the real cause". Before this, `sync now` printed
-    an all-zero counts line ending ``(selected 0)`` and stopped, which collapses four
-    situations that need four different actions:
-
-    * the journal is empty — nothing to do, and emphatically not a consent problem;
-    * no project has consented — the operator's data will never ship until they act,
-      which is the incident's own shape and the only one that is urgent;
-    * every row's identity is unresolved — recoverable, and H4 wired the remedy;
-    * a consented project's rows exist but none is selectable right now.
-
-    That last branch is deliberately the weakest claim. Distinguishing "already
-    delivered" from "terminally drain-blocked" needs ledger state the report does not
-    carry, so it names both possibilities instead of asserting one. Guessing here
-    would recreate exactly the wrong-and-actionable diagnosis the no-Private-Teamspace
-    message was: an operator told the wrong cause acts on the wrong thing.
-
-    Sourced entirely from :func:`build_per_project_store_report` — the same grouping
-    that backs `doctor`, `status` and `migrate`, so the four surfaces cannot disagree
-    about who is in the store (C-003). No second classifier.
-    """
-    if not report.rows:
-        return "The event journal is empty — no events have been captured for this producer scope yet, so there is nothing to send."
-
-    total = report.counted_event_total
-    if report.unresolved_identity_count >= total > 0:
-        return (
-            f"All {total} retained event(s) have no stored project identity, so none "
-            "of them can be selected for delivery. Run `spec-kitty sync migrate` to "
-            "recover the identity of any whose stored payload still carries it."
-        )
-
-    if not any(row.consent_granted for row in report.rows):
-        named = ", ".join((row.repo_slug or row.project_slug or row.project_uuid or "<unnamed>") for row in report.named_non_consenting_rows)
-        detail = f": {named}" if named else ""
-        return (
-            f"No project in the event journal has consented to hosted sync{detail}. "
-            f"Its {total} retained event(s) stay on this machine and will never be "
-            "delivered until consent is recorded — run `spec-kitty sync opt-in` in "
-            "the project that should ship, or `spec-kitty sync doctor` for the full "
-            "per-project breakdown."
-        )
-
-    return (
-        "Every consented project's retained events have already been delivered to "
-        "this target, or are terminally drain-blocked. Nothing is being withheld "
-        "for lack of consent; `spec-kitty sync doctor` shows the per-project state."
-    )
 
 
 def _report_empty_selection(summary: DispatchSummary | None, journal: EventJournal) -> None:
@@ -1109,7 +442,7 @@ def _report_empty_selection(summary: DispatchSummary | None, journal: EventJourn
 
     try:
         report = build_per_project_store_report(journal)
-    except Exception as exc:  # noqa: BLE001 - explanatory only, never fatal
+    except Exception as exc:  # noqa: BLE001 — explanatory only, never fatal
         _LOG.debug("empty-selection diagnosis unavailable: %s", exc)
         console.print(
             f"[yellow]{_NOTHING_TO_DELIVER}[/yellow] The reason could not be "
@@ -1121,7 +454,15 @@ def _report_empty_selection(summary: DispatchSummary | None, journal: EventJourn
 
 
 def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
-    """Render the dispatcher's per-outcome counts (sourced, never recomputed)."""
+    """Render the dispatcher's per-outcome counts (sourced, never recomputed).
+
+    When a protocol-mismatch 412 halted the pass (#1553) the server's own
+    upgrade/pin guidance — carried on the summary's failure record — is printed
+    right after the counts, so the command that hit the skew tells the operator
+    what to do (not a later ``sync status`` they may never run).
+    """
+    from rich.markup import escape as _escape_markup  # noqa: PLC0415
+
     console.print(
         f"Event sync ([cyan]{mode_name}[/cyan]): "
         f"[green]delivered {summary.delivered}[/green]  "
@@ -1131,175 +472,9 @@ def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
         f"[red]terminal-failed {summary.terminal_failed}[/red]  "
         f"(selected {summary.selected})"
     )
-
-
-def _print_retention_result(result: RetentionResult) -> None:
-    """Render a WP11 retention result (counts owned by ``RetentionResult``)."""
-    console.print(
-        f"{result.operation}: "
-        f"archived {result.archived_count}  purged {result.purged_count}  "
-        f"skipped {result.skipped_count}  "
-        f"(journal {result.journal_size_bytes_before} -> "
-        f"{result.journal_size_bytes_after} bytes)"
-    )
-
-
-def _print_migration_result(result: MigrationResult) -> None:
-    """Render a WP10 queue→journal migration result (counts owned by the result)."""
-    console.print(
-        "Queue migration: "
-        f"[green]imported {len(result.imported_event_ids)}[/green]  "
-        f"[dim]deduped {len(result.deduped)}[/dim]  "
-        f"[red]conflicts {len(result.conflicts)}[/red]  "
-        f"[red]source_errors {sum(1 for source in result.sources if source.error)}[/red]  "
-        f"(exit_code {result.exit_code})"
-    )
-    if result.cleanup_blocked:
-        console.print(
-            "[yellow]Cleanup blocked[/yellow]: unresolved migration conflicts or source read/import errors remain — resolve them before deleting source queues."
-        )
-    for source in result.sources:
-        if source.error:
-            console.print(f"[red]Source {source.digest} failed[/red]: {source.error}")
-    console.print(f"[dim]{result.note}[/dim]")
-
-
-def _print_cleanup_result(cleanup: CleanupResult) -> None:
-    """Render the post-migration source-queue cleanup (#2665)."""
-    if not cleanup.ran:
-        return
-    console.print(
-        "Source cleanup: "
-        f"[green]deleted {cleanup.total_deleted}[/green] migrated row(s) "
-        f"from {cleanup.sources_cleaned} source queue(s) "
-        "(boundary now converges; sync now / opt-in no longer refuse)."
-    )
-    for outcome in cleanup.outcomes:
-        if outcome.error:
-            console.print(f"[red]Cleanup error on source {outcome.digest}[/red]: {outcome.error}")
-
-
-def _print_resolution_result(resolution: ConflictResolution) -> None:
-    """Render keep-journal conflict resolution (#2665)."""
-    console.print(
-        "Conflict resolution (keep-journal): "
-        f"[green]resolved {resolution.resolved_count}[/green] (archived to quarantine)  "
-        f"[yellow]skipped {len(resolution.skipped)}[/yellow]  "
-        f"already-absent {len(resolution.already_absent)}"
-    )
-    if resolution.skipped:
-        console.print("[yellow]Skipped conflicts are not yet canonical in the journal or their source is gone — left intact.[/yellow]")
-
-
-def _run_event_sync_dispatch() -> DispatchSummary | _IntentionalNoDelivery | None:
-    """Drive the WP07 dispatcher over the resolved active target.
-
-    This is the SOLE event-delivery path for ``sync now`` (the destructive
-    legacy offline-queue event drain is retired). Returns the
-    :class:`DispatchSummary` so the caller can derive the strict exit code; any
-    infrastructure failure degrades to a dim notice and ``None`` rather than
-    crashing the command (NFR-006). An operator-selected mode with no receiver
-    returns an explicit wrapper around an empty summary so strict handling can
-    distinguish deliberate retention from gate/admission failure.
-    Delivery outcomes surface via the printed summary; the journal is never
-    deleted on success (FR-001).
-    """
-    if not is_saas_sync_enabled():
-        from specify_cli.delivery.dispatcher import DispatchSummary
-
-        return DispatchSummary.empty()
-    from specify_cli.delivery.config import Mode
-    from specify_cli.delivery.dispatcher import DispatchSummary
-
-    runtime: _ProjectDispatchRuntime | None = None
-    try:
-        runtime = _open_project_dispatch_runtime()
-        config = _load_event_sync_config()
-        auth_token = _event_sync_access_token()
-        receiver, gate_decision = _resolve_gated_receiver(runtime.target, config, auth_token=auth_token)
-        if receiver is None:
-            console.print(f"[dim]Event sync mode {config.mode.name}: retention only; no delivery attempted.[/dim]")
-            empty = DispatchSummary.empty()
-            return _IntentionalNoDelivery(empty) if config.mode is Mode.LOCAL_RETENTION else empty
-        if gate_decision is None:
-            # Invariant: a resolved (non-None) receiver always carries a
-            # decision from _resolve_gated_receiver. An explicit raise (not
-            # assert) keeps this guard live under `python -O`; the
-            # surrounding `except Exception` still degrades it to a dim
-            # notice + None, same as before (this function must never break
-            # the command — NFR-006).
-            raise RuntimeError("resolved receiver carries no gate decision")
-        if gate_decision.blocked:
-            names = ", ".join(gate.name for gate in gate_decision.unsatisfied)
-            console.print(f"[dim]Event sync gated: {names}[/dim]")
-            return DispatchSummary(
-                target_id=None,
-                selected=_count_project_retained_events(runtime),
-                delivered=0,
-                duplicate=0,
-                pending=0,
-                rejected=0,
-                transient=0,
-                terminal_failed=0,
-            )
-        delivery_target = runtime.delivery_target
-        if delivery_target is None:
-            console.print("[dim]Event sync gated: admission_not_current[/dim]")
-            return DispatchSummary(
-                target_id=None,
-                selected=_count_project_retained_events(runtime),
-                delivered=0,
-                duplicate=0,
-                pending=0,
-                rejected=0,
-                transient=0,
-                terminal_failed=0,
-            )
-        summary = _run_dispatch_batches(runtime, receiver, delivery_target)
-        _print_dispatch_summary(summary, config.mode.name)
-        with runtime.store.unit_of_work() as unit:
-            from specify_cli.event_journal.journal import EventJournal
-
-            _report_empty_selection(
-                summary,
-                EventJournal(unit, runtime.store.layout_generation()),
-            )
-        return summary
-    except Exception as exc:  # additive drain must never break the command
-        _LOG.debug("event-sync dispatch skipped: %s", exc)
-        console.print(f"[dim]Event sync unavailable: {str(exc)[:80]}[/dim]")
-        return None
-    finally:
-        if runtime is not None:
-            runtime.close()
-
-
-def _render_event_sync_status(target_console: Console) -> None:
-    """Surface the active mode + a compact event-sync summary in ``sync status``.
-
-    Read-only and best-effort: a failure here must never break ``sync status``.
-    """
-    config = _load_event_sync_config()
-    target_console.print("[bold]Event Sync[/bold]")
-    target_console.print(f"  Mode                      {config.mode.name}")
-    runtime: _EventSyncRuntime | None = None
-    try:
-        runtime = _open_event_sync_runtime_readonly()
-        report = _event_sync_report({}, runtime)
-    except Exception as exc:  # read-only summary; never fail status rendering
-        _LOG.debug("event-sync status summary unavailable: %s", exc)
-        return
-    finally:
-        if runtime is not None:
-            runtime.close()
-    journal_section = report["event_journal"]
-    ledger_section = report["delivery_ledger"]
-    failures_section = report["terminal_failures"]
-    target_console.print(f"  Retained events           {journal_section['retained_event_count']}")
-    target_console.print(f"  Delivered (cur/prev)      {ledger_section['delivered_current_target']}/{ledger_section['delivered_previous_target']}")
-    target_console.print(f"  Terminal failures         {failures_section['count']}")
-    if journal_section.get("gc_suggested"):
-        target_console.print("  [yellow]GC suggested[/yellow]: run `spec-kitty sync gc`")
+    guidance = _protocol_mismatch_guidance(summary)
+    if guidance is not None:
+        console.print(f"[yellow]{_PROTOCOL_MISMATCH_HALT_NOTICE} {_escape_markup(guidance)}[/yellow]")
 
 
 # Create a Typer app for sync subcommands
@@ -1354,35 +529,6 @@ def _require_authenticated_session(command_name: str | None = None):
     raise typer.Exit(1)
 
 
-def _require_daemon_owner_coherence(command_name: str | None = None) -> None:
-    """FR-007 precondition gate for sync mutating commands.
-
-    Refuses to act when the foreground CLI's identity (package version,
-    executable path, server URL, auth scope, queue DB path) does not match
-    the registered daemon owner record on any D-3 field. The refusal
-    message names the mismatched field(s) so the operator knows which fix
-    is needed.
-
-    WP03: thin wrapper over :func:`run_preflight`. ``require_auth`` is
-    ``False`` because individual SaaS-producing call sites (``sync now``,
-    ``setup-plan``) enforce auth-required explicitly; the generic gate
-    only enforces the structural boundary (mismatches, orphans, legacy
-    rows in scope).
-
-    No-op when the boundary is coherent. Exits with code 2 otherwise.
-    """
-    from specify_cli.sync.preflight import run_preflight
-
-    result = run_preflight(repo_root=Path.cwd(), require_auth=False)
-    if result.ok:
-        return
-    label = f" `{command_name}`" if command_name else ""
-    if label:
-        console.print(f"[red]Refusing{label}.[/red]")
-    result.render(console)
-    raise typer.Exit(code=2)
-
-
 def _private_team_name(session) -> str | None:
     for team in session.teams:
         if team.is_private_teamspace:
@@ -1405,7 +551,6 @@ _PER_PROJECT_SECTION_TITLE = "Event journal by project"
 #: column. One constant, because it has to mean exactly that on every surface: the
 #: N1-a defect was this label appearing for rows that did carry a name, which makes
 #: it untrustworthy precisely when it is the truth (legacy `sync migrate` imports).
-_NO_RECORDED_NAME = "<no name recorded>"
 
 
 def _oldest_age_label(created_at: str | None) -> str:
@@ -1451,76 +596,6 @@ def _project_store_label(row: ProjectStoreRow) -> str:
     return row.repo_slug or row.project_slug or row.project_uuid or "?"
 
 
-def _per_project_store_issues(report: PerProjectStoreReport) -> list[str]:
-    """The operator-actionable warnings a per-project breakdown implies.
-
-    Kept separate from the rendering so ``doctor``'s "Issues found" list and
-    ``status``'s warnings cannot say different things about the same report.
-    """
-    issues: list[str] = []
-    # Reconciliation is the load-bearing check: a table that omits rows is the
-    # incident's false-green with a nicer layout.
-    if not report.reconciles:
-        issues.append(
-            f"Per-project totals ({report.counted_event_total}) do not reconcile "
-            f"against the journal's retained count ({report.retained_event_count}). "
-            "The report is incomplete — do not trust it."
-        )
-    if report.unresolved_identity_count:
-        # Deliberately not "permanently undeliverable", and no longer pointing at
-        # `purge` as the only remedy. Since #3030 H4 wired the identity backfill
-        # into `sync migrate`, rows whose stored envelope carries a resolvable uuid
-        # ARE recoverable, and for the operator's own consenting project that is the
-        # difference between their history shipping and being stranded forever.
-        # Sending them to `purge` would destroy recoverable data. What is permanent
-        # is only that a NULL row cannot be SELECTED (FR-011, fail-closed).
-        issues.append(
-            f"{report.unresolved_identity_count} journal event(s) have no stored "
-            "project identity, so they cannot be selected for delivery. Run "
-            "`spec-kitty sync migrate` to recover the identity of any whose stored "
-            "payload still carries it; whatever remains is retained locally and "
-            "removable only with `spec-kitty sync purge`." + _unresolved_origin_clause(report)
-        )
-    # NAMED refusals only. The unresolved-identity bucket is also
-    # `consent_granted=False`, but its consent could not be resolved at all — see
-    # `named_non_consenting_rows`. Naming one of its member repos here told the
-    # operator that repo had refused and should be purged; purging it leaves the
-    # bucket's other repos on disk while the report reads clean.
-    non_consenting = report.named_non_consenting_rows
-    if non_consenting:
-        named = ", ".join((r.repo_slug or r.project_slug or r.project_uuid or "<unnamed>") for r in non_consenting)
-        issues.append(
-            f"{len(non_consenting)} project(s) in the journal have not consented to "
-            f"hosted sync: {named}. Their events are retained locally and never "
-            "delivered; `spec-kitty sync purge --project <slug>` removes them."
-        )
-    return issues
-
-
-def _unresolved_origin_clause(report: PerProjectStoreReport) -> str:
-    """Name the repos the unresolved rows appear to come from, with counts (SC-004).
-
-    Without this an operator is told a number and nothing else, and has to open
-    SQLite to learn which repos are involved — even though the slugs are already on
-    the rows and in the identity projection. Worded as *appear to come from*: with
-    no uuid these rows' consent cannot be resolved, so this is provenance, never a
-    statement about what any of those projects decided.
-    """
-    candidates: tuple[UnresolvedIdentityCandidate, ...] = tuple(
-        candidate for row in report.rows if row.is_unresolved_identity for candidate in row.unresolved_candidates
-    )
-    if not candidates:
-        return ""
-    from specify_cli.delivery.status_report import unresolved_candidate_name
-
-    named = ", ".join(f"{unresolved_candidate_name(candidate) or _NO_RECORDED_NAME} ({candidate.event_count})" for candidate in candidates)
-    return (
-        f" They appear to come from: {named}. Consent for these rows cannot be "
-        "resolved without a project identity, so this is where they were captured, "
-        "not what those projects decided."
-    )
-
-
 def _per_project_store_table(report: PerProjectStoreReport) -> Table:
     """The count / oldest-age / consent-state grid FR-015 and SC-004 ask for.
 
@@ -1562,113 +637,6 @@ def _per_project_store_table(report: PerProjectStoreReport) -> Table:
                 "[yellow]unknown[/yellow] [dim](identity unresolved)[/dim]",
             )
     return table
-
-
-class _ScopedStatusJournal:
-    """Journal proxy that keeps its caller-owned read UoW active until closed."""
-
-    def __init__(self, journal: Any, unit_context: Any) -> None:
-        self._journal = journal
-        self._unit_context = unit_context
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self._journal, name)
-
-    def close(self) -> None:
-        self._unit_context.__exit__(None, None, None)
-
-
-def _open_journal_readonly() -> Any:
-    """Open the canonical project journal in one scoped read UoW (#3030 T021).
-
-    Deliberately not ``_open_event_sync_runtime_readonly``, which also resolves the
-    delivery target and opens the ledger and target registry. A "whose data is in
-    here?" read needs none of those, and sharing that opener meant any
-    target-resolution failure was reported as "the event journal could not be
-    read" — the wrong diagnosis, naming the wrong store, in the one section whose
-    job is to be trustworthy about which store it read.
-
-    Raises ``FileNotFoundError`` when this scope has no journal file yet, which the
-    caller renders as the benign absence it is.
-    """
-    from specify_cli.event_journal.journal import EventJournal
-
-    runtime = _open_event_sync_runtime_readonly()
-    unit_context = runtime.store.unit_of_work()
-    unit = unit_context.__enter__()
-    try:
-        return _ScopedStatusJournal(
-            EventJournal(unit, runtime.store.layout_generation()),
-            unit_context,
-        )
-    except BaseException:
-        unit_context.__exit__(None, None, None)
-        raise
-
-
-def _render_per_project_store(console_out: Any, issues: list[str]) -> None:
-    """Render the journal's per-project composition with consent state (#3030 T021).
-
-    Sits beside doctor's queue-health block deliberately rather than replacing it.
-    That block reads ``OfflineQueue().get_queue_stats()``, which is EMPTY after
-    ``sync migrate`` — the source of the incident's false-green, where the operator
-    saw "Queue size 0" while 9,133 events sat in the journal. This section answers
-    "whose data is actually in here?" from the journal itself, so the two cannot
-    disagree silently.
-
-    **Every exit path from this function is observable.** The first cut returned
-    silently on an unopenable runtime, on a failed grouping, and on an empty
-    report, which made three very different states — "nothing is in the journal",
-    "I could not read the journal", and "I never looked" — render identically:
-    doctor's usual healthy table with no journal section and exit 0. That is the
-    incident's false-green rebuilt inside the fix for it. A failure now names what
-    could not be read, and the empty case says so out loud.
-    """
-    from specify_cli.delivery.status_report import build_per_project_store_report
-
-    try:
-        journal = _open_journal_readonly()
-    except FileNotFoundError as exc:
-        # The one benign absence: no journal file has ever been created for this
-        # producer scope, so there is genuinely nothing to group. Still printed,
-        # because "no journal yet" and "I could not look" must not read alike.
-        console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
-        console_out.print(f"  [dim]no journal for this scope yet ({exc})[/dim]")
-        return
-    except Exception as exc:
-        issues.append(
-            f"The event journal could not be opened, so this run cannot say which "
-            f"projects have data in it: {exc}. Until this is resolved, treat a "
-            "clean queue-health block as unproven — it reads a different store."
-        )
-        return
-    try:
-        report = build_per_project_store_report(journal)
-    except Exception as exc:
-        issues.append(
-            f"The event journal opened but its rows could not be grouped by "
-            f"project: {exc}. Whose data is in the journal is currently UNKNOWN; "
-            "the queue-health block above does not answer it."
-        )
-        return
-    finally:
-        close = getattr(journal, "close", None)
-        if callable(close):
-            close()
-
-    console_out.print(f"\n[bold]{_PER_PROJECT_SECTION_TITLE}[/bold]")
-    if report.rows:
-        console_out.print(_per_project_store_table(report))
-    else:
-        # Asserted-empty, not silently-empty: this line is the difference between
-        # a journal that holds nothing and a report that never ran.
-        console_out.print(f"  [green]no events retained[/green] [dim](journal count {report.retained_event_count})[/dim]")
-    # Unconditionally, including on the empty branch. A journal that cannot answer
-    # count() reports -1, which does not reconcile against zero rows — so returning
-    # early on `not report.rows` would have rendered an unreadable journal as "no
-    # events retained". That is the same three-states-look-alike failure the
-    # docstring above is about, one branch further in.
-    issues.extend(_per_project_store_issues(report))
 
 
 # --------------------------------------------------------------------------- #
@@ -1717,90 +685,6 @@ def _reporting_a_refused_config_write(what: str):
 
 _CONSENT_HEALTH_SECTION_TITLE = "Consent record readability"
 
-#: Every ``ConfigReadFault.kind`` mapped to **the operator action that resolves it**,
-#: never to a restatement of the kind. That is the whole requirement: the defect
-#: FR-020 exists to remove is an operator being told "no consent record for this
-#: project" when the truth is "your index is unreadable", which sends them to record
-#: consent they already recorded — and on the machine index that write *destroys the
-#: other projects' records* (see :data:`_CONSENT_FAULT_NOT_ABSENCE`).
-#:
-#: Four kinds. FR-027 added ``unusable`` — a present-but-uninterpretable value —
-#: alongside the file-level kinds, and it is the one most easily mistaken for absence
-#: because the file looks perfectly fine.
-#:
-#: **The wording narrows because the vocabulary was unified.** Until 2026-07-30 the two
-#: file-level tokens did not mean the same thing to both producers: ``sync/config.py``
-#: called a TOML *syntax* error ``unparseable`` and an ``OSError`` ``unreadable``, while
-#: ``sync/consent.py`` called an open-*or*-parse failure ``unreadable`` and a non-mapping
-#: top level ``unparseable``. One kind-keyed string therefore had to span both readings
-#: — "either its syntax does not parse, or its top level is not a mapping" — which meant
-#: telling every reader one true thing and one false one. ``sync/consent.py`` now splits
-#: cannot-open from cannot-parse and mints ``wrong_shape`` for a non-mapping top level
-#: (see ``sync.config.CONFIG_FAULT_KINDS``), so each entry below names one state and one
-#: remedy. Pinned by ``test_the_action_is_true_for_both_producers_of_the_same_kind``,
-#: which now asserts the two producers agree rather than that the advice hedges.
-#:
-#: The first element of each triple is the status word printed beside the scope, so a
-#: field-level fault is no longer announced as an unreadable file.
-_CONSENT_FAULT_ACTIONS: dict[str, tuple[str, str, str]] = {
-    "unreadable": (
-        "UNREADABLE",
-        "MAKE THE FILE READABLE",
-        "It could not be opened at all — a permission or ownership problem. Fix the file's mode or its owner; the error in brackets says which applies.",
-    ),
-    "unparseable": (
-        "UNPARSEABLE",
-        "REPAIR THE FILE'S SYNTAX",
-        "The file was opened and its syntax does not parse. Repair the error quoted in the detail — it names the line the parser stopped on.",
-    ),
-    "wrong_shape": (
-        "WRONG SHAPE",
-        "MAKE THE DOCUMENT A MAPPING",
-        "The file parsed cleanly; its top level is simply not a set of keys. A list, a "
-        "bare scalar or a leftover merge-conflict marker does this. Do not go looking "
-        "for a syntax error — there is none.",
-    ),
-    "unusable": (
-        "UNUSABLE VALUE",
-        "CORRECT THE FIELD VALUE NAMED IN THE DETAIL",
-        "The file parsed and its shape is fine, but a field holds a value that cannot "
-        "be understood as that field. Only a real boolean records a consent decision, so "
-        '`sync.enabled: "false"` is a quoted string that records nothing, and `enabled: no` '
-        'is the string "no" (ruamel is YAML 1.2). A `project.uuid` that is not a uuid '
-        "names no project.",
-    ),
-}
-
-#: The fallback for a kind this build does not recognise. Not defensive padding: this
-#: mission added a kind once already, and a kind-keyed table that renders nothing for
-#: an unrecognised key would turn the next addition into an invisible fault — the
-#: exact defect shape this section exists to close.
-_CONSENT_FAULT_UNKNOWN_ACTION = (
-    "UNREADABLE",
-    "REPAIR THE FILE NAMED IN THE DETAIL",
-    "This build has no specific advice for that fault kind; the detail below is the whole of what is known about it.",
-)
-
-#: Printed for every fault, on both surfaces. The second half is measured, not
-#: reasoned — and it was **rewritten on 2026-07-30 because the hazard it described was
-#: fixed**, which is the only honest reason to change operator advice. It used to read
-#: "a write rewrites the file from an empty document when it cannot be read, discarding
-#: every other project's record", and that was true: every `SyncConfig` setter was a
-#: whole-file read-modify-write over `_load()`, which answers `{}` for an unreadable
-#: file. Seven of the eight destroyed a bystander project's grant, and the same
-#: destruction was reachable from a plain *read* via `consent._reconcile_index`.
-#:
-#: A write over an unreadable config is now refused
-#: (`sync.config.ConfigNotReadableError`), so the records survive. Leaving the old
-#: sentence standing would have been the same defect this section exists to remove, one
-#: turn later: advice that was true when written and is false when read.
-#: ``tests/cli/commands/test_sync_doctor_consent_health_3030.py`` pins both halves.
-_CONSENT_FAULT_NOT_ABSENCE = (
-    "This is NOT a missing consent record. Recording consent again will not clear it: "
-    "a write over a config that cannot be read is refused, so your other projects' "
-    "records are safe, but nothing is delivered until the file itself is repaired."
-)
-
 #: Why one broken file denies more than its own project, and why that is nonetheless
 #: a self-inflicted local fault rather than a sibling checkout's doing. Both halves
 #: are owed: the first alone would let an operator conclude an unrelated project broke
@@ -1828,16 +712,14 @@ def _render_consent_fault(
     The ``issues`` entry and the printed block are built from the same three strings,
     so doctor's summary and this section cannot say different things about one fault.
     """
-    kind = str(getattr(fault, "kind", "") or "unknown")
-    status, action, remedy = _CONSENT_FAULT_ACTIONS.get(kind, _CONSENT_FAULT_UNKNOWN_ACTION)
-    detail = str(getattr(fault, "detail", "") or "no detail recorded")
+    view = consent_fault_view(scope=scope, fault=fault, consequence=consequence)
 
-    console_out.print(f"  {scope}  [red]{status}[/red] ({kind})")
-    console_out.print(f"    [bold red]{action}[/bold red] — {remedy}")
-    console_out.print(f"    [dim]{detail}[/dim]")
-    console_out.print(f"    {consequence}")
+    console_out.print(f"  {scope}  [red]{view.status}[/red] ({view.kind})")
+    console_out.print(f"    [bold red]{view.action}[/bold red] — {view.remedy}")
+    console_out.print(f"    [dim]{view.detail}[/dim]")
+    console_out.print(f"    {view.consequence}")
     console_out.print(f"    [yellow]{_CONSENT_FAULT_NOT_ABSENCE}[/yellow]")
-    issues.append(f"{scope} ({kind}): {action}. {detail} {consequence} {_CONSENT_FAULT_NOT_ABSENCE}")
+    issues.append(view.issue)
 
 
 def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
@@ -1908,23 +790,6 @@ def _render_consent_readability(console_out: Any, issues: list[str]) -> None:
 
 _TRACKER_EGRESS_SECTION_TITLE = "Tracker egress"
 
-#: Wording for every reachable :attr:`TrackerEgressVerdict.channel1_state` value
-#: (#3108 FR-014). Rendered from the *field*, never parsed out of ``message`` --
-#: at ``HOSTED_SERVICE`` all three refusal states share one message (FR-016's
-#: byte-identity carve-out, ``decisions/DM-FR016-hosted-byte-identity.md``), and
-#: this dict is the only place that distinction still reaches an operator.
-#: Deliberately exhaustive over the closed six-member state set so a state this
-#: build fails to recognise renders its own name rather than nothing (the
-#: ``.get(..., state)`` fallback in :func:`_render_tracker_egress_row`).
-_CHANNEL1_STATE_WORDING: Final[dict[str, str]] = {
-    CHANNEL1_GRANTED: "hosted-sync consent is granted for this project",
-    CHANNEL1_NO_RECORD: "no record of hosted-sync consent exists for this project",
-    CHANNEL1_RECORDED_REFUSAL: "a refusal is recorded for this project",
-    CHANNEL1_NOT_CONSENTABLE: "not consentable, no project identity resolved",
-    CHANNEL1_UNCLASSIFIED: "refuses, but the specific reason could not be classified",
-    CHANNEL1_UNDETERMINED: "undetermined -- this directory is not inside a checkout",
-}
-
 
 def _render_tracker_egress_row(
     console_out: Any,
@@ -1976,17 +841,30 @@ def _render_tracker_egress_row(
     if verdict.refusing_channels:
         channels = ", ".join(sorted(verdict.refusing_channels))
         console_out.print(f"    refusing channel(s): {channels}")
-    state_wording = _CHANNEL1_STATE_WORDING.get(verdict.channel1_state, verdict.channel1_state)
+    state_wording = channel1_state_wording(verdict.channel1_state)
     console_out.print(f"    Channel 1: {state_wording}")
     safe_message = _escape_markup(verdict.message)
     console_out.print(f"    {safe_message}")
     for remedy in verdict.remedies:
         console_out.print(f"    remedy: {remedy}")
-    if verdict.refused and binding_present:
-        issues.append(f"tracker egress to {verdict.destination.value} is refused (Channel 1: {state_wording}): {safe_message}")
+    row_issue = tracker_egress_row_issue(
+        destination_value=verdict.destination.value,
+        state_wording=state_wording,
+        safe_message=safe_message,
+        refused=verdict.refused,
+        binding_present=binding_present,
+    )
+    if row_issue is not None:
+        issues.append(row_issue)
 
 
-def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
+def _render_tracker_egress(
+    console_out: Any,
+    issues: list[str],
+    local: TrackerEgressVerdict,
+    hosted: TrackerEgressVerdict,
+    binding_present: bool,
+) -> None:
     """Report the tracker-egress verdict the gates enforce (#3108 FR-014, SC-014).
 
     One row per :class:`EgressDestination` member -- two rows, always, in every
@@ -2004,99 +882,31 @@ def _render_tracker_egress(console_out: Any, issues: list[str]) -> None:
     ``_CONSENT_FAULT_NOT_ABSENCE`` unconditionally, which is false for most of
     this verdict's own states.
 
-    Never consults the on-disk tracker provider to decide what to show: ``--provider``
-    overrides it in memory only (``TrackerService._resolve_saas_backend_for_provider``),
-    so a provider-conditional block would misreport one destination while saying
-    nothing about the other. Two written-out calls below, each with a literal
-    :class:`EgressDestination` member -- never a loop over the enum, which would
-    turn the ``destination`` argument into an ``ast.Name`` and red WP07's guard G5.
+    Consumes the ``local``/``hosted`` verdicts and ``binding_present`` already
+    computed by :func:`_gather_doctor_facts` (the WP10 gather half) rather than
+    recomputing them here. The gate that bounds tracker data-egress verdicts to a
+    fixed inventory of call sites (#3108 zero-blast-radius) admits exactly the two
+    gather calls; a second, duplicate ``tracker_egress_verdict`` computation in
+    this render half both doubled that inventory and read the on-disk tracker
+    provider twice in one ``doctor`` run. Those gather calls pass an identical root
+    (``locate_project_root(Path.cwd())``) and identical per-transport identifier
+    kinds, each with a literal :class:`EgressDestination` member -- never a loop
+    over the enum, which would turn ``destination`` into an ``ast.Name`` and red
+    WP07's guard G5 -- so the rows this renderer prints are byte-for-byte what the
+    old in-place calls produced. ``root=None`` is a specified case, not an error
+    path (the verdict function never raises): the gather passes it straight through
+    to both destinations, so a directory that resolves no checkout is still
+    rendered here, never as if its tracker egress were fine.
 
-    Resolves its own root with ``locate_project_root(Path.cwd())``, exactly as the
-    sibling readability block does, so both sections in one ``doctor`` run describe
-    the same checkout -- the signature deliberately takes no ``root`` parameter so
-    ``doctor()`` keeps calling both renderers identically. ``root=None`` is a
-    specified case, not an error path (the verdict function never raises): passed
-    straight through to both calls rather than guarded behind
-    ``if repo_root is not None:``, so a directory that resolves no checkout is never
-    rendered as if its tracker egress were fine.
+    ``binding_present`` -- whether *any* provider is bound, never which one -- gates
+    the ``issues`` append only; both rows render regardless. It, too, is resolved
+    once in the gather, where the ``load_tracker_config`` read is guarded (that
+    config read RAISES on an unparseable ``.kittify/config.yaml``, and ``doctor``
+    must stay useful on exactly that checkout).
     """
-    from specify_cli.core.paths import locate_project_root
-    from specify_cli.tracker.config import load_tracker_config
-
-    # Each row passes the fragment its **owning transport** passes at that destination --
-    # ``local_service.py`` for ``LOCAL_SUBPROCESS`` and ``tracker/saas_client.py`` for
-    # ``HOSTED_SERVICE`` -- rather than a fragment of ``doctor``'s own. ``doctor`` reports;
-    # it does not transmit, so it has no identifier set to declare. Its contract is that
-    # "the enforced answer and the reported answer cannot disagree" (``egress_verdict.py``
-    # module docstring, the stated reason that module exists), and the refusal text an
-    # operator reads here is rendered from ``identifiers``. Passing anything else -- a
-    # doctor-local fragment, or one transport's fragment for both rows -- would print a
-    # refusal that differs from the one the gate actually raises, which is the exact
-    # divergence the single-function design was built to prevent. Imported locally, as the
-    # two imports above are, so the hosted client and its HTTP stack load only when
-    # ``doctor`` runs.
-    from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
-    from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
-
     console_out.print(f"\n[bold]{_TRACKER_EGRESS_SECTION_TITLE}[/bold]")
-    root = locate_project_root(Path.cwd())  # may be None; that is a rendered case
-    local = tracker_egress_verdict(
-        root,
-        destination=EgressDestination.LOCAL_SUBPROCESS,
-        identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
-    )
-    hosted = tracker_egress_verdict(
-        root,
-        destination=EgressDestination.HOSTED_SERVICE,
-        identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
-    )
-    # Whether *any* provider is bound -- never which one. Gates the `issues` append
-    # only; both rows render regardless. See `_render_tracker_egress_row`.
-    #
-    # Guarded, and the guard is load-bearing: `load_tracker_config` RAISES on an
-    # unparseable `.kittify/config.yaml`, and `doctor`'s whole job is to be useful on
-    # exactly that checkout. Unguarded, this read aborted the command mid-render --
-    # measured as the `REPAIR THE FILE'S SYNTAX` count dropping 4 -> 2, because every
-    # line after this block stopped printing. `tracker_egress_verdict` is defended
-    # against this internally (NFR-003, "never raises"); a second, direct config read
-    # is not, and reintroduced the same defect one level up. An unreadable config means
-    # no binding is *knowable*, so no issue is claimed -- the sibling readability
-    # renderer already reports the unparseable file as its own issue, and the two rows
-    # below still print their refusal either way.
-    binding_present = False
-    if root is not None:
-        try:
-            binding_present = bool(load_tracker_config(root).provider)
-        except Exception:  # noqa: BLE001 - doctor must render on a broken config, not abort
-            binding_present = False
     _render_tracker_egress_row(console_out, issues, local, binding_present=binding_present)
     _render_tracker_egress_row(console_out, issues, hosted, binding_present=binding_present)
-
-
-def _print_identity_backfill_result(result: IdentityBackfillResult | None) -> None:
-    """Report what convergence recovered into the identity columns (#3030 H4).
-
-    Printed unconditionally, including the zero case, because "nothing needed
-    recovering" and "the backfill did not run" must not look alike — that
-    equivalence is what let the backfill sit unwired with every test green.
-    """
-    if result is None:
-        console.print(
-            "[yellow]![/yellow] The journal identity backfill could not run, so "
-            "rows with no stored identity remain unselectable. Re-run "
-            "`spec-kitty sync migrate`; if it persists, `spec-kitty sync doctor` "
-            "reports how many rows are affected."
-        )
-        return
-    console.print(f"Journal identity: recovered {result.updated}  [dim]unresolvable {result.unresolved}[/dim]")
-    if result.unresolved:
-        # Not an error, and deliberately not phrased as one: these rows are
-        # fail-closed by design (FR-011). What matters is that they are visible.
-        console.print(
-            f"  [dim]{result.unresolved} row(s) carry no resolvable project "
-            "identity in their stored payload; they stay unselectable rather than "
-            "being assigned one.[/dim]"
-        )
 
 
 def _run_consent_index_backfill() -> None:
@@ -2120,7 +930,7 @@ def _run_consent_index_backfill() -> None:
     console.print("[bold]Consent index backfill[/bold]")
     try:
         result = backfill_uuid_consent_index()
-    except Exception as exc:  # noqa: BLE001 - reported, never fatal to the migration
+    except Exception as exc:  # noqa: BLE001 — reported, never fatal to the migration
         console.print(f"  [yellow]![/yellow] could not be completed: {exc}. Path-keyed records remain in place and the drain still cannot see them.")
         return
 
@@ -2197,19 +1007,19 @@ def routes() -> None:
     table = Table(show_header=False, box=None)
     table.add_column("Key", style="dim")
     table.add_column("Value")
-    table.add_row("Repository", routing.repo_slug or "[dim]Unavailable[/dim]")
-    table.add_row("Project UUID", routing.project_uuid or "[dim]Unavailable[/dim]")
-    table.add_row("Project Slug", routing.project_slug or "[dim]Unavailable[/dim]")
-    table.add_row("Build ID", routing.build_id or "[dim]Unavailable[/dim]")
+    table.add_row("Repository", routing.repo_slug or _UNAVAILABLE_VALUE)
+    table.add_row("Project UUID", routing.project_uuid or _UNAVAILABLE_VALUE)
+    table.add_row("Project Slug", routing.project_slug or _UNAVAILABLE_VALUE)
+    table.add_row("Build ID", routing.build_id or _UNAVAILABLE_VALUE)
     table.add_row(
         "Checkout Sync",
         "[green]Enabled[/green]" if routing.effective_sync_enabled else "[yellow]Disabled[/yellow]",
     )
 
-    local_value = "[dim]Not set[/dim]" if routing.local_sync_enabled is None else ("enabled" if routing.local_sync_enabled else "disabled")
+    local_value = _override_label(routing.local_sync_enabled)
     table.add_row("Local Override", local_value)
 
-    repo_default = "[dim]Not set[/dim]" if routing.repo_default_sync_enabled is None else ("enabled" if routing.repo_default_sync_enabled else "disabled")
+    repo_default = _override_label(routing.repo_default_sync_enabled)
     table.add_row("Future Repo Default", repo_default)
 
     try:
@@ -2279,10 +1089,7 @@ def share(
     team_slug: str = typer.Argument(..., help="Team slug to share this repository into."),
 ) -> None:
     """Share the current repository from Private Teamspace into a team."""
-    from specify_cli.sync.sharing_client import (
-        RepositorySharingClientError,
-        request_repository_share_sync,
-    )
+    from specify_cli.sync.sharing_client import RepositorySharingClientError
 
     _require_daemon_owner_coherence("spec-kitty sync share")
 
@@ -2303,7 +1110,7 @@ def share(
         raise typer.Exit(1)
 
     try:
-        response = request_repository_share_sync(
+        response = request_repository_share(
             source_project_uuid=routing.project_uuid,
             destination_team_slug=team_slug,
         )
@@ -2317,7 +1124,7 @@ def share(
             except Exception as materialize_error:
                 console.print(f"[red]Error:[/red] Could not materialize this checkout in Private Teamspace: {materialize_error}")
                 raise typer.Exit(1) from materialize_error
-            response = request_repository_share_sync(
+            response = request_repository_share(
                 source_project_uuid=routing.project_uuid,
                 destination_team_slug=team_slug,
             )
@@ -2343,10 +1150,7 @@ def unshare(
     team_slug: str = typer.Argument(..., help="Team slug to stop sharing this repository into."),
 ) -> None:
     """Stop sharing the current repository from this developer to one team."""
-    from specify_cli.sync.sharing_client import (
-        RepositorySharingClientError,
-        leave_repository_share_sync,
-    )
+    from specify_cli.sync.sharing_client import RepositorySharingClientError
 
     _require_daemon_owner_coherence("spec-kitty sync unshare")
 
@@ -2367,7 +1171,7 @@ def unshare(
         raise typer.Exit(1)
 
     try:
-        leave_repository_share_sync(
+        leave_repository_share(
             source_project_uuid=routing.project_uuid,
             destination_team_slug=team_slug,
         )
@@ -2985,7 +1789,7 @@ def _run_import_apply(
 
 
 @app.command(name="workspace")
-def sync_workspace(  # noqa: C901
+def sync_workspace(
     repair: bool = typer.Option(
         False,
         "--repair",
@@ -3022,10 +1826,9 @@ def sync_workspace(  # noqa: C901
     workspace_path, mission_slug = _detect_workspace_context()
 
     if mission_slug is None:
-        console.print("[yellow]⚠ Not in a recognized workspace[/yellow]")
-        console.print("Run this command from a worktree directory:")
-        console.print("  cd .worktrees/<feature>-lane-a/")
-        raise typer.Exit(1)
+        for line in NOT_IN_WORKSPACE_LINES:
+            console.print(line)
+        raise typer.Exit(NOT_IN_WORKSPACE_EXIT)
 
     console.print(f"[cyan]Workspace:[/cyan] {workspace_path.name}")
 
@@ -3067,54 +1870,35 @@ def sync_workspace(  # noqa: C901
 
     result: SyncResult = vcs.sync_workspace(workspace_path)
 
-    # Display result based on status
-    if result.status == SyncStatus.UP_TO_DATE:
-        console.print("\n[green]✓ Already up to date[/green]")
-        if result.message:
-            console.print(f"[dim]{result.message}[/dim]")
+    # WP11 (A-1 restructure): the status dispatch — the cc-heavy ``if/elif`` chain
+    # that mapped each ``SyncResult`` arm to console lines + exit code — moves to the
+    # pure ``sync_workspace_core`` (``build_sync_render_plan``). This shell now only
+    # gathers I/O (workspace context + vcs above), asks the core to decide the render
+    # steps, then emits them. Zero observable change; the WP11 monkeypatch-golden
+    # (``test_sync_workspace_render.py``) is the guard.
+    plan = build_sync_render_plan(result, verbose=verbose)
+    _render_sync_plan(plan, result)
 
-    elif result.status == SyncStatus.SYNCED:
-        stats_parts = []
-        if result.files_updated > 0:
-            stats_parts.append(f"{result.files_updated} updated")
-        if result.files_added > 0:
-            stats_parts.append(f"{result.files_added} added")
-        if result.files_deleted > 0:
-            stats_parts.append(f"{result.files_deleted} deleted")
-
-        stats = ", ".join(stats_parts) if stats_parts else "no file changes"
-        console.print(f"\n[green]✓ Synced[/green] - {stats}")
-
-        if verbose:
-            _display_changes_integrated(result.changes_integrated)
-
-        if result.message:
-            console.print(f"[dim]{result.message}[/dim]")
-
-    elif result.status == SyncStatus.CONFLICTS:
-        console.print("\n[yellow]⚠ Synced with conflicts[/yellow]")
-        console.print("[dim]You must resolve conflicts before continuing.[/dim]")
-
-        _display_conflicts(result.conflicts)
-
-        if verbose:
-            _display_changes_integrated(result.changes_integrated)
-
-    elif result.status == SyncStatus.FAILED:
-        console.print("\n[red]✗ Sync failed[/red]")
-        if result.message:
-            console.print(f"[dim]{result.message}[/dim]")
-
-        # Show conflicts if any
-        if result.conflicts:
-            _display_conflicts(result.conflicts)
-
-        console.print()
-        console.print("[dim]Try:[/dim]")
-        console.print("  spec-kitty sync workspace --repair")
-        raise typer.Exit(1)
+    if plan.exit_code is not None:
+        raise typer.Exit(plan.exit_code)
 
     console.print()
+
+
+def _render_sync_plan(plan: SyncRenderPlan, result: SyncResult) -> None:
+    """Emit a ``build_sync_render_plan`` decision to the console (WP11 render phase).
+
+    Each :class:`RenderLine` is a passthrough ``console.print``; the two table
+    markers re-invoke the host's Rich-table helpers over the same ``SyncResult`` the
+    core decided against, preserving the pre-restructure interleave byte-for-byte.
+    """
+    for step in plan.steps:
+        if isinstance(step, RenderConflicts):
+            _display_conflicts(result.conflicts)
+        elif isinstance(step, RenderChanges):
+            _display_changes_integrated(result.changes_integrated)
+        elif isinstance(step, RenderLine):
+            console.print(step.text)
 
 
 def _gateway_unavailable_note(server_url: str, status_code: int) -> str:
@@ -3134,6 +1918,8 @@ def _gateway_unavailable_note(server_url: str, status_code: int) -> str:
         f"`spec-kitty sync server <url>` (e.g. {EXAMPLE_HOSTED_SAAS_URL}), then "
         "`spec-kitty auth login --force`."
     )
+
+
 #: Server-connection verdicts (from :func:`_check_server_connection`) that are
 #: healthy or a deliberate non-problem state. "Connected" = the live probe
 #: succeeded; "Disabled" = hosted sync is off by design. Any verdict NOT matching
@@ -3395,7 +2181,11 @@ def now(
     # (C-006).
     dispatch_outcome = _run_event_sync_dispatch()
     intentional_no_delivery = isinstance(dispatch_outcome, _IntentionalNoDelivery)
-    summary = dispatch_outcome.summary if intentional_no_delivery else dispatch_outcome
+    # #3620 Finding 2: a gate/admission block is a distinct marker from the
+    # deliberate-retention one above, so the exit decision can tell it apart
+    # from a genuine "not authenticated" and surface the real reason instead.
+    admission_gated = isinstance(dispatch_outcome, _AdmissionGatedNoDelivery)
+    summary = dispatch_outcome.summary if intentional_no_delivery or admission_gated else dispatch_outcome
     service.drain_body_uploads_only()
 
     # Persist the per-outcome report (if requested) and map the dispatch outcome
@@ -3407,6 +2197,7 @@ def now(
         summary,
         retained_work_present=retained_work_present,
         intentional_no_delivery=intentional_no_delivery,
+        admission_gated=admission_gated,
     )
 
 
@@ -3469,890 +2260,18 @@ def archive() -> None:
 
 
 # --------------------------------------------------------------------------- #
-# `sync purge` — the operator's remediation path (#3030 WP08 / T022)            #
+# `sync purge` — the operator's remediation path (#3030 WP08 / T022).           #
 #                                                                              #
-# FR-016 / FR-017 / NFR-006 / C-002. `sync gc` only reclaims payloads already   #
-# delivered to every known target, so it cannot clear the retained rows the     #
-# 2026-07-27 incident left on disk. This command is the only path that can, and #
-# it composes the four stores' purge primitives rather than re-deriving any of   #
-# them: `delivery/retention.py` owns the journal, the delivery ledger and the   #
-# body-upload queue; `sync/local_commit.py` owns the per-checkout               #
-# `pending_local_commits` queue. Selection and deletion stay there (C-003);     #
-# what lives here is the operator surface, the differential, and the honesty    #
-# about scope.                                                                  #
+# FR-016 / FR-017 / NFR-006 / C-002. The purge subsystem's differential/verdict #
+# arithmetic lives in `specify_cli.sync.sync_purge_core` (pure) and its census  #
+# readers / store executors / operator report in                               #
+# `specify_cli.sync.sync_purge_exec` (WP06 core/exec split). Both are           #
+# re-established as `sync.<name>` module attributes by the husk re-export block  #
+# below, so this thin `@app.command` shell — parse -> open ports -> call exec    #
+# readers/executors -> call core differentials/verdict -> render — reaches them  #
+# by bare name. Selection and deletion stay in `delivery/retention.py` /         #
+# `sync/local_commit.py` (C-003).                                                #
 # --------------------------------------------------------------------------- #
-
-#: Census key for a ``NULL`` project identity. Deliberately distinct from ``""``:
-#: a NULL row and a non-NULL blank row are different populations reachable by
-#: different selectors, and a census that folded them together is exactly what
-#: made an NFR-006 differential vacuous earlier in this mission (a population
-#: counted in no bucket has a differential of zero by construction).
-_PURGE_NULL_KEY = "<null>"
-
-_PURGE_JOURNAL = "event_journal"
-_PURGE_LEDGER = "delivery_ledger"
-_PURGE_BODY = "body_upload_queue"
-_PURGE_FRAMES = "local_commit_frames"
-
-_PURGE_STORE_LABELS = {
-    _PURGE_JOURNAL: "event journal",
-    _PURGE_LEDGER: "delivery ledger",
-    _PURGE_BODY: "body-upload queue",
-    # The scope is part of the name because it is not the same as the other three.
-    _PURGE_FRAMES: "local-commit frames (this checkout only)",
-}
-
-#: Where a checkout keeps its queued ``LocalCommit`` frames. Duplicated from
-#: ``sync/local_commit.py``'s private ``_sync_state_path`` on the same reasoning
-#: ``delivery/retention.py`` records for ``_DELIVERY_SUBDIR``: this module needs the
-#: path to *report* it and to read it independently, and reaching into another
-#: module's private helper is the worse coupling. ``tests/cli/commands/
-#: test_sync_purge_3030.py`` asserts the two agree, so a relocation is a red rather
-#: than a purge report pointed at a file nobody writes.
-_PURGE_SYNC_STATE_RELPATH = Path(".kittify") / "sync-state.json"
-
-#: How `--all` is described, in one place, because the wording is an authority
-#: decision rather than a flourish. Project-owned payloads live in the active
-#: checkout's routed ``ProjectSyncStore``; ``pending_local_commits`` is likewise
-#: per-checkout ``LOCAL_RUNTIME`` state. The command must never imply that it scans
-#: or erases another project's physical store.
-_PURGE_ALL_SCOPE_NOTE = (
-    "Scope of --all: the active project's event journal, delivery ledger and "
-    "body-upload queue, plus THIS CHECKOUT's queued local-commit frames "
-    "({frames_path}). No other project store or checkout is opened or scanned. "
-    "Re-run this command from each checkout whose active project you need cleared."
-)
-
-#: Printed on every destructive run. Journal, ledger and body changes share one
-#: project-store transaction. The checkout-local frame file is a separate durable
-#: boundary, so interruption can still require a convergent re-run.
-_PURGE_NON_ATOMIC_NOTE = (
-    "The active project's journal, ledger and body queue are deleted in one local "
-    "database transaction. Checkout-local frames are a separate file boundary; if "
-    "a run is interrupted, re-run the same command — it converges."
-)
-
-
-@dataclass(frozen=True)
-class _RawCensus:
-    """One store's row counts, grouped by the raw identity value it stores.
-
-    Taken by the CLI itself and **not** through the domain censuses the purge
-    primitives report from (NFR-006). Two properties matter:
-
-    * **Total-preserving by construction.** Every row lands in exactly one bucket
-      and ``NULL`` / ``""`` / ``"   "`` are three distinct buckets, so no population
-      can be missing from both the before and after picture — the shape that let a
-      purge move rows and still report "0% of any other project's" truthfully by its
-      own arithmetic.
-    * **Independent of the purge's own reads.** The differential below is measured
-      from two of these snapshots, so it can disagree with what the primitive claims
-      to have deleted. A check whose operands both come from the thing under test
-      was already rejected on this mission, having produced zero failures over 200
-      randomized cases.
-    """
-
-    total: int = 0
-    by_key: dict[str, int] = field(default_factory=dict)
-    unreadable: bool = False
-
-    def count(self, keys: frozenset[str]) -> int:
-        return sum(self.by_key.get(key, 0) for key in keys)
-
-    @property
-    def unbucketed(self) -> int:
-        """Rows the grouping could not account for. Must be ``0``; reported if not."""
-        return self.total - sum(self.by_key.values())
-
-
-@dataclass
-class _PurgeStoreOutcome:
-    """What one store contributed to the purge, as measured rather than as claimed."""
-
-    store: str
-    location: str
-    in_scope: int = 0
-    removed_observed: int = 0
-    removed_reported: int | None = None
-    others_delta_observed: int = 0
-    total_after: int = 0
-    left_behind: dict[str, int] = field(default_factory=dict)
-    states: dict[str, int] = field(default_factory=dict)
-    never_attempted: int = 0
-    unreadable: bool = False
-    note: str = ""
-
-    def as_dict(self) -> dict[str, Any]:
-        data: dict[str, Any] = {
-            "location": self.location,
-            "in_scope": self.in_scope,
-            "removed_observed": self.removed_observed,
-            "removed_reported": self.removed_reported,
-            "others_delta_observed": self.others_delta_observed,
-            "total_after": self.total_after,
-            "left_behind": dict(self.left_behind),
-            "unreadable": self.unreadable,
-        }
-        if self.store == _PURGE_LEDGER:
-            data["states"] = dict(self.states)
-            data["never_attempted"] = self.never_attempted
-        if self.note:
-            data["note"] = self.note
-        return data
-
-
-def _purge_usage_error(message: str) -> None:
-    """Refuse before opening any store. Exit 2: nothing was read, nothing deleted."""
-    console.print(f"[red]Error:[/red] {message}")
-    raise typer.Exit(2)
-
-
-def _purge_journal_census(journal: EventJournal) -> _RawCensus:
-    """Independent identity projection over one explicit project journal.
-
-    Not ``retention._journal_census``: that one composes ``distinct_project_uuids``
-    with the identity projection, which *filters falsy uuids*, so a blank-uuid row
-    reaches it only through a derived remainder. For a differential the CLI needs the
-    stored values verbatim, blank and whitespace included, each as its own bucket.
-    """
-    try:
-        by_key: dict[str, int] = {}
-        rows = journal.read_identity_projection_for_report()
-        for row in rows:
-            key = _PURGE_NULL_KEY if row.project_uuid is None else str(row.project_uuid)
-            by_key[key] = by_key.get(key, 0) + 1
-        return _RawCensus(total=len(rows), by_key=by_key)
-    except Exception:
-        return _RawCensus(unreadable=True)
-
-
-def _purge_journal_ids(journal: EventJournal, *, project_uuid: str | None, every_row: bool) -> list[str]:
-    """The journal ids the selector covers, resolved by the CLI's own raw read.
-
-    ``project_uuid=None`` means ``IS NULL`` (FR-011's population). Used only to
-    *measure* the ledger half — the deletion still selects through the primitives.
-    """
-    try:
-        rows = journal.read_identity_projection_for_report()
-        return [
-            str(row.event_id)
-            for row in rows
-            if every_row or (project_uuid is None and row.project_uuid is None) or (project_uuid is not None and row.project_uuid == project_uuid)
-        ]
-    except Exception:
-        return []
-
-
-def _purge_ledger_census(ledger: SqliteDeliveryLedger, event_ids: list[str]) -> _RawCensus:
-    """``(total rows, rows for the selected ids)`` — the ledger has no project column.
-
-    Bucketed under one synthetic key because "another project's ledger rows" is not
-    directly countable: the ledger is keyed ``(event_id, target_id)``. The change
-    outside the selection is therefore derived as *total change minus selected
-    change*, from the CLI's own counts.
-    """
-    try:
-        rows = ledger.rows()
-        selected_ids = set(event_ids)
-        selected = sum(row.event_id in selected_ids for row in rows)
-        return _RawCensus(
-            total=len(rows),
-            by_key={_PURGE_LEDGER: selected},
-        )
-    except Exception:
-        return _RawCensus(unreadable=True)
-
-
-def _purge_ledger_ghost_count(journal: EventJournal, ledger: SqliteDeliveryLedger) -> int:
-    """Ledger rows whose ``event_id`` has no journal row at all.
-
-    Unreachable by any targeted selector, because every targeted selection collects
-    its ids *from the journal*. Not a contrived state: ``sync gc`` deletes journal
-    payload rows and preserves ledger history by design (FR-010), so every machine
-    that has run it holds some. The two stores are separate SQLite files, so this is
-    a set difference in Python rather than a join.
-    """
-    journal_ids = set(_purge_journal_ids(journal, project_uuid=None, every_row=True))
-    try:
-        return sum(row.event_id not in journal_ids for row in ledger.rows())
-    except Exception:
-        return 0
-
-
-def _purge_body_census(queue: OfflineBodyUploadQueue | None) -> _RawCensus:
-    """``count_by_project`` for the buckets, ``size`` for the total.
-
-    Two different reads on purpose: the total cannot be affected by the attribution
-    the buckets depend on, so a population the grouping fails to return shows up as
-    ``unbucketed`` instead of vanishing from the differential.
-    """
-    if queue is None:
-        return _RawCensus()
-    try:
-        by_key = {str(key): int(value) for key, value in queue.count_by_project().items()}
-        total = int(queue.size())
-    except Exception:  # noqa: BLE001 — an unreadable store is reported, never assumed empty
-        return _RawCensus(unreadable=True)
-    return _RawCensus(total=total, by_key=by_key)
-
-
-def _purge_frames_census(repo_root: Path | None) -> _RawCensus:
-    """Count queued frames by reading ``sync-state.json`` directly.
-
-    Independent of ``census_pending_local_commits`` for a concrete reason, not a
-    theoretical one: ``load_sync_state`` resets a malformed file to an empty state
-    and never raises, so the primitive would report "0 frames" over a file still
-    holding mission slugs — client engagement names. Read here, an unparseable file
-    is a reported fault instead of a silent zero.
-    """
-    import json as _json
-
-    if repo_root is None:
-        return _RawCensus()
-    path = repo_root / _PURGE_SYNC_STATE_RELPATH
-    if not path.exists():
-        return _RawCensus()
-    try:
-        data = _json.loads(path.read_text(encoding="utf-8"))
-        frames = data["pending_local_commits"] if isinstance(data, dict) else None
-        if not isinstance(frames, list):
-            raise ValueError("pending_local_commits is not a list")
-    except Exception as exc:  # noqa: BLE001 — the fault is the finding
-        _LOG.debug("sync-state.json unreadable at %s: %s", path, exc)
-        return _RawCensus(unreadable=True)
-    by_key: dict[str, int] = {}
-    for frame in frames:
-        raw = frame.get("project_uuid") if isinstance(frame, dict) else None
-        key = _PURGE_NULL_KEY if raw is None else str(raw)
-        by_key[key] = by_key.get(key, 0) + 1
-    return _RawCensus(total=len(frames), by_key=by_key)
-
-
-def _purge_unattributable_keys(census: _RawCensus) -> frozenset[str]:
-    """Census keys that name no project: ``NULL``, ``""``, and whitespace-only."""
-    return frozenset(key for key in census.by_key if key == _PURGE_NULL_KEY or not key.strip())
-
-
-def _purge_left_behind(census: _RawCensus) -> dict[str, int]:
-    """The unattributable residue of one store, as two named counts."""
-    null_rows = census.by_key.get(_PURGE_NULL_KEY, 0)
-    blank_rows = sum(count for key, count in census.by_key.items() if key != _PURGE_NULL_KEY and not key.strip())
-    residue: dict[str, int] = {}
-    if null_rows:
-        residue["identity_null"] = null_rows
-    if blank_rows:
-        residue["identity_blank"] = blank_rows
-    return residue
-
-
-def _purge_differential(before: _RawCensus, after: _RawCensus, scope: frozenset[str]) -> tuple[int, int]:
-    """``(rows removed inside scope, absolute change outside it)``, both measured.
-
-    Absolute and over the union of both censuses, so a key that *appeared* counts as
-    a change too: a purge must neither remove nor create another project's rows, and
-    a concurrent writer is exactly as much of a finding as an over-reaching selector.
-    """
-    removed = before.count(scope) - after.count(scope)
-    keys = (set(before.by_key) | set(after.by_key)) - scope
-    others = sum(abs(after.by_key.get(key, 0) - before.by_key.get(key, 0)) for key in keys)
-    return removed, others
-
-
-def _purge_ledger_differential(before: _RawCensus, after: _RawCensus) -> tuple[int, int]:
-    """The ledger's ``(removed, changed outside the selection)``, derived not grouped.
-
-    The ledger is keyed ``(event_id, target_id)`` and carries no project column, so
-    "another project's ledger rows" cannot be grouped for. It *is* exactly derivable:
-    total change minus the change the selection accounts for. Both operands come from
-    the CLI's own two reads, so the answer can disagree with what the purge reported —
-    which is the whole point of measuring it here (NFR-006).
-    """
-    removed = before.by_key.get(_PURGE_LEDGER, 0) - after.by_key.get(_PURGE_LEDGER, 0)
-    return removed, abs((before.total - after.total) - removed)
-
-
-def _purge_stored_spelling_conflicts(selector: str, censuses: list[_RawCensus]) -> list[str]:
-    """Stored keys that mean the same project as *selector* but are spelled differently.
-
-    A real cross-store hazard rather than pedantry: the journal matches a
-    ``project_uuid`` by exact string equality, while the frame purge compares
-    case-insensitively. So an upper-cased or dash-less selector would clear a
-    checkout's frames while leaving every journal row in place, and report "0 journal
-    rows in scope" — indistinguishable from a project that was already clean.
-    """
-    try:
-        wanted: UUID | None = UUID(selector)
-    except (ValueError, AttributeError, TypeError):
-        wanted = None
-    conflicts: set[str] = set()
-    for census in censuses:
-        for key in census.by_key:
-            if key in (selector, _PURGE_NULL_KEY) or not key.strip():
-                continue
-            same = key.strip().casefold() == selector.strip().casefold()
-            if not same and wanted is not None:
-                try:
-                    same = UUID(key.strip()) == wanted
-                except (ValueError, AttributeError, TypeError):
-                    same = False
-            if same:
-                conflicts.add(key)
-    return sorted(conflicts)
-
-
-def _purge_resolve_project(
-    value: str,
-    journal: EventJournal,
-    checkout_identity: ProjectIdentity | None,
-) -> tuple[str, str | None]:
-    """Resolve ``--project`` (a uuid *or* either recorded name) to ``(uuid, matched)``.
-
-    A uuid is taken verbatim, including one no store holds: an operator must be able
-    to purge a project whose rows survive only in the body queue. A name is resolved
-    against the journal's own identity projection plus the invoking checkout's
-    declared identity, and an unknown or ambiguous name is **refused** rather than
-    run — "0 rows removed" is indistinguishable from "wrong selector", and this
-    command's report is the only record left after a purge.
-
-    **Both name columns are selectors, and that is the whole point (#3030 WP07).**
-    This resolver used to key on ``project_slug`` alone while
-    ``_project_store_label`` and ``_per_project_store_issues`` lead their label with
-    ``repo_slug`` — so ``sync doctor`` printed
-
-        ``2 project(s) ... have not consented ...: acme/app, beta/svc.``
-        ``... `spec-kitty sync purge --project <slug>` removes them.``
-
-    and the very next command refused the names it had just recommended:
-    ``No project matches slug "acme/app"``. The operator running the incident's own
-    remediation was handed a name the tool would not accept, which is exactly the
-    hand-written-SQLite detour SC-004 exists to remove. Rather than stop printing the
-    name an operator recognises, the resolver now accepts every name the report can
-    print, so the whole label chain ``repo_slug -> project_slug -> project_uuid`` is
-    copy-pasteable into the command the report recommends.
-
-    Collisions are the cost, and they are already paid: two projects can share a repo
-    slug, and a repo slug can even collide with another project's project slug. Both
-    land in the same ``name -> {uuid}`` map, so both take the existing ambiguity
-    refusal below — a purge must not span two projects, and refusing is the only safe
-    answer to a selector that means two things.
-    """
-    raw = str(value or "").strip()
-    if not raw:
-        _purge_usage_error("--project needs a project uuid or name; a blank selector matches nothing.")
-    try:
-        UUID(raw)
-    except (ValueError, AttributeError, TypeError):
-        pass
-    else:
-        return raw, None
-
-    candidates: dict[str, set[str]] = {}
-
-    def _offer(name: str | None, uuid: str | None) -> None:
-        """Record *name* as a selector for *uuid*, if both were recorded.
-
-        The uuid guard is deliberately plain truthiness and NOT ``.strip()`` —
-        matching what this function did before repo slugs were added. Whether a
-        whitespace-only ``project_uuid`` is identity-less is a live question being
-        settled in ``delivery/status_report.py``; tightening it here as a side
-        effect of a naming change would decide it by accident, in the wrong module.
-        The name guard does strip, because a whitespace-only name would otherwise
-        key the map on ``""`` and answer for every unnamed row.
-        """
-        if name and name.strip() and uuid:
-            candidates.setdefault(name.strip().casefold(), set()).add(str(uuid))
-
-    for row in journal.read_identity_projection_for_report():
-        _offer(row.repo_slug, row.project_uuid)
-        _offer(row.project_slug, row.project_uuid)
-    if checkout_identity is not None:
-        _offer(checkout_identity.repo_slug, checkout_identity.project_uuid)
-        _offer(checkout_identity.project_slug, checkout_identity.project_uuid)
-
-    matches = sorted(candidates.get(raw.casefold(), set()))
-    if not matches:
-        known = ", ".join(sorted(candidates)) or "none recorded"
-        _purge_usage_error(
-            f'No project matches "{raw}". Names the active project journal or '
-            "current checkout records "
-            f"(repo slugs and project slugs alike): {known}. Pass the project uuid "
-            "to purge a project whose rows carry no name."
-        )
-    if len(matches) > 1:
-        _purge_usage_error(f'"{raw}" maps to {len(matches)} project uuids ({", ".join(matches)}); pass the uuid you mean — a purge must not span two projects.')
-    return matches[0], raw
-
-
-def _purge_validate_invocation(
-    *,
-    project: str | None,
-    identity_less: bool,
-    all_events: bool,
-    apply: bool,
-    dry_run: bool,
-    confirm: str,
-    report: Path | None,
-) -> None:
-    """Refuse a malformed or unauthorised invocation before any store is opened."""
-    from specify_cli.delivery.retention import PURGE_ALL_CONFIRMATION
-
-    if report is not None:
-        # Checked before anything is deleted, not at write time. The ledger rows this
-        # command removes are the only durable record of what happened to those
-        # events, so discovering an unwritable report path *after* the delete would
-        # destroy the record and the report of it in one run.
-        try:
-            report.parent.mkdir(parents=True, exist_ok=True)
-            report.touch()
-        except OSError as exc:
-            _purge_usage_error(f"--report path is not writable ({report}): {exc}")
-
-    if apply and dry_run:
-        _purge_usage_error("--apply and --dry-run are mutually exclusive.")
-    selectors = [project is not None, identity_less, all_events]
-    if not any(selectors):
-        _purge_usage_error("Choose exactly one of --project <slug-or-uuid>, --identity-less or --all.")
-    if sum(1 for chosen in selectors if chosen) > 1:
-        _purge_usage_error("--project, --identity-less and --all are mutually exclusive.")
-
-    # The confirmation phrase gates the destructive `--all` run before anything is
-    # opened. `purge_all_events` enforces the same phrase — that check is the pinned
-    # one and it still runs — but it can only speak for the journal and the ledger,
-    # while the body queue and the frame queue have no gate of their own. One phrase,
-    # one constant, authorising all four stores (C-002, FR-017).
-    if all_events and apply and confirm != PURGE_ALL_CONFIRMATION:
-        console.print(
-            "[red]Refused:[/red] a destructive --all run requires "
-            f'--confirm "{PURGE_ALL_CONFIRMATION}". Nothing was deleted. Run without '
-            "--apply first — its reported counts are exactly what a confirmed run removes."
-        )
-        raise typer.Exit(1)
-
-
-def _purge_journal_selection(
-    journal: EventJournal,
-    census: _RawCensus,
-    *,
-    all_events: bool,
-    identity_less: bool,
-    selector_uuid: str,
-) -> tuple[frozenset[str], list[str]]:
-    """``(census keys in scope, journal ids in scope)`` for this selector."""
-    if all_events:
-        return frozenset(census.by_key), _purge_journal_ids(journal, project_uuid=None, every_row=True)
-    if identity_less:
-        return frozenset({_PURGE_NULL_KEY}), _purge_journal_ids(journal, project_uuid=None, every_row=False)
-    return frozenset({selector_uuid}), _purge_journal_ids(journal, project_uuid=selector_uuid, every_row=False)
-
-
-def _purge_ledger_view(census: _RawCensus, *, all_events: bool) -> _RawCensus:
-    """The ledger census as the selector sees it.
-
-    ``--all`` covers the ledger's own rows — including the ghosts whose journal row
-    ``sync gc`` already removed, which no journal-derived id list can name — so the
-    selected count is the whole table.
-    """
-    if not all_events:
-        return census
-    return _RawCensus(
-        total=census.total,
-        by_key={_PURGE_LEDGER: census.total},
-        unreadable=census.unreadable,
-    )
-
-
-def _purge_run_journal_ledger(
-    journal: EventJournal,
-    ledger: SqliteDeliveryLedger,
-    *,
-    all_events: bool,
-    identity_less: bool,
-    selector_uuid: str,
-    dry_run: bool,
-    confirm: str,
-) -> ProjectPurgeResult | None:
-    """Run the journal+ledger purge primitive for this selector, or ``None``.
-
-    ``None`` when no journal exists: there is nothing to purge, and opening
-    ``EventJournal`` would *create* the store — a purge that materialised a store in
-    order to report zero rows in it would be reporting on its own side effect.
-    """
-    from specify_cli.delivery.retention import (
-        PurgeNotConfirmedError,
-        purge_all_events,
-        purge_identity_less_events,
-        purge_project_events,
-    )
-
-    try:
-        if all_events:
-            return purge_all_events(journal=journal, ledger=ledger, dry_run=dry_run, confirmation=confirm)
-        if identity_less:
-            return purge_identity_less_events(journal=journal, ledger=ledger, dry_run=dry_run)
-        return purge_project_events(selector_uuid, journal=journal, ledger=ledger, dry_run=dry_run)
-    except PurgeNotConfirmedError as exc:
-        console.print(f"[red]Refused:[/red] {exc}")
-        raise typer.Exit(1) from exc
-
-
-def _purge_frames_scope(census: _RawCensus, frames_result: Any | None, *, all_events: bool, selector_uuid: str) -> frozenset[str]:
-    """The frame-census keys this run claims, as the primitive itself scoped them."""
-    if all_events:
-        return frozenset(census.by_key)
-    if frames_result is None:
-        return frozenset()
-    if frames_result.unattributed_in_scope:
-        # This checkout declares the target as its own project, so its unattributable
-        # frames are its own content and are in scope — the pre-fix population the
-        # incident actually produced, which carries no `project_uuid` at all.
-        return frozenset({selector_uuid}) | _purge_unattributable_keys(census)
-    return frozenset({selector_uuid})
-
-
-def _purge_selector_line(*, project: str | None, identity_less: bool, selector_uuid: str, matched_slug: str | None) -> str:
-    if project is not None:
-        matched = f' (matched slug "{matched_slug}")' if matched_slug else ""
-        return f"Selector: project [bold]{selector_uuid}[/bold]{matched}"
-    if identity_less:
-        return "Selector: journal rows with no project identity (NULL)"
-    return "Selector: [bold]every event[/bold] in the stores named below"
-
-
-def _purge_run_body_queue(
-    body_queue: OfflineBodyUploadQueue,
-    census: _RawCensus,
-    *,
-    all_events: bool,
-    selector_uuid: str,
-    dry_run: bool,
-    confirm: str,
-) -> tuple[frozenset[str], int]:
-    """``(census keys in scope, rows the primitive reports removing)`` for this store.
-
-    Two selectors, one per primitive, and the total one is **not** the union of the
-    per-project one. ``remove_project_tasks`` strips its argument and returns 0 for a
-    falsy one, so a row whose ``project_uuid`` is blank or padded is reachable by no
-    project value at all — which is why fanning ``--all`` out over the census keys
-    (what this did before ``purge_all_body_uploads`` existed) could not empty the
-    store and had to report those rows as reachable by nothing.
-
-    The returned count is what the primitive *claims*; the differential the operator
-    is shown is measured separately from this module's own two censuses (NFR-006).
-    """
-    from specify_cli.delivery.retention import (
-        purge_project_body_uploads,
-    )
-
-    if not all_events:
-        result = purge_project_body_uploads(selector_uuid, body_queue=body_queue, dry_run=dry_run)
-        return frozenset({selector_uuid}), result.removed
-
-    del confirm
-    total = purge_project_body_uploads(
-        body_queue.project_uuid,
-        body_queue=body_queue,
-        dry_run=dry_run,
-    )
-    return frozenset(census.by_key), total.removed
-
-
-def _purge_outcomes(
-    *,
-    before: dict[str, _RawCensus],
-    after: dict[str, _RawCensus],
-    scopes: dict[str, frozenset[str]],
-    locations: dict[str, str],
-    reported: dict[str, int | None],
-    result: Any | None,
-    ghosts_before: int,
-    identity_less: bool,
-    in_checkout: bool,
-    frames_census_reported: int,
-) -> dict[str, _PurgeStoreOutcome]:
-    """Assemble the per-store outcome from the two independent censuses.
-
-    ``removed_reported`` is carried alongside ``removed_observed`` rather than instead
-    of it: the report shows what the purge said *and* what the stores show, so a
-    disagreement is visible instead of averaged away.
-    """
-    outcomes: dict[str, _PurgeStoreOutcome] = {}
-    for store in (_PURGE_JOURNAL, _PURGE_LEDGER, _PURGE_BODY, _PURGE_FRAMES):
-        if store == _PURGE_LEDGER:
-            removed, others = _purge_ledger_differential(before[store], after[store])
-        else:
-            removed, others = _purge_differential(before[store], after[store], scopes[store])
-        outcomes[store] = _PurgeStoreOutcome(
-            store=store,
-            location=locations[store],
-            in_scope=before[store].count(scopes[store]),
-            removed_observed=removed,
-            removed_reported=reported[store],
-            others_delta_observed=others,
-            total_after=after[store].total,
-            left_behind=_purge_left_behind(after[store]),
-            unreadable=before[store].unreadable or after[store].unreadable,
-        )
-
-    ledger = outcomes[_PURGE_LEDGER]
-    ledger.left_behind = {"without_journal_row": ghosts_before} if ghosts_before else {}
-    if result is not None:
-        ledger.states = {str(name): int(count) for name, count in result.ledger_status_before.items()}
-        ledger.never_attempted = result.never_attempted
-
-    if identity_less:
-        note = "not spanned by --identity-less: unattributable rows here cannot be attributed to any project, and only --all reaches them"
-        outcomes[_PURGE_BODY].note = note
-        outcomes[_PURGE_FRAMES].note = note
-    if not in_checkout:
-        outcomes[_PURGE_FRAMES].note = "no checkout resolved from the current directory, so no local-commit queue was inspected — re-run from inside the checkout"
-    elif before[_PURGE_FRAMES].unreadable:
-        outcomes[_PURGE_FRAMES].note = (
-            f"the purge's own census reads {frames_census_reported} queued frame(s) from "
-            "a file this command could not parse, so that number is not evidence of "
-            "what the file holds — repair or remove the file and re-run"
-        )
-    return outcomes
-
-
-def _purge_not_reached(
-    *,
-    after: dict[str, _RawCensus],
-    journal_scope: frozenset[str],
-    frames_scope: frozenset[str],
-    body_scope: frozenset[str],
-    ghosts_before: int,
-    all_events: bool,
-) -> list[dict[str, Any]]:
-    """Name every population this run leaves behind, with its count and its selector.
-
-    A residue nobody names is the same defect as a report that overstates. All five
-    are real rather than hypothetical: the NULL-identity rows the backfill must not
-    delete (C-002), the non-NULL blank and whitespace-only uuids that are visible in
-    the census and reachable by no targeted selector, the ledger rows whose journal row
-    ``sync gc`` already removed (so every machine that has run it holds some), the
-    body-upload rows no *project* selector reaches, and the pre-fix frames of a
-    checkout that vouches for nothing.
-
-    Every population is filtered against the scope this run actually claimed, so a
-    row the current selector already covers is not also listed as left behind.
-    """
-    rows: list[dict[str, Any]] = []
-
-    def add(population: str, description: str, count: int | None, reachable_by: str, text: str) -> None:
-        rows.append(
-            {
-                "population": population,
-                "description": description,
-                "count": count,
-                "reachable_by": reachable_by,
-                "reachable_by_text": text,
-            }
-        )
-
-    journal = after[_PURGE_JOURNAL]
-    null_left = journal.by_key.get(_PURGE_NULL_KEY, 0)
-    if null_left and _PURGE_NULL_KEY not in journal_scope:
-        add(
-            "journal_identity_null",
-            "journal rows with a NULL project identity",
-            null_left,
-            "--identity-less",
-            "permanently undeliverable and matchable by no project; run `sync purge --identity-less`",
-        )
-    blank_left = sum(count for key, count in journal.by_key.items() if key != _PURGE_NULL_KEY and not key.strip() and key not in journal_scope)
-    if blank_left:
-        add(
-            "journal_identity_blank",
-            "journal rows whose project_uuid is blank or whitespace-only",
-            blank_left,
-            "--all",
-            "visible in the census and selectable by nothing else: a project purge "
-            "blanks a falsy selector and the identity-less selector is NULL-only, so "
-            "only `sync purge --all` reaches them",
-        )
-    if ghosts_before:
-        add(
-            "ledger_without_journal_row",
-            "delivery-ledger rows whose journal row is already gone",
-            ghosts_before,
-            "--all",
-            "every targeted selection collects its ids from the journal, and `sync gc` removes journal rows while preserving ledger history by design",
-        )
-    body_blank = sum(count for key, count in after[_PURGE_BODY].by_key.items() if (not key or key != key.strip()) and key not in body_scope)
-    if body_blank:
-        add(
-            "body_uploads_identity_blank",
-            "queued document bodies whose project_uuid is blank or padded",
-            body_blank,
-            "--all",
-            "the queue's per-project removal strips its argument and refuses a falsy "
-            "one, so no --project value reaches these rows; `sync purge --all` clears "
-            "the store outright and is the only selector that does",
-        )
-    frames_unattributed = sum(
-        count for key, count in after[_PURGE_FRAMES].by_key.items() if (key == _PURGE_NULL_KEY or not key.strip()) and key not in frames_scope
-    )
-    if frames_unattributed:
-        add(
-            "local_commit_frames_unattributed",
-            "queued local-commit frames carrying no project_uuid",
-            frames_unattributed,
-            "--all",
-            "this checkout does not declare the purged project as its own, so it vouches for nothing; `sync purge --all` run from the owning checkout reaches them",
-        )
-    if all_events:
-        add(
-            "local_commit_frames_other_checkouts",
-            "other checkouts' queued local-commit frames",
-            None,
-            "run this command from each checkout",
-            "per-checkout state with no registry to enumerate it — deliberately not "
-            "counted, because a count that cannot be proven complete would be worse "
-            "than none",
-        )
-    return rows
-
-
-def _purge_faults(
-    *,
-    outcomes: dict[str, _PurgeStoreOutcome],
-    before: dict[str, _RawCensus],
-    after: dict[str, _RawCensus],
-    apply: bool,
-    others_total: int,
-    frames_census_reported: int,
-    frames_census_disagrees: bool,
-) -> list[str]:
-    """Everything the measurements say went wrong. Empty means NFR-006 held.
-
-    Each entry is a disagreement between two independently obtained numbers, never a
-    restatement of one of them: the stores' own before/after against what the purge
-    reported, and the purge's census of the frame file against the file itself.
-    """
-    faults: list[str] = []
-    if frames_census_disagrees:
-        faults.append(
-            f"{_PURGE_STORE_LABELS[_PURGE_FRAMES]}: the purge's census reads "
-            f"{frames_census_reported} queued frame(s) where the file holds "
-            f"{before[_PURGE_FRAMES].total} — the purge is not acting on the file's "
-            "actual contents."
-        )
-    if apply:
-        faults.extend(
-            f"{_PURGE_STORE_LABELS[store]}: unreadable, so a destructive run cannot claim to have cleared it."
-            for store, outcome in outcomes.items()
-            if outcome.unreadable
-        )
-    if others_total:
-        faults.append(
-            f"{others_total} row(s) outside the selection changed. Either the purge "
-            "over-reached or another writer (a running sync daemon, a concurrent "
-            "capture) touched a store during the run — stop the daemon and re-measure "
-            "before trusting this report."
-        )
-    for store, outcome in outcomes.items():
-        expected = outcome.in_scope if apply else 0
-        if outcome.removed_observed != expected:
-            faults.append(f"{_PURGE_STORE_LABELS[store]}: expected {expected} row(s) to go, measured {outcome.removed_observed}.")
-        # The journal's reported count is not comparable under `--all`: that selection
-        # deliberately includes ledger-only ids that were never journal rows.
-        if apply and store != _PURGE_JOURNAL and outcome.removed_reported is not None and outcome.removed_reported != outcome.removed_observed:
-            faults.append(f"{_PURGE_STORE_LABELS[store]}: the purge reported {outcome.removed_reported} removed, the store shows {outcome.removed_observed}.")
-        # The ledger census is deliberately partial — one synthetic bucket for the
-        # selection, because the store has no project column to group by — so its
-        # totality is enforced by `_purge_ledger_differential`'s derivation instead.
-        if store != _PURGE_LEDGER and (before[store].unbucketed or after[store].unbucketed):
-            faults.append(
-                f"{_PURGE_STORE_LABELS[store]}: rows exist that the per-project census cannot account for, so this store's differential is not trustworthy."
-            )
-    return faults
-
-
-def _purge_print_verdict(faults: list[str], *, apply: bool, all_events: bool) -> None:
-    """State what the measurements support, and never more than that."""
-    if apply:
-        console.print(f"\n[dim]{_PURGE_NON_ATOMIC_NOTE}[/dim]")
-    if faults:
-        console.print("\n[bold red]NFR-006 not satisfied[/bold red]")
-        for fault in faults:
-            console.print(f"  [red]•[/red] {fault}")
-        return
-    scope_claim = "nothing outside the scope named above changed" if all_events else "0 rows belonging to any other project changed"
-    console.print(
-        f"\n[green]Differential verified against the stores[/green] (measured by re-reading them, not by summing what the purge reported): {scope_claim}."
-    )
-
-
-def _purge_render(
-    *,
-    selector_line: str,
-    dry_run: bool,
-    outcomes: dict[str, _PurgeStoreOutcome],
-    not_reached: list[dict[str, Any]],
-    scope_note: str | None,
-) -> None:
-    """Print the operator's report: the plan, the residue, and the scope."""
-    removed_total = sum(outcome.removed_observed for outcome in outcomes.values())
-    if dry_run:
-        header = "[bold yellow]DRY RUN[/bold yellow] — no rows have been deleted"
-    elif removed_total:
-        header = "[bold red]APPLIED[/bold red] — rows have been deleted"
-    else:
-        header = "[bold red]APPLIED[/bold red] — no rows matched or were removed"
-    console.print(f"\n[bold]Purge[/bold] {header}")
-    console.print(selector_line)
-
-    table = Table(show_header=True, header_style="bold cyan", box=None, pad_edge=False)
-    table.add_column("Store")
-    table.add_column("Location", overflow="fold")
-    table.add_column("In scope", justify="right")
-    table.add_column("Removed", justify="right")
-    table.add_column("Store total after", justify="right")
-    for store, outcome in outcomes.items():
-        table.add_row(
-            _PURGE_STORE_LABELS[store],
-            outcome.location,
-            str(outcome.in_scope),
-            str(outcome.removed_observed),
-            str(outcome.total_after),
-        )
-    console.print(table)
-
-    ledger = outcomes[_PURGE_LEDGER]
-    states = "  ".join(f"{name}={count}" for name, count in sorted(ledger.states.items()))
-    console.print(f"Delivery state of the events in scope: {states or 'no delivery attempt recorded'}  never-attempted={ledger.never_attempted}")
-    if dry_run:
-        console.print("[dim]The ledger rows would be deleted by an applied run. Keep this preview (--report writes it as JSON).[/dim]")
-    elif ledger.removed_observed:
-        console.print("[dim]The ledger rows were deleted, so this breakdown is the only surviving record. Keep it (--report writes it as JSON).[/dim]")
-
-    for outcome in outcomes.values():
-        if outcome.unreadable:
-            console.print(
-                f"[yellow]Warning:[/yellow] the {_PURGE_STORE_LABELS[outcome.store]} store "
-                f"could not be read ({outcome.location}). Its rows are NOT accounted for "
-                "above — treat this purge as incomplete until the store is readable."
-            )
-        if outcome.note:
-            console.print(f"[dim]{_PURGE_STORE_LABELS[outcome.store]}: {outcome.note}[/dim]")
-
-    if all(outcome.in_scope == 0 for outcome in outcomes.values()):
-        # "0 rows removed" and "wrong selector" look identical in a count, and this
-        # report is the operator's only record. Say which one it is.
-        console.print(
-            "[yellow]Nothing matched this selector in any store.[/yellow] If rows were "
-            "expected, check the value: these stores are keyed by project uuid, and "
-            "`spec-kitty sync doctor` lists the projects the journal actually holds."
-        )
-
-    if not_reached:
-        console.print("\n[bold]Not reached by this purge[/bold]")
-        for row in not_reached:
-            count = "unknown" if row["count"] is None else str(row["count"])
-            console.print(f"  • {row['description']}: {count} — {row['reachable_by_text']}")
-
-    if scope_note:
-        console.print(f"\n[bold yellow]{scope_note}[/bold yellow]")
 
 
 @app.command()
@@ -4637,7 +2556,7 @@ def purge(
         payload = {
             "generated_at": now_utc_iso(),
             "selector": {
-                "kind": "project" if project is not None else ("identity-less" if identity_less else "all"),
+                "kind": _selector_kind(project, identity_less),
                 "project_uuid": selector_uuid or None,
                 "matched_slug": matched_slug,
             },
@@ -4655,15 +2574,6 @@ def purge(
 
     if faults:
         raise typer.Exit(1)
-
-
-def _emit_project_store_migration_json(payload: object) -> None:
-    """Emit one unstyled machine-readable migration value."""
-    import json
-    import sys
-
-    sys.stdout.write(json.dumps(payload, sort_keys=True, separators=(",", ":")))
-    sys.stdout.write("\n")
 
 
 @app.command()
@@ -5206,185 +3116,8 @@ def _print_boundary_section(
         )
 
 
-def _emit_status_check_json() -> None:
-    """T014: emit a single JSON object on stdout per the status-output contract.
-
-    The shape matches ``contracts/sync-status-output.md`` exactly:
-
-    - ``ok`` / ``exit_code``
-    - ``foreground`` (package_version, executable_path, source_path,
-      server_url, team_or_user, queue_db_path, pid)
-    - ``daemon_owner_record`` (status, pid, port, package_version,
-      executable_path, source_path, server_url, team_or_user,
-      queue_db_path)
-    - ``active_queue`` (path, event_count, body_upload_count)
-    - ``legacy_queue`` (path, event_count, body_upload_count,
-      rows_in_scope)
-    - ``mismatches`` (list of {field, foreground_value, daemon_value,
-      remediation_hint})
-    - ``orphan_records`` (list)
-
-    Exit code: 0 if the structured failure set reports ``ok``, else 2.
-    """
-    import json as _json
-    import sys as _sys
-
-    from specify_cli.sync.daemon import scan_sync_daemons
-    from specify_cli.sync.preflight import build_boundary_failure_set
-    from specify_cli.sync.queue import _legacy_queue_db_path
-
-    failure_set = build_boundary_failure_set(repo_root=Path.cwd())
-    fg = failure_set.foreground
-    record = failure_set.daemon_record
-
-    # Live orphan daemon scan (#1071 failure mode): the on-disk owner-record
-    # detection already feeds ``failure_set.orphan_records``; we also probe
-    # live processes so an unregistered ``run_sync_daemon`` running outside
-    # the singleton fails ``--check`` even when on-disk state is clean.
-    daemon_scan_diagnostic: str | None = None
-    try:
-        live_orphan_report = scan_sync_daemons()
-    except Exception as exc:
-        live_orphan_report = None
-        daemon_scan_diagnostic = f"live daemon scan failed: {str(exc)[:200]}"
-    live_orphan_count = int(live_orphan_report.orphan_count) if live_orphan_report is not None else 0
-
-    # FR-004 / contracts/sync-status-output.md: when
-    # ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` is set but no authenticated
-    # identity is available, the gate exits 2 with ``ok=false`` and the
-    # auth-absent reason surfaced in the JSON body. ``auth_required``
-    # is True iff the SaaS-sync feature flag is enabled.
-    auth_required = is_saas_sync_enabled()
-    auth_present = fg.server_url is not None and fg.team_or_user is not None
-
-    # Canonical project-store counts are filled from the additive report below.
-    # Zero is the honest fallback when the project store is unavailable.
-    active_event_count = 0
-    active_body_count = 0
-
-    ok = failure_set.ok and (auth_present or not auth_required) and live_orphan_count == 0 and daemon_scan_diagnostic is None
-    payload: dict[str, Any] = {
-        "ok": ok,
-        "exit_code": 0 if ok else 2,
-        "auth_required": auth_required,
-        "auth_present": auth_present,
-        # Remote/import honesty (#2264). ``ok`` stays boundary/transport
-        # coherence ONLY — it never reflects remote materialization. These typed
-        # fields carry remote-project + historical-import state so a consumer
-        # asserting SaaS population reads THESE, not ``ok``. Honest ``unknown``
-        # until the import engine (#2262) populates them.
-        "remote_sync": {
-            "remote_project_state": "unknown",
-            "materialized_at": None,
-            "historical_import_state": "unknown",
-            "last_blocker_sample": None,
-        },
-        "live_orphan_daemon_count": live_orphan_count,
-        "daemon_scan_diagnostic": daemon_scan_diagnostic,
-        "foreground": {
-            "package_version": fg.package_version,
-            "executable_path": str(fg.executable_path),
-            "source_path": str(fg.source_path),
-            "server_url": fg.server_url,
-            "team_or_user": fg.team_or_user,
-            "queue_db_path": str(fg.queue_db_path),
-            "pid": fg.pid,
-        },
-        "daemon_owner_record": {
-            "status": failure_set.daemon_status,
-            "pid": record.pid if record is not None else None,
-            "port": record.port if record is not None else None,
-            "package_version": record.package_version if record is not None else None,
-            "executable_path": record.executable_path if record is not None else None,
-            "source_path": (record.source_checkout_path if record is not None else None),
-            "server_url": record.server_url if record is not None else None,
-            "team_or_user": (_render_daemon_team_or_user(record) if record is not None else None),
-            "queue_db_path": record.queue_db_path if record is not None else None,
-        },
-        "active_queue": {
-            "path": str(fg.queue_db_path),
-            "event_count": active_event_count,
-            "body_upload_count": active_body_count,
-            "available": failure_set.project_store_diagnostic is None,
-            "diagnostic": failure_set.project_store_diagnostic,
-        },
-        "project_store_diagnostic": failure_set.project_store_diagnostic,
-        "legacy_queue": {
-            "path": str(_legacy_queue_db_path()),
-            "event_count": failure_set.legacy_event_rows,
-            "body_upload_count": failure_set.legacy_body_upload_rows,
-            "rows_in_scope": failure_set.legacy_rows_for_scope,
-            "live_authority": False,
-            "inspected": False,
-            "diagnostic": ("legacy residue is WP10 migration/quarantine evidence; these compatibility counts are not a physical legacy-store census"),
-        },
-        "mismatches": [
-            {
-                "field": m.field,
-                "foreground_value": m.foreground_value,
-                "daemon_value": m.daemon_value,
-                "remediation_hint": m.remediation_hint,
-            }
-            for m in failure_set.mismatches
-        ],
-        "orphan_records": [
-            {
-                "pid": r.pid,
-                "port": r.port,
-                "package_version": r.package_version,
-                "executable_path": r.executable_path,
-                "source_path": r.source_checkout_path,
-                "server_url": r.server_url,
-                "team_or_user": _render_daemon_team_or_user(r),
-                "queue_db_path": r.queue_db_path,
-                "started_at": r.started_at,
-            }
-            for r in failure_set.orphan_records
-        ],
-    }
-
-    # Additive WP11 sections (FR-019, SC-010): merge the seven event-sync
-    # sections onto the legacy payload — every pre-existing top-level field is
-    # preserved. Best-effort: the additive sections must never break the legacy
-    # ``--check --json`` gate (NFR-006). On any failure we still merge the seven
-    # sections in their empty/default shape so the additive surface is ALWAYS
-    # present (every consumer can read all seven keys regardless of runtime
-    # health), and stamp an ``event_sync_status_error`` marker for diagnosis.
-    runtime: _EventSyncRuntime | None = None
-    try:
-        runtime = _open_event_sync_runtime_readonly()
-        payload = _event_sync_report(payload, runtime)
-        payload["active_queue"]["path"] = str(runtime.store.database_path)
-        payload["active_queue"]["event_count"] = int(payload["event_journal"]["retained_event_count"])
-        payload["active_queue"]["body_upload_count"] = int(payload["body_upload_compatibility"]["body_upload_queue_count"])
-    except Exception as exc:  # additive shape survives; authority fails closed
-        from specify_cli.delivery.status_report import default_status_sections
-
-        _LOG.debug("event-sync status sections unavailable: %s", exc)
-        payload = {**payload, **default_status_sections()}
-        payload["event_sync_status_error"] = str(exc)[:200]
-        payload["project_store_diagnostic"] = "project-store status read failed: " + str(exc)[:200]
-        payload["active_queue"]["available"] = False
-        payload["active_queue"]["diagnostic"] = payload["project_store_diagnostic"]
-        payload["ok"] = False
-        payload["exit_code"] = 2
-        ok = False
-    finally:
-        if runtime is not None:
-            runtime.close()
-
-    # Write directly to ``sys.stdout`` (not Rich) so the output is one
-    # JSON object with no markup, panels, or wrapping.
-    _sys.stdout.write(_json.dumps(payload))
-    _sys.stdout.write("\n")
-    _sys.stdout.flush()
-
-    if not ok:
-        raise typer.Exit(2)
-
-
 @app.command()
-def status(  # noqa: C901
+def status(
     check_connection: bool = typer.Option(
         False,
         "--check",
@@ -5424,10 +3157,6 @@ def status(  # noqa: C901
         # Test connection to server
         spec-kitty sync status --check
     """
-    from specify_cli.auth import get_token_manager
-    from specify_cli.sync.config import SyncConfig
-    from specify_cli.sync.daemon import get_sync_daemon_status, scan_sync_daemons
-
     # T014: --check --json short-circuit. Emits a single JSON object on
     # stdout matching contracts/sync-status-output.md and exits 0/2 based
     # on the structured failure set. Suppresses the human-readable block.
@@ -5435,166 +3164,72 @@ def status(  # noqa: C901
         _emit_status_check_json()
         return
 
+    # WP09 (A-1 restructure): the cc-90 gather-render interleave — network and
+    # daemon I/O that ran BETWEEN row emissions — is now a three-phase shell.
+    # Phase 1 gathers ALL I/O up front (``_gather_status_facts``); phase 2 hands
+    # the facts to the pure ``sync_status_core`` (``build_status_view`` decides
+    # every row/section, ``evaluate_boundary_coherence`` the --check verdict);
+    # phase 3 renders. Zero observable change — the WP02 goldens are the guard.
     console.print()
     console.print("[cyan]Spec Kitty Sync Status[/cyan]")
     console.print()
 
-    # Load configuration
-    config = SyncConfig()
-    # Show the resolved runtime target (SPEC_KITTY_SAAS_URL precedence folded
-    # in) — the URL sync actually hits — not the raw config.toml value (#2146).
-    server_url = config.resolve_runtime_target().resolved_server_url
-    saas_enabled = is_saas_sync_enabled()
-    local_runtime: _EventSyncRuntime | None = None
-    local_report: dict[str, Any] | None = None
-    try:
-        local_runtime = _open_event_sync_runtime_readonly()
-        local_report = _event_sync_report({}, local_runtime)
-    except Exception as exc:
-        _LOG.debug("project-store status unavailable: %s", exc)
-    tm = get_token_manager()
-    daemon_status = get_sync_daemon_status()
+    facts = _gather_status_facts(check_connection)
+    view = build_status_view(facts)
+    _render_status_body(facts, view)
 
-    # Display status
-    table = Table(show_header=False, box=None)
-    table.add_column("Key", style="dim")
-    table.add_column("Value")
-
-    # Queue size
-    queue_size = 0 if local_report is None else int(local_report["event_journal"]["retained_event_count"])
-    queue_color = "green" if queue_size == 0 else "yellow"
-    table.add_row("Queue", f"[{queue_color}]{queue_size} event(s)[/{queue_color}]")
-
-    # Feature flag
-    if saas_enabled:
-        table.add_row("SaaS Sync", "[green]Enabled[/green]")
-    else:
-        table.add_row("SaaS Sync", f"[yellow]Disabled[/yellow] ({SAAS_SYNC_ENV_VAR}=1)")
-
-    # Daemon / transport status
-    daemon_text = "[green]Running[/green]" if daemon_status.healthy else "[dim]Stopped[/dim]"
-    table.add_row("Daemon", daemon_text)
-    if daemon_status.url:
-        table.add_row("Daemon URL", daemon_status.url)
-    if daemon_status.pid is not None:
-        table.add_row("Daemon PID", str(daemon_status.pid))
-    if daemon_status.port is not None:
-        table.add_row("Daemon Port", str(daemon_status.port))
-
-    sync_mode = "[green]Global daemon[/green]" if daemon_status.sync_running else "[yellow]Queue only[/yellow]"
-    table.add_row("Sync Mode", sync_mode)
-    websocket_color = "green" if daemon_status.websocket_status == "Connected" else "yellow"
-    table.add_row("WebSocket", f"[{websocket_color}]{daemon_status.websocket_status}[/{websocket_color}]")
-
-    # Last sync
-    if daemon_status.last_sync:
-        try:
-            parsed_sync_time = parse_iso(daemon_status.last_sync)
-            table.add_row(
-                _STATUS_LAST_SYNC_LABEL,
-                parsed_sync_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
-            )
-        except ValueError:
-            table.add_row(_STATUS_LAST_SYNC_LABEL, daemon_status.last_sync)
-    else:
-        table.add_row(_STATUS_LAST_SYNC_LABEL, "[dim]Never[/dim]")
-
-    if daemon_status.consecutive_failures > 0:
-        table.add_row("Failures", f"[yellow]{daemon_status.consecutive_failures} consecutive[/yellow]")
-
-    # Auth status
-    if saas_enabled:
-        auth_ok = tm.is_authenticated
-        auth_text = "[green]Authenticated[/green]" if auth_ok else "[yellow]Not authenticated[/yellow]"
-    else:
-        auth_text = "[dim]Disabled by feature flag[/dim]"
-    table.add_row("Auth", auth_text)
-
-    # Server URL
-    table.add_row(_BOUNDARY_LABEL_SERVER_URL.strip(), server_url)
-    table.add_row("Config File", str(config.config_file))
-
-    # Optionally test connection if --check flag is provided.
-    # Guard against the function being invoked directly in tests (without Typer
-    # parsing), where ``check_connection`` would be a ``typer.OptionInfo``
-    # instance rather than a real bool. We only treat ``True`` as opt-in.
-    auth_recovery_pending = False
-    orphan_report = None
+    # --- --check coherence gate (WP03 / FR-009) ---------------------------
+    # Returns non-zero when any FR-009 condition holds; ONLY under --check so the
+    # read-only ``sync status`` surface keeps its exit-0 contract. The verdict is
+    # assembled by the pure core from the canonical
+    # ``_build_boundary_check_failures`` output — boundary logic is REUSED, never
+    # re-implemented here (DIRECTIVE_044).
     if check_connection is True:
-        connection_status, connection_note = _check_server_connection(server_url)
-        table.add_row("Ping", connection_status)
-        if connection_note:
-            table.add_row("", f"[dim]{connection_note}[/dim]")
-        # If the connection probe surfaced an auth-missing / expired state,
-        # remember to offer teamspace-aware recovery once the table is rendered
-        # (issue #829, Mission 7).
-        auth_recovery_pending = "Not authenticated" in connection_status or "Session expired" in connection_status or "Authentication failed" in connection_status
+        fg_id = facts.failure_set.foreground
+        verdict = evaluate_boundary_coherence(
+            base_failures=_build_boundary_check_failures(
+                failure_set=facts.failure_set,
+                stranded_mission_slug=facts.stranded_tag,
+            ),
+            auth_present=fg_id.server_url is not None and fg_id.team_or_user is not None,
+            auth_required=is_saas_sync_enabled(),
+            orphan_count=(facts.orphan_report.orphan_count if facts.orphan_report is not None else 0),
+            orphan_scan_diagnostic=facts.orphan_scan_diagnostic,
+        )
+        if verdict.failures:
+            console.print(
+                "[red]Identity boundary check FAILED:[/red]",
+                style=None,
+            )
+            for line in verdict.failures:
+                console.print(f"  [red]![/red] {line}")
+            console.print()
+            raise typer.Exit(verdict.exit_code)
 
-        # Surface daemon-singleton honesty: scan for stale `run_sync_daemon`
-        # processes that are not the one recorded in DAEMON_STATE_FILE.
-        # Multiple co-existing daemons (across checkouts / Conductor workspaces /
-        # bleed-through restarts) are how the regression in #1071 manifests in
-        # practice; report them here so operators see the divergence without
-        # having to grep ``ps`` themselves.
-        orphan_scan_diagnostic: str | None = None
-        try:
-            orphan_report = scan_sync_daemons()
-        except Exception as exc:
-            orphan_report = None
-            orphan_scan_diagnostic = f"live daemon scan failed: {str(exc)[:200]}"
-            table.add_row("Singleton", f"[red]Unavailable[/red] ({orphan_scan_diagnostic})")
-        if orphan_report is not None:
-            if orphan_report.orphan_count == 0:
-                table.add_row(
-                    "Singleton",
-                    "[green]OK[/green] (no orphan daemons detected)",
-                )
-            else:
-                table.add_row(
-                    "Singleton",
-                    f"[yellow]{orphan_report.orphan_count} orphan daemon(s) detected[/yellow]",
-                )
+    if facts.auth_recovery_pending:
+        outcome = handle_unauthenticated_with_teamspace(
+            command_name="sync status",
+            console=console,
+        )
+        if outcome is RecoveryOutcome.EXIT_4:
+            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
 
-    console.print(table)
-    console.print()
 
-    if orphan_report is not None and orphan_report.orphan_count > 0:
-        console.print("[yellow]Other live ``run_sync_daemon`` processes detected outside the registered singleton (#1071):[/yellow]")
-        for orphan in orphan_report.orphan_processes:
-            console.print(f"  PID {orphan.pid}: {' '.join(orphan.cmdline)}")
-        console.print("[dim]Run `spec-kitty sync doctor` for a guided cleanup, or kill the rogue processes manually.[/dim]")
-        console.print()
+def _gather_status_facts(check_connection: bool) -> StatusFacts:
+    """Phase 1 of the WP09 restructure: perform ALL of ``status``'s data I/O.
 
-    # --- Queue health section (T022/T023) ---
-    if queue_size > 0:
-        console.print(f"[yellow]Project event store contains {queue_size} retained event(s).[/yellow]")
-        console.print()
-    else:
-        console.print("[green]Queue empty -- all events synced.[/green]")
-        console.print()
-
-    # --- Per-project journal composition (#3030 T021 / FR-015, SC-004) -----
-    # Placed immediately after the queue-health block for the same reason as in
-    # `doctor`: "Queue empty -- all events synced" is read off the legacy
-    # `OfflineQueue`, which `sync migrate` empties. Left alone it is the sentence
-    # that made the 2026-07-27 incident invisible for weeks. `status` has no
-    # global issues list, so the warnings are printed inline here.
-    journal_issues: list[str] = []
-    _render_per_project_store(console, journal_issues)
-    for issue in journal_issues:
-        console.print(f"  [yellow]![/yellow] {issue}")
-    console.print()
-
-    # --- Identity Boundary section (WP03 / FR-008) -------------------------
-    # The boundary view answers: "who do I think I am, who does the recorded
-    # daemon think it is, and what state is sitting in the legacy/scoped
-    # queue files right now?" We render the foreground identity, the
-    # active scoped queue, the legacy queue, the recorded daemon owner,
-    # the D-3 mismatched fields, and the orphan-record count.
-    #
-    # T010 / T013: drive the boundary block from the single-source-of-truth
-    # `BoundaryFailureSet` so this view never drifts from the --check gate
-    # or the preflight. Full FR-005 fields are rendered.
+    Every network / daemon / runtime-open / token read that the cc-90 body
+    interleaved between row emissions is hoisted here (architect finding A-1) so
+    the pure ``sync_status_core`` decision functions and the render shell touch
+    no I/O. ``scan_sync_daemons`` / ``get_sync_daemon_status`` keep their local
+    ``from ... import`` so the WP02 golden's ``sync_daemon.<name>`` stub still
+    intercepts; the ``sync``-module seams (``_check_server_connection`` /
+    ``_event_sync_report`` / ``is_saas_sync_enabled``) are reached bare-name so a
+    ``sync.<name>`` monkeypatch still intercepts (INV-4).
+    """
+    from specify_cli.auth import get_token_manager
+    from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.daemon import get_sync_daemon_status, scan_sync_daemons
     from specify_cli.sync.owner import (
         compute_foreground_identity,
         list_orphan_records,
@@ -5602,178 +3237,135 @@ def status(  # noqa: C901
         read_owner_record,
     )
     from specify_cli.sync.preflight import build_boundary_failure_set
-    from specify_cli.sync.queue import (
-        _legacy_queue_db_path,
-    )
+    from specify_cli.sync.queue import _legacy_queue_db_path
 
-    foreground_identity = compute_foreground_identity()
-    daemon_record = read_owner_record()
-    daemon_mismatched: list[str] = []
-    if daemon_record is not None:
-        daemon_mismatched = mismatched_fields(daemon_record, foreground_identity)
-    orphan_records = list_orphan_records()
-    orphan_record_count = len(orphan_records)
+    # Show the resolved runtime target (SPEC_KITTY_SAAS_URL precedence folded in)
+    # — the URL sync actually hits — not the raw config.toml value (#2146).
+    config = SyncConfig()
+    server_url = config.resolve_runtime_target().resolved_server_url
+    saas_enabled = is_saas_sync_enabled()
 
-    # Structured failure set — single source of truth for --check / preflight.
-    failure_set = build_boundary_failure_set(repo_root=Path.cwd())
+    local_report: dict[str, Any] | None = None
+    try:
+        local_runtime = _open_event_sync_runtime_readonly()
+        local_report = _event_sync_report({}, local_runtime)
+    except Exception as exc:
+        _LOG.debug("project-store status unavailable: %s", exc)
 
-    # The canonical boundary preflight already owns the explicit WP10 legacy
-    # census.  Status renders that typed evidence rather than opening a retired
-    # shared queue adapter a second time.
-    legacy_counts = {
-        "queue": failure_set.legacy_event_rows,
-        "body_upload_queue": failure_set.legacy_body_upload_rows,
-    }
-    legacy_db_path = _legacy_queue_db_path()
+    tm = get_token_manager()
+    daemon_status = get_sync_daemon_status()
 
-    # Physical legacy residue is WP10 migration/quarantine evidence, never live
-    # status authority.  General status therefore does not open the retired
-    # shared queue to derive a mission tag; explicit migration diagnosis owns
-    # that read-side surface.
-    stranded_tag = None
-
-    # Active-queue diagnostics on the foreground queue.
+    queue_size = 0 if local_report is None else int(local_report["event_journal"]["retained_event_count"])
     body_queue_count = 0 if local_report is None else int(local_report["body_upload_compatibility"]["body_upload_queue_count"])
 
-    # Legacy body-upload count (read-only).
-    legacy_body_count = legacy_counts.get("body_upload_queue", 0)
-    legacy_event_count = legacy_counts.get("queue", 0)
+    # Optional --check network probe + live-daemon singleton scan (#829 / #1071).
+    connection_status: str | None = None
+    connection_note: str | None = None
+    orphan_report: Any = None
+    orphan_scan_diagnostic: str | None = None
+    if check_connection is True:
+        connection_status, connection_note = _check_server_connection(server_url)
+        try:
+            orphan_report = scan_sync_daemons()
+        except Exception as exc:
+            orphan_report = None
+            orphan_scan_diagnostic = f"live daemon scan failed: {str(exc)[:200]}"
 
-    # WP02 (#1123) + WP02 cycle 1 (B-1): the entire Identity Boundary
-    # view is now rendered as plain ``Console.print`` line output rather
-    # than a Rich ``Table``. This satisfies two contracts simultaneously:
-    #
-    # 1. FR-005 path-verbatim: every canonical file path renders
-    #    full-width, single-line, no Rich ellipsis (`…`), under non-TTY
-    #    capture or narrow terminals.
-    # 2. Cross-repo canary parser contract: the sibling canary at
-    #    ``spec-kitty-end-to-end-testing/src/spec_kitty_e2e/
-    #    identity_boundary/status_parser.py`` walks rows under section
-    #    headers (``Foreground:``, ``Daemon owner record:``,
-    #    ``Active queue:``, ``Legacy queue:``) and requires the
-    #    queue-section child key to be literally ``Path`` (not
-    #    ``Active queue path``). Each section's rows must be indented and
-    #    follow the section header in line order.
-    #
-    # We keep the row data in plain ``list[tuple[str, str]]`` lists per
-    # section, then emit them via ``_print_boundary_section`` which
-    # writes the section header followed by indented ``  Key  Value``
-    # rows separated by 2+ spaces (the parser's ``_KEY_VALUE_RE``
-    # contract).
-    #
-    # The canonical path fields per ``contracts/sync-status-check-rendering.md``
-    # are:
-    #   - Foreground.executable_path / source_path / queue_db_path
-    #   - Daemon owner record.executable_path / source_path / queue_db_path
-    #   - Active queue.path
-    #   - Legacy queue.path
-    # All of them flow through this same indented-row pathway and inherit
-    # the no-ellipsis guarantee from ``soft_wrap=True``/``overflow="ignore"``.
+    # Identity-boundary facts (WP03 / FR-008): the structured failure set is the
+    # single source of truth the boundary block AND the --check gate render from.
+    foreground_identity = compute_foreground_identity()
+    daemon_record = read_owner_record()
+    daemon_mismatched = mismatched_fields(daemon_record, foreground_identity) if daemon_record is not None else []
+    failure_set = build_boundary_failure_set(repo_root=Path.cwd())
+    daemon_team_or_user = _render_daemon_team_or_user(daemon_record) if daemon_record is not None else None
 
-    fg = failure_set.foreground
-    daemon_status_label = failure_set.daemon_status
+    return StatusFacts(
+        check_connection=check_connection,
+        saas_enabled=saas_enabled,
+        server_url=server_url,
+        config_file=str(config.config_file),
+        queue_size=queue_size,
+        body_queue_count=body_queue_count,
+        auth_ok=tm.is_authenticated,
+        daemon_status=daemon_status,
+        connection_status=connection_status,
+        connection_note=connection_note,
+        orphan_report=orphan_report,
+        orphan_scan_diagnostic=orphan_scan_diagnostic,
+        failure_set=failure_set,
+        daemon_record=daemon_record,
+        daemon_team_or_user=daemon_team_or_user,
+        daemon_mismatched=daemon_mismatched,
+        orphan_record_count=len(list_orphan_records()),
+        legacy_db_path=str(_legacy_queue_db_path()),
+        # Physical legacy residue is WP10 migration/quarantine evidence, never
+        # live status authority; general status derives no stranded mission tag.
+        stranded_tag=None,
+        auth_recovery_pending=derive_auth_recovery_pending(connection_status),
+    )
 
-    # ---- Foreground section ------------------------------------------------
-    foreground_rows: list[tuple[str, str]] = [
-        (_BOUNDARY_LABEL_PACKAGE_VERSION.strip(), str(fg.package_version or "-")),
-        (_BOUNDARY_LABEL_EXECUTABLE_PATH.strip(), str(fg.executable_path or "-")),
-        (_BOUNDARY_LABEL_SOURCE_PATH.strip(), str(fg.source_path or "-")),
-        (_BOUNDARY_LABEL_SERVER_URL.strip(), fg.server_url if fg.server_url else _UNSET_VALUE),
-        (_BOUNDARY_LABEL_TEAM_USER.strip(), fg.team_or_user if fg.team_or_user else _UNSET_VALUE),
-        (_BOUNDARY_LABEL_QUEUE_DB_PATH.strip(), str(fg.queue_db_path or "-")),
-    ]
 
-    # ---- Daemon owner record section --------------------------------------
-    daemon_rows: list[tuple[str, str]] = [("Status", daemon_status_label)]
-    if daemon_record is None:
-        daemon_rows.extend(
-            [
-                ("PID", _ABSENT_VALUE),
-                ("Port", _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_PACKAGE_VERSION.strip(), _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_EXECUTABLE_PATH.strip(), _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_SOURCE_PATH.strip(), _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_SERVER_URL.strip(), _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_TEAM_USER.strip(), _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_QUEUE_DB_PATH.strip(), _ABSENT_VALUE),
-            ]
-        )
+def _render_status_body(facts: StatusFacts, view: StatusView) -> None:
+    """Phase 3 of the WP09 restructure: emit the already-decided view.
+
+    Every ``(label, value)`` row, boundary section, and orphan-detail line is
+    decided by ``sync_status_core``; this shell only prints, in the byte-stable
+    order the WP02 goldens freeze (main table → orphan detail → queue health →
+    per-project store → Identity Boundary → event-sync → hint).
+    """
+    table = Table(show_header=False, box=None)
+    table.add_column("Key", style="dim")
+    table.add_column("Value")
+    for row in view.main_rows:
+        table.add_row(row.label, row.value)
+    console.print(table)
+    console.print()
+
+    if view.orphan_detail_lines:
+        console.print("[yellow]Other live ``run_sync_daemon`` processes detected outside the registered singleton (#1071):[/yellow]")
+        for orphan_line in view.orphan_detail_lines:
+            console.print(orphan_line)
+        console.print("[dim]Run `spec-kitty sync doctor` for a guided cleanup, or kill the rogue processes manually.[/dim]")
+        console.print()
+
+    # --- Queue health section (T022/T023) ---
+    if facts.queue_size > 0:
+        console.print(f"[yellow]Project event store contains {facts.queue_size} retained event(s).[/yellow]")
+        console.print()
     else:
-        # Render daemon team_or_user as "principal[/team]" to match the
-        # canonical contract field.
-        daemon_team_or_user = _render_daemon_team_or_user(daemon_record)
-        daemon_rows.extend(
-            [
-                ("PID", str(daemon_record.pid)),
-                ("Port", str(daemon_record.port)),
-                (_BOUNDARY_LABEL_PACKAGE_VERSION.strip(), daemon_record.package_version or _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_EXECUTABLE_PATH.strip(), daemon_record.executable_path or _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_SOURCE_PATH.strip(), daemon_record.source_checkout_path or _ABSENT_VALUE),
-                (_BOUNDARY_LABEL_SERVER_URL.strip(), daemon_record.server_url or _ABSENT_VALUE),
-                (
-                    _BOUNDARY_LABEL_TEAM_USER.strip(),
-                    daemon_team_or_user if daemon_team_or_user else _ABSENT_VALUE,
-                ),
-                (_BOUNDARY_LABEL_QUEUE_DB_PATH.strip(), daemon_record.queue_db_path or _ABSENT_VALUE),
-            ]
+        console.print("[green]Queue empty -- all events synced.[/green]")
+        console.print()
+
+    # --- Per-project journal composition (#3030 T021 / FR-015, SC-004) -----
+    # ``status`` has no global issues list, so the per-project warnings print
+    # inline here (the same placement rationale as ``doctor``).
+    journal_issues: list[str] = []
+    _render_per_project_store(console, journal_issues)
+    for issue in journal_issues:
+        console.print(f"  [yellow]![/yellow] {issue}")
+    console.print()
+
+    # --- Identity Boundary section (WP03 / FR-008) -------------------------
+    # Emitted as plain line-oriented text (not a Rich Table) so canonical file
+    # paths render full-width and the cross-repo canary parser can attribute
+    # ``Path`` rows to their section headers (WP02 cycle 1 / B-1).
+    boundary = view.boundary
+    console.print("[bold]Identity Boundary[/bold]")
+    _print_boundary_section(console, "Foreground:", boundary.foreground_rows)
+    _print_boundary_section(console, "Daemon owner record:", boundary.daemon_rows)
+    _print_boundary_section(console, "Active queue:", boundary.active_queue_rows)
+    _print_boundary_section(console, "Legacy queue:", boundary.legacy_queue_rows)
+    for key, value in boundary.top_level_rows:
+        console.print(
+            f"{key.ljust(24)}{value}",
+            soft_wrap=True,
+            overflow="ignore",
+            crop=False,
+            no_wrap=True,
+            highlight=False,
         )
-
-    # ---- Active queue section ---------------------------------------------
-    # Parser-critical: child key MUST be ``Path`` (not ``Active queue path``).
-    active_queue_rows: list[tuple[str, str]] = [
-        ("Path", str(fg.queue_db_path or "-")),
-        ("Event count", f"{queue_size}"),
-        ("Body upload cnt", f"{body_queue_count}"),
-    ]
-
-    # ---- Legacy queue section ---------------------------------------------
-    # Parser-critical: child key MUST be ``Path`` (not ``Legacy queue path``).
-    legacy_queue_rows: list[tuple[str, str]] = [
-        ("Path", str(legacy_db_path)),
-        ("Event count", f"{failure_set.legacy_event_rows}"),
-        ("Body upload cnt", f"{failure_set.legacy_body_upload_rows}"),
-        ("Rows in scope", f"{failure_set.legacy_rows_for_scope}"),
-    ]
-    if stranded_tag:
-        legacy_queue_rows.append(
-            (
-                "Stranded mission",
-                f"setup-plan stranded mission slug {stranded_tag}",
-            )
-        )
-
-    # ---- Top-level scalar rows (Mismatches / Orphan records / etc.) -------
-    # These appear UNINDENTED (no leading 2-space indent) so the parser
-    # treats them as terminators of the preceding section. The parser
-    # picks them up from the top-level row stream by exact key match.
-    n_mismatches = len(failure_set.mismatches)
-    mismatches_value = f"[red]{n_mismatches}[/red]" if n_mismatches else _ZERO_STATUS
-    orphan_value = f"[yellow]{orphan_record_count}[/yellow]" if orphan_record_count else _ZERO_STATUS
-    if failure_set.mismatches:
-        mismatch_field_names = [m.field for m in failure_set.mismatches]
-        mismatched_fields_value = f"[red]{', '.join(mismatch_field_names)}[/red]"
-    elif daemon_mismatched:
-        mismatched_fields_value = f"[red]{', '.join(daemon_mismatched)}[/red]"
-    else:
-        mismatched_fields_value = "[green]none[/green]"
-
-    # Preserve backward-compatible legacy-event/body summary line so
-    # operator workflows that grep for ``body_upload_queue`` keep matching.
-    legacy_line = f"{legacy_event_count} event(s), {legacy_body_count} body upload(s)"
-    if stranded_tag:
-        legacy_line += f" — setup-plan stranded mission slug {stranded_tag}"
-
-    top_level_rows: list[tuple[str, str]] = [
-        ("Mismatches", mismatches_value),
-        ("Orphan records", orphan_value),
-        ("Legacy queue rows", legacy_line),
-        (_MISMATCHED_FIELDS_LABEL, mismatched_fields_value),
-        ("Orphan daemon records", orphan_value),
-    ]
-
-    # When the canonical mismatch list is non-empty, render the detail
-    # block per contract (foreground vs daemon vs remediation hint).
-    if failure_set.mismatches:
+    console.print()
+    if boundary.mismatch_rows:
         mismatch_detail = Table(
             title="Mismatch Detail",
             show_header=True,
@@ -5784,106 +3376,18 @@ def status(  # noqa: C901
         mismatch_detail.add_column("Field", style="bold")
         mismatch_detail.add_column("Foreground")
         mismatch_detail.add_column("Daemon")
-        for m in failure_set.mismatches:
-            mismatch_detail.add_row(
-                m.field,
-                m.foreground_value or _UNSET_VALUE,
-                m.daemon_value or _UNSET_VALUE,
-            )
-
-    # WP02 cycle 1 (B-1): emit the Identity Boundary view as plain
-    # line-oriented text so the cross-repo canary parser can attribute
-    # ``Path`` rows to their preceding section headers. Each
-    # ``_print_boundary_section`` call writes the header followed by
-    # 2-space-indented ``Key  Value`` rows separated by 2+ spaces.
-    # Top-level scalars (Mismatches / Orphan records / etc.) print
-    # without leading indent so the parser treats them as section
-    # terminators.
-    console.print("[bold]Identity Boundary[/bold]")
-    _print_boundary_section(console, "Foreground:", foreground_rows)
-    _print_boundary_section(console, "Daemon owner record:", daemon_rows)
-    _print_boundary_section(console, "Active queue:", active_queue_rows)
-    _print_boundary_section(console, "Legacy queue:", legacy_queue_rows)
-    # Top-level scalars: unindented ``Key  Value`` rows.
-    for key, value in top_level_rows:
-        # Pad key to a fixed column width matching the section rows so
-        # values line up visually. The parser only requires >=2 spaces
-        # between key and value at any indent (incl. zero indent).
-        console.print(
-            f"{key.ljust(24)}{value}",
-            soft_wrap=True,
-            overflow="ignore",
-            crop=False,
-            no_wrap=True,
-            highlight=False,
-        )
-    console.print()
-    if failure_set.mismatches:
+        for field_name, foreground_value, daemon_value in boundary.mismatch_rows:
+            mismatch_detail.add_row(field_name, foreground_value, daemon_value)
         console.print(mismatch_detail)
         console.print()
 
-    # Event-sync observability (WP12): the active retention x delivery mode
-    # plus a compact, read-only summary of the journal/ledger state.
+    # Event-sync observability (WP12): active retention x delivery mode.
     _render_event_sync_status(console)
     console.print()
 
-    if not check_connection:
+    if not facts.check_connection:
         console.print("[dim]Use 'spec-kitty sync status --check' to test connectivity.[/dim]")
         console.print()
-
-    # --- --check coherence gate (WP03 / FR-009) ---------------------------
-    # Returns non-zero when any of the three FR-009 conditions hold. The
-    # gate ONLY trips under --check so the read-only ``sync status``
-    # surface keeps its existing exit-0 contract. T010: derived from the
-    # structured failure set so it never drifts from `run_preflight`.
-    #
-    # FR-004 / contracts/sync-status-output.md: under --check, when
-    # ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` is set but no authenticated
-    # identity is available, the gate exits 2 (NOT 4 via the
-    # ``auth_recovery_pending`` connected-teamspace recovery path).
-    # We layer the auth-required failure into the boundary gate so the
-    # exit code matches the documented status-output contract.
-    if check_connection is True:
-        failures = _build_boundary_check_failures(
-            failure_set=failure_set,
-            stranded_mission_slug=stranded_tag,
-        )
-        fg_id = failure_set.foreground
-        auth_present_check = fg_id.server_url is not None and fg_id.team_or_user is not None
-        auth_required_check = is_saas_sync_enabled()
-        if auth_required_check and not auth_present_check:
-            failures.append("Hosted SaaS sync is enabled but no authenticated identity is available — run `spec-kitty auth login`.")
-        # Live orphan daemon scan (#1071 failure mode): when ``scan_sync_daemons``
-        # finds ``run_sync_daemon`` processes outside the registered singleton,
-        # the boundary is incoherent regardless of whether auth and queue state
-        # otherwise look healthy. The earlier render block (line ~1734) already
-        # printed details to the operator; here we make ``--check`` reflect that
-        # by adding a failure line so the gate exits 2 instead of 0.
-        if orphan_report is not None and orphan_report.orphan_count > 0:
-            failures.append(
-                f"{orphan_report.orphan_count} live `run_sync_daemon` "
-                "process(es) detected outside the registered singleton — "
-                "run `spec-kitty sync doctor` for guided cleanup (#1071)."
-            )
-        if orphan_scan_diagnostic is not None:
-            failures.append(orphan_scan_diagnostic + " — retry the scan or run `spec-kitty sync doctor`.")
-        if failures:
-            console.print(
-                "[red]Identity boundary check FAILED:[/red]",
-                style=None,
-            )
-            for line in failures:
-                console.print(f"  [red]![/red] {line}")
-            console.print()
-            raise typer.Exit(2)
-
-    if auth_recovery_pending:
-        outcome = handle_unauthenticated_with_teamspace(
-            command_name="sync status",
-            console=console,
-        )
-        if outcome is RecoveryOutcome.EXIT_4:
-            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
 
 
 @app.command()
@@ -5988,7 +3492,7 @@ def diagnose(
 
 
 @app.command()
-def doctor() -> None:  # noqa: C901
+def doctor() -> None:
     """Diagnose sync health: queue, auth, and server connectivity.
 
     Runs a comprehensive check of offline queue state, authentication
@@ -5998,234 +3502,285 @@ def doctor() -> None:  # noqa: C901
     Examples:
         spec-kitty sync doctor
     """
+    # WP10 (A-1 restructure): the cc-73 gather-render interleave — network,
+    # daemon and store I/O that ran BETWEEN issue-accumulating renders — is now a
+    # three-phase shell. Phase 1 gathers ALL I/O up front (``_gather_doctor_facts``);
+    # phase 2 hands the facts to the pure ``sync_doctor_core`` (``build_doctor_report``
+    # decides the ordered issues + healthy/auth-missing verdicts, calling WP07's
+    # store/consent/tracker compute halves); phase 3 renders. Zero observable change —
+    # the WP02 goldens + the ~60 ``test_sync_doctor*`` patch-tests are the guard.
+    facts = _gather_doctor_facts()
+    report = build_doctor_report(facts)
+    _render_doctor_report(facts, report)
+
+
+def _gather_doctor_facts() -> DoctorFacts:
+    """Phase 1 of the WP10 restructure: perform ALL of ``doctor``'s data I/O.
+
+    Every queue-open, token, server-probe, daemon-scan, journal, consent and
+    tracker read the cc-73 body interleaved between issue appends is hoisted here
+    (architect finding A-1) so the pure ``sync_doctor_core`` and the render shell
+    touch no I/O. Seams keep the exact import shape the ~60 patch-tests bind:
+    ``scan_sync_daemons`` / ``_open_journal_readonly`` / ``build_per_project_store_report``
+    resolve at their source so a ``sync_module.<name>`` / source-module monkeypatch
+    still intercepts (INV-4/C-005), and ``_check_server_connection`` is reached
+    bare-name so a ``sync.<name>`` patch still lands.
+
+    The three shared store-report sections are read here for the report's issue
+    decision; their render halves re-read (independent scoped read UoWs) purely to
+    print, so the summary/verdict and the printed sections stay one truth.
+    """
     from specify_cli.auth import get_token_manager
+    from specify_cli.core.paths import locate_project_root
+    from specify_cli.delivery.status_report import build_per_project_store_report
     from specify_cli.sync.body_queue import OfflineBodyUploadQueue
     from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.consent import consent_index_health, project_local_consent_fault
+    from specify_cli.sync.daemon import scan_sync_daemons
     from specify_cli.sync.diagnose import diagnose_body_queue
+    from specify_cli.sync.owner import list_orphan_records, owner_record_path
     from specify_cli.sync.queue import OfflineQueue, get_max_queue_size
-
-    console.print()
-    console.print("[bold cyan]Sync Doctor[/bold cyan]")
-    console.print()
-
-    issues: list[str] = []
-
-    table = Table(show_header=False, box=None)
-    table.add_column("Key", style="dim", min_width=20)
-    table.add_column("Value")
+    from specify_cli.tracker.config import load_tracker_config
+    from specify_cli.tracker.local_service import LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS
+    from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS
 
     # --- 1. Queue health ---
     stats: QueueStats | None = None
     body_diagnostics: dict[str, Any] | None = None
+    queue_db: str | None = None
+    queue_error: str | None = None
     try:
         max_queue_size = get_max_queue_size()
         runtime = _open_event_sync_runtime(include_target=False)
         with runtime.store.unit_of_work() as unit:
             authority = runtime.store.layout_generation()
             queue = OfflineQueue(unit, authority, max_queue_size=max_queue_size)
-            body_queue = OfflineBodyUploadQueue(
-                unit,
-                authority,
-                max_queue_size=max_queue_size,
-            )
+            body_queue = OfflineBodyUploadQueue(unit, authority, max_queue_size=max_queue_size)
             stats = queue.get_queue_stats()
             body_diagnostics = diagnose_body_queue(body_queue)["body_queue"]
-            queue_db = runtime.store.database_path
+            queue_db = str(runtime.store.database_path)
     except (FileNotFoundError, RuntimeError, OSError, ValueError) as exc:
-        table.add_row("Project queue", f"[red]Unavailable[/red] ({exc})")
-        issues.append(
-            "Project queue authority is unavailable. Run `spec-kitty sync project-store-migrate` from an identified checkout; no empty-queue claim was made."
-        )
-    else:
-        queue_size = stats.total_queued
-        max_size = stats.max_queue_size
-        pct = (queue_size / max_size * 100) if max_size > 0 else 0
-        depth_color = "red" if pct >= 100 else ("yellow" if pct >= 80 else "green")
-        table.add_row("Queue size", f"[{depth_color}]{queue_size:,} / {max_size:,} ({pct:.0f}%)[/{depth_color}]")
-        if stats.oldest_event_age is not None:
-            age_str = humanize_timedelta(stats.oldest_event_age)
-            table.add_row("Oldest event", f"{age_str} ago")
-        else:
-            table.add_row("Oldest event", "[dim]n/a (empty)[/dim]")
-        table.add_row("Queue DB", str(queue_db))
-        table.add_row(
-            "Body uploads",
-            f"{body_diagnostics['total_tasks']} queued, {body_diagnostics['recorded_failure_count']} recorded failure(s)",
-        )
-        if pct >= 100:
-            issues.append("Queue is FULL -- oldest events are being evicted to make room for new ones. Run `spec-kitty sync now` after fixing auth/connectivity.")
-        elif pct >= 80:
-            issues.append(f"Queue is {pct:.0f}% full. Consider syncing soon with `spec-kitty sync now`.")
-        if body_diagnostics["recorded_failure_count"] > 0:
-            issues.append("Body upload failures were recorded. Review the recent body upload failures below and fix the underlying artifact or contract mismatch.")
+        queue_error = str(exc)
 
     # --- 2. Auth status ---
     config = SyncConfig()
-    # Resolved runtime target (env precedence folded in), not the raw
-    # config.toml value, so the diagnostics row matches what sync hits (#2146).
+    # Resolved runtime target (env precedence folded in), not the raw config.toml
+    # value, so the diagnostics row matches what sync hits (#2146).
     server_url = config.resolve_runtime_target().resolved_server_url
-    table.add_row("Server URL", server_url)
-
     tm = get_token_manager()
     session = tm.get_current_session()
+    now = now_utc()
     if session is None:
-        table.add_row("Auth", "[red]No credentials[/red]")
-        issues.append("Not authenticated. Run `spec-kitty auth login`.")
+        access_token_ok = False
+        refresh_token_ok = False
     else:
-        access_exp_dt = session.access_token_expires_at
-        refresh_exp_dt = session.refresh_token_expires_at
-
-        now = now_utc()
-
-        access_ok = access_exp_dt is not None and access_exp_dt > now
-        refresh_ok = (
-            refresh_exp_dt is None  # no stored refresh expiry → treat as valid
-            or refresh_exp_dt > now
-        )
-
-        if access_ok:
-            table.add_row(
-                _STATUS_ACCESS_TOKEN_LABEL,
-                f"[green]Valid[/green] (expires {access_exp_dt.isoformat()})",
-            )
-        elif access_exp_dt is not None:
-            table.add_row(
-                _STATUS_ACCESS_TOKEN_LABEL,
-                f"[red]Expired[/red] ({access_exp_dt.isoformat()})",
-            )
-        else:
-            table.add_row(_STATUS_ACCESS_TOKEN_LABEL, "[red]Missing[/red]")
-
-        if refresh_exp_dt is None:
-            table.add_row(
-                _STATUS_REFRESH_TOKEN_LABEL,
-                "[green]Valid[/green] (no expiry stored)",
-            )
-        elif refresh_ok:
-            table.add_row(
-                _STATUS_REFRESH_TOKEN_LABEL,
-                f"[green]Valid[/green] (expires {refresh_exp_dt.isoformat()})",
-            )
-        else:
-            table.add_row(
-                _STATUS_REFRESH_TOKEN_LABEL,
-                f"[red]Expired[/red] ({refresh_exp_dt.isoformat()})",
-            )
-
-        username = session.email or session.name
-        team_slug: str | None = None
-        if session.teams:
-            for team in session.teams:
-                if team.id == session.default_team_id:
-                    team_slug = team.id
-                    break
-            if team_slug is None:
-                team_slug = session.teams[0].id
-        if username:
-            table.add_row("User", username)
-        if team_slug:
-            table.add_row("Team", team_slug)
-
-        if not access_ok and not refresh_ok:
-            issues.append("Both access and refresh tokens are expired. Run `spec-kitty auth login` to re-authenticate.")
-        elif not access_ok and refresh_ok:
-            issues.append("Access token expired but refresh token is still valid. Token will auto-refresh on next sync attempt.")
+        access_token_ok, refresh_token_ok = doctor_token_flags(session, now)
 
     # --- 3. Server reachability ---
     connection_status, connection_note = _check_server_connection(server_url)
-    table.add_row("Server", connection_status)
-    if connection_note:
-        table.add_row("", f"[dim]{connection_note}[/dim]")
-
-    # Every non-healthy server verdict must reach the summary, not just
-    # "Unreachable"/"Error". Before, a 401/403/unexpected-status verdict showed a
-    # coloured row in the table above but never entered `issues`, so the doctor
-    # still declared "Sync is healthy" while the live probe said otherwise -- the
-    # false-green that hid a broken drain during onboarding (FR-002, #3406). The
-    # healthy states are "Connected" (probe OK) and "Disabled" (sync off by
-    # design); "Not authenticated"/"Session expired" are already surfaced by the
-    # auth/session block above, so skip them here to avoid double-reporting one
-    # fault. Anything else is a real server-side problem the operator must see.
     connection_is_healthy = any(marker in connection_status for marker in _HEALTHY_CONNECTION_MARKERS)
     connection_is_auth_owned = any(marker in connection_status for marker in _AUTH_OWNED_CONNECTION_MARKERS)
-    if not connection_is_healthy and not connection_is_auth_owned:
-        issues.append(
-            connection_note
-            or f"Sync server at {server_url} is not reachable. Events will continue to queue locally."
-        )
 
     # --- 3b. Daemon singleton invariant (spec-kitty#1071) ---
-    # Inspect for live `run_sync_daemon` processes that are not the registered
-    # singleton. Multiple co-existing daemons (across checkouts, workspaces, or
-    # bleed-through restarts) are the exact failure mode that #1071 surfaced
-    # during the canonical status investigation. Report them honestly here.
-    from specify_cli.sync.daemon import scan_sync_daemons
-
+    singleton_report: Any = None
+    singleton_scan_diagnostic: str | None = None
     try:
         singleton_report = scan_sync_daemons()
     except Exception as exc:
         singleton_report = None
-        singleton_diagnostic = f"live daemon scan failed: {str(exc)[:200]}"
-        table.add_row("Daemon singleton", f"[red]Unavailable[/red] ({singleton_diagnostic})")
-        issues.append(singleton_diagnostic + ". Retry the scan or stop sync before trusting queue health.")
+        singleton_scan_diagnostic = f"live daemon scan failed: {str(exc)[:200]}"
 
-    if singleton_report is not None:
-        if singleton_report.orphan_count == 0:
-            table.add_row(
-                "Daemon singleton",
-                "[green]OK[/green] (no orphan `run_sync_daemon` processes)",
-            )
+    # --- 3c. Per-project journal composition (#3030 T021 / FR-015) ---
+    # Mirrors ``_render_per_project_store``'s open/group I/O so the report can
+    # decide the per-project issues; the render half re-reads to print the section.
+    per_project_report: Any = None
+    per_project_open_error: str | None = None
+    per_project_group_error: str | None = None
+    try:
+        journal = _open_journal_readonly()
+    except FileNotFoundError:
+        journal = None  # benign absence: no journal yet, no issue
+    except Exception as exc:  # noqa: BLE001 — reported as an issue, never swallowed
+        per_project_open_error = str(exc)
+        journal = None
+    if journal is not None:
+        try:
+            per_project_report = build_per_project_store_report(journal)
+        except Exception as exc:  # noqa: BLE001 — reported as an issue, never swallowed
+            per_project_group_error = str(exc)
+        finally:
+            close = getattr(journal, "close", None)
+            if callable(close):
+                close()
+
+    # --- 3d. Consent-record readability (#3030 FR-020 / FR-027) ---
+    consent_index: Any = None
+    consent_index_error: str | None = None
+    try:
+        consent_index = consent_index_health()
+    except Exception as exc:  # noqa: BLE001 — a section that vanishes is the defect
+        consent_index_error = str(exc)
+    consent_local_fault: Any = None
+    consent_local_error: str | None = None
+    consent_repo_root_present = False
+    try:
+        consent_repo_root = locate_project_root(Path.cwd())
+        consent_repo_root_present = consent_repo_root is not None
+        consent_local_fault = None if consent_repo_root is None else project_local_consent_fault(consent_repo_root)
+    except Exception as exc:  # noqa: BLE001 — reported, never silently skipped
+        consent_local_error = str(exc)
+
+    # --- 3e. Tracker egress (#3108 FR-014) ---
+    tracker_root = locate_project_root(Path.cwd())  # may be None; a rendered case
+    tracker_local = tracker_egress_verdict(
+        tracker_root,
+        destination=EgressDestination.LOCAL_SUBPROCESS,
+        identifiers=LOCAL_SUBPROCESS_EGRESS_IDENTIFIER_KINDS,
+    )
+    tracker_hosted = tracker_egress_verdict(
+        tracker_root,
+        destination=EgressDestination.HOSTED_SERVICE,
+        identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
+    )
+    tracker_binding_present = False
+    if tracker_root is not None:
+        try:
+            tracker_binding_present = bool(load_tracker_config(tracker_root).provider)
+        except Exception:  # noqa: BLE001 — doctor must render on a broken config, not abort
+            tracker_binding_present = False
+
+    # --- 4. Orphan daemon owner records (WP03 / FR-010) ---
+    orphan_records = list(list_orphan_records())
+
+    return DoctorFacts(
+        queue_error=queue_error,
+        queue_stats=stats,
+        body_diagnostics=body_diagnostics,
+        queue_db=queue_db,
+        session=session,
+        session_present=session is not None,
+        access_token_ok=access_token_ok,
+        refresh_token_ok=refresh_token_ok,
+        server_url=server_url,
+        connection_status=connection_status,
+        connection_note=connection_note,
+        connection_is_healthy=connection_is_healthy,
+        connection_is_auth_owned=connection_is_auth_owned,
+        singleton_report=singleton_report,
+        singleton_scan_diagnostic=singleton_scan_diagnostic,
+        per_project_report=per_project_report,
+        per_project_open_error=per_project_open_error,
+        per_project_group_error=per_project_group_error,
+        consent_index_health=consent_index,
+        consent_index_error=consent_index_error,
+        consent_local_fault=consent_local_fault,
+        consent_local_error=consent_local_error,
+        consent_repo_root_present=consent_repo_root_present,
+        tracker_local_verdict=tracker_local,
+        tracker_hosted_verdict=tracker_hosted,
+        tracker_binding_present=tracker_binding_present,
+        orphan_records=orphan_records,
+        orphan_record_count=len(orphan_records),
+        owner_record_path=str(owner_record_path()),
+    )
+
+
+def _render_doctor_queue_rows(facts: DoctorFacts, table: Table) -> None:
+    """Emit the queue-health rows (or the store-unavailable row) into *table*."""
+    if facts.queue_error is not None:
+        table.add_row("Project queue", f"[red]Unavailable[/red] ({facts.queue_error})")
+        return
+    stats = facts.queue_stats
+    body_diagnostics = facts.body_diagnostics
+    if stats is None or body_diagnostics is None:
+        return
+    queue_size = stats.total_queued
+    max_size = stats.max_queue_size
+    pct = (queue_size / max_size * 100) if max_size > 0 else 0
+    depth_color = _depth_color(pct)
+    table.add_row("Queue size", f"[{depth_color}]{queue_size:,} / {max_size:,} ({pct:.0f}%)[/{depth_color}]")
+    if stats.oldest_event_age is not None:
+        age_str = humanize_timedelta(stats.oldest_event_age)
+        table.add_row("Oldest event", f"{age_str} ago")
+    else:
+        table.add_row("Oldest event", "[dim]n/a (empty)[/dim]")
+    table.add_row("Queue DB", str(facts.queue_db))
+    table.add_row(
+        "Body uploads",
+        f"{body_diagnostics['total_tasks']} queued, {body_diagnostics['recorded_failure_count']} recorded failure(s)",
+    )
+
+
+def _render_doctor_auth_rows(facts: DoctorFacts, table: Table) -> None:
+    """Emit the server-URL + token/user/team rows into *table*."""
+    table.add_row("Server URL", facts.server_url)
+    session = facts.session
+    if session is None:
+        table.add_row("Auth", "[red]No credentials[/red]")
+        return
+    access_exp_dt = session.access_token_expires_at
+    refresh_exp_dt = session.refresh_token_expires_at
+    if facts.access_token_ok:
+        table.add_row(_STATUS_ACCESS_TOKEN_LABEL, f"[green]Valid[/green] (expires {access_exp_dt.isoformat()})")
+    elif access_exp_dt is not None:
+        table.add_row(_STATUS_ACCESS_TOKEN_LABEL, f"[red]Expired[/red] ({access_exp_dt.isoformat()})")
+    else:
+        table.add_row(_STATUS_ACCESS_TOKEN_LABEL, "[red]Missing[/red]")
+    if refresh_exp_dt is None:
+        table.add_row(_STATUS_REFRESH_TOKEN_LABEL, "[green]Valid[/green] (no expiry stored)")
+    elif facts.refresh_token_ok:
+        table.add_row(_STATUS_REFRESH_TOKEN_LABEL, f"[green]Valid[/green] (expires {refresh_exp_dt.isoformat()})")
+    else:
+        table.add_row(_STATUS_REFRESH_TOKEN_LABEL, f"[red]Expired[/red] ({refresh_exp_dt.isoformat()})")
+    username = session.email or session.name
+    team_slug: str | None = None
+    if session.teams:
+        for team in session.teams:
+            if team.id == session.default_team_id:
+                team_slug = team.id
+                break
+        if team_slug is None:
+            team_slug = session.teams[0].id
+    if username:
+        table.add_row("User", username)
+    if team_slug:
+        table.add_row("Team", team_slug)
+
+
+def _render_doctor_singleton_rows(facts: DoctorFacts, table: Table) -> None:
+    """Emit the server + daemon-singleton rows into *table*."""
+    table.add_row("Server", facts.connection_status)
+    if facts.connection_note:
+        table.add_row("", f"[dim]{facts.connection_note}[/dim]")
+    if facts.singleton_scan_diagnostic is not None:
+        table.add_row("Daemon singleton", f"[red]Unavailable[/red] ({facts.singleton_scan_diagnostic})")
+    report = facts.singleton_report
+    if report is not None:
+        if report.orphan_count == 0:
+            table.add_row("Daemon singleton", "[green]OK[/green] (no orphan `run_sync_daemon` processes)")
         else:
-            table.add_row(
-                "Daemon singleton",
-                f"[yellow]{singleton_report.orphan_count} orphan daemon(s)[/yellow]",
-            )
-            issues.append(
-                f"{singleton_report.orphan_count} live `run_sync_daemon` process(es) "
-                f"are not the registered singleton. Multiple daemons make queue state "
-                f"ambiguous (spec-kitty#1071). Kill the orphans manually or run "
-                f"`spec-kitty sync stop` and a clean `spec-kitty sync now`."
-            )
+            table.add_row("Daemon singleton", f"[yellow]{report.orphan_count} orphan daemon(s)[/yellow]")
 
-    console.print(table)
-    console.print()
 
-    # --- 3c. Per-project journal composition (#3030 T021 / FR-015, SC-004) ---
-    # Deliberately rendered right below the queue-health rows it contradicts.
-    # "Queue size 0" above comes from `OfflineQueue().get_queue_stats()`, which
-    # `sync migrate` empties; this section reads the journal those events actually
-    # live in. Throughout the 2026-07-27 incident the block above said healthy
-    # while 9,133 journal events — 1,322 from projects that never opted in — sat
-    # on disk, and the contamination was only found by hand-querying SQLite.
-    _render_per_project_store(console, issues)
-    # --- 3d. Can those consent states be trusted at all? (#3030 FR-020, SC-004) ---
-    # Directly below the table whose "Consent" column it qualifies. Every state in
-    # that column comes from a read that can fault, and a fault reads as ABSENCE
-    # unless something says otherwise — which is the whole of FR-020.
-    _render_consent_readability(console, issues)
-    # --- 3e. Is tracker egress refused, and by which channel? (#3108 FR-014, SC-014) ---
-    # Beside the readability block, not inside it: that section's contract is
-    # readability, not verdict. Two rows, always -- one per EgressDestination --
-    # because the on-disk provider does not determine the destination.
-    _render_tracker_egress(console, issues)
-    console.print()
-
-    if singleton_report is not None and singleton_report.orphan_count > 0:
+def _render_doctor_detail_tables(facts: DoctorFacts) -> None:
+    """Emit the optional orphan-process / top-event / body-failure / owner-record tables."""
+    report = facts.singleton_report
+    if report is not None and report.orphan_count > 0:
         orphan_table = Table(
             title="Orphan run_sync_daemon Processes",
             show_header=True,
-            header_style="bold yellow",
+            header_style=_WARNING_HEADER_STYLE,
             show_lines=False,
             expand=False,
         )
         orphan_table.add_column("PID", justify="right", style="yellow")
         orphan_table.add_column("Command line", overflow="fold")
-        for orphan in singleton_report.orphan_processes:
+        for orphan in report.orphan_processes:
             orphan_table.add_row(str(orphan.pid), " ".join(orphan.cmdline))
         console.print(orphan_table)
         console.print()
 
-    # --- 4. Top event types (if queue non-empty) ---
+    stats = facts.queue_stats
     if stats is not None and stats.top_event_types:
         type_table = Table(
             title="Top Queued Event Types",
@@ -6241,7 +3796,7 @@ def doctor() -> None:  # noqa: C901
         console.print(type_table)
         console.print()
 
-    recent_failures = body_diagnostics["recent_failures"] if body_diagnostics is not None else []
+    recent_failures = facts.body_diagnostics["recent_failures"] if facts.body_diagnostics is not None else []
     if recent_failures:
         failure_table = Table(
             title="Recent Body Upload Failures",
@@ -6264,26 +3819,11 @@ def doctor() -> None:  # noqa: C901
         console.print(failure_table)
         console.print()
 
-    # --- 4b. Orphan daemon records (WP03 / FR-010) ------------------------
-    # The owner-record registry (WP02) may carry records whose recorded PID
-    # is dead or whose executable has gone missing. List them here with a
-    # copy-pasteable retirement hint so operators can clean up without
-    # grepping the daemon directory.
-    #
-    # T015: this routes through ``list_orphan_records()`` — the SAME entry
-    # point used by ``run_preflight`` and ``sync status --check`` — so the
-    # three surfaces never disagree on what is orphaned. (Cross-file note
-    # for WP04: ``doctor orphan-daemons`` in ``cli/commands/doctor.py``
-    # must also call ``list_orphan_records()``.)
-    from specify_cli.sync.owner import list_orphan_records, owner_record_path
-
-    orphan_records = list_orphan_records()
-    if orphan_records:
-        issues.append(f"{len(orphan_records)} orphan daemon owner record(s) on disk; retire via `rm {owner_record_path()}`.")
+    if facts.orphan_records:
         orphan_table = Table(
             title="Orphan Daemons",
             show_header=True,
-            header_style="bold yellow",
+            header_style=_WARNING_HEADER_STYLE,
             show_lines=False,
             expand=False,
         )
@@ -6292,7 +3832,7 @@ def doctor() -> None:  # noqa: C901
         orphan_table.add_column("Version")
         orphan_table.add_column("Executable", overflow="fold")
         orphan_table.add_column("Started At")
-        for record in orphan_records:
+        for record in facts.orphan_records:
             orphan_table.add_row(
                 str(record.pid),
                 str(record.port),
@@ -6301,26 +3841,60 @@ def doctor() -> None:  # noqa: C901
                 record.started_at,
             )
         console.print(orphan_table)
-        console.print(f"[dim]Retire orphan record(s): rm {owner_record_path()}[/dim]")
+        console.print(f"[dim]Retire orphan record(s): rm {facts.owner_record_path}[/dim]")
         console.print()
 
-    # --- 5. Summary ---
-    if issues:
+
+def _render_doctor_report(facts: DoctorFacts, report: DoctorReport) -> None:
+    """Phase 3 of the WP10 restructure: emit the already-decided doctor view.
+
+    Prints the byte-stable Rich table, re-invokes the three shared render halves
+    for their printed sections (their issue side effect is discarded — the
+    authoritative issues live on ``report``), then the summary and the exit-4
+    teamspace-recovery arm exactly as the pre-restructure shell did.
+    """
+    console.print()
+    console.print("[bold cyan]Sync Doctor[/bold cyan]")
+    console.print()
+
+    table = Table(show_header=False, box=None)
+    table.add_column("Key", style="dim", min_width=20)
+    table.add_column("Value")
+    _render_doctor_queue_rows(facts, table)
+    _render_doctor_auth_rows(facts, table)
+    _render_doctor_singleton_rows(facts, table)
+    console.print(table)
+    console.print()
+
+    # The three shared render halves print their sections; ``build_doctor_report``
+    # already folded their findings (via WP07's compute halves) into ``report``,
+    # so their ``issues`` side effect is intentionally discarded here (Pd-2).
+    discard: list[str] = []
+    _render_per_project_store(console, discard)
+    _render_consent_readability(console, discard)
+    _render_tracker_egress(
+        console,
+        discard,
+        facts.tracker_local_verdict,
+        facts.tracker_hosted_verdict,
+        facts.tracker_binding_present,
+    )
+    console.print()
+
+    _render_doctor_detail_tables(facts)
+
+    # --- Summary ---
+    if report.issues:
         console.print("[bold yellow]Issues found:[/bold yellow]")
-        for issue in issues:
+        for issue in report.issues:
             console.print(f"  [yellow]![/yellow] {issue}")
         console.print()
     else:
         console.print("[bold green]No issues detected. Sync is healthy.[/bold green]")
         console.print()
 
-    # --- 6. Teamspace-aware recovery (issue #829, Mission 7) ---
-    # If we surfaced an auth-missing or token-expired issue AND the repo was
-    # previously connected to a teamspace, offer interactive recovery (TTY) or
-    # emit a structured stderr line + exit 4 (CI). When no teamspace is
-    # detected, behavior is byte-identical to the existing doctor output.
-    auth_missing = session is None or any("auth login" in issue or "expired" in issue for issue in issues)
-    if auth_missing:
+    # --- Teamspace-aware recovery (issue #829, Mission 7) ---
+    if report.auth_missing:
         outcome = handle_unauthenticated_with_teamspace(
             command_name="sync doctor",
             console=console,
@@ -6328,5 +3902,311 @@ def doctor() -> None:  # noqa: C901
         if outcome is RecoveryOutcome.EXIT_4:
             raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# WP03 HUSK COMPAT RE-EXPORT BLOCK — the single canonical seam-preservation door
+# for the Wave-4 ``sync.py`` de-god (mission sync-cli-degod-wave4-01M0B0MX).
+#
+# This module is the durable *host* for the ``spec-kitty sync`` Typer app. As
+# WP04→WP12 relocate private bodies out of ``sync.py`` into cohesive
+# ``specify_cli.sync.*`` seam modules, each relocated private symbol MUST remain
+# reachable as a ``sync.<name>`` MODULE ATTRIBUTE, because ~79 existing tests do
+#     monkeypatch.setattr("...cli.commands.sync.<name>", <double>)
+# and the deduplicated callee set they bind is the live, executable co-gate
+# ``SYNC_MONKEYPATCH_SEAM_NAMES`` in
+# ``tests/characterization/test_sync_cli_safe.py`` (27 distinct callees; INV-4,
+# C-005). ``test_seam_callees_resolve_on_module`` asserts every one still
+# resolves on this module.
+#
+# HOW LATER WPs USE THIS BLOCK (the runtime_bridge #2531 re-export precedent):
+#   * A relocated private ``_foo`` moves to, e.g., ``specify_cli.sync.sync_status``.
+#   * That relocation adds exactly ONE line here — the guarded re-import that
+#     re-establishes the ``sync.<name>`` attribute on THIS host module:
+#         from specify_cli.sync.sync_status import _foo as _foo  # noqa: F401,E402
+#     (This is the ALLOWED import direction: relocated seam module -> host. It is
+#     NOT an early-bind of a patched name, so it is exempt from the AST guard.)
+#   * Nothing is relocated yet, so this block is intentionally empty today; it is
+#     the SINGLE place later WPs add such re-imports (do not scatter them).
+#
+# THE LATE-BIND CALLING CONVENTION (binding for every WP04+ relocation):
+#   A relocated *shell* that must call a monkeypatched callee reaches it by
+#   ATTRIBUTE ACCESS ON THE HOST MODULE OBJECT — never by an early-bound
+#   ``from ...cli.commands.sync import <name>``. Concretely:
+#         import specify_cli.cli.commands.sync as sync_module
+#         ...
+#         sync_module._foo(...)          # or getattr(sync_module, "_foo")
+#   Rationale: ``monkeypatch.setattr(sync_module, "_foo", <double>)`` rebinds the
+#   MODULE ATTRIBUTE. A module-level ``from ...sync import _foo`` captures the
+#   ORIGINAL object into a local name that a post-import ``setattr`` can never
+#   see, silently defeating the patch seam. ``tests/architectural/
+#   test_sync_no_early_bind.py`` is the AST guard that fails any future WP that
+#   early-binds a name in ``SYNC_MONKEYPATCH_SEAM_NAMES`` from this module.
+#
+# THE ``@app.command`` SHELLS STAY HERE (INV-4 / WP-translation guard #2):
+#   Only extracted *logic* relocates. The ``@app.command``/``@app.callback``
+#   decorated thin shells remain defined in THIS module — moving a decorated
+#   command changes which callable Typer registers and invokes, breaking the
+#   golden CLI contract (WP02). Later WPs thin these shells in place; they never
+#   move them out.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# WP04 — render adapter relocated to ``specify_cli.sync.sync_render`` (the
+# Console-emit + ``--json``-envelope family, behind the reused ``Render`` port).
+# These re-imports re-establish each relocated symbol as a ``sync.<name>`` MODULE
+# ATTRIBUTE so the ~60 patch-tests and every internal bare-name call site still
+# resolve. This is the ALLOWED import direction (seam module -> host); none of
+# these names are in ``SYNC_MONKEYPATCH_SEAM_NAMES``, so the AST early-bind guard
+# does not police them.
+from specify_cli.sync.sync_render import (  # noqa: E402
+    _build_queue_summary_lines as _build_queue_summary_lines,
+    _emit_project_store_migration_json as _emit_project_store_migration_json,
+    _emit_status_check_json as _emit_status_check_json,
+    _print_cleanup_result as _print_cleanup_result,
+    _print_identity_backfill_result as _print_identity_backfill_result,
+    _print_migration_result as _print_migration_result,
+    _print_resolution_result as _print_resolution_result,
+    _print_retention_result as _print_retention_result,
+    _render_drain_blockers as _render_drain_blockers,
+    _render_event_sync_status as _render_event_sync_status,
+    _render_per_project_store as _render_per_project_store,
+    _render_retry_distribution as _render_retry_distribution,
+    _render_top_event_types as _render_top_event_types,
+    format_queue_health as format_queue_health,
+)
+
+# WP05 — runtime-open/lifecycle + config-I/O adapters relocated to
+# ``specify_cli.sync.sync_runtime`` (the two distinct read/dispatch openers, the
+# retention/journal openers, and the event-sync config reader/writer family).
+# These re-imports re-establish each relocated symbol as a ``sync.<name>`` MODULE
+# ATTRIBUTE so the ~60 patch-tests and every internal bare-name call site (and the
+# late-bound ``sync_module.<name>`` accesses in ``sync_render``/``sync_runtime``)
+# still resolve. This is the ALLOWED import direction (seam module -> host); the
+# seam names among them (``_open_event_sync_runtime``, ``_open_project_dispatch_runtime``,
+# ``_open_journal_readonly``, ``_load_event_sync_config``, ``_event_sync_access_token``)
+# are re-established here as host attributes, NOT early-bound off the host, so the
+# AST early-bind guard does not police them (the host module is exempt).
+from specify_cli.sync.sync_runtime import (  # noqa: E402
+    _EventSyncRuntime as _EventSyncRuntime,
+    _ProjectDispatchRuntime as _ProjectDispatchRuntime,
+    _ScopedStatusJournal as _ScopedStatusJournal,
+    _event_sync_access_token as _event_sync_access_token,
+    _event_sync_config_path as _event_sync_config_path,
+    _load_event_sync_config as _load_event_sync_config,
+    _open_active_body_queue as _open_active_body_queue,
+    _open_event_sync_runtime as _open_event_sync_runtime,
+    _open_event_sync_runtime_readonly as _open_event_sync_runtime_readonly,
+    _open_journal_readonly as _open_journal_readonly,
+    _open_project_dispatch_runtime as _open_project_dispatch_runtime,
+    _open_retention_runtime_or_exit as _open_retention_runtime_or_exit,
+    _read_event_sync_table as _read_event_sync_table,
+    _write_event_sync_config as _write_event_sync_config,
+)
+
+# WP06 — the ``sync purge`` subsystem split into a pure core + an I/O exec seam.
+# The pure census/outcome shapes, the ``_PURGE_*`` scope constants, and every
+# differential/verdict function relocated to ``specify_cli.sync.sync_purge_core``
+# (provably ``Console``/filesystem/SQLite-free). These re-imports re-establish
+# each relocated symbol as a ``sync.<name>`` MODULE ATTRIBUTE so the ``purge``
+# shell's bare-name calls and ``test_the_cli_and_local_commit_agree_on_where_
+# frames_live`` (which reads ``sync._PURGE_SYNC_STATE_RELPATH``) still resolve.
+# This is the ALLOWED import direction (seam module -> host); none of these names
+# are in ``SYNC_MONKEYPATCH_SEAM_NAMES``, so the AST early-bind guard does not
+# police them.
+from specify_cli.sync.sync_purge_core import (  # noqa: E402
+    _PURGE_ALL_SCOPE_NOTE as _PURGE_ALL_SCOPE_NOTE,
+    _PURGE_BODY as _PURGE_BODY,
+    _PURGE_FRAMES as _PURGE_FRAMES,
+    _PURGE_JOURNAL as _PURGE_JOURNAL,
+    _PURGE_LEDGER as _PURGE_LEDGER,
+    _PURGE_NON_ATOMIC_NOTE as _PURGE_NON_ATOMIC_NOTE,
+    _PURGE_NULL_KEY as _PURGE_NULL_KEY,
+    _PURGE_STORE_LABELS as _PURGE_STORE_LABELS,
+    _PURGE_SYNC_STATE_RELPATH as _PURGE_SYNC_STATE_RELPATH,
+    _PurgeStoreOutcome as _PurgeStoreOutcome,
+    _purge_differential as _purge_differential,
+    _purge_faults as _purge_faults,
+    _purge_frames_scope as _purge_frames_scope,
+    _purge_ledger_differential as _purge_ledger_differential,
+    _purge_ledger_view as _purge_ledger_view,
+    _purge_left_behind as _purge_left_behind,
+    _purge_not_reached as _purge_not_reached,
+    _purge_outcomes as _purge_outcomes,
+    _purge_selector_line as _purge_selector_line,
+    _purge_stored_spelling_conflicts as _purge_stored_spelling_conflicts,
+    _purge_unattributable_keys as _purge_unattributable_keys,
+    _RawCensus as _RawCensus,
+)
+
+# WP06 — the census readers, store executors, pre-open refusals, ``--project``
+# resolver and operator report relocated to ``specify_cli.sync.sync_purge_exec``
+# (everything that touches the journal / ledger / body queue / frame file /
+# ``Console``). Re-established here as ``sync.<name>`` module attributes for the
+# same reason. The total-purge primitives these executors invoke keep their
+# operator-attended-only reachability — ``test_no_unattended_caller_of_the_total_
+# purge_primitives`` allowlists ``sync/sync_purge_exec.py`` for exactly that.
+from specify_cli.sync.sync_purge_exec import (  # noqa: E402
+    _purge_body_census as _purge_body_census,
+    _purge_frames_census as _purge_frames_census,
+    _purge_journal_census as _purge_journal_census,
+    _purge_journal_ids as _purge_journal_ids,
+    _purge_journal_selection as _purge_journal_selection,
+    _purge_ledger_census as _purge_ledger_census,
+    _purge_ledger_ghost_count as _purge_ledger_ghost_count,
+    _purge_print_verdict as _purge_print_verdict,
+    _purge_render as _purge_render,
+    _purge_resolve_project as _purge_resolve_project,
+    _purge_run_body_queue as _purge_run_body_queue,
+    _purge_run_journal_ledger as _purge_run_journal_ledger,
+    _purge_usage_error as _purge_usage_error,
+    _purge_validate_invocation as _purge_validate_invocation,
+)
+
+# WP07 — the pure compute half of the three shared store-report render helpers
+# (``_render_per_project_store`` / ``_render_consent_readability`` /
+# ``_render_tracker_egress``) plus the already-pure derivations they lean on
+# relocated to ``specify_cli.sync.sync_store_report_core`` (provably
+# ``Console``-free). Re-established here as ``sync.<name>`` module attributes so a
+# late-bound ``sync_module._event_sync_report`` / ``sync_module._per_project_store_issues``
+# still resolves (INV-4) and a ``monkeypatch.setattr("...sync._event_sync_report", ...)``
+# still intercepts. This is the ALLOWED import direction (seam module -> host);
+# none of these names is early-bound off the host module.
+# WP07 — the three authority surfaces (READ daemon-owner coherence, WRITE
+# repository sharing, delivery-ADMISSION asserts) relocated to
+# ``specify_cli.sync.sync_authority``, each a thin delegate to its canonical
+# surface (``preflight`` / ``sharing_client`` / ``target_authority``). Re-established
+# here as ``sync.<name>`` module attributes so ``sync_runtime._open_project_dispatch_runtime``
+# keeps reaching the admission asserts late-bound (``sync_module._assert_*``), a
+# ``monkeypatch.setattr("...sync._require_daemon_owner_coherence", ...)`` still
+# intercepts (INV-4), and the ``share``/``unshare`` write commands reach the WRITE
+# adapters as module globals. ALLOWED import direction (seam module -> host).
+from specify_cli.sync.sync_authority import (  # noqa: E402
+    _assert_delivery_target_matches_context as _assert_delivery_target_matches_context,
+    _assert_event_sync_runtime_authority as _assert_event_sync_runtime_authority,
+    _require_daemon_owner_coherence as _require_daemon_owner_coherence,
+    leave_repository_share as leave_repository_share,
+    request_repository_share as request_repository_share,
+)
+from specify_cli.sync.sync_store_report_core import (  # noqa: E402
+    _CHANNEL1_STATE_WORDING as _CHANNEL1_STATE_WORDING,
+    _CONSENT_FAULT_NOT_ABSENCE as _CONSENT_FAULT_NOT_ABSENCE,
+    _NO_RECORDED_NAME as _NO_RECORDED_NAME,
+    _empty_selection_cause as _empty_selection_cause,
+    _event_sync_report as _event_sync_report,
+    _per_project_store_issues as _per_project_store_issues,
+    channel1_state_wording as channel1_state_wording,
+    consent_fault_view as consent_fault_view,
+    tracker_egress_row_issue as tracker_egress_row_issue,
+)
+
+# WP08 — the ``sync now`` dispatch subsystem split into a pure core + an I/O exec
+# seam. The pure ``DispatchSummary`` reductions, the oversized-batch predicate, the
+# transient-message builder, the ``_HTTP_*``/message constants, and — the
+# load-bearing extraction — the pure ``DispatchSummary → exit`` decision
+# (``decide_sync_now_exit`` + ``SyncNowExitAction``) relocated to
+# ``specify_cli.sync.sync_dispatch_core`` (provably ``Console``/network-free).
+# These re-imports re-establish each relocated symbol as a ``sync.<name>`` MODULE
+# ATTRIBUTE so the thinned ``_enforce_sync_now_exit_from_dispatch`` wrapper, the
+# ``_handle_sync_now_unauthenticated`` message reference, and the
+# ``test_sync_routes`` ``_transient_block_message`` / ``_batch_is_oversized`` /
+# message-constant assertions all still resolve on this host. ALLOWED import
+# direction (seam module -> host); none of these names is in
+# ``SYNC_MONKEYPATCH_SEAM_NAMES``, so the AST early-bind guard does not police them.
+from specify_cli.sync.sync_dispatch_core import (  # noqa: E402
+    _HTTP_AUTH_STATUSES as _HTTP_AUTH_STATUSES,
+    _HTTP_PAYLOAD_TOO_LARGE as _HTTP_PAYLOAD_TOO_LARGE,
+    _OVERSIZED_ERROR_MARKER as _OVERSIZED_ERROR_MARKER,
+    _OVERSIZED_SYNC_NOW_MESSAGE as _OVERSIZED_SYNC_NOW_MESSAGE,
+    _PROTOCOL_MISMATCH_HALT_NOTICE as _PROTOCOL_MISMATCH_HALT_NOTICE,
+    _TRANSIENT_SYNC_NOW_MESSAGE as _TRANSIENT_SYNC_NOW_MESSAGE,
+    _UNAUTHENTICATED_SYNC_NOW_MESSAGE as _UNAUTHENTICATED_SYNC_NOW_MESSAGE,
+    _batch_is_oversized as _batch_is_oversized,
+    _combine_dispatch_summaries as _combine_dispatch_summaries,
+    _protocol_mismatch_guidance as _protocol_mismatch_guidance,
+    _transient_block_message as _transient_block_message,
+    SyncNowExitAction as SyncNowExitAction,
+    decide_sync_now_exit as decide_sync_now_exit,
+)
+
+# WP08 — the SaaSQueue delivery executors relocated to
+# ``specify_cli.sync.sync_dispatch_exec`` (receiver resolution, the batch driver,
+# and ``_run_event_sync_dispatch`` — everything that touches the journal / ledger /
+# receiver / network / ``Console``). Re-established here as ``sync.<name>`` module
+# attributes so the ``now`` shell's bare-name ``_run_event_sync_dispatch()`` call,
+# the ``import-history`` bare-name ``_resolve_gated_receiver(...)`` call, and every
+# ``monkeypatch.setattr("...sync._resolve_active_receiver" / "..._resolve_gated_receiver"
+# / "..._run_dispatch_batches" / "..._run_event_sync_dispatch", ...)`` seam still
+# resolve on this host (INV-4). ALLOWED import direction (seam module -> host); the
+# seam names among them are re-established here as host attributes, NOT early-bound
+# off the host, so the AST early-bind guard does not police them.
+from specify_cli.sync.sync_dispatch_exec import (  # noqa: E402
+    _resolve_active_receiver as _resolve_active_receiver,
+    _resolve_gated_receiver as _resolve_gated_receiver,
+    _run_dispatch_batches as _run_dispatch_batches,
+    _run_event_sync_dispatch as _run_event_sync_dispatch,
+)
+
+# WP09 — the ``status`` cc-90 de-god (architect finding A-1): the interleaved
+# gather-render is restructured into a ``gather-all-I/O -> pure core -> render``
+# shell. The pure decision core (the ``(label, value)`` row + boundary-section
+# builders, the ``--check`` verdict assembler, and the display constants moved
+# for a single source of truth) relocated to ``specify_cli.sync.sync_status_core``
+# (provably ``Console``/print/network/fs-free). These re-imports re-establish each
+# symbol as a ``sync.<name>`` MODULE ATTRIBUTE so the thinned ``status`` shell's
+# bare-name calls resolve and the moved constants keep their ``sync.<CONST>``
+# reachability. ALLOWED import direction (seam module -> host); none of these
+# names is in ``SYNC_MONKEYPATCH_SEAM_NAMES``, so the AST early-bind guard does
+# not police them.
+from specify_cli.sync.sync_status_core import (  # noqa: E402
+    _ABSENT_VALUE as _ABSENT_VALUE,
+    _BOUNDARY_LABEL_EXECUTABLE_PATH as _BOUNDARY_LABEL_EXECUTABLE_PATH,
+    _BOUNDARY_LABEL_PACKAGE_VERSION as _BOUNDARY_LABEL_PACKAGE_VERSION,
+    _BOUNDARY_LABEL_QUEUE_DB_PATH as _BOUNDARY_LABEL_QUEUE_DB_PATH,
+    _BOUNDARY_LABEL_SERVER_URL as _BOUNDARY_LABEL_SERVER_URL,
+    _BOUNDARY_LABEL_SOURCE_PATH as _BOUNDARY_LABEL_SOURCE_PATH,
+    _BOUNDARY_LABEL_TEAM_USER as _BOUNDARY_LABEL_TEAM_USER,
+    _MISMATCHED_FIELDS_LABEL as _MISMATCHED_FIELDS_LABEL,
+    _STATUS_LAST_SYNC_LABEL as _STATUS_LAST_SYNC_LABEL,
+    _UNSET_VALUE as _UNSET_VALUE,
+    _ZERO_STATUS as _ZERO_STATUS,
+    BoundarySections as BoundarySections,
+    BoundaryVerdict as BoundaryVerdict,
+    StatusFacts as StatusFacts,
+    StatusRow as StatusRow,
+    StatusView as StatusView,
+    build_status_view as build_status_view,
+    derive_auth_recovery_pending as derive_auth_recovery_pending,
+    evaluate_boundary_coherence as evaluate_boundary_coherence,
+)
+
+# WP10 — the pure decision core for ``doctor``: the ``DoctorFacts`` gather bundle,
+# the ``DoctorReport`` verdict, ``build_doctor_report`` (which folds WP07's
+# store/consent/tracker compute halves into the ordered issues), and the
+# ``doctor_token_flags`` helper shared by the gather phase and the render shell.
+# Re-established here as ``sync.<name>`` module attributes for the WP06/WP07
+# relocation pattern (ALLOWED import direction: seam module -> host).
+from specify_cli.sync.sync_doctor_core import (  # noqa: E402
+    DoctorFacts as DoctorFacts,
+    DoctorReport as DoctorReport,
+    build_doctor_report as build_doctor_report,
+    doctor_token_flags as doctor_token_flags,
+)
+
+# WP11 — the pure decision core for ``sync workspace``: the ``SyncResult`` -> render
+# plan mapping (``build_sync_render_plan`` + the ``RenderLine``/``RenderConflicts``/
+# ``RenderChanges`` step markers and ``SyncRenderPlan``) and the ``NOT_IN_WORKSPACE_*``
+# constants for the ``mission_slug is None`` arm. The status dispatch's cc-heavy
+# ``if/elif`` chain relocated here so the ``sync_workspace`` shell (the last
+# C901-suppressed site in this module) measures <= 15 with the suppression
+# removed. Re-established as ``sync.<name>`` module attributes (ALLOWED import
+# direction: seam module -> host).
+from specify_cli.sync.sync_workspace_core import (  # noqa: E402
+    NOT_IN_WORKSPACE_EXIT as NOT_IN_WORKSPACE_EXIT,
+    NOT_IN_WORKSPACE_LINES as NOT_IN_WORKSPACE_LINES,
+    RenderChanges as RenderChanges,
+    RenderConflicts as RenderConflicts,
+    RenderLine as RenderLine,
+    SyncRenderPlan as SyncRenderPlan,
+    build_sync_render_plan as build_sync_render_plan,
+)
 
 __all__ = ["app"]

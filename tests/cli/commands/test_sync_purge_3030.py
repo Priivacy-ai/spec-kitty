@@ -844,6 +844,11 @@ def test_no_unattended_caller_of_the_total_purge_primitives() -> None:
     src = Path(__file__).resolve().parents[3] / "src" / "specify_cli"
     allowed = {
         src / "cli" / "commands" / "sync.py",
+        # WP06 relocated the journal/ledger + body executors (which invoke the
+        # total-purge primitives) out of the ``purge`` shell into this seam
+        # module. It is reached only by the operator ``purge`` command, so the
+        # primitives keep their operator-attended-only reachability.
+        src / "sync" / "sync_purge_exec.py",
         src / "delivery" / "retention.py",
         src / "sync" / "local_commit.py",
     }

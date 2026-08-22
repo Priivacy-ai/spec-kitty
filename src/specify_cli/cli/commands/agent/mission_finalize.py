@@ -45,6 +45,7 @@ from kernel.paths import repo_tree_path
 from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
@@ -79,6 +80,7 @@ from specify_cli.cli.commands.agent.mission_feature_resolution import (
 )
 from specify_cli.cli.commands.agent.mission_parsing import (
     _extract_wp_ids_from_task_files,
+    _find_undeclared_requirement_citations,
     _invalid_mission_specs_owned_files,
     _owned_files_yaml_is_explicit_empty_list,
     _parse_requirement_ids_from_spec_md,
@@ -91,9 +93,22 @@ logger = logging.getLogger(__name__)
 
 TASKS_MD_FILENAME = "tasks.md"
 ISSUE_MATRIX_FILENAME = "issue-matrix.md"
+META_JSON_FILENAME = "meta.json"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
+
+# SK3466-REV-001: the ONLY meta.json field finalize-tasks itself ever writes
+# (via ``_persist_target_branch_override`` -> ``mission_metadata.
+# set_target_branch``). A pending meta.json delta confined to these fields —
+# whether produced by THIS invocation's own persist call or dangling from an
+# earlier crashed finalize-tasks run (SK3466-RR-001) — is finalize-tasks'
+# business regardless of which run produced it. A delta touching any OTHER
+# field (e.g. ``vcs``/``vcs_locked_at``, written by ``implement``'s
+# ``_ensure_vcs_in_meta`` -> ``set_vcs_lock`` even under ``--no-auto-commit``)
+# belongs to a different command and must not silently ride finalize-tasks'
+# commit. See ``_meta_json_delta_is_finalize_attributable``.
+FINALIZE_ATTRIBUTABLE_META_FIELDS = frozenset({"target_branch"})
 
 # Dynamic alias mirror of the canonical ``mission-specs`` validator (the
 # KITTY_SPECS_DIR identifier form, built via ``.replace("-", "_")`` to avoid a
@@ -190,7 +205,29 @@ def _collect_finalize_artifacts(
     mission_slug: str,
     lanes_path: Path | None = None,
 ) -> list[Path]:
-    """Return all deterministic artifacts finalize-tasks may need to commit."""
+    """Return all deterministic artifacts finalize-tasks may need to commit.
+
+    ``meta.json`` (SK3466-RR-001) is an UNCONDITIONAL CANDIDATE here — not
+    gated on whether THIS invocation's own ``--target-branch`` persist call
+    fired. A prior, crashed finalize-tasks run can leave meta.json rewritten
+    on disk but never committed; a later run whose override happens to match
+    that dangling value reads as a no-op from
+    ``_persist_target_branch_override``'s point of view (``previous_value ==
+    target_branch``) and would never re-fold it into a commit if inclusion
+    depended on that call's own outcome. Making meta.json a first-class,
+    always-considered CANDIDATE closes that half of the defect class by
+    construction (DIRECTIVE_043).
+
+    UNLIKE ``tasks.md`` / ``status.json`` / the lane manifest, meta.json has a
+    writer OUTSIDE finalize-tasks: ``implement --no-auto-commit`` can leave
+    its own unrelated meta.json edit (``vcs``/``vcs_locked_at``) staged but
+    deliberately uncommitted (SK3466-REV-001). Being a candidate here does
+    NOT mean meta.json is unconditionally committed — ``_commit_finalize_
+    artifacts`` additionally attributes any pending delta by WHICH FIELDS
+    changed (:func:`_meta_json_delta_is_finalize_attributable`) before
+    folding it in, so a foreign writer's edit is not silently swept into this
+    commit just because it happens to be dirty at the same time.
+    """
     candidates: list[Path] = [
         feature_dir / "status.events.jsonl",
         feature_dir / "status.json",
@@ -202,14 +239,29 @@ def _collect_finalize_artifacts(
         # TASKS_INDEX kind, so the commit router routes it to target_branch with
         # tasks.md.
         feature_dir / "wps.yaml",
+        feature_dir / META_JSON_FILENAME,
         feature_dir / "acceptance-matrix.json",
         # write-surface-coherence WP08 (#2804 / #2404 T043 / G3): sweep the
         # terminal ``issue-matrix.json`` — the retired ``issue-matrix.md`` is
         # never authored by any canonical path any more (WP05), so it is no
         # longer a finalize-commit candidate.
         feature_dir / "issue-matrix.json",
-        feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
     ]
+    # #2037: mission_slug threads back to the operator-typed `--mission` CLI
+    # value (no `assert_safe_path_segment` upstream on this path). This is a
+    # read-only `.exists()` candidate list, not a write sink, so an unsafe
+    # slug fails closed by dropping the candidate rather than raising —
+    # finalize-tasks still commits every other artifact.
+    try:
+        assert_safe_path_segment(mission_slug)
+    except ValueError:
+        logger.warning(
+            "Refusing to build a dossiers-snapshot candidate from unsafe mission_slug %r "
+            "(traversal guard); omitting it from the finalize commit candidates.",
+            mission_slug,
+        )
+    else:
+        candidates.append(feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json")
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
     if lanes_path is not None:
         candidates.append(lanes_path)
@@ -221,6 +273,131 @@ def _collect_finalize_artifacts(
             artifacts.append(candidate)
             seen.add(candidate)
     return artifacts
+
+
+def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) -> bool:
+    """Decide whether a pending meta.json edit is finalize-tasks' own business (SK3466-REV-001).
+
+    ``_collect_finalize_artifacts`` treats meta.json as an unconditional
+    CANDIDATE (SK3466-RR-001) so a dangling write from an earlier CRASHED
+    finalize-tasks run still gets folded into this run's commit even though
+    it wasn't produced by THIS invocation's own persist call. But
+    ``implement --no-auto-commit`` can ALSO leave meta.json dirty — via
+    ``_ensure_vcs_in_meta`` -> ``set_vcs_lock`` writing ``vcs``/``vcs_locked_
+    at`` unconditionally on a WP's first claim, deliberately left uncommitted
+    when auto-commit is disabled — and that edit belongs to a DIFFERENT
+    command, not to finalize-tasks.
+
+    Rather than attributing a pending edit to a particular PRIOR INVOCATION
+    (unrecoverable — no invocation identity survives a crash, and a
+    dangling write and a foreign write look identical on disk), this
+    attributes by WHICH FIELDS changed: finalize-tasks is the sole writer of
+    ``target_branch`` in meta.json (:func:`specify_cli.mission_metadata.
+    set_target_branch`), so a delta confined to
+    ``FINALIZE_ATTRIBUTABLE_META_FIELDS`` — whichever run produced it — is
+    finalize-tasks' business. A delta touching any OTHER field is a foreign
+    writer's business and must not silently ride this commit.
+
+    Mixed case: when BOTH a dangling ``target_branch`` write and a foreign
+    field write are pending simultaneously, this returns ``False`` — the
+    WHOLE file is excluded from this commit, not just the foreign field.
+    meta.json is a single JSON blob; there is no way to commit "only the
+    target_branch part" of a working-tree file without finalize-tasks
+    hand-constructing and writing a synthetic merged meta.json itself, which
+    would make it a second writer of fields (``vcs``) it does not own —
+    reintroducing exactly the kind of implicit cross-command coupling this
+    fix closes. Excluding the whole file is the smallest-blast-radius choice:
+    the dangling ``target_branch`` fix simply waits for a future run where
+    the foreign field is no longer pending (e.g. once ``implement`` itself
+    commits it).
+
+    Both sides of the diff are decoded via :func:`kernel.meta_decode.
+    decode_meta` — the single canonical meta.json decode primitive (FR-010) —
+    rather than a hand-rolled ``json.loads``, so this function does not
+    become a second, independent meta.json decoder.
+
+    Returns ``True`` (attributable — keep as a commit candidate) when:
+    - meta.json is not tracked at ``HEAD`` yet (nothing to diff against — the
+      whole file is new content), or
+    - the committed (``HEAD``) side fails to parse as JSON while the working-tree
+      copy is valid (our fix supersedes a malformed committed copy), or
+    - the changed-field set is empty or a subset of
+      ``FINALIZE_ATTRIBUTABLE_META_FIELDS``.
+
+    Returns ``False`` (exclude the whole file) when the working-tree copy is
+    unreadable or malformed. finalize-tasks did NOT commit meta.json before
+    #3466, so the conservative default for a corrupt on-disk file is to never
+    commit it -- committing a truncated meta.json would break every fail-closed
+    reader.
+    """
+    from kernel.meta_decode import decode_meta
+    from specify_cli.cli.commands.agent import mission as _mission
+
+    try:
+        rel_path = _branch_tree_relative_path(meta_path, repo_root)
+    except ValueError:
+        return True
+
+    return_code, committed_text, _stderr = _mission.run_command(
+        ["git", "show", f"HEAD:{rel_path}"],
+        check_return=False,
+        capture=True,
+        cwd=repo_root,
+    )
+    if return_code != 0:
+        # Not tracked at HEAD (brand-new meta.json) -- the whole file is new
+        # content, not a foreign edit riding alongside ours.
+        return True
+
+    try:
+        current_text = meta_path.read_text(encoding="utf-8")
+    except OSError as read_exc:
+        # #3466 landing: a working-tree meta.json that cannot be read is
+        # EXCLUDED, not committed. finalize-tasks never committed meta.json
+        # before this change, so an unreadable on-disk copy must not be swept
+        # into the finalize commit -- doing so risks committing a truncated or
+        # corrupt file over readers that fail closed on it.
+        logger.warning(
+            "#3466: could not read %s to compute finalize-commit attribution "
+            "(%s); excluding meta.json from the finalize commit",
+            meta_path,
+            read_exc,
+        )
+        return False
+    committed_meta = decode_meta(committed_text, on_malformed="none")
+    current_meta = decode_meta(current_text, on_malformed="none")
+    if current_meta is None:
+        # #3466 landing: the working-tree meta.json is malformed (e.g. truncated
+        # by a crash mid-write). finalize-tasks did NOT commit meta.json before
+        # this change, so the conservative default is to EXCLUDE a corrupt
+        # on-disk file -- committing it would break every fail-closed reader.
+        logger.warning(
+            "#3466: working-tree %s failed to decode as JSON while computing "
+            "finalize-commit attribution for %s; excluding meta.json from the "
+            "finalize commit",
+            META_JSON_FILENAME,
+            meta_path,
+        )
+        return False
+    if committed_meta is None:
+        # The committed (HEAD) copy is malformed but our working-tree copy is
+        # valid: include it -- committing the good file over a bad HEAD is safe
+        # and is exactly the corrective write finalize-tasks exists to make.
+        logger.warning(
+            "#3466: HEAD %s failed to decode as JSON while computing "
+            "finalize-commit attribution for %s; including the valid "
+            "working-tree meta.json in the finalize commit",
+            META_JSON_FILENAME,
+            meta_path,
+        )
+        return True
+
+    changed_keys = {
+        key
+        for key in {*committed_meta.keys(), *current_meta.keys()}
+        if committed_meta.get(key) != current_meta.get(key)
+    }
+    return changed_keys <= FINALIZE_ATTRIBUTABLE_META_FIELDS
 
 
 # ---------------------------------------------------------------------------
@@ -346,8 +523,185 @@ def _resolve_target_branch(
         raise typer.Exit(1) from exc
 
 
-def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tuple[set[str], set[str]]:
-    """Phase: parse spec.md requirement ids (all + functional)."""
+@dataclass(frozen=True)
+class TargetBranchPersistOutcome:
+    """Result of attempting to persist a ``--target-branch`` override (#3466).
+
+    A plain ``bool`` return could not distinguish "no-op: override already
+    matched meta.json" from "no-op: the write was attempted and FAILED" —
+    SK3466-R-002 found that ambiguity meant a ``--json`` caller had zero
+    diagnostic when the write failed, so a subsequent ``PROTECTED_BRANCH_
+    REFUSED`` (still reading the stale on-disk value) looked like an
+    unexplained recurrence of #3466 rather than a directly attributable
+    persist failure. This type makes every arm explicit for callers AND for
+    the terminal JSON payload (SK3466-R-003 traceability).
+
+    Attributes:
+        persisted: ``True`` only when meta.json was actually rewritten this
+            call.
+        previous_value: The ``target_branch`` value read from meta.json
+            BEFORE this call (``None`` when meta.json was absent/unreadable
+            or no override was supplied).
+        persist_error: Set only when a write was attempted and raised
+            (``ValueError``/``FileNotFoundError``/``MissionMetaReadError``
+            from ``set_target_branch`` — SK3466-RR-002 added the last);
+            ``None`` for every no-op or successful arm.
+    """
+
+    persisted: bool
+    previous_value: str | None = None
+    persist_error: str | None = None
+
+
+def _persist_target_branch_override(
+    primary_dir: Path,
+    target_branch: str,
+    *,
+    target_branch_override: str | None,
+    json_output: bool,
+) -> TargetBranchPersistOutcome:
+    """Persist an explicit ``--target-branch`` override into meta.json (#3466).
+
+    Every ``target_branch`` reader downstream of finalize-tasks — chiefly the
+    WP-status-transition bookkeeping (:func:`specify_cli.status.bootstrap.
+    bootstrap_canonical_state`, via :func:`specify_cli.core.paths.
+    get_feature_target_branch` / :func:`mission_runtime.resolution.
+    resolve_placement_only`) — resolves the mission's ``target_branch`` by
+    reading the PRIMARY ``meta.json`` directly. It has no awareness of
+    ``target_branch_override``: that value previously lived only in this
+    command's own local ``target_branch`` variable, so a mission whose
+    meta.json still recorded ``target_branch: "main"`` kept sending WP-status
+    bookkeeping at "main" — the protected-branch guard refused it — even when
+    the operator passed ``--target-branch <real-branch>`` (the documented
+    FR-012 escape hatch never reached that consumer).
+
+    Rather than threading a second override parameter through the shared
+    placement/status-transition resolvers (``resolve_placement_only`` /
+    ``resolve_write_target_or_degrade`` / ``TransitionRequest`` — a much wider
+    blast radius across ~15 call sites in implement/merge/review/sync that have
+    no override concept of their own — DIRECTIVE_024 locality-of-change), this
+    persists the corrected value through the existing canonical mutation
+    helper (:func:`specify_cli.mission_metadata.set_target_branch`), built and
+    unit-tested for exactly this purpose but never wired to this CLI flag.
+    Every downstream reader then converges on the SAME corrected field with no
+    further code changes — DIRECTIVE_044 single canonical authority / 043
+    close-the-defect-class-by-construction, rather than a second fallback
+    branch.
+
+    A no-op when no override was supplied, when it matches the value already
+    on disk (idempotent re-runs), or when meta.json is absent (the rarer
+    pre-meta.json legacy case the escape hatch also nominally covers — the
+    override still applies in-process via ``target_branch``; there is simply
+    no canonical file yet to persist it into). Only ever called from the
+    non-``--validate-only`` commit pipeline (INV-6: validate-only performs
+    zero writes).
+
+    A failed run must not leave this write dangling in the working tree
+    (SK3466-R-001): the caller captures meta.json's pre-call content and
+    restores it if a downstream validation gate raises ``typer.Exit`` before
+    ``_commit_finalize_artifacts`` folds the (still on-disk) write into the
+    finalize commit — see ``_revert_unpersisted_target_branch_override`` in
+    ``finalize_tasks``.
+
+    Returns:
+        A :class:`TargetBranchPersistOutcome`. ``persisted=True`` only when
+        meta.json was actually rewritten this call. :func:`_collect_finalize_
+        artifacts` (SK3466-RR-001) treats meta.json as a commit candidate,
+        and :func:`_meta_json_delta_is_finalize_attributable` (SK3466-REV-001)
+        folds any pending ``target_branch``-only delta into the finalize
+        commit — this run's own write, or one dangling from a prior crashed
+        run — rather than letting it survive as a dangling working-tree edit;
+        this function no longer has to get that right on its own. (A delta
+        that ALSO touches a foreign field, e.g. a concurrent ``implement
+        --no-auto-commit`` write, is excluded from the commit entirely —
+        see that function's docstring for the mixed-case rationale.) Every
+        no-op/failure arm carries ``persisted=False`` plus ``previous_
+        value``/``persist_error`` so the caller (and the terminal JSON
+        payload) can distinguish "already correct" from "write failed"
+        (SK3466-R-002/R-003).
+    """
+    if target_branch_override is None or not target_branch_override.strip():
+        return TargetBranchPersistOutcome(persisted=False)
+    from specify_cli.core.paths import MissionMetaReadError
+    from specify_cli.mission_metadata import load_meta_or_empty, set_target_branch
+
+    meta_path = primary_dir / META_JSON_FILENAME
+    if not meta_path.exists():
+        return TargetBranchPersistOutcome(persisted=False)
+    previous_value_raw = load_meta_or_empty(primary_dir).get("target_branch")
+    previous_value = str(previous_value_raw) if previous_value_raw else None
+    if previous_value == target_branch:
+        return TargetBranchPersistOutcome(persisted=False, previous_value=previous_value)
+    try:
+        set_target_branch(primary_dir, target_branch)
+    except (FileNotFoundError, ValueError, MissionMetaReadError) as persist_exc:
+        # FileNotFoundError is a TOCTOU guard only (SK3466-R-004): the
+        # ``meta_path.exists()`` check above already returns early on a
+        # missing meta.json, so this arm fires only if meta.json is deleted
+        # out from under us between that check and set_target_branch's own
+        # read — not reachable in the single-process, single-invocation path.
+        # MissionMetaReadError (SK3466-RR-002) IS reachable: it fires when
+        # meta.json EXISTS but is corrupt/malformed JSON — a realistic shape
+        # for the legacy-mission population this --target-branch escape
+        # hatch is documented to serve. set_target_branch -> _require_meta ->
+        # _load_meta_fail_closed raises this typed RuntimeError subclass
+        # (core/paths.py) rather than ValueError; without it here, a corrupt
+        # meta.json bypassed this function's structured warning/JSON contract
+        # entirely and fell through to finalize_tasks's generic outer
+        # ``except Exception`` as an unstructured ``{"error": str(e)}``.
+        error_detail = str(persist_exc)
+        if not json_output:
+            console.print(
+                "[yellow]Warning:[/yellow] could not persist --target-branch override "
+                f"to meta.json: {error_detail}"
+            )
+        else:
+            # SK3466-R-002: without this, a --json caller gets ZERO
+            # diagnostic — meta_json_persisted silently stays False and a
+            # later PROTECTED_BRANCH_REFUSED (still reading the stale
+            # on-disk value) reads as an unexplained recurrence of #3466
+            # instead of a directly attributable persist failure.
+            _emit_json(
+                {
+                    "warning": "target_branch_override_not_persisted",
+                    "target_branch_override": target_branch,
+                    "detail": error_detail,
+                }
+            )
+        return TargetBranchPersistOutcome(
+            persisted=False, previous_value=previous_value, persist_error=error_detail
+        )
+    if not json_output and previous_value is not None:
+        # SK3466-R-003: a distinct (non-cyan) notice that a repeat
+        # finalize-tasks invocation just permanently rewrote the mission's
+        # canonical merge destination — finalize-tasks is documented as
+        # repeatable, so a stale/mistaken --target-branch on a routine
+        # re-run is otherwise a silent, unflagged overwrite.
+        console.print(
+            f"[yellow]Note:[/yellow] target_branch override persisted to meta.json "
+            f"({previous_value} -> {target_branch})"
+        )
+    return TargetBranchPersistOutcome(persisted=True, previous_value=previous_value)
+
+
+
+def _read_spec_requirement_ids(
+    planning_dir: Path, *, json_output: bool
+) -> tuple[set[str], set[str], list[str], str]:
+    """Phase: parse spec.md requirement ids (all + functional) + #3394 F1 warnings.
+
+    The third element is a (possibly empty) list of non-blocking warning
+    messages from :func:`_find_undeclared_requirement_citations` -- surfaced
+    so a spec whose Functional Requirements section matches none of the
+    recognized declared shapes gets a loud (but never gate-failing) signal
+    instead of silently reporting zero declared FRs as full coverage.
+
+    WP06 (#3396) T031 plumbing fix: also returns the raw ``spec_content`` (the
+    fourth element) so the caller can thread it into
+    :func:`_validate_requirement_mapping` for the bare-prose requirement-id
+    detector -- previously this text was read here and discarded, leaving
+    that later phase with no access to it.
+    """
     spec_md = planning_dir / "spec.md"
     if not spec_md.exists():
         error_msg = f"spec.md not found: {spec_md}"
@@ -356,8 +710,15 @@ def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tupl
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
-    spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_md.read_text(encoding="utf-8"))
-    return set(spec_requirement_ids["all"]), set(spec_requirement_ids["functional"])
+    spec_content = spec_md.read_text(encoding="utf-8")
+    spec_requirement_ids = _parse_requirement_ids_from_spec_md(spec_content)
+    extraction_warnings = _find_undeclared_requirement_citations(spec_content)
+    return (
+        set(spec_requirement_ids["all"]),
+        set(spec_requirement_ids["functional"]),
+        extraction_warnings,
+        spec_content,
+    )
 
 
 def _scaffold_issue_matrix_if_present(
@@ -613,16 +974,12 @@ def _validate_dependency_graph(wp_dependencies: dict[str, list[str]], *, json_ou
             raise typer.Exit(1)
 
 
-def _validate_requirement_mapping(
+def _classify_wp_requirement_refs(
     wp_ids: list[str],
     wp_requirement_refs: dict[str, list[str]],
     all_spec_requirement_ids: set[str],
-    functional_spec_requirement_ids: set[str],
-    wp_dependencies: dict[str, list[str]],
-    *,
-    json_output: bool,
-) -> None:
-    """Phase: validate every WP maps to known requirement ids (FR coverage)."""
+) -> tuple[list[str], dict[str, list[str]], set[str]]:
+    """Bucket each WP's requirement refs into missing/unknown/mapped."""
     missing_requirement_refs_wps: list[str] = []
     unknown_requirement_refs: dict[str, list[str]] = {}
     mapped_requirement_ids: set[str] = set()
@@ -638,35 +995,126 @@ def _validate_requirement_mapping(
         else:
             mapped_requirement_ids.update(refs)
 
+    return missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids
+
+
+def _detect_bare_prose_requirement_ids_fail_loud(spec_content: str) -> list[str]:
+    """WP06 (#3396) T031/IC-04: fail-loud bare-prose requirement-id detection
+    for ``finalize-tasks``'s requirement-mapping gate.
+
+    ``find_bare_prose_requirement_ids`` catches a requirement id (e.g.
+    ``FR-001``) written as bare, unbulleted, unbolded prose in a
+    "Functional Requirements"-named section -- a gap the existing
+    missing/unknown/unmapped buckets cannot see, since a bare-prose id was
+    never counted as mapped OR as a declared functional requirement in the
+    first place (Story 1 AC1/AC2).
+
+    Deliberately NOT routed through ``_find_undeclared_requirement_citations``
+    / its swallow-and-log advisory contract (that helper's "never fail the
+    gate" intent is the opposite of this one) -- this is a textually separate
+    wrapper: any classification exception is caught ONCE and converted into
+    an explicit, non-empty failure entry (mirroring WP05/T023's
+    ``BareProseRequirementFacts.classification_error`` contract) so the
+    caller's blocking check below can never be silently satisfied by a
+    swallowed "0 uncounted" (NFR-002).
+    """
+    try:
+        from specify_cli.requirement_mapping import find_bare_prose_requirement_ids
+
+        candidates = find_bare_prose_requirement_ids(spec_content)
+        return sorted({req_id for candidate in candidates for req_id in candidate.ids})
+    except Exception as exc:  # noqa: BLE001 -- fail-loud: converted below into an explicit, non-empty failure, never swallowed
+        return [
+            f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"
+        ]
+
+
+def _emit_requirement_mapping_report(
+    *,
+    json_output: bool,
+    missing_requirement_refs_wps: list[str],
+    unknown_requirement_refs: dict[str, list[str]],
+    unmapped_functional_requirements: list[str],
+    bare_prose_requirement_ids: list[str],
+    wp_dependencies: dict[str, list[str]],
+    wp_requirement_refs: dict[str, list[str]],
+) -> None:
+    """Phase: emit the requirement-mapping validation failure (JSON or console)."""
+    error_msg = "Requirement mapping validation failed"
+    if json_output:
+        payload = {
+            "error": error_msg,
+            "missing_requirement_refs_wps": missing_requirement_refs_wps,
+            "unknown_requirement_refs": unknown_requirement_refs,
+            "unmapped_functional_requirements": unmapped_functional_requirements,
+            "bare_prose_requirement_ids": bare_prose_requirement_ids,
+            "dependencies_parsed": wp_dependencies,
+            "requirement_refs_parsed": wp_requirement_refs,
+        }
+        print(json.dumps(payload))
+        return
+    console.print(f"[red]Error:[/red] {error_msg}")
+    if missing_requirement_refs_wps:
+        console.print("[red]Missing requirement refs:[/red]")
+        for wp_id in missing_requirement_refs_wps:
+            console.print(f"  - {wp_id}")
+    if unknown_requirement_refs:
+        console.print("[red]Unknown requirement refs:[/red]")
+        for wp_id, refs in unknown_requirement_refs.items():
+            console.print(f"  - {wp_id}: {', '.join(refs)}")
+    if unmapped_functional_requirements:
+        console.print("[red]Unmapped functional requirements:[/red]")
+        for req_id in unmapped_functional_requirements:
+            console.print(f"  - {req_id}")
+    if bare_prose_requirement_ids:
+        console.print("[red]Bare-prose requirement id(s) found, uncounted:[/red]")
+        for req_id in bare_prose_requirement_ids:
+            console.print(f"  - {req_id}")
+
+
+def _validate_requirement_mapping(
+    wp_ids: list[str],
+    wp_requirement_refs: dict[str, list[str]],
+    all_spec_requirement_ids: set[str],
+    functional_spec_requirement_ids: set[str],
+    wp_dependencies: dict[str, list[str]],
+    spec_content: str = "",
+    *,
+    json_output: bool,
+) -> None:
+    """Phase: validate every WP maps to known requirement ids (FR coverage).
+
+    WP06 (#3396) T031: additionally surfaces ``bare_prose_requirement_ids`` --
+    requirement ids written as bare, unbulleted, unbolded prose in spec.md's
+    "Functional Requirements"-named section(s) -- as a distinct,
+    separately-labeled failure alongside missing/unknown/unmapped. Never
+    merged into ``unmapped_functional_requirements``: "declared but not yet
+    mapped to a WP" and "never declared at all" are different remediation
+    stories for an operator.
+    """
+    missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids = (
+        _classify_wp_requirement_refs(wp_ids, wp_requirement_refs, all_spec_requirement_ids)
+    )
+
     unmapped_functional_requirements = sorted(functional_spec_requirement_ids - mapped_requirement_ids)
-    if not (missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements):
+    bare_prose_requirement_ids = _detect_bare_prose_requirement_ids_fail_loud(spec_content)
+    if not (
+        missing_requirement_refs_wps
+        or unknown_requirement_refs
+        or unmapped_functional_requirements
+        or bare_prose_requirement_ids
+    ):
         return
 
-    error_msg = "Requirement mapping validation failed"
-    payload = {
-        "error": error_msg,
-        "missing_requirement_refs_wps": missing_requirement_refs_wps,
-        "unknown_requirement_refs": unknown_requirement_refs,
-        "unmapped_functional_requirements": unmapped_functional_requirements,
-        "dependencies_parsed": wp_dependencies,
-        "requirement_refs_parsed": wp_requirement_refs,
-    }
-    if json_output:
-        print(json.dumps(payload))
-    else:
-        console.print(f"[red]Error:[/red] {error_msg}")
-        if missing_requirement_refs_wps:
-            console.print("[red]Missing requirement refs:[/red]")
-            for wp_id in missing_requirement_refs_wps:
-                console.print(f"  - {wp_id}")
-        if unknown_requirement_refs:
-            console.print("[red]Unknown requirement refs:[/red]")
-            for wp_id, refs in unknown_requirement_refs.items():
-                console.print(f"  - {wp_id}: {', '.join(refs)}")
-        if unmapped_functional_requirements:
-            console.print("[red]Unmapped functional requirements:[/red]")
-            for req_id in unmapped_functional_requirements:
-                console.print(f"  - {req_id}")
+    _emit_requirement_mapping_report(
+        json_output=json_output,
+        missing_requirement_refs_wps=missing_requirement_refs_wps,
+        unknown_requirement_refs=unknown_requirement_refs,
+        unmapped_functional_requirements=unmapped_functional_requirements,
+        bare_prose_requirement_ids=bare_prose_requirement_ids,
+        wp_dependencies=wp_dependencies,
+        wp_requirement_refs=wp_requirement_refs,
+    )
     raise typer.Exit(1)
 
 
@@ -742,6 +1190,11 @@ class _BootstrapState:
     inmemory_bodies: dict[str, str] = field(default_factory=dict)
     pending_writes: list[tuple[Path, WPMetadata, str]] = field(default_factory=list)
     ownership_warnings: list[str] = field(default_factory=list)
+    #: #3394 review F1 -- non-blocking signal, kept distinct from
+    #: ``ownership_warnings`` so the JSON payload names the concern precisely
+    #: (raw requirement tokens that matched no declared shape) rather than
+    #: folding it into an unrelated bucket.
+    requirement_extraction_warnings: list[str] = field(default_factory=list)
 
 
 def _branch_strategy_text(target_branch: str) -> str:
@@ -837,6 +1290,7 @@ def _run_bootstrap_loop(
     repo_root: Path,
     target_branch: str,
     concern_coverage_warnings: list[str],
+    requirement_extraction_warnings: list[str],
     *,
     validate_only: bool,
     json_output: bool,
@@ -847,7 +1301,10 @@ def _run_bootstrap_loop(
     against post-bootstrap state; disk writes are deferred to
     ``pending_writes`` and only flushed when ``not validate_only``.
     """
-    state = _BootstrapState(ownership_warnings=list(concern_coverage_warnings))
+    state = _BootstrapState(
+        ownership_warnings=list(concern_coverage_warnings),
+        requirement_extraction_warnings=list(requirement_extraction_warnings),
+    )
     wp_dependencies = dep_resolution.wp_dependencies
     wp_requirement_refs = dep_resolution.wp_requirement_refs
 
@@ -1103,6 +1560,7 @@ def _emit_validate_only_report(
                 "unchanged": state.unchanged_wps,
                 "updated_wp_count": state.updated_count,
                 "ownership_warnings": state.ownership_warnings,
+                "requirement_extraction_warnings": state.requirement_extraction_warnings,
                 "validation": {"bootstrap_preview": bootstrap_stats, "lanes_preview": lanes_stats},
                 "message": "All validations passed. Run without --validate-only to commit.",
             }
@@ -1528,12 +1986,29 @@ def _commit_finalize_artifacts(
     ``mission.run_command`` patch seam. T027 / WP02: collapsed to the
     ``commit_for_mission`` entry point (TASKS_INDEX → primary target branch for
     every topology).
+
+    meta.json (#3466 / SK3466-RR-001) needs no special-cased ``extra_paths``
+    threading here: :func:`_collect_finalize_artifacts` already includes it as
+    a candidate, so a ``--target-branch`` correction rides the same ``git
+    status --porcelain`` gate below as every other tracked artifact. But
+    unlike those other artifacts, meta.json can ALSO carry a pending edit
+    finalize-tasks did not make (SK3466-REV-001, e.g. ``implement
+    --no-auto-commit``'s ``vcs``/``vcs_locked_at`` write) — so, before
+    computing the commit set, a meta.json candidate is additionally checked
+    with :func:`_meta_json_delta_is_finalize_attributable` and dropped
+    entirely when the pending delta is not confined to the fields
+    finalize-tasks itself owns.
     """
     from specify_cli.cli.commands.agent import mission as _mission
 
     outcome = _CommitOutcome()
     try:
         files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, mission_slug, lanes_path=lanes_path)
+        meta_json_path = planning_dir / META_JSON_FILENAME
+        if meta_json_path in files_to_commit and not _meta_json_delta_is_finalize_attributable(
+            meta_json_path, repo_root
+        ):
+            files_to_commit = [path for path in files_to_commit if path != meta_json_path]
         files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
         # partition-authority-residuals-01M021K9 WP06 (#2937 / FR-009): report the
         # TRUE committed set — ``files_committed`` is populated ONLY once the router
@@ -1641,8 +2116,36 @@ def _emit_success_report(
     dep_resolution: _DependencyResolution,
     bootstrap_result: BootstrapResult,
     lanes_manifest: LanesManifest | None,
+    *,
+    target_branch_override: str | None = None,
+    target_branch_persist: TargetBranchPersistOutcome | None = None,
+    meta_committed_this_run: bool = False,
 ) -> None:
-    """Phase: emit the terminal JSON success report."""
+    """Phase: emit the terminal JSON success report.
+
+    ``target_branch_override`` / ``target_branch_persist`` (SK3466-R-003):
+    a ``--target-branch`` override durably rewrites meta.json's canonical
+    merge destination, but the payload previously carried no signal that a
+    mutation occurred or what the previous value was — the only observable
+    trace for a ``--json`` caller was "meta.json" appearing in
+    ``files_committed``, indistinguishable from any other artifact commit.
+    ``target_branch_override`` is only non-``None`` when the flag was
+    actually supplied this run.
+
+    ``meta_committed_this_run`` (SK3466-REV2-002): ``persist.persisted=True``
+    only means meta.json was rewritten to disk this call — it says nothing
+    about whether that write survived ``_commit_finalize_artifacts``'s
+    attribution check (``_meta_json_delta_is_finalize_attributable`` excludes
+    meta.json entirely when a foreign field is pending alongside our
+    ``target_branch`` write). A ``--json`` caller checking ``persisted``
+    alone — its documented use — could not tell "durably committed" from
+    "written but left dangling because it was excluded from this commit".
+    Computed once by ``_run_commit_pipeline`` from ``commit_outcome.
+    files_committed`` (the same value that already gates the revert-safety
+    marker for SK3466-REV2-001) and passed through here rather than
+    re-derived, so both corrections share one source of truth.
+    """
+    persist = target_branch_persist or TargetBranchPersistOutcome(persisted=False)
     _emit_json(
         {
             "result": "success",
@@ -1675,6 +2178,20 @@ def _emit_success_report(
                 ),
             },
             "ownership_warnings": state.ownership_warnings,
+            "requirement_extraction_warnings": state.requirement_extraction_warnings,
+            "target_branch_override": {
+                "requested": target_branch_override,
+                "persisted": persist.persisted,
+                # SK3466-REV2-002: distinct from ``persisted`` -- ``True``
+                # only when meta.json's delta actually rode this commit.
+                # ``persisted and not committed`` means the override is
+                # written to disk but excluded from this run's commit and
+                # left dangling in the working tree (mixed with a foreign
+                # meta.json field also pending).
+                "committed": persist.persisted and meta_committed_this_run,
+                "previous_value": persist.previous_value,
+                "persist_error": persist.persist_error,
+            },
         }
     )
 
@@ -1685,7 +2202,7 @@ def _warn_missing_meta(
     """Phase: warn (non-blocking) when meta.json is missing/malformed."""
     if meta is not None or json_output:
         return
-    if (planning_dir / "meta.json").exists():
+    if (planning_dir / META_JSON_FILENAME).exists():
         console.print(
             "[yellow]Warning:[/yellow] Failed to read meta.json for event "
             "emission (missing or malformed); skipping MissionCreated emission"
@@ -1731,12 +2248,46 @@ def _run_commit_pipeline(
     *,
     validate_only: bool,
     json_output: bool,
+    target_branch_override: str | None = None,
+    target_branch_persist: TargetBranchPersistOutcome | None = None,
+    meta_commit_progress: _MetaBranchOverrideProgress | None = None,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
     Seeds canonical state, computes lanes, scaffolds acceptance-matrix, syncs the
     dossier, commits artifacts, emits SaaS WPCreated, and reports success. Only
     ever reached when ``not validate_only`` (INV-6).
+
+    A ``--target-branch`` override that just rewrote meta.json
+    (:func:`_persist_target_branch_override`) — or one dangling from a prior
+    crashed run (SK3466-RR-001) — is folded into the SAME finalize commit as
+    tasks.md / WP files below, because :func:`_collect_finalize_artifacts`
+    treats meta.json as a commit candidate and :func:`_commit_finalize_
+    artifacts` attributes any pending delta by field
+    (SK3466-REV-001: a delta confined to ``target_branch`` rides this commit
+    regardless of which run produced it; a delta ALSO touching a foreign
+    field, e.g. a concurrent ``implement --no-auto-commit`` write, is
+    excluded from this commit entirely). Nothing in this phase needs to know
+    whether THIS invocation's own persist call fired.
+
+    ``target_branch_override`` / ``target_branch_persist`` are threaded
+    through only to ``_emit_success_report`` (SK3466-R-003 JSON traceability)
+    and do not affect this phase's own behavior.
+
+    ``meta_commit_progress`` (SK3466-R-001, corrected SK3466-REV2-001): once
+    ``_commit_finalize_artifacts`` below returns, flipped to
+    ``committed=True`` only when meta.json's own relative path actually
+    appears in ``commit_outcome.files_committed`` -- NOT unconditionally.
+    ``_meta_json_delta_is_finalize_attributable`` can exclude meta.json from
+    this commit entirely (a foreign field, e.g. ``implement
+    --no-auto-commit``'s ``vcs``/``vcs_locked_at`` write, is pending
+    alongside our ``target_branch`` write); an unconditional flip in that
+    case fooled ``_revert_unpersisted_target_branch_override``'s ``not
+    meta_commit_progress.committed`` guard into skipping a real revert when a
+    LATER step in this function (SaaS emission, the JSON report) goes on to
+    raise, leaving a permanently dangling meta.json write. Reading
+    ``commit_outcome.files_committed`` -- a value ``_commit_finalize_
+    artifacts`` already computes -- needs no new state to close this.
     """
     _emit_local_canonical_events(
         planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output
@@ -1787,11 +2338,186 @@ def _run_commit_pipeline(
         json_output=json_output,
         updated_count=state.updated_count,
     )
+    # SK3466-REV2-001/002: whether meta.json's own delta actually rode this
+    # commit -- NOT "the phase returned without raising". Computed once here
+    # (the exact same relative-path form _commit_finalize_artifacts used to
+    # build ``commit_outcome.files_committed``) and reused below for both the
+    # revert-safety marker and the terminal report, so the two call sites
+    # this Op's round 3 left behind learn about the same third outcome state
+    # from a single source rather than two independent guesses.
+    meta_json_rel = str((planning_dir / META_JSON_FILENAME).relative_to(repo_root))
+    meta_committed_this_run = meta_json_rel in commit_outcome.files_committed
+    if meta_commit_progress is not None:
+        # SK3466-R-001, corrected SK3466-REV2-001: only durable once
+        # meta.json's delta actually folded into this commit -- an
+        # unconditional flip here fooled the revert guard below
+        # (``not meta_commit_progress.committed``) into skipping a real
+        # revert when ``_meta_json_delta_is_finalize_attributable`` excluded
+        # meta.json for being mixed with a foreign field.
+        meta_commit_progress.committed = meta_committed_this_run
+    if (
+        not json_output
+        and target_branch_persist is not None
+        and target_branch_persist.persisted
+        and not meta_committed_this_run
+    ):
+        # SK3466-REV2-002: the "persisted to meta.json" note already printed
+        # by ``_persist_target_branch_override`` ran before this commit's
+        # attribution decision was known, so a mixed-delta exclusion left no
+        # console trace distinguishing "committed" from "written but still
+        # dangling". This corrective note fires only in that gap.
+        console.print(
+            "[yellow]Note:[/yellow] the --target-branch override written to meta.json "
+            "was excluded from this commit (a foreign meta.json edit is pending "
+            "alongside it) and remains an uncommitted working-tree change."
+        )
 
     _emit_saas_wp_created(state.work_packages, mission_slug, json_output=json_output)
 
     if json_output:
-        _emit_success_report(tasks_dir, state, commit_outcome, dep_resolution, bootstrap_result, lanes_manifest)
+        _emit_success_report(
+            tasks_dir,
+            state,
+            commit_outcome,
+            dep_resolution,
+            bootstrap_result,
+            lanes_manifest,
+            target_branch_override=target_branch_override,
+            target_branch_persist=target_branch_persist,
+            meta_committed_this_run=meta_committed_this_run,
+        )
+
+
+@dataclass
+class _MetaBranchOverrideProgress:
+    """Mutable revert-safety marker for a persisted ``--target-branch`` write (SK3466-R-001).
+
+    Mutated in place from inside ``_run_commit_pipeline`` (not communicated
+    via a return value) so its state survives even when a LATER, unrelated
+    phase raises AFTER the meta.json write has already been folded into the
+    finalize commit. A return value alone cannot do this: if
+    ``_emit_saas_wp_created`` or ``_emit_success_report`` raised after
+    ``_commit_finalize_artifacts`` had already committed successfully, but
+    before ``_run_commit_pipeline`` returned, the caller would never observe
+    an "already committed" return and would incorrectly revert meta.json —
+    reintroducing a fresh, uncommitted diff on top of an already-green
+    commit. Mutating this shared object instead means the caller's
+    ``except`` handler still sees ``committed=True`` no matter where past
+    that point the exception originated.
+    """
+
+    committed: bool = False
+
+
+def _revert_unpersisted_target_branch_override(
+    meta_path: Path | None,
+    original_text: str | None,
+    *,
+    meta_json_persisted: bool,
+    meta_commit_progress: _MetaBranchOverrideProgress,
+) -> str | None:
+    """Undo an applied-but-uncommitted ``--target-branch`` meta.json write (SK3466-R-001).
+
+    ``_persist_target_branch_override`` writes meta.json to disk as soon as
+    the override differs from the on-disk value — well before roughly eight
+    downstream validation gates (missing ``tasks_dir``, dependency-cycle,
+    requirement-mapping, ownership, ...) that can still raise
+    ``typer.Exit(1)``. Without this guard, a run that failed one of those
+    gates left meta.json mutated and uncommitted in the working tree,
+    contradicting the invariant :func:`_collect_finalize_artifacts` exists to
+    uphold: a persisted override lands in the SAME commit as tasks.md / the
+    WP files, or not at all — never as a dangling, uncommitted edit.
+
+    A no-op unless the write actually happened this run (``meta_json_
+    persisted``) AND it was never folded into the finalize commit
+    (``not meta_commit_progress.committed``) AND the pre-write content was
+    captured.
+
+    Returns:
+        ``None`` on success or on a no-op. A non-``None`` string
+        (SK3466-RR-003) describes the revert WRITE's OWN failure — e.g. a
+        permission change, a full disk, or the same TOCTOU class this
+        function's caller already reasons about (meta.json deleted/replaced
+        between the persist and this revert attempt). Without this, a
+        SECOND, unrelated exception raised from inside ``mission_metadata.
+        restore_meta_text``'s own write would propagate out of one of
+        ``finalize_tasks``'s ``except`` handlers uncaught — replacing the
+        graceful ``{"error": str(e)}``
+        JSON-output contract the rest of this fix guarantees with an
+        unhandled Python traceback for a ``--json`` caller. Callers report
+        the ORIGINAL exception regardless; this is a best-effort ADDITIONAL
+        note.
+    """
+    if not (
+        meta_json_persisted
+        and not meta_commit_progress.committed
+        and original_text is not None
+        and meta_path is not None
+    ):
+        return None
+    from specify_cli.mission_metadata import restore_meta_text
+
+    try:
+        # Routed through mission_metadata.py's byte-exact rollback primitive
+        # (T025 single-writer gate) rather than a direct ``meta_path.
+        # write_text`` here -- this module must not become a second writer of
+        # meta.json, the very defect class this fix's history (SK3466-R-001)
+        # exists to close. ``restore_meta_text`` guarantees the SAME
+        # byte-exact restore this call site always relied on; see its
+        # docstring for why ``write_meta`` (re-serialize from a parsed dict)
+        # cannot make that guarantee.
+        restore_meta_text(meta_path.parent, original_text)
+    except OSError as revert_exc:
+        logger.warning(
+            "SK3466-RR-003: failed to revert unpersisted target_branch override in %s: %s",
+            meta_path,
+            revert_exc,
+        )
+        return str(revert_exc)
+    return None
+
+
+def _report_target_branch_revert_failure(revert_error: str | None, *, json_output: bool) -> None:
+    """Phase: best-effort surfacing of a failed meta.json revert (SK3466-RR-003).
+
+    A no-op unless the revert write itself failed. Used from ``finalize_
+    tasks``'s ``except typer.Exit`` handler, where the ORIGINAL error already
+    emitted its own diagnostic before raising — this is purely an additional
+    note, never a substitute for it.
+    """
+    if not revert_error:
+        return
+    if json_output:
+        _emit_json({"warning": "target_branch_override_revert_failed", "detail": revert_error})
+    else:
+        console.print(
+            "[yellow]Warning:[/yellow] failed to revert unpersisted "
+            f"--target-branch override in meta.json: {revert_error}"
+        )
+
+
+def _emit_finalize_error_with_revert_note(
+    error: Exception, revert_error: str | None, *, json_output: bool
+) -> None:
+    """Phase: emit finalize_tasks's terminal error, folding in a revert-failure note (SK3466-RR-003).
+
+    Preserves the existing ``{"error": str(e)}`` / ``[red]Error:[/red]``
+    diagnostic contract for the ORIGINAL exception unconditionally; the
+    meta.json-revert failure (if any) is added as a SECOND, clearly-labelled
+    field/line rather than replacing it.
+    """
+    if json_output:
+        error_payload: dict[str, object] = {"error": str(error)}
+        if revert_error:
+            error_payload["target_branch_override_revert_error"] = revert_error
+        _emit_json(error_payload)
+        return
+    console.print(f"[red]Error:[/red] {error}")
+    if revert_error:
+        console.print(
+            "[yellow]Warning:[/yellow] failed to revert unpersisted "
+            f"--target-branch override in meta.json: {revert_error}"
+        )
 
 
 def finalize_tasks(
@@ -1807,7 +2533,10 @@ def finalize_tasks(
             help=(
                 "Override the canonical merge target branch read from meta.json. "
                 "Use this for legacy missions created before WP07 persisted "
-                "target_branch in meta.json (FR-012 escape hatch)."
+                "target_branch in meta.json, or to correct a mission whose "
+                "target_branch is stale (FR-012 escape hatch). The override is "
+                "persisted into the primary meta.json as part of this run, so "
+                "every other target_branch consumer converges on it too (#3466)."
             ),
         ),
     ] = None,
@@ -1836,6 +2565,16 @@ def finalize_tasks(
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --validate-only --json
     """
+    # SK3466-R-001: tracked across the whole try body (not just the persist
+    # call site) so the except blocks below can undo an already-applied
+    # meta.json write if any later validation gate bails with typer.Exit
+    # before the finalize commit actually lands it. Declared before ``try``
+    # so a failure BEFORE the persist call (nothing written yet) still leaves
+    # these names bound.
+    meta_json_persisted = False
+    meta_commit_progress = _MetaBranchOverrideProgress()
+    meta_path_for_revert: Path | None = None
+    meta_original_text: str | None = None
     try:
         repo_root = _resolve_repo_root(json_output)
         _run_saas_boundary_preflight(repo_root, json_output=json_output, validate_only=validate_only)
@@ -1868,6 +2607,19 @@ def finalize_tasks(
         )
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
+        target_branch_persist = TargetBranchPersistOutcome(persisted=False)
+        if not validate_only:
+            meta_path_for_revert = primary_dir / META_JSON_FILENAME
+            meta_original_text = (
+                meta_path_for_revert.read_text(encoding="utf-8") if meta_path_for_revert.exists() else None
+            )
+            target_branch_persist = _persist_target_branch_override(
+                primary_dir,
+                target_branch,
+                target_branch_override=target_branch_override,
+                json_output=json_output,
+            )
+        meta_json_persisted = target_branch_persist.persisted
 
         tasks_dir = planning_dir / "tasks"
         if not tasks_dir.exists():
@@ -1880,9 +2632,12 @@ def finalize_tasks(
         wp_files = list(tasks_dir.glob("WP*.md"))
         expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
-        all_spec_requirement_ids, functional_spec_requirement_ids = _read_spec_requirement_ids(
-            planning_dir, json_output=json_output
-        )
+        (
+            all_spec_requirement_ids,
+            functional_spec_requirement_ids,
+            requirement_extraction_warnings,
+            spec_content,
+        ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
 
         # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
         # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
@@ -1914,6 +2669,7 @@ def finalize_tasks(
             all_spec_requirement_ids,
             functional_spec_requirement_ids,
             dep_resolution.wp_dependencies,
+            spec_content,
             json_output=json_output,
         )
 
@@ -1921,6 +2677,10 @@ def finalize_tasks(
 
         if concern_coverage_warnings and not json_output:
             for warning in concern_coverage_warnings:
+                console.print(f"[yellow]Warning:[/yellow] {warning}")
+
+        if requirement_extraction_warnings and not json_output:
+            for warning in requirement_extraction_warnings:
                 console.print(f"[yellow]Warning:[/yellow] {warning}")
 
         state = _run_bootstrap_loop(
@@ -1931,6 +2691,7 @@ def finalize_tasks(
             repo_root,
             target_branch,
             concern_coverage_warnings,
+            requirement_extraction_warnings,
             validate_only=validate_only,
             json_output=json_output,
         )
@@ -1990,13 +2751,29 @@ def finalize_tasks(
             preexisting_primary_files,
             validate_only=validate_only,
             json_output=json_output,
+            target_branch_override=target_branch_override,
+            target_branch_persist=target_branch_persist,
+            meta_commit_progress=meta_commit_progress,
         )
 
     except typer.Exit:
+        revert_error = _revert_unpersisted_target_branch_override(
+            meta_path_for_revert,
+            meta_original_text,
+            meta_json_persisted=meta_json_persisted,
+            meta_commit_progress=meta_commit_progress,
+        )
+        # SK3466-RR-003: the ORIGINAL error already emitted its own
+        # diagnostic before raising typer.Exit above; this is a best-effort,
+        # ADDITIONAL note if the meta.json revert itself also failed.
+        _report_target_branch_revert_failure(revert_error, json_output=json_output)
         raise
     except Exception as e:
-        if json_output:
-            _emit_json({"error": str(e)})
-        else:
-            console.print(f"[red]Error:[/red] {e}")
+        revert_error = _revert_unpersisted_target_branch_override(
+            meta_path_for_revert,
+            meta_original_text,
+            meta_json_persisted=meta_json_persisted,
+            meta_commit_progress=meta_commit_progress,
+        )
+        _emit_finalize_error_with_revert_note(e, revert_error, json_output=json_output)
         raise typer.Exit(1) from None

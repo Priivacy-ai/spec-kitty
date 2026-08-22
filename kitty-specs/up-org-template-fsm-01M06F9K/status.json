@@ -1,0 +1,186 @@
+{
+  "event_count": 36,
+  "last_event_id": "01M06R1FD0YA5XWA8D3AHT40XG",
+  "materialized_at": "2026-08-17T02:15:36.096437+00:00",
+  "mission_number": "",
+  "mission_slug": "up-org-template-fsm-01M06F9K",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 6,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M06MRMAJ4REN8FY7R4ZSSF43",
+      "last_transition_at": "2026-08-17T01:18:20.498176+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP01:20260817",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1384905,
+      "shell_pid_created_at": "1786928448.9",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "user",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M06MS16A749Q8RG8RC8WKKDZ",
+      "last_transition_at": "2026-08-17T01:18:33.674903+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP02:20260817",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M06NJ4VNXGA9XB67T73JRW7P",
+      "last_transition_at": "2026-08-17T01:32:16.629590+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP03:20260817",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1495397,
+      "shell_pid_created_at": "1786929512.28",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done"
+      }
+    },
+    "WP04": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M06PP2YY39T2XVW4D1CRTFHP",
+      "last_transition_at": "2026-08-17T01:51:54.334294+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP04:20260817",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1564011,
+      "shell_pid_created_at": "1786930352.69",
+      "subtasks": {
+        "T019": "done",
+        "T020": "done",
+        "T021": "done",
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
+    },
+    "WP05": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M06P7CARTKQ9TAK0DAASHS88",
+      "last_transition_at": "2026-08-17T01:43:52.408185+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP05:20260817",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1565616,
+      "shell_pid_created_at": "1786930369.36",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
+    },
+    "WP06": {
+      "actor": "user",
+      "agent": "implement-command",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01M06R1FD0YA5XWA8D3AHT40XG",
+      "last_transition_at": "2026-08-17T02:15:36.096437+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "auto-approval:WP06:20260817",
+        "reviewer": "MOES-Media",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 1675234,
+      "shell_pid_created_at": "1786931506.18",
+      "subtasks": {
+        "T031": "done",
+        "T032": "done",
+        "T033": "done",
+        "T034": "done",
+        "T035": "done",
+        "T036": "done"
+      }
+    }
+  }
+}

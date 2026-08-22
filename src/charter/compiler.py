@@ -36,6 +36,7 @@ from charter.schemas import (
     GovernanceConfig,
 )
 from doctrine.pack_paths import built_in_dir
+from doctrine.provenance import to_portable_source_path
 
 logger = logging.getLogger(__name__)
 
@@ -416,8 +417,13 @@ def compile_charter(
     )
 
     # Validate and normalize local support file declarations.
+    # FR-008 (#3596, WP02): repo_root feeds the declared-node acceptance
+    # source (charter.interview._declared_action_labels) alongside the
+    # fast-path BOOTSTRAP_ACTIONS constant, so a declared non-fast-path
+    # action (e.g. "tasks") is retained rather than warn-dropped.
     valid_local, local_errors = validate_local_support_declarations(
-        list(interview.local_supporting_files or [])
+        list(interview.local_supporting_files or []),
+        repo_root=repo_root,
     )
     diagnostics.extend(local_errors)
 
@@ -1043,6 +1049,7 @@ def _render_kind_references(
     id_of: Callable[[Any], str],
     title_of: Callable[[Any], str],
     summary_of: Callable[[Any], str],
+    project_root: Path | None = None,
 ) -> list[CharterReference]:
     """Render one :class:`CharterReference` per id, via a typed repository lookup.
 
@@ -1064,7 +1071,9 @@ def _render_kind_references(
                 )
             )
         else:
-            references.append(_doctrine_yaml_reference(kind=kind, raw_id=raw_id, source=None))
+            references.append(
+                _doctrine_yaml_reference(kind=kind, raw_id=raw_id, source=None, project_root=project_root)
+            )
     return references
 
 
@@ -1090,6 +1099,7 @@ def _build_references_from_service(
                 kind="paradigm",
                 raw_id=paradigm,
                 source=paradigm_sources.get(paradigm.casefold()),
+                project_root=repo_root,
             )
         )
 
@@ -1113,6 +1123,7 @@ def _build_references_from_service(
             id_of=lambda d: str(d.id),
             title_of=lambda d: str(d.title),
             summary_of=lambda d: str(d.intent),
+            project_root=repo_root,
         )
     )
     references.extend(
@@ -1123,6 +1134,7 @@ def _build_references_from_service(
             id_of=lambda t: str(t.id),
             title_of=lambda t: str(t.name),
             summary_of=lambda t: str(t.purpose or f"Tactic: {t.name}"),
+            project_root=repo_root,
         )
     )
     references.extend(
@@ -1133,6 +1145,7 @@ def _build_references_from_service(
             id_of=lambda sg: str(sg.id),
             title_of=lambda sg: str(sg.title),
             summary_of=lambda sg: str(sg.principles[0] if sg.principles else f"Styleguide: {sg.title}"),
+            project_root=repo_root,
         )
     )
     references.extend(
@@ -1143,6 +1156,7 @@ def _build_references_from_service(
             id_of=lambda tg: str(tg.id),
             title_of=lambda tg: str(tg.title),
             summary_of=lambda tg: str(tg.summary),
+            project_root=repo_root,
         )
     )
     references.extend(
@@ -1153,6 +1167,7 @@ def _build_references_from_service(
             id_of=lambda proc: str(proc.id),
             title_of=lambda proc: str(proc.name),
             summary_of=lambda proc: str(proc.purpose),
+            project_root=repo_root,
         )
     )
     references.extend(
@@ -1163,6 +1178,7 @@ def _build_references_from_service(
             id_of=lambda ap: str(ap.profile_id),
             title_of=lambda ap: str(ap.name),
             summary_of=lambda ap: str(ap.description or f"Agent profile: {ap.name}"),
+            project_root=repo_root,
         )
     )
 
@@ -1417,11 +1433,23 @@ def _doctrine_yaml_reference(
     kind: str,
     raw_id: str,
     source: dict[str, object] | None,
+    project_root: Path | None = None,
 ) -> CharterReference:
+    """Build a CharterReference from a raw YAML asset (the CATALOG source caller).
+
+    ``source_path`` is normalized through the shared portable-provenance seam
+    (:func:`doctrine.provenance.to_portable_source_path`, C-PRV-1/2/6): a
+    built-in-pack path becomes a ``${SPEC_KITTY_PACKS_ROOT}/built-in/...``
+    token, an in-tree path becomes repo-relative, and anything else stays
+    absolute. This is one of exactly two normalizer call sites
+    (contracts/provenance-and-channel.md C-PRV-6) -- the mission-template
+    reference (:func:`_template_reference`) and the local-support declaration
+    reference are deliberately excluded and keep using :func:`_trim_source_path`.
+    """
     source = source or {"id": raw_id, "title": raw_id, "summary": "Definition unavailable in bundled doctrine."}
 
     source_path = str(source.get("_source_path", ""))
-    display_path = _trim_source_path(source_path)
+    display_path = to_portable_source_path(source_path, project_root=project_root)
     title = str(source.get("title") or source.get("name") or raw_id)
     summary = str(source.get("summary") or source.get("intent") or "No summary provided.")
 

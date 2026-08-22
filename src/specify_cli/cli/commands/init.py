@@ -383,7 +383,7 @@ def _resolve_mission_command_templates_dir(
 ) -> Path:
     """Materialize the resolved command templates for one mission into scratch space.
 
-    Each template file is resolved independently through the runtime's 5-tier
+    Each template file is resolved independently through the runtime's 6-tier
     precedence chain so mixed-tier command sets still produce the correct
     effective directory for init-time consumers.
     """

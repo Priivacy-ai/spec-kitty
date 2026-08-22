@@ -357,6 +357,110 @@ class TestBootstrapStatsInJson:
         pytest.fail("No JSON output with 'result': 'validation_passed' found")
 
 
+def _setup_undeclared_fr_feature(tmp_path: Path, mission_slug: str) -> Path:
+    """Like :func:`_setup_feature`, but spec.md ALSO carries a "Functional
+    Requirements" section written as bare, unbulleted, unbolded sentences
+    (FR-001, FR-002) -- the #3394 review F1 declared-shape-miss scenario.
+    ``parse_requirement_ids_from_spec_md`` never counts FR-001/FR-002 (no
+    recognized declared shape), so they are invisible to the coverage gate.
+
+    A SEPARATE, properly-declared FR-100 exists (table row) and is the only
+    id both WP files reference -- reproducing the review's exact complaint:
+    finalize-tasks reaches the SUCCESS path (``unmapped_functional_requirements
+    == []``) even though the spec's own FR-001/FR-002 were never counted,
+    because ``missing_requirement_refs_wps``/``unknown_requirement_refs``
+    would otherwise hard-fail for unrelated reasons if the WPs referenced
+    nothing, or referenced the undeclared ids directly.
+    """
+    feature_dir = _setup_feature(tmp_path, mission_slug)
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Test Feature\n---\n\n"
+        "## Functional Requirements\n\nFR-001 must hold. FR-002 too.\n\n"
+        "## Declared Functional Requirements\n\n"
+        "| ID | Requirement |\n|----|-------------|\n| FR-100 | The one WPs map to. |\n",
+        encoding="utf-8",
+    )
+    for wp_id in ("WP01", "WP02"):
+        wp_file = feature_dir / "tasks" / f"{wp_id}-test.md"
+        wp_file.write_text(
+            f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\nrequirement_refs:\n  - FR-100\ndependencies: []\n---\n\n# {wp_id}\n',
+            encoding="utf-8",
+        )
+    return feature_dir
+
+
+class TestRequirementExtractionWarningsInJson:
+    """#3394 review F1: finalize-tasks' non-blocking ``requirement_extraction_
+    warnings`` signal for a Requirements section matching none of the four
+    recognized declared shapes at all (the "reports success while measuring
+    nothing" gap the review flagged for a WHOLLY-undeclared section).
+
+    RE-PINNED (operator ruling 2026-08-14; same DIRECTIVE_041 conflict as
+    ``1b5b86e0f``'s spec-kitty-next re-pin): this class used to ALSO pin the
+    "mixed declared + bare-prose" shape (a Requirements section that
+    correctly declares SOME ids while writing OTHERS as bare prose) as
+    non-blocking. #3396 exists specifically to supersede that advisory-only
+    decision for the mixed shape -- see
+    ``test_bare_sentence_frs_now_block_finalize_tasks_per_3396`` below.
+    """
+
+    def test_bare_sentence_frs_now_block_finalize_tasks_per_3396(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """RE-PINNED (operator ruling 2026-08-14, same conflict as ``1b5b86e0f``'s
+        spec-kitty-next re-pin): the F4 finding's own repro fixture (bare-prose
+        FR-001/FR-002 alongside a properly DECLARED table-row FR-100 that both
+        WP01/WP02 map to) IS #3396's own target repro -- the mission's whole
+        reason to exist (Story 1 AC1/AC2). Under #3395's fix this shape reached
+        finalize-tasks' SUCCESS path with only the non-blocking
+        ``requirement_extraction_warnings`` entry below (formerly asserted by
+        this test under its old name,
+        ``test_bare_sentence_frs_surface_a_non_blocking_warning_on_success``).
+        #3396 (WP06) wires ``find_bare_prose_requirement_ids`` into
+        ``_validate_requirement_mapping``, so this exact shape now BLOCKS
+        (exit code 1), naming FR-001/FR-002 explicitly in the distinct
+        ``bare_prose_requirement_ids`` field -- DIRECTIVE_041: the product
+        decision this test pins deliberately changed, so the old
+        non-blocking assertion was stale, not the new wiring.
+        """
+        mission_slug = "060-test-feature"
+        _setup_undeclared_fr_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        exit_code = 0
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except typer.Exit as exc:
+            exit_code = exc.exit_code if exc.exit_code is not None else 1
+        except SystemExit as exc:
+            exit_code = exc.code if isinstance(exc.code, int) else 1
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        assert exit_code == 1, "#3396 (WP06) supersedes #3395: this mixed shape must now block"
+
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if "bare_prose_requirement_ids" in data:
+                assert data["bare_prose_requirement_ids"] == ["FR-001", "FR-002"]
+                assert data["unmapped_functional_requirements"] == []
+                return
+        pytest.fail("No JSON output carrying 'bare_prose_requirement_ids' found in captured output")
+
+
 # ---------------------------------------------------------------------------
 # WP01 regression tests (T009)
 # ---------------------------------------------------------------------------

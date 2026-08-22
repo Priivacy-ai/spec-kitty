@@ -90,12 +90,17 @@ class NamespaceRef:
 def resolve_manifest_version(mission_type: str) -> str:
     """Resolve manifest version for a mission type.
 
-    Returns the manifest_version from the registry if available,
-    otherwise defaults to "1".
+    Returns the manifest_version from the registry if available, otherwise
+    defaults to "1" — including when the manifest is present but malformed
+    (a raised ``ManifestSchemaError``, per FR-016): this function's own
+    "always a string" contract does not depend on any caller's blanket catch.
     """
-    from specify_cli.dossier.manifest import ManifestRegistry
+    from specify_cli.dossier.manifest import ManifestRegistry, ManifestSchemaError
 
-    manifest = ManifestRegistry.load_manifest(mission_type)
+    try:
+        manifest = ManifestRegistry.load_manifest(mission_type)
+    except ManifestSchemaError:
+        return "1"
     if manifest is not None:
         return str(manifest.manifest_version)
     return "1"

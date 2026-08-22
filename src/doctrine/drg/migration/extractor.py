@@ -321,19 +321,11 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "tactic:traceable-decisions",
         Relation.REQUIRES,
     ),
-    # WP09 (doctrine-silence-guards-01KYFV7Q, FR-012): this edge was authored as
-    # ``Relation.APPLIES`` and was the procedure's ONLY inbound edge, so the profile's
-    # declared operating procedure was unreachable -- no context resolution, charter
-    # cascade or reference walk follows ``applies``. Retyped to ``REQUIRES``: the profile
-    # states it runs this procedure, which is a hard dependency, and ``requires`` is what
-    # ``resolve_context`` walks transitively and what ``charter activate --cascade``
-    # follows. Cardinality is unchanged (774 edges before and after) -- the relation
-    # changed, nothing else. See tests/architectural/test_no_authored_applies_edge.py.
-    (
-        "agent_profile:doctrine-daphne",
-        "procedure:onboard-external-agent-to-pack",
-        Relation.REQUIRES,
-    ),
+    # RETIRED (M3: #2994/#3352): the ``doctrine-daphne ->
+    # onboard-external-agent-to-pack`` pin (originally the WP09
+    # doctrine-silence-guards retype) is now DATA-DRIVEN from daphne's
+    # ``operating-procedures`` field via ``_emit_operating_procedure_edges``.
+    # The edge still exists in the graph, derived rather than hand-pinned.
     # Landing pass for PR #3007, operator ruling 2026-07-28 (#3009 remedy 4).
     # Seven of the nine ``_ACTIVATED_BUT_ORPHANED`` artefacts are oversights,
     # not design: the charter ACTIVATES them while the graph gives them no inbound
@@ -448,6 +440,16 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
         Relation.SUGGESTS,
     ),
+    # RECONCILE third trigger (M3): the reconciler's ``scope:`` names three
+    # triggers -- DIRECTIVE_024, DIRECTIVE_025, and
+    # tactic:change-apply-smallest-viable-diff. The first two have inbound edges
+    # above; this wires the still-unwired tactic trigger. ``suggests`` matches the
+    # other two (advisory reconciliation). Target is a real shipped tactic node.
+    (
+        "tactic:change-apply-smallest-viable-diff",
+        "directive:RECONCILE_CHANGE_SCOPE_TENSIONS",
+        Relation.SUGGESTS,
+    ),
     # Edge 4: DIRECTIVE_030 governs the coverage gate; the mutation-testing
     # directive deepens it by critiquing coverage-as-proxy
     # (use-mutation-testing-to-validate-test-quality.directive.yaml:4-11,24-28;
@@ -460,16 +462,12 @@ _CURATED_ARTIFACT_EDGES: tuple[tuple[str, str, Relation], ...] = (
         "directive:USE_MUTATION_TESTING_TO_VALIDATE_TEST_QUALITY",
         Relation.SUGGESTS,
     ),
-    # Edge 5: researcher-robbie's structured ``operating-procedures`` field
-    # lists ``spike-timebox-policy`` (researcher-robbie.agent.yaml:58-60) --
-    # the strongest of the three profile-channel edges (the WP09 precedent:
-    # a structured field declaring the profile runs the procedure is a hard
-    # dependency). Profile-channel reachable.
-    (
-        "agent_profile:researcher-robbie",
-        "procedure:spike-timebox-policy",
-        Relation.REQUIRES,
-    ),
+    # Edge 5 RETIRED (M3: #2994/#3352): researcher-robbie's ``spike-timebox-policy``
+    # edge is now DATA-DRIVEN from its ``operating-procedures`` field via
+    # ``_emit_operating_procedure_edges`` (the field it was originally sourced from).
+    # The edge still exists, derived rather than hand-pinned. Edges 6a/6b below stay
+    # hand-pinned: lexical-larry and minutes-maker-mahad carry NO operating-procedures
+    # field (they are prose-sourced), so nothing data-drives them.
     # Edge 6a: lexical-larry is the diagnostic "feeder into" the
     # glossary-maintenance-workflow (lexical-larry.agent.yaml:53-54);
     # curator-carla owns its acceptance (larry.yaml:39-42). ``suggests``, NOT
@@ -539,6 +537,31 @@ def _kind_for_type(ref_type: str) -> NodeKind | None:
     if ref_type in _SKIP_REF_TYPES:
         return None
     return _KIND_MAP.get(ref_type)
+
+
+def _reference_edge_kwargs(ref: dict[str, Any]) -> dict[str, str | None]:
+    """Curated edge metadata (``when``/``reason``) for a ``{type, id, when?,
+    reason?}`` reference dict, carried symmetrically onto its DRG edge.
+
+    The single authority for the ``when``/``reason``-bearing ``references``
+    branches -- **directive, tactic (top- and step-level), paradigm, and
+    procedure** -- so none silently drops a field. Before this, the tactic
+    branches read only ``when`` while directive/paradigm read both, so a future
+    overlay-to-frontmatter promotion (the #3009 residual mechanism) on a tactic
+    source would have lost its rationale at the extractor. Both default to
+    ``None``, so any bare ``{type, id}`` reference is unchanged.
+
+    The ``procedure`` references branch was wired through this helper in #3605
+    (WP01): shipped procedure references already author ``reason`` in YAML,
+    which that branch previously dropped at the extractor -- a silent metadata
+    loss, not a triple change, so no golden re-ledger was required (the edge
+    (source, target, relation) set is unchanged; only ``when``/``reason`` gained
+    values). Note also that end-to-end frontmatter promotion for a non-directive
+    source additionally needs that kind's reference *model* + generated schema
+    to accept ``reason`` (only :class:`DirectiveReference` does today); the
+    extractor carrying the field is necessary but not sufficient.
+    """
+    return {"when": ref.get("when"), "reason": ref.get("reason")}
 
 
 def _add_ref_edge(
@@ -617,6 +640,62 @@ def _emit_glossary_pack_nodes(
 
 
 # ---------------------------------------------------------------------------
+# Operating-procedures data-drive (M3: #2994/#3352)
+# ---------------------------------------------------------------------------
+
+
+def _emit_operating_procedure_edges(
+    profiles_dir: Path,
+    nodes_by_urn: dict[str, DRGNode],
+    add_edge: Any,
+) -> None:
+    """Emit guarded ``agent_profile --requires--> procedure`` edges from the
+    ``operating-procedures`` field, failing closed on any unresolved built-in entry.
+
+    Guarded: an entry is emitted only when its ``procedure:<id>`` target is an
+    already-minted procedure node, so an org/project-tier profile cannot mint a
+    dangling edge. Every built-in entry must resolve to a procedure-kind node
+    present at extraction time — an unresolved one (a fictional or wrong-kind
+    reference) raises, converting the old silent drop into a loud build failure.
+    Kept in its own helper (its own profile walk) so
+    :func:`extract_artifact_edges` complexity is unchanged (NFR-004); the second
+    walk is 16 small files. The field harvest is delegated to
+    :func:`~doctrine.agent_profiles.operating_procedures.collect_operating_procedure_entries`
+    (the single authority, also read by the architectural gate and ``doctor
+    doctrine``) so the three consumers cannot diverge on the falsy-entry policy;
+    ``resolve_operating_procedure_entries`` is the single authority for "does
+    this entry resolve to a procedure node".
+    """
+    from doctrine.agent_profiles.operating_procedures import (
+        collect_operating_procedure_entries,
+        node_universe,
+        resolve_operating_procedure_entries,
+    )
+
+    if not profiles_dir.is_dir():
+        return
+    procedure_urns, urns_by_kind = node_universe(nodes_by_urn.values())
+    entries_by_profile = collect_operating_procedure_entries(profiles_dir)
+    for profile_id, entries in entries_by_profile.items():
+        src_urn = artifact_to_urn("agent_profile", profile_id)
+        for entry in entries:
+            tgt_urn = artifact_to_urn("procedure", entry)
+            if tgt_urn in procedure_urns:
+                add_edge(
+                    DRGEdge(source=src_urn, target=tgt_urn, relation=Relation.REQUIRES)
+                )
+    unresolved = resolve_operating_procedure_entries(
+        entries_by_profile, procedure_urns, urns_by_kind
+    )
+    if unresolved:
+        detail = ", ".join(f"{u.profile_id}:{u.entry} ({u.reason})" for u in unresolved)
+        raise ValueError(
+            "built-in operating-procedures entries do not resolve to a procedure "
+            f"node (triage required): {detail}"
+        )
+
+
+# ---------------------------------------------------------------------------
 # T012: Artifact walker (directives, tactics, paradigms, procedures)
 # ---------------------------------------------------------------------------
 
@@ -666,7 +745,7 @@ def extract_artifact_edges(  # noqa: C901
                     )
                 )
 
-            # references (top-level list of {type, id, when?})
+            # references (top-level list of {type, id, when?, reason?})
             for ref in data.get("references", []) or []:
                 ref_type: str = ref.get("type", "")
                 ref_id: str = ref.get("id", "")
@@ -682,7 +761,12 @@ def extract_artifact_edges(  # noqa: C901
                         source=src_urn,
                         target=tgt_urn,
                         relation=_relation_for_ref_type(ref_type),
-                        when=ref.get("when"),
+                        # ``when``/``reason`` carried symmetrically (single
+                        # authority :func:`_reference_edge_kwargs`) so a directive
+                        # frontmatter reference can hold the curated rationale an
+                        # overlay edge used to -- the capability that makes the
+                        # #3009 overlay-to-frontmatter promotions lossless.
+                        **_reference_edge_kwargs(ref),
                     )
                 )
 
@@ -716,7 +800,7 @@ def extract_artifact_edges(  # noqa: C901
                         source=src_urn,
                         target=tgt_urn,
                         relation=Relation.SUGGESTS,
-                        when=ref.get("when"),
+                        **_reference_edge_kwargs(ref),
                     )
                 )
 
@@ -737,7 +821,7 @@ def extract_artifact_edges(  # noqa: C901
                             source=src_urn,
                             target=tgt_urn,
                             relation=Relation.SUGGESTS,
-                            when=ref.get("when"),
+                            **_reference_edge_kwargs(ref),
                         )
                     )
 
@@ -789,8 +873,7 @@ def extract_artifact_edges(  # noqa: C901
                     ref_type=ref_type,
                     ref_id=ref_id,
                     relation=_relation_for_procedure_ref_type(ref_type),
-                    when=ref.get("when"),
-                    reason=ref.get("reason"),
+                    **_reference_edge_kwargs(ref),
                 )
 
     # --- Procedures ---
@@ -810,17 +893,14 @@ def extract_artifact_edges(  # noqa: C901
                 ref_id = ref.get("id", "")
                 if not ref_type or not ref_id:
                     continue
-                tgt_kind = _kind_for_type(ref_type)
-                if tgt_kind is None:
-                    continue
-                tgt_urn = artifact_to_urn(ref_type, ref_id)
-                _ensure_node(nodes_by_urn, tgt_urn, tgt_kind)
-                _add_edge(
-                    DRGEdge(
-                        source=src_urn,
-                        target=tgt_urn,
-                        relation=_relation_for_procedure_ref_type(ref_type),
-                    )
+                _add_ref_edge(
+                    nodes_by_urn=nodes_by_urn,
+                    add_edge=_add_edge,
+                    source=src_urn,
+                    ref_type=ref_type,
+                    ref_id=ref_id,
+                    relation=_relation_for_procedure_ref_type(ref_type),
+                    **_reference_edge_kwargs(ref),
                 )
 
     # --- Agent profiles ---
@@ -937,6 +1017,12 @@ def extract_artifact_edges(  # noqa: C901
 
     # --- Glossary packs (source-node emission only, WP03) ---
     _emit_glossary_pack_nodes(packs_root, nodes_by_urn)
+
+    # --- Operating-procedures data-drive (M3: #2994/#3352) ---
+    # Emit agent_profile --requires--> procedure from the operating-procedures
+    # field (guarded), failing closed on any unresolved built-in entry. Runs
+    # after every procedure node is minted (procedures block above).
+    _emit_operating_procedure_edges(packs_root / "agent_profiles", nodes_by_urn, _add_edge)
 
     for source, target, relation in _CURATED_ARTIFACT_EDGES:
         source_kind = source.split(":", 1)[0]
@@ -1227,6 +1313,87 @@ def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
     return edges
 
 
+#: ``governance-profile.yaml`` ``selected_*`` list field name -> the artifact
+#: kind its bare-id entries name, for the ``scope`` edges emitted by
+#: :func:`extract_governance_profile_scope_edges` (#3604). Mirrors
+#: ``_ACTION_SCOPE_FIELDS`` (action-index scope fields) but keyed on the
+#: ``selected_*`` field names declared by
+#: :class:`charter.mission_type_profiles.MissionTypeProfile` -- the two field
+#: sets are named differently (one is action-grain, the other type-grain) so a
+#: single shared table would obscure which grain a field belongs to.
+_GOVERNANCE_PROFILE_SCOPE_FIELDS: tuple[tuple[str, str], ...] = (
+    ("selected_directives", "directive"),
+    ("selected_tactics", "tactic"),
+    ("selected_paradigms", "paradigm"),
+    ("selected_styleguides", "styleguide"),
+    ("selected_toolguides", "toolguide"),
+    ("selected_procedures", "procedure"),
+    ("selected_agent_profiles", "agent_profile"),
+    ("selected_mission_step_contracts", "mission_step_contract"),
+)
+
+
+def extract_governance_profile_scope_edges(doctrine_root: Path) -> list[DRGEdge]:
+    """Emit ``mission_type:<id> --scope--> <gov>`` edges from each shipped
+    ``governance-profile.yaml``'s ``selected_*`` lists (#3604).
+
+    Before this pass, no extraction step ever read
+    ``packs/built-in/missions/<type>/governance-profile.yaml`` -- a type's
+    *type-wide* governance selections (as distinct from its *action-grain*
+    ``actions/*/index.yaml`` selections, which :func:`extract_action_edges`
+    already projects) reached no DRG edge at all. ``mission_type:plan``
+    authors ONLY type-wide governance (1 directive, 9 tactics, 3 paradigms, 1
+    styleguide; empty action grains -- research.md grounding), so its cascade
+    was silently empty. This closes that gap identically for all four
+    built-in mission types (documentation, plan, research, software-dev).
+
+    Every ``selected_*`` entry is a **bare id** (a plain string, not a
+    ``{type, id, when?, reason?}`` reference dict), so the target URN is built
+    directly via :func:`~doctrine.drg.migration.id_normalizer.artifact_to_urn`
+    rather than routed through :func:`_reference_edge_kwargs` (which expects a
+    reference *dict* to pull optional ``when``/``reason`` metadata from --
+    metadata a bare string never carries).
+
+    Mints no nodes: every target kind here (directive, tactic, paradigm,
+    procedure, agent_profile via :func:`extract_artifact_edges`; styleguide,
+    toolguide via :func:`_discover_built_in_artifact_nodes`;
+    mission_step_contract via :func:`_discover_mission_step_contract_nodes`)
+    and the ``mission_type:<id>`` source (via
+    :func:`_discover_mission_type_nodes`) are minted by earlier passes in
+    :func:`generate_graph`, mirroring :func:`extract_mission_type_edges`'s
+    same node-free edge-only shape.
+    """
+    edges: list[DRGEdge] = []
+    seen_triples: set[tuple[str, str, str]] = set()
+    missions_dir = _missions_root(doctrine_root)
+    if not missions_dir.is_dir():
+        return edges
+
+    for profile_path in sorted(missions_dir.glob("*/governance-profile.yaml")):
+        data = _load_yaml(profile_path)
+        if data is None:
+            continue
+        mission_type_id: str = data.get("mission_type", profile_path.parent.name)
+        source_urn = artifact_to_urn("mission_type", mission_type_id)
+
+        for field_name, kind in _GOVERNANCE_PROFILE_SCOPE_FIELDS:
+            for raw_id in data.get(field_name, []) or []:
+                target_urn = artifact_to_urn(kind, raw_id)
+                triple = (source_urn, target_urn, Relation.SCOPE.value)
+                if triple in seen_triples:
+                    continue
+                seen_triples.add(triple)
+                edges.append(
+                    DRGEdge(
+                        source=source_urn,
+                        target=target_urn,
+                        relation=Relation.SCOPE,
+                    )
+                )
+
+    return edges
+
+
 def extract_template_instantiation_edges(
     doctrine_root: Path,
 ) -> tuple[list[DRGNode], list[DRGEdge]]:
@@ -1345,8 +1512,18 @@ def generate_graph(
     # Step 5: Merge all edges (mission_type->action edges join before
     # calibration + the deterministic sort so they are treated uniformly)
     mission_type_edges = extract_mission_type_edges(doctrine_root)
+    # Step 5b (#3604, T007): type-wide governance-profile.yaml selections as
+    # direct mission_type --scope--> gov edges (distinct from the action-grain
+    # scope edges action_edges already carries).
+    governance_profile_scope_edges = extract_governance_profile_scope_edges(
+        doctrine_root
+    )
     all_edges = (
-        artifact_edges + action_edges + mission_type_edges + template_instantiation_edges
+        artifact_edges
+        + action_edges
+        + mission_type_edges
+        + governance_profile_scope_edges
+        + template_instantiation_edges
     )
 
     # Step 6: Calibrate surfaces

@@ -62,8 +62,6 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from charter.action_grain import aggregate_action_grain
 from charter.activations import ActivationEntry
-from charter.bundle import CHARTER_YAML
-from charter.charter_yaml_io import load_charter_yaml
 from charter.mission_type_key import canonical_mission_type_key
 
 if TYPE_CHECKING:
@@ -578,13 +576,20 @@ def resolve_mission_type_context(
       → typeless.
     * **Typeless** (no type at all) → a neutral bundle, never software-dev
       (FR-003a).
-    * **Unknown *typed*** mission (type present, unrecognised, no project
-      override) → :class:`UnknownMissionTypeError` (FR-003).  Never software-dev.
+    * **Unknown *typed*** mission (type present, unrecognised, no matching
+      per-type ``governance-profile.yaml`` at the project or org layer) →
+      :class:`UnknownMissionTypeError` (FR-003/FR-005/FR-006).  Never software-dev.
+      A non-activated *canonical* built-in type also hard-fails here — the
+      built-in layer is deliberately excluded from the tolerance witness so
+      it cannot override the FR-006 activation-subset gate (operator ruling,
+      docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md).
     * **Known type, empty grain** → empty resolved selections, no error (FR-004).
     * Governance = type-grain ∪ action-grain, ordered, URN-deconflicted
       (FR-013, NFR-007).
-    * The two hard-fail policies (governance tolerant when a project override
-      exists; action-sequence strict) are preserved as explicit branches.
+    * The two hard-fail policies (governance tolerant when a per-type
+      ``governance-profile.yaml`` resolves at the project or org layer,
+      WP03/#3598; action-sequence strict) are preserved as explicit
+      branches.
 
     The activation gate applied below (``is_registered``) is the FR-006 gate;
     it pre-existed this mission and lives in
@@ -632,7 +637,6 @@ def resolve_mission_type_context(
     # UnknownMissionTypeError.registered_ids keeps its documented list shape.
     registered = existing_mission_types(repo_root)
     is_registered = type_key in registered
-    has_override = _project_has_doctrine_overrides(repo_root)
 
     # FR-002 (WP04): construct the real PackContext and thread it into both
     # projection slots below -- sibling to (not a replacement for) the
@@ -653,7 +657,6 @@ def resolve_mission_type_context(
         type_key,
         registered=registered,
         is_registered=is_registered,
-        has_override=has_override,
         repo_root=repo_root,
     )
     action_sequence = _resolve_action_slot(
@@ -763,32 +766,65 @@ def _read_meta_mission_type(feature_dir: Path) -> str | None:
     return raw if isinstance(raw, str) else None
 
 
+#: Layers whose per-type ``governance-profile.yaml`` witnesses a "genuinely
+#: defined custom type" for the AC-4/AC-5 tolerance predicate.  Deliberately
+#: EXCLUDES ``"builtin"`` — see :func:`_resolve_governance_slot`'s
+#: "Layered per-type tolerance" section for why.
+_TOLERANCE_WITNESS_LAYERS = frozenset({"project", "org"})
+
+
 def _resolve_governance_slot(
     mission_type: str,
     *,
     registered: list[str],
     is_registered: bool,
-    has_override: bool,
     repo_root: Path,
 ) -> tuple[str, str, Callable[[], ResolvedGovernance]]:
-    """Resolve the governance slot under the **tolerant** hard-fail policy.
+    """Resolve the governance slot under the **layered per-type tolerant** hard-fail policy.
 
-    Hard-fails only when the type is neither registered nor covered by a project
-    override — otherwise it resolves (an unknown type with a project override is
-    tolerated; a known type with an empty grain resolves empty, FR-004). This
-    **registration guard stays eager** — it is a cheap, in-memory activation-set
-    check, not a disk-reading concern, so there is no reason to defer it (and
-    deferring it would turn a construction-time hard-fail into a
-    first-property-access hard-fail, changing the FR-003 contract).
+    Hard-fails when the type is neither registered NOR witnessed by a
+    per-type ``governance-profile.yaml`` at the **project or org** layer —
+    otherwise it resolves (an unregistered type with a matching project/org
+    profile is tolerated; a known type with an empty grain resolves empty,
+    FR-004). This **registration guard stays eager** — it is a cheap,
+    in-memory activation-set check plus an already-loaded in-memory dict
+    lookup, not a disk-reading concern on top of what this function already
+    pays, so there is no reason to defer it (and deferring it would turn a
+    construction-time hard-fail into a first-property-access hard-fail,
+    changing the FR-003 contract).
 
-    The profile is loaded through :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
-    so a per-type project override at
-    ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` field-merges
-    onto the shipped baseline via the shared ``doctrine/base.py`` overlay
-    (project > org > builtin) — no second merge site is added here.  ``provenance``
-    reflects the winning layer for that type and is computed **eagerly** here
-    (``repo.get_provenance``), independent of the governance union — callers must
-    not force the union just to read the provenance.
+    Layered per-type tolerance (FR-005/FR-006, #3598, WP03)
+    ---------------------------------------------------------
+    The tolerance witness is a per-type ``governance-profile.yaml`` whose
+    ``id`` matches *mission_type*, resolved through
+    :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
+    at the **project or org** layer (project >
+    ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml``; org >
+    each configured org pack's ``mission_types/<type>/governance-profile.yaml``)
+    — the SAME repository this function already constructs to load the
+    profile itself, so no second merge/probe site is added here. This
+    replaces the retired **project-wide** ``_project_has_doctrine_overrides``
+    signal, which tolerated ANY unregistered type (including a typo)
+    whenever the project had *any* ``selected_*`` doctrine, regardless of
+    whether that type had anything backing it.
+
+    **The built-in layer is deliberately EXCLUDED from the tolerance
+    witness** (operator ruling, docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md
+    — "layered tolerance (AC-5) does NOT override mission-type activation
+    gating"): every canonical built-in type (``software-dev``,
+    ``documentation``, ``research``, ``plan``) ships its own built-in
+    ``governance-profile.yaml``, so tolerating on built-in-profile-existence
+    alone would let ANY non-activated canonical type silently resolve,
+    defeating the pre-existing FR-006 activation-subset gate
+    (``existing_mission_types`` / ``is_registered``,
+    ``tests/charter/test_mission_type_activation_gating.py``). The
+    project/org tolerance answers "genuinely-defined custom type vs typo"
+    (AC-4/AC-5); a non-activated canonical type is governed by the
+    activation gate alone, not by this tolerance.
+    ``provenance`` reflects the winning layer for that type and is computed
+    **eagerly** here (``repo.get_provenance``), independent of the
+    governance union — callers must not force the union just to read the
+    provenance.
 
     Only the FR-013 type-grain/action-grain union is deferred: it is returned as
     a closure (``governance_thunk``) rather than resolved inline.  The union
@@ -801,12 +837,13 @@ def _resolve_governance_slot(
     tuple[str, str, Callable[[], ResolvedGovernance]]
         ``(provenance, governance_text, governance_thunk)``.
     """
-    if not is_registered and not has_override:
-        raise UnknownMissionTypeError(mission_type, registered_ids=registered)
-
     repo = _mission_type_profile_repository(repo_root)
     profile = repo.get(mission_type)
-    provenance = repo.get_provenance(mission_type) or "project"
+    profile_layer = repo.get_provenance(mission_type)
+    if not is_registered and profile_layer not in _TOLERANCE_WITNESS_LAYERS:
+        raise UnknownMissionTypeError(mission_type, registered_ids=registered)
+
+    provenance = profile_layer or "project"
     text = _render_profile_payload(profile, mission_type)
 
     def governance_thunk() -> ResolvedGovernance:
@@ -1230,43 +1267,6 @@ def _load_mission_type_profile(
 # ---------------------------------------------------------------------------
 # Internals
 # ---------------------------------------------------------------------------
-
-
-def _project_has_doctrine_overrides(repo_root: Path) -> bool:
-    """Return ``True`` iff the project charter declares any selection.
-
-    IC-04 (WP04): re-pointed from the retired ``.kittify/charter/
-    governance.yaml`` onto ``charter.yaml``'s ``governance:`` section — a
-    project "has overrides" when ``charter.yaml``'s ``governance.doctrine``
-    carries at least one non-empty ``selected_<kind>`` list. This is
-    consulted by the governance slot to decide whether an unknown
-    ``mission_type`` should hard-fail (no overrides) or merely skip the
-    missing profile (overrides present).
-
-    Best-effort: any I/O or parse failure collapses to ``False`` so a
-    malformed charter.yaml never silences the hard-fail contract.
-    """
-    charter_yaml_path = repo_root / CHARTER_YAML
-    if not charter_yaml_path.exists():
-        return False
-    try:
-        data = load_charter_yaml(charter_yaml_path)
-    except Exception:  # noqa: BLE001 — best-effort governance probe
-        return False
-    if not isinstance(data, dict):
-        return False
-    governance = data.get("governance")
-    if not isinstance(governance, dict):
-        return False
-    doctrine = governance.get("doctrine")
-    if not isinstance(doctrine, dict):
-        return False
-    for key, value in doctrine.items():
-        if not key.startswith("selected_"):
-            continue
-        if isinstance(value, list) and value:
-            return True
-    return False
 
 
 def _render_profile_payload(

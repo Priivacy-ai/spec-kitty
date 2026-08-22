@@ -313,6 +313,31 @@ def test_atomic_write_yaml_strips_trailing_whitespace_from_wrapped_scalars(tmp_p
     assert YAML(typ="safe").load(text) == data
 
 
+def test_atomic_write_yaml_wraps_prose_scalars_at_120_columns(tmp_path: Path) -> None:
+    """Free-text fields wrap at width=120 — the #3059 decision, guarded here.
+
+    ``_atomic_write_yaml`` deliberately passes ``width=120`` to the kernel
+    primitive (whose own default is 4096) so prose fields such as
+    ``GenFinding.details`` stay reviewable in a diff. This test goes RED if that
+    width is raised: at 4096 a 199-char scalar is emitted as one line, which
+    fails both assertions below. The payload is many short words so ruamel's
+    word-boundary wrapping cannot overshoot the column budget.
+    """
+    from ruamel.yaml import YAML
+
+    canonical = tmp_path / "retrospective.yaml"
+    details = " ".join(["word"] * 40)
+    assert len(details) > 120, "payload must exceed the wrap width or the test is vacuous"
+
+    _atomic_write_yaml({"details": details}, canonical, tmp_path)
+
+    text = canonical.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    assert len(lines) > 1, f"expected the scalar to wrap onto a continuation line; got: {text!r}"
+    assert max(len(line) for line in lines) <= 120, f"a line exceeds the 120-column width:\n{text}"
+    assert YAML(typ="safe").load(text) == {"details": details}
+
+
 @pytest.mark.parametrize("trailing", [" ", "\t"])
 def test_atomic_write_yaml_preserves_literal_scalar_trailing_whitespace(
     tmp_path: Path, trailing: str

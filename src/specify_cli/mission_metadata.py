@@ -539,6 +539,37 @@ def write_meta(
     atomic_write(meta_path, content)
 
 
+def restore_meta_text(feature_dir: Path, original_text: str) -> None:
+    """Restore ``meta.json`` to previously-captured, byte-exact text (rollback primitive).
+
+    Unlike :func:`write_meta`, which re-serializes a ``dict`` through the
+    canonical ``json.dumps(..., indent=2, sort_keys=True)`` format, this
+    writes *original_text* verbatim -- no parsing, no re-serialization, no
+    validation. It exists for revert/rollback call sites (SK3466-R-001) that
+    captured meta.json's exact pre-mutation bytes (e.g. via ``Path.
+    read_text``) before calling one of this module's mutation helpers, and
+    must undo that write on a later failure by restoring PRECISELY the prior
+    on-disk state -- key order, indentation, and trailing newline included.
+    Routing such a revert through ``write_meta`` would re-serialize from a
+    parsed dict and could silently change any of those, leaving a spurious
+    formatting-only diff in the working tree even though the *value* was
+    correctly restored.
+
+    This keeps ``mission_metadata.py`` the sole physical writer of
+    ``meta.json`` (DIRECTIVE_044): the raw file write for a revert happens
+    here, through the same :func:`~specify_cli.core.atomic.atomic_write`
+    primitive every other mutation helper in this module uses -- not as a
+    direct ``Path.write_text`` at the caller's own call site.
+
+    Args:
+        feature_dir: Directory containing meta.json.
+        original_text: The exact text to restore, written as-is (including
+            whatever trailing newline / formatting the caller captured).
+    """
+    meta_path = feature_dir / META_FILENAME
+    atomic_write(meta_path, original_text)
+
+
 # ---------------------------------------------------------------------------
 # Mutation helpers
 # ---------------------------------------------------------------------------

@@ -75,10 +75,6 @@ collaboration:
     - bisection-timeline
     - trace-annotated-bug-report
     - orthogonal-bug-list
-  operating-procedures:
-    - five-paradigm-dispatch
-    - convergence-synthesis
-    - dormant-mask-enumeration
   canonical-verbs:
     - investigate
     - falsify

@@ -113,3 +113,16 @@ def test_from_missions_root_resolves_package_default_paths(tmp_path: Path) -> No
 def test_tier_to_origin_falls_back_to_unknown_prefix() -> None:
     origin = CharterTemplateResolver._tier_to_origin(object(), "software-dev", "templates", "spec-template.md")
     assert origin == "unknown/software-dev/templates/spec-template.md"
+
+
+def test_tier_to_origin_reports_org_prefix_not_unknown() -> None:
+    """T008/FR-012 (DEC-008): a real ``ResolutionTier.ORG`` member is a known
+    tier, distinct from the generic ``object()`` sentinel used above to test
+    the fallback path in general. Before the ``ORG`` entry is added to
+    ``_tier_to_origin``'s ``tier_prefix`` dict, this renders
+    ``"unknown/..."`` -- the exact silent-degradation defect FR-012 fixes.
+    """
+    origin = CharterTemplateResolver._tier_to_origin(
+        ResolutionTier.ORG, "software-dev", "templates", "spec-template.md"
+    )
+    assert origin == "org/software-dev/templates/spec-template.md"

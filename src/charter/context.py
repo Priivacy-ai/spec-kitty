@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
+    import doctrine.service as _doctrine_service_module
+
     from charter.scope import CharterScope
 
 from ruamel.yaml import YAML as YAML
@@ -116,6 +118,37 @@ BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "
 #: re-declaring the ``"charter.md"`` filename locally (Sonar S1192 pre-emption
 #: the earlier local ``CHARTER_FILENAME = "charter.md"`` duplicate is retired).
 NONE_LABEL = "(none)"
+
+
+def _action_node_declared(bundle: _ActionDoctrineBundle, action: str) -> bool:
+    """FR-001 (#3596, ADR 2026-08-21-1-charter-gate-predicate-inversion).
+
+    Node-URN membership predicate -- NOT an empty-grain check.
+    ``resolve_context`` already degrades an undeclared node to empty grain,
+    and action nodes are activation-filter-exempt while their ``scope``-edge
+    targets are not; a declared-but-activation-starved node therefore
+    legitimately yields ``True`` (the caller then renders ``bootstrap`` with
+    possibly empty typed arrays -- this is correct, not a bug).
+
+    ``bundle.merged`` is the single per-call DRG carrier (NFR-001 -- no
+    second load, no memoization); it is ``None`` exactly when the mission
+    type was unresolved (typeless), which must always yield ``False``
+    (``compact``, FR-003).  ``bundle.mission`` mirrors the type used to
+    resolve the bundle (``resolved_type or ""`` -- see
+    ``_load_action_doctrine_bundle`` in ``charter.action_doctrine_bundle``),
+    so reusing it here keeps the membership test on the exact node the
+    bundle was resolved against.
+
+    Kept in this module (rather than alongside ``_ActionDoctrineBundle`` in
+    ``charter.action_doctrine_bundle``) because it is WP02's owned-files
+    boundary (``rc3-charter-gate-predicate-inversion``, #3596): both
+    consumers (``build_charter_context`` / ``build_charter_context_json``
+    below) live here, and this predicate is inseparable from the two gate
+    sites it backs.
+    """
+    return bundle.merged is not None and (
+        f"action:{bundle.mission}/{action}" in bundle.merged.node_urns()
+    )
 
 
 def build_charter_context(
@@ -250,7 +283,41 @@ def build_charter_context(
             return missing_pack_diagnostic + "\n\n" + text
         return text
 
-    if normalized not in BOOTSTRAP_ACTIONS:
+    state_bundle = _prepare_context_state(repo_root, normalized, depth)
+
+    # WP11 (T060/B-3) — compute the bundle BEFORE the depth-tier branch so it
+    # is delivered on EVERY load; the old order returned compact before it existed.
+    # FR-001/FR-004 (rc3-charter-gate-predicate-inversion WP02, #3596): the
+    # bundle is now resolved for EVERY action -- bootstrap (fast-path) actions
+    # already needed it to render their grain; non-bootstrap actions now pay
+    # the same single graph load (NFR-001, no memoization -- see the ADR) so
+    # the node-URN membership predicate below can test the actually-declared
+    # DRG action node instead of the coarse BOOTSTRAP_ACTIONS set. This does
+    # NOT depend on charter.md/charter.yaml presence (it reads only the DRG +
+    # org/project doctrine), so it is safe to resolve ahead of the
+    # charter-presence gate below.
+    doctrine_bundle = _resolve_action_bundle(
+        repo_root,
+        action=normalized,
+        effective_depth=state_bundle.effective_depth,
+        org_root=org_root,
+        mission_type=mission_type,
+        feature_dir=feature_dir,
+    )
+
+    # FR-001/FR-002: the 4-token fast path always renders bootstrap without
+    # consulting the predicate (AC-1, unchanged). Every other action gates on
+    # node-URN membership -- NOT empty-grain (a declared-but-activation-starved
+    # node legitimately renders bootstrap with empty typed arrays; see
+    # `_action_node_declared`'s docstring). An undeclared action returns HERE,
+    # before the charter-presence gate below -- preserving the pre-fix
+    # semantics that a non-bootstrap action's compact governance render never
+    # depended on charter.md/charter.yaml existing (``_non_bootstrap_context_result``
+    # sources project directives from ``.kittify/config.yaml``/charter.yaml
+    # directly and degrades gracefully when absent).
+    if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(
+        doctrine_bundle, normalized
+    ):
         return _non_bootstrap_context_result(
             repo_root,
             normalized,
@@ -260,21 +327,12 @@ def build_charter_context(
             augment=_augment,
         )
 
-    state_bundle = _prepare_context_state(repo_root, normalized, depth)
-
+    # From here the action WILL deliver grain (fast-path or a declared node),
+    # so the charter-presence gate applies -- matching the pre-fix ordering
+    # for bootstrap actions (this is a NEW dependency for a declared
+    # non-fast-path action, since it now reaches the same rendering path).
     if not charter_yaml_path.exists() and not charter_path.exists():
         return _missing_charter_context_result(normalized, state_bundle, augment=_augment)
-
-    # WP11 (T060/B-3) — compute the bundle BEFORE the depth-tier branch so it
-    # is delivered on EVERY load; the old order returned compact before it existed.
-    doctrine_bundle = _resolve_action_bundle(
-        repo_root,
-        action=normalized,
-        effective_depth=state_bundle.effective_depth,
-        org_root=org_root,
-        mission_type=mission_type,
-        feature_dir=feature_dir,
-    )
 
     if state_bundle.effective_depth < _MIN_EFFECTIVE_DEPTH:
         # Steady-state load: deliver via the widened compact rail (T061/FR-010).
@@ -351,24 +409,53 @@ def build_charter_context_include(
         return _render_template_include(repo_root, identifier, selector)
 
     canonical_kind = resolved_kind.value
-    if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
-        # FR-016: the agent-profile fetch path must inherit the charter
-        # activation gate, so it (and only it) uses the activation-aware
-        # service. Every other include kind stays on the unwrapped service.
-        # The service is built HERE (not inside the sibling helper) so this
-        # remains the sole call site of
-        # ``_build_activation_aware_doctrine_service`` — several tests
-        # monkeypatch that name on this module.
+
+    # FR-016: the agent-profile fetch path — and, as of M4, the glossary-pack
+    # fetch path — inherit the charter activation gate, so they (and only they)
+    # use the activation-aware service; every other include kind stays on the
+    # unwrapped service. Glossary is gated because M4 gives ``GLOSSARY_PACK`` an
+    # activation-gated delivery slot AND newly advertises a
+    # ``--include glossary-pack:<id>`` fetch pointer
+    # (``_format_inline_glossary_body``); that fetch pointer must honor the same
+    # gate its delivery slot advertises, or ``--include`` leaks back the term
+    # definitions the charter withheld from a de-activated pack. This needs no
+    # renderer change: the activation-aware ``charter.resolver.DoctrineService``
+    # already gates ``glossary_packs`` (returning a filtered
+    # ``dict[str, GlossaryPack]``), and the catalog renderer reaches the repo
+    # via ``getattr(service, attr).get(id)`` — a filtered ``dict``'s ``.get``
+    # is call-compatible with the repository's, so the gated service drops
+    # straight into the CATALOG renderer. Agent-profile keeps its dedicated
+    # renderer; glossary routes through the shared catalog render/return below,
+    # exactly as it would on the plain service — only the service it renders on
+    # differs. The gated service is built HERE, once (not inside a sibling
+    # helper), so this stays the sole call site of
+    # ``_build_activation_aware_doctrine_service`` — several tests monkeypatch
+    # that name on this module.
+    gated_service = None
+    if canonical_kind in (
+        ArtifactKind.AGENT_PROFILE.value,
+        ArtifactKind.GLOSSARY_PACK.value,
+    ):
         gated_service = _build_activation_aware_doctrine_service(
             repo_root, org_roots=org_roots
         )
-        return _render_agent_profile_include_selector(
-            gated_service, canonical_kind, identifier, selector
-        )
+        if canonical_kind == ArtifactKind.AGENT_PROFILE.value:
+            return _render_agent_profile_include_selector(
+                gated_service, canonical_kind, identifier, selector
+            )
 
-    # Built here for the same reason: keep this the sole call site of
-    # ``_build_doctrine_service`` that several tests monkeypatch.
-    service = _build_doctrine_service(repo_root, org_roots=org_roots)
+    # Shared catalog render/return. ``service`` is the gated service for the
+    # glossary-pack branch and the plain service (built here — the sole call
+    # site of ``_build_doctrine_service`` several tests monkeypatch) for every
+    # other kind. The ``cast`` reconciles the two nominally distinct
+    # ``DoctrineService`` classes; the renderer only reads ``.glossary_packs``
+    # (a gated ``dict``) off the gated service, so it is structurally
+    # sufficient.
+    service = (
+        cast("_doctrine_service_module.DoctrineService", gated_service)
+        if gated_service is not None
+        else _build_doctrine_service(repo_root, org_roots=org_roots)
+    )
     result = _render_catalog_kind_include_selector(
         service, canonical_kind, identifier, selector
     )
@@ -450,29 +537,47 @@ def build_charter_context_json(
         )
     ]
 
-    if normalized not in BOOTSTRAP_ACTIONS:
-        # WP11 (B-6) — non-bootstrap actions carry no action grain; ruled OUT
-        # explicitly (empty typed arrays), not an early-return before a bundle.
-        payload["mode"] = "compact"
-        return payload
-
     state_bundle = _prepare_context_state(repo_root, normalized, depth)
-    payload["mode"] = "bootstrap"
     # WP11 (T060/B-3) — no depth<minimum early return: the ``--json`` half of
     # every-load delivery (where SC-001/002 are measured) delivers at every depth.
 
-    from charter.pack_context import PackContext as _PackContext  # noqa: PLC0415
-
-    _pack_ctx_json = _PackContext.from_config(repo_root)
-    bundle = _load_action_doctrine_bundle(
-        repo_root=repo_root,
+    # SPEC-ARCH-002 (T018): route through the self-resolving wrapper, the
+    # same one ``build_charter_context`` (plain-text) already uses above —
+    # NOT the private ``_load_action_doctrine_bundle`` directly. When
+    # ``org_root`` is None, ``_resolve_action_bundle`` widens to the FULL
+    # declaration-ordered org-pack chain via ``resolve_existing_org_roots``
+    # (see ``charter.action_doctrine_bundle``); calling
+    # ``_load_action_doctrine_bundle`` directly here bypassed that widening
+    # entirely and always resolved at most one org pack.
+    #
+    # FR-001/FR-004 (rc3-charter-gate-predicate-inversion WP02, #3596): the
+    # bundle is resolved BEFORE the mode decision -- once (NFR-001, no
+    # memoization) -- so a non-fast-path action can be tested for node-URN
+    # membership instead of being ruled out by the coarse BOOTSTRAP_ACTIONS
+    # set before a bundle ever existed.
+    bundle = _resolve_action_bundle(
+        repo_root,
         action=normalized,
         effective_depth=state_bundle.effective_depth,
         org_root=org_root,
-        pack_context=_pack_ctx_json,
         mission_type=mission_type,
         feature_dir=feature_dir,
     )
+
+    # FR-001/FR-002: the 4-token fast path always delivers bootstrap without
+    # consulting the predicate (AC-1, unchanged). Every other action gates on
+    # node-URN membership -- NOT empty-grain (see
+    # `_action_node_declared`'s docstring for the activation-starved case).
+    if normalized not in BOOTSTRAP_ACTIONS and not _action_node_declared(
+        bundle, normalized
+    ):
+        # WP11 (B-6) — non-bootstrap, undeclared actions carry no action
+        # grain; ruled OUT explicitly (empty typed arrays), not an
+        # early-return before a bundle -- the bundle above already resolved.
+        payload["mode"] = "compact"
+        return payload
+
+    payload["mode"] = "bootstrap"
     service = bundle.service
     # WP15 progressive disclosure (default cadence): DTOs carry ``references[]``
     # (T081); ``requires``-reachable is inline/eager, ``suggests``-reached is
@@ -486,8 +591,26 @@ def build_charter_context_json(
                 "tactic": (service.tactics, bundle.tactic_ids),
                 "styleguide": (service.styleguides, bundle.styleguide_ids),
                 "toolguide": (service.toolguides, bundle.toolguide_ids),
+                # #3389: ``procedure`` is a first-class typed array. Two kinds
+                # stay reference-only and travel through ``extra_delivered``
+                # instead of getting their own typed array, folded into the flat
+                # ``references[]`` link set by ``build_disclosure_payload``:
+                #   * ``asset`` (#3037) — no resolution/install path.
+                #   * ``glossary_pack`` (M4) — delivered as a term-name surface
+                #     list on the bootstrap-TEXT path (WP01) and surfaced in JSON
+                #     only as a ``references[]`` link, NOT a typed array: its
+                #     terms are pulled on demand via
+                #     ``--include glossary-pack:<id>``. Mirrors the deliberate
+                #     ``asset`` asymmetry so both delivered-but-reference-only
+                #     kinds are documented; adding a typed ``glossary``/
+                #     ``glossary_packs`` array would change the top-level key set
+                #     and require a ``context_schema_version`` bump — do not.
+                "procedure": (service.procedures, bundle.procedure_ids),
             },
-            extra_delivered={"procedure": bundle.procedure_ids, "asset": bundle.asset_ids},
+            extra_delivered={
+                "asset": bundle.asset_ids,
+                "glossary_pack": bundle.glossary_pack_ids,
+            },
             merged=bundle.merged,
             roots=bundle.roots,
             include_all=include_all,

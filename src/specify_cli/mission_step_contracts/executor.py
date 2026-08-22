@@ -330,6 +330,15 @@ class StepContractExecutor:
         a broken built-in graph, or a broken project overlay, still fails the
         dispatch outright. Only the optional org tier degrades, and only for
         the specific root(s) that actually failed to load.
+
+        Do NOT drop this pre-probe on the assumption ``load_validated_graph``
+        now covers it. As of PR #3534's landing that function skips a
+        *graphless* root internally (a root with no root-level ``*.graph.yaml``
+        -- it warns and contributes nothing), so for that specific shape this
+        probe is redundant. But this probe additionally degrades a *malformed*
+        root (a present-but-invalid root-level ``*.graph.yaml``), which
+        ``load_validated_graph`` deliberately still lets fail loud. Removing it
+        would reopen the malformed-content crash on this dispatch path.
         """
         if not org_roots:
             return load_validated_graph(repo_root, org_roots=[])

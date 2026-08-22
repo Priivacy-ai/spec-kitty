@@ -56,7 +56,6 @@ class TestDaemonFileLock:
         """Calling ensure_sync_daemon_running creates a lock file."""
         lock_file = tmp_path / "sync-daemon.lock"
         state_file = tmp_path / "sync-daemon"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
         monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
         monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
         monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
@@ -85,7 +84,6 @@ class TestDaemonFileLock:
         """Two concurrent callers should not both spawn; file lock serialises them."""
         lock_file = tmp_path / "sync-daemon.lock"
         state_file = tmp_path / "sync-daemon"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
         monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
         monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
         monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
@@ -193,7 +191,6 @@ class TestDaemonLogging:
         state_file = tmp_path / "sync-daemon"
         log_file = tmp_path / "sync-daemon.log"
         lock_file = tmp_path / "sync-daemon.lock"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
         monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
         monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", log_file)
         monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
@@ -276,7 +273,6 @@ class TestHealthCheckRetryWindow:
         """The retry loop should wait at least 15 seconds total."""
         state_file = tmp_path / "sync-daemon"
         lock_file = tmp_path / "sync-daemon.lock"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
         monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
         monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
         monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
@@ -363,7 +359,6 @@ class TestDaemonVersionCheck:
     def test_version_mismatch_triggers_recycle(self, monkeypatch, tmp_path):
         state_file = tmp_path / "sync-daemon"
         lock_file = tmp_path / "sync-daemon.lock"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
         monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
         monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
         monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
@@ -414,7 +409,6 @@ class TestDaemonVersionCheck:
     def test_version_match_reuses_daemon(self, monkeypatch, tmp_path):
         state_file = tmp_path / "sync-daemon"
         lock_file = tmp_path / "sync-daemon.lock"
-        monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", tmp_path)
         monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", state_file)
         monkeypatch.setattr(daemon, "DAEMON_LOCK_FILE", lock_file)
 

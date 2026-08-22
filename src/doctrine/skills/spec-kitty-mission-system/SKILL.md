@@ -3,7 +3,7 @@ name: spec-kitty-mission-system
 description: >-
   Understand how Spec Kitty missions work: the 4 built-in mission types, how
   they define workflows via step contracts and action indices, how missions and
-  work packages relate, how templates are resolved through the 5-tier chain,
+  work packages relate, how templates are resolved through the 6-tier chain,
   and how doctrine artifacts (procedures, tactics, directives) compose mission
   behavior.
   Triggers: "what missions are available", "how do missions work",
@@ -396,7 +396,7 @@ list must pass for the transition to fire.
 
 ---
 
-## Template Resolution (5-Tier Chain)
+## Template Resolution (6-Tier Chain)
 
 When a command prompt is needed, spec-kitty resolves the current doctrine
 mission-step prompt:

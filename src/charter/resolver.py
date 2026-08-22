@@ -23,10 +23,10 @@ hatch, for provenance-scan callers that need raw ``list_all()``/
 ``get_provenance()`` access across any of the nine gated kinds.
 
 Finally (FR-003, charter-sole-door-bypass-closure-01KZ3WAA WP05) this module
-is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 5-tier
+is the **sole charter-layer door** onto ``doctrine/resolver.py``'s 6-tier
 asset resolution chain. The tier functions themselves stay in
 ``doctrine/resolver.py`` (charter must import doctrine, never the reverse);
-what lives here is the entry point — see the "5-tier resolution axis"
+what lives here is the entry point — see the "6-tier resolution axis"
 section of :class:`DoctrineService`. Before WP05,
 ``charter.template_resolver.CharterTemplateResolver`` was a *second*
 charter-layer object reaching ``doctrine.resolver`` independently of this
@@ -107,7 +107,7 @@ _RAW_REPOSITORY_KINDS: frozenset[str] = frozenset(
 )
 
 # ---------------------------------------------------------------------------
-# FR-003 (WP05): the 5-tier resolution axis — shared vocabulary
+# FR-003 (WP05): the 6-tier resolution axis — shared vocabulary
 # ---------------------------------------------------------------------------
 
 #: Default mission key for the tier chain. Mirrors ``doctrine.resolver``'s own
@@ -118,7 +118,7 @@ _RAW_REPOSITORY_KINDS: frozenset[str] = frozenset(
 #: symbol-level dead-code gate rightly rejects an unimported export.
 _DEFAULT_RESOLUTION_MISSION = "software-dev"
 
-#: Tier-5 subdirectory names, matching ``doctrine.resolver._resolve_asset``'s
+#: Tier-6 subdirectory names, matching ``doctrine.resolver._resolve_asset``'s
 #: ``subdir`` vocabulary.
 _COMMAND_TEMPLATES_SUBDIR = "command-templates"
 _CONTENT_TEMPLATES_SUBDIR = "templates"
@@ -131,7 +131,7 @@ def _mission_template_repository(missions_root: str) -> MissionTemplateRepositor
     Replaces the ``lru_cache``d ``_charter_template_resolver_for()`` helper
     that used to live in ``specify_cli/runtime/resolver.py`` (FR-003): the
     cache moves into charter alongside the resolution entry point, so the
-    "repeated tier-5 lookups reuse the same repository" property is preserved
+    "repeated package-default lookups reuse the same repository" property is preserved
     without runtime holding a charter object of its own. Keyed on the
     stringified root because ``functools.lru_cache`` needs a hashable key and
     ``Path`` equality is already string equality here.
@@ -389,7 +389,7 @@ class DoctrineService:
         return getattr(inner, kind, None)
 
     # ------------------------------------------------------------------
-    # FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05): the 5-tier
+    # FR-003 (charter-sole-door-bypass-closure-01KZ3WAA WP05): the 6-tier
     # template/command/mission resolution axis.
     #
     # ONE charter-layer door. ``doctrine/resolver.py``'s tier functions
@@ -400,12 +400,12 @@ class DoctrineService:
     # ``doctrine.resolver`` independently of this class, giving the charter
     # layer two doors onto the same chain (C-001 violation). It is now a thin
     # delegate onto the methods below, and
-    # ``specify_cli/runtime/resolver.py``'s tier-5 routing calls them
+    # ``specify_cli/runtime/resolver.py``'s tier-6 routing calls them
     # directly.
     #
     # ---- Ungated by design (do NOT add activation filtering here) --------
     # Unlike the nine gated properties above, these methods apply NO charter
-    # activation filter, and that is deliberate: the 5-tier chain has no
+    # activation filter, and that is deliberate: the 6-tier chain has no
     # activation concept today (there is no ``activated_templates`` /
     # ``activated_missions`` key in ``PackContext``), so there is nothing to
     # filter by. Gating templates is FR-005's separate scope; conflating it
@@ -419,7 +419,7 @@ class DoctrineService:
     # signature, and it dissolves the construction-contract mismatch T019
     # named rather than papering over it. The alternative considered and
     # rejected — making them instance methods and building the activation-
-    # aware factory at ``specify_cli/runtime/resolver.py``'s tier-5 call site
+    # aware factory at ``specify_cli/runtime/resolver.py``'s tier-6 call site
     # (from the ``project_dir`` already threaded through the chain) — would
     # have coupled pure-filesystem template resolution to charter governance
     # config loading (``PackContext.from_config`` + ``resolve_org_roots`` +
@@ -434,10 +434,10 @@ class DoctrineService:
         project_dir: Path,
         mission: str = _DEFAULT_RESOLUTION_MISSION,
     ) -> ResolutionResult:
-        """Resolve a content template through the full 5-tier chain.
+        """Resolve a content template through the full 6-tier chain.
 
         Behaviour-preserving pass-through to
-        :func:`doctrine.resolver.resolve_template` (OVERRIDE > LEGACY >
+        :func:`doctrine.resolver.resolve_template` (OVERRIDE > LEGACY > ORG >
         GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT). Ungated by design — see
         the section comment above.
 
@@ -460,7 +460,7 @@ class DoctrineService:
         project_dir: Path,
         mission: str = _DEFAULT_RESOLUTION_MISSION,
     ) -> ResolutionResult:
-        """Resolve a command template through the full 5-tier chain.
+        """Resolve a command template through the full 6-tier chain.
 
         Behaviour-preserving pass-through to
         :func:`doctrine.resolver.resolve_command`. Ungated by design — see
@@ -485,7 +485,7 @@ class DoctrineService:
 
         Behaviour-preserving pass-through to
         :func:`doctrine.resolver.resolve_mission`. Missions are inherently
-        mission-scoped, so that chain has four tiers (no GLOBAL tier).
+        mission-scoped, so that chain has five tiers (no GLOBAL tier).
         Ungated by design — see the section comment above.
 
         Args:
@@ -508,13 +508,13 @@ class DoctrineService:
         subdir: str,
         name: str,
     ) -> Path | None:
-        """Resolve the tier-5 (PACKAGE_DEFAULT) path for an asset, or ``None``.
+        """Resolve the tier-6 (PACKAGE_DEFAULT) path for an asset, or ``None``.
 
-        A tier-5-**only** entry point, deliberately separate from
+        A tier-6-**only** entry point, deliberately separate from
         :meth:`resolve_content_asset` / :meth:`resolve_command_asset`:
-        ``specify_cli/runtime/resolver.py`` carries its own tiers 1-4
+        ``specify_cli/runtime/resolver.py`` carries its own tiers 1-5
         (explicitly out of this mission's scope as deferred debt) and needs to
-        ask charter for tier 5 alone. Keeping the ``subdir`` → repository-method
+        ask charter for tier 6 alone. Keeping the ``subdir`` → repository-method
         dispatch here is what lets that caller stop knowing
         :class:`MissionTemplateRepository`'s shape — the intent its existing
         "runtime never binds directly to doctrine's repository shape" comment
@@ -524,8 +524,8 @@ class DoctrineService:
         caller's root is ``get_package_asset_root()``, which honours the
         ``SPEC_KITTY_TEMPLATE_ROOT`` override; hard-wiring
         ``MissionTemplateRepository.default()`` here (as
-        ``doctrine.resolver``'s own tier 5 does) would silently drop that
-        override. That divergence between the two tier-5 implementations is
+        ``doctrine.resolver``'s own tier 6 does) would silently drop that
+        override. That divergence between the two tier-6 implementations is
         pre-existing, named deferred debt — this method preserves the caller's
         side of it verbatim rather than "fixing" it out of scope.
 

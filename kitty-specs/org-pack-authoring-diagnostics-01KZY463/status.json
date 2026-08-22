@@ -1,5 +1,5 @@
 {
-  "event_count": 16,
+  "event_count": 18,
   "last_event_id": "01KZZ1KZGHD8W51WBKSF32NFB1",
   "materialized_at": "2026-08-14T02:29:04.145431+00:00",
   "mission_number": "",
@@ -19,17 +19,20 @@
   "work_packages": {
     "WP01": {
       "actor": "claude",
+      "agent": "claude",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KZYXBN7XBGRDSR30TCG8QXXH",
-      "last_transition_at": "2026-08-14T01:14:37.181643+00:00"
+      "last_transition_at": "2026-08-14T01:14:37.181643+00:00",
+      "shell_pid": 758990
     },
     "WP02": {
       "actor": "claude",
       "force_count": 0,
       "lane": "approved",
       "last_event_id": "01KZYX314KRMX8T3V4KQV6JQ1X",
-      "last_transition_at": "2026-08-14T01:09:54.451663+00:00"
+      "last_transition_at": "2026-08-14T01:09:54.451663+00:00",
+      "shell_pid": 761207
     },
     "WP03": {
       "actor": "claude",

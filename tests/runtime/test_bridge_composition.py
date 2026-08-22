@@ -5,8 +5,8 @@ Four concerns, mirroring the WP03/WP04/WP05 test-file pattern:
 1. **Compat surface** (``test_seam_defines_every_relocated_symbol``,
    ``test_runtime_bridge_keeps_plain_reexports_for_untracked_helpers``) — the
    non-vacuousness + plain-reexport half of the split contract from
-   contracts/compat-surface.md; the native-thin-delegate half is now covered
-   solely by the frozen family guard (``test_bridge_compat_surface.py``).
+   contracts/compat-surface.md; the native-thin-delegate half was previously
+   pinned by a dedicated frozen family guard, retired in #3285.
 
 2. **FR-008 both-branch fixture** (``test_should_dispatch_via_composition_*``)
    — the selection seam exercised for BOTH outcomes (dispatch / no-dispatch),
@@ -92,11 +92,9 @@ _INTERNAL_ONLY_NAMES = frozenset(
 
 def test_seam_defines_every_relocated_symbol() -> None:
     """Non-vacuousness check: the seam must actually define every relocated
-    name. Native-thin-delegate status for the compat-guarded set is the
-    frozen family guard's job now (``test_bridge_compat_surface.py::
-    test_guard_b_identity_reexport_for_relocated_symbols``); this check only
-    guards against passing for the wrong reason (nobody needing the cluster
-    at all)."""
+    name. Native-thin-delegate status for the compat-guarded set was pinned by
+    a dedicated frozen family guard, retired in #3285; this check only guards
+    against passing for the wrong reason (nobody needing the cluster at all)."""
     for name in sorted(_COMPAT_GUARDED_NAMES | _INTERNAL_ONLY_NAMES):
         assert hasattr(composition, name), f"seam is missing relocated symbol {name!r}"
 

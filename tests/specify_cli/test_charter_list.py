@@ -23,7 +23,9 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from charter.resolution import ResolutionTier
 from specify_cli.cli.commands.charter import charter_app
+from specify_cli.cli.commands.charter.list_cmd import _template_tier_roots
 
 runner = CliRunner()
 
@@ -80,6 +82,7 @@ def layered_project(tmp_path: Path) -> Path:
         <repo>/.kittify/doctrine/directive/<...>.directive.yaml
         <repo>/.kittify/doctrine/missions/<mission>/templates/<name>
         <org-pack>/doctrine/directives/org/<...>.directive.yaml
+        <org-pack>/missions/<mission>/templates/<name>   (flat -- FR-006/WP03)
     """
     repo = tmp_path / "repo"
     kittify = repo / ".kittify"
@@ -119,6 +122,15 @@ def layered_project(tmp_path: Path) -> Path:
         "acme-mission",
         "project-spec-template.md",
         "# project spec template\n",
+    )
+
+    # Org mission template, at the flat layout the resolver actually reads
+    # (``<org_root>/missions/<mission>/templates/<name>`` -- WP03, FR-006).
+    _write_template(
+        org_pack / "missions",
+        "acme-mission",
+        "org-spec-template.md",
+        "# org spec template\n",
     )
 
     return repo
@@ -195,3 +207,91 @@ class TestKindOrderDerivedFromCanonical:
         assert result.exit_code == 0, result.output
         for kind in CHARTER_KIND_TOKENS:
             assert kind in result.output, f"missing kind {kind!r}"
+
+
+class TestListAllOrgTierReporting:
+    """FR-006/SC-006: ``charter list --all`` reports the org template tier
+
+    honestly -- as ``ResolutionTier.ORG`` at the flat ``<org_root>/missions/``
+    path WP03's resolver actually reads, not the borrowed ``GLOBAL_MISSION``
+    label at a nested ``<org_root>/doctrine/missions/`` path the resolver never
+    consults (WP02/WP03).
+    """
+
+    def test_org_template_reported_as_org_tier(self, layered_project: Path) -> None:
+        """The org-tier template is tagged ``(org)``, not ``(global_mission)``."""
+        result = _invoke(layered_project, "--all")
+        assert result.exit_code == 0, result.output
+        assert "acme-mission/org-spec-template.md (org)" in result.output
+        assert "acme-mission/org-spec-template.md (global_mission)" not in result.output
+
+    def test_org_template_id_present(self, layered_project: Path) -> None:
+        """The org template appears with its mission-qualified ID (WP18)."""
+        result = _invoke(layered_project, "--all")
+        assert result.exit_code == 0, result.output
+        assert "acme-mission/org-spec-template.md" in result.output
+
+    def test_org_template_at_nested_path_not_discovered(
+        self, layered_project: Path
+    ) -> None:
+        """A template at the OLD nested ``<org_root>/doctrine/missions/`` path
+
+        is not what the fixed code reads -- reinforcing that the fix moved the
+        read location to the flat path WP03's resolver actually uses, not just
+        the tag. Writing a second (differently-named) template at the nested
+        location proves it is silently absent from the listing rather than
+        being picked up and mislabeled.
+        """
+        org_pack = layered_project.parent / "org-pack"
+        _write_template(
+            org_pack / "doctrine" / "missions",
+            "acme-mission",
+            "org-nested-template.md",
+            "# should not be discovered\n",
+        )
+        result = _invoke(layered_project, "--all")
+        assert result.exit_code == 0, result.output
+        assert "org-nested-template.md" not in result.output
+
+
+class TestTemplateTierRootsOrgBranch:
+    """T030: focused unit test directly on ``_template_tier_roots``'s org
+
+    branch (NFR-006 -- this surface has no diff-coverage numeric CI backstop,
+    so this is the actual regression guard per the repo's Sonar new-code
+    coverage expectation).
+    """
+
+    def test_org_branch_reports_org_tier_at_flat_path(self, tmp_path: Path) -> None:
+        org_root = tmp_path / "org-pack"
+        _write_template(
+            org_root / "missions", "acme-mission", "spec-template.md", "# tpl\n"
+        )
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+
+        tier_roots = _template_tier_roots(repo_root, {"org": org_root})
+
+        org_roots = [tr for tr in tier_roots if tr.tier is ResolutionTier.ORG]
+        assert [tr.missions_root for tr in org_roots] == [org_root / "missions"], tier_roots
+
+    def test_org_branch_absent_when_no_org_root(self, tmp_path: Path) -> None:
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+
+        tier_roots = _template_tier_roots(repo_root, {})
+
+        assert all(tr.tier is not ResolutionTier.ORG for tr in tier_roots)
+
+    def test_org_branch_absent_when_flat_missions_dir_missing(
+        self, tmp_path: Path
+    ) -> None:
+        """An org root with no ``missions/`` dir contributes no ORG tier root."""
+        org_root = tmp_path / "org-pack"
+        org_root.mkdir()
+        repo_root = tmp_path / "repo"
+        repo_root.mkdir()
+
+        tier_roots = _template_tier_roots(repo_root, {"org": org_root})
+
+        assert all(tr.tier is not ResolutionTier.ORG for tr in tier_roots)

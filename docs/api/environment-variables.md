@@ -2,14 +2,20 @@
 title: Environment Variables Reference
 description: Environment variable reference for Spec Kitty 3.2 runtime, CI, hosted sync, tracker, dashboard, and test configuration.
 doc_status: active
-updated: '2026-06-26'
+updated: '2026-08-16'
 related:
 - docs/api/cli-commands.md
 - docs/api/configuration.md
+- docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
 ---
 # Environment Variables Reference
 
 This page lists the user-facing environment variables that are active in the current `3.2` CLI surface.
+
+Most of the variables below can now be set **once**, in a `.kitty.env` file, instead of
+per-shell `export`. See [The `.kitty.env` file](#the-kittyenv-file) below and the
+[operator config env-expansion seam ADR](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md)
+for the mechanism.
 
 ---
 
@@ -19,13 +25,45 @@ This page lists the user-facing environment variables that are active in the cur
 
 Override the runtime home directory used for shared Spec Kitty state.
 
-**Purpose**: Change where the CLI stores shared state such as runtime files and upgrade-managed assets.
+**Purpose**: Change where the CLI stores shared state such as runtime files and
+upgrade-managed assets. This is also the **locator** for the home-tier `.kitty.env` file
+(`${SPEC_KITTY_HOME}/.kitty.env`) — see [The `.kitty.env` file](#the-kittyenv-file). Because
+it locates that file, `SPEC_KITTY_HOME` itself cannot be set *inside* `.kitty.env`; a line
+defining it there is dropped with a warning (locator-recursion guard).
 
 **Example**:
 ```bash
 export SPEC_KITTY_HOME="$HOME/.spec-kitty-dev"
 spec-kitty verify-setup
 ```
+
+### SPEC_KITTY_PACKS_ROOT
+
+Override the root directory the CLI resolves built-in doctrine packs from.
+
+**Purpose**: Committed governance files (`charter.yaml`'s catalog,
+`agent_profiles_manifest.json`) store built-in pack paths as the portable token
+`${SPEC_KITTY_PACKS_ROOT}/built-in/...`, never a resolved absolute path, so the same
+committed file is byte-identical across an editable checkout, an installed wheel, or a
+future externally-extracted pack. `SPEC_KITTY_PACKS_ROOT` is the *resolution* override for
+that token on one machine; leaving it unset resolves through the normal built-in-pack
+discovery (`get_built_in_pack_root()`), and the token in committed files is unaffected
+either way.
+
+**Do not set this in the provisioned `.kitty.env` scaffold.** The `spec-kitty upgrade`
+provision migration deliberately never seeds it: an always-present
+`SPEC_KITTY_PACKS_ROOT` would silently flip the `kernel/paths.py` TEMPLATE_ROOT presence
+gate for every subsequent invocation of the project, even for an operator who never meant
+to override the pack root. Set it explicitly, only when you actually need a non-default
+pack root.
+
+**Example**:
+```bash
+export SPEC_KITTY_PACKS_ROOT=/opt/spec-kitty-packs
+spec-kitty doctor provenance
+```
+
+**See also**: [ADR: operator config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md).
 
 ### SPEC_KITTY_TEMPLATE_ROOT
 
@@ -109,12 +147,12 @@ spec-kitty merge
 
 ## Hosted Auth and Sync
 
-!!! warning "Both variables in this section are machine-global"
+!!! warning "A shell `export` of either variable is machine-global"
 
     `SPEC_KITTY_ENABLE_SAAS_SYNC` and `SPEC_KITTY_SAAS_URL` are ordinary process
-    environment variables. They have **no project-scoped form**, so a single
-    `export` in a shell arms **every project that shell subsequently touches** —
-    not just the repository you were standing in when you ran it.
+    environment variables. **Exported in a shell**, they have no project-scoped form —
+    a single `export` arms every project that shell subsequently touches, not just the
+    repository you were standing in when you ran it.
 
     This matters because the event journal is scoped per *producer*
     (`~/.spec-kitty/event_journal/journal-<token>.db`), not per project. One
@@ -122,20 +160,30 @@ spec-kitty merge
 
     If you work on more than one client's code on one machine — as consultants,
     contractors and agencies do — arming these in your shell profile makes every
-    project you touch a candidate for delivery. Prefer scoping them to a single
-    command, and use per-project consent (`spec-kitty sync opt-in` /
-    `sync opt-out`) to decide what may actually be delivered.
+    project you touch a candidate for delivery.
+
+    **The scoped alternative is the per-repo `.kitty.env` tier** (see
+    [The `.kitty.env` file](#the-kittyenv-file) below): a value in
+    `<repo>/.kittify/.kitty.env` only takes effect for `spec-kitty` invocations
+    whose resolved project root is that repo, so setting either variable there
+    does not arm any other checkout on the machine. Combine it with per-project
+    consent (`spec-kitty sync opt-in` / `sync opt-out`) to decide what may
+    actually be delivered.
 
     ```bash
-    # Scoped to one invocation — preferred
+    # Scoped to one invocation
     SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty sync now
+
+    # Scoped to this repo only — write once, no per-shell export
+    echo 'SPEC_KITTY_ENABLE_SAAS_SYNC=1' >> .kittify/.kitty.env
 
     # Arms every project this shell touches afterwards — know what you are doing
     export SPEC_KITTY_ENABLE_SAAS_SYNC=1
     ```
 
     Run `spec-kitty sync doctor` before draining to see, per project, what is
-    queued and whether it is consented.
+    queued and whether it is consented, and `spec-kitty doctor env-file` to see
+    which tier is actually supplying each governed var.
 
 ### SPEC_KITTY_ENABLE_SAAS_SYNC
 
@@ -164,9 +212,10 @@ spec-kitty auth login
 
 Override the Spec Kitty SaaS base URL.
 
-**Scope**: machine-global (see the warning at the top of this section). Combined
-with `SPEC_KITTY_ENABLE_SAAS_SYNC`, exporting this in a shell points every
-project that shell touches at the named instance.
+**Scope**: machine-global when **exported**; repo-scoped when set in a per-repo
+`.kitty.env` (see the warning at the top of this section). Combined with
+`SPEC_KITTY_ENABLE_SAAS_SYNC`, exporting this in a shell points every project
+that shell touches at the named instance.
 
 **Purpose**: Point auth, tracker discovery, and sync clients at a specific hosted environment such as a dev deployment.
 
@@ -183,6 +232,96 @@ spec-kitty auth login
 - [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
   -- the override remains internal-only after launch; only the
   user-facing default URL changes.
+
+---
+
+## Release Channel
+
+### SPEC_KITTY_PRERELEASE
+
+Opt in to the pre-release (rc) consumer channel.
+
+**Purpose**: Default-off. Unset (the default), every "latest version" surface —
+`spec-kitty upgrade --agent-check`, the throttled startup nag — reports the newest
+**stable** release only, even when a newer release candidate exists on the configured
+index. Set to a truthy value and the newest PEP 440 pre-release is surfaced instead, with
+the proposed upgrade command a **pinned** `spec-kitty-cli==<rc>` install — never a floating
+`--pre` flag. See [ADR: default-off rc release channel](../adr/3.x/2026-08-16-4-rc-release-channel.md).
+
+**Example**:
+```bash
+export SPEC_KITTY_PRERELEASE=1
+spec-kitty upgrade --agent-check
+```
+
+Or, once, in `.kitty.env` — no per-shell export needed:
+```bash
+# .kittify/.kitty.env or ${SPEC_KITTY_HOME}/.kitty.env
+SPEC_KITTY_PRERELEASE=1
+```
+
+**Check the active channel**:
+```bash
+spec-kitty doctor channel
+```
+
+**See also**: [ADR: default-off rc release channel](../adr/3.x/2026-08-16-4-rc-release-channel.md).
+
+---
+
+## The `.kitty.env` file
+
+Most `SPEC_KITTY_*` variables above can be set **once** in `.kitty.env` instead of a
+per-shell `export`. This is not a new mechanism per variable — it is a single, generic
+pre-import loader that seeds `os.environ` before any other `spec-kitty` module is imported,
+so every existing reader (all ~88 of them) sees the value with no code change.
+
+**Two tiers**, later overriding earlier:
+
+| Tier | Location | Scope |
+|---|---|---|
+| Home | `${SPEC_KITTY_HOME}/.kitty.env` | Machine-wide default (all projects) |
+| Repo | `<repo>/.kittify/.kitty.env` | This repository only — overrides the home tier |
+
+Precedence is **real shell env > per-repo tier > home tier**: an already-exported shell
+variable always wins over anything in either file. `.kittify/config.yaml` carries the single
+pointer `env_file: ${SPEC_KITTY_HOME}/.kitty.env`, resolved once at bootstrap; there is no
+separate `CONFIG_HOME`-style variable.
+
+**Format** is plain `KEY=VALUE`, one per line; `#` comments and blank lines are ignored; an
+optional leading `export ` is stripped so the file stays shell-sourceable; one layer of
+surrounding quotes is stripped from the value:
+
+```bash
+# .kittify/.kitty.env
+SPEC_KITTY_ENABLE_SAAS_SYNC=1
+SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
+# SPEC_KITTY_SAAS_TOKEN=       (secret-shaped vars are provisioned as commented templates —
+#                                fill in by hand; never auto-populated with a live value)
+```
+
+**Fail policy**: an absent file is normal (the default state for almost every project) and
+is silently skipped; a *present but unreadable* file fails loud, naming the path — because it
+gates authentication. A malformed line is skipped with a debug log, never aborts startup.
+`SPEC_KITTY_HOME` — the variable that *locates* the home-tier file — cannot be set from
+inside the file it locates; a line defining it there is dropped with a warning.
+
+**Provisioning**: `spec-kitty upgrade` runs an idempotent migration that creates the
+per-repo scaffold, registers the `env_file` pointer, and adds `.kitty.env` to both
+`.gitignore` and `.claudeignore` — it never seeds `SPEC_KITTY_PACKS_ROOT` (see that
+variable's entry above) and never writes a secret *value*.
+
+**Check health**:
+```bash
+spec-kitty doctor env-file
+```
+Reports presence, resolved tier, and ignore-rule coverage per file; a governed var's value
+is only ever printed when it is on the fail-closed printable-var allowlist — everything else
+shows presence and tier only.
+
+**See also**: [ADR: operator config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md),
+[Configuration Reference § env_file Pointer](configuration.md#env_file-pointer),
+[Team Kitty (SaaS) architecture](../architecture/team-kitty-saas.md).
 
 ---
 
@@ -341,13 +480,15 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 
 | Variable | Purpose | Example Value |
 |----------|---------|---------------|
-| `SPEC_KITTY_HOME` | Override shared runtime home | `$HOME/.spec-kitty-dev` |
+| `SPEC_KITTY_HOME` | Override shared runtime home; locates the home-tier `.kitty.env` | `$HOME/.spec-kitty-dev` |
+| `SPEC_KITTY_PACKS_ROOT` | Override built-in pack root resolution (never seeded by the `.kitty.env` scaffold) | `/opt/spec-kitty-packs` |
 | `SPEC_KITTY_TEMPLATE_ROOT` | Use a local template checkout | `/path/to/spec-kitty` |
 | `SPECIFY_TEMPLATE_REPO` | Use a custom remote template repo | `org/templates` |
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted sync/auth flows | `1` |
 | `SPEC_KITTY_SAAS_URL` | Override hosted base URL | `https://spec-kitty-dev.fly.dev` |
+| `SPEC_KITTY_PRERELEASE` | Opt in to the pre-release (rc) consumer channel | `1` |
 | `SPEC_KITTY_NO_NAG` | Disable upgrade notices | `1` |
 | `SPEC_KITTY_NAG_THROTTLE_SECONDS` | Override upgrade-check cadence | `86400` |
 | `SPEC_KITTY_UPGRADE_DISABLED` | Disable upgrade readiness UX | `1` |
@@ -364,9 +505,12 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 
 ## See Also
 
-- [Configuration](configuration.md) — Configuration file reference
+- [Configuration](configuration.md) — Configuration file reference, including the `env_file` pointer
 - [CLI Commands](cli-commands.md) — Command line reference
 - [Non-Interactive Init](../guides/how-to/installation/non-interactive-init.md) — Common automation patterns
+- [ADR: operator config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md) — the `.kitty.env` / provenance-token mechanism
+- [ADR: default-off rc release channel](../adr/3.x/2026-08-16-4-rc-release-channel.md) — `SPEC_KITTY_PRERELEASE`
+- [Team Kitty (SaaS) architecture](../architecture/team-kitty-saas.md) — the end-to-end hosted-sync flow these variables gate
 
 ## Getting Started
 

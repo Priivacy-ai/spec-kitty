@@ -740,3 +740,132 @@ def test_json_out_writes_file(tmp_path: Path) -> None:
     envelope = json.loads(out_file.read_text())
     assert envelope["schema_version"] == "1"
     assert envelope["command"] == "agent.retrospect.synthesize"
+
+
+def test_invalid_category_reports_generator_diagnosis_not_pydantic_wall(tmp_path: Path) -> None:
+    """#3533: one bad enum value must not surface ~100 errors for the other schema.
+
+    A record written by ``retrospect create`` is generator-shaped, so the nested
+    Pydantic reader always rejects it. When the generator reader ALSO rejects it,
+    the actionable message is the generator's one-liner naming the field -- not
+    the Pydantic error list, which describes a schema the file never targeted.
+    Reporting the wrong one twice led readers to conclude the tool contradicts
+    itself when a single category value was wrong.
+    """
+    root = tmp_path
+    retro_path = _write_generator_retrospective(root)
+    retro_path.write_text(
+        retro_path.read_text(encoding="utf-8").replace(
+            "category: process", "category: terminus"
+        ),
+        encoding="utf-8",
+    )
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.locate_project_root",
+            return_value=root,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.resolve_mission_handle",
+            return_value=_make_resolved_mission(tmp_path=root),
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["retrospect", "synthesize", "--mission", FAKE_SLUG],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 3, result.output
+    # The generator reader's precise diagnosis is what reaches the operator.
+    assert "not_helpful[0].category is invalid" in result.output, result.output
+    # And the allow-list, because it is otherwise only a frozenset in reader.py.
+    assert "Allowed finding categories:" in result.output, result.output
+    assert "review_loop" in result.output, result.output
+    # The Pydantic wall for the schema this file never targeted must NOT appear.
+    assert "extra_forbidden" not in result.output, result.output
+    assert "Field required" not in result.output, result.output
+
+
+def test_invalid_proposal_category_reports_proposal_allow_list(tmp_path: Path) -> None:
+    """#3537 landing: findings and proposals both raise "<label>.category is invalid"
+    but draw from DIFFERENT allow-lists. A bad *proposal* category must be handed the
+    proposal vocabulary, not the finding one — otherwise the "accurate diagnosis" the
+    fix promises steers the author toward values that are invalid for a proposal.
+    """
+    root = tmp_path
+    retro_path = _write_generator_retrospective(root)
+    # Findings stay valid; add a proposal whose category is out of the proposal set.
+    retro_path.write_text(
+        retro_path.read_text(encoding="utf-8").replace(
+            "proposals: []",
+            "proposals:\n  - id: p-001\n    category: implementation\n",
+        ),
+        encoding="utf-8",
+    )
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.locate_project_root",
+            return_value=root,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.resolve_mission_handle",
+            return_value=_make_resolved_mission(tmp_path=root),
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["retrospect", "synthesize", "--mission", FAKE_SLUG],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 3, result.output
+    # `implementation` is a valid FINDING category but NOT a proposal one, so the
+    # generator reader flags the proposal and we must show the proposal allow-list.
+    assert "proposals[0].category is invalid" in result.output, result.output
+    assert "Allowed proposal categories:" in result.output, result.output
+    assert "glossary" in result.output, result.output  # proposal-only value
+    # The finding allow-list (and its finding-only values) must NOT be offered here.
+    assert "Allowed finding categories:" not in result.output, result.output
+    assert "review_loop" not in result.output, result.output
+    assert "spec_quality" not in result.output, result.output
+
+
+def test_invalid_category_json_surface_carries_diagnosis_and_allow_list(tmp_path: Path) -> None:
+    """#3537: the ``--json`` envelope's ``detail`` carries the same corrected
+    generator diagnosis and allow-list as the Rich surface, not the Pydantic wall.
+    """
+    root = tmp_path
+    retro_path = _write_generator_retrospective(root)
+    retro_path.write_text(
+        retro_path.read_text(encoding="utf-8").replace(
+            "category: process", "category: terminus"
+        ),
+        encoding="utf-8",
+    )
+
+    with (
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.locate_project_root",
+            return_value=root,
+        ),
+        patch(
+            "specify_cli.cli.commands.agent_retrospect.resolve_mission_handle",
+            return_value=_make_resolved_mission(tmp_path=root),
+        ),
+    ):
+        result = runner.invoke(
+            app,
+            ["retrospect", "synthesize", "--mission", FAKE_SLUG, "--json"],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 3, result.output
+    envelope = json.loads(result.output)
+    assert envelope["error"] == "record_malformed", envelope
+    detail = envelope["detail"]
+    assert "not_helpful[0].category is invalid" in detail, detail
+    assert "Allowed finding categories:" in detail, detail
+    assert "extra_forbidden" not in detail, detail

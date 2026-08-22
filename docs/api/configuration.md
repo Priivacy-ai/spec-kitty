@@ -1,18 +1,53 @@
 ---
 title: Configuration Reference
-description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, and agent settings.
+description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, config.yaml's env_file pointer, and agent settings.
 doc_status: active
-updated: '2026-06-15'
+updated: '2026-08-16'
 related:
 - docs/api/agent-subcommands.md
 - docs/api/cli-commands.md
 - docs/api/environment-variables.md
 - docs/api/file-structure.md
 - docs/api/missions.md
+- docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
 ---
 # Configuration Reference
 
 This document describes all configuration files used by Spec Kitty.
+
+---
+
+## env_file Pointer
+
+`.kittify/config.yaml` carries a single top-level pointer key:
+
+```yaml
+env_file: ${SPEC_KITTY_HOME}/.kitty.env
+```
+
+This is the **one** place a project registers where its operator env-file lives. It is
+resolved **once**, at bootstrap, through the kernel's `${VAR}` expansion seam
+(`src/kernel/env_expand.py`) — the default value points at the home-tier
+`.kitty.env` (`${SPEC_KITTY_HOME}/.kitty.env`), which is then overridden by the per-repo
+tier `<repo>/.kittify/.kitty.env` if that file exists. See [Environment Variables
+Reference § The `.kitty.env` file](environment-variables.md#the-kittyenv-file) for the
+full loader mechanism (two-tier precedence, fail policy, provisioning), and [ADR: operator
+config env-expansion seam](../adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md)
+for the design rationale.
+
+**Fields**:
+
+| Key | Type | Description |
+|-----|------|-------------|
+| `env_file` | string | `${VAR}`-expandable pointer to the home-tier `.kitty.env`. Read via a targeted top-level-key scan (not a full YAML/model load), so it never collides with `doctrine.org`'s `extra="forbid"` schema in the same file. |
+
+There is no separate `CONFIG_HOME`-style variable — the pointer is always anchored on the
+existing `SPEC_KITTY_HOME` locator, which itself cannot be redefined from inside the file
+it locates.
+
+**Provisioning**: `spec-kitty upgrade` provisions this key (idempotently) for projects that
+predate the mechanism, alongside creating the per-repo `.kitty.env` scaffold and the
+matching `.gitignore` / `.claudeignore` entries.
 
 ---
 

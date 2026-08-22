@@ -39,7 +39,7 @@ from pathlib import Path
 
 from charter.mission_type_profiles import MissionTypeProfile
 from doctrine.base import BaseDoctrineRepository
-from doctrine.missions.repository import MissionTemplateRepository
+from doctrine.pack_paths import built_in_missions_root as _pack_paths_built_in_missions_root
 
 __all__ = ["MissionTypeProfileRepository", "builtin_missions_root"]
 
@@ -53,25 +53,33 @@ _PROJECT_OVERRIDE_PARTS: tuple[str, ...] = (".kittify", "doctrine", "mission_typ
 
 
 def builtin_missions_root() -> Path:
-    """Shipped profiles root: ``src/doctrine/missions``.
+    """Shipped profiles root: ``packs/built-in/missions``.
 
-    Thin delegate (FR-004) onto the ONE promoted missions-root authority,
-    :meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`
+    Thin delegate (FR-004, #3575) directly onto the ONE canonical
+    missions-root authority, :func:`~doctrine.pack_paths.built_in_missions_root`
     — this accessor is not a second, co-equal path-hardcode. The delegation
     is layer-rule-clean (charter → doctrine, no ``specify_cli``) and
-    byte-identical in the return value: :meth:`default_missions_root` is
-    itself ``importlib.resources``-based (wheel-safe), which the previous
-    ``Path(__file__)``-relative literal here was not. Full convergence onto
-    ``doctrine.pack_paths.built_in_dir`` remains deferred to #3091 —
-    ``pack_paths`` has no ``missions/`` content directory today — and is
-    explicitly NOT claimed by this delegation.
+    byte-identical in the return value to the previous hop through
+    :meth:`~doctrine.missions.repository.MissionTemplateRepository.default_missions_root`
+    (itself a thin wrapper over the same ``pack_paths`` call plus an
+    existence check — see behaviour note below).
+
+    Behaviour note: unlike ``default_missions_root()``, this accessor does
+    **not** fail closed with ``MissionsRootNotFound`` when the missions
+    directory is missing from disk — it returns the joined path
+    unconditionally, per :func:`~doctrine.pack_paths.built_in_missions_root`'s
+    own contract. No current caller of this accessor catches
+    ``MissionsRootNotFound``, so this is not a behaviour change for any
+    known call site in a healthy install; a caller that needs the fail-closed
+    guarantee should call ``MissionTemplateRepository.default_missions_root()``
+    directly instead.
 
     Public module-level accessor (#2668) so cross-module consumers (e.g.
     ``charter.action_grain``, ``charter.mission_type_profiles``) no longer
     need to reach into :class:`MissionTypeProfileRepository`'s private
     ``_default_built_in_dir`` classmethod.
     """
-    return MissionTemplateRepository.default_missions_root()
+    return _pack_paths_built_in_missions_root()
 
 
 class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
@@ -116,7 +124,7 @@ class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
 
     @staticmethod
     def _default_built_in_dir() -> Path:
-        """Shipped profiles root: ``src/doctrine/missions``.
+        """Shipped profiles root: ``packs/built-in/missions``.
 
         Delegates to the public module-level :func:`builtin_missions_root`
         (#2668) — kept as a thin classmethod wrapper so the existing
@@ -132,10 +140,6 @@ class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
     @property
     def _glob(self) -> str:
         return _GOVERNANCE_PROFILE_GLOB
-
-    def _project_scan(self, project_dir: Path) -> list[Path]:
-        """Recurse into per-type subdirectories for project overrides."""
-        return sorted(project_dir.rglob(self._glob))
 
     def _key(self, obj: MissionTypeProfile) -> str:
         """Key on the overlay identity (``id == mission_type`` invariant)."""

@@ -50,6 +50,12 @@ class RefAdvanceError(RuntimeError):
     error_code = "REF_ADVANCE_FAILED"
 
 
+class RefRestoreError(RuntimeError):
+    """A compare-and-swap branch rollback failed at the git level."""
+
+    error_code = "REF_RESTORE_FAILED"
+
+
 class RefAdvanceNonFastForwardError(RefAdvanceError):
     """The requested ref advance would move a branch backwards or sideways."""
 
@@ -60,9 +66,7 @@ class RefAdvanceNonFastForwardError(RefAdvanceError):
         self.old_sha = old_sha
         self.new_sha = new_sha
         super().__init__(
-            f"Refusing to advance branch {branch!r} "
-            f"({old_sha[:12]} -> {new_sha[:12]}): target is not a "
-            "fast-forward descendant of the current branch tip."
+            f"Refusing to advance branch {branch!r} ({old_sha[:12]} -> {new_sha[:12]}): target is not a fast-forward descendant of the current branch tip."
         )
 
 
@@ -133,10 +137,7 @@ def _list_worktrees(repo_root: Path, env: dict[str, str] | None) -> list[_Worktr
     """Parse ``git worktree list --porcelain`` into entries."""
     result = _run_git(repo_root, ["worktree", "list", "--porcelain"], env=env)
     if result.returncode != 0:
-        raise RefAdvanceError(
-            f"Could not enumerate worktrees of {repo_root}: "
-            f"{result.stderr.strip() or result.stdout.strip()}"
-        )
+        raise RefAdvanceError(f"Could not enumerate worktrees of {repo_root}: {result.stderr.strip() or result.stdout.strip()}")
     entries: list[_WorktreeEntry] = []
     current: _WorktreeEntry | None = None
     for line in result.stdout.splitlines():
@@ -154,10 +155,7 @@ def _target_tree_paths(repo_root: Path, new_sha: str, env: dict[str, str] | None
     """Return tracked paths present at ``new_sha``."""
     result = _run_git(repo_root, ["ls-tree", "-r", "--name-only", new_sha], env=env)
     if result.returncode != 0:
-        raise RefAdvanceError(
-            f"Could not inspect target tree {new_sha}: "
-            f"{result.stderr.strip() or result.stdout.strip()}"
-        )
+        raise RefAdvanceError(f"Could not inspect target tree {new_sha}: {result.stderr.strip() or result.stdout.strip()}")
     return {line for line in result.stdout.splitlines() if line}
 
 
@@ -279,10 +277,7 @@ def _dirty_entries(
     """
     result = _run_git(worktree, ["status", "--porcelain", "--ignored"], env=env)
     if result.returncode != 0:
-        raise RefAdvanceError(
-            f"Could not inspect worktree state at {worktree}: "
-            f"{result.stderr.strip() or result.stdout.strip()}"
-        )
+        raise RefAdvanceError(f"Could not inspect worktree state at {worktree}: {result.stderr.strip() or result.stdout.strip()}")
     dirty: list[str] = []
     for line in result.stdout.splitlines():
         if not line.strip():
@@ -292,17 +287,13 @@ def _dirty_entries(
             continue
         if line.startswith(("??", "!!")):
             if _path_obstructs_target_tree(path, target_paths):
-                dirty.append(
-                    f"{line} (would be overwritten by reset --hard to {new_sha[:12]})"
-                )
+                dirty.append(f"{line} (would be overwritten by reset --hard to {new_sha[:12]})")
             continue
         # A tracked ``meta.json`` whose only diff against HEAD is the claim-time
         # VCS lock is a regenerable stamp, not destructive local state: the
         # resync discards it and the next claim rewrites it (#2795 / C-010). A
         # genuine meta edit still falls through and blocks (no false-open).
-        if Path(path).name == _META_FILENAME and _meta_change_is_vcs_lock_only(
-            worktree, path, env
-        ):
+        if Path(path).name == _META_FILENAME and _meta_change_is_vcs_lock_only(worktree, path, env):
             continue
         dirty.append(line)
     return dirty
@@ -370,16 +361,9 @@ def advance_branch_ref(
                 new_sha=new_sha,
             )
         if ff_check.returncode != 0:
-            raise RefAdvanceError(
-                f"Could not verify fast-forward ancestry for {branch}: "
-                f"{ff_check.stderr.strip() or ff_check.stdout.strip()}"
-            )
+            raise RefAdvanceError(f"Could not verify fast-forward ancestry for {branch}: {ff_check.stderr.strip() or ff_check.stdout.strip()}")
 
-    checkouts = [
-        entry.path
-        for entry in _list_worktrees(repo_root, env)
-        if not entry.detached and entry.branch == ref
-    ]
+    checkouts = [entry.path for entry in _list_worktrees(repo_root, env) if not entry.detached and entry.branch == ref]
     target_paths = _target_tree_paths(repo_root, new_sha, env)
 
     # Dirty check strictly BEFORE the ref mutation and BEFORE any reset path:
@@ -403,10 +387,7 @@ def advance_branch_ref(
 
     result = _run_git(repo_root, ["update-ref", ref, new_sha], env=env)
     if result.returncode != 0:
-        raise RefAdvanceError(
-            f"Failed to update {branch} ref: "
-            f"{result.stderr.strip() or result.stdout.strip()}"
-        )
+        raise RefAdvanceError(f"Failed to update {branch} ref: {result.stderr.strip() or result.stdout.strip()}")
 
     for worktree in checkouts:
         reset = _run_git(worktree, ["reset", "--hard", branch], env=env)
@@ -418,3 +399,28 @@ def advance_branch_ref(
                 f"The worktree is behind its own HEAD (#1826); repair with "
                 f"`git -C {worktree} reset --hard` once the cause is fixed."
             )
+
+
+def restore_branch_ref(
+    repo_root: Path,
+    branch: str,
+    restored_sha: str,
+    *,
+    expected_current_sha: str,
+) -> None:
+    """Restore a branch ref with compare-and-swap semantics after failure.
+
+    This is the rollback-only counterpart to :func:`advance_branch_ref`.
+    It deliberately permits a non-fast-forward move, but only when the ref is
+    still at ``expected_current_sha``. Callers own restoration of the affected
+    checkout's index and intentionally retain worktree files for diagnosis.
+    """
+    ref = f"refs/heads/{branch}"
+    result = _run_git(
+        repo_root,
+        ["update-ref", ref, restored_sha, expected_current_sha],
+    )
+    if result.returncode != 0:
+        raise RefRestoreError(
+            f"Failed to restore {branch!r} from {expected_current_sha[:12]} to {restored_sha[:12]}: {result.stderr.strip() or result.stdout.strip()}"
+        )

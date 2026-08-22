@@ -1,0 +1,21 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: "Re-ran `git grep -l _validate_requirement_mapping tests/` myself — only hit is test_mission_finalize_phases.py (4 calls, lines 117/129/141/153); test_finalize_provenance_guard.py has zero occurrences (grep -c returns 0), yet tasks.md:193/481 and WP02.md:116/125 and WP06.md:97 all name test_finalize_provenance_guard.py as the located/confirmed file, and test_mission_finalize_phases.py appears nowhere in the mission (grep -rn confirms zero hits)."
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: "Read mission_finalize.py directly: _validate_requirement_mapping's parameter list (line 621) has no spec_content param, its sole call site (line 1918-1926) passes none, and _read_spec_requirement_ids (line 343) returns only (all_ids, functional_ids, warnings) — never the raw text — so no spec_content variable is ever in the caller's scope, exactly as WP06/T031 falsely denies; tasks_mapping_core.py's MappingRequest dataclass (line 53) likewise has no spec_content field and the MappingRequest(...) construction in tasks_map_requirements.py:356 doesn't pass it despite spec_content being read locally at line 306."
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: "Confirmed byte_contracts.json:139 pins map_requirements_success's stdout byte-for-byte (test_tasks_json_bytes.py asserts full stdout equality via CliRunner), plan.md itself states the new bare_prose_requirement_ids field is 'surfaced as an additional, separately-labeled field on both payloads' (finalize-tasks AND map-requirements, i.e. unconditionally like the existing unmapped_functional coverage field), and grep confirms byte_contracts.json/test_tasks_json_bytes.py appear nowhere in WP06's owned_files, T030's canonical-sources list, or anywhere in tasks.md/plan.md."
+  - id: TASKS-SEQ-003
+    verdict: confirmed
+    reason: "git diff --stat main...origin/op/3394-requirement-citation-scope confirms #3395 touches exactly the four test files (test_requirement_mapping.py +186, test_runtime_bridge_unit.py +216, test_bridge_cores.py +39, test_tasks_mapping_core.py +41) claimed, each independently owned by WP03/WP05/WP06 per their frontmatter, and tasks.md's overlap disclosure (lines 78-92) names only 3 source files (requirement_mapping.py/mission_finalize.py/runtime_bridge.py) with zero mention of any test file; WP07's owned_files also lists requirement_mapping.py (a docstring append, confirmed in WP07.md) but the disclosure credits only WP03 for that file."
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: "WP02.md contains an explicit disclosure ('This is why charter C-011's literal failing-first ATDD test requirement does not apply to this WP...') while grep for C-011/ATDD/RED/red-first across WP08-corpus-fixture-ratchet.md returns zero hits, and tasks.md's Requirements Coverage Summary row for C-002 (line 752) lists only WP03/WP05/WP06 — WP08 is absent — confirming the asymmetry the finding describes; T040 is a real self-mutation test but is not itself a C-011 applicability statement."

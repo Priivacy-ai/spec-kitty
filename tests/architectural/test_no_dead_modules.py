@@ -258,6 +258,16 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register; never statically imported by runtime
         # code. Same sibling shape as the two backfills above.
         "specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill",
+        # 3.2.6rc3 blanket-.cursor/ gitignore narrowing migration (#2498):
+        # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
+        # never statically imported by runtime code. Same sibling shape as the
+        # gitignore backfills above.
+        "specify_cli.upgrade.migrations.m_3_2_6rc3_narrow_cursor_gitignore",
+        # 3.2.6rc3 .kittify/lint-report.json gitignore backfill migration
+        # (#3435): auto-discovered via pkgutil.iter_modules +
+        # @MigrationRegistry.register; never statically imported by runtime
+        # code. Same sibling shape as the gitignore backfills above.
+        "specify_cli.upgrade.migrations.m_3_2_6rc3_lint_report_gitignore_backfill",
         "specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers",  # auto-discovered (#2804)
         "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_decisions_event_log_merge_driver",  # auto-discovered (#2709)
@@ -473,6 +483,25 @@ _CATEGORY_8_DISPATCHED_GOVERNED_OPS: frozenset[str] = frozenset(
 )
 
 
+# ---------- 9. Auto-discovered doctor siblings ----------
+# Loaded by src/specify_cli/cli/commands/doctor.py's
+# `_auto_discover_doctor_siblings()`, which scans the package for
+# `_*_doctor.py` modules and calls each module's `register(app)` via
+# pkgutil.iter_modules + importlib.import_module -- the same dynamic
+# auto-discovery seam as category 1's migrations, so there is no static
+# importer. Introduced by mission operator-config-ergonomics (#3506). The
+# eventual root fix is a structural auto-exempt for this seam (mirroring the
+# migration handling), tracked in #3508; until then the three siblings are
+# enumerated here.
+_CATEGORY_9_AUTO_DISCOVERED_DOCTOR_SIBLINGS: frozenset[str] = frozenset(
+    {
+        "specify_cli.cli.commands._channel_doctor",
+        "specify_cli.cli.commands._env_file_doctor",
+        "specify_cli.cli.commands._provenance_doctor",
+    }
+)
+
+
 # Aggregate of every per-category set. The existing
 # `test_no_new_dead_modules_under_src` check below treats this as the
 # effective allowlist; the per-category frozensets above are the surface
@@ -487,6 +516,7 @@ _ALLOWLIST: frozenset[str] = (
     | _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS
     | _CATEGORY_7_GRANDFATHERED_ORPHANS
     | _CATEGORY_8_DISPATCHED_GOVERNED_OPS
+    | _CATEGORY_9_AUTO_DISCOVERED_DOCTOR_SIBLINGS
 )
 
 

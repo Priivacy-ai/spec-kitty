@@ -26,7 +26,7 @@ append-only, deterministic, and identical across every agent.
 - **Reject** a WP (send it back with structured feedback):
   ```bash
   spec-kitty agent tasks move-task <WP> --to planned \
-    --review-feedback-file <path/to/review-cycle-N.md> --mission <slug>
+    --review-feedback-file <path/to/review-feedback-N.md> --mission <slug>
   ```
 - **Terminal (done) with an explicit review triple** (reviewer / verdict / reference):
   ```bash

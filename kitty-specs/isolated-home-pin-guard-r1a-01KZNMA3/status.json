@@ -2,7 +2,7 @@
   "event_count": 67,
   "last_event_id": "01KZTJG92RHQ55BS9517TCSRK0",
   "materialized_at": "2026-08-12T08:47:56.504567+00:00",
-  "mission_number": "",
+  "mission_number": "193",
   "mission_slug": "isolated-home-pin-guard-r1a-01KZNMA3",
   "mission_type": "software-dev",
   "summary": {
@@ -19,63 +19,201 @@
   "work_packages": {
     "WP01": {
       "actor": "merge",
-      "agent": "claude",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZTJG5S90T04EPS4K30TA1NE",
       "last_transition_at": "2026-08-12T08:47:53.129592+00:00",
-      "shell_pid": 20126,
-      "shell_pid_created_at": "1786447464.73"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T001-T005 done; 69 passed -n0 and -n auto; ruff+mypy clean; 40/36 members, symdiff 0 vs the C-011 anchor",
+        "review-cycle-2 APPROVE at 2f236cc88; non-vacuity mutation re-run; symdiff 0 vs the C-011 anchor; 70 passed at -n0 and -n auto",
+        "Reopened, operator-authorised. WP03's owner and E-slot probe are real-tree class members, so discover() is 42 and WP01's two real-tree assertions fail (kind fixture 30->32, partition A 27->29). Constructed: 2 failed, 16 passed. Repair per operator ruling: restate C-004's check as the discrimination between keyed and innermost attribution rather than absolute counts, and move the partition figure to WP05 which owns the census and can see E.",
+        "C-004 now asserted as the keyed-vs-innermost invariant (totals equal, fixture unchanged, one-for-one test-body->helper, directional non-vacuity) — holds at 40 (lane-a) and 42 (lane-c), transfer reported not asserted. Partition distribution removed and relocated to WP05/T023 with the reason recorded in _home_partition. OWNER_PARAM_NAMES updated: canonical_home bound by WP03/T012, runtime_home still population 0. 69 passed -n0 and -n auto; ruff + mypy --strict clean; golden-count 25/25 unchanged.",
+        "Cycle-3 APPROVE (reviewer-renata, 8bca98e74). C-004 now asserted as a discrimination invariant that survives E growing; arm 4 confirmed sufficient by measurement (== 1 buys zero detection and is census-brittle). Two-mutation claim verified: chain[0]-regardless passes all four real-tree arms and reds only the synthetic sibling, so tightness is preserved; innermost attribution reds both. Partition figure correctly relocated to WP05/T023's recomputed M4 cross-check; PARTITION-OTHER retained as a classifier claim. WP03 citations verified against lane-c (conftest.py:302, test_home_owner_behaviour.py:339/:363) - cycle-1's HIGH finding discharged by an operand outside the author's control. 69 passed at -n0 and -n auto --dist loadfile; ruff and mypy --strict clean; golden-count 25/25, zero contributed, nothing re-frozen. NOTE: move-task's regression gate reported no_coverage/excluded scope, so it was silent here, not green; mutation evidence stands in for it.",
+        "Reopened. WP05 blocked on a silent green in main(): members = discover(root) is passed unmodified to render_census, so the census contains both E entries (42 rows, not 40). --exempt-module feeds only render_baseline's exempt= hash and never touches the census; census output is byte-identical with and without the flag. With E subset of census, discovered == census union E degenerates to discovered == census and the central accounting stops doing work while reporting that it does. Verified at _home_pin_scan.py:1307-1313. Survived four approvals because WP01's only main() test runs with --exempt-module ABSENT.",
+        "main() now subtracts E from BOTH render_census and render_baseline, with the missing positive control shipped: main() exercised WITH --exempt-module over a synthetic WP03-shaped E, parametrised across a 3-member tree and the real tests/ tree, asserting census & E == set(), census | E == discovered, and that the flag moves the census. REGENERATION_COMMAND names --exempt-module and is now PARSED against build_parser() with a control that rejects invented flags. fragility_register() added; the census fragility_note is derived from it (value changed, header key set untouched) and names :1165 with its unused monkeypatch and the innermost/keyed qualname divergence. Digests re-derived by running the repaired command as a subprocess; nothing pinned. 75 passed -n0 and -n auto; ruff + mypy --strict clean; golden-count 25/25.",
+        "Cycle-4 APPROVE (reviewer-renata, 1759e836e). E now subtracted from both renderers; restoring the original defect reds both parametrisations at :1073, and two subprocess runs of the shipped command give 40 rows without the flag and 38 with it, removing exactly the two E keys. ADJUDICATION: fragility_register acceptable as shipped - I constructed the ruff reconciliation (ruff --isolated --select ARG over tests/: 202 silhouette-naming diagnostics, exactly 1 inside a member chain = exactly the register's 1 row; both differences empty), and decisively the register carries no enforcement load, since the census equality is what reds when a member disappears. sys.modules guard verified as a mechanism: colliding the two parametrisations reds on the non-vacuity arm at :1070. REGENERATION_COMMAND parsed through the same parser main() uses, with a rejecting positive control. Fragility note never says 'none'; not-supplied vs supplied-but-empty conflate only in the safe direction. Digests reproduce (e2604836 = WP05's hand-derived value; 6ef640cb with a 2-entry E) and NOTHING is pinned - no content digest literal, no census/baseline artefact committed; these are 40-member lane-a figures and the mission digests must come from a tree with WP03's owner. 75 passed at -n0 and -n auto --dist loadfile; ruff and mypy --strict clean; golden-count 25/25, zero contributed, nothing re-frozen. RECORDED: the defect survived four approvals because the only main() test ran with the flag absent - every optional argument that changes an artefact needs a control that runs with it present and asserts the artefact moved."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Cycle-4 APPROVE (reviewer-renata, 1759e836e). E now subtracted from both renderers; restoring the original defect reds both parametrisations at :1073, and two subprocess runs of the shipped command give 40 rows without the flag and 38 with it, removing exactly the two E keys. ADJUDICATION: fragility_register acceptable as shipped - I constructed the ruff reconciliation (ruff --isolated --select ARG over tests/: 202 silhouette-naming diagnostics, exactly 1 inside a member chain = exactly the register's 1 row; both differences empty), and decisively the register carries no enforcement load, since the census equality is what reds when a member disappears. sys.modules guard verified as a mechanism: colliding the two parametrisations reds on the non-vacuity arm at :1070. REGENERATION_COMMAND parsed through the same parser main() uses, with a rejecting positive control. Fragility note never says 'none'; not-supplied vs supplied-but-empty conflate only in the safe direction. Digests reproduce (e2604836 = WP05's hand-derived value; 6ef640cb with a 2-entry E) and NOTHING is pinned - no content digest literal, no census/baseline artefact committed; these are 40-member lane-a figures and the mission digests must come from a tree with WP03's owner. 75 passed at -n0 and -n auto --dist loadfile; ruff and mypy --strict clean; golden-count 25/25, zero contributed, nothing re-frozen. RECORDED: the defect survived four approvals because the only main() test ran with the flag absent - every optional argument that changes an artefact needs a control that runs with it present and asserts the artefact moved.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 75042,
+      "shell_pid_created_at": "1786452094.66",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZTJG6JYQ92SB5CCXQSNQT0G",
       "last_transition_at": "2026-08-12T08:47:53.950559+00:00",
-      "shell_pid": 51658,
-      "shell_pid_created_at": "1786461687.46"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Verdict PROCEED at start_sha ba0db69ad (|R|=33, |R_f|=33, r=100%, +-1 consequence-class stable). 314 attempted windows published, beginning with the VOID result at 709a59534 (|R|=3); 313 VOID, 0 INADMISSIBLE, 0 UNMEASURABLE. C-011 crosscheck symmetric difference EMPTY at the selected start SHA, with a positive control (clf@selected vs discover@end) of 33 proving the instrument can see. Section 0.3's 28 -> 30 is SUPERSEDED, stated in that word in the artefact header and asserted by a collected limb. Mission is NOT halting: WP03-WP06 stay unblocked. 23 new tests green under both -n0 and -n auto --dist loadfile; ruff and mypy --strict clean; golden-count ratchet held by converting the rename detector's len()==1 pair to a tail-emptiness test. 3 pre-existing contention reds over tests/architectural (2x test_wp_prompt_build_latency budget at 6.31s/6.70s vs 6.0s, 1x test_ci_quality_path_filters collection-subprocess timeout that passes 17/17 serially) - classified, not fixed, no issue opened per C-013. Verdict artefact relocated to repo-root research/home_pin_gate/verdict.yaml: the mission-relative reading is refused by the lane-branch planning-artifact guard; raised, not silently repaired.",
+        "APPROVED cycle 1 (reviewer-renata). Verdict proceed stands; WP03..WP06 not blocked. Adjudicated all four raised deviations as correct/acceptable: R over the effect class is textually right per spec.md 0.9 (differencing discover() gives r==1 by construction) and effect_class_sites is a composition of the seam's primitives with membership by set lookup against discover(), not a second predicate; the root-relative artefact path is forced by the lane-branch planning-artifact guard (tasks_parsing_validation.py:782, verified) and no downstream WP resolves the path independently; the rename-signature fallback limb is non-vacuous and bites; NodeTransformer is a faithful reading of T007's words. Constructed rather than read: re-derived the 806-state oracle from 0.9 independently (380 go / 364 halt / 62 inadmissible, and 0 proceed over labels, both matched); re-ran the full 314-step walk from a DIFFERENT repository root and got a document identical in every field but invocation (same start_sha ba0db69ad, same 33/33) which also confirms FR-009 root parameterisation; 8 mutants on band/perturbations/stability, 6 killed; materialised an evasion of T007's ban; exercised the untested rename detector across all 8 specified cases (all correct); reproduced the 3 baseline reds at -n8 with WP01+WP02's modules DESELECTED (3 failed / 1848 passed, same three) which attributes them to the pre-existing suite on a same-tree control. ruff and mypy --strict clean; 23 tests green under both -n0 and -n auto --dist loadfile; golden-count and gate-coverage baselines untouched, 51 passed. Nine findings, all narrowing work, none touching the verdict: MEDIUM aliased ast imports evade T007's ban (verified); MEDIUM the whole driver half of T006 (detect_renames, window_accepted, measure_window, widening_walk, effect_class_sites, verdict_document, crosscheck) has zero test coverage though T006/5 requires the rename detector be proven; MEDIUM the |R|+-1 stability axis is provably decision-irrelevant over |R| in [10,4000] and both mutants deleting it survive; MEDIUM KEYS_CHECKED_FLOOR=30 accepted as shipped since T008(g) mandates a published non-zero floor, but the cited blocker does not bite - the vanished-relpath set can be asserted empty inside the test with no 16th key and no tunable number; MEDIUM 30 of the 33 arrivals landed in one commit (2bad3228, #3030) so the floor is met by two authoring events, permitted but unstated; LOW crosscheck's empty symmetric difference has no shipped positive control. Could NOT check: the start-SHA operands (limb (g) covers only the end half; my re-run reproduces but does not externally verify them), and contiguity of attempted_windows. DIR-013 vs C-013 conflict recorded as an operator TG-item, carry to WP06/T030."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED cycle 1 (reviewer-renata). Verdict proceed stands; WP03..WP06 not blocked. Adjudicated all four raised deviations as correct/acceptable: R over the effect class is textually right per spec.md 0.9 (differencing discover() gives r==1 by construction) and effect_class_sites is a composition of the seam's primitives with membership by set lookup against discover(), not a second predicate; the root-relative artefact path is forced by the lane-branch planning-artifact guard (tasks_parsing_validation.py:782, verified) and no downstream WP resolves the path independently; the rename-signature fallback limb is non-vacuous and bites; NodeTransformer is a faithful reading of T007's words. Constructed rather than read: re-derived the 806-state oracle from 0.9 independently (380 go / 364 halt / 62 inadmissible, and 0 proceed over labels, both matched); re-ran the full 314-step walk from a DIFFERENT repository root and got a document identical in every field but invocation (same start_sha ba0db69ad, same 33/33) which also confirms FR-009 root parameterisation; 8 mutants on band/perturbations/stability, 6 killed; materialised an evasion of T007's ban; exercised the untested rename detector across all 8 specified cases (all correct); reproduced the 3 baseline reds at -n8 with WP01+WP02's modules DESELECTED (3 failed / 1848 passed, same three) which attributes them to the pre-existing suite on a same-tree control. ruff and mypy --strict clean; 23 tests green under both -n0 and -n auto --dist loadfile; golden-count and gate-coverage baselines untouched, 51 passed. Nine findings, all narrowing work, none touching the verdict: MEDIUM aliased ast imports evade T007's ban (verified); MEDIUM the whole driver half of T006 (detect_renames, window_accepted, measure_window, widening_walk, effect_class_sites, verdict_document, crosscheck) has zero test coverage though T006/5 requires the rename detector be proven; MEDIUM the |R|+-1 stability axis is provably decision-irrelevant over |R| in [10,4000] and both mutants deleting it survive; MEDIUM KEYS_CHECKED_FLOOR=30 accepted as shipped since T008(g) mandates a published non-zero floor, but the cited blocker does not bite - the vanished-relpath set can be asserted empty inside the test with no 16th key and no tunable number; MEDIUM 30 of the 33 arrivals landed in one commit (2bad3228, #3030) so the floor is met by two authoring events, permitted but unstated; LOW crosscheck's empty symmetric difference has no shipped positive control. Could NOT check: the start-SHA operands (limb (g) covers only the end half; my re-run reproduces but does not externally verify them), and contiguity of attempted_windows. DIR-013 vs C-013 conflict recorded as an operator TG-item, carry to WP06/T030.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 95609,
+      "shell_pid_created_at": "1786467586.4",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01KZTJG7681SQZR245HKNFH0HY",
       "last_transition_at": "2026-08-12T08:47:54.568931+00:00",
-      "shell_pid": 127910,
-      "shell_pid_created_at": "1786470470.44"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T010-T014 complete. FORCED: the placement guard refuses kitty-specs/ changes on a lane branch, but WP03's own prompt assigns contracts/canonical-home-owner.md and record.md to this WP as owned mission-dir artefacts, and T012 READS the contract at import time - restoring kitty-specs/ from the mission branch would delete the contract from this worktree and red test_home_owner_behaviour.py at collection, and would destroy T010's contract-before-owner ancestry. Placement is an operator decision; flagged, not silently resolved. Evidence: contract 8d55a97 is an ancestor of owner d8088b0 (git merge-base --is-ancestor exit 0). Owner named canonical_home - forced, not chosen: T012 asserts the parsed contract name is in _home_pin_scan.OWNER_PARAM_NAMES, closing FR-010. conftest diff -U0 is one pure-insertion hunk @@ -300,0 +301,40 @@, nothing at or below 298. 23/23 green under -n0 AND -n auto --dist loadfile. ruff clean; mypy --strict adds zero errors. Repo gates green (52 + 113 passed): ratchet positional-anchor ban, golden-count ban with no len==N added and no re-freeze, seam guard, gate coverage. pytest 9.0.3. Four falsification mutations all bit. THREE FINDINGS RAISED NOT REPAIRED, in tasks/WP03-canonical-owner/record.md: (1) SC-012 limb 2 as specified cannot fail - CONSTRUCTED by deleting probe (a)'s pin and observing GREEN; the shipped repair is the non-member negative control. (2) The mandated owner takes discover() from 40 to 42 members, falsifying two WP01 real-tree distribution assertions in test_home_pin_scan_limbs.py (fixture 30->32, partition A 27->29); that file is WP01's owned_files and C-001 forbids editing it, so the repair belongs to WP01 or WP05. (3) DIR-013 vs C-013 conflict on pre-existing reds; C-013 governs, no issue created.",
+        "APPROVED cycle 1 (--force: same operator-accepted framework conflict as the implementer's transitions - the lane branch legitimately carries WP03's two assigned kitty-specs artefacts, contracts/canonical-home-owner.md which T012 parses at import time, and tasks/WP03-canonical-owner/record.md; verified those are the ONLY kitty-specs paths on the lane). Constructed, not read: M3 reproduced (SC-012 limb 2 stays green on a deleted probe-(a) pin, but four E-accounting limbs red); an owner-wins mutation reds probe (b) alone, so the pair discriminates; the FR-010 contract binding reds on BOTH limbs under a rename (membership + resolver effect); FR-006's setattr/mkdir/autouse mutations all bite; a third E entry is a mypy --strict error; MERGE_BASE_DEFINITION_NAMES verified 68/68 against git show <merge-base>:tests/conftest.py. Gates: 23+46+6+1 passed, ruff clean, mypy 7 pre-existing errors and ZERO in the new modules, golden-count baseline untouched. Two MINOR findings, neither blocking. Full artefact: tasks/WP03-canonical-owner/review-cycle-1.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVED cycle 1 (--force: same operator-accepted framework conflict as the implementer's transitions - the lane branch legitimately carries WP03's two assigned kitty-specs artefacts, contracts/canonical-home-owner.md which T012 parses at import time, and tasks/WP03-canonical-owner/record.md; verified those are the ONLY kitty-specs paths on the lane). Constructed, not read: M3 reproduced (SC-012 limb 2 stays green on a deleted probe-(a) pin, but four E-accounting limbs red); an owner-wins mutation reds probe (b) alone, so the pair discriminates; the FR-010 contract binding reds on BOTH limbs under a rename (membership + resolver effect); FR-006's setattr/mkdir/autouse mutations all bite; a third E entry is a mypy --strict error; MERGE_BASE_DEFINITION_NAMES verified 68/68 against git show <merge-base>:tests/conftest.py. Gates: 23+46+6+1 passed, ruff clean, mypy 7 pre-existing errors and ZERO in the new modules, golden-count baseline untouched. Two MINOR findings, neither blocking. Full artefact: tasks/WP03-canonical-owner/review-cycle-1.md",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 192331,
+      "shell_pid_created_at": "1786477662.66",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done"
+      }
     },
     "WP04": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 3,
       "lane": "done",
       "last_event_id": "01KZTJG7TM4CS634X980572ACW",
       "last_transition_at": "2026-08-12T08:47:55.220421+00:00",
-      "shell_pid": 127910,
-      "shell_pid_created_at": "1786470470.44"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "T015-T021 complete. 5 new files, 54 tests: 50 architectural (18 synthetic-tree + 25 guard + 7 prefilter) + 4 timing-only budget. All eight SC-006 transitions ship with mutation-based red-first evidence: each mechanism disabled at runtime reds a specific named assertion, baseline all-green. Transition (7) is a hash red (the equality is clean by construction on the absorption path); (8) asserts the bare composite_key collision is real before testing it. C-004 synthetic outermost-vs-innermost witness ships (keyed {fixture:1,test-body:0,helper:0} vs innermost {0,0,1}). mypy arity limb: 3 entries rc=1 naming tuple[Exempt, Exempt], 2-entry control rc=0, fails rather than skips. Pre-filter differential OBSERVED via the seam's parser: 108 parsed prefiltered vs 2747 unfiltered, symmetric difference empty over keys AND home_partition; 1.64 s / 10.61 s / 12.25 s against NFR-002's 90 s envelope (reported, not asserted). Budget warm runs 1.77/1.71/1.77 s vs 6 s; NFR-003 demonstrated under -n0 and -n auto --dist loadfile. ruff clean, mypy --strict clean, golden-count ratchet untripped (zero len(x)==N), seam guard + gate coverage 52 passed, discover(tests) unchanged at 40 members. TWO DEVIATIONS RAISED, not silently repaired: (1) the id 'assignment_bound_env_key_constant' named in the brief exists nowhere — INERT_LIMBS registers the premise as 'SC-002b' and the binding is made against that, documented at the constant; (2) record.md is neither in WP04's owned_files nor yet created and is referenced by six WPs including WP03 running in parallel, so the SC-002b figures are published in the test's own output and left for WP06 rather than risking a cross-lane conflict. Baseline reds classified as CONTENTION, not mine: test_wp_prompt_build_latency + test_ci_quality_path_filters pass 19/19 serially on this branch.",
+        "APPROVE. Red-first evidence re-run, not read: eight mechanisms disabled at runtime (no file edited), each reproducing the reported newly-red assertion. T3/T4 discriminate in both directions; T8 is the only test that catches the bare-key 19-key collapse, and on the discriminating assertion; T7 reds on the hash with the equality limb explicitly clean. Differential is an observation (108 vs 2747 parsed), 90s is an envelope, budget is timing-only with perf_counter and an inline rglob, nothing checked in, ruff/mypy --strict clean with zero suppressions, golden count and orphan-surface gates green, only the five owned files touched. Both deviations accepted (INERT_LIMBS quadruple re-run green; record.md deferral valid). Three findings recorded in review-cycle-1.md: NFR-003 digest is per-process randomised and its test name overstates the body; SC-002b figures are consumed by capsys and their divergence from 229/98 is a SCOPE difference (tests/ 226/95 + src/ 3/3), not staleness as the docstring states; the tombstone equation is an unrecorded inference. BLOCKING FOR WP05, not for WP04: the guard verdict has no seam and WP05's cheapest path is a second copy — promote evaluate/census_keys/hash_of_key_set into _home_pin_verdict.py before WP05 is claimed.",
+        "Reopened, operator-authorised. Promote the verdict helpers out of a leaf test module into tests/architectural/_home_pin_verdict.py before WP05 is claimed: WP05 needs evaluate/census_keys/hash_of_key_set/tombstones and its cheapest path is a second copy, which is the drift WP04 itself mechanised against and which WP02's seam guard cannot see. Also closes the two MEDIUMs in the same file (per-process-randomised NFR-003 digest; SC-002b figures consumed by capsys with a wrong reason given for the 229/98 divergence).",
+        "Reopen addressed. (1) Extracted tests/architectural/_home_pin_verdict.py — public surface: GuardVerdict, evaluate, hash_of_key_set, census_rows, census_keys, tombstone_keys, as_key, with_rows, drop_row, add_row, edit_header, with_tombstones. No pytest dependency. Docstring gives the DIR-001 boundary + dependency-inversion reason only; the false pytestmark/fixture claim is retracted in place so it is not repeated. Tombstone caveat carried: the PROPERTY is normative (FR-004(b), spec.md:420) but the FORMULA hash(census u tombstones)==pinned is the module's choice, stated so WP05/R1b inherit it knowingly. (2) WP02's seam guard discovered the new module UNEDITED via its AST consumer discovery — 8 consumers found including architectural/_home_pin_verdict.py — with zero banned constructs. (3) Mutation campaign re-run against the extracted seam: table IDENTICAL to pre-extraction. Baseline all-green; containment->SC-004 set-equality; hash-limb-removed->T5+T7; bare keys->T8; FR-010 removed->T6; except SyntaxError->SC-013; kind-at-innermost->C-004 witness; E-union-dropped->8 assertions; absorb-in-known-files->T3 not T4; absorb-in-new-files->T4 not T3. Moving the code did not move the teeth. (4) MED-1 fixed: digest was hash(frozenset(...)), per-process randomised; now the seam's render_baseline key-set sha256, verified byte-identical across two separate processes (e2604836e22c59476a83adcddab655fc970f6802a15b2835ea6c7fe35129efdd), published with kinds {fixture:30,test-body:10,helper:0} and partitions {A:27,B1:11,B2:2} — both independently reproducing the spec's measured figures. Test renamed to test_the_class_is_deterministic_and_publishes_a_PROCESS_STABLE_digest; xdist stdout-swallowing disclosed. (5) MED-2 fixed: capsys.readouterr() was DRAINING the figures so a green run surfaced nothing; capsys removed, figures print unconditionally before any assertion, over both roots. Staleness explanation deleted — it is entirely SCOPE and reconciles exactly: tests/ 0/226/95 + src/ 0/3/3 = 229/98. Empty-set assertion defers to WP01/T004 which owns it over both roots with its control; this package keeps the registry binding. (6) LOW: transition 6's monkeypatch was decorative, now re-takes the verdict with the ambient pin deleted, asserting the classifier reads files not the environment. Verification: 50 architectural passed, 4 timing passed under -n0 AND -n auto --dist loadfile, 85 passed across golden-count + seam guard + WP01 limbs, ruff clean, mypy --strict clean on 6 files, zero len(x)==N.",
+        "REJECT cycle 2 — narrow, two required changes, one line each, both constructed in review-cycle-2.md. (1) EXEMPT growth is not a review event: one dict row plus twelve words of filler forgives the exact module positive control 1 exists to catch, and all three EXEMPT limbs accept it. Pin EXEMPT's key set by content; keep test_every_exemption_states_a_reason but drop the >=10-word threshold to non-empty, matching E's own idiom. The declined fix's rationale is inverted — test_golden_count_ban's docstring PRESCRIBES the frozenset conversion (len(Lane)==10 became an exact frozenset) and mechanically catches the len(EXEMPT)==3 regression feared, at 25/25 zero headroom. (2) verdict_comparisons is ast.Eq-only, so 'discovered <= census | exempt' — the containment ratchet spec.md 0.4 refuses and this WP ships a test against — escapes on the operator alone while naming three of four operand words; broaden beyond Eq and ship the containment probe as its control. Plus two LOW prose corrections: gated population is 4, not 3; the honest-limits list omits the assembled-path artefact read. Everything else verified green: mutation table holds for a third pass ACROSS the new boundary (hash limbs disabled inside _home_pin_verdict.evaluate still red T5+T7; FR-010 removed inside _home_pin_scan still reds T6 only), both cycle-1 MEDs properly closed (sha256 digest byte-identical across two processes; SC-002b prints with scope), _home_pin_gate.py correctly absent from EXEMPT (measured: imports scanner, zero signals), 64 architectural + 4 timing + 52 repo gates, ruff and mypy --strict clean on 7 files, zero suppressions, zero len(x)==N.",
+        "APPROVE cycle 3. Both cycle-2 required changes bite. Re-ran the forgiveness walk including step 2 — the only discriminating limb: adding an EXEMPT row AND updating FROZEN_EXEMPT_KEYS in the same file satisfies the in-module pin completely and the external pin STILL refuses (expected d86430d6... vs actual 1808f692...). Forgiveness now costs two files, one generated. Deviation ADJUDICATED and the refusal was correct — all three reasons verified: the baseline yaml does not exist in lane-d; render_baseline emits a fixed five-key document so a sixth key means editing WP01-owned code; and decisively, exempt_set_sha256 is E's hash feeding a limb that has NO tombstone path by design, so overloading it would make a review-tooling edit red the behaviour class's unconditional co-edit limb. Obeying the instruction would have shipped a defect. Precedent verified real (_golden_count_baseline.json + --freeze-baseline, same directory, same CLI shape) and exempt_pin_digest routes through the seam's hash_of_key_set, so no second generator. All seven comparison spellings fire, drift test by set comparison. Mutation table identical for a FIFTH pass across the seam boundary (hash limbs disabled inside _home_pin_verdict.evaluate still red T5+T7). Counts reproduced exactly: 93 passed/4 deselected, 28 for the verdict seam alone, ruff and mypy --strict clean on 7 files, no len(...)==N in code, golden-count baseline untouched. TWO NON-BLOCKING FOLLOW-UPS recorded in review-cycle-3.md: [MED] the exemption is module-scoped while every stated reason is construct-scoped — constructed, a hand-rolled sha256 added to either exempt module is caught nowhere and needs no pin regeneration, while the same source in a fresh module IS caught; name the SIGNALS, not the constructs (~6 lines). WP05 cannot reach this door, which is why it does not block. [LOW] the pin's ceiling (--freeze-exempt-pin regenerates from live EXEMPT, so the pin buys diff-visibility not tamper-resistance) is accurate but absent from the module's own 'what this guard cannot see' list.",
+        "Reopened for a one-word terminology fix. test_no_legacy_terminology.py::test_forbidden_term_does_not_appear[ceremony] FAILS on test_home_pin_verdict_seam.py:769 — the word 'ceremony' in a docstring, introduced by ee4728edf. Not on the mission branch, so lane-e is the first surface it is observable on and no baseline captured it. CLAUDE.md records that this guard runs only in CI's integration-tests-core-misc job, so it passes local doctrine runs and fails at CI.",
+        "Terminology fix (commit 71ab6b8ea).",
+        "APPROVE cycle 4. Docstring-only: 6 insertions / 5 deletions, every line a comment or docstring, no mechanism touched. (1) The reworded sentences carry the argument — the paragraph's load-bearing claim is that the in-module pin added ritual without raising the cost of forgiving yourself, which is why the external pin exists; :202 now names the mechanism where it previously named a metaphor, and both keep the comparison to the word count that ties this back to the cycle-2 finding. Nothing lost. (2) Mutation table byte-identical for a SIXTH consecutive run — hash limbs disabled inside _home_pin_verdict.evaluate still red T5, T7 plus the same three T018 collateral tests. A docstring edit that moved the teeth would have been the finding. (3) Counts reproduced: 103 passed / 4 deselected; terminology guard alone 10 passed; grep -ril across all eight owned files returns nothing; ruff clean and mypy --strict clean on 7 files. Also verified the latent second occurrence against the pre-fix blob rather than on trust: the forbidden-term limb builds git grep --fixed-strings with no -i, so at ee4728edf case-sensitive found only :769 while case-insensitive found :202 and :769 — the capitalised use was real, invisible to the guard, and would have tripped on any later lowercasing. Sweeping case-insensitively and including the generated .yaml was right. Root cause recorded, both halves: module-scoped selections cannot see a directory-scoped guard, which is as true of my three review passes as of the implementer's runs. Cycle-3 follow-ups remain open and non-blocking: [MED] exemption is module-scoped while every stated reason is construct-scoped; [LOW] the pin's ceiling is absent from the module's own cannot-see list."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "APPROVE cycle 4. Docstring-only: 6 insertions / 5 deletions, every line a comment or docstring, no mechanism touched. (1) The reworded sentences carry the argument — the paragraph's load-bearing claim is that the in-module pin added ritual without raising the cost of forgiving yourself, which is why the external pin exists; :202 now names the mechanism where it previously named a metaphor, and both keep the comparison to the word count that ties this back to the cycle-2 finding. Nothing lost. (2) Mutation table byte-identical for a SIXTH consecutive run — hash limbs disabled inside _home_pin_verdict.evaluate still red T5, T7 plus the same three T018 collateral tests. A docstring edit that moved the teeth would have been the finding. (3) Counts reproduced: 103 passed / 4 deselected; terminology guard alone 10 passed; grep -ril across all eight owned files returns nothing; ruff clean and mypy --strict clean on 7 files. Also verified the latent second occurrence against the pre-fix blob rather than on trust: the forbidden-term limb builds git grep --fixed-strings with no -i, so at ee4728edf case-sensitive found only :769 while case-insensitive found :202 and :769 — the capitalised use was real, invisible to the guard, and would have tripped on any later lowercasing. Sweeping case-insensitively and including the generated .yaml was right. Root cause recorded, both halves: module-scoped selections cannot see a directory-scoped guard, which is as true of my three review passes as of the implementer's runs. Cycle-3 follow-ups remain open and non-blocking: [MED] exemption is module-scoped while every stated reason is construct-scoped; [LOW] the pin's ceiling is absent from the module's own cannot-see list.",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 275229,
+      "shell_pid_created_at": "1786487368.94",
+      "subtasks": {
+        "T015": "done",
+        "T016": "done",
+        "T017": "done",
+        "T018": "done",
+        "T019": "done",
+        "T020": "done",
+        "T021": "done"
+      }
     },
     "WP05": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZTJG8F49DVFRDE15V58KCER",
       "last_transition_at": "2026-08-12T08:47:55.876126+00:00",
-      "shell_pid": 301349,
-      "shell_pid_created_at": "1786489386.99"
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "BLOCKED on a WP01-owned defect: _home_pin_scan.main() never subtracts E from render_census/render_baseline, so the single documented regeneration command emits a 42-row census containing BOTH E entries (conftest.py::canonical_home, test_home_owner_never_wins.py::retained_pin_home) — and _home_pin_verdict.evaluate() returns ok=True on it. --exempt-module provably changes nothing about the census (byte-identical with and without). This fails FR-003, T022, T023 and the Not-Done-If 'E and the census share a key'. Repair is 2 lines in main() (WP01-owned, approved — not edited here per the do-not-edit-dependencies instruction). No artefacts committed; nothing shipped red. Full evidence in the implementer report.",
+        "Unblocked. WP01 reopened, repaired and re-approved at cycle 4 (1759e836e): main() now subtracts E from both renderers, REGENERATION_COMMAND carries --exempt-module and is validated by parse rather than string match, and the fragility note is derived by the generator. lane-a's tip merged into lane-e; the repaired command run in the integrated tree yields exactly 40 census rows.",
+        "T022-T026 done at f8ecfc707. Census 40 rows, census-intersect-E empty, both hashes re-derived by the shipped command. 25 passed under -n0 and -n auto; 124 repo-gate tests green; ruff + mypy --strict clean.",
+        "Rejection addressed, four items, all constructed. REQ1: Counter distribution replaced by per-key recomputation against discover(); constructed — an A<->B1 swap between two members leaves the old assertion GREEN and yields 2 named disagreements under the new one. REQ2: guard_report wires diagnose_stale_row onto T024's assertion message; constructed — a real stale row previously showed neither message, now shows 'site still present ... it is an R1b adjudication'; a new end-to-end test holds the wiring; the false docstring claim is corrected in place. REC3: the T024 caveat moved to the module headline with the replay figures. REC4: negative control added; exists-only substitution leaves BOTH branch tests passing and reds only the new control. 27 passed. Exact gate selection (124 passed): test_golden_count_ban, test_ratchet_positional_anchor_ban, test_home_pin_verdict_seam, test_home_pin_seam_no_second_copy, test_gate_coverage, test_arch_shard_marker_completeness. Artefacts byte-identical to the prior commit; frozen_at_sha stays fe5d492ed (the measured tree) and T022's byte-identity caught me re-pinning it to a later HEAD. ruff + mypy --strict clean.",
+        "Review cycle 2 passed — see tasks/WP05-frozen-census/review-cycle-2.md"
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review cycle 2 passed — see tasks/WP05-frozen-census/review-cycle-2.md",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 396830,
+      "shell_pid_created_at": "1786497239.58",
+      "subtasks": {
+        "T022": "done",
+        "T023": "done",
+        "T024": "done",
+        "T025": "done",
+        "T026": "done"
+      }
     },
     "WP06": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01KZTJG92RHQ55BS9517TCSRK0",
       "last_transition_at": "2026-08-12T08:47:56.504567+00:00",
-      "shell_pid": 407200,
-      "shell_pid_created_at": "1786498304.11"
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Cycle 1 APPROVE — ADR import proved byte-level (body-only sha256 identical, diff 2a3 only, forbidden terms at 102/112 unedited); all docs gates green with a positive control on the ADR-README-row freshener; comment byte-identical to its record.md copy and all seven FR-008 items discharged with every §6 scalar reconciled against verdict.yaml; class 42-in-38 vs census 40-in-36 at fe5d492ed re-derived, class-minus-census equals E exactly, so the headline defect is not repeated; record.md carries all 16 items, 3 carry-forwards, 12 residuals, states residual A as a population-0 assertion with no positive control, and files DIR-013 vs C-013 as TG-5 unresolved; self-reported defect confirmed by differential control. 5 LOW, 2 INFO, none a rejection ground. Artefact: tasks/WP06-reduced-record/review-cycle-1.md",
+        "reviewer": "Jeroen Nouws",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 484305,
+      "shell_pid_created_at": "1786501768.98",
+      "subtasks": {
+        "T027": "done",
+        "T028": "done",
+        "T029": "done",
+        "T030": "done"
+      }
     }
   }
 }

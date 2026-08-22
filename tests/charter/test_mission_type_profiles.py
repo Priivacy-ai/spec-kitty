@@ -212,15 +212,14 @@ class TestResolveMissionTypeGovernanceValidation:
             encoding="utf-8",
         )
 
-        # Mock: no project overrides, limited activation set
+        # Mock: limited activation set. No per-type governance-profile.yaml
+        # exists for "totally-custom-type" at any layer (project/org/
+        # built-in), so the layered probe (WP03, #3598) hard-fails without
+        # needing to mock a project-wide override signal.
         with (
             patch(
                 "charter.mission_type_profiles.existing_mission_types",
                 return_value=["documentation", "plan", "research", "software-dev"],
-            ),
-            patch(
-                "charter.mission_type_profiles._project_has_doctrine_overrides",
-                return_value=False,
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
         ):
@@ -240,15 +239,14 @@ class TestResolveMissionTypeGovernanceValidation:
             encoding="utf-8",
         )
 
+        # No per-type governance-profile.yaml exists for "compliance-audit"
+        # at any layer, so the layered probe (WP03, #3598) hard-fails
+        # without needing to mock a project-wide override signal.
         activated = ["documentation", "plan", "research", "software-dev"]
         with (
             patch(
                 "charter.mission_type_profiles.existing_mission_types",
                 return_value=activated,
-            ),
-            patch(
-                "charter.mission_type_profiles._project_has_doctrine_overrides",
-                return_value=False,
             ),
             pytest.raises(UnknownMissionTypeError) as exc_info,
         ):
@@ -260,8 +258,27 @@ class TestResolveMissionTypeGovernanceValidation:
     def test_project_with_overrides_does_not_hard_fail_for_unknown_type(
         self, tmp_path: Path
     ) -> None:
-        """When project has doctrine overrides, unknown type skips the profile
-        (no hard fail) — the governance grain's *tolerant* policy.
+        """An unregistered type with a real per-type ``governance-profile.yaml``
+        (matching ``id``) resolves without a hard fail — the governance
+        grain's *tolerant* policy, now witnessed per-type (WP03, #3598, AC-6
+        reversal per ``docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md``).
+
+        REVERSED (WP03): this test used to patch
+        ``_project_has_doctrine_overrides`` -> True — a project-WIDE signal
+        this WP deletes as the tolerance authority. The replacement seeds a
+        real per-type profile so the layered predicate (project-or-org
+        ``MissionTypeProfileRepository`` lookup) is what tolerates the
+        unregistered type, not an unrelated project-wide flag. Do NOT
+        restore the project-wide tolerance.
+
+        Rework (operator ruling, docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md
+        — "layered tolerance (AC-5) does NOT override mission-type
+        activation gating"): the tolerance witness is scoped to the
+        **project or org** layer only, never the built-in layer, so this
+        project-seeded profile stays the correct fixture shape; see
+        ``tests/charter/test_layered_governance_probe.py``'s
+        ``TestBuiltInLayerAloneDoesNotOverrideActivationGate`` for the
+        companion negative pin.
         """
         _git_init_minimal(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / "custom-mission-001"
@@ -272,18 +289,18 @@ class TestResolveMissionTypeGovernanceValidation:
             ),
             encoding="utf-8",
         )
+        override_dir = tmp_path / ".kittify" / "doctrine" / "mission_types" / "custom-type"
+        override_dir.mkdir(parents=True, exist_ok=True)
+        yaml = YAML()
+        yaml.default_flow_style = False
+        with (override_dir / "governance-profile.yaml").open("w") as fh:
+            yaml.dump({"id": "custom-type", "mission_type": "custom-type"}, fh)
 
-        with (
-            patch(
-                "charter.mission_type_profiles.existing_mission_types",
-                return_value=["documentation", "plan", "research", "software-dev"],
-            ),
-            patch(
-                "charter.mission_type_profiles._project_has_doctrine_overrides",
-                return_value=True,
-            ),
+        with patch(
+            "charter.mission_type_profiles.existing_mission_types",
+            return_value=["documentation", "plan", "research", "software-dev"],
         ):
-            # Should NOT raise — project overrides bypass the unknown-type check.
+            # Should NOT raise — the per-type profile tolerates the unknown-type check.
             bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
         assert bundle.mission_type == "custom-type"

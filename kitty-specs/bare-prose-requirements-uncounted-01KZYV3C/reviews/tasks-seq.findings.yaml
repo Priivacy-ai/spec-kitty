@@ -1,0 +1,117 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: tasks
+lens_group: seq
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: TASKS-SEQ-001
+    lens: write-scopes
+    severity: 4
+    title: "WP06 will almost certainly break the CI-enforced byte-frozen `map-requirements --json` fixture, but tasks.md never declares this file as part of WP06's write scope"
+    evidence:
+      - artifact: "tasks.md WP06 owned_files / T030 / T032"
+      - artifact: "tasks/WP06-finalize-tasks-map-requirements-wiring.md T030, T032"
+      - code: "src/specify_cli/cli/commands/agent/tasks_mapping_core.py:93-97 (MappingPlan dataclass: to_write, offenders, unmapped_fr — the exact shape T032 instructs adding `bare_prose_requirement_ids` to)"
+      - code: "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json:140 (`map_requirements_success` — site `tasks.py:3665 map-requirements/success`), asserted byte-for-byte by tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py"
+      - artifact: "git diff --stat main...origin/op/3394-requirement-citation-scope — confirms PR #3395 itself already touches `.../fixtures/tasks_cli/json/byte_contracts.json` (2 lines changed)"
+    claim: >
+      Plan.md's "Wiring into the two non-`spec-kitty next` surfaces" section and tasks.md's
+      T032 both instruct adding `bare_prose_requirement_ids` as a new field on the
+      `MappingPlan` dataclass returned by `plan_mapping`, surfaced through `map-requirements
+      --json`'s output — precisely the `map_requirements_success` case pinned byte-for-byte
+      in `tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json`
+      and asserted via full-stdout equality in `test_tasks_json_bytes.py` (one of 13
+      byte-frozen `agent tasks` JSON emission sites). Adding the new field will change this
+      pinned JSON shape, breaking that exact-equality test unless the fixture is
+      deliberately re-frozen — yet neither the fixture file nor `test_tasks_json_bytes.py`
+      appears in WP06's `owned_files`, in T030's "locate existing test files" canonical-source
+      list, in WP06's Independent Test, or in plan.md's own "Gate Set For This Mission"
+      section (which discusses a *different* JSON gate, `test_json_group_typer_surface.py`,
+      and explicitly clears it — but never mentions this byte-freeze suite at all). Running
+      `git grep -l plan_mapping tests/` (the exact command T030 tells the implementer to run)
+      does not surface `test_tasks_json_bytes.py` either, since that suite drives the CLI via
+      `CliRunner` rather than importing `plan_mapping` directly — so the canonical-sources
+      check tasks.md prescribes will not catch this on its own. This is compounded by the
+      fact that PR #3395 (this mission's own base) already modifies this exact fixture file,
+      an overlap the "#3395 overlap" section (tasks.md, "Parallelism & Chokepoints") does not
+      name at all (see TASKS-SEQ-003).
+    remediation: >
+      Add `tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json`
+      and `tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py` to WP06's
+      `owned_files` and to T030's located-test-files list; add an explicit subtask (or fold
+      into T032) instructing the implementer to run `test_tasks_json_bytes.py`, observe the
+      `map_requirements_success` byte mismatch once the new field lands, and deliberately
+      re-freeze the fixture (updating `expected_stdout` for that one case only) rather than
+      discovering this as an unexplained red test late in the WP.
+  - id: TASKS-SEQ-002
+    lens: write-scopes
+    severity: 4
+    title: "WP02 and WP06 both cite a factually wrong 'confirmed via grep' file as the located regression-guard test for `_validate_requirement_mapping`"
+    evidence:
+      - artifact: "tasks.md WP02 Independent Test (\"see T030 in WP06 for the located test files\") and tasks.md WP02 T012"
+      - artifact: "tasks/WP02-campsite-clean-validate-requirement-mapping.md, Test Strategy section (\"test_finalize_provenance_guard.py is a known hit\")"
+      - artifact: "tasks/WP06-finalize-tasks-map-requirements-wiring.md T030 (\"Confirmed via git grep -l _validate_requirement_mapping tests/: tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py, ...\")"
+      - code: "Direct run of `git grep -l _validate_requirement_mapping tests/` returns only tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py — NOT test_finalize_provenance_guard.py"
+      - code: "tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py:112-153 — four direct calls to `seam._validate_requirement_mapping(...)`, the actual regression-pinning test file"
+      - code: "tests/specify_cli/cli/commands/agent/test_finalize_provenance_guard.py:169,224,300 — its own tests are about execution-provenance SHA tracking, unrelated to `_validate_requirement_mapping`"
+    claim: >
+      Both WP02 (the campsite-clean behaviour-preserving split, whose entire regression
+      guard is "every pre-existing test exercising this function must stay green,
+      unmodified") and WP06 (which adds new blocking behaviour to the same function) name
+      `test_finalize_provenance_guard.py` as the file the stated grep command surfaces. This
+      claim is false when verified directly: that grep returns
+      `test_mission_finalize_phases.py`, a completely different file that actually contains
+      four direct calls into `_validate_requirement_mapping` and is therefore the real
+      regression-pinning surface for both WPs. `test_finalize_provenance_guard.py` tests an
+      unrelated concern (execution-provenance SHA tracking) and contains zero references to
+      `_validate_requirement_mapping`. An implementer trusting either WP's stated "known hit"
+      at face value — rather than independently re-running the grep — could complete WP02's
+      behaviour-preserving split or WP06's new-behaviour wiring without ever running the
+      actual test file that pins `_validate_requirement_mapping`'s existing assertions,
+      risking an undetected regression in exactly the function both WPs are most concerned
+      with protecting.
+    remediation: >
+      Correct both WP02's and WP06's file lists to name
+      `tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py` (verified by
+      direct grep) instead of `test_finalize_provenance_guard.py`, and add it to WP02's and
+      WP06's `owned_files`/Independent Test so it is explicitly run and confirmed green
+      (unmodified assertions) as part of each WP's own review guidance.
+  - id: TASKS-SEQ-003
+    lens: write-scopes
+    severity: 3
+    title: "The '#3395 overlap is expected' disclosure names only 3 source files and omits the same-name test files #3395 substantially modifies that WP03/WP05/WP06 also touch, plus WP07's touch of requirement_mapping.py"
+    evidence:
+      - artifact: "tasks.md \"Parallelism & Chokepoints\" § \"#3395 overlap is expected, not a new problem (C-005)\""
+      - artifact: "git diff --stat main...origin/op/3394-requirement-citation-scope — full #3395 touched-file list, including test files"
+      - artifact: "tasks/WP03-bare-prose-predicate.md owned_files: tests/specify_cli/test_requirement_mapping.py"
+      - artifact: "tasks/WP05-spec-kitty-next-guard-wiring.md owned_files: tests/runtime/test_bridge_cores.py, tests/next/test_runtime_bridge_unit.py"
+      - artifact: "tasks/WP06-finalize-tasks-map-requirements-wiring.md T030: tests/specify_cli/cli/commands/agent/test_tasks_mapping_core.py"
+      - artifact: "tasks/WP07-false-negative-sample.md owned_files: src/specify_cli/requirement_mapping.py"
+    claim: >
+      Per this review's brief, overlap with PR #3395's touched files is EXPECTED and already
+      accepted (a sequential-base rebase risk per C-005/plan.md's "#3395 Churn Risk"), and
+      should be flagged only if tasks.md's framing is wrong or omits part of the overlap —
+      not for the overlap merely existing. Verified directly (`git diff --stat
+      main...origin/op/3394-requirement-citation-scope`), #3395 touches four test files with
+      substantial content: `tests/specify_cli/test_requirement_mapping.py` (+186 lines),
+      `tests/next/test_runtime_bridge_unit.py` (+216 lines), `tests/runtime/test_bridge_cores.py`
+      (+39 lines), and `tests/specify_cli/cli/commands/agent/test_tasks_mapping_core.py` (+41
+      lines) — every one of which is also directly touched by this mission's own WP03, WP05,
+      or WP06 respectively. tasks.md's overlap section names only three *source* files
+      (`requirement_mapping.py`, `mission_finalize.py`, `runtime_bridge.py`) and is silent on
+      this parallel test-file overlap, even though test files carrying #3395's own new
+      assertions are a materially higher rebase-conflict risk than additive source-file edits
+      (plan.md's own "expected... clean, non-conflicting fast-forward-style rebase" reasoning
+      is explicitly source-file-shaped: "additive... rather than a modification of #3395's own
+      changed lines" — a claim that does not automatically extend to two branches both adding
+      new test cases to the same test function/file). Separately, the overlap section credits
+      only WP03 for touching `requirement_mapping.py`, omitting that WP07 (Phase 3) also
+      writes to that same file's docstring.
+    remediation: >
+      Extend the "#3395 overlap is expected" section to explicitly name the four overlapping
+      test files (against WP03/WP05/WP06 respectively) and add WP07 alongside WP03 for
+      `requirement_mapping.py`, so the rebase-absorption story (plan.md's "#3395 Churn Risk"
+      step 4, "re-runs the full targeted test surface... treats any newly-red test...") is
+      understood to cover test-file merge conflicts specifically, not only source-file
+      additive edits.

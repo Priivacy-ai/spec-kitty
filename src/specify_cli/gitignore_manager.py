@@ -7,10 +7,82 @@ It replaces the fragmented approach where only .codex/ was protected.
 """
 
 import os
+import stat
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.state.contract import get_runtime_gitignore_entries
+
+
+SPEC_KITTY_GITIGNORE_MARKER = "# Added by Spec Kitty CLI (auto-managed)"
+
+
+class GitignorePathError(ValueError):
+    """Raised when ``.gitignore`` cannot be read or replaced safely."""
+
+
+def read_gitignore_text(gitignore_path: Path) -> str | None:
+    """Read a regular UTF-8 ``.gitignore`` without following a final symlink.
+
+    ``None`` means the path is genuinely absent. Symlinks (including dangling
+    ones) and undecodable content fail closed so an upgrade cannot read or
+    later rewrite a file outside the project or silently discard bytes.
+    """
+    if gitignore_path.is_symlink():
+        raise GitignorePathError(f"Refusing to read symlinked .gitignore: {gitignore_path}")
+    if not gitignore_path.exists():
+        return None
+
+    flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        fd = os.open(gitignore_path, flags)
+    except OSError as exc:
+        raise GitignorePathError(f"Could not safely open .gitignore: {exc}") from exc
+    try:
+        with os.fdopen(fd, "r", encoding="utf-8-sig", newline="") as handle:
+            return handle.read()
+    except UnicodeDecodeError as exc:
+        raise GitignorePathError(f".gitignore is not valid UTF-8: {exc}") from exc
+
+
+def write_gitignore_text(gitignore_path: Path, content: str) -> None:
+    """Atomically replace a regular ``.gitignore`` without following symlinks."""
+    if gitignore_path.is_symlink():
+        raise GitignorePathError(f"Refusing to write symlinked .gitignore: {gitignore_path}")
+
+    existing_mode: int | None = None
+    if gitignore_path.exists():
+        existing_mode = stat.S_IMODE(gitignore_path.stat(follow_symlinks=False).st_mode)
+        if not existing_mode & stat.S_IWUSR:
+            raise PermissionError(f"Permission denied: {gitignore_path}")
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="",
+            dir=gitignore_path.parent,
+            prefix=".gitignore.spec-kitty-",
+            delete=False,
+        ) as handle:
+            handle.write(content)
+            temporary_path = Path(handle.name)
+        if existing_mode is not None:
+            temporary_path.chmod(existing_mode)
+        # Re-check for an operator-visible symlink. Even if a concurrent swap
+        # happens after this check, os.replace replaces the link itself rather
+        # than following it, so an external target is never modified.
+        if gitignore_path.is_symlink():
+            raise GitignorePathError(f"Refusing to replace symlinked .gitignore: {gitignore_path}")
+        os.replace(temporary_path, gitignore_path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 @dataclass
@@ -63,7 +135,24 @@ AGENT_DIRECTORIES = [
     AgentDirectory("opencode", ".opencode/", False, "opencode CLI"),
     AgentDirectory("windsurf", ".windsurf/", False, "Windsurf"),
     AgentDirectory("gemini", ".gemini/", False, "Google Gemini"),
-    AgentDirectory("cursor", ".cursor/", False, "Cursor"),
+    # Narrow, not blanket .cursor/ (#2498): many teams version-control their
+    # own rules under .cursor/rules/, so only Spec Kitty-owned paths under
+    # .cursor/ are ignored — mirrors the copilot precedent below. The rules
+    # file and the commands dir are written by Spec Kitty today; .cursor/skills/
+    # is a *declared* secondary skill root (AGENT_SKILL_CONFIG["cursor"]
+    # ["skill_roots"] in core/config.py) that the skill installer does not yet
+    # populate (it writes only the primary .agents/skills/ root) — it is ignored
+    # for consistency with the canonical config. .cursor/hooks.json is
+    # deliberately NOT ignored: it is team-owned and Spec Kitty only writes it
+    # on an explicit `agent config set lint_on_edit`.
+    AgentDirectory("cursor", ".cursor/rules/spec-kitty.mdc", False, "Cursor (Spec Kitty orientation rule)"),
+    AgentDirectory("cursor", ".cursor/commands/", False, "Cursor (Spec Kitty slash commands)"),
+    AgentDirectory(
+        "cursor",
+        ".cursor/skills/",
+        False,
+        "Cursor (declared Spec Kitty skill root; AGENT_SKILL_CONFIG)",
+    ),
     AgentDirectory("qwen", ".qwen/", False, "Qwen"),
     AgentDirectory("kilocode", ".kilocode/", False, "Kilocode"),
     AgentDirectory("auggie", ".augment/", False, "Auggie"),
@@ -103,7 +192,7 @@ class GitignoreManager:
 
         self.project_path = project_path
         self.gitignore_path = project_path / ".gitignore"
-        self.marker = "# Added by Spec Kitty CLI (auto-managed)"
+        self.marker = SPEC_KITTY_GITIGNORE_MARKER
         self._line_ending: str = os.linesep
 
     def ensure_entries(self, entries: list[str]) -> bool:
@@ -123,8 +212,8 @@ class GitignoreManager:
             return False
 
         # Read existing content or start with empty list
-        if self.gitignore_path.exists():
-            content = self.gitignore_path.read_text(encoding="utf-8-sig")
+        content = read_gitignore_text(self.gitignore_path)
+        if content is not None:
             # Detect and store line ending style
             self._line_ending = self._detect_line_ending(content)
             lines = content.splitlines()
@@ -161,7 +250,7 @@ class GitignoreManager:
 
             # Join with detected line ending
             content = self._line_ending.join(lines)
-            self.gitignore_path.write_text(content, encoding="utf-8")
+            write_gitignore_text(self.gitignore_path, content)
 
         return changed
 
@@ -207,8 +296,8 @@ class GitignoreManager:
         try:
             # Snapshot existing entries before modification
             existing_before: set[str] = set()
-            if self.gitignore_path.exists():
-                content = self.gitignore_path.read_text(encoding="utf-8-sig")
+            content = read_gitignore_text(self.gitignore_path)
+            if content is not None:
                 existing_before = set(content.splitlines())
 
             # Attempt to add entries
@@ -226,9 +315,7 @@ class GitignoreManager:
 
         except PermissionError:
             result.success = False
-            result.errors.append(
-                f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}"
-            )
+            result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
         except Exception as exc:
             result.success = False
             result.errors.append(f"Error protecting {error_context}: {exc}")
@@ -267,14 +354,18 @@ class GitignoreManager:
         """
         result = ProtectionResult(success=True, modified=False)
 
-        # Build mapping of agent names to directories
-        agent_map = {agent.name: agent for agent in AGENT_DIRECTORIES}
+        # Build mapping of agent names to directories. An agent name may own
+        # more than one entry (e.g. cursor, #2498), so collect a list per
+        # name rather than the last match.
+        agent_map: dict[str, list[AgentDirectory]] = {}
+        for agent in AGENT_DIRECTORIES:
+            agent_map.setdefault(agent.name, []).append(agent)
 
         # Collect directories for selected agents
-        directories_to_add = []
+        directories_to_add: list[str] = []
         for agent_name in agents:
             if agent_name in agent_map:
-                directories_to_add.append(agent_map[agent_name].directory)
+                directories_to_add.extend(entry.directory for entry in agent_map[agent_name])
             else:
                 result.warnings.append(f"Unknown agent name: {agent_name}")
 

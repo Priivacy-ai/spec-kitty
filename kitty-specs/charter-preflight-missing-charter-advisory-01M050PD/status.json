@@ -20,17 +20,34 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
+      "agent_profile": "implementer-ivan",
+      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M05VVQ8CNAKM22E8Q2GAY3RC",
       "last_transition_at": "2026-08-16T18:03:07.404379+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented missing-charter advisory mode for fresh-project and legacy-bundle charter states (#3498). hook.py: run_preflight_or_abort now forwards allow_missing_charter=True to run_charter_preflight (the single drift line #3498 identified). runner.py: new _is_legacy_charter_bundle() predicate + distinct _LEGACY_CHARTER_BUNDLE_WARNING constant, checked before the existing fresh-project predicate so the contract's row-2 tie-break (charter.md presence wins) resolves correctly without touching the pre-existing predicate; shared advisory-result construction factored into _advisory_missing_charter_result(). RED-first tests added across test_runner.py, test_next_preflight.py, test_implement_preflight.py, test_dashboard_preflight.py. Full mandated regression (tests/specify_cli/charter_preflight/, test_next_preflight.py, test_implement_preflight.py, test_dashboard_preflight.py): 54/54 passed. mypy --strict and ruff clean on both touched production modules (2 unrelated pre-existing mypy findings filed as #3513). Also manually ran a broader 17-file preflight-adjacent regression (215 tests): 1 unrelated pre-existing failure (test_lanes_json_read_from_coord_dir_not_primary), confirmed pre-existing via git stash against merge-base. CHANGELOG.md entry added. #3498 assigned to Human-in-Charge (robertDouglass). Using --skip-pre-review-gate: the automated pre-review regression gate's scoped-test subprocess timed out twice at its fixed 300s ceiling with no test output (stderr tail empty) rather than reporting any failure; the manual regression runs above already independently verify the change is safe. Retrying the automated gate a third time would not change the outcome (deterministic 300s ceiling)."
+      ],
+      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Verified personally (not just implementer claims): (1) row-2 tie-break correct — _is_legacy_charter_bundle checked before _is_optional_missing_charter_fresh_project, matches contract table; (2) _is_optional_missing_charter_fresh_project body confirmed byte-for-byte unchanged via diff; (3) NFR-001 predicate body read directly — single Path.exists() call, enforced by a monkeypatched call-count test; (4) all 4 test files exercise real consumer entry points (run_preflight_or_abort, run_preflight_for_dashboard) with the real runner, not mocks, incl. non-regression tests for invalid-yaml/row-4 residue and mutual exclusivity; (5) grepped src/ for allow_missing_charter/_is_legacy_charter_bundle — no duplicate impl outside runner.py/hook.py; (6) ran mandated regression command myself: 54/54 passed; (7) ran mypy --strict on both touched modules myself: 2 findings, confirmed pre-existing by isolating base-branch version (same errors, earlier line numbers) — matches filed issue #3513; ruff check clean on all touched files; (8) CHANGELOG entry present in docs/changelog/CHANGELOG.md, which is the real target of the CHANGELOG.md symlink; (9) git diff --stat matches exactly the 7 declared owned_files, no scope creep; (10) gh issue view confirmed #3498 assigned to robertDouglass (HiC) and #3513 filed with accurate mypy-finding description. Issue-matrix verdicts set: #3498 fixed, #2831 fixed, #1665 verified-already-fixed (non-regression preserved).",
         "reviewer": "Robert Douglass",
         "verdict": "approved"
       },
-      "shell_pid": 36675,
-      "shell_pid_created_at": "1786901006.500072"
+      "role": "reviewer",
+      "shell_pid": 55732,
+      "shell_pid_created_at": "1786902897.901367",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done"
+      }
     }
   }
 }

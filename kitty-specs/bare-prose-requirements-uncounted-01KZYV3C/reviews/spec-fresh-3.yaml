@@ -1,0 +1,94 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-sweep-round-3
+mission: bare-prose-requirements-uncounted-01KZYV3C
+reviewer: architect-alphonso (R5b fresh sweep)
+round: 3
+findings:
+  - id: FR5B-01
+    lens: fresh-sweep-round-3
+    severity: 3
+    status: found_and_fixed_this_round
+    title: "Story 4/FR-005/SC-005/Context's composition claim about the 9 flagged specs (\"description-column citations inside correctly-declared table rows\") does not survive inspection of the corpus the spec cites as its own evidence"
+    evidence:
+      - artifact: "spec.md § Context (pre-fix), § User Story 4 body and Acceptance Scenario 1, § FR-005, § Key Entities (\"Corpus false-positive record and frozen fixture\"), § SC-005"
+      - code: "kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md:768 (`### Requirement-level falsifiers` heading — matches `_is_requirement_heading`'s substring test on \"requirement\"; contains no requirements table)"
+      - code: "kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md:860 (\"...orchestrator correction C-1), so the four assertions cannot distinguish...\" — running prose, not a table cell)"
+      - code: "kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md:933 (\"no production caller (orchestrator correction C-3)\" — running prose, not a table cell)"
+      - code: "kitty-specs/egress-refusal-consolidation-3110-01KYW895/spec.md:533 (NFR-004 table row, description column citing \"orchestrator correction C-1\" — the table-row shape the spec's claim does correctly describe for at least this one occurrence)"
+    claim: >
+      The spec committed a specific, falsifiable composition claim to a permanent module
+      docstring (FR-005): that all 9 document-scoped-flagged specs are description-column
+      citations inside correctly-declared table rows. Direct inspection of one of the 9 flagged
+      specs (egress-refusal-consolidation-3110) shows this is wrong for at least that spec: its
+      flagging `C-1`/`C-3` occurrences at lines 860 and 933 are running prose under a heading
+      ("### Requirement-level falsifiers") that matches `_is_requirement_heading`'s substring
+      test but contains no requirements table at all — not a table-row description-column
+      citation. (A separate flagging occurrence in the same file, the NFR-004 table row at line
+      533, does match the table-row shape, so the spec's claim is not uniformly wrong across
+      the file — it is wrong as a universal composition claim about all 9.) Zero true positives
+      still holds (both the table-row and running-prose occurrences are foreign-id citations,
+      not requirements this spec declares), but the over-specific "table rows only" composition
+      is false, and an implementer who trusted FR-005's literal text would immortalize that
+      false claim in the shipped detector's docstring.
+    remediation: >
+      Drop the over-specific "description column of correctly-declared table rows" composition
+      claim everywhere it appears (Context, Story 4 body, Story 4 AC1, FR-005, Key Entities,
+      SC-005) and replace it with the accurate, defensible claim: all 9 are foreign-id citations
+      — ids belonging to another ID space or another mission, not requirements this spec
+      declares — hence zero true positives, appearing in both table-row description cells and
+      running prose under requirement-named headings (the latter an instance of the
+      `_is_requirement_heading` over-match risk the Edge Cases section already names). Keep
+      "zero true positives" and the 9/368 = 2.45% figure, both of which remain accurate.
+    fix_applied_this_round: >
+      spec.md corrected at all five identified locations (Context, Story 4 body, Story 4 AC1,
+      FR-005, Key Entities' "Corpus false-positive record and frozen fixture", and SC-005): the
+      composition claim now states the 9 are foreign-id citations appearing in both table-row
+      description cells and running prose under requirement-named headings, with the Context
+      occurrence citing the egress-refusal-consolidation-3110 verification directly by file and
+      heading. The Story 2 AC3 / Edge Cases / Story 5 AC2 discussions of the table-row
+      description-column shape as a designed, deliberate non-match were left untouched — they
+      describe the detector's intended behavior for that shape, not a claim about the composition
+      of the measured 9.
+verifications_passed:
+  - id: FR5B-VERIFY-01
+    title: "The four named guard functions in runtime_bridge_cores.py match the spec's described shapes, including the 'fourth call site' claim"
+    result: PASS
+    evidence: >
+      Read runtime_bridge_cores.py:484-534 directly. `_evaluate_tasks_packages_guard` (484-489)
+      and `_evaluate_composed_tasks_packages_guard` / `_evaluate_composed_tasks_terminal_guard`
+      (515-534) all gate on `_tasks_dir_ready` before reading `requirement_mapping_failures`, as
+      the spec claims. `_evaluate_tasks_finalize_guard` (492-504) — the "fourth call site the
+      issue text did not name" per Context — does not read `requirement_mapping_failures`
+      anywhere in its body, confirmed by direct read; its own docstring says "no
+      requirement-mapping check."
+  - id: FR5B-VERIFY-02
+    title: "No existing architectural test pins runtime_bridge_cores.py's import set (C-007)"
+    result: PASS
+    evidence: >
+      `grep -rl runtime_bridge_cores tests/architectural/` returns no matches — confirms C-007's
+      premise that the module's documented "zero-dependency leaf" invariant is enforced today
+      only by documentation discipline, not by construction.
+  - id: FR5B-VERIFY-03
+    title: "The detector does not self-flag this mission's own spec.md (Story 6 AC2)"
+    result: PASS
+    evidence: >
+      Ran the document-scoped per-token predicate (per-section raw ref-shaped tokens minus the
+      document-wide declared-id set) against this mission's own spec.md: the flagged set is
+      empty. Story 6 AC2's claim holds.
+  - id: FR5B-VERIFY-04
+    title: "Commit 3823f2b00 resolves and is an ancestor of HEAD; ae7eba9b2 does not resolve"
+    result: PASS
+    evidence: >
+      `git cat-file -t 3823f2b00` -> `commit`; `git merge-base --is-ancestor 3823f2b00 HEAD`
+      succeeds. `git cat-file -t ae7eba9b2` fails with "Not a valid object name" in this
+      checkout's history, confirming the Clarifications entry's hash-discrepancy resolution.
+  - id: FR5B-VERIFY-05
+    title: "The Constraints-heading blind spot measures 325/368 = 88.32%"
+    result: PASS
+    evidence: >
+      `grep -rlE '^#{2,3} Constraints\b' kitty-specs/*/spec.md | wc -l` -> 325, against 368 total
+      `kitty-specs/*/spec.md` files; 325/368 = 88.32%. spec.md's Edge Cases and Key Entities
+      sections now record this precise figure (previously "~88%") alongside the qualitative
+      disclosure and the retained false-negative sample.

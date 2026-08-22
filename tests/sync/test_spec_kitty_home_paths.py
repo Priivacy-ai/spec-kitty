@@ -8,8 +8,11 @@ Every sync state surface must resolve under ``get_runtime_root().base``:
   ``~/.spec-kitty/...`` layout (NFR-001).
 
 Covers FR-001 (config), FR-004/FR-005 (queues + active scope), FR-006
-(daemon), FR-007 (clock), plus the lazy ``SPEC_KITTY_DIR`` shim (research.md
-D5) and the POSIX flat daemon layout (research.md D3).
+(daemon), FR-007 (clock), plus the POSIX flat daemon layout (research.md D3).
+
+The legacy lazy ``SPEC_KITTY_DIR`` module-attribute shim (research.md D5) was
+retired in #3569 — it duplicated ``get_runtime_root()`` with no production
+readers — so it is no longer covered here.
 """
 
 from __future__ import annotations
@@ -166,25 +169,7 @@ def test_daemon_root_is_flat_base(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert daemon._daemon_root() == base
 
 
-@pytest.mark.parametrize("env_set", [False, True])
-def test_spec_kitty_dir_shim_is_lazy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, env_set: bool) -> None:
-    """The retired ``SPEC_KITTY_DIR`` constant resolves lazily per access."""
-    # Other daemon tests use ``monkeypatch.setattr(daemon, "SPEC_KITTY_DIR", …)``.
-    # Because the name now lives only on the module ``__getattr__`` shim,
-    # monkeypatch's teardown can restore it as a *real* module attribute that
-    # would shadow the shim here. A fresh import / production process never has
-    # that real attribute. Pop only a *real* attribute from ``__dict__`` so the
-    # shim — not a frozen real attribute — is what we exercise. We must not use
-    # ``monkeypatch.delattr(..., raising=False)``: its ``hasattr`` guard is
-    # defeated by ``__getattr__`` (always True), so it would try the builtin
-    # ``delattr`` on a missing real attribute and raise ``AttributeError`` in
-    # clean/production module state.
-    daemon.__dict__.pop("SPEC_KITTY_DIR", None)
-    base = _configure_root(monkeypatch, tmp_path, env_set=env_set)
-    assert base == daemon.SPEC_KITTY_DIR
-
-
-def test_spec_kitty_dir_shim_rejects_unknown_attr() -> None:
+def test_daemon_module_getattr_rejects_unknown_attr() -> None:
     # Variable (not a constant) so this exercises the module __getattr__ shim
     # without tripping ruff B009.
     missing = "NOT_A_REAL_ATTRIBUTE"

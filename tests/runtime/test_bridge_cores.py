@@ -7,9 +7,9 @@ Three independent concerns, all in-memory / no I/O (NFR-003, SC-004):
    per-file native-delegate assertion for the tracked guard/parse symbols
    (``_check_cli_guards`` / ``_check_composed_action_guard`` / the tracked
    parse helpers) was RETIRED in the #2557 dev-assist cleanup: that invariant
-   is covered family-wide by the frozen
-   ``test_bridge_compat_surface.py::test_guard_b_identity_reexport_for_
-   relocated_symbols``, so duplicating it here was redundant. This file now
+   was then covered family-wide by a dedicated frozen bridge compat-surface
+   guard (itself later retired in #3285), so duplicating it here was redundant.
+   This file now
    retains only the UNTRACKED parse-family identity check — the five helpers
    nothing patches ARE plain re-exports and DO satisfy the identity check
    (unique coverage the family guard's ``_``-private inventory does not track).
@@ -184,6 +184,45 @@ def test_evaluate_requirement_mapping_reports_missing_unknown_and_unmapped_in_or
 
 
 # ---------------------------------------------------------------------------
+# 3b. #3394 negative-space regression pins — these must stay [] (non-blocking)
+# both before and after any requirement-mapping change; that is the whole
+# point of #3394's fix (dfec9d7e2/2a1c9b9d7): declared-shape scoping, not a
+# doc-wide raw-token block.
+# ---------------------------------------------------------------------------
+
+
+def test_evaluate_requirement_mapping_zero_declared_zero_raw_tokens_does_not_block() -> None:
+    """The genuinely empty case (no formal requirements at all -- zero
+    declared ids, zero WPs) must NOT block: there is nothing to be missing."""
+    facts = cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset(),
+        functional_requirement_ids=frozenset(),
+        wp_ids=(),
+        wp_requirement_refs={},
+        feature_dir_name="042-no-requirements",
+    )
+    assert cores._evaluate_requirement_mapping(facts) == []
+
+
+def test_evaluate_requirement_mapping_3394_repro_shape_does_not_block() -> None:
+    """THE regression pin: #3394's actual repro shape -- three FRs DECLARED
+    in a Requirements table, plus a mid-sentence CITATION of a foreign
+    FR-021 elsewhere in prose (never declared) -- must NOT block. Every
+    declared FR is mapped to its WP, so the missing/unknown/unmapped checks
+    are all silent; the foreign citation is simply not this spec's concern
+    (that scoping lives in ``specify_cli.requirement_mapping.
+    parse_requirement_ids_from_spec_md``, upstream of this pure core)."""
+    facts = cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset({"FR-001", "FR-002", "FR-003"}),
+        functional_requirement_ids=frozenset({"FR-001", "FR-002", "FR-003"}),
+        wp_ids=("WP01",),
+        wp_requirement_refs={"WP01": ("FR-001", "FR-002", "FR-003")},
+        feature_dir_name="3394-repro",
+    )
+    assert cores._evaluate_requirement_mapping(facts) == []
+
+
+# ---------------------------------------------------------------------------
 # 4. evaluate_guards — software-dev family (CLI-native vocabulary)
 # ---------------------------------------------------------------------------
 
@@ -204,6 +243,7 @@ def _snapshot(
         "wp_dependencies_present": {},
         "wp_dependency_records": (),
         "requirement_mapping_failures": (),
+        "bare_prose_requirement_failures": (),
         "occurrence_gate_failures": (),
         "source_documented_count": 0,
         "publication_approved": False,
@@ -388,6 +428,78 @@ def test_composed_tasks_terminal_ready_reports_requirement_and_dependency_then_o
         "missing refs for WPs: WP02",
         "WP WP02-rawjoin missing 'dependencies' in frontmatter (run 'spec-kitty agent mission finalize-tasks')",
         "occurrence classification incomplete",
+    ]
+
+
+# ---------------------------------------------------------------------------
+# 4b. #3396 bare-prose requirement wiring — per-guard teeth tests (WP05,
+# FR-002/FR-010/NFR-005). Each of the four guard functions FR-003's audit
+# names must read the new ``bare_prose_requirement_failures`` status_facts
+# key BEFORE its own dir-readiness short-circuit — this is the exact
+# ordering fix the reverted ``3823f2b00``-shaped wiring lacked (that revert
+# read the analogous ``requirement_mapping_failures`` fact AFTER
+# ``_tasks_dir_ready``, so it was inert whenever zero WP files existed). Each
+# test below constructs a snapshot in the "guard would otherwise
+# short-circuit" configuration and asserts the bare-prose failure still
+# surfaces — it fails if that specific guard's wiring alone is reverted.
+# ---------------------------------------------------------------------------
+
+_BARE_PROSE_TEETH_MESSAGE = "Bare-prose requirement id(s) found, uncounted by requirement mapping: FR-001, FR-002."
+
+
+def test_cli_native_tasks_packages_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 1/4 — zero WP files (``_tasks_dir_ready`` is False)."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks_packages",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: at least one tasks/WP*.md file",
+    ]
+
+
+def test_cli_native_tasks_finalize_guard_reads_bare_prose_unconditionally() -> None:
+    """Teeth test 2/4 — ``_evaluate_tasks_finalize_guard`` has NO
+    ``_tasks_dir_ready`` call today (it uses its own inline
+    ``tasks_dir_is_dir``/``tasks_wp_files`` branches); confirm the new fact
+    is read as the first statement, independent of those branches."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks_finalize",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: tasks/ directory with finalized WP files",
+    ]
+
+
+def test_composed_tasks_packages_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 3/4 — tasks.md present, zero WP files."""
+    snapshot = _snapshot(
+        present_artifacts=frozenset({"tasks.md"}),
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks",
+        legacy_step_id="tasks_packages",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required: at least one tasks/WP*.md file",
+    ]
+
+
+def test_composed_tasks_terminal_guard_reads_bare_prose_before_tasks_dir_ready() -> None:
+    """Teeth test 4/4 — the composed terminal/union branch, tasks.md absent
+    and zero WP files (the highest-risk SC-007 fixture shape)."""
+    snapshot = _snapshot(
+        status_facts={"bare_prose_requirement_failures": (_BARE_PROSE_TEETH_MESSAGE,)},
+        step_id="tasks",
+        legacy_step_id="tasks_finalize",
+    )
+    assert cores.evaluate_guards(snapshot) == [
+        _BARE_PROSE_TEETH_MESSAGE,
+        "Required artifact missing: tasks.md",
+        "Required: at least one tasks/WP*.md file",
     ]
 
 

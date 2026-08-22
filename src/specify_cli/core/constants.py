@@ -18,6 +18,36 @@ RETROSPECTIVE_FILENAME = "retrospective.yaml"
 # forbidden (#2628 SSOT fold).
 LINT_REPORT_FILENAME = "lint-report.json"
 
+# Canonical filename for a bulk-edit mission's occurrence map, written to
+# ``kitty-specs/<mission>/occurrence_map.yaml`` (DIRECTIVE_035).  The semantic
+# owner is ``specify_cli.bulk_edit.occurrence_map``; this is the shared path
+# literal (Sonar S1192) so the two kitty-specs lane guards below express the
+# occurrence-map exception once instead of duplicating the string.
+OCCURRENCE_MAP_FILENAME = "occurrence_map.yaml"
+
+
+def is_occurrence_map_path(path: str) -> bool:
+    """Return True when *path* is a mission occurrence map (the #2980 exception SSOT).
+
+    The single authority both ``kitty-specs/`` lane guards consult — the
+    pre-commit ownership guard (``policy.commit_guard``) and the ``move-task``
+    lane-hygiene guard (``cli.commands.agent.tasks_shared``) — to permit a
+    bulk-edit mission's own ``kitty-specs/<mission>/occurrence_map.yaml`` on an
+    implementation lane. DIRECTIVE_035 requires the map be kept current *as the
+    sweep proceeds*, which means the implementing lane writes it; without this
+    single exception the commit guard warned while ``move-task`` blocked, so the
+    map could not be kept current without a manual unwind (#2980).
+
+    Matches exactly ``kitty-specs/<mission>/occurrence_map.yaml`` — the map lives
+    directly under the mission directory (three path segments). Every other
+    ``kitty-specs/`` path stays governed.
+    """
+    if not path.startswith(f"{KITTY_SPECS_DIR}/"):
+        return False
+    if not path.endswith(f"/{OCCURRENCE_MAP_FILENAME}"):
+        return False
+    return path.count("/") == 2
+
 # Named scalar aliases for individual built-in mission-type identifiers, used at
 # the CLI comparison sites.  The canonical *roster* (the full built-in set) is
 # ``doctrine.missions.mission_type_repository.builtin_mission_type_ids`` (#2669) —
@@ -32,8 +62,10 @@ __all__ = [
     "KITTIFY_DIR",
     "RETROSPECTIVE_FILENAME",
     "LINT_REPORT_FILENAME",
+    "OCCURRENCE_MAP_FILENAME",
     "WORKTREES_DIR",
     "MISSION_TYPE_SOFTWARE_DEV",
     "MISSION_TYPE_DOCUMENTATION",
     "MISSION_TYPE_RESEARCH",
+    "is_occurrence_map_path",
 ]

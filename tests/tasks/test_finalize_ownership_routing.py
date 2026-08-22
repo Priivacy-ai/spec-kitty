@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.ownership.validation import (
     GlobValidationResult,
     is_glob_pattern,
@@ -65,7 +65,7 @@ class TestIsGlobPattern:
 
 def _make_manifest(patterns: list[str]) -> OwnershipManifest:
     return OwnershipManifest(
-        execution_mode=ExecutionMode.CODE_CHANGE,
+        execution_mode=WorkProductKind.CODE_CHANGE,
         owned_files=tuple(patterns),
         authoritative_surface="src/",
     )

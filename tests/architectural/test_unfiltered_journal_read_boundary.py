@@ -352,7 +352,7 @@ _UNFILTERED_READ_ALLOWLIST: dict[str, Allowance] = {
         ),
     ),
     # -- The awkward case, allowlisted and labelled as the precedent ----------
-    "specify_cli/cli/commands/sync.py::_purge_resolve_project": Allowance(
+    "specify_cli/sync/sync_purge_exec.py::_purge_resolve_project": Allowance(
         kind=ConsumerKind.OPERATOR_SELECTOR,
         note=(
             "**This entry is the reason this gate exists.** It is a real consumer, it "
@@ -375,7 +375,7 @@ _UNFILTERED_READ_ALLOWLIST: dict[str, Allowance] = {
         ),
     ),
     # -- The purge measurement reads (#3262 WP10 cutover tooling) -------------
-    "specify_cli/cli/commands/sync.py::_purge_journal_census": Allowance(
+    "specify_cli/sync/sync_purge_exec.py::_purge_journal_census": Allowance(
         kind=ConsumerKind.OPERATOR_REPORT,
         note=(
             "`sync purge`'s pre/post differential census. It needs the stored "
@@ -387,7 +387,7 @@ _UNFILTERED_READ_ALLOWLIST: dict[str, Allowance] = {
             "command, never a drain tick."
         ),
     ),
-    "specify_cli/cli/commands/sync.py::_purge_journal_ids": Allowance(
+    "specify_cli/sync/sync_purge_exec.py::_purge_journal_ids": Allowance(
         kind=ConsumerKind.OPERATOR_REPORT,
         note=(
             "`sync purge`'s ledger-half measurement: the ids the operator's "

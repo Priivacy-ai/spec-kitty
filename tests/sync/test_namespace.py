@@ -177,6 +177,29 @@ class TestResolveManifestVersion:
         mock_load.return_value = None
         assert resolve_manifest_version("unknown-mission") == "1"
 
+    @patch("specify_cli.dossier.manifest.ManifestRegistry.load_manifest")
+    def test_resolve_manifest_version_returns_one_on_malformed_manifest(
+        self, mock_load: MagicMock
+    ) -> None:
+        """WP01 (FR-016, AS6): a malformed manifest keeps the "always a string"
+        contract via `resolve_manifest_version`'s own dedicated
+        `except ManifestSchemaError: return "1"` — not an accident of an
+        unrelated caller's blanket catch (tracer-design-decisions.md Decision 3).
+
+        Uses the domain `ManifestSchemaError` (not the raw
+        `pydantic.ValidationError` it wraps) since that's what
+        `ManifestRegistry.load_manifest` actually raises on a schema-invalid
+        manifest (adversarial-review MAJOR fix) — catching the raw pydantic
+        type here would misfire on any unrelated `ValidationError`.
+        """
+        from specify_cli.dossier.manifest import ManifestSchemaError
+
+        mock_load.side_effect = ManifestSchemaError(
+            "malformed-mission", "doctrine/malformed-mission/expected-artifacts.yaml"
+        )
+
+        assert resolve_manifest_version("malformed-mission") == "1"
+
 
 # --- SupportedInlineFormat ---
 

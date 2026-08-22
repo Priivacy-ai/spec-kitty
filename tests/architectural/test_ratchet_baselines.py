@@ -35,6 +35,8 @@ Cat-7 deletions, and the Cat-7 baseline at 7.
 from __future__ import annotations
 
 import importlib
+import subprocess
+import sys
 import warnings
 from collections.abc import Callable
 from pathlib import Path
@@ -44,7 +46,13 @@ import pytest
 import yaml
 from pydantic import BaseModel
 
-pytestmark = [pytest.mark.architectural]
+# FR-006: `fast` marks this sub-second gate for the fast tier. `architectural`
+# is retained, so the always-on `arch-adversarial` pole still selects it (its
+# `-m` expression is inclusion-based: `... and (git_repo or integration or
+# architectural) and not timing` — it never excludes `fast`), and the
+# `arch_shard_N` marker this file carries in `tests/_arch_shard_map.py` keeps it
+# in the arch shard. Dual-marking here adds a routing home; it removes none.
+pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 # Type of the built-in ``record_property`` fixture: records a (name, value)
 # pair into the JUnit/report output. Used to route the report-only shrinkage
@@ -130,17 +138,16 @@ _REQUIRED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
     }
 )
 
-# Keys that predate the reverse-containment arm below and are read by no
-# comparison. CLOSED and pinned by `test_no_unregistered_baseline_keys_are_added`
-# -- it may only ever shrink. `test_no_dead_symbols` is here because choosing
-# between its two honest dispositions (register it in both comparison lists, or
-# remove it from the YAML) needs the owner of the gate it governs, which is
-# outside mission `sync-sleep-count-3136-01KZ9B5A`'s scope to decide
-# unilaterally. Adding it to `_REQUIRED_TOP_LEVEL_KEYS` alone is NOT an option:
-# a key must also join both live comparison lists or it remains inert.
-_GRANDFATHERED_UNREGISTERED_KEYS: frozenset[str] = frozenset(
-    {"test_no_dead_symbols"}
-)
+# CLOSED grandfather set for top-level keys that no comparison reads. Now
+# DRAINED to empty (FR-005): the sole tenant, `test_no_dead_symbols`, was an
+# inert YAML block read by no comparison (RL-030), and both it and its whole
+# YAML block were removed by mission `frozen-baseline-toll-reduction-01M0A42D`
+# WP03. With the set empty, `test_no_unregistered_baseline_keys_are_added`
+# rejects ANY unregistered top-level key: re-adding `test_no_dead_symbols`
+# (or any inert key) now reds instead of being silently tolerated. The set is
+# pinned empty by frozenset equality below, so re-widening it costs a visible
+# diff in this file rather than a silent one in the YAML.
+_GRANDFATHERED_UNREGISTERED_KEYS: frozenset[str] = frozenset()
 
 # Per-category sub-keys for test_no_dead_modules (FR-112 refactor).
 _REQUIRED_NO_DEAD_MODULES_CATEGORIES: frozenset[str] = frozenset(
@@ -154,6 +161,82 @@ _REQUIRED_NO_DEAD_MODULES_CATEGORIES: frozenset[str] = frozenset(
         "category_7_grandfathered_orphans",
     }
 )
+
+# Dotted path of the gated dead-module test whose per-category frozensets this
+# meta-test introspects.
+_NO_DEAD_MODULES_MODULE = "tests.architectural.test_no_dead_modules"
+
+# FR-004: ``category_1`` is DERIVED, not YAML-pinned. The count of
+# auto-discovered migration modules with no static importer is validated for
+# *membership correctness* by ``test_no_dead_modules`` (which owns the
+# hand-curated frozenset). Pinning its size here too was a double-charge: a
+# routine new migration would red this ratchet with nothing to fix. So this
+# meta-test derives the ``category_1`` baseline from the live frozenset length,
+# making the growth/shrink check for that one category a no-op while the
+# frozenset itself remains the single authority. The ``category_1_...`` integer
+# in ``_baselines.yaml`` is retained as a decorative audit value, pinned to the
+# frozenset length by ``test_decorative_category_1_yaml_matches_frozenset``.
+_CATEGORY_1_YAML_KEY = "category_1_auto_discovered_migrations"
+_CATEGORY_1_ATTR = "_CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS"
+
+# FR-003: JUnit property names for the skip-marker delta backstop. Growth is
+# REVIEWABLE (routed here, surfaced in the report, reviewed via the co-located
+# ``# round-trip: skip: <reason>`` diff line) rather than a hard CI failure.
+_SKIP_MARKER_GROWTH_PROP = "skip_marker_blocks_growth"
+_SKIP_MARKER_SHRINK_PROP = "skip_marker_blocks_shrinkage"
+
+
+def _category_baseline(cat_key: str, yaml_value: int, nd_module: str) -> int:
+    """Return the baseline size for a ``test_no_dead_modules`` category.
+
+    FR-004: for ``category_1`` the baseline is DERIVED from the live
+    ``_CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS`` frozenset length (single
+    authority — never re-globbed, which would fork a ``_has_caller``
+    split-brain). Every other category reads its recorded YAML integer. This
+    one helper is reused by BOTH the growth and shrinkage arms so the two can
+    never disagree about how ``category_1`` is derived.
+    """
+    if cat_key == _CATEGORY_1_YAML_KEY:
+        return len(_import_module_attr(nd_module, _CATEGORY_1_ATTR))
+    return yaml_value
+
+
+def _emit_skip_marker_delta(
+    baseline: int, current: int, record_property: RecordPropertyFn
+) -> None:
+    """Route a skip-marker-block count delta to ``record_property`` (FR-003).
+
+    Growth is REVIEWABLE-not-blocking: a new ``# round-trip: skip: <reason>``
+    block is caught by human review of the co-located reason line (enforced by
+    the unmodified ``_SKIP_MARKER_RE``), not by a ``pytest.fail`` here. Shrinkage
+    locks in a lower high-water mark. This helper NEVER raises — that is the
+    whole point of draining the hard-fail toll.
+
+    #3560 finding 2 (advisory-by-design, not a gap): the ``record_property``
+    values emitted below land in pytest's JUnit ``user_properties``, which is
+    write-only in this repo (nothing reads it back to gate CI) — so this
+    numeric count is intentionally NOT machine-enforced. The count-bump was
+    pure bookkeeping toll; draining it here does not remove any teeth. The
+    actual machine-enforced gate for a new skip-marker block is per-block and
+    lives in ``tests/contract/test_example_round_trip.py``
+    (``_SKIP_MARKER_RE``): a block with neither a ``# pydantic_model:`` tag nor
+    a ``# round-trip: skip: <reason>`` marker carrying a non-empty reason fails
+    that gate directly, independent of this advisory count.
+    """
+    if current > baseline:
+        record_property(
+            _SKIP_MARKER_GROWTH_PROP,
+            f"Skip-marker blocks grew {baseline} -> {current}. FR-003: reviewable "
+            f"via the co-located `# round-trip: skip: <reason>` diff line, NOT a CI "
+            f"failure. Lock in the new high-water mark by bumping "
+            f"`_baselines.yaml::test_example_round_trip.skip_marker_blocks`.",
+        )
+    elif current < baseline:
+        record_property(
+            _SKIP_MARKER_SHRINK_PROP,
+            f"Skip-marker blocks shrank {baseline} -> {current}. Lock in the lower "
+            f"bound in `_baselines.yaml`.",
+        )
 
 
 def _load_baselines() -> dict[str, Any]:
@@ -255,7 +338,7 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
 
     # test_no_dead_modules: per-category comparison.
     nd_cats = data["test_no_dead_modules"]
-    nd_module = "tests.architectural.test_no_dead_modules"
+    nd_module = _NO_DEAD_MODULES_MODULE
     per_category_attrs = {
         "category_1_auto_discovered_migrations": "_CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS",
         "category_2_build_schema_generators": "_CATEGORY_2_BUILD_SCHEMA_GENERATORS",
@@ -266,7 +349,8 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
         "category_7_grandfathered_orphans": "_CATEGORY_7_GRANDFATHERED_ORPHANS",
     }
     for cat_key, attr_name in per_category_attrs.items():
-        baseline = nd_cats[cat_key]
+        # FR-004: category_1 is derived from the frozenset, not YAML-pinned.
+        baseline = _category_baseline(cat_key, nd_cats[cat_key], nd_module)
         current = len(_import_module_attr(nd_module, attr_name))
         if current > baseline:
             growth_failures.append(
@@ -297,15 +381,13 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
             "_LEGACY_CONTRACT_ALLOWLIST",
             data["test_example_round_trip"]["legacy_contract_allowlist"],
         ),
-        # #2255: permanently-non-executable ``# round-trip: skip:`` blocks. Growth
-        # is visible (a new skip fails the ratchet until the baseline is bumped);
-        # unlike the legacy allowlist these are permanent (no shrink mandate).
-        (
-            "test_example_round_trip",
-            "tests.contract.test_example_round_trip",
-            "_SKIP_MARKED_BLOCKS",
-            data["test_example_round_trip"]["skip_marker_blocks"],
-        ),
+        # FR-003: `_SKIP_MARKED_BLOCKS` is intentionally ABSENT from this
+        # hard-fail list. Skip-marker growth is now reviewable-not-blocking,
+        # routed through `record_property` by
+        # `test_skip_marker_growth_is_recorded_not_failed`. (The removed toll
+        # made every legitimate new permanent skip a red build until the
+        # baseline was bumped — pure bookkeeping, since the review-forcing signal
+        # is the co-located `# round-trip: skip: <reason>` diff line.)
         # doctrine-silence-guards-01KYFV7Q WP01: frozen shrink-only baseline of
         # declared doctrine slots that nothing populates. Debt with named owners,
         # not an allowlist -- the module's own ALLOWLIST is permanently empty.
@@ -390,7 +472,7 @@ def test_growth_fails_shrinkage_warns(
 
     # Per-category for test_no_dead_modules.
     nd_cats = data["test_no_dead_modules"]
-    nd_module = "tests.architectural.test_no_dead_modules"
+    nd_module = _NO_DEAD_MODULES_MODULE
     per_category_attrs = {
         "category_1_auto_discovered_migrations": "_CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS",
         "category_2_build_schema_generators": "_CATEGORY_2_BUILD_SCHEMA_GENERATORS",
@@ -401,7 +483,9 @@ def test_growth_fails_shrinkage_warns(
         "category_7_grandfathered_orphans": "_CATEGORY_7_GRANDFATHERED_ORPHANS",
     }
     for cat_key, attr_name in per_category_attrs.items():
-        baseline = nd_cats[cat_key]
+        # FR-004: category_1 is derived from the frozenset, not YAML-pinned, so
+        # its derived baseline always equals current — no spurious shrink noise.
+        baseline = _category_baseline(cat_key, nd_cats[cat_key], nd_module)
         current = len(_import_module_attr(nd_module, attr_name))
         if current < baseline:
             shrinkage_messages.append(
@@ -431,15 +515,10 @@ def test_growth_fails_shrinkage_warns(
             "_LEGACY_CONTRACT_ALLOWLIST",
             data["test_example_round_trip"]["legacy_contract_allowlist"],
         ),
-        # #2255: permanently-non-executable ``# round-trip: skip:`` blocks. Growth
-        # is visible (a new skip fails the ratchet until the baseline is bumped);
-        # unlike the legacy allowlist these are permanent (no shrink mandate).
-        (
-            "test_example_round_trip",
-            "tests.contract.test_example_round_trip",
-            "_SKIP_MARKED_BLOCKS",
-            data["test_example_round_trip"]["skip_marker_blocks"],
-        ),
+        # FR-003: `_SKIP_MARKED_BLOCKS` removed from BOTH arms in lockstep.
+        # Skip-marker shrinkage is tracked by
+        # `test_skip_marker_growth_is_recorded_not_failed` via `record_property`,
+        # not this warn-arm (which only ever reported and never blocked anyway).
         # doctrine-silence-guards-01KYFV7Q WP01: frozen shrink-only baseline of
         # declared doctrine slots that nothing populates. Debt with named owners,
         # not an allowlist -- the module's own ALLOWLIST is permanently empty.
@@ -507,35 +586,34 @@ def test_growth_fails_shrinkage_warns(
 
 
 def test_no_unregistered_baseline_keys_are_added() -> None:
-    """Reverse containment: `:214` checks only for MISSING keys, never for extra.
+    """Reverse containment: `test_baseline_file_exists_with_required_keys`
+    checks only for MISSING keys, never for extra.
 
     A key can therefore sit in `_baselines.yaml` read by no comparison, its
     growth failing nothing, with this suite green — which is exactly how
-    `test_no_dead_symbols` went unnoticed. This arm closes that going forward.
+    `test_no_dead_symbols` went unnoticed. This arm closes that.
 
-    **Scoped, not deleted.** The arm is red on the base tree because of the
-    pre-existing `test_no_dead_symbols` key, and that redness is the proof it is
-    non-vacuous — so it is scoped to keys added from mission
-    `sync-sleep-count-3136-01KZ9B5A` forward via a CLOSED grandfather set rather
-    than weakened or removed. Choosing between that key's two honest dispositions
-    needs the owner of the gate it governs and is outside this mission's scope;
-    the gap is filed as `residual-ledger.md` RL-030. The grandfather set is
-    pinned by frozenset equality below, so widening it costs a visible diff in
-    this file instead of a silent one in the YAML.
+    **Now fully closed (FR-005).** The `test_no_dead_symbols` inert key and its
+    whole YAML block (RL-030) were removed by mission
+    `frozen-baseline-toll-reduction-01M0A42D` WP03, and
+    `_GRANDFATHERED_UNREGISTERED_KEYS` was drained to empty in lockstep. With
+    the grandfather set empty, ANY unregistered top-level key now reds: a new
+    key that a comparison COULD read must be registered in
+    `_REQUIRED_TOP_LEVEL_KEYS` and in BOTH `single_baselines` lists; a key read
+    by no comparison by design must not be added at all. The set is pinned empty
+    by frozenset equality below, so re-widening it costs a visible diff here
+    instead of a silent one in the YAML.
     """
     data = _load_baselines()
     unregistered = set(data) - _REQUIRED_TOP_LEVEL_KEYS
 
-    assert (
-        frozenset({"test_no_dead_symbols"})
-        == _GRANDFATHERED_UNREGISTERED_KEYS
-    ), (
-        "`_GRANDFATHERED_UNREGISTERED_KEYS` is CLOSED and may only shrink. "
-        f"Observed {sorted(_GRANDFATHERED_UNREGISTERED_KEYS)}. A new inert key "
-        "that a comparison COULD read must be registered in "
+    assert frozenset() == _GRANDFATHERED_UNREGISTERED_KEYS, (
+        "`_GRANDFATHERED_UNREGISTERED_KEYS` is CLOSED and drained to empty "
+        f"(FR-005). Observed {sorted(_GRANDFATHERED_UNREGISTERED_KEYS)}. A new "
+        "inert key that a comparison COULD read must be registered in "
         "`_REQUIRED_TOP_LEVEL_KEYS` and in BOTH `single_baselines` lists, not "
-        "grandfathered here. Grandfathering is reserved for keys read by no "
-        "comparison by design (e.g. a self-contained in-file census)."
+        "grandfathered here. Grandfathering is no longer available: an inert key "
+        "read by no comparison must not be added to the YAML at all."
     )
     assert unregistered <= _GRANDFATHERED_UNREGISTERED_KEYS, (
         f"`_baselines.yaml` carries top-level key(s) no comparison reads: "
@@ -543,4 +621,221 @@ def test_no_unregistered_baseline_keys_are_added() -> None:
         "does NOT make its growth fail anything -- both comparisons run off the "
         "hardcoded `single_baselines` lists. Register it in "
         "`_REQUIRED_TOP_LEVEL_KEYS` AND in both lists, or remove it from the YAML."
+    )
+
+
+def test_readding_inert_dead_symbols_key_is_now_rejected() -> None:
+    """FR-005 / US4-AC1: with `_GRANDFATHERED_UNREGISTERED_KEYS` drained, the
+    reverse-containment arm now REJECTS a re-added `test_no_dead_symbols` key.
+
+    Exercises the same containment predicate the production arm runs against a
+    synthetic YAML shape carrying the inert key — proving re-entry reds rather
+    than being silently grandfathered (as it was before this WP).
+    """
+    assert not _GRANDFATHERED_UNREGISTERED_KEYS
+    synthetic = dict.fromkeys(_REQUIRED_TOP_LEVEL_KEYS, 0)
+    synthetic["test_no_dead_symbols"] = 1
+    unregistered = set(synthetic) - _REQUIRED_TOP_LEVEL_KEYS
+    assert unregistered == {"test_no_dead_symbols"}
+    assert not (unregistered <= _GRANDFATHERED_UNREGISTERED_KEYS), (
+        "Re-adding `test_no_dead_symbols` must now be REJECTED by the "
+        "reverse-containment arm (grandfather set is empty)."
+    )
+
+
+def test_decorative_category_1_yaml_matches_frozenset() -> None:
+    """FR-004 (pedro-nit): the now-decorative `category_1` YAML integer must
+    equal the live frozenset length so the non-load-bearing audit value cannot
+    silently drift away from the single authority.
+    """
+    data = _load_baselines()
+    recorded = data["test_no_dead_modules"][_CATEGORY_1_YAML_KEY]
+    live = len(_import_module_attr(_NO_DEAD_MODULES_MODULE, _CATEGORY_1_ATTR))
+    assert recorded == live, (
+        f"`_baselines.yaml::test_no_dead_modules.{_CATEGORY_1_YAML_KEY}` = "
+        f"{recorded} but the live `{_CATEGORY_1_ATTR}` frozenset has {live} "
+        f"members. The category_1 baseline is DERIVED (FR-004); the YAML integer "
+        f"is a decorative audit value that must track the frozenset in lockstep."
+    )
+
+
+def _synthetic_frozenset(size: int) -> frozenset[str]:
+    """A frozenset of *size* distinct sentinels — a stand-in whose only salient
+    property to the ratchet is its ``len()``."""
+    return frozenset(f"synthetic::{index}" for index in range(size))
+
+
+def test_category_1_derived_baseline_absorbs_growth(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-004 / US3-AC1: growing `_CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS` ABOVE
+    the decorative YAML value (100) does NOT red the growth arm — proving the
+    baseline is derived from the frozenset, not read from YAML. A YAML-pinned
+    baseline would fail at 130-vs-100; the derived one self-cancels.
+
+    Drives the REAL production comparison (`test_growing_...`), not two inline
+    ``len()``s equated to each other.
+    """
+    nd_module = importlib.import_module(_NO_DEAD_MODULES_MODULE)
+    monkeypatch.setattr(nd_module, _CATEGORY_1_ATTR, _synthetic_frozenset(130))
+    # No raise: category_1 derives its own baseline, so 130 == 130 for it.
+    test_growing_an_allowlist_above_baseline_fails()
+
+
+def test_category_1_derived_baseline_absorbs_shrink(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-004 / US3-AC2: a migration gaining a static importer shrinks the
+    frozenset below the YAML value; the derived baseline tracks it, so the
+    shrink arm records NO category_1 shrinkage and no `_baselines.yaml` edit is
+    demanded. Drives the real shrink-arm comparison with a captured
+    `record_property`.
+    """
+    nd_module = importlib.import_module(_NO_DEAD_MODULES_MODULE)
+    monkeypatch.setattr(nd_module, _CATEGORY_1_ATTR, _synthetic_frozenset(80))
+    recorded: list[tuple[str, object]] = []
+    test_growth_fails_shrinkage_warns(
+        lambda name, value: recorded.append((name, value))
+    )
+    assert not any(
+        _CATEGORY_1_YAML_KEY in str(value) for _, value in recorded
+    ), recorded
+
+
+def test_non_derived_category_growth_still_reds(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-vacuity control (growth): a NON-derived category grown above its YAML
+    baseline STILL reds the growth arm — only category_1 was made
+    count-independent; the harness keeps its teeth for every other category.
+    """
+    nd_module = importlib.import_module(_NO_DEAD_MODULES_MODULE)
+    monkeypatch.setattr(
+        nd_module, "_CATEGORY_6_FROZEN_RUNTIME_REEXPORTS", _synthetic_frozenset(500)
+    )
+    with pytest.raises(
+        AssertionError, match="category_6_frozen_runtime_reexports"
+    ):
+        test_growing_an_allowlist_above_baseline_fails()
+
+
+def test_non_derived_category_shrink_still_records(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Non-vacuity control (shrink): a NON-derived category shrunk below its YAML
+    baseline IS recorded by the shrink arm — the derivation did not silence
+    shrink tracking for anything but category_1.
+    """
+    nd_module = importlib.import_module(_NO_DEAD_MODULES_MODULE)
+    monkeypatch.setattr(
+        nd_module, "_CATEGORY_6_FROZEN_RUNTIME_REEXPORTS", frozenset()
+    )
+    recorded: list[tuple[str, object]] = []
+    test_growth_fails_shrinkage_warns(
+        lambda name, value: recorded.append((name, value))
+    )
+    assert any(
+        "category_6_frozen_runtime_reexports" in str(value)
+        for _, value in recorded
+    ), recorded
+
+
+def test_skip_marker_growth_is_recorded_not_failed(
+    request: pytest.FixtureRequest,
+    record_property: RecordPropertyFn,
+) -> None:
+    """FR-003 / SC-003 / US2-AC1: skip-marker GROWTH is routed through
+    `record_property` (reviewable via the co-located `# round-trip: skip:
+    <reason>` diff line) and does NOT hard-fail.
+
+    `record_property` is write-only in this repo (`grep user_properties tests/`
+    is empty), so an unasserted call is an unverified backstop — this test
+    ASSERTS the growth property actually fired by inspecting
+    `request.node.user_properties`.
+    """
+    data = _load_baselines()
+    baseline = data["test_example_round_trip"]["skip_marker_blocks"]
+    # Drive growth with a synthetic current above baseline; must NOT raise
+    # (contrast the removed hard-fail `_SKIP_MARKED_BLOCKS` `single_baselines`
+    # tuple, which would have failed the whole ratchet on any new skip block).
+    _emit_skip_marker_delta(baseline, baseline + 5, record_property)
+    props = dict(request.node.user_properties)
+    assert _SKIP_MARKER_GROWTH_PROP in props, request.node.user_properties
+    assert "reviewable" in str(props[_SKIP_MARKER_GROWTH_PROP]).lower()
+
+
+def test_skip_marker_shrink_is_recorded(
+    request: pytest.FixtureRequest,
+    record_property: RecordPropertyFn,
+) -> None:
+    """FR-003 / US2-AC3: skip-marker shrinkage is tracked as a lowered
+    high-water mark (asserted to fire, same rationale as growth)."""
+    data = _load_baselines()
+    baseline = data["test_example_round_trip"]["skip_marker_blocks"]
+    _emit_skip_marker_delta(baseline, max(baseline - 1, 0), record_property)
+    props = dict(request.node.user_properties)
+    assert _SKIP_MARKER_SHRINK_PROP in props, request.node.user_properties
+
+
+def test_skip_marker_live_count_never_blocks(
+    record_property: RecordPropertyFn,
+) -> None:
+    """FR-003: against the LIVE `_SKIP_MARKED_BLOCKS` size (real import wiring),
+    the delta helper never raises — whatever the current count, skip-marker
+    accounting cannot block CI."""
+    data = _load_baselines()
+    baseline = data["test_example_round_trip"]["skip_marker_blocks"]
+    current = len(
+        _import_module_attr(_ROUND_TRIP_CONTRACT_MODULE, "_SKIP_MARKED_BLOCKS")
+    )
+    _emit_skip_marker_delta(baseline, current, record_property)  # must not raise
+
+
+def test_legacy_contract_allowlist_growth_still_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-003 NFR-003 / Contract B: removing `_SKIP_MARKED_BLOCKS` did NOT loosen
+    the C-001 sibling. `legacy_contract_allowlist` stays pinned at 151 AND its
+    growth still reds the growth arm (the surgical extraction was scoped to the
+    skip-marker row only).
+    """
+    data = _load_baselines()
+    assert data["test_example_round_trip"]["legacy_contract_allowlist"] == 151
+    # Ensure the corpus module is imported (and warning-suppressed) via the
+    # module-scoped helper before monkeypatching its attribute in place.
+    _import_module_attr(_ROUND_TRIP_CONTRACT_MODULE, "_LEGACY_CONTRACT_ALLOWLIST")
+    module = sys.modules[_ROUND_TRIP_CONTRACT_MODULE]
+    monkeypatch.setattr(module, "_LEGACY_CONTRACT_ALLOWLIST", _synthetic_frozenset(300))
+    with pytest.raises(AssertionError, match="_LEGACY_CONTRACT_ALLOWLIST"):
+        test_growing_an_allowlist_above_baseline_fails()
+
+
+def test_fast_collection_does_not_import_round_trip_corpus() -> None:
+    """FR-006 / NFR-002: importing this fast-marked gate module must NOT
+    transitively import the heavy `test_example_round_trip` corpus module.
+
+    Collection == module import; the corpus import is deferred into function
+    bodies via `_import_module_attr`, so it stays out of collection today. A
+    refactor that hoisted the corpus import to module scope would silently drag
+    the corpus into every `-m fast` collection — this subprocess (a fresh
+    interpreter, no shared `sys.modules`) proves it does not.
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    probe = (
+        "import sys, importlib;"
+        "importlib.import_module('tests.architectural.test_ratchet_baselines');"
+        "corpus = [m for m in sys.modules if 'test_example_round_trip' in m];"
+        "assert not corpus, corpus"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, (
+        "Importing `test_ratchet_baselines` transitively imported the "
+        f"`test_example_round_trip` corpus (fast-tier import-hygiene regression):"
+        f"\nstdout={result.stdout}\nstderr={result.stderr}"
     )

@@ -622,13 +622,11 @@ class TestCli:
 def test_real_typer_app_visible_count_within_tolerance() -> None:
     """The walker against the live ``specify_cli.app`` should match audit.
 
-    Baseline re-pinned 2026-07-31 at 247 visible, measured directly against the
-    live app after landing ``sync purge`` (#3030, already on main) and
-    ``charter pack list``/``path``/``apply`` (#3064, this PR). The prior
-    same-PR re-pins (236 / 262 / 263) were authored before this branch was
-    rebased onto the current main, so their counts were estimates against a
-    moving surface; 247 is the observed value on the rebased tip. Tolerance:
-    ±10% on the visible count (222..272) to allow natural growth.
+    Baseline re-pinned 2026-08-16 at 250 visible, measured against the live app
+    after the operator-config-ergonomics mission (#3493) landed three new
+    ``doctor`` subcommands — ``provenance`` (#3494), ``env-file`` (#3495), and
+    ``channel`` (#3496) — on top of the prior 2026-07-31 baseline of 247.
+    Tolerance: ±10% on the visible count (225..275) to allow natural growth.
     """
     os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
     os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
@@ -650,9 +648,9 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 222 <= len(visible) <= 272, (
+    assert 225 <= len(visible) <= 275, (
         f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the 2026-07-31 audit baseline of 247 (measured on the rebased "
-        "tip: #3030 sync purge + #3064 charter pack)"
+        "around the 2026-08-16 audit baseline of 250 (247 + 3 doctor subcommands "
+        "provenance/env-file/channel from mission #3493)"
     )
     assert len(deprecated) >= 1

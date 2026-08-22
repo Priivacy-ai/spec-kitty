@@ -1,0 +1,65 @@
+# review-verify/v1 — canonical format for fix-verification output.
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >
+      tasks.md lines 191/193/211-216/481/500-507 and both WP02/WP06 prompt files now
+      cite tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py as the
+      confirmed _validate_requirement_mapping coverage file and explicitly disclaim
+      test_finalize_provenance_guard.py as the wrong, unrelated (#3311) file; re-running
+      `git grep -l _validate_requirement_mapping tests/` live confirms
+      test_mission_finalize_phases.py is the only real hit, matching the new text exactly.
+
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: >
+      WP06/T031 (tasks.md lines 524-544, WP06 prompt lines 128-145) now states plainly
+      that spec_content is NOT in scope and adds concrete plumbing options (a)/(b); a new
+      T032a subtask extends MappingRequest with bare_prose_requirement_ids and wires the
+      shell call in tasks_map_requirements.py while preserving plan_mapping's pure/no-I/O
+      contract. Live code check confirms the gap was real:
+      _validate_requirement_mapping (mission_finalize.py:621) and its sole call site
+      (line 1920) carry no spec_content parameter, and MappingRequest
+      (tasks_mapping_core.py:53-77) has no spec_content/bare-prose field today — the fix's
+      corrected claims and added subtasks match the actual code shape.
+
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: >
+      WP06's owned_files frontmatter and T030/new T030a (tasks.md lines 511-523, WP06
+      prompt lines 97-123) now explicitly add
+      tests/.../fixtures/tasks_cli/json/byte_contracts.json and
+      test_tasks_json_bytes.py to WP06's write/verification scope, with an explicit
+      instruction to run the test, observe the map_requirements_success byte mismatch,
+      and re-freeze only that one case. Confirmed live: byte_contracts.json:139 pins
+      "map_requirements_success" and test_tasks_json_bytes.py asserts it byte-for-byte —
+      the fixture and test now appear in WP06's owned_files list (verified in the prompt
+      frontmatter), closing the scope gap the finding identified.
+
+  - id: TASKS-SEQ-003
+    status: resolved
+    reason: >
+      The "#3395 overlap is expected (C-005)" section (tasks.md lines 78-108) now names
+      all four overlapping test files (test_requirement_mapping.py,
+      test_runtime_bridge_unit.py, test_bridge_cores.py, test_tasks_mapping_core.py)
+      against their respective owning WPs (WP03/WP05/WP06) and credits WP07 alongside
+      WP03 for requirement_mapping.py. Re-ran
+      `git diff --stat main...ab15225ea` on those four files live: counts match exactly
+      (216/39/41/186 insertions), confirming the added disclosure is factually accurate,
+      not just cosmetically padded.
+
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >
+      tasks.md's WP08 section now carries an explicit "ATDD/C-011 applicability (mirrors
+      WP02's own disclosure)" paragraph (lines 671-678) and
+      tasks/WP08-corpus-fixture-ratchet.md adds the same under "Context & Constraints"
+      (lines 79-85), stating C-011's literal red-first-separate-commit form doesn't apply
+      to this test-only WP and naming T040's self-mutation ("teeth") test as the
+      load-bearing red-then-green substitute, exactly mirroring WP02's own precedent
+      disclosure and satisfying the finding's remediation as scoped (the remediation did
+      not require adding WP08 to the C-002 coverage-summary table, and WP02 itself is
+      likewise not listed there, so the fix's scope is consistent).

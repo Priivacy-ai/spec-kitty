@@ -1004,6 +1004,30 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-16-4-rc-release-channel.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-16-5-operator-config-env-expansion-seam.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-20-1-cascade-kind-complete-relation-set.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/3.x/2026-08-21-1-charter-gate-predicate-inversion.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -1502,6 +1526,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/architecture/doctrine-projection-and-delivery.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/architecture/doctrine-relationships.md
   tag: current
   divio_type: none
@@ -1649,6 +1679,12 @@
 - path: docs/architecture/status-model.md
   tag: current
   divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/team-kitty-saas.md
+  tag: current
+  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
@@ -3122,7 +3158,49 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/charter-resolution/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/program-brief.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/seeds/seed-m3-operating-procedures.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/seeds/seed-m4-doctrine-delivery.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/seeds/seed-m5-kind-complete-cascade.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/charter-resolution/seeds/seed-m6-project-tier-nodes.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/code-quality/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/code-quality/sync-env-census.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4142,6 +4220,24 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/initiatives/rc3-friction-burndown/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-approach.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/initiatives/rc3-friction-burndown/rc3-friction-burndown-overview.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/initiatives/test_improvement/IMPLEMENTATION_COMPLETE.md
   tag: current
   divio_type: none
@@ -4209,6 +4305,12 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/2684-task-move-cluster-spec.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/friction-bugs-processing-charter-root-cause.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -4455,6 +4557,12 @@
   current_target: true
   notes: null
 - path: docs/plans/testing/ci-job-timings.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/testing/friction-burn-down-sequencing.md
   tag: current
   divio_type: none
   owning_workstream: none

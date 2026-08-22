@@ -81,6 +81,7 @@ from ._doctrine_collect import (  # noqa: E402
     _build_selection_block,
     _collect_doctrine_collisions,
     _run_cross_grain_check,
+    _run_operating_procedures_check,
 )
 from ._doctrine_collect import (  # noqa: E402
     _build_pack_entries as _build_pack_entries,
@@ -182,6 +183,49 @@ from ._cutover_doctor import run_cutover_audit  # noqa: E402
 from ._review_cycle_reconcile_doctor import run_review_cycle_reconciliation  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# WP03 (operator-config-ergonomics-01M04YK8, T015): self-registering sibling
+# auto-discovery seam.
+# ---------------------------------------------------------------------------
+#
+# Every subcommand ABOVE this point (WP02-WP10 of the #2059 de-godding effort,
+# plus the two on-demand-audit siblings) was wired by hand: a module-level
+# import of the sibling's logic function, plus a hand-written
+# ``@app.command`` shell in THIS file that calls it. That means every new
+# doctor subcommand touches this one file -- a guaranteed merge collision
+# when multiple missions add doctor subcommands concurrently (the exact
+# three-lane collision WP03/WP04/WP05 hit).
+#
+# This loop is the fix, applied ADDITIVELY (the god-module split of the
+# hand-wired commands above is FR-012, issue #1623, a separate deferred
+# effort -- NOT reproduced or preempted here): it imports every
+# ``cli/commands/_*_doctor.py`` sibling module and calls its ``register(app)``
+# function when the module exposes one, mirroring the migration
+# auto-discovery pattern (``upgrade/migrations/__init__.py:
+# auto_discover_migrations``). A sibling that opts in via ``register(app)``
+# (e.g. ``_provenance_doctor.py``, the first user) needs zero changes to this
+# file to add its subcommand; a legacy sibling that only exposes bare
+# ``run_*`` functions (no ``register``) is imported harmlessly and ignored.
+def _auto_discover_doctor_siblings() -> None:
+    """Import every ``_*_doctor.py`` sibling and call ``register(app)`` if present."""
+    import importlib
+    import pkgutil
+
+    package_dir = Path(__file__).parent
+    package_name = __name__.rsplit(".", 1)[0]
+    for module_info in pkgutil.iter_modules([str(package_dir)]):
+        module_name = module_info.name
+        if not (module_name.startswith("_") and module_name.endswith("_doctor")):
+            continue
+        module = importlib.import_module(f"{package_name}.{module_name}")
+        register = getattr(module, "register", None)
+        if callable(register):
+            register(app)
+
+
+_auto_discover_doctor_siblings()
 
 
 @app.command(name="command-files")
@@ -1195,6 +1239,11 @@ def doctrine_check(
     # (C-003: the ``__all__`` re-add in ``charter.action_grain`` needs a real
     # ``src`` caller, and this is it).
     _run_cross_grain_check(report)
+
+    # Operating-procedures resolution scan (M3): every built-in
+    # ``operating-procedures`` entry must resolve to a real procedure node.
+    # Folded in before ``exit_code`` is derived, same as the cross-grain scan.
+    _run_operating_procedures_check(report)
 
     # WP09 T050 / FR-018: the Selections diagnostic is independent of whether
     # org packs are configured, so build it for both branches.

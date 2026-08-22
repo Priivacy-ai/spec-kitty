@@ -44,3 +44,14 @@ references:
     id: DIRECTIVE_034
   - type: styleguide
     id: testing-principles
+  # Promoted from the hand-authored overlay to source-artifact frontmatter
+  # (single canonical authority) by mission kind-complete-cascade-orphan-wiring
+  # -01M0FQCD, WP02 (#3009). ``when``/``reason`` copied verbatim from the retired
+  # overlay edge; the directive->styleguide reference emits ``suggests``. 041 is
+  # NOT action-scoped, so this edge stays inert in the shipped reachability
+  # channels (quadruple-a remains a _PROFILE_RESCUES member) -- the promotion is
+  # single-authority hygiene, not a reachability change.
+  - type: styleguide
+    id: quadruple-a-test-format
+    when: structuring each test as Arrange / Assumption-check / Act / Assert so one behaviour is pinned and a wrong fixture fails at the assumption check rather than masquerading as a behaviour failure
+    reason: Tests-as-scaffold suggests the new Quadruple-A test-format styleguide as the single-behaviour skeleton that keeps tests clear; the `when` is the new styleguide's own subject. Inert (041 is not action-scoped).

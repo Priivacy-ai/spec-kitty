@@ -431,6 +431,111 @@ def test_discovery_project_config_pack_paths_skips_non_list(tmp_path: Path) -> N
 
 
 # ---------------------------------------------------------------------------
+# discovery: org tier -- Walk A (WP04, FR-007/FR-008, mission
+# up-org-template-fsm-01M06F9K). ``org_roots`` is a plain, already-resolved
+# list on DiscoveryContext -- this module never calls resolve_org_roots
+# itself; the production wiring sites (runtime_bridge_io.py,
+# specify_cli/mission_loader/command.py) populate it via the lazy
+# charter.drg facade before constructing the context (DEC-004).
+# ---------------------------------------------------------------------------
+
+
+def test_discovery_context_org_roots_defaults_to_empty_list() -> None:
+    """FR-007: DiscoveryContext gets an org_roots field, empty by default so
+    a project with no org pack configured sees no behavior change (NFR-005)."""
+    assert DiscoveryContext().org_roots == []
+
+
+def test_build_tiers_inserts_org_tier_after_project_legacy_before_user_global(
+    tmp_path: Path,
+) -> None:
+    """FR-007: _build_tiers inserts an ("org", ..., context.org_roots) tier
+    immediately after project_legacy and before user_global."""
+    org_root = tmp_path / "org-pack"
+    ctx = DiscoveryContext(
+        project_dir=tmp_path / "project",
+        org_roots=[org_root],
+        user_home=tmp_path / "home",
+    )
+    tiers = discovery_mod._build_tiers(ctx)
+    names = [t[0] for t in tiers]
+    assert names == [
+        "explicit",
+        "env",
+        "project_override",
+        "project_legacy",
+        "org",
+        "user_global",
+        "project_config",
+        "builtin",
+    ]
+    org_tier = next(t for t in tiers if t[0] == "org")
+    assert org_tier[2] == [org_root]
+
+
+def test_build_tiers_org_tier_present_even_without_project_dir(tmp_path: Path) -> None:
+    """The org tier is always present in the tiers list -- even when
+    project_dir is unset -- so the tier shape stays uniform (engine.py:176's
+    bare DiscoveryContext() fallback stays out of scope per DEC-006, but the
+    tier itself is harmless there since org_roots is empty by construction)."""
+    ctx = DiscoveryContext(user_home=tmp_path / "home")
+    names = [t[0] for t in discovery_mod._build_tiers(ctx)]
+    assert names == ["explicit", "env", "org", "user_global", "builtin"]
+
+
+def test_discover_missions_with_warnings_selects_org_tier_mission(tmp_path: Path) -> None:
+    """User Story 3, Acceptance Scenario 1: an org-pack mission with no
+    project override/legacy present is discovered at tier "org",
+    selected=True."""
+    org_root = tmp_path / "org-pack"
+    _write_simple_mission(org_root, key="org-only-mission")
+    ctx = DiscoveryContext(
+        project_dir=tmp_path / "project",
+        org_roots=[org_root],
+        user_home=tmp_path / "home",
+    )
+    discovered = discover_missions(ctx)
+    matches = [d for d in discovered if d.key == "org-only-mission"]
+    assert len(matches) == 1
+    assert matches[0].precedence_tier == "org"
+    assert matches[0].selected is True
+
+
+def test_discover_missions_project_legacy_wins_over_org(tmp_path: Path) -> None:
+    """User Story 3, Acceptance Scenario 3 (Walk A half): a project-legacy
+    mission.yaml wins over the org-pack file for the same key -- position
+    parity, not just tier existence."""
+    project_dir = tmp_path / "project"
+    org_root = tmp_path / "org-pack"
+    _write_simple_mission(project_dir / ".kittify" / "missions", key="dup-mission")
+    _write_simple_mission(org_root, key="dup-mission")
+    ctx = DiscoveryContext(
+        project_dir=project_dir,
+        org_roots=[org_root],
+        user_home=tmp_path / "home",
+    )
+    discovered = discover_missions(ctx)
+    matches = {d.precedence_tier: d for d in discovered if d.key == "dup-mission"}
+    assert matches["project_legacy"].selected is True
+    assert matches["org"].selected is False
+
+
+def test_discover_missions_no_org_roots_configured_is_a_noop(tmp_path: Path) -> None:
+    """NFR-005/SC-007: with org_roots unset (the default -- no org packs
+    configured, the overwhelmingly common case), discovery is unaffected:
+    no "org" tier entries appear, and the pre-existing project_legacy
+    mission is still discovered and selected exactly as before this WP."""
+    project_dir = tmp_path / "project"
+    _write_simple_mission(project_dir / ".kittify" / "missions", key="solo-mission")
+    ctx = DiscoveryContext(project_dir=project_dir, user_home=tmp_path / "home")
+    discovered = discover_missions(ctx)
+    assert [d.key for d in discovered] == ["solo-mission"]
+    assert discovered[0].precedence_tier == "project_legacy"
+    assert discovered[0].selected is True
+    assert all(d.precedence_tier != "org" for d in discovered)
+
+
+# ---------------------------------------------------------------------------
 # events: JsonlEventLog
 # ---------------------------------------------------------------------------
 

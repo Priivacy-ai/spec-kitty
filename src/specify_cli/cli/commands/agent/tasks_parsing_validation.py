@@ -736,6 +736,50 @@ def _check_implementation_commit_present(
     return guidance
 
 
+def _resolve_planning_branch_for_lane_guard(feature_dir: Path) -> str | None:
+    """Resolve the planning branch the lane kitty-specs guard measures against.
+
+    FR-009 / FR-010: reads the planning branch from meta.json — ``planning_base_
+    branch`` with precedence, else the meta ``target_branch`` (routed through the
+    single ``read_target_branch_from_meta`` authority per FR-008 / #2139). Returns
+    ``None`` for legacy missions without meta.json so callers fall back to the
+    lane base ref.
+
+    #3271: this ref is now the guard's DELTA base, not just the error-message
+    hint. In coord topology a lane legitimately inherits prior missions' committed
+    ``kitty-specs/**`` from the base and — via the recorded planning-commit merge
+    (ADR 2026-07-29-1 / #2993) — this mission's own planning artifacts. Both are
+    ancestors of the planning branch, so diffing the lane against it yields an
+    empty delta for that inherited content while still flagging genuine lane-
+    authored ``kitty-specs`` edits. The lane's coordination/mission base ref
+    (``check_branch``), by contrast, predates the inherited content and produced a
+    false positive on every transition.
+    """
+    try:
+        # FR-007 route: this site was INVISIBLE to the WP07 census, whose raw
+        # ``grep "load_meta("`` cannot see an aliased import. Routed onto the
+        # one fail-closed reader like every other divergent wrapper. The broad
+        # catch below is retained deliberately: it guards the two imports and
+        # BOTH readers (pre-existing best-effort contract -- the lane guard must
+        # still report contamination when the optional planning-branch metadata
+        # is unavailable).
+        from specify_cli.core.paths import load_meta_fail_closed as _load_meta_lggrd
+        from specify_cli.core.paths import read_target_branch_from_meta as _read_target_branch_lggrd
+
+        _meta = _load_meta_lggrd(feature_dir)
+        if _meta:
+            _planning = _meta.get("planning_base_branch")
+            if isinstance(_planning, str) and _planning:
+                return _planning
+            _target: str | None = _read_target_branch_lggrd(feature_dir)
+            return _target
+    except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
+        logger.debug(
+            "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
+        )
+    return None
+
+
 def _check_kitty_specs_contamination(
     *,
     worktree_path: Path,
@@ -746,39 +790,20 @@ def _check_kitty_specs_contamination(
     list_wp_branch_specs_changes_for_guard: Callable[..., list[str]],
 ) -> list[str] | None:
     """Block when kitty-specs/ files were committed on the lane branch."""
+    # #3271: measure the lane-hygiene delta against the PLANNING branch, not the
+    # lane's coordination/mission base ref (``check_branch``). See
+    # ``_resolve_planning_branch_for_lane_guard`` for why — inherited base content
+    # and the #2993-merged planning artifacts are ancestors of the planning
+    # branch, so they no longer false-positive. Legacy missions without meta.json
+    # fall back to ``check_branch`` (unchanged behaviour for the flat/legacy case).
+    _planning_branch = _resolve_planning_branch_for_lane_guard(feature_dir)
+    _guard_base = _planning_branch or check_branch
     contamination_files = list_wp_branch_specs_changes_for_guard(
         worktree_path=worktree_path,
-        base_branch=check_branch,
+        base_branch=_guard_base,
     )
     if not contamination_files:
         return None
-
-    # FR-009 / FR-010: resolve the planning branch from meta.json so
-    # the error message names the branch and gives a `git show` example.
-    # Falls back gracefully for legacy missions without meta.json.
-    # FR-008 / #2139: the target_branch half of this lookup routes through the
-    # single read_target_branch_from_meta authority rather than a raw
-    # `_meta.get("target_branch")` extraction; planning_base_branch keeps
-    # precedence exactly as before.
-    _planning_branch: str | None = None
-    try:
-        # FR-007 route: this site was INVISIBLE to the WP07 census, whose raw
-        # ``grep "load_meta("`` cannot see an aliased import. Routed onto the
-        # one fail-closed reader like every other divergent wrapper. The broad
-        # catch below is retained deliberately: it guards the two imports and
-        # BOTH readers, not just this one call (pre-existing best-effort
-        # contract -- the lane guard must still report contamination when the
-        # optional planning-branch metadata is unavailable).
-        from specify_cli.core.paths import load_meta_fail_closed as _load_meta_lggrd
-        from specify_cli.core.paths import read_target_branch_from_meta as _read_target_branch_lggrd
-
-        _meta = _load_meta_lggrd(feature_dir)
-        if _meta:
-            _planning_branch = _meta.get("planning_base_branch") or _read_target_branch_lggrd(feature_dir)
-    except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
-        logger.debug(
-            "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
-        )
 
     guidance: list[str] = []
     guidance.append("Committed kitty-specs files on this lane branch:")
@@ -805,7 +830,7 @@ def _check_kitty_specs_contamination(
     guidance.append("")
     guidance.append(f"Clean the branch before moving to {target_lane}:")
     guidance.append(f"  cd {worktree_path}")
-    guidance.append(f"  git restore --source {check_branch} --staged --worktree -- {KITTY_SPECS_DIR}/")
+    guidance.append(f"  git restore --source {_guard_base} --staged --worktree -- {KITTY_SPECS_DIR}/")
     guidance.append('  git commit -m "chore: remove planning artifacts from lane branch"')
     guidance.append("")
     guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")

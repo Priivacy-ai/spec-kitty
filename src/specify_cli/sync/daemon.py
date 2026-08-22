@@ -65,20 +65,6 @@ from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnosti
 logger = logging.getLogger(__name__)
 
 
-def _spec_kitty_dir() -> Path:
-    """Return the runtime state root, honouring ``SPEC_KITTY_HOME`` (WP01).
-
-    Resolved lazily on every call so environment overrides and test ``HOME``
-    monkeypatching are honoured (research.md D5). On POSIX this is
-    ``~/.spec-kitty`` when ``SPEC_KITTY_HOME`` is unset — byte-identical to the
-    retired import-time ``SPEC_KITTY_DIR`` constant it replaces.
-    """
-    # ``get_runtime_root`` is seen as ``Any`` here because mypy skips imports
-    # for ``specify_cli.*`` (follow_imports=skip); coerce at the typed boundary.
-    base: Path = get_runtime_root().base
-    return base
-
-
 def _sync_root() -> Path:
     """Return the sync state directory for the current platform.
 
@@ -112,7 +98,9 @@ def _daemon_root() -> Path:
 # ``_daemon_root()`` helper. Resolving them on every access (rather than freezing
 # them at import time) is what lets ``SPEC_KITTY_HOME`` — and test ``HOME``
 # monkeypatching — take effect even when it is set or changed after this module
-# was first imported (#2171, mirrors the ``SPEC_KITTY_DIR`` shim below).
+# was first imported (#2171). A legacy module-attribute shim that used to mirror
+# this pattern for the runtime root itself was retired (#3569): it had no
+# production readers, only ``get_runtime_root()`` does.
 #
 # A test (or caller) may still pin an explicit value with
 # ``monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", path)``; that binds the name
@@ -126,7 +114,7 @@ def _resolve_lazy_path(name: str, resolver: Callable[[], Path]) -> Path:
     """Return an explicitly-pinned module override for ``name`` if present, else
     the lazily-resolved default.
 
-    The four lazy path names are never defined as real module globals (they are
+    The three lazy path names are never defined as real module globals (they are
     served by ``__getattr__``), so ``globals().get(name)`` is ``None`` unless a
     caller — typically a test via ``monkeypatch.setattr`` — pinned a value. Any
     such override (a real ``Path`` or a duck-typed test double exposing the
@@ -157,7 +145,6 @@ def _daemon_lock_file() -> Path:
 
 
 _LAZY_PATH_RESOLVERS = {
-    "SPEC_KITTY_DIR": _spec_kitty_dir,
     "DAEMON_STATE_FILE": _daemon_state_file,
     "DAEMON_LOG_FILE": _daemon_log_file,
     "DAEMON_LOCK_FILE": _daemon_lock_file,
@@ -167,14 +154,18 @@ _LAZY_PATH_RESOLVERS = {
 def __getattr__(name: str) -> Path:
     """Lazily resolve path-valued module constants on every access.
 
-    ``SPEC_KITTY_DIR`` and the ``DAEMON_*_FILE`` paths used to be evaluated at
-    import time, which froze them to the home directory present when the module
-    first loaded and defeated ``SPEC_KITTY_HOME`` / test ``HOME`` monkeypatching
-    (research.md D5, #2171). They are now resolved on every access. Kept as
-    module-level shims because external importers (and several daemon tests)
-    reference the names. NOTE: importers must read them as module attributes
+    The ``DAEMON_*_FILE`` paths used to be evaluated at import time, which
+    froze them to the home directory present when the module first loaded and
+    defeated ``SPEC_KITTY_HOME`` / test ``HOME`` monkeypatching (research.md
+    D5, #2171). They are now resolved on every access. Kept as module-level
+    shims because external importers (and several daemon tests) reference the
+    names. NOTE: importers must read them as module attributes
     (``daemon.DAEMON_STATE_FILE``); a ``from daemon import DAEMON_STATE_FILE``
     binds the value once and re-freezes it.
+
+    A former runtime-root shim (a duplicate of ``get_runtime_root()`` with no
+    production readers) was retired here (#3569); only the three
+    ``DAEMON_*_FILE`` names remain lazy module attributes.
     """
     resolver = _LAZY_PATH_RESOLVERS.get(name)
     if resolver is not None:

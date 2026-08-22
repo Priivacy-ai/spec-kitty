@@ -113,6 +113,17 @@ spec-kitty charter context --action plan --json
 - If JSON `mode` is `bootstrap`, apply JSON `text` as first-run governance context and follow referenced docs as needed.
 - If JSON `mode` is `compact`, continue with condensed governance context.
 
+## Visual Communication (recommended)
+
+Apply the visual doctrine for non-trivial architecture, data/control flow,
+boundaries, migrations, or risky interactions. Load `spk-doctrine-show-me` and
+use the smallest diagram
+that materially reduces prose. Prefer Mermaid in Markdown; use PlantUML when
+richer layout, mature C4 support, or its DSL earns the added rendering cost.
+Apply C4 progressive zoom for architecture and stop at the first level that
+answers the planning question. Text contracts and plan decisions remain
+authoritative; do not generate speculative diagrams.
+
 ## Location Check (0.11.0+)
 
 This command runs in the **repository root checkout**, not in a worktree.

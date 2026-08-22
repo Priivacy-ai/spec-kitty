@@ -24,6 +24,7 @@ from specify_cli.mission_metadata import (
     load_meta,
     load_meta_or_empty,
     load_meta_strict,
+    restore_meta_text,
     write_meta,
 )
 
@@ -232,3 +233,47 @@ def test_valid_object_identical_across_contracts(tmp_path: Path) -> None:
     assert load_meta(tmp_path, on_malformed="none") == meta
     assert load_meta_strict(tmp_path) == meta
     assert load_meta_or_empty(tmp_path) == meta
+
+
+# ===================================================================
+# restore_meta_text -- byte-exact rollback primitive (SK3466-R-001).
+#
+# Unlike write_meta (parse -> mutate -> re-serialize via
+# json.dumps(indent=2, sort_keys=True)), restore_meta_text writes its input
+# verbatim. These tests pin that it is NOT a write_meta-style writer: no
+# re-serialization, no key sorting/indentation normalization, and no JSON
+# validation -- because its whole purpose is undoing a prior write back to
+# PRECISELY the caller's captured pre-write bytes, not producing canonically
+# formatted output.
+# ===================================================================
+
+
+def test_restore_meta_text_writes_bytes_verbatim(tmp_path: Path) -> None:
+    """The exact captured string is written back -- no re-serialization."""
+    _seed_valid(tmp_path)
+    # Deliberately NOT canonical write_meta formatting: compact, unsorted
+    # keys, no trailing newline -- mimics an "original_text" a caller
+    # captured from a foreign writer (e.g. a test's own json.dumps(meta)).
+    captured_original = '{"target_branch": "main", "zeta": 1, "alpha": 2}'
+
+    restore_meta_text(tmp_path, captured_original)
+
+    restored_bytes = (tmp_path / META_FILENAME).read_text(encoding="utf-8")
+    assert restored_bytes == captured_original
+
+
+def test_restore_meta_text_overwrites_a_different_on_disk_write(tmp_path: Path) -> None:
+    """Restores over whatever write_meta most recently wrote (the revert case)."""
+    meta = _seed_valid(tmp_path)
+    original_text = (tmp_path / META_FILENAME).read_text(encoding="utf-8")
+
+    # Simulate a persisted override overwriting the captured original.
+    mutated = dict(meta)
+    mutated["target_branch"] = "some-other-branch"
+    write_meta(tmp_path, mutated)
+    assert load_meta(tmp_path)["target_branch"] == "some-other-branch"
+
+    restore_meta_text(tmp_path, original_text)
+
+    assert (tmp_path / META_FILENAME).read_text(encoding="utf-8") == original_text
+    assert load_meta(tmp_path) == meta

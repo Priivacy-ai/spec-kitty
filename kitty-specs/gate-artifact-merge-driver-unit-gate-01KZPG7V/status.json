@@ -30,7 +30,10 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3326683,
-      "shell_pid_created_at": "1786390289.24"
+      "shell_pid_created_at": "1786390289.24",
+      "tracker_refs": [
+        "#3232"
+      ]
     },
     "WP02": {
       "actor": "claude",
@@ -45,7 +48,10 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3331929,
-      "shell_pid_created_at": "1786390428.61"
+      "shell_pid_created_at": "1786390428.61",
+      "tracker_refs": [
+        "#3232"
+      ]
     },
     "WP03": {
       "actor": "claude",
@@ -60,7 +66,10 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3336027,
-      "shell_pid_created_at": "1786390518.62"
+      "shell_pid_created_at": "1786390518.62",
+      "tracker_refs": [
+        "#3232"
+      ]
     },
     "WP04": {
       "actor": "claude",
@@ -75,7 +84,10 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 3339151,
-      "shell_pid_created_at": "1786390559.29"
+      "shell_pid_created_at": "1786390559.29",
+      "tracker_refs": [
+        "#3232"
+      ]
     }
   }
 }

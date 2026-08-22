@@ -26,18 +26,22 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import MissionArtifactKind, TopologySurface
+from specify_cli.acceptance import _resolve_git_context
 from specify_cli.acceptance.execution_context import (
+    _DETACHED_HEAD_SENTINEL,
     CannotEvaluate,
     CannotEvaluateReason,
     GateExecutionContext,
     GateSurfaceRefMismatch,
     LifecyclePhase,
+    _git_head_of,
     build_gate_execution_context,
     declared_home_surface,
 )
 from specify_cli.acceptance.gates_core import (
     AcceptanceCheckDiagnostic,
     _acceptance_gate_context,
+    _check_lane_gates,
     _evaluate_acceptance_matrix,
 )
 from specify_cli.acceptance.matrix import (
@@ -243,6 +247,28 @@ def test_assert_at_ref_passes_on_agreement() -> None:
     """C5: when the surface is at its ref, the gate proceeds (no raise)."""
     ctx = _plain_context(surface=Path("/p"), surface_kind=TopologySurface.COORD, ref="sha-abc")
     ctx.assert_at_ref(head_of=lambda _s: "sha-abc")  # must not raise
+
+
+def test_git_head_of_detached_checkout_returns_sentinel(tmp_path: Path) -> None:
+    """A detached checkout resolves to the ``"HEAD"`` sentinel (#2909 item 1).
+
+    ``git symbolic-ref --short HEAD`` fails on a detached checkout; the caller's own
+    no-branch fallback in ``gates_core._acceptance_gate_context`` is the same literal
+    ``"HEAD"``, so this is the value that makes "no expectation" compare equal on
+    both sides of :meth:`GateExecutionContext.assert_at_ref`.
+    """
+    repo = ctf._make_git_repo(tmp_path)
+    commit_sha = ctf._git(repo, "rev-parse", "HEAD")
+    ctf._git(repo, "checkout", "--detach", commit_sha)
+
+    assert _git_head_of(repo) == _DETACHED_HEAD_SENTINEL
+
+
+def test_git_head_of_attached_checkout_returns_branch_name(tmp_path: Path) -> None:
+    """Companion sanity check: an attached checkout resolves the real branch, not the sentinel."""
+    repo = ctf._make_git_repo(tmp_path)
+
+    assert _git_head_of(repo) == "main"
 
 
 # ===========================================================================
@@ -504,6 +530,86 @@ def test_gec2_real_cross_checkout_branch_drift_gate_refuses(
     assert any("GATE_SURFACE_REF_MISMATCH" in issue for issue in activity_issues), activity_issues
     # Names both real sides of the drift: expected the mission branch, found "main".
     assert any(mission_branch in issue for issue in activity_issues), activity_issues
+    assert any("'main'" in issue for issue in activity_issues), activity_issues
+    # It is NOT a verdict — no pass/fail verdict issue was recorded.
+    assert not any("verdict is" in issue for issue in activity_issues)
+
+
+def test_resolve_git_context_branch_forwards_through_check_lane_gates(
+    flat_topology_mission: ctf.FlatTopologyContext, tmp_path: Path
+) -> None:
+    """#2909 item 2: the invocation-checkout ``branch`` is not dropped mid-chain.
+
+    ``test_gec2_real_cross_checkout_branch_drift_gate_refuses`` proves GEC-2/C5 at
+    the ``_evaluate_acceptance_matrix(branch=...)`` entry point directly, while
+    ``test_trio_pure_cores.py`` stubs ``_check_lane_gates`` entirely and does not
+    assert which ``branch`` reaches it. Neither proves, with REAL git, that a
+    ``branch`` genuinely resolved off a real invocation checkout's HEAD
+    (``_resolve_git_context``) survives the ``_check_lane_gates(branch=branch)``
+    hop on its way to the acceptance-matrix gate. This test covers that hop: if
+    ``_check_lane_gates`` (or ``_evaluate_branch_gate`` inside it) dropped the
+    ``branch`` kwarg mid-chain, this gate would silently judge the drifted
+    surface instead of refusing — the exact regression #2909 asks to be closed
+    against.
+
+    (``collect_feature_summary`` itself is not used as the entry point here: it
+    also drives WP-metadata collection, which — separately from anything #2909
+    asks for — does not support being invoked from a linked worktree
+    (``summary_core.py`` ``wp.path.relative_to(repo_root)`` raises ``ValueError``).
+    So the top-level ``collect_feature_summary -> _check_lane_gates(branch)`` hop
+    remains uncovered pending that defect; #2909 item 2 is therefore only
+    partially covered by this test.)
+    """
+    ctx = flat_topology_mission
+    mission_branch = f"kitty/mission-{ctx.slug}"
+    # A real branch, not yet checked out anywhere, cut from the SAME commit the
+    # main checkout (still on "main") sits at — a genuine member of
+    # {target_branch, mission_branch}, so `_evaluate_branch_gate` legitimately
+    # lets this invocation through to the acceptance-matrix gate.
+    ctf._git(ctx.repo, "branch", mission_branch)
+    # A genuine linked worktree, actually checked out on the mission branch —
+    # this is the invocation checkout `_resolve_git_context` reads HEAD from.
+    # The main checkout is untouched: still on "main".
+    linked_worktree = tmp_path / "linked-worktree"
+    ctf._git(ctx.repo, "worktree", "add", str(linked_worktree), mission_branch)
+
+    # A PASS matrix on the genuine primary surface: if `branch` were dropped
+    # anywhere in the chain, this would be read and judged, silently ignoring
+    # the real cross-checkout drift.
+    _seed_matrix(
+        ctx.primary_feature_dir, verdict="pass", marker="E2E-CROSS-CHECKOUT-PASS"
+    )
+
+    branch, _worktree_root, _primary_repo_root, _git_dirty = _resolve_git_context(
+        linked_worktree
+    )
+    # `_resolve_git_context` read the invocation checkout's real HEAD.
+    assert branch == mission_branch
+
+    activity_issues: list[str] = []
+    skipped: list[AcceptanceCheckDiagnostic] = []
+    blocked: list[AcceptanceCheckDiagnostic] = []
+    _check_lane_gates(
+        linked_worktree,
+        ctx.primary_feature_dir,
+        branch,
+        activity_issues,
+        skipped,
+        blocked,
+        mutate_matrix=False,
+    )
+
+    # The branch reached the acceptance-matrix gate: it refused the drift
+    # instead of judging the seeded PASS matrix.
+    assert any(
+        c.check == "acceptance_matrix_cannot_evaluate" for c in blocked
+    ), blocked
+    assert any(
+        "GATE_SURFACE_REF_MISMATCH" in issue for issue in activity_issues
+    ), activity_issues
+    assert any(
+        mission_branch in issue for issue in activity_issues
+    ), activity_issues
     assert any("'main'" in issue for issue in activity_issues), activity_issues
     # It is NOT a verdict — no pass/fail verdict issue was recorded.
     assert not any("verdict is" in issue for issue in activity_issues)

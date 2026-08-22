@@ -251,10 +251,17 @@ def locate_project_root(start: Path | None = None) -> Path | None:
                 # If we can't read or parse the .git file, continue searching
                 pass
 
-        elif git_path.is_dir():  # noqa: SIM102
-            # This is the main repo (or a regular git repo)
-            if (candidate / KITTIFY_DIR).is_dir():
-                return candidate
+        elif git_path.is_dir():
+            # A ``.git`` *directory* is a repo boundary: a regular repo, the
+            # main repo of a worktree set, OR a nested clone living inside an
+            # outer primary. Stop here — consistently with
+            # ``resolve_canonical_root`` rule 1 — even when ``.kittify`` is
+            # absent, rather than walking UP past a nested clone's ``.git``
+            # directory into the enclosing primary (FR-007, #2610). Linked
+            # worktrees use a ``.git`` *file* pointer (handled in the branch
+            # above), so this boundary-stop never affects the deliberate
+            # worktree->primary re-anchor.
+            return candidate
 
         # Also check for .kittify marker (fallback for non-git scenarios)
         kittify_path = candidate / KITTIFY_DIR
@@ -275,7 +282,7 @@ def lint_report_path(repo_root: Path) -> Path:
     single source of truth for that location — no caller should re-compose the
     ``.kittify`` / filename literals by hand (#2628 SSOT fold).
     """
-    return repo_root / KITTIFY_DIR / LINT_REPORT_FILENAME
+    return Path(repo_root / KITTIFY_DIR / LINT_REPORT_FILENAME)
 
 
 def is_worktree_context(path: Path) -> bool:
@@ -679,7 +686,10 @@ def load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
     try:
         # allow_missing=True  -> None when file is absent (field-absent case)
         # on_malformed="raise" -> ValueError when file exists but is corrupt
-        return load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+        meta: dict[str, Any] | None = load_meta(
+            feature_dir, allow_missing=True, on_malformed="raise"
+        )
+        return meta
     except ValueError as exc:
         raise MissionMetaReadError(meta_path, exc) from exc
 

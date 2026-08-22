@@ -13,10 +13,10 @@ Three independent concerns:
 
 2. **Focused unit tests (FR-006)** against the moved cluster in isolation —
    stubbing ``specify_cli.retrospective.*`` at its source (never the real
-   generator/writer/lifecycle_events), mirroring the pattern
-   ``tests/runtime/test_bridge_compat_surface.py``'s scenario builders already
-   use. These pin the behavior-preserving move (C-001): identical branching,
-   identical retrospective ``Confirm.ask`` gate semantics.
+   generator/writer/lifecycle_events), mirroring the stub-at-source scenario-
+   builder pattern used across the bridge seam test family. These pin the
+   behavior-preserving move (C-001): identical branching, identical
+   retrospective ``Confirm.ask`` gate semantics.
 
 3. **Retrospective-pair live-lookup regression** (the WP04-specific risk
    flagged in ``research.md`` §Compat and ``contracts/compat-surface.md``):

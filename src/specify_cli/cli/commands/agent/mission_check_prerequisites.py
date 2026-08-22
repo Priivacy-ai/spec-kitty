@@ -22,6 +22,7 @@ regression net.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Annotated, Any, cast
 
@@ -46,6 +47,335 @@ from specify_cli.cli.commands.agent.mission_parsing import (
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."
 
+_RESUME_REQUIRED_META_FIELDS = (
+    "mission_id",
+    "slug",
+    "mission_slug",
+    "mission_type",
+    "friendly_name",
+    "purpose_tldr",
+    "purpose_context",
+    "target_branch",
+    "topology",
+    "created_at",
+)
+
+_MISSION_CREATED_SNAPSHOT_FIELDS = (
+    "mission_id",
+    "mission_slug",
+    "mission_number",
+    "mission_type",
+    "friendly_name",
+    "purpose_tldr",
+    "purpose_context",
+    "target_branch",
+    "created_at",
+)
+
+
+def _is_canonical_ulid(value: object) -> bool:
+    from ulid import ULID
+
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        return str(ULID.from_str(value)) == value
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_timezone_aware_iso8601(value: object) -> bool:
+    from kernel.clock import parse_iso
+
+    if not isinstance(value, str) or not value.strip():
+        return False
+    try:
+        return parse_iso(value.replace("Z", "+00:00")).utcoffset() is not None
+    except (TypeError, ValueError):
+        return False
+
+
+def _mission_created_envelope_problems(created: dict[str, Any]) -> list[str]:
+    from spec_kitty_events import normalize_event_id
+
+    problems: list[str] = []
+    event_id = created.get("event_id")
+    try:
+        if not isinstance(event_id, str):
+            raise ValueError
+        normalize_event_id(event_id)
+    except (TypeError, ValueError):
+        problems.append("MissionCreated envelope event_id is not a valid ULID or UUID")
+    if created.get("schema_version") != "5.0.0":
+        problems.append("MissionCreated envelope schema_version is not canonical local version '5.0.0'")
+    if not _is_timezone_aware_iso8601(created.get("timestamp")):
+        problems.append("MissionCreated envelope timestamp is not a timezone-aware ISO-8601 timestamp")
+    return problems
+
+
+def _matching_resume_probe_dirs(repo_root: Path, handle: str) -> list[Path]:
+    """Return every canonical or partial scaffold matching ``handle``."""
+    from specify_cli.context.mission_resolver import (
+        AmbiguousHandleError,
+        MissionNotFoundError,
+        resolve_mission,
+    )
+    from specify_cli.core.constants import KITTY_SPECS_DIR
+    from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
+    from specify_cli.lanes.branch_naming import mid8_from_slug, strip_numeric_prefix
+
+    safe_handle = assert_safe_path_segment(handle)
+    main_root = get_main_repo_root(repo_root)
+    matches: set[Path] = set()
+
+    try:
+        matches.add(resolve_mission(safe_handle, main_root).feature_dir.resolve())
+    except AmbiguousHandleError as exc:
+        matches.update(candidate.feature_dir.resolve() for candidate in exc.candidates)
+    except MissionNotFoundError:
+        pass
+
+    specs_dir = main_root / KITTY_SPECS_DIR
+    if not specs_dir.is_dir():
+        return sorted(matches)
+
+    handle_mid8 = mid8_from_slug(safe_handle)
+    human_handle = strip_numeric_prefix(safe_handle)
+    for candidate in sorted(specs_dir.iterdir()):
+        if not candidate.is_dir():
+            continue
+        candidate_mid8 = mid8_from_slug(candidate.name)
+        candidate_human = candidate.name[: -(len(candidate_mid8) + 1)] if candidate_mid8 else candidate.name
+        if candidate.name == safe_handle or (not handle_mid8 and strip_numeric_prefix(candidate_human) == human_handle):
+            matches.add(candidate.resolve())
+    return sorted(matches)
+
+
+def _load_resume_probe_meta(feature_dir: Path) -> tuple[dict[str, Any] | None, str | None]:
+    """Read resume metadata once through the fail-closed authority."""
+    from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
+
+    try:
+        return load_meta_fail_closed(feature_dir), None
+    except MissionMetaReadError as exc:
+        return None, str(exc.cause)
+
+
+def _resume_probe_candidate_summary(feature_dir: Path) -> dict[str, object]:
+    """Build a non-throwing identity summary for ambiguity diagnostics."""
+    meta, _read_error = _load_resume_probe_meta(feature_dir)
+    meta = meta or {}
+    return {
+        "mission_slug": feature_dir.name,
+        "mission_id": str(meta.get("mission_id", "")),
+        "feature_dir": str(feature_dir),
+    }
+
+
+def _is_assigned_mission_number(value: object) -> bool:
+    """Return true only for a positive merged-Mission display number."""
+    return isinstance(value, int) and not isinstance(value, bool) and value >= 1
+
+
+def _resume_meta_problems(meta: dict[str, Any], feature_dir: Path) -> list[str]:
+    """Validate metadata fields shared by resumable and numbered Missions."""
+    from mission_runtime import MissionTopology
+
+    problems: list[str] = []
+    for field in _RESUME_REQUIRED_META_FIELDS:
+        value = meta.get(field)
+        if not isinstance(value, str) or not value.strip():
+            problems.append(f"meta.json field {field!r} is missing or empty")
+    for field in ("slug", "mission_slug"):
+        value = meta.get(field)
+        if isinstance(value, str) and value.strip() and value != feature_dir.name:
+            problems.append(f"meta.json field {field!r} does not match directory name")
+    if "pr_bound" in meta and not isinstance(meta["pr_bound"], bool):
+        problems.append("meta.json field 'pr_bound' must be a boolean when present")
+    mission_number = meta.get("mission_number")
+    if "mission_number" not in meta:
+        problems.append("meta.json field 'mission_number' is missing")
+    elif mission_number is not None and not _is_assigned_mission_number(mission_number):
+        problems.append("meta.json field 'mission_number' must be null or a positive integer")
+
+    mission_id = meta.get("mission_id")
+    if isinstance(mission_id, str) and mission_id.strip() and not _is_canonical_ulid(mission_id):
+        problems.append("meta.json field 'mission_id' is not a canonical ULID")
+
+    created_at = meta.get("created_at")
+    if isinstance(created_at, str) and created_at.strip() and not _is_timezone_aware_iso8601(created_at):
+        problems.append("meta.json field 'created_at' is not a valid timezone-aware ISO-8601 timestamp")
+
+    topology = meta.get("topology")
+    if isinstance(topology, str) and topology.strip():
+        try:
+            MissionTopology(topology)
+        except ValueError:
+            problems.append("meta.json field 'topology' is not a recognized Mission topology")
+    return problems
+
+
+def _mission_created_snapshot_problems(
+    feature_dir: Path,
+    meta: dict[str, Any],
+) -> list[str]:
+    """Validate the one canonical MissionCreated event against ``meta.json``."""
+    event_log = feature_dir / "status.events.jsonl"
+    if not event_log.is_file():
+        return ["status.events.jsonl is missing"]
+
+    try:
+        rows = [json.loads(line) for line in event_log.read_text(encoding="utf-8").splitlines() if line.strip()]
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        return [f"status.events.jsonl is unreadable or malformed: {exc}"]
+    if any(not isinstance(row, dict) for row in rows):
+        return ["status.events.jsonl contains a non-object event"]
+
+    created_rows = [row for row in rows if row.get("event_type") == "MissionCreated"]
+    if len(created_rows) != 1:
+        return [f"expected exactly one MissionCreated event, found {len(created_rows)}"]
+    payload = created_rows[0].get("payload")
+    if not isinstance(payload, dict):
+        return ["MissionCreated payload is missing or not an object"]
+
+    problems: list[str] = []
+    try:
+        from spec_kitty_events.conformance import validate_event
+
+        conformance = validate_event(payload, "MissionCreated", strict=True)
+        violations = [f"{violation.field}: {violation.message}" for violation in conformance.model_violations] + [
+            f"{violation.json_path}: {violation.message}" for violation in conformance.schema_violations
+        ]
+        if violations:
+            problems.append("MissionCreated payload fails canonical schema: " + "; ".join(violations))
+    except Exception as exc:  # noqa: BLE001 - malformed external-contract payload
+        problems.append(f"MissionCreated payload validation failed: {exc}")
+
+    created = created_rows[0]
+    if created.get("aggregate_id") != meta.get("mission_id"):
+        problems.append("MissionCreated aggregate_id disagrees with meta.json mission_id")
+    if created.get("aggregate_type") != "Mission":
+        problems.append("MissionCreated aggregate_type is not 'Mission'")
+    problems.extend(_mission_created_envelope_problems(created))
+    if payload.get("wp_count") != 0:
+        problems.append("MissionCreated wp_count must be zero at creation")
+    for field in _MISSION_CREATED_SNAPSHOT_FIELDS:
+        expected = None if field == "mission_number" else meta.get(field)
+        if payload.get(field) != expected:
+            problems.append(f"MissionCreated field {field!r} disagrees with canonical creation metadata")
+    return problems
+
+
+def _build_resume_probe_payload(repo_root: Path, handle: str) -> dict[str, object]:
+    """Return a structured resume result without misclassifying valid history."""
+    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.lanes.branch_naming import mid8_from_slug
+    from specify_cli.missions._substantive import is_committed, is_substantive
+
+    candidates = _matching_resume_probe_dirs(repo_root, handle)
+    if not candidates:
+        return {
+            "result": "success",
+            "resume_state": "not_found",
+            "handle": handle,
+        }
+    if len(candidates) > 1:
+        return {
+            "error_code": "MISSION_RESUME_AMBIGUOUS",
+            "error": f"Mission handle {handle!r} matches multiple existing or partial scaffolds.",
+            "resume_state": "ambiguous",
+            "handle": handle,
+            "candidates": [_resume_probe_candidate_summary(path) for path in candidates],
+            "remediation": "Select one candidate by exact mission_slug or mission_id; do not create another Mission.",
+        }
+
+    feature_dir = candidates[0]
+    invalid: list[str] = []
+    meta, meta_read_error = _load_resume_probe_meta(feature_dir)
+    if meta_read_error is not None:
+        invalid.append(f"meta.json is malformed or unreadable: {meta_read_error}")
+    if meta is None:
+        if meta_read_error is None:
+            invalid.append("meta.json is missing")
+        meta = {}
+    invalid.extend(_resume_meta_problems(meta, feature_dir))
+    mission_number = meta.get("mission_number")
+
+    declared_mission_id = str(meta.get("mission_id", ""))
+    embedded_mid8 = mid8_from_slug(feature_dir.name)
+    if mission_number is None:
+        if not embedded_mid8:
+            invalid.append("pre-merge Mission directory is missing its canonical mission-id mid8 suffix")
+        elif declared_mission_id and not declared_mission_id.startswith(embedded_mid8):
+            invalid.append("directory mid8 does not match meta.json mission_id")
+    spec_file = feature_dir / "spec.md"
+    identity_payload: dict[str, object] = {
+        "handle": handle,
+        "mission_id": declared_mission_id,
+        "mission_slug": feature_dir.name,
+        "mission_type": str(meta.get("mission_type", "")),
+        "friendly_name": str(meta.get("friendly_name", "")),
+        "purpose_tldr": str(meta.get("purpose_tldr", "")),
+        "purpose_context": str(meta.get("purpose_context", "")),
+        "target_branch": str(meta.get("target_branch", "")),
+        "topology": str(meta.get("topology", "")),
+        "pr_bound": bool(meta.get("pr_bound", False)),
+        "created_at": str(meta.get("created_at", "")),
+        "feature_dir": str(feature_dir),
+        "spec_file": str(spec_file),
+        "meta_file": str(feature_dir / "meta.json"),
+    }
+    if _is_assigned_mission_number(mission_number):
+        if not spec_file.is_file():
+            invalid.append("spec.md is missing")
+        return {
+            "error_code": "MISSION_RESUME_EXISTING",
+            "error": (f"Mission {feature_dir.name!r} is numbered history and cannot be reused as an interrupted specify scaffold."),
+            "resume_state": "existing",
+            "mission_number": mission_number,
+            **identity_payload,
+            "integrity_warnings": invalid,
+            "remediation": ("Preserve this Mission; do not repair or remove it. Choose a new slug, or operate on the existing Mission by its exact identity."),
+        }
+
+    if not spec_file.is_file():
+        invalid.append("spec.md is missing")
+    invalid.extend(_mission_created_snapshot_problems(feature_dir, meta))
+
+    if invalid:
+        return {
+            "error_code": "MISSION_RESUME_MALFORMED",
+            "error": f"Mission scaffold {feature_dir.name!r} is incomplete or malformed.",
+            "resume_state": "malformed",
+            "handle": handle,
+            "mission_slug": feature_dir.name,
+            "feature_dir": str(feature_dir),
+            "problems": invalid,
+            "remediation": "Repair or remove the partial scaffold explicitly; do not create through it.",
+        }
+
+    main_root = get_main_repo_root(repo_root)
+    spec_is_committed = is_committed(spec_file, main_root)
+    mission_type = str(meta["mission_type"])
+    return {
+        "result": "success",
+        "resume_state": "found",
+        **identity_payload,
+        "spec_committed_and_substantive": (spec_is_committed and (mission_type != "software-dev" or is_substantive(spec_file, "spec"))),
+    }
+
+
+def _emit_resume_probe_payload(payload: dict[str, object], *, json_output: bool) -> None:
+    """Emit the structured resume-probe result for JSON or human callers."""
+    if json_output:
+        _emit_json(payload)
+        return
+    state = str(payload["resume_state"])
+    if state in {"found", "not_found"}:
+        console.print(f"[green]Resume probe:[/green] {state}")
+    else:
+        console.print(f"[red]Resume probe:[/red] {state}: {payload.get('error', '')}")
+
 
 def _read_meta_for_pr_bound(feature_dir: Path) -> dict[str, Any]:
     """Read ``meta.json`` for the ``pr_bound`` write-back, silent-empty contract.
@@ -58,7 +388,7 @@ def _read_meta_for_pr_bound(feature_dir: Path) -> dict[str, Any]:
     """
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    return load_meta_or_empty(feature_dir)
+    return cast(dict[str, Any], load_meta_or_empty(feature_dir))
 
 
 def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:
@@ -71,7 +401,10 @@ def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:
     """
     from specify_cli.mission_metadata import load_meta
 
-    return load_meta(feature_dir, allow_missing=True, on_malformed="none")
+    return cast(
+        dict[str, Any] | None,
+        load_meta(feature_dir, allow_missing=True, on_malformed="none"),
+    )
 
 
 def _emit_check_prerequisites_detection_error(
@@ -169,6 +502,13 @@ def check_prerequisites(
     feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,
+    resume_probe: Annotated[
+        bool,
+        typer.Option(
+            "--resume-probe",
+            help="Return structured found/not_found/existing/ambiguous/malformed state for safe specify resume",
+        ),
+    ] = False,
     include_tasks: Annotated[bool, typer.Option("--include-tasks", help="Include tasks.md in validation")] = False,
     require_tasks: Annotated[
         bool,
@@ -182,6 +522,7 @@ def check_prerequisites(
     Examples:
         spec-kitty agent mission check-prerequisites --json
         spec-kitty agent mission check-prerequisites --mission 020-my-feature --paths-only --json
+        spec-kitty agent mission check-prerequisites --mission my-feature --resume-probe --json
     """
     # Deferred import keeps this leaf free of an import cycle while honoring the
     # historical ``mission.<name>`` patch seams (tests patch ``locate_project_root``
@@ -203,6 +544,29 @@ def check_prerequisites(
                 message=PROJECT_ROOT_NOT_FOUND_MESSAGE,
             )
             raise typer.Exit(1) from None
+
+        if resume_probe:
+            if not feature or not feature.strip():
+                _emit_console_or_json_error(
+                    json_output=json_output,
+                    message="--resume-probe requires --mission <provisional-slug>",
+                )
+                raise typer.Exit(1) from None
+            if paths_only or include_tasks or require_tasks:
+                _emit_console_or_json_error(
+                    json_output=json_output,
+                    message="--resume-probe cannot be combined with task/path validation flags",
+                )
+                raise typer.Exit(1) from None
+            try:
+                resume_payload = _build_resume_probe_payload(repo_root, feature.strip())
+            except ValueError as exc:
+                _emit_console_or_json_error(json_output=json_output, message=str(exc))
+                raise typer.Exit(1) from None
+            _emit_resume_probe_payload(resume_payload, json_output=json_output)
+            if resume_payload["resume_state"] in {"existing", "ambiguous", "malformed"}:
+                raise typer.Exit(1)
+            return
 
         _mission._enforce_git_preflight(
             repo_root,

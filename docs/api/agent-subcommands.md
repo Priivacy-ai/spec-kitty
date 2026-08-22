@@ -848,8 +848,12 @@ _Mission lifecycle commands for AI agents_
 │ --target-branch          TEXT  Override the canonical merge target branch    │
 │                                read from meta.json. Use this for legacy      │
 │                                missions created before WP07 persisted        │
-│                                target_branch in meta.json (FR-012 escape     │
-│                                hatch).                                       │
+│                                target_branch in meta.json, or to correct a   │
+│                                mission whose target_branch is stale (FR-012  │
+│                                escape hatch). The override is persisted into │
+│                                the primary meta.json as part of this run, so │
+│                                every other target_branch consumer converges  │
+│                                on it too (#3466).                            │
 │ --help           -h            Show this message and exit.                   │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -1631,14 +1635,22 @@ _Task workflow commands for AI agents_
 
  Move task between lanes (planned → doing → for_review → approved → done).
 
+ Review-rejection edges (a backward move out of review — ``--to planned`` from
+ in_progress/for_review/in_review/approved, or ``in_review → in_progress``)
+ MUST
+ carry a rationale: pass ``--review-feedback-file`` (or ``--note``). That
+ rationale is emitted as the status event's ``review_ref``/reason and is
+ required by the shared status contract; a rejection emitted without it is
+ accepted locally but silently rejected by hosted sync, so it never propagates.
+
  Examples:
- spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
- spec-kitty agent tasks move-task WP02 --to for_review --agent claude
+     spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json
+     spec-kitty agent tasks move-task WP02 --to for_review --agent claude
  --shell-pid $$
- spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"
- spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch
- deleted after hotfix merge"
- spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file
+     spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"
+     spec-kitty agent tasks move-task WP03 --to done --done-override-reason
+ "Branch deleted after hotfix merge"
+     spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file
  feedback.md
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
@@ -1662,10 +1674,20 @@ _Task workflow commands for AI agents_
 │    --shell-pid                                   TEXT  Shell PID             │
 │    --note                                        TEXT  History note          │
 │    --review-feedback-f…                          PATH  Path to review        │
-│                                                        feedback file         │
-│                                                        (required for --to    │
-│                                                        planned, including    │
-│                                                        with --force)         │
+│                                                        feedback file.        │
+│                                                        Required for          │
+│                                                        review-rejection      │
+│                                                        edges (--to planned,  │
+│                                                        incl. with --force;   │
+│                                                        and                   │
+│                                                        in_review->in_progre… │
+│                                                        Recorded as the       │
+│                                                        transition's on-wire  │
+│                                                        review_ref rationale; │
+│                                                        omitting it makes the │
+│                                                        status event          │
+│                                                        contract-invalid and  │
+│                                                        hosted sync drops it. │
 │    --approval-ref                                TEXT  Approval reference    │
 │                                                        for approval/done     │
 │                                                        transitions (e.g.,    │

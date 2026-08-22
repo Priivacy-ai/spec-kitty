@@ -1,0 +1,47 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh2
+mission: bare-prose-requirements-uncounted-01KZYV3C
+findings:
+  - id: TASKS-FRESH2-001
+    lens: file references real / code-citation accuracy
+    severity: 3
+    title: "Round-2 fix re-affirmed a wrong `plan_mapping` import citation in the #3395-overlap paragraph instead of correcting it"
+    evidence:
+      - artifact: "tasks.md § Parallelism & Chokepoints, '#3395 overlap is expected' paragraph (lines ~93-98 of current tasks.md)"
+      - code: "src/specify_cli/cli/commands/agent/tasks_map_requirements.py:52-56"
+      - code: "src/specify_cli/cli/commands/agent/tasks_map_requirements.py:355 (_mr_plan: `_tasks.plan_mapping(...)`)"
+      - code: "src/specify_cli/cli/commands/agent/tasks.py:234 (`plan_mapping as plan_mapping` re-export)"
+    claim: >
+      This round's fix commit (5e919cc60, per its own message "repair ... #3395-overlap
+      ... claims") rewrote the surrounding sentence but left the underlying factual
+      claim unchanged and still wrong: tasks.md states `tasks_map_requirements.py`
+      "itself imports `plan_mapping` from `tasks_mapping_core.py` at line 52." Direct
+      read of the live file shows line 52 imports `TRACKER_ONLY_MODE, MappingPlan,
+      MappingRequest` — not `plan_mapping`. `plan_mapping` is never imported at module
+      scope in `tasks_map_requirements.py` at all; it is reached only via a lazy
+      in-function import (`from specify_cli.cli.commands.agent import tasks as _tasks`,
+      documented in the module's own top-of-file docstring at lines 27-34) and called as
+      `_tasks.plan_mapping(...)` at line 355 inside `_mr_plan`. `tasks.py` itself
+      re-exports `plan_mapping` from `tasks_mapping_core.py` at line 234
+      (`plan_mapping as plan_mapping`). So the real call chain is
+      `tasks_map_requirements.py` → (lazy) `tasks.py` → `tasks_mapping_core.py`, a
+      two-hop chain via a re-export module — not the direct one-hop import at "line 52"
+      the paragraph asserts. This sentence is presented as "confirmed by direct read" in
+      the pre-fix version and survives, reworded but not re-verified, in this exact round
+      of fixes whose own commit message claims to have repaired the #3395-overlap
+      section it lives in. The downstream conclusion the paragraph draws
+      ("`tasks_mapping_core.py` is one file removed from #3395's own named list via that
+      same call chain") is not fatally wrong in spirit (the file is still reachable) but
+      is now supported by a factually incorrect mechanism description that would mislead
+      anyone tracing the actual import graph during the rebase this paragraph is warning
+      about.
+    remediation: >
+      Fix the citation to describe the real path: either drop the specific line-number
+      claim and say "`tasks_map_requirements.py` reaches `plan_mapping` indirectly, via
+      a lazy import of the sibling `tasks.py` module (see that module's own top-of-file
+      docstring, lines 27-34), which re-exports `plan_mapping` from
+      `tasks_mapping_core.py` (`tasks.py:234`)" — or cite the correct line-52 import
+      list (`TRACKER_ONLY_MODE, MappingPlan, MappingRequest`) instead of `plan_mapping`.
