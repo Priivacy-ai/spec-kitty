@@ -47,6 +47,7 @@ class HttpsBundleSource:
     url: str
     ref: str | None = None
     if_none_match: str | None = None
+    source_type: str = "https"
 
     # ------------------------------------------------------------------
     # Public API
@@ -71,7 +72,7 @@ class HttpsBundleSource:
             return FetchResult(
                 ok=True,
                 artifacts_written=0,
-                pack_version=self.ref or self.if_none_match,
+                pack_version=self.ref,
                 unchanged=True,
                 etag=self.if_none_match,
             )
@@ -108,6 +109,13 @@ class HttpsBundleSource:
                     f"({response.headers.get('Content-Type', '<missing>')}) "
                     "or URL suffix."
                 ],
+            )
+
+        # Artifactory metadata is required; fail before downloading bytes.
+        jfrog_version, version_error = self._fetch_artifactory_version()
+        if version_error is not None:
+            return FetchResult(
+                ok=False, artifacts_written=0, pack_version=None, errors=[version_error]
             )
 
         tmp_path: Path | None = None
@@ -154,15 +162,6 @@ class HttpsBundleSource:
             tmp_path.unlink(missing_ok=True)
 
         etag = response.headers.get("ETag")
-        jfrog_version, version_error = self._fetch_artifactory_version()
-        if version_error is not None:
-            return FetchResult(
-                ok=False,
-                artifacts_written=extracted,
-                pack_version=None,
-                etag=etag,
-                errors=[version_error],
-            )
         # Non-Artifactory HTTPS: leave pack_version unset (or honour an
         # operator ``ref`` pin). Only JFrog ``version`` properties become a
         # persisted doctrine version; ETag is stored separately for caching.
@@ -199,7 +198,11 @@ class HttpsBundleSource:
         required: a missing/unreadable value fails the fetch so an
         unversioned JFrog snapshot is never promoted.
         """
-        storage_url = _artifactory_storage_url(self.url)
+        storage_url = (
+            _artifactory_storage_url(self.url)
+            if self.source_type == "artifactory"
+            else None
+        )
         if storage_url is None:
             return None, None
         try:
@@ -209,6 +212,16 @@ class HttpsBundleSource:
                 params={"properties": "version"},
                 timeout=30,
             )
+            if response.status_code == 429 or 500 <= response.status_code < 600:
+                status_code = response.status_code
+                response.close()
+                time.sleep(2.0 if status_code >= 500 else 1.0)
+                response = requests.get(
+                    storage_url,
+                    headers=_without_conditional_header(self._headers()),
+                    params={"properties": "version"},
+                    timeout=30,
+                )
         except requests.RequestException as exc:
             return None, f"Failed to read JFrog version property: {exc}"
         if response.status_code >= 400:
@@ -224,7 +237,7 @@ class HttpsBundleSource:
         if version is None:
             return None, (
                 "JFrog artifact has no non-empty version property: "
-                f"{self.url}"
+                f"{_safe_url_for_error(self.url)}"
             )
         return version, None
 
@@ -302,6 +315,15 @@ def _without_conditional_header(headers: dict[str, str]) -> dict[str, str]:
         for name, value in headers.items()
         if name.lower() != "if-none-match"
     }
+
+
+def _safe_url_for_error(url: str) -> str:
+    """Return an archive URL safe to include in operator-visible errors."""
+    parsed = urlsplit(url)
+    netloc = parsed.hostname or ""
+    if parsed.port is not None:
+        netloc = f"{netloc}:{parsed.port}"
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
 
 
 def _extract_jfrog_version(payload: object) -> str | None:
