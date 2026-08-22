@@ -41,6 +41,26 @@ hidden `mcp-serve` command, registered in `cli/commands/__init__.py`). This
 resolves item 3, most of item 4, and item 8 below — but deliberately not all
 of item 4: `checkout`/`focus` are still absent (see the updated item 4/5 notes).
 
+**Z8-C** (a separate Bead) added `outbox_approval.py` (the bundled,
+human-gesture-gated outside-model approval surface for locally queued
+Zeitgeist prose — content-addressed, TTL-bounded, default-deny) and the
+`outbox` sub-group on `cli/commands/zeitgeist.py`, deliberately NOT wired
+into `mcp_stdio.py` (a model over MCP has no tool that reaches it).
+
+**O1-C** (program-graph handle O1-C, "Spec Kitty client operability", built
+on Z7-C's subscription adapters + Z8-C's approval surface) added
+`operability.py`: seven payload-free signals (offer/drop/lease/revoke/mcp/
+repair, each carrying its own denominator where one applies — 750ms for
+offer, 90s for lease) built entirely from state `transport`/`credentials`/
+`outbox_approval`/`mcp_stdio` already own (no second data store), plus
+three local, network-free drills (`timeout_drill`/`rotation_drill`/
+`rollback_drill` — relay-unreachable, auth-expiry, and revoke-fails-closed
+respectively), and the `spec-kitty zeitgeist operability` CLI sub-group
+(`report`, `drill-timeout`, `drill-rotation`, `drill-rollback`) over it.
+`subscription.status()`/`.watch()` themselves are untouched by this —
+O1-C reports on the client's own operational health, it does not add a
+new subscription surface.
+
 ## Not yet implemented
 
 1. **`validator.py` + bundled schemas + `DIGESTS.json`** — blocked on F1-T1
@@ -92,6 +112,6 @@ of item 4: `checkout`/`focus` are still absent (see the updated item 4/5 notes).
    can do anything; nothing here mints or requests one.
 
 See the module docstrings of `transport.py`, `credentials.py`,
-`live_frame.py`, `filtered_stream.py`, `subscription.py`, `mcp_stdio.py`, and
-`cli/commands/zeitgeist.py` for the specific contract clauses each gap
-corresponds to.
+`live_frame.py`, `filtered_stream.py`, `subscription.py`, `mcp_stdio.py`,
+`outbox_approval.py`, `operability.py`, and `cli/commands/zeitgeist.py` for
+the specific contract clauses each gap corresponds to.

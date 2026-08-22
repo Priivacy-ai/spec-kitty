@@ -19,6 +19,25 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### ✨ Added
 
+- **`spec-kitty zeitgeist operability` gives the bundled Zeitgeist client a
+  payload-free self-report of its own liveness/connection/subscription/
+  outbox status, plus local failure drills (`O1-C`).** `operability report`
+  is one snapshot of seven signals — offer/drop/lease/revoke/mcp/repair,
+  each carrying its own denominator where one applies (`OfferSignal.
+  budget_s` is always the hard 750ms bound; `LeaseSignal.ttl_s` is always
+  the 90s current-focus ceiling, present even when no focus is active) —
+  built from state the already-landed `transport`/`credentials`/
+  `outbox_approval`/`mcp_stdio` modules already own; there is no second
+  data store. A repo with no stored checkout gets an honestly stale/
+  inactive report rather than a fabricated live one. `drill-timeout`
+  (relay unreachable), `drill-rotation` (auth expiry — reads only the
+  stored `token_issued_at` timestamp, never the token), and
+  `drill-rollback` (proves `outbox_approval.revoke()` fails closed on a
+  never-approved item, without ever opening `/dev/tty`) are network-free
+  and deterministic. No sensitive field ever appears in a report — proven
+  by running it through `sanitizer.py`'s own forbidden-key gate, the same
+  one the rest of the client already trusts.
+
 - **`spec-kitty zeitgeist outbox` gives a human a bundled, outside-model
   approval surface over locally queued Zeitgeist prose (`Z8-C`).** `list`/
   `show` inspect pending items (exact content is disclosed only via `show`
