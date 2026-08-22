@@ -590,6 +590,31 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 #:     ``_PROFILE_UNREACHABLE``, ``_PROFILE_RESCUES`` moves) is ledgered in
 #:     ``tests/doctrine/drg/test_reachability.py`` and
 #:     ``docs/plans/doctrine/delivery-reachability-wiring-table.md``.
+#: (20) Mission #3604 (WP07, ``extract_governance_profile_scope_edges``): mints
+#:     ZERO new nodes -- every ``selected_*`` target it walks was already minted
+#:     by an earlier ``generate_graph`` pass (its own docstring's contract,
+#:     enforced since #3629 by ``assert_governance_scope_edges_resolve``). It
+#:     adds exactly 39 new ``mission_type --scope--> {directive,tactic,paradigm,
+#:     styleguide,toolguide,procedure,agent_profile,mission_step_contract}``
+#:     edges -- one per non-empty ``selected_*`` entry across the four built-in
+#:     ``governance-profile.yaml`` files -- ALL of relation ``scope``, never
+#:     ``requires``/``suggests`` (distinct from entries (16)-(18)'s
+#:     inline-``references`` ``requires`` edges, which this pass does not
+#:     touch). The moved ``RELATION_DESCRIPTIONS`` / ``docs/architecture/
+#:     doctrine-relationships.md`` count is ``scope`` 165 -> 204 (action-sourced
+#:     165 UNCHANGED, mission_type-sourced 0 -> 39; verified live against
+#:     ``load_built_in_graph()``: 204 total scope edges, 165 action-sourced /
+#:     39 mission_type-sourced by source-node kind).
+#:     This entry deliberately does NOT restate a full composed pure/shipped
+#:     node+edge total the way entries (16)-(19) do: ``requires``/``suggests``
+#:     also moved between entry (19)'s ending state and the live graph (live:
+#:     ``requires`` 332, ``suggests`` 451), but neither move is attributable to
+#:     this pass -- ``extract_governance_profile_scope_edges`` emits ``scope``
+#:     edges exclusively -- so composing a single before/after node+edge total
+#:     here would silently fold in unrelated intervening changes, exactly the
+#:     drift entry (19) itself flagged as out of its own scope to reconcile.
+#:     The ``scope`` 165 -> 204 move is the complete, attributable claim this
+#:     entry makes.
 #: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
 #: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
 #: shipped source file across the file-backed kinds, plus the structurally-derived
