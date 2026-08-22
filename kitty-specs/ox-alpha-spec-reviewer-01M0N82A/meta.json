@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-ox-alpha-spec-reviewer-01M0N82A",
+  "created_at": "2026-08-22T17:25:03.095118+00:00",
+  "flattened": false,
+  "friendly_name": "Ревьюер спецификаций Ox Alpha",
+  "mission_id": "01M0N82AFKD0H5RCGXVV6B0YSC",
+  "mission_number": null,
+  "mission_slug": "ox-alpha-spec-reviewer-01M0N82A",
+  "mission_type": "software-dev",
+  "purpose_context": "Автор спецификации вручную запускает внешнее advisory-ревью только для выбранного обезличенного spec.md. Результат сохраняется как структурированные замечания, не изменяет спецификацию автоматически и не блокирует основной workflow при недоступности внешней модели.",
+  "purpose_tldr": "Добавить ручное независимое ревью спецификаций через бесплатную модель Ox Alpha.",
+  "slug": "ox-alpha-spec-reviewer-01M0N82A",
+  "target_branch": "codex/ox-alpha-spec-reviewer",
+  "topology": "coord"
+}
