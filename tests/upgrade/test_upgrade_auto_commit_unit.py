@@ -604,7 +604,9 @@ def test_commit_skipped_when_branch_detection_fails(
     monkeypatch.setattr(
         autocommit,
         "safe_commit",
-        lambda **_kw: (_ for _ in ()).throw(AssertionError("safe_commit must not run when branch detection fails")),
+        lambda **_kw: (_ for _ in ()).throw(
+            AssertionError("safe_commit must not run when branch detection fails")
+        ),
     )
     monkeypatch.setattr(
         subprocess,
@@ -656,7 +658,14 @@ def test_collect_manual_review_paths_deduplicates() -> None:
 
 
 def _setup_upgrade_project(tmp_path: Path) -> Path:
-    """Create a minimal .kittify project structure for upgrade() tests."""
+    """Create a minimal .kittify project structure for upgrade() tests.
+
+    Also a real (if minimal) git repo: ``commit_touched_checkout`` (FR-013/C7)
+    genuinely runs ``git branch --show-current`` in this checkout and, since
+    the fail-safe fix, no longer fabricates a "main" ref when that fails — a
+    non-git tmp_path would now legitimately skip every auto-commit in these
+    tests with a warning instead of the fixture's intended "committed" outcome.
+    """
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
     metadata_file = kittify_dir / "metadata.yaml"
@@ -671,6 +680,11 @@ def _setup_upgrade_project(tmp_path: Path) -> Path:
         "migrations:\n"
         "  applied: []\n"
     )
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "config", "user.name", "Test"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "."], cwd=tmp_path, check=True)
+    subprocess.run(["git", "commit", "-q", "-m", "init"], cwd=tmp_path, check=True)
     return tmp_path
 
 

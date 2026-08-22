@@ -195,6 +195,7 @@ def should_auto_commit_for_worktree(repo_root: Path, *, dry_run: bool) -> bool:
         return False
     return bool(get_auto_commit_default(repo_root))
 
+
 def git_status_paths(repo_path: Path) -> set[str] | None:
     """Return git status paths for *repo_path* using porcelain -z output.
 
