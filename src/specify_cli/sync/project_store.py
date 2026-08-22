@@ -523,17 +523,17 @@ class ProjectSyncStore:
     @property
     def database_path(self) -> Path:
         """Derived live database path; callers cannot replace it."""
-        return cast("Path", self._paths.database)
+        return self._paths.database
 
     @property
     def egress_lock_path(self) -> Path:
         """Derived sibling transport/result lock path."""
-        return cast("Path", self._paths.egress_lock)
+        return self._paths.egress_lock
 
     @property
     def migration_report_dir(self) -> Path:
         """Derived directory for non-sensitive migration evidence."""
-        return cast("Path", self._paths.migration_reports)
+        return self._paths.migration_reports
 
     @staticmethod
     def _metadata_table_exists(connection: sqlite3.Connection) -> bool:

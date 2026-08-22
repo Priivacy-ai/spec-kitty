@@ -547,7 +547,14 @@ def _active_epoch(
         ).fetchone()
     if row is None:
         return None
-    return int(row[0]), int(row[1]), str(row[2])
+    epoch_id, opened_at_tail, epoch_state = row[0], row[1], row[2]
+    if not isinstance(epoch_id, int) or isinstance(epoch_id, bool):
+        raise ConsentAuthorityError("persisted epoch id is incompatible")
+    if not isinstance(opened_at_tail, int) or isinstance(opened_at_tail, bool):
+        raise ConsentAuthorityError("persisted epoch opened_at_tail is incompatible")
+    if epoch_state is None:
+        raise ConsentAuthorityError("persisted epoch state is incompatible")
+    return epoch_id, opened_at_tail, str(epoch_state)
 
 
 def _capture_tail(unit: ProjectUnitOfWork) -> int:
@@ -568,7 +575,10 @@ def _next_epoch_id(unit: ProjectUnitOfWork) -> int:
         "SELECT COALESCE(MAX(epoch_id), 0) FROM consent_epochs",
     ).fetchone()
     assert row is not None
-    return int(row[0]) + 1
+    max_epoch_id = row[0]
+    if not isinstance(max_epoch_id, int) or isinstance(max_epoch_id, bool):
+        raise ConsentAuthorityError("persisted max epoch id is incompatible")
+    return max_epoch_id + 1
 
 
 def _parse_decision_row(

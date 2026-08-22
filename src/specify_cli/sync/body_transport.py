@@ -25,6 +25,7 @@ from specify_cli.saas_client.admission import (
     attach_admission_proof,
 )
 from specify_cli.sync._team import CATEGORY_MISSING_PRIVATE_TEAM
+from specify_cli.sync.project_identity import CanonicalProjectUUID
 from .namespace import UploadOutcome, UploadStatus
 
 if TYPE_CHECKING:
@@ -149,6 +150,36 @@ def _send_content_request(
     return _classify_response(task, response)
 
 
+def _reject_unmatched_target(
+    task: BodyUploadTask,
+    target: DeliveryTarget,
+    target_id: str,
+) -> UploadOutcome | None:
+    """Return a FAILED outcome when *target* fails identity/admission checks.
+
+    Isolated out of ``push_content_with_transport_gate`` to keep that shell
+    under the complexity ceiling; both refusals share the same
+    ``project_not_admitted`` outcome shape.
+    """
+    if target.target_id != target_id:
+        return UploadOutcome(
+            artifact_path=task.artifact_path,
+            status=UploadStatus.FAILED,
+            reason="project_not_admitted: body target_id does not match the admitted audience tuple",
+            content_hash=task.content_hash,
+            retryable=False,
+        )
+    if target.admission_generation is None:
+        return UploadOutcome(
+            artifact_path=task.artifact_path,
+            status=UploadStatus.FAILED,
+            reason="project_not_admitted: target carries no admission generation",
+            content_hash=task.content_hash,
+            retryable=False,
+        )
+    return None
+
+
 def push_content_with_transport_gate(
     task: BodyUploadTask,
     auth_token: str,
@@ -197,14 +228,10 @@ def push_content_with_transport_gate(
         project_uuid=target.project_uuid,
         configuration_generation=target.configuration_generation,
     )
-    if target.target_id != target_id:
-        return UploadOutcome(
-            artifact_path=task.artifact_path,
-            status=UploadStatus.FAILED,
-            reason="project_not_admitted: body target_id does not match the admitted audience tuple",
-            content_hash=task.content_hash,
-            retryable=False,
-        )
+    rejection = _reject_unmatched_target(task, target, target_id)
+    if rejection is not None:
+        return rejection
+    assert target.admission_generation is not None
     try:
         proof = ProjectWriteAdmissionProof(
             project_uuid=task.project_uuid,
@@ -392,7 +419,7 @@ def _project_body_replay(
                 current_target.target_identity if current_target is not None else None,
                 current_target.account_identity if current_target is not None else None,
                 current_target.private_teamspace_id if current_target is not None else None,
-                current_target.project_uuid.storage_token if current_target is not None else None,
+                CanonicalProjectUUID.parse(current_target.project_uuid).storage_token if current_target is not None else None,
                 current_target.configuration_generation if current_target is not None else None,
                 str(current_context.admission_generation),
                 current_context.binding_audience,
