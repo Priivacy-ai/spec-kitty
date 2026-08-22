@@ -127,8 +127,11 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         SymbolKey("MigrationManifest", "c39cc76b8426569d7c3bb6f9b0b70c621b99101f3f13fe97b79c15afbfe67594", source_module="specify_cli.status.migrate_lifecycle_envelope"),
         # specify_cli.status.migrate_lifecycle_envelope::MigrationRowResult -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired yet. TODO(triage): wire or drop from __all__ (follow-up bead).
         SymbolKey("MigrationRowResult", "0c79465d23a8dfa43650ce146809dfff916378f55f3bfa0321fb8d8129ead618", source_module="specify_cli.status.migrate_lifecycle_envelope"),
-        # specify_cli.status.migrate_lifecycle_envelope::migrate_lifecycle_envelope -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration entry point; no CLI/upgrade caller yet. TODO(triage): wire or drop from __all__ (follow-up bead).
-        SymbolKey("migrate_lifecycle_envelope", "519aabd28f38c7ed39e90b06e6562617f3aa4b62386cee53d5ebf01dc4c1abb4", source_module="specify_cli.status.migrate_lifecycle_envelope"),
+        # specify_cli.status.migrate_lifecycle_envelope::migrate_lifecycle_envelope -- REMOVED
+        # (WIRE-M2-03, 2026-08-22): now has a real src/ caller,
+        # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and calls
+        # it directly. MigrationAction/MigrationManifest/MigrationRowResult above stay
+        # allowlisted -- the wrapper only names the function, never those three types.
         SymbolKey(
             "CatalogMissCause", "77f08f1610245bbd1a390b4f8dd581bc92dace80d6fcc5feab4112884171dea5", source_module="charter._catalog_miss"
         ),  # charter._catalog_miss::CatalogMissCause
@@ -694,10 +697,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.lifecycle_events::has_lifecycle_event
         SymbolKey("has_lifecycle_event", "ded63398ebd799f9cbdb0519033bf4ed4cb4dee39e51837f7c1b1fe7d562e69d", source_module="specify_cli.status.lifecycle_events"),
-        # specify_cli.status.lifecycle_events::project_event_log_path
-        SymbolKey(
-            "project_event_log_path", "b865a8c81e88c0816fd94a24242e9bfff14f6504da477813fc99b160049f3f70", source_module="specify_cli.status.lifecycle_events"
-        ),
+        # specify_cli.status.lifecycle_events::project_event_log_path -- REMOVED
+        # (WIRE-M2-03, 2026-08-22): now has a real src/ caller,
+        # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and
+        # calls it directly to resolve the project-level lifecycle event log path.
         # specify_cli.status.uninitialized_hint::find_wp_dependency_cycles
         SymbolKey(
             "find_wp_dependency_cycles", "5b6258f4436930d9c732a9afc04d5261c137cd98c5b976a780e137d482e97135", source_module="specify_cli.status.uninitialized_hint"

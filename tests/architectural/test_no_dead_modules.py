@@ -296,6 +296,15 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # unowned-gate edit (WP18 does not own this test file); disclosed in
         # the WP18 implementation report.
         "specify_cli.upgrade.migrations.m_3_2_7_review_cycle_merge_driver",
+        # WIRE-M2-03 (2026-08-22): wires the F2-T1 one-shot F1-strict
+        # lifecycle-envelope rewrite into `spec-kitty upgrade`, over the
+        # project-level and every mission-level event log. Auto-discovered
+        # via pkgutil.iter_modules + @MigrationRegistry.register; never
+        # statically imported by runtime code -- same sibling shape as the
+        # m_zz_* backfill migrations above. (This is also why
+        # `specify_cli.status.migrate_lifecycle_envelope` was removed from
+        # Category 7 above -- it now has a real src/ caller: this module.)
+        "specify_cli.upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope",
     }
 )
 
@@ -450,10 +459,9 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         # handlers/{base,api,features,glossary,lint,static}.py, so the module has
         # live src/ callers and is no longer an orphan. Shrink -- reverses the M2
         # canonical-integration bump.
-        #   TODO(triage): F2-T1 one-shot F1-strict lifecycle envelope migration --
-        #   no CLI/upgrade entry point invokes it yet; wire (upgrade migration or
-        #   `spec-kitty` subcommand) or delete after the migration window.
-        "specify_cli.status.migrate_lifecycle_envelope",
+        # status.migrate_lifecycle_envelope: REMOVED (WIRE-M2-03, 2026-08-22). Now has a
+        #   live src/ caller (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope), so
+        #   it is no longer an orphan. Shrink.
         # tracker.gateway: REMOVED (WIRE-M2-01, 2026-08-22). Wired into
         #   LocalTrackerService._build_engine (local_service.py) -- Beads
         #   mutations now build their connector via
@@ -471,6 +479,12 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   `stranded_verdict_findings` predicate by the `accept` provenance
         #   diagnostic), so the module has live `src/` callers and is no longer
         #   an orphan. Shrink 3 -> 2 -- reverses the post-merge green-up bump.
+        # status.migrate_lifecycle_envelope: REMOVED (WIRE-M2-03, 2026-08-22).
+        #   The F2-T1 one-shot F1-strict envelope rewrite is now called from
+        #   `src/` by the auto-discovered upgrade migration
+        #   `upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope`, so the
+        #   module has a live `src/` caller and is no longer an orphan.
+        #   Shrink 7 -> 6.
     }
 )
 
