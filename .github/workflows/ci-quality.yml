@@ -1136,6 +1136,7 @@ jobs:
             --ignore=tests/sync/test_daemon_orphan_classification.py \
             --ignore=tests/sync/test_daemon_cleanup_boundary.py \
             --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
+            --ignore=tests/sync/test_legacy_daemon_retirement_r2t1.py \
             --timeout=240 --timeout-method=signal \
             -n auto --dist loadfile \
             --durations=50 \
@@ -2468,6 +2469,7 @@ jobs:
             --ignore=tests/sync/test_daemon_orphan_classification.py \
             --ignore=tests/sync/test_daemon_cleanup_boundary.py \
             --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
+            --ignore=tests/sync/test_legacy_daemon_retirement_r2t1.py \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             -n auto --dist loadfile -p no:cacheprovider \
@@ -2506,6 +2508,7 @@ jobs:
             tests/sync/test_daemon_orphan_classification.py \
             tests/sync/test_daemon_cleanup_boundary.py \
             tests/sync/test_issue_1071_singleton_reconfirmation.py \
+            tests/sync/test_legacy_daemon_retirement_r2t1.py \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             -n0 \
@@ -2950,6 +2953,7 @@ jobs:
             --ignore=tests/sync/test_daemon_orphan_classification.py \
             --ignore=tests/sync/test_daemon_cleanup_boundary.py \
             --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
+            --ignore=tests/sync/test_legacy_daemon_retirement_r2t1.py \
             -n auto --dist loadfile \
             --durations=25
 
@@ -3038,6 +3042,7 @@ jobs:
             --ignore=tests/sync/test_daemon_orphan_classification.py \
             --ignore=tests/sync/test_daemon_cleanup_boundary.py \
             --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
+            --ignore=tests/sync/test_legacy_daemon_retirement_r2t1.py \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=specify_cli --cov=charter --cov=doctrine \
