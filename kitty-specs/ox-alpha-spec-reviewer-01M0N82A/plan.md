@@ -34,11 +34,13 @@
 
 1. Новый top-level интерфейс: `spec-kitty spec-review --mission <handle> [--model <id>] [--confirm-external]`.
 2. CLI orchestration отделена от доменного пакета `specify_cli.spec_review`; subprocess скрыт за typed runner protocol.
-3. Prompt передаётся только через stdin в `opencode run --pure --model <id>`; `shell=False`, argv строится списком.
-4. Добавляется `MissionArtifactKind.SPEC_REVIEW` в PRIMARY partition и classifier entry для `reviews/`; выбор фиксируется ADR, потому что это стабильное planning evidence, а не per-WP coordination bookkeeping.
-5. Успешные и неуспешные внешние запуски не меняют mission lifecycle. До consent и при preflight refusal файл не создаётся; после фактического внешнего старта сохраняется минимальный provenance/result artifact без prompt.
-6. Auth полностью принадлежит OpenCode. Код не читает `auth.json`, env tokens или credential files и не логирует их пути.
-7. Free/ZDR/ownership claims не входят в контракт. Default model — конфигурируемая текущая строка `opencode/x-preview-f-free`, которую provider может отклонить.
+3. Prompt передаётся только через stdin в документированный OpenCode argv; `shell=False`. Raw stdout/stderr не пробрасываются и не сохраняются: bounded buffers живут только в памяти, parser получает только однозначно выделенный machine payload.
+4. Добавляется `MissionArtifactKind.SPEC_REVIEW` в PRIMARY partition и filename-anchored classifier только для `reviews/spec-review-*.yaml`; legacy review trail остаётся неклассифицированным до отдельной migration decision. Выбор фиксируется ADR.
+5. Storage получает filesystem path только через `resolve_artifact_surface(..., SPEC_REVIEW)` и commit target через canonical placement seam; запись выполняется atomically/exclusively с повторной containment и reparse/symlink проверкой.
+6. Внешний `review-response/v1` содержит только findings. Доверенный `spec-review-run/v1` с provenance, status и summary полностью строит host.
+7. Успешные и неуспешные внешние запуски не меняют mission lifecycle. До consent и при preflight refusal файл не создаётся; после фактического внешнего старта persistence best-effort. `write_failed` существует только как metadata-only CLI diagnostic.
+8. Auth полностью принадлежит OpenCode. Код не читает `auth.json`, env tokens или credential files и не логирует их пути.
+9. Free/ZDR/ownership claims не входят в контракт. Default model — конфигурируемая текущая строка `opencode/x-preview-f-free`, которую provider может отклонить.
 
 ## Charter check
 
@@ -60,12 +62,12 @@ flowchart LR
     A[Автор выбирает mission] --> B[Разрешить канонический spec.md]
     B --> C[Privacy и size preflight]
     C -->|refuse| X[Локальная диагностика, 0 внешних вызовов]
-    C --> D[Disclosure summary]
+    C --> D[Digest всего disclosure manifest]
     D -->|нет consent| X
     D -->|явный consent| E[Governed rubric + spec через stdin]
     E --> F[OpenCode runner]
-    F --> G[Schema и size validation]
-    G --> H[Append-only review artifact]
+    F --> G[review-response/v1 + privacy validation]
+    G --> H[Host строит spec-review-run/v1 и пишет через PRIMARY resolver]
     H --> I[Advisory summary, lifecycle без изменений]
 ```
 
@@ -81,7 +83,8 @@ kitty-specs/ox-alpha-spec-reviewer-01M0N82A/
 ├── data-model.md
 ├── quickstart.md
 ├── contracts/
-│   └── review-findings-v1.schema.yaml
+│   ├── review-response-v1.schema.yaml
+│   └── spec-review-run-v1.schema.yaml
 └── tasks.md
 ```
 
@@ -97,13 +100,13 @@ src/
     │   └── spec_review.py              # тонкий Typer adapter
     └── spec_review/
         ├── __init__.py
-        ├── models.py                   # request/result/finding/status
-        ├── preflight.py                # canonical path, size, sensitive markers
-        ├── prompt.py                   # bounded rubric + schema contract
+        ├── models.py                   # manifest/response/run/finding/status
+        ├── preflight.py                # canonical path, versioned heuristic scanner
+        ├── prompt.py                   # immutable manifest + bounded rubric
         ├── runner.py                   # protocol + OpenCode subprocess adapter
-        ├── parser.py                   # strict review-findings/v1 validation
+        ├── parser.py                   # strict review-response/v1 validation
         ├── service.py                  # use-case orchestration
-        └── storage.py                  # collision-safe append-only writer
+        └── storage.py                  # canonical resolver + atomic exclusive writer
 
 tests/
 ├── mission_runtime/
@@ -135,7 +138,7 @@ docs/
 - **Требования**: FR-001–FR-004, FR-011, NFR-001, NFR-002, NFR-007, C-005.
 - **Поверхности**: `spec_review/preflight.py`, CLI adapter, tests.
 - **Зависимости**: нет.
-- **Риски**: TOCTOU между disclosure и запуском; spec необходимо перечитать и сверить SHA-256 после consent.
+- **Риски**: TOCTOU между disclosure и запуском; digest consent покрывает spec, рубрику, schema, model route и transport. После consent spec читается один раз в immutable buffer, все digest повторно сверяются.
 
 ### IC-02 — Модель и schema contract
 
@@ -143,7 +146,7 @@ docs/
 - **Требования**: FR-004, FR-007, NFR-004.
 - **Поверхности**: `models.py`, `prompt.py`, `parser.py`, contract schema.
 - **Зависимости**: IC-01 задаёт вход.
-- **Риски**: OpenCode может смешать diagnostics и output; parser принимает только выделенный machine payload и fail-closed по формату.
+- **Риски**: OpenCode может смешать diagnostics и output; adapter не раскрывает raw streams, принимает только bounded/framed payload и fail-closed по формату. Evidence — только проверенный диапазон строк; exact input spans от 32 символов в model-authored text запрещены.
 
 ### IC-03 — OpenCode transport
 
@@ -151,15 +154,15 @@ docs/
 - **Требования**: FR-005, FR-006, FR-010, NFR-001, NFR-003, NFR-005, NFR-006, C-001–C-003.
 - **Поверхности**: `runner.py`, runner tests.
 - **Зависимости**: IC-02.
-- **Риски**: timeout/child cleanup на Windows; stderr redaction; отсутствие live network в обычных tests.
+- **Риски**: timeout/process-tree cleanup на Windows; full/fragmented echo и invalid UTF-8; отсутствие live network в обычных tests. До реализации отдельно проверяется актуальный локальный `opencode run --help`, без model call.
 
 ### IC-04 — Review artifact authority
 
 - **Назначение**: сохранить append-only provenance в правильной topology surface.
 - **Требования**: FR-008, FR-009, FR-012, SC-003–SC-005.
-- **Поверхности**: `mission_runtime/artifacts.py`, `storage.py`, ADR, placement tests.
+- **Поверхности**: `mission_runtime/artifacts.py`, `mission_runtime/resolution.py`, `storage.py`, ADR, placement tests.
 - **Зависимости**: IC-02.
-- **Риски**: неклассифицированный `reviews/` нарушит single authority; run ID должен быть ASCII и collision-safe.
+- **Риски**: directory-level classifier молча захватит legacy files; требуется filename pattern. PRIMARY ownership, survival после consolidation, stale-copy semantics и atomic exclusive create проверяются topology matrix, включая symlink/reparse атаки.
 
 ### IC-05 — Оркестрация и operator UX
 
@@ -167,7 +170,7 @@ docs/
 - **Требования**: FR-001–FR-012, SC-001–SC-006.
 - **Поверхности**: `service.py`, `commands/spec_review.py`, command/service tests, quickstart.
 - **Зависимости**: IC-01–IC-04.
-- **Риски**: exit code не должен ошибочно блокировать основной workflow; при этом прямой пользовательский запуск обязан ясно сообщать собственный failed/partial status.
+- **Риски**: advisory относится только к mission lifecycle. Прямая команда следует таблице exit codes из spec: preview/complete/cancel = 0, consent/input/provider/timeout/format/write failures = стабильные 2–7.
 
 ### IC-06 — Проверки и opt-in smoke
 
@@ -181,10 +184,10 @@ docs/
 
 1. Сгенерировать code map и зафиксировать архитектурный baseline до product-code изменений.
 2. Добавить red acceptance/contract tests для consent, input scope, failure taxonomy и non-mutation.
-3. Ввести schema/domain models и parser с жёсткими лимитами.
+3. Ввести раздельные response/run schemas, structured line evidence, domain models и parser с жёсткими лимитами.
 4. Добавить preflight и TOCTOU hash recheck.
 5. Добавить typed runner и исчерпывающие subprocess tests, включая Windows timeout cleanup.
-6. Классифицировать `SPEC_REVIEW` как PRIMARY artifact, добавить ADR и topology tests.
+6. Классифицировать только `reviews/spec-review-*.yaml` как PRIMARY `SPEC_REVIEW`, связать writer с resolver/placement seam, добавить ADR и topology/atomicity tests; artifact kind и storage routing остаются в одном последовательном WP.
 7. Собрать service и CLI, сохранить append-only artifact, документировать operator UX.
 8. Выполнить Ruff, mypy, targeted/full relevant tests и coverage gate.
 9. Только после отдельного подтверждения внешней отправки выполнить live smoke на synthetic spec через Ox Alpha.
@@ -193,16 +196,18 @@ docs/
 
 - **Acceptance**: CLI без consent, CLI с fake success, provider timeout/error, invalid output, repeated/concurrent run.
 - **Unit**: path containment, symlink escape, size boundaries, secret/PII marker detection, prompt composition, parser enums/limits, filename/run-id generation.
-- **Contract**: точный argv OpenCode, stdin-only prompt, no shell, timeout cleanup, stable diagnostic codes, `review-findings/v1` round trip.
+- **Contract**: локально подтверждённый argv OpenCode, stdin-only prompt, no shell, process-tree timeout cleanup, stable diagnostic/exit codes, `review-response/v1` → `spec-review-run/v1` round trip.
 - **Architecture**: `ProfileInvocationExecutor` по-прежнему не импортирует/не вызывает runner; `reviews/` всегда разрешается как PRIMARY через mission runtime.
-- **Privacy teeth tests**: уникальный sentinel из spec отсутствует во всех captured logs/errors/failure artifacts; каждый call-site, добавляющий логирование, имеет отдельную reversion-sensitive проверку.
+- **Privacy teeth tests**: полный и фрагментированный sentinel в stdout/stderr, invalid UTF-8, oversized stream, timeout и subprocess exception отсутствуют во всех выводах/errors/artifacts; каждый exception/error path имеет отдельную reversion-sensitive проверку.
+- **Placement/atomicity**: single, coord, lanes, lanes-with-coord, backfilled и deleted-coord состояния проверяют реальный path и commit target; legacy `*.findings.yaml` не классифицируется; concurrent processes, занятый run ID и symlink/reparse directory не приводят к overwrite или escape.
+- **Compatibility**: root help показывает `review` и `spec-review`; существующий `review` остаётся leaf с прежними flags/help/exit behavior, а fast-path/doctor не импортируют external-review stack.
 - **Live smoke**: manual marker, synthetic input, explicit consent; ни один CI job не зависит от модели или бесплатного quota.
 
 ## Документация и совместимость
 
 - Добавить краткую how-to секцию с prerequisites, disclosure example, запуском и чтением findings.
 - Отметить OpenCode/Ox как optional integration; не рекламировать free/ZDR как контракт.
-- `spec-kitty review` сохраняет текущую post-merge семантику; новая команда не меняет существующие flags и exit codes.
+- `spec-kitty review` сохраняет текущую post-merge семантику; отдельный regression contract фиксирует прежние flags, help и exit behavior.
 - Если появится публичный machine-readable CLI output, он получает отдельную versioned JSON schema; в v1 достаточно стабильного YAML artifact и human summary.
 
 ## Gates
