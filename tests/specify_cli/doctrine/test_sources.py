@@ -448,6 +448,31 @@ class TestHttpsBundleSource:
         assert prepared_url is not None
         assert set(calls) == {prepared_url}
 
+    def test_canonical_url_is_the_wire_url_after_repeated_preparation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        raw_url = "https://example.com/a/%2e%2e/pack.tar.gz"
+        canonical_url = "https://example.com/pack.tar.gz"
+        sent_urls: list[str] = []
+
+        def _fake_send(
+            session: requests.Session,
+            request: requests.PreparedRequest,
+            **kwargs: Any,
+        ) -> _FakeResponse:
+            del session, kwargs
+            assert request.url is not None
+            sent_urls.append(request.url)
+            return _FakeResponse(status_code=500, url=request.url)
+
+        monkeypatch.setattr(requests.Session, "send", _fake_send)
+
+        result = HttpsBundleSource(url=raw_url).fetch(tmp_path / "snapshot")
+
+        assert result.ok is False
+        assert sent_urls
+        assert set(sent_urls) == {canonical_url}
+
     def test_tar_gz_extraction(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -788,25 +813,33 @@ class TestHttpsBundleSource:
         assert final_aql.closed is True
 
     @pytest.mark.parametrize(
-        ("item_url", "source_type"),
+        ("item_url", "source_type", "expected_error"),
         [
-            ("https://artifactory.example.com/repo/pack.tar.gz", "artifactory"),
+            (
+                "https://artifactory.example.com/repo/pack.tar.gz",
+                "artifactory",
+                "valid Artifactory item URL",
+            ),
             (
                 "https://artifactory.example.com/artifactory/repo/"
                 "folder%2Fpack.tar.gz",
                 "https",
+                "valid Artifactory item URL",
             ),
             (
                 "https://artifactory.example.com/artifactory/repo/%ZZpack.tar.gz",
                 "https",
+                "URL is invalid",
             ),
             (
                 "https://artifactory.example.com/artifactory/repo//pack.tar.gz",
                 "https",
+                "valid Artifactory item URL",
             ),
             (
                 "https://artifactory.example.com/artifactory/repo/../pack.tar.gz",
                 "https",
+                "valid Artifactory item URL",
             ),
         ],
     )
@@ -816,6 +849,7 @@ class TestHttpsBundleSource:
         monkeypatch: pytest.MonkeyPatch,
         item_url: str,
         source_type: str,
+        expected_error: str,
     ) -> None:
         calls: list[str] = []
 
@@ -833,7 +867,7 @@ class TestHttpsBundleSource:
         ).fetch(tmp_path / "snapshot")
 
         assert result.ok is False
-        assert any("valid Artifactory item URL" in error for error in result.errors)
+        assert any(expected_error in error for error in result.errors)
         assert calls == []
 
     def test_artifactory_version_is_bound_to_downloaded_sha256(

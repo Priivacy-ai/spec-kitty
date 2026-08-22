@@ -442,8 +442,25 @@ class TestEtagConditionalFetch:
         assert marker.read_text() == "preserve\n"
         assert calls == []
 
+    @pytest.mark.parametrize(
+        ("raw_url", "canonical_url"),
+        [
+            (
+                "https://bücher.example/pack.tar.gz",
+                "https://xn--bcher-kva.example/pack.tar.gz",
+            ),
+            (
+                "https://example.com/a/%2e%2e/pack.tar.gz",
+                "https://example.com/pack.tar.gz",
+            ),
+        ],
+    )
     def test_snapshot_persists_the_canonical_request_identity(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        raw_url: str,
+        canonical_url: str,
     ) -> None:
         from specify_cli.doctrine.sources.https_source import HttpsBundleSource
 
@@ -460,12 +477,11 @@ class TestEtagConditionalFetch:
         local_path = tmp_path / "doctrine"
 
         result = write_snapshot(
-            HttpsBundleSource(url="https://bücher.example/pack.tar.gz"),
+            HttpsBundleSource(url=raw_url),
             local_path,
             source_type="https",
         )
 
-        canonical_url = "https://xn--bcher-kva.example/pack.tar.gz"
         manifest = yaml.safe_load((local_path / "pack-manifest.yaml").read_text())
         assert result.ok is True
         assert seen_urls == [canonical_url]
