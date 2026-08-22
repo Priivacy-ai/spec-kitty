@@ -32,7 +32,8 @@ import re
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+
+from kernel.clock import datetime, timedelta
 
 # ---------------------------------------------------------------------------
 # FR-001: conclusion taxonomy

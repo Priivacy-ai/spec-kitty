@@ -272,8 +272,11 @@ def test_red_first_primary_pytest_step_is_not_continue_on_error() -> None:
     `fast-tests-cli` job.
     """
     steps = _fast_cli_steps()
+    # `primary` is already filtered by exact name equality, so its only possible
+    # content is N copies of the same identifying string -- a frozenset conversion
+    # would carry no more information than the count itself.
     primary = [s for s in steps if s.get("name") == "Run fast tests — cli"]
-    assert len(primary) == 1, "expected exactly one primary fast-cli pytest step"
+    assert len(primary) == 1, "expected exactly one primary fast-cli pytest step"  # golden-count: cardinality-is-contract
     assert not primary[0].get("continue-on-error"), (
         "the primary 'Run fast tests — cli' step must NOT be continue-on-error "
         "— that would green the gating job on a real failure (FR-011)"
@@ -284,8 +287,18 @@ def test_red_first_helper_steps_are_continue_on_error() -> None:
     """The three red-first helper steps (restore/seed/collect) MUST be
     continue-on-error so the ergonomics optimization can never gate or error
     the run (FR-018 defensive contract)."""
+    expected_helper_names = frozenset(
+        {
+            "[FR-018] Restore red-first lastfailed cache (PR sync only)",
+            "[FR-018] Seed pytest lastfailed cache from prior red run",
+            "[FR-018] Persist failing nodeids for next push (PR sync only)",
+        }
+    )
     helpers = [s for s in _fast_cli_steps() if "[FR-018]" in str(s.get("name", ""))]
-    assert len(helpers) == 3, f"expected 3 FR-018 red-first helper steps, found {len(helpers)}"
+    helper_names = frozenset(str(s.get("name", "")) for s in helpers)
+    assert helper_names == expected_helper_names, (
+        f"expected exactly the 3 named FR-018 red-first helper steps, found {sorted(helper_names)}"
+    )
     not_guarded = [s["name"] for s in helpers if not s.get("continue-on-error")]
     assert not not_guarded, (
         f"red-first helper step(s) missing `continue-on-error: true` (could gate "

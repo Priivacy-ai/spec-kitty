@@ -26,12 +26,13 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+
+from kernel.clock import UTC, datetime, timedelta
 
 pytestmark = pytest.mark.fast
 
@@ -426,7 +427,7 @@ class TestAggregateDurations:
             FR.DurationSample(nodeid=_TIMING_NODEID_1, duration_s=39.95),
         ]
         aggs = FR.aggregate_durations(samples)
-        assert len(aggs) == 1
+        assert [agg.nodeid for agg in aggs] == [_TIMING_NODEID_1]
         agg = aggs[0]
         assert agg.nodeid == _TIMING_NODEID_1
         assert agg.n == 3
