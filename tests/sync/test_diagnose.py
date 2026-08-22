@@ -532,3 +532,127 @@ class TestCanonicalRegistryRecognition:
             # Restore the original module-level state so subsequent tests
             # in this process see the un-patched recognition set.
             importlib.reload(_diagnose_mod)
+
+
+# ---------------------------------------------------------------------------
+# Dossier payload delegation (FR-011)
+# ---------------------------------------------------------------------------
+
+# WP02 (FR-006) replaced the four hand-maintained dossier ``_PAYLOAD_RULES``
+# entries with a sentinel that delegates to
+# ``spec_kitty_events.conformance.validate_event()``. ``diagnose.py`` is a
+# second, independent free-function consumer of the same ``_PAYLOAD_RULES``
+# dict (imported at module scope) -- without the FR-011 coordination, the
+# sentinel's non-dict shape crashes ``diagnose.py::_validate_payload``'s
+# unguarded ``rules.get(...)`` calls with
+# ``AttributeError: 'object' object has no attribute 'get'`` the moment a
+# dossier event reaches it. These tests are the FR-011 regression coverage
+# (previously zero ``dossier`` hits in this file).
+
+_DOSSIER_NAMESPACE = {
+    "project_uuid": "11111111-2222-4333-8444-555555555555",
+    "mission_slug": "042-feat",
+    "target_branch": "main",
+    "mission_type": "software-dev",
+    "manifest_version": "1",
+}
+
+
+def _make_valid_dossier_artifact_indexed_payload() -> dict:
+    return {
+        "namespace": dict(_DOSSIER_NAMESPACE),
+        "artifact_id": {
+            "mission_type": "software-dev",
+            "path": "spec.md",
+            "artifact_class": "input",
+        },
+        "content_ref": {
+            "hash": "a" * 64,
+            "algorithm": "sha256",
+        },
+        "indexed_at": "2026-08-22T12:00:00Z",
+    }
+
+
+class TestDossierPayloadDelegation:
+    """FR-011: diagnose.py's dossier-typed events go through validate_event()
+    without crashing, and an invalid payload surfaces a real
+    ConformanceResult-sourced violation in DiagnoseResult.errors.
+    """
+
+    def test_valid_dossier_event_does_not_crash_and_reports_no_error(self):
+        """SC-006 (valid half): a valid dossier event passes with no error."""
+        event = _make_valid_event(
+            event_type="MissionDossierArtifactIndexed",
+            aggregate_id="042-feat:spec.md",
+            aggregate_type="MissionDossier",
+            payload=_make_valid_dossier_artifact_indexed_payload(),
+        )
+
+        results = diagnose_events([event])  # must not raise AttributeError
+
+        assert len(results) == 1
+        assert results[0].valid is True
+        assert results[0].errors == []
+
+    def test_invalid_dossier_event_does_not_crash_and_reports_real_violation(self):
+        """SC-006 (invalid half): an invalid dossier event does not crash and
+        the invalid case's violation appears in DiagnoseResult.errors,
+        naming the actual missing field (not a generic message).
+        """
+        payload = _make_valid_dossier_artifact_indexed_payload()
+        del payload["indexed_at"]  # deliberately drop a required field
+        event = _make_valid_event(
+            event_type="MissionDossierArtifactIndexed",
+            aggregate_id="042-feat:spec.md",
+            aggregate_type="MissionDossier",
+            payload=payload,
+        )
+
+        results = diagnose_events([event])  # must not raise AttributeError
+
+        assert len(results) == 1
+        assert results[0].valid is False
+        assert any("indexed_at" in e for e in results[0].errors)
+
+    def test_all_four_dossier_event_types_do_not_crash(self):
+        """Every dossier event type recognised by ``_PAYLOAD_RULES`` routes
+        through the sentinel-aware branch without an AttributeError, using
+        each type's own minimal valid payload.
+        """
+        payloads = {
+            "MissionDossierArtifactIndexed": _make_valid_dossier_artifact_indexed_payload(),
+            "MissionDossierArtifactMissing": {
+                "namespace": dict(_DOSSIER_NAMESPACE),
+                "expected_identity": {
+                    "mission_type": "software-dev",
+                    "path": "spec.md",
+                    "artifact_class": "input",
+                },
+                "manifest_step": "specify",
+                "checked_at": "2026-08-22T12:00:00Z",
+            },
+            "MissionDossierSnapshotComputed": {
+                "namespace": dict(_DOSSIER_NAMESPACE),
+                "snapshot_hash": "sha256:" + "a" * 64,
+                "artifact_count": 1,
+                "anomaly_count": 0,
+                "computed_at": "2026-08-22T12:00:00Z",
+            },
+            "MissionDossierParityDriftDetected": {
+                "namespace": dict(_DOSSIER_NAMESPACE),
+                "expected_hash": "sha256:" + "a" * 64,
+                "actual_hash": "sha256:" + "b" * 64,
+                "drift_kind": "content_mismatch",
+                "detected_at": "2026-08-22T12:00:00Z",
+            },
+        }
+        for event_type, payload in payloads.items():
+            event = _make_valid_event(
+                event_type=event_type,
+                aggregate_id="042-feat:x",
+                aggregate_type="MissionDossier",
+                payload=payload,
+            )
+            results = diagnose_events([event])  # must not raise AttributeError
+            assert len(results) == 1, event_type

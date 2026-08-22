@@ -520,7 +520,22 @@ def _proof_validators_for(event_type: str) -> dict[str, Any]:
     return validators
 
 
-_PAYLOAD_RULES: dict[str, dict[str, Any]] = {
+_DOSSIER_VALIDATE_EVENT_DELEGATE = object()  # sentinel: see is_dossier_delegate() below
+
+_DOSSIER_EVENT_TYPES = frozenset({
+    "MissionDossierArtifactIndexed",
+    "MissionDossierArtifactMissing",
+    "MissionDossierSnapshotComputed",
+    "MissionDossierParityDriftDetected",
+})
+
+
+def is_dossier_delegate(rules: object) -> bool:
+    """True if *rules* is the dossier validate_event() delegation sentinel."""
+    return rules is _DOSSIER_VALIDATE_EVENT_DELEGATE
+
+
+_PAYLOAD_RULES: dict[str, dict[str, Any] | object] = {
     "BuildRegistered": {
         # Local-first registration (issue #1074): build_id + project_uuid scope
         # are sufficient. repo_slug is optional enrichment for git-backed
@@ -824,56 +839,10 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     # (LocalNamespaceTuple, ArtifactIdentity, ContentHashRef). See
     # Priivacy-ai/spec-kitty#1047 for the migration from the legacy flat
     # envelope.
-    "MissionDossierArtifactIndexed": {
-        "required": {"namespace", "artifact_id", "content_ref", "indexed_at"},
-        "validators": {
-            "namespace": _is_dict,
-            "artifact_id": _is_dict,
-            "content_ref": _is_dict,
-            "indexed_at": lambda v: isinstance(v, str) and len(v) >= 1,
-            "provenance": lambda v: v is None or isinstance(v, dict),
-            "step_id": _is_nullable_string,
-            "context_diagnostics": lambda v: v is None or isinstance(v, dict),
-            "supersedes": lambda v: v is None or isinstance(v, dict),
-        },
-    },
-    "MissionDossierArtifactMissing": {
-        "required": {"namespace", "expected_identity", "manifest_step", "checked_at"},
-        "validators": {
-            "namespace": _is_dict,
-            "expected_identity": _is_dict,
-            "manifest_step": lambda v: isinstance(v, str) and len(v) >= 1,
-            "checked_at": lambda v: isinstance(v, str) and len(v) >= 1,
-            "last_known_ref": lambda v: v is None or isinstance(v, dict),
-            "remediation_hint": _is_nullable_string,
-            "context_diagnostics": lambda v: v is None or isinstance(v, dict),
-        },
-    },
-    "MissionDossierSnapshotComputed": {
-        "required": {"namespace", "snapshot_hash", "artifact_count", "anomaly_count", "computed_at"},
-        "validators": {
-            "namespace": _is_dict,
-            "snapshot_hash": _is_canonical_snapshot_hash,
-            "artifact_count": lambda v: isinstance(v, int) and v >= 0,
-            "anomaly_count": lambda v: isinstance(v, int) and v >= 0,
-            "computed_at": lambda v: isinstance(v, str) and len(v) >= 1,
-            "algorithm": _is_nullable_string,
-            "context_diagnostics": lambda v: v is None or isinstance(v, dict),
-        },
-    },
-    "MissionDossierParityDriftDetected": {
-        "required": {"namespace", "expected_hash", "actual_hash", "drift_kind", "detected_at"},
-        "validators": {
-            "namespace": _is_dict,
-            "expected_hash": _is_canonical_snapshot_hash,
-            "actual_hash": _is_canonical_snapshot_hash,
-            "drift_kind": lambda v: isinstance(v, str) and len(v) >= 1,
-            "detected_at": lambda v: isinstance(v, str) and len(v) >= 1,
-            "artifact_ids_changed": lambda v: v is None or (isinstance(v, list) and all(isinstance(item, dict) for item in v)),
-            "rebuild_hint": _is_nullable_string,
-            "context_diagnostics": lambda v: v is None or isinstance(v, dict),
-        },
-    },
+    "MissionDossierArtifactIndexed": _DOSSIER_VALIDATE_EVENT_DELEGATE,
+    "MissionDossierArtifactMissing": _DOSSIER_VALIDATE_EVENT_DELEGATE,
+    "MissionDossierSnapshotComputed": _DOSSIER_VALIDATE_EVENT_DELEGATE,
+    "MissionDossierParityDriftDetected": _DOSSIER_VALIDATE_EVENT_DELEGATE,
     "MissionOriginBound": {
         "required": {
             "mission_slug",
@@ -2575,6 +2544,24 @@ class EventEmitter:
             _console.print(f"[yellow]Warning: Event validation failed: {e}[/yellow]")
             return False
 
+    def _validate_dossier_payload(self, event_type: str, payload: dict[str, Any]) -> bool:
+        """Delegate dossier payload validation to spec_kitty_events.conformance.
+
+        FR-006: replaces the four hand-maintained dossier ``_PAYLOAD_RULES``
+        entries with the canonical, dual-layer (Pydantic + JSON Schema)
+        validator the ``spec_kitty_events`` package ships. Translates
+        ``ConformanceResult.valid`` into this method's existing ``bool``
+        contract, printing a warning naming the real violation (NFR-002:
+        emitter.py's visibility contract stays a printed warning).
+        """
+        from spec_kitty_events.conformance import validate_event
+
+        result = validate_event(payload, event_type, strict=True)
+        if not result.valid:
+            violations = [str(v) for v in (*result.model_violations, *result.schema_violations)]
+            _console.print(f"[yellow]Warning: {event_type} payload invalid: {'; '.join(violations)}[/yellow]")
+        return result.valid
+
     def _validate_payload(self, event_type: str, payload: dict[str, Any]) -> bool:
         """Validate payload fields against per-event-type schema rules.
 
@@ -2583,6 +2570,13 @@ class EventEmitter:
         rules = _PAYLOAD_RULES.get(event_type)
         if rules is None:
             return True  # No rules = no validation needed
+
+        if is_dossier_delegate(rules):
+            return self._validate_dossier_payload(event_type, payload)
+
+        # rules is not the dossier delegation sentinel at this point, so it
+        # is the generic {"required": ..., "validators": ...} dict shape.
+        assert isinstance(rules, dict)
 
         # Check required fields
         missing = rules["required"] - set(payload.keys())
