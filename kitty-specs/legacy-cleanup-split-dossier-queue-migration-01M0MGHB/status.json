@@ -1,19 +1,19 @@
 {
-  "event_count": 12,
-  "last_event_id": "01M0N2REE8DY1D1Z0KDQ2RH8MA",
-  "materialized_at": "2026-08-22T15:52:16.584355+00:00",
+  "event_count": 13,
+  "last_event_id": "01M0N2RZTT6Q3M3SRC1P0R9PFG",
+  "materialized_at": "2026-08-22T15:52:34.394154+00:00",
   "mission_number": "",
   "mission_slug": "legacy-cleanup-split-dossier-queue-migration-01M0MGHB",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 1
   },
   "work_packages": {
@@ -44,9 +44,14 @@
     "WP03": {
       "actor": "claude",
       "force_count": 1,
-      "lane": "in_review",
-      "last_event_id": "01M0N2REE8DY1D1Z0KDQ2RH8MA",
-      "last_transition_at": "2026-08-22T15:52:16.584355+00:00"
+      "lane": "approved",
+      "last_event_id": "01M0N2RZTT6Q3M3SRC1P0R9PFG",
+      "last_transition_at": "2026-08-22T15:52:34.394154+00:00",
+      "review_result": {
+        "reference": "WP03: guard defeated and restored by reviewer (assert 0 == 1 when detector gutted); shard collection independently reproduced via shard_for() -> arch_shard_1 through default_fallback hash-bucket; 0 false positives against 5 real keyword-only call sites; residual risk noted - dossier/__init__.py re-exports emitters so attribute-chain calls evade ast.Name matching (spec-sanctioned scope, follow-up issue recommended)",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      }
     },
     "WP04": {
       "actor": "finalize-tasks",
