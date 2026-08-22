@@ -284,11 +284,41 @@ def _mission_refs(primary: Path, mission_slug: str) -> set[str]:
 
 
 def _common_lock_files(primary: Path) -> list[Path]:
+    """Return unexpected entries under the shared coordination lock root.
+
+    Filelock persistence semantics (HIC-M2-DISPOSITIONS-2026-08-22 item 1,
+    F2-T2): ``feature_status_lock`` / ``project_event_log_lock``
+    (``specify_cli.status.locking``) are backed by the third-party
+    ``filelock`` package. Each acquisition creates its ``*.status.lock``
+    marker via ``open(..., O_CREAT)`` -- filelock never writes any bytes into
+    that file, so the marker is always zero-length -- and flocks it; release
+    only drops the OS-level advisory lock. python-filelock does not
+    guarantee the marker is unlinked afterward (on Unix its fast path tries
+    to, but two processes genuinely contending for the *same* lock file --
+    exactly what this test drives, concurrent ``next`` on one mission from
+    the primary checkout and its owned worktree -- can race that unlink, and
+    the loser's still-open marker survives). A zero-byte ``*.status.lock``
+    file left behind under ``<git-common-dir>/spec-kitty-locks/`` after the
+    test is therefore expected residue of the lock mechanism itself, not a
+    defect, and asserting it never happens is not an assertable invariant.
+    A real defect -- mission content or runtime state (which belongs under
+    ``kitty-specs/`` or ``.kittify/runtime/``) leaking into the shared lock
+    directory instead -- would show up here as a non-empty file, or one
+    outside the ``*.status.lock`` naming convention. This helper filters out
+    only the inert empty markers and returns anything else, so the caller can
+    assert that real invariant instead.
+    """
     common = Path(_git(primary, "rev-parse", "--git-common-dir"))
     if not common.is_absolute():
         common = (primary / common).resolve()
     lock_root = common / "spec-kitty-locks"
-    return sorted(lock_root.rglob("*.lock")) if lock_root.is_dir() else []
+    if not lock_root.is_dir():
+        return []
+    return sorted(
+        path
+        for path in lock_root.rglob("*")
+        if path.is_file() and not (path.suffix == ".lock" and path.stat().st_size == 0)
+    )
 
 
 def _assert_tree_clean(root: Path) -> None:
@@ -494,6 +524,10 @@ def test_installed_cli_keeps_two_owned_worktrees_isolated(
             _payload(run)
 
     _assert_runtime_isolated(project, slug_a, slug_b)
+    # Zero-byte *.status.lock markers are expected filelock-unlink-race
+    # residue (see _common_lock_files docstring), not a defect; the assertion
+    # is that nothing else -- mission content or runtime state -- ever ends
+    # up under the shared lock root.
     assert _common_lock_files(project.primary) == []
     for root in (project.primary, project.agent_a, project.agent_b):
         _assert_tree_clean(root)
