@@ -239,6 +239,84 @@ def test_symlink_within_the_same_checkout_does_not_raise(tmp_path, origin):
     assert repo_identity.repo_name(str(link)) == "acme-widgets"
 
 
+@pytest.mark.requires_symlinks
+def test_container_with_real_and_symlinked_checkout_raises_ambiguous_not_ancestor(
+    tmp_path, origin
+):
+    """Reproduces the symlinked-sibling undercount: `_sibling_checkouts`
+    gated on `entry.is_dir(follow_symlinks=False)`, so a SYMLINKED child
+    checkout was never counted as a sibling. A session-container holding one
+    real checkout and one symlinked checkout (pointing at a wholly different
+    real repo elsewhere) is exactly as ambiguous as two real-directory
+    checkouts — nested inside an ancestor repo with its own `origin`, the
+    undercount let the container's identity resolution fall through and mint
+    the ANCESTOR's identity instead of raising. A symlinked checkout must
+    count toward the ambiguity just like a real one."""
+    parent = tmp_path / "root-control-plane"
+    parent.mkdir()
+    _git("init", "-q", cwd=parent)
+    _git("remote", "add", "origin", "git@github.com:me/root-repo.git", cwd=parent)
+
+    container = parent / "sandboxes"
+    container.mkdir()
+    _clone(origin, container / "lane-a")
+
+    elsewhere_origin = tmp_path / "elsewhere.git"
+    elsewhere_origin.mkdir()
+    _git("init", "--bare", "-q", cwd=elsewhere_origin)
+    elsewhere = _clone(elsewhere_origin, tmp_path / "elsewhere-checkout")
+
+    (container / "lane-b-symlink").symlink_to(elsewhere)
+
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.repo_name(str(container))
+
+
+# --- GIT_DIR / GIT_WORK_TREE env bypass -------------------------------------
+
+
+def test_git_dir_env_does_not_spoof_identity_for_an_unambiguous_checkout(
+    tmp_path, origin, monkeypatch
+):
+    """`Deadline.run` shells out to `git ...` with `cwd=<checkout>`, but
+    (pre-fix) inherited the ambient environment wholesale. An ambient
+    `GIT_DIR` pointing at a different, unrelated repo makes git obey the env
+    override and report THAT repo's `origin` regardless of `cwd` — spoofing
+    identity even for a single, otherwise-unambiguous checkout. The probe
+    must be forced to discover from `cwd`, corroborating the
+    filesystem-based canonical resolution above it, never trusting an
+    ambient env spoof."""
+    victim = _clone(origin, tmp_path / "victim")
+
+    spoof_origin = tmp_path / "spoof.git"
+    spoof_origin.mkdir()
+    _git("init", "--bare", "-q", cwd=spoof_origin)
+    spoof = _clone(spoof_origin, tmp_path / "spoof-checkout")
+
+    monkeypatch.setenv("GIT_DIR", str(spoof / ".git"))
+
+    assert repo_identity.repo_name(str(victim)) == "acme-widgets"
+
+
+def test_git_work_tree_env_does_not_spoof_identity_for_an_unambiguous_checkout(
+    tmp_path, origin, monkeypatch
+):
+    """Same spoof as above, via `GIT_WORK_TREE` instead of `GIT_DIR` —
+    either identity-discovery override must be stripped from the probe's
+    environment, not just one of them."""
+    victim = _clone(origin, tmp_path / "victim")
+
+    spoof_origin = tmp_path / "spoof.git"
+    spoof_origin.mkdir()
+    _git("init", "--bare", "-q", cwd=spoof_origin)
+    spoof = _clone(spoof_origin, tmp_path / "spoof-checkout")
+
+    monkeypatch.setenv("GIT_DIR", str(spoof / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(spoof))
+
+    assert repo_identity.repo_name(str(victim)) == "acme-widgets"
+
+
 # --- identity(): repo + branch + commit, one call --------------------------
 
 
