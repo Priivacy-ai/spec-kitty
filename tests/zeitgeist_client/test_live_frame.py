@@ -188,9 +188,9 @@ def test_focus_ended_is_dropped_not_queued() -> None:
     end = live_frame.parse_live_frame(_raw(seq=2, frame=_focus_frame(state="ended")))
     assert start is not None and end is not None
     state.apply(start)
-    assert state.snapshot().focus
+    assert state.snapshot(now=1000.0).focus
     state.apply(end)
-    assert state.snapshot().focus == ()
+    assert state.snapshot(now=1000.0).focus == ()
 
 
 def test_focus_heartbeat_refreshes_expiry() -> None:
@@ -239,9 +239,9 @@ def test_gap_signal_clears_state_and_records_reason() -> None:
     gap = live_frame.parse_live_frame(_raw(seq=2, frame=_signal_frame(kind="gap", from_seq=2, to_seq=4)))
     assert presence is not None and gap is not None
     state.apply(presence)
-    assert state.snapshot().presence
+    assert state.snapshot(now=1000.0).presence
     state.apply(gap)
-    snap = state.snapshot()
+    snap = state.snapshot(now=1000.0)
     assert snap.presence == ()  # no missed-event reconstruction: honestly cleared, not guessed
     assert snap.reset_count == 1
     assert snap.last_reset_reason == "gap"
@@ -267,9 +267,9 @@ def test_top_level_epoch_value_change_triggers_reset_even_without_a_signal() -> 
     after = live_frame.parse_live_frame(_raw(epoch="epoch-2", seq=1, frame=_signal_frame(kind="heartbeat")))
     assert before is not None and after is not None
     state.apply(before)
-    assert state.snapshot().presence
+    assert state.snapshot(now=1000.0).presence
     state.apply(after)
-    snap = state.snapshot()
+    snap = state.snapshot(now=1000.0)
     assert snap.presence == ()
     assert snap.epoch == "epoch-2"
     assert snap.last_reset_reason == "epoch_change"
@@ -282,8 +282,8 @@ def test_heartbeat_signal_does_not_clear_state() -> None:
     assert presence is not None and heartbeat is not None
     state.apply(presence)
     state.apply(heartbeat)
-    assert state.snapshot().presence
-    assert state.snapshot().reset_count == 0
+    assert state.snapshot(now=1000.0).presence
+    assert state.snapshot(now=1000.0).reset_count == 0
 
 
 def test_unknown_signal_kind_is_ignored_not_fatal() -> None:
@@ -307,7 +307,7 @@ def test_revoked_signal_removes_only_the_matching_session() -> None:
     state.apply(keep)
     state.apply(drop)
     state.apply(revoke)
-    snap = state.snapshot()
+    snap = state.snapshot(now=1000.0)
     refs = {p.session_ref for p in snap.presence}
     assert refs == {"c" * 12}
     assert snap.reset_count == 0  # a scoped revoke is not a full reset
