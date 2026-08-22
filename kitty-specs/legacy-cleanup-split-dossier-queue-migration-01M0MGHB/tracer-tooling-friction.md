@@ -187,3 +187,105 @@ Seeded at spec phase. Append entries as friction is hit during planning/implemen
   worktree-isolation sandbox and spec-kitty's `single_branch` topology (which
   deliberately keeps everything in the primary checkout, per this mission's own
   tracer-design-decisions.md SK-12 resolution) are in direct tension.
+
+## 2026-08-22 — Tasks phase: `finalize-tasks` silently dropped all inter-WP `dependencies`
+
+**Command 1** (validate-only preflight):
+```
+.venv/bin/spec-kitty agent mission finalize-tasks --validate-only --mission legacy-cleanup-split-dossier-queue-migration-01M0MGHB --json
+```
+Result: `"result": "validation_passed"`, `wp_count: 4`, `ownership_warnings: []`. The
+`would_modify` array previewed only `planning_base_branch`/`merge_target_branch`/
+`branch_strategy` normalization per WP — it did **not** preview any dependency
+parsing at all (no `dependencies` key appeared in any `would_modify[*].changes`
+entry), even though `tasks.md` and 3 of the 4 WP prompt files contain explicit
+"Depends on WP##" phrasing exactly matching the canonical
+`packs/built-in/missions/mission-steps/software-dev/tasks/prompt.md`'s documented
+dependency-detection heuristic ("Explicit phrases: 'Depends on WP##',
+'Dependencies: WP##'"). Concretely, `tasks.md`'s WP02/WP03/WP04 sections each carry
+a `**Dependencies**: WP0N` line at the top of the WP block plus a `### Dependencies`
+subsection with prose "Depends on WP0N ..." — both forms attempted, matching the
+prompt.md-documented pattern, neither detected.
+
+**Command 2** (mutating finalize):
+```
+.venv/bin/spec-kitty agent mission finalize-tasks --mission legacy-cleanup-split-dossier-queue-migration-01M0MGHB --json
+```
+Result: `"result": "success"`, `"commit_created": true`,
+`"commit_hash": "be560464bab3f2b636e0224fcee57a6d8a827291"`, but:
+```
+"dependencies_parsed": {"WP01": [], "WP02": [], "WP03": [], "WP04": []}
+```
+— **every WP's dependency list came back empty**, despite WP02→WP01, WP03→WP02,
+WP04→WP03 being explicit, unambiguous prose in `tasks.md` and in each WP prompt's
+own frontmatter-adjacent `## Context & Constraints` / `### Dependencies` sections
+(this mission's own architecture is a strictly linear chain by design — see
+tasks.md's "Dependency & Execution Summary" and plan.md's "Parallel Work Analysis",
+which explicitly rules out parallel WP execution). Confirmed by reading the
+committed WP frontmatter directly: `WP02`/`WP03`/`WP04` all show
+`dependencies: []`. The committed `lanes.json` compounds this: all 4 lanes
+(`lane-a`..`lane-d`) show `"depends_on_lanes": []` and `"parallel_group": 0` —
+i.e. the computed lane graph treats all 4 WPs as mutually parallel-safe, which is
+the opposite of this mission's binding sequencing requirement (WP02's
+`emitter.py`+`diagnose.py` chokepoint must not be claimable before WP01 lands; see
+tasks.md's "⚠️ Chokepoint Called Out Explicitly" section).
+
+Also observed on Command 2 (side note, non-blocking): repeated
+`Warning: Event routing failed: machine layout cutover did not publish within the
+bounded wait; the event is routed to the loud surface rather than dropped to
+legacy` lines printed to stderr before the JSON result — did not affect the JSON
+result's correctness as far as could be determined, but is itself unexplained
+tooling noise worth a maintainer look.
+
+**Per this mission's explicit instruction, no workaround was attempted**: no WP
+frontmatter, `lanes.json`, `status.json`, `status.events.jsonl`, or `tasks.md` was
+hand-edited to inject the missing `dependencies`/`depends_on_lanes` values, and
+`finalize-tasks` was not re-run with reworded phrasing to try to trigger the
+parser. This is reported upstream as-is; disjointness of `owned_files` across the
+4 WPs (a separate, correctly-enforced check) is not in question — only the
+dependency-graph/lane-ordering output is wrong.
+
+**Correction to the above (orchestrator ruling, same session):** the diagnosis
+above — "dependency-phrase detection silently no-ops" — was wrong and is
+retracted. `finalize-tasks`'s dependency resolver
+(`_resolve_dependencies_and_refs`, `src/specify_cli/cli/commands/agent/
+mission_finalize.py:826`) is documented and behaves exactly as documented: an
+explicit frontmatter `dependencies: []` is tier-2 authoritative and the tool
+never falls back to tasks.md prose parsing (tier 3) once tier 2 is present,
+even when tier 2's value is an empty list. The tool did not fail to parse
+anything — it was never asked to, because every WP frontmatter explicitly
+declared `dependencies: []`. **The real defect was an authoring-time
+contradiction**: the WP frontmatter (machine-authoritative) and the tasks.md
+prose (human-readable) told two different stories, and nothing compared them
+— the tool silently preferred the machine-authoritative source and returned
+success with a `lanes.json` that flatly contradicted tasks.md's own stated
+linear chain. That silent-success-under-contradictory-inputs shape is the
+genuine, ledger-worthy finding here (recorded upstream by the orchestrator,
+not duplicated here).
+
+**Fix applied and verified**: WP02/WP03/WP04 frontmatter `dependencies`
+corrected to `["WP01"]`/`["WP02"]`/`["WP03"]` (WP01 stays `[]`, correctly).
+Re-ran `.venv/bin/spec-kitty agent mission finalize-tasks --mission
+legacy-cleanup-split-dossier-queue-migration-01M0MGHB --json`; this run
+committed as `83ff392cd`. Verified: `dependencies_parsed` now shows the real
+chain; `lanes.json` now has `lane-a → lane-b → lane-c → lane-d` with
+`parallel_group` 0/1/2/3, genuinely acyclic, `collapse_report.total_merges: 0`
+(so ledger SK-25's collapse-induced-cycle hazard did not fire here); all 11
+FRs mapped across the four WPs; `status.json` well-formed (`event_count: 4`,
+4 work packages, `summary.planned: 4` — not SK-61's degenerate shape).
+
+**Observation (not a new ledger entry — orchestrator owns that)**: the
+mutating `finalize-tasks` re-run stalled roughly 95 seconds before exiting,
+printing the same "machine layout cutover did not publish within the bounded
+wait" warning noted above. This matches the profile of ledger SK-65 (machine
+layout stuck in `CUTOVER_PENDING` stalling every event-emitting command) —
+the same warning class also appeared during this mission's earlier `agent
+mission create`.
+
+**Positive evidence**: `finalize-tasks` also made its own bookkeeping commit,
+`chore(spec-kitty): status transition WP04`, on this mission's target branch
+without refusal. That is precisely the commit shape ledger SK-60 documents as
+refusing on a protected branch — it succeeded here because
+`refactor/dossier-emitters-canonical-only-1058` is a non-protected feature
+branch, i.e. the branch-first re-scaffold for this mission is paying off as
+intended.
