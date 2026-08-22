@@ -643,7 +643,12 @@ class TestDossierPayloadDelegation:
                 "namespace": dict(_DOSSIER_NAMESPACE),
                 "expected_hash": "sha256:" + "a" * 64,
                 "actual_hash": "sha256:" + "b" * 64,
-                "drift_kind": "content_mismatch",
+                # PR-CONTRACT-002: "content_mismatch" is not a member of the
+                # canonical Literal[artifact_added, artifact_removed,
+                # artifact_mutated, anomaly_introduced, anomaly_resolved,
+                # manifest_version_changed] -- "artifact_mutated" is the real
+                # member for a changed-content drift.
+                "drift_kind": "artifact_mutated",
                 "detected_at": "2026-08-22T12:00:00Z",
             },
         }
@@ -656,3 +661,41 @@ class TestDossierPayloadDelegation:
             )
             results = diagnose_events([event])  # must not raise AttributeError
             assert len(results) == 1, event_type
+            # PR-CONTRACT-002: these are documented as each type's own
+            # "minimal valid payload" -- prove that claim rather than only
+            # asserting "does not crash". Previously nothing here asserted
+            # validity, so a non-canonical drift_kind value went unnoticed.
+            assert results[0].valid is True, (event_type, results[0].errors)
+
+    def test_malformed_but_nonempty_hash_passes_through_real_delegation(self):
+        """PR-TESTS-001 discriminator: proves REAL delegation, not merely
+        that the sentinel branch exists.
+
+        The retired local ``_is_canonical_snapshot_hash`` regex
+        (``^(?:sha256:)?[a-f0-9]{64}$``) rejected a ``sha1:``-prefixed
+        value. Canonical ``spec_kitty_events.conformance.validate_event()``
+        has no such format rule for ``snapshot_hash`` -- it only requires a
+        non-empty string -- so it ACCEPTS this value. A stub reproducing the
+        old hand-rolled format-checking rules could not produce this
+        accept. Routed through ``diagnose_events()`` itself (not a direct
+        ``validate_event()`` call) to prove the wiring, not just the branch.
+        """
+        payload = {
+            "namespace": dict(_DOSSIER_NAMESPACE),
+            "snapshot_hash": "sha1:" + "a" * 40,  # malformed by the old regex, non-empty
+            "artifact_count": 1,
+            "anomaly_count": 0,
+            "computed_at": "2026-08-22T12:00:00Z",
+        }
+        event = _make_valid_event(
+            event_type="MissionDossierSnapshotComputed",
+            aggregate_id="042-feat:x",
+            aggregate_type="MissionDossier",
+            payload=payload,
+        )
+
+        results = diagnose_events([event])
+
+        assert len(results) == 1
+        assert results[0].valid is True
+        assert results[0].errors == []

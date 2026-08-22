@@ -28,6 +28,7 @@ from spec_kitty_events import (
     MissionDossierArtifactMissingPayload,
     MissionDossierParityDriftDetectedPayload,
     MissionDossierSnapshotComputedPayload,
+    ProvenanceRef,
 )
 from specify_cli.dossier.events import (
     emit_artifact_indexed,
@@ -301,6 +302,68 @@ class TestEmitArtifactIndexed:
 
         assert captured_payload_objects
         assert isinstance(captured_payload_objects[0], MissionDossierArtifactIndexedPayload)
+
+    def test_provenance_ref_shaped_dict_round_trips(self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple) -> None:
+        """PR-CONTRACT-001 (non-None path): a dict matching the canonical
+        ``ProvenanceRef`` shape (actor_id/actor_kind/git_ref/git_sha/
+        revised_at/source_event_ids) is accepted and round-trips into the
+        emitted payload -- proving the advertised type actually works, not
+        just that the wrong shape fails loudly (covered below).
+        """
+        result = emit_artifact_indexed(
+            mission_slug="042-feature",
+            artifact_key="input.spec.main",
+            artifact_class="input",
+            relative_path="spec.md",
+            content_hash_sha256="a" * 64,
+            size_bytes=1,
+            namespace=namespace,
+            provenance={"actor_id": "agent-ivan", "actor_kind": "llm"},
+        )
+        assert result is not None
+        payload = captured_emissions[0]["payload"]
+        assert payload["provenance"] == {"actor_id": "agent-ivan", "actor_kind": "llm"}
+        _assert_valid(payload, "mission_dossier_artifact_indexed_payload")
+
+    def test_provenance_ref_instance_round_trips(self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple) -> None:
+        """A pre-built ``ProvenanceRef`` instance is also accepted directly."""
+        result = emit_artifact_indexed(
+            mission_slug="042-feature",
+            artifact_key="input.spec.main",
+            artifact_class="input",
+            relative_path="spec.md",
+            content_hash_sha256="a" * 64,
+            size_bytes=1,
+            namespace=namespace,
+            provenance=ProvenanceRef(actor_id="agent-ivan", actor_kind="llm"),
+        )
+        assert result is not None
+        payload = captured_emissions[0]["payload"]
+        assert payload["provenance"] == {"actor_id": "agent-ivan", "actor_kind": "llm"}
+
+    def test_dossier_shaped_provenance_raises_loudly_instead_of_dropping(
+        self, captured_emissions: list[dict[str, Any]], namespace: LocalNamespaceTuple
+    ) -> None:
+        """PR-CONTRACT-001: this package's own artifact-level provenance
+        shape (``source_kind``/``actor_id``/``captured_at``, see
+        ``dossier.models.ArtifactRef.provenance``) is NOT the canonical
+        ``ProvenanceRef`` shape (``extra="forbid"``). Passing it must raise
+        ``pydantic.ValidationError`` -- not be swallowed by the broad
+        ``except (TypeError, ValueError)`` further down and silently return
+        ``None``, which is the defect this test pins closed.
+        """
+        with pytest.raises(ValidationError):
+            emit_artifact_indexed(
+                mission_slug="042-feature",
+                artifact_key="input.spec.main",
+                artifact_class="input",
+                relative_path="spec.md",
+                content_hash_sha256="a" * 64,
+                size_bytes=1,
+                namespace=namespace,
+                provenance={"source_kind": "git", "actor_id": "x", "captured_at": "2026-08-22T12:00:00Z"},
+            )
+        assert not captured_emissions
 
 
 class TestEmitArtifactMissing:

@@ -44,6 +44,7 @@ from spec_kitty_events import (
     MissionDossierArtifactMissingPayload,
     MissionDossierParityDriftDetectedPayload,
     MissionDossierSnapshotComputedPayload,
+    ProvenanceRef,
 )
 
 from kernel.clock import now_utc_iso
@@ -194,7 +195,7 @@ def emit_artifact_indexed(
     required_status: str = "optional",
     indexed_at: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    provenance: dict[str, Any] | None = None,
+    provenance: ProvenanceRef | dict[str, Any] | None = None,
     project_context: Any | None = None,
     project_unit: Any | None = None,
     project_layout: Any | None = None,
@@ -206,13 +207,33 @@ def emit_artifact_indexed(
     the server schema (``additionalProperties: False``) does not accept
     them at the top level.
 
-    Returns the enqueued event dict on success, or ``None`` if validation or
-    routing fails.
+    ``provenance``, if given, must match the canonical ``ProvenanceRef``
+    shape (``actor_id``, ``actor_kind``, ``git_ref``, ``git_sha``,
+    ``revised_at``, ``source_event_ids``) — the frozen, ``extra="forbid"``
+    model ``spec_kitty_events`` ships for this field. It does **not** accept
+    this package's own artifact-level provenance shape (``source_kind`` /
+    ``actor_id`` / ``captured_at``, see
+    ``specify_cli.dossier.models.ArtifactRef.provenance``): that shape is a
+    different, CLI-internal concept and passing it here raises
+    ``pydantic.ValidationError`` rather than silently dropping the event.
+
+    Returns the enqueued event dict on success, or ``None`` if the artifact
+    identity/content-hash inputs fail validation. An invalid ``provenance``
+    is deliberately NOT folded into that ``None`` path — see above — so it
+    raises instead.
     """
     ns = _coerce_namespace(namespace, mission_slug=mission_slug, step_id=step_id)
     if ns is None:
         _missing_namespace_log("MissionDossierArtifactIndexed")
         return None
+
+    if provenance is not None and not isinstance(provenance, ProvenanceRef):
+        # Deliberately outside the try/except below: a malformed provenance
+        # payload is a caller programming error, not a routine validation
+        # failure, and must surface loudly (PR-CONTRACT-001) rather than
+        # being absorbed into the generic "return None" path used for
+        # artifact_id/content_ref construction failures.
+        provenance = ProvenanceRef.model_validate(provenance)
 
     effective_mission_type = mission_type or ns.mission_type
     try:

@@ -1263,3 +1263,46 @@ class TestDossierValidateEventDelegation:
             "team_slug": "test-team",
         }
         assert emitter._validate_event(event) is False
+
+    _VALID_SNAPSHOT_COMPUTED_PAYLOAD = {
+        "namespace": {
+            "project_uuid": "11111111-2222-4333-8444-555555555555",
+            "mission_slug": "042-feat",
+            "target_branch": "main",
+            "mission_type": "software-dev",
+            "manifest_version": "1",
+        },
+        "snapshot_hash": "sha256:" + "a" * 64,
+        "artifact_count": 1,
+        "anomaly_count": 0,
+        "computed_at": "2026-08-22T12:00:00Z",
+    }
+
+    def test_malformed_but_nonempty_hash_passes_through_real_delegation(self, emitter: EventEmitter):
+        """PR-TESTS-001 discriminator: proves REAL delegation, not merely
+        that the sentinel branch exists.
+
+        The retired local ``_is_canonical_snapshot_hash`` regex
+        (``^(?:sha256:)?[a-f0-9]{64}$``) rejected a ``sha1:``-prefixed
+        value. Canonical ``spec_kitty_events.conformance.validate_event()``
+        has no such format rule for ``snapshot_hash`` -- it only requires a
+        non-empty string -- so it ACCEPTS this value. A stub reproducing the
+        old hand-rolled format-checking rules could not produce this
+        accept. Routed through ``emitter._validate_payload`` itself (not a
+        direct ``validate_event()`` call) to prove the wiring, not just the
+        branch.
+        """
+        payload = dict(self._VALID_SNAPSHOT_COMPUTED_PAYLOAD)
+        payload["snapshot_hash"] = "sha1:" + "a" * 40  # malformed by the old regex, non-empty
+
+        assert emitter._validate_payload("MissionDossierSnapshotComputed", payload) is True
+
+    def test_wrong_length_hash_passes_through_real_delegation(self, emitter: EventEmitter):
+        """Second discriminator instance: wrong-length hex also passed the
+        old regex's length check and was rejected; canonical delegation
+        does not check length at all.
+        """
+        payload = dict(self._VALID_SNAPSHOT_COMPUTED_PAYLOAD)
+        payload["snapshot_hash"] = "sha256:" + "a" * 10  # wrong length, non-empty
+
+        assert emitter._validate_payload("MissionDossierSnapshotComputed", payload) is True

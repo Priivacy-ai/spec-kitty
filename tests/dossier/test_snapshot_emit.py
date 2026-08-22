@@ -66,7 +66,11 @@ _VALID_PARITY_DRIFT_PAYLOAD = {
     "namespace": NAMESPACE_DICT,
     "expected_hash": "sha256:" + "a" * 64,
     "actual_hash": "sha256:" + "b" * 64,
-    "drift_kind": "content_mismatch",
+    # PR-CONTRACT-002: "content_mismatch" is not a member of the canonical
+    # Literal[artifact_added, artifact_removed, artifact_mutated,
+    # anomaly_introduced, anomaly_resolved, manifest_version_changed] --
+    # "artifact_mutated" is the real member for a changed-content drift.
+    "drift_kind": "artifact_mutated",
     "detected_at": "2026-08-22T12:00:00Z",
 }
 
@@ -254,6 +258,13 @@ class TestCanonicalSnapshotHashValidator:
         """
         assert is_dossier_delegate(_PAYLOAD_RULES["MissionDossierSnapshotComputed"])
         assert is_dossier_delegate(_PAYLOAD_RULES["MissionDossierParityDriftDetected"])
+
+        # PR-CONTRACT-002: positive-path proof that a real (canonical)
+        # drift_kind round-trips valid=True -- nothing here previously
+        # asserted this, so the fixtures had silently drifted onto a
+        # non-canonical "content_mismatch" value that only "did not crash".
+        result = validate_event(dict(_VALID_PARITY_DRIFT_PAYLOAD), "MissionDossierParityDriftDetected", strict=True)
+        assert result.valid is True, (result.model_violations, result.schema_violations)
 
         # A genuinely malformed (empty-string) hash value is still rejected,
         # via the canonical validator, naming the real violated field --

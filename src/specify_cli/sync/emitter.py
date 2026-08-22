@@ -522,13 +522,6 @@ def _proof_validators_for(event_type: str) -> dict[str, Any]:
 
 _DOSSIER_VALIDATE_EVENT_DELEGATE = object()  # sentinel: see is_dossier_delegate() below
 
-_DOSSIER_EVENT_TYPES = frozenset({
-    "MissionDossierArtifactIndexed",
-    "MissionDossierArtifactMissing",
-    "MissionDossierSnapshotComputed",
-    "MissionDossierParityDriftDetected",
-})
-
 
 def is_dossier_delegate(rules: object) -> bool:
     """True if *rules* is the dossier validate_event() delegation sentinel."""
@@ -2576,7 +2569,14 @@ class EventEmitter:
 
         # rules is not the dossier delegation sentinel at this point, so it
         # is the generic {"required": ..., "validators": ...} dict shape.
-        assert isinstance(rules, dict)
+        # `raise`, not `assert` -- `assert` is stripped under `python -O`,
+        # which would leave `rules["required"]` below silently misbehaving
+        # against a non-dict instead of failing loudly (WP02-ASSERT-RAISE).
+        if not isinstance(rules, dict):
+            raise TypeError(
+                f"_PAYLOAD_RULES[{event_type!r}] is neither the dossier "
+                f"delegation sentinel nor a dict; got {type(rules).__name__}"
+            )
 
         # Check required fields
         missing = rules["required"] - set(payload.keys())
