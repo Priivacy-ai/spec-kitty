@@ -245,6 +245,17 @@ def _agent_root_to_key(agent_root: str) -> str | None:
     return AGENT_DIR_TO_KEY.get(agent_root)
 
 
+def _write_generated_file(path: Path, content: str) -> None:
+    """Rewrite a generated command file and leave it write-protected."""
+    if path.exists():
+        path.chmod(path.stat().st_mode | 0o222)
+    try:
+        path.write_text(content, encoding="utf-8")
+    finally:
+        if path.exists():
+            path.chmod(path.stat().st_mode & ~0o222)
+
+
 # ---------------------------------------------------------------------------
 # Migration class
 # ---------------------------------------------------------------------------
@@ -367,7 +378,7 @@ class EnforceCommandFileStateMigration(BaseMigration):
                     continue
 
                 try:
-                    output_path.write_text(rendered, encoding="utf-8")
+                    _write_generated_file(output_path, rendered)
                     changes.append(f"Wrote prompt: {rel_path}")
                 except OSError as exc:
                     errors.append(f"Failed to write {rel_path}: {exc}")
@@ -384,7 +395,7 @@ class EnforceCommandFileStateMigration(BaseMigration):
 
                 shim_content = _render_shim(command, agent_key)
                 try:
-                    output_path.write_text(shim_content, encoding="utf-8")
+                    _write_generated_file(output_path, shim_content)
                     changes.append(f"Wrote shim: {rel_path}")
                 except OSError as exc:
                     errors.append(f"Failed to write {rel_path}: {exc}")
