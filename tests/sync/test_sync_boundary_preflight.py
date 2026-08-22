@@ -652,6 +652,7 @@ def test_preflight_result_is_frozen() -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 def test_run_preflight_performance_budget(tmp_path: Path, patched_legacy_counts) -> None:
     """A coherent-host preflight completes in ≤ 100 ms."""
     patched_legacy_counts({})

@@ -567,6 +567,7 @@ class TestVersionCheckerIntegration:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 class TestPerformance:
     @respx.mock
     def test_cache_warm_path_under_100ms(

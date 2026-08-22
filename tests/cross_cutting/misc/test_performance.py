@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.performance]
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src" / "specify_cli"))
 

@@ -1324,6 +1324,7 @@ class TestErrorHandlingEdgeCases:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 class TestIntegrationPerformance:
     """Verify integration test workflows complete within performance budget."""
 

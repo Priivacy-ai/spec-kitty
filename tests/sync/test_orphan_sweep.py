@@ -383,6 +383,7 @@ class TestOrphanSweep:
         assert any(o.port == port for o, _ in report.failed)
         assert all(o.port != port for o in report.swept)
 
+    @pytest.mark.performance
     def test_enumerate_50_port_scan_under_3s(self, harness: _DaemonHarness) -> None:
         """NFR-006: 50-port scan must complete in ≤ 3 s with nothing on the range."""
         # Don't spawn any daemons. State file absent → no singleton bias.

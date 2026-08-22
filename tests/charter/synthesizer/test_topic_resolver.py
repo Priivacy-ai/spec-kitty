@@ -436,6 +436,7 @@ class TestUnresolved:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.performance
 class TestPerformanceSc008:
     def test_unresolved_under_2_seconds(
         self, all_artifacts, merged_drg, interview_sections

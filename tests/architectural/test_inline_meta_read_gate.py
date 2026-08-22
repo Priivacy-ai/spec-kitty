@@ -1448,6 +1448,7 @@ def test_fr010_canary_allowed_shapes_do_not_trip(tmp_path: Path) -> None:
 
 
 # --- timing (fast-tier budget) ----------------------------------------------
+@pytest.mark.performance
 def test_gate_runs_under_fast_tier_budget() -> None:
     """Both scans complete well under the 30 s fast-tier ceiling."""
     start = time.monotonic()

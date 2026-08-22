@@ -37,7 +37,7 @@ from specify_cli.charter_runtime.freshness import compute_freshness
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.performance]
 
 @pytest.fixture
 def fixture_root() -> Path:

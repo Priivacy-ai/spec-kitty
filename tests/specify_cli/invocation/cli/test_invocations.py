@@ -361,6 +361,7 @@ class TestInvocationsListJSON:
 
 
 @pytest.mark.slow
+@pytest.mark.performance
 def test_list_performance_10k(tmp_path: Path) -> None:
     """invocations list for 100 records from 10 000 files must complete in < 200 ms.
 

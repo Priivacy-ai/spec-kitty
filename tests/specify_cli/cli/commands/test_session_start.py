@@ -155,6 +155,7 @@ class TestExitZeroGuarantee:
         assert result.exit_code == 0
 
 
+@pytest.mark.performance
 class TestNFR001Performance:
     def test_session_start_completes_under_200ms(
         self, spec_project: Path, monkeypatch: pytest.MonkeyPatch

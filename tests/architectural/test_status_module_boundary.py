@@ -309,6 +309,7 @@ def _collect_all_src_files() -> list[pathlib.Path]:
     return files
 
 
+@pytest.mark.performance
 def test_ast_scan_no_direct_status_imports_repo_wide() -> None:
     """AST scan: all modules in src/specify_cli + src/runtime must not bypass the status/ facade.
 
