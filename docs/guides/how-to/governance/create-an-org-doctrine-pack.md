@@ -434,6 +434,13 @@ download the item and query AQL. A conditional HTTP 304 performs no AQL query
 and preserves the prior snapshot and manifest byte-for-byte, including its
 previously sampled version.
 
+Use `source_type: artifactory` explicitly for a JFrog item; Artifactory is not
+inferred from the hostname. Its HTTPS URL must contain
+`/artifactory/<repository>/<item>`. After staging the download, Spec Kitty
+queries the item's `version` property and File Info SHA-256. Both are required,
+and the checksum must match the downloaded bytes before extraction or snapshot
+promotion.
+
 ### Env-var indirection in `local_path`
 
 `local_path` supports `${VAR}` and bare `$VAR` env-var tokens, composed with

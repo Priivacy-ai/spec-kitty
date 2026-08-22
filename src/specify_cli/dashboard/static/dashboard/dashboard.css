@@ -554,7 +554,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    color: #111827;
+    background-color: hsl(var(--avatar-hue), 65%, 82%);
+    border: 1px solid hsl(var(--avatar-hue), 45%, 38%);
     font-size: 0.7em;
     font-weight: 700;
     line-height: 1;
