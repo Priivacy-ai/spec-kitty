@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
 import subprocess
+from dataclasses import dataclass
+from enum import Enum
 from pathlib import Path
 
 from specify_cli.coordination import register_lane_sparse_checkout
@@ -27,6 +29,63 @@ from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.mission_metadata import load_meta
+
+
+class LaneTopology(Enum):
+    """The derived-parent source for a lane allocation (shared vocabulary).
+
+    ``COORD`` — the mission carries a ``coordination_branch`` (new-topology,
+    WP03+); the topology-derived parent is that branch. ``LEGACY`` — no
+    coordination branch; the parent is the ``mission_branch`` field. Derived
+    once from the authoritative ``coordination_branch`` value and threaded into
+    the :class:`LaneBaseDecision`, never re-inferred per site (#3460).
+    """
+
+    COORD = "coord"
+    LEGACY = "legacy"
+
+
+class LaneAllocationRoute(Enum):
+    """The closed set of routes :func:`allocate_lane_worktree` can take.
+
+    Threaded as the ``route`` dispatch key of
+    :func:`resolve_lane_base_or_refuse` so a typo fails mypy rather than
+    silently mis-dispatching. The four ``UnhonorableBaseError`` *triggers*
+    (reuse, crash_recovery, dependency_lane, detached_base) are a distinct,
+    finer axis modelled inside :func:`_guard_base_honorable`; the seam maps
+    route → applicable trigger(s).
+    """
+
+    FRESH_COORD = "fresh_coord"
+    FRESH_LEGACY = "fresh_legacy"
+    REUSE = "reuse"
+    CRASH_RECOVERY = "crash_recovery"
+
+
+@dataclass(frozen=True)
+class LaneBaseDecision:
+    """The single return of :func:`resolve_lane_base_or_refuse` on the honor /
+    no-override paths.
+
+    Refusal is **not** a field: an unhonorable route raises
+    :class:`UnhonorableBaseError` and never returns this object.
+
+    Attributes:
+        parent_ref: The ref a freshly-created lane branches from. ``base`` when
+            honored; else the topology-derived parent (``coordination_branch``,
+            or the legacy ``mission_branch``).
+        base_honored: ``True`` iff an explicit ``base`` was supplied AND this
+            route applied it; ``False`` when ``base is None``. Retained for
+            logging + the anti-bypass guard's assertions, NOT as the anti-drop
+            guarantee (that is the raise).
+        route: The allocation route that produced the decision.
+        topology: ``COORD`` or ``LEGACY`` — the derived-parent source.
+    """
+
+    parent_ref: str
+    base_honored: bool
+    route: LaneAllocationRoute
+    topology: LaneTopology
 
 
 class DirtyWorktreeError(Exception):
@@ -247,6 +306,102 @@ def _resolve_lane_parent(
     return coordination_branch if coordination_branch is not None else mission_branch
 
 
+def _guard_route_base(
+    base: str | None,
+    route: LaneAllocationRoute,
+    wp_id: str,
+    *,
+    lane: ExecutionLane | None,
+    planning_sha: str | None,
+    repo_root: Path | None,
+) -> None:
+    """Dispatch ``route`` to the ``_guard_base_honorable`` trigger(s) it checks.
+
+    Reuse / crash-recovery are unconditional (an already-created lane cannot be
+    re-parented, D3); the two fresh routes check ``detached_base`` (pre-create
+    atomicity, FR-010) then ``dependency_lane`` (D2/FR-009). ``base is None``
+    makes every trigger a no-op, so a no-override allocation never raises. Kept
+    a flat dispatch (one trigger call per branch) so the seam stays a thin
+    orchestrator under the Sonar S3776 ceiling.
+    """
+    if route is LaneAllocationRoute.REUSE:
+        _guard_base_honorable(base, "reuse", wp_id)
+        return
+    if route is LaneAllocationRoute.CRASH_RECOVERY:
+        _guard_base_honorable(base, "crash_recovery", wp_id)
+        return
+    _guard_base_honorable(
+        base, "detached_base", wp_id,
+        planning_sha=planning_sha, repo_root=repo_root,
+    )
+    _guard_base_honorable(base, "dependency_lane", wp_id, lane=lane)
+
+
+def resolve_lane_base_or_refuse(
+    *,
+    base: str | None,
+    route: LaneAllocationRoute,
+    coordination_branch: str | None,
+    mission_branch: str,
+    wp_id: str,
+    lane: ExecutionLane | None = None,
+    planning_sha: str | None = None,
+    repo_root: Path | None = None,
+) -> LaneBaseDecision:
+    """Resolve the parent a lane branches from, or REFUSE a base this route
+    cannot honor.
+
+    The single decision point folding M1's landed ``_guard_base_honorable``
+    (refusal path) and ``_resolve_lane_parent`` (positive path) into one seam,
+    so no route in :func:`allocate_lane_worktree` computes a parent ref inline
+    (FR-001/002/003). A THIN ORCHESTRATOR: it delegates to those two flat
+    helpers (via :func:`_guard_route_base`) rather than inlining their bodies,
+    keeping cognitive complexity below the Sonar S3776 ceiling. "Single seam" =
+    single *definition* and dispatch point — it is still called once per route.
+
+    Contract:
+        * ``base is None`` → returns a decision whose ``parent_ref`` is the
+          topology-derived parent (``coordination_branch`` if set, else
+          ``mission_branch``), ``base_honored=False``. No refusal, no guard
+          side effect (NFR-001, byte-identical to pre-M8).
+        * ``base`` on an unhonorable route → raises
+          :class:`UnhonorableBaseError` naming the trigger; never returns a
+          degraded parent (the #3571 silent-fallback fix — hence ``_or_refuse``,
+          not ``_or_degrade``).
+        * ``base`` on an honorable route → returns ``parent_ref == base``,
+          ``base_honored=True``; ``base`` fully REPLACES the topology parent.
+
+    Args:
+        base: The explicit ``--base`` ref, or ``None`` for the topology default.
+        route: Which allocation route is asking (dispatch key for the triggers).
+        coordination_branch: The coord branch, or ``None`` for legacy topology.
+        mission_branch: The legacy ``mission_branch`` fallback parent.
+        wp_id: Work package id (surfaced in the refusal).
+        lane: The lane, for the ``dependency_lane`` refusal trigger.
+        planning_sha: Recorded planning commit, for the ``detached_base`` trigger.
+        repo_root: Repo root, for the ``detached_base`` ``git merge-base`` check.
+
+    Returns:
+        The :class:`LaneBaseDecision` for an honored or no-override allocation.
+
+    Raises:
+        UnhonorableBaseError: If ``base`` is supplied but ``route`` cannot honor it.
+    """
+    _guard_route_base(
+        base, route, wp_id,
+        lane=lane, planning_sha=planning_sha, repo_root=repo_root,
+    )
+    topology = (
+        LaneTopology.COORD if coordination_branch is not None else LaneTopology.LEGACY
+    )
+    return LaneBaseDecision(
+        parent_ref=_resolve_lane_parent(base, coordination_branch, mission_branch),
+        base_honored=base is not None,
+        route=route,
+        topology=topology,
+    )
+
+
 def allocate_lane_worktree(
     repo_root: Path,
     mission_slug: str,
@@ -317,8 +472,16 @@ def allocate_lane_worktree(
 
     if worktree_path.exists():
         # FL1 (D3): an existing lane worktree cannot be re-parented onto a
-        # newly-supplied base — raise BEFORE any reuse side effects below.
-        _guard_base_honorable(base, "reuse", wp_id)
+        # newly-supplied base — the seam raises BEFORE any reuse side effects
+        # below. The reuse route re-uses the existing worktree, so the returned
+        # parent is not consumed; the seam is called for its refusal contract.
+        resolve_lane_base_or_refuse(
+            base=base,
+            route=LaneAllocationRoute.REUSE,
+            coordination_branch=None,
+            mission_branch=lanes_manifest.mission_branch,
+            wp_id=wp_id,
+        )
         # Reuse existing lane worktree — validate it is clean first.
         _validate_worktree_clean(worktree_path, lane.lane_id)
         # FR-009 (#2993) reuse-path self-heal: a lane created before this fix
@@ -363,9 +526,17 @@ def allocate_lane_worktree(
     # entries first so git does not reject the re-attachment on the grounds
     # that the branch is "already checked out" in the now-gone worktree.
     if _branch_exists(repo_root, branch):
-        # FL2 (D3): a branch that already exists (worktree dir gone) cannot
-        # be re-parented by re-attaching — raise BEFORE the prune/re-attach.
-        _guard_base_honorable(base, "crash_recovery", wp_id)
+        # FL2 (D3): a branch that already exists (worktree dir gone) cannot be
+        # re-parented by re-attaching — the seam raises BEFORE the prune/
+        # re-attach. Re-attachment keeps the existing branch, so the returned
+        # parent is not consumed; the seam is called for its refusal contract.
+        resolve_lane_base_or_refuse(
+            base=base,
+            route=LaneAllocationRoute.CRASH_RECOVERY,
+            coordination_branch=coordination_branch,
+            mission_branch=lanes_manifest.mission_branch,
+            wp_id=wp_id,
+        )
         subprocess.run(
             ["git", "worktree", "prune"],
             cwd=str(repo_root),
@@ -390,31 +561,27 @@ def allocate_lane_worktree(
         )
         return worktree_path, branch
 
-    # FL4 (FR-010): a base detached from the recorded planning commit cannot
-    # be merged without --allow-unrelated-histories — a PRE-CREATE guard
-    # (before either branch below creates the lane worktree/branch) so a
-    # failure leaves nothing half-created (atomicity; applies to both the
-    # coord and legacy routes).
-    _guard_base_honorable(
-        base, "detached_base", wp_id,
-        planning_sha=lanes_manifest.planning_commit_sha, repo_root=repo_root,
-    )
-
+    # Fresh-create routes: each resolves its parent (and refuses an unhonorable
+    # base) through the ONE seam BEFORE creating the lane worktree/branch, so a
+    # refusal leaves nothing half-created (INV-7 atomicity). The seam folds the
+    # FR-010 detached-base pre-create guard, the D2/FR-009 dependency-lane
+    # guard, and the D1/C-005 base-replaces-topology-parent choice — no route
+    # composes a parent ref inline.
     if coordination_branch is not None:
-        # FL3 (D2/FR-009): a dependency-bearing lane cannot honor an
-        # explicit base without re-parenting its coord-descended dependency
-        # tips (the M8 seam) — raise BEFORE the branch/worktree side effects.
-        _guard_base_honorable(base, "dependency_lane", wp_id, lane=lane)
+        decision = resolve_lane_base_or_refuse(
+            base=base,
+            route=LaneAllocationRoute.FRESH_COORD,
+            coordination_branch=coordination_branch,
+            mission_branch=lanes_manifest.mission_branch,
+            wp_id=wp_id,
+            lane=lane,
+            planning_sha=lanes_manifest.planning_commit_sha,
+            repo_root=repo_root,
+        )
         _ensure_branch_exists(
             repo_root, coordination_branch, lanes_manifest.target_branch,
         )
-        # D1/C-005: base fully REPLACES coordination_branch as the parent
-        # when supplied; base=None reproduces the prior coord-parent
-        # behaviour exactly.
-        parent = _resolve_lane_parent(
-            base, coordination_branch, lanes_manifest.mission_branch,
-        )
-        _create_lane_worktree(repo_root, worktree_path, branch, parent)
+        _create_lane_worktree(repo_root, worktree_path, branch, decision.parent_ref)
         # Register the sparse-checkout policy so the lane filesystem does
         # NOT contain status.events.jsonl / status.json. Only meaningful
         # when we have a mid8; new-topology missions always do because
@@ -423,11 +590,23 @@ def allocate_lane_worktree(
             worktree_path, mission_slug, coordination_branch, short_id,
         )
     else:
-        # Legacy path: parent on base when supplied, else the mission_branch
-        # field (C-005 — #1684 preserved byte-for-byte when base is None).
-        mission_branch = _resolve_lane_parent(base, None, lanes_manifest.mission_branch)
-        _ensure_mission_branch(repo_root, mission_branch, lanes_manifest.target_branch)
-        _create_lane_worktree(repo_root, worktree_path, branch, mission_branch)
+        # Legacy path: the seam's parent_ref is base when supplied, else the
+        # mission_branch field (C-005 — #1684 preserved byte-for-byte when
+        # base is None).
+        decision = resolve_lane_base_or_refuse(
+            base=base,
+            route=LaneAllocationRoute.FRESH_LEGACY,
+            coordination_branch=None,
+            mission_branch=lanes_manifest.mission_branch,
+            wp_id=wp_id,
+            lane=lane,
+            planning_sha=lanes_manifest.planning_commit_sha,
+            repo_root=repo_root,
+        )
+        _ensure_mission_branch(
+            repo_root, decision.parent_ref, lanes_manifest.target_branch,
+        )
+        _create_lane_worktree(repo_root, worktree_path, branch, decision.parent_ref)
 
     # FR-009 (#2993) / ADR 2026-07-29-1: merge the recorded finalize-tasks
     # planning-artifact commit into the freshly created lane, on top of its
