@@ -233,7 +233,9 @@ def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
 
     # Create meta.json with deliverables path
     meta_file = feature_dir / "meta.json"
-    meta_file.write_text(json.dumps({"mission": "research", "deliverables_path": "docs/research/001-research/"}))
+    meta_file.write_text(
+        json.dumps({"mission_type": "research", "deliverables_path": "docs/research/001-research/"})
+    )
 
     # Verify separation
     assert get_mission_type(feature_dir) == "research"
@@ -264,7 +266,7 @@ def test_default_deliverables_path_generation(tmp_path: Path) -> None:
     meta_file.write_text(
         json.dumps(
             {
-                "mission": "research",
+                "mission_type": "research",
                 "slug": "002-literature-review",
                 # Note: no deliverables_path
             }
