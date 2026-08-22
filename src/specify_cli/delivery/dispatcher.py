@@ -66,6 +66,7 @@ from specify_cli.delivery.targets import compute_target_id
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
 from specify_cli.sync.project_context import ProjectSyncContext
+from specify_cli.sync.project_identity import CanonicalProjectUUID
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.saas_client.admission import (
     ProjectWriteAdmissionProof,
@@ -421,7 +422,14 @@ def prepare_event_transport(
         target_identity=target.target_identity,
         account_identity=target.account_identity,
         private_teamspace_id=target.private_teamspace_id,
-        target_project_uuid=target.project_uuid.storage_token,
+        # ``TargetAudience.project_uuid`` is declared ``CanonicalProjectUUID | str``
+        # (the union covers unvalidated constructor input) but its ``__post_init__``
+        # always normalizes it to a ``CanonicalProjectUUID`` in-place — a fact
+        # ``object.__setattr__`` narrowing does not carry through to mypy. Re-parsing
+        # here is a genuine no-op on the already-normalized value (see
+        # ``CanonicalProjectUUID.parse``'s ``isinstance(value, cls)`` fast path) and
+        # gives a properly narrowed ``CanonicalProjectUUID`` to read ``storage_token`` from.
+        target_project_uuid=CanonicalProjectUUID.parse(target.project_uuid).storage_token,
         target_generation=target.configuration_generation,
         admission_generation=str(context.admission_generation),
         binding_audience=context.binding_audience,

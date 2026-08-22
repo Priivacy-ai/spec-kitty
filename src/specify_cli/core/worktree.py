@@ -648,8 +648,13 @@ def _feature_writer_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
     still a canonical source, not a second hardcoded copy. Directory artifacts
     are distinguished from file artifacts by a trailing ``/`` in the metadata.
     """
+    # ``MISSION_TYPE_SOFTWARE_DEV`` is sourced from its canonical definition
+    # module (``specify_cli.core.constants``) rather than via ``specify_cli.mission``'s
+    # re-export: ``mission.py`` has no ``__all__``, so under ``mypy --strict``
+    # (``no_implicit_reexport``) importing it through that module is not a
+    # recognized public re-export.
+    from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
     from specify_cli.mission import (
-        MISSION_TYPE_SOFTWARE_DEV,
         MissionError,
         get_mission_by_name,
         get_mission_for_feature,
