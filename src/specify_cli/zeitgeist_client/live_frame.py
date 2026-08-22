@@ -63,18 +63,35 @@ Reported-live honesty, not reconstruction:
   INSTRUCTIONS ..." class ``grammar.py`` documents) is replaced with
   grammar's stable, non-reversible ``unknown-<digest>`` label rather than
   ever reaching a caller unfiltered — WIRE-M2-04, HIC-M2-DISPOSITIONS item 2.
-  ``path``/``kind``/``state`` are NOT identity fields in this sense (a file
-  path legitimately looks like prose; ``state`` is already closed-enum
-  gated against ``_FOCUS_STATES``) and are left as plain, un-sanitized
-  strings, matching upstream's own separate ``_safe_path`` treatment for
-  paths (not ported here — same documented scope reduction as this module's
-  own not-yet-landed ``validator.py``).
+  ``branch`` is the one field routed differently: ``grammar.ident()``'s
+  ``REF_RE`` shape check also caps segment count at
+  ``grammar.MAX_SEGMENTS["ref"]`` (6) — sized for short, few-segment refs
+  like ``mission-x/WP03`` — and this program's own sandbox branches
+  (``bead/<ID>/<actor>/<n>``, e.g. ``bead/WIRE-M2-04/python-pedro/1``, 7
+  segments) legitimately exceed it. Upstream documents the identical tension
+  for ``branch`` at ``zeitgeist/editor.py:166-169`` — "a branch name
+  legitimately reads like prose ... so no shape rule can separate them" —
+  and answers it by keeping ``branch`` out of the segment-capped check
+  rather than mis-rejecting real branch names. ``_branch_shaped`` below
+  applies the same char-class-plus-length half of ``grammar.ident`` (still
+  rejecting whitespace, control characters, and anything over the 64-char
+  "ref" hard max — the "IGNORE PRIOR INSTRUCTIONS ..." class a real branch
+  name never needs) without the segment-count half. ``repo``/``focus_ref``
+  keep the full, unmodified ``grammar.ident(..., grammar.REF_RE)`` routing:
+  neither has a real-world shape in this program that the segment cap
+  rejects. ``path``/``kind``/``state`` are NOT identity fields in this sense
+  (a file path legitimately looks like prose; ``state`` is already
+  closed-enum gated against ``_FOCUS_STATES``) and are left as plain,
+  un-sanitized strings, matching upstream's own separate ``_safe_path``
+  treatment for paths (not ported here — same documented scope reduction as
+  this module's own not-yet-landed ``validator.py``).
 """
 
 from __future__ import annotations
 
 from kernel.clock import now_epoch
 
+import hashlib
 import math
 import re
 from collections.abc import Mapping
@@ -191,6 +208,47 @@ def _grammar_ident(value: object, pattern: re.Pattern[str] = grammar.IDENT_RE) -
     return grammar.ident(value, pattern=pattern) if isinstance(value, str) else None
 
 
+# Mirrors the "ref"-kind hard_max grammar.ident() applies internally
+# (grammar.py's `hard_max = 64 if kind == "ref" else 32`) — duplicated, not
+# imported, because ident() bakes that length check into the same
+# expression as the segment-count check _branch_shaped deliberately skips;
+# there is no accessor for "length half only". Cross-checked against
+# grammar.ident's own behavior by test_live_frame.py, the same convention
+# this module already uses for MAX_TTL_S vs. transport.FOCUS_TTL_S (see the
+# module docstring).
+_BRANCH_HARD_MAX = 64
+
+
+def _branch_shaped(value: object) -> str | None:
+    """Grammar-shaped validation for ``branch`` — REF_RE's character class
+    and 64-char hard max, WITHOUT ``grammar.ident``'s segment-count cap
+    (module docstring explains why: this program's own multi-segment
+    ``bead/<ID>/<actor>/<n>`` branches legitimately exceed it, matching
+    upstream's own carve-out for ``branch`` at
+    ``zeitgeist/editor.py:166-169``).
+
+    The character class alone is still a real filter — a relay is
+    untrusted input like any other boundary here: no whitespace, no
+    control characters, nothing over the length cap, so a prose-injection
+    sentence (which needs a space to read as English) is rejected exactly
+    as it would be under full ``grammar.ident`` routing. Only the
+    segment-count heuristic — the one that cannot tell a real multi-segment
+    branch from segment-joined prose (see ``grammar.py``'s own commentary
+    on that ambiguity) — is skipped.
+
+    The ``unknown-<digest>`` fallback is the identical label format/formula
+    ``grammar.ident`` uses (same non-cryptographic, stable-per-input
+    correlation label, not a security boundary — grammar.py:58-60), so a
+    caller sees one consistent "rejected identity" shape regardless of
+    which field or which half of the check failed it.
+    """
+    if not isinstance(value, str) or not value:
+        return None
+    if grammar.REF_RE.fullmatch(value) and len(value) <= _BRANCH_HARD_MAX:
+        return value
+    return "unknown-" + hashlib.sha1(value.encode()).hexdigest()[:8]  # noqa: S324
+
+
 @dataclass(frozen=True)
 class PresenceView:
     session_ref: str
@@ -292,7 +350,7 @@ class StreamState:
             "session_ref": ref,
             "user": _grammar_ident(actor.get("user")),
             "repo": _grammar_ident(payload.get("repo"), grammar.REF_RE),
-            "branch": _grammar_ident(payload.get("branch"), grammar.REF_RE),
+            "branch": _branch_shaped(payload.get("branch")),
             "path": _optional_str(payload.get("path")),
             "kind": _optional_str(payload.get("kind")),
             "expires_at": base_ts + _clamp_ttl(payload.get("ttl_s")),
@@ -319,7 +377,7 @@ class StreamState:
             "state": state,
             "user": _grammar_ident(actor.get("user")) if isinstance(actor, dict) else None,
             "repo": _grammar_ident(payload.get("repo"), grammar.REF_RE),
-            "branch": _grammar_ident(payload.get("branch"), grammar.REF_RE),
+            "branch": _branch_shaped(payload.get("branch")),
             "expires_at": live_frame_obj.emitted_at + _clamp_ttl(payload.get("ttl_s")),
         }
 
