@@ -23,7 +23,7 @@ from dataclasses import replace
 from kernel.clock import now_utc_stamp
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import SplitResult, urlsplit, urlunsplit
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -289,7 +289,12 @@ def _manifest_matches_source(
     # Queries may select distinct resources or carry credentials. Never persist
     # them, and never reuse a validator when either side used one because a
     # secret-free comparison cannot prove resource identity.
-    if urlsplit(source_url).query or data.get("source_uses_query") is True:
+    parsed_source = _safe_urlsplit(source_url)
+    if (
+        parsed_source is None
+        or parsed_source.query
+        or data.get("source_uses_query") is True
+    ):
         return False
     if not _snapshot_manifest_is_intact(local_path, subdir, data):
         return False
@@ -467,7 +472,7 @@ def write_pack_manifest(
             source_type=source_type,
             source_url=safe_source_url,
             source_fingerprint=_source_fingerprint(safe_source_url),
-            source_uses_query=bool(urlsplit(source_url).query),
+            source_uses_query=_source_uses_query(source_url),
             snapshot_sha256=_snapshot_sha256(local_path),
             artifact_counts=_manifest_artifact_counts(local_path),
             etag=result.etag,
@@ -519,7 +524,9 @@ def _strip_credentials(url: str) -> str:
     """Return a remote URL safe for durable metadata and comparisons."""
     if not url:
         return ""
-    parsed = urlsplit(url)
+    parsed = _safe_urlsplit(url)
+    if parsed is None:
+        return ""
     if parsed.scheme not in {"http", "https"}:
         return url
     hostname = parsed.hostname or ""
@@ -531,6 +538,20 @@ def _strip_credentials(url: str) -> str:
         port = None
     netloc = f"{hostname}:{port}" if port is not None else hostname
     return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
+
+
+def _safe_urlsplit(url: str) -> SplitResult | None:
+    """Parse one URL without leaking malformed-authority exceptions."""
+    try:
+        return urlsplit(url)
+    except ValueError:
+        return None
+
+
+def _source_uses_query(url: str) -> bool:
+    """Return query presence without raising for malformed source URLs."""
+    parsed = _safe_urlsplit(url)
+    return bool(parsed is not None and parsed.query)
 
 
 def _source_fingerprint(safe_url: str) -> str:
