@@ -144,6 +144,13 @@ class TestFinalizeTasksBootstrap:
         """finalize-tasks invokes bootstrap_canonical_state after dependency parsing."""
         mission_slug = "060-test"
         feature_dir = _build_minimal_feature(tmp_path, mission_slug)
+        # rc3 M5 (FR-002/FR-003): resolve_mission_identity no longer defaults a
+        # typeless/absent meta.json to "software-dev" -- give the fixture an
+        # explicit canonical mission_type (mission_number is deliberately still
+        # omitted, see the assertion note below).
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_type": "software-dev"}), encoding="utf-8"
+        )
 
         mock_root.return_value = tmp_path
         mock_slug.return_value = mission_slug
@@ -169,12 +176,11 @@ class TestFinalizeTasksBootstrap:
         # JSON output includes bootstrap stats
         data = json.loads(result.output)
         assert data["mission_slug"] == mission_slug
-        # _build_minimal_feature does not write meta.json, so
+        # The fixture's meta.json omits mission_number, so
         # resolve_mission_identity() yields mission_number=None (JSON null).
         # Post-083, mission_number is display-only and pre-merge missions
         # legitimately have no numeric prefix. The canonical identity is
-        # mission_id, which is not asserted here because the fixture skips
-        # meta.json entirely.
+        # mission_id, which is not asserted here because the fixture omits it.
         assert data["mission_number"] is None
         assert data["mission_type"] == "software-dev"
         assert "bootstrap" in data
@@ -195,7 +201,14 @@ class TestFinalizeTasksBootstrap:
     ) -> None:
         """--validate-only passes dry_run=True to bootstrap."""
         mission_slug = "060-test"
-        _build_minimal_feature(tmp_path, mission_slug)
+        feature_dir = _build_minimal_feature(tmp_path, mission_slug)
+        # rc3 M5 (FR-002/FR-003): resolve_mission_identity no longer defaults a
+        # typeless/absent meta.json to "software-dev" -- give the fixture an
+        # explicit canonical mission_type (mission_number is deliberately still
+        # omitted, see the assertion note below).
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_type": "software-dev"}), encoding="utf-8"
+        )
 
         mock_root.return_value = tmp_path
         mock_slug.return_value = mission_slug
@@ -215,7 +228,7 @@ class TestFinalizeTasksBootstrap:
         assert result.exit_code == 0, f"CLI error: {result.output}"
         data = json.loads(result.output)
         assert data["mission_slug"] == mission_slug
-        # Fixture omits meta.json — mission_number resolves to None (JSON null)
+        # Fixture's meta.json omits mission_number — resolves to None (JSON null)
         # per the post-083 canonical identity model (FR-044).
         assert data["mission_number"] is None
         assert data["mission_type"] == "software-dev"
