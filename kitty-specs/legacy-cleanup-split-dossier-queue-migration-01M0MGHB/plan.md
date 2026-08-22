@@ -47,7 +47,7 @@ scope.
 **Testing**: `pytest`, targeted at `tests/dossier/` (including
 `test_snapshot_emit.py`, which FR-006 requires rewriting — see
 "Mission-Specific Design Decisions" below), `tests/sync/test_events_namespace.py`,
-`tests/sync/test_dossier_pipeline.py`, `tests/sync/test_diagnose.py` (new
+`tests/sync/test_events.py`, `tests/sync/test_dossier_pipeline.py`, `tests/sync/test_diagnose.py` (new
 regression test closing FR-011's `diagnose.py` gap — see below),
 and `tests/architectural/` (new guard test + `test_shared_package_boundary.py`),
 per NFR-003 and the charter's "Run only the affected test packages" rule.

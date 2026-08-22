@@ -450,7 +450,8 @@ queue (the normal case for any active mission using dossier tracking).
 
 - **Scope** (NFR-003): run
   `PWHEADLESS=1 .venv/bin/python -m pytest tests/dossier/
-  tests/sync/test_events_namespace.py tests/sync/test_diagnose.py -q` after each
+  tests/sync/test_events_namespace.py tests/sync/test_events.py
+  tests/sync/test_diagnose.py -q` after each
   subtask; the full `pytest tests/` run is reserved for pre-merge/post-merge
   validation.
 - All 7 subtasks land in **one commit** (this WP's chokepoint constraint) — do
