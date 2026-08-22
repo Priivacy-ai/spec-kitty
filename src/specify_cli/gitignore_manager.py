@@ -74,6 +74,57 @@ def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig") -> str:
         return f.read()
 
 
+def read_gitignore_text(gitignore_path: Path) -> str | None:
+    """Read a regular UTF-8 ``.gitignore`` without following a final symlink."""
+    if gitignore_path.is_symlink():
+        raise GitignorePathError(f"Refusing to read symlinked .gitignore: {gitignore_path}")
+    try:
+        fd = _open_no_follow(gitignore_path, os.O_RDONLY)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise GitignorePathError(f"Could not safely open .gitignore: {exc}") from exc
+    try:
+        with os.fdopen(fd, "r", encoding="utf-8-sig", newline="") as handle:
+            return handle.read()
+    except UnicodeDecodeError as exc:
+        raise GitignorePathError(f".gitignore is not valid UTF-8: {exc}") from exc
+
+
+def write_gitignore_text(gitignore_path: Path, content: str) -> None:
+    """Atomically replace a regular ``.gitignore`` without following symlinks."""
+    if gitignore_path.is_symlink():
+        raise GitignorePathError(f"Refusing to write symlinked .gitignore: {gitignore_path}")
+
+    existing_mode: int | None = None
+    if gitignore_path.exists():
+        existing_mode = stat.S_IMODE(gitignore_path.stat(follow_symlinks=False).st_mode)
+        if not existing_mode & stat.S_IWUSR:
+            raise PermissionError(f"Permission denied: {gitignore_path}")
+
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            newline="",
+            dir=gitignore_path.parent,
+            prefix=".gitignore.spec-kitty-",
+            delete=False,
+        ) as handle:
+            handle.write(content)
+            temporary_path = Path(handle.name)
+        if existing_mode is not None:
+            temporary_path.chmod(existing_mode)
+        if gitignore_path.is_symlink():
+            raise GitignorePathError(f"Refusing to replace symlinked .gitignore: {gitignore_path}")
+        os.replace(temporary_path, gitignore_path)
+        temporary_path = None
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
 @dataclass
 class AgentDirectory:
     """Represents a single agent's directory that needs protection."""

@@ -12,12 +12,10 @@ narrow paths Spec Kitty itself generates under ``.cursor/`` --
 ``.cursor/rules/spec-kitty.mdc``, ``.cursor/commands/`` and
 ``.cursor/skills/`` -- so a fresh ``spec-kitty init`` no longer writes the
 blanket line. This migration repairs already-initialised projects on
-``spec-kitty upgrade``: it removes a pre-existing blanket-blocking
-``.cursor`` line (mirroring the ``0.12.1_remove_kitty_specs_from_gitignore``
-precedent) and backfills the three narrow entries (mirroring the
-``3.2.5_agents_skills_gitignore_backfill`` precedent), so projects keep
-ignoring what Spec Kitty actually generates without re-blocking everything
-else under ``.cursor/``.
+``spec-kitty upgrade``: it removes the exact legacy ``.cursor/`` row only
+when the Spec Kitty auto-managed marker proves ownership, then backfills the
+three narrow entries. Unattributed blanket rules are operator policy: they are
+preserved with a warning instead of being deleted by name alone.
 """
 
 from __future__ import annotations
@@ -25,7 +23,15 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from specify_cli.gitignore_manager import GitignoreManager
+from specify_cli.gitignore_manager import (
+    AGENT_DIRECTORIES,
+    RUNTIME_PROTECTED_ENTRIES,
+    SPEC_KITTY_GITIGNORE_MARKER,
+    GitignoreManager,
+    GitignorePathError,
+    read_gitignore_text,
+    write_gitignore_text,
+)
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
@@ -48,6 +54,18 @@ _NARROW_ENTRIES = [
 # `.cursor/plans`, nor negations (`!.cursor/...`) or comments.
 _BLANKET_PATTERN = re.compile(r"^(/|\*\*/)?\.cursor(/|/\*{1,2})?$")
 
+# The old manager emitted exactly ``.cursor/`` among these registry-backed
+# rows. A blanket variant or a row outside this marker-labelled block has no
+# trustworthy Spec Kitty provenance and must remain operator-owned.
+_LEGACY_MANAGED_CURSOR_ENTRY = ".cursor/"
+_KNOWN_MANAGED_ENTRIES = frozenset(
+    [
+        *(entry.directory for entry in AGENT_DIRECTORIES),
+        *RUNTIME_PROTECTED_ENTRIES,
+        _LEGACY_MANAGED_CURSOR_ENTRY,
+    ]
+)
+
 
 def _is_blanket_cursor_line(line: str) -> bool:
     stripped = line.strip()
@@ -56,14 +74,40 @@ def _is_blanket_cursor_line(line: str) -> bool:
     return bool(_BLANKET_PATTERN.match(stripped))
 
 
-def _find_blanket_lines(gitignore_path: Path) -> list[str]:
-    if not gitignore_path.exists():
-        return []
-    content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
-    return [line for line in content.splitlines() if _is_blanket_cursor_line(line)]
+def _classify_blanket_lines(content: str) -> tuple[list[int], list[str]]:
+    """Return owned line indexes and preserved, unattributed blanket rows."""
+    owned_indexes: list[int] = []
+    unowned_lines: list[str] = []
+    in_managed_block = False
+
+    for index, line in enumerate(content.splitlines(keepends=True)):
+        stripped = line.strip()
+        if stripped == SPEC_KITTY_GITIGNORE_MARKER:
+            in_managed_block = True
+            continue
+        if not stripped:
+            continue
+        if stripped.startswith("#"):
+            in_managed_block = False
+            continue
+        if _is_blanket_cursor_line(line):
+            if in_managed_block and stripped == _LEGACY_MANAGED_CURSOR_ENTRY:
+                owned_indexes.append(index)
+            else:
+                unowned_lines.append(line)
+            continue
+        if in_managed_block and stripped not in _KNOWN_MANAGED_ENTRIES:
+            # An operator-authored entry ends the provable manager-owned run.
+            in_managed_block = False
+
+    return owned_indexes, unowned_lines
 
 
-def _strip_blanket_lines(lines: list[str]) -> tuple[list[str], int]:
+def _read_gitignore(gitignore_path: Path) -> str:
+    return read_gitignore_text(gitignore_path) or ""
+
+
+def _strip_owned_blanket_lines(lines: list[str], owned_indexes: set[int]) -> tuple[list[str], int]:
     """Drop blanket lines, closing only the hole each removal leaves behind.
 
     When a removed line sat between two blank lines, the trailing blank is
@@ -73,8 +117,8 @@ def _strip_blanket_lines(lines: list[str]) -> tuple[list[str], int]:
     kept: list[str] = []
     removed = 0
     just_removed = False
-    for line in lines:
-        if _is_blanket_cursor_line(line):
+    for index, line in enumerate(lines):
+        if index in owned_indexes:
             removed += 1
             just_removed = True
             continue
@@ -86,19 +130,20 @@ def _strip_blanket_lines(lines: list[str]) -> tuple[list[str], int]:
 
 
 def _remove_blanket_lines(gitignore_path: Path) -> int:
-    if not gitignore_path.exists():
+    content = read_gitignore_text(gitignore_path)
+    if content is None:
         return 0
-    content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
-    kept, removed = _strip_blanket_lines(content.splitlines(keepends=True))
+    owned_indexes, _ = _classify_blanket_lines(content)
+    kept, removed = _strip_owned_blanket_lines(content.splitlines(keepends=True), set(owned_indexes))
     if removed:
-        gitignore_path.write_text("".join(kept), encoding="utf-8")
+        write_gitignore_text(gitignore_path, "".join(kept))
     return removed
 
 
 def _missing_narrow_entries(gitignore_path: Path) -> list[str]:
-    if not gitignore_path.exists():
+    content = read_gitignore_text(gitignore_path)
+    if content is None:
         return list(_NARROW_ENTRIES)
-    content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
     present = {line.strip() for line in content.splitlines()}
     return [entry for entry in _NARROW_ENTRIES if entry not in present]
 
@@ -113,45 +158,83 @@ class NarrowCursorGitignoreMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         gitignore_path = project_path / ".gitignore"
-        if _find_blanket_lines(gitignore_path):
+        try:
+            content = _read_gitignore(gitignore_path)
+            owned_indexes, _ = _classify_blanket_lines(content)
+            if owned_indexes:
+                return True
+            return bool(_missing_narrow_entries(gitignore_path))
+        except (GitignorePathError, OSError):
+            # Route unsafe/unreadable files through can_apply() so upgrade
+            # records a loud failure rather than silently skipping it.
             return True
-        return bool(_missing_narrow_entries(gitignore_path))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         if not project_path.exists():
             return False, f"Project path does not exist: {project_path}"
 
         gitignore_path = project_path / ".gitignore"
-        if not gitignore_path.exists():
-            return True, ""
         try:
-            gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
+            _read_gitignore(gitignore_path)
             return True, ""
-        except OSError as e:
+        except (GitignorePathError, OSError) as e:
             return False, f".gitignore is not readable: {e}"
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         gitignore_path = project_path / ".gitignore"
-        blanket_lines = _find_blanket_lines(gitignore_path)
-        missing = _missing_narrow_entries(gitignore_path)
+        try:
+            content = _read_gitignore(gitignore_path)
+            content_lines = content.splitlines(keepends=True)
+            owned_indexes, unowned_lines = _classify_blanket_lines(content)
+            owned_lines = [content_lines[index] for index in owned_indexes]
+            missing = _missing_narrow_entries(gitignore_path)
+        except (GitignorePathError, OSError) as exc:
+            return MigrationResult(success=False, errors=[str(exc)])
+
+        warnings = [
+            f"Preserved operator-owned blanket .cursor rule '{line.strip()}'; remove it manually to make other .cursor files stageable." for line in unowned_lines
+        ]
 
         if dry_run:
-            changes = [f"Would remove blanket line: '{line.strip()}'" for line in blanket_lines]
+            changes = [f"Would remove managed blanket line: '{line.strip()}'" for line in owned_lines]
             changes.extend(f"Would add gitignore entry: {entry}" for entry in missing)
             if not changes:
-                changes.append("No blanket .cursor/ entries and narrow entries already present")
-            return MigrationResult(success=True, changes_made=changes)
+                changes.append("No managed blanket .cursor/ entry and narrow entries already present")
+            return MigrationResult(
+                success=True,
+                changes_made=changes,
+                warnings=warnings,
+                manual_review_required=bool(warnings),
+                preserved_paths=[str(gitignore_path)] if warnings else [],
+            )
 
         applied_changes: list[str] = []
-        removed = _remove_blanket_lines(gitignore_path)
+        try:
+            removed = _remove_blanket_lines(gitignore_path)
+        except (GitignorePathError, OSError) as exc:
+            return MigrationResult(success=False, errors=[str(exc)])
         if removed:
-            applied_changes.extend(f"Removed blanket line: '{line.strip()}'" for line in blanket_lines)
+            applied_changes.extend(f"Removed managed blanket line: '{line.strip()}'" for line in owned_lines)
 
         if missing:
-            GitignoreManager(project_path).ensure_entries(missing)
+            try:
+                GitignoreManager(project_path).ensure_entries(missing)
+            except (GitignorePathError, OSError) as exc:
+                return MigrationResult(
+                    success=False,
+                    changes_made=applied_changes,
+                    errors=[str(exc)],
+                    warnings=warnings,
+                )
             applied_changes.extend(f"Added gitignore entry: {entry}" for entry in missing)
 
         if not applied_changes:
-            applied_changes.append("No blanket .cursor/ entries and narrow entries already present")
+            applied_changes.append("No managed blanket .cursor/ entry and narrow entries already present")
 
-        return MigrationResult(success=True, changes_made=applied_changes)
+        return MigrationResult(
+            success=True,
+            changes_made=applied_changes,
+            warnings=warnings,
+            manual_review_required=bool(warnings),
+            preserved_paths=[str(gitignore_path)] if warnings else [],
+        )

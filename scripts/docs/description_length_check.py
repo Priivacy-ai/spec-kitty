@@ -243,13 +243,9 @@ def validate_descriptions(
     page_set = _resolve_page_set(docs_root=docs_root, docfx_config=docfx_config)
     _assert_coverage(page_set, docs_root=docs_root)
 
-    descriptions = _collect_descriptions(
-        sorted(page_set.pages), docs_root=docs_root, repo_root=repo_root
-    )
+    descriptions = _collect_descriptions(sorted(page_set.pages), docs_root=docs_root, repo_root=repo_root)
     violations = _per_page_violations(descriptions)
-    violations.extend(
-        _duplicate_violations(descriptions, flagged={v.path for v in violations})
-    )
+    violations.extend(_duplicate_violations(descriptions, flagged={v.path for v in violations}))
     violations.sort(key=lambda v: (v.path, v.reason))
     return LengthReport(checked_count=len(descriptions), violations=violations)
 
@@ -279,14 +275,10 @@ def validate_descriptions_diff_scoped(
         The resolved published corpus is empty or below the non-vacuity floor.
     """
     docs_root_rel = _repo_relative(docs_root, repo_root)
-    changed_docs = {
-        rel
-        for rel in changed_files
-        if rel.startswith(f"{docs_root_rel}/")
-        and rel.endswith(".md")
-        and (repo_root / rel).is_file()
-    }
-    if not changed_docs:
+    changed_docs = {rel for rel in changed_files if rel.startswith(f"{docs_root_rel}/") and rel.endswith(".md") and (repo_root / rel).is_file()}
+    effective_docfx_config = docfx_config or docs_root / "docfx.json"
+    docfx_config_rel = _repo_relative(effective_docfx_config, repo_root)
+    if not changed_docs and docfx_config_rel not in changed_files:
         return LengthReport()
 
     # The shared resolver remains the publication authority, and the corpus
@@ -297,23 +289,17 @@ def validate_descriptions_diff_scoped(
     # result — that check is on the corpus, not on the subset.
     page_set = _resolve_page_set(docs_root=docs_root, docfx_config=docfx_config)
     _assert_coverage(page_set, docs_root=docs_root)
-    descriptions = _collect_descriptions(
-        sorted(page_set.pages), docs_root=docs_root, repo_root=repo_root
-    )
+    if not changed_docs:
+        return LengthReport()
+    descriptions = _collect_descriptions(sorted(page_set.pages), docs_root=docs_root, repo_root=repo_root)
     scoped_paths = changed_docs.intersection(descriptions)
     if not scoped_paths:
         return LengthReport()
 
     all_per_page = _per_page_violations(descriptions)
     all_flagged = {violation.path for violation in all_per_page}
-    violations = [
-        violation for violation in all_per_page if violation.path in scoped_paths
-    ]
-    violations.extend(
-        violation
-        for violation in _duplicate_violations(descriptions, flagged=all_flagged)
-        if violation.path in scoped_paths
-    )
+    violations = [violation for violation in all_per_page if violation.path in scoped_paths]
+    violations.extend(violation for violation in _duplicate_violations(descriptions, flagged=all_flagged) if violation.path in scoped_paths)
     violations.sort(key=lambda violation: (violation.path, violation.reason))
     return LengthReport(checked_count=len(scoped_paths), violations=violations)
 
@@ -329,9 +315,7 @@ def _resolve_page_set(*, docs_root: Path, docfx_config: Path | None) -> Publishe
     try:
         return resolve_published_pages(docs_root=docs_root, docfx_config=docfx_config)
     except (FileNotFoundError, ValueError) as exc:
-        raise CoverageError(
-            f"description gate could not resolve its published page set: {exc}"
-        ) from exc
+        raise CoverageError(f"description gate could not resolve its published page set: {exc}") from exc
 
 
 def _assert_coverage(page_set: PublishedPageSet, *, docs_root: Path) -> None:
@@ -348,9 +332,7 @@ def _assert_coverage(page_set: PublishedPageSet, *, docs_root: Path) -> None:
     observed = len(page_set.pages)
     if observed == 0:
         raise CoverageError(
-            f"description gate resolved no published pages under {docs_root}; "
-            f"source globs were {globs}. A gate that validates zero pages must "
-            "fail, not pass."
+            f"description gate resolved no published pages under {docs_root}; source globs were {globs}. A gate that validates zero pages must fail, not pass."
         )
     if observed < MINIMUM_EXPECTED_PAGES:
         raise CoverageError(
@@ -361,9 +343,7 @@ def _assert_coverage(page_set: PublishedPageSet, *, docs_root: Path) -> None:
         )
 
 
-def _collect_descriptions(
-    pages: list[Path], *, docs_root: Path, repo_root: Path
-) -> dict[str, str | None]:
+def _collect_descriptions(pages: list[Path], *, docs_root: Path, repo_root: Path) -> dict[str, str | None]:
     """Read every page's ``description``, keyed by repo-relative path.
 
     Resolver pages are rendered relative to ``docs_root.parent`` (i.e.
@@ -395,9 +375,7 @@ def _per_page_violations(descriptions: dict[str, str | None]) -> list[LengthViol
     return violations
 
 
-def _duplicate_violations(
-    descriptions: dict[str, str | None], *, flagged: set[str]
-) -> list[LengthViolation]:
+def _duplicate_violations(descriptions: dict[str, str | None], *, flagged: set[str]) -> list[LengthViolation]:
     """Flag every page sharing a byte-identical description with another (FR-007).
 
     Comparison is exact-match on the raw string: normalising case or whitespace
@@ -454,10 +432,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the description-gate CLI parser."""
     parser = argparse.ArgumentParser(
         prog="description_length_check",
-        description=(
-            "Validate that every published page carries a unique, non-boilerplate "
-            "'description' of 50-180 chars. Report-only (exit 0) unless --strict."
-        ),
+        description=("Validate that every published page carries a unique, non-boilerplate 'description' of 50-180 chars. Report-only (exit 0) unless --strict."),
     )
     parser.add_argument(
         "--docs-root",
@@ -541,16 +516,10 @@ def _emit(report: LengthReport, *, as_json: bool) -> None:
         sys.stdout.write(json.dumps(report.as_dict(), indent=2, sort_keys=True) + "\n")
         return
 
-    sys.stdout.write(
-        f"description_length_check: checked {report.checked_count} page(s); "
-        f"{len(report.violations)} violation(s).\n"
-    )
+    sys.stdout.write(f"description_length_check: checked {report.checked_count} page(s); {len(report.violations)} violation(s).\n")
     for violation in report.violations:
         peers = f" also on: {', '.join(violation.peers)}" if violation.peers else ""
-        sys.stdout.write(
-            f"  {violation.reason.upper()} {violation.path} "
-            f"(length={violation.length}){peers}\n"
-        )
+        sys.stdout.write(f"  {violation.reason.upper()} {violation.path} (length={violation.length}){peers}\n")
 
 
 if __name__ == "__main__":  # pragma: no cover - module-level CLI guard
