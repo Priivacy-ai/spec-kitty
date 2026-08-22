@@ -1558,6 +1558,18 @@ The complete, factual list of changes for this candidate follows in the entries 
   return contradictory verdicts on the same file — is also unified into a single
   authority.
 
+
+- **`finalize-tasks` now repairs legacy PR-bound missions that confused their
+  protected final target with their planning branch (`#2938`).** When the
+  affected metadata shape is detected, planning artifacts remain on the
+  invoking feature branch, the previous target is retained as
+  `merge_target_branch`, WP frontmatter records both values distinctly, and
+  `--validate-only` remains byte-for-byte non-mutating.
+- **`branch-context` now reports the invoking linked worktree's branch instead
+  of silently substituting the primary checkout's HEAD.** Repository-root
+  metadata remains primary-anchored; only the invocation-owned current-branch
+  field changes, so branch recommendations and mismatch checks are honest.
+
 - **Two blocking CI gates now reflect what a PR actually changed (mission
   `ci-scoping-gate-reliability`; `#3008`, `#3147`).** _Corpus data no longer ships
   unguarded (`#3008`):_ a PR that changed only non-source corpus data — shipped
