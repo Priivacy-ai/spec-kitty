@@ -30,8 +30,9 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 from ruamel.yaml import YAML
 
 from charter.synthesizer.manifest import SynthesisManifest, hash_manifest_payload
@@ -49,10 +50,16 @@ HASH_EXCLUDED_FIELDS: frozenset[str] = frozenset(
     {"manifest_hash", "generated_at", "generated_by"}
 )
 
-
-def _exclude_none(value: object) -> bool:
-    """Keep fetched-only optional fields out of built-in manifest bytes."""
-    return value is None
+_FETCHED_PROVENANCE_FIELDS: frozenset[str] = frozenset(
+    {
+        "pack_version",
+        "etag",
+        "source_fingerprint",
+        "source_uses_query",
+        "snapshot_sha256",
+        "artifact_counts",
+    }
+)
 
 
 class Constituent(BaseModel):
@@ -114,19 +121,25 @@ class PackManifest(BaseModel):
     source_url: str | None = None
     source_type: str | None = None
     fetched_at: str | None = None
-    pack_version: str | None = Field(default=None, exclude_if=_exclude_none)
-    etag: str | None = Field(default=None, exclude_if=_exclude_none)
-    source_fingerprint: str | None = Field(default=None, exclude_if=_exclude_none)
-    source_uses_query: bool | None = Field(default=None, exclude_if=_exclude_none)
-    snapshot_sha256: str | None = Field(default=None, exclude_if=_exclude_none)
-    artifact_counts: dict[str, int] | None = Field(
-        default=None, exclude_if=_exclude_none
-    )
+    pack_version: str | None = None
+    etag: str | None = None
+    source_fingerprint: str | None = None
+    source_uses_query: bool | None = None
+    snapshot_sha256: str | None = None
+    artifact_counts: dict[str, int] | None = None
     manifest_hash: str | None = None
-    constituents: list[Constituent] | None = Field(
-        default=None, exclude_if=_exclude_none
-    )
+    constituents: list[Constituent] | None = None
     charter: CharterProfile | None = None
+
+    def model_dump(self, **kwargs: Any) -> dict[str, Any]:
+        """Serialize the built-in and fetched variants without field leakage."""
+        data = super().model_dump(**kwargs)
+        if self.artifact_counts is None:
+            for field_name in _FETCHED_PROVENANCE_FIELDS:
+                data.pop(field_name, None)
+        if self.constituents is None:
+            data.pop("constituents", None)
+        return data
 
     def sorted_constituents(self) -> list[Constituent]:
         """Return the constituents in canonical ``(kind, id)`` order."""
@@ -136,6 +149,17 @@ class PackManifest(BaseModel):
 # ---------------------------------------------------------------------------
 # Determinism + hashing
 # ---------------------------------------------------------------------------
+
+
+def _manifest_payload(manifest: PackManifest) -> dict[str, object]:
+    """Return canonical data without leaking fetched-only null fields.
+
+    ``artifact_counts`` is the fetched/assembled variant marker while that
+    transitional format has no constituent inventory. Built-in and charter
+    manifests keep their historical bytes and hashes; fetched variants retain
+    an explicit ``pack_version: null`` required by pack recognisability.
+    """
+    return manifest.model_dump(mode="json")
 
 
 def sort_constituents(constituents: Sequence[Constituent]) -> list[Constituent]:
@@ -152,7 +176,7 @@ def compute_pack_manifest_hash(manifest: PackManifest) -> str:
     :class:`ArtifactKind` enum members to their string values so the payload is
     plain data.
     """
-    data = manifest.model_dump(mode="json")
+    data = _manifest_payload(manifest)
     # hash_manifest_payload is untyped (Any) upstream; narrow to the str it returns.
     return str(hash_manifest_payload(data, exclude_keys=HASH_EXCLUDED_FIELDS))
 
@@ -192,7 +216,7 @@ def dump_pack_manifest_bytes(manifest: PackManifest) -> bytes:
         else sort_constituents(manifest.constituents)
     )
     ordered = manifest.model_copy(update={"constituents": ordered_constituents})
-    serialized: bytes = canonical_yaml(ordered.model_dump(mode="json"))
+    serialized: bytes = canonical_yaml(_manifest_payload(ordered))
     return serialized
 
 

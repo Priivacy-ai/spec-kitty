@@ -372,6 +372,61 @@ class TestWriteSnapshot:
 
 
 class TestEtagConditionalFetch:
+    @pytest.mark.parametrize(
+        "invalid_url",
+        [
+            "https://[bad/artifactory/repo/pack.tar.gz",
+            "https://example.com:not-a-port/artifactory/repo/pack.tar.gz",
+            "http://example.com/artifactory/repo/pack.tar.gz",
+            "https:///artifactory/repo/pack.tar.gz",
+        ],
+    )
+    def test_invalid_authority_preserves_existing_snapshot_without_request(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        invalid_url: str,
+    ) -> None:
+        from specify_cli.doctrine.sources.https_source import HttpsBundleSource
+
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        marker = local_path / "last-good"
+        marker.write_text("preserve\n")
+        write_pack_manifest(
+            local_path,
+            FetchResult(
+                ok=True,
+                artifacts_written=2,
+                pack_version="v1",
+                etag='"v1"',
+            ),
+            source_url="https://example.com/pack.tar.gz",
+            source_type="https",
+        )
+        calls: list[str] = []
+
+        def _unexpected_get(url: str, **kwargs: object) -> object:
+            calls.append(url)
+            raise AssertionError("invalid source reached requests.get")
+
+        monkeypatch.setattr(
+            "specify_cli.doctrine.sources.https_source.requests.get",
+            _unexpected_get,
+        )
+
+        result = write_snapshot(
+            HttpsBundleSource(url=invalid_url),
+            local_path,
+            source_url=invalid_url,
+            source_type="https",
+        )
+
+        assert result.ok is False
+        assert any("URL is invalid" in error for error in result.errors)
+        assert marker.read_text() == "preserve\n"
+        assert calls == []
+
     def test_query_bearing_source_never_reuses_persisted_etag(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
