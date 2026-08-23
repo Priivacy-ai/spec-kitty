@@ -17,6 +17,7 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     evaluate_boundary,
 )
 from specify_cli.readiness.coordinator import AuthStatus
+from specify_cli.sync.owner import UnreadableOwnerRecord
 from specify_cli.sync.preflight import PreflightResult
 from specify_cli.sync.routing import CheckoutSyncRouting
 
@@ -151,6 +152,27 @@ def test_raised_preflight_becomes_stable_sanitized_boundary_warning(tmp_path: Pa
     assert "top-secret" not in payload
 
 
+def test_returned_preflight_evidence_omits_raw_fault_detail(tmp_path: Path) -> None:
+    preflight = PreflightResult(
+        ok=False,
+        auth_required=False,
+        unreadable_owner_record=UnreadableOwnerRecord(
+            path=tmp_path / "owner.json",
+            reason="invalid_json",
+            detail="JSONDecodeError: ciphertext=filesystem-secret token=session-secret",
+        ),
+    )
+
+    boundary = evaluate_boundary(tmp_path, preflight_probe=lambda **_: preflight)
+
+    payload = str(boundary.evidence)
+    assert "owner.json" in payload
+    assert "invalid_json" in payload
+    assert "JSONDecodeError" not in payload
+    assert "filesystem-secret" not in payload
+    assert "session-secret" not in payload
+
+
 def test_unavailable_route_is_not_an_auth_failure(tmp_path: Path) -> None:
     decision = assess_hosted_sync(
         requested=True,
@@ -282,5 +304,8 @@ def test_public_serialization_contains_only_plain_json_values(tmp_path: Path) ->
 
 def test_test_helpers_are_typed() -> None:
     """Keep Callable imported so strict type checking covers injected seams."""
-    probe: Callable[..., object] = lambda: None
+    def empty_probe() -> None:
+        return None
+
+    probe: Callable[..., object] = empty_probe
     assert probe() is None
