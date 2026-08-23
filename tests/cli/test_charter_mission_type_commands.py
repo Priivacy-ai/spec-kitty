@@ -205,6 +205,16 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
         check=True,
         capture_output=True,
     )
+    # create_mission_core commits planning artifacts via safe_commit, which
+    # refuses protected branches (e.g. "main") since FR-001 removed the
+    # swallowed-exception fallback -- check out a non-protected feature
+    # branch first, exactly as the product's own error message instructs.
+    subprocess.run(
+        ["git", "checkout", "-b", "feature/qa-mission"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+    )
     org_root = tmp_path / "org-pack"
     _write_org_mission_type_yaml(org_root, "qa", action_sequence=["design", "implement"])
     _write_org_mission_step_yaml(

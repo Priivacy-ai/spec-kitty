@@ -62,6 +62,7 @@ from specify_cli.ownership.models import OwnershipManifest
 from specify_cli.ownership.validation import (
     GlobValidationResult,
     ValidationResult,
+    build_wp_manifests,
     validate_glob_matches,
 )
 from specify_cli.status import BootstrapResult, WPMetadata, _Builder
@@ -99,6 +100,16 @@ META_JSON_FILENAME = "meta.json"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
+#: FR-002 (mission-scaffold-tasks-lanes-defects-01M0NERD): a ``code_change`` WP
+#: with an explicit ``owned_files: []`` is an authoring contradiction, not the
+#: legitimate ``planning_artifact`` escape hatch. Stable error code so a
+#: calling agent can branch on this specific failure mode (NFR-001).
+OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES = (
+    "OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES"
+)
+#: FR-003: ``_compute_and_write_lanes``'s compound guard tripped -- lane
+#: computation was aborted before ``lanes.json`` could be written.
+LANE_COMPUTATION_ABORTED_EMPTY_INPUTS = "LANE_COMPUTATION_ABORTED_EMPTY_INPUTS"
 
 # SK3466-REV-001: the ONLY meta.json field finalize-tasks itself ever writes
 # (via ``_persist_target_branch_override`` -> ``mission_metadata.
@@ -267,6 +278,12 @@ def _collect_finalize_artifacts(
     else:
         candidates.append(feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json")
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
+    # PLAN-ARCH-002 (adopted resolution, binding): the ``lanes_path is None``
+    # half of this guard is unreachable for the ``_compute_and_write_lanes``
+    # call path since FR-003 -- that function now raises instead of
+    # returning ``(None, None)``. Kept as defensive code (not narrowed/
+    # removed), since ``_compute_and_write_lanes``'s return-type annotation
+    # deliberately stays unchanged.
     if lanes_path is not None:
         candidates.append(lanes_path)
 
@@ -1208,6 +1225,13 @@ class _BootstrapState:
     #: bucket so the JSON payload names the concern precisely. NEVER blocks
     #: finalize and reaches no terminal state (C-002 / NFR-002).
     post_integration_acceptance_warnings: list[str] = field(default_factory=list)
+    #: FR-002 -- collect-all-offenders-then-raise-once (PLAN-ARCH-001): every
+    #: ``code_change`` WP that also declares an explicit ``owned_files: []``
+    #: (an authoring contradiction, not the ``planning_artifact`` escape
+    #: hatch) is recorded here by ``_run_bootstrap_loop`` as it walks every WP
+    #: file; the aggregated raise fires once, after the full loop, naming
+    #: every offender -- never on first offense.
+    ownership_contradictions: list[str] = field(default_factory=list)
 
 
 def _branch_strategy_text(target_branch: str) -> str:
@@ -1267,16 +1291,33 @@ def _apply_ownership_inference(
     wp_raw_content: str,
     mission_slug: str,
     changed_fields: dict[str, object],
-) -> tuple[bool, list[str]]:
-    """Apply inferred ownership fields, returning (changed, infer_warnings).
+) -> tuple[bool, list[str], str | None]:
+    """Apply inferred ownership fields, returning (changed, infer_warnings, contradiction).
 
-    Respects an explicit ``owned_files: []`` (planning-artifact WPs).
+    Respects an explicit ``owned_files: []`` as the legitimate
+    ``planning_artifact`` escape hatch it is meant to be. But
+    ``execution_mode: code_change`` combined with that SAME explicit
+    ``owned_files: []`` is an authoring contradiction (FR-002), not intent --
+    a code-changing WP cannot legitimately own zero files. That case is
+    detected here and reported through the returned ``contradiction``
+    descriptor; this function never raises directly for it -- the batched,
+    once-per-run aggregated reject happens in ``_run_bootstrap_loop`` after
+    every WP file has been examined (PLAN-ARCH-001, collect-all-offenders-
+    then-raise-once).
     """
     owned_files_explicitly_empty = _owned_files_yaml_is_explicit_empty_list(wp_raw_content)
+    if wp_meta.execution_mode == "code_change" and owned_files_explicitly_empty:
+        contradiction = (
+            f"{wp_meta.work_package_id}: code_change WP declares no owned files "
+            "(execution_mode: code_change with an explicit owned_files: [] is an "
+            "authoring contradiction, not a valid escape hatch)"
+        )
+        return False, [], contradiction
+
     need_execution_mode = not wp_meta.execution_mode
     need_owned_files = not wp_meta.owned_files and not owned_files_explicitly_empty
     if not (need_execution_mode or need_owned_files):
-        return False, []
+        return False, [], None
 
     ownership, infer_warnings = infer_ownership(wp_raw_content, mission_slug)
     changed = False
@@ -1292,7 +1333,7 @@ def _apply_ownership_inference(
         changed_fields["authoritative_surface"] = ownership.authoritative_surface
         bld.set(authoritative_surface=ownership.authoritative_surface)
         changed = True
-    return changed, infer_warnings
+    return changed, infer_warnings, None
 
 
 def _run_bootstrap_loop(
@@ -1320,6 +1361,11 @@ def _run_bootstrap_loop(
     )
     wp_dependencies = dep_resolution.wp_dependencies
     wp_requirement_refs = dep_resolution.wp_requirement_refs
+    #: FR-002 batch tracking (PLAN-ARCH-001) -- mirrors
+    #: ``state.ownership_contradictions`` one-to-one, kept local rather than
+    #: on ``state`` purely to build the aggregated error's WP-id list below
+    #: without re-parsing the message strings.
+    contradicting_wp_ids: list[str] = []
 
     for wp_file in wp_files:
         wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
@@ -1362,9 +1408,16 @@ def _run_bootstrap_loop(
             has_requirement_refs_line=has_requirement_refs_line,
             target_branch=target_branch,
         )
-        own_changed, infer_warnings = _apply_ownership_inference(
+        own_changed, infer_warnings, ownership_contradiction = _apply_ownership_inference(
             bld, wp_meta, wp_file.read_text(encoding="utf-8"), mission_slug, changed_fields
         )
+        if ownership_contradiction is not None:
+            # FR-002: collect, don't abort mid-loop -- every offending WP in
+            # this run must be named in one aggregated error (Acceptance
+            # Scenario 4), not just the first one hit.
+            state.ownership_contradictions.append(ownership_contradiction)
+            contradicting_wp_ids.append(wp_id)
+            continue
         state.ownership_warnings.extend(infer_warnings)
         frontmatter_changed = frontmatter_changed or own_changed
 
@@ -1391,7 +1444,44 @@ def _run_bootstrap_loop(
                 state.modified_wps.append(wp_id)
         elif wp_id not in state.preserved_wps:
             state.unchanged_wps.append(wp_id)
+
+    _raise_ownership_contradictions_if_any(state, contradicting_wp_ids, json_output=json_output)
     return state
+
+
+def _raise_ownership_contradictions_if_any(
+    state: _BootstrapState, contradicting_wp_ids: list[str], *, json_output: bool
+) -> None:
+    """FR-002: the aggregated reject -- fires exactly once, after every WP
+    file has been walked, naming every offender in one run. Strictly before
+    ``_flush_frontmatter_writes``/``_run_commit_pipeline`` (both reached only
+    after ``_run_bootstrap_loop`` returns), so this path leaves no mutated WP
+    frontmatter and no committed event on disk (NFR-004). No-op when nothing
+    contradicted (PLAN-ARCH-001, collect-all-offenders-then-raise-once;
+    extracted from ``_run_bootstrap_loop`` to keep it under the C901
+    complexity ceiling).
+    """
+    if not state.ownership_contradictions:
+        return
+    error_msg = (
+        "Ownership contradiction detected for WP(s) "
+        + ", ".join(contradicting_wp_ids)
+        + ": " + "; ".join(state.ownership_contradictions)
+    )
+    if json_output:
+        _emit_json(
+            {
+                "error": error_msg,
+                "error_code": OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES,
+                "ownership_contradiction_wp_ids": contradicting_wp_ids,
+                "ownership_contradictions": list(state.ownership_contradictions),
+            }
+        )
+    else:
+        console.print(f"[red]Error:[/red] {error_msg}")
+        for msg in state.ownership_contradictions:
+            console.print(f"  - {msg}")
+    raise typer.Exit(1) from None
 
 
 def _surface_post_integration_acceptance_warnings(
@@ -1472,6 +1562,40 @@ def _gather_validation_frontmatter(
     return wp_frontmatters, wp_bodies
 
 
+def _resolve_wp_manifests_for_validation(
+    wp_manifests: dict[str, OwnershipManifest],
+    wp_frontmatters: dict[str, WPMetadata],
+) -> dict[str, OwnershipManifest]:
+    """FR-004: never let validation be gated on ``wp_manifests``' emptiness.
+
+    ``build_wp_manifests`` (``specify_cli.ownership.validation``, NOT diffed
+    by this WP) only includes a WP whose ``execution_mode`` AND
+    ``owned_files`` are BOTH truthy. That filtered view is what the caller
+    passes as ``wp_manifests`` -- so when every WP in a mission happens to be
+    filtered out upstream (or a caller passes an inconsistent/stale view),
+    the old ``if not wp_manifests: return`` short-circuit let a malformed or
+    placeholder ``authoritative_surface`` escape validation permanently,
+    purely because it never became reachable (observed at scale: 35+/53
+    mission task files with a bare/empty ``authoritative_surface`` that
+    validation never reached).
+
+    This re-derives the WPs missing from ``wp_manifests`` by calling
+    ``build_wp_manifests`` directly on ``wp_frontmatters`` -- there is no
+    second, inline copy of its ``execution_mode and owned_files`` inclusion
+    predicate here, so the two call sites cannot drift apart. Entries already
+    present in ``wp_manifests`` win the merge (the caller's view is
+    authoritative for anything it already resolved); everything else falls
+    back to whatever ``build_wp_manifests`` derives from ``wp_frontmatters``,
+    so the overlap/glob-match/audit-coverage checks below always see the true
+    set of ownership-declaring WPs -- never short-circuited to a silent no-op
+    purely because ``wp_manifests`` looked empty. Because the predicate is
+    ``build_wp_manifests``'s own, a legitimately-exempt WP (e.g. a
+    ``planning_artifact`` WP with the FR-002 escape hatch's explicit
+    ``owned_files: []``) is never pulled in.
+    """
+    return {**build_wp_manifests(wp_frontmatters), **wp_manifests}
+
+
 def _validate_ownership_manifests(
     wp_manifests: dict[str, OwnershipManifest],
     wp_frontmatters: dict[str, WPMetadata],
@@ -1480,13 +1604,18 @@ def _validate_ownership_manifests(
     *,
     json_output: bool,
 ) -> None:
-    """Phase: ownership overlap + glob-match + audit-coverage validation."""
-    if not wp_manifests:
-        return
+    """Phase: ownership overlap + glob-match + audit-coverage validation.
+
+    FR-004 (binding, D1): these checks -- including ``authoritative_surface``
+    -- run unconditionally; they are never skipped purely because the
+    caller's ``wp_manifests`` view happens to be empty. See
+    ``_resolve_wp_manifests_for_validation`` for the mechanism.
+    """
+    manifests = _resolve_wp_manifests_for_validation(wp_manifests, wp_frontmatters)
     wp_dependencies = {
         wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items() if getattr(fm, "dependencies", None)
     }
-    ownership_result = _validate_ownership_via_mission(wp_manifests, wp_dependencies)
+    ownership_result = _validate_ownership_via_mission(manifests, wp_dependencies)
     for warning in ownership_result.warnings:
         if not json_output:
             console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
@@ -1501,7 +1630,7 @@ def _validate_ownership_manifests(
         raise typer.Exit(1) from None
 
     create_intent = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
-    glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=create_intent)
+    glob_result = validate_glob_matches(manifests, repo_root, create_intent=create_intent)
     _record_ownership_glob_diagnostics(glob_result, state, json_output=json_output)
     if not glob_result.passed:
         error_msg = "Ownership validation failed: literal-path owned_files entries match zero files. Fix the paths or add them to 'create_intent'."
@@ -1511,7 +1640,7 @@ def _validate_ownership_manifests(
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1) from None
 
-    codebase_wide = [list(m.owned_files) for m in wp_manifests.values() if m.is_codebase_wide]
+    codebase_wide = [list(m.owned_files) for m in manifests.values() if m.is_codebase_wide]
     audit_warnings = validate_audit_coverage(codebase_wide, repo_root)
     state.ownership_warnings.extend(audit_warnings)
     if not json_output:
@@ -1825,7 +1954,25 @@ def _compute_and_write_lanes(
 ) -> tuple[Path | None, LanesManifest | None]:
     """Phase: compute execution lanes + write lanes.json + risk report."""
     if not (wp_manifests and wp_dependencies):
-        return None, None
+        # FR-003 (binding, D1): raise instead of silently writing nothing --
+        # the old ``return None, None`` let the caller report success while
+        # ``lanes.json`` was never written. Name which half of the compound
+        # guard tripped so both directions are distinguishable (Acceptance
+        # Scenario 5): no ownership manifests at all, vs. manifests present
+        # but no dependency graph resolved.
+        if not wp_manifests:
+            reason = "no WP ownership manifests were resolved (wp_manifests is empty)"
+        else:
+            reason = (
+                "WP ownership manifests were resolved but the WP dependency graph is "
+                "empty (wp_dependencies is empty)"
+            )
+        error_msg = f"Lane computation aborted: {reason}; lanes.json was not written."
+        if json_output:
+            _emit_json({"error": error_msg, "error_code": LANE_COMPUTATION_ABORTED_EMPTY_INPUTS})
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1) from None
     from specify_cli.lanes.compute import compute_lanes
     from specify_cli.lanes.persistence import write_lanes_json
 
@@ -1941,6 +2088,12 @@ def _scaffold_acceptance_matrix_if_lane_based(
     json_output: bool,
 ) -> None:
     """Phase: Finding 6 — scaffold acceptance-matrix.json for lane-based missions."""
+    # PLAN-ARCH-002 (adopted resolution, binding): the ``lanes_manifest is
+    # None`` half of this guard is unreachable for the
+    # ``_compute_and_write_lanes`` call path since FR-003 -- that function
+    # now raises instead of returning ``(None, None)``. Kept as defensive
+    # code (not narrowed/removed), since ``_compute_and_write_lanes``'s
+    # return-type annotation deliberately stays unchanged.
     if lanes_manifest is None or validate_only:
         return
     try:
