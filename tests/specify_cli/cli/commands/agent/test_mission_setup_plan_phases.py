@@ -24,6 +24,12 @@ import typer
 from charter.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
+from specify_cli.cli.commands.agent.setup_plan_hosted import (
+    BoundaryEvaluation,
+    BoundaryState,
+    HostedSyncDecision,
+    HostedSyncDiagnostic,
+)
 from specify_cli.core.paths import load_meta_fail_closed as canonical_load_meta_fail_closed
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
@@ -60,6 +66,118 @@ def _resolution(path: Path) -> ResolutionResult:
         tier=ResolutionTier.OVERRIDE,
         mission="software-dev",
     )
+
+
+def _diagnostic(code: str) -> HostedSyncDiagnostic:
+    """Build one canonical warning through the WP02 decision authority."""
+    from specify_cli.auth.token_manager import SessionAssessment
+    from specify_cli.cli.commands.agent.setup_plan_hosted import decide_hosted_sync
+
+    assessment = (
+        SessionAssessment(False, None, "storage_read_failed")
+        if code == "SAAS_SYNC_AUTH_UNKNOWN"
+        else SessionAssessment(True, False, "session_absent")
+    )
+    return decide_hosted_sync(
+        requested=True,
+        session_assessment=assessment,
+        boundary=BoundaryEvaluation(BoundaryState.SAFE),
+        route_available=True,
+    ).diagnostics[0]
+
+
+@pytest.mark.parametrize(
+    ("payload", "exit_code"),
+    [
+        ({"result": "success", "phase_complete": True}, 0),
+        (
+            {
+                "result": "success",
+                "phase_complete": False,
+                "scaffold_only": True,
+            },
+            0,
+        ),
+        (
+            {
+                "result": "blocked",
+                "phase_complete": False,
+                "blocked_reason": "baseline reason",
+            },
+            0,
+        ),
+        ({"error_code": "SPEC_FILE_MISSING", "error": "baseline error"}, 1),
+        (
+            {
+                "result": "error",
+                "phase_complete": False,
+                "error_code": "TEMPLATE_CONFIGURATION_ERROR",
+            },
+            1,
+        ),
+        ({"error": "baseline generic error"}, 1),
+    ],
+)
+def test_local_outcome_reporter_preserves_complete_baseline_payload_and_exit(
+    monkeypatch: pytest.MonkeyPatch,
+    payload: dict[str, object],
+    exit_code: int,
+) -> None:
+    """T013: hosted warnings are the only permitted baseline delta."""
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", lambda value: emitted.append(value))
+    warning = _diagnostic("SAAS_SYNC_AUTH_UNKNOWN")
+
+    outcome = seam.SetupPlanLocalOutcome(
+        payload=payload,
+        exit_code=exit_code,
+        render_kind="error" if exit_code else "success",
+    )
+    seam._report_setup_plan_outcome(
+        outcome,
+        diagnostics=(warning,),
+        json_output=True,
+    )
+
+    assert len(emitted) == 1
+    actual = emitted[0]
+    assert {key: value for key, value in actual.items() if key != "warnings"} == payload
+    assert actual["warnings"] == [warning.to_dict()]
+    assert outcome.exit_code == exit_code
+
+
+def test_hosted_effect_executor_refuses_every_intent_under_one_decision(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """T013/T015: a refused decision dominates lifecycle and dossier effects."""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        lambda *_a, **_k: calls.append("lifecycle"),
+    )
+    monkeypatch.setattr(
+        seam,
+        "_trigger_dossier_sync",
+        lambda *_a, **_k: calls.append("dossier"),
+    )
+    decision = HostedSyncDecision(
+        requested=True,
+        allow_effects=False,
+        diagnostics=(_diagnostic("SAAS_SYNC_UNAUTHENTICATED"),),
+    )
+    intent = seam.LifecycleEventIntent(
+        envelope={"event_type": "PlanStarted"},
+        log_path=tmp_path / "lifecycle.events.jsonl",
+    )
+
+    seam._execute_setup_plan_hosted_effects(
+        decision,
+        lifecycle_intents=(intent,),
+        dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
+    )
+
+    assert calls == []
 
 
 # ---------------------------------------------------------------------------
