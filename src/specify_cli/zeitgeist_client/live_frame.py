@@ -72,7 +72,7 @@ Reported-live honesty, not reconstruction:
   (``bead/<ID>/<actor>/<n>``, e.g. ``bead/WIRE-M2-04/python-pedro/1``, 7
   segments). Review found the char-class-only half is not a working
   defense on its own: the same "IGNORE-PRIOR-INSTRUCTIONS-..." fixture
-  ``grammar.py`` and ``zeitgeist/editor.py:154-166`` cite as PROOF that
+  ``grammar.py`` and ``zeitgeist/editor.py:157-165`` cite as PROOF that
   character validity alone cannot separate a real identifier from prose
   fullmatches ``REF_RE`` under 64 chars with no whitespace, so it would
   have passed the carve-out unmodified into MCP-adapter-facing output
