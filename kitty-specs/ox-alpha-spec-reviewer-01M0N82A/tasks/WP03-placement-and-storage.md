@@ -217,3 +217,4 @@ Reviewer отклоняет WP при directory-level classifier, direct `featur
 ### Updating Status
 
 `spec-kitty agent tasks move-task WP03 --to <status>`.
+- 2026-08-23T08:28:54Z – codex – shell_pid=27944 – Профиль изменён на implementer-ivan: пакет содержит кодовые T012–T015; продуктовые требования и границы не изменены.
