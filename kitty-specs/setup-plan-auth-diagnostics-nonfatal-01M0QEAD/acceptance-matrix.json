@@ -78,10 +78,10 @@
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP02 approval and arbiter evidence plus WP04 review-cycle-2.md: one closed hosted-delivery decision authority consumed by setup-plan",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-23T21:51:09.593291+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
