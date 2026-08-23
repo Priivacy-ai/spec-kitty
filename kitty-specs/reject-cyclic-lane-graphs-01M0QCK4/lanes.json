@@ -48,6 +48,7 @@
       ],
       "write_scope": [
         "tests/lanes/test_compute.py",
+        "tests/specify_cli/lanes/test_lane_dependency_cycle_cli_determinism.py",
         "tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py",
         "tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py"
       ],
@@ -56,13 +57,14 @@
         "artifact-rendering"
       ],
       "depends_on_lanes": [
-        "lane-a"
+        "lane-a",
+        "lane-b"
       ],
-      "parallel_group": 1
+      "parallel_group": 2
     }
   ],
-  "computed_at": "2026-08-23T14:12:10.407351+00:00",
+  "computed_at": "2026-08-23T15:38:21.496385+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "77cfc1219f446277b628e01ded6335b875705b44"
+  "planning_commit_sha": "06db97ec1365bae1749c9c7c1e2ecae3f8e8131a"
 }

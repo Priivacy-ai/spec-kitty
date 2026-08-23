@@ -54,10 +54,10 @@ WP01 is a hard prerequisite. Inspect its actual exception/value API rather than 
 
 Read:
 
-- `spec.md` User Stories 1–2, FR-003/004/006/008 and C-002/C-005/C-006.
-- `plan.md` Design 4–5 and Verification Strategy.
-- `contracts/lane-dependency-cycle.schema.json` for the exact JSON fields.
-- `quickstart.md` for focused verification.
+- `kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/spec.md` User Stories 1–2, FR-003/004/006/008 and C-002/C-005/C-006.
+- `kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/plan.md` Design 4–5 and Verification Strategy.
+- `kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/contracts/lane-dependency-cycle.schema.json` for the exact JSON fields.
+- `kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/quickstart.md` for focused verification.
 
 In `mission_finalize.py`, both modes call `compute_lanes` through different branches but converge at the outer `finalize_tasks` exception boundary. `_emit_finalize_error_with_revert_note` currently renders generic errors as `{"error": str(error)}`. The mutating `_compute_and_write_lanes` computes before planning SHA capture and `write_lanes_json`; preserve that order.
 
@@ -87,7 +87,18 @@ For both mutating and `--validate-only` modes with `--json`, assert:
 - each entry contains `lane_id` and sorted `wp_ids`;
 - the three structured fields are identical between modes.
 
-Add human-output coverage proving the path and lane/WP membership are visible. Do not overconstrain Rich coloring or whitespace; constrain the actionable facts.
+Add human-output coverage parameterized across both mutating and `--validate-only` modes. For each, prove nonzero exit, no traceback, the complete closed path, and every lane/WP membership fact. Do not overconstrain Rich coloring or whitespace; constrain the actionable facts.
+
+Declare the mandatory module-level taxonomy in the new CLI test file:
+
+```python
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.git_repo,
+    pytest.mark.non_sandbox,
+    pytest.mark.regression,
+]
+```
 
 Confirm the tests are red because generic rendering omits structured fields.
 
@@ -97,7 +108,7 @@ Using the same real cyclic planning fixture, cover both required initial states:
 
 1. `lanes.json` absent before mutating finalization: it remains absent afterward.
 2. A valid existing `lanes.json`: read its raw bytes before the command and assert the bytes are identical afterward.
-3. `--validate-only`: snapshot relevant mission files and assert the command performs no mutation.
+3. `--validate-only`: recursively inventory the entire fixture feature directory before and after as relative path, file type, and raw bytes; assert identical path sets and contents. Explicitly prove no `status.events.jsonl`, `status.json`, `acceptance-matrix.json`, or `lanes.json` is created when absent. Do not compare mtimes.
 
 Prefer real filesystem assertions around the canonical feature directory. A mock asserting `write_lanes_json` was not called can supplement but cannot replace byte-level acceptance evidence.
 
@@ -145,7 +156,7 @@ Run:
 uv run pytest tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py -q
 uv run pytest tests/specify_cli/cli/commands/agent -k 'finalize' -q
 uv run ruff check src/specify_cli/cli/commands/agent/mission_finalize.py tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py
-uv run mypy --strict src/specify_cli/cli/commands/agent/mission_finalize.py
+uv run mypy --strict src/specify_cli/lanes/models.py src/specify_cli/lanes/compute.py src/specify_cli/cli/commands/agent/mission_finalize.py
 ```
 
 Also validate a representative payload against the mission JSON Schema using `jsonschema.Draft202012Validator`. Record commands and results in the Activity Log.
@@ -180,9 +191,9 @@ If any fixture requires patching a bootstrap/commit seam, name the seam and expl
 ## Definition of Done
 
 - Both modes return identical structured cycle facts and nonzero exits.
-- Human output names the complete path and lane membership.
+- Human output names the complete path and lane membership in both mutating and validate-only modes.
 - Existing/absent lane manifests are preserved exactly.
-- Validate-only performs no mutation and never reports success.
+- Validate-only preserves a recursive whole-feature inventory, creates none of the explicitly named artifacts, and never reports success.
 - Planning-lane cycles are rejected.
 - Generic error behavior is unchanged.
 - Focused tests, ruff, strict mypy, and schema validation are recorded.

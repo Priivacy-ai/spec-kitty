@@ -21,7 +21,7 @@
 | T010 | Run CLI/finalization regression and quality gates | WP02 | |
 | T011 | Lock valid-DAG output compatibility in existing computation tests | WP03 | [P] |
 | T012 | Add insertion-order and multiple-cycle determinism matrices | WP03 | [P] |
-| T013 | Add cross-process hash-seed determinism proof | WP03 | |
+| T013 | Add canonical CLI cross-process hash-seed determinism proof | WP03 | |
 | T014 | Add the fixed 100-lane/500-edge p95 benchmark | WP03 | [P] |
 | T015 | Run broad lane regressions and verify the diagnostic contract | WP03 | |
 
@@ -49,11 +49,11 @@
 
 1. Establish red tests for self-loops, multi-lane cycles, lexical selection, normalization, and clean DAGs.
 2. Add a typed `LaneComputationError` subclass that owns normalized domain facts but no CLI serialization.
-3. Implement a pure sorted DFS helper and prove it preserves directed adjacency while rotating the cycle.
+3. Implement a pure iterative sorted DFS helper and prove it preserves directed adjacency while rotating the cycle without recursion-limit exposure.
 4. Invoke it after the complete `lane_deps` map is built and before `_compute_lane_depths`.
 5. Replace the contradictory public permissiveness assertion while retaining direct helper recursion safety.
 
-**Parallel opportunities**: T002 can be drafted alongside T001, but T003–T005 are sequential. After WP01, WP02 and WP03 can run in parallel.
+**Parallel opportunities**: T002 can be drafted alongside T001, but T003–T005 are sequential. WP02 begins after WP01.
 
 **Risks**: accidental dependence on mapping/set order; incorrect cycle reconstruction; changing clean-DAG manifests; deleting useful low-level stack-safety coverage.
 
@@ -87,7 +87,7 @@
 4. Assert the compute-before-write ordering structurally preserves absence and byte identity, including a cycle involving `lane-planning`.
 5. Run focused and adjacent finalization tests plus ruff/mypy.
 
-**Parallel opportunities**: T006 and T007 can be authored independently. The entire WP can execute in parallel with WP03 after WP01.
+**Parallel opportunities**: T006 and T007 can be authored independently. WP03 begins after this WP because its hash-seed proof exercises the renderer implemented here.
 
 **Risks**: duplicate JSON output; mode-specific catches; mutation during validate-only setup; broadening rollback beyond `lanes.json`; weakening generic error behavior.
 
@@ -101,7 +101,7 @@
 
 **Independent test**: Run a fixed multi-cycle graph under permuted insertion orders and three `PYTHONHASHSEED` values, compare normalized diagnostics byte-for-byte, then benchmark 100 lanes/500 edges at p95 ≤100 ms.
 
-**Dependencies**: WP01
+**Dependencies**: WP01, WP02
 
 **Estimated prompt size**: ~290 lines
 
@@ -109,7 +109,7 @@
 
 - [ ] T011 Lock valid-DAG output compatibility in existing computation tests (WP03)
 - [ ] T012 Add insertion-order and multiple-cycle determinism matrices (WP03)
-- [ ] T013 Add cross-process hash-seed determinism proof (WP03)
+- [ ] T013 Add canonical CLI cross-process hash-seed determinism proof (WP03)
 - [ ] T014 Add the fixed 100-lane/500-edge p95 benchmark (WP03)
 - [ ] T015 Run broad lane regressions and verify the diagnostic contract (WP03)
 
@@ -117,11 +117,11 @@
 
 1. Strengthen existing acyclic fixtures without copying WP01's detector-unit concerns.
 2. Exercise equivalent mappings/dependency lists in varied construction orders and compare exception facts.
-3. Use controlled subprocesses for hash-seed proof so the environment actually changes.
+3. Invoke canonical finalization in controlled subprocesses for hash-seed proof so both the environment and the real CLI renderer are exercised.
 4. Benchmark the pure detector rather than CLI startup or filesystem work.
 5. Validate the checked-in JSON schema against a representative payload and run the broader lane suite.
 
-**Parallel opportunities**: T011, T012, and T014 touch separate files. WP03 can execute in parallel with WP02 after WP01.
+**Parallel opportunities**: T011, T012, and T014 touch separate files and can be developed concurrently within this WP. The WP itself begins only after WP02.
 
 **Risks**: flaky wall-clock assertions; subprocesses importing the installed rather than working-tree package; tests that compare timestamps instead of stable fields; duplicating WP01 ownership.
 
@@ -131,11 +131,11 @@
 
 ```text
 WP01 Authoritative domain gate
-  ├── WP02 Finalization diagnostics + persistence
-  └── WP03 Determinism + performance + regression
+  └── WP02 Finalization diagnostics + persistence
+        └── WP03 Determinism + performance + regression
 ```
 
-WP02 and WP03 have no overlapping owned files and may execute concurrently after WP01 is approved.
+The packages are sequential because WP03's canonical CLI determinism evidence consumes WP02's renderer. Within each WP, only subtasks explicitly marked `[P]` may be developed concurrently.
 
 ## MVP Scope
 

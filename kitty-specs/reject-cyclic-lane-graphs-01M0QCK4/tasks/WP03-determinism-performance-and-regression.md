@@ -3,6 +3,7 @@ work_package_id: WP03
 title: Determinism Performance and Regression Proof
 dependencies:
 - WP01
+- WP02
 requirement_refs:
 - FR-007
 - FR-009
@@ -25,11 +26,13 @@ agent_profile: debugger-debbie
 authoritative_surface: tests/lanes/
 create_intent:
 - tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py
+- tests/specify_cli/lanes/test_lane_dependency_cycle_cli_determinism.py
 - tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py
 execution_mode: code_change
 owned_files:
 - tests/lanes/test_compute.py
 - tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py
+- tests/specify_cli/lanes/test_lane_dependency_cycle_cli_determinism.py
 - tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py
 role: implementer
 tags: []
@@ -51,21 +54,21 @@ Supply independent release evidence that WP01's authoritative detector preserves
 
 ## Context
 
-This package depends only on WP01 and can execute in parallel with WP02. It owns test files only; do not change `compute.py` or `mission_finalize.py`. If evidence exposes a production defect, reject/return feedback to WP01 rather than crossing ownership boundaries.
+This package depends on WP01 and WP02 because its cross-process proof exercises the canonical renderer. It owns test files only; do not change `compute.py` or `mission_finalize.py`. If evidence exposes a production defect, reject/return feedback to the owning WP rather than crossing ownership boundaries.
 
 Read:
 
-- `spec.md` FR-007/009/010, NFR-002/003, SC-004/005.
-- `plan.md` Verification Strategy and Risks.
-- `research.md` R-003 and R-006.
-- `quickstart.md` determinism, performance, and broad gate commands.
+- `kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/spec.md` FR-007/009/010, NFR-002/003, SC-004/005.
+- `kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/plan.md` Verification Strategy and Risks.
+- `kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/research.md` R-003 and R-006.
+- `kitty-specs/reject-cyclic-lane-graphs-01M0QCK4/quickstart.md` determinism, performance, and broad gate commands.
 
 ## Branch Strategy
 
 - Planning base branch: `fix/reject-cyclic-lane-graphs`
 - Final local merge target: `fix/reject-cyclic-lane-graphs`
-- Dependency: WP01. Execution worktree allocation and dependency base come from `lanes.json`.
-- WP02 is a sibling after WP01 and may run concurrently; its files are outside this WP's ownership.
+- Dependencies: WP01 and WP02. Execution worktree allocation and dependency base come from `lanes.json`.
+- This WP begins only after the shared CLI renderer exists; its files remain outside both prerequisite WPs' ownership.
 
 ## Subtasks and Detailed Guidance
 
@@ -91,6 +94,8 @@ The intent is regression locking, not snapshotting the entire manifest format. K
 
 Create `tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py`.
 
+Declare `pytestmark = [pytest.mark.unit, pytest.mark.fast]` at module level. Keep this file pure-domain and subprocess-free so it remains visible in the fast unit lane.
+
 Build a graph with at least two available directed cycles and a deterministic expected winner. Construct equivalent inputs using:
 
 - forward and reverse dictionary insertion order;
@@ -111,32 +116,43 @@ Also assert:
 
 Do not require the human sentence to be byte-identical unless the implementation explicitly governs it; the specification governs structured cycle details.
 
-### T013 — Add cross-process hash-seed proof
+### T013 — Add canonical CLI cross-process hash-seed proof
 
-In the determinism test file, add a subprocess-based test that runs a minimal Python snippet against the working-tree package under at least three seeds, for example `1`, `7`, and `97`.
+Create `tests/specify_cli/lanes/test_lane_dependency_cycle_cli_determinism.py`. It must invoke canonical mission finalization in a fresh process under at least three seeds: `1`, `7`, and `97`.
+
+Declare this module-level taxonomy:
+
+```python
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.git_repo,
+    pytest.mark.non_sandbox,
+    pytest.mark.regression,
+]
+```
 
 Requirements:
 
 1. Set `PYTHONHASHSEED` explicitly in a copied environment.
 2. Ensure `PYTHONPATH` or the command invocation imports this checkout, not a globally installed Spec Kitty.
-3. Construct equivalent cyclic input and catch the typed exception.
-4. Print only canonical JSON containing the stable fields.
-5. Assert subprocess return codes are zero and stdout bytes are equal.
-6. Include stderr in assertion diagnostics without mixing it into the compared payload.
+3. Seed an equivalent real cyclic mission fixture for each process.
+4. Invoke `python -m specify_cli agent mission finalize-tasks --mission <fixture> --validate-only --json` (or the repository's proven equivalent module entry point).
+5. Assert each subprocess exits nonzero without a traceback, parse its single terminal JSON object, and re-serialize only `error_code`, `cycle_path`, and `cycle_lanes` canonically.
+6. Assert those stable-field bytes are identical across all three seeds.
+7. Include stderr in assertion diagnostics without mixing it into the compared payload.
 
 Keep the snippet compact but understandable. Prefer `sys.executable -c` so the interpreter matches the test environment. Avoid shell quoting dependencies for Windows compatibility.
 
 ### T014 — Add governed performance benchmark
 
-Create `tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py` using the repository's existing pytest-benchmark conventions and performance marker/environment gate.
+Create `tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py` using the repository's existing pytest-benchmark conventions and performance marker/environment gate. Declare module-level `pytestmark = [pytest.mark.unit]`; mark the benchmark itself with `@pytest.mark.performance` and `@pytest.mark.benchmark(group="lanes")`.
 
 Construct a deterministic fixed graph of exactly 100 lane IDs and 500 dependency edges. It must exercise the pure detector and include a known cycle near a traversal position that prevents the benchmark from measuring only an immediate first-edge return.
 
 Benchmark requirements from NFR-003:
 
-- 5 warm-up runs;
-- 20 measured runs;
-- compute or retrieve p95 from measured durations;
+- call `benchmark.pedantic(..., rounds=20, iterations=1, warmup_rounds=5)`;
+- compute nearest-rank p95 from `benchmark.stats.stats.sorted_data` at zero-based index 18;
 - assert p95 ≤ 0.100 seconds on the CI runner;
 - keep fixture construction outside the measured callable;
 - assert the result is the expected normalized cycle so speed cannot replace correctness.
@@ -149,10 +165,8 @@ Run:
 
 ```bash
 uv run pytest tests/lanes tests/specify_cli/lanes -q
-PYTHONHASHSEED=1 uv run pytest tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py -q
-PYTHONHASHSEED=7 uv run pytest tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py -q
-PYTHONHASHSEED=97 uv run pytest tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py -q
-SPEC_KITTY_RUN_PERFORMANCE=1 uv run pytest tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py -m benchmark
+uv run pytest tests/specify_cli/lanes/test_lane_dependency_cycle_cli_determinism.py -q
+SPEC_KITTY_RUN_PERFORMANCE=1 uv run pytest tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py -m performance -q
 uv run ruff check tests/lanes/test_compute.py tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py
 ```
 
@@ -188,8 +202,8 @@ The final review handoff should distinguish blocking correctness evidence from t
 ## Definition of Done
 
 - Representative acyclic manifests preserve their observable fields.
-- Equivalent multi-cycle inputs produce byte-identical stable facts.
-- At least three process hash seeds produce identical output.
+- Equivalent multi-cycle inputs produce byte-identical domain facts.
+- Canonical CLI finalization under at least three process hash seeds produces identical structured output fields.
 - The fixed 100/500 fixture meets p95 ≤100 ms under the governed run shape.
 - The diagnostic JSON Schema is valid and accepts a representative payload.
 - Broad lane suites and ruff pass, or any pre-existing failure is handled under DIR-013.

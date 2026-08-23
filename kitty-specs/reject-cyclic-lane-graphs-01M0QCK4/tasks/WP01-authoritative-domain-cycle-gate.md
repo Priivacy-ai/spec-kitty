@@ -89,6 +89,13 @@ Cover the pure intended behavior:
 - a cycle is rotated to its smallest member without reversing edge direction;
 - set and mapping insertion order do not affect the returned tuple;
 - `cycle_lanes` order follows first appearance and `wp_ids` are sorted.
+- a directed cycle containing more nodes than `sys.getrecursionlimit()` raises the typed cycle error without `RecursionError`.
+
+Declare the mandatory module-level taxonomy in the new file:
+
+```python
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+```
 
 Also build the real regression shape from issue #3431: an authored acyclic WP graph whose overlap unions cause the final execution lanes to depend on each other. Assert `compute_lanes` raises the typed error rather than returning a manifest.
 
@@ -113,19 +120,19 @@ Add type annotations and docstrings consistent with Python 3.11 and the module s
 
 ### T003 — Implement deterministic directed-cycle selection
 
-Add a pure helper such as `_find_lane_dependency_cycle(lane_deps)`.
+Add a pure iterative helper such as `_find_lane_dependency_cycle(lane_deps)`.
 
 Required algorithm behavior:
 
 1. Traverse all lane IDs lexically.
 2. Traverse each lane's dependencies lexically.
-3. Track unvisited/active/completed state plus an active-stack index.
+3. Track unvisited/active/completed state plus an explicit traversal stack and active-stack index.
 4. On the first back edge to an active node, slice the directed cycle from the stack and close it by repeating the first node.
 5. Rotate unique members so the smallest lane ID begins the path; append it again to close.
 6. Preserve direction. Never sort the cycle members into a new adjacency order.
 7. Stop after the first cycle; do not enumerate all cycles.
 
-The helper should be O(V + E) apart from deterministic sorting. Avoid recursion-depth exposure on mission-scale input if the existing project graph style favors iterative traversal; if recursive DFS is retained, document and test the scale assumption. The 100-lane governed fixture is mandatory, but correctness should not rely on that exact ceiling.
+The helper should be O(V + E) apart from deterministic sorting. Recursive DFS is not acceptable: FR-010 declares no lane-count ceiling, so a graph beyond Python's recursion limit must still terminate with `LaneDependencyCycleError`. The 100-lane governed performance fixture is mandatory but is not the correctness ceiling.
 
 Do not reuse `core.dependency_graph.detect_cycles` unchanged: it has different collection and ordering behavior.
 
