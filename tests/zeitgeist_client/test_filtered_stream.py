@@ -21,10 +21,13 @@ import socket
 import threading
 import time
 import urllib.error
+import urllib.request
 
 import pytest
 
 from specify_cli.zeitgeist_client import filtered_stream, sanitizer
+
+from .conftest import mint_capability_token
 
 pytestmark = pytest.mark.fast
 
@@ -88,6 +91,26 @@ def test_watch_sends_the_capability_credential_header_and_nothing_else_identifyi
 
     assert managed_stream_double.received_headers
     sent = managed_stream_double.received_headers[0]
+    assert sent.get("X-Zeitgeist-Capability") == "team-a-cred"
+
+
+def test_watch_sends_authorization_bearer_header_too(managed_stream_double) -> None:
+    """FIX-M2-13: ``GET /managed/stream`` sits behind the SAME outer
+    ``AuthenticationMiddleware`` (``Authorization: Bearer <token>``, every
+    route but ``/health``) as ``POST /managed/control`` — the pre-fix
+    request carried only ``X-Zeitgeist-Capability`` and was always 401'd by
+    a real relay regardless of that header's validity. Both headers now
+    carry the SAME stored credential — the "one credential, two headers"
+    model ``transport.py``'s ``offer()`` already uses for the same reason
+    (see the module docstring's FIX-M2-13 note)."""
+    stream = filtered_stream.FilteredStream(_config(managed_stream_double.url, credential="team-a-cred"))
+    gen = stream.watch()
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
+    _drain(gen, 1)
+    gen.close()
+
+    sent = managed_stream_double.received_headers[0]
+    assert sent.get("Authorization") == "Bearer team-a-cred"
     assert sent.get("X-Zeitgeist-Capability") == "team-a-cred"
 
 
@@ -346,3 +369,150 @@ def test_oversized_nested_payload_is_still_shape_checked_not_trusted_blindly(man
     frames = _drain(gen, 1)
     assert frames[0].frame_type == "presence"  # type: ignore[attr-defined]  # extra keys are ignored, not rejected outright, not crashed on
     gen.close()
+
+
+# --- FIX-M2-13: real acceptance/rejection against a PROTOCOL-FAITHFUL ------
+# --- double (managed_stream_auth_double, tests/zeitgeist_client/conftest.py)
+#
+# Unlike managed_stream_double above (records anything, gates nothing), this
+# double actually enforces AuthenticationMiddleware's outer Bearer gate AND
+# managed.py's own X-Zeitgeist-Capability HMAC verification, in the same
+# 401-missing/403-invalid split _extract_identity() itself codes. A watch()
+# call that reaches a frame here would genuinely reach one against a real
+# relay, and one that is denied here for the wrong reason would be genuinely
+# denied by one too — this is what "verified against the live zeitgeist
+# source, not the double" (acceptance criterion 1) means for a test that
+# cannot itself run a real zeitgeist container; the real-container contract
+# test (contract_test_harness.py, evidence dir) covers criterion 2.
+
+
+def _authed_config(double, *, kind: str = "presence") -> filtered_stream.TeamStreamConfig:
+    """Mint a real, ``kind``-scoped capability token signed with ``double``'s
+    own ``capability_key``, then configure the double's ``shared_token`` to
+    equal that SAME minted token — the "one credential, two headers" model
+    ``FilteredStream.watch()``'s FIX-M2-13 fix (and ``transport.py``'s
+    identical FIX-M2-10 one) both rely on: a deployment that wants both
+    gates satisfied by one stored value configures ``ZEITGEIST_TOKEN`` to
+    literally equal the signed capability token (see ``filtered_stream.py``'s
+    module docstring, and ``test_transport.py``'s identical ``_kinded_client``
+    precedent)."""
+    now = now_epoch()
+    token = mint_capability_token(
+        double.capability_key, sub="probe", team="acme", deployment="d1",
+        repo="spec-kitty", kind=kind, iat=now, exp=now + 300,
+    )
+    double.set_shared_token(token)
+    return filtered_stream.TeamStreamConfig(relay_url=double.url, capability_credential=token)
+
+
+def test_watch_receives_real_frames_when_both_headers_are_valid(managed_stream_auth_double) -> None:
+    stream = filtered_stream.FilteredStream(_authed_config(managed_stream_auth_double))
+    gen = stream.watch()
+    managed_stream_auth_double.push_frame(_frame(seq=1, frame=_presence()))
+    frames = _drain(gen, 1)
+    assert frames[0].frame_type == "presence"  # type: ignore[attr-defined]
+    gen.close()
+
+    sent = managed_stream_auth_double.received_headers[0]
+    assert sent.get("Authorization", "").startswith("Bearer ")
+    assert sent.get("X-Zeitgeist-Capability")
+    assert managed_stream_auth_double.denied_statuses == []  # never denied
+
+
+def test_watch_accepts_any_capability_kind_unlike_managed_control(managed_stream_auth_double) -> None:
+    """``/managed/stream``'s own ``_extract_identity(request)`` call passes
+    no ``needs_op`` — unlike ``POST /managed/control``'s per-op kind check —
+    so an ``operator``-kind capability (which grants no control op at all)
+    still admits a stream connection."""
+    stream = filtered_stream.FilteredStream(_authed_config(managed_stream_auth_double, kind="operator"))
+    gen = stream.watch()
+    managed_stream_auth_double.push_frame(_frame(seq=1, frame=_presence()))
+    frames = _drain(gen, 1)
+    assert frames[0].frame_type == "presence"  # type: ignore[attr-defined]
+    gen.close()
+
+
+def test_watch_raises_401_when_authorization_bearer_is_wrong(managed_stream_auth_double) -> None:
+    """``AuthenticationMiddleware``'s outer gate, checked before
+    ``managed.py`` ever inspects ``X-Zeitgeist-Capability`` — a client
+    presenting a credential the relay's shared secret does not recognize is
+    401'd regardless of whether the capability signature is otherwise
+    valid. This double's ``authorized()`` mismatch reproduces exactly what
+    the pre-fix code (no ``Authorization`` header at all) always hit against
+    a real relay."""
+    now = now_epoch()
+    valid_capability_token = mint_capability_token(
+        managed_stream_auth_double.capability_key, sub="probe", team="acme",
+        deployment="d1", repo="spec-kitty", kind="presence", iat=now, exp=now + 300,
+    )
+    managed_stream_auth_double.set_shared_token("a-completely-different-shared-secret")
+    stream = filtered_stream.FilteredStream(
+        filtered_stream.TeamStreamConfig(
+            relay_url=managed_stream_auth_double.url, capability_credential=valid_capability_token
+        )
+    )
+    gen = stream.watch()
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        next(gen)
+    assert exc_info.value.code == 401
+    assert managed_stream_auth_double.denied_statuses == [401]
+
+
+def test_watch_raises_403_when_capability_signature_is_wrong(managed_stream_auth_double) -> None:
+    """The Authorization gate alone is not enough: a credential that passes
+    ``AuthenticationMiddleware``'s literal-match check but is not a validly
+    HMAC-signed capability token is denied by ``managed.py``'s own gate —
+    ``_extract_identity``'s "malformed" reason maps to 403, not 401 (only a
+    completely absent capability header maps to 401 — see the raw-request
+    test below)."""
+    bogus_credential = "not-a-real-capability-token"
+    managed_stream_auth_double.set_shared_token(bogus_credential)  # passes the Authorization gate...
+    stream = filtered_stream.FilteredStream(
+        filtered_stream.TeamStreamConfig(
+            relay_url=managed_stream_auth_double.url, capability_credential=bogus_credential
+        )
+    )
+    gen = stream.watch()
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        next(gen)  # ...but fails managed_auth's HMAC verification
+    assert exc_info.value.code == 403
+    assert managed_stream_auth_double.denied_statuses == [403]
+
+
+def test_raw_request_without_authorization_header_is_401_by_the_double(managed_stream_auth_double) -> None:
+    """Direct proof of "with and without Authorization -> frames vs 401",
+    independent of ``FilteredStream``: a bare GET carrying ONLY
+    ``X-Zeitgeist-Capability`` — this module's exact pre-fix wire shape — is
+    401'd by this protocol-faithful double, exactly as a real relay's
+    ``AuthenticationMiddleware`` would 401 it before ``managed.py`` ever
+    ran."""
+    now = now_epoch()
+    token = mint_capability_token(
+        managed_stream_auth_double.capability_key, sub="probe", team="acme",
+        deployment="d1", repo="spec-kitty", kind="presence", iat=now, exp=now + 300,
+    )
+    req = urllib.request.Request(
+        managed_stream_auth_double.url + "/managed/stream",
+        headers={"X-Zeitgeist-Capability": token},  # no Authorization header at all
+        method="GET",
+    )
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        urllib.request.urlopen(req, timeout=5)
+    assert exc_info.value.code == 401
+    assert managed_stream_auth_double.denied_statuses == [401]
+
+
+def test_raw_request_with_authorization_but_no_capability_header_is_401_by_the_double(managed_stream_auth_double) -> None:
+    """``_extract_identity``'s "missing" reason (no ``X-Zeitgeist-Capability``
+    header at all) maps to 401, distinct from the "malformed"/"signature"
+    reasons above which map to 403."""
+    managed_stream_auth_double.set_shared_token("some-shared-secret")
+    req = urllib.request.Request(
+        managed_stream_auth_double.url + "/managed/stream",
+        headers={"Authorization": "Bearer some-shared-secret"},  # no X-Zeitgeist-Capability at all
+        method="GET",
+    )
+    with pytest.raises(urllib.error.HTTPError) as exc_info:
+        urllib.request.urlopen(req, timeout=5)
+    assert exc_info.value.code == 401
+    assert managed_stream_auth_double.denied_statuses == [401]
