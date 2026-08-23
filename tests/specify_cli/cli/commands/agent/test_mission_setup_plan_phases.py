@@ -759,11 +759,30 @@ def test_real_setup_plan_resolves_route_exactly_once(
     )
 
 
-def test_real_setup_plan_json_totalizes_raising_diagnostic_serializer(
+def _hostile_diagnostic_serializer(mode: str) -> Callable[[HostedSyncDiagnostic], object]:
+    def _serialize(_self: HostedSyncDiagnostic) -> object:
+        if mode == "raise":
+            raise RuntimeError("token=serializer-secret ciphertext=/private/session.enc")
+        if mode == "malicious_dict":
+            return {
+                "code": "EVIL",
+                "severity": "fatal",
+                "hosted_disposition": "allowed",
+                "message": "token=serializer-secret ciphertext=/private/session.enc",
+                "remediation": ["exfiltrate secret"],
+            }
+        return object()
+
+    return _serialize
+
+
+@pytest.mark.parametrize("serializer_mode", ("raise", "malicious_dict", "non_json"))
+def test_real_setup_plan_json_rebuilds_untrusted_diagnostic_serializer(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
+    serializer_mode: str,
 ) -> None:
-    """A hostile public serializer cannot replace or contaminate JSON output."""
+    """Raising, malicious, and non-JSON public serializers are never trusted."""
     with monkeypatch.context() as mp:
         baseline, baseline_exit, _ = _invoke_matrix_case(
             mp,
@@ -772,11 +791,12 @@ def test_real_setup_plan_json_totalizes_raising_diagnostic_serializer(
             None,
         )
 
-    def _raising_serializer(_self: HostedSyncDiagnostic) -> dict[str, object]:
-        raise RuntimeError("token=serializer-secret ciphertext=/private/session.enc")
-
     with monkeypatch.context() as mp:
-        mp.setattr(HostedSyncDiagnostic, "to_dict", _raising_serializer)
+        mp.setattr(
+            HostedSyncDiagnostic,
+            "to_dict",
+            _hostile_diagnostic_serializer(serializer_mode),
+        )
         actual, actual_exit, wire = _invoke_matrix_case(
             mp,
             tmp_path,
@@ -789,17 +809,22 @@ def test_real_setup_plan_json_totalizes_raising_diagnostic_serializer(
     assert actual_exit == baseline_exit == 0
     assert "serializer-secret" not in wire
     assert "/private/session.enc" not in wire
+    assert '"EVIL"' not in wire
+    assert '"fatal"' not in wire
+    assert '"allowed"' not in wire
     assert cast(list[dict[str, object]], actual["warnings"])[0]["code"] == (
-        "SAAS_SYNC_BOUNDARY_UNSAFE"
+        "SAAS_SYNC_UNAUTHENTICATED"
     )
 
 
-def test_real_setup_plan_human_totalizes_raising_diagnostic_serializer(
+@pytest.mark.parametrize("serializer_mode", ("raise", "malicious_dict", "non_json"))
+def test_real_setup_plan_human_rebuilds_untrusted_diagnostic_serializer(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    serializer_mode: str,
 ) -> None:
-    """Human rendering keeps the same local success and exit on serializer failure."""
+    """Human rendering also ignores every untrusted serializer return shape."""
     with monkeypatch.context() as mp:
         _, baseline_exit, _ = _invoke_matrix_case(
             mp,
@@ -810,11 +835,12 @@ def test_real_setup_plan_human_totalizes_raising_diagnostic_serializer(
         )
     baseline_output = capsys.readouterr().out
 
-    def _raising_serializer(_self: HostedSyncDiagnostic) -> dict[str, object]:
-        raise RuntimeError("token=serializer-secret ciphertext=/private/session.enc")
-
     with monkeypatch.context() as mp:
-        mp.setattr(HostedSyncDiagnostic, "to_dict", _raising_serializer)
+        mp.setattr(
+            HostedSyncDiagnostic,
+            "to_dict",
+            _hostile_diagnostic_serializer(serializer_mode),
+        )
         _, actual_exit, _ = _invoke_matrix_case(
             mp,
             tmp_path,
@@ -827,9 +853,12 @@ def test_real_setup_plan_human_totalizes_raising_diagnostic_serializer(
     assert actual_exit == baseline_exit == 0
     assert "serializer-secret" not in actual_output
     assert "/private/session.enc" not in actual_output
+    assert "EVIL" not in actual_output
+    assert "fatal" not in actual_output
+    assert "allowed" not in actual_output
     assert "Plan scaffolded:" in baseline_output
     assert "Plan scaffolded:" in actual_output
-    assert "structural sync boundary was not safe" in actual_output
+    assert "no usable local session is available" in actual_output
 
 
 def test_real_setup_plan_refusal_persists_local_events_and_touches_no_hosted_sink(

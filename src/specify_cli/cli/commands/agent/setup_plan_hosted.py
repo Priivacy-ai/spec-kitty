@@ -177,15 +177,20 @@ def serialize_hosted_sync_diagnostics(
 ) -> list[dict[str, object]]:
     """Totalize the public diagnostic collection at its final wire boundary.
 
-    A patched, subclassed, or otherwise hostile ``to_dict`` implementation
-    cannot replace the already-frozen local command outcome.  The fallback is
-    reconstructed directly from the closed registry and contains no caller
-    exception text.
+    Public ``to_dict`` output is never trusted here: a patched, subclassed, or
+    otherwise hostile implementation could return a structurally valid-looking
+    but unregistered envelope.  Read only the diagnostic's code and details,
+    then reconstruct every field from the closed registry.  Any access or
+    registry failure becomes the same sanitized generic boundary diagnostic.
     """
     serialized: list[dict[str, object]] = []
     for diagnostic in diagnostics:
         try:
-            serialized.append(diagnostic.to_dict())
+            code = diagnostic.code
+            details = diagnostic.details
+            if not isinstance(code, str):
+                raise TypeError("diagnostic code is not a string")
+            serialized.append(_canonical_diagnostic_payload(code, details))
         except Exception:  # noqa: BLE001 - local payload/exit already authoritative
             serialized.append(
                 _canonical_diagnostic_payload(
