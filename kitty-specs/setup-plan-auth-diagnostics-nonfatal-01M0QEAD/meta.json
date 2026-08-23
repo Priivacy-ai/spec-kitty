@@ -26,6 +26,7 @@
   "purpose_tldr": "Keep setup-plan local verification usable regardless of SaaS authentication state.",
   "slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
   "source_description": "GitHub issue Priivacy-ai/spec-kitty#3621",
+  "status_phase": "1",
   "target_branch": "fix/setup-plan-auth-diagnostics-nonfatal",
   "topology": "coord",
   "vcs": "git",
