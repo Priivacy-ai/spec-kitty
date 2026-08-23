@@ -1,7 +1,7 @@
 {
-  "event_count": 34,
-  "last_event_id": "01M0R4T4NYXAJT0FB4J8Q714HT",
-  "materialized_at": "2026-08-23T20:25:52.574718+00:00",
+  "event_count": 35,
+  "last_event_id": "01M0R51Q7WXRZ0CRV3ZJZ3YASB",
+  "materialized_at": "2026-08-23T20:30:00.956627+00:00",
   "mission_number": "",
   "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
   "mission_type": "",
@@ -13,8 +13,8 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
-    "planned": 1
+    "in_review": 0,
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -47,14 +47,14 @@
       }
     },
     "WP02": {
-      "actor": "reviewer-renata",
+      "actor": "user",
       "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
-      "force_count": 8,
-      "lane": "in_review",
-      "last_event_id": "01M0R4T4NYXAJT0FB4J8Q714HT",
-      "last_transition_at": "2026-08-23T20:25:52.574718+00:00",
+      "force_count": 9,
+      "lane": "planned",
+      "last_event_id": "01M0R51Q7WXRZ0CRV3ZJZ3YASB",
+      "last_transition_at": "2026-08-23T20:30:00.956627+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Pre-existing committed kitty-specs artifacts were inherited from lane setup/dependency history; WP02 commits modify only its two owned files.",
@@ -66,8 +66,8 @@
       "provider": "__resolved_provider_absent__",
       "review": null,
       "review_result": {
-        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260823-154419-r1aDO4/spec-kitty/kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD/tasks/WP02-hosted-assessment-decision/review-cycle-3.md",
-        "reference": "review-cycle://setup-plan-auth-diagnostics-nonfatal-01M0QEAD/WP02-hosted-assessment-decision/review-cycle-3.md",
+        "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260823-154419-r1aDO4/spec-kitty/kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD/tasks/WP02-hosted-assessment-decision/review-cycle-4.md",
+        "reference": "review-cycle://setup-plan-auth-diagnostics-nonfatal-01M0QEAD/WP02-hosted-assessment-decision/review-cycle-4.md",
         "reviewer": "user",
         "verdict": "changes_requested"
       },
