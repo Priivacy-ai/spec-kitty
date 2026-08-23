@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+  "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
+  "mission_branch": "kitty/mission-setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+  "target_branch": "fix/setup-plan-auth-diagnostics-nonfatal",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/readiness/auth.py",
+        "tests/readiness/test_auth_probe.py",
+        "tests/sync/test_credential_scope_signal.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "tests/runtime/test_setup_plan_sync_evidence.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-08-23T16:31:02.803519+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "fe1dffda4cbc21a4ee001f236c329c197e392de3"
+}
