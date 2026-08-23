@@ -1,8 +1,8 @@
 # Mission Specification: Responsive Pre-Review Gate Operator Flow
 
-**Mission Branch**: `fix/pre-review-gate-operator-flow`  
-**Created**: 2026-08-23  
-**Status**: Ready for Planning  
+**Mission Branch**: `fix/pre-review-gate-operator-flow`
+**Created**: 2026-08-23
+**Status**: Ready for Planning
 **Input**: Resolve [GitHub issue #2573](https://github.com/Priivacy-ai/spec-kitty/issues/2573) for the 3.2.6 stabilization release.
 
 ## Intent Summary

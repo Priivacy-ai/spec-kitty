@@ -1,8 +1,8 @@
 # Implementation Plan: Responsive Pre-Review Gate Operator Flow
 
-**Branch**: `fix/pre-review-gate-operator-flow` | **Date**: 2026-08-23 | **Spec**: [`spec.md`](spec.md)  
-**Input**: Feature specification from `/kitty-specs/pre-review-gate-operator-flow-01M0Q86H/spec.md`  
-**Planning base**: `origin/main` at `d060cff9a`; current/planning/merge branch: `fix/pre-review-gate-operator-flow`  
+**Branch**: `fix/pre-review-gate-operator-flow` | **Date**: 2026-08-23 | **Spec**: [`spec.md`](spec.md)
+**Input**: Mission specification from `/kitty-specs/pre-review-gate-operator-flow-01M0Q86H/spec.md`
+**Planning base**: `origin/main` at `d060cff9a`; current/planning/merge branch: `fix/pre-review-gate-operator-flow`
 **Issue**: [#2573](https://github.com/Priivacy-ai/spec-kitty/issues/2573), milestone 3.2.6
 
 ## Summary
@@ -29,14 +29,14 @@ Decision records live in [`decisions/`](decisions/); the confirmed engineering a
 
 ## Technical Context
 
-**Language/Version**: Python `>=3.11`; planning environment Python 3.11.15.  
-**Primary Dependencies**: Typer/Rich CLI surface, dataclasses and typing protocols, pytest/JUnit scope engine, existing gate registry and verdict aggregation.  
-**Storage**: Source-controlled Python metadata only. No runtime database, CI log import, timing cache, or new persisted operator state.  
-**Testing**: pytest 9.0.3; exact Typer public-entry tests, pure unit/contract tests, POSIX real-process integration, deterministic Windows termination tests.  
-**Target Platform**: macOS/Linux/Windows CLI; POSIX process groups and Windows `taskkill /T` retain their existing platform-specific implementations.  
-**Project Type**: Single Python CLI package under `src/specify_cli` with tests under `tests/`.  
-**Performance Goals**: start notice within 1 second; human heartbeat at least every 30 seconds; explicit oversized refusal within 2 seconds and before subprocess launch; skip paths launch no subprocess.  
-**Constraints**: one final JSON document; warn-by-default regression severity; no asynchronous lane or background job; no auto-learning; no CI workflow changes; no orphan-reaping promise after uncatchable parent death; release-ready finalization waits for upstream #3127.  
+**Language/Version**: Python `>=3.11`; planning environment Python 3.11.15.
+**Primary Dependencies**: Typer/Rich CLI surface, dataclasses and typing protocols, pytest/JUnit scope engine, existing gate registry and verdict aggregation.
+**Storage**: Source-controlled Python metadata only. No runtime database, CI log import, timing cache, or new persisted operator state.
+**Testing**: pytest 9.0.3; exact Typer public-entry tests, pure unit/contract tests, POSIX real-process integration, deterministic Windows termination tests.
+**Target Platform**: macOS/Linux/Windows CLI; POSIX process groups and Windows `taskkill /T` retain their existing platform-specific implementations.
+**Project Type**: Single Python CLI package under `src/specify_cli` with tests under `tests/`.
+**Performance Goals**: start notice within 1 second; human heartbeat at least every 30 seconds; explicit oversized refusal within 2 seconds and before subprocess launch; skip paths launch no subprocess.
+**Constraints**: one final JSON document; warn-by-default regression severity; no asynchronous lane or background job; no auto-learning; no CI workflow changes; no orphan-reaping promise after uncatchable parent death; release-ready finalization waits for upstream #3127.
 **Scale/Scope**: One transition edge (`in_progress -> for_review`), one registered pre-review handler, one deterministic initial oversized rule, and the public command/test surfaces named below.
 
 ## Charter Check

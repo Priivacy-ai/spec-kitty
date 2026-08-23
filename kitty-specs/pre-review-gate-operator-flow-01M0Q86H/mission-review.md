@@ -1,8 +1,8 @@
 # Post-Merge Mission Review: Responsive Pre-Review Gate Operator Flow
 
-**Mission**: `pre-review-gate-operator-flow-01M0Q86H` (mission 196)  
-**Target branch**: `fix/pre-review-gate-operator-flow`  
-**Integrated commits**: `b67b7596f` (mission squash), `1ab824ca7` (done transitions)  
+**Mission**: `pre-review-gate-operator-flow-01M0Q86H` (mission 196)
+**Target branch**: `fix/pre-review-gate-operator-flow`
+**Integrated commits**: `b67b7596f` (mission squash), `1ab824ca7` (done transitions), `0bf90230d` (acceptance/issue authorities)
 **Review verdict**: **PASS — mission implementation is aligned; release remains waiting upstream**
 
 ## Outcome
@@ -41,7 +41,7 @@ collect.
   72.93 seconds. The skips are the Linux-only subreaper harness on macOS and
   the native-Windows-only tree-termination node.
 - Public integration module: **22 passed, 1 platform skip**, including the
-  repaired real binding path from `dabb8edd7`.
+  repaired real binding path in integrated commit `b67b7596f`.
 - Ruff over every changed production/test surface: pass.
 - Strict mypy over the four typed review modules: pass.
 - `git diff --check`: pass.
@@ -57,7 +57,7 @@ auto-merge the recorded planning commit. This is the identical pre-existing
 failure tracked by spec-kitty issue #3281, not a mission regression.
 
 After applying #3281's documented manual lane recovery in a disposable
-consumer repository, the feature CLI completed the public `for_review`
+consumer repository, the integrated CLI completed the public `for_review`
 transition, approval, mission merge, and final `done` state. The recovered
 fixture reported `NO_COVERAGE` because its disrupted planning projection left
 the resolved mission type blank; this consumer run is therefore evidence for
@@ -86,7 +86,7 @@ claim:
 2. The PR must run the native `ci-windows / Windows critical` job and collect
    the Windows tree-termination contract test.
 3. #3694 and #3695 remain open tracker records although their local acceptance
-   defect is fixed by `dabb8edd7`; close or disposition them from PR evidence.
+   defect is fixed in `b67b7596f`; close or disposition them from PR evidence.
 4. #3281 remains the pre-existing consumer-harness planning/lane blocker.
 5. #2762 remains outside this mission's achievable interruption contract.
 

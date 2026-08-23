@@ -20,4 +20,3 @@ Preserve these boundaries:
 - Record that #3694/#3695 were resolved by test-fixture repair, not a CI-system
   redesign or production behavior change.
 - Do not change product code or widen WP05 beyond evidence artifacts.
-

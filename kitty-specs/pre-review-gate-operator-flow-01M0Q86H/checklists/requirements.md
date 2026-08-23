@@ -1,7 +1,7 @@
 # Specification Quality Checklist: Responsive Pre-Review Gate Operator Flow
 
-**Purpose**: Validate specification completeness and quality before proceeding to planning  
-**Created**: 2026-08-23  
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-08-23
 **Mission**: [spec.md](../spec.md)
 
 ## Content Quality

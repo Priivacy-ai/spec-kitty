@@ -1,7 +1,7 @@
 # Work Packages: Responsive Pre-Review Gate Operator Flow
 
-**Inputs**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, and `contracts/`  
-**Planning / merge branch**: `fix/pre-review-gate-operator-flow`  
+**Inputs**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, and `contracts/`
+**Planning / merge branch**: `fix/pre-review-gate-operator-flow`
 **Issue / release**: #2573 on the path to 3.2.6; release-ready closeout remains downstream of #3127.
 
 **Organization**: Five independently reviewable work packages. File ownership does not overlap. WP03 and WP04 form the parallel verification wave after the engine foundation.

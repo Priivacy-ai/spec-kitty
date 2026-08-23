@@ -1,6 +1,6 @@
 # Traceability: Responsive Pre-Review Gate Operator Flow
 
-Evidence was collected on 2026-08-23 from the reviewed WP branches. `lane-c` includes the acceptance-fixture repair at commit `dabb8edd7`; `lane-d` is commit `6f3c190b4a09ba1b4955f55ccdc4b350f2fee10b`. Every node below is a complete pytest node ID and collects; the cited nodes pass on their owning branch. “N/A” is used only where that assertion category does not apply to the behavior under test.
+Evidence was collected on 2026-08-23 through independent WP review and rerun on the integrated delivery branch. Integrated commit `b67b7596f` contains the reviewed implementation, the acceptance-fixture repair, and the process-tree evidence. Every node below is a complete pytest node ID and collects; the cited nodes pass on the integrated branch. “N/A” is used only where that assertion category does not apply to the behavior under test.
 
 ## Acceptance scenarios
 
@@ -46,4 +46,4 @@ Evidence was collected on 2026-08-23 from the reviewed WP branches. `lane-c` inc
 
 ## Reconciled fixture-evidence defect
 
-Commit `dabb8edd7` writes canonical mission metadata for the throwaway public-integration mission and asserts that the real resolver returns `GateCoverage.ACTIVE` for `software-dev`, action `review`, edge `in_progress->for_review`, with handler `spec-kitty-pre-review`. The complete module now passes (`22 passed, 1 platform skip`), so the previously dead auto-derived warning, block, force, baseline-relative, bounded-scope, and handler-owned no-coverage paths are live evidence rather than binding-level `NO_COVERAGE` fallbacks. This was a fixture/evidence repair only: no product behavior, CI topology, or deterministic budget policy changed. Tracker issues #3694 and #3695 remain open pending tracker closure; their locally reproduced acceptance-evidence defect is fixed by `dabb8edd7`.
+Integrated commit `b67b7596f` writes canonical mission metadata for the throwaway public-integration mission and asserts that the real resolver returns `GateCoverage.ACTIVE` for `software-dev`, action `review`, edge `in_progress->for_review`, with handler `spec-kitty-pre-review`. The complete module passes (`22 passed, 1 platform skip`), so the previously dead auto-derived warning, block, force, baseline-relative, bounded-scope, and handler-owned no-coverage paths are live evidence rather than binding-level `NO_COVERAGE` fallbacks. This was a fixture/evidence repair only: no CI topology or runtime policy learning changed. Tracker issues #3694 and #3695 remain open pending tracker disposition; their locally reproduced acceptance-evidence defect is fixed in the integrated branch.

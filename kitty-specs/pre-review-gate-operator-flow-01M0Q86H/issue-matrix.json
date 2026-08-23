@@ -37,7 +37,7 @@
       "wp": "WP05"
     },
     "#3281": {
-      "evidence_ref": "Post-merge consumer validation reproduced this planning/lane conflict identically on feature HEAD and origin/main; manual recovery reached for_review and done.",
+      "evidence_ref": "Post-merge consumer validation reproduced this planning/lane conflict identically on delivery-branch HEAD and origin/main; manual recovery reached for_review and done.",
       "fr": null,
       "nfr": null,
       "repo": null,

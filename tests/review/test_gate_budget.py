@@ -68,6 +68,16 @@ def test_oversized_rule_outranks_bounded_atom() -> None:
     assert assessment.matched_rule_id == "spec-kitty-architectural-full-directory"
 
 
+def test_bounded_atom_plus_unknown_atom_remains_unknown() -> None:
+    assessment = assess_scope_budget(
+        (BOUNDED_PINNED_VECTOR_TARGET, "tests/e2e"),
+        effective_budget_seconds=300,
+    )
+
+    assert assessment.classification is BudgetClassification.UNKNOWN
+    assert assessment.matched_rule_id is None
+
+
 @pytest.mark.parametrize(
     "targets",
     [
