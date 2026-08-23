@@ -35,17 +35,6 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import safe_commit
 from kernel.paths import to_posix
 
-# Root-level files upgrade may auto-commit. Root files are otherwise excluded
-# (operator-owned), but these are written by upgrade's own seams and leaving
-# them dirty breaches the #2392 "every upgrade write ends in a commit"
-# invariant:
-#   * ``.gitignore`` — the gitignore-backfill migrations (#2385);
-#   * ``AGENTS.md`` / ``GEMINI.md`` — the only root-level session-presence
-#     surfaces (``AgentsMdWriter``/``SkillsPreambleWriter`` and the gemini
-#     ``MarkdownRulesWriter``), which surface repair auto-creates as
-#     ``REPAIRABLE_REQUIRED`` before the churn commit (#2491/#2492).
-_ELIGIBLE_ROOT_GENERATED_FILES = frozenset({".gitignore", "AGENTS.md", "GEMINI.md"})
-
 UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please review and commit manually."
 
 DETACHED_HEAD_WARNING = (
@@ -134,22 +123,47 @@ def git_status_paths(repo_path: Path) -> set[str] | None:
 
 
 def is_upgrade_commit_eligible(path: str, checkout: Path) -> bool:
-    """Return True when a changed file should be included in upgrade auto-commit."""
+    """Return True when a changed file should be included in upgrade auto-commit.
+
+    Ownership of a path is decided by the pre-run **baseline** in
+    :func:`prepare_upgrade_commit_files` — anything already dirty before the
+    run is never swept — not by where the path sits in the tree. A file that
+    was clean at baseline and is dirty after the run was written by the run,
+    and the #2392 invariant says every such write must land in the one
+    auto-commit. That includes root-level files: the gitignore-backfill
+    migrations (``.gitignore``, #2385), the merge-driver/diff-attribute
+    migrations (``.gitattributes``), ``m_3_2_8_provision_kitty_env``
+    (``.claudeignore``) and the root-level session-presence surfaces
+    (``AGENTS.md``/``GEMINI.md``, auto-created by surface repair before the
+    churn commit, #2491) all write at the root. An earlier depth-based
+    rule ("no ``/`` in the path → operator-owned, skip") plus a hand-kept
+    allowlist of exceptions drifted four times in six months and left those
+    files dirty after every upgrade — and, for ``.gitattributes`` in
+    worktrees, tripped the ``spec-kitty merge`` dirty guard (#2492
+    follow-up). The baseline is the only ownership signal that is not a
+    hardcoded file list (#2105), so it is the one we rely on.
+
+    Two guards stay, both about *where the checkout is*, not the path depth:
+
+    * paths outside the checkout (``../``) are never committed;
+    * when the checkout **is** ``$HOME`` (the #3652 hazard — a home
+      directory that self-qualifies as a project), neither ``~/.kittify``
+      nor any root-level file is committed: root files there are the
+      operator's dotfiles, never ours.
+    """
     normalized = to_posix(path.strip())
     if not normalized:
         return False
 
-    # Ignore paths that are outside the repo and arbitrary root-level files.
-    # The only root files eligible are the ones upgrade's own writers own
-    # (``_ELIGIBLE_ROOT_GENERATED_FILES``); the pre-run baseline still
-    # excludes pre-existing operator dirt in those files.
     if normalized.startswith("../"):
         return False
-    if "/" not in normalized and normalized not in _ELIGIBLE_ROOT_GENERATED_FILES:
-        return False
 
-    # Never auto-commit ~/.kittify when users run inside their home directory.
-    return not (checkout.resolve() == Path.home().resolve() and normalized.startswith(".kittify/"))
+    # Never auto-commit ~/.kittify or root-level dotfiles/files when users
+    # run inside their home directory.
+    if checkout.resolve() == Path.home().resolve():
+        return not (normalized.startswith(".kittify/") or "/" not in normalized)
+
+    return True
 
 
 def expand_upgrade_commit_path(checkout: Path, relative_path: str) -> list[Path]:

@@ -227,3 +227,52 @@ def test_upgrade_invariant_every_touched_checkout_ends_clean(tmp_path: Path) -> 
         assert all(".kittify/" in ln or ".gitignore" in ln for ln in main_dirt), main_dirt
     finally:
         MigrationRegistry.clear()
+
+
+def test_root_files_written_by_the_run_land_in_the_upgrade_commit(tmp_path: Path) -> None:
+    """#2491/#2492 follow-up: root-level files the run writes end in the one
+    auto-commit, in the main checkout AND in a worktree, while pre-existing
+    operator dirt at the root survives uncommitted.
+
+    Real git, real ``commit_touched_checkout`` — no fakes in the path. This
+    pins the class a depth-based root filter kept breaking: ``.gitattributes``
+    (merge-driver migrations, which also run in worktrees and tripped the
+    ``spec-kitty merge`` dirty guard), ``.claudeignore``
+    (``m_3_2_8_provision_kitty_env``) and ``AGENTS.md`` (surface repair).
+    """
+    from specify_cli.upgrade import autocommit
+
+    root = tmp_path / "repo"
+    _init_repo(root)
+    (root / ".gitattributes").write_text("*.jsonl merge=union\n", encoding="utf-8")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "track .gitattributes")
+    wt = _add_worktree(root, "m-root-files", "kitty/mission-m-root-files")
+
+    # Pre-existing operator dirt at the root, in both checkouts — must survive.
+    (root / "README.md").write_text("# repo (operator edit in flight)\n", encoding="utf-8")
+    (wt / "README.md").write_text("# repo (lane edit in flight)\n", encoding="utf-8")
+
+    main_baseline = autocommit.git_status_paths(root)
+    wt_baseline = autocommit.git_status_paths(wt)
+    assert main_baseline == {"README.md"} and wt_baseline == {"README.md"}
+
+    # "The run": root-level writes of the kinds upgrade actually performs.
+    for checkout in (root, wt):
+        with (checkout / ".gitattributes").open("a", encoding="utf-8") as handle:
+            handle.write("kitty-specs/**/events.jsonl merge=spec-kitty-event-log\n")
+    (root / ".claudeignore").write_text(".kittify/.env\n", encoding="utf-8")
+    (root / "AGENTS.md").write_text("# Spec Kitty orientation\n", encoding="utf-8")
+    (root / ".kittify" / "metadata.yaml").write_text(
+        _METADATA_YAML.format(version="3.2.6"), encoding="utf-8"
+    )
+
+    committed, paths, warning = autocommit.commit_touched_checkout(root, main_baseline, "3.2.5", "3.2.6")
+    assert (committed, warning) == (True, None)
+    assert set(paths) == {".gitattributes", ".claudeignore", "AGENTS.md", ".kittify/metadata.yaml"}
+    assert _dirty(root) == [" M README.md"]
+    assert set(_git_out(root, "show", "--name-only", "--format=", "HEAD").splitlines()) == set(paths)
+
+    wt_committed, wt_paths, wt_warning = autocommit.commit_touched_checkout(wt, wt_baseline, "3.2.5", "3.2.6")
+    assert (wt_committed, wt_paths, wt_warning) == (True, [".gitattributes"], None)
+    assert _dirty(wt) == [" M README.md"]

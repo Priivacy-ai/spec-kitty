@@ -135,45 +135,43 @@ def test_eligible_rejects_whitespace_only(tmp_path: Path) -> None:
     assert autocommit.is_upgrade_commit_eligible("   ", tmp_path) is False
 
 
-def test_eligible_rejects_root_level_file(tmp_path: Path) -> None:
-    assert autocommit.is_upgrade_commit_eligible("README.md", tmp_path) is False
+# Root-level files written by the upgrade run (clean at baseline, dirty
+# after) are committed like any other path: the gitignore-backfill
+# migrations (.gitignore, #2385), the merge-driver / diff-attribute
+# migrations (.gitattributes), m_3_2_8_provision_kitty_env (.claudeignore)
+# and the session-presence surfaces AGENTS.md / GEMINI.md (surface repair,
+# #2491) all write at the root. A depth-based "no '/' → skip" rule plus a
+# hand-kept allowlist drifted four times and left them dirty (#2492
+# follow-up); ownership is the pre-run baseline, not the path depth.
+_ROOT_FILES_UPGRADE_WRITES = [".gitignore", ".gitattributes", ".claudeignore", "AGENTS.md", "GEMINI.md"]
 
 
-def test_eligible_accepts_root_gitignore(tmp_path: Path) -> None:
-    """The gitignore-backfill migrations write the root .gitignore; leaving it
-    dirty is exactly the merge-blocking churn #2385 reports."""
-    assert autocommit.is_upgrade_commit_eligible(".gitignore", tmp_path) is True
-
-
-@pytest.mark.parametrize("path", ["AGENTS.md", "GEMINI.md"])
-def test_eligible_accepts_root_session_presence_surfaces(tmp_path: Path, path: str) -> None:
-    """``AGENTS.md`` / ``GEMINI.md`` are the only root-level session-presence
-    surfaces (``AgentsMdWriter``, ``SkillsPreambleWriter``, gemini
-    ``MarkdownRulesWriter``). Surface repair auto-creates them as
-    ``REPAIRABLE_REQUIRED`` ahead of the churn commit, so rejecting them as
-    "root files" left them dirty after every upgrade (#2491/#2492)."""
+@pytest.mark.parametrize("path", _ROOT_FILES_UPGRADE_WRITES)
+def test_eligible_accepts_root_files_upgrade_writes(tmp_path: Path, path: str) -> None:
     assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is True
 
 
-def test_eligible_root_allowlist_matches_session_presence_root_targets() -> None:
-    """Pin the allowlist to the writer registry: if a new harness gains a
-    root-level rules file, this test names the missing allowlist entry."""
-    from specify_cli.session_presence.writers.null_writer import NullWriter
-    from specify_cli.session_presence.writers.registry import WRITER_REGISTRY
-
-    root_targets = {
-        writer.rules_path
-        for writer in WRITER_REGISTRY.values()
-        if not isinstance(writer, NullWriter) and "/" not in writer.rules_path
-    }
-    assert root_targets
-    assert root_targets <= autocommit._ELIGIBLE_ROOT_GENERATED_FILES
+@pytest.mark.parametrize("path", ["README.md", "CLAUDE.md", "pyproject.toml"])
+def test_eligible_root_files_are_not_special_cased_by_depth(tmp_path: Path, path: str) -> None:
+    """Eligibility does not depend on path depth. Pre-existing operator edits
+    to these files are kept out of the commit by the baseline (see
+    ``test_prepare_upgrade_commit_files_excludes_preexisting_changes`` and
+    the real-git test below), not by a filename or depth rule."""
+    assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is True
 
 
-@pytest.mark.parametrize("path", ["CLAUDE.md", "README.md", "pyproject.toml", "Makefile"])
-def test_eligible_still_rejects_other_root_files(tmp_path: Path, path: str) -> None:
-    """The allowlist is exhaustive — arbitrary operator-owned root files stay out."""
-    assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is False
+@pytest.mark.parametrize("path", [".gitignore", ".zshrc", "AGENTS.md", "README.md"])
+def test_eligible_rejects_root_files_when_checkout_is_home(path: str) -> None:
+    """When the checkout *is* ``$HOME`` (#3652 hazard) root-level files are the
+    operator's dotfiles and are never committed, whatever their name."""
+    assert autocommit.is_upgrade_commit_eligible(path, Path.home().resolve()) is False
+
+
+def test_eligible_accepts_nested_paths_when_checkout_is_home(tmp_path: Path) -> None:
+    """Only root-level files and ``~/.kittify`` are excluded in ``$HOME``;
+    a nested project's own files remain eligible (unchanged behaviour)."""
+    home = Path.home().resolve()
+    assert autocommit.is_upgrade_commit_eligible("Code/demo/.kittify/metadata.yaml", home) is True
 
 
 def test_eligible_rejects_parent_traversal(tmp_path: Path) -> None:
@@ -194,10 +192,13 @@ def test_eligible_rejects_home_kittify(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_prepare_upgrade_commit_files_excludes_root_files(
+def test_prepare_upgrade_commit_files_includes_root_files_written_by_the_run(
     tmp_path: Path,
     monkeypatch,
 ) -> None:
+    """Root files dirty after the run but clean at baseline were written by
+    the run and are part of the commit-set; root files already dirty at
+    baseline are excluded — by the baseline, not by their depth."""
     project_path = tmp_path / "project"
     project_path.mkdir()
 
@@ -209,19 +210,22 @@ def test_prepare_upgrade_commit_files_excludes_root_files(
             "kitty-specs/001-test/tasks/WP01.md",
             "README.md",
             "CLAUDE.md",
+            ".gitattributes",
             "AGENTS.md",
             "docs/guides/upgrade.md",
         },
     )
 
-    files = autocommit.prepare_upgrade_commit_files(project_path, baseline_paths=set())
+    files = autocommit.prepare_upgrade_commit_files(
+        project_path,
+        baseline_paths={"README.md", "CLAUDE.md"},
+    )
 
-    # Arbitrary root files (README.md, CLAUDE.md) are excluded; AGENTS.md is a
-    # session-presence surface upgrade itself writes, so it is kept (#2492).
     assert {str(path) for path in files} == {
         ".kittify/metadata.yaml",
         "kitty-specs/001-test/tasks/WP01.md",
         "docs/guides/upgrade.md",
+        ".gitattributes",
         "AGENTS.md",
     }
 
@@ -258,6 +262,8 @@ def test_prepare_upgrade_commit_files_skips_home_level_kittify(monkeypatch) -> N
         "git_status_paths",
         lambda _repo: {
             ".kittify/metadata.yaml",
+            ".gitignore",
+            ".zshrc",
             "Code/demo/.kittify/metadata.yaml",
             "Code/demo/kitty-specs/001-test/tasks/WP01.md",
         },
@@ -265,6 +271,8 @@ def test_prepare_upgrade_commit_files_skips_home_level_kittify(monkeypatch) -> N
 
     files = autocommit.prepare_upgrade_commit_files(project_path, baseline_paths=set())
 
+    # ~/.kittify and root-level dotfiles never enter a commit when the
+    # checkout is $HOME itself (#3652 hazard).
     assert {str(path) for path in files} == {
         "Code/demo/.kittify/metadata.yaml",
         "Code/demo/kitty-specs/001-test/tasks/WP01.md",
