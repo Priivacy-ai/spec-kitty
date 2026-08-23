@@ -4,10 +4,12 @@
 
 The operator's 2026-08-22 terminal decision supersedes earlier scope decisions that protected internal or
 historical current-tree content, as amended by `DM-01M0NMS9WPH33EPFCJQRTQVNSA` (the `kitty-specs/`
-historical archive is immutable and is the single fixed exclusion root of both audits) and
-`DM-01M0NMSD60JYG7K7V5MJCKJ3P8` (`inventory-hits.tsv` is ephemeral, hash-pinned evidence). All cross-wave
-decisions are resolved. M2 retains one bounded pre-edit topology-map approval; it cannot reduce scope or
-change the terminal gate.
+historical archive is immutable and is a fixed exclusion root of both audits),
+`DM-01M0NMSD60JYG7K7V5MJCKJ3P8` (`inventory-hits.tsv` is ephemeral, hash-pinned evidence), and
+`DM-01M0P6C8C7Q6SPBT412V39RPN0` (2026-08-23: the immutable historical-record exclusion set is four fixed
+roots — `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`
+— amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA` from a single root). All cross-wave decisions are resolved. M2
+retains one bounded pre-edit topology-map approval; it cannot reduce scope or change the terminal gate.
 
 ## R1 — ADR and Charter are joint authority
 
@@ -47,17 +49,21 @@ than the fixed `kitty-specs/` root, or using the override for unrelated cleanup.
 ## R3 — Exact audit and inventory
 
 **Decision**: Freeze current `origin/main` plus implementation base before WP01 edits. WP02 runs forced-text
-case-insensitive `git grep -a` over all tracked blobs with the fixed `:(exclude)kitty-specs/` pathspec and a
-NUL-safe `git ls-tree -r -z` pathname filter that drops `kitty-specs/` paths after the rc check, through
-the no-pipeline Python subprocess procedures in the inventory contract. They validate raw git return codes
-before interpreting output: grep rc 1/empty means zero, rc >1 is error; ls-tree nonzero is always error.
-`inventory-hits.tsv` is one row per match/path and set-equal to outputs; it is ephemeral evidence —
-generated, untracked via the mission-local `.gitignore`, and pinned by SHA-256/row counts in committed
-`inventory.md`, whose reproduction command regenerates it byte-identically. Excluded-root counts are
-recorded as orientation only. Every row is OC work; there are no X1/X2/X3 classes.
+case-insensitive `git grep -a` over all tracked blobs with four `:(exclude)<root>` pathspecs (one per fixed
+exclusion root: `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`,
+`.kittify/missions/`) and a NUL-safe `git ls-tree -r -z` pathname filter that drops paths under any of the
+four roots after the rc check, through the no-pipeline Python subprocess procedures in the inventory
+contract. They validate raw git return codes before interpreting output: grep rc 1/empty means zero, rc >1
+is error; ls-tree nonzero is always error. `inventory-hits.tsv` is one row per match/path and set-equal to
+outputs; it is ephemeral evidence — generated, untracked via the mission-local `.gitignore`, and pinned by
+SHA-256/row counts in committed `inventory.md`, whose reproduction command regenerates it byte-identically.
+Per-root excluded counts are recorded as orientation only. Every row is OC work; there are no X1/X2/X3
+classes. (Content: 48,245 rows / pathname: 719 rows / total: 48,964 — regenerated with the four-root
+exclusion at the same frozen base, superseding the single-root `48,328`/`722`/`49,050` figures WP02 first
+recorded; `inventory.md` §1/§8 pins the new SHA-256 and per-OC breakdown.)
 
 **Rejected**: `-I`, shell-expanded file lists, docs-only roots, sampling, count-only summaries, pathname
-omission, allowlists, any exclusion beyond the one fixed root, a committed multi-megabyte manifest, or
+omission, allowlists, any exclusion beyond the four fixed roots, a committed multi-megabyte manifest, or
 classifying internal/history/test data out.
 
 ## R4 — Transition guard ends in zero mode
@@ -128,23 +134,30 @@ unbounded runtime migration architecture.
 ## R10 — Current-tree history belongs to M5
 
 **Decision**: M5 rewrites/renames every remaining current-tree prose/history occurrence and pathname
-outside `kitty-specs/`, including all ADR bodies/titles/files, docs archives, evidence, comments, READMEs,
-and referrers. `kitty-specs/` is an immutable historical archive: no mission slug, directory, or file
-under it is renamed or edited; a referrer outside it that cites an archive path containing the token is
-rewritten to cite the mission by `mission_id`/mid8 or a token-free path, never by changing the archive
-path. Earlier program evidence remains recoverable from Git object history.
+outside the four fixed exclusion roots, including all ADR bodies/titles/files, docs archives, evidence,
+comments, READMEs, and referrers. `kitty-specs/` is an immutable historical archive, and tracked serialized
+runtime records keyed to immutable archive slugs or retired profile IDs — mission-state quarantine
+`status.events.jsonl` under `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/*.jsonl`,
+`.kittify/missions/**/retrospective.yaml` — are likewise immutable historical records
+(`DM-01M0P6C8C7Q6SPBT412V39RPN0`, amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA`): no pre-existing mission slug,
+directory, or file under any of the four roots is renamed or edited; runtime may keep appending new
+records. A referrer outside the four roots that cites an archive path containing the token is rewritten to
+cite the mission by `mission_id`/mid8 or a token-free path, never by changing the archive. Earlier program
+evidence remains recoverable from Git object history. (83 content hits + 3 pathnames — all under the three
+newly-fixed roots — leave M5's owned occurrence set as a result.)
 
-**Rejected**: immutable current-tree snapshots outside `kitty-specs/`, archived-file exclusions beyond that
-root, editing or renaming anything under it, or leaving detector prose literal.
+**Rejected**: immutable current-tree snapshots outside the four fixed exclusion roots, archived-file
+exclusions beyond those roots, editing or renaming a pre-existing path under any of them, or leaving
+detector prose literal.
 
 ## R11 — M6 exact release boundary
 
 **Decision**: M6 removes all CR products/controls, aliases, keys, routes, imports, old-root readers,
 migrators, redirects, warnings, distribution aliases, test fixtures, and transition guard data. It runs
 the checked forced-text content audit and NUL-safe pathname audit over one exact final commit/tree with
-the single fixed `kitty-specs/` exclusion; both counts are zero. Any tree change invalidates evidence, and
+the four fixed exclusion roots; both counts are zero. Any tree change invalidates evidence, and
 CI/release reruns on the merge/publish result tree. Charter is not excluded. Any hit/error, omission of
-the fixed root, or any other narrowing blocks 4.0.
+any of the four fixed roots, or any other narrowing blocks 4.0.
 
 M6 creates/uses token-literal-free `scripts/audit_retired_term_zero.py`; external CI/release requires
 `terminology-zero-current-tree`. The entrypoint emits commit/tree-bound JSON to stdout only, so recording
