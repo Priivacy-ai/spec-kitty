@@ -24,15 +24,18 @@ from typing import Any
 from pydantic import BaseModel
 from ruamel.yaml import YAML
 
-from doctrine.drg.migration.calibrator import calibrate_surfaces
-from doctrine.drg.migration.id_normalizer import artifact_to_urn
-from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.validator import assert_valid
-from doctrine.missions.mission_step_repository import MissionStepRepository
-from doctrine.missions.repository import MissionTemplateRepository
-from doctrine.missions.step_projection import iter_template_refs, project_action_sequence
-from doctrine.pack_paths import built_in_root, doctrine_package_dir
-from doctrine.template_catalog import template_id_for, template_urn
+from charter.offering.drg.migration.calibrator import calibrate_surfaces
+from charter.offering.drg.migration.id_normalizer import artifact_to_urn
+from charter.offering.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
+from charter.offering.drg.validator import assert_valid
+from charter.offering.missions.mission_step_repository import MissionStepRepository
+from charter.offering.missions.repository import MissionTemplateRepository
+from charter.offering.missions.step_projection import (
+    iter_template_refs,
+    project_action_sequence,
+)
+from charter.offering.pack_paths import built_in_root, doctrine_package_dir
+from charter.offering.template_catalog import template_id_for, template_urn
 
 SPECIFICATION_BY_EXAMPLE = "paradigm:specification-by-example"
 

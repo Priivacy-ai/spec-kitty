@@ -35,10 +35,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter._drg_helpers import load_validated_graph
-from charter.drg import load_org_drg
-from doctrine.drg.models import Relation
-from doctrine.drg.validator import DRGValidationError
+from charter.activation._drg_helpers import load_validated_graph
+from charter.activation.drg_activation import load_org_drg
+from charter.offering.drg.models import Relation
+from charter.offering.drg.validator import DRGValidationError
 
 pytestmark = [pytest.mark.unit, pytest.mark.corpus]
 

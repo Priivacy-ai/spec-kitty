@@ -24,14 +24,17 @@ from typing import Any
 
 import pytest
 
-from doctrine.drg.loader import load_built_in_graph
-from doctrine.drg.migration.extractor import extract_mission_type_edges, generate_graph
-from doctrine.drg.migration.hand_authored_overlay import (
+from charter.offering.drg.loader import load_built_in_graph
+from charter.offering.drg.migration.extractor import (
+    extract_mission_type_edges,
+    generate_graph,
+)
+from charter.offering.drg.migration.hand_authored_overlay import (
     HAND_AUTHORED_EDGES,
     generate_reference_graph_with_overlay,
 )
-from doctrine.drg.models import Relation
-from doctrine.missions.mission_step_repository import MissionStepRepository
+from charter.offering.drg.models import Relation
+from charter.offering.missions.mission_step_repository import MissionStepRepository
 from tests.doctrine._builtin_inventory import (
     pure_builtin_node_count,
     shipped_builtin_node_count,
@@ -40,7 +43,7 @@ from tests.doctrine._builtin_inventory import (
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
-DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
+DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "charter" / "offering"
 
 #: HISTORICAL LEDGER (#3234). The node/edge counts below are now DERIVED from the
 #: ``packs/built-in`` filesystem inventory (see ``_EXPECTED_NODE_COUNT`` at the end

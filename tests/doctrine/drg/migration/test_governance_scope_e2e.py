@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.migration.extractor import generate_graph
+from charter.offering.drg.migration.extractor import generate_graph
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast, pytest.mark.corpus]
 

@@ -23,13 +23,18 @@ from charter.drg import (
     DRGGraph,
     DRGLoadError,
     NodeKind,
+    OrgDRGFragment,
     ResolvedContext,
+    OrgPackMissingError,
+    OrgPackParseError,
+    OrgPackSchemaError,
     load_graph_or_dir,
+    load_org_pack,
     resolve_context,
     resolve_existing_org_roots,
     resolve_org_dirs,
 )
-from charter.activation.drg_activation import filter_graph_by_activation
+from charter.activation.drg_activation import filter_graph_by_activation, load_org_drg
 from charter.mission_steps import (
     MissionStepContract,
     MissionStepContractRepository,
@@ -340,26 +345,111 @@ class StepContractExecutor:
         ``load_validated_graph`` deliberately still lets fail loud. Removing it
         would reopen the malformed-content crash on this dispatch path.
         """
+        # #3530: the org ``drg/fragment.yaml`` layer is loaded ONCE here and
+        # threaded into every ``load_validated_graph`` branch below, mirroring
+        # the four correct dual-callers (``review/gate_bindings.py``,
+        # ``cli/commands/charter/{activate,deactivate}.py``). Without it a pack
+        # shipping only a ``drg/fragment.yaml`` (this repo's own
+        # ``packs/internal`` shape) is dropped on this dispatch path -- the
+        # branch-named silent drop this WP closes.
+        org_fragments = StepContractExecutor._load_org_fragments_degrading(repo_root)
         if not org_roots:
-            return load_validated_graph(repo_root, org_roots=[])
+            return load_validated_graph(
+                repo_root, org_roots=[], org_fragments=org_fragments
+            )
 
         healthy_roots: list[Path] = []
         for root in org_roots:
             try:
                 load_graph_or_dir(root)
             except DRGLoadError as exc:
-                logger.warning(
-                    "Org pack DRG at %s failed to load (%s: %s); composing this "
-                    "step with the remaining doctrine layers, without this "
-                    "org pack's contribution.",
-                    root,
-                    type(exc).__name__,
-                    exc,
-                )
+                StepContractExecutor._warn_dropped_org_root(root, exc)
                 continue
             healthy_roots.append(root)
 
-        return load_validated_graph(repo_root, org_roots=healthy_roots)
+        return load_validated_graph(
+            repo_root, org_roots=healthy_roots, org_fragments=org_fragments
+        )
+
+    @staticmethod
+    def _load_org_fragments_degrading(repo_root: Path) -> list[OrgDRGFragment]:
+        """Load the org ``drg/fragment.yaml`` layer, degrading on a bad pack.
+
+        Threads ``load_org_drg(repo_root, strict=False)`` -- the exact call the
+        four correct dual-callers use -- so a fragment-shaped org pack reaches
+        this composition-dispatch path. ``strict=False`` skips a pack that ships
+        no ``drg/fragment.yaml`` (its root ``*.graph.yaml``, if any, is folded by
+        the ``org_roots`` loop instead). A pack whose fragment is present but
+        malformed raises here; catch it and degrade to an empty fragment layer
+        so a broken optional org tier does not crash the whole dispatch. This is
+        DEBUG rather than WARNING because the same broken root also fails the
+        root-graph pre-probe below, whose per-root WARNING is the operator's
+        signal that the pack was dropped (see :meth:`_warn_dropped_org_root`).
+        """
+        try:
+            # Typed local absorbs the ``charter.drg`` facade re-export (mypy sees
+            # the facade symbol as ``Any``); the annotation restores the concrete
+            # return type without a suppression.
+            fragments: list[OrgDRGFragment] = load_org_drg(repo_root, strict=False)
+            return fragments
+        except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, NotImplementedError) as exc:
+            logger.debug(
+                "Org drg/fragment.yaml layer failed to load (%s: %s); composing "
+                "this step without the org-fragment contribution.",
+                type(exc).__name__,
+                exc,
+            )
+            return []
+
+    @staticmethod
+    def _warn_dropped_org_root(root: Path, exc: DRGLoadError) -> None:
+        """Warn (honestly) that *root* was dropped from the root-graph loop.
+
+        #3530 warning honesty: a *fragment-shaped* org pack (a valid
+        ``drg/fragment.yaml`` and no root-level ``*.graph.yaml`` -- this repo's
+        own ``packs/internal`` is exactly this shape) cannot be read by
+        ``load_graph_or_dir`` (root graphs only), but its content DOES arrive via
+        the ``org_fragments`` layer. Emitting the "without this org pack's
+        contribution" WARNING for it would misattribute a folded pack as a
+        dropped one, so degrade to a DEBUG note. A root that fails to load AND
+        contributes no valid fragment (a present-but-invalid root graph, or a
+        root with neither a graph nor a loadable fragment) is genuinely lost and
+        still WARNs.
+        """
+        if StepContractExecutor._org_root_folds_fragment(root):
+            logger.debug(
+                "Org pack DRG at %s ships a drg/fragment.yaml and no root "
+                "*.graph.yaml; folding it via the org-fragment layer rather "
+                "than the root-graph loop.",
+                root,
+            )
+            return
+        logger.warning(
+            "Org pack DRG at %s failed to load (%s: %s); composing this "
+            "step with the remaining doctrine layers, without this "
+            "org pack's contribution.",
+            root,
+            type(exc).__name__,
+            exc,
+        )
+
+    @staticmethod
+    def _org_root_folds_fragment(root: Path) -> bool:
+        """True iff *root* ships a ``drg/fragment.yaml`` that loads cleanly.
+
+        Distinguishes a *folded* fragment-shaped pack (whose content reaches the
+        merged graph via the org-fragment layer) from a genuinely lost root, so
+        the pre-probe's degrade WARNING stays honest. The ``pack_name``/
+        ``layer_index`` passed here only affect labelling, not whether the
+        fragment parses, so a probe-local name and index are sufficient.
+        """
+        if not (root / "drg" / "fragment.yaml").is_file():
+            return False
+        try:
+            load_org_pack(root.name, root, 1)
+        except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, NotImplementedError):
+            return False
+        return True
 
     def _resolve_pack_context(self, repo_root: Path) -> PackContext | None:
         """Construct a PackContext from project config for activation filtering.
