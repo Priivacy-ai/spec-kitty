@@ -147,9 +147,6 @@ def _host_port(container: str) -> int:
 
 
 def _wait_healthy(base_url: str) -> None:
-    import urllib.error
-    import urllib.request
-
     deadline = time.monotonic() + HEALTH_TIMEOUT_S
     while time.monotonic() < deadline:
         try:
