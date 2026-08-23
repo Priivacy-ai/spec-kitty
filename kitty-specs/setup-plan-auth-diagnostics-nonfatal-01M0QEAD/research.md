@@ -58,8 +58,10 @@ its hosted effects. Unknown safety still refuses delivery.
 
 ## Decision 4: Compose one hosted-delivery decision
 
-**Decision**: Authentication, boundary safety, route availability, and the SaaS-enable
-flag produce one immutable decision and ordered diagnostic tuple.
+**Decision**: Session assessment, boundary safety, canonical read-only route availability,
+and the SaaS-enable flag produce one immutable decision and ordered diagnostic tuple.
+Route availability comes only from `resolve_checkout_sync_routing_readonly()` and requires
+a non-empty project UUID plus effective sync consent.
 
 **Rationale**: Every hosted sink needs the same permission. Central composition avoids
 per-call-site drift and keeps command severity (`warning`) distinct from hosted
@@ -122,11 +124,12 @@ bug-class closure by construction.
 
 ## Decision 8: Keep issue #3127 out of the code DAG
 
-**Decision**: Track #3127 as Mission acceptance and release-closeout evidence only.
+**Decision**: Track #3127 with a terminal fixed or deferred-with-followup verdict at
+Mission acceptance. An unresolved verdict blocks release-readiness declaration only.
 
 **Rationale**: It is an open P0 release gate, not a source dependency for issue #3621.
-Implementation can proceed, but release readiness cannot be declared while it remains
-unresolved or mainline CI is red.
+Implementation and Mission completion can proceed with an honest deferred follow-up, but
+release readiness cannot be declared while it remains unresolved or mainline CI is red.
 
 **Alternatives considered**:
 

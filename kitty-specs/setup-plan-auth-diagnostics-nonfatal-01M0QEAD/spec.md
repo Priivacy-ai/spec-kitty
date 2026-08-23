@@ -175,7 +175,7 @@ states in JSON and representative human-output cases.
 | FR-005 | Logged-out warning is nonfatal | As a logged-out operator, I want one `SAAS_SYNC_UNAUTHENTICATED` warning while local verification continues. | High | Approved |
 | FR-006 | Assessment failure is distinct | As an operator whose session cannot be evaluated, I want `SAAS_SYNC_AUTH_UNKNOWN` as an assessment-failure diagnostic, never a false logged-out diagnosis. | High | Approved |
 | FR-007 | Structural assessment cannot preempt local work | As an operator, I want known unsafe results and unexpected assessment failures converted to hosted diagnostics while local verification continues. | High | Approved |
-| FR-008 | One hosted-delivery decision | As a maintainer, I want authentication, structural safety, routing availability, and the SaaS flag composed once so all hosted effects share one decision. | High | Approved |
+| FR-008 | One hosted-delivery decision | As a maintainer, I want session assessment, structural safety, canonical read-only routing, and the SaaS flag composed once so all hosted effects share one decision. | High | Approved |
 | FR-009 | Local lifecycle history is unconditional | As an operator, I want local phase history persisted even when hosted delivery is refused. | High | Approved |
 | FR-010 | Every hosted effect is guarded | As a security maintainer, I want all hosted enqueue, upload, publication, and delivery effects refused unless the composed decision allows them. | High | Approved |
 | FR-011 | Local result controls status and exit | As an automation caller, I want the local outcome alone to determine primary result fields and process exit. | High | Approved |
@@ -209,7 +209,8 @@ states in JSON and representative human-output cases.
 | C-006 | Missing affirmative evidence never authorizes hosted effects | Failed auth assessment or unknown boundary/route evidence is insufficient permission for hosted delivery. | Data integrity | High | Approved |
 | C-007 | No credential disclosure | Diagnostics contain no tokens, session contents, encryption details, or other credential material. | Security | High | Approved |
 | C-008 | No sync-store migration | Queue placement, project-store layout, consent, and delivery-route semantics are unchanged. | Scope | High | Approved |
-| C-009 | Release dependency remains external | Issue #3127 is a Mission acceptance/release gate, not an implementation-lane dependency. | Coordination | High | Approved |
+| C-009 | Release dependency remains external | Mission acceptance must record issue #3127 as fixed or deferred-with-followup; an unresolved #3127 blocks release-readiness declaration but is not an implementation-lane or Mission-completion dependency. | Coordination | High | Approved |
+| C-010 | Canonical routing authority | Hosted route availability is read only through `resolve_checkout_sync_routing_readonly()` and is affirmative only when it returns routing with a non-empty project UUID and `effective_sync_enabled=true`. | Domain integrity | High | Approved |
 
 ### Key Entities
 
@@ -244,5 +245,6 @@ states in JSON and representative human-output cases.
   matching warning severity.
 - **SC-007**: Targeted auth, lifecycle, sync-boundary, setup-plan read-surface, and
   architectural gates pass with no new failures.
-- **SC-008**: Mission acceptance records issue #3127 as resolved before release
-  readiness is declared.
+- **SC-008**: Mission acceptance records issue #3127 with a terminal fixed or
+  deferred-with-followup verdict; release readiness is not declared while #3127 remains
+  unresolved.

@@ -69,7 +69,7 @@ requirements, and targeted auth/status/sync/setup-plan test surfaces
 | Locality and proportional cleanup | Each WP owns one bounded subsystem; setup-plan god-surface cleanup is limited to extractions required by this architecture. | Pass |
 | Credentials | Diagnostics contain state and reason codes only, never session contents. | Pass |
 | Terminology | Mission terminology and explicit delivery-routing language are used throughout. | Pass |
-| Release honesty | Open P0 issue #3127 remains a named acceptance/release gate and is not green-washed. | Pass |
+| Release honesty | Open P0 issue #3127 receives a terminal acceptance verdict and remains a release-readiness blocker while unresolved. | Pass |
 
 Post-design re-check: no charter exception is required. The design replaces duplicate
 authority and hidden fan-out with explicit seams while retaining all existing sync
@@ -167,6 +167,15 @@ converts both returned unsafe results and unexpected exceptions into
 `SAAS_SYNC_BOUNDARY_UNSAFE`. It does not change `run_preflight` or catch failures for
 hosted-only callers.
 
+The adapter consumes the existing no-raise `probe_auth_status()` projection rather than
+reading `TokenManager` or queue scope directly. It defensively converts an unexpected
+probe invocation failure to the assessment-failed diagnostic. Route evidence is always
+collected when SaaS is requested through
+`resolve_checkout_sync_routing_readonly(repo_root)`. Route permission is affirmative only
+when the resolver returns a value with a non-empty `project_uuid` and
+`effective_sync_enabled is True`; `None`, exceptions, consent denial, unusable project
+configuration, or missing identity produce `SAAS_SYNC_ROUTE_UNAVAILABLE`.
+
 Decision order is deterministic: session assessment, structural boundary, delivery route.
 SaaS disabled returns a non-requested/no-diagnostic decision without invoking probes.
 Only a completed assessment with a usable session + structurally safe + routable may
@@ -229,7 +238,7 @@ root resolution cannot fabricate structural evidence.
 | Confirmed logged out | `SAAS_SYNC_UNAUTHENTICATED` | warning | refused |
 | Auth assessment failed | `SAAS_SYNC_AUTH_UNKNOWN` | warning | refused |
 | Structural unsafe or evaluation failed | `SAAS_SYNC_BOUNDARY_UNSAFE` | warning | refused |
-| Authenticated but no delivery route | routing-specific stable code chosen from existing vocabulary | warning | refused/skipped |
+| Usable session but route is unavailable or cannot be evaluated | `SAAS_SYNC_ROUTE_UNAVAILABLE` | warning | refused |
 
 Diagnostics contain sanitized reasons and structured evidence, never exception dumps or
 credential material. Multiple conditions remain independent and deduplicated.
@@ -246,7 +255,8 @@ Research is consolidated in [research.md](research.md):
 4. Centralize the hosted-effect decision and command result reporter.
 5. Prove the original production chain with real isolated encrypted storage, not a
    Boolean fake.
-6. Treat issue #3127 as release-closeout coordination only.
+6. Record issue #3127 terminally at acceptance; unresolved status blocks only release
+   readiness, not Mission completion.
 
 ## Phase 1: Design and Contracts
 
@@ -360,8 +370,9 @@ does not duplicate them.
 2. Land hosted decision after auth evaluation is available.
 3. Integrate setup-plan only after all three foundations are approved.
 4. Run targeted mission acceptance on the integrated branch.
-5. Verify GitHub issue #3127 is resolved and mainline CI permits release before declaring
-   release readiness. This is not a code-lane dependency.
+5. Record GitHub issue #3127 as fixed or deferred-with-followup at Mission acceptance.
+   If unresolved, prohibit release-readiness declaration until it and mainline CI permit
+   release. This is not a code-lane or Mission-completion dependency.
 
 ## Complexity Tracking
 

@@ -6,8 +6,10 @@ planning/finalization commands; tests explicitly control the enable flag per cas
 ## Red-first evidence
 
 Each WP must commit its failing test before production code. Capture the failure against
-`planning_base_branch=fix/setup-plan-auth-diagnostics-nonfatal` and the passing result on
-the WP head.
+the WP's dependency-resolved lane base immediately before production changes, and the
+passing result on the WP head. For independent WP01 and WP03 that base is
+`planning_base_branch=fix/setup-plan-auth-diagnostics-nonfatal`; the original end-to-end
+issue may also be demonstrated there.
 
 ## Targeted verification
 
@@ -44,6 +46,13 @@ uv run pytest -q tests/sync/test_sync_boundary_preflight.py
    `SAAS_SYNC_BOUNDARY_UNSAFE`, and zero hosted sink calls.
 4. Hosted decision refused: local lifecycle JSONL exists while lifecycle fan-out,
    dossier, offline queue, body-upload, daemon, and dashboard spies remain zero.
+5. Canonical auth assessment acquisition/evaluation raises: real setup-plan emits exactly
+   `SAAS_SYNC_AUTH_UNKNOWN`, no unauthenticated warning, the complete baseline local
+   payload/exit, and zero hosted effects.
+6. SaaS disabled: the real command completes with fatal auth, boundary, and route spies
+   untouched, no warnings, no hosted effects, and a baseline-identical local result.
+7. Canonical read-only routing returns null, denied/missing identity, or raises: real
+   setup-plan emits exactly `SAAS_SYNC_ROUTE_UNAVAILABLE` and refuses hosted effects.
 
 ## Compatibility matrix
 
@@ -59,8 +68,11 @@ Capture baseline and compare primary fields plus exit for:
 - missing template/generic local exception;
 - project/context/git resolution failure.
 
-Cross representative rows with usable session, logged out, auth-assessment failure,
-boundary unsafe, and boundary exception. Only `warnings` may differ.
+Run the full parameterized cross-product of every local row with usable session, logged
+out, auth-assessment failure, boundary unsafe, boundary exception, and route unavailable
+where repository context exists. Compare the complete baseline payload after removing
+only `warnings`, plus exact exit equality. For pre-root rows, assert boundary and route
+probes are not called and no structural/routing warning is fabricated.
 
 ## Quality gates
 
@@ -84,6 +96,7 @@ uv run pytest -q tests/architectural/test_no_legacy_terminology.py
 
 ## Release closeout
 
-Issue #3127 is not a WP dependency. Before Mission acceptance or release readiness,
-verify it is resolved and the authoritative mainline CI gate permits release. Do not
-reinterpret its known red as an acceptable baseline.
+Issue #3127 is not a WP or Mission-completion dependency. At Mission acceptance, record a
+terminal fixed or deferred-with-followup verdict with evidence. If it remains unresolved,
+do not declare release readiness until it and the authoritative mainline CI gate permit
+release; do not reinterpret its known red as an acceptable baseline.
