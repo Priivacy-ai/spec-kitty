@@ -7,8 +7,9 @@
 ## Requirements
 
 - Plan complete extinction of the case-insensitive token from current `HEAD` content and tracked pathnames
-  outside the single fixed exclusion root `kitty-specs/`; the two fixed exclusions are Git object history
-  outside `HEAD` and that immutable historical archive.
+  outside the four fixed exclusion roots (`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`,
+  `kitty-ops/`, `.kittify/missions/`); the fixed exclusions are Git object history outside `HEAD` and those
+  four immutable historical-record roots (`DM-01M0NMS9WPH33EPFCJQRTQVNSA` as amended by `DM-01M0P6C8C7Q6SPBT412V39RPN0`).
 - Record an Accepted ADR and M1-effective Charter exception that supersedes customization/path and
   current-tree historical immutability only for this terminology program, while preventing data loss.
 - Inventory every hit outside `kitty-specs/`, including internal code, tests, metadata, generated assets,
@@ -86,3 +87,8 @@ silent overwrite; preserving old path after completed migration; terminal suppor
   mission slug, directory, or file under it is renamed or edited; it is the single fixed exclusion root of
   both audits. `DM-01M0NMSD60JYG7K7V5MJCKJ3P8`: `inventory-hits.tsv` is ephemeral, hash-pinned evidence,
   not a committed artifact.
+- 2026-08-23 — `DM-01M0P6C8C7Q6SPBT412V39RPN0` (amends `DM-01M0NMS9WPH33EPFCJQRTQVNSA`): the fixed exclusion
+  set is widened from the single `kitty-specs/` root to **four** immutable historical-record roots —
+  `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/` —
+  excluded by the same fixed, enumerated pathspec mechanism (not an allowlist); no wave edits/renames/deletes
+  a pre-existing path under any of the four roots.

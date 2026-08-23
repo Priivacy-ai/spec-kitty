@@ -3,8 +3,10 @@
 **Inputs**: `spec.md`, `plan.md`, `research.md`, `data-model.md`, `contracts/`, `quickstart.md`
 **Execution**: planning artifacts only; WP01→WP02→WP03→WP04→WP05
 **Terminal program rule**: zero case-insensitive current-`HEAD` content and tracked pathname occurrences
-outside the single fixed exclusion root `kitty-specs/`; the two fixed exclusions are Git object history
-outside `HEAD` and the immutable `kitty-specs/` archive (`DM-01M0NMS9WPH33EPFCJQRTQVNSA`).
+outside the four fixed exclusion roots (`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`,
+`kitty-ops/`, `.kittify/missions/`); the fixed exclusions are Git object history outside `HEAD` and those
+four immutable historical-record roots (`DM-01M0NMS9WPH33EPFCJQRTQVNSA` as amended by
+`DM-01M0P6C8C7Q6SPBT412V39RPN0`).
 
 ## Path conventions
 
