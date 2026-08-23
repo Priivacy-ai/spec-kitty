@@ -271,7 +271,10 @@ def test_load_from_storage_sync_handles_storage_errors():
     assert tm.is_authenticated is False
 
 
-def test_hot_summary_materialization_failure_preserves_failed_assessment(monkeypatch):
+def test_hot_summary_materialization_failure_preserves_failed_assessment(
+    monkeypatch,
+    caplog,
+):
     class BrokenStorage(FakeStorage):
         @property
         def store_path(self):
@@ -294,6 +297,7 @@ def test_hot_summary_materialization_failure_preserves_failed_assessment(monkeyp
         reason="session_materialization_failed",
     )
     assert tm.is_authenticated is False
+    assert "credential-shaped-secret-must-not-escape" not in caplog.text
 
 
 def test_successful_set_and_clear_replace_prior_failed_assessment():
