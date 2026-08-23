@@ -41,6 +41,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _validate_ready_for_review as _seam_validate_ready_for_review,
 )
 from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.coordination.coherence import is_coord_residue_churn
 from specify_cli.core.constants import KITTY_SPECS_DIR, is_occurrence_map_path
 from specify_cli.core.vcs.git import git_diff_names_checked, merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
@@ -619,6 +620,25 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
         # pre-commit guard applies, expressed once in is_occurrence_map_path, so
         # the two kitty-specs guards agree instead of warn-here / block-there.
         if is_occurrence_map_path(path):
+            continue
+        # FIX-M2-04: a coord-topology lane branch is PARENTED on the
+        # coordination branch (worktree_allocator.py module docstring, #1348
+        # WP04) and then FR-009-merges the recorded planning commit on top
+        # (PlanningCommitMergeConflictError's docstring, #2993) — so the
+        # lane branch's own history legitimately contains the coordination
+        # branch's COORD-partition commits (status.events.jsonl / status.json
+        # / acceptance-matrix.json / issue-matrix.md / decisions.events.jsonl
+        # / tracer files / review-cycle artifacts). Those files can never be
+        # byte-identical to the planning branch's tip — the coordination
+        # branch writes them from its own independent history, never mirrors
+        # the planning branch — so ``_filter_by_planning_tip_content`` cannot
+        # exempt them and every coord-topology mission tripped this guard
+        # structurally (not from anything an implementer committed). Classify
+        # by declared MissionArtifactKind, the same coord-residue authority
+        # ``implement.py``/``implement_cores.py`` already use to drop these
+        # SAME kinds from the sibling primary-root claim commit, so both
+        # guards agree on what "lane contamination" means.
+        if is_coord_residue_churn(path):
             continue
         seen.add(path)
         candidates.append(path)
