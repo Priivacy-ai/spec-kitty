@@ -2,7 +2,7 @@
 
 ## DisclosureManifest
 
-- `transport`: фиксированное значение `opencode-cli`.
+- `transport`: фиксированное значение `opencode-loopback`.
 - `requested_model_route`: model ID, показанный пользователю без обещания фактического provider.
 - `spec_path`, `spec_size_bytes`, `spec_sha256`.
 - `rubric_version`, `rubric_size_bytes`, `rubric_sha256`.

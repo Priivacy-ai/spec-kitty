@@ -30,7 +30,7 @@ properties:
     type: string
     pattern: '^[a-f0-9]{64}$'
   transport:
-    const: opencode-cli
+    const: opencode-loopback
   requested_model_route:
     type: string
     minLength: 1
