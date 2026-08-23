@@ -31,10 +31,19 @@ import pathlib
 import sqlite3
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
 import pytest
+from kernel.clock import now_utc, timedelta
+
+from specify_cli.auth.secure_storage import EncryptedFileStorage, SecureStorage
+from specify_cli.auth.session import StoredSession, Team
+from specify_cli.cli.commands.agent.setup_plan_hosted import (
+    BoundaryEvaluation,
+    BoundaryState,
+)
 
 pytestmark = [pytest.mark.integration]
 
@@ -111,10 +120,196 @@ def _build_minimal_repo(tmp_path: Path, mission_slug: str) -> Path:
 
     # meta.json so any downstream lookups have something
     (feature_dir / "meta.json").write_text(
-        '{"mission_slug": "' + mission_slug + '"}', encoding="utf-8"
+        '{"mission_slug": "' + mission_slug + '", "mission_type": "software-dev"}',
+        encoding="utf-8",
     )
 
     return feature_dir
+
+
+def _refresh_capable_session() -> StoredSession:
+    now = now_utc()
+    return StoredSession(
+        user_id="real-storage-user",
+        email="operator@example.com",
+        name="Operator",
+        teams=[Team(id="team-1", name="Team", role="owner", is_private_teamspace=True)],
+        default_team_id="team-1",
+        access_token="expired-access-token",
+        refresh_token="usable-refresh-token",
+        session_id="session-1",
+        issued_at=now - timedelta(hours=2),
+        access_token_expires_at=now - timedelta(hours=1),
+        refresh_token_expires_at=now + timedelta(days=1),
+        scope="openid",
+        storage_backend="file",
+        last_used_at=now,
+        auth_method="authorization_code",
+    )
+
+
+def _install_real_storage(
+    monkeypatch: pytest.MonkeyPatch,
+    storage: EncryptedFileStorage,
+) -> None:
+    from specify_cli.auth import reset_token_manager
+
+    reset_token_manager()
+    monkeypatch.setattr(
+        SecureStorage,
+        "from_environment",
+        classmethod(lambda _cls: storage),
+    )
+
+
+def _run_json_setup_plan(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    feature_dir: Path,
+    *,
+    patch_boundary_safe: bool = True,
+    hosted_effects_must_be_zero: bool = False,
+) -> dict[str, object]:
+    from specify_cli.cli.commands.agent import mission as mission_mod
+    from specify_cli.cli.commands.agent import mission_setup_plan as setup_seam
+
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(mission_mod, "_emit_json", lambda value: emitted.append(value))
+    if patch_boundary_safe:
+        monkeypatch.setattr(
+            setup_seam,
+            "evaluate_boundary",
+            lambda _root: BoundaryEvaluation(BoundaryState.SAFE),
+        )
+    monkeypatch.setattr(
+        setup_seam,
+        "evaluate_route_availability",
+        lambda _root: (True, None),
+    )
+    monkeypatch.setattr(
+        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        (
+            lambda *_a, **_k: pytest.fail("lifecycle hosted fan-out was attempted")
+            if hosted_effects_must_be_zero
+            else None
+        ),
+    )
+    monkeypatch.setattr(
+        setup_seam,
+        "_trigger_dossier_sync",
+        (
+            lambda *_a, **_k: pytest.fail("dossier hosted publication was attempted")
+            if hosted_effects_must_be_zero
+            else None
+        ),
+    )
+    monkeypatch.setattr(
+        setup_seam,
+        "_resolve_plan_template",
+        lambda *_a, **_k: SimpleNamespace(path=feature_dir / "plan.md"),
+    )
+    patches = _patches_for_setup_plan(tmp_path, feature_dir)
+    for item in patches.values():
+        item.start()
+    try:
+        try:
+            mission_mod.setup_plan(feature=feature_dir.name, json_output=True)
+        except typer.Exit as exc:
+            pytest.fail(f"setup-plan exited {exc.exit_code}: {emitted!r}")
+    finally:
+        for item in patches.values():
+            item.stop()
+    assert len(emitted) == 1
+    return emitted[0]
+
+
+def test_real_encrypted_refresh_session_never_reads_queue_scope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T017: expired access + usable refresh is authenticated without scope."""
+    storage = EncryptedFileStorage(base_dir=tmp_path / "auth")
+    storage.write(_refresh_capable_session())
+    _install_real_storage(monkeypatch, storage)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.setattr(
+        "specify_cli.sync.queue.read_queue_scope_from_session",
+        lambda: pytest.fail("queue scope must not be read for authentication"),
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.queue.read_queue_scope_from_credentials",
+        lambda: pytest.fail("credentials scope must not be read for authentication"),
+    )
+    feature_dir = _build_minimal_repo(tmp_path, "real-encrypted-session")
+
+    payload = _run_json_setup_plan(monkeypatch, tmp_path, feature_dir)
+
+    warnings = payload.get("warnings", [])
+    warning_codes = [item["code"] for item in warnings]  # type: ignore[index]
+    assert "SAAS_SYNC_UNAUTHENTICATED" not in warning_codes
+    assert "SAAS_SYNC_AUTH_UNKNOWN" not in warning_codes
+    assert payload["result"] == "success"
+    assert payload["phase_complete"] is True
+
+
+def test_real_unreadable_storage_adds_only_auth_unknown_to_baseline(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T017: unreadable encrypted storage cannot be mislabeled logged out."""
+    storage = EncryptedFileStorage(base_dir=tmp_path / "auth")
+    storage.store_path.mkdir(parents=True)
+    (storage.store_path / "session.json").write_text("not-json", encoding="utf-8")
+    _install_real_storage(monkeypatch, storage)
+    feature_dir = _build_minimal_repo(tmp_path, "real-unreadable-session")
+
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    baseline = _run_json_setup_plan(monkeypatch, tmp_path, feature_dir)
+    from specify_cli.auth import reset_token_manager
+
+    reset_token_manager()
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    actual = _run_json_setup_plan(monkeypatch, tmp_path, feature_dir)
+
+    warnings = actual.pop("warnings")
+    assert isinstance(warnings, list)
+    assert [item["code"] for item in warnings] == ["SAAS_SYNC_AUTH_UNKNOWN"]
+    assert actual == baseline
+
+
+def test_raised_structural_assessment_preserves_local_events_and_refuses_hosts(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T017: canonical preflight exceptions become boundary warnings only."""
+    storage = EncryptedFileStorage(base_dir=tmp_path / "auth")
+    storage.write(_refresh_capable_session())
+    _install_real_storage(monkeypatch, storage)
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight.run_preflight",
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("secret sentinel")),
+    )
+    feature_dir = _build_minimal_repo(tmp_path, "raised-structural-assessment")
+
+    payload = _run_json_setup_plan(
+        monkeypatch,
+        tmp_path,
+        feature_dir,
+        patch_boundary_safe=False,
+        hosted_effects_must_be_zero=True,
+    )
+
+    warnings = payload["warnings"]
+    assert isinstance(warnings, list)
+    assert [item["code"] for item in warnings] == ["SAAS_SYNC_BOUNDARY_UNSAFE"]
+    assert "secret sentinel" not in str(warnings)
+    from specify_cli.status.lifecycle_events import mission_event_log_path
+
+    log_path = mission_event_log_path(feature_dir)
+    assert log_path.exists()
+    assert len(log_path.read_text(encoding="utf-8").splitlines()) >= 3
+    assert payload["result"] == "success"
 
 
 # ---------------------------------------------------------------------------
@@ -138,7 +333,7 @@ def _build_minimal_repo(tmp_path: Path, mission_slug: str) -> Path:
 
 
 class TestSetupPlanRefusesWithoutAuthWhenSaasEnabled:
-    """FR-011 evidence: SAAS-enabled + unauthenticated => exit + no DB writes."""
+    """Hosted auth refusal is a warning while local setup-plan determines exit."""
 
     def test_setup_plan_refuses_without_auth_when_saas_enabled(
         self,
@@ -194,12 +389,13 @@ class TestSetupPlanRefusesWithoutAuthWhenSaasEnabled:
             f"Expected non-zero exit, got {exit_code!r}."
         )
 
-        # Diagnostic must include the FR-011 phrase.
+        # Hosted refusal is nonfatal; the unrelated local detection error remains.
         captured = capsys.readouterr()
         combined = captured.out + captured.err
-        assert "SaaS sync cannot be guaranteed" in combined, (
-            f"Expected FR-011 phrase in diagnostic, got:\n{combined!r}"
+        assert "Hosted sync was skipped" in combined, (
+            f"Expected hosted-refusal warning, got:\n{combined!r}"
         )
+        assert "missions found" in combined
 
         # No DB writes occurred — scoped DB never created, legacy untouched.
         assert not legacy_path.exists(), (
@@ -403,7 +599,8 @@ class TestSetupPlanPreflightIntegration:
         exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
             exc_info.value, "code", None
         )
-        assert exit_code == 2
+        assert exit_code == 1
+        assert "structural sync boundary was not safe" in capsys.readouterr().out
 
         # No queue writes — refusal before enqueue.
         assert _table_row_count(expected_scoped, "body_upload_queue") == 0
@@ -416,9 +613,7 @@ class TestSetupPlanPreflightIntegration:
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """FR-008 preservation: with no auth + mismatched daemon record,
-        the auth-absent refusal must fire first (not the boundary
-        refusal). The FR-011 diagnostic identifies which gate triggered."""
+        """Auth and boundary diagnostics coexist without replacing local exit."""
         _scope_home_classmethod(monkeypatch, tmp_path)
         monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
@@ -454,16 +649,12 @@ class TestSetupPlanPreflightIntegration:
         exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
             exc_info.value, "code", None
         )
-        assert exit_code == 2, (
-            f"Expected exit 2 (auth refusal), got {exit_code!r}."
-        )
+        assert exit_code == 1
 
         captured = capsys.readouterr()
         combined = captured.out + captured.err
-        # FR-011 diagnostic must appear — proves auth gate fired first.
-        assert "SaaS sync cannot be guaranteed" in combined, (
-            f"Expected FR-011 phrase (auth gate fired first), got:\n{combined!r}"
-        )
+        assert "local authentication could not be evaluated" in combined
+        assert "structural sync boundary was not safe" in combined
 
 
 # ---------------------------------------------------------------------------

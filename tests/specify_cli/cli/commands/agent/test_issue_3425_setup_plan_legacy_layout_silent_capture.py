@@ -132,7 +132,8 @@ def _build_minimal_repo(tmp_path: Path, mission_slug: str) -> Path:
 
     # meta.json so any downstream lookups have something
     (feature_dir / "meta.json").write_text(
-        '{"mission_slug": "' + mission_slug + '"}', encoding="utf-8"
+        '{"mission_slug": "' + mission_slug + '", "mission_type": "software-dev"}',
+        encoding="utf-8",
     )
 
     return feature_dir
@@ -421,7 +422,7 @@ class TestAuthenticatedSetupPlanJournals:
 
 
 class TestSetupPlanPreflightIntegration:
-    """WP04 T019: setup-plan refuses on boundary failure before any enqueue."""
+    """WP04 T019: setup-plan warns on boundary failure before any enqueue."""
 
     def test_setup_plan_refuses_on_daemon_owner_mismatch(
         self,
@@ -486,16 +487,12 @@ class TestSetupPlanPreflightIntegration:
         exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
             exc_info.value, "code", None
         )
-        assert exit_code == 2, (
-            f"Expected exit 2 on daemon-owner mismatch, got {exit_code!r}."
-        )
+        assert exit_code == 1
 
         captured = capsys.readouterr()
         combined = captured.out + captured.err
-        # Refusal banner + mismatch row should appear in the diagnostic.
-        assert "Refusing" in combined, (
-            f"Expected refusal banner in output, got:\n{combined!r}"
-        )
+        assert "structural sync boundary was not safe" in combined
+        assert "TEMPLATE_CONFIGURATION_ERROR" not in combined
 
         # No queue writes — neither scoped nor legacy DB rows exist.
         assert _table_row_count(expected_scoped, "body_upload_queue") == 0

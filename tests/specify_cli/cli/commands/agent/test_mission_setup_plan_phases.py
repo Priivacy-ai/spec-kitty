@@ -180,8 +180,51 @@ def test_hosted_effect_executor_refuses_every_intent_under_one_decision(
     assert calls == []
 
 
+def test_collect_hosted_decision_disabled_touches_no_probe(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    for name in (
+        "acquire_session_assessment",
+        "evaluate_boundary",
+        "evaluate_route_availability",
+    ):
+        monkeypatch.setattr(
+            seam,
+            name,
+            lambda *_a, _name=name, **_k: pytest.fail(f"disabled probe touched: {_name}"),
+        )
+
+    decision = seam._collect_hosted_sync_decision(tmp_path)
+
+    assert decision.requested is False
+    assert decision.allow_effects is False
+    assert decision.diagnostics == ()
+
+
+def test_human_reporter_renders_warning_then_local_result(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seam._report_setup_plan_outcome(
+        seam.SetupPlanLocalOutcome(
+            payload={"result": "success", "phase_complete": True},
+            exit_code=0,
+            render_kind="success",
+        ),
+        diagnostics=(_diagnostic("SAAS_SYNC_UNAUTHENTICATED"),),
+        json_output=False,
+        human_message="LOCAL RESULT",
+    )
+
+    output = capsys.readouterr().out
+    assert "Warning:" in output
+    assert "Hosted sync was skipped" in output
+    assert output.index("Warning:") < output.index("LOCAL RESULT")
+
+
 # ---------------------------------------------------------------------------
-# _enforce_saas_sync_auth_refusal
+# retired refusal compatibility seams
 # ---------------------------------------------------------------------------
 
 
@@ -191,19 +234,19 @@ def test_auth_refusal_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch) -
     seam._enforce_saas_sync_auth_refusal(json_output=True)
 
 
-def test_auth_refusal_exits_when_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_auth_refusal_retired_when_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
     monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_credentials", lambda: None)
-    with pytest.raises(typer.Exit) as exc:
-        seam._enforce_saas_sync_auth_refusal(json_output=True)
-    assert exc.value.exit_code == 2
+    seam._enforce_saas_sync_auth_refusal(json_output=True)
 
 
-def test_auth_refusal_passes_with_scope(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_auth_refusal_retired_without_reading_scope(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: "scope-x")
-    # Returns without raising (scope resolved).
+    monkeypatch.setattr(
+        "specify_cli.sync.queue.read_queue_scope_from_session",
+        lambda: pytest.fail("queue scope is not authentication evidence"),
+    )
     seam._enforce_saas_sync_auth_refusal(json_output=True)
 
 
@@ -217,7 +260,7 @@ def test_boundary_preflight_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPa
     seam._enforce_saas_sync_boundary_preflight(tmp_path)
 
 
-def test_boundary_preflight_exits_on_incoherence(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_boundary_preflight_refusal_seam_is_retired(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
     class _Result:
@@ -227,9 +270,7 @@ def test_boundary_preflight_exits_on_incoherence(monkeypatch: pytest.MonkeyPatch
             return None
 
     monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_k: _Result())
-    with pytest.raises(typer.Exit) as exc:
-        seam._enforce_saas_sync_boundary_preflight(tmp_path)
-    assert exc.value.exit_code == 2
+    seam._enforce_saas_sync_boundary_preflight(tmp_path)
 
 
 # ---------------------------------------------------------------------------
