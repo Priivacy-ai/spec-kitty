@@ -71,7 +71,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 ## Objectives & Success Criteria
 
 - Typed runner protocol не зависит от CLI/service/storage.
-- OpenCode headless server запускается argv-list с `shell=False`, а prompt передаётся только в body loopback HTTP API.
+- OpenCode headless server запускается argv-list с `shell=False` и `--pure`; prompt передаётся только в body loopback HTTP API, где все встроенные tools явно выключены.
 - Default requested route configurable, без hidden fallback.
 - Перед внешним запуском runner предоставляет typed pricing snapshot только для exact requested route; ненулевая, отсутствующая или устаревшая нулевая цена не даёт запускать модель.
 - Raw stdout/stderr никогда не выводятся, не логируются и не входят в exceptions/results.
@@ -109,7 +109,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 ### T017 — Red runner contract tests
 
 - Spy/fake server/client фиксирует argv, HTTP body и environment names без secret values.
-- Assert `shell=False`, server bind только на `127.0.0.1`, no prompt in argv и обязательное удаление созданной session.
+- Assert `shell=False`, server bind только на `127.0.0.1`, `--pure`, all-tools-disabled message body, no prompt in argv и обязательное удаление созданной session.
 - Outcomes: executable missing, auth marker, provider nonzero, 429/rate limit, timeout, invalid JSON/framing, oversized streams.
 - Каждый вызов runner запускает внешний процесс не более одного раза; автоматические retry запрещены.
 - Result type содержит только bounded metadata: diagnostic enum, exit code, byte counts, optional validated payload buffer.

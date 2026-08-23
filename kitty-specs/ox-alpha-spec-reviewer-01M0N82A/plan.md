@@ -34,7 +34,7 @@
 
 1. Новый top-level интерфейс: `spec-kitty spec-review --mission <handle> [--model <id>] [--confirm-digest <sha256>]`.
 2. CLI orchestration отделена от доменного пакета `specify_cli.spec_review`; subprocess скрыт за typed runner protocol.
-3. Prompt передаётся только в body локального loopback HTTP API OpenCode headless server; argv не содержит prompt, `shell=False`, server слушает только `127.0.0.1`. Созданная session удаляется в `finally`; если удаление не подтверждено, запуск завершается локальным отказом. Raw stdout/stderr не пробрасываются и не сохраняются.
+3. Prompt передаётся только в body локального loopback HTTP API OpenCode headless server; argv не содержит prompt, `shell=False`, server слушает только `127.0.0.1` и запускается с `--pure`. Все встроенные инструменты явно отключаются в message body; созданная session удаляется в `finally`; если удаление не подтверждено, запуск завершается локальным отказом. Raw stdout/stderr не пробрасываются и не сохраняются.
 4. Добавляется `MissionArtifactKind.SPEC_REVIEW` в PRIMARY partition и filename-anchored classifier только для `reviews/spec-review-*.yaml`; legacy review trail остаётся неклассифицированным до отдельной migration decision. Выбор фиксируется ADR.
 5. Storage получает filesystem path только через `resolve_artifact_surface(..., SPEC_REVIEW)` и commit target через canonical placement seam; запись выполняется atomically/exclusively с повторной containment и reparse/symlink проверкой.
 6. Внешний `review-response/v1` содержит только findings. Доверенный `spec-review-run/v1` с provenance, закрытым status и summary полностью строит host; transport и requested route берутся из consent manifest, а непроверяемая фактическая модель фиксируется как `actual_model: unverified`.
