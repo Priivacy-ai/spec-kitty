@@ -1,7 +1,7 @@
 {
   "event_count": 26,
-  "last_event_id": "01M0QT0FA0Y887132A80QFPRQ8",
-  "materialized_at": "2026-08-23T17:17:05.728346+00:00",
+  "last_event_id": "01M0QT2EQT2VHR78TFJ9EDMY37",
+  "materialized_at": "2026-08-23T17:18:10.682049+00:00",
   "mission_number": "196",
   "mission_slug": "reject-cyclic-lane-graphs-01M0QCK4",
   "mission_type": "software-dev",
@@ -24,8 +24,8 @@
       "agent_profile_version": "1.0",
       "force_count": 1,
       "lane": "done",
-      "last_event_id": "01M0QT0B9GXW4DW75BTZACQ67C",
-      "last_transition_at": "2026-08-23T17:17:01.616157+00:00",
+      "last_event_id": "01M0QT2AR0K5TF2F0GMRSHQVYE",
+      "last_transition_at": "2026-08-23T17:18:06.592207+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Implemented authoritative post-collapse cycle rejection inside compute_lanes. Red contract commit 302a260ce failed 9 tests because the detector and typed error were absent; implementation commit 2e72e35a7 adds immutable diagnostics, iterative deterministic DFS, pre-depth enforcement, planning-lane membership, and reconciled depth-safety coverage. Canonical focused suite: 67 passed. Live mission-finalization caller regressions: 32 passed. Ruff passed and strict mypy passed. Multiple-cycle fixture normalized to lane-a -> lane-b -> lane-c -> lane-a; public acceptance assertion changed because FR-001/FR-002 require rejection rather than best-effort acceptance.",
@@ -57,8 +57,8 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
-      "last_event_id": "01M0QT0DBFT9X08EZK28YBAJQR",
-      "last_transition_at": "2026-08-23T17:17:03.727244+00:00",
+      "last_event_id": "01M0QT2CS6ZJEQR5NQJNVVE70H",
+      "last_transition_at": "2026-08-23T17:18:08.678222+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: structured JSON/human cycle diagnostics; byte-stable persistence proofs; 8 focused + 209 adjacent tests; Ruff, strict mypy, Draft202012 schema validation all pass.",
@@ -88,8 +88,8 @@
       "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
-      "last_event_id": "01M0QT0FA0Y887132A80QFPRQ8",
-      "last_transition_at": "2026-08-23T17:17:05.728346+00:00",
+      "last_event_id": "01M0QT2EQT2VHR78TFJ9EDMY37",
+      "last_transition_at": "2026-08-23T17:18:10.682049+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Ready for review: clean-DAG compatibility, deterministic multi-cycle facts, canonical CLI hash seeds 1/7/97, exact 100-lane/500-edge pedantic benchmark (~60us), schema validation; 516 broad tests passed, 2 performance-gated skips; Ruff and strict mypy pass.",
