@@ -13,7 +13,7 @@
       "wp": "WP04"
     },
     "#3127": {
-      "evidence_ref": "External P0 release gate tracked by https://github.com/Priivacy-ai/spec-kitty/issues/3127; not a code-lane dependency",
+      "evidence_ref": "Follow-up: #3127 remains the external P0 release-readiness gate; it is not a code-lane or Mission-completion dependency",
       "fr": null,
       "nfr": null,
       "repo": null,
