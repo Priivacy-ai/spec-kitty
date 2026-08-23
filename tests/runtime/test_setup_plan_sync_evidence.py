@@ -252,6 +252,24 @@ def test_real_encrypted_refresh_session_never_reads_queue_scope(
     assert payload["phase_complete"] is True
 
 
+def test_real_encrypted_storage_does_not_leak_token_manager_to_next_test(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Review cycle 1: the preceding real-storage test must leave no singleton."""
+    empty_storage = EncryptedFileStorage(base_dir=tmp_path / "fresh-auth")
+    monkeypatch.setattr(
+        SecureStorage,
+        "from_environment",
+        classmethod(lambda _cls: empty_storage),
+    )
+    from specify_cli.auth import get_token_manager
+
+    assessment = get_token_manager().session_assessment
+    assert assessment.completed is True
+    assert assessment.usable_session is False
+
+
 def test_real_unreadable_storage_adds_only_auth_unknown_to_baseline(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

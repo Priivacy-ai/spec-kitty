@@ -223,6 +223,45 @@ def test_human_reporter_renders_warning_then_local_result(
     assert output.index("Warning:") < output.index("LOCAL RESULT")
 
 
+def test_real_setup_plan_git_preflight_failure_attaches_hosted_warning_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Review cycle 1: git failure uses the reporter after hosted assessment."""
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    emitted: list[dict[str, object]] = []
+    baseline = {
+        "result": "error",
+        "error_code": "GIT_PREFLIGHT_FAILED",
+        "error": "baseline git failure",
+        "remediation": ["git worktree prune"],
+    }
+    decision = HostedSyncDecision(
+        requested=True,
+        allow_effects=False,
+        diagnostics=(_diagnostic("SAAS_SYNC_UNAUTHENTICATED"),),
+    )
+    monkeypatch.setattr(seam, "_collect_hosted_sync_decision", lambda _root: decision)
+    monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
+    monkeypatch.setattr(mission_mod, "_emit_json", lambda payload: emitted.append(payload))
+
+    def _git_failure(*_args: object, **_kwargs: object) -> None:
+        mission_mod._emit_json(dict(baseline))
+        raise typer.Exit(1)
+
+    monkeypatch.setattr(mission_mod, "_enforce_git_preflight", _git_failure)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        seam.setup_plan(feature="001-demo", json_output=True)
+
+    assert exc_info.value.exit_code == 1
+    assert len(emitted) == 1
+    actual = emitted[0]
+    assert {key: value for key, value in actual.items() if key != "warnings"} == baseline
+    assert actual["warnings"] == [decision.diagnostics[0].to_dict()]
+
+
 # ---------------------------------------------------------------------------
 # retired refusal compatibility seams
 # ---------------------------------------------------------------------------
