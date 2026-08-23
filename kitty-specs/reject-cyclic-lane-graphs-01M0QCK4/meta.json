@@ -14,9 +14,8 @@
   "accepted_by": "robert",
   "accepted_from_commit": "52fa993ec016b14d3870f6187a4e804838636778",
   "baseline_merge_commit": "886f33e828c910d86450ef069bcf4b6c4bc7c09f",
-  "coordination_branch": "kitty/mission-reject-cyclic-lane-graphs-01M0QCK4",
   "created_at": "2026-08-23T13:22:37.098012+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Reject Cyclic Lane Graphs",
   "mission_id": "01M0QCK4D9D65AVNC15HKWAQZ7",
   "mission_number": null,
@@ -29,7 +28,6 @@
   "source_description": "GitHub issue https://github.com/Priivacy-ai/spec-kitty/issues/3431",
   "status_phase": "1",
   "target_branch": "fix/reject-cyclic-lane-graphs",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-08-23T15:58:25.194231+00:00"
 }
