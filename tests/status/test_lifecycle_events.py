@@ -309,6 +309,14 @@ def test_local_artifact_phase_retains_strict_event_type_validation(
             mission_slug="demo-mission",
         )
 
+    with pytest.raises(ValueError):
+        emit_artifact_phase_local(
+            feature_dir,
+            event_type=PLAN_STARTED,
+            mission_slug="demo-mission",
+            mission_number="not-an-integer",  # type: ignore[arg-type]
+        )
+
 
 # ---------------------------------------------------------------------------
 # WPCreated
@@ -694,6 +702,7 @@ def test_persist_local_then_explicit_hosted_fanout_uses_same_envelope(
         fanout_lifecycle_event_hosted(envelope, log_path=log_path)
 
         assert captured == [{"envelope": envelope, "log_path": log_path}]
+        assert captured[0]["envelope"] is envelope
         assert read_lifecycle_events(log_path) == [envelope]
     finally:
         adapters.reset_handlers()
