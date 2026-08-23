@@ -5,6 +5,8 @@ status: Proposed
 date: '2026-07-15'
 ---
 
+> **Terminology portion superseded** by [ADR 2026-08-22-2 — Retire the doctrine term; Charter is the canonical vocabulary](2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md). The resolution mechanics recorded here (offer → activate → consume; default-charter provisioning) are unchanged. Under that ADR's operator override, program wave M5 of `retire-doctrine-term-01M0JMK9` later rewrites/renames this file's current-tree content and name; prior bytes remain in Git object history.
+
 ## Context and Problem Statement
 
 [ADR 2026-07-14-2](2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md)
