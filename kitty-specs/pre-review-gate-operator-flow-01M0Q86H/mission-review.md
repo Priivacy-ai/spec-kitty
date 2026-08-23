@@ -37,8 +37,8 @@ collect.
 
 ## Integrated verification
 
-- Focused merged-branch suite after final adversarial remediation: **184 passed,
-  2 expected platform skips** in 36.94 seconds. The skips are the Linux-only subreaper harness on macOS and
+- Focused merged-branch suite after final adversarial remediation: **185 passed,
+  2 expected platform skips** in 37.58 seconds. The skips are the Linux-only subreaper harness on macOS and
   the native-Windows-only tree-termination node.
 - Public integration module: **22 passed, 1 platform skip**, including the
   repaired real binding path in integrated commit `b67b7596f`.
