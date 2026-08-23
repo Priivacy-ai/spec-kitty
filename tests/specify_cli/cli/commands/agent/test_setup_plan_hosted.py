@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from itertools import product
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,7 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     BoundaryEvaluation,
     BoundaryState,
     HostedSyncDecision,
+    HostedSyncDiagnostic,
     acquire_session_assessment,
     decide_hosted_sync,
     evaluate_boundary,
@@ -225,6 +227,160 @@ def test_project_store_diagnostic_is_replaced_with_stable_classification(tmp_pat
     ):
         assert secret_fragment not in boundary_payload
         assert secret_fragment not in decision_payload
+
+
+class _SecretObject:
+    def __str__(self) -> str:
+        return "RuntimeError token=object-secret ciphertext=/tmp/object.session"
+
+
+@pytest.mark.parametrize(
+    "diagnostic",
+    [
+        decide_hosted_sync(
+            requested=True,
+            session_assessment=SessionAssessment(
+                False,
+                None,
+                "RuntimeError token=auth-secret ciphertext=/tmp/auth.session",
+            ),
+            boundary=BoundaryEvaluation(BoundaryState.SAFE),
+            route_available=True,
+        ).diagnostics[0],
+        decide_hosted_sync(
+            requested=True,
+            session_assessment=SessionAssessment(True, True, "session_usable"),
+            boundary=BoundaryEvaluation(
+                BoundaryState.UNSAFE,
+                "RuntimeError token=boundary-reason-secret",
+                evidence={
+                    "unknown_key": "ciphertext=/tmp/evidence.session token=evidence-secret",
+                    "unknown_object": _SecretObject(),
+                },
+            ),
+            route_available=True,
+        ).diagnostics[0],
+        decide_hosted_sync(
+            requested=True,
+            session_assessment=SessionAssessment(True, True, "session_usable"),
+            boundary=BoundaryEvaluation(BoundaryState.SAFE),
+            route_available=False,
+            route_reason="RuntimeError token=route-secret ciphertext=/tmp/route.session",
+        ).diagnostics[0],
+        HostedSyncDiagnostic(
+            code="SAAS_SYNC_BOUNDARY_UNSAFE",
+            severity="warning",
+            hosted_disposition="refused",
+            message="Hosted sync was skipped; local setup-plan continued.",
+            details={
+                "reason": "RuntimeError token=direct-reason-secret",
+                "evidence": {
+                    "unknown_key": "ciphertext=/tmp/direct.session token=direct-secret",
+                    "unknown_object": _SecretObject(),
+                },
+            },
+        ),
+    ],
+    ids=("session_reason", "boundary_reason_and_evidence", "route_reason", "direct_details"),
+)
+def test_every_public_detail_seam_drops_arbitrary_strings_and_objects(
+    diagnostic: HostedSyncDiagnostic,
+) -> None:
+    diagnostic_payload = str(diagnostic.to_dict())
+    decision_payload = str(HostedSyncDecision(True, False, (diagnostic,)).to_dict())
+
+    for forbidden in (
+        "RuntimeError",
+        "token=",
+        "ciphertext",
+        "/tmp/",
+        "secret",
+        "unknown_key",
+        "unknown_object",
+    ):
+        assert forbidden not in diagnostic_payload
+        assert forbidden not in decision_payload
+
+
+def test_safe_classifications_and_primitive_evidence_are_preserved() -> None:
+    diagnostic = HostedSyncDiagnostic(
+        code="SAAS_SYNC_BOUNDARY_UNSAFE",
+        severity="warning",
+        hosted_disposition="refused",
+        message="Hosted sync was skipped; local setup-plan continued.",
+        details={
+            "reason": "structural_preflight_failed",
+            "evidence": {
+                "ok": False,
+                "legacy_event_rows": 2,
+                "legacy_body_upload_rows": 3,
+                "legacy_rows_for_scope": 5,
+                "auth_present": True,
+                "auth_required": False,
+                "project_store_diagnostic": "project_store_unavailable",
+                "unknown": "must-not-survive",
+            },
+        },
+    )
+
+    assert diagnostic.to_dict()["details"] == {
+        "reason": "structural_preflight_failed",
+        "evidence": {
+            "ok": False,
+            "legacy_event_rows": 2,
+            "legacy_body_upload_rows": 3,
+            "legacy_rows_for_scope": 5,
+            "auth_present": True,
+            "auth_required": False,
+            "project_store_diagnostic": "project_store_unavailable",
+        },
+    }
+
+
+@pytest.mark.parametrize(
+    ("assessment", "boundary", "route_available"),
+    list(
+        product(
+            (
+                SessionAssessment(True, True, "session_usable"),
+                SessionAssessment(True, False, "session_absent"),
+                SessionAssessment(False, None, "storage_read_failed"),
+            ),
+            (
+                BoundaryEvaluation(BoundaryState.SAFE),
+                BoundaryEvaluation(BoundaryState.UNSAFE, "structural_preflight_failed"),
+                BoundaryEvaluation(BoundaryState.UNKNOWN, "boundary_evaluation_failed"),
+            ),
+            (True, False),
+        )
+    ),
+)
+def test_exhaustive_truth_table_keeps_one_allowing_row_and_diagnostic_order(
+    assessment: SessionAssessment,
+    boundary: BoundaryEvaluation,
+    route_available: bool,
+) -> None:
+    decision = decide_hosted_sync(
+        requested=True,
+        session_assessment=assessment,
+        boundary=boundary,
+        route_available=route_available,
+    )
+
+    expected_allow = (
+        assessment.usable_session is True
+        and boundary.state is BoundaryState.SAFE
+        and route_available
+    )
+    assert decision.allow_effects is expected_allow
+    expected_order = {
+        "SAAS_SYNC_UNAUTHENTICATED": 0,
+        "SAAS_SYNC_AUTH_UNKNOWN": 0,
+        "SAAS_SYNC_BOUNDARY_UNSAFE": 1,
+        "SAAS_SYNC_ROUTE_UNAVAILABLE": 2,
+    }
+    positions = [expected_order[diagnostic.code] for diagnostic in decision.diagnostics]
+    assert positions == sorted(positions)
 
 
 def test_unavailable_route_is_not_an_auth_failure(tmp_path: Path) -> None:
