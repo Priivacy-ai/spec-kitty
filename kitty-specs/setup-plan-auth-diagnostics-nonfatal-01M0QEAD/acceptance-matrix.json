@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP03 approval plus WP04 review-cycle-2.md: unconditional local lifecycle JSONL and zero hosted sinks on refusal; single executor dominance",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-23T21:51:12.574299+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
