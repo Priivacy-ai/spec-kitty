@@ -35,6 +35,8 @@
 
 ## Notes
 
-- Confirmed decision: cyclic results fail before persistence and preserve any existing valid `lanes.json`.
+- Confirmed decision: cyclic results fail before `lanes.json` persistence and preserve any existing valid `lanes.json`.
 - Confirmed intent: finalization must identify the cycle and never report success for an unexecutable graph.
+- Post-spec adversarial review folded canonical command/mode boundaries, the exact structured failure contract, deterministic normalization, and the single post-collapse acceptance authority into the spec.
+- Full-command rollback was deliberately excluded: the confirmed integrity boundary is creation or replacement of `lanes.json`, not earlier non-lane finalization effects.
 - SPDD/REASONS activation check returned inactive for this checkout, so no advisory canvas was created.
