@@ -1,82 +1,251 @@
-# Tasks — Nonfatal setup-plan auth diagnostics
+---
+description: "Work packages for authoritative local setup-plan and safe hosted refusal"
+---
 
-**Mission**: `setup-plan-auth-diagnostics-nonfatal-01M0QEAD`  
-**Planning branch / merge target**: `fix/setup-plan-auth-diagnostics-nonfatal`  
-**Spec**: [spec.md](spec.md) · **Plan**: [plan.md](plan.md) · **Contract**: [contracts/setup-plan-result-envelope.md](contracts/setup-plan-result-envelope.md)
+# Work Packages: Authoritative local setup-plan with safe hosted refusal
+
+**Inputs**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
+[data-model.md](data-model.md), [contract](contracts/setup-plan-result-envelope.md),
+[quickstart.md](quickstart.md)
+**Mission**: `setup-plan-auth-diagnostics-nonfatal-01M0QEAD`
+**Planning base / merge target**: `fix/setup-plan-auth-diagnostics-nonfatal`
 
 ## Delivery Strategy
 
-WP01 establishes and implements the canonical local auth classification, including the rejecting-first probe contract and removal of queue-scope tests that falsely describe routing data as authentication. WP02 then changes the mixed local/hosted `setup-plan` command end-to-end: tests are written first inside the package, diagnostics replace early refusal, local outcomes remain authoritative, and only dossier/hosted side effects are suppressed.
+Four work packages follow the actual authority boundaries. WP01 preserves tri-state
+truth inside the canonical auth subsystem. WP02 composes auth, structural, route, and
+enablement evidence into one hosted decision without altering canonical preflight. WP03
+separates local lifecycle persistence from hosted fan-out and may proceed independently.
+WP04 integrates the three seams into setup-plan, freezes every local outcome, and adds
+the non-vacuous hosted-effect gate.
 
-This sequencing deliberately keeps production and its tests in the same ownership package so no later WP must edit another lane's files. There are no migrations, external API changes, new dependencies, or network-based test prerequisites.
-
-## Subtask Index
-
-| ID | Description | WP | Parallel |
-|---|---|---|---|
-| T001 | Write rejecting auth-probe cases for unknown evaluation, refresh-capable authentication, and queue-scope independence | WP01 | |
-| T002 | Make token-manager evaluation failures return `AuthStatus.UNKNOWN` without changing conclusive logged-out handling | WP01 | |
-| T003 | Reframe credential-scope regressions as routing-only and remove setup-plan auth-gate expectations | WP01 | [P] |
-| T004 | Run focused readiness, credential routing, lint, and compatibility gates | WP01 | |
-| T005 | Write rejecting setup-plan helper tests for diagnostics, ordering, result attachment, and disabled/coherent behavior | WP02 | |
-| T006 | Write rejecting CLI integration matrix for auth × completeness and structural boundary classes | WP02 | [P] |
-| T007 | Introduce immutable hosted-sync diagnostic and side-effect decision composition in setup-plan | WP02 | |
-| T008 | Replace auth and structural exit-2 gates with read-only collection while preserving local result authority | WP02 | |
-| T009 | Attach ordered warnings to JSON/human local results, including blocked and local-error paths | WP02 | |
-| T010 | Gate only hosted dossier/enqueue delivery and prove local lifecycle/artifact/commit behavior remains active | WP02 | |
-| T011 | Retire obsolete refusal evidence, preserve boundaries, and run the complete regression/quality gates | WP02 | |
-
-## Work Packages
-
-### WP01 — Canonical local auth classification
-
-- **Prompt**: [tasks/WP01-canonical-local-auth-classification.md](tasks/WP01-canonical-local-auth-classification.md)
-- **Goal**: Make the existing readiness probe the unambiguous local auth authority, preserve supported refresh-capable sessions, classify evaluation failures as unknown, and remove the obsolete test-level claim that queue scope proves authentication.
-- **Priority**: P0
-- **Dependencies**: none
-- **Independent test**: `tests/readiness/test_auth_probe.py` proves all supported auth states and queue independence; `tests/sync/test_credential_scope_signal.py` remains green as a routing/store-invariance suite without setup-plan gate assertions.
-- **Estimated prompt size**: approximately 260 lines
-- [ ] T001 Write rejecting auth-probe contract cases (WP01)
-- [ ] T002 Correct indeterminate token-manager classification (WP01)
-- [ ] T003 Reframe credential-scope tests as routing-only (WP01)
-- [ ] T004 Run focused auth and routing gates (WP01)
-
-**Implementation sketch**: Update tests first, observe the `is_authenticated` exception case fail, make the smallest change in the existing probe, then remove only obsolete auth-gate assertions from credential-scope coverage. Do not change queue parsing or storage selection.
-
-**Parallel opportunities**: T003 touches a separate test module and can be prepared in parallel with T001/T002, but all changes should be validated together before review.
-
-**Risks**: Collapsing unknown into logged out; accidentally narrowing refresh-capable sessions; deleting routing invariance coverage along with obsolete auth assertions; introducing network I/O.
+Every WP is ATDD-first: its first implementation commit must contain a failing test that
+is red on `planning_base_branch` and green on the final WP commit.
 
 ---
 
-### WP02 — setup-plan local/hosted separation
+## Work Package WP01: Canonical tri-state authentication evaluation (Priority: P0)
 
-- **Prompt**: [tasks/WP02-setup-plan-local-hosted-separation.md](tasks/WP02-setup-plan-local-hosted-separation.md)
-- **Goal**: Always finish setup-plan's local work, expose logged-out/unknown/structural sync conditions as ordered warnings, preserve the local result and exit status, and refuse only unsafe hosted enqueue/delivery.
-- **Priority**: P0
-- **Dependencies**: WP01
-- **Independent test**: The CLI matrix returns the same local result across auth/boundary states, emits the specified warning codes, and proves hosted calls are skipped while local events/artifact/commit paths run.
-- **Estimated prompt size**: approximately 440 lines
-- [ ] T005 Write rejecting setup-plan helper contracts (WP02)
-- [ ] T006 Write rejecting CLI acceptance matrix (WP02)
-- [ ] T007 Add diagnostic and hosted-decision composition (WP02)
-- [ ] T008 Replace early auth/boundary exits with collection (WP02)
-- [ ] T009 Attach JSON and human warnings to local outcomes (WP02)
-- [ ] T010 Isolate hosted side effects while preserving local effects (WP02)
-- [ ] T011 Retire obsolete refusal evidence, preserve boundaries, and run regression gates (WP02)
+**Goal**: Preserve authenticated, logged-out, and unknown at the TokenManager authority
+and project that typed result into readiness without queue-scope or network access.
+**Independent Test**: Real isolated session storage distinguishes absent from unreadable,
+recognizes an expired-access/usable-refresh session, and keeps Boolean compatibility.
+**Prompt**: [tasks/WP01-canonical-auth-evaluation.md](tasks/WP01-canonical-auth-evaluation.md)
+**Requirement Refs**: FR-002, FR-003, FR-004, FR-005, FR-006
 
-**Implementation sketch**: First rewrite the old refusal tests into the new executable contract. Add small immutable values/helpers in `mission_setup_plan.py`, collect auth before and structural evidence after repository resolution, run the unchanged local workflow, condition only the dossier/hosted seam, and emit exactly one result envelope with deterministic warnings. Keep `sync now` and `sync.preflight` behavior unchanged.
+### Included Subtasks
 
-**Parallel opportunities**: Within the WP, T005 and T006 affect different test files and can be drafted independently; T011's evidence cleanup can be reviewed alongside implementation. The production changes remain one cohesive edit in `mission_setup_plan.py`.
+T001 Write and commit rejecting TokenManager/readiness tri-state acceptance tests
 
-**Risks**: Multiple JSON documents; diagnostics lost on early local-result paths; local errors accidentally converted to success; auth duplicated through preflight `auth_present`; local lifecycle events suppressed; unsafe dossier enqueue still called; unrelated sync commands weakened.
+T002 Preserve storage-load and materialization outcomes in TokenManager and expose typed local auth evaluation
 
-## Requirement Coverage
+T003 Project typed auth into readiness while preserving Boolean compatibility and Teamspace distinctions
 
-- WP01 owns FR-002 and FR-003.
-- WP02 owns FR-001 and FR-004 through FR-012.
-- Requirement mappings are registered in WP frontmatter by `map-requirements` before finalization.
+T004 Run focused auth, readiness, lint, typing, and queue-independence gates
 
-## MVP Recommendation
+### Implementation Notes
 
-The smallest shippable scope is WP01 plus WP02. WP01 alone fixes the canonical unknown classification but does not change the user-visible setup-plan refusal; WP02 completes issue #3621.
+- Information loss is fixed where storage is first read, not reconstructed downstream.
+- `is_authenticated` remains a Boolean compatibility projection.
+- No queue-scope reader, refresh, HTTP client, or SaaS call participates.
+
+### Parallel Opportunities
+
+- Test fixtures in the two owned test files can be prepared in parallel, but production
+  work is one cohesive authority change.
+
+### Dependencies
+
+- None.
+
+### Risks & Mitigations
+
+- Existing Boolean callers could change behavior → pin compatibility explicitly.
+- Hot-summary materialization could still collapse errors → test cold and hot paths.
+
+---
+
+## Work Package WP02: Hosted assessment and decision (Priority: P0)
+
+**Goal**: Add a setup-plan-specific, no-raise assessment adapter and one immutable,
+fail-closed hosted-effects decision with ordered structured diagnostics.
+**Independent Test**: A pure decision matrix proves only authenticated + safe + routable
+allows effects, while returned and raised structural failures produce separate warnings.
+**Prompt**: [tasks/WP02-hosted-assessment-decision.md](tasks/WP02-hosted-assessment-decision.md)
+**Requirement Refs**: FR-007, FR-008, FR-012
+
+### Included Subtasks
+
+T005 Write and commit rejecting hosted-decision truth-table tests
+
+T006 Implement the setup-plan-only no-raise structural boundary adapter
+
+T007 Implement immutable diagnostic and HostedSyncDecision composition
+
+T008 Verify disabled-mode short-circuit, deterministic ordering, sanitization, lint, and typing
+
+### Implementation Notes
+
+- The adapter consumes `run_preflight(..., require_auth=False)` and never modifies it.
+- Unknown authentication, boundary, or route state refuses hosted effects.
+- Diagnostic severity is warning; hosted disposition is refused.
+
+### Parallel Opportunities
+
+- WP02 starts after WP01 because it consumes the typed auth evaluation.
+
+### Dependencies
+
+- Depends on WP01.
+
+### Risks & Mitigations
+
+- A raw exception could leak secrets → stable reasons and sanitized evidence only.
+- Route availability could become auth → separate input and diagnostic code.
+
+---
+
+## Work Package WP03: Lifecycle persistence and fan-out split (Priority: P0)
+
+**Goal**: Make local lifecycle JSONL persistence explicit and independent from hosted
+adapter fan-out while preserving the existing composed API for other callers.
+**Independent Test**: Local-only artifact-phase emission writes exactly one valid event
+and invokes zero registered SaaS handlers; legacy composed emission still fans out once.
+**Prompt**: [tasks/WP03-lifecycle-persistence-fanout-split.md](tasks/WP03-lifecycle-persistence-fanout-split.md)
+**Requirement Refs**: FR-009, FR-010
+
+### Included Subtasks
+
+T009 Write and commit rejecting local-persistence versus hosted-fan-out tests
+
+T010 Extract explicit local persistence and hosted fan-out operations
+
+T011 Add a supported local-only artifact-phase emission path and preserve composed compatibility
+
+T012 Run lifecycle, producer-conformance, adapter-fanout, lint, and typing regressions
+
+### Implementation Notes
+
+- Local persistence must not import, resolve, or call hosted adapters.
+- Existing callers of `append_lifecycle_event()` retain composed behavior.
+- Returned event envelopes become intents consumed later by WP04.
+
+### Parallel Opportunities
+
+- WP03 has no code dependency on WP01 or WP02 and can run in parallel with them.
+
+### Dependencies
+
+- None.
+
+### Risks & Mitigations
+
+- Duplicate JSONL or fan-out → assert exact call and event counts.
+- Existing status emitters regress → run producer and registered-adapter suites.
+
+---
+
+## Work Package WP04: setup-plan orchestration and compatibility (Priority: P0)
+
+**Goal**: Integrate the local and hosted lanes, guard every hosted effect, emit one
+authoritative result, and prove the complete compatibility and production-chain matrix.
+**Independent Test**: The real setup-plan entry point preserves every baseline local
+outcome/exit across auth and boundary variants, writes local events, and performs zero
+hosted calls whenever the decision refuses.
+**Prompt**: [tasks/WP04-setup-plan-orchestration-compatibility.md](tasks/WP04-setup-plan-orchestration-compatibility.md)
+**Requirement Refs**: FR-001, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, FR-015
+
+### Included Subtasks
+
+T013 Capture baseline payloads/exits and commit the rejecting setup-plan compatibility matrix
+
+T014 Replace early auth and boundary exits with evidence collection and one hosted decision
+
+T015 Route local lifecycle intents and every hosted sink through the explicit executor boundary
+
+T016 Introduce one local-outcome reporter and attach diagnostics to all eligible success, blocked, and error paths
+
+T017 Add real encrypted-storage production-chain and structural-exception acceptance tests
+
+T018 Add the non-vacuous hosted-effect architectural gate and named sibling-policy documentation parity
+
+T019 Run targeted regressions, requirement evidence, and issue 3127 release-closeout check
+
+### Implementation Notes
+
+- Structural assessment begins only after repository-root resolution.
+- Pre-root failures retain their existing payload and do not fabricate structural data.
+- Local JSONL, artifact work, documentation wiring, and safe commits remain local.
+- Lifecycle fan-out, dossier work, queues, daemon/dashboard publication, and any newly
+  discovered hosted sink require `allow_effects=true`.
+
+### Parallel Opportunities
+
+- Baseline fixture capture and architectural census drafting may proceed in parallel
+  before the production integration, within this single ownership package.
+
+### Dependencies
+
+- Depends on WP01, WP02, and WP03.
+
+### Risks & Mitigations
+
+- Hidden return/raise path loses warnings → matrix covers every emitter class.
+- New sink bypasses decision → AST gate has a runnable synthetic violation.
+- Original defect survives mocks → real encrypted-storage entry-point fixtures.
+
+---
+
+## Dependency & Execution Summary
+
+- **Sequence**: WP01 → WP02; WP03 runs in parallel; WP01 + WP02 + WP03 → WP04.
+- **Parallelization**: WP03 is an independent lane. WP01 test fixtures and WP03 tests
+  are also file-disjoint.
+- **MVP Scope**: All four WPs. Each foundation is independently reviewable, but issue
+  #3621 is not user-complete until WP04 integrates them.
+- **Release gate**: GitHub issue #3127 must be resolved before Mission acceptance or
+  release readiness; it is not a code-lane dependency.
+
+## Requirements Coverage Summary
+
+| Requirement ID | Covered By Work Package(s) |
+|---|---|
+| FR-001 | WP04 |
+| FR-002 | WP01 |
+| FR-003 | WP01 |
+| FR-004 | WP01 |
+| FR-005 | WP01, WP04 |
+| FR-006 | WP01, WP04 |
+| FR-007 | WP02, WP04 |
+| FR-008 | WP02, WP04 |
+| FR-009 | WP03, WP04 |
+| FR-010 | WP03, WP04 |
+| FR-011 | WP04 |
+| FR-012 | WP02, WP04 |
+| FR-013 | WP04 |
+| FR-014 | WP04 |
+| FR-015 | WP04 |
+
+## Subtask Index (Reference)
+
+| Subtask ID | Summary | Work Package | Priority | Parallel? |
+|---|---|---|---|---|
+| T001 | Rejecting tri-state tests | WP01 | P0 | No |
+| T002 | TokenManager typed evaluation | WP01 | P0 | No |
+| T003 | Readiness projection | WP01 | P0 | No |
+| T004 | Auth/readiness gates | WP01 | P0 | No |
+| T005 | Rejecting decision matrix | WP02 | P0 | No |
+| T006 | No-raise boundary adapter | WP02 | P0 | No |
+| T007 | Hosted decision composition | WP02 | P0 | No |
+| T008 | Decision quality gates | WP02 | P0 | No |
+| T009 | Rejecting lifecycle split tests | WP03 | P0 | No |
+| T010 | Explicit persistence/fan-out operations | WP03 | P0 | No |
+| T011 | Local-only phase emission | WP03 | P0 | No |
+| T012 | Lifecycle quality gates | WP03 | P0 | No |
+| T013 | Baseline and rejecting compatibility matrix | WP04 | P0 | Yes |
+| T014 | Evidence collection integration | WP04 | P0 | No |
+| T015 | Hosted executor boundary | WP04 | P0 | No |
+| T016 | One local-outcome reporter | WP04 | P0 | No |
+| T017 | Production-chain acceptance | WP04 | P0 | Yes |
+| T018 | Architectural gate and policy docs | WP04 | P0 | Yes |
+| T019 | Integrated gates and release check | WP04 | P0 | No |

@@ -11,9 +11,27 @@
         "WP01"
       ],
       "write_scope": [
+        "src/specify_cli/auth/token_manager.py",
         "src/specify_cli/readiness/auth.py",
-        "tests/readiness/test_auth_probe.py",
-        "tests/sync/test_credential_scope_signal.py"
+        "tests/auth/test_token_manager.py",
+        "tests/readiness/test_auth_probe.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/status/lifecycle_events.py",
+        "tests/status/test_lifecycle_events.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -31,13 +49,11 @@
         "WP02"
       ],
       "write_scope": [
-        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
-        "tests/runtime/test_setup_plan_sync_evidence.py",
-        "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py"
+        "src/specify_cli/cli/commands/agent/setup_plan_hosted.py",
+        "tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py"
       ],
       "predicted_surfaces": [
         "api",
-        "artifact-rendering",
         "legacy-cleanup",
         "tracker-integration",
         "workspace"
@@ -46,10 +62,40 @@
         "lane-a"
       ],
       "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/operations/logged-out-teamspace.md",
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
+        "tests/architectural/test_setup_plan_hosted_effect_gate.py",
+        "tests/runtime/test_setup_plan_sync_evidence.py",
+        "tests/specify_cli/cli/commands/agent/test_issue_3425_setup_plan_legacy_layout_silent_capture.py",
+        "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py",
+        "tests/specify_cli/cli/commands/agent/test_setup_plan_read_surface.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
     }
   ],
-  "computed_at": "2026-08-23T16:31:02.803519+00:00",
+  "computed_at": "2026-08-23T18:21:28.525171+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "fe1dffda4cbc21a4ee001f236c329c197e392de3"
+  "planning_commit_sha": "8fd2084abb89ec5c5e88dffd90a895de6da408a1"
 }
