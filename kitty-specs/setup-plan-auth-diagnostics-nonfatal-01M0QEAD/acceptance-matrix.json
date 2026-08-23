@@ -68,10 +68,10 @@
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP04 review-cycle-2.md: unsafe/raised structural assessment yields additive diagnostic while local verification completes",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-23T21:51:08.108149+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
