@@ -103,9 +103,7 @@ META_JSON_FILENAME = "meta.json"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
-OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES = (
-    "OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES"
-)
+OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES = "OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES"
 LANE_COMPUTATION_ABORTED_EMPTY_INPUTS = "LANE_COMPUTATION_ABORTED_EMPTY_INPUTS"
 
 # SK3466-REV-001: the ONLY meta.json field finalize-tasks itself ever writes
@@ -124,9 +122,7 @@ FINALIZE_ATTRIBUTABLE_META_FIELDS = frozenset({"target_branch"})
 # KITTY_SPECS_DIR identifier form, built via ``.replace("-", "_")`` to avoid a
 # raw mission-spec literal in source). Mirrors mission.py's globals() injection
 # so the same symbol is resolvable here too.
-globals()["_invalid_" + KITTY_SPECS_DIR.replace("-", "_") + "_owned_files"] = (
-    _invalid_mission_specs_owned_files
-)
+globals()["_invalid_" + KITTY_SPECS_DIR.replace("-", "_") + "_owned_files"] = _invalid_mission_specs_owned_files
 
 
 def _emit_json(payload: dict[str, object]) -> None:
@@ -161,20 +157,14 @@ def _read_wp_frontmatter(wp_file: Path) -> tuple[WPMetadata, str]:
     return _mission.read_wp_frontmatter(wp_file)
 
 
-def _resolve_planning_branch_via_mission(
-    repo_root: Path, primary_dir: Path, *, target_branch_override: str | None
-) -> str:
+def _resolve_planning_branch_via_mission(repo_root: Path, primary_dir: Path, *, target_branch_override: str | None) -> str:
     """Route ``_resolve_planning_branch`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return _mission._resolve_planning_branch(
-        repo_root, primary_dir, target_branch_override=target_branch_override
-    )
+    return _mission._resolve_planning_branch(repo_root, primary_dir, target_branch_override=target_branch_override)
 
 
-def _bootstrap_canonical_state_via_mission(
-    planning_dir: Path, mission_slug: str, *, dry_run: bool, capability: GuardCapability | None = None
-) -> BootstrapResult:
+def _bootstrap_canonical_state_via_mission(planning_dir: Path, mission_slug: str, *, dry_run: bool, capability: GuardCapability | None = None) -> BootstrapResult:
     """Route ``bootstrap_canonical_state`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
@@ -183,9 +173,7 @@ def _bootstrap_canonical_state_via_mission(
     return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run, capability=capability)
 
 
-def _validate_ownership_via_mission(
-    wp_manifests: dict[str, OwnershipManifest], wp_dependencies: dict[str, list[str]]
-) -> ValidationResult:
+def _validate_ownership_via_mission(wp_manifests: dict[str, OwnershipManifest], wp_dependencies: dict[str, list[str]]) -> ValidationResult:
     """Route ``validate_ownership`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
@@ -378,8 +366,7 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
         # into the finalize commit -- doing so risks committing a truncated or
         # corrupt file over readers that fail closed on it.
         logger.warning(
-            "#3466: could not read %s to compute finalize-commit attribution "
-            "(%s); excluding meta.json from the finalize commit",
+            "#3466: could not read %s to compute finalize-commit attribution (%s); excluding meta.json from the finalize commit",
             meta_path,
             read_exc,
         )
@@ -392,9 +379,7 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
         # this change, so the conservative default is to EXCLUDE a corrupt
         # on-disk file -- committing it would break every fail-closed reader.
         logger.warning(
-            "#3466: working-tree %s failed to decode as JSON while computing "
-            "finalize-commit attribution for %s; excluding meta.json from the "
-            "finalize commit",
+            "#3466: working-tree %s failed to decode as JSON while computing finalize-commit attribution for %s; excluding meta.json from the finalize commit",
             META_JSON_FILENAME,
             meta_path,
         )
@@ -412,11 +397,7 @@ def _meta_json_delta_is_finalize_attributable(meta_path: Path, repo_root: Path) 
         )
         return True
 
-    changed_keys = {
-        key
-        for key in {*committed_meta.keys(), *current_meta.keys()}
-        if committed_meta.get(key) != current_meta.get(key)
-    }
+    changed_keys = {key for key in {*committed_meta.keys(), *current_meta.keys()} if committed_meta.get(key) != current_meta.get(key)}
     return changed_keys <= FINALIZE_ATTRIBUTABLE_META_FIELDS
 
 
@@ -503,9 +484,7 @@ def _resolve_target_branch(
     re-runs (WP05 / T020 / F-001).
     """
     try:
-        return _resolve_planning_branch_via_mission(
-            repo_root, primary_dir, target_branch_override=target_branch_override
-        )
+        return _resolve_planning_branch_via_mission(repo_root, primary_dir, target_branch_override=target_branch_override)
     except PlanningBranchResolutionFailed as exc:
         if json_output:
             _emit_json({"error": str(exc), "error_code": exc.error_code})
@@ -643,10 +622,7 @@ def _persist_target_branch_override(
         # ``except Exception`` as an unstructured ``{"error": str(e)}``.
         error_detail = str(persist_exc)
         if not json_output:
-            console.print(
-                "[yellow]Warning:[/yellow] could not persist --target-branch override "
-                f"to meta.json: {error_detail}"
-            )
+            console.print(f"[yellow]Warning:[/yellow] could not persist --target-branch override to meta.json: {error_detail}")
         else:
             # SK3466-R-002: without this, a --json caller gets ZERO
             # diagnostic — meta_json_persisted silently stays False and a
@@ -660,26 +636,18 @@ def _persist_target_branch_override(
                     "detail": error_detail,
                 }
             )
-        return TargetBranchPersistOutcome(
-            persisted=False, previous_value=previous_value, persist_error=error_detail
-        )
+        return TargetBranchPersistOutcome(persisted=False, previous_value=previous_value, persist_error=error_detail)
     if not json_output and previous_value is not None:
         # SK3466-R-003: a distinct (non-cyan) notice that a repeat
         # finalize-tasks invocation just permanently rewrote the mission's
         # canonical merge destination — finalize-tasks is documented as
         # repeatable, so a stale/mistaken --target-branch on a routine
         # re-run is otherwise a silent, unflagged overwrite.
-        console.print(
-            f"[yellow]Note:[/yellow] target_branch override persisted to meta.json "
-            f"({previous_value} -> {target_branch})"
-        )
+        console.print(f"[yellow]Note:[/yellow] target_branch override persisted to meta.json ({previous_value} -> {target_branch})")
     return TargetBranchPersistOutcome(persisted=True, previous_value=previous_value)
 
 
-
-def _read_spec_requirement_ids(
-    planning_dir: Path, *, json_output: bool
-) -> tuple[set[str], set[str], list[str], str]:
+def _read_spec_requirement_ids(planning_dir: Path, *, json_output: bool) -> tuple[set[str], set[str], list[str], str]:
     """Phase: parse spec.md requirement ids (all + functional) + #3394 F1 warnings.
 
     The third element is a (possibly empty) list of non-blocking warning
@@ -792,16 +760,11 @@ def _advisory_issue_matrix_lint(planning_dir: Path, *, json_output: bool) -> Non
         result = validate_issue_matrix(matrix_path)
     except Exception as lint_exc:  # noqa: BLE001 — advisory lint never blocks finalize
         if not json_output:
-            console.print(
-                f"[yellow]Warning:[/yellow] could not lint {ISSUE_MATRIX_FILENAME}: {lint_exc}"
-            )
+            console.print(f"[yellow]Warning:[/yellow] could not lint {ISSUE_MATRIX_FILENAME}: {lint_exc}")
         return
     if result.passed or json_output:
         return
-    console.print(
-        f"[yellow]Advisory:[/yellow] {ISSUE_MATRIX_FILENAME} has lint finding(s) "
-        "(non-blocking — does not affect finalize):"
-    )
+    console.print(f"[yellow]Advisory:[/yellow] {ISSUE_MATRIX_FILENAME} has lint finding(s) (non-blocking — does not affect finalize):")
     for diagnostic in result.diagnostics:
         console.print(f"  - {diagnostic['diagnostic_code']}: {diagnostic['message']}")
 
@@ -907,18 +870,14 @@ def _validate_occurrence_map_ready(planning_dir: Path, *, json_output: bool) -> 
     raise typer.Exit(1)
 
 
-def _validate_tasks_md_coverage(
-    tasks_md_dependencies: dict[str, list[str]], expected_wp_ids: list[str], *, json_output: bool
-) -> None:
+def _validate_tasks_md_coverage(tasks_md_dependencies: dict[str, list[str]], expected_wp_ids: list[str], *, json_output: bool) -> None:
     """Phase: verify every WP file matches a parsed tasks.md section."""
     missing_wp_sections = [wp_id for wp_id in expected_wp_ids if wp_id not in tasks_md_dependencies]
     extra_wp_sections = sorted(set(tasks_md_dependencies) - set(expected_wp_ids))
     if not (missing_wp_sections or extra_wp_sections):
         return
     error_msg = (
-        "tasks.md work package coverage is incomplete. "
-        "finalize-tasks could not match all WP files to parsed sections, "
-        "so dependency lanes would be unreliable."
+        "tasks.md work package coverage is incomplete. finalize-tasks could not match all WP files to parsed sections, so dependency lanes would be unreliable."
     )
     payload: dict[str, object] = {
         "error": error_msg,
@@ -1016,9 +975,7 @@ def _detect_bare_prose_requirement_ids_fail_loud(spec_content: str) -> list[str]
         candidates = find_bare_prose_requirement_ids(spec_content)
         return sorted({req_id for candidate in candidates for req_id in candidate.ids})
     except Exception as exc:  # noqa: BLE001 -- fail-loud: converted below into an explicit, non-empty failure, never swallowed
-        return [
-            f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"
-        ]
+        return [f"<bare-prose-detection-error: {exc!r} -- treating as blocking, never silently clean (NFR-002)>"]
 
 
 def _emit_requirement_mapping_report(
@@ -1084,18 +1041,13 @@ def _validate_requirement_mapping(
     mapped to a WP" and "never declared at all" are different remediation
     stories for an operator.
     """
-    missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids = (
-        _classify_wp_requirement_refs(wp_ids, wp_requirement_refs, all_spec_requirement_ids)
+    missing_requirement_refs_wps, unknown_requirement_refs, mapped_requirement_ids = _classify_wp_requirement_refs(
+        wp_ids, wp_requirement_refs, all_spec_requirement_ids
     )
 
     unmapped_functional_requirements = sorted(functional_spec_requirement_ids - mapped_requirement_ids)
     bare_prose_requirement_ids = _detect_bare_prose_requirement_ids_fail_loud(spec_content)
-    if not (
-        missing_requirement_refs_wps
-        or unknown_requirement_refs
-        or unmapped_functional_requirements
-        or bare_prose_requirement_ids
-    ):
+    if not (missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements or bare_prose_requirement_ids):
         return
 
     _emit_requirement_mapping_report(
@@ -1110,9 +1062,7 @@ def _validate_requirement_mapping(
     raise typer.Exit(1)
 
 
-def _detect_dependency_conflicts(
-    wp_files: list[Path], wp_dependencies: dict[str, list[str]], *, json_output: bool
-) -> None:
+def _detect_dependency_conflicts(wp_files: list[Path], wp_dependencies: dict[str, list[str]], *, json_output: bool) -> None:
     """Phase: T004 disagree-loud — frontmatter vs parsed deps conflict gate."""
     existing_frontmatter: dict[str, WPMetadata] = {}
     for wp_file in wp_files:
@@ -1337,9 +1287,7 @@ def _run_bootstrap_loop(
             deps = parsed_deps
 
         requirement_refs = wp_requirement_refs.get(wp_id, [])
-        state.work_packages.append(
-            {"id": wp_id, "title": wp_meta.display_title, "dependencies": deps, "requirement_refs": requirement_refs}
-        )
+        state.work_packages.append({"id": wp_id, "title": wp_meta.display_title, "dependencies": deps, "requirement_refs": requirement_refs})
 
         bld = wp_meta.builder()
         frontmatter_changed, changed_fields = _apply_bootstrap_fields(
@@ -1382,27 +1330,18 @@ def _run_bootstrap_loop(
     return state
 
 
-def _surface_post_integration_acceptance_warnings(
-    state: _BootstrapState, *, json_output: bool
-) -> None:
+def _surface_post_integration_acceptance_warnings(state: _BootstrapState, *, json_output: bool) -> None:
     """Mirror post-integration acceptance warnings to human output."""
     if state.post_integration_acceptance_warnings and not json_output:
         for warning in state.post_integration_acceptance_warnings:
             console.print(f"[yellow]Warning:[/yellow] {warning}")
 
 
-def _raise_ownership_contradictions_if_any(
-    state: _BootstrapState, contradicting_wp_ids: list[str], *, json_output: bool
-) -> None:
+def _raise_ownership_contradictions_if_any(state: _BootstrapState, contradicting_wp_ids: list[str], *, json_output: bool) -> None:
     """Raise once after the bootstrap scan when ownership contradictions exist."""
     if not state.ownership_contradictions:
         return
-    error_msg = (
-        "Ownership contradiction detected for WP(s) "
-        + ", ".join(contradicting_wp_ids)
-        + ": "
-        + "; ".join(state.ownership_contradictions)
-    )
+    error_msg = "Ownership contradiction detected for WP(s) " + ", ".join(contradicting_wp_ids) + ": " + "; ".join(state.ownership_contradictions)
     if json_output:
         _emit_json(
             {
@@ -1430,9 +1369,7 @@ def _assert_no_write_in_validate_only(state: _BootstrapState, *, validate_only: 
         assert not state.pending_writes, "INV-6 violated: pending frontmatter writes in --validate-only mode"
 
 
-def _validate_owned_files_not_in_mission_specs(
-    inmemory_frontmatter: dict[str, WPMetadata], *, json_output: bool
-) -> None:
+def _validate_owned_files_not_in_mission_specs(inmemory_frontmatter: dict[str, WPMetadata], *, json_output: bool) -> None:
     """Phase: reject owned_files paths under the mission-specs dir."""
     invalid_owned_files = _invalid_mission_specs_owned_files(inmemory_frontmatter)
     if not invalid_owned_files:
@@ -1460,9 +1397,7 @@ def _flush_frontmatter_writes(state: _BootstrapState, *, validate_only: bool) ->
         write_frontmatter(wp_file, updated_meta.model_dump(exclude_none=True, mode="json"), body)
 
 
-def _gather_validation_frontmatter(
-    wp_files: list[Path], state: _BootstrapState
-) -> tuple[dict[str, WPMetadata], dict[str, str]]:
+def _gather_validation_frontmatter(wp_files: list[Path], state: _BootstrapState) -> tuple[dict[str, WPMetadata], dict[str, str]]:
     """Phase: prefer-in-memory-then-disk frontmatter acquisition (FR-031)."""
     wp_frontmatters: dict[str, WPMetadata] = {}
     wp_bodies: dict[str, str] = {}
@@ -1493,9 +1428,7 @@ def _validate_ownership_manifests(
     """Phase: ownership overlap + glob-match + audit-coverage validation."""
     if not wp_manifests:
         return
-    wp_dependencies = {
-        wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items() if getattr(fm, "dependencies", None)
-    }
+    wp_dependencies = {wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items() if getattr(fm, "dependencies", None)}
     ownership_result = _validate_ownership_via_mission(wp_manifests, wp_dependencies)
     for warning in ownership_result.warnings:
         if not json_output:
@@ -1536,18 +1469,10 @@ def _project_lane_inputs(
     wp_bodies: dict[str, str],
 ) -> tuple[FinalizationEligibility, dict[str, OwnershipManifest], dict[str, list[str]], dict[str, str]]:
     """Exclude canceled WPs from lane computation inputs."""
-    lifecycle_lanes = {
-        wp_id: (fm.lane if fm.lane is not None else Lane.PLANNED)
-        for wp_id, fm in wp_frontmatters.items()
-    }
-    eligibility = project_finalization_eligibility(
-        wp_frontmatters.keys(), wp_dependencies, lifecycle_lanes
-    )
+    lifecycle_lanes = {wp_id: (fm.lane if fm.lane is not None else Lane.PLANNED) for wp_id, fm in wp_frontmatters.items()}
+    eligibility = project_finalization_eligibility(wp_frontmatters.keys(), wp_dependencies, lifecycle_lanes)
     eligible_wp_ids = eligibility.eligible_wp_ids
-    eligible_dependencies = {
-        wp_id: list(dependencies)
-        for wp_id, dependencies in eligibility.eligible_dependencies.items()
-    }
+    eligible_dependencies = {wp_id: list(dependencies) for wp_id, dependencies in eligibility.eligible_dependencies.items()}
     return (
         eligibility,
         filter_by_wp_ids(wp_manifests, eligible_wp_ids),
@@ -1556,9 +1481,7 @@ def _project_lane_inputs(
     )
 
 
-def _raise_stale_canceled_dependencies_if_any(
-    eligibility: FinalizationEligibility, *, json_output: bool
-) -> None:
+def _raise_stale_canceled_dependencies_if_any(eligibility: FinalizationEligibility, *, json_output: bool) -> None:
     """Reject executable WPs that still depend on canceled prerequisites."""
     if not eligibility.stale_dependencies:
         return
@@ -1575,11 +1498,7 @@ def _raise_stale_canceled_dependencies_if_any(
     else:
         console.print(f"[red]Error:[/red] {error_msg}")
         for record in records:
-            console.print(
-                "  - "
-                f"{record['dependent_wp_id']} depends on canceled "
-                f"{record['canceled_dependency_wp_id']}: {record['recovery']}"
-            )
+            console.print(f"  - {record['dependent_wp_id']} depends on canceled {record['canceled_dependency_wp_id']}: {record['recovery']}")
     raise typer.Exit(1) from None
 
 
@@ -1596,8 +1515,7 @@ def _lane_computation_empty_input_error(
     code_change_wp_ids = sorted(
         wp_id
         for wp_id, fm in wp_frontmatters.items()
-        if (fm.execution_mode or "code_change") == "code_change"
-        and (fm.lane if fm.lane is not None else Lane.PLANNED) is not Lane.CANCELED
+        if (fm.execution_mode or "code_change") == "code_change" and (fm.lane if fm.lane is not None else Lane.PLANNED) is not Lane.CANCELED
     )
     if not code_change_wp_ids:
         return None
@@ -1606,11 +1524,7 @@ def _lane_computation_empty_input_error(
         missing.append("ownership manifests")
     if not wp_dependencies:
         missing.append("WP dependencies")
-    return (
-        "Lane computation aborted: missing "
-        + " and ".join(missing)
-        + ". finalize-tasks cannot write lanes.json without complete tasks and ownership metadata."
-    )
+    return "Lane computation aborted: missing " + " and ".join(missing) + ". finalize-tasks cannot write lanes.json without complete tasks and ownership metadata."
 
 
 def _raise_lane_computation_empty_input_if_needed(
@@ -1621,9 +1535,7 @@ def _raise_lane_computation_empty_input_if_needed(
     all_canceled: bool,
     json_output: bool,
 ) -> None:
-    error_msg = _lane_computation_empty_input_error(
-        wp_manifests, wp_dependencies, wp_frontmatters, all_canceled=all_canceled
-    )
+    error_msg = _lane_computation_empty_input_error(wp_manifests, wp_dependencies, wp_frontmatters, all_canceled=all_canceled)
     if error_msg is None:
         return
     if json_output:
@@ -1729,12 +1641,8 @@ def _emit_validate_only_report(
     console.print("[green]✓[/green] All validations passed (--validate-only mode, no commit)")
     console.print(f"  Mission: {mission_slug}")
     console.print(f"  WPs validated: {len(state.work_packages)}")
-    console.print(
-        f"  Would modify: {len(state.would_modify)} WP(s), preserve: {len(state.preserved_wps)}, unchanged: {len(state.unchanged_wps)}"
-    )
-    console.print(
-        f"  Bootstrap: {bootstrap_result.newly_seeded} WPs would be seeded, {bootstrap_result.already_initialized} already initialized"
-    )
+    console.print(f"  Would modify: {len(state.would_modify)} WP(s), preserve: {len(state.preserved_wps)}, unchanged: {len(state.unchanged_wps)}")
+    console.print(f"  Bootstrap: {bootstrap_result.newly_seeded} WPs would be seeded, {bootstrap_result.already_initialized} already initialized")
     if lanes_stats.get("computed"):
         console.print(f"  Lanes: {lanes_stats['count']} lane(s) would be computed")
         cr_info = lanes_stats.get("collapse_report")
@@ -1994,9 +1902,7 @@ def _compute_and_write_lanes(
     # #3311 T015: once execution has begun, PRESERVE the previously-recorded
     # SHA instead of re-capturing the current branch tip (see
     # ``_preserve_or_capture_planning_commit_sha``).
-    lanes_manifest.planning_commit_sha = _preserve_or_capture_planning_commit_sha(
-        planning_dir, repo_root, mission_slug, target_branch, json_output=json_output
-    )
+    lanes_manifest.planning_commit_sha = _preserve_or_capture_planning_commit_sha(planning_dir, repo_root, mission_slug, target_branch, json_output=json_output)
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
     if not json_output:
         console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
@@ -2009,9 +1915,7 @@ def _compute_and_write_lanes(
     return lanes_path, lanes_manifest
 
 
-def _report_parallelization_risk(
-    repo_root: Path, lanes_manifest: LanesManifest, wp_bodies: dict[str, str], *, json_output: bool
-) -> None:
+def _report_parallelization_risk(repo_root: Path, lanes_manifest: LanesManifest, wp_bodies: dict[str, str], *, json_output: bool) -> None:
     """Phase: compute + (optionally block on) the parallelization risk report."""
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.risk_scorer import compute_risk_report
@@ -2019,9 +1923,7 @@ def _report_parallelization_risk(
     policy = load_policy_config(repo_root)
     risk_report = compute_risk_report(lanes_manifest, wp_bodies=wp_bodies, policy=policy.risk)
     if risk_report.overall_score > 0 and not json_output:
-        console.print(
-            f"[yellow]⚠[/yellow] Parallelization risk: {risk_report.overall_score:.2f} (threshold: {risk_report.threshold:.2f})"
-        )
+        console.print(f"[yellow]⚠[/yellow] Parallelization risk: {risk_report.overall_score:.2f} (threshold: {risk_report.threshold:.2f})")
         for pr in risk_report.lane_pair_risks:
             if pr.score > 0:
                 console.print(f"  {pr.lane_a} ↔ {pr.lane_b}: {pr.score:.2f}")
@@ -2030,10 +1932,7 @@ def _report_parallelization_risk(
                 for c in pr.import_coupling[:3]:
                     console.print(f"    coupling: {c}")
     if risk_report.exceeds_threshold and policy.risk.mode == "block":
-        error_msg = (
-            f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold "
-            f"{risk_report.threshold:.2f}. Adjust the risk policy to proceed."
-        )
+        error_msg = f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold {risk_report.threshold:.2f}. Adjust the risk policy to proceed."
         if json_output:
             _emit_json(
                 {
@@ -2102,9 +2001,7 @@ def _scaffold_acceptance_matrix_if_lane_based(
     except Exception as acc_matrix_exc:  # noqa: BLE001 — convenience artifact never blocks finalize
         if not json_output:
             console.print(f"[yellow]Warning:[/yellow] could not scaffold acceptance-matrix.json: {acc_matrix_exc}")
-            console.print(
-                f"[yellow]Hint:[/yellow] create it manually before acceptance:\n  spec-kitty agent mission finalize-tasks --mission {mission_slug}"
-            )
+            console.print(f"[yellow]Hint:[/yellow] create it manually before acceptance:\n  spec-kitty agent mission finalize-tasks --mission {mission_slug}")
         return
     if acceptance_matrix_path is not None and not json_output:
         try:
@@ -2171,9 +2068,7 @@ def _commit_finalize_artifacts(
     try:
         files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, lanes_path=lanes_path)
         meta_json_path = planning_dir / META_JSON_FILENAME
-        if meta_json_path in files_to_commit and not _meta_json_delta_is_finalize_attributable(
-            meta_json_path, repo_root
-        ):
+        if meta_json_path in files_to_commit and not _meta_json_delta_is_finalize_attributable(meta_json_path, repo_root):
             files_to_commit = [path for path in files_to_commit if path != meta_json_path]
         files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
         # partition-authority-residuals-01M021K9 WP06 (#2937 / FR-009): report the
@@ -2219,9 +2114,7 @@ def _commit_finalize_artifacts(
             outcome.commit_created = True
             # WP06 (#2937 / FR-009): only now is the committed set real.
             outcome.files_committed = list(files_to_commit_rel)
-            outcome.commit_hashes = [
-                {"branch": ref, "hash": commit_hash} for ref, commit_hash in router_result.commit_hashes
-            ]
+            outcome.commit_hashes = [{"branch": ref, "hash": commit_hash} for ref, commit_hash in router_result.commit_hashes]
             if not json_output:
                 console.print(f"[green]✓[/green] Tasks committed to {router_result.placement_ref}")
                 if outcome.commit_hash:
@@ -2311,11 +2204,7 @@ def _emit_success_report(
                 "count": len(lanes_manifest.lanes) if lanes_manifest else 0,
                 "lane_ids": [lane.lane_id for lane in lanes_manifest.lanes] if lanes_manifest else [],
                 "planning_artifact_wps": lanes_manifest.planning_artifact_wps if lanes_manifest else [],
-                "collapse_report": (
-                    lanes_manifest.collapse_report.to_dict()
-                    if lanes_manifest and lanes_manifest.collapse_report
-                    else None
-                ),
+                "collapse_report": (lanes_manifest.collapse_report.to_dict() if lanes_manifest and lanes_manifest.collapse_report else None),
             },
             "ownership_warnings": state.ownership_warnings,
             "requirement_extraction_warnings": state.requirement_extraction_warnings,
@@ -2337,24 +2226,17 @@ def _emit_success_report(
     )
 
 
-def _warn_missing_meta(
-    planning_dir: Path, meta: dict[str, object] | None, *, json_output: bool
-) -> None:
+def _warn_missing_meta(planning_dir: Path, meta: dict[str, object] | None, *, json_output: bool) -> None:
     """Phase: warn (non-blocking) when meta.json is missing/malformed."""
     if meta is not None or json_output:
         return
     if (planning_dir / META_JSON_FILENAME).exists():
-        console.print(
-            "[yellow]Warning:[/yellow] Failed to read meta.json for event "
-            "emission (missing or malformed); skipping MissionCreated emission"
-        )
+        console.print("[yellow]Warning:[/yellow] Failed to read meta.json for event emission (missing or malformed); skipping MissionCreated emission")
     else:
         console.print("[yellow]Warning:[/yellow] meta.json missing; skipping MissionCreated emission")
 
 
-def _emit_tasks_started(
-    planning_dir: Path, mission_slug: str, state: _BootstrapState, *, validate_only: bool
-) -> None:
+def _emit_tasks_started(planning_dir: Path, mission_slug: str, state: _BootstrapState, *, validate_only: bool) -> None:
     """Phase: local canonical TasksStarted (idempotent; skipped in validate-only)."""
     if validate_only:
         return
@@ -2432,13 +2314,9 @@ def _run_commit_pipeline(
     ``commit_outcome.files_committed`` -- a value ``_commit_finalize_
     artifacts`` already computes -- needs no new state to close this.
     """
-    _emit_local_canonical_events(
-        planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output
-    )
+    _emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output)
 
-    bootstrap_result = _bootstrap_canonical_state_via_mission(
-        planning_dir, mission_slug, dry_run=False, capability=GuardCapability.STANDARD
-    )
+    bootstrap_result = _bootstrap_canonical_state_via_mission(planning_dir, mission_slug, dry_run=False, capability=GuardCapability.STANDARD)
     if not json_output and bootstrap_result.newly_seeded:
         console.print(f"[green]✓[/green] Bootstrapped canonical status: {bootstrap_result.newly_seeded} WPs seeded")
 
@@ -2494,12 +2372,7 @@ def _run_commit_pipeline(
         # revert when ``_meta_json_delta_is_finalize_attributable`` excluded
         # meta.json for being mixed with a foreign field.
         meta_commit_progress.committed = meta_committed_this_run
-    if (
-        not json_output
-        and target_branch_persist is not None
-        and target_branch_persist.persisted
-        and not meta_committed_this_run
-    ):
+    if not json_output and target_branch_persist is not None and target_branch_persist.persisted and not meta_committed_this_run:
         # SK3466-REV2-002: the "persisted to meta.json" note already printed
         # by ``_persist_target_branch_override`` ran before this commit's
         # attribution decision was known, so a mixed-delta exclusion left no
@@ -2585,12 +2458,7 @@ def _revert_unpersisted_target_branch_override(
         the ORIGINAL exception regardless; this is a best-effort ADDITIONAL
         note.
     """
-    if not (
-        meta_json_persisted
-        and not meta_commit_progress.committed
-        and original_text is not None
-        and meta_path is not None
-    ):
+    if not (meta_json_persisted and not meta_commit_progress.committed and original_text is not None and meta_path is not None):
         return None
     from specify_cli.mission_metadata import restore_meta_text
 
@@ -2627,15 +2495,10 @@ def _report_target_branch_revert_failure(revert_error: str | None, *, json_outpu
     if json_output:
         _emit_json({"warning": "target_branch_override_revert_failed", "detail": revert_error})
     else:
-        console.print(
-            "[yellow]Warning:[/yellow] failed to revert unpersisted "
-            f"--target-branch override in meta.json: {revert_error}"
-        )
+        console.print(f"[yellow]Warning:[/yellow] failed to revert unpersisted --target-branch override in meta.json: {revert_error}")
 
 
-def _emit_finalize_error_with_revert_note(
-    error: Exception, revert_error: str | None, *, json_output: bool
-) -> None:
+def _emit_finalize_error_with_revert_note(error: Exception, revert_error: str | None, *, json_output: bool) -> None:
     """Phase: emit finalize_tasks's terminal error, folding in a revert-failure note (SK3466-RR-003).
 
     Preserves the existing ``{"error": str(e)}`` / ``[red]Error:[/red]``
@@ -2643,18 +2506,35 @@ def _emit_finalize_error_with_revert_note(
     meta.json-revert failure (if any) is added as a SECOND, clearly-labelled
     field/line rather than replacing it.
     """
+    from specify_cli.lanes.compute import LaneDependencyCycleError
+
     if json_output:
         error_payload: dict[str, object] = {"error": str(error)}
+        if isinstance(error, LaneDependencyCycleError):
+            error_payload.update(
+                {
+                    "error_code": error.error_code,
+                    "cycle_path": list(error.cycle_path),
+                    "cycle_lanes": [
+                        {
+                            "lane_id": lane.lane_id,
+                            "wp_ids": list(lane.wp_ids),
+                        }
+                        for lane in error.cycle_lanes
+                    ],
+                }
+            )
         if revert_error:
             error_payload["target_branch_override_revert_error"] = revert_error
         _emit_json(error_payload)
         return
     console.print(f"[red]Error:[/red] {error}")
+    if isinstance(error, LaneDependencyCycleError):
+        console.print(f"  Cycle path: {' -> '.join(error.cycle_path)}")
+        for lane in error.cycle_lanes:
+            console.print(f"  {lane.lane_id}: {', '.join(lane.wp_ids)}")
     if revert_error:
-        console.print(
-            "[yellow]Warning:[/yellow] failed to revert unpersisted "
-            f"--target-branch override in meta.json: {revert_error}"
-        )
+        console.print(f"[yellow]Warning:[/yellow] failed to revert unpersisted --target-branch override in meta.json: {revert_error}")
 
 
 def finalize_tasks(
@@ -2727,9 +2607,7 @@ def finalize_tasks(
         # the retiring ``primary_feature_dir_for_mission`` wrapper onto the seam
         # directly — WORK_PACKAGE_TASK, since this finalize-tasks flow reads/writes
         # the ``tasks/`` WP files, ``wps.yaml``, and ``tasks.md`` under this dir.
-        primary_dir = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.WORK_PACKAGE_TASK
-        )
+        primary_dir = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
         planning_dir = primary_dir
 
         # Bulk edit occurrence-map gate (FR-001/002/003/004): fail-fast, before
@@ -2738,17 +2616,13 @@ def finalize_tasks(
         # both normal and --validate-only modes (C-005/IC-01).
         _validate_occurrence_map_ready(planning_dir, json_output=json_output)
 
-        target_branch = _resolve_target_branch(
-            repo_root, primary_dir, target_branch_override=target_branch_override, json_output=json_output
-        )
+        target_branch = _resolve_target_branch(repo_root, primary_dir, target_branch_override=target_branch_override, json_output=json_output)
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
         target_branch_persist = TargetBranchPersistOutcome(persisted=False)
         if not validate_only:
             meta_path_for_revert = primary_dir / META_JSON_FILENAME
-            meta_original_text = (
-                meta_path_for_revert.read_text(encoding="utf-8") if meta_path_for_revert.exists() else None
-            )
+            meta_original_text = meta_path_for_revert.read_text(encoding="utf-8") if meta_path_for_revert.exists() else None
             target_branch_persist = _persist_target_branch_override(
                 primary_dir,
                 target_branch,
@@ -2796,9 +2670,7 @@ def finalize_tasks(
         wps_manifest = _load_manifest(planning_dir, json_output=json_output)
         concern_coverage_warnings = check_concern_refs_coverage(wps_manifest) if wps_manifest is not None else []
 
-        dep_resolution = _resolve_dependencies_and_refs(
-            planning_dir, wps_manifest, wp_files, expected_wp_ids, json_output=json_output
-        )
+        dep_resolution = _resolve_dependencies_and_refs(planning_dir, wps_manifest, wp_files, expected_wp_ids, json_output=json_output)
         _validate_dependency_graph(dep_resolution.wp_dependencies, json_output=json_output)
 
         wp_files = list(tasks_dir.glob("WP*.md"))
@@ -2843,19 +2715,15 @@ def finalize_tasks(
 
         # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011)
         tasks_md = planning_dir / TASKS_MD_FILENAME
-        if wps_manifest is not None:
+        if wps_manifest is not None and not validate_only:
             tasks_md.write_text(generate_tasks_md_from_manifest(wps_manifest, mission_slug), encoding="utf-8")
             if not json_output:
-                console.print(
-                    f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)"
-                )
+                console.print(f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)")
 
         wp_frontmatters, wp_bodies = _gather_validation_frontmatter(wp_files, state)
         ownership_source = FinalizeFrontmatterSource(wp_files=list(wp_files), inmemory=state.inmemory_frontmatter)
         wp_manifests = resolve_wp_manifests(ownership_source)
-        _validate_ownership_manifests(
-            wp_manifests, wp_frontmatters, repo_root, state, json_output=json_output
-        )
+        _validate_ownership_manifests(wp_manifests, wp_frontmatters, repo_root, state, json_output=json_output)
         (
             eligibility,
             lane_wp_manifests,
