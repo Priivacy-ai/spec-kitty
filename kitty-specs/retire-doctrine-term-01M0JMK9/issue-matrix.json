@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#2727": {
+      "evidence_ref": "Issue closure remains with #2727's owner; the glossary-authority slice (docs context docs/context/doctrine.md -> docs/context/charter.md, .kittify/glossaries/spec_kitty_core.yaml, the built-in glossary pack packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml, and active referrers) is bound into M1 charter-authority-flip by stacked-plan.md section 2.4 / 3.1 under one semantic/hash/link parity gate and is not deferred; M1 coordinates the atomic cutover with the issue owner and preserves parity.",
+      "fr": "FR-003",
+      "nfr": null,
+      "repo": null,
+      "sc": "SC-003",
+      "scope": "glossary-authority-slice-only; src/glossary/ retirement stays with #2727 (M2 OC-21)",
+      "source_file": null,
+      "title": "Retire runtime glossary package (src/glossary/) in favor of doctrine glossary packs (#1418)",
+      "verdict": "deferred-with-followup",
+      "wp": "WP04"
+    }
+  },
+  "schema_version": 1
+}
