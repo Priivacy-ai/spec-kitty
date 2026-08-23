@@ -346,9 +346,7 @@ class TestT025NonCoordMissionCommitsStatusFiles:
 
         # Collect the finalize artifacts: on a non-coord mission the status
         # files must be included (they will be committed to the planning branch).
-        artifacts = _collect_finalize_artifacts(
-            feature_dir, tasks_dir, "098-non-coord"
-        )
+        artifacts = _collect_finalize_artifacts(feature_dir, tasks_dir)
         artifact_names = {p.name for p in artifacts}
 
         assert "status.events.jsonl" in artifact_names, (

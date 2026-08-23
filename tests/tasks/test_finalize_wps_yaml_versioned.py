@@ -86,7 +86,7 @@ def test_collect_finalize_artifacts_includes_wps_yaml(tmp_path: Path) -> None:
     wps_yaml = feature_dir / "wps.yaml"
     wps_yaml.write_text("work_packages: []\n", encoding="utf-8")
 
-    artifacts = _collect_finalize_artifacts(feature_dir, tasks_dir, "some-mission-01ABCDEF")
+    artifacts = _collect_finalize_artifacts(feature_dir, tasks_dir)
 
     assert wps_yaml in artifacts, f"wps.yaml missing from collected artifacts: {artifacts}"
 

@@ -221,6 +221,12 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/sync-state.json",
         ".kittify/workspaces/",
         "kitty-ops/ops-index.jsonl",
+        # FIX-M2-05: FEATURE-rooted leg -- the dossier SNAPSHOT is nested
+        # inside each mission's own kitty-specs/<feature>/ tree, a different
+        # physical location than the PROJECT-rooted ".kittify/dossiers/"
+        # above (that entry's sole remaining backing surface is
+        # dossier_parity_baseline, a genuinely project-rooted sibling).
+        "kitty-specs/*/.kittify/dossiers/",
     ]
     assert entries == expected
 
@@ -241,13 +247,24 @@ def test_missions_pycache_not_collapsed():
 
 
 def test_runtime_gitignore_entries_no_placeholders():
-    """Gitignore entries must not contain placeholder tokens."""
+    """Gitignore entries must not contain unsubstituted template tokens.
+
+    ``<...>`` template placeholders must never leak through -- every entry
+    must be directly consumable by ``.gitignore``. A literal ``*`` IS valid
+    gitignore syntax and is expected in exactly two shapes: the pre-existing
+    ``__pycache__/`` collapse, and (FIX-M2-05) the ``kitty-specs/*/`` prefix
+    every FEATURE-rooted entry carries -- the single-``*`` mission-glob
+    substituting ``<feature>`` (see :func:`get_runtime_gitignore_entries`'s
+    FEATURE-rooted leg), not an unsubstituted placeholder.
+    """
     entries = get_runtime_gitignore_entries()
     for entry in entries:
         assert "<" not in entry, f"Placeholder in gitignore entry: {entry}"
-        assert "*" not in entry or entry.endswith("__pycache__/"), (
-            f"Wildcard in gitignore entry: {entry}"
-        )
+        assert (
+            "*" not in entry
+            or entry.endswith("__pycache__/")
+            or entry.startswith("kitty-specs/*/")
+        ), f"Unexpected wildcard in gitignore entry: {entry}"
 
 
 def test_runtime_gitignore_entries_sorted():
@@ -257,9 +274,28 @@ def test_runtime_gitignore_entries_sorted():
 
 
 def test_runtime_gitignore_entries_only_project_ignored():
-    """Every gitignore entry must trace back to a PROJECT/IGNORED surface."""
+    """Every gitignore entry must trace back to an IGNORED surface.
+
+    PROJECT-rooted entries trace to a PROJECT/IGNORED surface directly.
+    FEATURE-rooted entries (FIX-M2-05: the ``kitty-specs/*/`` prefix
+    substitutes ``<feature>``) trace to a FEATURE/IGNORED surface whose
+    ``kitty-specs/<feature>/`` prefix is stripped before comparing.
+    """
     entries = get_runtime_gitignore_entries()
     for entry in entries:
+        if entry.startswith("kitty-specs/*/"):
+            rel_entry = entry.removeprefix("kitty-specs/*/")
+            matching = [
+                s
+                for s in STATE_SURFACES
+                if s.root == StateRoot.FEATURE
+                and s.git_class == GitClass.IGNORED
+                and s.path_pattern.removeprefix("kitty-specs/<feature>/").startswith(
+                    rel_entry.rstrip("/")
+                )
+            ]
+            assert len(matching) >= 1, f"Gitignore entry {entry!r} has no backing FEATURE surface"
+            continue
         # Entry is either a concrete path or a directory-level collapse
         # Either way, at least one registry surface must match
         if entry.endswith("/"):
