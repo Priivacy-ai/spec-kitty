@@ -122,7 +122,7 @@ The current 3.2.6 execution DAG places #2573 downstream of #3127. Work may be pr
 
 ## Planning infrastructure note
 
-`setup-plan` was run with the user-authorized `SPEC_KITTY_ENABLE_SAAS_SYNC=0` override to bypass the known unauthenticated SaaS gate. It wrote the correct scaffold but then self-deadlocked opening the local project sync database through two connections; no other process owned that database. The single hung setup process was interrupted after confirming the scaffold and branch. This is planning-tool behavior, not part of #2573's product design.
+`setup-plan` was run with the user-authorized `SPEC_KITTY_ENABLE_SAAS_SYNC=0` override to bypass the known unauthenticated SaaS gate. The first scaffold invocation then self-deadlocked opening the local project sync database through two connections; no other process owned that database, so the single hung process was interrupted after the scaffold write. Final substantive-plan runs added `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1`, completed successfully, committed the plan, and returned a fully matching branch contract. This is planning-tool behavior, not part of #2573's product design.
 
 ## Resolved unknowns
 
