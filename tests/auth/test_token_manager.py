@@ -20,6 +20,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+import time
 import types
 from kernel.clock import datetime, now_utc, timedelta
 
@@ -37,8 +38,9 @@ from specify_cli.auth.refresh_transaction import (
 )
 from specify_cli.auth.secure_storage import SecureStorage
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth.session_hot_path import SessionHotPathSummary
 from specify_cli.auth import token_manager as tm_module
-from specify_cli.auth.token_manager import TokenManager
+from specify_cli.auth.token_manager import SessionAssessment, TokenManager
 from specify_cli.core import file_lock as file_lock_module
 from specify_cli.core.file_lock import LockAcquireTimeout
 
@@ -198,6 +200,59 @@ def test_load_from_storage_sync_populates_session():
     tm.load_from_storage_sync()
     assert tm.get_current_session() == session
     assert tm.is_authenticated is True
+    assert tm.session_assessment == SessionAssessment(
+        completed=True,
+        usable_session=True,
+        reason="session_usable",
+    )
+
+
+def test_session_assessment_conclusively_reports_absent_session():
+    tm = TokenManager(FakeStorage())
+
+    tm.load_from_storage_sync()
+
+    assert tm.session_assessment == SessionAssessment(
+        completed=True,
+        usable_session=False,
+        reason="session_absent",
+    )
+    assert tm.is_authenticated is False
+
+
+def test_session_assessment_uses_refresh_token_semantics():
+    storage = FakeStorage()
+    storage._session = _make_session(
+        access_expires_in=-60,
+        refresh_token_expires_at=_now() + timedelta(minutes=5),
+    )
+    tm = TokenManager(storage)
+
+    tm.load_from_storage_sync()
+
+    assert tm.session_assessment == SessionAssessment(
+        completed=True,
+        usable_session=True,
+        reason="session_usable",
+    )
+    assert tm.is_authenticated is True
+
+
+def test_session_assessment_conclusively_reports_expired_refresh_token():
+    storage = FakeStorage()
+    storage._session = _make_session(
+        refresh_token_expires_at=_now() - timedelta(minutes=5),
+    )
+    tm = TokenManager(storage)
+
+    tm.load_from_storage_sync()
+
+    assert tm.session_assessment == SessionAssessment(
+        completed=True,
+        usable_session=False,
+        reason="refresh_token_expired",
+    )
+    assert tm.is_authenticated is False
 
 
 def test_load_from_storage_sync_handles_storage_errors():
@@ -208,7 +263,73 @@ def test_load_from_storage_sync_handles_storage_errors():
     tm = TokenManager(BrokenStorage())
     tm.load_from_storage_sync()  # must not raise
     assert tm.get_current_session() is None
+    assert tm.session_assessment == SessionAssessment(
+        completed=False,
+        usable_session=None,
+        reason="storage_read_failed",
+    )
     assert tm.is_authenticated is False
+
+
+def test_hot_summary_materialization_failure_preserves_failed_assessment(
+    monkeypatch,
+    caplog,
+):
+    class BrokenStorage(FakeStorage):
+        @property
+        def store_path(self):
+            return "/synthetic/auth"
+
+        def read(self):
+            raise RuntimeError("credential-shaped-secret-must-not-escape")
+
+    summary = SessionHotPathSummary(
+        refresh_token_expires_at=None,
+        not_after_monotonic=time.monotonic() + 30,
+    )
+    monkeypatch.setattr(tm_module, "load_session_hot_path", lambda _path: summary)
+    tm = TokenManager(BrokenStorage())
+    tm.load_from_storage_sync()
+
+    assert tm.session_assessment == SessionAssessment(
+        completed=False,
+        usable_session=None,
+        reason="session_materialization_failed",
+    )
+    assert tm.is_authenticated is False
+    assert "credential-shaped-secret-must-not-escape" not in caplog.text
+
+
+def test_successful_set_and_clear_replace_prior_failed_assessment():
+    class InitiallyBrokenStorage(FakeStorage):
+        def __init__(self) -> None:
+            super().__init__()
+            self.fail_reads = True
+
+        def read(self):
+            if self.fail_reads:
+                raise RuntimeError("synthetic read failure")
+            return super().read()
+
+    storage = InitiallyBrokenStorage()
+    tm = TokenManager(storage)
+    tm.load_from_storage_sync()
+    assert tm.session_assessment.completed is False
+
+    storage.fail_reads = False
+    tm.set_session(_make_session())
+    assert tm.session_assessment == SessionAssessment(
+        completed=True,
+        usable_session=True,
+        reason="session_usable",
+    )
+
+    tm.clear_session()
+    assert tm.session_assessment == SessionAssessment(
+        completed=True,
+        usable_session=False,
+        reason="session_cleared",
+    )
 
 
 def test_set_session_writes_to_storage():
