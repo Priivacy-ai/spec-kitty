@@ -1,20 +1,116 @@
 {
-  "event_count": 0,
-  "last_event_id": null,
-  "materialized_at": "",
-  "mission_number": "",
-  "mission_slug": "",
+  "event_count": 26,
+  "last_event_id": "01M0QT0FA0Y887132A80QFPRQ8",
+  "materialized_at": "2026-08-23T17:17:05.728346+00:00",
+  "mission_number": "196",
+  "mission_slug": "reject-cyclic-lane-graphs-01M0QCK4",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 3,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
-  "work_packages": {}
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01M0QT0B9GXW4DW75BTZACQ67C",
+      "last_transition_at": "2026-08-23T17:17:01.616157+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Implemented authoritative post-collapse cycle rejection inside compute_lanes. Red contract commit 302a260ce failed 9 tests because the detector and typed error were absent; implementation commit 2e72e35a7 adds immutable diagnostics, iterative deterministic DFS, pre-depth enforcement, planning-lane membership, and reconciled depth-safety coverage. Canonical focused suite: 67 passed. Live mission-finalization caller regressions: 32 passed. Ruff passed and strict mypy passed. Multiple-cycle fixture normalized to lane-a -> lane-b -> lane-c -> lane-a; public acceptance assertion changed because FR-001/FR-002 require rejection rather than best-effort acceptance.",
+        "Review cycle 2 remediation commit cc5dc09aa. Replaced the vacuous root-order fixture with two disconnected cycles, inserting the lexically larger cycle first and repeating under reversed mapping construction; both must select lane-a -> lane-b -> lane-a. Added punctuation-independent str(error) assertions proving both lane-a occurrences surround lane-b, so the complete closed path is named. Production logic unchanged. Required focused suite: 67 passed; Ruff passed; strict mypy passed.",
+        "Review passed cycle 2: disconnected competing-cycle fixtures prove lexical root selection in opposing insertion orders; closed-path message semantics covered; 67 focused and 129 lane tests, Ruff, and strict mypy pass; all anti-pattern checks pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review": null,
+      "review_result": {
+        "reference": "Review passed cycle 2: disconnected competing-cycle fixtures prove lexical root selection in opposing insertion orders; closed-path message semantics covered; 67 focused and 129 lane tests, Ruff, and strict mypy pass; all anti-pattern checks pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 44019,
+      "shell_pid_created_at": "1787502444.425957",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0QT0DBFT9X08EZK28YBAJQR",
+      "last_transition_at": "2026-08-23T17:17:03.727244+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: structured JSON/human cycle diagnostics; byte-stable persistence proofs; 8 focused + 209 adjacent tests; Ruff, strict mypy, Draft202012 schema validation all pass.",
+        "Review passed: canonical mutating/validate-only JSON and human diagnostics share one typed renderer; recursive validate-only inventory and absent/existing manifest preservation pass; planning-lane membership and schema contract pass; approved WP01 content is inherited; 8 focused and 209 adjacent finalize tests, Ruff, and strict mypy pass; all anti-pattern checks pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: canonical mutating/validate-only JSON and human diagnostics share one typed renderer; recursive validate-only inventory and absent/existing manifest preservation pass; planning-lane membership and schema contract pass; approved WP01 content is inherited; 8 focused and 209 adjacent finalize tests, Ruff, and strict mypy pass; all anti-pattern checks pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 64619,
+      "shell_pid_created_at": "1787503234.374373",
+      "subtasks": {
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done",
+        "T010": "done"
+      }
+    },
+    "WP03": {
+      "actor": "merge",
+      "agent": "codex",
+      "agent_profile": "reviewer-renata",
+      "agent_profile_version": "1.0",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01M0QT0FA0Y887132A80QFPRQ8",
+      "last_transition_at": "2026-08-23T17:17:05.728346+00:00",
+      "model": "__resolved_model_absent__",
+      "notes": [
+        "Ready for review: clean-DAG compatibility, deterministic multi-cycle facts, canonical CLI hash seeds 1/7/97, exact 100-lane/500-edge pedantic benchmark (~60us), schema validation; 516 broad tests passed, 2 performance-gated skips; Ruff and strict mypy pass.",
+        "Review passed: approved WP01/WP02 content inherited exactly; acyclic compatibility and two-cycle domain matrix pass; canonical CLI subprocess fields are identical under PYTHONHASHSEED 1/7/97; marker taxonomy exact; 100-lane/500-edge benchmark used 5 warmups and 20 one-iteration rounds with nearest-rank p95 index 18, max 66.083us under 100ms; 516 broad tests and all focused/schema/Ruff gates pass; anti-pattern checks pass."
+      ],
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "Review passed: approved WP01/WP02 content inherited exactly; acyclic compatibility and two-cycle domain matrix pass; canonical CLI subprocess fields are identical under PYTHONHASHSEED 1/7/97; marker taxonomy exact; 100-lane/500-edge benchmark used 5 warmups and 20 one-iteration rounds with nearest-rank p95 index 18, max 66.083us under 100ms; 516 broad tests and all focused/schema/Ruff gates pass; anti-pattern checks pass.",
+        "reviewer": "spec-kitty auto-rebase",
+        "verdict": "approved"
+      },
+      "role": "reviewer",
+      "shell_pid": 82343,
+      "shell_pid_created_at": "1787504780.338459",
+      "subtasks": {
+        "T011": "done",
+        "T012": "done",
+        "T013": "done",
+        "T014": "done",
+        "T015": "done"
+      }
+    }
+  }
 }

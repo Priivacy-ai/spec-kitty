@@ -2692,13 +2692,33 @@ def _emit_finalize_error_with_revert_note(
     meta.json-revert failure (if any) is added as a SECOND, clearly-labelled
     field/line rather than replacing it.
     """
+    from specify_cli.lanes.compute import LaneDependencyCycleError
+
     if json_output:
         error_payload: dict[str, object] = {"error": str(error)}
+        if isinstance(error, LaneDependencyCycleError):
+            error_payload.update(
+                {
+                    "error_code": error.error_code,
+                    "cycle_path": list(error.cycle_path),
+                    "cycle_lanes": [
+                        {
+                            "lane_id": lane.lane_id,
+                            "wp_ids": list(lane.wp_ids),
+                        }
+                        for lane in error.cycle_lanes
+                    ],
+                }
+            )
         if revert_error:
             error_payload["target_branch_override_revert_error"] = revert_error
         _emit_json(error_payload)
         return
     console.print(f"[red]Error:[/red] {error}")
+    if isinstance(error, LaneDependencyCycleError):
+        console.print(f"  Cycle path: {' -> '.join(error.cycle_path)}")
+        for lane in error.cycle_lanes:
+            console.print(f"  {lane.lane_id}: {', '.join(lane.wp_ids)}")
     if revert_error:
         console.print(
             "[yellow]Warning:[/yellow] failed to revert unpersisted "

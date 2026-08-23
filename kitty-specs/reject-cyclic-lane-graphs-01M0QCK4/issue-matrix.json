@@ -1,0 +1,17 @@
+{
+  "rows": {
+    "#3431": {
+      "evidence_ref": "WP01 2e72e35a7 + cc5dc09aa; WP02 79bbc7bc3; WP03 b110eac01; all independently approved.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}
