@@ -105,5 +105,64 @@
       "notes": "Verify diagnostic evidence without runtime policy mutation."
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "C-001",
+      "description": "No asynchronous review job or pending-review lane/state is introduced.",
+      "verification_method": "grep_absence",
+      "verification_command": "review_gate_pending",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli"
+    },
+    {
+      "invariant_id": "C-002",
+      "description": "New regressions remain warn-by-default unless blocking is explicitly configured.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/review/test_pre_review_gate_integration.py::test_new_failure_surfaced_by_the_real_gate_red_first tests/review/test_pre_review_gate_integration.py::test_block_mode_blocks_without_force",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..                                                                       [100%]\n2 passed in 5.35s"
+    },
+    {
+      "invariant_id": "C-003",
+      "description": "No alternate pending_review lifecycle vocabulary or status authority is introduced.",
+      "verification_method": "grep_absence",
+      "verification_command": "pending_review",
+      "result": "confirmed_absent",
+      "evidence": "grep found zero matches",
+      "scope": "src/specify_cli"
+    },
+    {
+      "invariant_id": "C-004",
+      "description": "Existing pre-review behavior is preserved while only demonstrated gaps are changed.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/review/test_pre_review_gate_integration.py",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ......................s                                                  [100%]\n22 passed, 1 skipped in 18.65s"
+    },
+    {
+      "invariant_id": "C-005",
+      "description": "Skip and disable recovery paths use supported lifecycle controls without direct event or lane mutation.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py -k skip_disable_collision_precedence",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..........                                                               [100%]\n10 passed, 28 deselected in 4.57s"
+    },
+    {
+      "invariant_id": "C-006",
+      "description": "Structured mode emits one final JSON document without NDJSON or mixed progress output.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py -k exact_entry_json_suppresses_observer_and_emits_one_authoritative_document",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..                                                                       [100%]\n2 passed, 36 deselected in 1.99s"
+    },
+    {
+      "invariant_id": "C-007",
+      "description": "Runtime observations never mutate or promote deterministic budget metadata automatically.",
+      "verification_method": "custom_command",
+      "verification_command": "uv run pytest -q tests/review/test_gate_budget.py::test_policy_values_are_frozen tests/review/test_pre_review_gate_engine.py::test_unknown_timeout_is_classification_candidate_with_separate_elapsed",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: ..                                                                       [100%]\n2 passed in 1.13s"
+    }
+  ]
 }
