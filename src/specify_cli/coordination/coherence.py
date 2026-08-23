@@ -94,10 +94,10 @@ def is_self_bookkeeping_churn(path: str | Path) -> bool:
     # Function-local import: mirrors this module's established pattern for
     # cross-package pulls (see ``repair_coord_strand``'s ``lanes.merge`` /
     # ``coord_incoherent_done_wps``'s ``coordination.status_service`` imports) —
-    # ``specify_cli.status.preflight`` is a leaf module (stdlib + ``kernel.paths``
-    # only), so this carries no cycle risk; kept function-local for consistency
-    # with the rest of the file rather than as a defensive necessity.
-    from specify_cli.status.preflight import is_dossier_snapshot
+    # imported through the ``specify_cli.status`` facade (single-door invariant,
+    # tests/architectural/test_status_module_boundary.py); kept function-local for
+    # consistency with the rest of the file rather than as a defensive necessity.
+    from specify_cli.status import is_dossier_snapshot
 
     kitty_ops_op_record = re.compile(r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$")
     normalized = to_posix(path).rstrip("/")
