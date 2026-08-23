@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-23T13:54:37.476207Z",
+      "decision_id": "01M0QEDQS4Z35AX6P4REEVDRBN",
+      "final_answer": "Yes. Proceed with the extracted issue #3621 intent and requirements, excluding generic token-expiry UX and the optional require-sync flag.",
+      "input_key": "issue_3621_scope",
+      "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
+      "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+      "opened_by": "cli",
+      "options": [
+        "Yes, proceed",
+        "Revise scope",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Does the extracted intent for issue #3621 accurately capture the required behavior and scope?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T13:58:35.448768Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.issue-3621-scope",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
+  "version": 1
+}

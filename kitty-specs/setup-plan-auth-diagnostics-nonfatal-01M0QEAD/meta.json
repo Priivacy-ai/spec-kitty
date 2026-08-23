@@ -10,6 +10,7 @@
   "pr_bound": true,
   "purpose_context": "Issue #3621 requires setup-plan to distinguish authentication state from queue-scope availability and to report unavailable hosted sync as a nonfatal diagnostic, while preserving the local phase-completeness result.",
   "purpose_tldr": "Keep setup-plan local verification usable regardless of SaaS authentication state.",
+  "source_description": "GitHub issue Priivacy-ai/spec-kitty#3621",
   "slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
   "target_branch": "fix/setup-plan-auth-diagnostics-nonfatal",
   "topology": "coord"
