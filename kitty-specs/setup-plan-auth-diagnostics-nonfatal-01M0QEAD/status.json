@@ -57,7 +57,8 @@
       "last_transition_at": "2026-08-23T19:42:15.538731+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
-        "Pre-existing committed kitty-specs artifacts were inherited from lane setup/dependency history; WP02 commits modify only its two owned files."
+        "Pre-existing committed kitty-specs artifacts were inherited from lane setup/dependency history; WP02 commits modify only its two owned files.",
+        "Persist canonical WP02 for-review state after validated implementation."
       ],
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
