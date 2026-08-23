@@ -13,7 +13,7 @@
       "wp": null
     },
     "#3127": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "External P0 release gate tracked by https://github.com/Priivacy-ai/spec-kitty/issues/3127; not a code-lane dependency",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -21,7 +21,7 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
+      "verdict": "deferred-with-followup",
       "wp": null
     },
     "#3621": {
