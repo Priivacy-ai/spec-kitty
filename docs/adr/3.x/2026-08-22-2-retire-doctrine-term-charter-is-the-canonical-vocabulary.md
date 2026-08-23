@@ -94,7 +94,7 @@ root, non-terminology cleanup, or any edit/rename under `kitty-specs/`.
 | `.kittify/charter/` and all owning source/graph/interview/synthesis/generated authority | rewrite through documented human/generated owner workflows; record override | M1 |
 | glossary authorities and referrers | canonical Charter vocabulary/path | M1 |
 | `governance.doctrine` | `governance.charter`; 3.x reader warning | M1, remove M6 |
-| every public/non-public `src/doctrine/` module/path/symbol/import/test/build hook | exhaustive collision-free merge/relocation into `src/charter/` topology | M2, aliases M6 |
+| every public/non-public `src/doctrine/` module/path/symbol/import/test/build hook | exhaustive collision-free split into two full modules under `src/charter/` — the pure offer catalogue (`src/doctrine/`) → **`src/charter/offering/`**; the current charter activation code (activation_engine, cascade, kind_vocabulary, etc.) → **`src/charter/activation/`**; dependency direction preserved from the present architecture (`offering` MUST NOT import `activation`, C-004; `activation` MAY import `offering`; kernel remains below both), enforced by a new intra-package AST gate since the split moves the boundary inside one top-level package | M2, aliases M6 |
 | CLI/serialized/API/config/workflow/distribution metadata | exhaustive internal+public topology map | M2, aliases M6 |
 | `.kittify/doctrine/` project overlay root | `.kittify/charter-packs/`; preserve data, conflict blocks, old root absent on completion | M3, old reader M6 |
 | skills/profiles/directives/prompts/generated/installed/shared assets | canonical IDs and paths; completed migration leaves no old path | M4, aliases M6 |
@@ -180,17 +180,28 @@ occurrence map, not rewritten by hand. **M1 requires zero new operator decisions
   module, file, symbol, import, test, fixture, build hook, CLI route incl. nested subgroups and the
   `charter mission-type` collision, serialized/API/event/workflow/distribution/wheel/metadata producer and
   consumer); every collision with the existing `src/charter/` package is `merge-existing` or exact
-  `relocate` before the first edit; it then converges the whole `src/doctrine/` tree into **one named
-  offer-side sub-package inside `src/charter/`** (name fixed by the map approval) — the offer→activate→
-  consume boundary of ADR 2026-07-15-1 is preserved, not dissolved: the one-way consumer→offer import rule
-  and the live boundary gates are rewritten to the new package names, and facade and implementation are
-  never merged into one module. M2 also relocates the skills tree (pathnames; skill IDs stay M4), renames
-  every `.kittify/doctrine` code literal and introduces the dual-root reader (CR-07) ahead of M3's data
-  move, retargets live architectural baselines (never deletes them), and disposes of the dormant
-  `spec-kitty-doctrine` manifest by an explicit map row. Its sole bounded gate is that pre-edit map
-  approval. It cannot close while any M2-owned (or earlier-wave-owned) live code/executable hit or matching
-  pathname remains outside registered 3.x compatibility owned by M6; later-wave-owned rows are carried
-  forward in its occurrence map.
+  `relocate` before the first edit; it then splits `src/doctrine/` — the pure offer catalogue — into
+  **`src/charter/offering/`** and the current charter activation code (activation_engine, cascade,
+  kind_vocabulary, etc.) into **`src/charter/activation/`**, two full modules in their own right, not a
+  merged blob (name/boundary fixed by the map approval). The offer→activate→consume boundary of ADR
+  2026-07-15-1 is preserved, not dissolved, as the dependency direction between the two modules:
+  `charter/offering` MUST NOT import `charter/activation` (the C-004 offer↛activate invariant, today
+  enforced by the `kernel <- doctrine <- charter` `LayerRule`); `charter/activation` MAY import
+  `charter/offering`; kernel remains below both. Because both modules now live under the single `charter`
+  top-level package, the top-level `LayerRule` in `tests/architectural/test_layer_rules.py` can no longer
+  express the offering↛activation edge, so M2 re-homes `test_layer_rules.py` and
+  `tests/architectural/test_kernel_no_doctrine_import.py` into its own gate set (updating the layer-chain
+  literal `["kernel","doctrine","charter",...]` — the `doctrine` layer node is replaced by the intra-charter
+  split) and ships a NEW dedicated intra-package AST gate enforcing `charter.offering` must not import
+  `charter.activation`, as a hard M2 exit criterion. This two-module split keeps the offer/activate
+  separation as first-class modules, preserving the boundary the layer chain enforced, while honouring
+  "charter is the canonical vocabulary" (both live under `charter`). M2 also relocates the skills tree
+  (pathnames; skill IDs stay M4), renames every `.kittify/doctrine` code literal and introduces the
+  dual-root reader (CR-07) ahead of M3's data move, retargets live architectural baselines (never deletes
+  them), and disposes of the dormant `spec-kitty-doctrine` manifest by an explicit map row. Its sole bounded
+  gate is that pre-edit map approval. It cannot close while any M2-owned (or earlier-wave-owned) live
+  code/executable hit or matching pathname remains outside registered 3.x compatibility owned by M6;
+  later-wave-owned rows are carried forward in its occurrence map.
 * **M3 `charter-packs-source`** migrates `.kittify/doctrine/` to `.kittify/charter-packs/` (never into the
   Charter Bundle): preflight inventory and backup; absent destination → verified copy/move then remove old;
   identical destination → verify then remove old; divergent destination → hard-fail with both intact until the
@@ -296,8 +307,10 @@ Pros: fastest end state. Cons: breaks installed projects and external consumers 
 
 * Supersedes the terminology portion of
   [ADR 2026-07-15-1](2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md); its resolution
-  mechanics (offer → activate → consume) survive: the offer side becomes one named sub-package inside
-  `src/charter/` with the same one-way import rule and boundary gates (renamed), not a merged module set.
+  mechanics (offer → activate → consume) survive: the offer side becomes `src/charter/offering/` and the
+  activation side `src/charter/activation/` — two full modules with the same one-way import rule
+  (`offering` MUST NOT import `activation`) and boundary gates (renamed and re-homed as an intra-package
+  AST gate), not a merged module set.
 * Planning contracts: `kitty-specs/retire-doctrine-term-01M0JMK9/contracts/` (ADR content, inventory
   schema, operator-surface map, stacked plan); data model and methodology in the same mission directory.
 * Anti-goals: no product rename in the planning mission; no runtime managed-path ledger/state architecture;
