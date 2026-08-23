@@ -96,6 +96,77 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T13:45:36.065359Z",
+      "decision_id": "01M0QDX721GV3TRCGC039K6RX7",
+      "final_answer": "Explicit deterministic budget metadata on the canonical scope/suite definition",
+      "input_key": "scope_budget_authority",
+      "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+      "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+      "opened_by": "cli",
+      "options": [
+        "Explicit deterministic budget metadata on the canonical scope/suite definition",
+        "Persisted historical execution timings",
+        "No preclassification; require an operator override after a timeout"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "What should be the canonical authority for deciding that a baseline-plus-head pre-review scope cannot fit the transition budget before execution?",
+      "rationale": "Use narrowly scoped, deterministic metadata owned by the interactive pre-review gate. Seed known oversized scopes from current dogfood evidence; do not mine or backfill CI history, estimate durations, or change CI scheduling.",
+      "resolved_at": "2026-08-23T13:52:07.280804Z",
+      "resolved_by": "user",
+      "slot_key": "plan.architecture.scope_budget_authority",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T13:52:44.852123Z",
+      "decision_id": "01M0QEA9SMC7GG1PC0DNAR71HR",
+      "final_answer": "Preserve compatibility: warn that budget is unknown, then run under the existing timeout",
+      "input_key": "unknown_scope_policy",
+      "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+      "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+      "opened_by": "cli",
+      "options": [
+        "Preserve compatibility: warn that budget is unknown, then run under the existing timeout",
+        "Fail closed and require a bounded scope or explicit skip",
+        "Treat every unclassified scope as oversized and refuse it"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should the pre-review gate handle a custom or newly derived scope that has no deterministic budget classification?",
+      "rationale": "Only explicitly classified oversized scopes refuse promptly. New and custom scopes retain current behavior under the existing timeout, with a visible unknown-budget warning, avoiding a 3.2.6 allowlist migration.",
+      "resolved_at": "2026-08-23T13:54:16.462764Z",
+      "resolved_by": "user",
+      "slot_key": "plan.architecture.unknown_scope_policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T13:54:32.634032Z",
+      "decision_id": "01M0QEDK1S7WHSEQW6A4B9PG6N",
+      "final_answer": null,
+      "input_key": "engineering_alignment",
+      "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+      "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+      "opened_by": "cli",
+      "options": [
+        "Confirm the proposed engineering alignment",
+        "Revise the proposed engineering alignment before planning"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Does the proposed engineering alignment correctly define the 3.2.6 implementation boundary for issue #2573?",
+      "rationale": null,
+      "resolved_at": null,
+      "resolved_by": null,
+      "slot_key": "plan.engineering_alignment",
+      "status": "open",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",

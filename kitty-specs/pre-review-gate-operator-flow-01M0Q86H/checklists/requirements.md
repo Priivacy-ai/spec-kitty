@@ -35,6 +35,8 @@
 - [x] Asynchronous redesign is explicitly excluded
 - [x] Remaining public-entry heartbeat and oversized-scope work is distinguished from landed behavior
 - [x] Structured-output and interruption guarantees are physically achievable and bounded
+- [x] Unknown-budget timeout evidence is actionable without introducing automatic runtime classification
+- [x] Retrospective follow-through explicitly reviews classification candidates
 
 ## Validation Notes
 
@@ -44,4 +46,5 @@
 - Post-spec adversarial review found and the revision resolved: undefined structured progress, impossible hard-kill cleanup, incomplete control precedence, fakeable test mapping, and omission of the 8/8 timeout plus oversized-scope evidence.
 - Human mode requires continuing heartbeat output through the exact public entry point; structured mode preserves one final JSON document with final gate metadata.
 - Oversized scopes refuse promptly with explicit skip or bounded-scope guidance and never become an automatic skip.
+- Unknown-budget timeouts emit classification-candidate diagnostics, while deterministic metadata changes remain explicit and reviewable; the Mission/sprint retrospective must inspect that evidence and assign follow-up or record no action.
 - Post-spec adversarial review is complete; ready for `/spec-kitty.plan` once the specification commit boundary passes.

@@ -25,6 +25,7 @@ As an operator or orchestrator, I want review submission to report that validati
 2. **Given** validation completes successfully or with a non-blocking regression warning, **When** the result is finalized, **Then** the work package enters `for_review` exactly once.
 3. **Given** validation times out or is canceled, **When** the command terminates, **Then** the work package remains in its prior lane and no partial transition is reported as successful.
 4. **Given** the selected baseline-plus-head scope cannot fit within the effective transition budget, **When** review submission evaluates that scope, **Then** it refuses before starting the scoped runs and names both supported recovery choices: explicit skip or a bounded scope.
+5. **Given** a scope with no deterministic budget classification, **When** it runs under the existing timeout and times out, **Then** the caller receives diagnostic evidence identifying the unknown classification, normalized scope identity and targets, elapsed budget, and unchanged lane state so maintainers can evaluate a future metadata update.
 
 ---
 
@@ -67,6 +68,7 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - Catchable cancellation or timeout occurs after validation creates byproducts; the owned process tree is reaped, the prior lane remains authoritative, and transactional byproducts are restored where the command enrolled them.
 - The parent command is terminated by an uncatchable hard kill; lane/event state must remain unchanged, but orphan-process reaping is not promised by this Mission.
 - Implicit sync-daemon startup is disabled while an operator explicitly requests daemon management; this Mission governs only implicit startup during the review-submission flow.
+- An unclassified scope times out; the system reports it as a classification candidate but does not automatically promote one machine's timeout into deterministic oversized-scope metadata.
 
 ## Domain Language
 
@@ -78,6 +80,7 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - **Progress signal**: Human-facing evidence that the gate is still active; it is not a gate verdict or an additional structured-output document.
 - **Effective transition budget**: The maximum time available to complete all required validation legs for one review-submission transition.
 - **Bounded scope**: A selected validation scope whose required legs are eligible to complete within the effective transition budget.
+- **Budget classification candidate**: Diagnostic evidence from an unclassified scope that timed out and may justify a later, reviewed update to deterministic gate-budget metadata; it is not an automatic classification.
 
 ## Requirements
 
@@ -94,6 +97,7 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 | FR-007 | Control and outcome precedence | The system MUST apply this precedence: explicit per-invocation skip; otherwise the first truthy disable control in canonical order (`SPEC_KITTY_SYNC_DISABLE`, then `SPEC_KITTY_SYNC_MINIMAL_IMPORT`); otherwise run the gate and apply its verdict under warn/block policy. A completion observed before its deadline uses the completed verdict; an expired deadline observed first produces timeout and no transition. | High | Landed—verify |
 | FR-008 | Existing-flow compatibility | Review submission without skip, disable, timeout, cancellation, oversized scope, or a new regression MUST retain its existing successful lane-transition behavior. | High | Landed—verify |
 | FR-009 | Oversized-scope refusal | Before starting baseline-plus-head validation, a scope classified as unable to fit within the effective transition budget MUST be refused promptly without applying the transition and MUST name the explicit skip and bounded-scope recovery choices. It MUST NOT be converted into an automatic skip. | High | Open |
+| FR-010 | Unknown-budget timeout evidence | When a scope with no deterministic budget classification times out, the final human and structured outcomes MUST identify the classification as unknown, include the normalized scope identity and selected targets, report the elapsed transition budget, confirm that the lane remained unchanged, and identify the evidence as a candidate for a reviewed metadata update. | High | Open |
 
 ### Non-Functional Requirements
 
@@ -117,6 +121,7 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 | C-004 | Stabilization scope | Existing #2573 behavior already present in the checkout MUST be verified and preserved; implementation changes are limited to demonstrated gaps required for the accepted behavior. | Release | High | Accepted |
 | C-005 | No direct workflow bypass | Recovery MUST remain available through supported Spec Kitty controls; direct event emission or manual lane-state editing is not an accepted solution. | Governance | High | Accepted |
 | C-006 | Preserve structured-output framing | `--json` MUST remain a single final JSON document. This Mission MUST NOT introduce NDJSON, mixed stdout framing, or a machine-progress stream. | Compatibility | High | Accepted |
+| C-007 | No automatic budget learning | Runtime observations MUST NOT mutate, promote, or persist deterministic oversized-scope classifications automatically; classification changes require an explicit reviewed source change. | Determinism | High | Accepted |
 
 ## Assumptions and Dependencies
 
@@ -137,6 +142,7 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - Cleanup of subprocesses orphaned by uncatchable parent `SIGKILL`; that broader process-reaping concern remains tracked by #2762.
 - A streamed machine-progress protocol or any change from the existing single-document `--json` response.
 - Changing regression severity to block-by-default.
+- Automatic learning or mutation of deterministic scope-budget metadata from local or CI timing history.
 
 ## Success Criteria
 
@@ -148,8 +154,9 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - **SC-004**: The same new-regression fixture transitions with a warning under default policy and refuses the transition under explicit blocking policy.
 - **SC-005**: A representative bounded scope completes baseline-plus-head validation and review admission within its effective transition budget; an oversized-scope fixture is refused within 2 seconds before validation starts and receives both recovery choices.
 - **SC-006**: Explicit daemon-management tests remain green when either disable variable is set, proving the controls suppress only implicit startup.
-- **SC-007**: A traceability matrix names at least one specific automated test for every acceptance scenario, precedence combination, and named interruption race in FR-001 through FR-009.
+- **SC-007**: A traceability matrix names at least one specific automated test for every acceptance scenario, precedence combination, and named interruption race in FR-001 through FR-010.
 - **SC-008**: No asynchronous job, pending-review state, alternate status authority, direct workflow bypass, or multi-document structured-output protocol is introduced.
+- **SC-009**: An exact public-entry timeout test for an unknown-budget scope proves that human output and the single final JSON document carry the normalized scope identity, selected targets, elapsed budget, unknown classification, unchanged-lane result, and reviewed-update guidance without changing the deterministic metadata source.
 
 ## Definition of Done
 
@@ -160,3 +167,4 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - Exact-entry tests separately exercise `SPEC_KITTY_SYNC_DISABLE` and `SPEC_KITTY_SYNC_MINIMAL_IMPORT`, plus the explicit daemon-management exception.
 - POSIX real-process and Windows tree-termination evidence meet NFR-005 without claiming cleanup after uncatchable parent death.
 - Issue #2573 is re-evaluated against the verified behavior; asynchronous redesign remains durably deferred in that issue unless a separate follow-up issue supersedes it.
+- The Mission/sprint retrospective explicitly reviews unknown-budget timeout diagnostics observed during delivery, records whether any scope should be proposed for deterministic oversized classification, and records a follow-up owner or an explicit no-action conclusion.
