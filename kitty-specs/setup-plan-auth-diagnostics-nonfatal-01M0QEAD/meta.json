@@ -4,7 +4,7 @@
   "flattened": false,
   "friendly_name": "Nonfatal setup-plan auth diagnostics",
   "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
-  "mission_number": null,
+  "mission_number": 196,
   "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
   "mission_type": "software-dev",
   "pr_bound": true,
