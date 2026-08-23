@@ -24,8 +24,8 @@ As an operator or orchestrator, I want review submission to report that validati
 1. **Given** a work package ready to enter `for_review`, **When** its pre-review validation takes longer than one progress interval, **Then** the caller sees that validation is running and receives continuing progress until completion.
 2. **Given** validation completes successfully or with a non-blocking regression warning, **When** the result is finalized, **Then** the work package enters `for_review` exactly once.
 3. **Given** validation times out or is canceled, **When** the command terminates, **Then** the work package remains in its prior lane and no partial transition is reported as successful.
-4. **Given** the selected baseline-plus-head scope cannot fit within the effective transition budget, **When** review submission evaluates that scope, **Then** it refuses before starting the scoped runs and names both supported recovery choices: explicit skip or a bounded scope.
-5. **Given** a scope with no deterministic budget classification, **When** it runs under the existing timeout and times out, **Then** the caller receives diagnostic evidence identifying the unknown classification, normalized scope identity and targets, elapsed budget, and unchanged lane state so maintainers can evaluate a future metadata update.
+4. **Given** the resolved candidate-head scope cannot fit within the effective transition budget, **When** review submission evaluates that scope, **Then** it refuses before starting the candidate-head run and names both supported recovery choices: explicit skip or a bounded scope.
+5. **Given** a scope with no deterministic budget classification, **When** it runs under the existing timeout and times out, **Then** the caller receives diagnostic evidence identifying the unknown classification, normalized scope identity and targets, configured budget, observed elapsed time, and unchanged lane state so maintainers can evaluate a future metadata update.
 
 ---
 
@@ -78,7 +78,7 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - **Regression warning**: A failure present in the candidate-head scope but absent from the gate's comparison baseline, classified by the canonical pre-review verdict as new failures and reported without blocking under the default policy.
 - **Blocking policy**: An explicit project setting that turns a regression warning into refusal of the lane transition.
 - **Progress signal**: Human-facing evidence that the gate is still active; it is not a gate verdict or an additional structured-output document.
-- **Effective transition budget**: The maximum time available to complete all required validation legs for one review-submission transition.
+- **Effective transition budget**: The configured timeout available to complete the candidate-head validation leg launched by one review-submission transition. The comparison baseline is captured earlier in the implementation workflow and is input to this command, not a second leg launched by `move-task`.
 - **Bounded scope**: A selected validation scope whose required legs are eligible to complete within the effective transition budget.
 - **Budget classification candidate**: Diagnostic evidence from an unclassified scope that timed out and may justify a later, reviewed update to deterministic gate-budget metadata; it is not an automatic classification.
 
@@ -96,8 +96,8 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 | FR-006 | Achievable interruption contract | Timeout and catchable cancellation MUST terminate and reap the command-owned validation process tree and MUST NOT report or persist a successful transition. Abrupt parent death MUST preserve lane/event integrity; cleanup of processes orphaned by an uncatchable hard kill is outside this Mission. | High | Landed—verify |
 | FR-007 | Control and outcome precedence | The system MUST apply this precedence: explicit per-invocation skip; otherwise the first truthy disable control in canonical order (`SPEC_KITTY_SYNC_DISABLE`, then `SPEC_KITTY_SYNC_MINIMAL_IMPORT`); otherwise run the gate and apply its verdict under warn/block policy. A completion observed before its deadline uses the completed verdict; an expired deadline observed first produces timeout and no transition. | High | Landed—verify |
 | FR-008 | Existing-flow compatibility | Review submission without skip, disable, timeout, cancellation, oversized scope, or a new regression MUST retain its existing successful lane-transition behavior. | High | Landed—verify |
-| FR-009 | Oversized-scope refusal | Before starting baseline-plus-head validation, a scope classified as unable to fit within the effective transition budget MUST be refused promptly without applying the transition and MUST name the explicit skip and bounded-scope recovery choices. It MUST NOT be converted into an automatic skip. | High | Open |
-| FR-010 | Unknown-budget timeout evidence | When a scope with no deterministic budget classification times out, the final human and structured outcomes MUST identify the classification as unknown, include the normalized scope identity and selected targets, report the elapsed transition budget, confirm that the lane remained unchanged, and identify the evidence as a candidate for a reviewed metadata update. | High | Open |
+| FR-009 | Oversized-scope refusal | Before starting candidate-head validation, a scope classified as unable to fit within the effective transition budget MUST be refused promptly without applying the transition and MUST name the explicit skip and bounded-scope recovery choices. It MUST NOT be converted into an automatic skip. | High | Open |
+| FR-010 | Unknown-budget timeout evidence | When a scope with no deterministic budget classification times out, the final human and structured outcomes MUST identify the classification as unknown, include the normalized scope identity and selected targets, report both configured budget and monotonic-clock observed elapsed time, confirm that the lane remained unchanged, and identify the evidence as a candidate for a reviewed metadata update. | High | Open |
 
 ### Non-Functional Requirements
 
@@ -109,7 +109,7 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 | NFR-004 | Skip-path boundedness | The explicit skip path MUST perform no validation wait and start no validation subprocess. | Performance | Medium | Landed—verify |
 | NFR-005 | Cross-platform evidence | POSIX process-tree behavior MUST have a real-process integration test; Windows process-tree behavior MUST have deterministic unit coverage of the Windows tree-termination contract and run in Windows CI where that job is available. | Compatibility | High | Open |
 | NFR-006 | Scenario traceability | Every acceptance scenario, precedence combination, and named interruption race MUST map to a specific automated test; structured-output assertions are required for every final outcome. | Quality | High | Open |
-| NFR-007 | Budget-eligible completion | A representative bounded scope whose required legs are eligible for the configured transition budget MUST complete review admission within that budget, while an oversized-scope fixture MUST be refused within 2 seconds before either validation leg starts. | Performance | High | Open |
+| NFR-007 | Budget-eligible completion | A representative bounded candidate-head scope MUST complete review admission within the configured transition budget, while an oversized-scope fixture MUST be refused within 2 seconds before the candidate-head subprocess starts. | Performance | High | Open |
 
 ### Constraints
 
@@ -128,6 +128,8 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - The current checkout already contains partial #2573 remediation: a one-shot start notice, low-level progress-callback support, explicit gate skipping, disable-control handling, atomic transition ordering, and bounded timeout/catchable-cancellation cleanup. Continuing heartbeat delivery is not wired through the public command path, so it remains open work.
 - Dogfood evidence attached to #2573 records 8 timeouts in 8 invocations and a selected architectural scope taking about 26 minutes per leg; the Mission must prove both a budget-eligible success path and prompt oversized-scope refusal.
 - The canonical lane transition and event surfaces remain authoritative.
+- The comparison baseline is captured earlier by the implementation workflow; this Mission does not add baseline capture to `move-task` or widen progress guarantees to that earlier command.
+- Release execution places #2573 downstream of #3127. Implementation may be prepared independently, but release-ready finalization requires #3127 merged, this branch rebased onto the resulting `main`, and trustworthy required checks rerun.
 - Existing projects may intentionally choose warning or blocking behavior; this Mission preserves that compatibility boundary.
 - The issue's broader asynchronous redesign remains deferred and requires a separate architectural decision if revived.
 - The Mission depends on the existing pre-review validation and sync-daemon control surfaces but does not change hosted SaaS contracts.
@@ -152,11 +154,11 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - **SC-002**: In every timeout and catchable-cancellation test, the owned process tree terminates and the work package remains in its prior lane; an abrupt-parent-death integration test separately proves lane/event state is unchanged without claiming orphan cleanup.
 - **SC-003**: For the explicit skip and each canonical disable variable, exact public-entry tests prove that no validation subprocess or implicit daemon start occurs and that the effective reason appears in human output and final structured metadata.
 - **SC-004**: The same new-regression fixture transitions with a warning under default policy and refuses the transition under explicit blocking policy.
-- **SC-005**: A representative bounded scope completes baseline-plus-head validation and review admission within its effective transition budget; an oversized-scope fixture is refused within 2 seconds before validation starts and receives both recovery choices.
+- **SC-005**: A representative bounded candidate-head scope completes validation and review admission within its effective transition budget; an oversized-scope fixture is refused within 2 seconds before candidate-head validation starts and receives both recovery choices.
 - **SC-006**: Explicit daemon-management tests remain green when either disable variable is set, proving the controls suppress only implicit startup.
 - **SC-007**: A traceability matrix names at least one specific automated test for every acceptance scenario, precedence combination, and named interruption race in FR-001 through FR-010.
 - **SC-008**: No asynchronous job, pending-review state, alternate status authority, direct workflow bypass, or multi-document structured-output protocol is introduced.
-- **SC-009**: An exact public-entry timeout test for an unknown-budget scope proves that human output and the single final JSON document carry the normalized scope identity, selected targets, elapsed budget, unknown classification, unchanged-lane result, and reviewed-update guidance without changing the deterministic metadata source.
+- **SC-009**: An exact public-entry timeout test for an unknown-budget scope proves that human output and the single final JSON document carry the normalized scope identity, selected targets, configured budget, controlled-clock observed elapsed time, unknown classification, unchanged-lane result, and reviewed-update guidance without changing the deterministic metadata source.
 
 ## Definition of Done
 
@@ -166,5 +168,7 @@ As a project maintainer, I want newly detected regressions to warn by default wh
 - The exact public entry point proves continuing human-mode liveness; structured mode proves one final JSON document for warning, blocking, skipped, disabled, oversized, timed-out, and canceled outcomes.
 - Exact-entry tests separately exercise `SPEC_KITTY_SYNC_DISABLE` and `SPEC_KITTY_SYNC_MINIMAL_IMPORT`, plus the explicit daemon-management exception.
 - POSIX real-process and Windows tree-termination evidence meet NFR-005 without claiming cleanup after uncatchable parent death.
+- A POSIX real-CLI abrupt-parent-death test waits until candidate-head validation is running, kills the parent, and independently proves no lane/event transition was appended; it deliberately makes no orphan-cleanup assertion.
 - Issue #2573 is re-evaluated against the verified behavior; asynchronous redesign remains durably deferred in that issue unless a separate follow-up issue supersedes it.
-- The Mission/sprint retrospective explicitly reviews unknown-budget timeout diagnostics observed during delivery, records whether any scope should be proposed for deterministic oversized classification, and records a follow-up owner or an explicit no-action conclusion.
+- Every unknown-budget timeout observed during delivery is durably appended to the Mission's `tracer-approach.md` with scope identity, targets, configured budget, observed elapsed time, and environment context. The Mission/sprint retrospective explicitly inspects that tracer, records whether any scope should be proposed for deterministic oversized classification, and records a follow-up owner or an explicit no-action conclusion; if no candidate occurred, it records that explicit absence.
+- #2573 is not marked release-ready until #3127 has merged, the Mission branch has been rebased onto the resulting `main`, and required checks have been rerun on that base.

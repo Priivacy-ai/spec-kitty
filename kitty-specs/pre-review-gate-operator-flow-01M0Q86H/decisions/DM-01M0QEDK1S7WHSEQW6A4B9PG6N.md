@@ -4,8 +4,10 @@
 - **Origin flow:** `plan`
 - **Slot key:** `plan.engineering_alignment`
 - **Input key:** `engineering_alignment`
-- **Status:** `open`
+- **Status:** `resolved`
 - **Created:** `2026-08-23T13:54:32.634032+00:00`
+- **Resolved:** `2026-08-23T13:58:53.455575+00:00`
+- **Resolved by:** `user`
 - **Opened by:** `cli`
 - **Other answer:** `false`
 
@@ -20,12 +22,13 @@ Does the proposed engineering alignment correctly define the 3.2.6 implementatio
 
 ## Final answer
 
-_(none)_
+Confirm the proposed engineering alignment
 
 ## Rationale
 
-_(none)_
+Confirmed with two amendments: unknown-budget timeouts emit classification-candidate diagnostics without automatic metadata mutation, and the Mission/sprint retrospective reviews those diagnostics and records follow-up ownership or an explicit no-action conclusion.
 
 ## Change log
 
 - `2026-08-23T13:54:32.634032+00:00` — opened
+- `2026-08-23T13:58:53.455575+00:00` — resolved (final_answer="Confirm the proposed engineering alignment")

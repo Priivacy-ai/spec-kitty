@@ -148,7 +148,7 @@
     {
       "created_at": "2026-08-23T13:54:32.634032Z",
       "decision_id": "01M0QEDK1S7WHSEQW6A4B9PG6N",
-      "final_answer": null,
+      "final_answer": "Confirm the proposed engineering alignment",
       "input_key": "engineering_alignment",
       "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
       "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
@@ -160,11 +160,11 @@
       "origin_flow": "plan",
       "other_answer": false,
       "question": "Does the proposed engineering alignment correctly define the 3.2.6 implementation boundary for issue #2573?",
-      "rationale": null,
-      "resolved_at": null,
-      "resolved_by": null,
+      "rationale": "Confirmed with two amendments: unknown-budget timeouts emit classification-candidate diagnostics without automatic metadata mutation, and the Mission/sprint retrospective reviews those diagnostics and records follow-up ownership or an explicit no-action conclusion.",
+      "resolved_at": "2026-08-23T13:58:53.455575Z",
+      "resolved_by": "user",
       "slot_key": "plan.engineering_alignment",
-      "status": "open",
+      "status": "resolved",
       "step_id": null,
       "summary_json": null
     }
