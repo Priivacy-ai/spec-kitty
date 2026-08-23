@@ -1,4 +1,4 @@
-# Mission Specification: Nonfatal setup-plan auth diagnostics
+# Mission Specification: Authoritative local setup-plan with safe hosted refusal
 
 **Mission Branch**: `fix/setup-plan-auth-diagnostics-nonfatal`  
 **Created**: 2026-08-23  
@@ -7,148 +7,159 @@
 
 ## Context and Intent
 
-`setup-plan` performs local specification and plan-completeness verification, but it
-currently refuses to perform that work when SaaS sync is enabled and its auth gate
-cannot find a queue scope. Queue scope availability is not proof of authentication:
-a valid browser-mediated login can use encrypted session storage and a refreshable
-session without materializing a plaintext queue scope. The same refusal also blocks
-genuinely logged-out operators even though local verification does not require hosted
-sync.
+`setup-plan` verifies local Mission artifacts, but today it can refuse that local work
+because authentication, synchronization routing, or structural hosted-sync safety is
+not ready. Those signals answer whether hosted delivery is permissible; they do not
+determine whether a local specification or plan is complete.
 
-This Mission makes authentication and queue-routing metadata distinct concepts and
-separates local verification from all hosted-sync side effects. Local verification
-always runs. Authentication or structural sync-boundary problems refuse only unsafe
-hosted delivery and are reported as nonfatal diagnostics. The local verification result
-alone determines whether `setup-plan` succeeds or fails.
+This Mission makes the local verification result authoritative. Authentication and
+structural assessment still fail closed for hosted delivery, but they become separate,
+structured diagnostics that cannot replace or prevent the local result. Authentication
+is evaluated from the supported local session authority and preserves the difference
+between a confirmed logged-out state and an evaluation failure. Queue scope remains
+delivery-routing metadata and is never treated as proof of login.
+
+```mermaid
+flowchart LR
+    Operator[Operator invokes setup-plan] --> Local[Complete local verification]
+    Operator --> Evidence[Assess hosted-delivery readiness]
+    Local --> Outcome[Authoritative local outcome]
+    Evidence --> Decision{Hosted delivery permitted?}
+    Decision -- Yes --> Hosted[Perform hosted effects]
+    Decision -- No --> Refuse[Refuse hosted effects and report diagnostics]
+    Outcome --> Report[One command result]
+    Hosted --> Report
+    Refuse --> Report
+```
+
+The prose requirements and acceptance scenarios below are authoritative; the diagram
+only illustrates their separation.
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Complete local verification while logged out (Priority: P1)
+### User Story 1 - Always obtain the local verification result (Priority: P1)
 
-An operator or automation agent runs `setup-plan` in a connected workspace while SaaS
-sync is enabled but no authenticated session is available. The command completes its
-local work and reports that hosted sync cannot be guaranteed without treating auth as
-a precondition.
+An operator runs `setup-plan` while hosted synchronization is unavailable or unsafe.
+The command still resolves and verifies the local Mission, and that local result alone
+determines the command's primary status and process exit.
 
-**Why this priority**: The current refusal blocks the normal planning loop and offers
-remediation that an automation agent is not authorized to perform.
+**Why this priority**: The reported defect prevents the planning workflow itself even
+though the requested verification is local.
 
-**Independent Test**: Run `setup-plan` against a complete plan in a connected,
-logged-out workspace with SaaS sync enabled; verify the local result is successful, the
-auth diagnostic is a warning, and the process exits successfully.
+**Independent Test**: Run `setup-plan` over each established local outcome while
+hosted readiness is refused; compare the primary result fields and exit code with the
+same invocation under safe hosted conditions.
 
 **Acceptance Scenarios**:
 
-1. **Given** a connected workspace, no authenticated session, SaaS sync enabled, and a
-   complete plan, **When** `setup-plan` runs with structured output, **Then** it reports
-   phase completeness, includes one `SAAS_SYNC_UNAUTHENTICATED` warning, and exits 0.
-2. **Given** the same auth state and a complete plan, **When** `setup-plan` runs with
-   human-readable output, **Then** it prints a nonfatal auth warning and reports local
-   verification success.
+1. **Given** a substantive complete plan and any authentication or boundary state,
+   **When** `setup-plan` runs, **Then** it reports the established complete local result
+   and exits 0.
+2. **Given** a pristine scaffold, an insufficient plan, or a non-substantive spec,
+   **When** hosted delivery is refused, **Then** the established local classification,
+   reason, and exit remain unchanged.
+3. **Given** a missing spec, template configuration error, or other local command error,
+   **When** hosted readiness also has a diagnostic, **Then** the local error remains the
+   primary result and controls the exit.
 
 ---
 
-### User Story 2 - Recognize a valid login without queue scope (Priority: P1)
+### User Story 2 - Receive truthful authentication diagnostics (Priority: P1)
 
-An operator who is logged in through the supported SaaS authentication flow runs
-`setup-plan`. The login may use encrypted session storage, may have a refreshable
-session with an expired short-lived access token, and may not have a materialized queue
-scope. The command recognizes the authenticated state and does not display a false
-unauthenticated warning.
+An operator can be authenticated, conclusively logged out, or in a state where the CLI
+cannot determine authentication because encrypted session material could not be read or
+evaluated. `setup-plan` reports those conditions truthfully and never infers them from
+queue-routing metadata.
 
-**Why this priority**: The reported production case was a logged-in operator. A queue
-scope lookup answered a routing question and was incorrectly treated as an auth check.
+**Why this priority**: Collapsing an unreadable credential store into “logged out” gives
+incorrect remediation and hides the actual operational failure.
 
-**Independent Test**: Represent a valid supported login without a queue-scope value,
-run `setup-plan` with SaaS sync enabled, and verify no
-`SAAS_SYNC_UNAUTHENTICATED` diagnostic appears.
+**Independent Test**: Exercise the supported local session authority with a usable
+session, an absent session, and an unreadable session store; verify three distinct
+classifications and diagnostics without network or queue-scope access.
 
 **Acceptance Scenarios**:
 
-1. **Given** a valid supported login stored without a queue scope, **When**
-   `setup-plan` runs, **Then** no unauthenticated diagnostic is emitted and local
-   verification proceeds normally.
-2. **Given** a valid refreshable session whose short-lived access token has expired,
-   **When** `setup-plan` runs, **Then** the absence of a queue scope does not cause the
-   host to be classified as logged out.
+1. **Given** an encrypted session with a usable refresh token and an expired access
+   token, **When** no queue scope exists, **Then** `setup-plan` treats the operator as
+   authenticated and emits no unauthenticated warning.
+2. **Given** the session store is read successfully and contains no usable session,
+   **When** SaaS sync is enabled, **Then** local verification completes and exactly one
+   `SAAS_SYNC_UNAUTHENTICATED` warning is reported.
+3. **Given** session storage, decryption, parsing, or session evaluation fails, **When**
+   SaaS sync is enabled, **Then** local verification completes and exactly one
+   `SAAS_SYNC_AUTH_UNKNOWN` warning is reported, never an unauthenticated warning.
+4. **Given** SaaS sync is disabled, **When** `setup-plan` runs, **Then** it does not
+   evaluate or report hosted authentication readiness.
 
 ---
 
-### User Story 3 - Preserve the real completeness outcome (Priority: P2)
+### User Story 3 - Refuse every unsafe hosted effect (Priority: P1)
 
-An operator runs `setup-plan` against an incomplete plan while logged out. The command
-reports the plan-completeness problem as the blocking result; the auth warning remains
-supplementary and does not replace or mask it.
+An operator runs `setup-plan` on a host whose synchronization boundary is incoherent or
+cannot be evaluated. Local files, verification, commits, and lifecycle history proceed;
+all hosted enqueue, upload, publication, and delivery effects are refused.
 
-**Why this priority**: Operators and agents need an actionable result for the work they
-asked the command to verify.
+**Why this priority**: A nonfatal command diagnostic must not weaken the structural
+safety boundary or permit a hidden outbox write.
 
-**Independent Test**: Run `setup-plan` against an incomplete plan with SaaS sync enabled
-and no authenticated session; verify the existing completeness failure is returned and
-the auth state is only a warning.
+**Independent Test**: Cause the structural assessment to return unsafe and to raise an
+unexpected exception; in both cases verify that local lifecycle history and the local
+result exist while every hosted sink records zero calls.
 
 **Acceptance Scenarios**:
 
-1. **Given** an incomplete plan and no authenticated session, **When** `setup-plan`
-   runs, **Then** its blocking result identifies plan incompleteness rather than auth.
-2. **Given** either authentication state, **When** local verification produces the same
-   result, **Then** the result's success/failure classification is identical.
+1. **Given** a daemon-owner mismatch, orphan/unreadable owner record, legacy unsafe row,
+   or incoherent project store, **When** `setup-plan` runs, **Then** hosted effects are
+   refused, `SAAS_SYNC_BOUNDARY_UNSAFE` is reported, and local verification completes.
+2. **Given** structural assessment itself raises, **When** `setup-plan` runs, **Then**
+   the failure is converted to `SAAS_SYNC_BOUNDARY_UNSAFE`, hosted effects remain
+   refused, and local verification completes.
+3. **Given** hosted effects are refused, **When** phase events are recorded, **Then**
+   local lifecycle JSONL is persisted but no offline queue, body-upload queue, dossier
+   publication, daemon publication, dashboard sync, or direct hosted delivery occurs.
+4. **Given** authentication and structural problems coexist, **When** results are
+   reported, **Then** both diagnostics remain separate in deterministic order.
 
 ---
 
-### User Story 4 - Isolate structural sync failures from local work (Priority: P2)
+### User Story 4 - Preserve automation and operator contracts (Priority: P2)
 
-An operator runs `setup-plan` while the hosted-sync boundary is structurally unsafe,
-such as when daemon ownership is orphaned, unreadable, or inconsistent with the
-foreground process. The unsafe hosted-sync side effect is refused, but local
-verification still completes and remains authoritative.
+Automation receives one parseable result envelope, while interactive operators receive
+the same warning severity and primary local result in human-readable form.
 
-**Why this priority**: Structural guards protect hosted data integrity, but coupling
-their refusal to local plan verification creates the same wrong failure surface as the
-auth gate.
+**Why this priority**: The corrected safety model must remain scriptable and must not
+introduce multiple JSON documents or ambiguous exits.
 
-**Independent Test**: Represent each structural boundary-failure class, run
-`setup-plan`, and verify local completeness is returned while hosted delivery is
-refused with a separate diagnostic.
+**Independent Test**: Cross the local-outcome matrix with authentication and structural
+states in JSON and representative human-output cases.
 
 **Acceptance Scenarios**:
 
-1. **Given** a complete plan and a structurally incoherent sync boundary, **When**
-   `setup-plan` runs, **Then** local verification succeeds, unsafe hosted delivery does
-   not occur, the boundary problem is reported separately, and the process exits 0.
-2. **Given** an incomplete plan and the same boundary problem, **When** `setup-plan`
-   runs, **Then** the completeness failure remains the blocking result and the sync
-   diagnostic does not replace it.
-3. **Given** any structural boundary failure, **When** `setup-plan` reports it as
-   nonfatal, **Then** the underlying guard still refuses the unsafe hosted-sync side
-   effect rather than silently bypassing it.
+1. **Given** one or more hosted-delivery problems, **When** JSON output is requested,
+   **Then** exactly one JSON document contains the unchanged local result plus an ordered
+   `warnings` collection.
+2. **Given** the same invocation in human mode, **When** it completes, **Then** warnings
+   are visibly nonfatal and the normal local result is still rendered.
+3. **Given** a local-only sibling Mission command governed by the logged-out Teamspace
+   policy, **When** its policy is compared with `setup-plan`, **Then** both distinguish
+   local command completion from hosted-delivery readiness.
 
 ### Edge Cases
 
-- A login is valid but no plaintext session or credential file contains a queue scope.
-- A refresh token remains usable while the short-lived access token has expired.
-- Credentials or session material are genuinely absent.
-- Auth state is unavailable while local verification succeeds.
-- Auth state is unavailable while local verification fails for an unrelated reason.
-- Daemon ownership is mismatched, orphaned, or unreadable while local verification is
-  otherwise valid.
-- The routed project sync store is unavailable, foreign, or structurally incoherent.
-- SaaS sync is not enabled; no new auth warning is introduced.
-- Structured and human-readable output communicate the same severity without changing
-  their established output contracts.
-
-## Domain Language
-
-- **Authentication state**: Whether the operator has a supported, usable SaaS login.
-  It is not inferred from synchronization routing metadata.
-- **Queue scope**: Metadata that identifies where synchronized work belongs. Its
-  absence does not prove that an operator is logged out.
-- **Local verification result**: The authoritative `setup-plan` assessment of local
-  specification and plan readiness.
-- **Hosted-sync diagnostic**: A report about whether hosted synchronization can be
-  guaranteed; it is supplementary to local verification.
-- **Hosted-sync side effect**: Delivery or enqueue work whose safety depends on a
-  coherent sync boundary; it may be refused without refusing local verification.
+- The encrypted session is absent versus unreadable; these must not collapse.
+- The access token is expired while the refresh token remains usable.
+- Hot-path session summary loading succeeds but materialization later fails.
+- Queue scope is absent, unreadable, or its reader raises; authentication does not
+  consult it.
+- The repository root cannot be resolved, so structural evidence is not yet available.
+- Structural assessment returns a known unsafe result or raises before returning.
+- Authentication, boundary, and delivery-route problems coexist.
+- The plan is complete, newly scaffolded, insufficient, committed-but-pristine, or
+  blocked by the spec gate.
+- The spec is missing, template configuration is invalid, or a generic local exception
+  occurs.
+- SaaS sync is disabled for the invocation.
 
 ## Requirements *(mandatory)*
 
@@ -156,105 +167,81 @@ refused with a separate diagnostic.
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Local verification always runs | As an operator, I want `setup-plan` to perform local verification regardless of SaaS authentication state so that planning is never blocked by an unrelated hosted-sync condition. | High | Approved |
-| FR-002 | Auth and queue scope are distinct | As a logged-in operator, I want authentication to be assessed independently of queue-scope availability so that supported login storage forms are recognized correctly. | High | Approved |
-| FR-003 | No false unauthenticated diagnostic | As a logged-in operator with a supported usable session, I want no `SAAS_SYNC_UNAUTHENTICATED` diagnostic even when no queue scope is materialized. | High | Approved |
-| FR-004 | Logged-out state is nonfatal | As a logged-out operator, I want hosted-sync unavailability reported as a warning so that I can still obtain the local verification result. | High | Approved |
-| FR-005 | Verification controls exit outcome | As an automation caller, I want exit success or failure to be determined by local verification rather than authentication state so that the command remains scriptable and truthful. | High | Approved |
-| FR-006 | Structured warning contract | As an automation caller, I want structured output to carry `SAAS_SYNC_UNAUTHENTICATED` in a warnings collection alongside the verification result. | High | Approved |
-| FR-007 | Human-readable warning parity | As an interactive operator, I want a clear nonfatal warning in human-readable output that conveys the same severity as structured output. | Medium | Approved |
-| FR-008 | Completeness failure remains primary | As an operator with an incomplete plan, I want the completeness failure reported as the blocking result rather than being replaced by an auth failure. | High | Approved |
-| FR-009 | Consistent local-command policy | As a maintainer, I want `setup-plan` documented and tested consistently with sibling local Mission commands that proceed while logged out. | Medium | Approved |
-| FR-010 | Isolate unsafe hosted delivery | As an operator, I want structural sync-boundary failures to refuse only unsafe hosted-sync side effects so that local verification still completes. | High | Approved |
-| FR-011 | Structural diagnostic contract | As an automation caller, I want each structural sync-boundary failure reported separately from the local result so that I can distinguish verification readiness from delivery readiness. | High | Approved |
-| FR-012 | Local result remains authoritative | As an automation caller, I want local completeness alone to determine the command's success or failure even when hosted delivery is refused. | High | Approved |
+| FR-001 | Local verification always completes | As an operator, I want eligible local verification to run regardless of hosted readiness so that planning is not blocked by an unrelated delivery condition. | High | Approved |
+| FR-002 | Canonical tri-state authentication | As an operator, I want the supported local session authority to distinguish authenticated, logged out, and unknown so diagnostics remain truthful. | High | Approved |
+| FR-003 | Authentication excludes queue scope | As a maintainer, I want queue scope excluded from authentication classification so routing metadata cannot become a second auth authority. | High | Approved |
+| FR-004 | Refresh-capable sessions remain authenticated | As a logged-in operator, I want a usable refresh token to establish local authentication even when the access token is expired. | High | Approved |
+| FR-005 | Logged-out warning is nonfatal | As a logged-out operator, I want one `SAAS_SYNC_UNAUTHENTICATED` warning while local verification continues. | High | Approved |
+| FR-006 | Unknown auth is distinct | As an operator whose session cannot be evaluated, I want `SAAS_SYNC_AUTH_UNKNOWN`, never a false logged-out diagnosis. | High | Approved |
+| FR-007 | Structural assessment cannot preempt local work | As an operator, I want known unsafe results and unexpected assessment failures converted to hosted diagnostics while local verification continues. | High | Approved |
+| FR-008 | One hosted-delivery decision | As a maintainer, I want authentication, structural safety, routing availability, and the SaaS flag composed once so all hosted effects share one decision. | High | Approved |
+| FR-009 | Local lifecycle history is unconditional | As an operator, I want local phase history persisted even when hosted delivery is refused. | High | Approved |
+| FR-010 | Every hosted effect is guarded | As a security maintainer, I want all hosted enqueue, upload, publication, and delivery effects refused unless the composed decision allows them. | High | Approved |
+| FR-011 | Local result controls status and exit | As an automation caller, I want the local outcome alone to determine primary result fields and process exit. | High | Approved |
+| FR-012 | Structured diagnostics remain separate | As an automation caller, I want stable, ordered diagnostics attached to one result envelope without replacing the local outcome. | High | Approved |
+| FR-013 | Human output has warning parity | As an interactive operator, I want human output to communicate the same nonfatal conditions and still render the local result. | Medium | Approved |
+| FR-014 | Existing local-result matrix is preserved | As a maintainer, I want every established complete, scaffold, blocked, and error outcome retained under every hosted-readiness state. | High | Approved |
+| FR-015 | Named sibling policy parity | As a maintainer, I want `agent mission create` and `setup-plan` documented consistently with the logged-out Teamspace local-command policy. | Medium | Approved |
 
 ### Non-Functional Requirements
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
-| NFR-001 | Acceptance-matrix fidelity | All logged-in/logged-out × complete/incomplete acceptance scenarios defined above produce the specified verification result, warning severity, and exit outcome. | Reliability | High | Approved |
-| NFR-002 | Zero false auth warnings | Every supported valid-login fixture, including encrypted storage without queue scope and a refreshable session with an expired short-lived access token, emits zero `SAAS_SYNC_UNAUTHENTICATED` diagnostics. | Correctness | High | Approved |
-| NFR-003 | Single diagnostic | A genuinely logged-out invocation emits at most one `SAAS_SYNC_UNAUTHENTICATED` warning per command execution. | Usability | Medium | Approved |
-| NFR-004 | Read-surface compatibility | All existing `setup-plan` read-surface behaviors unrelated to auth severity retain their established results, with the affected regression suite reporting zero new failures. | Compatibility | High | Approved |
-| NFR-005 | Machine-readable stability | Every structured warning response remains parseable and includes both the local verification result and a stable warning code in 100% of covered logged-out cases. | Interoperability | High | Approved |
-| NFR-006 | Structural-failure coverage | Every supported sync-boundary failure class is covered by an acceptance case proving that hosted delivery is refused while local verification still completes. | Safety | High | Approved |
-| NFR-007 | No guard weakening | All structural sync-boundary detectors retain 100% of their existing refusal coverage for unsafe hosted-sync side effects. | Data integrity | High | Approved |
+| NFR-001 | Full outcome-matrix fidelity | 100% of covered auth/boundary variants preserve the baseline local result fields and exit code. | Reliability | High | Approved |
+| NFR-002 | Zero false auth warnings | Every supported usable-session fixture emits zero `SAAS_SYNC_UNAUTHENTICATED` warnings. | Correctness | High | Approved |
+| NFR-003 | Diagnostic deduplication | Each diagnostic code occurs at most once per invocation; ordering is authentication, structural, then routing. | Interoperability | High | Approved |
+| NFR-004 | One structured document | 100% of JSON-mode cases emit exactly one parseable JSON document. | Interoperability | High | Approved |
+| NFR-005 | Zero denied hosted calls | Every refused-decision test records zero calls to all enumerated hosted sinks while proving local lifecycle persistence occurred. | Data integrity | High | Approved |
+| NFR-006 | No-raise local assessment | 100% of injected auth and structural evaluation failures return a local outcome plus a structured warning rather than an assessment-derived command exit. | Reliability | High | Approved |
+| NFR-007 | Performance compatibility | Local auth assessment performs no network I/O and coherent structural assessment stays within the existing 100 ms budget. | Performance | Medium | Approved |
+| NFR-008 | Read-surface compatibility | Targeted setup-plan read-surface, branch, metadata, template, and documentation-wiring regressions report zero new failures. | Compatibility | High | Approved |
 
 ### Constraints
 
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
-| C-001 | Token-expiry UX excluded | A general warning or workflow for expired access tokens is outside this Mission. | Scope | High | Approved |
-| C-002 | No fail-closed opt-in | The optional `--require-sync` concept is not part of this Mission unless separately authorized. | Scope | Medium | Approved |
-| C-003 | Sync flag is not an eligibility gate | `SPEC_KITTY_ENABLE_SAAS_SYNC=1` may enable hosted-sync reporting but must not make auth a prerequisite for local verification. | Product policy | High | Approved |
-| C-004 | Preserve queue-scope meaning | Queue scope remains synchronization routing metadata and must not be redefined as authentication state. | Domain integrity | High | Approved |
-| C-005 | Preserve supported login forms | Browser-mediated and encrypted-session login forms remain supported; the Mission must not narrow valid auth to plaintext queue-scope-bearing files. | Compatibility | High | Approved |
-| C-006 | Respect release dependency | Finalization follows the 3.2.6 execution DAG dependency on issue #3127. | Coordination | Medium | Approved |
-| C-007 | Fail closed for hosted delivery | A nonfatal command diagnostic must never authorize a hosted-sync side effect that the structural boundary guard considers unsafe. | Data integrity | High | Approved |
+| C-001 | No general token-expiry UX | This Mission does not add general access-token expiry warnings or re-login workflows. | Scope | High | Approved |
+| C-002 | No network auth probe | Authentication classification is entirely local and performs no refresh or SaaS request. | Security | High | Approved |
+| C-003 | No strict-sync option | This Mission does not add `--require-sync` or another mode that makes hosted readiness control local verification. | Scope | Medium | Approved |
+| C-004 | Queue scope remains routing metadata | Queue scope is not redefined, migrated, or consulted as authentication evidence. | Domain integrity | High | Approved |
+| C-005 | Hosted-only commands remain strict | `sync now` and other hosted-only entry points retain their existing refusal and preflight severity. | Compatibility | High | Approved |
+| C-006 | Unknown never authorizes hosted effects | Unknown authentication, boundary, or route state is insufficient permission for hosted delivery. | Data integrity | High | Approved |
+| C-007 | No credential disclosure | Diagnostics contain no tokens, session contents, encryption details, or other credential material. | Security | High | Approved |
+| C-008 | No sync-store migration | Queue placement, project-store layout, consent, and delivery-route semantics are unchanged. | Scope | High | Approved |
+| C-009 | Release dependency remains external | Issue #3127 is a Mission acceptance/release gate, not an implementation-lane dependency. | Coordination | High | Approved |
 
 ### Key Entities
 
-- **Authentication State**: Logged-in or logged-out classification derived from the
-  supported login authority rather than queue-routing metadata.
-- **Queue Scope**: Optional synchronization routing context; related to hosted delivery
-  but not proof of authentication.
-- **Verification Result**: Local completeness outcome, including success or the actual
-  local blocking reason.
-- **Warning Diagnostic**: Nonfatal, stable-coded information that may accompany a
-  verification result without replacing it.
-- **Boundary Failure**: A structural condition that makes hosted delivery unsafe while
-  remaining independent of local plan completeness.
-
-## Assumptions and Dependencies
-
-- Issue #3621 and its maintainer comments are the authoritative product ruling.
-- The existing sibling-command behavior tracked by #2695 is the policy reference for
-  nonfatal logged-out handling.
-- The existing false-negative credential work in the historical
-  `legacy-journal-capture-cutover` Mission is related context, not a second authority;
-  this Mission owns the superseding nonfatal `setup-plan` outcome.
-- Issue #3127 is the upstream release-DAG dependency; specification work may proceed,
-  while final release readiness waits for that node.
-
-## Out of Scope
-
-- General access-token expiry detection, messaging, or re-login guidance.
-- Changing the authentication method or asking agents to authenticate for operators.
-- Changing queue/store placement, queue migration, or synchronization routing policy.
-- Weakening, suppressing, or bypassing structural sync-boundary detection for hosted
-  delivery.
-- Adding a default fail-closed mode or optional `--require-sync` flag.
-- Altering local completeness rules unrelated to auth severity.
+- **Authentication Classification**: Invocation-local state with exactly
+  `authenticated`, `logged_out`, or `unknown`; derived from the canonical encrypted
+  session authority.
+- **Local Verification Outcome**: The authoritative result, phase-completeness data,
+  local error or blocked reason, and process exit produced by setup-plan's local work.
+- **Hosted-Delivery Diagnostic**: Stable-coded warning describing why a hosted effect
+  was refused; command severity and hosted disposition remain distinct.
+- **Hosted-Delivery Decision**: Invocation-local permission that may allow hosted
+  effects only when every required signal is affirmatively safe.
+- **Lifecycle Event Intent**: A locally persisted event envelope that may be offered to
+  hosted fan-out only after the hosted-delivery decision allows it.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: A complete plan on a logged-out connected workspace with SaaS sync enabled
-  returns the successful local verification result, one nonfatal auth warning, and exit
-  code 0 in every acceptance test.
-- **SC-002**: A valid supported login without queue scope produces zero false
-  unauthenticated diagnostics across all defined login-storage fixtures.
-- **SC-003**: An incomplete plan reports its existing completeness failure in every auth
-  state, with no auth-derived refusal replacing that result.
-- **SC-004**: Structured and human-readable modes both communicate nonfatal severity in
-  all logged-out acceptance cases.
-- **SC-005**: The targeted existing `setup-plan` read-surface and sibling-command policy
-  regression suites complete with zero failures attributable to this Mission.
-- **SC-006**: Every structural boundary-failure fixture refuses hosted delivery while
-  returning the independently computed local verification result.
-- **SC-007**: No acceptance case permits hosted delivery after its applicable structural
-  guard reports an unsafe boundary.
-
-## Definition of Done
-
-- The logged-in, logged-out, complete-plan, and incomplete-plan scenarios are covered by
-  rejecting-first acceptance tests.
-- Auth state is no longer inferred from the presence of queue scope.
-- Auth unavailability is a structured and human-readable warning, never the default
-  blocking result.
-- Structural boundary failures remain fail-closed for hosted delivery but never prevent
-  local verification from completing.
-- Documentation states the same nonfatal policy as the executable behavior.
-- All targeted verification and quality gates pass without weakening unrelated guards.
+- **SC-001**: Every row of the established local-outcome matrix returns identical
+  primary fields and exit code across authenticated, logged-out, auth-unknown,
+  boundary-unsafe, and boundary-exception variants.
+- **SC-002**: A real encrypted refresh-capable session without queue scope produces
+  zero false unauthenticated warnings through the real setup-plan entry point.
+- **SC-003**: A real unreadable encrypted-session fixture produces exactly one
+  `SAAS_SYNC_AUTH_UNKNOWN` warning and zero unauthenticated warnings.
+- **SC-004**: All known structural classes and an injected structural exception refuse
+  hosted effects while returning the independently computed local result.
+- **SC-005**: Every refused-decision acceptance test writes local lifecycle history and
+  records zero hosted sink calls.
+- **SC-006**: JSON and human outputs preserve local-result authority and communicate
+  matching warning severity.
+- **SC-007**: Targeted auth, lifecycle, sync-boundary, setup-plan read-surface, and
+  architectural gates pass with no new failures.
+- **SC-008**: Mission acceptance records issue #3127 as resolved before release
+  readiness is declared.
