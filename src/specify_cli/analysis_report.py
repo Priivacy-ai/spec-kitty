@@ -207,12 +207,28 @@ def _relativize_or_raise(path: Path, governing_root: Path) -> str:
     """Return ``path`` as a string relative to ``governing_root`` (FR-007/NFR-001:
     committed hash-input paths must be repo-relative, never absolute). Raises
     ``PathRelativizationError`` when ``path`` does not lie under ``governing_root``
-    (spec.md Acceptance Scenario 3 -- e.g. a symlink escaping the governing root)."""
+    (spec.md Acceptance Scenario 3 -- e.g. a symlink escaping the governing root).
+
+    The raised message deliberately does NOT embed either absolute path: this
+    failure is exactly the case where relativizing is impossible, so the
+    message can't just relativize its way out of leaking one. This mission
+    exists to stop local paths (``/home/<user>/...``) reaching operator-visible
+    surfaces -- console/CLI error output and CI logs on a public repo are as
+    public as a committed artifact. The basename of the artifact plus the
+    basename of its governing root is enough to diagnose *which* artifact
+    failed against *which* root (the two are always one of the small, known
+    hash-input names -- spec.md/plan.md/tasks.md/charter.yaml/charter.md --
+    so the basename alone identifies it) without disclosing the operator's
+    directory layout. Note ``exc`` (a stdlib ``ValueError`` from
+    ``Path.relative_to``) is intentionally NOT interpolated into the message:
+    its own text embeds both absolute paths."""
     try:
         return str(path.relative_to(governing_root))
     except ValueError as exc:
         raise PathRelativizationError(
-            f"Cannot record {path} relative to governing root {governing_root}: {exc}"
+            f"Cannot record artifact {path.name!r} relative to its governing "
+            f"root (root basename: {governing_root.name!r}): the artifact "
+            "does not lie under that root."
         ) from exc
 
 

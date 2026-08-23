@@ -1,0 +1,99 @@
+schema: review-merged/v1
+complete: true
+phase: pr
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+source_files:
+- pr.boundary.findings.yaml
+- pr.contract.findings.yaml
+- pr.tests.findings.yaml
+findings:
+- id: pr-tests-001
+  lens: tests
+  severity: 4
+  title: New tests/dossier/test_reexport_trim.py is collected by zero CI job on a push to main (issue
+  evidence:
+  - code: tests/dossier/test_reexport_trim.py:1
+  - code: .github/workflows/ci-quality.yml:1997
+  - code: tests/architectural/test_ci_collection_completeness.py:352
+  claim: "The new WP04 regression file carries no pytestmark at all (every sibling file in tests/dossier/\
+    \ carries `pytestmark = [pytest.mark.unit, pytest.mark.fast]` or similar). Verified empirically: `pytest\
+    \ tests/dossier/test_reexport_trim.py -m \"fast\"` and `-m \"git_repo or integration or architectural\"\
+    ` both deselect all 33 tests (0 collected either way). `tests/dossier` is only reachable through two\
+    \ CI jobs: fast-tests-core-misc's core-misc shard (filters `-m \"fast and not windows_ci and not regression\"\
+    `) and integration-tests-core-misc's misc shard (filters `-m \"... (git_repo or integration or architectural)\
+    \ ...\"`) \u2014 neither marker set matches, so both jobs skip every test in the file despite the\
+    \ directory being in their path lists. Running the repo's own completeness oracle (tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main)\
+    \ on the consolidated tree FAILS with exactly this file: \"33 of 40386 collected test NODES (1 files)\
+    \ run in NO job on a push to 'main'\". This is not hypothetical \u2014 it is a currently-red, mission-introduced\
+    \ failure of an existing architectural gate, and it means the very regression protection WP04 was\
+    \ written to add (guard against re-introducing the seven trimmed re-exports, guard against over-trimming\
+    \ an emit_* re-export) never actually runs in CI. The 33 assertions are logically sound (independently\
+    \ verified red-first below) but functionally inert.\n"
+  remediation: 'Add `pytestmark = [pytest.mark.unit, pytest.mark.fast]` to tests/dossier/test_reexport_trim.py,
+    matching every other file in that directory, then re-run tests/architectural/test_ci_collection_completeness.py
+    to confirm orphan_count returns to 0.
+
+    '
+  lens_group: tests
+- id: pr-contract-001
+  lens: contract
+  severity: 3
+  title: FR-007 hash-input path relativization and the FR-006 commit-subject change have no CHANGELOG
+    entry
+  evidence:
+  - code: docs/changelog/CHANGELOG.md:57
+  - code: src/specify_cli/analysis_report.py:186-266
+  - code: src/specify_cli/cli/commands/agent/mission_record_analysis.py:374
+  claim: 'Only the dossier re-export trim (#3677) got a CHANGELOG entry (line 57). Two other durable-contract
+    changes in this same diff are undocumented: (1) `collect_input_artifact_hashes`/`_artifact_hash_entry`
+    now write repo-relative paths (was absolute) into the `input_artifacts.*.path` field of the committed,
+    git-tracked `analysis-report.md` frontmatter -- a format change to a persisted artifact, and previously
+    a portability/ leakage defect (absolute local paths, including the operator''s home directory, committed
+    to repo history) that this PR silently fixes going forward; and (2) `record-analysis`''s emitted commit
+    subject changed from `"Add analysis report for mission {slug}"` to `"docs(record-analysis): record
+    analysis report for mission {slug}"` (#3678/FR-006), a message any git-history tooling or ignore-list
+    keyed on the old literal would miss. Neither is mentioned anywhere in the CHANGELOG diff. This repo''s
+    own CHANGELOG discipline is otherwise exhaustive -- every other entry in this same "Unreleased" section,
+    including internal-only fail-loud fixes, carries an explicit Before/After writeup -- so the omission
+    is a real traceability gap for an operator or downstream tooling maintainer scanning the changelog
+    for "did the analysis-report.md format change".
+
+    '
+  remediation: 'Add a CHANGELOG entry (or fold into the existing #3677 entry, renamed to cover the whole
+    mission) documenting: the `input_artifacts.*.path` field is now repo-relative for all four hash-input
+    keys (spec/plan/tasks/ charter), not just charter; `write_analysis_report` now raises `PathRelativizationError`
+    (a subclass of `AnalysisReportError`) if a hash-input path cannot be relativized, while `check_analysis_report_current`
+    catches it and reports `ok=False`/stale instead of raising; and the `record-analysis` commit subject
+    is now conventional-commit-shaped.
+
+    '
+  lens_group: contract
+- id: pr-tests-002
+  lens: tests
+  severity: 1
+  title: "Non-blocking note \u2014 commitlint compliance evidence is asserted only via an offline regex\
+    \ proxy, not the real commitlint binary, inside the pinned test"
+  evidence:
+  - code: tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py:330
+  claim: "The module comment states the authoritative commitlint invocation was run manually during the\
+    \ WP and is not re-encoded as a pytest function (correctly, since it needs subprocess/network access\
+    \ excluded by the unit/fast markers this module uses). This is a reasonable, explicitly justified\
+    \ tradeoff and not a defect \u2014 noted only because the lens brief asked whether the real captured\
+    \ message is checked (it is, confirmed by revert-and-see) versus commitlint itself (it is not, by\
+    \ design, with the reasoning documented in-file).\n"
+  remediation: 'None required. Optional: a follow-up could add a quarantined/opt-in subprocess test that
+    runs real commitlint against a captured message, if the maintainers want CI-native evidence beyond
+    the WP report.
+
+    '
+  lens_group: tests
+counts:
+  total: 3
+  by_severity:
+    '4': 1
+    '3': 1
+    '2': 0
+    '1': 1
+dedup_note: "R2 bookkeeping: 3 raw findings from 3 lens groups; no cross-lens duplicates \u2014 each names\
+  \ a distinct surface (CI collection, changelog coverage, commitlint evidence method). Nothing merged,\
+  \ nothing dropped."

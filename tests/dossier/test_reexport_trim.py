@@ -22,6 +22,8 @@ import importlib
 
 import pytest
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 # The seven type re-exports removed from specify_cli.dossier's public
 # namespace by #3677 / WP04. These remain importable directly from
 # spec_kitty_events -- the charter's declared canonical external contract

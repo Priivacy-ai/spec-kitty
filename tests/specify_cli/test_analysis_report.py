@@ -438,12 +438,25 @@ def test_write_analysis_report_raises_on_unrelativizable_path(tmp_path):
     unrelated_repo_root = tmp_path / "unrelated-repo-root"
     unrelated_repo_root.mkdir()
 
-    with pytest.raises(AnalysisReportError):
+    with pytest.raises(AnalysisReportError) as exc_info:
         write_analysis_report(
             feature_dir=feature_dir,
             repo_root=unrelated_repo_root,
             body="# Report\n\nPASS\n",
         )
+
+    # pr-fresh-001: the raised message must stay diagnosable WITHOUT embedding
+    # either absolute path -- this mission exists to stop local paths
+    # (/home/<user>/...) leaking out of spec-kitty, and this fail-loud path is
+    # an operator-visible surface (CLI error output, CI logs on a public repo)
+    # just like the committed artifact channel WP01 already closed. Assert
+    # both halves: no absolute-path leak, and the message still names the
+    # failing artifact so it stays debuggable.
+    message = str(exc_info.value)
+    assert str(feature_dir) not in message
+    assert str(unrelated_repo_root) not in message
+    assert str(tmp_path) not in message
+    assert "spec.md" in message
 
 
 def test_check_analysis_report_current_reports_relativization_failure_without_raising(tmp_path):
