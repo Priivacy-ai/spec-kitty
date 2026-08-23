@@ -7,14 +7,17 @@ The ADR is self-sufficient only if it contains all items below.
 
 ## 1. Decision and effectiveness
 
-- `charter` replaces `doctrine` throughout the repository outside the immutable `kitty-specs/` historical
-  archive, and in completed installations/projects.
+- `charter` replaces `doctrine` throughout the repository outside the four immutable historical-record
+  roots, and in completed installations/projects.
 - ADR acceptance records intent; M1/I1 makes it effective by updating the Charter/glossary authority graph.
 - 3.x permits only registered hidden/warning aliases. M6/4.0 removes them and requires zero current-tree
-  content/pathname hits outside the single fixed exclusion root `kitty-specs/`.
-- The two fixed exclusions are Git object history outside `HEAD` and the immutable `kitty-specs/`
-  historical-archive root (`DM-01M0NMS9WPH33EPFCJQRTQVNSA`): no mission slug, directory, or file under it is
-  renamed or edited by any wave. The root is an audit boundary, not a class, allowlist, or baseline.
+  content/pathname hits outside the four fixed exclusion roots.
+- The two fixed exclusion kinds are Git object history outside `HEAD` and the four immutable
+  historical-record roots — `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`,
+  `.kittify/missions/` (`DM-01M0NMS9WPH33EPFCJQRTQVNSA`, amended by `DM-01M0P6C8C7Q6SPBT412V39RPN0` to add
+  the three record roots alongside the archive): no pre-existing mission slug, directory, or file under any
+  of the four is renamed or edited by any wave (runtime may keep appending new records). Each root is an
+  audit boundary, not a class, allowlist, or baseline.
 
 ## 2. Canonical vocabulary
 
@@ -33,12 +36,12 @@ The ADR records this narrow exception, effective at I1:
 > For program `retire-doctrine-term-01M0JMK9`, complete current-tree terminology extinction supersedes
 > User Customization Preservation only to the extent necessary to eliminate the retired pathname after
 > preserving its content at the canonical destination, and supersedes historical-current-tree
-> immutability for ADRs, docs archives, evidence, fixtures, and filenames outside `kitty-specs/`. Divergent
-> destination content blocks before destructive action; the operator resolves it. Git object history and
-> the `kitty-specs/` archive are unchanged.
+> immutability for ADRs, docs archives, evidence, fixtures, and filenames outside the four fixed
+> exclusion roots. Divergent destination content blocks before destructive action; the operator resolves
+> it. Git object history and the four fixed exclusion roots are unchanged.
 
-This exception authorizes no data loss, silent overwrite, audit narrowing beyond the fixed `kitty-specs/`
-root, non-terminology cleanup, or any edit/rename under `kitty-specs/`.
+This exception authorizes no data loss, silent overwrite, audit narrowing beyond the four fixed exclusion
+roots, non-terminology cleanup, or any edit/rename of a pre-existing path under any of the four.
 
 ## 4. Complete scope and owners
 
@@ -51,12 +54,12 @@ root, non-terminology cleanup, or any edit/rename under `kitty-specs/`.
 | CLI/serialized/API/config/workflow/distribution metadata | exhaustive internal+public topology map | M2, aliases M6 |
 | `.kittify/doctrine/` project overlay root | `.kittify/charter-packs/`; preserve data, conflict blocks, old root absent on completion | M3, old reader M6 |
 | skills/profiles/directives/prompts/generated/installed/shared assets | canonical IDs and paths; completed migration leaves no old path | M4, aliases M6 |
-| all remaining current-tree prose/history/ADR/docs/archive/evidence and filenames/referrers outside `kitty-specs/` | rewrite/rename in checked-out tree; a referrer citing an archive path containing the token is recited by `mission_id`/mid8 or a token-free path, never by changing the archive | M5 |
-| `kitty-specs/` historical archive (all missions, including this one) | immutable: no slug/directory/file rename or edit; excluded from both audits by the one fixed pathspec | none (fixed exclusion root) |
+| all remaining current-tree prose/history/ADR/docs/archive/evidence and filenames/referrers outside the four fixed exclusion roots | rewrite/rename in checked-out tree; a referrer citing an archive path containing the token is recited by `mission_id`/mid8 or a token-free path, never by changing the archive | M5 |
+| `kitty-specs/` historical archive (all missions, including this one), plus the three immutable historical-record roots `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/` | immutable: no pre-existing slug/directory/file under any of the four roots is renamed or edited; runtime may keep appending new records; excluded from both audits by four independent fixed pathspecs | none (fixed exclusion roots) |
 | all compatibility aliases/keys/paths/controls/fixtures | delete, replace negative fixtures with numeric-byte construction | M6 |
 
 No non-public, internal, historical, intentional-test, generated, metadata, or current-tree pathname
-exemption exists outside the fixed `kitty-specs/` root.
+exemption exists outside the four fixed exclusion roots.
 
 ## 5. Fixed seams
 
@@ -126,9 +129,10 @@ Named tests: `test_answers_migration_preserves_unknown_keys_and_all_answers`,
 The new ADR supersedes the terminology portion of
 `2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md`; resolution mechanics survive.
 WP01 may update status/pointer first. M5 later rewrites/renames this ADR, all other matching ADRs, docs
-archives, evidence, and referrers in current `HEAD` outside `kitty-specs/` under the explicit override.
-Their old bytes remain only in Git history. Nothing in the current tree outside the fixed `kitty-specs/`
-archive root is protected from the M5/M6 zero gate; that root is byte-identical across all waves.
+archives, evidence, and referrers in current `HEAD` outside the four fixed exclusion roots under the
+explicit override. Their old bytes remain only in Git history. Nothing in the current tree outside the
+four fixed exclusion roots is protected from the M5/M6 zero gate; those four roots are byte-identical
+across all waves for every pre-existing path.
 
 ## 8. Guard and exact terminal audit
 
@@ -138,16 +142,17 @@ baseline/allowlist machinery, then constructs the token from numeric bytes and r
 
 - at the repository toplevel only (`git rev-parse --show-prefix` empty, else audit error): forced-text
   case-insensitive `git grep` over all `HEAD` blobs with the `:(top)`-anchored pathspec
-  `':(top)' ':(top,exclude)kitty-specs/'`: count 0;
-- NUL-safe case-insensitive `git ls-tree -r -z --full-tree --name-only HEAD`, dropping `kitty-specs/`
-  paths after the rc check: pathname count 0;
+  `':(top)' ':(top,exclude)kitty-specs/' ':(top,exclude).kittify/migrations/mission-state/quarantine/' ':(top,exclude)kitty-ops/' ':(top,exclude).kittify/missions/'`: count 0;
+- NUL-safe case-insensitive `git ls-tree -r -z --full-tree --name-only HEAD`, dropping `kitty-specs/`,
+  `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, and `.kittify/missions/` paths after the
+  rc check: pathname count 0;
 - every `120000` (symlink) entry: target string read via `git cat-file blob` and audited: count 0
   (`test_symlink_target_audited`);
 - a second content pass over text blobs after NFKC normalisation and stripping Unicode `Cf`/soft-hyphen/
   zero-width characters: count 0 (`test_no_homoglyph_or_format_char_evasion`).
 
 Negative tests construct the same numeric byte sequence without storing the token. Any hit, exception,
-deferral, missing Charter file, omitted archive exclusion, any other narrowed root, non-toplevel cwd, or
+deferral, missing Charter file, omitted exclusion root, any other narrowed root, non-toplevel cwd, or
 audit error blocks 4.0 (`mutation_subdir_cwd_cannot_pass_zero` is a named mutation).
 
 M6 must create/use the mandatory tracked, token-literal-free entrypoint
@@ -166,6 +171,6 @@ final result tree; no earlier working-tree or parent-commit zero result can auth
 - no product rename in this planning mission;
 - no runtime managed-path ledger/state architecture;
 - no silent data overwrite or old-root survival after completed migration;
-- no X1/X2/X3 terminal class, allowlist, or current-tree historical carve-out other than the fixed
-  `kitty-specs/` archive root;
+- no X1/X2/X3 terminal class, allowlist, or current-tree historical carve-out other than the four fixed
+  exclusion roots;
 - no unresolved topology collision when M2 begins editing.
