@@ -2,10 +2,12 @@
 
 **Mission**: `retire-doctrine-term-01M0JMK9` · **WP03** · **Inputs**: accepted ADR
 `docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md`, `inventory.md` (frozen base
-`2621a56d06b9ae4e7da07ee206879c30a4d8b363`, TSV `3631531b…`, 49,050 rows, OC-01…OC-49, CR-01…CR-08), `data-model.md`,
+`2621a56d06b9ae4e7da07ee206879c30a4d8b363`, TSV `d8a09ef1…`, 48,964 rows, OC-01…OC-49, CR-01…CR-08), `data-model.md`,
 `contracts/stacked-plan-schema.md`, `contracts/operator-surface-map-schema.md`, `contracts/inventory-schema.md`,
 `contracts/adr-content-contract.md` · **Governing decisions**: `DM-01M0NDJ33GCKATG3H4BK4PAMNG` (full current-tree
 extinction), `DM-01M0NMS9WPH33EPFCJQRTQVNSA` (`kitty-specs/` immutable archive = single fixed exclusion root),
+`DM-01M0P6C8C7Q6SPBT412V39RPN0` (amends `DM-01M0NMS9WPH33EPFCJQRTQVNSA`: four fixed exclusion roots —
+`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`),
 `DM-01M0NMSD60JYG7K7V5MJCKJ3P8` (ephemeral manifest) · **Updated**: 2026-08-23
 
 This document fixes the order, the invariants, the transition guard, the per-surface verifiers, the evidence model, and
@@ -32,21 +34,30 @@ compatibility rows annotated `CR-##` (which M6 removes).
 | I1→I2 **M2** | OC-03 `.kittify/config.yaml` `doctrine.org.packs` block 2 (CR-04 seam) · OC-12 CLI 633 · OC-13 tracker 40 · OC-14 old-package build 56 · OC-15 old-package schemas/templates 48 · OC-16 `src/doctrine/**` code 815 · OC-17 `src/charter/**` consumers 1,657 · OC-18 generated manifests 54 · OC-19 specify_cli doctrine modules 312 · OC-20 other specify_cli consumers 413 · OC-21 kernel/runtime/glossary/mission_runtime 110 · OC-22 fixtures/controls/baselines 641 · OC-23 architectural gates 1,566 · OC-24 test code 6,076 · OC-25 CI workflows 173 · OC-27 scripts 51 · OC-28 root build/lint config 67 · OC-41 skills-tree pathnames 83 (relocate) · OC-42 `src/doctrine/**` pathnames 181 · OC-43 test pathnames 332 · OC-44 code pathnames 30 · OC-48 repo-ops pathnames 4 | **13,344** | collision with existing `src/charter/` modules (two-module split — `src/charter/offering/` + `src/charter/activation/` — boundary gates renamed, dependency direction preserved (`offering` MUST NOT import `activation`), never merged into facade modules); the top-level `LayerRule` losing the ability to express the offering↛activation edge once both live under one `charter` package (mitigated by re-homing `test_layer_rules.py`/`test_kernel_no_doctrine_import.py` and a new intra-package AST gate); import/build/wheel closure broken mid-slice; `files("doctrine")` resolution broken by a package-named shim; architectural gates (OC-23) and baselines (OC-22) red-wash or silently retarget | I2 |
 | I2→I3 **M3** | OC-04 `.kittify/doctrine/**` + overrides 55 · OC-08 pack structure/manifests 42 · OC-45 overlay pathnames 14 | **111** | user-data loss or silent overwrite during root move; old root surviving a "completed" migration | I3 |
 | I3→I4 **M4** | OC-06 built-in agent assets 171 · OC-07 built-in mission prompts 51 · OC-09 skill sources (IDs/content) 253 · OC-10 host agent-dir prompts 12 · OC-11 generated profile/skill API docs 75 · OC-46 `doctrine-daphne` / `018-…` pathnames 2 | **564** | installed/shared/override asset IDs derived by wildcard instead of the fixed mapping; old installed path after completion; generated docs not regenerated; the `018-…` activation ID carried forward from M1 must be re-activated through the engine | I4 |
-| I4→I5 **M5** | OC-26 serialized docs data 611 · OC-29 ADRs 815 · OC-30 test-sanitation reports 27,990 · OC-31 plans/investigations 2,960 · OC-32 docs prose 1,660 · OC-33 research-outputs/kitty-ops 284 · OC-34 memory/evidence/mission-state history 320 · OC-35 root repo docs 14 · OC-47 docs pathnames 72 · OC-49 history pathnames 3 | **34,729** | a referrer to an archive path changed by editing the archive (forbidden); dangling links after file renames; generated docs data (OC-26) left stale | I5 |
+| I4→I5 **M5** | OC-26 serialized docs data 611 · OC-29 ADRs 815 · OC-30 test-sanitation reports 27,990 · OC-31 plans/investigations 2,960 · OC-32 docs prose 1,660 · OC-33 research-outputs/kitty-ops 262 · OC-34 memory/evidence/mission-state history 259 · OC-35 root repo docs 14 · OC-47 docs pathnames 72 | **34,643** | a referrer to an archive path changed by editing the archive (forbidden); dangling links after file renames; generated docs data (OC-26) left stale | I5 |
 | I5→I6 **M6** | no frozen-base class: every later-created compatibility product/control/fixture/baseline coordinate (CR-01…CR-08 products, OC-22-style control files created after the base, transition fingerprints), plus any detector literal | **0 base rows** | a surviving allowlist/baseline/exception masquerading as zero; an entrypoint with a different pathspec; evidence not bound to the final tree | I6 |
 
-Arithmetic: 302 + 13,344 + 111 + 564 + 34,729 + 0 = **49,050** = all TSV rows; the six retire sets are pairwise
-disjoint and contain every OC-01…OC-49 exactly once (OC-05 and OC-50 are declared placeholders with zero rows). Per
-surface this matches `inventory.md` §2: S1 633 (M2) · S2 222 (M1) · S3 34,118 (M5) · S4 572 (OC-41 → M2; rest → M4) ·
-S5 82 (OC-02 → M1; OC-03 → M2) · S6 111 (M3) · S7 12,189 (M2) · S8 788 (OC-11 → M4; OC-15/OC-18 → M2; OC-26 → M5) ·
-S9 295 (M2) · S10 40 (M2). **Re-derived 2026-08-23** after the whole-mission squad's live-code check
-(`squad-findings-whole-mission.md`): OC-03 moved M1→M2 (its rows are the `doctrine.org.packs` CR-04 seam, not the
-selection key, which is OC-02 `charter.yaml:2,19`), OC-41 moved M4→M2 (the skills tree is `doctrine` package data
-resolved by `src/specify_cli/skills/registry.py` and gated by `release.yml:219-243`; M2 relocates it, M4 keeps the
-IDs), and CR-07 introduction moved M3→M2 (code literals of the old root). Prior figures 304 / 13,259 / 111 / 647 are
-the ones WP05 and the mission review reproduced; the TSV and hash are unchanged. `stacked-plan.md` may split a class
-further (a new predicate above the existing rule) but may not move rows across these transition boundaries without
-re-deriving this table.
+Arithmetic: 302 + 13,344 + 111 + 564 + 34,643 + 0 = **48,964** = all TSV rows; the six retire sets are pairwise
+disjoint and contain every OC-01…OC-49 exactly once (OC-05 and OC-50 are declared placeholders with zero rows,
+and OC-49 now has zero surviving rows — see below). Per surface this matches `inventory.md` §2: S1 633 (M2) ·
+S2 222 (M1) · S3 34,032 (M5) · S4 572 (OC-41 → M2; rest → M4) · S5 82 (OC-02 → M1; OC-03 → M2) · S6 111 (M3) ·
+S7 12,189 (M2) · S8 788 (OC-11 → M4; OC-15/OC-18 → M2; OC-26 → M5) · S9 295 (M2) · S10 40 (M2). **Re-derived
+2026-08-23** after the whole-mission squad's live-code check (`squad-findings-whole-mission.md`): OC-03 moved
+M1→M2 (its rows are the `doctrine.org.packs` CR-04 seam, not the selection key, which is OC-02
+`charter.yaml:2,19`), OC-41 moved M4→M2 (the skills tree is `doctrine` package data resolved by
+`src/specify_cli/skills/registry.py` and gated by `release.yml:219-243`; M2 relocates it, M4 keeps the IDs), and
+CR-07 introduction moved M3→M2 (code literals of the old root). Prior figures 304 / 13,259 / 111 / 647 are the
+ones WP05 and the mission review reproduced; the TSV and hash were unchanged by that re-derivation.
+**Re-derived again 2026-08-23** after `DM-01M0P6C8C7Q6SPBT412V39RPN0` resolved as option 1: the immutable
+historical-record exclusion set grew from the single `kitty-specs/` root to four fixed roots
+(`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`). The
+three new roots remove 83 content + 3 pathname rows from M5's owned set — OC-33 284→262 (−22, the `kitty-ops/`
+portion), OC-34 320→259 (−61, the `.kittify/migrations/mission-state/quarantine/` (54) and `.kittify/missions/`
+(7) portions), OC-49 3→0 (all 3 were quarantine pathnames; the OC-49 rule itself survives for any future
+non-excluded match, but carries zero rows at this base) — and the TSV, its SHA-256, and all counts changed
+accordingly (§8 amendment in `inventory.md`; new TSV `d8a09ef1…`, 48,964 rows). `stacked-plan.md` may split a
+class further (a new predicate above the existing rule) but may not move rows across these transition
+boundaries without re-deriving this table.
 
 ### 1.3 Per-wave content of the transition
 
@@ -86,19 +97,21 @@ re-deriving this table.
    re-activates the carried-forward `018-…` ID through `charter activate`/`deactivate`; regenerates
    `docs/api/agent_profiles|skills/**`; introduces CR-08.
 5. **M5** rewrites/renames every remaining current-tree prose/history/ADR/docs/archive/evidence occurrence, filename,
-   and referrer **outside `kitty-specs/`** — including the program's own ADR files under `docs/adr/` — and
-   regenerates serialized docs data (OC-26). `kitty-specs/` stays byte-identical; a referrer that cites an archive
-   path containing the token is re-cited by `mission_id`/mid8 or a token-free path. No CR is introduced (prose has no
-   compatibility channel). The blind-rewrite rule applies to the retired term as the *domain* word only: a genuine
-   English-word occurrence inside an external quotation, citation, or a historical record's title/body attributed to
-   a source this program did not author is preserved (quote-preserving paraphrase-with-attribution, or excluded with
-   a recorded rationale), never blind-rewritten — distinct from the already design-accepted ADR-title anachronism. M5
-   also runs a bounded pre-edit gate before its first prose edit (mirroring M2's topology-map gate, not a design
-   question): a proposed rename/re-cite map plus a sampled-diff review over OC-30/OC-31.
+   and referrer **outside the four fixed exclusion roots** — including the program's own ADR files under `docs/adr/`
+   — and regenerates serialized docs data (OC-26). All four roots stay byte-identical for pre-existing paths
+   (`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`; runtime may
+   keep appending new records to the latter three); a referrer that cites an archive path containing the token is
+   re-cited by `mission_id`/mid8 or a token-free path. No CR is introduced (prose has no compatibility channel). The
+   blind-rewrite rule applies to the retired term as the *domain* word only: a genuine English-word occurrence inside
+   an external quotation, citation, or a historical record's title/body attributed to a source this program did not
+   author is preserved (quote-preserving paraphrase-with-attribution, or excluded with a recorded rationale), never
+   blind-rewritten — distinct from the already design-accepted ADR-title anachronism. M5 also runs a bounded pre-edit
+   gate before its first prose edit (mirroring M2's topology-map gate, not a design question): a proposed
+   rename/re-cite map plus a sampled-diff review over OC-30/OC-31.
 6. **M6** deletes every CR product/control/tombstone, alias, key, route, import shim, old-root reader/migrator,
    redirect, warning, distribution alias, compatibility fixture, transition fingerprint/baseline/allowlist record,
    replaces negative fixtures with numeric-byte construction, creates/uses `scripts/audit_retired_term_zero.py`, and
-   passes both exact zero audits with the fixed `kitty-specs/` exclusion only (§3.4, §4).
+   passes both exact zero audits with the four fixed exclusion roots only (§3.4, §4).
 
 ### 1.4 Invariants I0–I6 (verbatim `data-model.md` §6)
 
@@ -109,16 +122,17 @@ re-deriving this table.
 | I2 | Frozen internal+public topology map fully applied; `src/doctrine/` and every live code/internal/test/build pathname or symbol hit gone; registered 3.x aliases only. |
 | I3 | Project overlay data verified at `.kittify/charter-packs/`; completed migrations have no `.kittify/doctrine/` root; conflicts remain pre-completion blockers. |
 | I4 | Canonical skills/profiles/directives/prompts/generated/installed assets work; completed migrations have no old-named installed path; registered 3.x aliases only. |
-| I5 | All remaining current-tree prose/history/ADR/docs/archive/evidence content, filenames, and referrers outside `kitty-specs/` use canonical vocabulary; `kitty-specs/` is byte-identical to its pre-M5 state. Git object history and that archive alone retain old bytes. |
-| I6 | Every CR/alias/key/path/control/fixture removed; transition baselines/allowlists deleted; mandatory `scripts/audit_retired_term_zero.py` check `terminology-zero-current-tree` reports checked content/path counts = 0 (fixed `kitty-specs/` exclusion only) in external stdout attestation for one final commit/tree and is rerun by CI/release on the result tree. |
+| I5 | All remaining current-tree prose/history/ADR/docs/archive/evidence content, filenames, and referrers outside the four fixed exclusion roots use canonical vocabulary; each of the four roots is byte-identical to its pre-M5 state for every pre-existing path. Git object history and those four roots alone retain old bytes. |
+| I6 | Every CR/alias/key/path/control/fixture removed; transition baselines/allowlists deleted; mandatory `scripts/audit_retired_term_zero.py` check `terminology-zero-current-tree` reports checked content/path counts = 0 (the four fixed exclusion roots only) in external stdout attestation for one final commit/tree and is rerun by CI/release on the result tree. |
 
 There is no internal, historical, fixture, generated, metadata, test, supported-surface, or X1/X2/X3 terminal state.
-The two fixed exclusions are Git object history outside `HEAD` and the immutable `kitty-specs/` archive root; the root
-is an audit boundary, never a class, allowlist, or baseline. Reading rule for I1–I5 ("M1 hits gone", "no live …
+The two fixed exclusion kinds are Git object history outside `HEAD` and the four immutable historical-record roots
+(`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`); each root is an
+audit boundary, never a class, allowlist, or baseline. Reading rule for I1–I5 ("M1 hits gone", "no live …
 hit"): a wave's invariant is stated over the rows **that wave or an earlier wave owns**; rows owned by later waves may
 still be present at that level and are listed as carried-forward in the wave's occurrence map (e.g. I1 leaves the
 generated `charter.yaml` catalog summaries produced by M2-owned code and the `018-…` activation ID renamed by M4 in
-place). I6 is absolute: zero rows of any owner outside the fixed root.
+place). I6 is absolute: zero rows of any owner outside the four fixed roots.
 
 ## 2. Transition guard and compatibility lifecycle (T010)
 
@@ -194,7 +208,7 @@ tests assert the exact zero audits and the absence of every compatibility catego
 | M2 | map set-equality (rows == M2 manifest hits == producers/consumers, CLI projection == `surface_kind=cli` rows incl. nested routes, map hash recorded); private + public topology both mapped; `src/charter/offering/` + `src/charter/activation/` named and every `src/charter/` collision (`__init__.py`, `pack_paths.py`, `provenance.py`, `resolver.py`, `template_catalog.py`, `versioning.py`, `errors.py`, `exceptions.py`, `primitives.py`; `Directive`, `DoctrineService`, `canonical_yaml`) `merge-existing` or exact `relocate` **before first edit**; boundary gates renamed and green; the new intra-package `charter.offering`-must-not-import-`charter.activation` AST gate green; `test_layer_rules.py`/`test_kernel_no_doctrine_import.py` re-homed and green; every `files("doctrine")` site and `.kittify/doctrine` code literal mapped; skills tree relocated with registry/wheel/release-gate retargets; import/build/wheel/test closure after each dependency slice; `src/doctrine/` directory absent; live architectural baselines retargeted, not deleted; CR-02…CR-07 within budget; later-wave rows carried forward and listed |
 | M3 | absent destination (copy/move, verify, remove old); identical destination (verify, remove old); divergent destination (hard-fail, both intact, operator resolves); interruption before verification (rollback from backup, no completion marker); completed migration has no `.kittify/doctrine/` root; canonical writers never write the old root |
 | M4 | same six cases for every source/generated/installed/shared/override asset; IDs/paths from the fixed mapping only; `docs/api/agent_profiles|skills/**` regenerated; no old-named installed path after completion |
-| M5 | bounded pre-edit gate (rename/re-cite map + OC-30/OC-31 sampled-diff review) approved before the first prose edit; quotation/homograph-fidelity rule applied (external quotations/citations/historical-record titles-bodies preserved with attribution or excluded-with-rationale, never blind-rewritten); filename/referrer closure outside `kitty-specs/` (no dangling renamed reference; link check scoped `:(exclude)kitty-specs/` — the archive cites renamed paths by design; `docs/adr/3.x/index.md` and page inventory regenerated by the freshener); archive gate in its §3.5 test form; archive referrers re-cited by `mission_id`/mid8 or token-free path; OC-26 serialized docs data regenerated; OC-30 `docs/reports/test-sanitation/**` rename-in-place with `tests/architectural/test_marker_job_completeness.py` green; serialized historical records handled per the resolved `DM-01M0P6C8C7Q6SPBT412V39RPN0` |
+| M5 | bounded pre-edit gate (rename/re-cite map + OC-30/OC-31 sampled-diff review) approved before the first prose edit; quotation/homograph-fidelity rule applied (external quotations/citations/historical-record titles-bodies preserved with attribution or excluded-with-rationale, never blind-rewritten); filename/referrer closure outside the four fixed exclusion roots (no dangling renamed reference; link check scoped with a `:(exclude)<root>` pathspec per root — the archive cites renamed paths by design; `docs/adr/3.x/index.md` and page inventory regenerated by the freshener); archive gate in its §3.5 test form; archive referrers re-cited by `mission_id`/mid8 or token-free path; OC-26 serialized docs data regenerated; OC-30 `docs/reports/test-sanitation/**` rename-in-place with `tests/architectural/test_marker_job_completeness.py` green; serialized historical records resolved per `DM-01M0P6C8C7Q6SPBT412V39RPN0` (option 1): quarantine `status.events.jsonl`, `kitty-ops/*.jsonl`, and `.kittify/missions/**/retrospective.yaml` join the fixed exclusion set — OC-33/OC-34/OC-49 no longer include them |
 
 ### 3.4 Mandatory M6 cases
 
@@ -205,9 +219,11 @@ tests assert the exact zero audits and the absence of every compatibility catego
 - no exception machinery of any kind survives (no baseline input, no allowlist file, no skip marker, no X value);
 - exact zero gate: the inventory contract's checked subprocess audits in `mode=terminal` over the final commit, **run
   at the repository toplevel only** (`git rev-parse --show-prefix` empty, else audit error), with the `:(top)`-anchored
-  pathspec `':(top)' ':(top,exclude)kitty-specs/'` and `ls-tree --full-tree` + prefix drop — content raw rc 1 + empty
-  stdout, pathname raw rc 0 + zero matches, symlink targets zero, normalised-content pass zero, wrapper exit 0; an
-  entrypoint that omits that exclusion, adds any other, or accepts a subdirectory cwd fails;
+  pathspec `':(top)' ':(top,exclude)kitty-specs/' ':(top,exclude).kittify/migrations/mission-state/quarantine/'
+  ':(top,exclude)kitty-ops/' ':(top,exclude).kittify/missions/'` and `ls-tree --full-tree` + four-root prefix drop —
+  content raw rc 1 + empty stdout, pathname raw rc 0 + zero matches, symlink targets zero, normalised-content pass
+  zero, wrapper exit 0; an entrypoint that omits any of the four exclusion roots, adds any other, or accepts a
+  subdirectory cwd fails;
 - named failure cases `test_content_audit_accepts_rc1_empty_only`, `test_content_audit_rejects_git_rc_gt1`,
   `test_path_audit_propagates_ls_tree_failure`, `test_symlink_target_audited`,
   `test_no_homoglyph_or_format_char_evasion`, `mutation_git_audit_failure_cannot_pass_zero`,
@@ -225,13 +241,19 @@ tests assert the exact zero audits and the absence of every compatibility catego
 ### 3.5 Archive immutability check (every wave)
 
 Each wave's merge gate includes `test_archive_root_byte_identical`, stated in the executable form of
-`stacked-plan.md` §0 (DD-011, test form fixed 2026-08-23): the wave never edits, renames, or deletes a pre-existing
-path under `kitty-specs/`. **Test**: `git diff --name-status $(git merge-base <target-branch> <wave-tip>) <wave-tip>
--- kitty-specs/` contains only `A` entries, all under the wave's own `kitty-specs/<wave-slug>-<mid8>/` (each M1–M6
-wave is itself a Spec Kitty mission; during this planning mission only, this mission's own WP outputs). A whole-range
-base→result diff on the target branch is **not** the test — unrelated missions routinely modify their own pre-existing
-archive directories between a wave's base and its landing, and that is not the wave's doing. Any `M`/`D`/`R` entry or
-an `A` outside the wave's own directory blocks the wave; the terminal audit still excludes the whole root.
+`stacked-plan.md` §0 (DD-011, test form fixed 2026-08-23; extended 2026-08-23 to all four fixed exclusion roots
+per `DM-01M0P6C8C7Q6SPBT412V39RPN0`): the wave never edits, renames, or deletes a pre-existing path under any of
+`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, or `.kittify/missions/`. **Test**:
+for each of the four roots, `git diff --name-status $(git merge-base <target-branch> <wave-tip>) <wave-tip> --
+<root>` contains only `A` entries — for `kitty-specs/`, all under the wave's own
+`kitty-specs/<wave-slug>-<mid8>/` (each M1–M6 wave is itself a Spec Kitty mission; during this planning mission
+only, this mission's own WP outputs); for the three record roots, any new path is a runtime-appended record
+(quarantine `status.events.jsonl`, `kitty-ops/*.jsonl`, `retrospective.yaml`), never a rename/edit of an
+existing one. A whole-range base→result diff on the target branch is **not** the test — unrelated missions
+routinely modify their own pre-existing archive directories or append their own records between a wave's base
+and its landing, and that is not the wave's doing. Any `M`/`D`/`R` entry, or an `A` outside the wave's own
+`kitty-specs/` directory or outside the runtime-record shape of the three record roots, blocks the wave; the
+terminal audit still excludes all four roots in full.
 
 ## 4. Evidence and rollback (T012)
 
@@ -252,7 +274,7 @@ guard baseline. Ephemeral TSVs are regenerate-and-match evidence (`DM-01M0NMSD60
 | M2 | I1 tree; OC-03, OC-12…OC-28 (M2 rows), OC-41/42/43/44/48; CR-02…CR-07; `contracts/operator-surface-map-schema.md`; live boundary gates incl. `test_layer_rules.py`/`test_kernel_no_doctrine_import.py`; skills registry/wheel/release gate | frozen `canonical-operator-surface-map.md` + `canonical-cli-route-map.md`; `src/doctrine/**` split into `src/charter/offering/` + `src/charter/activation/` with gates renamed and a new intra-package offering↛activation AST gate; `test_layer_rules.py`/`test_kernel_no_doctrine_import.py` re-homed; skills tree relocated; `.kittify/doctrine` literals renamed + dual-root reader (CR-07); baselines retargeted; dormant manifest disposed; renamed code/tests/build/CLI/API/config/workflow/metadata; CR-02…07 products/controls; occurrence map incl. carried-forward M3/M4/M5 values | `test_topology_map_set_equality_and_closure`, `test_cli_route_map_set_equal_and_canonical`, `test_charter_offering_does_not_import_activation`, CR-02…07 tests, renamed boundary gates, S8/S9/S10 verifiers, guard, archive check | no M1/M2-owned live executable/code hit or pathname outside registered CR; `src/doctrine/` absent; new AST gate green; map approved before first edit |
 | M3 | I2 tree; OC-04/08/45 (CR-07 reader already present) | `.kittify/charter-packs/` canonical root + verified migrated data; CR-07 exercised; occurrence map | `test_old_root_read_warns_and_migrates`, `test_completed_migration_has_no_old_root`, six migration cases, guard, archive check | completed fixtures/projects have no old root; conflicts block |
 | M4 | I3 tree; OC-06/07/09/10/11/46; CR-08; fixed ID mapping; carried-forward `018-…` activation ID | canonical source/generated/installed/shared agent assets (inside the tree M2 relocated); alias routing table; regenerated API docs; occurrence map | `test_agent_asset_ids_fixed_mapping_and_no_old_installed_path`, CR-08 tests, six migration cases, guard, archive check | completed installations have no old asset path; no M1–M4-owned row remains |
-| M5 | I4 tree; OC-26/29/30/31/32/33/34/35/47/49 + post-base rows the rules give M5; `test_marker_job_completeness.py`; resolved `DM-01M0P6C8C7Q6SPBT412V39RPN0` | canonical prose/history/ADR/docs/evidence files and names outside `kitty-specs/`; OC-30 rename-in-place; regenerated serialized docs data; occurrence map | `test_prose_history_closure_outside_archive`, docs freshener `--check`, link check scoped outside the archive, guard, archive check | M5-owned audit rows zero; no dangling renamed refs outside the archive; archive gate test form (§3.5) |
+| M5 | I4 tree; OC-26/29/30/31/32/33/34/35/47 (OC-49 has zero surviving rows at this base) + post-base rows the rules give M5; `test_marker_job_completeness.py`; resolved `DM-01M0P6C8C7Q6SPBT412V39RPN0` | canonical prose/history/ADR/docs/evidence files and names outside the four fixed exclusion roots; OC-30 rename-in-place; regenerated serialized docs data; occurrence map | `test_prose_history_closure_outside_archive`, docs freshener `--check`, link check scoped outside the four fixed exclusion roots, guard, archive check | M5-owned audit rows zero; no dangling renamed refs outside the four fixed exclusion roots; archive gate test form (§3.5) |
 | M6 | I5 tree; CR registry (all `active`/`closed-no-channel`); all later-created product/control coordinates | no aliases/keys/paths/controls/fixtures/program baselines/allowlists; numeric-byte negative tests; `scripts/audit_retired_term_zero.py` (toplevel-only, `:(top)`, `--full-tree`, symlink + normalised passes); external attestation; CI/release wiring + required check + 4.0 bump/CHANGELOG | §3.4 tests | checked content/path/symlink/normalised 0 bound to final commit/tree; CI/release rerun after any tree change; no earlier result authorizes publication |
 
 ### 4.3 Rollback
@@ -277,13 +299,15 @@ runtime reconciliation service. Any design that keeps the old root/path "registe
 
 Every inventory class OC-01…OC-49 and every CR-01…CR-08 has exactly one transition (§1.2), a named risk (§1.2), a
 named verifier (§3.1–§3.4), a guard rule (§2), and a rollback path (§4.3). No policy question remains open for M1, M3,
-M4 or M6; M2's single bounded gate is the pre-edit topology-map approval (which now also fixes the
+M4, M5, or M6; M2's single bounded gate is the pre-edit topology-map approval (which now also fixes the
 `src/charter/offering/` / `src/charter/activation/` split), and it cannot change scope, order, or the terminal
 zero rule; M5 similarly carries a bounded pre-edit gate (rename/re-cite map + OC-30/OC-31 sampled-diff review,
-mirroring M2's) that is not a design question, plus exactly one deferred
-operator decision (`DM-01M0P6C8C7Q6SPBT412V39RPN0`, serialized historical records) that must be resolved before M5 is
-specified — left deferred by operator decision; M6's single-fixed-`kitty-specs/`-exclusion terminal contract is
-therefore contingent on that resolution (§1.2 Options 1/3 would require a scoped re-author of the M6 audit contract;
-tracked in issue #3684) and is not represented as finalized here. I6 is equivalent to the exact audit results
-(content, pathname, symlink-target, normalised-content) over `HEAD` at the repository toplevel with the single fixed
-`kitty-specs/` exclusion — not a curated exception set.
+mirroring M2's) that is not a design question. The operator decision that previously gated M5's specification
+(`DM-01M0P6C8C7Q6SPBT412V39RPN0`, disposition of serialized historical records) is **resolved** (2026-08-23,
+option 1): tracked serialized runtime records keyed to immutable archive slugs or retired profile IDs join the
+fixed exclusion set alongside `kitty-specs/`, amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA`. M6's terminal contract
+is therefore final with **four** fixed exclusion roots — `kitty-specs/`,
+`.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/` — not contingent on any
+open decision (issue #3684 tracked the amendment this resolution addresses). I6 is equivalent to the exact
+audit results (content, pathname, symlink-target, normalised-content) over `HEAD` at the repository toplevel
+with the four fixed exclusion roots — not a curated exception set.
