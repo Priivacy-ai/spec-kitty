@@ -221,11 +221,9 @@ class MigrateLifecycleEnvelopeMigration(BaseMigration):
 
     migration_id = "migrate_lifecycle_envelope"
     description = (
-        "Rewrite every legacy 9-key lifecycle envelope row (ProjectInitialized, "
-        "MissionCreated, WPCreated, ...) on disk into F1's strict 14-key "
-        "envelope shape, across the project-level and every mission-level "
-        "event log, wrapping the identical event_type/payload pair "
-        "(F2-T1). Idempotent."
+        "Rewrite legacy 9-key lifecycle envelope rows on disk into F1's strict 14-key envelope shape "
+        "across the project-level and every mission-level event log, keeping each event_type/payload "
+        "pair identical (F2-T1). Idempotent."
     )
     target_version = "3.2.6rc2"
     runs_on_worktrees = False
