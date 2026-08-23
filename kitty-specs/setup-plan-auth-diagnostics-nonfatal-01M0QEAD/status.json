@@ -1,7 +1,7 @@
 {
-  "event_count": 9,
-  "last_event_id": "01M0R0RYSCG6T9GJP0R3BDP2G2",
-  "materialized_at": "2026-08-23T19:15:19.468288+00:00",
+  "event_count": 10,
+  "last_event_id": "01M0R0XKN0DE6TJ3E30NTVYEXJ",
+  "materialized_at": "2026-08-23T19:17:51.904273+00:00",
   "mission_number": "",
   "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
   "mission_type": "",
@@ -11,26 +11,26 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 1,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 2
   },
   "work_packages": {
     "WP01": {
       "actor": "codex",
       "agent": "codex",
-      "agent_profile": "implementer-ivan",
+      "agent_profile": "reviewer-renata",
       "agent_profile_version": "1.0",
       "force_count": 0,
-      "lane": "for_review",
-      "last_event_id": "01M0R0RYSCG6T9GJP0R3BDP2G2",
-      "last_transition_at": "2026-08-23T19:15:19.468288+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M0R0XKN0DE6TJ3E30NTVYEXJ",
+      "last_transition_at": "2026-08-23T19:17:51.904273+00:00",
       "model": "__resolved_model_absent__",
       "provider": "__resolved_provider_absent__",
-      "role": "implementer",
-      "shell_pid": 81656,
-      "shell_pid_created_at": "1787511796.951178",
+      "role": "reviewer",
+      "shell_pid": 92115,
+      "shell_pid_created_at": "1787512669.782428",
       "subtasks": {
         "T001": "done",
         "T002": "done",
@@ -58,7 +58,13 @@
       "provider": "__resolved_provider_absent__",
       "role": "implementer",
       "shell_pid": 81647,
-      "shell_pid_created_at": "1787511796.925753"
+      "shell_pid_created_at": "1787511796.925753",
+      "subtasks": {
+        "T009": "done",
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
     },
     "WP04": {
       "actor": "finalize-tasks",
