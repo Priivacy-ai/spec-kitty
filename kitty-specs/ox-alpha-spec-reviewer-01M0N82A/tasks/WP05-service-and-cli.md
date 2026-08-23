@@ -20,6 +20,7 @@ requirement_refs:
 - FR-010
 - FR-011
 - FR-012
+- FR-013
 - NFR-001
 - NFR-007
 planning_base_branch: codex/ox-alpha-spec-reviewer
