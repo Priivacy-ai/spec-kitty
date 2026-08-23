@@ -149,6 +149,40 @@ def test_local_outcome_reporter_preserves_complete_baseline_payload_and_exit(
     assert outcome.exit_code == exit_code
 
 
+def test_human_outcome_reporter_reconstructs_warning_from_closed_registry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Human rendering must not trust caller-provided diagnostic prose."""
+    sentinel = "RuntimeError token=human-secret ciphertext=isolated/human.session"
+    warning = HostedSyncDiagnostic(
+        code="SAAS_SYNC_AUTH_UNKNOWN",
+        severity=sentinel,
+        hosted_disposition=sentinel,
+        message=sentinel,
+        details={"reason": sentinel, "evidence": sentinel},
+        remediation=(sentinel,),
+    )
+    rendered: list[str] = []
+    monkeypatch.setattr(seam.console, "print", lambda value: rendered.append(str(value)))
+
+    seam._report_setup_plan_outcome(
+        seam.SetupPlanLocalOutcome(
+            payload={"result": "success"},
+            exit_code=0,
+            render_kind="success",
+        ),
+        diagnostics=(warning,),
+        json_output=False,
+        human_message="local-result",
+    )
+
+    assert rendered == [
+        "[yellow]Warning:[/yellow] Hosted sync was skipped because local authentication could not be evaluated; local setup-plan continued.",
+        "local-result",
+    ]
+    assert sentinel not in str(rendered)
+
+
 def test_hosted_effect_executor_refuses_every_intent_under_one_decision(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,

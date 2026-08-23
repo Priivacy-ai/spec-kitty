@@ -603,6 +603,20 @@ def test_allowing_decision_rejects_diagnostics_without_echo() -> None:
     assert "decision-secret" not in str(raised.value)
 
 
+def test_unrequested_decision_cannot_allow_hosted_effects() -> None:
+    with pytest.raises(ValueError) as raised:
+        HostedSyncDecision(False, True, ())
+
+    assert str(raised.value) == "unrequested hosted sync decision cannot allow effects"
+
+
+def test_requested_decision_cannot_allow_without_canonical_evidence() -> None:
+    with pytest.raises(ValueError) as raised:
+        HostedSyncDecision(True, True, ())
+
+    assert str(raised.value) == "allowing hosted sync decision requires canonical evidence"
+
+
 def test_wire_registry_contains_exactly_four_codes() -> None:
     assert set(hosted_adapter._DIAGNOSTIC_REGISTRY) == set(_WIRE_REGISTRY_EXPECTATIONS)
 

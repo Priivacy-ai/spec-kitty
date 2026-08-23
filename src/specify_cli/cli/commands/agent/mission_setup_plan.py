@@ -212,7 +212,10 @@ def _report_setup_plan_outcome(
         return
 
     for diagnostic in diagnostics:
-        console.print(f"[yellow]Warning:[/yellow] {diagnostic.message}")
+        # Human and JSON channels consume the same reconstructed closed-registry
+        # envelope.  Never render caller-provided diagnostic fields directly.
+        canonical = diagnostic.to_dict()
+        console.print(f"[yellow]Warning:[/yellow] {canonical['message']}")
     if human_message is not None:
         console.print(human_message)
 

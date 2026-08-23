@@ -11,7 +11,7 @@ refuses hosted delivery.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
@@ -28,6 +28,12 @@ AuthProbe = Callable[..., tuple[AuthStatus, str | None]]
 PreflightProbe = Callable[..., "PreflightResult"]
 RouteProbe = Callable[[Path], "CheckoutSyncRouting | None"]
 DetailsClassifier = Callable[[Mapping[str, object]], dict[str, object] | None]
+
+# Only ``decide_hosted_sync`` receives this module-private construction
+# authority.  The decision object remains public so orchestration can consume
+# it, but callers cannot manufacture an affirmative permission without first
+# passing through the canonical evidence composition below.
+_DECISION_AUTHORITY = object()
 
 _AUTH_UNKNOWN_REASONS = frozenset(
     {
@@ -155,11 +161,16 @@ class HostedSyncDecision:
     requested: bool
     allow_effects: bool
     diagnostics: tuple[HostedSyncDiagnostic, ...]
+    _authority: object | None = field(default=None, repr=False, compare=False, kw_only=True)
 
     def __post_init__(self) -> None:
-        """Forbid contradictory allow-plus-diagnostic decisions."""
+        """Forbid affirmative permissions outside the canonical authority."""
         if self.allow_effects and self.diagnostics:
             raise ValueError("allowing hosted sync decision cannot contain diagnostics")
+        if self.allow_effects and not self.requested:
+            raise ValueError("unrequested hosted sync decision cannot allow effects")
+        if self.allow_effects and self._authority is not _DECISION_AUTHORITY:
+            raise ValueError("allowing hosted sync decision requires canonical evidence")
 
     def to_dict(self) -> dict[str, object]:
         """Return a plain JSON-compatible representation."""
@@ -299,7 +310,12 @@ def decide_hosted_sync(
         and boundary.state is BoundaryState.SAFE
         and route_available is True
     )
-    return HostedSyncDecision(True, allow_effects, ordered_unique)
+    return HostedSyncDecision(
+        True,
+        allow_effects,
+        ordered_unique,
+        _authority=_DECISION_AUTHORITY if allow_effects else None,
+    )
 
 
 def _unauthenticated_diagnostic(reason: str) -> HostedSyncDiagnostic:
