@@ -468,9 +468,14 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   gateway.build_gateway_beads_connector instead of the ungated
         #   factory.build_connector, so the module has a live src/ caller and
         #   is no longer an orphan. Shrink 7 -> 6.
-        #   TODO(triage): Z1-T1 zeitgeist_client grammar -- consumed only by tests;
-        #   wire from the client/adapters or delete.
-        "specify_cli.zeitgeist_client.grammar",
+        # zeitgeist_client.grammar: REMOVED (WIRE-M2-04, HIC-M2-DISPOSITIONS-
+        #   2026-08-22 item 2). live_frame.py now imports grammar (`from . import
+        #   grammar`) and routes every identity field it parses (session_ref,
+        #   actor.user, repo, branch, focus_ref) through grammar.ident()/
+        #   grammar.ident(..., REF_RE) before it reaches a PresenceView/FocusView
+        #   or an internal dict key -- mirrors zeitgeist/editor.py's own
+        #   rendering-time identity sanitization. Real src/ caller landed; no
+        #   longer an orphan. Shrink 7 -> 6.
         # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
         #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06). The
         #   eventual-wiring follow-up (#3236) landed: the FR-012/SC-008 backfill

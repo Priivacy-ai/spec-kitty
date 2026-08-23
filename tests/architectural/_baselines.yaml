@@ -124,7 +124,13 @@ test_no_dead_modules:
   # src/ caller (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope), so it is no
   # longer an orphan; the Cat-7 entry was removed. Shrink -- lock in the lower bound.
   # (integration lrc-w1: WIRE-M2-01/02/03 each burned one entry from the same 7 baseline; combined 7 -> 4.)
-  category_7_grandfathered_orphans: 4
+  # 4 -> 3 (WIRE-M2-04, HIC-M2-DISPOSITIONS-2026-08-22 item 2): zeitgeist_client.grammar
+  # wired into live_frame.py's identity-field parsing; it now has a live src/ caller and
+  # its Cat-7 allowlist entry was removed. Shrink -- reverses the M2-canonical-integration
+  # deferral bump for this one module; the other three (dashboard.csp,
+  # status.migrate_lifecycle_envelope, tracker.gateway) remain open under WIRE-M2-01..03.
+  # (integration lrc-w1: WIRE-M2-01/02/03/04 each burned one entry from the same 7 baseline; combined 7 -> 3.)
+  category_7_grandfathered_orphans: 3
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:

@@ -49,6 +49,62 @@ Reported-live honesty, not reconstruction:
   tokens survive ``json.loads`` (the parser ``filtered_stream._accept_line``
   uses) unrejected by default, so ``_clamp_ttl`` treats any non-finite
   ``ttl_s`` the same as an absent one rather than let ``int()`` raise on it.
+* ``session_ref``/``user`` (ident-shaped: a short opaque token, matching
+  ``managed.ManagedRegistry.session_ref()``'s own 12-hex shape upstream) and
+  ``repo``/``focus_ref`` (ref-shaped: can carry ``/``, e.g. ``transport.py``'s
+  own ``f"{mission_slug}/{wp_id}"`` focus refs) are routed through the
+  shared Z1/zeitgeist identity grammar (``grammar.py``, itself a literal
+  transcription of ``zeitgeist/editor.py:146-192``) before reaching a
+  ``PresenceView``/``FocusView`` or being used as this state's internal
+  dict key. A relay is untrusted input exactly like the ``editor`` rumor
+  feed upstream sanitizes at render time: a well-formed identifier passes
+  through unchanged, a prose-shaped one (the same "IGNORE PRIOR
+  INSTRUCTIONS ..." class ``grammar.py`` documents) is replaced with
+  grammar's stable, non-reversible ``unknown-<digest>`` label rather than
+  ever reaching a caller unfiltered — WIRE-M2-04, HIC-M2-DISPOSITIONS item 2.
+* ``branch`` is deliberately NOT routed through grammar (rework cycle 3,
+  Renata MAJOR — this replaces an earlier candidate's ``branch``-only
+  carve-out). ``grammar.ident()``'s ``REF_RE`` shape check pairs a
+  char-class-plus-length test with a segment-count cap
+  (``grammar.MAX_SEGMENTS["ref"]``, 6); the earlier candidate tried
+  dropping only the segment-count half for ``branch``, to avoid
+  mis-rejecting this program's own multi-segment sandbox branches
+  (``bead/<ID>/<actor>/<n>``, e.g. ``bead/WIRE-M2-04/python-pedro/1``, 7
+  segments). Review found the char-class-only half is not a working
+  defense on its own: the same "IGNORE-PRIOR-INSTRUCTIONS-..." fixture
+  ``grammar.py`` and ``zeitgeist/editor.py:157-165`` cite as PROOF that
+  character validity alone cannot separate a real identifier from prose
+  fullmatches ``REF_RE`` under 64 chars with no whitespace, so it would
+  have passed the carve-out unmodified into MCP-adapter-facing output
+  (``subscription.py``) — a weakened check that looked like the same
+  defense as ``repo``/``focus_ref`` without actually providing it.
+  Upstream's own resolution of the identical tension
+  (``zeitgeist/editor.py:166-169``: "a branch name legitimately reads like
+  prose ... so no shape rule can separate them") is not a weaker pattern
+  either — it is to run ``branch`` through the exact same, FULL
+  segment-capped ``_ident(..., _REF_RE)`` as ``repo`` wherever it renders
+  it at all (``zeitgeist/editor.py:300``), and to leave it out entirely of
+  the templates where a hostile value would otherwise reach a reader
+  unvetted. This module cannot take upstream's first option: this
+  program's own real branches are NOT short enough to survive the segment
+  cap (7 segments is the *normal* case here, not an edge case), so full
+  grammar routing would misclassify every real branch as hostile. With
+  neither upstream option available and the partial check demonstrated not
+  to work, ``branch`` is instead folded into the un-sanitized group below,
+  same as ``path``: it already reaches the identical MCP-adapter-facing
+  serialization (``subscription.py``'s ``_serialize_snapshot``) as
+  un-sanitized ``path`` does today, it is never used as a lookup key (only
+  ``session_ref``/``focus_ref`` are), and this way the module claims no
+  defense for ``branch`` it does not actually provide.
+* ``path``/``kind``/``branch``/``state`` are NOT identity fields in this
+  sense (a file path or a branch name legitimately looks like prose;
+  ``state`` is already closed-enum gated against ``_FOCUS_STATES``) and are
+  left as plain, un-sanitized strings, matching upstream's own separate
+  ``_safe_path`` treatment for paths (not ported here — same documented
+  scope reduction as this module's own not-yet-landed ``validator.py``).
+  A caller reading ``branch``/``path`` from a ``PresenceView``/``FocusView``
+  must treat it as untrusted display text, never as a value safe to
+  interpret, execute, or forward as an instruction.
 """
 
 from __future__ import annotations
@@ -56,9 +112,12 @@ from __future__ import annotations
 from kernel.clock import now_epoch
 
 import math
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, Literal, TypeGuard
+
+from . import grammar
 
 FrameType = Literal["presence", "focus", "signal"]
 
@@ -157,6 +216,17 @@ def _optional_str(value: object) -> str | None:
     return value if isinstance(value, str) else None
 
 
+def _grammar_ident(value: object, pattern: re.Pattern[str] = grammar.IDENT_RE) -> str | None:
+    """``_optional_str`` composed with the shared Z1/zeitgeist identity
+    grammar (``grammar.ident``): a non-str value is dropped exactly as
+    ``_optional_str`` already drops it; a well-typed but prose-shaped value
+    is replaced with grammar's stable ``unknown-<digest>`` label rather than
+    reaching a View unfiltered — the same rendering-time sanitization
+    ``zeitgeist/editor.py`` applies before a caller-supplied identity is
+    ever displayed (see the module docstring and ``grammar.py`` itself)."""
+    return grammar.ident(value, pattern=pattern) if isinstance(value, str) else None
+
+
 @dataclass(frozen=True)
 class PresenceView:
     session_ref: str
@@ -234,6 +304,11 @@ class StreamState:
         if kind == "revoked":
             ref = live_frame_obj.payload.get("session_ref")
             if isinstance(ref, str) and ref:
+                # Grammar-sanitized before matching: presence/focus keys are
+                # stored under the sanitized form too (see _apply_presence /
+                # _apply_focus), so a hostile-but-consistent session_ref still
+                # revokes the record it named rather than silently no-op-ing.
+                ref = grammar.ident(ref)
                 self._presence.pop(ref, None)
                 self._focus = {k: v for k, v in self._focus.items() if v.get("session_ref") != ref}
         # "heartbeat": liveness only, no state change.
@@ -246,13 +321,14 @@ class StreamState:
         ref = actor.get("session_ref")
         if not isinstance(ref, str) or not ref:
             return
+        ref = grammar.ident(ref)  # ident-shaped: 12-hex session token, never a ref path
         observed_at = payload.get("observed_at")
         base_ts = float(observed_at) if _is_number(observed_at) else live_frame_obj.emitted_at
         self._presence[ref] = {
             "session_ref": ref,
-            "user": _optional_str(actor.get("user")),
-            "repo": _optional_str(payload.get("repo")),
-            "branch": _optional_str(payload.get("branch")),
+            "user": _grammar_ident(actor.get("user")),
+            "repo": _grammar_ident(payload.get("repo"), grammar.REF_RE),
+            "branch": _optional_str(payload.get("branch")),  # prose-shaped, not identity: see module docstring
             "path": _optional_str(payload.get("path")),
             "kind": _optional_str(payload.get("kind")),
             "expires_at": base_ts + _clamp_ttl(payload.get("ttl_s")),
@@ -263,6 +339,7 @@ class StreamState:
         focus_ref = payload.get("focus_ref")
         if not isinstance(focus_ref, str) or not focus_ref:
             return
+        focus_ref = grammar.ident(focus_ref, grammar.REF_RE)  # ref-shaped: mission_slug/wp_id
         state = payload.get("state")
         if state not in _FOCUS_STATES:
             return
@@ -271,13 +348,14 @@ class StreamState:
             return
         actor = payload.get("actor")
         session_ref = actor.get("session_ref") if isinstance(actor, dict) else None
+        session_ref = grammar.ident(session_ref) if isinstance(session_ref, str) and session_ref else None
         self._focus[focus_ref] = {
             "focus_ref": focus_ref,
-            "session_ref": session_ref if isinstance(session_ref, str) else None,
+            "session_ref": session_ref,
             "state": state,
-            "user": _optional_str(actor.get("user")) if isinstance(actor, dict) else None,
-            "repo": _optional_str(payload.get("repo")),
-            "branch": _optional_str(payload.get("branch")),
+            "user": _grammar_ident(actor.get("user")) if isinstance(actor, dict) else None,
+            "repo": _grammar_ident(payload.get("repo"), grammar.REF_RE),
+            "branch": _optional_str(payload.get("branch")),  # prose-shaped, not identity: see module docstring
             "expires_at": live_frame_obj.emitted_at + _clamp_ttl(payload.get("ttl_s")),
         }
 
