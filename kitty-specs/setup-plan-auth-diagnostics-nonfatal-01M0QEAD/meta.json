@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "local",
+      "accepted_at": "2026-08-23T21:51:26.636583+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "46df2015f1f799fdc3c885434f1edc0ce3337307"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-08-23T21:51:26.636583+00:00",
+  "accepted_by": "codex",
+  "accepted_from_commit": "46df2015f1f799fdc3c885434f1edc0ce3337307",
   "coordination_branch": "kitty/mission-setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
   "created_at": "2026-08-23T13:52:48.242997+00:00",
   "flattened": false,
