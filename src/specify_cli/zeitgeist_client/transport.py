@@ -4,9 +4,47 @@
 750ms/drop-no-retry, forbidden-field zero-attempt" exactly: (1) build the
 request_id; (2) ``sanitizer.assert_clean(args)`` — any forbidden key raises
 before any network attempt, yielding ``REFUSED_LOCAL``, ``elapsed_s=0.0``;
-(3) exactly one HTTP POST under a 750ms TOTAL wall-clock deadline
-(``budget.run_with_deadline``); (4) whatever happens — 2xx, non-2xx, timeout,
-connection refused — ``offer()`` returns; it never retries and never queues.
+(3) exactly one HTTP POST, to ``<relay_url>/managed/control`` (F3's real
+presence/focus/session op dispatcher — ``zeitgeist/managed.py`` — never the
+baseline ``/events`` Beacon route, which has no ``op`` dispatch at all and
+structurally cannot process a ``ControlEnvelope``), under a 750ms TOTAL
+wall-clock deadline (``budget.run_with_deadline``); (4) whatever happens —
+2xx, non-2xx, timeout, connection refused — ``offer()`` returns; it never
+retries and never queues.
+
+FIX-M2-10: two gates a real relay enforces on this route, both of which
+``offer()`` must satisfy — confirmed against the live ``zeitgeist`` source
+(``zeitgeist/auth.py``'s ``AuthenticationMiddleware`` — every route but
+``/health``, ``/managed/control`` included — plus ``zeitgeist/managed.py``'s
+own ``_extract_identity``), not against this module's own double:
+
+1. ``Authorization: Bearer <token>`` — the outer, unconditional
+   ``AuthenticationMiddleware`` gate every route sits behind.
+2. ``X-Zeitgeist-Capability: <token>`` — ``managed.py``'s own capability
+   check, verified by ``managed_auth.py`` against a *different* secret
+   (``ZEITGEIST_CAPABILITY_KEY``) than the shared ``ZEITGEIST_TOKEN``
+   ``AuthenticationMiddleware`` checks.
+
+Z1 holds exactly ONE credential per repo (``credentials.py``'s
+``StoredCredential.token`` — Z1.md §3.2 item 7; the same single value
+``subscription.resolve_stream``/``cli/commands/zeitgeist.py``'s
+``_report_client`` already forward as ``X-Zeitgeist-Capability`` for
+``status()``/``watch()``/``operability``), not the SaaS relay's two
+independently-scoped secrets (``apps.live_capability.relay.RelayClient``
+mints a fresh, kind-scoped capability token per call from a
+``LiveCapabilityLease`` in addition to its own separately-configured shared
+token — a per-lease minting authority Z1's self-hosted, not-yet-built
+``checkout`` flow has no equivalent of, see
+``docs/plans/zeitgeist-client-wp01-remaining.md`` item 5). ``offer()``
+therefore presents ``self._config.token`` as BOTH headers — the one
+credential a self-hosted, single-team deployment hands out doing double
+duty, exactly as every other already-landed caller of that same stored
+value already treats it. A deployment that wants Z1's two gates to check
+two independently-rotatable secrets configures its
+``ZEITGEIST_TOKEN``/``ZEITGEIST_CAPABILITY_KEY``-signed token pair to the
+SAME wire value and hands Z1 that one string; nothing here prevents a
+future, more capable ``checkout`` from storing two values instead of one
+when that lands.
 
 Known scope reduction vs. the full Z1.md §3.2 item 8 contract (recorded
 honestly, not silently): step 3 of the draft ("validator.validate
@@ -20,7 +58,32 @@ currently performs only the sanitizer gate before its one network attempt.
 
 ``focus_start``/``_heartbeat``/`_pause``/`_end`` build ``focus_ref``
 themselves (Z1.md §3.2 item 8, F1's normative derivation clause):
-``focus_ref = mission_slug if wp_id is None else f"{mission_slug}/{wp_id}"``.
+``focus_ref = mission_slug if wp_id is None else f"{mission_slug}.{wp_id}"``.
+
+FIX-M2-10: the separator is ``.``, not the ``/`` F1's draft clause used —
+confirmed against the live source, ``managed_control.schema.json``'s
+``FocusArgs.focus_ref`` (and ``managed_live.schema.json``'s egress copy) is
+ident-shaped (``[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}``, no ``/`` in the
+character class, ``re.fullmatch`` enforced by ``capabilities.py``'s
+hand-rolled validator — never a partial/substring match), not the ref-
+shaped (``/``-permitting) grammar this module's own docstring and
+``live_frame.py``'s read-side comment both assumed. A ``/``-joined
+``focus_ref`` therefore failed real schema validation (422) on every single
+``focus.start``/``.heartbeat``/``.pause``/``.end`` call whenever a caller
+passed ``wp_id`` — invisible to this module's own test double (which never
+schema-validated ``args``) and only surfaced against a real container.
+``focus_ref`` is opaque everywhere it is consumed (a dict key server- and
+client-side, never split back into its parts — confirmed by grep across
+both repos), so the join character itself carries no meaning beyond
+producing a value the real schema accepts; ``.`` was chosen over the
+schema's other permitted separators (``_``/``@``/``+``/bare ``-``) because
+it reads cleanly against spec-kitty's own kebab-case mission slugs
+(``034-feature-status-model.WP01``, not
+``034-feature-status-model-WP01``). ``live_frame.py``'s read side is
+unaffected: it already routes ``focus_ref`` through the strictly WIDER
+``grammar.REF_RE`` (permits ``/`` in addition to everything ident-shaped
+allows), so every ident-shaped value this fix now sends still parses
+unchanged.
 ``focus_end``'s ``reason`` is deliberately restricted to ``user``/``timeout``
 at both the type boundary and a runtime guard — ``revoked`` is a
 server-originated ``LiveFrame.signal`` outcome the client can only observe,
@@ -54,6 +117,20 @@ from . import budget, repo_identity, sanitizer
 # ≤90s current-focus bound (O1-C's operability drills exercise this
 # denominator; Z1 owns the constant, Z1.md §1 "downstream criteria").
 FOCUS_TTL_S = 90
+
+# F3's real presence/focus/session op dispatcher (zeitgeist/managed.py),
+# never the baseline Beacon route (`/events`) — see the module docstring.
+_MANAGED_CONTROL_PATH = "/managed/control"
+
+# `managed_control.schema.json`'s own `properties.schema_version.pattern`
+# ("1.x.y") and top-level `"version"` (zeitgeist/zeitgeist/schemas/
+# managed_control.schema.json) — a literal, not an import: zeitgeist is a
+# separate, git-ignored sibling repo with no package dependency in either
+# direction (same reason spec-kitty-saas's `relay.py` re-derives its own
+# `_SCHEMA_VERSION` literal rather than importing one). Bump only in
+# lockstep with a real, coordinated envelope-shape change on zeitgeist's
+# side.
+_SCHEMA_VERSION = "1.0.0"
 
 _FocusPauseReason = Literal["user", "dnd"]
 _FocusEndReason = Literal["user", "timeout"]
@@ -168,13 +245,22 @@ class ZeitgeistClient:
                 outcome=OfferOutcome.REFUSED_LOCAL, request_id=request_id, elapsed_s=0.0
             )
 
-        envelope = {"op": op, "request_id": request_id, "args": dict(args)}
+        envelope = {
+            "schema_version": _SCHEMA_VERSION,
+            "op": op,
+            "request_id": request_id,
+            "args": dict(args),
+        }
         body = json.dumps(envelope).encode("utf-8")
         headers = {
             "Content-Type": "application/json",
+            # Two independent gates, both required by the real relay — see
+            # the module docstring's FIX-M2-10 note for why both carry the
+            # SAME stored credential.
             "Authorization": f"Bearer {self._config.token}",
+            "X-Zeitgeist-Capability": self._config.token,
         }
-        url = self._config.relay_url.rstrip("/") + "/events"
+        url = self._config.relay_url.rstrip("/") + _MANAGED_CONTROL_PATH
 
         def _post() -> tuple[int, bytes]:
             req = urllib.request.Request(url, data=body, headers=headers, method="POST")
@@ -226,7 +312,11 @@ class ZeitgeistClient:
                     request_id=str(uuid.uuid4()),
                     elapsed_s=0.0,
                 )
-            focus_ref = mission_slug if wp_id is None else f"{mission_slug}/{wp_id}"
+            # FIX-M2-10: "." not "/" — see the module docstring's FIX-M2-10
+            # note. managed_control.schema.json's FocusArgs.focus_ref is
+            # ident-shaped (no "/" in its character class); a "/"-joined
+            # value fails real schema validation (422) on every focus op.
+            focus_ref = mission_slug if wp_id is None else f"{mission_slug}.{wp_id}"
             self._focus_ref = focus_ref
             self._focus_started_at = now_utc()
         return self.offer(
@@ -239,7 +329,16 @@ class ZeitgeistClient:
             return OfferResult(
                 outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0
             )
-        return self.offer("focus.heartbeat", self._claim_args(focus_ref=focus_ref))
+        # FIX-M2-10: FocusArgs (managed_control.schema.json) REQUIRES ttl_s
+        # on every non-end focus op, not just focus.start — a heartbeat with
+        # no ttl_s is both schema-invalid (422) and functionally inert:
+        # managed.py's focus_op() computes the refreshed
+        # expires_at = received_at + args["ttl_s"] for start/heartbeat/pause
+        # alike, so omitting it also silently failed to renew the server-
+        # side TTL a heartbeat exists to renew.
+        return self.offer(
+            "focus.heartbeat", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S)
+        )
 
     def focus_pause(self, reason: _FocusPauseReason = "user") -> OfferResult:
         if reason not in _VALID_PAUSE_REASONS:
@@ -251,8 +350,17 @@ class ZeitgeistClient:
             return OfferResult(
                 outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0
             )
+        # FIX-M2-10: FocusArgs has no `pause_reason` property at all
+        # (additionalProperties: false) — zeitgeist's own focus_op() never
+        # reads a pause reason either (op == "focus.pause" only ever sets
+        # state="paused", uninspected by why). `reason` therefore stays a
+        # LOCAL, client-side-only distinction (validated above, never
+        # dropped from the method's own contract) — it was never a wire
+        # field to omit correctly; sending it as one was the bug (422,
+        # unknown key). ttl_s IS required here, same reasoning as
+        # focus_heartbeat above.
         return self.offer(
-            "focus.pause", self._claim_args(focus_ref=focus_ref, pause_reason=reason)
+            "focus.pause", self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S)
         )
 
     def focus_end(self, reason: _FocusEndReason = "user") -> OfferResult:
@@ -274,8 +382,13 @@ class ZeitgeistClient:
             return OfferResult(
                 outcome=OfferOutcome.REFUSED_LOCAL, request_id=str(uuid.uuid4()), elapsed_s=0.0
             )
+        # FIX-M2-10: FocusEndArgs.required includes ttl_s too (schema
+        # symmetry with FocusArgs) even though managed.py's own focus.end
+        # handling never reads it (the entry is simply popped) — still
+        # required to pass schema validation before dispatch.
         return self.offer(
-            "focus.end", self._claim_args(focus_ref=focus_ref, ended_reason=reason)
+            "focus.end",
+            self._claim_args(focus_ref=focus_ref, ttl_s=FOCUS_TTL_S, ended_reason=reason),
         )
 
     # -- presence (independent of focus/DND state, Z1.md decision 9) ---
@@ -286,7 +399,13 @@ class ZeitgeistClient:
                 f"presence activity must be one of {sorted(_VALID_PRESENCE_ACTIVITIES)!r}, "
                 f"got {activity!r}"
             )
-        args = self._claim_args(activity=activity)
+        # FIX-M2-10: PresencePublish's wire field is `kind` (managed_
+        # presence.schema.json — additionalProperties: false, no `activity`
+        # property at all; managed.py's publish_presence() reads
+        # `args["kind"]`, never `args["activity"]`) — `activity` is this
+        # method's own PARAMETER name (public API, unchanged), not the wire
+        # key it must be sent under.
+        args = self._claim_args(kind=activity)
         if path is not None:
             args["path"] = path
         return self.offer("presence.publish", args)
