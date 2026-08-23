@@ -679,6 +679,16 @@ class ManagedStreamAuthDouble:
                 pass
 
             def _deny(self, status: int, detail: str) -> None:
+                # Record the denial BEFORE writing any byte of the response.
+                # The client thread's urllib call can only observe a
+                # response once send_response()/wfile.write() have run, so
+                # appending first makes this append happen-before the
+                # client-side HTTPError a caller catches immediately after
+                # — closing the cross-thread race where a test could read
+                # `denied_statuses` while this handler thread had sent the
+                # response but not yet appended (see FIX-M2-13 rework).
+                with double._lock:
+                    double.denied_statuses.append(status)
                 body = json.dumps({"detail": detail}).encode("utf-8")
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json")
@@ -686,8 +696,6 @@ class ManagedStreamAuthDouble:
                 self.end_headers()
                 with contextlib.suppress(BrokenPipeError, ConnectionResetError):
                     self.wfile.write(body)
-                with double._lock:
-                    double.denied_statuses.append(status)
 
             def _write_chunk(self, data: bytes) -> None:
                 self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n")
