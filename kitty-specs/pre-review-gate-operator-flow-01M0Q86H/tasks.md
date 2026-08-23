@@ -17,11 +17,11 @@
 **Depends on**: None
 
 ### Included Subtasks
-- [ ] T025 Verify/assign tracker issue #2573 to the Human-in-Charge before implementation starts.
-- [ ] T001 Write red-first normalization and classification contracts.
-- [ ] T002 Implement immutable policy and assessment types.
-- [ ] T003 Add the exact `tests/architectural` oversized rule and stable identity.
-- [ ] T004 Prove unknown/declared-command compatibility and absence of runtime mutation.
+- [x] T025 Verify/assign tracker issue #2573 to the Human-in-Charge before implementation starts.
+- [x] T001 Write red-first normalization and classification contracts.
+- [x] T002 Implement immutable policy and assessment types.
+- [x] T003 Add the exact `tests/architectural` oversized rule and stable identity.
+- [x] T004 Prove unknown/declared-command compatibility and absence of runtime mutation.
 
 ---
 
@@ -34,11 +34,11 @@
 **Depends on**: WP01
 
 ### Included Subtasks
-- [ ] T005 Write red-first engine/verdict contracts.
-- [ ] T006 Extend typed outcomes, head-run states, status events, and verdict evidence.
-- [ ] T007 Assess derived and explicit-override scopes before launch.
-- [ ] T008 Add unknown-timeout diagnostic evidence using the monotonic observer clock.
-- [ ] T009 Update aggregation and run focused engine/integration regression gates.
+- [x] T005 Write red-first engine/verdict contracts.
+- [x] T006 Extend typed outcomes, head-run states, status events, and verdict evidence.
+- [x] T007 Assess derived and explicit-override scopes before launch.
+- [x] T008 Add unknown-timeout diagnostic evidence using the monotonic observer clock.
+- [x] T009 Update aggregation and run focused engine/integration regression gates.
 
 ---
 
@@ -51,12 +51,12 @@
 **Depends on**: WP02
 
 ### Included Subtasks
-- [ ] T010 Replace the public liveness gap with red-first exact-entry tests.
-- [ ] T011 Carry the typed observer through the registered handler context.
-- [ ] T012 Wire the same observer through registry and explicit-override paths.
-- [ ] T013 Render human assessment, heartbeats, refusal, and candidate guidance.
-- [ ] T014 Extend final metadata while keeping top-level transition authority and one JSON document.
-- [ ] T015 Re-prove skip/disable ordering, daemon exception, and warn/block compatibility.
+- [x] T010 Replace the public liveness gap with red-first exact-entry tests.
+- [x] T011 Carry the typed observer through the registered handler context.
+- [x] T012 Wire the same observer through registry and explicit-override paths.
+- [x] T013 Render human assessment, heartbeats, refusal, and candidate guidance.
+- [x] T014 Extend final metadata while keeping top-level transition authority and one JSON document.
+- [x] T015 Re-prove skip/disable ordering, daemon exception, and warn/block compatibility.
 
 ---
 
@@ -69,10 +69,10 @@
 **Depends on**: WP02
 
 ### Included Subtasks
-- [ ] T016 Add focused real-process interruption fixtures.
-- [ ] T017 Prove POSIX timeout and catchable-cancellation cleanup.
-- [ ] T018 Pin the Windows tree-termination command contract.
-- [ ] T019 Prove abrupt-parent-death lane/event integrity and document the cleanup boundary.
+- [x] T016 Add focused real-process interruption fixtures.
+- [x] T017 Prove POSIX timeout and catchable-cancellation cleanup.
+- [x] T018 Pin the Windows tree-termination command contract.
+- [x] T019 Prove abrupt-parent-death lane/event integrity and document the cleanup boundary.
 
 ---
 
@@ -85,11 +85,11 @@
 **Depends on**: WP03, WP04
 
 ### Included Subtasks
-- [ ] T020 Build the exact-node traceability matrix and verify every cell.
-- [ ] T021 Run targeted and relevant full regression gates and record trustworthy evidence.
-- [ ] T022 Audit immediate operational-candidate tracer entries and distinguish synthetic evidence.
-- [ ] T023 Produce the canonical post-merge retrospective handoff.
-- [ ] T024 Re-evaluate #2573 and record the executable #3127 release-gate resume point.
+- [x] T020 Build the exact-node traceability matrix and verify every cell.
+- [x] T021 Run targeted and relevant full regression gates and record trustworthy evidence.
+- [x] T022 Audit immediate operational-candidate tracer entries and distinguish synthetic evidence.
+- [x] T023 Produce the canonical post-merge retrospective handoff.
+- [x] T024 Re-evaluate #2573 and record the executable #3127 release-gate resume point.
 
 ---
 
