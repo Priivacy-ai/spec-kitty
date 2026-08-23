@@ -54,9 +54,10 @@ structural preflight, route availability, and the SaaS-enable flag into an immut
 Completion requires:
 
 - SaaS disabled invokes no auth, boundary, or route probe and yields no diagnostics;
-- only authenticated + boundary safe + route available allows hosted effects;
-- logged out, auth unknown, boundary unsafe, boundary exception, and route unavailable
-  refuse hosted effects with distinct stable diagnostics;
+- only completed assessment + usable session + boundary safe + route available allows
+  hosted effects;
+- logged out, auth-assessment failure, boundary unsafe, boundary exception, and route
+  unavailable refuse hosted effects with distinct stable diagnostics;
 - diagnostics are deduplicated and ordered auth → boundary → route;
 - structural adapter never raises to its local command caller;
 - no raw exception, credential, session, or token content appears in details.
@@ -68,8 +69,8 @@ research decisions 3–4, data model, and result-envelope contract. Read canonic
 `src/specify_cli/sync/preflight.py` but do not edit it.
 
 This module is command-adapter logic, not a new global sync authority. It may lazily
-import preflight and WP01's typed auth surface. It must not import queue-scope readers as
-authentication evidence or change hosted-only command behavior.
+import preflight and WP01's typed session-assessment surface. It must not import
+queue-scope readers as authentication evidence or change hosted-only command behavior.
 
 ## Branch Strategy
 
@@ -115,16 +116,17 @@ Names may adapt to repository conventions, but invariants may not.
 Cover:
 
 1. SaaS disabled short-circuits every supplied probe.
-2. Authenticated + safe + route available allows with no warning.
+2. Completed assessment + usable session + safe boundary + available route allows with
+   no warning.
 3. Logged out yields `SAAS_SYNC_UNAUTHENTICATED`.
-4. Auth unknown yields `SAAS_SYNC_AUTH_UNKNOWN`, never unauthenticated.
+4. Failed auth assessment yields `SAAS_SYNC_AUTH_UNKNOWN`, never unauthenticated.
 5. Returned unsafe boundary yields `SAAS_SYNC_BOUNDARY_UNSAFE` and preserves sanitized
    `PreflightResult.to_dict()` evidence.
 6. Raised preflight evaluation yields `SAAS_SYNC_BOUNDARY_UNSAFE` with stable
    `boundary_evaluation_failed`, no raw exception text.
 7. Authenticated/no route yields a route diagnostic, not auth.
 8. Combined problems remain distinct and deterministically ordered.
-9. Every unknown input refuses.
+9. Every failed or non-affirmative input refuses.
 
 Commit these tests red before adding the production module.
 
@@ -143,8 +145,8 @@ Commit these tests red before adding the production module.
 
 **Purpose**: Create the single permission consumed by WP04.
 
-1. Accept typed auth, boundary evaluation, and explicit route availability as separate
-   inputs.
+1. Accept typed session assessment, boundary evaluation, and explicit route availability
+   as separate inputs.
 2. Build stable warning objects with command severity `warning` and hosted disposition
    `refused`.
 3. Permit effects only when all required evidence is affirmative.
@@ -180,7 +182,7 @@ are objective. Do not duplicate all filesystem mismatch fixtures here.
 
 ## Risks & Mitigations
 
-- **Second auth authority**: consume WP01 typed evaluation only.
+- **Second auth authority**: consume WP01 session assessment only.
 - **Global preflight weakening**: no edits outside owned files.
 - **Overbroad exception swallowing**: translate only boundary evaluation, never local
   setup-plan errors or started hosted-effect failures.
@@ -189,7 +191,8 @@ are objective. Do not duplicate all filesystem mismatch fixtures here.
 ## Review Guidance
 
 Reject if a Boolean false is the only auth input, if `require_auth=True` reintroduces a
-second auth bit, if unknown allows effects, or if the module invokes any hosted sink.
+second auth bit, if assessment failure or unknown safety evidence allows effects, or if
+the module invokes any hosted sink.
 Check that the raised-preflight test would fail if the try/except were removed.
 
 ## Activity Log

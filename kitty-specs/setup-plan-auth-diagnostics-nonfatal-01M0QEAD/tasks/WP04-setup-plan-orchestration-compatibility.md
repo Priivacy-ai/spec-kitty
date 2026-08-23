@@ -77,7 +77,7 @@ Completion requires:
 - every baseline local outcome retains all primary fields and its exit;
 - JSON mode emits one object; human mode has equivalent warning severity;
 - real refresh-capable encrypted storage without scope produces no auth warning;
-- real unreadable storage produces auth unknown, not logged out;
+- real unreadable storage produces an auth-assessment-failure diagnostic, not logged out;
 - returned and raised structural failures refuse hosted effects and preserve local work;
 - local lifecycle JSONL is written while lifecycle fan-out/dossier/queue/upload/
   daemon/dashboard/direct hosted sinks remain zero under refusal;
@@ -93,9 +93,9 @@ Read every artifact in
 local outcome matrix and hosted-effect contract. Read accepted auth, transport,
 single-authority-gate, and project-sync-store ADRs named by the plan.
 
-WP01 supplies typed auth. WP02 supplies the no-raise decision. WP03 supplies local-only
-lifecycle persistence and explicit fan-out. Consume those APIs; do not recreate their
-logic inside `mission_setup_plan.py`.
+WP01 supplies typed session assessment. WP02 supplies the no-raise decision. WP03
+supplies local-only lifecycle persistence and explicit fan-out. Consume those APIs; do
+not recreate their logic inside `mission_setup_plan.py`.
 
 Do not change `run_preflight`, TokenManager, lifecycle internals, sync-store layout,
 hosted-only commands, or add a strict-sync option. Do not catch local workflow failures
@@ -140,8 +140,8 @@ other field or exit.
 2. Add/extend fixtures for every matrix row in the owned tests.
 3. Capture exact `result`, `phase_complete`, `scaffold_only`, `blocked_reason`,
    `error_code`, branch/commit fields, and process exit where present.
-4. Cross representative success, blocked, and error rows with logged out, auth unknown,
-   boundary unsafe, and boundary exception.
+4. Cross representative success, blocked, and error rows with logged out,
+   auth-assessment failure, boundary unsafe, and boundary exception.
 5. Assert exactly one JSON object.
 6. Commit tests red against the old auth/preflight exit-2 behavior before production
    changes.
@@ -156,7 +156,7 @@ existing payload protocol.
 
 1. Remove/retire `_enforce_saas_sync_auth_refusal` and
    `_enforce_saas_sync_boundary_preflight` as command-exit guards.
-2. When SaaS is enabled, obtain WP01's typed auth evaluation without queue scope.
+2. When SaaS is enabled, obtain WP01's typed session assessment without queue scope.
 3. Resolve the repository root using existing local behavior.
 4. After root resolution, invoke WP02's no-raise structural assessment and compose one
    `HostedSyncDecision`, including route evidence if the existing hosted path requires
@@ -232,8 +232,9 @@ Never use the real home directory, live SaaS, or a running daemon.
 5. Keep any allowlist specific and shrink-only in spirit; document each authorized site.
 6. Update `docs/operations/logged-out-teamspace.md` to distinguish local commands from
    hosted-only commands and explicitly name `agent mission create` and `setup-plan`.
-7. State logged out versus auth unknown remedies without exposing credentials or
-   instructing automation to log in for the user.
+7. State logged-out versus auth-assessment-failure remedies without exposing credentials,
+   representing assessment failure as an auth state, or instructing automation to log in
+   for the user.
 
 ### Subtask T019 – Run integrated gates and closeout evidence
 

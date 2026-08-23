@@ -12,10 +12,11 @@ description: "Work packages for authoritative local setup-plan and safe hosted r
 
 ## Delivery Strategy
 
-Four work packages follow the actual authority boundaries. WP01 preserves tri-state
-truth inside the canonical auth subsystem. WP02 composes auth, structural, route, and
-enablement evidence into one hosted decision without altering canonical preflight. WP03
-separates local lifecycle persistence from hosted fan-out and may proceed independently.
+Four work packages follow the actual authority boundaries. WP01 preserves canonical
+session-assessment provenance without creating a new auth state machine. WP02 composes
+session, structural, route, and enablement evidence into one hosted decision without
+altering canonical preflight. WP03 separates local lifecycle persistence from hosted
+fan-out and may proceed independently.
 WP04 integrates the three seams into setup-plan, freezes every local outcome, and adds
 the non-vacuous hosted-effect gate.
 
@@ -24,10 +25,11 @@ is red on `planning_base_branch` and green on the final WP commit.
 
 ---
 
-## Work Package WP01: Canonical tri-state authentication evaluation (Priority: P0)
+## Work Package WP01: Canonical session assessment (Priority: P0)
 
-**Goal**: Preserve authenticated, logged-out, and unknown at the TokenManager authority
-and project that typed result into readiness without queue-scope or network access.
+**Goal**: Preserve assessment completion separately from usable-session presence at the
+TokenManager authority and project that evidence into the existing readiness taxonomy
+without queue-scope or network access.
 **Independent Test**: Real isolated session storage distinguishes absent from unreadable,
 recognizes an expired-access/usable-refresh session, and keeps Boolean compatibility.
 **Prompt**: [tasks/WP01-canonical-auth-evaluation.md](tasks/WP01-canonical-auth-evaluation.md)
@@ -35,13 +37,13 @@ recognizes an expired-access/usable-refresh session, and keeps Boolean compatibi
 
 ### Included Subtasks
 
-T001 Write and commit rejecting TokenManager/readiness tri-state acceptance tests
+- [ ] T001 Write and commit rejecting TokenManager/readiness assessment-provenance tests (WP01)
 
-T002 Preserve storage-load and materialization outcomes in TokenManager and expose typed local auth evaluation
+- [ ] T002 Preserve storage-load and materialization outcomes in TokenManager and expose typed session assessment (WP01)
 
-T003 Project typed auth into readiness while preserving Boolean compatibility and Teamspace distinctions
+- [ ] T003 Project session assessment into readiness while preserving Boolean compatibility and Teamspace distinctions (WP01)
 
-T004 Run focused auth, readiness, lint, typing, and queue-independence gates
+- [ ] T004 Run focused auth, readiness, lint, typing, and queue-independence gates (WP01)
 
 ### Implementation Notes
 
@@ -69,30 +71,31 @@ T004 Run focused auth, readiness, lint, typing, and queue-independence gates
 
 **Goal**: Add a setup-plan-specific, no-raise assessment adapter and one immutable,
 fail-closed hosted-effects decision with ordered structured diagnostics.
-**Independent Test**: A pure decision matrix proves only authenticated + safe + routable
-allows effects, while returned and raised structural failures produce separate warnings.
+**Independent Test**: A pure decision matrix proves only completed assessment + usable
+session + safe boundary + available route allows effects, while returned and raised
+structural failures produce separate warnings.
 **Prompt**: [tasks/WP02-hosted-assessment-decision.md](tasks/WP02-hosted-assessment-decision.md)
 **Requirement Refs**: FR-007, FR-008, FR-012
 
 ### Included Subtasks
 
-T005 Write and commit rejecting hosted-decision truth-table tests
+- [ ] T005 Write and commit rejecting hosted-decision truth-table tests (WP02)
 
-T006 Implement the setup-plan-only no-raise structural boundary adapter
+- [ ] T006 Implement the setup-plan-only no-raise structural boundary adapter (WP02)
 
-T007 Implement immutable diagnostic and HostedSyncDecision composition
+- [ ] T007 Implement immutable diagnostic and HostedSyncDecision composition (WP02)
 
-T008 Verify disabled-mode short-circuit, deterministic ordering, sanitization, lint, and typing
+- [ ] T008 Verify disabled-mode short-circuit, deterministic ordering, sanitization, lint, and typing (WP02)
 
 ### Implementation Notes
 
 - The adapter consumes `run_preflight(..., require_auth=False)` and never modifies it.
-- Unknown authentication, boundary, or route state refuses hosted effects.
+- Failed session assessment or unknown boundary/route evidence refuses hosted effects.
 - Diagnostic severity is warning; hosted disposition is refused.
 
 ### Parallel Opportunities
 
-- WP02 starts after WP01 because it consumes the typed auth evaluation.
+- WP02 starts after WP01 because it consumes typed session-assessment evidence.
 
 ### Dependencies
 
@@ -116,13 +119,13 @@ and invokes zero registered SaaS handlers; legacy composed emission still fans o
 
 ### Included Subtasks
 
-T009 Write and commit rejecting local-persistence versus hosted-fan-out tests
+- [ ] T009 Write and commit rejecting local-persistence versus hosted-fan-out tests (WP03)
 
-T010 Extract explicit local persistence and hosted fan-out operations
+- [ ] T010 Extract explicit local persistence and hosted fan-out operations (WP03)
 
-T011 Add a supported local-only artifact-phase emission path and preserve composed compatibility
+- [ ] T011 Add a supported local-only artifact-phase emission path and preserve composed compatibility (WP03)
 
-T012 Run lifecycle, producer-conformance, adapter-fanout, lint, and typing regressions
+- [ ] T012 Run lifecycle, producer-conformance, adapter-fanout, lint, and typing regressions (WP03)
 
 ### Implementation Notes
 
@@ -157,19 +160,19 @@ hosted calls whenever the decision refuses.
 
 ### Included Subtasks
 
-T013 Capture baseline payloads/exits and commit the rejecting setup-plan compatibility matrix
+- [ ] T013 Capture baseline payloads/exits and commit the rejecting setup-plan compatibility matrix (WP04)
 
-T014 Replace early auth and boundary exits with evidence collection and one hosted decision
+- [ ] T014 Replace early auth and boundary exits with evidence collection and one hosted decision (WP04)
 
-T015 Route local lifecycle intents and every hosted sink through the explicit executor boundary
+- [ ] T015 Route local lifecycle intents and every hosted sink through the explicit executor boundary (WP04)
 
-T016 Introduce one local-outcome reporter and attach diagnostics to all eligible success, blocked, and error paths
+- [ ] T016 Introduce one local-outcome reporter and attach diagnostics to all eligible success, blocked, and error paths (WP04)
 
-T017 Add real encrypted-storage production-chain and structural-exception acceptance tests
+- [ ] T017 Add real encrypted-storage production-chain and structural-exception acceptance tests (WP04)
 
-T018 Add the non-vacuous hosted-effect architectural gate and named sibling-policy documentation parity
+- [ ] T018 Add the non-vacuous hosted-effect architectural gate and named sibling-policy documentation parity (WP04)
 
-T019 Run targeted regressions, requirement evidence, and issue 3127 release-closeout check
+- [ ] T019 Run targeted regressions, requirement evidence, and issue 3127 release-closeout check (WP04)
 
 ### Implementation Notes
 
@@ -230,8 +233,8 @@ T019 Run targeted regressions, requirement evidence, and issue 3127 release-clos
 
 | Subtask ID | Summary | Work Package | Priority | Parallel? |
 |---|---|---|---|---|
-| T001 | Rejecting tri-state tests | WP01 | P0 | No |
-| T002 | TokenManager typed evaluation | WP01 | P0 | No |
+| T001 | Rejecting assessment-provenance tests | WP01 | P0 | No |
+| T002 | TokenManager typed session assessment | WP01 | P0 | No |
 | T003 | Readiness projection | WP01 | P0 | No |
 | T004 | Auth/readiness gates | WP01 | P0 | No |
 | T005 | Rejecting decision matrix | WP02 | P0 | No |
