@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2695": {
-      "evidence_ref": "Fixed by docs/operations/logged-out-teamspace.md policy parity for agent mission create/setup-plan and tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py::test_human_reporter_renders_warning_then_local_result",
+      "evidence_ref": "Fixed by docs/operations/logged-out-teamspace.md policy parity for agent mission create/setup-plan plus real setup-plan JSON/human reporter acceptance in tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py; verified in the combined WP04 quickstart (279 passed, 1 skipped)",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -25,7 +25,7 @@
       "wp": null
     },
     "#3621": {
-      "evidence_ref": "Fixed by WP01-WP04; production-chain proof in tests/runtime/test_setup_plan_sync_evidence.py real encrypted, unreadable storage, and raised structural assessment cases; architectural dominance proof in tests/architectural/test_setup_plan_hosted_effect_gate.py",
+      "evidence_ref": "Fixed by WP01-WP04; real encrypted/unreadable storage and singleton-order proof in tests/runtime/test_setup_plan_sync_evidence.py; full real-entrypoint local-outcome/readiness matrix, git-preflight reporting, parser-level single JSON, disabled fatal probes, and zero-sink/local-persistence proof in tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py; AST dominance proof in tests/architectural/test_setup_plan_hosted_effect_gate.py; combined WP04 quickstart 279 passed, 1 skipped",
       "fr": null,
       "nfr": null,
       "repo": null,
