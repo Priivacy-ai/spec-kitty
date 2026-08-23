@@ -519,3 +519,100 @@ def test_test_helpers_are_typed() -> None:
 
     probe: Callable[..., object] = empty_probe
     assert probe() is None
+
+
+_WIRE_REGISTRY_EXPECTATIONS = {
+    "SAAS_SYNC_UNAUTHENTICATED": (
+        "Hosted sync was skipped because no usable local session is available; local setup-plan continued.",
+        ["Log in before retrying hosted sync."],
+    ),
+    "SAAS_SYNC_AUTH_UNKNOWN": (
+        "Hosted sync was skipped because local authentication could not be evaluated; local setup-plan continued.",
+        ["Inspect local authentication storage before retrying hosted sync."],
+    ),
+    "SAAS_SYNC_BOUNDARY_UNSAFE": (
+        "Hosted sync was skipped because the structural sync boundary was not safe; local setup-plan continued.",
+        ["Resolve the reported sync-boundary condition before retrying hosted sync."],
+    ),
+    "SAAS_SYNC_ROUTE_UNAVAILABLE": (
+        "Hosted sync was skipped because no permitted delivery route was available; local setup-plan continued.",
+        ["Verify project identity and hosted-sync consent before retrying."],
+    ),
+}
+
+
+@pytest.mark.parametrize(
+    ("code", "expected"),
+    list(_WIRE_REGISTRY_EXPECTATIONS.items()),
+)
+def test_registry_reconstructs_every_wire_field_for_both_serializers(
+    code: str,
+    expected: tuple[str, list[str]],
+) -> None:
+    sentinel = "RuntimeError token=caller-secret ciphertext=/tmp/caller.session"
+    diagnostic = HostedSyncDiagnostic(
+        code=code,
+        severity=sentinel,
+        hosted_disposition=sentinel,
+        message=sentinel,
+        details={"reason": sentinel, "unknown": sentinel},
+        remediation=(sentinel,),
+    )
+    diagnostic_payload = diagnostic.to_dict()
+    decision_payload = HostedSyncDecision(True, False, (diagnostic,)).to_dict()
+
+    for payload in (diagnostic_payload, decision_payload["diagnostics"][0]):
+        assert payload["code"] == code
+        assert payload["severity"] == "warning"
+        assert payload["hosted_disposition"] == "refused"
+        assert payload["message"] == expected[0]
+        assert payload["remediation"] == expected[1]
+        assert sentinel not in str(payload)
+
+
+def test_unknown_diagnostic_code_is_rejected_without_echo() -> None:
+    sentinel = "UNKNOWN_TOKEN_top-secret_ciphertext"
+
+    with pytest.raises(ValueError) as raised:
+        HostedSyncDiagnostic(
+            code=sentinel,
+            severity="warning",
+            hosted_disposition="refused",
+            message="safe",
+        )
+
+    assert str(raised.value) == "unsupported hosted sync diagnostic code"
+    assert sentinel not in str(raised.value)
+
+
+def test_allowing_decision_rejects_diagnostics_without_echo() -> None:
+    diagnostic = HostedSyncDiagnostic(
+        code="SAAS_SYNC_ROUTE_UNAVAILABLE",
+        severity="RuntimeError token=decision-secret",
+        hosted_disposition="refused",
+        message="safe",
+    )
+
+    with pytest.raises(ValueError) as raised:
+        HostedSyncDecision(True, True, (diagnostic,))
+
+    assert str(raised.value) == "allowing hosted sync decision cannot contain diagnostics"
+    assert "decision-secret" not in str(raised.value)
+
+
+def test_wire_registry_contains_exactly_four_codes() -> None:
+    diagnostics = tuple(
+        HostedSyncDiagnostic(
+            code=code,
+            severity="ignored",
+            hosted_disposition="ignored",
+            message="ignored",
+        )
+        for code in _WIRE_REGISTRY_EXPECTATIONS
+    )
+
+    wire_codes = {
+        item["code"]
+        for item in HostedSyncDecision(True, False, diagnostics).to_dict()["diagnostics"]
+    }
+    assert wire_codes == set(_WIRE_REGISTRY_EXPECTATIONS)
