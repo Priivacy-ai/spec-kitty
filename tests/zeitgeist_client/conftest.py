@@ -587,3 +587,170 @@ def managed_control_double() -> Generator[ManagedControlDouble, None, None]:
         yield double
     finally:
         double.stop()
+
+
+# --- FIX-M2-13: a PROTOCOL-FAITHFUL double for GET /managed/stream --------
+#
+# Unlike ManagedStreamDouble above (records anything, gates nothing — the
+# double filtered_stream.FilteredStream.watch() was silently passing right
+# past before this fix), this one enforces the SAME two gates a REAL relay
+# enforces on this route, in the SAME order `managed.py`/`auth.py` check
+# them: `zeitgeist/auth.py`'s outer, unconditional `AuthenticationMiddleware`
+# (`Authorization: Bearer <shared_token>`, checked first — every route but
+# `/health`) and `managed.py`'s own `_extract_identity()` capability check
+# (`X-Zeitgeist-Capability`, `managed_auth.py`'s HMAC verification; missing
+# -> 401, malformed/wrong-signature/expired -> 403, exactly the same
+# 401-vs-403 split `_extract_identity` itself codes). A request that reaches
+# a real frame here would genuinely reach one against a real relay too, and
+# one that is denied here for the wrong reason (401/403) would be genuinely
+# denied by one too.
+#
+# Reuses ManagedControlState's authorized()/verify_capability() — both are
+# pure header checks, agnostic to GET vs POST — rather than re-deriving a
+# second HMAC-verification implementation for this route (same "cite, don't
+# re-derive" discipline mint_capability_token above already established).
+# `/managed/stream`'s own `_extract_identity(request)` call passes no
+# `needs_op`, so unlike ManagedControlDouble's op-vs-kind check, ANY
+# validly-signed capability (presence | focus | operator) admits a stream
+# connection here — reproduced by simply never checking `identity["kind"]`
+# below.
+
+
+@dataclass
+class ManagedStreamAuthDouble:
+    """Public test-support handle: start/stop the double, configure its two
+    secrets, push frames once a connection is admitted, and inspect what
+    headers the most recent request carried."""
+
+    shared_token: str = "test-shared-token"
+    capability_key: str = "test-capability-key"
+
+    outgoing: queue.Queue[bytes | None] = field(default_factory=queue.Queue)
+    received_headers: list[dict[str, str]] = field(default_factory=list)
+    denied_statuses: list[int] = field(default_factory=list)
+
+    _server: http.server.ThreadingHTTPServer | None = None
+    _thread: threading.Thread | None = None
+    _state: ManagedControlState | None = None
+    _lock: threading.Lock = field(default_factory=threading.Lock)
+
+    def start(self) -> None:
+        self._state = ManagedControlState(shared_token=self.shared_token, capability_key=self.capability_key)
+        handler_cls = self._make_handler()
+        self._server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler_cls)
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+
+    @property
+    def url(self) -> str:
+        assert self._server is not None
+        host, port = self._server.server_address[:2]
+        return f"http://127.0.0.1:{port}"
+
+    def stop(self) -> None:
+        self.close_stream()
+        if self._server is not None:
+            self._server.shutdown()
+            self._server.server_close()
+        if self._thread is not None:
+            self._thread.join(timeout=2)
+
+    def push_frame(self, frame: dict[str, Any]) -> None:
+        self.outgoing.put(f"data: {json.dumps(frame)}\n\n".encode())
+
+    def close_stream(self) -> None:
+        """Signal the handler thread to stop writing and let the response
+        end — the sentinel is idempotent-safe to send more than once."""
+        self.outgoing.put(None)
+
+    def set_shared_token(self, value: str) -> None:
+        assert self._state is not None
+        with self._state.lock:
+            self._state.shared_token = value
+        self.shared_token = value
+
+    def _make_handler(self) -> type[http.server.BaseHTTPRequestHandler]:
+        double = self
+
+        class _Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+                pass
+
+            def _deny(self, status: int, detail: str) -> None:
+                # Record the denial BEFORE writing any byte of the response.
+                # The client thread's urllib call can only observe a
+                # response once send_response()/wfile.write() have run, so
+                # appending first makes this append happen-before the
+                # client-side HTTPError a caller catches immediately after
+                # — closing the cross-thread race where a test could read
+                # `denied_statuses` while this handler thread had sent the
+                # response but not yet appended (see FIX-M2-13 rework).
+                with double._lock:
+                    double.denied_statuses.append(status)
+                body = json.dumps({"detail": detail}).encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                    self.wfile.write(body)
+
+            def _write_chunk(self, data: bytes) -> None:
+                self.wfile.write(f"{len(data):x}\r\n".encode() + data + b"\r\n")
+                self.wfile.flush()
+
+            def do_GET(self) -> None:  # noqa: N802
+                state = double._state
+                assert state is not None
+                with double._lock:
+                    double.received_headers.append(dict(self.headers))
+
+                if self.path != "/managed/stream":
+                    self._deny(404, "not found")
+                    return
+
+                # Outer gate first — exactly AuthenticationMiddleware's
+                # position ahead of managed.py's own handler.
+                if not state.authorized(self.headers.get("Authorization")):
+                    self._deny(401, "authentication required")
+                    return
+
+                # managed.py's own _extract_identity(): missing capability
+                # header -> 401, malformed/wrong-signature/expired -> 403 —
+                # the same split _extract_identity itself codes.
+                cap_header = self.headers.get("X-Zeitgeist-Capability")
+                if not cap_header:
+                    self._deny(401, "managed capability credential required")
+                    return
+                identity = state.verify_capability(cap_header)
+                if identity is None:
+                    self._deny(403, "capability credential invalid or expired")
+                    return
+
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("Transfer-Encoding", "chunked")
+                self.end_headers()
+                with contextlib.suppress(BrokenPipeError, ConnectionResetError):
+                    while True:
+                        item = double.outgoing.get()
+                        if item is None:
+                            break
+                        self._write_chunk(item)
+                    self.wfile.write(b"0\r\n\r\n")
+                    self.wfile.flush()
+
+        return _Handler
+
+
+@pytest.fixture()
+def managed_stream_auth_double() -> Generator[ManagedStreamAuthDouble, None, None]:
+    double = ManagedStreamAuthDouble()
+    double.start()
+    try:
+        yield double
+    finally:
+        double.stop()

@@ -29,6 +29,28 @@ or an MCP tool onto them remains item 4 of
 ``docs/plans/zeitgeist-client-wp01-remaining.md``, untouched by this pass —
 exactly the same "landed the primitive, not yet the adapter" split Z1-T1
 itself recorded for ``offer()``/``credentials.py``.
+
+FIX-M2-13: the same header-omission class ``transport.py``'s FIX-M2-10 note
+fixed for ``offer()``'s ``POST /managed/control`` — confirmed against the
+live ``zeitgeist`` source, not this module's own double: ``GET
+/managed/stream`` sits behind the SAME outer, unconditional
+``AuthenticationMiddleware`` gate every route but ``/health`` sits behind
+(``zeitgeist/auth.py`` — checked first, ahead of ``managed.py``'s own
+handler), in addition to ``managed.py``'s own ``X-Zeitgeist-Capability``
+capability check (``managed_auth.py``, verified against a *different*
+secret, ``ZEITGEIST_CAPABILITY_KEY``, than ``AuthenticationMiddleware``'s
+shared ``ZEITGEIST_TOKEN``). Sending only ``X-Zeitgeist-Capability`` — this
+module's pre-fix behaviour — never got past the outer gate at all: a real
+relay answered every ``watch()`` connection attempt 401, regardless of
+whether the capability credential itself was valid. ``watch()`` now sends
+``self._config.capability_credential`` as BOTH headers, exactly the "one
+stored credential, two headers" model ``transport.py``'s ``offer()``
+already uses for the same reason (Z1 holds exactly ONE credential per repo,
+``credentials.py``'s ``StoredCredential.token`` — Z1.md §3.2 item 7; see
+that module's own FIX-M2-10 docstring note for the full "single credential
+doing double duty" rationale, which applies unchanged here since
+``TeamStreamConfig.capability_credential`` is populated from that same
+stored value by ``subscription.resolve_stream``).
 """
 
 from __future__ import annotations
@@ -96,7 +118,13 @@ class FilteredStream:
         this generator's.
         """
         url = self._config.relay_url.rstrip("/") + _STREAM_PATH
-        headers = {"X-Zeitgeist-Capability": self._config.capability_credential}
+        headers = {
+            # Two independent gates, both required by the real relay — see
+            # the module docstring's FIX-M2-13 note for why both carry the
+            # SAME stored credential.
+            "Authorization": f"Bearer {self._config.capability_credential}",
+            "X-Zeitgeist-Capability": self._config.capability_credential,
+        }
         req = urllib.request.Request(url, headers=headers, method="GET")
         opener = budget.NoRedirects.build()
         with opener.open(req, timeout=idle_timeout_s) as resp:
