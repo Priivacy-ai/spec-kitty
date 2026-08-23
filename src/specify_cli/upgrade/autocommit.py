@@ -35,6 +35,17 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git.commit_helpers import safe_commit
 from kernel.paths import to_posix
 
+# Root-level files upgrade may auto-commit. Root files are otherwise excluded
+# (operator-owned), but these are written by upgrade's own seams and leaving
+# them dirty breaches the #2392 "every upgrade write ends in a commit"
+# invariant:
+#   * ``.gitignore`` — the gitignore-backfill migrations (#2385);
+#   * ``AGENTS.md`` / ``GEMINI.md`` — the only root-level session-presence
+#     surfaces (``AgentsMdWriter``/``SkillsPreambleWriter`` and the gemini
+#     ``MarkdownRulesWriter``), which surface repair auto-creates as
+#     ``REPAIRABLE_REQUIRED`` before the churn commit (#2491/#2492).
+_ELIGIBLE_ROOT_GENERATED_FILES = frozenset({".gitignore", "AGENTS.md", "GEMINI.md"})
+
 UPGRADE_COMMIT_SKIP_WARNING = "Could not auto-commit upgrade changes; please review and commit manually."
 
 DETACHED_HEAD_WARNING = (
@@ -104,11 +115,12 @@ def git_status_paths(repo_path: Path) -> set[str] | None:
         status = entry[:2]
         path = entry[3:]
 
-        # With -z format, renames/copies include a second NUL-separated
-        # path.  We take the *destination* (new name); the source (old name)
-        # is intentionally discarded because we care about "what exists now".
+        # With -z format, renames/copies report the *destination* (new name)
+        # first — it is already in ``path`` — followed by a second
+        # NUL-separated entry holding the *source* (old name). Consume and
+        # discard the source because we care about "what exists now"; taking
+        # it instead would stage a path that no longer exists (#2492).
         if ("R" in status or "C" in status) and i < len(entries) and entries[i]:
-            path = entries[i]
             i += 1
 
         normalized = to_posix(path.strip())
@@ -127,12 +139,13 @@ def is_upgrade_commit_eligible(path: str, checkout: Path) -> bool:
     if not normalized:
         return False
 
-    # Ignore paths that are outside the repo and root-level files — except
-    # .gitignore: the gitignore-backfill migrations write it, and leaving it
-    # dirty is exactly the merge-blocking churn #2385 reports.
+    # Ignore paths that are outside the repo and arbitrary root-level files.
+    # The only root files eligible are the ones upgrade's own writers own
+    # (``_ELIGIBLE_ROOT_GENERATED_FILES``); the pre-run baseline still
+    # excludes pre-existing operator dirt in those files.
     if normalized.startswith("../"):
         return False
-    if "/" not in normalized and normalized != ".gitignore":
+    if "/" not in normalized and normalized not in _ELIGIBLE_ROOT_GENERATED_FILES:
         return False
 
     # Never auto-commit ~/.kittify when users run inside their home directory.

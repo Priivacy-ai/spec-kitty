@@ -46,12 +46,49 @@ def test_git_status_paths_parses_added_and_untracked(tmp_path: Path, monkeypatch
 
 
 def test_git_status_paths_handles_rename(tmp_path: Path, monkeypatch) -> None:
-    """Rename entries use the destination (new) path."""
-    # git status -z for rename: "R  old.py\0new.py\0"
-    raw = b"R  old.py\0new.py\0"
+    """Rename entries use the destination (new) path.
+
+    In ``--porcelain -z`` output the field order is *reversed* relative to
+    the human format: ``R  <new>\0<old>\0`` (git-status(1), "Porcelain
+    Format Version 1"). The previous fixture here encoded the order
+    backwards, which let the parser silently keep the *old* name (#2492).
+    """
+    raw = b"R  new.py\0old.py\0"
     fake_result = MagicMock(returncode=0, stdout=raw)
     monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
     paths = autocommit.git_status_paths(tmp_path)
+    assert "new.py" in paths
+    assert "old.py" not in paths
+
+
+def test_git_status_paths_handles_rename_followed_by_other_entry(tmp_path: Path, monkeypatch) -> None:
+    """The source field of a rename is consumed, so the entry after it is
+    still parsed as its own path (no off-by-one)."""
+    raw = b"R  new.py\0old.py\0 M docs/x.md\0"
+    fake_result = MagicMock(returncode=0, stdout=raw)
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
+    assert autocommit.git_status_paths(tmp_path) == {"new.py", "docs/x.md"}
+
+
+def test_git_status_paths_handles_real_git_rename(tmp_path: Path) -> None:
+    """Against real git (not a fixture): a staged rename reports the new name
+    and not the old one, so the commit-set never names a path that no longer
+    exists (#2492)."""
+
+    def git(*args: str) -> None:
+        subprocess.run(["git", *args], cwd=tmp_path, check=True, capture_output=True)
+
+    git("init", "-q")
+    git("config", "user.email", "test@example.com")
+    git("config", "user.name", "Test")
+    (tmp_path / "old.py").write_text("print('hi')\n", encoding="utf-8")
+    git("add", "old.py")
+    git("commit", "-qm", "add old.py")
+    git("mv", "old.py", "new.py")
+
+    paths = autocommit.git_status_paths(tmp_path)
+
+    assert paths is not None
     assert "new.py" in paths
     assert "old.py" not in paths
 
@@ -108,6 +145,37 @@ def test_eligible_accepts_root_gitignore(tmp_path: Path) -> None:
     assert autocommit.is_upgrade_commit_eligible(".gitignore", tmp_path) is True
 
 
+@pytest.mark.parametrize("path", ["AGENTS.md", "GEMINI.md"])
+def test_eligible_accepts_root_session_presence_surfaces(tmp_path: Path, path: str) -> None:
+    """``AGENTS.md`` / ``GEMINI.md`` are the only root-level session-presence
+    surfaces (``AgentsMdWriter``, ``SkillsPreambleWriter``, gemini
+    ``MarkdownRulesWriter``). Surface repair auto-creates them as
+    ``REPAIRABLE_REQUIRED`` ahead of the churn commit, so rejecting them as
+    "root files" left them dirty after every upgrade (#2491/#2492)."""
+    assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is True
+
+
+def test_eligible_root_allowlist_matches_session_presence_root_targets() -> None:
+    """Pin the allowlist to the writer registry: if a new harness gains a
+    root-level rules file, this test names the missing allowlist entry."""
+    from specify_cli.session_presence.writers.null_writer import NullWriter
+    from specify_cli.session_presence.writers.registry import WRITER_REGISTRY
+
+    root_targets = {
+        writer.rules_path
+        for writer in WRITER_REGISTRY.values()
+        if not isinstance(writer, NullWriter) and "/" not in writer.rules_path
+    }
+    assert root_targets
+    assert root_targets <= autocommit._ELIGIBLE_ROOT_GENERATED_FILES
+
+
+@pytest.mark.parametrize("path", ["CLAUDE.md", "README.md", "pyproject.toml", "Makefile"])
+def test_eligible_still_rejects_other_root_files(tmp_path: Path, path: str) -> None:
+    """The allowlist is exhaustive — arbitrary operator-owned root files stay out."""
+    assert autocommit.is_upgrade_commit_eligible(path, tmp_path) is False
+
+
 def test_eligible_rejects_parent_traversal(tmp_path: Path) -> None:
     assert autocommit.is_upgrade_commit_eligible("../secret.txt", tmp_path) is False
 
@@ -140,6 +208,7 @@ def test_prepare_upgrade_commit_files_excludes_root_files(
             ".kittify/metadata.yaml",
             "kitty-specs/001-test/tasks/WP01.md",
             "README.md",
+            "CLAUDE.md",
             "AGENTS.md",
             "docs/guides/upgrade.md",
         },
@@ -147,10 +216,13 @@ def test_prepare_upgrade_commit_files_excludes_root_files(
 
     files = autocommit.prepare_upgrade_commit_files(project_path, baseline_paths=set())
 
+    # Arbitrary root files (README.md, CLAUDE.md) are excluded; AGENTS.md is a
+    # session-presence surface upgrade itself writes, so it is kept (#2492).
     assert {str(path) for path in files} == {
         ".kittify/metadata.yaml",
         "kitty-specs/001-test/tasks/WP01.md",
         "docs/guides/upgrade.md",
+        "AGENTS.md",
     }
 
 
