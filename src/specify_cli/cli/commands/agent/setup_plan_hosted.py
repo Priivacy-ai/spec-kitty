@@ -14,6 +14,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
+from types import MappingProxyType
 from typing import TYPE_CHECKING, cast
 
 from specify_cli.auth.token_manager import SessionAssessment
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
 AuthProbe = Callable[..., tuple[AuthStatus, str | None]]
 PreflightProbe = Callable[..., "PreflightResult"]
 RouteProbe = Callable[[Path], "CheckoutSyncRouting | None"]
+DetailsClassifier = Callable[[Mapping[str, object]], dict[str, object] | None]
 
 _AUTH_UNKNOWN_REASONS = frozenset(
     {
@@ -105,6 +107,17 @@ class BoundaryEvaluation:
 
 
 @dataclass(frozen=True, slots=True)
+class _DiagnosticSpec:
+    """Canonical wire contract for one registered hosted diagnostic code."""
+
+    severity: str
+    hosted_disposition: str
+    message: str
+    remediation: tuple[str, ...]
+    details_classifier: DetailsClassifier
+
+
+@dataclass(frozen=True, slots=True)
 class HostedSyncDiagnostic:
     """A nonfatal, credential-safe explanation for hosted refusal."""
 
@@ -115,20 +128,23 @@ class HostedSyncDiagnostic:
     details: Mapping[str, object] | None = None
     remediation: tuple[str, ...] = ()
 
+    def __post_init__(self) -> None:
+        """Reject codes outside the closed wire registry without echoing input."""
+        _diagnostic_spec(self.code)
+
     def to_dict(self) -> dict[str, object]:
-        """Return a plain JSON-compatible warning mapping."""
+        """Reconstruct the complete wire envelope from the closed registry."""
+        spec = _diagnostic_spec(self.code)
         payload: dict[str, object] = {
             "code": self.code,
-            "severity": self.severity,
-            "hosted_disposition": self.hosted_disposition,
-            "message": self.message,
+            "severity": spec.severity,
+            "hosted_disposition": spec.hosted_disposition,
+            "message": spec.message,
+            "remediation": list(spec.remediation),
         }
-        if self.details is not None:
-            safe_details = _safe_diagnostic_details(self.code, self.details)
-            if safe_details:
-                payload["details"] = safe_details
-        if self.remediation:
-            payload["remediation"] = list(self.remediation)
+        safe_details = spec.details_classifier(self.details or {})
+        if safe_details:
+            payload["details"] = safe_details
         return payload
 
 
@@ -139,6 +155,11 @@ class HostedSyncDecision:
     requested: bool
     allow_effects: bool
     diagnostics: tuple[HostedSyncDiagnostic, ...]
+
+    def __post_init__(self) -> None:
+        """Forbid contradictory allow-plus-diagnostic decisions."""
+        if self.allow_effects and self.diagnostics:
+            raise ValueError("allowing hosted sync decision cannot contain diagnostics")
 
     def to_dict(self) -> dict[str, object]:
         """Return a plain JSON-compatible representation."""
@@ -282,24 +303,16 @@ def decide_hosted_sync(
 
 
 def _unauthenticated_diagnostic(reason: str) -> HostedSyncDiagnostic:
-    return HostedSyncDiagnostic(
-        code="SAAS_SYNC_UNAUTHENTICATED",
-        severity="warning",
-        hosted_disposition="refused",
-        message="Hosted sync was skipped because no usable local session is available; local setup-plan continued.",
+    return _registered_diagnostic(
+        "SAAS_SYNC_UNAUTHENTICATED",
         details={"reason": reason},
-        remediation=("Log in before retrying hosted sync.",),
     )
 
 
 def _auth_unknown_diagnostic(reason: str) -> HostedSyncDiagnostic:
-    return HostedSyncDiagnostic(
-        code="SAAS_SYNC_AUTH_UNKNOWN",
-        severity="warning",
-        hosted_disposition="refused",
-        message="Hosted sync was skipped because local authentication could not be evaluated; local setup-plan continued.",
+    return _registered_diagnostic(
+        "SAAS_SYNC_AUTH_UNKNOWN",
         details={"reason": reason},
-        remediation=("Inspect local authentication storage before retrying hosted sync.",),
     )
 
 
@@ -307,24 +320,16 @@ def _boundary_diagnostic(boundary: BoundaryEvaluation) -> HostedSyncDiagnostic:
     details: dict[str, object] = {"reason": boundary.reason or "boundary_evaluation_failed"}
     if boundary.evidence is not None:
         details["evidence"] = _sanitize_preflight_evidence(boundary.evidence)
-    return HostedSyncDiagnostic(
-        code="SAAS_SYNC_BOUNDARY_UNSAFE",
-        severity="warning",
-        hosted_disposition="refused",
-        message="Hosted sync was skipped because the structural sync boundary was not safe; local setup-plan continued.",
+    return _registered_diagnostic(
+        "SAAS_SYNC_BOUNDARY_UNSAFE",
         details=details,
-        remediation=("Resolve the reported sync-boundary condition before retrying hosted sync.",),
     )
 
 
 def _route_diagnostic(reason: str) -> HostedSyncDiagnostic:
-    return HostedSyncDiagnostic(
-        code="SAAS_SYNC_ROUTE_UNAVAILABLE",
-        severity="warning",
-        hosted_disposition="refused",
-        message="Hosted sync was skipped because no permitted delivery route was available; local setup-plan continued.",
+    return _registered_diagnostic(
+        "SAAS_SYNC_ROUTE_UNAVAILABLE",
         details={"reason": reason},
-        remediation=("Verify project identity and hosted-sync consent before retrying.",),
     )
 
 
@@ -399,37 +404,49 @@ def _safe_owner_fault(value: object) -> dict[str, str]:
     return {"reason": "owner_record_unreadable"}
 
 
-def _safe_diagnostic_details(
-    code: str,
+def _classify_unauthenticated_details(
     details: Mapping[str, object],
-) -> dict[str, object] | None:
-    """Classify public diagnostic details through one closed serialization gate."""
-    if code == "SAAS_SYNC_UNAUTHENTICATED":
-        return {
-            "reason": _safe_reason(
-                details.get("reason"),
-                allowed=_UNAUTHENTICATED_REASONS,
-                fallback="session_absent",
-            )
-        }
-    if code == "SAAS_SYNC_AUTH_UNKNOWN":
-        return {
-            "reason": _safe_reason(
-                details.get("reason"),
-                allowed=_AUTH_UNKNOWN_REASONS,
-                fallback="auth_evaluation_failed",
-            )
-        }
-    if code == "SAAS_SYNC_ROUTE_UNAVAILABLE":
-        return {
-            "reason": _safe_reason(
-                details.get("reason"),
-                allowed=_ROUTE_REASONS,
-                fallback="route_evaluation_failed",
-            )
-        }
-    if code != "SAAS_SYNC_BOUNDARY_UNSAFE":
-        return None
+) -> dict[str, object]:
+    """Classify confirmed logged-out details."""
+    return {
+        "reason": _safe_reason(
+            details.get("reason"),
+            allowed=_UNAUTHENTICATED_REASONS,
+            fallback="session_absent",
+        )
+    }
+
+
+def _classify_auth_unknown_details(
+    details: Mapping[str, object],
+) -> dict[str, object]:
+    """Classify failed auth-assessment details."""
+    return {
+        "reason": _safe_reason(
+            details.get("reason"),
+            allowed=_AUTH_UNKNOWN_REASONS,
+            fallback="auth_evaluation_failed",
+        )
+    }
+
+
+def _classify_route_details(
+    details: Mapping[str, object],
+) -> dict[str, object]:
+    """Classify route refusal details."""
+    return {
+        "reason": _safe_reason(
+            details.get("reason"),
+            allowed=_ROUTE_REASONS,
+            fallback="route_evaluation_failed",
+        )
+    }
+
+
+def _classify_boundary_details(
+    details: Mapping[str, object],
+) -> dict[str, object]:
+    """Classify structural refusal details and evidence."""
 
     safe: dict[str, object] = {
         "reason": _safe_reason(
@@ -456,6 +473,65 @@ def _safe_reason(
     if isinstance(value, str) and value in allowed:
         return value
     return fallback
+
+
+_DIAGNOSTIC_REGISTRY: Mapping[str, _DiagnosticSpec] = MappingProxyType(
+    {
+        "SAAS_SYNC_UNAUTHENTICATED": _DiagnosticSpec(
+            severity="warning",
+            hosted_disposition="refused",
+            message="Hosted sync was skipped because no usable local session is available; local setup-plan continued.",
+            remediation=("Log in before retrying hosted sync.",),
+            details_classifier=_classify_unauthenticated_details,
+        ),
+        "SAAS_SYNC_AUTH_UNKNOWN": _DiagnosticSpec(
+            severity="warning",
+            hosted_disposition="refused",
+            message="Hosted sync was skipped because local authentication could not be evaluated; local setup-plan continued.",
+            remediation=("Inspect local authentication storage before retrying hosted sync.",),
+            details_classifier=_classify_auth_unknown_details,
+        ),
+        "SAAS_SYNC_BOUNDARY_UNSAFE": _DiagnosticSpec(
+            severity="warning",
+            hosted_disposition="refused",
+            message="Hosted sync was skipped because the structural sync boundary was not safe; local setup-plan continued.",
+            remediation=("Resolve the reported sync-boundary condition before retrying hosted sync.",),
+            details_classifier=_classify_boundary_details,
+        ),
+        "SAAS_SYNC_ROUTE_UNAVAILABLE": _DiagnosticSpec(
+            severity="warning",
+            hosted_disposition="refused",
+            message="Hosted sync was skipped because no permitted delivery route was available; local setup-plan continued.",
+            remediation=("Verify project identity and hosted-sync consent before retrying.",),
+            details_classifier=_classify_route_details,
+        ),
+    }
+)
+
+
+def _diagnostic_spec(code: str) -> _DiagnosticSpec:
+    """Resolve a known wire code or fail without echoing caller input."""
+    try:
+        return _DIAGNOSTIC_REGISTRY[code]
+    except KeyError:
+        raise ValueError("unsupported hosted sync diagnostic code") from None
+
+
+def _registered_diagnostic(
+    code: str,
+    *,
+    details: Mapping[str, object],
+) -> HostedSyncDiagnostic:
+    """Construct an internal diagnostic from its canonical registry entry."""
+    spec = _diagnostic_spec(code)
+    return HostedSyncDiagnostic(
+        code=code,
+        severity=spec.severity,
+        hosted_disposition=spec.hosted_disposition,
+        message=spec.message,
+        details=details,
+        remediation=spec.remediation,
+    )
 
 
 __all__ = [
