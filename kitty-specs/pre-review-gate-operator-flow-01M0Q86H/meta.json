@@ -12,5 +12,7 @@
   "purpose_tldr": "Prevent review submissions from appearing hung or leaving workflow transitions half-applied.",
   "slug": "pre-review-gate-operator-flow-01M0Q86H",
   "target_branch": "fix/pre-review-gate-operator-flow",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-23T16:11:22.634854+00:00"
 }
