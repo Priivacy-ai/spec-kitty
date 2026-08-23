@@ -25,26 +25,39 @@ own ``_extract_identity``), not against this module's own double:
    (``ZEITGEIST_CAPABILITY_KEY``) than the shared ``ZEITGEIST_TOKEN``
    ``AuthenticationMiddleware`` checks.
 
-Z1 holds exactly ONE credential per repo (``credentials.py``'s
-``StoredCredential.token`` — Z1.md §3.2 item 7; the same single value
-``subscription.resolve_stream``/``cli/commands/zeitgeist.py``'s
-``_report_client`` already forward as ``X-Zeitgeist-Capability`` for
-``status()``/``watch()``/``operability``), not the SaaS relay's two
-independently-scoped secrets (``apps.live_capability.relay.RelayClient``
-mints a fresh, kind-scoped capability token per call from a
-``LiveCapabilityLease`` in addition to its own separately-configured shared
-token — a per-lease minting authority Z1's self-hosted, not-yet-built
-``checkout`` flow has no equivalent of, see
-``docs/plans/zeitgeist-client-wp01-remaining.md`` item 5). ``offer()``
-therefore presents ``self._config.token`` as BOTH headers — the one
-credential a self-hosted, single-team deployment hands out doing double
-duty, exactly as every other already-landed caller of that same stored
-value already treats it. A deployment that wants Z1's two gates to check
-two independently-rotatable secrets configures its
-``ZEITGEIST_TOKEN``/``ZEITGEIST_CAPABILITY_KEY``-signed token pair to the
-SAME wire value and hands Z1 that one string; nothing here prevents a
-future, more capable ``checkout`` from storing two values instead of one
-when that lands.
+FIX-M2-15 (supersedes the FIX-M2-10 paragraph this replaces): a real
+SaaS-provisioned per-team relay (``apps.live_capability.
+provisioning_docker.DockerProvisioningDriver.provision`` —
+``ZEITGEIST_TOKEN``/``ZEITGEIST_CAPABILITY_KEY`` minted as two
+INDEPENDENT, unrelated secrets) makes both gates checking the SAME value
+the exception, not the rule — DQA-M2-05's own real-container walkthrough
+reproduced, by hand, that the pre-fix "one credential, two headers" model
+below gets a genuine ``401``/``403`` against exactly that recipe (a
+capability JWT presented as ``Authorization`` fails the outer gate; the
+shared token presented as ``X-Zeitgeist-Capability`` fails
+``managed_auth.py``'s HMAC check). ``ClientConfig`` therefore carries TWO
+independent credential fields: ``token`` (``Authorization: Bearer
+<token>`` — the deployment's shared bearer, Z1.md §3.2 item 7's original
+field, unrenamed so every existing caller/config keeps working) and the
+new ``capability_credential`` (``X-Zeitgeist-Capability: <capability_
+credential>`` — a per-actor capability JWT, e.g. one
+``apps.live_capability.relay_auth.mint_relay_token`` signed). Precedence:
+when ``capability_credential`` is configured (non-``None``), each header
+carries its OWN value; when it is ``None`` (the default — every config
+written before this fix, and every self-hosted single-secret deployment
+that still hands out one value for both gates), ``offer()`` falls back to
+``token`` for BOTH headers, exactly this module's original FIX-M2-10
+behaviour, unchanged. ``credentials.py``'s ``StoredCredential`` gained the
+identically-named, identically-optional ``capability_credential`` field
+this same fallback is threaded through from (see that module's own
+docstring); ``spec-kitty-saas``'s member-facing credential-issuance
+endpoint (``apps.live_capability.views.mint_cli_credential``, FIX-M2-15)
+is what now hands a real team member the ``relay_url``/``relay_token``/
+``capability_credential`` triple this checkout shape is built to receive.
+Z1's own not-yet-built ``checkout`` flow (item 5,
+``docs/plans/zeitgeist-client-wp01-remaining.md``) is expected to persist
+whatever it receives through exactly this fallback-aware field, never a
+second credential store.
 
 Known scope reduction vs. the full Z1.md §3.2 item 8 contract (recorded
 honestly, not silently): step 3 of the draft ("validator.validate
@@ -150,6 +163,13 @@ class ClientConfig:
     agent_id: str | None
     repo: str
     branch: str
+    # FIX-M2-15: the X-Zeitgeist-Capability credential, independent of
+    # `token` (Authorization) -- see the module docstring's FIX-M2-15 note.
+    # `None` (the default) means "no second credential configured": offer()
+    # falls back to `token` for BOTH headers, exactly the original
+    # FIX-M2-10 single-credential behaviour -- every config/call site that
+    # predates this field keeps working unchanged.
+    capability_credential: str | None = None
 
     @classmethod
     def for_repository(
@@ -161,6 +181,7 @@ class ClientConfig:
         harness: str,
         session_id: str,
         agent_id: str | None = None,
+        capability_credential: str | None = None,
         budget_s: float = repo_identity.GIT_BUDGET_S,
     ) -> ClientConfig:
         """The sanctioned, non-spoofable constructor (Z6-C): ``repo``/
@@ -187,6 +208,7 @@ class ClientConfig:
             agent_id=agent_id,
             repo=ident.repo,
             branch=ident.branch,
+            capability_credential=capability_credential,
         )
 
 
@@ -254,11 +276,12 @@ class ZeitgeistClient:
         body = json.dumps(envelope).encode("utf-8")
         headers = {
             "Content-Type": "application/json",
-            # Two independent gates, both required by the real relay — see
-            # the module docstring's FIX-M2-10 note for why both carry the
-            # SAME stored credential.
+            # Two independent gates, each with its OWN credential — see the
+            # module docstring's FIX-M2-15 note. `capability_credential`
+            # falls back to `token` when unset, so a single-credential
+            # config still presents the same value to both gates.
             "Authorization": f"Bearer {self._config.token}",
-            "X-Zeitgeist-Capability": self._config.token,
+            "X-Zeitgeist-Capability": self._config.capability_credential or self._config.token,
         }
         url = self._config.relay_url.rstrip("/") + _MANAGED_CONTROL_PATH
 

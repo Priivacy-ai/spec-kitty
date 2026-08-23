@@ -42,15 +42,26 @@ secret, ``ZEITGEIST_CAPABILITY_KEY``, than ``AuthenticationMiddleware``'s
 shared ``ZEITGEIST_TOKEN``). Sending only ``X-Zeitgeist-Capability`` — this
 module's pre-fix behaviour — never got past the outer gate at all: a real
 relay answered every ``watch()`` connection attempt 401, regardless of
-whether the capability credential itself was valid. ``watch()`` now sends
-``self._config.capability_credential`` as BOTH headers, exactly the "one
-stored credential, two headers" model ``transport.py``'s ``offer()``
-already uses for the same reason (Z1 holds exactly ONE credential per repo,
-``credentials.py``'s ``StoredCredential.token`` — Z1.md §3.2 item 7; see
-that module's own FIX-M2-10 docstring note for the full "single credential
-doing double duty" rationale, which applies unchanged here since
-``TeamStreamConfig.capability_credential`` is populated from that same
-stored value by ``subscription.resolve_stream``).
+whether the capability credential itself was valid.
+
+FIX-M2-15 (supersedes the "one stored credential, two headers" sentence
+this replaces): against a real SaaS-provisioned per-team relay
+(``apps.live_capability.provisioning_docker.DockerProvisioningDriver.
+provision`` — ``ZEITGEIST_TOKEN``/``ZEITGEIST_CAPABILITY_KEY`` minted as
+two INDEPENDENT, unrelated secrets), the SAME stored value can no longer
+satisfy both gates — DQA-M2-05's own real-container walkthrough
+reproduced this by hand. ``TeamStreamConfig`` therefore carries a SECOND,
+optional field: ``relay_token`` (``Authorization: Bearer <relay_token>``)
+alongside the original, still-required ``capability_credential``
+(``X-Zeitgeist-Capability: <capability_credential>``). Precedence: when
+``relay_token`` is configured (non-``None``), each header carries its OWN
+value; when it is ``None`` (the default — every config built before this
+fix), ``watch()`` falls back to ``capability_credential`` for BOTH
+headers, exactly this module's original FIX-M2-13 behaviour, unchanged.
+``subscription.resolve_stream`` threads ``credentials.py``'s own
+identically-shaped, identically-optional ``StoredCredential.
+capability_credential`` field through this same fallback (see that
+module's docstring).
 """
 
 from __future__ import annotations
@@ -72,10 +83,16 @@ _STREAM_PATH = "/managed/stream"
 class TeamStreamConfig:
     """One subscription's connection facts. See the module docstring for
     why there is no team/deployment/repo field here — the credential alone
-    is the selector."""
+    is the selector.
+
+    ``relay_token`` (FIX-M2-15) is the SEPARATE ``Authorization`` credential
+    — see the module docstring's FIX-M2-15 note. ``None`` (the default)
+    falls back to ``capability_credential`` for both headers, exactly the
+    original FIX-M2-13 single-credential behaviour."""
 
     relay_url: str
     capability_credential: str
+    relay_token: str | None = None
 
 
 class FilteredStream:
@@ -119,10 +136,11 @@ class FilteredStream:
         """
         url = self._config.relay_url.rstrip("/") + _STREAM_PATH
         headers = {
-            # Two independent gates, both required by the real relay — see
-            # the module docstring's FIX-M2-13 note for why both carry the
-            # SAME stored credential.
-            "Authorization": f"Bearer {self._config.capability_credential}",
+            # Two independent gates, each with its OWN credential — see the
+            # module docstring's FIX-M2-15 note. `relay_token` falls back to
+            # `capability_credential` when unset, so a single-credential
+            # config still presents the same value to both gates.
+            "Authorization": f"Bearer {self._config.relay_token or self._config.capability_credential}",
             "X-Zeitgeist-Capability": self._config.capability_credential,
         }
         req = urllib.request.Request(url, headers=headers, method="GET")

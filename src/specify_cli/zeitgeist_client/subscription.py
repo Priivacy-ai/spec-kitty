@@ -17,7 +17,15 @@ callers name a ``repo`` — the key ``credentials.py`` already stores an
 issued ``{relay_url, token}`` pair under (Z1.md §3.2 item 7; ``token_kind``
 ``"shared_team"`` is exactly a team-bound bearer capability, the same shape
 ``filtered_stream.TeamStreamConfig.capability_credential`` wants) — never a
-free-form relay URL or bearer value typed at the call site. ``repo``,
+free-form relay URL or bearer value typed at the call site. FIX-M2-15:
+:func:`resolve_stream` threads ``credentials.py``'s own optional
+``StoredCredential.capability_credential`` field through unchanged —
+``relay_token=stored.token`` (``Authorization``), ``capability_credential=
+stored.capability_credential or stored.token`` (``X-Zeitgeist-Capability``)
+— so a two-credential checkout (SaaS-issued ``relay_token`` +
+``capability_credential``) sends each header its own value, while a
+single-credential one (every entry stored before this fix)
+still sends ``stored.token`` to both, exactly as before. ``repo``,
 ``relay_url``, ``token``, and ``runtime_url`` are all members of
 ``sanitizer.FORBIDDEN_CONTROL_KEYS``/observation-adjacent names precisely
 because a caller-supplied one is a claim, not a credential; this module
@@ -123,7 +131,8 @@ def resolve_stream(repo: str) -> filtered_stream.FilteredStream:
         raise NotCheckedOut(repo)
     config = filtered_stream.TeamStreamConfig(
         relay_url=stored.relay_url,
-        capability_credential=stored.token,
+        relay_token=stored.token,
+        capability_credential=stored.capability_credential or stored.token,
     )
     return filtered_stream.FilteredStream(config)
 
