@@ -2,7 +2,7 @@
 
 **Mission**: `pre-review-gate-operator-flow-01M0Q86H` (mission 196)
 **Target branch**: `fix/pre-review-gate-operator-flow`
-**Integrated commits**: `b67b7596f` (mission squash), `1ab824ca7` (done transitions), `0bf90230d` (acceptance/issue authorities)
+**Integrated commits**: `b67b7596f` (mission squash), `1ab824ca7` (done transitions), `0bf90230d` (acceptance/issue authorities), `2a4f020b4` and `da48eb698` (adversarial evidence remediation), `29a16b99c` (negative invariants)
 **Review verdict**: **PASS — mission implementation is aligned; release remains waiting upstream**
 
 ## Outcome
@@ -37,8 +37,8 @@ collect.
 
 ## Integrated verification
 
-- Focused merged-branch suite: **180 passed, 2 expected platform skips** in
-  72.93 seconds. The skips are the Linux-only subreaper harness on macOS and
+- Focused merged-branch suite after final adversarial remediation: **184 passed,
+  2 expected platform skips** in 36.94 seconds. The skips are the Linux-only subreaper harness on macOS and
   the native-Windows-only tree-termination node.
 - Public integration module: **22 passed, 1 platform skip**, including the
   repaired real binding path in integrated commit `b67b7596f`.
