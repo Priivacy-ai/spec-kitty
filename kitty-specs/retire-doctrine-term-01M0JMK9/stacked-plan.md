@@ -54,6 +54,17 @@ is executable from the artifacts alone. Nothing here performs a rename (C-001).
 - **Rollback ladder** (methodology §4.3): fix forward or revert before landing; revert one wave before dependents land;
   reverse the landed suffix or forward-fix afterwards; M3/M4 restore verified backups; M6 revert valid only before 4.0
   publication; release-level rollback after.
+- **Edit footprint vs ownership**: a wave's `owned_files_or_surfaces`/`retires_oc` columns name what the wave is
+  the **primary owner of and must retire**, not a strict whitelist of every path the wave's diff may touch. A wave
+  routinely edits rows another wave primarily owns to satisfy its own CR control/product registration or link
+  closure — e.g. M1 implements the CR-01 3.x reader in `src/charter/org_pack_discovery.py:201` (an OC-17/M2-owned
+  file) and re-points the 43 referrers of `docs/context/doctrine.md`, some of which live in `src/doctrine/skills/`
+  (OC-09/M4), `tests/**` (OC-24/M2), and `docs/adr/**`/`docs/**` (OC-29/OC-32/M5). These cross-owned edits are
+  legitimate when they are shrink-only under the wave's own guard, registered against the wave's own CR (never a
+  duplicate ownership claim), or explicitly carried forward for the owning wave to retire later — never a
+  free-standing rewrite of another wave's scope. Do not review a wave's diff against `owned_files_or_surfaces` as a
+  strict edit whitelist; a diff outside it that meets one of the three conditions above is expected, not a defect,
+  and flagging it as one produces false dangling-link/whitelist-review findings.
 
 ## 1. Wave entries (T013)
 
@@ -161,11 +172,30 @@ is executable from the artifacts alone. Nothing here performs a rename (C-001).
 | `removes_compatibility` | none |
 | `owned_files_or_surfaces` | everything in `retires_oc` plus the generators' outputs; never any path under `kitty-specs/` |
 | `tests` | `test_prose_history_closure_outside_archive`, `freshen_adr_inventory --check`, docs link/freshness/SEO gates with the link check scoped `:(exclude)kitty-specs/` (the archive cites renamed paths by design), `test_marker_job_completeness` (OC-30 consumer) green, `test_serialized_surfaces_canonical_writers` (docs-data part), `test_transition_guard_shrink_only`, `test_archive_root_byte_identical` |
-| `merge_gate` | no M5-owned (or earlier-wave-owned) row remains at the closing audit; no dangling renamed reference outside `kitty-specs/`; generated docs data fresh; archive gate in its §0 test form (`git diff --name-status $(git merge-base <target> <tip>) <tip> -- kitty-specs/` → only `A` entries under M5's own mission dir) |
+| `merge_gate` | pre-edit rename/re-cite map + OC-30/OC-31 sampled-diff review approved **before the first prose edit** (new bounded gate, see below); no M5-owned (or earlier-wave-owned) row remains at the closing audit except recorded quotation-fidelity exclusions; no dangling renamed reference outside `kitty-specs/`; generated docs data fresh; archive gate in its §0 test form (`git diff --name-status $(git merge-base <target> <tip>) <tip> -- kitty-specs/` → only `A` entries under M5's own mission dir) |
 | `rollback` | before M6 lands revert the wave (renames are reversible); after → forward-fix |
 | `change_mode` | `bulk_edit` |
 | `invariant_after` | **I5** |
 | `local_design_questions` | **1 deferred operator decision** — `DM-01M0P6C8C7Q6SPBT412V39RPN0` (disposition of tracked serialized runtime records keyed to immutable archive slugs or retired profile IDs: exclude alongside `kitty-specs/` / untrack after backup / schema-aware rewrite); it is the **only** M5 question and must be resolved before M5 is specified; no history exemption beyond the fixed root otherwise; re-cite rule fixed |
+
+**Quotation/homograph-fidelity rule.** M5's blind-rewrite rule applies to genuine occurrences of the retired term as
+the *domain* word — it does not license distorting an external quotation or citation. Where `doctrine` appears
+inside a quoted excerpt, a citation, or a historical record's title/body attributed to a source outside this
+program (e.g. a quoted spec, RFC, book, or third-party text embedded in prose), M5 preserves it — quote-preserving
+paraphrase-with-attribution, or exclude the passage from the rewrite scope with a recorded rationale — rather than
+rewriting the source's words. This is distinct from the already design-accepted ADR-title anachronism (the
+program's own prior-ADR titles/files are rewritten by design); it is specifically about fidelity to text this
+program did not author. The exact-zero audit still requires the retired token to be zero at I6 for genuine
+occurrences; a preserved quotation that must retain the literal token is handled as an M5 exclusion-with-rationale
+row in the occurrence map, never as a silent skip.
+
+**M5 pre-edit dry-run gate.** M5 (34,729 rows, including the 27,990-row OC-30 in-place rewrite) currently has no
+pre-edit gate, unlike M2's bounded topology-map approval. M5 adds a mirrored bounded gate before its first prose
+edit: a proposed rename/re-cite map (legacy path/title → canonical path/title, quotation-fidelity exclusions
+flagged) plus a sampled-diff review over OC-30 and OC-31 (the two largest, highest-risk classes — historical
+evidence rename-in-place and plans/investigations prose) — approved before the first edit lands, the same way M2's
+map approval precedes M2's first source edit. This is a new bounded gate, not a design question: it cannot change
+scope, order, or the terminal zero rule, and it does not add to M5's `local_design_questions` count above.
 
 ### M6 — `charter-compatibility-extinction`
 
