@@ -86,7 +86,7 @@ flowchart TD
 
 1. **`review/gate_budget.py` — deterministic authority**
    - defines `BudgetClassification`, `ScopeBudgetRule`, `ScopeIdentity`, and `ScopeBudgetAssessment`;
-   - derives a preflight identity only from a fixed budget-policy namespace plus normalized `ScopeResult.test_targets`; it does not reuse the post-run parse identity from `scope_source_identity()`;
+   - derives a preflight identity only from canonical UTF-8 JSON of the fixed `spec-kitty.pre-review-budget/v1` namespace plus normalized `ScopeResult.test_targets`, hashed with SHA-256 and prefixed `budget-v1:sha256:`; it does not reuse Python hashing or the post-run parse identity from `scope_source_identity()`;
    - applies exact source-controlled target-atom membership rules, initially any target set containing the exact `tests/architectural` directory atom;
    - returns `unknown` when no rule matches and exposes no write API.
 
@@ -111,8 +111,8 @@ flowchart TD
 
 5. **Retrospective surface**
    - runtime classification persistence is not added;
-   - implementers/reviewers use the canonical `spec-kitty agent tracer-append --category approach` surface to append every observed candidate diagnostic to `traces/approach.md`;
-   - the normal Mission retrospective inspects that tracer and records a proposed metadata follow-up owner, explicit no action, or explicit absence of candidates.
+   - implementers/reviewers use the canonical `spec-kitty agent tracer-append --category approach` surface immediately when an operational (not synthetic fixture) candidate is observed, recording provenance and full diagnostic data in `traces/approach.md`;
+   - a pre-accept `retrospective-handoff.md` inventories those durable entries or explicit absence; after merge the automatic retrospective terminus (or `spec-kitty retrospect create --mission <slug> --json`) consumes the handoff/tracer and records a proposed metadata follow-up owner, explicit no action, or explicit absence in canonical `retrospective.yaml`.
 
 ## Budget Classification Rules
 
@@ -173,7 +173,7 @@ tests/review/
 ├── test_gate_budget.py                    # normalization, exact rules, immutability
 ├── test_pre_review_gate_engine.py         # pre-launch refusal and timeout evidence
 ├── test_pre_review_gate_integration.py    # derived and override scope paths
-└── test_pre_review_gate_process_tree.py   # existing POSIX/Windows cleanup evidence
+└── test_pre_review_gate_process_tree.py   # new POSIX/Windows cleanup evidence
 
 tests/specify_cli/cli/commands/agent/
 └── test_tasks_move_task_pre_review_gate_observability.py
@@ -184,11 +184,12 @@ tests/specify_cli/cli/commands/agent/
 
 ## Implementation Strategy
 
-### Phase 0 — Red-first public and policy evidence
+### Phase 0 — Per-work-package red-first evidence
 
-- Replace the existing public-entry test comment that deliberately omits continuing liveness with failing deterministic-clock assertions: start within 1 second, heartbeat deltas no greater than 30 seconds, and no heartbeat after the terminal result.
-- Add exact public-entry failures for an oversized scope (no runner call, no lane transition), unknown classification warning/run, and unknown timeout candidate metadata in human and JSON modes.
-- Add pure rule tests that prove exact-atom `tests/architectural` matching in singleton and superset target sets, narrower-file unknown fallback, order-independent identity, declared-command compatibility, and absence of mutation APIs.
+- Every implementation WP commits at least one failing-first acceptance test before its production commits, proves the test red on that WP's `planning_base_branch`, and proves it green on the final WP commit, as required by the charter.
+- WP01 first commits policy-contract failures for exact-atom matching, pinned cross-process identity, unknown fallback, declared-command compatibility, and absence of mutation APIs.
+- WP02 first commits engine/refusal failures before modifying the engine or verdict model.
+- WP03 first commits exact public-entry failures—parameterized over registered-handler and explicit-override routes—before modifying registry or CLI surfaces. These tests must still be demonstrably red after approved WP02; if they are already green, they are not adequate ATDD evidence and must be strengthened before production edits.
 
 ### Phase 1 — Deterministic budget substrate
 
@@ -207,40 +208,38 @@ tests/specify_cli/cli/commands/agent/
 ### Phase 3 — Interruption, compatibility, and cross-platform verification
 
 - Prove refusal is pre-launch using an untouched lowest-level launch spy and deterministic classifier-to-return time; prove timeout/cancellation preserve lane/event state.
-- Re-run skip flag, both disable variables in canonical order, warn/block policy, explicit daemon-management exception, and one-document JSON tests.
-- Run real-process POSIX cleanup and deterministic Windows tree-termination contract tests.
+- Re-run exact collision cases for skip plus blocking, skip plus both disables, and both disables without skip in human and JSON modes; re-prove the explicit daemon-management exception separately under each disable variable.
+- Run real-process POSIX cleanup and deterministic Windows tree-termination contract tests; mark the deterministic Windows node `@pytest.mark.windows_ci` so the existing discovery job executes it, then record the actual job result (or evidence-backed absence of such a job) without editing CI.
 - Produce a required FR-001–FR-010 traceability artifact with one row per scenario/precedence/race and exact pytest node ID, human assertion, structured assertion, launch assertion, and lane/event assertion; acceptance fails on a blank cell.
 - Add a POSIX real-CLI abrupt-parent-death test: wait until head validation is running, send `SIGKILL` to the parent, independently read lane/event state, and assert no transition append without asserting orphan cleanup.
 
-### Phase 4 — Closeout and retrospective handoff
+### Phase 4 — Pre-accept evidence and lifecycle handoffs
 
 - Re-evaluate #2573 against the shipped behavior and retain async redesign as deferred.
-- Append every observed unknown-budget timeout diagnostic to `traces/approach.md`; at Mission/sprint retrospective inspect those entries and record follow-up owner, explicit no action, or explicit absence.
-- Do not mark #2573 release-ready until #3127 is merged; rebase onto the resulting `main` and rerun trustworthy required checks before closeout.
+- Audit that every operational unknown-budget timeout was appended immediately to `traces/approach.md`; create `retrospective-handoff.md` requiring the canonical post-merge retrospective to record follow-up owner, explicit no action, or explicit absence.
+- Produce a release handoff with an executable resume point. Do not mark #2573 release-ready until #3127 is merged, the branch is rebased onto the resulting `main`, and trustworthy required checks are rerun; an unmet upstream gate is a recorded `waiting_upstream` release state, not an indefinitely open implementation WP and not permission to claim readiness.
 
 ## Parallel Work Analysis
 
 ### Dependency graph
 
 ```text
-Red-first contracts
+WP01 policy contract + authority
        ↓
-Budget types + verdict model
-       ├───────────────┐
-       ↓               ↓
-Engine/refusal     Context/progress wire
-       └───────┬───────┘
-               ↓
-Public output + integration tests
-               ↓
-Cross-platform verification + traceability
+WP02 engine/refusal contract + implementation
+       ├───────────────────┐
+       ↓                   ↓
+WP03 public flow       WP04 interruption evidence
+       └─────────┬─────────┘
+                 ↓
+WP05 pre-accept evidence + lifecycle handoffs
 ```
 
 ### Work distribution
 
-- **Sequential foundation**: budget types, verdict shape, and aggregation semantics must land before engine and renderer branches compile.
-- **Parallel streams after foundation**: engine/refusal tests can proceed independently from the context/progress wire, provided each stream owns distinct files.
-- **Integration owner**: one owner combines public output, JSON schema assertions, precedence, and lane integrity to avoid competing edits in `tasks_move_task.py` and its large observability test.
+- **Sequential foundation**: budget policy lands before engine/verdict integration; public wiring begins only after the engine types compile.
+- **Parallel streams after engine**: public output (WP03) and isolated interruption evidence (WP04) proceed on distinct files.
+- **Integration owner**: WP03 combines public output, both evaluation routes, JSON schema assertions, collision precedence, and lane integrity to avoid competing edits in `tasks_move_task.py` and its large observability test.
 - **Reviewer separation**: implementation and review owners must be distinct per work package; exact package slicing is deferred to `/spec-kitty.tasks`.
 
 ## Test and Evidence Plan

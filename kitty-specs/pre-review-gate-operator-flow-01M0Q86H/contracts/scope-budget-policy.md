@@ -26,13 +26,14 @@ guidance: string
 ## Normative behavior
 
 1. Normalize a copy of targets; never rewrite executed argv.
-2. Derive identity from a fixed budget-policy namespace plus normalized targets; do not reuse post-run `scope_source_identity()`.
+2. Derive identity using namespace `spec-kitty.pre-review-budget/v1` and canonical UTF-8 JSON `{"namespace":...,"targets":[...]}` (`sort_keys=True`, `ensure_ascii=True`, separators `(",", ":")`), then SHA-256; emit `budget-v1:sha256:<lowercase hex>`. Do not use Python `hash()`/`repr()` or reuse post-run `scope_source_identity()`.
 3. Match source-controlled exact target atoms by membership.
 4. Return `unknown` when no rule matches.
 5. Refuse execution only for `oversized`.
 6. Warn and execute for `unknown` under the existing timeout.
 7. Expose no runtime write, learning, or promotion API.
 8. A new classification requires a reviewed source change with evidence.
+9. The pinned vector for `("tests/architectural",)` MUST equal `budget-v1:sha256:10c1e7475c72e48b83e4910e24437646d6ecd55052ca9a3a4f413b17153946fe`, including in a fresh process with a different `PYTHONHASHSEED`.
 
 ## Initial rule
 

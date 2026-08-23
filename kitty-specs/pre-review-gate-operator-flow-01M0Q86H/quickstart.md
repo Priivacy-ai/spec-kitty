@@ -11,26 +11,33 @@ git branch --show-current
 
 Expected branch: `fix/pre-review-gate-operator-flow`. Do not implement on `main` or in the coordination husk.
 
+Before any implementation commit, verify GitHub issue #2573 is assigned to the project Human-in-Charge. If assignment cannot be completed, stop WP01.
+
 ## Red-first sequence
 
-1. Add exact policy tests for:
+Each implementation WP must commit its own failing-first acceptance test before its production commits, prove that test RED on the WP's `planning_base_branch`, and prove it GREEN on the final WP commit.
+
+1. In WP01, add exact policy tests for:
    - `tests/architectural` -> `oversized`;
    - `tests/architectural` plus another target -> `oversized`;
    - `./tests/architectural/` normalizes to the same rule;
    - `tests/architectural/test_layer_rules.py` -> `unknown`;
    - target order/duplicates do not change the target-only policy identity;
+   - the pinned `("tests/architectural",)` identity is `budget-v1:sha256:10c1e7475c72e48b83e4910e24437646d6ecd55052ca9a3a4f413b17153946fe` in-process and in a fresh process with a different `PYTHONHASHSEED`;
    - a broad suite expressed only in a declared command stays `unknown`;
    - no runtime mutation API exists.
 
-2. Extend the exact public-entry observability test so an injected clock proves start within 1 second, heartbeat gaps no greater than 30 seconds, and no heartbeat after terminal output. Confirm it fails because `TransitionGateContext` currently drops status and the explicit-override caller omits its existing callback.
+2. In WP02, commit failing engine/refusal tests before changing the engine or verdict model.
 
-3. Add public-entry tests for:
+3. In WP03, extend the exact public-entry observability test, parameterized over both the explicit override and active registered-handler routes, so an injected clock proves assessment-before-launch, start within 1 second, heartbeat gaps no greater than 30 seconds, and no heartbeat after terminal output. Confirm these tests are still red on the approved WP02 base before changing registry/CLI code.
+
+4. Add public-entry tests for:
    - oversized refusal within 2 seconds, no launch, lane unchanged;
    - unknown warning followed by normal execution;
    - unknown timeout candidate in human output;
    - the same timeout as one final JSON document with required fields.
 
-Run the red slice:
+Run and record each red slice in its owning WP before that WP's production edit; do not defer all red evidence to the end:
 
 ```bash
 ./.venv/bin/python -m pytest \
@@ -40,7 +47,7 @@ Run the red slice:
   -q
 ```
 
-Record the expected failures before implementation.
+Record the expected failures and the separate red-test commit for review.
 
 ## Implementation order
 
@@ -82,12 +89,13 @@ Assertions must cover:
 
 - explicit skip before workspace/process work;
 - disable precedence: `SPEC_KITTY_SYNC_DISABLE`, then `SPEC_KITTY_SYNC_MINIMAL_IMPORT`;
+- human and JSON collisions for skip+blocking, skip+both disables, and both disables without skip;
 - explicit daemon-management exception;
 - warn-by-default and configured block;
 - timeout/cancel no-transition and byproduct restoration;
 - one final JSON document.
 
-Also add a POSIX real-CLI test that confirms candidate-head validation has started, sends `SIGKILL` to the parent, and independently proves no lane/event transition was appended. Do not assert orphan cleanup.
+Also add a POSIX real-CLI test that confirms candidate-head validation has started, sends `os.kill(parent_pid, signal.SIGKILL)` to the parent PID only, and independently reads lane/event state before bounded teardown to prove no transition was appended. Do not assert orphan cleanup.
 
 ## Cross-platform interruption evidence
 
@@ -97,7 +105,7 @@ Locate the current process-tree tests before running the narrow nodes:
 rg -n "taskkill|process tree|TIMED_OUT|CANCELLED|_terminate_and_reap" tests/review
 ```
 
-Then run the exact POSIX real-process and Windows contract nodes named by that census. Do not claim cleanup of grandchildren orphaned by uncatchable parent `SIGKILL`; verify only lane/event integrity for that case.
+Then run the exact POSIX real-process and Windows contract nodes named by that census. Mark the deterministic Windows contract node `@pytest.mark.windows_ci` so the existing `ci-windows` workflow discovers it, and record the actual job result (or evidence-backed absence of the job) without changing CI. Do not claim cleanup of grandchildren orphaned by uncatchable parent `SIGKILL`; verify only lane/event integrity for that case.
 
 ## Manual contract probes
 
@@ -141,11 +149,13 @@ Unknown timeout JSON must parse once and contain:
   tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py
 ```
 
+Also run strict mypy on every touched production module and review every new public enum, dataclass, protocol, and function for a docstring.
+
 Before accepting the Mission:
 
 - complete the FR-001–FR-010 traceability matrix;
 - re-evaluate issue #2573 against live behavior;
 - keep async execution deferred;
-- append each observed unknown-budget timeout candidate with `spec-kitty agent tracer-append --category approach`, including identity, targets, configured budget, observed elapsed time, and environment context;
-- ensure the Mission/sprint retrospective inspects `traces/approach.md` and records an owner, explicit no action, or explicit absence;
-- after #3127 merges, rebase onto the resulting `main` and rerun required checks before marking #2573 release-ready.
+- audit that each **operational** unknown-budget timeout was appended immediately at observation with `spec-kitty agent tracer-append --category approach`, including `provenance: operational`, identity, targets, configured budget, observed elapsed time, and environment context; never enqueue synthetic timeout fixtures;
+- create `retrospective-handoff.md` inventorying those entries or explicit absence and requiring canonical post-merge `retrospective.yaml` to record an owner, explicit no action, or `no candidates observed`; use `spec-kitty retrospect create --mission pre-review-gate-operator-flow-01M0Q86H --json` only as the recovery command if automatic merge/close capture did not produce it;
+- if #3127 is still open, record `waiting_upstream` plus the executable resume sequence. After it merges, fetch/rebase onto the resulting `main` and rerun required checks before marking #2573 release-ready.

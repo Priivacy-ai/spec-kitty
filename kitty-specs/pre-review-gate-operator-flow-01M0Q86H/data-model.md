@@ -20,9 +20,17 @@ Immutable value derived from, but never substituted for, the runner's target arg
 |---|---|---|
 | `normalized_targets` | `tuple[str, ...]` | POSIX-normalized, de-duplicated, sorted, non-mutating projection of `ScopeResult.test_targets`. |
 | `policy_namespace` | `str` | Fixed versioned namespace for the preflight budget policy. |
-| `value` | `str` | Stable identifier derived from policy namespace plus normalized targets. |
+| `value` | `str` | `budget-v1:sha256:<lowercase hex>` over the canonical bytes defined below. |
 
-Identity equality must be independent of input order and duplicate target entries. Executed argv remains unchanged. This is deliberately separate from `scope_source_identity()`, which requires completed raw output and remains the sole baseline/head parse-comparability authority.
+Canonical identity encoding is deliberately fixed rather than delegated to Python object hashing or representation:
+
+1. `policy_namespace` is exactly `spec-kitty.pre-review-budget/v1`.
+2. Serialize `{"namespace": <policy_namespace>, "targets": [<normalized targets>]}` as UTF-8 JSON with sorted keys, `ensure_ascii=True`, and separators `(",", ":")` (no whitespace).
+3. Hash those bytes with SHA-256 and prefix the lowercase hexadecimal digest with `budget-v1:sha256:`.
+
+Pinned vector: normalized targets `("tests/architectural",)` serialize to `{"namespace":"spec-kitty.pre-review-budget/v1","targets":["tests/architectural"]}` and produce `budget-v1:sha256:10c1e7475c72e48b83e4910e24437646d6ecd55052ca9a3a4f413b17153946fe`.
+
+Identity equality must be independent of input order, duplicate target entries, process, and `PYTHONHASHSEED`. Executed argv remains unchanged. This is deliberately separate from `scope_source_identity()`, which requires completed raw output and remains the sole baseline/head parse-comparability authority.
 
 ## 3. ScopeBudgetRule
 
@@ -157,10 +165,10 @@ Only `unknown + timed_out` sets `classification_candidate=true`. Neither that tr
 
 ## 9. Retrospective observation
 
-Each observed delivery candidate is appended through `spec-kitty agent tracer-append --category approach`, producing the mission-owned `traces/approach.md`. The retrospective consumes that durable tracer, not terminal scrollback. For each observed candidate it records:
+Each **operational** delivery candidate is appended immediately at its point of observation through `spec-kitty agent tracer-append --category approach`, producing the mission-owned `traces/approach.md`. Synthetic controlled-clock/timeout fixtures remain automated-test evidence and are not classification evidence. Every tracer entry records `provenance: operational`; the retrospective consumes that durable tracer, not terminal scrollback. For each observed candidate it records:
 
 - scope identity and targets;
 - environment/context sufficient to avoid treating host contention as structural proof;
 - disposition: `follow_up` with owner/reference, or `no_action` with reason.
 
-If the tracer contains no candidate entry, the retrospective records `no candidates observed`; absence is not inferred silently.
+Before acceptance, `retrospective-handoff.md` inventories durable operational entries (or explicitly records none) and requires their disposition by the canonical post-merge retrospective. After merge, the automatic retrospective terminus or `spec-kitty retrospect create --mission <slug> --json` produces `retrospective.yaml`; that record must state `follow_up` with owner/reference or `no_action` with reason for each candidate, or `no candidates observed`. Absence is not inferred silently.
