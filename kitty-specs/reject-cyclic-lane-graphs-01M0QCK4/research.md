@@ -14,9 +14,9 @@
 
 ## R-002 — Detector placement and algorithm
 
-**Decision**: implement a pure lane-specific DFS helper in `src/specify_cli/lanes/compute.py`, invoked after `lane_deps` contains code and planning-lane edges.
+**Decision**: implement a pure lane-specific iterative DFS helper in `src/specify_cli/lanes/compute.py`, invoked after `lane_deps` contains code and planning-lane edges.
 
-**Rationale**: This is the first seam containing the authoritative post-collapse graph and its lane-to-WP membership. Sorted roots and neighbors give deterministic first-cycle selection in O(V + E) traversal time. A pure helper remains independently testable and benchmarkable without weakening enforcement.
+**Rationale**: This is the first seam containing the authoritative post-collapse graph and its lane-to-WP membership. Sorted roots and neighbors give deterministic first-cycle selection in O(V + E) traversal time. An explicit traversal stack prevents Python's recursion limit from violating FR-010 on large valid mission graphs. A pure helper remains independently testable and benchmarkable without weakening enforcement.
 
 **Alternatives considered**:
 

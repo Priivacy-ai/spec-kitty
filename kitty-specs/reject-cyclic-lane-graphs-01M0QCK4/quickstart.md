@@ -8,7 +8,9 @@ Run commands from the repository root checkout on `fix/reject-cyclic-lane-graphs
 uv run pytest \
   tests/specify_cli/lanes/test_lane_dependency_cycle_detection.py \
   tests/specify_cli/lanes/test_compute_lane_depths_cycle_safety.py \
-  tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py
+  tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py \
+  tests/specify_cli/lanes/test_lane_dependency_cycle_determinism.py \
+  tests/specify_cli/lanes/test_lane_dependency_cycle_cli_determinism.py
 ```
 
 The suite must demonstrate:
@@ -22,20 +24,18 @@ The suite must demonstrate:
 
 ## Determinism
 
-Run the structured CLI fixture with at least three process hash seeds and compare the `error_code`, `cycle_path`, and `cycle_lanes` portions byte-for-byte:
+Run the structured CLI fixture, which launches canonical `finalize-tasks --validate-only --json` subprocesses under seeds 1, 7, and 97 and compares the `error_code`, `cycle_path`, and `cycle_lanes` portions byte-for-byte:
 
 ```bash
-PYTHONHASHSEED=1 uv run pytest tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py -k hash_seed
-PYTHONHASHSEED=7 uv run pytest tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py -k hash_seed
-PYTHONHASHSEED=97 uv run pytest tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py -k hash_seed
+uv run pytest tests/specify_cli/lanes/test_lane_dependency_cycle_cli_determinism.py -q
 ```
 
 ## Performance
 
 ```bash
 SPEC_KITTY_RUN_PERFORMANCE=1 uv run pytest \
-  tests/specify_cli/lanes/test_lane_dependency_cycle_detection.py \
-  -m benchmark --benchmark-warmup-iterations=5 --benchmark-min-rounds=20
+  tests/specify_cli/lanes/test_lane_dependency_cycle_performance.py \
+  -m performance -q
 ```
 
 For the fixed 100-lane/500-edge fixture, the detector's p95 must be no more than 100 ms on the CI runner.
@@ -50,6 +50,7 @@ uv run ruff check \
   tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py
 
 uv run mypy --strict \
+  src/specify_cli/lanes/models.py \
   src/specify_cli/lanes/compute.py \
   src/specify_cli/cli/commands/agent/mission_finalize.py
 

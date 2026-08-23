@@ -79,7 +79,10 @@ tests/
 │   └── test_compute.py
 ├── specify_cli/lanes/
 │   ├── test_compute_lane_depths_cycle_safety.py
-│   └── test_lane_dependency_cycle_detection.py
+│   ├── test_lane_dependency_cycle_detection.py
+│   ├── test_lane_dependency_cycle_determinism.py
+│   ├── test_lane_dependency_cycle_cli_determinism.py
+│   └── test_lane_dependency_cycle_performance.py
 └── specify_cli/cli/commands/agent/
     └── test_finalize_lane_dependency_cycle.py
 ```
@@ -90,7 +93,7 @@ tests/
 
 ### 1. Deterministic domain detector
 
-Add a pure internal function accepting the complete `lane_deps` mapping and returning either `None` or one normalized closed cycle. It performs depth-first search over sorted lane IDs and sorted dependency IDs, stops at the first directed back edge, constructs the closed path, and rotates its unique members so the lexically smallest lane begins the path while preserving edge direction. Complexity is O(V + E), excluding small sorting costs.
+Add a pure internal function accepting the complete `lane_deps` mapping and returning either `None` or one normalized closed cycle. It performs iterative depth-first search over sorted lane IDs and sorted dependency IDs, stops at the first directed back edge, constructs the closed path, and rotates its unique members so the lexically smallest lane begins the path while preserving edge direction. An explicit stack is required so FR-010 holds for valid mission graphs beyond Python's recursion limit. Complexity is O(V + E), excluding small sorting costs.
 
 ### 2. Typed rejection
 
@@ -112,8 +115,8 @@ Keep `write_lanes_json` unchanged. The mutating path computes before capturing t
 
 1. Add ATDD coverage for two-lane post-collapse rejection in mutating and `--validate-only` modes, including exact JSON and file preservation.
 2. Unit-test self-loops, three-lane cycles, multiple cycles, lexical selection, normalization, planning-lane participation, clean DAGs, and sorted WP membership.
-3. Permute mapping/dependency insertion order and execute subprocess checks under at least three `PYTHONHASHSEED` values; compare structured cycle details byte-for-byte.
-4. Change the existing public `compute_lanes` cyclic test to expect the typed rejection; retain direct `_compute_lane_depths` tests proving defensive termination.
+3. Permute mapping/dependency insertion order at the domain seam, then invoke canonical `finalize-tasks --validate-only --json` in fresh subprocesses under at least three `PYTHONHASHSEED` values; compare the structured cycle fields byte-for-byte.
+4. Change the existing public `compute_lanes` cyclic test to expect the typed rejection; retain direct `_compute_lane_depths` tests proving defensive termination and add a cycle longer than `sys.getrecursionlimit()` that must raise the typed error.
 5. Run focused pytest, ruff, and mypy checks, then the relevant broader lane/finalization suites.
 6. Run a pytest-benchmark fixture with 5 warm-ups and 20 rounds over a fixed 100-lane/500-edge graph and assert the governed 100 ms p95 budget.
 
