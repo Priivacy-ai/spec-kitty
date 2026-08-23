@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2695": {
-      "evidence_ref": "<link or commit>",
+      "evidence_ref": "Covered by FR-015 and WP04 sibling-command policy parity; verify and close with issue #3621 acceptance evidence",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -9,8 +9,8 @@
       "scope": null,
       "source_file": "spec.md",
       "title": "<fill at WP-implementation time>",
-      "verdict": "unknown",
-      "wp": null
+      "verdict": "in-mission",
+      "wp": "WP04"
     },
     "#3127": {
       "evidence_ref": "External P0 release gate tracked by https://github.com/Priivacy-ai/spec-kitty/issues/3127; not a code-lane dependency",
