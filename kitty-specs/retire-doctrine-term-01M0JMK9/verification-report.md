@@ -17,7 +17,7 @@ Deliverables reviewed: WP01 `e420f4dcc` + `5451a0f7f` (ADR, registration, baseli
 |---|---|---|
 | SC-001 ADR self-sufficiency + explicit override | **PASS** | §1 (eight questions answered from ADR text alone; override blockquote byte-identical to contract §3) |
 | SC-002 regenerated inventory set-equal, hash match, no X/excluded rows | **PASS** | §2 (SHA-256 `3631531b…` byte-identical; 48,328 + 722 = 49,050; set equality vs direct argv; 0 X/exempt/`kitty-specs/` rows) |
-| SC-003 every hit exactly once to M1–M6; every CR one introduction + M6 removal | **PASS** | §4 (44 populated OCs → one wave each; 304/13,259/111/647/34,729/0 = 49,050; CR-01..08 intro = source-OC owner, removal M6) |
+| SC-003 every hit exactly once to M1–M6; every CR one introduction + M6 removal | **PASS** | §4 (44 populated OCs → one wave each; **302/13,344/111/564/34,729/0 = 49,050** — post-re-derivation authority figures, refreshed after the OC-03/OC-41 moves; §4's own 304/13,259/111/647/34,729/0 numbers are the pre-re-derivation figures this run reproduced, see the "Post-squad amendment" section below; CR-01..08 intro = source-OC owner, removal M6) |
 | SC-004 M1 zero decisions; M2 bounded pre-edit gate; I6 exact audits, no exception machinery | **PASS** | §3, §4 (M1 dry run `local_design_questions=0`; M2 single pre-edit map gate; I6 = two zero audits + `terminology-zero-current-tree`, no baseline/allowlist) |
 
 ---

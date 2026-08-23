@@ -172,8 +172,9 @@ binds it into the M1 contract; downstream M1 consumes that stack output and cann
 authority to the issue. The parity predicate is fixed: term set, definitions and aliases keyed by term ID
 must be equal across the three authorities and every referrer link must resolve. M1 also re-points the
 referrers of `docs/context/doctrine.md` outside the archive (generated `docs/api/**` by re-running their
-generators). M1 then arms the transition guard; its baseline store lives untracked or inside M1's own
-`kitty-specs/` mission directory, never as a tracked token-bearing file elsewhere, and
+generators). M1 then arms the transition guard; its baseline store lives **untracked only** — never inside
+`kitty-specs/`, not even M1's own mission directory, so M6's later deletion of the store never appears as an edit
+under the archive — and never as a tracked token-bearing file elsewhere, and
 `scripts/migrate_charter_interview_answers.py` builds its frozen replacements from numeric bytes, never a
 stored literal. At M1's close, generated `charter.yaml` partitions whose producers are later waves (catalog
 summaries emitted by `src/charter/compiler.py`, activation IDs renamed by M4) are carried forward in M1's
