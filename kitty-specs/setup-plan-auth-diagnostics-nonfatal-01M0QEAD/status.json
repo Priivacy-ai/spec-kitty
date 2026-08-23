@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M0QQC4SGMYHX4M24NGPXB1K8",
-  "materialized_at": "2026-08-23T16:31:02.449030+00:00",
+  "event_count": 3,
+  "last_event_id": "01M0QXP0Y8DVMNP270F6CXT2ZC",
+  "materialized_at": "2026-08-23T18:21:17.640363+00:00",
   "mission_number": "",
   "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
   "mission_type": "",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 2
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -30,6 +30,13 @@
       "lane": "planned",
       "last_event_id": "01M0QQC4SGMYHX4M24NGPXB1K8",
       "last_transition_at": "2026-08-23T16:31:02.449030+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M0QXP0Y8DVMNP270F6CXT2ZC",
+      "last_transition_at": "2026-08-23T18:21:17.640363+00:00"
     }
   }
 }
