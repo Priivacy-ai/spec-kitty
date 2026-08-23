@@ -1,4 +1,5 @@
 {
+  "accept_commit": "26cb75fafb3a6490faa40d77a90b6258314ea8da",
   "acceptance_history": [
     {
       "accept_commit": "aee0377e433018786abc90a804ea5e9be1b5f431",
@@ -8,6 +9,7 @@
       "accepted_from_commit": "61e7fc508b25002005657b55c8a50cfa1f6be606"
     },
     {
+      "accept_commit": "26cb75fafb3a6490faa40d77a90b6258314ea8da",
       "acceptance_mode": "local",
       "accepted_at": "2026-08-23T20:04:13.179410+00:00",
       "accepted_by": "codex",
