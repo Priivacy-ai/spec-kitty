@@ -272,8 +272,12 @@ runtime reconciliation service. Any design that keeps the old root/path "registe
 
 Every inventory class OC-01…OC-49 and every CR-01…CR-08 has exactly one transition (§1.2), a named risk (§1.2), a
 named verifier (§3.1–§3.4), a guard rule (§2), and a rollback path (§4.3). No policy question remains open for M1, M3,
-M4 or M6; M2's single bounded gate is the pre-edit topology-map approval (which now also fixes the offer-side
-sub-package name), and it cannot change scope, order, or the terminal zero rule; M5 carries exactly one deferred
+M4 or M6; M2's single bounded gate is the pre-edit topology-map approval (which now also fixes the
+`src/charter/offering/` / `src/charter/activation/` split), and it cannot change scope, order, or the terminal
+zero rule; M5 carries exactly one deferred
 operator decision (`DM-01M0P6C8C7Q6SPBT412V39RPN0`, serialized historical records) that must be resolved before M5 is
-specified. I6 is equivalent to the exact audit results (content, pathname, symlink-target, normalised-content) over
-`HEAD` at the repository toplevel with the single fixed `kitty-specs/` exclusion — not a curated exception set.
+specified — left deferred by operator decision; M6's single-fixed-`kitty-specs/`-exclusion terminal contract is
+therefore contingent on that resolution (§1.2 Options 1/3 would require a scoped re-author of the M6 audit contract;
+tracked in issue #3684) and is not represented as finalized here. I6 is equivalent to the exact audit results
+(content, pathname, symlink-target, normalised-content) over `HEAD` at the repository toplevel with the single fixed
+`kitty-specs/` exclusion — not a curated exception set.
