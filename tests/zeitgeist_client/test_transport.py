@@ -21,8 +21,10 @@ from unittest.mock import patch
 
 import pytest
 
-from kernel.clock import now_utc
+from kernel.clock import now_epoch, now_utc
 from specify_cli.zeitgeist_client import budget, transport
+
+from .conftest import mint_capability_token
 
 # See tests/zeitgeist_client/test_grammar.py's pytestmark comment. This file
 # uses real loopback sockets/threads (the Team Kitty double) but no
@@ -223,7 +225,7 @@ def test_n18_focus_ref_with_wp_id(team_kitty_double):
     starts = [
         r for r in team_kitty_double.requests if r.body and r.body.get("op") == "focus.start"
     ]
-    assert starts[0].body["args"]["focus_ref"] == "mission-x/WP03"
+    assert starts[0].body["args"]["focus_ref"] == "mission-x.WP03"
 
 
 def test_n18_focus_ref_without_wp_id(team_kitty_double):
@@ -281,7 +283,7 @@ def test_focus_lease_reports_ref_and_start_time_after_focus_start(team_kitty_dou
     client.focus_start("mission-x", wp_id="WP03")
     after = now_utc()
     focus_ref, started_at = client.focus_lease()
-    assert focus_ref == "mission-x/WP03"
+    assert focus_ref == "mission-x.WP03"
     assert started_at is not None
     assert before <= started_at <= after
 
@@ -302,3 +304,165 @@ def test_focus_lease_unchanged_by_heartbeat(team_kitty_double):
     client.focus_heartbeat()
     _, started_at_after = client.focus_lease()
     assert started_at_before == started_at_after
+
+
+# --- FIX-M2-10: offer() targets /managed/control with the required ---------
+# --- headers/envelope, not /events -----------------------------------------
+
+
+def test_offer_posts_to_managed_control_not_events(team_kitty_double):
+    """The wire-shape defect itself: before this fix, offer() posted to
+    ``<relay_url>/events`` — server.py's baseline Beacon route, which has no
+    ``op`` dispatch at all and structurally cannot process a
+    ``ControlEnvelope``. A real relay's managed op dispatcher lives at
+    ``/managed/control`` (``zeitgeist/managed.py``) instead."""
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    client.presence("file_edit", path="src/foo.py")
+    assert len(team_kitty_double.requests) == 1
+    assert team_kitty_double.requests[0].path == "/managed/control"
+
+
+def test_offer_body_includes_schema_version(team_kitty_double):
+    """``managed_control.schema.json``'s ``ControlEnvelope`` requires
+    ``schema_version`` (``additionalProperties: false``, ``required``) —
+    the pre-fix envelope omitted it entirely."""
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    client.presence("file_edit")
+    body = team_kitty_double.requests[0].body
+    assert body["schema_version"] == "1.0.0"
+    assert set(body.keys()) == {"schema_version", "op", "request_id", "args"}
+
+
+def test_offer_sends_authorization_and_capability_headers(team_kitty_double):
+    """Both gates a real relay enforces on this route: the outer
+    ``AuthenticationMiddleware`` (``Authorization: Bearer <token>``, every
+    route but ``/health``) and ``managed.py``'s own capability check
+    (``X-Zeitgeist-Capability``) — the pre-fix request carried neither the
+    right path nor the second header at all."""
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url, token="secret-token-1"))
+    client.presence("file_edit")
+    headers = team_kitty_double.requests[0].headers
+    assert headers["Authorization"] == "Bearer secret-token-1"
+    assert headers["X-Zeitgeist-Capability"] == "secret-token-1"
+
+
+def test_offer_targets_managed_control_for_every_op(team_kitty_double):
+    """Every offer()-driven op — presence AND every focus op AND the
+    (client-unreachable-in-practice, but still wire-shape-identical)
+    session.revoke path — goes through the SAME corrected target/headers,
+    not just the op the original DQA-M2-02 probe happened to check first."""
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    client.presence("file_edit")
+    client.focus_start("mission-x")
+    client.focus_heartbeat()
+    client.focus_pause(reason="user")
+    client.focus_end(reason="user")
+    assert len(team_kitty_double.requests) == 5
+    for req in team_kitty_double.requests:
+        assert req.path == "/managed/control"
+        assert req.headers["X-Zeitgeist-Capability"] == "test-token"
+        assert req.body["schema_version"] == "1.0.0"
+
+
+# --- FIX-M2-10: real acceptance/rejection against a PROTOCOL-FAITHFUL ------
+# --- double (managed_control_double, tests/zeitgeist_client/conftest.py) ---
+#
+# Unlike the recording-only team_kitty_double above, this double actually
+# enforces AuthenticationMiddleware's Bearer gate, managed_auth.py's
+# X-Zeitgeist-Capability HMAC verification (kind-scoped), and
+# managed_control.schema.json's schema_version requirement — a request that
+# reaches SENT here would be genuinely ACCEPTED (202) by a real relay, and
+# one that is REJECTED here for the wrong reason (401/403/422) would be
+# genuinely rejected by one too. This is what "verified against the live
+# zeitgeist source, not the double" (FIX-M2-10 acceptance criterion 1) means
+# for a test that cannot itself run a real zeitgeist container.
+
+
+def _kinded_client(double, *, kind: str, session_id: str = "sess-1") -> transport.ZeitgeistClient:
+    """Build a client whose ``token`` both matches ``double``'s configured
+    ``shared_token`` (the Authorization gate) AND is a real, ``kind``-scoped
+    capability token signed with ``double``'s own already-configured
+    ``capability_key`` (the X-Zeitgeist-Capability gate) — the "one
+    credential, two headers" model ``offer()``'s module docstring
+    documents."""
+    now = now_epoch()
+    token = mint_capability_token(
+        double.capability_key, sub="probe", team="acme", deployment="d1", repo="spec-kitty",
+        kind=kind, iat=now, exp=now + 300,
+    )
+    double.set_shared_token(token)
+    return transport.ZeitgeistClient(
+        transport.ClientConfig(
+            relay_url=double.url, token=token, harness="claude-code",
+            session_id=session_id, agent_id="agent-1", repo="spec-kitty", branch="main",
+        )
+    )
+
+
+def test_offer_presence_publish_accepted_by_protocol_faithful_double(managed_control_double):
+    client = _kinded_client(managed_control_double, kind="presence")
+    result = client.presence("file_edit", path="src/foo.py")
+    assert result.outcome == transport.OfferOutcome.SENT
+    assert managed_control_double.applied_op_count("presence.publish") == 1
+
+
+def test_offer_focus_lifecycle_accepted_by_protocol_faithful_double(managed_control_double):
+    client = _kinded_client(managed_control_double, kind="focus")
+    assert client.focus_start("mission-x").outcome == transport.OfferOutcome.SENT
+    assert client.focus_heartbeat().outcome == transport.OfferOutcome.SENT
+    assert client.focus_pause(reason="user").outcome == transport.OfferOutcome.SENT
+    assert client.focus_end(reason="user").outcome == transport.OfferOutcome.SENT
+    assert managed_control_double.applied_op_count("focus.start") == 1
+    assert managed_control_double.applied_op_count("focus.end") == 1
+
+
+def test_offer_focus_op_without_prior_start_is_rejected_by_protocol_faithful_double(managed_control_double):
+    """``managed.py``'s ``FocusNotStarted`` (404): the double's own
+    faithfulness to "focus.heartbeat/pause require a prior focus.start for
+    this key", not something offer() itself enforces server-side."""
+    client = _kinded_client(managed_control_double, kind="focus")
+    result = client.focus_heartbeat()
+    # ZeitgeistClient.focus_heartbeat() refuses locally when the client has
+    # no in-process focus_ref of its own — reach the wire directly via
+    # offer() to exercise the relay's own guard instead.
+    assert result.outcome == transport.OfferOutcome.REFUSED_LOCAL
+    wire_result = client.offer(
+        "focus.heartbeat",
+        {"session_id": "sess-1", "repo": "spec-kitty", "focus_ref": "never-started", "ttl_s": 90},
+    )
+    assert wire_result.outcome == transport.OfferOutcome.REJECTED
+    assert managed_control_double.applied_op_count("focus.heartbeat") == 0
+
+
+def test_offer_rejected_when_capability_token_kind_does_not_grant_op(managed_control_double):
+    """A ``presence``-kind capability token can never drive a ``focus.*``
+    op — ``managed_auth._KIND_CAPS``'s own closed mapping, reproduced by
+    the double."""
+    client = _kinded_client(managed_control_double, kind="presence")
+    result = client.focus_start("mission-x")
+    assert result.outcome == transport.OfferOutcome.REJECTED
+    assert managed_control_double.applied_op_count("focus.start") == 0
+
+
+def test_offer_rejected_when_authorization_bearer_is_wrong(managed_control_double):
+    """``AuthenticationMiddleware``'s outer gate, checked before
+    ``managed.py`` ever inspects ``X-Zeitgeist-Capability`` — a client
+    presenting a token the relay's shared secret does not recognize is
+    REJECTED (401) regardless of whether the capability signature is
+    otherwise valid."""
+    now = now_epoch()
+    valid_capability_token = mint_capability_token(
+        "cap-key", sub="probe", team="acme", deployment="d1", repo="spec-kitty",
+        kind="presence", iat=now, exp=now + 300,
+    )
+    managed_control_double.set_shared_token("a-completely-different-shared-secret")
+    client = transport.ZeitgeistClient(
+        transport.ClientConfig(
+            relay_url=managed_control_double.url, token=valid_capability_token,
+            harness="claude-code", session_id="sess-1", agent_id="agent-1",
+            repo="spec-kitty", branch="main",
+        )
+    )
+    result = client.presence("file_edit")
+    assert result.outcome == transport.OfferOutcome.REJECTED
+    assert managed_control_double.applied_op_count("presence.publish") == 0

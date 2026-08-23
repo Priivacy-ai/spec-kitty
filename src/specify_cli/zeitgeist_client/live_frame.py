@@ -51,10 +51,16 @@ Reported-live honesty, not reconstruction:
   ``ttl_s`` the same as an absent one rather than let ``int()`` raise on it.
 * ``session_ref``/``user`` (ident-shaped: a short opaque token, matching
   ``managed.ManagedRegistry.session_ref()``'s own 12-hex shape upstream) and
-  ``repo``/``focus_ref`` (ref-shaped: can carry ``/``, e.g. ``transport.py``'s
-  own ``f"{mission_slug}/{wp_id}"`` focus refs) are routed through the
-  shared Z1/zeitgeist identity grammar (``grammar.py``, itself a literal
-  transcription of ``zeitgeist/editor.py:146-192``) before reaching a
+  ``repo``/``focus_ref`` (ref-shaped: ``repo`` genuinely can carry ``/``;
+  ``focus_ref`` is actually ident-shaped on the real wire —
+  ``managed_control.schema.json``'s ``FocusArgs.focus_ref`` has no ``/`` in
+  its character class, and FIX-M2-10 corrected ``transport.py``'s own
+  construction from ``f"{mission_slug}/{wp_id}"`` to
+  ``f"{mission_slug}.{wp_id}"`` to match — this read side needed no change
+  of its own, since REF_RE is a strict superset of what an ident-shaped
+  value needs) are routed through the shared Z1/zeitgeist identity grammar
+  (``grammar.py``, itself a literal transcription of
+  ``zeitgeist/editor.py:146-192``) before reaching a
   ``PresenceView``/``FocusView`` or being used as this state's internal
   dict key. A relay is untrusted input exactly like the ``editor`` rumor
   feed upstream sanitizes at render time: a well-formed identifier passes

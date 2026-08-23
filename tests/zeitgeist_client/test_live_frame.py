@@ -540,9 +540,14 @@ def test_focus_hostile_session_ref_and_user_are_rewritten_to_unknown_digest() ->
 
 
 def test_focus_well_formed_focus_ref_with_slash_passes_through_unchanged() -> None:
-    """``transport.py`` builds real focus refs as ``f"{mission_slug}/{wp_id}"``
-    -- REF_RE (not IDENT_RE) must be the pattern applied, or a legitimate
-    two-segment focus ref would itself be rewritten to unknown-<digest>."""
+    """A slash-bearing ``focus_ref`` must still parse through unchanged (REF_RE,
+    not IDENT_RE, is the pattern applied here) even though ``transport.py``'s
+    own write-side construction no longer produces one itself (FIX-M2-10:
+    real ``focus_ref`` values are ident-shaped on the wire, no ``/`` in
+    ``managed_control.schema.json``/``managed_live.schema.json``'s character
+    class) -- this read side stays defensively permissive of the wider
+    ref-shaped grammar regardless of what any relay (trusted or not) sends,
+    so a value shaped like this is not itself misclassified as hostile."""
     state = live_frame.StreamState()
     lf = live_frame.parse_live_frame(_raw(frame=_focus_frame(focus_ref="mission-x/WP03")))
     assert lf is not None
