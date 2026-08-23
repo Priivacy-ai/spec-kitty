@@ -173,6 +173,40 @@ def test_returned_preflight_evidence_omits_raw_fault_detail(tmp_path: Path) -> N
     assert "session-secret" not in payload
 
 
+def test_project_store_diagnostic_is_replaced_with_stable_classification(tmp_path: Path) -> None:
+    preflight = PreflightResult(
+        ok=False,
+        auth_required=False,
+        project_store_diagnostic=(
+            "RuntimeError: token=top-secret session=opaque-session "
+            "ciphertext=/tmp/private/session.enc credential=hunter2"
+        ),
+    )
+
+    boundary = evaluate_boundary(tmp_path, preflight_probe=lambda **_: preflight)
+    decision = decide_hosted_sync(
+        requested=True,
+        session_assessment=SessionAssessment(True, True, "session_usable"),
+        boundary=boundary,
+        route_available=True,
+    )
+
+    assert boundary.evidence is not None
+    assert boundary.evidence["project_store_diagnostic"] == "project_store_unavailable"
+    boundary_payload = str(boundary.evidence)
+    decision_payload = str(decision.to_dict())
+    for secret_fragment in (
+        "RuntimeError",
+        "top-secret",
+        "opaque-session",
+        "ciphertext",
+        "/tmp/private/session.enc",
+        "hunter2",
+    ):
+        assert secret_fragment not in boundary_payload
+        assert secret_fragment not in decision_payload
+
+
 def test_unavailable_route_is_not_an_auth_failure(tmp_path: Path) -> None:
     decision = assess_hosted_sync(
         requested=True,
