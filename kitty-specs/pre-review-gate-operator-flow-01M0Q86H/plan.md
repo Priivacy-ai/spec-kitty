@@ -54,7 +54,7 @@ Decision records live in [`decisions/`](decisions/); the confirmed engineering a
 | Git/workflow discipline | Pass | Work remains on `fix/pre-review-gate-operator-flow`; plan artifacts are mission-owned; implementation later publishes through a PR to `main`. |
 | Retrospective cadence | Pass | Observed candidates are appended to `traces/approach.md`; Definition of Done requires inspection plus an owner/no-action conclusion or explicit no-candidate record. |
 | Cross-platform behavior | Pass, implementation gate | POSIX real-process evidence plus Windows tree-termination contract coverage are required; no unsupported hard-kill promise is made. |
-| Post-plan adversarial review | Pending at initial authoring | Required advisory squad runs after these artifacts are complete and before `/spec-kitty.tasks`. Findings are incorporated or explicitly dispositioned. |
+| Post-plan adversarial review | Complete | Architecture, scope/release, and evidence lenses reviewed the finished artifacts. Accepted corrections and the bounded baseline-progress rejection are recorded in coordination commit `784bdf3de` at `traces/design-decisions.md`. |
 
 No charter violation requires a complexity exception.
 
