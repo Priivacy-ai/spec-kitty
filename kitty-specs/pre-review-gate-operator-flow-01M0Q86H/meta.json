@@ -25,6 +25,7 @@
   "purpose_context": "Operators and orchestrators need review submission to remain observable and recoverable while pre-review checks run, and they need configured sync-daemon disable controls to be honored consistently.",
   "purpose_tldr": "Prevent review submissions from appearing hung or leaving workflow transitions half-applied.",
   "slug": "pre-review-gate-operator-flow-01M0Q86H",
+  "status_phase": "1",
   "target_branch": "fix/pre-review-gate-operator-flow",
   "topology": "coord",
   "vcs": "git",
