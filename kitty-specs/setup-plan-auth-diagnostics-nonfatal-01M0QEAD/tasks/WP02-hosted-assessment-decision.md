@@ -42,8 +42,8 @@ tracker_refs:
 ## Do This First: Load Agent Profile
 
 Load `implementer-ivan`, the project charter, and action-scoped implementation doctrine.
-Begin with a failing test commit. WP01 must be approved or done before this package is
-claimed.
+Begin with a failing test commit that is red on WP02's dependency-resolved lane base.
+WP01 must be approved or done before this package is claimed.
 
 ## Objectives & Success Criteria
 
@@ -59,6 +59,7 @@ Completion requires:
 - logged out, auth-assessment failure, boundary unsafe, boundary exception, and route
   unavailable refuse hosted effects with distinct stable diagnostics;
 - diagnostics are deduplicated and ordered auth → boundary → route;
+- auth/readiness acquisition failures become `SAAS_SYNC_AUTH_UNKNOWN` and never escape;
 - structural adapter never raises to its local command caller;
 - no raw exception, credential, session, or token content appears in details.
 
@@ -120,13 +121,15 @@ Cover:
    no warning.
 3. Logged out yields `SAAS_SYNC_UNAUTHENTICATED`.
 4. Failed auth assessment yields `SAAS_SYNC_AUTH_UNKNOWN`, never unauthenticated.
-5. Returned unsafe boundary yields `SAAS_SYNC_BOUNDARY_UNSAFE` and preserves sanitized
+5. Raised auth/readiness acquisition yields `SAAS_SYNC_AUTH_UNKNOWN`, never escapes, and
+   never becomes unauthenticated.
+6. Returned unsafe boundary yields `SAAS_SYNC_BOUNDARY_UNSAFE` and preserves sanitized
    `PreflightResult.to_dict()` evidence.
-6. Raised preflight evaluation yields `SAAS_SYNC_BOUNDARY_UNSAFE` with stable
+7. Raised preflight evaluation yields `SAAS_SYNC_BOUNDARY_UNSAFE` with stable
    `boundary_evaluation_failed`, no raw exception text.
-7. Authenticated/no route yields a route diagnostic, not auth.
-8. Combined problems remain distinct and deterministically ordered.
-9. Every failed or non-affirmative input refuses.
+8. Usable session/no route yields `SAAS_SYNC_ROUTE_UNAVAILABLE`, not an auth diagnostic.
+9. Combined problems remain distinct and deterministically ordered.
+10. Every failed or non-affirmative input refuses.
 
 Commit these tests red before adding the production module.
 
@@ -145,14 +148,16 @@ Commit these tests red before adding the production module.
 
 **Purpose**: Create the single permission consumed by WP04.
 
-1. Accept typed session assessment, boundary evaluation, and explicit route availability
-   as separate inputs.
-2. Build stable warning objects with command severity `warning` and hosted disposition
+1. Accept typed session assessment, boundary evaluation, and canonical route availability
+   as separate inputs. Do not accept an unproven default value.
+2. Provide a narrow no-raise collector around the existing readiness auth projection so
+   unexpected acquisition/evaluation failure becomes assessment-failed evidence.
+3. Build stable warning objects with command severity `warning` and hosted disposition
    `refused`.
-3. Permit effects only when all required evidence is affirmative.
-4. Preserve multiple warnings; deduplicate by code and use deterministic order.
-5. Provide plain JSON serialization that returns primitive collections.
-6. Keep human message text accurate: hosted sync was skipped/refused, local setup-plan
+4. Permit effects only when all required evidence is affirmative.
+5. Preserve multiple warnings; deduplicate by code and use deterministic order.
+6. Provide plain JSON serialization that returns primitive collections.
+7. Keep human message text accurate: hosted sync was skipped/refused, local setup-plan
    did not fail.
 
 Do not execute effects in this module. It decides; WP04 executes.

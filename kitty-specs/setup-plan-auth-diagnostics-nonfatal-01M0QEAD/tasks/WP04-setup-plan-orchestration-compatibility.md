@@ -61,8 +61,8 @@ tracker_refs:
 ## Do This First: Load Agent Profile
 
 Load `implementer-ivan`, the charter, and all Mission design artifacts. Confirm WP01,
-WP02, and WP03 are approved or done. Start with a failing acceptance-test commit before
-editing `mission_setup_plan.py`.
+WP02, and WP03 are approved or done. Start with a failing acceptance-test commit that is
+red on WP04's dependency-resolved lane base before editing `mission_setup_plan.py`.
 
 ## Objectives & Success Criteria
 
@@ -84,14 +84,17 @@ Completion requires:
 - an AST architectural gate with synthetic mutation prevents future bypasses;
 - `agent mission create` and setup-plan policy are named consistently in the logged-out
   Teamspace operations document;
-- issue #3127 remains a visible release gate, not a code dependency.
+- issue #3127 receives a terminal acceptance verdict and remains a release-readiness
+  gate when unresolved, not a code or Mission-completion dependency.
 
 ## Context & Constraints
 
 Read every artifact in
 `kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD/`, especially the binding
 local outcome matrix and hosted-effect contract. Read accepted auth, transport,
-single-authority-gate, and project-sync-store ADRs named by the plan.
+single-authority-gate, and project-sync-store ADRs named by the plan. Treat
+`traces/design-decisions.md` as the active supersession index for append-only historical
+Decision Moments.
 
 WP01 supplies typed session assessment. WP02 supplies the no-raise decision. WP03
 supplies local-only lifecycle persistence and explicit fan-out. Consume those APIs; do
@@ -126,9 +129,9 @@ Before production edits, capture exact current payloads and exits:
 | missing template/generic local exception | current error payload | 1 |
 | project/context/git resolution | current payload | current exit |
 
-Tests compare complete payload subsets or snapshots from the real pre-existing entry
-point. Authentication/boundary variants may add `warnings`; they may not alter any
-other field or exit.
+Tests compare the complete baseline payload from the real pre-existing entry point after
+removing only the additive `warnings` field. The full applicable readiness cross-product
+may add `warnings`; it may not alter any other field or exit.
 
 ## Subtasks & Detailed Guidance
 
@@ -140,15 +143,16 @@ other field or exit.
 2. Add/extend fixtures for every matrix row in the owned tests.
 3. Capture exact `result`, `phase_complete`, `scaffold_only`, `blocked_reason`,
    `error_code`, branch/commit fields, and process exit where present.
-4. Cross representative success, blocked, and error rows with logged out,
-   auth-assessment failure, boundary unsafe, and boundary exception.
+4. Cross every matrix row with usable session, logged out, auth-assessment failure,
+   boundary unsafe, boundary exception, and route unavailable wherever repository
+   context exists.
 5. Assert exactly one JSON object.
 6. Commit tests red against the old auth/preflight exit-2 behavior before production
    changes.
 
-Pre-root project/context failures need no structural warning because no repository root
-exists. Auth diagnostics may attach only if already collected without disturbing the
-existing payload protocol.
+For pre-root project/context failures, inject fatal boundary and route spies and prove
+they are not called; no structural or routing warning may be fabricated. Auth diagnostics
+may attach only if already collected without disturbing the existing payload protocol.
 
 ### Subtask T014 – Replace early exits with evidence collection
 
@@ -156,14 +160,17 @@ existing payload protocol.
 
 1. Remove/retire `_enforce_saas_sync_auth_refusal` and
    `_enforce_saas_sync_boundary_preflight` as command-exit guards.
-2. When SaaS is enabled, obtain WP01's typed session assessment without queue scope.
+2. When SaaS is enabled, obtain WP01's typed session assessment through the existing
+   no-raise readiness projection without queue scope. Defensively convert an unexpected
+   acquisition/evaluation exception to `SAAS_SYNC_AUTH_UNKNOWN`.
 3. Resolve the repository root using existing local behavior.
-4. After root resolution, invoke WP02's no-raise structural assessment and compose one
-   `HostedSyncDecision`, including route evidence if the existing hosted path requires
-   it.
-5. Continue spec gate, plan scaffold/readiness, commit, and documentation wiring.
-6. Do not wrap local errors in the hosted assessment exception boundary.
-7. Update load-bearing command call-graph comments to match live behavior.
+4. After root resolution, invoke WP02's no-raise structural assessment and always resolve
+   route evidence through `resolve_checkout_sync_routing_readonly(repo_root)`.
+5. Treat route as available only for a non-null result with non-empty `project_uuid` and
+   `effective_sync_enabled=true`; otherwise add `SAAS_SYNC_ROUTE_UNAVAILABLE`.
+6. Continue spec gate, plan scaffold/readiness, commit, and documentation wiring.
+7. Do not wrap local errors in the hosted assessment exception boundary.
+8. Update load-bearing command call-graph comments to match live behavior.
 
 ### Subtask T015 – Guard every hosted effect and preserve local intents
 
@@ -212,9 +219,16 @@ deterministic adapter/reporter helpers required by this change.
 4. Invoke the real Typer setup-plan command and assert no auth warning.
 5. Add a real corrupted/unreadable storage case and assert exactly
    `SAAS_SYNC_AUTH_UNKNOWN`, zero unauthenticated warnings, and the unchanged local result.
-6. Inject a raised structural preflight and assert boundary warning, unchanged local
+6. Inject an exception from canonical assessment acquisition/evaluation through the real
+   command and assert exactly `SAAS_SYNC_AUTH_UNKNOWN`, zero unauthenticated warnings,
+   complete baseline payload/exit equality, and zero hosted effects.
+7. Inject a raised structural preflight and assert boundary warning, unchanged local
    result, local lifecycle JSONL, and zero hosted sink calls.
-7. Include JSON and representative human-output parity.
+8. Under SaaS-disabled mode, make auth, boundary, and route probes fatal if touched and
+   assert baseline-identical output/exit, no warnings, and zero hosted effects.
+9. Exercise null, denied/missing-identity, and raised canonical route resolution; assert
+   `SAAS_SYNC_ROUTE_UNAVAILABLE`, unchanged local output/exit, and zero hosted effects.
+10. Include JSON and representative human-output parity.
 
 Never use the real home directory, live SaaS, or a running daemon.
 
@@ -258,9 +272,9 @@ uv run pytest -q tests/sync/test_sync_boundary_preflight.py \
 ```
 
 Run Ruff and strict mypy for changed source, plus the terminology gate because operator
-documentation changed. Record requirement evidence for all FRs. Verify issue #3127's
-state at Mission acceptance/release closeout; if it remains open P0, report the release
-gate honestly without blocking completion of this code WP.
+documentation changed. Record requirement evidence for all FRs. At Mission acceptance,
+record issue #3127 as fixed or deferred-with-followup with evidence. If it remains open
+P0, report the release gate honestly without blocking this WP or Mission completion.
 
 ## Test Strategy
 
@@ -294,7 +308,8 @@ Review this as an authority and egress-boundary change:
 5. Inspect the real encrypted-storage tests for accidental Boolean mocks.
 6. Run the architectural gate's synthetic self-test.
 7. Confirm `sync now` and canonical preflight were not weakened.
-8. Confirm issue #3127 is tracked only as release-closeout evidence.
+8. Confirm issue #3127 has a terminal acceptance verdict and blocks release readiness
+   only while unresolved.
 
 ## Activity Log
 

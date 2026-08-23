@@ -21,7 +21,9 @@ WP04 integrates the three seams into setup-plan, freezes every local outcome, an
 the non-vacuous hosted-effect gate.
 
 Every WP is ATDD-first: its first implementation commit must contain a failing test that
-is red on `planning_base_branch` and green on the final WP commit.
+is red on that WP's dependency-resolved lane base immediately before production changes
+and green on the final WP commit. For independent WP01/WP03 the lane base is the planning
+base; the original end-to-end issue may additionally be demonstrated there.
 
 ---
 
@@ -206,8 +208,9 @@ hosted calls whenever the decision refuses.
   are also file-disjoint.
 - **MVP Scope**: All four WPs. Each foundation is independently reviewable, but issue
   #3621 is not user-complete until WP04 integrates them.
-- **Release gate**: GitHub issue #3127 must be resolved before Mission acceptance or
-  release readiness; it is not a code-lane dependency.
+- **Release gate**: Mission acceptance records GitHub issue #3127 as fixed or
+  deferred-with-followup. If unresolved, it blocks release-readiness declaration but is
+  not a code-lane or Mission-completion dependency.
 
 ## Requirements Coverage Summary
 
