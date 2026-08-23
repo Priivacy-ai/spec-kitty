@@ -1,0 +1,49 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: >-
+      tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py is a real, pre-existing
+      236-line test module (confirmed on disk); it is now WP03's second owned_files entry in both
+      the WP03-commit-subject-fix.md frontmatter and wps.yaml, in lanes.json's lane-c.write_scope,
+      in tasks.md's Owned Files line, and named as the seventh file in both spec.md's §106
+      reconciliation paragraph and plan.md's §106 file table — all four/five artifact surfaces
+      agree, and T010's Files section now explicitly forbids touching WP01's two owned test files.
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: >-
+      WP01-sk63-path-relativization.md line 76 no longer hardcodes "next entry is F-03"; it now
+      reads "use the next available F-0N number — check the file's existing entries first, do not
+      assume a specific number," which is generic and immune to future drift in the tracer file's
+      entry count.
+  - id: TASKS-SEQ-002
+    status: resolved
+    reason: >-
+      Independently verified against src/specify_cli/ownership/validation.py's _globs_overlap
+      (exact-path equality short-circuits to True) and validate_no_overlap, plus
+      src/specify_cli/lanes/compute.py's compute_lanes union-find over overlapping owned_files —
+      since all four WPs carry dependencies:[] (no reachability exemption), adding the same
+      literal tracer path to every WP's owned_files/write_scope would genuinely either collapse
+      all four lanes via rule-1 union or fail validate_no_overlap at validate-only, confirming the
+      fix's stated investigation; the chosen timestamp-heading fallback is a sound, independently
+      collision-safe fix for the check-then-act race without reintroducing that problem.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: >-
+      T010's Steps now require mocking specify_cli.coordination.commit_router.commit_for_mission
+      (the same pattern verified live at test_issue_matrix_finalize_lint.py's _common_patches,
+      which patches that exact dotted path) inside a real CLI invocation, capturing the message=
+      kwarg, and asserting only against that captured value — "never against a second,
+      independently-typed literal" — closing the vacuous-proxy loophole; this is consistent with
+      mission_record_analysis.py:365's actual message=f"Add analysis report for mission
+      {_analysis_mission_slug}" construction and its local, function-scoped import of
+      commit_for_mission, which the module-path mock pattern correctly intercepts.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: >-
+      T002 step 3 now specifies two separate test functions (one per NFR-002 behavior) instead of
+      one combined test, and T003/T004's Validation sections were rewritten to reference each
+      function's independent GREEN/RED state rather than an unreportable "half-passing" condition
+      on a single function; the DoD and reviewer-guidance sections were updated to match.

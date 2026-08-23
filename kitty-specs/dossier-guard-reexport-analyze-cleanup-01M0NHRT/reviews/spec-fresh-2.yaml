@@ -1,0 +1,102 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-round2
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: SPEC-FRESH2-001
+    lens: recurring-bug-root-cause
+    severity: 5
+    title: Grounding Correction 3's "traced, not incidental fallout" claim is itself incomplete — a whole second test file with the same absolute-charter-path assertion pattern is never named
+    evidence:
+      - artifact: "spec.md § Grounding corrections, item 3 (Grounding Correction 3); FR-007; Edge Cases 'charter entry' bullet"
+      - code: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/spec.md:31 (also 98, 115)"
+      - code: "tests/specify_cli/test_analysis_report.py:260 (test_charter_hash_falls_back_to_repo_root_outside_git)"
+      - code: "tests/specify_cli/test_analysis_report_charter_yaml_staleness.py:52,94,137 (three separate test functions)"
+    claim: >
+      Round 2 rewrote Grounding Correction 3 to say `test_charter_hash_resolves_canonical_root_from_worktree`
+      (tests/specify_cli/test_analysis_report.py:238) "does need its path assertion updated ... This is an
+      explicit item the implementing work package must do — it is not incidental fallout to discover later."
+      That rigor claim is false as written: verified against the live checkout, at least four MORE existing
+      assertions on the exact same `hashes["charter"]["path"]` return value use the identical absolute-path
+      pattern the fix breaks, and none of them is named anywhere in the spec (Grounding Correction 3, FR-007,
+      NFR-002, or the Edge Cases bullet all cite only line 238):
+        1. tests/specify_cli/test_analysis_report.py:260,
+           test_charter_hash_falls_back_to_repo_root_outside_git —
+           `assert hashes["charter"]["path"] == str(charter_file)` (non-git fallback path; canonical_root ==
+           repo_root here, so this becomes a relative string under FR-007 too).
+        2. tests/specify_cli/test_analysis_report_charter_yaml_staleness.py:52 —
+           `assert hashes["charter"]["path"] == str(charter_yaml_path.resolve())`
+        3. same file, line 94 — same pattern against a second charter_yaml_path.
+        4. same file, line 137 —
+           `assert hashes["charter"]["path"] == str(charter_md_path.resolve())`.
+      All four assertions read `collect_input_artifact_hashes(...)["charter"]["path"]` and compare it to an
+      absolute, resolved filesystem path — exactly the field FR-007 changes to a `canonical_root`-relative
+      string. Every one of them will fail as written once FR-007 lands, for the same reason line 238 will.
+      The spec's own methodology (re-run and trace against the live checkout, "not assumed") was applied to
+      exactly one of five now-known-affected assertions across two files; the implementing WP will hit red
+      tests in test_analysis_report_charter_yaml_staleness.py that this spec gives it no advance notice of,
+      undermining D1's "no deferred work / nothing surfaces as a silent follow-up" guarantee and the explicit
+      "not incidental fallout to discover later" framing round 2 just added.
+    remediation: >
+      Extend Grounding Correction 3 (and FR-007's requirement clause) to name all affected assertions, not
+      just tests/specify_cli/test_analysis_report.py:238: also
+      tests/specify_cli/test_analysis_report.py:260 and
+      tests/specify_cli/test_analysis_report_charter_yaml_staleness.py:52,94,137. State the same "MUST update
+      to assert a canonical_root-relative path string, resolution behavior unaffected" correction for each.
+      Add tests/specify_cli/test_analysis_report_charter_yaml_staleness.py to whatever touched-file list
+      results from fixing SPEC-FRESH2-002 below.
+
+  - id: SPEC-FRESH2-002
+    lens: conceptual-alignment
+    severity: 4
+    title: "§106 change-scope reconciliation still asserts \"No other file is touched\" and SC-007's ruff/mypy file list omits tests/specify_cli/test_analysis_report.py, directly contradicting round 2's own corrected Grounding Correction 3 / FR-007"
+    evidence:
+      - artifact: "spec.md § Charter-clause resolutions, §106 change-scope reconciliation"
+      - code: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/spec.md:23"
+      - artifact: "spec.md § Success Criteria, SC-007"
+      - code: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/spec.md:154"
+      - artifact: "spec.md § Grounding corrections, item 3 / FR-007"
+      - code: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/spec.md:31,115"
+    claim: >
+      Round 2 edited §106 (line 23) in place — to fix the "repo-relative" phrasing — without touching its
+      closing sentence "No other file is touched," and left SC-007's ruff/mypy touched-file list
+      (`src/specify_cli/dossier/__init__.py`, `src/specify_cli/analysis_report.py`,
+      `src/specify_cli/cli/commands/agent/mission_record_analysis.py`,
+      `tests/architectural/test_dossier_emitter_positional_guard.py`) unchanged. Both statements are now flatly
+      contradicted by the very correction round 2 made two paragraphs later: Grounding Correction 3 says
+      `tests/specify_cli/test_analysis_report.py`'s existing charter-path assertion "does need updating ... This
+      is an explicit item the implementing work package must do," and FR-007 repeats the same MUST. A file the
+      spec explicitly requires an implementation WP to edit cannot simultaneously be declared untouched — §106's
+      "no other file is touched" is now false, and SC-007's quality gate will silently skip verifying
+      ruff/mypy cleanliness on the one test file the mission's own FR-007 mandates editing. This is exactly the
+      kind of drift-between-sections-that-should-agree Directive 032 targets, and it was left behind rather than
+      fixed by the same edit pass that corrected the underlying claim it now contradicts.
+    remediation: >
+      Add `tests/specify_cli/test_analysis_report.py` (and, per SPEC-FRESH2-001,
+      `tests/specify_cli/test_analysis_report_charter_yaml_staleness.py`) to §106's touched-file list and to
+      SC-007's ruff/mypy file list; drop or rephrase §106's "No other file is touched" sentence so it does not
+      contradict Grounding Correction 3 / FR-007.
+
+  - id: SPEC-FRESH2-003
+    lens: conceptual-alignment
+    severity: 2
+    title: "§106's \"depending on the D-3678 decision below — possibly commitlint.config.cjs\" hedge is stale: Grounding Correction 4 (same document) already resolved definitively not to touch it"
+    evidence:
+      - artifact: "spec.md § Charter-clause resolutions, §106 change-scope reconciliation"
+      - code: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/spec.md:23"
+      - artifact: "spec.md § Grounding corrections, item 4 (Grounding Correction 4); C-004"
+      - code: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/spec.md:32,133"
+    claim: >
+      Round 2 touched this exact §106 sentence (to fix "repo-relative" → "governing-root-relative" phrasing)
+      but left the forward-looking hedge "and — depending on the D-3678 decision below — possibly
+      `commitlint.config.cjs`" untouched. That hedge is dead language: Grounding Correction 4, later in the
+      same document, definitively resolves the D-3678 decision in favor of option (1) and states
+      "`commitlint.config.cjs` is therefore **not** touched by this mission" — and C-004 restates the same
+      resolved constraint. §106 still reads as though the decision is open when the document has already closed
+      it, which is a minor internal-consistency nit (low risk, since C-004/GC4 are unambiguous elsewhere) but is
+      exactly the kind of stale cross-reference Directive 032 flags.
+    remediation: >
+      Update §106 to state definitively that `commitlint.config.cjs` is not touched (matching C-004/Grounding
+      Correction 4), or replace the hedge with a forward reference to Grounding Correction 4's resolved decision
+      instead of "possibly."

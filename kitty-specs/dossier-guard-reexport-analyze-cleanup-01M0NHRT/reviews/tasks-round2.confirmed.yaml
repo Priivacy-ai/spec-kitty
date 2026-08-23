@@ -1,0 +1,140 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: round2-confirmed
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+source: reviews/tasks-fresh.yaml (fresh-sweep findings go straight to fix per R6, no refutation step);
+  reviews/tasks-verify.yaml had 0 unresolved so nothing carried from there
+findings:
+- id: TASKS-FRESH-001
+  lens: fresh-sweep
+  severity: 3
+  title: plan.md still asserts a "six-file" change-scope in ~10 places after spec.md/tasks.md were fixed
+    to seven files
+  evidence:
+  - artifact: spec.md:23 (§106 change-scope reconciliation, post-fix)
+  - code: spec.md:23 — now names a seventh file, `tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py`,
+      and closes with "No other file is touched, beyond the seven files named above."
+  - code: 'plan.md:76 — "Scale/Scope: Four defects, six files, zero new modules..." (unchanged)'
+  - code: plan.md:62-63 — "target the six touched files' own test modules" (unchanged)
+  - code: plan.md:93 — "none of the six files live under src/kernel/..." (unchanged)
+  - code: plan.md:131,137 — campsite-cleaning reasoning enumerates "the six touched files"/"six surfaces"
+      and does not mention the new test file at all (unchanged)
+  - code: plan.md:161 — "nothing beyond the six files is touched" (unchanged)
+  - code: 'plan.md:341,345,347 — CI gate-set/coverage-floor reasoning: "one of the six touched files''
+      own filter group", "does not intersect any of the six files this mission changes" (unchanged)'
+  - code: plan.md:403-412 — the §106 table itself WAS correctly updated with a 7th row for the new file
+      (this part of the fix landed)
+  - code: 'plan.md:429 — PR-shape reasoning: "the total diff across all six files is small" (unchanged)'
+  - code: 'plan.md:444-447 — "Write scopes / open-PR-overlap check": "Checked via gh pr list + gh pr diff
+      <n> --name-only against all six touched files this session" ... "no other open PR touches any of
+      the six files" (unchanged)'
+  - code: plan.md:572-579 — IC-03's own "Affected surfaces" list (the concern wps.yaml ties WP03 to) enumerates
+      only 4 files and omits the new 7th file entirely
+  claim: 'The fix round correctly updated spec.md''s §106 prose and added a 7th row to plan.md''s own
+    §106 table, but left roughly ten other "six file(s)"/"six touched files"/"six surfaces" assertions
+    throughout plan.md unreconciled — including the Scale/Scope summary, the CI-gate/coverage-floor blast-radius
+    reasoning, the campsite-cleaning per-surface audit, the PR-shape diff-size rationale, and IC-03''s
+    own "Affected surfaces" list (the concern WP03 is derived from). Most concretely, the "Write scopes
+    / open-PR-overlap check" section explicitly states it checked "all six touched files" and concludes
+    "no other open PR touches any of the six files" — this claim was never re-verified against the 7th
+    file (`tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py`), so whether a concurrent
+    open PR touches that file is genuinely unconfirmed, not merely unstated. plan.md''s own §106 section
+    is explicitly framed as "restatement, not fresh derivation" of spec.md — but it no longer matches
+    spec.md''s now-seven-file scope in every place except the one table that was directly edited.
+
+    '
+  remediation: 'Sweep plan.md for every "six file"/"six touched files"/"six surfaces" occurrence (Scale/Scope,
+    Testing line, Charter-Check architectural-alignment bullet, campsite-cleaning item 2, Reconciling-change-scope-tensions
+    paragraph, Gate-set/Coverage-floor sections, PR-shape, Write-scopes/open-PR-overlap check) and update
+    each to seven, or to language that doesn''t hardcode a count that will drift again. Re-run the open-PR-overlap
+    check (`gh pr diff <n> --name-only`) against the 7th file specifically and record the result. Add
+    the 7th file to IC-03''s "Affected surfaces" list since WP03 (owning that file) traces to IC-03 in
+    wps.yaml.
+
+    '
+- id: TASKS-FRESH-002
+  lens: fresh-sweep
+  severity: 3
+  title: plan.md's IC-03 "binding" Concrete-shape/Test-strategy/Revert-discipline text still prescribes
+    ONE combined NFR-002 test, contradicting the tasks-phase fix that split it into two independently-reportable
+    pytest functions
+  evidence:
+  - artifact: plan.md IC-03, and its Test strategy / Revert discipline sections (unchanged by the fix
+      commit)
+  - code: plan.md:462 (Test strategy per FR/AC, NFR-002 row) — "Both assertions in one test, since they
+      are the two halves of the same contract split..."
+  - code: 'plan.md:487-490 (Revert discipline) — "NFR-002 raising/non-raising test — by construction:
+      it directly asserts the two behaviors..." (singular "test")'
+  - code: plan.md:527-528 (Reflexivity recovery path) — "extend the existing FR-007/NFR-002 test (the
+      one described in 'Test strategy per FR/AC' above...)" (singular)
+  - code: 'plan.md:582 — IC-03''s Concrete-shape preamble: "ONE shape, restructured out of the prior ambiguous
+      Risks paragraph per review finding PLAN-FRESH2-001/002; not a menu of options" — i.e. this text
+      claims binding authority'
+  - code: tasks/WP01-sk63-path-relativization.md T002 (post-fix) — "Add TWO new test functions constructing
+      an unrelativizable-path condition — NOT one combined test — so each of T003 and T004 has its own
+      independently-reportable GREEN state (a single combined function cannot report 'half passing' in
+      pytest...)"
+  - code: tasks/WP01-sk63-path-relativization.md T003/T004 validation lines — each references its own
+      named test function (`test_write_analysis_report_raises_on_unrelativizable_path`, `test_check_analysis_report_current_reports_relativization_failure_without_raising`)
+      independently
+  claim: 'The tasks-phase fix round split the NFR-002 test into two separate pytest functions in WP01
+    (T002/T003/T004), specifically to fix a review-flagged "half-passing test can''t report cleanly" problem.
+    plan.md was not touched by this fix commit at all, so its IC-03 "Concrete shape" (explicitly marked
+    binding, "not a menu of options"), its Test-strategy-per-FR/AC table row, its Revert-discipline bullet,
+    and its Reflexivity recovery-path text all still describe/require a single combined test asserting
+    both halves. This is a direct design-authority conflict: the plan claims binding authority over "the"
+    shape and states the two assertions belong in one test; the (also just-fixed) tasks/WP01 file requires
+    two. An implementer or reviewer cross-checking IC-03 against WP01 mid-mission would hit this contradiction
+    and have to adjudicate which document is authoritative — exactly the kind of rework-inducing ambiguity
+    the review is meant to catch.
+
+    '
+  remediation: 'Update plan.md''s IC-03 Concrete-shape text, the NFR-002 row in "Test strategy per FR/AC",
+    the Revert-discipline NFR-002 bullet, and the Reflexivity recovery-path paragraph to describe two
+    independently-reportable test functions (matching WP01 T002/T003/T004''s post-fix language), or explicitly
+    note plan.md is superseded on this point by the tasks-phase fix and why.
+
+    '
+- id: TASKS-FRESH-003
+  lens: fresh-sweep
+  severity: 2
+  title: New UTC-timestamp tracer-heading fallback (added to WP01/WP02/WP03/WP04) mixes with the file's
+    existing strictly-sequential F-01..F-05 convention, and its stated collision guarantee doesn't cover
+    the actual git-merge hazard
+  evidence:
+  - artifact: tasks/WP01-sk63-path-relativization.md, tasks/WP02-dossier-guard-widening.md, tasks/WP03-commit-subject-fix.md,
+      tasks/WP04-dossier-reexport-trim.md — new "Concurrency note" paragraphs (all added in the fix commit)
+  - code: 'WP01 (post-fix): "append it under a heading of the form `## F-<UTC-timestamp, e.g. 2026-08-23T00:12:04Z>
+      — <title>` instead of the next sequential `F-0N`"'
+  - code: 'tracer-tooling-friction.md actual headings (current file): `## F-01`, `## F-02`, `## F-03`,
+      `## F-04`, `## F-05` — all strictly sequential integers, zero gaps, authored across three separate
+      commits (536a054ec, and the later f3a21d0b0 which added F-05 AFTER this fix round)'
+  - code: 'Concurrency note''s own justification: "Because two WPs racing this check-then-act baseline
+      capture could both independently conclude ''not present'' and append competing entries, ... a timestamp
+      is unconditionally collision-safe for independent WP-implementer agent processes that cannot coordinate
+      a read-then-write critical section"'
+  claim: 'The concurrency note''s technical premise for keeping the file out of owned_files/write_scope
+    is correct (verified against `_globs_overlap` in `src/specify_cli/ownership/validation.py:93` — exact-string
+    equality is checked first and would make every WP pair register as write-scope-overlapping). However,
+    two secondary problems remain unaddressed by the fix: (1) the timestamp heading only guarantees the
+    appended SECTION TITLE text won''t collide — it does not address that two genuinely concurrent WP
+    branches both appending to the same untracked shared file will still produce a literal git merge conflict
+    when their branches are combined (the note''s "unconditionally collision-safe" framing overstates
+    what the timestamp actually buys); (2) the tracer file''s existing convention is purely sequential
+    (F-01 through F-05, no exceptions so far), so the first ISO-timestamp heading introduces a genuinely
+    mixed numbering scheme in a document intended for ongoing human append-and-read use, which a future
+    maintainer or `grep -n "^## F-"` skim would find inconsistent (a sort-by-heading-text pass would no
+    longer put entries in chronological order either, since ISO timestamps sort after all bare `F-0N`
+    strings lexicographically).
+
+    '
+  remediation: 'Either (a) note explicitly in the Concurrency-note paragraphs that a git-merge conflict
+    on this shared file is still possible and expected under real concurrency, and that the timestamp
+    heading only prevents duplicate section titles — not the merge conflict itself; or (b) adopt a scheme
+    that stays sortable/consistent with F-01..F-05, e.g. reserving a single "next" sequential slot at
+    merge time via the mission''s own safe-commit re-read-and-retry path instead of a timestamp. At minimum,
+    flag for whoever next touches this file that the F-0N convention is no longer purely sequential going
+    forward.
+
+    '

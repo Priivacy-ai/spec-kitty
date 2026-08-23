@@ -1,0 +1,160 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: merged
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+source_files:
+  - tasks-decomp.findings.yaml
+  - tasks-seq.findings.yaml
+  - tasks-verify.findings.yaml
+findings:
+  - id: TASKS-DECOMP-001
+    lens: "Mission-derived — IC-03 split disjointness"
+    severity: 4
+    title: WP03's own RED-first instruction (T010) offers WP01's exclusively-owned test file as the primary landing spot, or else silently blows the mission's binding six-file scope
+    evidence:
+      - artifact: "tasks/WP03-commit-subject-fix.md § Subtask T010 (Files line, ~lines 127-131)"
+        note: >
+          "Files: tests/specify_cli/test_analysis_report.py or a more targeted new/existing test
+          module covering mission_record_analysis.py's commit-message construction (choose the
+          most appropriate existing test file for this command's unit tests; if none fits
+          cleanly, a small addition to the closest existing test module for
+          mission_record_analysis.py is acceptable ...)"
+      - artifact: "wps.yaml WP03.owned_files / tasks/WP03-commit-subject-fix.md frontmatter owned_files"
+        note: "WP03's owned_files is exactly one entry: src/specify_cli/cli/commands/agent/mission_record_analysis.py. No test file is listed."
+      - artifact: "wps.yaml WP01.owned_files / tasks/WP01-sk63-path-relativization.md frontmatter owned_files"
+        note: "WP01 owned_files includes tests/specify_cli/test_analysis_report.py and tests/specify_cli/test_analysis_report_charter_yaml_staleness.py — exclusively."
+      - artifact: "lanes.json lane-c.write_scope (WP03) vs lane-a.write_scope (WP01)"
+        note: "lane-c write_scope = [mission_record_analysis.py] only; lane-a write_scope = the three WP01 files including test_analysis_report.py. Both lanes have depends_on_lanes: [] and parallel_group: 0."
+      - artifact: "spec.md § Charter-clause resolutions, §106 change-scope reconciliation (binding)"
+        note: "'No other file is touched, beyond the six files named above.' No dedicated test file for mission_record_analysis.py/FR-006 is in the six-file set."
+      - code: "tests/specify_cli/test_analysis_report.py:374-419 (test_record_analysis_command_persists_report)"
+        note: "The natural landing spot for a commit-message/commitlint RED-first fixture — lives inside WP01's exclusively-owned file."
+      - code: "src/specify_cli/policy/commit_guard.py:108-119 (validate_staged_files ownership-scope check)"
+        note: "A real pre-commit ownership guard exists and flags any staged file not matching a WP's owned_files globs."
+    claim: >
+      WP03 (FR-006) must land a RED-first fixture (T010) but its owned_files is exactly one file
+      (mission_record_analysis.py, no test file). T010's "Files" guidance offers two options and
+      both are defective: (a) test_analysis_report.py is WP01's exclusively-owned file — taking it
+      creates a real cross-lane file conflict between two dependencies:[]/parallel_group:0 lanes
+      that the IC-03 split was designed to avoid; or (b) a different test module is outside
+      spec.md's binding six-file §106 scope. Every implementer choice either creates a cross-lane
+      conflict or violates the binding scope contract.
+    remediation: >
+      Pick one file and make every artifact agree: extend the already-existing
+      tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py (FR-006-adjacent,
+      shares no owner with WP01). Rewrite WP03's T010 "Files" line to name that file only and
+      explicitly forbid touching WP01's two files; add it to WP03's owned_files (frontmatter +
+      wps.yaml) and lane-c's write_scope in lanes.json; add it to spec.md's §106 binding file-set
+      and plan.md's mirrored §106 table as a seventh file.
+
+  - id: TASKS-DECOMP-002
+    lens: "Catalog decomp"
+    severity: 1
+    title: Mission-wide baseline capture text is duplicated near-verbatim across all four WP prompts
+    evidence:
+      - artifact: "tasks/WP01-sk63-path-relativization.md § Mission-wide baseline (lines 71-93)"
+      - artifact: "tasks/WP02-dossier-guard-widening.md § Mission-wide baseline (lines 57-76)"
+      - artifact: "tasks/WP03-commit-subject-fix.md § Mission-wide baseline (lines 51-74)"
+      - artifact: "tasks/WP04-dossier-reexport-trim.md § Mission-wide baseline (lines 57-79)"
+    claim: >
+      The finding author explicitly assessed this as intentional and correctly justified (WP
+      execution order is not fixed at authoring time, so each WP must stand alone) — noted for
+      completeness only, not flagged as a defect. No implementation risk results.
+    remediation: >
+      No action required per the finding author's own assessment; carried into the merge for
+      completeness of the trail only.
+
+  - id: TASKS-SEQ-001
+    lens: baseline-capture robustness (F-03 tracer finding)
+    severity: 2
+    title: WP01's baseline-capture instruction hardcodes a stale tracer entry number ("F-03")
+    evidence:
+      - artifact: "tasks/WP01-sk63-path-relativization.md § Mission-wide baseline — capture FIRST, before any commit (line 76)"
+      - code: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/tracer-tooling-friction.md:53 (F-03) and :94 (F-04)"
+    claim: >
+      WP01's prompt says "next entry is F-03" but tracer-tooling-friction.md already carries F-01
+      through F-04 (appended during this mission's own spec/tasks-authoring pass, before any WP
+      implementation starts) — the true next entry is F-05. Risk is mitigated by T001's generic
+      "next F-0N entry"/"follow existing format" language, hence minor not moderate.
+    remediation: >
+      Edit WP01's "Mission-wide baseline" section: replace "(append, do not overwrite; next entry
+      is F-03)" with "(append, do not overwrite; use the next available F-0N number — check the
+      file's existing entries first, do not assume a specific number)".
+
+  - id: TASKS-SEQ-002
+    lens: baseline-capture robustness / phasing (write-scope disjointness)
+    severity: 3
+    title: The shared tracer file all four WPs may write to is outside every lane's write_scope, with no serialization against genuinely concurrent execution
+    evidence:
+      - artifact: "lanes.json § lanes[*].write_scope (all four lanes); each WP's Mission-wide baseline section"
+      - code: "src/specify_cli/lanes/models.py:81 (parallel_group semantics); lanes.json's four lanes all carry parallel_group: 0, depends_on_lanes: []; src/specify_cli/policy/risk_scorer.py:102-215 (write_scope_overlap heuristic operates only over each lane's write_scope)"
+    claim: >
+      All four WPs are dependencies:[]/parallel_group:0 — eligible for genuinely concurrent
+      worktree execution. The baseline-capture mitigation ("check tracer file, if absent run and
+      append it yourself") is a check-then-act race: two concurrently-dispatched WPs can each
+      independently conclude "not present," both run the baseline, and both append a competing
+      tracer entry — a duplicate/colliding heading or a merge conflict at lane consolidation.
+      tracer-tooling-friction.md is not listed in any lane's write_scope, so the write_scope_overlap
+      risk-scorer heuristic has no visibility into this real shared-write surface.
+    remediation: >
+      (1) Add tracer-tooling-friction.md to every lane's write_scope in lanes.json (or owned_files
+      in wps.yaml) so the shared-write surface is visible to the overlap heuristic and reviewers.
+      (2) Make the fallback write collision-safe: either append with a fresh UTC-timestamped
+      heading instead of a guessed sequential number, or require a re-read/rebase-and-retry
+      immediately before the append commit. Either resolves the race without adding a hard
+      dependency edge that would defeat the mission's intentional four-way parallelism.
+
+  - id: TASKS-VERIFY-001
+    lens: "Catalog verify — per-AC test strategy concrete / revert discipline"
+    severity: 3
+    title: WP03's RED-first fixture (T010) is not required to assert against the actually-constructed `message=` string, risking a vacuous proxy test
+    evidence:
+      - artifact: "tasks/WP03-commit-subject-fix.md § Subtask T010 (Steps)"
+        note: >
+          Describes reproducing the CURRENT non-conforming subject shape as a fixture, without
+          requiring it be captured from the real code path.
+      - artifact: "plan.md § Revert discipline"
+        note: >
+          "a unit test asserting the constructed `message=` string matches the shape" — plan.md
+          (binding) requires the proxy to assert against the string the code actually constructs.
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:365"
+        note: "Inline f-string, no extracted helper — nothing importable to get the constructed string without mocking commit_for_mission or refactoring."
+      - code: "tests/specify_cli/cli/commands/review/test_issue_matrix_finalize_lint.py:134-136"
+        note: "Established codebase pattern (mock commit_router.commit_for_mission, inspect message= kwarg) that WP03 does not point to."
+      - code: "tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py"
+        note: "Closest existing test module for this command; zero tests touch commit_for_mission/message= today (confirmed via grep)."
+    claim: >
+      As worded, T010 permits satisfying the mechanical RED-then-GREEN commit-boundary check with
+      a test that hardcodes a copy of today's known-bad subject string, disconnected from the real
+      code path — such a test would not fail if mission_record_analysis.py's fix were reverted,
+      violating plan.md's own binding revert-discipline requirement even while satisfying C-011's
+      letter.
+    remediation: >
+      Tighten T010's Steps to require capturing the real, live message= value via mocking
+      commit_router.commit_for_mission inside a real CLI invocation of record-analysis (following
+      the test_issue_matrix_finalize_lint.py:134-136 pattern), asserting against the captured
+      kwarg, not a separately-typed literal. Name the target test module explicitly
+      (tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py) — this also resolves
+      TASKS-DECOMP-001's file-ambiguity gap as a side effect.
+
+  - id: TASKS-VERIFY-002
+    lens: "Catalog verify — per-AC test strategy concrete (§591 ATDD-First, C-011)"
+    severity: 2
+    title: WP01 T003's validation describes an intermediate "half-GREEN" state for a single combined NFR-002 test function, which pytest cannot literally report
+    evidence:
+      - artifact: "tasks/WP01-sk63-path-relativization.md § Subtask T002, step 3"
+        note: "Singular 'a new test' asserting BOTH halves of NFR-002."
+      - artifact: "tasks/WP01-sk63-path-relativization.md § Subtask T003, Validation"
+        note: "'the write-half of the NFR-002 test... now passes GREEN. check_analysis_report_current's half is still RED until T004.'"
+    claim: >
+      If T003 lands alone, a single combined test function cannot report "half passing" in
+      pytest — the whole function would still FAIL/ERROR because the second assertion block hits
+      the same now-uncaught exception. An implementer following T003's Validation literally could
+      wrongly conclude their T003 work is broken when T004 is simply outstanding.
+    remediation: >
+      Either reword T003's Validation to state the full NFR-002 test remains RED as a whole until
+      T004, with "write-half passes" referring to a manual isolated check only; or, preferably,
+      split the NFR-002 test into two functions (one per behavior) so T003 and T004 each have
+      their own independently-green test.
+findings_count_note: "6 findings total (1 high, 2 moderate, 2 minor, 1 nit) merged from decomp(2)/seq(2)/verify(2), zero exact duplicates — TASKS-DECOMP-001 and TASKS-VERIFY-001 both concern WP03's T010 but make distinct claims (file-location conflict vs assertion-vacuity risk) and are kept separate per R2's mechanical-only rule."

@@ -1,0 +1,70 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+confirm_note: >
+  R3 refutation (reviews/spec-refute-1.yaml) confirmed all 8 merged findings — none
+  refuted. SPEC-VERIFY-001 is a duplicate of SPEC-ARCH-001 (same underlying defect,
+  independently found by both the arch and verify lens groups; see
+  reviews/spec.merged.yaml's duplicate_of_group marker). The fixer addresses 7 distinct
+  defects; SPEC-VERIFY-001 is satisfied by whatever resolves SPEC-ARCH-001.
+findings:
+  - id: SPEC-GOV-001
+    severity: 5
+    title: "spec.md itself writes the operator's absolute, username-bearing checkout path, violating the spec's own binding C-001"
+    remediation: >
+      Replace both literal absolute-path citations of the ledger (lines 18, 31) with a
+      path-free reference, e.g. "the workspace-root SPEC-KITTY-LEDGER.md (sibling to
+      this checkout), entry SK-63". Re-run `grep -n "/home/\|/Users/" spec.md` before
+      commit and confirm only the illustrative NFR-001 pattern remains.
+  - id: SPEC-GOV-002
+    severity: 3
+    title: "FR-006 does not actually pin the commit-subject's type/scope pattern, despite Grounding Correction 3's rationale depending on a specific type"
+    remediation: >
+      Tighten FR-006 (or add an AC) to pin the *type* to `docs`, consistent with this
+      repo's other tool-authored analyze/review commits, while leaving exact free-text
+      wording and scope token to implementation.
+  - id: SPEC-GOV-003
+    severity: 2
+    title: "Key Entities section miscounts the post-#3677 __all__ size: 21 claimed, 20 actual"
+    remediation: "Change \"the remaining twenty-one entries\" to \"the remaining twenty entries\" in the Key Entities section."
+  - id: SPEC-GOV-004
+    severity: 1
+    title: "Mission title still frames this as closing '#1058 deferrals' (three) rather than the actually-scoped four defects"
+    remediation: "Retitle to name the actually-scoped four-defect set (e.g. \"...plus SK-63's path-relativization half\") so the title doesn't undercount."
+  - id: SPEC-ARCH-001
+    severity: 4
+    title: "FR-007/NFR-002's 'relative to repo_root, raise if unrelativizable' contract contradicts the existing, tested canonical-root charter-hashing behavior, and is silently applied to a second, non-raising caller"
+    remediation: >
+      Add an explicit clarification stating the charter entry relativizes against its
+      OWN canonical_root (the root _charter_path already resolves via
+      resolve_canonical_repo_root), NOT the passed-in repo_root — so the worktree case
+      (test_charter_hash_resolves_canonical_root_from_worktree, #1823) stays a
+      legitimate non-error. Name that test explicitly and state it is not expected to
+      change its assertion. Reword AC-2/NFR-001 to "relative to its governing root
+      (repo_root for spec/plan/tasks; canonical_root for charter)". Require
+      check_analysis_report_current's non-raising contract stay intact (catch the new
+      relativization error and map it to AnalysisFreshness(ok=False, reason=...), or add
+      an explicit AC/SC exercising it). Drop "hypothetical" from Edge Case 4's framing
+      for the charter case; reserve it for the spec/plan/tasks paths only.
+  - id: SPEC-VERIFY-001
+    severity: 4
+    title: "Duplicate of SPEC-ARCH-001 — same fix resolves both."
+    remediation: "See SPEC-ARCH-001."
+  - id: SPEC-ARCH-002
+    severity: 3
+    title: "Edge Cases section names the alias-reassignment boundary but never names the dynamic/reflective-dispatch escape hatch (getattr, dispatch-dict) the widened guard still cannot see"
+    remediation: >
+      Add an Edge Cases bullet explicitly naming dynamic/reflective dispatch
+      (getattr-based calls, dispatch tables, functools.partial-wrapped emitters) as an
+      explicitly out-of-scope boundary for this widening, matching the style used for
+      alias-reassignment, so the widened docstring (AC5) states this boundary by name.
+  - id: SPEC-VERIFY-002
+    severity: 2
+    title: "FR-003 / User Story 2 Acceptance Scenario 5 (docstring update) has no concrete, mechanically-checkable assertion and no Success Criterion pointing back to it"
+    remediation: >
+      Add an SC with a concrete grep-based check (confirming the old deferral phrases no
+      longer appear in the guard's docstring), or explicitly note in FR-003/AC-5 that
+      this AC is intentionally judged by reviewer read-through.
+findings_count: 8

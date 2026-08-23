@@ -1,0 +1,78 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: round2-confirmed
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+confirm_note: >
+  R6 gate rule: spec-verify.yaml reported 2 unresolved (SPEC-ARCH-001, and its duplicate
+  SPEC-VERIFY-001 — same underlying defect, one fix resolves both), and spec-fresh.yaml
+  reported 2 new findings (SPEC-FRESH-001, SPEC-FRESH-002). All four route to one more R4
+  round (fresh-sweep findings bypass R3 refutation per protocol). 3 distinct defects to fix
+  this round, down from 4 distinct severity>=3 confirmed findings last round — round-over-round
+  reduction satisfied, continuing is permitted.
+findings:
+  - id: SPEC-ARCH-001
+    duplicate_of_group: [SPEC-ARCH-001, SPEC-VERIFY-001]
+    severity: 3
+    title: "FR-007 names collect_input_artifact_hashes as relativizing the charter path against canonical_root, but Grounding Correction 3 / the matching Edge Case still claims test_charter_hash_resolves_canonical_root_from_worktree is unaffected — that test asserts an ABSOLUTE charter path against this exact function's return value, so it WILL need its assertion updated"
+    source: spec-verify.yaml (R5a anchored verification, unresolved)
+    evidence:
+      - artifact: "spec.md FR-007, Grounding Correction 3, and the matching Edge Case bullet (re-read the current file yourself for exact line numbers — R4 round 1 renumbered/reworded this section)"
+      - code: "tests/specify_cli/test_analysis_report.py:207-238 (test_charter_hash_resolves_canonical_root_from_worktree) — asserts hashes[\"charter\"][\"path\"] == str(charter_file.resolve()), an ABSOLUTE path, directly against collect_input_artifact_hashes's return value"
+      - code: "src/specify_cli/analysis_report.py (collect_input_artifact_hashes, _charter_path — read current line numbers yourself)"
+    claim: >
+      The prior fix (R4 round 1) correctly introduced the canonical_root/repo_root split for
+      the charter entry, but its Grounding Correction 3 (and the Edge Case restating it)
+      asserts this existing test "is not expected to change its assertion." That claim is
+      false: the test's whole point is asserting the RETURNED charter path equals the
+      absolute, resolved canonical charter file path. Once collect_input_artifact_hashes
+      is changed (per FR-007) to return a canonical_root-RELATIVE string for the charter
+      entry instead of an absolute one, this test's assertion (`== str(charter_file.resolve())`)
+      will fail and must be updated to expect the relative form. The spec currently tells a
+      future implementer/reviewer the opposite of what will actually happen.
+    remediation: >
+      Correct Grounding Correction 3 (and the Edge Case bullet) to state plainly that
+      test_charter_hash_resolves_canonical_root_from_worktree DOES need its assertion
+      updated as part of this mission's implementation — from asserting the absolute
+      resolved charter path to asserting a canonical_root-relative path string (the test's
+      OTHER assertions, e.g. that canonical_root itself resolves to the main checkout and
+      not the worktree, are unaffected and should stay). Add this test update as an explicit
+      item the implementing WP must make, not something left implicit. Do not claim the test
+      is unaffected.
+
+  - id: SPEC-FRESH-001
+    severity: 3
+    title: "Three narrative sections (Key Entities, D3, §106) still describe the whole input_artifacts path set as uniformly \"repo-relative\", contradicting the governing-root split introduced elsewhere in the same fix round"
+    source: spec-fresh.yaml (R5b fresh sweep)
+    evidence:
+      - artifact: "spec.md § Key Entities (AnalysisReportResult.input_artifacts description)"
+      - artifact: "spec.md § Clarifications / Decision Record, D3"
+      - artifact: "spec.md § Charter-clause resolutions, §106 change-scope reconciliation"
+    claim: >
+      FR-007/NFR-002/AC-2/AC-3/AC-5/Edge-Cases now correctly distinguish repo_root (for
+      spec/plan/tasks) from canonical_root (for charter). Key Entities, D3, and §106 were
+      not updated to match and still describe the fix uniformly as "repo-relative" /
+      "repo_root-relative" with no carve-out for the charter entry — misleading a reader who
+      consults only one of those sections.
+    remediation: >
+      Update all three sites to say "governing-root-relative" (or explicitly name both
+      roots, matching FR-007's language) instead of the uniform "repo-relative" wording.
+
+  - id: SPEC-FRESH-002
+    severity: 3
+    title: "NFR-001's grep-pattern example contains an unescaped table-cell pipe that GFM parses as an extra column, silently dropping the row's Status value"
+    source: spec-fresh.yaml (R5b fresh sweep)
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements, NFR-001 row"
+    claim: >
+      NFR-001's Requirement cell contains an inline code span with a literal, unescaped `|`
+      inside `(/home|/Users)`. GFM table-row splitting happens on the raw line BEFORE
+      inline/code-span parsing, so this pipe is read as an extra column delimiter — the row
+      parses as 7 cells against the table's 6-column header, and the extra cell is discarded
+      per the GFM tables spec, silently dropping the row's Status ("Open") value and
+      shifting Category/Priority in rendering.
+    remediation: >
+      Escape the inner pipe (`(/home\|/Users)`), or avoid the alternation syntax in the
+      table cell — split into two prose-joined patterns, or move the grep example to a
+      fenced code block below the table instead of inline in the cell.
+findings_count: 3
