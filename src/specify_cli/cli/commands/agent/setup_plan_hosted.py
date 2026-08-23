@@ -1,8 +1,11 @@
 """No-raise hosted-readiness decision adapter for ``agent setup-plan``.
 
 This module decides whether setup-plan may perform hosted effects; it never
-performs those effects.  Local setup-plan work remains authoritative when the
-decision refuses hosted delivery.
+performs those effects.  Its collectors remain separate because setup-plan
+acquires authentication before repository resolution, then boundary and route
+evidence afterward.  :func:`decide_hosted_sync` is their single composition
+authority.  Local setup-plan work remains authoritative when that decision
+refuses hosted delivery.
 """
 
 from __future__ import annotations
@@ -178,67 +181,50 @@ def evaluate_route_availability(
 def decide_hosted_sync(
     *,
     requested: bool,
-    session_assessment: SessionAssessment,
-    boundary: BoundaryEvaluation,
-    route_available: bool,
+    session_assessment: SessionAssessment | None = None,
+    boundary: BoundaryEvaluation | None = None,
+    route_available: bool | None = None,
     route_reason: str | None = None,
 ) -> HostedSyncDecision:
-    """Compose independent evidence into one deterministic hosted permission."""
-    if not requested:
-        return HostedSyncDecision(False, False, ())
+    """Compose independent evidence into one deterministic hosted permission.
 
-    diagnostics: list[HostedSyncDiagnostic] = []
-    if not session_assessment.completed:
-        diagnostics.append(_auth_unknown_diagnostic(session_assessment.reason))
-    elif session_assessment.usable_session is not True:
-        diagnostics.append(_unauthenticated_diagnostic(session_assessment.reason))
-
-    if boundary.state is not BoundaryState.SAFE:
-        diagnostics.append(_boundary_diagnostic(boundary))
-
-    if not route_available:
-        diagnostics.append(_route_diagnostic(route_reason or "route_unavailable"))
-
-    ordered_unique = tuple({diagnostic.code: diagnostic for diagnostic in diagnostics}.values())
-    allow_effects = (
-        session_assessment.completed
-        and session_assessment.usable_session is True
-        and boundary.state is BoundaryState.SAFE
-        and route_available
-    )
-    return HostedSyncDecision(True, allow_effects, ordered_unique)
-
-
-def assess_hosted_sync(
-    *,
-    requested: bool,
-    repo_root: Path,
-    auth_probe: AuthProbe | None = None,
-    preflight_probe: PreflightProbe | None = None,
-    route_probe: RouteProbe | None = None,
-) -> HostedSyncDecision:
-    """Collect canonical evidence and compose setup-plan's hosted decision.
-
-    Disabled mode returns before resolving or invoking any hosted-readiness
-    dependency.  Enabled mode evaluates every independent input so callers get
-    the complete ordered diagnostic set.
+    Disabled callers need not acquire or supply evidence.  Requested delivery
+    fails closed when any evidence is absent; absence is never an affirmative
+    default.
     """
     if not requested:
         return HostedSyncDecision(False, False, ())
 
-    assessment = acquire_session_assessment(repo_root, auth_probe=auth_probe)
-    boundary = evaluate_boundary(repo_root, preflight_probe=preflight_probe)
-    route_available, route_reason = evaluate_route_availability(
-        repo_root,
-        route_probe=route_probe,
+    diagnostics: list[HostedSyncDiagnostic] = []
+    if session_assessment is None:
+        diagnostics.append(_auth_unknown_diagnostic("auth_evidence_unavailable"))
+    elif not session_assessment.completed:
+        diagnostics.append(_auth_unknown_diagnostic(session_assessment.reason))
+    elif session_assessment.usable_session is not True:
+        diagnostics.append(_unauthenticated_diagnostic(session_assessment.reason))
+
+    if boundary is None:
+        diagnostics.append(
+            _boundary_diagnostic(
+                BoundaryEvaluation(BoundaryState.UNKNOWN, "boundary_evidence_unavailable")
+            )
+        )
+    elif boundary.state is not BoundaryState.SAFE:
+        diagnostics.append(_boundary_diagnostic(boundary))
+
+    if route_available is not True:
+        diagnostics.append(_route_diagnostic(route_reason or "route_unavailable"))
+
+    ordered_unique = tuple({diagnostic.code: diagnostic for diagnostic in diagnostics}.values())
+    allow_effects = (
+        session_assessment is not None
+        and session_assessment.completed
+        and session_assessment.usable_session is True
+        and boundary is not None
+        and boundary.state is BoundaryState.SAFE
+        and route_available is True
     )
-    return decide_hosted_sync(
-        requested=True,
-        session_assessment=assessment,
-        boundary=boundary,
-        route_available=route_available,
-        route_reason=route_reason,
-    )
+    return HostedSyncDecision(True, allow_effects, ordered_unique)
 
 
 def _unauthenticated_diagnostic(reason: str) -> HostedSyncDiagnostic:
@@ -266,7 +252,7 @@ def _auth_unknown_diagnostic(reason: str) -> HostedSyncDiagnostic:
 def _boundary_diagnostic(boundary: BoundaryEvaluation) -> HostedSyncDiagnostic:
     details: dict[str, object] = {"reason": boundary.reason or "boundary_evaluation_failed"}
     if boundary.evidence is not None:
-        details["evidence"] = _plain_json_mapping(boundary.evidence)
+        details["evidence"] = _sanitize_preflight_evidence(boundary.evidence)
     return HostedSyncDiagnostic(
         code="SAAS_SYNC_BOUNDARY_UNSAFE",
         severity="warning",
@@ -294,11 +280,13 @@ def _plain_json_mapping(value: Mapping[str, object]) -> dict[str, object]:
 
 
 def _sanitize_preflight_evidence(value: Mapping[str, object]) -> dict[str, object]:
-    """Preserve canonical evidence while removing its raw exception detail."""
+    """Preserve structural facts while replacing every free-form diagnostic."""
     evidence = _plain_json_mapping(value)
     owner_fault = evidence.get("unreadable_owner_record")
     if isinstance(owner_fault, dict):
         owner_fault.pop("detail", None)
+    if evidence.get("project_store_diagnostic") is not None:
+        evidence["project_store_diagnostic"] = "project_store_unavailable"
     return evidence
 
 
@@ -319,7 +307,6 @@ __all__ = [
     "HostedSyncDecision",
     "HostedSyncDiagnostic",
     "acquire_session_assessment",
-    "assess_hosted_sync",
     "decide_hosted_sync",
     "evaluate_boundary",
     "evaluate_route_availability",

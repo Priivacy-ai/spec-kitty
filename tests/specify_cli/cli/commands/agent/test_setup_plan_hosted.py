@@ -12,9 +12,11 @@ from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.cli.commands.agent.setup_plan_hosted import (
     BoundaryEvaluation,
     BoundaryState,
-    assess_hosted_sync,
+    HostedSyncDecision,
+    acquire_session_assessment,
     decide_hosted_sync,
     evaluate_boundary,
+    evaluate_route_availability,
 )
 from specify_cli.readiness.coordinator import AuthStatus
 from specify_cli.sync.owner import UnreadableOwnerRecord
@@ -35,18 +37,27 @@ def _routing(repo_root: Path, *, available: bool) -> CheckoutSyncRouting:
     )
 
 
-def test_disabled_short_circuits_all_probes(tmp_path: Path) -> None:
-    def forbidden(*args: object, **kwargs: object) -> object:
-        del args, kwargs
-        raise AssertionError("disabled mode must not invoke hosted-readiness probes")
-
-    decision = assess_hosted_sync(
-        requested=False,
-        repo_root=tmp_path,
-        auth_probe=forbidden,
-        preflight_probe=forbidden,
-        route_probe=forbidden,
+def _collect_requested_decision(
+    repo_root: Path,
+    *,
+    auth_probe: Callable[..., tuple[AuthStatus, str | None]],
+    preflight_probe: Callable[..., PreflightResult],
+    route_probe: Callable[[Path], CheckoutSyncRouting | None],
+) -> HostedSyncDecision:
+    assessment = acquire_session_assessment(repo_root, auth_probe=auth_probe)
+    boundary = evaluate_boundary(repo_root, preflight_probe=preflight_probe)
+    route_available, route_reason = evaluate_route_availability(repo_root, route_probe=route_probe)
+    return decide_hosted_sync(
+        requested=True,
+        session_assessment=assessment,
+        boundary=boundary,
+        route_available=route_available,
+        route_reason=route_reason,
     )
+
+
+def test_disabled_decision_requires_no_acquired_evidence() -> None:
+    decision = decide_hosted_sync(requested=False)
 
     assert decision.requested is False
     assert decision.allow_effects is False
@@ -58,10 +69,20 @@ def test_disabled_short_circuits_all_probes(tmp_path: Path) -> None:
     }
 
 
+def test_requested_decision_without_evidence_fails_closed() -> None:
+    decision = decide_hosted_sync(requested=True)
+
+    assert decision.allow_effects is False
+    assert [diagnostic.code for diagnostic in decision.diagnostics] == [
+        "SAAS_SYNC_AUTH_UNKNOWN",
+        "SAAS_SYNC_BOUNDARY_UNSAFE",
+        "SAAS_SYNC_ROUTE_UNAVAILABLE",
+    ]
+
+
 def test_all_affirmative_evidence_allows_hosted_effects(tmp_path: Path) -> None:
-    decision = assess_hosted_sync(
-        requested=True,
-        repo_root=tmp_path,
+    decision = _collect_requested_decision(
+        tmp_path,
         auth_probe=lambda **_: (AuthStatus.AUTHENTICATED, None),
         preflight_probe=lambda **_: PreflightResult(ok=True, auth_required=False),
         route_probe=lambda _: _routing(tmp_path, available=True),
@@ -97,9 +118,8 @@ def test_auth_probe_failure_is_unknown_and_never_escapes(tmp_path: Path) -> None
     def broken_auth(**_: object) -> tuple[AuthStatus, None]:
         raise RuntimeError("secret-token-auth-explosion")
 
-    decision = assess_hosted_sync(
-        requested=True,
-        repo_root=tmp_path,
+    decision = _collect_requested_decision(
+        tmp_path,
         auth_probe=broken_auth,
         preflight_probe=lambda **_: PreflightResult(ok=True, auth_required=False),
         route_probe=lambda _: _routing(tmp_path, available=True),
@@ -208,9 +228,8 @@ def test_project_store_diagnostic_is_replaced_with_stable_classification(tmp_pat
 
 
 def test_unavailable_route_is_not_an_auth_failure(tmp_path: Path) -> None:
-    decision = assess_hosted_sync(
-        requested=True,
-        repo_root=tmp_path,
+    decision = _collect_requested_decision(
+        tmp_path,
         auth_probe=lambda **_: (AuthStatus.AUTHENTICATED, None),
         preflight_probe=lambda **_: PreflightResult(ok=True, auth_required=False),
         route_probe=lambda _: _routing(tmp_path, available=False),
@@ -223,9 +242,8 @@ def test_route_probe_failure_is_sanitized_and_nonfatal(tmp_path: Path) -> None:
     def broken_route(_: Path) -> CheckoutSyncRouting:
         raise RuntimeError("session-object token=route-secret")
 
-    decision = assess_hosted_sync(
-        requested=True,
-        repo_root=tmp_path,
+    decision = _collect_requested_decision(
+        tmp_path,
         auth_probe=lambda **_: (AuthStatus.AUTHENTICATED, None),
         preflight_probe=lambda **_: PreflightResult(ok=True, auth_required=False),
         route_probe=broken_route,
@@ -297,12 +315,15 @@ def test_canonical_collectors_receive_exact_arguments(tmp_path: Path) -> None:
         calls.append(("route", repo_root))
         return _routing(repo_root, available=True)
 
-    decision = assess_hosted_sync(
+    assessment = acquire_session_assessment(tmp_path, auth_probe=auth_probe)
+    boundary = evaluate_boundary(tmp_path, preflight_probe=preflight_probe)
+    route_available, route_reason = evaluate_route_availability(tmp_path, route_probe=route_probe)
+    decision = decide_hosted_sync(
         requested=True,
-        repo_root=tmp_path,
-        auth_probe=auth_probe,
-        preflight_probe=preflight_probe,
-        route_probe=route_probe,
+        session_assessment=assessment,
+        boundary=boundary,
+        route_available=route_available,
+        route_reason=route_reason,
     )
 
     assert decision.allow_effects is True
@@ -314,9 +335,8 @@ def test_canonical_collectors_receive_exact_arguments(tmp_path: Path) -> None:
 
 
 def test_public_serialization_contains_only_plain_json_values(tmp_path: Path) -> None:
-    decision = assess_hosted_sync(
-        requested=True,
-        repo_root=tmp_path,
+    decision = _collect_requested_decision(
+        tmp_path,
         auth_probe=lambda **_: (AuthStatus.UNKNOWN, None),
         preflight_probe=lambda **_: PreflightResult(ok=False, auth_required=False),
         route_probe=lambda _: None,
