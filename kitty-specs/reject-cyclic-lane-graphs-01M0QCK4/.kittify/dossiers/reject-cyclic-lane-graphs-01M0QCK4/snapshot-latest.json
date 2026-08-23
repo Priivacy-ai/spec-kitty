@@ -1,0 +1,77 @@
+{
+  "mission_slug": "reject-cyclic-lane-graphs-01M0QCK4",
+  "snapshot_id": "57b635d0-65f2-43fa-8d68-d5d8daf850a5",
+  "total_artifacts": 4,
+  "required_artifacts": 1,
+  "required_present": 1,
+  "required_missing": 0,
+  "optional_artifacts": 3,
+  "optional_present": 3,
+  "completeness_status": "complete",
+  "parity_hash_sha256": "sha256:f6ce159b9e82ead508531d8bb367f42616dbb2ade7857d56b93bc0627dcef7e7",
+  "parity_hash_components": [
+    "0d508b0c6f2b12f8c4b7c98e2588cba2b14b77c94f07b8dc78b5c9db3a2354d9",
+    "aea617f6a52485ebebdd9a90085f3485e01186b918a2b20f47e12f06fc89f189",
+    "b0645cd31f139c9effff356287e90e59f80c82e7786410f145a819710b0ecc8b",
+    "b068d497cec7b0aa0e0290225f28b532e0e85de19753c1168608f4d05ecacb03"
+  ],
+  "artifact_summaries": [
+    {
+      "artifact_key": "artifact.meta",
+      "artifact_class": "output",
+      "relative_path": "meta.json",
+      "content_hash_sha256": "aea617f6a52485ebebdd9a90085f3485e01186b918a2b20f47e12f06fc89f189",
+      "size_bytes": 954,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-23T13:22:37.647088+00:00",
+      "provenance": null
+    },
+    {
+      "artifact_key": "artifact.readme",
+      "artifact_class": "output",
+      "relative_path": "tasks/README.md",
+      "content_hash_sha256": "0d508b0c6f2b12f8c4b7c98e2588cba2b14b77c94f07b8dc78b5c9db3a2354d9",
+      "size_bytes": 1508,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-23T13:22:37.650333+00:00",
+      "provenance": null
+    },
+    {
+      "artifact_key": "artifact.status.events",
+      "artifact_class": "output",
+      "relative_path": "status.events.jsonl",
+      "content_hash_sha256": "b068d497cec7b0aa0e0290225f28b532e0e85de19753c1168608f4d05ecacb03",
+      "size_bytes": 1602,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-23T13:22:37.640513+00:00",
+      "provenance": null
+    },
+    {
+      "artifact_key": "input.spec.main",
+      "artifact_class": "input",
+      "relative_path": "spec.md",
+      "content_hash_sha256": "b0645cd31f139c9effff356287e90e59f80c82e7786410f145a819710b0ecc8b",
+      "size_bytes": 4716,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "required",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-23T13:22:37.643950+00:00",
+      "provenance": null
+    }
+  ],
+  "computed_at": "2026-08-23 13:23:30.065010+00:00"
+}
