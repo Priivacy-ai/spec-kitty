@@ -22,7 +22,7 @@ This absence is evidence, not permission to remove the feedback loop. The sprint
 - [ ] Inspect whether the unknown-budget diagnostic feedback path was usable and whether operators knew to append immediately through `spec-kitty agent tracer-append --category approach`.
 - [ ] Record #3127's final state and the resulting `main` SHA; confirm the mission/PR branch was rebased and required checks rerun before any release-ready conclusion for #2573.
 - [ ] Record the native Windows CI result for `tests/review/test_pre_review_gate_process_tree.py::test_windows_taskkill_contract_uses_tree_then_force_escalation`.
-- [ ] Record disposition of the base-reproduced #3694/#3695 integration-fixture defects; do not silently waive them.
+- [ ] Record that `dabb8edd7` fixed the locally reproduced #3694/#3695 integration-fixture evidence defect, then record their actual tracker closure state without claiming the still-open issues are closed.
 - [ ] Preserve #2762 as the explicit owner of escaped-orphan cleanup and preserve asynchronous redesign as out of scope.
 
 ## Canonical outcome shape
