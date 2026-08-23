@@ -18,6 +18,8 @@ territory (Z1.md §4 preamble); this double never leaves ``127.0.0.1``.
 
 from __future__ import annotations
 
+from kernel.clock import now_epoch
+
 import contextlib
 import http.server
 import json
@@ -249,6 +251,337 @@ class ManagedStreamDouble:
 @pytest.fixture()
 def managed_stream_double() -> Generator[ManagedStreamDouble, None, None]:
     double = ManagedStreamDouble()
+    double.start()
+    try:
+        yield double
+    finally:
+        double.stop()
+
+
+# --- FIX-M2-10: a PROTOCOL-FAITHFUL double for POST /managed/control -------
+#
+# Unlike TeamKittyDouble above (records anything, asserts nothing — the
+# double transport.ZeitgeistClient.offer() was silently passing right past
+# before this fix), this one actually enforces the two gates a REAL relay
+# enforces on this route: `zeitgeist/auth.py`'s outer, unconditional
+# `AuthenticationMiddleware` (`Authorization: Bearer <shared_token>`,
+# checked first, mirroring `managed.py`'s route order) and `managed.py`'s
+# own `X-Zeitgeist-Capability` capability check (`managed_auth.py`'s
+# `SharedSecretCapabilityVerifier` wire shape:
+# `v1.<b64url(payload_json)>.<hex(hmac_sha256(key, payload))>`, `kind`-scoped
+# to presence/focus/operator). It also enforces the same-shape body
+# `managed_control.schema.json` requires: `schema_version` ("1.x.y") plus a
+# real op dispatch, including "no prior focus.start" rejection.
+#
+# Deliberately NOT faithful to (out of scope for what offer()'s tests need):
+# SSE streaming, presence/focus TTL expiry, the overload ceilings, replay-
+# dedup response caching beyond what op-count assertions below check.
+#
+# Ported from the SAME reasoning as spec-kitty-saas's own
+# `apps/live_capability/testing/fake_zeitgeist_server.py` (built for
+# FIX-M2-06/07's identical class of gap on the SaaS relay side) — test-only
+# code, re-derived rather than imported: zeitgeist and spec-kitty-saas are
+# both separate, git-ignored sibling repos with no package dependency to
+# spec-kitty in either direction.
+
+import base64 as _base64
+import binascii as _binascii
+import hashlib as _hashlib
+import hmac as _hmac
+import re as _re
+
+_SCHEMA_VERSION_RE = _re.compile(r"^1\.[0-9]+\.[0-9]+$")
+_FOCUS_OPS = frozenset({"focus.start", "focus.heartbeat", "focus.pause", "focus.end"})
+_ALL_MANAGED_OPS = frozenset({"presence.publish", "session.revoke"}) | _FOCUS_OPS
+_KIND_CAPS_DOUBLE: dict[str, frozenset[str]] = {
+    "presence": frozenset({"presence.publish"}),
+    "focus": _FOCUS_OPS,
+    "operator": frozenset({"session.revoke"}),
+}
+
+# FIX-M2-10: field-for-field reproduction of every per-op `args` shape the
+# real schemas declare (managed_control.schema.json's FocusArgs/
+# FocusEndArgs/SessionRevokeArgs, managed_presence.schema.json's
+# PresencePublish) — required keys + the full additionalProperties:false
+# allowed set. This is what caught the SECOND wire-shape defect a
+# recording-only double structurally cannot (transport.py's
+# focus_heartbeat/focus_pause omitted the schema-required `ttl_s`,
+# focus_pause sent a `pause_reason` key the schema has no slot for at all,
+# and presence() sent `activity` where the wire field is `kind`) — a real
+# zeitgeist container 422'd every one of those, silently invisible to a
+# double that only checks path/headers/schema_version/op.
+_ARGS_SHAPE_DOUBLE: dict[str, tuple[frozenset[str], frozenset[str]]] = {
+    "presence.publish": (
+        frozenset({"session_id"}),
+        frozenset({"host", "harness", "session_id", "agent_id", "repo", "branch", "kind", "path", "ts"}),
+    ),
+    "focus.start": (
+        frozenset({"session_id", "repo", "focus_ref", "ttl_s"}),
+        frozenset({"session_id", "repo", "branch", "focus_ref", "ttl_s"}),
+    ),
+    "focus.heartbeat": (
+        frozenset({"session_id", "repo", "focus_ref", "ttl_s"}),
+        frozenset({"session_id", "repo", "branch", "focus_ref", "ttl_s"}),
+    ),
+    "focus.pause": (
+        frozenset({"session_id", "repo", "focus_ref", "ttl_s"}),
+        frozenset({"session_id", "repo", "branch", "focus_ref", "ttl_s"}),
+    ),
+    "focus.end": (
+        frozenset({"session_id", "repo", "focus_ref", "ttl_s", "ended_reason"}),
+        frozenset({"session_id", "repo", "branch", "focus_ref", "ttl_s", "ended_reason"}),
+    ),
+    "session.revoke": (
+        frozenset({"session_id", "reason"}),
+        frozenset({"session_id", "reason"}),
+    ),
+}
+
+
+def _validate_args_shape(op: str, args: dict) -> str | None:
+    """``None`` if ``args`` matches ``op``'s real required/allowed key set;
+    else a human-readable reason, mirroring the JSON-Schema-validator
+    ``err.code at path`` shape ``managed.py``'s own 422 detail uses."""
+    required, allowed = _ARGS_SHAPE_DOUBLE.get(op, (frozenset(), frozenset()))
+    missing = required - args.keys()
+    if missing:
+        return f"missing required key(s) {sorted(missing)} at /args"
+    extra = args.keys() - allowed
+    if extra:
+        return f"extra_key {sorted(extra)} at /args (additionalProperties: false)"
+    return None
+
+
+def mint_capability_token(
+    key: str, *, sub: str, team: str, deployment: str, repo: str, kind: str,
+    iat: float, exp: float,
+) -> str:
+    """The exact wire shape ``managed_auth.SharedSecretCapabilityVerifier``
+    verifies — reimplemented here (test-only) so a test can mint a
+    protocol-real ``X-Zeitgeist-Capability`` value without importing
+    zeitgeist (no dependency exists in either direction)."""
+    payload = json.dumps(
+        {"sub": sub, "team": team, "deployment": deployment, "repo": repo,
+         "kind": kind, "iat": iat, "exp": exp}
+    ).encode("utf-8")
+    payload_b64 = _base64.urlsafe_b64encode(payload).rstrip(b"=").decode("ascii")
+    # Reproduces the real relay's HMAC capability-token wire shape
+    # (managed_auth.SharedSecretCapabilityVerifier) — a body/file-integrity
+    # checksum use, not the charter content hash.
+    digest = _hashlib.sha256  # noqa: TID251 — non-charter use: reproduces managed_auth's HMAC capability-token wire shape
+    sig_hex = _hmac.new(key.encode("utf-8"), payload, digest).hexdigest()
+    return f"v1.{payload_b64}.{sig_hex}"
+
+
+class _FocusNotStartedDouble(Exception):
+    pass
+
+
+@dataclass
+class ManagedControlState:
+    shared_token: str
+    capability_key: str
+    lock: threading.Lock = field(default_factory=threading.Lock)
+    received_ops: dict[str, int] = field(default_factory=dict)
+    applied_ops: dict[str, int] = field(default_factory=dict)
+    dedup: dict[tuple, dict] = field(default_factory=dict)
+    focus_started: set = field(default_factory=set)
+    last_headers: dict[str, str] = field(default_factory=dict)
+
+    def authorized(self, header_value: str | None) -> bool:
+        if not header_value:
+            return False
+        try:
+            scheme, credentials_ = header_value.split(" ", 1)
+        except ValueError:
+            return False
+        return scheme.lower() == "bearer" and _hmac.compare_digest(credentials_, self.shared_token)
+
+    def verify_capability(self, header_value: str | None) -> dict | None:
+        if not header_value:
+            return None
+        parts = header_value.split(".")
+        if len(parts) != 3 or parts[0] != "v1":
+            return None
+        _, payload_b64, sig_hex = parts
+        pad = "=" * (-len(payload_b64) % 4)
+        try:
+            payload_bytes = _base64.urlsafe_b64decode(payload_b64 + pad)
+        except (_binascii.Error, ValueError):
+            return None
+        digest = _hashlib.sha256  # noqa: TID251 — non-charter use: reproduces managed_auth's HMAC capability-token wire shape
+        expected = _hmac.new(self.capability_key.encode("utf-8"), payload_bytes, digest).hexdigest()
+        if not _hmac.compare_digest(sig_hex, expected):
+            return None
+        try:
+            return json.loads(payload_bytes)
+        except json.JSONDecodeError:
+            return None
+
+
+def _apply_managed_op(state: ManagedControlState, op: str, args: dict, scope: tuple) -> None:
+    with state.lock:
+        if op in _FOCUS_OPS:
+            key = (scope, args.get("focus_ref"))
+            if op == "focus.start":
+                state.focus_started.add(key)
+            elif op == "focus.end":
+                state.focus_started.discard(key)
+            elif key not in state.focus_started:
+                raise _FocusNotStartedDouble(op)
+
+
+def _dispatch_managed_control(
+    state: ManagedControlState, headers: Any, raw: bytes
+) -> tuple[int, dict]:
+    """The whole ``POST /managed/control`` decision tree, isolated from
+    ``http.server`` plumbing so it stays one small, directly-testable
+    function rather than living inside a handler method."""
+    with state.lock:
+        state.last_headers = dict(headers.items())
+
+    # FIX-M2-10 / FIX-M2-06 precedent: the OUTER gate, checked first —
+    # exactly AuthenticationMiddleware's position ahead of managed.py's own
+    # body parsing.
+    if not state.authorized(headers.get("Authorization")):
+        return 401, {"detail": "authentication required"}
+
+    try:
+        body = json.loads(raw)
+    except json.JSONDecodeError:
+        return 422, {"detail": "malformed json"}
+
+    schema_version = body.get("schema_version")
+    if not isinstance(schema_version, str) or not _SCHEMA_VERSION_RE.match(schema_version):
+        return 422, {"detail": "schema_version required at /schema_version"}
+
+    op = body.get("op")
+    request_id = body.get("request_id")
+    args = body.get("args") or {}
+
+    if op not in _ALL_MANAGED_OPS:
+        return 422, {"detail": f"unknown op {op!r}"}
+
+    args_shape_error = _validate_args_shape(op, args)
+    if args_shape_error is not None:
+        return 422, {"detail": args_shape_error}
+
+    identity = state.verify_capability(headers.get("X-Zeitgeist-Capability"))
+    if identity is None:
+        return 403, {"detail": "capability credential invalid or expired"}
+    if op not in _KIND_CAPS_DOUBLE.get(identity.get("kind"), frozenset()):
+        return 403, {"detail": f"capability does not grant op {op}"}
+
+    scope = (identity.get("team"), identity.get("deployment"), identity.get("repo"))
+    with state.lock:
+        state.received_ops[op] = state.received_ops.get(op, 0) + 1
+        cached = state.dedup.get((scope, request_id))
+        if cached is not None:
+            return 202, cached
+
+    try:
+        _apply_managed_op(state, op, args, scope)
+    except _FocusNotStartedDouble:
+        return 404, {"detail": "no focus session started; call focus.start first"}
+
+    response = {"request_id": request_id, "received_at": now_epoch()}
+    with state.lock:
+        state.applied_ops[op] = state.applied_ops.get(op, 0) + 1
+        state.dedup[(scope, request_id)] = response
+    return 202, response
+
+
+@dataclass
+class ManagedControlDouble:
+    """Public test-support handle: start/stop the double, configure its two
+    secrets, and inspect what op counts it actually applied."""
+
+    shared_token: str = "test-shared-token"
+    capability_key: str = "test-capability-key"
+
+    _server: http.server.ThreadingHTTPServer | None = None
+    _thread: threading.Thread | None = None
+    _state: ManagedControlState | None = None
+
+    def start(self) -> None:
+        self._state = ManagedControlState(shared_token=self.shared_token, capability_key=self.capability_key)
+        handler_cls = self._make_handler()
+        self._server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler_cls)
+        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
+        self._thread.start()
+
+    @property
+    def url(self) -> str:
+        assert self._server is not None
+        host, port = self._server.server_address[:2]
+        return f"http://127.0.0.1:{port}"
+
+    def stop(self) -> None:
+        if self._server is not None:
+            self._server.shutdown()
+            self._server.server_close()
+        if self._thread is not None:
+            self._thread.join(timeout=2)
+
+    def applied_op_count(self, op: str) -> int:
+        assert self._state is not None
+        with self._state.lock:
+            return self._state.applied_ops.get(op, 0)
+
+    def received_op_count(self, op: str) -> int:
+        assert self._state is not None
+        with self._state.lock:
+            return self._state.received_ops.get(op, 0)
+
+    def last_request_headers(self) -> dict[str, str]:
+        assert self._state is not None
+        with self._state.lock:
+            return dict(self._state.last_headers)
+
+    def set_shared_token(self, value: str) -> None:
+        """Reconfigure the ``Authorization: Bearer`` secret the running
+        double checks, after ``start()`` — lets one test build several
+        differently-kinded/credentialed clients against the same shared
+        secret each expects, without tearing the server down."""
+        assert self._state is not None
+        with self._state.lock:
+            self._state.shared_token = value
+        self.shared_token = value
+
+    def _make_handler(self) -> type[http.server.BaseHTTPRequestHandler]:
+        double = self
+
+        class _Handler(http.server.BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+
+            def log_message(self, format: str, *args: object) -> None:  # noqa: A002
+                pass
+
+            def _send_json(self, status: int, payload: dict) -> None:
+                body = json.dumps(payload).encode("utf-8")
+                self.send_response(status)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_POST(self) -> None:  # noqa: N802
+                state = double._state
+                assert state is not None
+                if self.path != "/managed/control":
+                    self._send_json(404, {"detail": "not found"})
+                    return
+                length = int(self.headers.get("Content-Length", "0") or "0")
+                raw = self.rfile.read(length) if length else b"{}"
+                status, payload = _dispatch_managed_control(state, self.headers, raw)
+                self._send_json(status, payload)
+
+        return _Handler
+
+
+@pytest.fixture()
+def managed_control_double() -> Generator[ManagedControlDouble, None, None]:
+    double = ManagedControlDouble()
     double.start()
     try:
         yield double
