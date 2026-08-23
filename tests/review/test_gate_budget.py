@@ -10,6 +10,8 @@ import sys
 
 import pytest
 
+from specify_cli.review import ScopeBudgetRule as ExportedScopeBudgetRule
+from specify_cli.review import ScopeIdentity as ExportedScopeIdentity
 from specify_cli.review import gate_budget
 from specify_cli.review.gate_budget import (
     BudgetClassification,
@@ -22,6 +24,11 @@ from specify_cli.review.gate_budget import (
 
 PINNED_ARCHITECTURAL_IDENTITY = "budget-v1:sha256:10c1e7475c72e48b83e4910e24437646d6ecd55052ca9a3a4f413b17153946fe"
 BOUNDED_PINNED_VECTOR_TARGET = "tests/review/test_gate_budget.py::test_identity_matches_pinned_vector"
+
+
+def test_public_budget_metadata_types_are_exported() -> None:
+    assert ExportedScopeBudgetRule is ScopeBudgetRule
+    assert ExportedScopeIdentity is ScopeIdentity
 
 
 @pytest.mark.parametrize(
