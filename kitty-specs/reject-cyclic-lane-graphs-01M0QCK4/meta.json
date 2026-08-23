@@ -10,6 +10,7 @@
   "pr_bound": true,
   "purpose_context": "Issue #3431 shows that individually valid work-package dependencies and ownership overlap can collapse into mutually dependent lanes. The mission will specify fail-loud behavior that preserves trustworthy finalization outcomes and prevents invalid lane manifests from being accepted.",
   "purpose_tldr": "Prevent task finalization from reporting success when lane collapse produces an unexecutable cyclic dependency graph.",
+  "source_description": "GitHub issue https://github.com/Priivacy-ai/spec-kitty/issues/3431",
   "slug": "reject-cyclic-lane-graphs-01M0QCK4",
   "target_branch": "fix/reject-cyclic-lane-graphs",
   "topology": "coord"
