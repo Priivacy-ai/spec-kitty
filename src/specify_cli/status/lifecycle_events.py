@@ -1106,7 +1106,6 @@ __all__ = [
     "MISSION_EVENTS_FILENAME",
     "project_event_log_path",
     "mission_event_log_path",
-    "persist_lifecycle_event_local",
     "fanout_lifecycle_event_hosted",
     "append_lifecycle_event",
     "has_lifecycle_event",
