@@ -1,19 +1,19 @@
 {
-  "event_count": 38,
-  "last_event_id": "01M0R579BTEGZ9XFDGBN8Y2YZ1",
-  "materialized_at": "2026-08-23T20:33:03.354190+00:00",
+  "event_count": 39,
+  "last_event_id": "01M0R597J1XWCF68D0B9KS5QES",
+  "materialized_at": "2026-08-23T20:34:07.041692+00:00",
   "mission_number": "",
   "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
-  "mission_type": "software-dev",
+  "mission_type": "",
   "summary": {
     "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 1
   },
   "work_packages": {
@@ -47,14 +47,14 @@
       }
     },
     "WP02": {
-      "actor": "codex",
-      "agent": "codex",
-      "agent_profile": "implementer-ivan",
-      "agent_profile_version": "1.0",
+      "actor": "reviewer-renata",
+      "agent": "reviewer-renata",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 10,
-      "lane": "for_review",
-      "last_event_id": "01M0R579BTEGZ9XFDGBN8Y2YZ1",
-      "last_transition_at": "2026-08-23T20:33:03.354190+00:00",
+      "lane": "in_review",
+      "last_event_id": "01M0R597J1XWCF68D0B9KS5QES",
+      "last_transition_at": "2026-08-23T20:34:07.041692+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Pre-existing committed kitty-specs artifacts were inherited from lane setup/dependency history; WP02 commits modify only its two owned files.",
@@ -72,9 +72,9 @@
         "reviewer": "user",
         "verdict": "changes_requested"
       },
-      "role": "implementer",
-      "shell_pid": null,
-      "shell_pid_created_at": null,
+      "role": "reviewer",
+      "shell_pid": 48157,
+      "shell_pid_created_at": "1787517245.143814",
       "subtasks": {
         "T005": "done",
         "T006": "done",
