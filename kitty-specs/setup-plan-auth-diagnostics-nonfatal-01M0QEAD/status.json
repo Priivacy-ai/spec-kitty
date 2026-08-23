@@ -1,10 +1,10 @@
 {
-  "event_count": 20,
-  "last_event_id": "01M0R2VVR7N4PQJ67P264FWZFK",
-  "materialized_at": "2026-08-23T19:51:51.815339+00:00",
+  "event_count": 22,
+  "last_event_id": "01M0R30235T6AX2W7RKKYZ7JHC",
+  "materialized_at": "2026-08-23T19:54:09.344200+00:00",
   "mission_number": "",
   "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
-  "mission_type": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 2,
     "blocked": 0,
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -47,34 +47,35 @@
       }
     },
     "WP02": {
-      "actor": "user",
-      "agent": "reviewer-renata",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
+      "actor": "codex",
+      "agent": null,
+      "agent_profile": "implementer-ivan",
+      "agent_profile_version": "1.0",
       "force_count": 3,
-      "lane": "planned",
-      "last_event_id": "01M0R2VVR7N4PQJ67P264FWZFK",
-      "last_transition_at": "2026-08-23T19:51:51.815339+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M0R30235T6AX2W7RKKYZ7JHC",
+      "last_transition_at": "2026-08-23T19:54:09.344200+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "Pre-existing committed kitty-specs artifacts were inherited from lane setup/dependency history; WP02 commits modify only its two owned files.",
         "Persist canonical WP02 for-review state after validated implementation."
       ],
       "provider": "__resolved_provider_absent__",
+      "review": null,
       "review_result": {
         "feedback_path": "/private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260823-154419-r1aDO4/spec-kitty/kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD/tasks/WP02-hosted-assessment-decision/review-cycle-1.md",
         "reference": "review-cycle://setup-plan-auth-diagnostics-nonfatal-01M0QEAD/WP02-hosted-assessment-decision/review-cycle-1.md",
         "reviewer": "user",
         "verdict": "changes_requested"
       },
-      "role": "reviewer",
-      "shell_pid": 18321,
-      "shell_pid_created_at": "1787514383.911422",
+      "role": "implementer",
+      "shell_pid": null,
+      "shell_pid_created_at": null,
       "subtasks": {
-        "T005": "done",
-        "T006": "done",
-        "T007": "done",
-        "T008": "done"
+        "T005": "planned",
+        "T006": "planned",
+        "T007": "planned",
+        "T008": "planned"
       }
     },
     "WP03": {
