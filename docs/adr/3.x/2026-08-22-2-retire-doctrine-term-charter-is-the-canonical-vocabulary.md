@@ -16,7 +16,10 @@ date: '2026-08-22'
 
 **Technical Story:** decision ledger `DM-01M0NDJ33GCKATG3H4BK4PAMNG` (full current-tree extinction),
 `DM-01M0NMS9WPH33EPFCJQRTQVNSA` (`kitty-specs/` archive is immutable),
-`DM-01M0NMSD60JYG7K7V5MJCKJ3P8` (ephemeral inventory manifest); issue #2727 (glossary authority); the
+`DM-01M0NMSD60JYG7K7V5MJCKJ3P8` (ephemeral inventory manifest),
+`DM-01M0P6C8C7Q6SPBT412V39RPN0` (amends `DM-01M0NMS9WPH33EPFCJQRTQVNSA`: the immutable historical-record
+exclusion set is four fixed roots — `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`,
+`kitty-ops/`, `.kittify/missions/` — not the archive alone); issue #2727 (glossary authority); the
 planning contracts under `kitty-specs/retire-doctrine-term-01M0JMK9/contracts/`.
 
 ---
@@ -104,7 +107,7 @@ root, non-terminology cleanup, or any edit/rename under `kitty-specs/`.
 | `.kittify/doctrine/` project overlay root | `.kittify/charter-packs/`; preserve data, conflict blocks, old root absent on completion | M3, old reader M6 |
 | skills/profiles/directives/prompts/generated/installed/shared assets | canonical IDs and paths; completed migration leaves no old path | M4, aliases M6 |
 | all remaining current-tree prose/history/ADR/docs/archive/evidence and filenames/referrers outside `kitty-specs/` | rewrite/rename in the checked-out tree; a referrer citing an archive path containing the token is recited by `mission_id`/mid8 or a token-free path, never by changing the archive | M5 |
-| `kitty-specs/` historical archive (all missions, including `retire-doctrine-term-01M0JMK9`) | immutable: no slug/directory/file rename or edit; excluded from both audits by the one fixed pathspec | none (fixed exclusion root) |
+| `kitty-specs/` historical archive (all missions, including `retire-doctrine-term-01M0JMK9`), plus the three immutable historical-record roots `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/` (`DM-01M0P6C8`, amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA`) | immutable: no pre-existing slug/directory/file under any of the four roots is renamed or edited; runtime may keep appending new records; excluded from both audits by four independent fixed pathspecs (never an allowlist) | none (fixed exclusion roots) |
 | all compatibility aliases/keys/paths/controls/fixtures | delete; replace negative fixtures with numeric-byte construction | M6 |
 
 No non-public, internal, historical, intentional-test, generated, metadata, or current-tree pathname
@@ -249,12 +252,13 @@ subprocesses (no shell pipeline):
 * precondition: the audit runs at the repository toplevel only — `git rev-parse --show-prefix` must be
   empty, otherwise audit error (a subdirectory run can never report zero); the resolved toplevel,
   `git --version` and the resolved commit OID (`git rev-parse --verify <ref>^{commit}`) are recorded;
-* content: `git grep -a -i -n -o --column --full-name -z -e <token> <commit> -- ':(top)' ':(top,exclude)kitty-specs/'`
+* content: `git grep -a -i -n -o --column --full-name -z -e <token> <commit> -- ':(top)' ':(top,exclude)kitty-specs/' ':(top,exclude).kittify/migrations/mission-state/quarantine/' ':(top,exclude)kitty-ops/' ':(top,exclude).kittify/missions/'`
   — raw rc 1 with empty stdout means zero; rc 0 means hits; rc >1 or any rc/stdout inconsistency is an
   audit error; records are parsed structurally so pathnames containing LF are handled;
 * pathname: `git ls-tree -r -z --full-tree --name-only <commit>` — any nonzero rc or missing NUL framing is
-  an audit error; after the rc check, paths under `kitty-specs/` are dropped and the remainder is matched
-  case-insensitively on raw bytes; zero matches required;
+  an audit error; after the rc check, paths under `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`,
+  `kitty-ops/`, or `.kittify/missions/` are dropped and the remainder is matched case-insensitively on raw
+  bytes; zero matches required;
 * symlink targets: every `120000` entry's blob is read and audited — zero required;
 * normalised content: a second pass over text blobs after NFKC normalisation and stripping `Cf`/soft-hyphen/
   zero-width characters — zero required.
@@ -277,13 +281,13 @@ exclusion, any other narrowed root, non-toplevel cwd, or audit error blocks 4.0.
 The per-hit inventory manifest (`inventory-hits.tsv`) is ephemeral evidence: regenerated deterministically
 from the frozen base and hash-pinned in the committed `inventory.md` (`DM-01M0NMSD60JYG7K7V5MJCKJ3P8`).
 
-**Contingency on the deferred serialized-records decision.** M6's single-fixed-`kitty-specs/`-exclusion
-terminal contract above is stated as final, but it is contingent on the still-deferred operator decision
-`DM-01M0P6C8` (disposition of tracked serialized runtime records outside `kitty-specs/`: quarantine
-`status.events.jsonl`, `kitty-ops/*.jsonl`, `retrospective.yaml`). Options 1 (exclude alongside
-`kitty-specs/`) or 3 (schema-aware rewrite) in that decision would require a scoped re-author of this
-terminal audit contract; option 2 (untrack after backup) does not. Until `DM-01M0P6C8` resolves, I6's
-exclusion set is **not** finalized; tracked upstream in issue #3684.
+**Serialized-records disposition resolved (`DM-01M0P6C8`).** Operator decision 2026-08-23 resolved
+`DM-01M0P6C8` as option 1: tracked serialized runtime records keyed to immutable `kitty-specs/` archive
+slugs or retired profile IDs (mission-state quarantine `status.events.jsonl`, `kitty-ops/*.jsonl`,
+`.kittify/missions/**/retrospective.yaml`) are treated as immutable historical records and added to the
+fixed exclusion set alongside `kitty-specs/`, amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA`. The terminal
+contract above already reflects the resulting four fixed exclusion roots. I6's exclusion set is final;
+this resolution addresses the amendment tracked in issue #3684.
 
 ### Consequences
 
@@ -307,7 +311,7 @@ exclusion set is **not** finalized; tracked upstream in issue #3684.
 
 I1: this ADR and the full Charter/glossary authority graph record the decision and override; M1 hits gone;
 guard armed. I2–I5: per-wave zero over each wave's owned occurrence set. I6: `terminology-zero-current-tree`
-reports content = 0 and pathnames = 0 for the final commit/tree with the one fixed exclusion.
+reports content = 0 and pathnames = 0 for the final commit/tree with the four fixed exclusion roots.
 
 ## Pros and Cons of the Options
 
@@ -337,5 +341,5 @@ Pros: fastest end state. Cons: breaks installed projects and external consumers 
   schema, operator-surface map, stacked plan); data model and methodology in the same mission directory.
 * Anti-goals: no product rename in the planning mission; no runtime managed-path ledger/state architecture;
   no silent data overwrite or old-root survival after completed migration; no X1/X2/X3 terminal class,
-  allowlist, or carve-out other than the fixed `kitty-specs/` root; no unresolved topology collision when M2
-  begins editing.
+  allowlist, or carve-out other than the four fixed exclusion roots; no unresolved topology collision when
+  M2 begins editing.

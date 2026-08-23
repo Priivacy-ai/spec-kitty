@@ -11,8 +11,8 @@
 | M2 | `charter-code-topology` | exhaustive internal+public topology map; merge/relocate old source package into collision-free `src/charter/`; all symbols/imports/tests/build/CLI/serialized/API/workflow/metadata | I2 |
 | M3 | `charter-packs-source` | packs/project overlays; verified `.kittify/doctrine/` → `.kittify/charter-packs/` data-preserving migration; no old root after completion | I3 |
 | M4 | `charter-agent-assets` | all skills/profiles/directives/prompts/overrides/generated/installed/shared assets and migration; no old installed path after completion | I4 |
-| M5 | `charter-current-tree-prose` | all remaining current-tree prose/history/ADR/docs/archive/evidence plus filenames/referrers outside the immutable `kitty-specs/` archive (archive referrers recited by `mission_id`/mid8 or token-free path) | I5 |
-| M6 | `charter-compatibility-extinction` | every alias/key/path/control/fixture/baseline/allowlist; exact zero content/path audits over `HEAD` with the single fixed `kitty-specs/` exclusion | I6 |
+| M5 | `charter-current-tree-prose` | all remaining current-tree prose/history/ADR/docs/archive/evidence plus filenames/referrers outside the four immutable historical-record roots (archive referrers recited by `mission_id`/mid8 or token-free path) | I5 |
+| M6 | `charter-compatibility-extinction` | every alias/key/path/control/fixture/baseline/allowlist; exact zero content/path audits over `HEAD` with the four fixed exclusion roots | I6 |
 
 ## Required wave fields
 
@@ -45,14 +45,17 @@ verified copy/move then remove old; identical destination → verify then remove
 hard-fail with both intact; completion requires old-named paths absent. This is a bounded migration plan,
 not a runtime ledger architecture.
 
-M5 has no history exception beyond the fixed `kitty-specs/` archive root, which it never edits or renames.
-It consumes the occurrence map and rewrites/renames every remaining prose/history hit and referrer in
-current `HEAD` outside that root.
+M5 has no history exception beyond the four fixed exclusion roots (`kitty-specs/`,
+`.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`), none of which it
+edits or renames for a pre-existing path. It consumes the occurrence map and rewrites/renames every
+remaining prose/history hit and referrer in current `HEAD` outside those roots; `local_design_questions`
+is 0 (the disposition of the serialized-records question that previously gated it, `DM-01M0P6C8`, is
+resolved).
 
 M6 has no exception question. It removes the complete CR/control/product/fixture set, deletes transition
 baseline/allowlist machinery, uses numeric-byte negative tests, and runs the inventory contract's checked,
-no-pipeline forced-text content + NUL-safe pathname subprocesses over `HEAD` with the contract's fixed
-`kitty-specs/` exclusion; both counts must be zero, any raw git error must fail closed, and any other
+no-pipeline forced-text content + NUL-safe pathname subprocesses over `HEAD` with the contract's four fixed
+exclusion roots; both counts must be zero, any raw git error must fail closed, and any other
 pathspec fails.
 The zero attestation includes the final commit/tree OIDs; any tree change invalidates it and CI/release
 reruns both audits on the merge/publish result tree.

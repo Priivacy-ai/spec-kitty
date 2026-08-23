@@ -3,10 +3,14 @@
 **Produces**: `inventory-hits.tsv` (ephemeral, untracked), `inventory.md` (committed)
 **Consumes**: WP01 `implementation-baseline.json`, accepted ADR
 **Terminal use**: M6 exact zero audit
-**Fixed exclusion root**: `kitty-specs/` — the immutable historical archive (`DM-01M0NMS9WPH33EPFCJQRTQVNSA`).
-It is an operator-fixed audit boundary applied identically in both modes, never a class, allowlist,
-baseline, or X value. No wave renames a slug/directory or edits/renames a file under it. Omitting this
-exclusion, or adding any other, is an audit error.
+**Fixed exclusion roots (four)**: `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`,
+`kitty-ops/`, `.kittify/missions/` — the immutable historical-record set
+(`DM-01M0NMS9WPH33EPFCJQRTQVNSA`, amended by `DM-01M0P6C8C7Q6SPBT412V39RPN0` to add the three record
+roots alongside the archive). Each is an operator-fixed audit boundary applied identically in both modes
+via its own `:(top,exclude)<root>` pathspec / ls-tree prefix drop — never a class, allowlist, baseline, or
+X value, and never an allowlist mechanism (four independent exclude pathspecs, not an include list). No
+wave renames a slug/directory or edits/renames a pre-existing path under any of the four; runtime may keep
+appending new records to them. Omitting any of the four, or adding any other, is an audit error.
 
 ## Frozen base
 
@@ -32,13 +36,18 @@ The content subprocess executes exactly:
 
 ```python
 ["git", "grep", "-a", "-i", "-n", "-o", "--column", "--full-name", "-z",
- "-e", token.decode("ascii"), base_commit, "--", ":(top)", ":(top,exclude)kitty-specs/"]
+ "-e", token.decode("ascii"), base_commit, "--", ":(top)",
+ ":(top,exclude)kitty-specs/",
+ ":(top,exclude).kittify/migrations/mission-state/quarantine/",
+ ":(top,exclude)kitty-ops/",
+ ":(top,exclude).kittify/missions/"]
 ```
 
-(`:(top)` anchors the pathspec at the repository root regardless of cwd; `:(top,exclude)kitty-specs/` is
-the one fixed exclusion. Verified live: identical record counts from the toplevel and from a subdirectory;
-the former `-- . ':(exclude)kitty-specs/'` form is retired for the terminal gate — the WP02 frozen-base
-inventory used it at the toplevel, where the two forms are equivalent.)
+(`:(top)` anchors the pathspec at the repository root regardless of cwd; the four
+`:(top,exclude)<root>` pathspecs are the fixed exclusion roots. Verified live: identical record counts
+from the toplevel and from a subdirectory; the former `-- . ':(exclude)kitty-specs/'` single-root form is
+retired for the terminal gate — the WP02 frozen-base inventory used it at the toplevel, where the two
+forms are equivalent for that single root.)
 
 It writes captured stderr through unchanged. Return code `0` is valid only with non-empty stdout and means
 hits; return code `1` is valid only with empty stdout and means no hits; return code `>1`, signal failure,
@@ -67,7 +76,8 @@ The pathname subprocess executes exactly:
 (`--full-tree` lists the whole tree regardless of cwd.) It checks return code before inspecting stdout; any
 nonzero return code, signal failure, or missing NUL record framing (non-empty output must end in NUL; empty
 output is valid) is an audit error. Only after rc 0 does it split bytes on NUL, drop every path whose raw
-bytes start with `b"kitty-specs/"` (the fixed exclusion root; counted separately as orientation), compare
+bytes start with `b"kitty-specs/"`, `b".kittify/migrations/mission-state/quarantine/"`, `b"kitty-ops/"`, or
+`b".kittify/missions/"` (the four fixed exclusion roots; each counted separately as orientation), compare
 `token in path.lower()` on the remainder without decoding, and emit matching paths NUL-delimited. Inventory
 mode succeeds after emitting matches; terminal mode fails when the match list is non-empty and succeeds only
 when empty.
@@ -138,7 +148,8 @@ It records:
 
 1. frozen base, exact argv, raw git rc, stdout/stderr SHA-256, the TSV SHA-256 and row count, and the
    exact reproduction command;
-2. manifest-derived totals by kind, S1–S10, and OC, plus excluded-root (`kitty-specs/`) content and
+2. manifest-derived totals by kind, S1–S10, and OC, plus per-excluded-root (`kitty-specs/`,
+   `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`) content and
    pathname counts as non-contractual orientation;
 3. each OC's member set (= all TSV rows carrying that `occurrence_class_id`; the ID span is orientation
    only — spans interleave) and semantic seam;
@@ -146,8 +157,9 @@ It records:
    budget, control record, and named tests; source coordinates keep their introduction-wave OC owner,
    while later-created product/control coordinates are distinct M6-removal work;
 5. scope statement: every internal code, history, test, fixture, metadata, generated-asset, ADR/docs
-   archive and matching pathname hit outside `kitty-specs/` is work, never an exclusion; `kitty-specs/` is
-   the single fixed exclusion root and is never edited or renamed;
+   archive and matching pathname hit outside the four fixed exclusion roots is work, never an exclusion;
+   `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, and `.kittify/missions/`
+   are the four fixed exclusion roots and no pre-existing path under any of them is edited or renamed;
 6. assignment-readiness statement: classes split wherever M1–M6 ownership would differ.
 
 Assignment is authored only in `stacked-plan.md`, but its disjoint union must equal every manifest hit.
@@ -158,7 +170,7 @@ Current-repository hits cannot be externally deferred.
 Each M1–M6 mission freezes a fresh wave-local base, reruns the same audits, and owns an exact occurrence
 map. M1–M5 may maintain temporary shrink-only fingerprints and registered CRs; they are transition proof,
 not terminal exceptions. M6 deletes compatibility controls/baselines/allowlists and reruns against `HEAD`
-with the same fixed `kitty-specs/` exclusion. Terminal content git subprocess must have empty stdout/raw
+with the same four fixed exclusion roots. Terminal content git subprocess must have empty stdout/raw
 rc 1 and its wrapper must exit 0; pathname git subprocess must have raw rc 0 and yield zero paths after the
 drop. Any hit, omitted or additional exclusion, git failure, malformed output, or wrapper that masks an
 upstream return code blocks I6.

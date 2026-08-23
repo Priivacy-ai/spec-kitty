@@ -8,15 +8,17 @@ architecture.
 
 ## 1. Surface categories
 
-Every hit belongs to exactly one primary category; audience does not remove it from scope. The immutable
-`kitty-specs/` historical-archive root (`DM-01M0NMS9WPH33EPFCJQRTQVNSA`) is outside the audited tree by one
-fixed pathspec; it is not a category, class, or exemption.
+Every hit belongs to exactly one primary category; audience does not remove it from scope. The four
+immutable historical-record roots — `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`,
+`kitty-ops/`, `.kittify/missions/` (`DM-01M0NMS9WPH33EPFCJQRTQVNSA`, amended by
+`DM-01M0P6C8C7Q6SPBT412V39RPN0` to add the three record roots) — are outside the audited tree by four
+independent fixed pathspecs; none is a category, class, or exemption.
 
 | ID | Category | Complete scope | Downstream owner default |
 |---|---|---|---|
 | S1 | CLI/operator routes | commands, subcommands, flags, help, errors, warnings | M2; temporary aliases removed M6 |
 | S2 | glossary/authority | all glossary authorities, paths, referrers | M1 |
-| S3 | current-tree prose/history | docs, ADRs, docs archives, evidence, READMEs, comments, current-tree history snapshots and filenames outside `kitty-specs/`; referrers to archive paths | M5 unless authority/executable |
+| S3 | current-tree prose/history | docs, ADRs, docs archives, evidence, READMEs, comments, current-tree history snapshots and filenames outside the four fixed exclusion roots; referrers to archive paths | M5 unless authority/executable |
 | S4 | agent artifacts | skills, profiles, directives, prompts, overrides, generated/installed/shared assets | M4; aliases M6 |
 | S5 | Charter authority | `.kittify/charter/` plus owning source/graph/interview/synthesis/generated surfaces | M1 |
 | S6 | packs/project overlays | built-in/org/project packs and `.kittify/doctrine/` → `.kittify/charter-packs/` migration | M3; old-root compatibility M6 |
@@ -25,13 +27,15 @@ fixed pathspec; it is not a category, class, or exemption.
 | S9 | repository operations | root docs, scripts, CI, release/config metadata, tracked pathnames | M2/M5 by role; compatibility M6 |
 | S10 | tracker/ownership | tracker blocks, flags, fields, API payloads and consumers | M2; aliases M6 |
 
-No X1/X2/X3 class exists. Internal, historical (outside `kitty-specs/`), intentional fixture/control,
-generated, and metadata hits are work items. A compatibility literal remains an ordinary hit annotated by a reservation until M6.
+No X1/X2/X3 class exists. Internal, historical (outside the four fixed exclusion roots), intentional
+fixture/control, generated, and metadata hits are work items. A compatibility literal remains an ordinary
+hit annotated by a reservation until M6.
 
 ## 2. Occurrence hit (`inventory-hits.tsv`)
 
 One row represents one case-insensitive content match or one matching tracked pathname at the frozen
-`base_commit`, outside `kitty-specs/`. The TSV is ephemeral evidence (`DM-01M0NMSD60JYG7K7V5MJCKJ3P8`):
+`base_commit`, outside the four fixed exclusion roots. The TSV is ephemeral evidence
+(`DM-01M0NMSD60JYG7K7V5MJCKJ3P8`):
 generated and untracked, with its SHA-256, row count, and per-kind/S/OC counts pinned in committed
 `inventory.md`.
 
@@ -46,9 +50,9 @@ generated and untracked, with its SHA-256, row count, and per-kind/S/OC counts p
 | `surface_category` | exactly one `S1`…`S10` |
 | `compatibility_registry_id` | nullable `CR-##`; annotation only, not second ownership |
 
-**H-I1 (set equality)**: manifest content rows equal the forced-text `git grep` output (with the fixed
-`:(exclude)kitty-specs/` pathspec) and pathname rows equal the NUL-safe `git ls-tree` output after the
-`kitty-specs/` drop, from the checked no-pipeline subprocess contract. Set equality is undefined/failing if
+**H-I1 (set equality)**: manifest content rows equal the forced-text `git grep` output (with the four
+`:(exclude)<root>` pathspecs) and pathname rows equal the NUL-safe `git ls-tree` output after the four
+fixed-root drop, from the checked no-pipeline subprocess contract. Set equality is undefined/failing if
 grep returns >1, ls-tree returns nonzero, or return code and output disagree. No duplicate, omitted,
 sampled, or synthetic row exists. It is proven by regenerating the TSV from the frozen base and matching
 the recorded SHA-256 and counts.
@@ -58,8 +62,8 @@ Two independent processes must also reproduce each row's canonical hash byte-for
 path bytes and mixed-case content fixtures.
 
 **H-I3 (terminal totality)**: every base hit is retired by one wave. I6 reruns against current `HEAD` with
-the same fixed exclusion and requires zero rows from both audits; a historical base row is evidence, not
-permission to remain.
+the same four fixed exclusion roots and requires zero rows from both audits; a historical base row is
+evidence, not permission to remain.
 
 ## 3. Occurrence class (`OC-##`)
 
@@ -120,8 +124,8 @@ negative tests build the token from numeric bytes.
 | I2 | Frozen internal+public topology map fully applied; `src/doctrine/` and every live code/internal/test/build pathname or symbol hit gone; registered 3.x aliases only. |
 | I3 | Project overlay data verified at `.kittify/charter-packs/`; completed migrations have no `.kittify/doctrine/` root; conflicts remain pre-completion blockers. |
 | I4 | Canonical skills/profiles/directives/prompts/generated/installed assets work; completed migrations have no old-named installed path; registered 3.x aliases only. |
-| I5 | All remaining current-tree prose/history/ADR/docs/archive/evidence content, filenames, and referrers outside `kitty-specs/` use canonical vocabulary; `kitty-specs/` is byte-identical to its pre-M5 state. Git object history and that archive alone retain old bytes. |
-| I6 | Every CR/alias/key/path/control/fixture removed; transition baselines/allowlists deleted; mandatory `scripts/audit_retired_term_zero.py` check `terminology-zero-current-tree` reports checked content/path counts = 0 (fixed `kitty-specs/` exclusion only) in external stdout attestation for one final commit/tree and is rerun by CI/release on the result tree. |
+| I5 | All remaining current-tree prose/history/ADR/docs/archive/evidence content, filenames, and referrers outside the four fixed exclusion roots use canonical vocabulary; each of `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/` is byte-identical to its pre-M5 state for every pre-existing path. Git object history and those four roots alone retain old bytes. |
+| I6 | Every CR/alias/key/path/control/fixture removed; transition baselines/allowlists deleted; mandatory `scripts/audit_retired_term_zero.py` check `terminology-zero-current-tree` reports checked content/path counts = 0 (the four fixed exclusion roots only) in external stdout attestation for one final commit/tree and is rerun by CI/release on the result tree. |
 
 ## 7. Migration safety model (planning level only)
 
