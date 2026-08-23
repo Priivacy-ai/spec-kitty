@@ -187,6 +187,14 @@ edges:
 - source: agent_profile:diagram-daisy
   target: directive:USE_C4_MODEL_TECHNIQUES
   relation: requires
+- source: agent_profile:diagram-daisy
+  target: toolguide:mermaid-diagramming
+  relation: suggests
+  reason: Mermaid syntax conventions and diagram-type fit are owned by this toolguide, not restated in the profile
+- source: agent_profile:diagram-daisy
+  target: toolguide:plantuml-diagramming
+  relation: suggests
+  reason: PlantUML / C4-PlantUML syntax conventions and diagram-type fit are owned by this toolguide, not restated in the profile
 - source: agent_profile:doctrine-daphne
   target: directive:DIRECTIVE_003
   relation: requires
@@ -557,6 +565,9 @@ edges:
   relation: suggests
   when: when assessing whether tests meet the quality gate they must pass
   reason: 'The primary implementer-role profile should reach the test-quality-gate hub when assessing test quality. Composition-only in the profile channel, authored per the #3063 family-D operator attestation.'
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_034
+  relation: requires
 - source: agent_profile:python-pedro
   target: directive:DIRECTIVE_034
   relation: suggests
