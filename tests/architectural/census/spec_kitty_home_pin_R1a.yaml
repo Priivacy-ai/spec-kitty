@@ -2,7 +2,7 @@ header:
   generated_by: tests/architectural/_home_pin_scan.py
   regeneration_command: python -m tests.architectural._home_pin_scan --root tests
     --frozen-at-sha <sha> --owed-to '#3121' --exempt-module tests.architectural._home_pin_exempt
-  frozen_at_sha: f6b90d34ef07f959fb6f6365dde884bf9bbf2474
+  frozen_at_sha: 4212bb3a9958ace38c672c2ff72cc41d6f5bf169
   owed_to: '#3121'
   fragility_note: 'Generated, never hand-edited. `frozen_at_sha` and `owed_to` are
     HEADER SCALARS, not row columns, and there is no `reason` column: rationale that
@@ -11,7 +11,7 @@ header:
     census -- they are hashed into the baseline''s `exempt_set_sha256`, because with
     `E` inside the census `census u E` is a no-op union and `discovered == census
     u E` degenerates to `discovered == census`. KNOWN-FRAGILE ROWS, named by the generator:
-    sync/tracker/test_tracker_egress_refusal_3108.py:1124 (held by unused monkeypatch;
+    sync/tracker/test_tracker_egress_refusal_3108.py:1172 (held by unused monkeypatch;
     MemberKey qualname is the INNERMOST scope and differs from the keyed def `test_bind_counter_wrapper_changes_no_outcome_committed_red`,
     so this row is also C-004''s only real-tree witness). Removing the unused parameter
     drops the row from the class with nothing red.'
@@ -188,13 +188,13 @@ rows:
   - sync/tracker/test_tracker_egress_refusal_3108.py
   - _isolated_home_and_arming
   - monkeypatch . setenv ( , str ( home ) )
-  lineno: 198
+  lineno: 236
   kind: fixture
   home_partition: B1
 - key:
   - sync/tracker/test_tracker_egress_refusal_3108.py
   - test_bind_counter_wrapper_changes_no_outcome_committed_red._run_once
   - mp . setenv ( , str ( tmp_path / ) )
-  lineno: 1124
+  lineno: 1172
   kind: test-body
   home_partition: A
