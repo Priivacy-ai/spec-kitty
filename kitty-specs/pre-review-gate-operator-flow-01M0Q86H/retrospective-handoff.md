@@ -1,6 +1,6 @@
 # Post-Merge Retrospective Handoff
 
-This is a pre-accept handoff, not a retrospective verdict. The canonical retrospective belongs to the automatic merge/close terminus. If that terminus does not create it, recover with:
+This handoff was consumed by the canonical post-merge `retrospective.yaml`. The recovery command remains:
 
 ```bash
 spec-kitty retrospect create --mission pre-review-gate-operator-flow-01M0Q86H --json
@@ -16,10 +16,10 @@ This absence is evidence, not permission to remove the feedback loop. The sprint
 
 ## Required post-merge acceptance items
 
-- [ ] Confirm whether canonical `traces/approach.md` exists after merge and inventory every `provenance: operational` candidate; if it remains absent, record `no candidates observed` in `retrospective.yaml`.
-- [ ] For each operational candidate, record either `follow_up` with a named owner and issue/reference, or `no_action` with rationale. Never derive or mutate deterministic budget metadata automatically.
-- [ ] Recheck provenance fields: scope identity, normalized targets, configured budget, observed monotonic elapsed, and environment context. Reject entries reconstructed from terminal scrollback or synthetic tests.
-- [ ] Inspect whether the unknown-budget diagnostic feedback path was usable and whether operators knew to append immediately through `spec-kitty agent tracer-append --category approach`.
+- [x] Confirm whether canonical `traces/approach.md` exists after merge and inventory every `provenance: operational` candidate; it remains absent, so `retrospective.yaml` records `no candidates observed`.
+- [x] For each operational candidate, record either `follow_up` with a named owner and issue/reference, or `no_action` with rationale. No operational candidates were present; deterministic budget metadata was not derived or mutated.
+- [x] Recheck provenance fields: scope identity, normalized targets, configured budget, observed monotonic elapsed, and environment context. Synthetic controlled-clock/process fixtures were excluded.
+- [x] Inspect whether the unknown-budget diagnostic feedback path was usable and whether operators knew to append immediately through `spec-kitty agent tracer-append --category approach`; the retrospective preserves this action for future operational timeouts.
 - [ ] Record #3127's final state and the resulting `main` SHA; confirm the mission/PR branch was rebased and required checks rerun before any release-ready conclusion for #2573.
 - [ ] Record the native Windows CI result for `tests/review/test_pre_review_gate_process_tree.py::test_windows_taskkill_contract_uses_tree_then_force_escalation`.
 - [ ] Record that integrated commit `b67b7596f` contains the fix for the locally reproduced #3694/#3695 integration-fixture evidence defect, then record their actual tracker closure state without claiming the still-open issues are closed.
