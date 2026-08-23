@@ -669,20 +669,37 @@ def _ensure_planning_artifacts_committed_git(
     # an empty ``plan.files_to_commit`` into a silent no-op return, then does
     # the actual BookkeepingTransaction I/O.
     extra_file_paths = _feature_dir_file_paths(repo_root, artifact_source_dir) if coord_branch_for_filter else []
-    # PR #2662 squad fix: on the healthy ``placement_ref is not None`` path the
-    # whole batch commits VERBATIM to ``placement_ref.ref`` (the un-partitioned
-    # C-004/#2160 deferral). Compare every file against that same write target so
-    # a PRIMARY artifact already-identical on the (coord) ref is not re-committed
-    # into an empty commit that hard-fails the claim (read=HEAD / write=coord
-    # divergence; #2653). ``None`` keeps the PRIMARY-vs-HEAD / COORD-vs-coord split.
-    verbatim_ref = placement_ref.ref if placement_ref is not None else None
+    # FIX-M2-08: no longer thread ``placement_ref.ref`` in as ``verbatim_ref``.
+    # The "PR #2662 squad fix" this parameter implemented compared EVERY
+    # candidate (PRIMARY and COORD-residue alike) against the coordination
+    # ref -- but ``_commit_planning_artifacts_transaction`` below was later
+    # made partition-aware (write-path-integrity WP02/T008/FR-001, closing
+    # #3371: PRIMARY files commit to ``planning_branch``, only COORD-residue
+    # files commit to the coordination ref). Leaving ``verbatim_ref`` wired
+    # here left the STAGING check comparing PRIMARY planning artifacts
+    # (spec.md/plan.md/tasks.md/lanes.json/the D1-excluded dossier snapshot)
+    # against the coordination branch even though the COMMIT never lands them
+    # there -- exactly the read=HEAD/write=coord divergence #2653 already
+    # named, just reintroduced on the read side. A coordination branch that
+    # has not yet received a mission's planning-artifact history (the normal
+    # case: coord is materialised early, planning artifacts land on primary)
+    # then makes every already-committed primary file look "changed",
+    # inflating ``files_to_commit`` with files that need no commit at all —
+    # confirmed via ``tests/e2e/test_cli_smoke.py::test_full_workflow_sequence``
+    # (spec.md/plan.md/tasks.md/lanes.json all reported "not committed" while
+    # ``git status`` on the primary checkout showed them clean). Passing no
+    # ``verbatim_ref`` restores the partition-aware comparison
+    # (:func:`resolve_precondition_ref`: PRIMARY vs ``HEAD``, COORD-residue vs
+    # the coordination ref) the pinned staging-core tests already assert as
+    # canonical (``test_meta_json_on_coord_mission_resolves_to_head``,
+    # ``test_dirty_spec_md_still_staged_against_head_on_coord_mission``,
+    # INV-5 / #2533 / BLOCKER-2).
     plan = resolve_planning_artifact_staging(
         repo_root,
         artifact_source_dir,
         coord_branch_for_filter,
         extra_file_paths,
         auto_commit=auto_commit,
-        verbatim_ref=verbatim_ref,
     )
 
     files_to_commit = plan.files_to_commit

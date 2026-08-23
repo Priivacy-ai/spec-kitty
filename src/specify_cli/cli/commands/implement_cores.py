@@ -42,6 +42,7 @@ from ruamel.yaml.error import YAMLError
 
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
+from specify_cli.status import is_dossier_snapshot
 from specify_cli.task_utils.support import split_frontmatter
 
 _META_JSON_FILENAME = "meta.json"
@@ -168,8 +169,33 @@ def _parse_porcelain_entries(raw_stdout: str) -> list[_PorcelainEntry]:
 
 
 def _feature_dir_status_entries(repo_root: Path, feature_dir: Path, *, git: GitPort = DEFAULT_GIT_PORT) -> list[_PorcelainEntry]:
+    """``git status`` entries under *feature_dir*, minus dossier-snapshot churn.
+
+    FIX-M2-08: drops any entry matching
+    :func:`~specify_cli.status.is_dossier_snapshot` before either consumer
+    (:func:`_structural_entries` / :func:`detect_structural_planning_changes`,
+    and :func:`_status_paths_for_commit` via :func:`resolve_planning_artifact_staging`)
+    sees it. ``contracts/dossier-snapshot-ownership.md`` (D1/D2) ratifies the
+    dossier snapshot as EXCLUDE: "No staging, no committing... The file is
+    just a file" -- a live re-save between the last commit and this claim is
+    expected, not a real dirty-state block. FIX-M2-05 already taught
+    :func:`~specify_cli.coordination.coherence.is_self_bookkeeping_churn` this
+    exemption for ``git/ref_advance.py`` / ``bulk_edit/diff_check.py`` /
+    ``review/dirty_classifier.py`` and taught ``agent tasks move-task``'s own
+    preflight the same glob directly (``tasks_shared.py`` /
+    ``tasks_parsing_validation.py``) -- but this implement-claim planning-
+    artifact precheck was never updated, so a dossier-sync write racing this
+    claim (e.g. one triggered by the immediately-preceding ``finalize-tasks``)
+    tripped ``resolve_planning_artifact_staging``'s "Planning artifacts not
+    committed" fail-closed refusal, dragging already-committed spec.md /
+    plan.md / tasks.md / lanes.json into the same printed refusal (confirmed
+    via ``tests/e2e/test_cli_smoke.py::test_full_workflow_sequence``) --
+    exactly the "invisible to one gate, fatal at another" split FIX-M2-05's
+    own C7 precedent exists to close, just for this one remaining gate.
+    """
     raw = git.status_porcelain(repo_root, feature_dir)
-    return _parse_porcelain_entries(raw)
+    entries = _parse_porcelain_entries(raw)
+    return [e for e in entries if not is_dossier_snapshot(e.path)]
 
 
 def _structural_entries(entries: list[_PorcelainEntry]) -> list[_PorcelainEntry]:
@@ -586,7 +612,18 @@ def resolve_planning_artifact_staging(
         status_paths = _drop_if(status_paths, _self_write)
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
-        files_to_commit.extend(_drop_if(extra_file_paths, is_status_state_path))
+        # FIX-M2-08: ``extra_file_paths`` is an UNCONDITIONAL feature-dir walk
+        # (not git-status-gated), so it can surface the dossier snapshot even
+        # when ``_feature_dir_status_entries`` already dropped it above. Union
+        # the narrow STATUS_STATE leg with :func:`is_dossier_snapshot` so this
+        # candidate-gathering leg honours the SAME D1 EXCLUDE policy -- never
+        # a commit candidate, whether or not it is currently git-dirty
+        # (mirrors ``_collect_finalize_artifacts``'s own FIX-M2-05 exclusion;
+        # without this leg the file would slip back into ``files_to_commit``
+        # and ``_commit_planning_artifacts_transaction`` would commit it,
+        # reopening the exact violation FIX-M2-05 closed in
+        # ``mission_finalize.py``, just via this sibling producer instead).
+        files_to_commit.extend(_drop_if(extra_file_paths, lambda p: is_status_state_path(p) or is_dossier_snapshot(p)))
     files_to_commit = list(dict.fromkeys(files_to_commit))
     if not auto_commit:
         files_to_commit = _drop_if(files_to_commit, _self_write)
