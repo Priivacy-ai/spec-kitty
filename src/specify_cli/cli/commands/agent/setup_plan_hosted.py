@@ -10,8 +10,9 @@ refuses hosted delivery.
 
 from __future__ import annotations
 
+import weakref
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
@@ -28,12 +29,6 @@ AuthProbe = Callable[..., tuple[AuthStatus, str | None]]
 PreflightProbe = Callable[..., "PreflightResult"]
 RouteProbe = Callable[[Path], "CheckoutSyncRouting | None"]
 DetailsClassifier = Callable[[Mapping[str, object]], dict[str, object] | None]
-
-# Only ``decide_hosted_sync`` receives this module-private construction
-# authority.  The decision object remains public so orchestration can consume
-# it, but callers cannot manufacture an affirmative permission without first
-# passing through the canonical evidence composition below.
-_DECISION_AUTHORITY = object()
 
 _AUTH_UNKNOWN_REASONS = frozenset(
     {
@@ -154,23 +149,20 @@ class HostedSyncDiagnostic:
         return payload
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, weakref_slot=True)
 class HostedSyncDecision:
     """Single permission shared by all setup-plan hosted effects."""
 
     requested: bool
     allow_effects: bool
     diagnostics: tuple[HostedSyncDiagnostic, ...]
-    _authority: object | None = field(default=None, repr=False, compare=False, kw_only=True)
 
     def __post_init__(self) -> None:
-        """Forbid affirmative permissions outside the canonical authority."""
+        """Forbid internally contradictory decision values."""
         if self.allow_effects and self.diagnostics:
             raise ValueError("allowing hosted sync decision cannot contain diagnostics")
         if self.allow_effects and not self.requested:
             raise ValueError("unrequested hosted sync decision cannot allow effects")
-        if self.allow_effects and self._authority is not _DECISION_AUTHORITY:
-            raise ValueError("allowing hosted sync decision requires canonical evidence")
 
     def to_dict(self) -> dict[str, object]:
         """Return a plain JSON-compatible representation."""
@@ -179,6 +171,21 @@ class HostedSyncDecision:
             "allow_effects": self.allow_effects,
             "diagnostics": [diagnostic.to_dict() for diagnostic in self.diagnostics],
         }
+
+
+# Identity, rather than dataclass equality or a copyable capability field,
+# proves that an affirmative decision came from ``decide_hosted_sync``.  Weak
+# references prevent the registry from extending a command decision's lifetime;
+# the callback also guards against CPython id reuse.
+_AFFIRMATIVE_DECISIONS: dict[int, weakref.ReferenceType[HostedSyncDecision]] = {}
+
+
+def is_canonical_hosted_sync_decision(decision: HostedSyncDecision) -> bool:
+    """Return whether this exact affirmative object was issued canonically."""
+    if not decision.allow_effects:
+        return False
+    reference = _AFFIRMATIVE_DECISIONS.get(id(decision))
+    return reference is not None and reference() is decision
 
 
 def acquire_session_assessment(
@@ -310,12 +317,19 @@ def decide_hosted_sync(
         and boundary.state is BoundaryState.SAFE
         and route_available is True
     )
-    return HostedSyncDecision(
-        True,
-        allow_effects,
-        ordered_unique,
-        _authority=_DECISION_AUTHORITY if allow_effects else None,
-    )
+    decision = HostedSyncDecision(True, allow_effects, ordered_unique)
+    if not allow_effects:
+        return decision
+
+    identity = id(decision)
+
+    def _discard(reference: weakref.ReferenceType[HostedSyncDecision]) -> None:
+        if _AFFIRMATIVE_DECISIONS.get(identity) is reference:
+            _AFFIRMATIVE_DECISIONS.pop(identity, None)
+
+    reference = weakref.ref(decision, _discard)
+    _AFFIRMATIVE_DECISIONS[identity] = reference
+    return decision
 
 
 def _unauthenticated_diagnostic(reason: str) -> HostedSyncDiagnostic:
@@ -557,4 +571,5 @@ __all__ = [
     "decide_hosted_sync",
     "evaluate_boundary",
     "evaluate_route_availability",
+    "is_canonical_hosted_sync_decision",
 ]

@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SETUP_PLAN = ROOT / "src/specify_cli/cli/commands/agent/mission_setup_plan.py"
 EXECUTOR = "_execute_setup_plan_hosted_effects"
 DOSSIER_ADAPTER = "_trigger_dossier_sync"
+DECISION_VALIDATOR = "is_canonical_hosted_sync_decision"
 
 # Closed census of setup-plan-callable hosted producers. Additions must route
 # through EXECUTOR (or its one narrow dossier adapter), never grow this set.
@@ -65,6 +66,15 @@ def _hosted_effect_bypasses(source: str) -> list[tuple[str, str]]:
 
 def test_setup_plan_hosted_effects_have_one_authority() -> None:
     assert _hosted_effect_bypasses(SETUP_PLAN.read_text(encoding="utf-8")) == []
+
+    tree = ast.parse(SETUP_PLAN.read_text(encoding="utf-8"))
+    executor = next(
+        node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == EXECUTOR
+    )
+    assert any(
+        isinstance(node, ast.Call) and _call_name(node) == DECISION_VALIDATOR
+        for node in ast.walk(executor)
+    )
 
 
 def test_setup_plan_hosted_effect_gate_rejects_synthetic_bypass() -> None:

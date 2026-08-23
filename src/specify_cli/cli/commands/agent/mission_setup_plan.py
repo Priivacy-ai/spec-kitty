@@ -64,6 +64,7 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     decide_hosted_sync,
     evaluate_boundary,
     evaluate_route_availability,
+    is_canonical_hosted_sync_decision,
 )
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
@@ -292,7 +293,7 @@ def _execute_setup_plan_hosted_effects(
     dossier_intent: DossierSyncIntent | None,
 ) -> None:
     """Execute every setup-plan hosted effect behind one allowing decision."""
-    if not decision.allow_effects:
+    if not is_canonical_hosted_sync_decision(decision):
         return
 
     from specify_cli.status.lifecycle_events import fanout_lifecycle_event_hosted

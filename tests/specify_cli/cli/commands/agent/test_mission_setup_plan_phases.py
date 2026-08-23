@@ -14,7 +14,11 @@ golden harness.
 
 from __future__ import annotations
 
+import copy
 import json
+import pickle
+from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 from types import MappingProxyType, SimpleNamespace
 from typing import Any, cast
@@ -31,6 +35,8 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     BoundaryState,
     HostedSyncDecision,
     HostedSyncDiagnostic,
+    decide_hosted_sync,
+    is_canonical_hosted_sync_decision,
 )
 from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.core.paths import load_meta_fail_closed as canonical_load_meta_fail_closed
@@ -163,7 +169,8 @@ def test_human_outcome_reporter_reconstructs_warning_from_closed_registry(
         remediation=(sentinel,),
     )
     rendered: list[str] = []
-    monkeypatch.setattr(seam.console, "print", lambda value: rendered.append(str(value)))
+    console = cast(Any, vars(seam)["console"])
+    monkeypatch.setattr(console, "print", lambda value: rendered.append(str(value)))
 
     seam._report_setup_plan_outcome(
         seam.SetupPlanLocalOutcome(
@@ -215,6 +222,93 @@ def test_hosted_effect_executor_refuses_every_intent_under_one_decision(
     )
 
     assert calls == []
+
+
+def _affirmative_decision() -> HostedSyncDecision:
+    return decide_hosted_sync(
+        requested=True,
+        session_assessment=SessionAssessment(True, True, "session_usable"),
+        boundary=BoundaryEvaluation(BoundaryState.SAFE),
+        route_available=True,
+    )
+
+
+@pytest.mark.parametrize(
+    "reconstruct",
+    [
+        pytest.param(lambda _decision: HostedSyncDecision(True, True, ()), id="direct"),
+        pytest.param(replace, id="dataclasses-replace"),
+        pytest.param(copy.copy, id="copy"),
+        pytest.param(copy.deepcopy, id="deepcopy"),
+        pytest.param(lambda decision: pickle.loads(pickle.dumps(decision)), id="pickle"),
+    ],
+)
+def test_hosted_effect_executor_refuses_reconstructed_affirmative_decisions(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    reconstruct: Any,
+) -> None:
+    """Only the exact object issued by the evidence authority may execute."""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        lambda *_a, **_k: calls.append("lifecycle"),
+    )
+    monkeypatch.setattr(
+        seam,
+        "_trigger_dossier_sync",
+        lambda *_a, **_k: calls.append("dossier"),
+    )
+    canonical = _affirmative_decision()
+    reconstructed = cast(HostedSyncDecision, reconstruct(canonical))
+
+    assert reconstructed.allow_effects is True
+    assert reconstructed is not canonical
+    assert is_canonical_hosted_sync_decision(reconstructed) is False
+
+    seam._execute_setup_plan_hosted_effects(
+        reconstructed,
+        lifecycle_intents=(
+            seam.LifecycleEventIntent(
+                envelope={"event_type": "PlanStarted"},
+                log_path=tmp_path / "lifecycle.events.jsonl",
+            ),
+        ),
+        dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
+    )
+
+    assert calls == []
+
+
+def test_hosted_effect_executor_accepts_exact_canonical_decision(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(
+        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        lambda *_a, **_k: calls.append("lifecycle"),
+    )
+    monkeypatch.setattr(
+        seam,
+        "_trigger_dossier_sync",
+        lambda *_a, **_k: calls.append("dossier"),
+    )
+    canonical = _affirmative_decision()
+
+    assert is_canonical_hosted_sync_decision(canonical) is True
+    seam._execute_setup_plan_hosted_effects(
+        canonical,
+        lifecycle_intents=(
+            seam.LifecycleEventIntent(
+                envelope={"event_type": "PlanStarted"},
+                log_path=tmp_path / "lifecycle.events.jsonl",
+            ),
+        ),
+        dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
+    )
+
+    assert calls == ["lifecycle", "dossier"]
 
 
 def test_collect_hosted_decision_disabled_touches_no_probe(
@@ -389,6 +483,7 @@ def _patch_readiness_variant(
         def _route_exception(_root: Path) -> None:
             raise RuntimeError("route sentinel")
 
+        route_probe: Callable[[Path], object | None]
         if variant == "route_null":
             route_probe = _route_null
         elif variant == "route_denied":
@@ -636,7 +731,8 @@ def test_real_setup_plan_cli_emits_exactly_one_json_object_when_refused(
 
     assert exit_code == 0, wire
     assert payload["result"] == "success"
-    assert payload["warnings"][0]["code"] == "SAAS_SYNC_ROUTE_UNAVAILABLE"
+    warnings = cast(list[dict[str, object]], payload["warnings"])
+    assert warnings[0]["code"] == "SAAS_SYNC_ROUTE_UNAVAILABLE"
 
 
 @pytest.mark.parametrize("sync_enabled", ("0", "1"))

@@ -87,12 +87,16 @@ behavior:
 - `spec-kitty sync routes`
 - `spec-kitty sync share` / `spec-kitty sync unshare` / `spec-kitty sync opt-out --delete-private-data`
 
-Local Mission commands are different. `spec-kitty agent mission create` and
-`spec-kitty agent mission setup-plan` complete eligible local artifact work
-while logged out. For `setup-plan`, hosted delivery is skipped and reported as
-a nonfatal warning; its local verification payload and exit code remain
-authoritative. Automation must not start an interactive login on the operator's
-behalf.
+Local Mission commands are different. Their logged-out policy is explicit per
+command so the local and hosted outcomes cannot be conflated:
+
+| Command | Eligible local work while logged out | Interactive login | Authoritative local result |
+|---------|----------------------------------------|-------------------|----------------------------|
+| `spec-kitty agent mission create` | Completes eligible local artifact work | Never starts one | Local mission-creation result and exit code |
+| `spec-kitty agent mission setup-plan` | Completes eligible local verification | Never starts one | Local verification payload and exit code |
+
+For `setup-plan`, hosted delivery is skipped and reported as a nonfatal warning.
+Automation must not start an interactive login on the operator's behalf.
 
 A confirmed absent or unusable session is reported as
 `SAAS_SYNC_UNAUTHENTICATED`; the remedy is for the operator to log in before a

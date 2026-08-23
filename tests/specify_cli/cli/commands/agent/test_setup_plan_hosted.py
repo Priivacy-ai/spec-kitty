@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from itertools import product
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -563,8 +563,9 @@ def test_registry_reconstructs_every_wire_field_for_both_serializers(
     )
     diagnostic_payload = diagnostic.to_dict()
     decision_payload = HostedSyncDecision(True, False, (diagnostic,)).to_dict()
+    decision_diagnostics = cast(list[dict[str, object]], decision_payload["diagnostics"])
 
-    for payload in (diagnostic_payload, decision_payload["diagnostics"][0]):
+    for payload in (diagnostic_payload, decision_diagnostics[0]):
         assert payload["code"] == code
         assert payload["severity"] == "warning"
         assert payload["hosted_disposition"] == "refused"
@@ -611,10 +612,16 @@ def test_unrequested_decision_cannot_allow_hosted_effects() -> None:
 
 
 def test_requested_decision_cannot_allow_without_canonical_evidence() -> None:
-    with pytest.raises(ValueError) as raised:
-        HostedSyncDecision(True, True, ())
+    direct = HostedSyncDecision(True, True, ())
 
-    assert str(raised.value) == "allowing hosted sync decision requires canonical evidence"
+    assert direct.allow_effects is True
+    assert hosted_adapter.is_canonical_hosted_sync_decision(direct) is False
+
+
+def test_affirmative_authority_is_not_a_copyable_dataclass_field() -> None:
+    assert "_authority" not in HostedSyncDecision.__dataclass_fields__
+    assert not hasattr(hosted_adapter, "_DECISION_AUTHORITY")
+    assert not hasattr(hosted_adapter, "_register_affirmative_decision")
 
 
 def test_wire_registry_contains_exactly_four_codes() -> None:
@@ -630,10 +637,11 @@ def test_wire_registry_contains_exactly_four_codes() -> None:
         for code in _WIRE_REGISTRY_EXPECTATIONS
     )
 
-    wire_codes = {
-        item["code"]
-        for item in HostedSyncDecision(True, False, diagnostics).to_dict()["diagnostics"]
-    }
+    wire_diagnostics = cast(
+        list[dict[str, object]],
+        HostedSyncDecision(True, False, diagnostics).to_dict()["diagnostics"],
+    )
+    wire_codes = {item["code"] for item in wire_diagnostics}
     assert wire_codes == set(_WIRE_REGISTRY_EXPECTATIONS)
 
 
