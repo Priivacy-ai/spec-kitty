@@ -201,10 +201,19 @@ def _branch_tree_relative_path(file_path: Path, repo_root: Path) -> str:
 def _collect_finalize_artifacts(
     feature_dir: Path,
     tasks_dir: Path,
-    mission_slug: str,
     lanes_path: Path | None = None,
 ) -> list[Path]:
     """Return all deterministic artifacts finalize-tasks may need to commit.
+
+    FIX-M2-05: dropped the ``mission_slug`` parameter (positional 3rd arg in
+    prior revisions). It existed solely to build the dossier snapshot's path
+    (``feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json"``)
+    for inclusion as a commit candidate -- an inclusion that itself violated
+    ``contracts/dossier-snapshot-ownership.md`` (D1) and is removed below.
+    None of the remaining deterministic candidates need the mission slug
+    (they resolve entirely from ``feature_dir`` / ``tasks_dir`` /
+    ``lanes_path``), so the parameter is genuinely dead, not merely unused —
+    callers pass only what this function still reads.
 
     ``meta.json`` (SK3466-RR-001) is an UNCONDITIONAL CANDIDATE here — not
     gated on whether THIS invocation's own ``--target-branch`` persist call
@@ -245,7 +254,22 @@ def _collect_finalize_artifacts(
         # never authored by any canonical path any more (WP05), so it is no
         # longer a finalize-commit candidate.
         feature_dir / "issue-matrix.json",
-        feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
+        # FIX-M2-05: the dossier snapshot is DELIBERATELY NOT a candidate here.
+        # ``contracts/dossier-snapshot-ownership.md`` (D1, mission
+        # charter-e2e-827-followups-01KQAJA0 / #845) ratifies
+        # ``.kittify/dossiers/<slug>/snapshot-latest.json`` as excluded from
+        # version control -- "save_snapshot() ... No staging, no committing,
+        # no special branch interaction. The file is just a file." Committing
+        # it here (as a prior revision of this function did) violated that
+        # contract: once tracked on one branch it is inherited by every lane
+        # and coordination worktree that branch touches, and every later
+        # fire-and-forget dossier-sync write (mark-status, move-task, merge,
+        # …) then leaves that worktree's copy locally modified/uncommitted —
+        # exactly the drift ``git/ref_advance.py``'s merge-time
+        # dirty-checked-out-worktree resync (#1826) refuses to silently
+        # discard. Leaving it off this list keeps every producer honoring the
+        # same "just a file" contract move-task's dirty-state preflight
+        # already enforces (``status/preflight.py::is_dossier_snapshot``).
     ]
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
     if lanes_path is not None:
@@ -1988,7 +2012,7 @@ def _commit_finalize_artifacts(
 
     outcome = _CommitOutcome()
     try:
-        files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, mission_slug, lanes_path=lanes_path)
+        files_to_commit = _collect_finalize_artifacts(planning_dir, tasks_dir, lanes_path=lanes_path)
         meta_json_path = planning_dir / META_JSON_FILENAME
         if meta_json_path in files_to_commit and not _meta_json_delta_is_finalize_attributable(
             meta_json_path, repo_root

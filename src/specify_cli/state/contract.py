@@ -366,13 +366,29 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="dossier_snapshot",
-        path_pattern=".kittify/dossiers/<feature>/snapshot-latest.json",
-        root=StateRoot.PROJECT,
+        path_pattern="kitty-specs/<feature>/.kittify/dossiers/<feature>/snapshot-latest.json",
+        root=StateRoot.FEATURE,
         format=StateFormat.JSON,
         authority=AuthorityClass.DERIVED,
         git_class=GitClass.IGNORED,
         owner_module="dossier snapshot save",
         creation_trigger="dossier snapshot",
+        notes=(
+            "FIX-M2-05: root corrected PROJECT->FEATURE. save_snapshot() "
+            "(dossier/snapshot.py) writes under feature_dir/.kittify/dossiers/<slug>/, "
+            "i.e. NESTED INSIDE kitty-specs/<feature>/ -- not the project-root "
+            ".kittify/ (that is dossier_parity_baseline's genuinely PROJECT-rooted "
+            "sibling: drift_detector.py writes repo_root/.kittify/dossiers/<slug>/"
+            "parity-baseline.json, a different physical location despite the shared "
+            "'dossiers' naming). The prior PROJECT-rooted declaration made "
+            "get_runtime_gitignore_entries() emit a root-anchored .kittify/dossiers/ "
+            "pattern that never matched the real mission-nested write location, so a "
+            "fresh spec-kitty init's .gitignore never protected it: ordinary "
+            "commit-routing staged and committed the file like any other mission "
+            "artifact, and the resulting per-worktree drift then blocked "
+            "git/ref_advance.py's merge-time dirty-worktree resync (#1826) on the "
+            "coordination worktree."
+        ),
     ),
     StateSurface(
         name="mission_pycache",
@@ -940,6 +956,50 @@ def _fully_ignored_top_dirs() -> set[str]:
     return {d + "/" for d, classes in top_dir_git_classes.items() if all(gc == GitClass.IGNORED for gc in classes)}
 
 
+_KITTY_SPECS_SEGMENT = "kitty-specs"
+# Every StateRoot.FEATURE surface's path_pattern is anchored at exactly this
+# two-segment prefix ("kitty-specs/<feature>/…", Section C above).
+_FEATURE_PREFIX_SEGMENTS = 2
+
+
+def _feature_relative_pattern(pattern: str) -> str | None:
+    """Strip the ``kitty-specs/<feature>/`` prefix from a FEATURE-rooted pattern.
+
+    Returns the feature-relative remainder (e.g. ``.kittify/dossiers/<feature>/
+    snapshot-latest.json``), or ``None`` when *pattern* is not anchored under
+    ``kitty-specs/<feature>/`` -- defensive; every current
+    :class:`StateRoot.FEATURE` surface is.
+    """
+    parts = pattern.split("/")
+    if len(parts) <= _FEATURE_PREFIX_SEGMENTS or parts[0] != _KITTY_SPECS_SEGMENT:
+        return None
+    return "/".join(parts[_FEATURE_PREFIX_SEGMENTS:])
+
+
+def _fully_ignored_feature_subdirs() -> set[str]:
+    """Feature-relative analogue of :func:`_fully_ignored_top_dirs`.
+
+    Returns FEATURE-relative directory patterns (e.g. ``.kittify/dossiers/``)
+    where every :class:`StateRoot.FEATURE` surface nested under it is IGNORED
+    -- so a mission-nested ignored directory (e.g. the dossier-sync snapshot's
+    ``kitty-specs/<feature>/.kittify/dossiers/``) collapses to one directory
+    entry instead of a per-placeholder pattern that could over- or
+    under-match. Mirrors :func:`_fully_ignored_top_dirs` one level deeper,
+    below the mandatory ``kitty-specs/<feature>/`` anchor.
+    """
+    feature_surfaces = [s for s in STATE_SURFACES if s.root == StateRoot.FEATURE]
+    top_dir_git_classes: dict[str, list[GitClass]] = {}
+    for s in feature_surfaces:
+        rel = _feature_relative_pattern(s.path_pattern)
+        if rel is None:
+            continue
+        parts = rel.split("/")
+        if len(parts) >= 3:  # noqa: PLR2004
+            top_dir = "/".join(parts[:2])
+            top_dir_git_classes.setdefault(top_dir, []).append(s.git_class)
+    return {d + "/" for d, classes in top_dir_git_classes.items() if all(gc == GitClass.IGNORED for gc in classes)}
+
+
 def _collapse_placeholder_pattern(pattern: str) -> str | None:
     """Collapse a path pattern with placeholders to its clean parent directory.
 
@@ -960,22 +1020,48 @@ def _remove_subsumed(entries: set[str]) -> set[str]:
 
 
 def get_runtime_gitignore_entries() -> list[str]:
-    """Return deduplicated gitignore patterns for project-root runtime surfaces.
+    """Return deduplicated gitignore patterns for runtime-ignored surfaces.
 
-    Includes all PROJECT-rooted surfaces with git_class=IGNORED.
+    Includes every PROJECT-rooted surface with git_class=IGNORED (root-anchored
+    patterns), plus every FEATURE-rooted surface with git_class=IGNORED
+    (mission-nested patterns under ``kitty-specs/*/…`` -- FIX-M2-05: a FEATURE
+    surface's real write location is nested inside each mission's own
+    ``kitty-specs/<feature>/`` tree, not the project root, so it needs its own
+    ``<feature>``-glob leg; folding it into the PROJECT leg would silently
+    mismatch the physical path, as the pre-fix ``dossier_snapshot`` entry did).
     Patterns containing placeholder tokens (``<...>``) or wildcards are
     collapsed to their parent directory (with trailing ``/``), then
     deduplicated so the result is directly consumable by ``.gitignore``.
 
     When ALL project surfaces under a top-level subdirectory (e.g.
     ``.kittify/runtime/``) are IGNORED, the entire subdirectory is emitted
-    as a single entry rather than listing individual files/subdirs.
+    as a single entry rather than listing individual files/subdirs; the same
+    collapse applies one level deeper for FEATURE surfaces sharing a
+    mission-nested subdirectory (e.g. ``kitty-specs/*/.kittify/dossiers/``).
     """
     fully_ignored = _fully_ignored_top_dirs()
+    fully_ignored_feature = _fully_ignored_feature_subdirs()
     raw: set[str] = set()
 
     for s in STATE_SURFACES:
-        if s.root != StateRoot.PROJECT or s.git_class != GitClass.IGNORED:
+        if s.git_class != GitClass.IGNORED:
+            continue
+
+        if s.root == StateRoot.FEATURE:
+            rel = _feature_relative_pattern(s.path_pattern)
+            if rel is None:
+                continue
+            parts = rel.split("/")
+            if len(parts) >= 3:  # noqa: PLR2004
+                top_dir_rel = "/".join(parts[:2]) + "/"
+                if top_dir_rel in fully_ignored_feature:
+                    raw.add(f"{_KITTY_SPECS_SEGMENT}/*/{top_dir_rel}")
+            # No current FEATURE-rooted IGNORED surface falls outside a
+            # fully-ignored mission-nested subdirectory; add a finer-grained
+            # (placeholder-substitution) fallback here if one ever does.
+            continue
+
+        if s.root != StateRoot.PROJECT:
             continue
         pattern = s.path_pattern
 
