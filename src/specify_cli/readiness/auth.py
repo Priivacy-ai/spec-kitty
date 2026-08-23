@@ -1,8 +1,8 @@
 """Readiness auth probe (WS2, issue Priivacy-ai/spec-kitty#1094).
 
-Translates the existing ``_auth_recovery.detect_logged_out_with_connected_teamspace``
-read-only detector plus ``TokenManager.is_authenticated`` into one of the
-authoritative ``AuthStatus`` values consumed by the readiness coordinator.
+Translates the canonical ``TokenManager.session_assessment`` plus the existing
+``_auth_recovery.detect_logged_out_with_connected_teamspace`` read-only detector
+into one of the authoritative ``AuthStatus`` values consumed by readiness.
 
 Contract:
 
@@ -16,12 +16,15 @@ Contract:
 
 Resolution order:
 
-1. If a valid session is reachable (``TokenManager.is_authenticated`` is true),
+1. If canonical session assessment fails, return ``(UNKNOWN, None)`` without
+   consulting Teamspace detection.
+2. If assessment completes with a usable session,
    return ``(AUTHENTICATED, None)``.
-2. Otherwise consult ``detect_logged_out_with_connected_teamspace(repo_root)``:
+3. Only after a completed no-session assessment, consult
+   ``detect_logged_out_with_connected_teamspace(repo_root)``:
    - Returns a non-empty handle → ``(LOGGED_OUT_IN_TEAMSPACE, handle)``.
    - Returns ``None`` → ``(NOT_IN_TEAMSPACE, None)``.
-3. Any exception inside the resolution path → ``(UNKNOWN, None)``.
+4. Any exception inside the resolution path → ``(UNKNOWN, None)``.
 
 Tracking issue: https://github.com/Priivacy-ai/spec-kitty/issues/1094
 """
@@ -63,14 +66,16 @@ def probe_auth_status(
             return (AuthStatus.UNKNOWN, None)
 
         try:
-            authenticated = bool(tm.is_authenticated)
+            assessment = tm.session_assessment
         except Exception:  # noqa: BLE001 — defensive
-            authenticated = False
+            return (AuthStatus.UNKNOWN, None)
 
-        if authenticated:
+        if not assessment.completed:
+            return (AuthStatus.UNKNOWN, None)
+        if assessment.usable_session is True:
             return (AuthStatus.AUTHENTICATED, None)
 
-        # Step 2: logged-out — does the repo show a connected Teamspace?
+        # Step 3: logged-out — does the repo show a connected Teamspace?
         from specify_cli.cli.commands._auth_recovery import (  # noqa: PLC0415 — lazy
             detect_logged_out_with_connected_teamspace,
         )
