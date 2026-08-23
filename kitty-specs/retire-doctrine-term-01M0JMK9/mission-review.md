@@ -212,3 +212,23 @@ OC-41 → M2, CR-07 introduced by M2, CR-01/CR-04/CR-05 re-sourced), so the wave
 that approvals are recorded as `actor: user` notes without `review_ref` — filed as an upstream gap. One operator
 decision was deferred in the ledger (`DM-01M0P6C8C7Q6SPBT412V39RPN0`, serialized historical records → M5). Verdict
 unchanged: PASS WITH NOTES, with the notes above now folded or tracked.
+
+## Four-root exclusion amendment (2026-08-23)
+
+The operator decision the "Post-squad amendment" above left deferred, `DM-01M0P6C8C7Q6SPBT412V39RPN0`, resolved to
+**Option 1**: tracked serialized runtime records keyed to immutable `kitty-specs/` archive slugs or retired profile
+IDs (mission-state quarantine `status.events.jsonl`, `kitty-ops/*.jsonl`, `.kittify/missions/**/retrospective.yaml`)
+join the fixed exclusion set alongside `kitty-specs/`, amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA` from a single fixed
+root to **four** — `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`,
+`.kittify/missions/` — each excluded by its own pathspec/prefix drop, never an allowlist.
+
+The inventory was regenerated at the unchanged frozen base with the four-root exclusion: content 48,328→**48,245**
+(−83), pathname 722→**719** (−3), total 49,050→**48,964** (−86), TSV SHA-256 `3631531b…`→`d8a09ef1…`. The 86 rows
+that left the manifest were exactly the frozen-base rows under the three newly-fixed roots (OC-33 −22 `kitty-ops/`,
+OC-34 −61 quarantine+missions, OC-49 −3 quarantine pathnames); the wave sums this review's post-squad amendment
+reproduced (302 / 13,344 / 111 / 564 / 34,729 / 0) become **302 / 13,344 / 111 / 564 / 34,643 / 0 = 48,964** — only
+M5 and the total shrink. `inventory.md`, `contracts/inventory-schema.md`, the ADR's terminal-audit section and
+scope table, `data-model.md`, `methodology.md`, `stacked-plan.md`, `research.md`, `quickstart.md`, and
+`contracts/{adr-content-contract,stacked-plan-schema,README}.md` were propagated to the four-root exclusion set in
+this landing pass. M5's `local_design_questions` is now **0** — the decision this review flagged as deferred is
+resolved. Verdict unchanged: PASS WITH NOTES.

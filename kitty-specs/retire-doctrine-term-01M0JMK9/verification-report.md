@@ -145,3 +145,35 @@ re-sourced. The wave sums this report reproduced (304 / 13,259 / 111 / 647 / 34,
 partition of the same rows; the post-fold partition is 302 / 13,344 / 111 / 564 / 34,729 / 0 = 49,050. The frozen-base
 TSV (`3631531b…`, 49,050 rows), every hash and every count in §2 (T017) are unchanged. SC-001..SC-004 verdicts stand with
 these amendments noted; one deferred operator decision (`DM-01M0P6C8C7Q6SPBT412V39RPN0`) is now M5's only open question.
+
+## Four-root exclusion amendment (2026-08-23)
+
+`DM-01M0P6C8C7Q6SPBT412V39RPN0` — the M5-gating decision the "Post-squad amendment" above left open — resolved to
+**Option 1**: tracked serialized runtime records keyed to immutable `kitty-specs/` archive slugs or retired profile
+IDs (mission-state quarantine `status.events.jsonl`, `kitty-ops/*.jsonl`, `.kittify/missions/**/retrospective.yaml`)
+are immutable historical records, added to the fixed exclusion set alongside `kitty-specs/`. The exclusion set is
+now **four fixed roots** — `kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`,
+`.kittify/missions/` — each excluded by its own `:(exclude)<root>` pathspec / ls-tree prefix drop (never an
+allowlist); this amends `DM-01M0NMS9WPH33EPFCJQRTQVNSA`.
+
+The inventory was regenerated at the same frozen base (`2621a56d…`) with the four-root exclusion applied to the
+same §8 audit procedure (`content_argv` extended by three more `:(exclude)<root>` pathspecs; the pathname drop
+extended by three more prefix roots — no other line changed). Independently verified against the operator's
+ground-truth figures:
+
+| Metric | Single-root (this report's basis) | Four-root (current) | Delta |
+|---|---|---|---|
+| content rows | 48,328 | **48,245** | −83 |
+| pathname rows | 722 | **719** | −3 |
+| total rows | 49,050 | **48,964** | −86 |
+| TSV SHA-256 | `3631531b…` | `d8a09ef1…` | — |
+
+The 86 removed rows are exactly the frozen-base rows under the three newly-fixed roots: OC-33 (`research-outputs/`,
+`kitty-ops/`) 284→262 (−22, the `kitty-ops/` portion), OC-34 (`.kittify/memory|evidence|missions|migrations/**`)
+320→259 (−61, the `.kittify/migrations/mission-state/quarantine/` (54) and `.kittify/missions/` (7) portions),
+OC-49 (history pathnames) 3→0 (all 3 were quarantine pathnames). The post-fold wave sums this amendment reflects
+are **302 / 13,344 / 111 / 564 / 34,643 / 0 = 48,964** — M1–M4 and M6 unchanged from the post-fold partition above;
+only M5 (and the total) shrink. All eight self-tests (§7-equivalent in `inventory.md`) re-ran PASS against the
+extended script, including `independent_hash_recompute_all_rows` over all 48,964 rows. SC-001..SC-004 verdicts
+stand; M5 now has **zero** local design questions (the decision this report flagged as M5's only open question is
+resolved).
