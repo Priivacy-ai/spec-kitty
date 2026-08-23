@@ -45,7 +45,10 @@
         "T003": "done",
         "T004": "done",
         "T025": "done"
-      }
+      },
+      "tracker_refs": [
+        "#2573"
+      ]
     },
     "WP02": {
       "actor": "merge",
@@ -76,7 +79,10 @@
         "T007": "done",
         "T008": "done",
         "T009": "done"
-      }
+      },
+      "tracker_refs": [
+        "#2573"
+      ]
     },
     "WP03": {
       "actor": "merge",
@@ -112,7 +118,10 @@
         "T013": "done",
         "T014": "done",
         "T015": "done"
-      }
+      },
+      "tracker_refs": [
+        "#2573"
+      ]
     },
     "WP04": {
       "actor": "merge",
@@ -142,7 +151,11 @@
         "T017": "done",
         "T018": "done",
         "T019": "done"
-      }
+      },
+      "tracker_refs": [
+        "#2573",
+        "#2762"
+      ]
     },
     "WP05": {
       "actor": "merge",
@@ -178,7 +191,11 @@
         "T022": "done",
         "T023": "done",
         "T024": "done"
-      }
+      },
+      "tracker_refs": [
+        "#2573",
+        "#3127"
+      ]
     }
   }
 }

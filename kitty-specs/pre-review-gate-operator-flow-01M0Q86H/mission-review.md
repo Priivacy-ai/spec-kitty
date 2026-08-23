@@ -2,7 +2,7 @@
 
 **Mission**: `pre-review-gate-operator-flow-01M0Q86H` (mission 196)
 **Target branch**: `fix/pre-review-gate-operator-flow`
-**Integrated commits**: `b67b7596f` (mission squash), `1ab824ca7` (done transitions), `0bf90230d` (acceptance/issue authorities), `2a4f020b4` and `da48eb698` (adversarial evidence remediation), `29a16b99c` (negative invariants), `752608ce7` (public budget-metadata exports)
+**Integrated commits**: `b67b7596f` (mission squash), `1ab824ca7` (done transitions), `0bf90230d` (acceptance/issue authorities), `2a4f020b4` and `da48eb698` (adversarial evidence remediation), `29a16b99c` (negative invariants), `752608ce7` (public budget-metadata exports), `a25db9709` (final acceptance)
 **Review verdict**: **PASS — mission implementation is aligned; release remains waiting upstream**
 
 ## Outcome
