@@ -482,14 +482,29 @@ def test_invalid_slug_raises(tmp_path: Path) -> None:
 
 
 def test_slug_starting_with_number_accepted(tmp_path: Path) -> None:
-    """Slug starting with a digit is now valid per FR-017 (e.g. '068-feature-name' convention)."""
+    """Slug starting with a digit is now valid per FR-017 (e.g. '068-feature-name' convention).
+
+    Broadened from ``except MissionCreationError`` to ``except Exception`` per
+    FR-001 (#3673): this test uses a real, unmocked git repo whose default
+    branch name (``master``/``main``, ambient ``init.defaultBranch``) is a
+    protected branch, so once ``mission_creation.py``'s meta.json commit no
+    longer suppresses hard failures, the real ``_commit_feature_file`` call
+    correctly raises ``ProtectedBranchRefused`` here -- a downstream,
+    slug-unrelated failure that used to be silently swallowed. This test's
+    own intent was always "creation may succeed or fail for non-slug
+    reasons" (see the comment below, unchanged); only a slug-format
+    rejection is actually disallowed, regardless of which exception type
+    carries it.
+    """
     _init_git_repo(tmp_path)
 
-    # Slug validation must pass; creation may succeed or fail for non-slug reasons,
-    # but must NOT raise MissionCreationError with "Invalid feature slug".
+    # Slug validation must pass; creation may succeed or fail for non-slug reasons
+    # (including a downstream hard git failure now correctly surfaced per
+    # FR-001, rather than silently swallowed), but must NOT raise a "slug
+    # format" complaint.
     try:
         create_mission_core(tmp_path, "123-fix", **_mission_summary("123-fix"))
-    except MissionCreationError as exc:
+    except Exception as exc:  # noqa: BLE001 -- deliberately broad, see docstring
         assert "Invalid feature slug" not in str(exc), (
             "Digit-prefixed slug '123-fix' must no longer be rejected for slug format. "
             f"Got: {exc}"
@@ -655,6 +670,87 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
         result = create_mission_core(tmp_path, "basic-feature", **_mission_summary("basic-feature"))
 
     assert result.meta["mission_type"] == "software-dev"
+
+
+# ---------------------------------------------------------------------------
+# FR-001: meta.json commit fails loudly (mission_creation.py:767, :792)
+# ---------------------------------------------------------------------------
+
+
+def test_meta_json_commit_noop_does_not_raise(tmp_path: Path) -> None:
+    """FR-001 Acceptance Scenario 3: the legitimate "nothing to commit" no-op
+    case is unaffected by removing the ``contextlib.suppress(Exception)``
+    wrapper. ``_commit_feature_file``'s own docstring documents it "silently
+    succeeds when there is nothing to commit" -- that no-op behavior lives
+    inside ``_commit_feature_file``/``safe_commit`` itself and is untouched by
+    this WP's fix, which only removes the code that discarded a *raised*
+    exception. This test proves the fix distinguishes "nothing to commit"
+    (still silent, unchanged) from "hard failure" (now raises, see the
+    sibling hard-failure tests in ``test_mission_create_checkout_restore.py``).
+
+    Not red-first by design (T003): a non-raising ``_commit_feature_file``
+    call is unaffected whether or not ``contextlib.suppress`` wraps it, so
+    this test passes identically before and after the fix -- it is a
+    regression guard against the fix ever broadening to reject the no-op
+    case, not a reproduction of the defect.
+    """
+    _init_git_repo(tmp_path)
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch("specify_cli.status.fire_dossier_sync"),
+        # A plain no-op mock (no side_effect, returns None) stands in for the
+        # real no-op path (nothing new to commit), which never raises.
+        patch(f"{_CORE_MODULE}._commit_feature_file", return_value=None) as commit_mock,
+    ):
+        result = create_mission_core(tmp_path, "meta-noop-commit", **_mission_summary("meta-noop-commit"))
+
+    assert isinstance(result, MissionCreationResult)
+    assert commit_mock.called
+    meta_file = result.feature_dir / "meta.json"
+    assert meta_file.exists()
+
+
+def test_meta_json_commit_hard_failure_raises_at_documentation_call_site(
+    tmp_path: Path,
+) -> None:
+    """FR-001 Acceptance Scenario 4 (mission_creation.py:792-793): the fix is
+    not partial to the primary mission-type branch -- the ``documentation``
+    mission-type's second ``meta.json`` commit call site must raise
+    identically on a hard git failure.
+
+    ``_commit_feature_file`` is mocked with ``side_effect=[None, boom]``: the
+    first call (line 768, unconditional for every mission type) succeeds so
+    execution reaches the ``documentation``-only branch; the second call
+    (line 793) is the one that raises. A single always-raising mock would
+    raise at line 768 first and never actually exercise line 792-793.
+
+    Revert sensitivity: reverting the fix (re-wrapping line 792-793's
+    ``_commit_feature_file`` call in ``contextlib.suppress(Exception)``)
+    swallows the second call's ``RuntimeError`` silently, ``create_mission_core``
+    returns normally, and ``pytest.raises`` below fails with "DID NOT RAISE".
+    """
+    _init_git_repo(tmp_path)
+    boom = RuntimeError("meta.json commit failed: documentation state commit rejected")
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}._commit_feature_file", side_effect=[None, boom]),
+        pytest.raises(RuntimeError, match="documentation state commit rejected"),
+    ):
+        create_mission_core(
+            tmp_path,
+            "docs-meta-commit-hard-failure",
+            mission="documentation",
+            **_mission_summary("docs-meta-commit-hard-failure"),
+        )
 
 
 # ---------------------------------------------------------------------------

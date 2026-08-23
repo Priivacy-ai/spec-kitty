@@ -764,15 +764,19 @@ def _create_mission_core_impl(
     from specify_cli.mission_metadata import set_documentation_state, write_meta
 
     write_meta(feature_dir, meta)
-    with contextlib.suppress(Exception):
-        _commit_feature_file(
-            meta_file,
-            mission_slug_formatted,
-            "meta",
-            resolved_root,
-            worktree_root=effective_root,
-            create_time_target=create_time_target,
-        )
+    # FR-001 (#3673): do NOT suppress -- a hard git failure here must raise
+    # so ``create_mission_core``'s existing rollback
+    # (``_restore_git_state_after_failed_create``) fires. ``_commit_feature_file``
+    # already silently succeeds when there is nothing to commit (its own
+    # docstring); only a real failure propagates from here.
+    _commit_feature_file(
+        meta_file,
+        mission_slug_formatted,
+        "meta",
+        resolved_root,
+        worktree_root=effective_root,
+        create_time_target=create_time_target,
+    )
 
     # ------------------------------------------------------------------
     # 7. Documentation state (if applicable)
@@ -789,15 +793,16 @@ def _create_mission_core_impl(
                 "coverage_percentage": 0.0,
             }
             set_documentation_state(feature_dir, doc_state)
-        with contextlib.suppress(Exception):
-            _commit_feature_file(
-                meta_file,
-                mission_slug_formatted,
-                "meta",
-                resolved_root,
-                worktree_root=effective_root,
-                create_time_target=create_time_target,
-            )
+        # FR-001 (#3673): identical fix, second call site -- not partial to
+        # the primary mission-type branch (Acceptance Scenario 4).
+        _commit_feature_file(
+            meta_file,
+            mission_slug_formatted,
+            "meta",
+            resolved_root,
+            worktree_root=effective_root,
+            create_time_target=create_time_target,
+        )
 
     # ------------------------------------------------------------------
     # 8. Event emission
