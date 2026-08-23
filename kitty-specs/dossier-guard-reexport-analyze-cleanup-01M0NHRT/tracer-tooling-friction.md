@@ -356,3 +356,74 @@ clobbering a sibling WP's concurrent write to the same shared file. No new ledge
 the same SK-65 hang class, a further sighting, now confirmed on a fifth command surface
 (`create`/`finalize-tasks`/`record-analysis`-adjacent/`agent action implement` per prior entries,
 and now `agent tasks mark-status`).
+
+## F-2026-08-23T00:23:43Z — Mission-wide baseline capture (WP04, lane-d), plus a WP04-implement hang after successful workspace resolution
+
+**Verified first-hand**, 2026-08-23, WP04 (lane-d worktree), before WP04's first implementation
+commit.
+
+**(a) Mission-wide baseline**, run from `.worktrees/dossier-guard-reexport-analyze-cleanup-01M0NHRT-lane-d`
+against the checkout's own `.venv`:
+
+```
+pytest tests/architectural/test_dossier_emitter_positional_guard.py \
+       tests/dossier/test_events.py \
+       tests/architectural/test_no_dead_symbols.py \
+       tests/specify_cli/test_analysis_report.py \
+       tests/specify_cli/test_analysis_report_charter_yaml_staleness.py -q
+```
+
+Result: **86 passed in 106.07s**, zero failures. `tests/architectural/test_no_dead_symbols.py`
+alone: **26 passed** (matches spec.md's cited empirical count). No F-0N entry recording this exact
+baseline run existed yet at the time WP04 checked (searched for the pytest command text and any
+`## F-` heading — none found), so recording it here under a fresh UTC-timestamped heading per this
+WP's own concurrency note, rather than guessing whether WP01/WP03 already ran it uncommitted.
+
+**(b) `spec-kitty agent action implement WP04 --agent claude --mission
+dossier-guard-reexport-analyze-cleanup-01M0NHRT` hung after successfully resolving the lane
+workspace.** The command printed through "Lane worktree ready" / the `cd
+.worktrees/...-lane-d` instructions and the `SPEC_KITTY_TEST_DB_NAME` export line, then sat for
+>2 minutes printing only repeated `Warning: Event routing failed: project sync store is locked` /
+`Warning: Event did not durably queue; dropping from publication` lines (the SK-65 signature, same
+as F-01/F-04) with no further progress. `/proc/<pid>/wchan` showed
+`poll_schedule_timeout.constprop.0` (a bounded-looking retry/backoff loop that in practice never
+returned). Per this WP's own tooling-hazards guidance (SK-63/SK-74: verify via git log/git
+ls-tree, SIGTERM a >2min hang, then verify), sent `SIGTERM`; the process exited (code 143).
+Verified via `git log`/`git branch -vv`/`git status` in both the main checkout and the lane-d
+worktree that the workspace resolution itself was genuine and complete before the hang: commit
+`d1f963473` ("chore: Start WP04 implementation [claude]") landed on
+`fix/dossier-guard-reexport-analyze-cleanup-3676` in the main checkout, the lane-d worktree exists
+at `.worktrees/dossier-guard-reexport-analyze-cleanup-01M0NHRT-lane-d` on branch
+`kitty/mission-dossier-guard-reexport-analyze-cleanup-01M0NHRT-lane-d` at `a513bcf27`, and both
+trees were clean after the SIGTERM (nothing lost, nothing corrupted). No re-invocation was
+needed — the resolved workspace was already usable. Same root cause as F-01/F-04/F-05 (SK-65's
+`CUTOVER_PENDING` machine-layout event-routing retry loop now observed hanging past its own
+implicit "repeats suppressed" budget on the `implement` action specifically, a command surface not
+previously named in F-01/F-04/F-05's sightings of SK-65/SK-74) — no new ledger entry filed here
+(same underlying defect, different command surface), recorded for this mission's own trail per the
+standing tracer-file instruction.
+
+## F-2026-08-23T00:33:00Z — `agent tasks mark-status` hangs on the same SK-65 sync-store-lock retry loop, never commits (WP04)
+
+**Verified first-hand**, 2026-08-23, WP04 (lane-d worktree), after T014's implementation commit
+(`02ef48fc3`) had already landed and been pushed.
+
+Attempted `spec-kitty agent tasks mark-status T013 --status done --mission
+dossier-guard-reexport-analyze-cleanup-01M0NHRT` twice (once chained with T014/T015 in a single
+2-minute-bounded block, once alone with a ~3-minute bounded wait). Both attempts printed only the
+same SK-65 `machine layout cutover did not publish within the bounded wait` / `Event routing
+failed` / `Event did not durably queue` warning sequence already seen in F-01/F-04/F-05/F-09/the
+prior `implement WP04` entry above, then hung with no further output until terminated (exit 144
+both times). Unlike the `implement WP04` hang (which had already committed its workspace-resolution
+side effect before hanging), `mark-status` produced **zero commit and zero working-tree change**
+either time — confirmed via `git log --oneline -5` (unchanged) and `git status --porcelain`
+(clean) immediately after each kill. This is a fourth command surface (`agent action implement`,
+`agent mission finalize-tasks`, `agent mission record-analysis`, now `agent tasks mark-status`)
+hit by the same underlying SK-65/SK-74 machine-layout/sync-store defect. No new ledger entry filed
+(same root cause, already tracked). **Disposition**: T013/T014/T015 status was NOT recorded via
+the CLI for this WP — the work itself (the BEFORE/AFTER evidence in this file and commit
+`02ef48fc3`) is genuine and independently verifiable via git regardless of whether the bookkeeping
+transition landed; per the standing "no CLI command for a transition means BLOCKED, not a
+hand-edit" rule, WP04's frontmatter/status fields were left untouched rather than hand-patched.
+Flagging for the orchestrator/reviewer: WP04's task board may show T013/T014/T015 as not
+marked-done even though the underlying work is complete and committed.
