@@ -71,7 +71,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 ## Objectives & Success Criteria
 
 - Typed runner protocol не зависит от CLI/service/storage.
-- OpenCode вызывается argv-list, `shell=False`, stdin-only prompt.
+- OpenCode headless server запускается argv-list с `shell=False`, а prompt передаётся только в body loopback HTTP API.
 - Default requested route configurable, без hidden fallback.
 - Перед внешним запуском runner предоставляет typed pricing snapshot только для exact requested route; ненулевая, отсутствующая или устаревшая нулевая цена не даёт запускать модель.
 - Raw stdout/stderr никогда не выводятся, не логируются и не входят в exceptions/results.
@@ -103,13 +103,13 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Выполни только `opencode --version` и `opencode run --help` или эквивалентные no-network commands.
 - Зафиксируй supported flags для pure/sessionless run, model route, input/output framing и cwd behavior.
 - Не предполагай `--pure` или output flag, если help их не подтверждает.
-- Если required sessionless/stdin/machine-output surface отсутствует, остановись с material replan; не парси interactive UI.
+- Если required headless/server/session HTTP surface отсутствует, остановись с material replan; не парси interactive UI.
 - Не печатай config/auth paths.
 
 ### T017 — Red runner contract tests
 
-- Spy/fake executable фиксирует argv, stdin bytes и environment names без secret values.
-- Assert `shell=False`, no prompt in argv, no inherited application-specific secret injection.
+- Spy/fake server/client фиксирует argv, HTTP body и environment names без secret values.
+- Assert `shell=False`, server bind только на `127.0.0.1`, no prompt in argv и обязательное удаление созданной session.
 - Outcomes: executable missing, auth marker, provider nonzero, 429/rate limit, timeout, invalid JSON/framing, oversized streams.
 - Каждый вызов runner запускает внешний процесс не более одного раза; автоматические retry запрещены.
 - Result type содержит только bounded metadata: diagnostic enum, exit code, byte counts, optional validated payload buffer.
@@ -120,16 +120,16 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Определи protocol/interface для injectable runner.
 - Input: immutable prompt bytes/string, requested route, timeout.
 - Output: typed local result; host timestamps monotonic/UTC where needed.
-- Build argv from verified T016 contract and platform-resolved executable.
+- Build argv для headless server из verified T016 contract и platform-resolved executable; loopback HTTP client принимает prompt только как request body.
 - Не устанавливай OpenCode и не управляй login.
 - Default route находится в caller/config constant, не является provider guarantee.
 
 ### T019 — Private bounded streams и framing
 
-- Захватывай stdout/stderr в bounded in-memory sinks; не используй unbounded `communicate()` на произвольном output.
+- Захватывай server stdout/stderr и HTTP response body в bounded in-memory sinks; не используй unbounded `communicate()` или неограниченное чтение HTTP-тела.
 - При превышении 2 MiB заверши process tree и верни `invalid_output` metadata-only.
-- Raw stderr никогда не передаётся parser; stdout parser получает только один JSON-документ `review-response/v1` без префикса, суффикса или дополнительных событий.
-- Любые дополнительные байты в stdout классифицируются как `invalid_output`; delimiter-based extraction и выбор «последнего JSON» запрещены.
+- Raw server stderr никогда не передаётся parser; parser получает только один JSON-документ `review-response/v1` из HTTP-тела без префикса, суффикса или дополнительных событий.
+- Любые дополнительные байты в HTTP-теле классифицируются как `invalid_output`; delimiter-based extraction и выбор «последнего JSON» запрещены.
 - Invalid UTF-8 обрабатывается без включения raw bytes в error.
 
 ### T020 — Cross-platform process-tree cleanup
@@ -137,13 +137,13 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - POSIX: новая process session/group и group termination escalation.
 - Windows: process group/job-object либо доказанный эквивалент, который завершает descendants.
 - Graceful → forced escalation bounded 5 seconds.
-- Закрывай stdin/pipe handles, чтобы descendants не удерживали процесс.
+- Закрывай HTTP/pipe handles, чтобы descendants не удерживали процесс; созданная server session удаляется в `finally`, а непроверенная очистка даёт локальный отказ без fallback.
 - Fake helper порождает grandchild; test подтверждает отсутствие обоих после timeout.
 - Cleanup errors сворачиваются в local diagnostic без command/output dump.
 
 ### T021 — Adversarial diagnostics tests
 
-- Child echo полного prompt в stdout и stderr.
+- Fake server echo полного prompt в HTTP-теле и stdout/stderr.
 - Fragmented sentinel across chunks/encoding boundaries.
 - Invalid UTF-8 and very large output.
 - Auth/provider strings mixed with echoed prompt.
@@ -174,7 +174,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 Reviewer проверяет:
 
 - никаких secret/config reads;
-- prompt только stdin;
+- prompt только в loopback HTTP body;
 - raw streams отсутствуют во всех result/exception/log paths;
 - timeout действительно убивает grandchild;
 - no real network/model call в tests;
@@ -207,7 +207,7 @@ Reviewer проверяет:
 - Не использовать unbounded buffer.
 - Не запускать real model в WP implementation.
 - Не fallback-ить на другой route/provider.
-- Не выводить из суффикса route (включая `-free`) факт бесплатности; отсутствие проверяемого snapshot — отказ до stdin.
+- Не выводить из суффикса route (включая `-free`) факт бесплатности; отсутствие проверяемого snapshot — отказ до создания prompt и HTTP-передачи.
 
 ## Verification Evidence
 

@@ -34,7 +34,7 @@
 
 1. Новый top-level интерфейс: `spec-kitty spec-review --mission <handle> [--model <id>] [--confirm-digest <sha256>]`.
 2. CLI orchestration отделена от доменного пакета `specify_cli.spec_review`; subprocess скрыт за typed runner protocol.
-3. Prompt передаётся только через stdin в документированный OpenCode argv; `shell=False`. Raw stdout/stderr не пробрасываются и не сохраняются: bounded buffers живут только в памяти, а stdout принимается только как один JSON-документ `review-response/v1` без дополнительных байтов.
+3. Prompt передаётся только в body локального loopback HTTP API OpenCode headless server; argv не содержит prompt, `shell=False`, server слушает только `127.0.0.1`. Созданная session удаляется в `finally`; если удаление не подтверждено, запуск завершается локальным отказом. Raw stdout/stderr не пробрасываются и не сохраняются.
 4. Добавляется `MissionArtifactKind.SPEC_REVIEW` в PRIMARY partition и filename-anchored classifier только для `reviews/spec-review-*.yaml`; legacy review trail остаётся неклассифицированным до отдельной migration decision. Выбор фиксируется ADR.
 5. Storage получает filesystem path только через `resolve_artifact_surface(..., SPEC_REVIEW)` и commit target через canonical placement seam; запись выполняется atomically/exclusively с повторной containment и reparse/symlink проверкой.
 6. Внешний `review-response/v1` содержит только findings. Доверенный `spec-review-run/v1` с provenance, закрытым status и summary полностью строит host; transport и requested route берутся из consent manifest, а непроверяемая фактическая модель фиксируется как `actual_model: unverified`.
@@ -48,7 +48,7 @@
 - **Единая authority**: placement идёт через новый `SPEC_REVIEW`, schema — через один parser/model, subprocess — через один runner.
 - **Архитектурное соответствие**: существующие review/gate и invocation boundaries не смешиваются с внешним transport.
 - **ATDD-first**: первый кодовый WP начинает с acceptance tests consent, scope и advisory failure.
-- **Переносимость**: argv-list, stdin и fake runner исключают shell quoting.
+- **Переносимость**: argv-list, loopback HTTP body и fake runner исключают shell quoting и передачу prompt в argv.
 - **Безопасность**: credential ownership, prompt redaction, size limits и sensitive-content refusal заданы до внешнего старта.
 - **Качество**: Ruff, mypy, targeted tests и 90%+ coverage новых ветвей обязательны.
 - **Git workflow**: работа остаётся на task-owned branch/worktrees; merge в upstream protected main выполняет оператор.
@@ -65,7 +65,7 @@ flowchart LR
     C -->|refuse| X[Локальная диагностика, 0 внешних вызовов]
     C --> D[Digest всего disclosure manifest]
     D -->|нет consent| X
-    D -->|явный consent| E[Governed rubric + spec через stdin]
+    D -->|явный consent| E[Governed rubric + spec в HTTP body]
     E --> F[OpenCode runner]
     F --> G[review-response/v1 + privacy validation]
     G --> H[Host строит spec-review-run/v1 и пишет через PRIMARY resolver]
@@ -197,9 +197,9 @@ docs/
 
 - **Acceptance**: CLI без consent, несовпадающий `--confirm-digest`, CLI с fake success, provider timeout/error/429 без retry, invalid output, repeated/concurrent run.
 - **Unit**: path containment, symlink escape, size boundaries, secret/PII marker detection, manifest-wide prompt-template digest, prompt composition, parser enums/limits, filename/run-id generation.
-- **Contract**: локально подтверждённый argv OpenCode, stdin-only prompt, no shell, process-tree timeout cleanup, stable diagnostic/exit codes, `review-response/v1` → `spec-review-run/v1` round trip.
+- **Contract**: локально подтверждённый argv OpenCode headless server, prompt только в loopback HTTP body, bind `127.0.0.1`, обязательное удаление session, no shell, process-tree timeout cleanup, stable diagnostic/exit codes, `review-response/v1` → `spec-review-run/v1` round trip.
 - **Architecture**: `ProfileInvocationExecutor` по-прежнему не импортирует/не вызывает runner; `reviews/` всегда разрешается как PRIMARY через mission runtime.
-- **Privacy teeth tests**: полный и фрагментированный sentinel в stdout/stderr, invalid UTF-8, oversized stream, timeout и subprocess exception отсутствуют во всех выводах/errors/artifacts; каждый exception/error path имеет отдельную reversion-sensitive проверку.
+- **Privacy teeth tests**: полный и фрагментированный sentinel в HTTP body и server stdout/stderr, invalid UTF-8, oversized body/stream, timeout и subprocess exception отсутствуют во всех выводах/errors/artifacts; каждый exception/error path имеет отдельную reversion-sensitive проверку.
 - **Placement/atomicity**: single, coord, lanes, lanes-with-coord, backfilled и deleted-coord состояния проверяют реальный path и commit target; legacy `*.findings.yaml` не классифицируется; concurrent processes, занятый run ID и symlink/reparse directory не приводят к overwrite или escape.
 - **Compatibility**: root help показывает `review` и `spec-review`; существующий `review` остаётся leaf с прежними flags/help/exit behavior, а fast-path/doctor не импортируют external-review stack.
 - **Live smoke**: manual marker, synthetic input, explicit consent; ни один CI job не зависит от модели или бесплатного quota.
