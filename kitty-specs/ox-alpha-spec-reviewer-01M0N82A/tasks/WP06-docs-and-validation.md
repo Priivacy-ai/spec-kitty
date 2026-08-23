@@ -12,6 +12,7 @@ requirement_refs:
 - FR-009
 - FR-010
 - FR-012
+- FR-013
 - NFR-001
 - NFR-003
 - NFR-005
@@ -104,18 +105,20 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Preconditions: install/login принадлежит OpenCode user.
 - Preview command с disclosure manifest и unverified provider-properties warning.
 - Interactive/noninteractive consent examples.
+- Noninteractive пример использует точный `--confirm-digest <sha256>` из preview; mismatch даёт exit 2 без вызова runner.
 - Таблица status/exit/remediation.
 - Artifact path/schema и manual treatment of findings.
 - Privacy limits: heuristic scanner не гарантирует обезличивание.
 - No auto-fix, no mandatory workflow gate, no fallback model.
+- No automatic retry; 429/rate limit отображается как provider error и требует нового ручного запуска с новым consent.
 - Changelog entry concise, user-facing, без benchmark marketing claims.
 
 ### T029 — Integration и optional live harness
 
 - Deterministic integration test создаёт temp mission и fake OpenCode runner.
-- Проходит preview → confirmed complete → persisted host artifact → repeat run.
+- Проходит preview → confirmed `completed` → persisted host artifact → новый отдельно подтверждённый run.
 - Проверяет hashes, summary, line ranges, exit 0, non-mutation.
-- Failure cases representative: timeout/invalid output/write failure.
+- Failure cases representative: 429 без retry, timeout/invalid output/write failure.
 - `test_spec_review_live.py` помечен explicit marker/env opt-in, принимает только встроенный synthetic spec.
 - Live test не читает repo mission specs и не запускается в обычном CI.
 - Harness перед call показывает route/manifest и требует отдельный confirm gate.
@@ -176,6 +179,7 @@ Reviewer проверяет:
 
 - [ ] Guide соответствует фактическому CLI help.
 - [ ] Guide содержит preview/consent/exit/artifact flow.
+- [ ] Guide документирует `--confirm-digest`, запрет retry и 429/provider-error поведение.
 - [ ] Warning явно отделяет route label от provider/price/ZDR facts.
 - [ ] Scanner limitations описаны честно.
 - [ ] Changelog не содержит benchmark claims.

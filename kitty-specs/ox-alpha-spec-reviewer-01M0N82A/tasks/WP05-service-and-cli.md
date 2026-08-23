@@ -88,7 +88,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Собрать existing typed components в один use case без дублирования validation/placement/process logic.
 - Добавить `spec-kitty spec-review` как отдельную leaf command.
 - Сохранить `spec-kitty review` help/options/behavior.
-- Реализовать явный `--preview` и одноразовый `--confirm-external`.
+- Реализовать явный `--preview` и одноразовый `--confirm-digest <sha256>`.
 - Показать disclosure manifest до интерактивного prompt.
 - Возвращать stable exit codes 0/2–7 по spec.
 - Не менять `spec.md`, meta lifecycle, status events или WP state.
@@ -119,6 +119,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - `--preview`: manifest printed, runner/storage 0 calls, exit 0.
 - Interactive decline: runner/storage 0 calls, exit 0, explicit cancelled outcome.
 - Noninteractive missing confirm: exit 2.
+- Noninteractive mismatched `--confirm-digest`: exit 2, runner/storage 0 calls.
 - Input refusal: exit 3.
 - CLI/auth/provider: exit 4; timeout 5; invalid output 6; write failure 7.
 - Complete: exit 0, one artifact, counts/path summary, original spec/meta/status unchanged.
@@ -128,17 +129,18 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Resolve mission through canonical selector, never manual path parsing.
 - Build preflight + disclosure manifest, render safe metadata-only view.
 - Preview short-circuits before consent/runner.
-- Interactive consent binds exact manifest digest; noninteractive flag only authorizes current invocation.
+- Interactive consent binds exact manifest digest; `--confirm-digest <sha256>` authorizes only current invocation и только при точном совпадении с пересчитанным manifest digest.
 - After consent, request immutable buffer from preflight and invoke injected runner.
 - Map runner → parser → host run → storage; no raw output enters service result.
+- Persist `completed`, `provider_error`, `timeout` и `invalid_output`; при `write_failed` вернуть exit 7 без артефакта, findings persistence или повторного model call.
 - Return typed outcome carrying safe diagnostic, exit code, artifact path and counts.
 
 ### T024 — Thin CLI adapter
 
-- Options: required `--mission`, optional `--model`, `--timeout`, `--preview`, `--confirm-external`.
+- Options: required `--mission`, optional `--model`, `--timeout`, `--preview`, `--confirm-digest <sha256>`.
 - Validate timeout 10–600 as usage error without process call.
 - Detect interactive terminal only for prompt; CI/noninteractive never prompts.
-- Render `transport=OpenCode CLI`, `requested model route=...`, explicit unverified availability/ownership/price/retention warning.
+- Render `transport=OpenCode CLI`, `requested model route=...`, digests всех четырёх payload parts и explicit unverified availability/ownership/price/retention/anonymization warning.
 - Never print input content, child output or exception repr.
 - Exit with exact spec table.
 
@@ -202,12 +204,15 @@ Reviewer проверяет:
 - [ ] Interactive decline и noninteractive missing consent различаются.
 - [ ] Disclosure показывает весь manifest и warning.
 - [ ] Consent связан с exact digest.
+- [ ] Несовпадающий `--confirm-digest` даёт exit 2 и 0 calls runner/storage.
+- [ ] 429/provider failure не вызывает автоматический retry.
 - [ ] Service orchestration не дублирует parser/storage/runner logic.
 - [ ] Exit mapping 0/2–7 покрыт table-driven tests.
 - [ ] Mission/spec/meta/status неизменны во всех outcomes.
 - [ ] Success summary содержит только safe metadata.
 - [ ] Failure output не содержит raw streams/prompt.
 - [ ] Repeated run сохраняет старый artifact.
+- [ ] Каждый подтверждённый запуск вызывает runner не более одного раза; повторный запуск требует нового consent.
 - [ ] Fast paths не import external stack eagerly.
 - [ ] Ruff/mypy/pytest зелёные.
 

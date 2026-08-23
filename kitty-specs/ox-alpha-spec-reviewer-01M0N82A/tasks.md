@@ -39,22 +39,22 @@
 ## WP02 — Disclosure, response contracts и privacy preflight (P0, MVP foundation)
 
 **Цель**: реализовать host-owned disclosure manifest, два раздельных schema contract и fail-closed локальный preflight.  
-**Независимая проверка**: fake runner не вызывается при отсутствии consent, manifest drift, path escape, size violation или sensitive marker; валидный response преобразуется в host run с проверенными line ranges и summary.  
+**Независимая проверка**: fake runner не вызывается при отсутствии consent, несовпадающем `--confirm-digest`, manifest drift, path escape, size violation или sensitive marker; валидный response, включая `findings: []`, преобразуется в host run с проверенными line ranges, provenance и summary.
 **Prompt**: `tasks/WP02-contracts-and-preflight.md`  
 **Requirement refs**: FR-001, FR-002, FR-003, FR-004, FR-007, FR-011, NFR-001, NFR-002, NFR-004, NFR-006, NFR-007, C-005.
 
 ### Included Subtasks
 
-- [ ] T005 Написать red acceptance/contract tests для consent manifest и минимального пакета (WP02)
-- [ ] T006 Реализовать typed domain models и отдельные `review-response/v1` / `spec-review-run/v1` validators (WP02)
+- [ ] T005 Написать red acceptance/contract tests для consent manifest, prompt-template digest и минимального пакета (WP02)
+- [ ] T006 Реализовать typed domain models, закрытые run statuses и отдельные `review-response/v1` / `spec-review-run/v1` validators (WP02)
 - [ ] T007 Реализовать canonical path, size и immutable-buffer preflight с повторной digest проверкой (WP02)
 - [ ] T008 Реализовать версионированный heuristic sensitive-data scanner с безопасной диагностикой (WP02)
-- [ ] T009 Реализовать bounded rubric/prompt builder и exact-input-span privacy filter (WP02)
+- [ ] T009 Реализовать версионированный bounded prompt template/rubric builder и exact-input-span privacy filter (WP02)
 - [ ] T010 Покрыть line evidence, unique IDs, summary counts и boundary cases (WP02)
 
 ### Implementation Notes
 
-Consent связан с digest всего manifest, а не только `spec.md`. Scanner не обещает полное обезличивание. Model-authored payload не может задавать provenance.
+Consent связан с digest всего manifest, включая prompt template, а не только `spec.md`. Scanner не обещает полное обезличивание. Model-authored payload не может задавать provenance; requested route берётся из manifest, непроверяемая фактическая модель фиксируется как `unverified`.
 
 ### Parallel Opportunities
 
@@ -73,7 +73,7 @@ Consent связан с digest всего manifest, а не только `spec.m
 ## WP03 — Canonical PRIMARY placement и atomic storage (P0)
 
 **Цель**: формализовать только новые `reviews/spec-review-*.yaml` как PRIMARY planning evidence и безопасно сохранять host-built run artifacts.  
-**Независимая проверка**: topology matrix разрешает реальный path/commit target через canonical seams; legacy files не переклассифицируются; concurrent/symlink tests не допускают overwrite или escape.  
+**Независимая проверка**: topology matrix разрешает реальный path/commit target через canonical seams; legacy files не переклассифицируются; concurrent/symlink tests не допускают overwrite или escape; `write_failed` не оставляет final artifact.
 **Prompt**: `tasks/WP03-placement-and-storage.md`  
 **Requirement refs**: FR-008, FR-009, FR-012, NFR-001, NFR-005, NFR-008, C-004.
 
@@ -82,7 +82,7 @@ Consent связан с digest всего manifest, а не только `spec.m
 - [ ] T011 Зафиксировать ADR о PRIMARY ownership, lifecycle и legacy compatibility (WP03)
 - [ ] T012 Добавить filename-anchored `SPEC_REVIEW` artifact classification и partition tests (WP03)
 - [ ] T013 Реализовать storage только через `resolve_artifact_surface` и placement seam (WP03)
-- [ ] T014 Реализовать atomic exclusive-create, ASCII run ID и cleanup собственного temp file (WP03)
+- [ ] T014 Реализовать atomic exclusive-create, ASCII run ID, cleanup собственного temp file и metadata-only `write_failed` без final artifact (WP03)
 - [ ] T015 Добавить topology, concurrency, occupied-ID и symlink/reparse tests (WP03)
 
 ### Implementation Notes
@@ -108,12 +108,12 @@ Directory classifier захватит historical trail → только filename
 **Цель**: реализовать заменяемый subprocess runner с stdin-only input, bounded private streams и cleanup всего process tree.  
 **Независимая проверка**: fake process contract доказывает точный argv, `shell=False`, отсутствие raw stream leakage и корректные diagnostic codes на Windows/Linux/macOS paths.  
 **Prompt**: `tasks/WP04-opencode-runner.md`  
-**Requirement refs**: FR-005, FR-006, FR-010, NFR-001, NFR-003, NFR-004, NFR-005, NFR-006, C-001, C-003.
+**Requirement refs**: FR-005, FR-006, FR-010, FR-013, NFR-001, NFR-003, NFR-004, NFR-005, NFR-006, C-001, C-003.
 
 ### Included Subtasks
 
 - [ ] T016 Проверить локальный help-контракт OpenCode без model/network call и зафиксировать argv decision (WP04)
-- [ ] T017 Написать red runner tests для stdin, shell isolation, exit taxonomy и bounded streams (WP04)
+- [ ] T017 Написать red runner tests для stdin, shell isolation, exit taxonomy, 429 без retry и bounded streams (WP04)
 - [ ] T018 Реализовать typed runner protocol и OpenCode adapter без credential access (WP04)
 - [ ] T019 Реализовать framing/stream limits без raw stdout/stderr propagation (WP04)
 - [ ] T020 Реализовать cross-platform process-tree timeout cleanup и grandchild tests (WP04)
@@ -140,13 +140,13 @@ OpenCode output contract может отличаться от предполож
 ## WP05 — Advisory service и CLI integration (P1, MVP)
 
 **Цель**: собрать preflight, consent, runner, parser и storage в отдельную `spec-kitty spec-review`, сохранив существующий `spec-kitty review`.  
-**Независимая проверка**: root help показывает обе команды; preview/complete/cancel возвращают 0, failure outcomes — 2–7; mission state и `spec.md` неизменны.  
+**Независимая проверка**: root help показывает обе команды; `--confirm-digest` принимает только текущий manifest digest; preview/complete/cancel возвращают 0, failure outcomes — 2–7; mission state и `spec.md` неизменны.
 **Prompt**: `tasks/WP05-service-and-cli.md`  
-**Requirement refs**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, NFR-001, NFR-007, C-002, C-004.
+**Requirement refs**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, NFR-001, NFR-007, C-002, C-004.
 
 ### Included Subtasks
 
-- [ ] T022 Написать red service/CLI acceptance tests для preview, consent, success и failures (WP05)
+- [ ] T022 Написать red service/CLI acceptance tests для preview, interactive consent, `--confirm-digest`, success и failures (WP05)
 - [ ] T023 Реализовать advisory orchestration service и disclosure manifest UX (WP05)
 - [ ] T024 Реализовать тонкую top-level `spec-review` command и stable exit mapping (WP05)
 - [ ] T025 Зарегистрировать команду без eager import external-review stack (WP05)
@@ -176,7 +176,7 @@ Advisory означает «не меняет lifecycle», а не «всегд�
 **Цель**: завершить публичную документацию, regression/coverage gates и отделённый synthetic live smoke.  
 **Независимая проверка**: docs не обещают free/ZDR/provider ownership; Ruff, mypy, tests и coverage проходят; live smoke отсутствует в обычном CI и требует отдельного consent.  
 **Prompt**: `tasks/WP06-docs-and-validation.md`  
-**Requirement refs**: FR-006, FR-009, FR-010, FR-012, NFR-001, NFR-003, NFR-005, NFR-006, NFR-008, C-003, C-004.
+**Requirement refs**: FR-006, FR-009, FR-010, FR-012, FR-013, NFR-001, NFR-003, NFR-005, NFR-006, NFR-008, C-003, C-004.
 
 ### Included Subtasks
 
@@ -223,6 +223,7 @@ Green fake tests не доказывают provider → live evidence марки
 | FR-010 | WP04, WP05, WP06 |
 | FR-011 | WP02, WP05 |
 | FR-012 | WP03, WP05, WP06 |
+| FR-013 | WP04, WP05, WP06 |
 | NFR-001–NFR-008 | WP01–WP06 по профильным границам |
 | C-001–C-005 | WP01–WP06 по профильным границам |
 

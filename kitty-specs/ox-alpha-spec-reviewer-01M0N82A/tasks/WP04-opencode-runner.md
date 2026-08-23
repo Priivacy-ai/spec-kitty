@@ -108,7 +108,8 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - Spy/fake executable фиксирует argv, stdin bytes и environment names без secret values.
 - Assert `shell=False`, no prompt in argv, no inherited application-specific secret injection.
-- Outcomes: executable missing, auth marker, provider nonzero, timeout, invalid framing, oversized streams.
+- Outcomes: executable missing, auth marker, provider nonzero, 429/rate limit, timeout, invalid JSON/framing, oversized streams.
+- Каждый вызов runner запускает внешний процесс не более одного раза; автоматические retry запрещены.
 - Result type содержит только bounded metadata: diagnostic enum, exit code, byte counts, optional validated payload buffer.
 - Exception messages не содержат child output.
 
@@ -125,8 +126,8 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - Захватывай stdout/stderr в bounded in-memory sinks; не используй unbounded `communicate()` на произвольном output.
 - При превышении 2 MiB заверши process tree и верни `invalid_output` metadata-only.
-- Raw stderr никогда не передаётся parser; stdout parser получает только unambiguous framed machine payload.
-- Если framing не подтверждён CLI contract, используй prompt-defined unique delimiters и strict extraction, но докажи collision handling.
+- Raw stderr никогда не передаётся parser; stdout parser получает только один JSON-документ `review-response/v1` без префикса, суффикса или дополнительных событий.
+- Любые дополнительные байты в stdout классифицируются как `invalid_output`; delimiter-based extraction и выбор «последнего JSON» запрещены.
 - Invalid UTF-8 обрабатывается без включения raw bytes в error.
 
 ### T020 — Cross-platform process-tree cleanup
@@ -144,6 +145,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Fragmented sentinel across chunks/encoding boundaries.
 - Invalid UTF-8 and very large output.
 - Auth/provider strings mixed with echoed prompt.
+- 429/rate-limit response подтверждает один process invocation и `provider_error` без retry.
 - Timeout during partial output, exception before spawn, exception during read, failed tree cleanup.
 - Во всех paths captured user-visible/loggable result не содержит sentinel, argv prompt или raw stream.
 - Separate diagnostic codes сохраняют FR-010 taxonomy.
@@ -163,6 +165,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - **Deadlock/large output** → streaming limits and concurrent drains.
 - **Orphan descendants** → process group/job tests.
 - **Hidden provider fallback** → exact route argv assertion.
+- **Повторная передача** → process-spawn count равен единице для provider/429/network failures.
 
 ## Review Guidance
 

@@ -85,7 +85,7 @@ If unavailable, run `spec-kitty agent profile list --json` and select the Python
 ## Objectives & Success Criteria
 
 - Создать чистый domain layer без subprocess, storage и CLI imports.
-- Consent связан с digest полного disclosure manifest.
+- Consent связан с digest полного disclosure manifest, включая версионированный prompt template.
 - Canonical input — только resolved `feature_dir/spec.md`, максимум 256 KiB.
 - `review-response/v1` недоверенный; `spec-review-run/v1` host-owned.
 - Evidence line range реально существует в spec snapshot.
@@ -114,18 +114,19 @@ If unavailable, run `spec-kitty agent profile list --json` and select the Python
 ### T005 — Red acceptance/contract tests
 
 - Создай synthetic mission/spec fixtures только в pytest temp dirs.
-- Зафиксируй manifest fields: transport, route, spec/rubric/schema digests и sizes, total, manifest digest.
+- Зафиксируй manifest fields: transport, route, spec/rubric/schema/prompt-template digests и sizes, total, manifest digest.
 - Для каждого поля изменяй значение между disclosure и send gate: дальнейший callback/runner spy получает 0 calls.
-- Покрой отсутствие consent, интерактивную отмену как domain outcome и noninteractive refusal.
+- Покрой отсутствие consent, интерактивную отмену как domain outcome, noninteractive refusal и несовпадающий `--confirm-digest`.
 - Добавь tests для path escape, symlink spec, missing file, >256 KiB и file mutation.
 - Все тесты сначала должны падать по ожидаемой причине.
 
 ### T006 — Typed models и schema validators
 
-- Реализуй immutable/frozen types для `DisclosureManifest`, `ReviewResponse`, `SpecReviewFinding`, `SpecReviewRun`, status и diagnostic enums.
+- Реализуй immutable/frozen types для `DisclosureManifest`, `ReviewResponse`, `SpecReviewFinding`, `SpecReviewRun`, закрытого status enum {`completed`, `refused`, `provider_error`, `timeout`, `invalid_output`, `write_failed`} и diagnostic enums.
 - Model response не принимает host provenance fields.
 - Host run вычисляет summary локально; сумма severity counts равна total/findings length.
-- Для failure run findings пусты и diagnostic обязателен; для complete diagnostic `None`.
+- Для failure run findings пусты и diagnostic обязателен; для `completed` diagnostic `None`, а `findings: []` валиден.
+- Host run копирует transport/requested route из согласованного manifest и фиксирует `actual_model: unverified`, если runner не получил проверяемые metadata провайдера.
 - Finding IDs уникальны в response.
 - Сверь implementation validators с YAML contracts; не дублируй divergent field lists.
 
@@ -149,9 +150,10 @@ If unavailable, run `spec-kitty agent profile list --json` and select the Python
 
 ### T009 — Prompt builder и output privacy filter
 
-- Builder принимает immutable spec buffer, versioned rubric и response schema.
+- Builder принимает immutable spec buffer, versioned rubric, response schema и versioned prompt template.
 - Не добавляет repo path, plan/tasks, transcript, env, git diff или credentials.
-- Manifest digests охватывают exact serialized rubric/schema, которые пойдут в stdin.
+- Manifest digests охватывают exact serialized rubric/schema/prompt template, которые пойдут в stdin.
+- Parser принимает stdout только как один JSON-документ `review-response/v1`; любые дополнительные байты дают `invalid_output`.
 - Privacy filter проверяет model-authored title/claim/remediation на точные normalized input spans от 32 символов.
 - Evidence содержит только line numbers; цитаты/фрагменты входа schema не разрешает.
 - Нарушение превращается в `invalid_output`, без сохранения offending text.
@@ -160,6 +162,7 @@ If unavailable, run `spec-kitty agent profile list --json` and select the Python
 
 - line_start/end: positive, ordered, within snapshot line count.
 - duplicate IDs, unknown fields, >100 findings, >2 MiB payload.
+- пустой `findings: []` как валидный `completed` и пустой/смешанный stdout как `invalid_output`.
 - wrong summary counts и failure status with findings.
 - short generic text допустим; exact 32-char sentinel запрещён.
 - scanner tests: real and decoy tokens, PEM, URL credentials, Unicode/BOM, long lines, false-positive examples.
@@ -194,13 +197,15 @@ Reviewer обязан проверить:
 ## Definition of Done
 
 - [ ] Все public types frozen/typed и имеют docstrings.
-- [ ] Manifest digest детерминирован при одинаковых bytes/route/transport.
+- [ ] Manifest digest детерминирован при одинаковых bytes/route/transport/template.
 - [ ] Изменение каждого manifest field аннулирует consent.
 - [ ] Canonical spec path нельзя заменить symlink/reparse path.
 - [ ] Spec buffer после consent не перечитывается.
 - [ ] Scanner version участвует в manifest/rubric metadata.
 - [ ] Scanner result не содержит matched value.
 - [ ] Response rejects host provenance fields.
+- [ ] Run status принимает только закрытый enum, requested route приходит из manifest, а непроверенная фактическая модель записывается как `unverified`.
+- [ ] Parser принимает только единственный JSON-документ и допускает валидный `findings: []`.
 - [ ] Evidence ranges существуют и ordered.
 - [ ] IDs unique; limits enforce 100 findings/2 MiB.
 - [ ] Summary host-computed и internally consistent.

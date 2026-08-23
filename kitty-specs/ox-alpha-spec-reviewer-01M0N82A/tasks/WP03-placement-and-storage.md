@@ -132,6 +132,8 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Cleanup удаляет только собственный temp path после exact ownership check.
 - Fsync/replace policy документируется по supported OS; no partial final file after simulated crash.
 - `write_failed` наружу только code/target metadata, без serialized payload.
+- При `write_failed` final artifact отсутствует, полученные findings не персистятся, а внешний вызов storage не повторяет.
+- Bounded collision retry относится только к локальному выбору свободного run ID и не повторяет внешний model call.
 
 ### T015 — Topology и attack tests
 
@@ -184,6 +186,7 @@ Reviewer проверяет:
 - [ ] Concurrent writers создают различимые final files.
 - [ ] Symlink/reparse escape отказан.
 - [ ] Crash/write failure не оставляет partial final artifact.
+- [ ] `write_failed` не создаёт final artifact и не инициирует повторный внешний вызов.
 - [ ] Existing mission_runtime tests зелёные.
 - [ ] Ruff/mypy/targeted pytest зелёные.
 
