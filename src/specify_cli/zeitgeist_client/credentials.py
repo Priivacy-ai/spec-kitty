@@ -27,6 +27,20 @@ trivially by revoke() never attempting network I/O at all.
 This module never imports ``specify_cli.auth.*`` (the SaaS OAuth credential
 system Z1's criterion explicitly forbids reusing, Z1.md §2.6/N22) — this is
 the local, shared-team, self-hosted-relay bearer credential Z1 owns.
+
+FIX-M2-15: ``StoredCredential``/``store()`` gained a second, optional
+field, ``capability_credential`` — a real per-team relay
+(``ZEITGEIST_TOKEN``/``ZEITGEIST_CAPABILITY_KEY`` minted as two
+independent secrets, e.g. by ``apps.live_capability.provisioning_docker``)
+needs a per-actor ``X-Zeitgeist-Capability`` JWT distinct from ``token``,
+the deployment-wide ``Authorization`` bearer; see ``transport.py``'s
+``ClientConfig``/``filtered_stream.py``'s ``TeamStreamConfig`` for the
+identical field and the identical "``None`` falls back to the other
+credential" precedence both apply. Every existing on-disk config (no
+``capability_credential`` key at all) round-trips unchanged: ``load()``
+reads a missing key as ``None``, and every caller downstream already
+treats ``None`` as "use ``token`` for both gates" — the exact single-
+credential behaviour this store always had.
 """
 
 from __future__ import annotations
@@ -52,6 +66,11 @@ class StoredCredential:
     token: str
     token_issued_at: str
     token_kind: str
+    # FIX-M2-15: the SEPARATE X-Zeitgeist-Capability credential -- see
+    # module docstring. `None` means "single-credential checkout" (every
+    # entry stored before this fix, and every self-hosted deployment that
+    # still hands out one value): callers fall back to `token`.
+    capability_credential: str | None = None
 
 
 def credentials_path() -> Path:
@@ -86,22 +105,37 @@ def _write_all(data: dict[str, dict[str, str]]) -> None:
     tmp_path.replace(path)  # atomic on POSIX and Windows (same volume)
 
 
-def store(*, repo: str, relay_url: str, token: str, token_kind: str) -> None:
+def store(
+    *,
+    repo: str,
+    relay_url: str,
+    token: str,
+    token_kind: str,
+    capability_credential: str | None = None,
+) -> None:
     if not repo:
         raise ValueError("repo must be non-empty")
     if not relay_url:
         raise ValueError("relay_url must be non-empty")
     if not token:
         raise ValueError("token must be non-empty")
+    if capability_credential is not None and not capability_credential:
+        raise ValueError("capability_credential must be non-empty when provided")
     lock = FileLock(str(_lock_path()))
     with lock:
         data = _read_all()
-        data[repo] = {
+        entry: dict[str, str] = {
             "relay_url": relay_url,
             "token": token,
             "token_issued_at": now_utc_iso(),  # kernel.clock single door (M2 canonical integration)
             "token_kind": token_kind,
         }
+        # FIX-M2-15: omitted entirely (never written as "") when not
+        # provided -- `load()` reads a missing key back as `None`, TOML has
+        # no null literal to round-trip instead.
+        if capability_credential is not None:
+            entry["capability_credential"] = capability_credential
+        data[repo] = entry
         _write_all(data)
 
 
@@ -117,6 +151,7 @@ def load(*, repo: str) -> StoredCredential | None:
         token=entry["token"],
         token_issued_at=entry["token_issued_at"],
         token_kind=entry["token_kind"],
+        capability_credential=entry.get("capability_credential"),
     )
 
 

@@ -108,6 +108,23 @@ new subscription surface.
     name `repo` explicitly (Z7-C's own "one explicit authorized team context"
     criterion); wiring `repo_identity.identity()` into those flows is
     deferred follow-up work (integration note, M2 canonical integration).
+
+    **FIX-M2-15**: `credentials.py`'s storage primitive (and
+    `transport.ClientConfig`/`filtered_stream.TeamStreamConfig`, the two
+    wire-facing configs it feeds) now carry a SECOND, optional
+    `capability_credential` field alongside `token` — a real
+    SaaS-provisioned per-team relay signs `Authorization`'s shared
+    bearer and `X-Zeitgeist-Capability`'s per-actor JWT with two
+    INDEPENDENT secrets, and one value can no longer satisfy both gates
+    (see the three modules' own FIX-M2-15 docstring notes). On the
+    `spec-kitty-saas` side, `apps.live_capability.views.
+    mint_cli_credential` (`POST /api/v1/live/capability/cli/`) is the
+    new member-facing surface that returns `relay_url`/`relay_token`/
+    `capability_credential` together — exactly the triple this
+    not-yet-built `checkout` flow should call `credentials.store()` with
+    once it exists. This item's own remaining gap is unchanged by
+    FIX-M2-15: there is still no CLI flow that calls either endpoint or
+    `credentials.store()`.
 6. **Harness-asset staging** — `.mcp.json` companion asset, the
    `ClaudeCodeHookRegistrar` `PostToolUse` event-constant extension, per-harness
    hook re-homing under `zeitgeist_client/assets/hooks/<harness>/`, and

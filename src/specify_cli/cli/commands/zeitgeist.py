@@ -307,6 +307,9 @@ def _report_client(repo: str) -> transport.ZeitgeistClient | None:
         transport.ClientConfig(
             relay_url=stored.relay_url,
             token=stored.token,
+            # FIX-M2-15: threads the stored two-credential shape through;
+            # `None` falls back to `token` for both headers unchanged.
+            capability_credential=stored.capability_credential,
             harness="operability",
             session_id="operability-report",
             agent_id=None,

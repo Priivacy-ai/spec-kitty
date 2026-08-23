@@ -197,3 +197,34 @@ def test_resolve_stream_builds_an_independent_stream_per_repo(state_root: Path, 
     assert stream_a is not stream_b
     assert stream_a._config.capability_credential == "cred-a"
     assert stream_b._config.capability_credential == "cred-b"
+
+
+# --- FIX-M2-15: threading the stored two-credential shape through ----------
+
+
+def test_resolve_stream_falls_back_to_token_for_both_fields_when_single_credential(
+    state_root: Path, managed_stream_double
+) -> None:
+    """Every checkout stored before FIX-M2-15 (no ``capability_credential``
+    at all) must still produce a ``TeamStreamConfig`` where BOTH fields
+    read the same stored ``token`` — the exact single-credential shape
+    ``watch()`` sent both headers from before this fix."""
+    _checkout(state_root, managed_stream_double.url, credential="only-one-value")
+    stream = subscription.resolve_stream("spec-kitty")
+    assert stream._config.relay_token == "only-one-value"
+    assert stream._config.capability_credential == "only-one-value"
+
+
+def test_resolve_stream_splits_relay_token_and_capability_credential_when_both_stored(
+    state_root: Path, managed_stream_double
+) -> None:
+    credentials.store(
+        repo="spec-kitty",
+        relay_url=managed_stream_double.url,
+        token="team-shared-token",
+        token_kind="shared_team",
+        capability_credential="actor-capability-jwt",
+    )
+    stream = subscription.resolve_stream("spec-kitty")
+    assert stream._config.relay_token == "team-shared-token"
+    assert stream._config.capability_credential == "actor-capability-jwt"
