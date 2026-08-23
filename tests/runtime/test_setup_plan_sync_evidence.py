@@ -53,6 +53,15 @@ import typer
 MODULE = "specify_cli.cli.commands.agent.mission"
 
 
+@pytest.fixture(autouse=True)
+def _reset_real_storage_singleton_after_each_test():
+    """Keep this module's real encrypted stores invocation-local."""
+    yield
+    from specify_cli.auth import reset_token_manager
+
+    reset_token_manager()
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
