@@ -25,6 +25,7 @@ from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
+from specify_cli.lanes.merge import _ensure_merge_driver_git_config
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.mission_metadata import load_meta
 
@@ -195,7 +196,7 @@ def allocate_lane_worktree(
         # (or before a later finalize-tasks re-run recorded a newer SHA) picks
         # up the recorded planning commit here. Idempotent no-op once merged.
         _merge_recorded_planning_commit(
-            worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
+            repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
         )
         # #1684 reuse-path catch-up: a dependency lane may have been approved
         # *after* this worktree was created. Merge any newly-approved dep tips
@@ -250,7 +251,7 @@ def allocate_lane_worktree(
         # FR-009 (#2993) crash-recovery self-heal: mirrors the reuse-path call
         # below — a re-attached lane picks up the recorded planning commit too.
         _merge_recorded_planning_commit(
-            worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
+            repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
         )
         _merge_dependency_lane_tips(
             repo_root, worktree_path, mission_slug, lane, lanes_manifest
@@ -281,7 +282,7 @@ def allocate_lane_worktree(
     # see the ADR's coord-descent guard). A no-op when the manifest predates
     # this field (backward compatible).
     _merge_recorded_planning_commit(
-        worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
+        repo_root, worktree_path, lane.lane_id, lanes_manifest.planning_commit_sha
     )
 
     # #1684 fresh-path propagation: merge approved dependency-lane tips on top
@@ -295,6 +296,7 @@ def allocate_lane_worktree(
 
 
 def _merge_recorded_planning_commit(
+    repo_root: Path,
     worktree_path: Path,
     lane_id: str,
     planning_commit_sha: str | None,
@@ -336,6 +338,21 @@ def _merge_recorded_planning_commit(
     )
     if is_ancestor.returncode == 0:
         return
+    # #2709/#2711 self-heal: ``spec-kitty init`` writes the ``.gitattributes``
+    # mapping (e.g. ``kitty-specs/**/status.events.jsonl merge=spec-kitty-
+    # event-log``) but cannot always register the matching git-config driver
+    # definitions at init time (the project may not be a git repo yet). This
+    # lane worktree's checked-out tree already carries the committed
+    # ``.gitattributes``; without the git-config half, a divergent-on-both-
+    # sides bookkeeping file (status.events.jsonl, meta.json, traces/*.md,
+    # ...) falls back to a plain 3-way merge and conflicts here instead of
+    # reconciling via its custom driver. Defines the drivers' git config only
+    # (never seeds ``.git/info/attributes`` — the committed ``.gitattributes``
+    # already maps the patterns; see ``_ensure_merge_driver_git_config``'s own
+    # docstring for why info/attributes activation must stay ephemeral to the
+    # squash-merge path). Mirrors ``auto_rebase.attempt_auto_rebase``'s
+    # identical self-heal call.
+    _ensure_merge_driver_git_config(repo_root)
     merge = subprocess.run(
         [
             "git", "merge", "--no-edit",
@@ -455,6 +472,13 @@ def _merge_dependency_lane_tips(
     ordered = _ordered_dependency_lanes(lane, lanes_manifest)
     if not ordered:
         return
+    # #2709/#2711 self-heal: same rationale as
+    # ``_merge_recorded_planning_commit`` above — define the custom merge
+    # drivers' git config (idempotent, config-only, no ``.git/info/attributes``
+    # seeding) before merging in a dependency lane's tip, so a both-sides-
+    # divergent ``kitty-specs/**`` bookkeeping file reconciles via its driver
+    # instead of producing a plain-3-way-merge conflict.
+    _ensure_merge_driver_git_config(repo_root)
     # Snapshot the lane ref before the loop so a later-dep conflict can roll
     # the worktree back to its exact pre-merge HEAD (#1915 atomicity).
     pre_loop_ref = _current_head(worktree_path)
