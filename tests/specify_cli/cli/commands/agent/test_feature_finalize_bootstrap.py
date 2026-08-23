@@ -891,12 +891,28 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
                 continue
         pytest.fail("No JSON error payload found for incomplete WP coverage")
 
-    def test_finalize_commits_status_and_snapshot_artifacts(self, tmp_path: Path) -> None:
-        """Commit set must include bootstrap status artifacts and dossier snapshot.
+    def test_finalize_commits_status_but_excludes_dossier_snapshot(self, tmp_path: Path) -> None:
+        """Commit set must include bootstrap status artifacts but NEVER the dossier snapshot.
 
         WP02 (T027): commits now route through ``commit_for_mission``.  The spy
         is attached to that boundary (capturing the ``files`` kwarg tuple) rather
         than to the old ``safe_commit`` direct call.
+
+        FIX-M2-05: this test previously asserted the OPPOSITE — that
+        ``snapshot-latest.json`` WAS in the committed set. That assertion
+        directly violated the already-ratified ownership contract
+        (``contracts/dossier-snapshot-ownership.md``, D1, mission
+        ``charter-e2e-827-followups-01KQAJA0`` / #845): "save_snapshot() ...
+        No staging, no committing, no special branch interaction. The file is
+        just a file." Committing it here made the file tracked on every
+        branch/worktree the target commit touched, and every later
+        fire-and-forget dossier-sync write then left that worktree locally
+        modified/uncommitted — exactly the drift that blocked
+        ``git/ref_advance.py``'s merge-time dirty-worktree resync (#1826) on
+        a mission's coordination worktree during ``spec-kitty merge``. The
+        snapshot write itself is still exercised below (via the same
+        ``trigger_feature_dossier_sync_if_enabled`` patch) to prove the fix is
+        "stop committing it", not "stop writing it".
         """
         mission_slug = "060-test-feature"
         feature_dir = _setup_feature(tmp_path, mission_slug)
@@ -967,7 +983,12 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         committed_paths = {path.relative_to(tmp_path).as_posix() for path in captured_files}
         assert "kitty-specs/060-test-feature/status.events.jsonl" in committed_paths
         assert "kitty-specs/060-test-feature/status.json" in committed_paths
-        assert "kitty-specs/060-test-feature/.kittify/dossiers/060-test-feature/snapshot-latest.json" in committed_paths
+        # FIX-M2-05 / D1: the dossier snapshot must NEVER be a commit candidate.
+        assert "kitty-specs/060-test-feature/.kittify/dossiers/060-test-feature/snapshot-latest.json" not in committed_paths
+        # The snapshot write itself is unaffected — it still lands on disk,
+        # just outside git's view (D1's "just a file" contract).
+        snapshot_path = tmp_path / "kitty-specs/060-test-feature/.kittify/dossiers/060-test-feature/snapshot-latest.json"
+        assert snapshot_path.exists(), "save_snapshot's write path must be unchanged by the commit-candidate fix"
 
 
 class TestValidateOnlyUsesInMemoryOwnership:

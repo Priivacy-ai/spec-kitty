@@ -69,7 +69,7 @@ def test_collect_finalize_artifacts_dedupes_and_filters_missing(tmp_path: Path) 
     lanes = feature / "lanes.json"
     lanes.write_text("{}", encoding="utf-8")
 
-    artifacts = seam._collect_finalize_artifacts(feature, tasks, "001-m", lanes_path=lanes)
+    artifacts = seam._collect_finalize_artifacts(feature, tasks, lanes_path=lanes)
 
     # Only existing files; no duplicates; missing candidates (events log, matrices) skipped.
     assert (feature / "tasks.md") in artifacts
