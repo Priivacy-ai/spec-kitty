@@ -11,7 +11,7 @@ Finish the open operator-flow portion of #2573 without redesigning CI or review 
 
 1. adapt the runner's existing elapsed callback into a typed status observer carried through `TransitionGateContext` and the explicit-override path, so the public human-mode `move-task --to for_review` entry point receives both pre-launch scope assessment and continuing heartbeat events;
 2. assess a resolved scope against deterministic, source-controlled transition-gate budget metadata before launching tests, refusing only scopes explicitly classified `oversized` and warning/running when classification is `unknown`;
-3. enrich unknown-budget timeout results with a stable target-derived scope identity, targets, configured budget, observed elapsed time, unchanged-lane evidence, and reviewed-update guidance, then durably append observed candidates to `tracer-approach.md` for Mission/sprint retrospective inspection.
+3. enrich unknown-budget timeout results with a stable target-derived scope identity, targets, configured budget, observed elapsed time, unchanged-lane evidence, and reviewed-update guidance, then durably append observed candidates to `traces/approach.md` for Mission/sprint retrospective inspection.
 
 The budget authority is a small production-owned policy surface in the pre-review subsystem. It does not read CI logs, mutate workflow YAML, estimate duration from runtime history, or learn classifications automatically. Initial production evidence marks the exact full-directory target `tests/architectural` oversized; narrower descendants and all other unclassified scopes remain `unknown` and retain today's timed execution behavior.
 
@@ -22,7 +22,7 @@ The budget authority is a small production-owned policy surface in the pre-revie
 | Budget authority | Explicit deterministic metadata on the canonical gate scope definition | Repeatable on clean machines; no CI-history store or timing estimator. |
 | Unknown scope | Warn and run under the existing timeout | Compatibility is preserved; 3.2.6 does not introduce a fail-closed allowlist migration. |
 | Unknown timeout | Emit a classification-candidate diagnostic; never auto-promote | A timeout becomes actionable evidence, not machine-dependent policy. |
-| Retrospective | Inspect candidate entries in `tracer-approach.md` and record an owner or no-action conclusion | The manual feedback loop is durable rather than left to terminal history. |
+| Retrospective | Inspect candidate entries in `traces/approach.md` and record an owner or no-action conclusion | The manual feedback loop is durable rather than left to terminal history. |
 | Output framing | Human heartbeats only; one final JSON document | Existing automation parsers remain compatible. |
 
 Decision records live in [`decisions/`](decisions/); the confirmed engineering alignment is `DM-01M0QEDK1S7WHSEQW6A4B9PG6N`.
@@ -52,7 +52,7 @@ Decision records live in [`decisions/`](decisions/); the confirmed engineering a
 | Architectural gate discipline | Pass | Metadata has one concrete production rule and self-checks for exact matching, unknown fallback, and no runtime mutation; no mutable allowlist baseline is introduced. |
 | Canonical sources | Pass | Existing `ScopeResult`, `ScopeSource`, `TransitionGateContext`, `GateVerdict`, aggregation, timeout, and environment authorities are extended rather than duplicated. |
 | Git/workflow discipline | Pass | Work remains on `fix/pre-review-gate-operator-flow`; plan artifacts are mission-owned; implementation later publishes through a PR to `main`. |
-| Retrospective cadence | Pass | Observed candidates are appended to `tracer-approach.md`; Definition of Done requires inspection plus an owner/no-action conclusion or explicit no-candidate record. |
+| Retrospective cadence | Pass | Observed candidates are appended to `traces/approach.md`; Definition of Done requires inspection plus an owner/no-action conclusion or explicit no-candidate record. |
 | Cross-platform behavior | Pass, implementation gate | POSIX real-process evidence plus Windows tree-termination contract coverage are required; no unsupported hard-kill promise is made. |
 | Post-plan adversarial review | Pending at initial authoring | Required advisory squad runs after these artifacts are complete and before `/spec-kitty.tasks`. Findings are incorporated or explicitly dispositioned. |
 
@@ -111,7 +111,7 @@ flowchart TD
 
 5. **Retrospective surface**
    - runtime classification persistence is not added;
-   - implementers/reviewers use the canonical `spec-kitty agent tracer-append --category approach` surface to append every observed candidate diagnostic to `tracer-approach.md`;
+   - implementers/reviewers use the canonical `spec-kitty agent tracer-append --category approach` surface to append every observed candidate diagnostic to `traces/approach.md`;
    - the normal Mission retrospective inspects that tracer and records a proposed metadata follow-up owner, explicit no action, or explicit absence of candidates.
 
 ## Budget Classification Rules
@@ -215,7 +215,7 @@ tests/specify_cli/cli/commands/agent/
 ### Phase 4 — Closeout and retrospective handoff
 
 - Re-evaluate #2573 against the shipped behavior and retain async redesign as deferred.
-- Append every observed unknown-budget timeout diagnostic to `tracer-approach.md`; at Mission/sprint retrospective inspect those entries and record follow-up owner, explicit no action, or explicit absence.
+- Append every observed unknown-budget timeout diagnostic to `traces/approach.md`; at Mission/sprint retrospective inspect those entries and record follow-up owner, explicit no action, or explicit absence.
 - Do not mark #2573 release-ready until #3127 is merged; rebase onto the resulting `main` and rerun trustworthy required checks before closeout.
 
 ## Parallel Work Analysis
