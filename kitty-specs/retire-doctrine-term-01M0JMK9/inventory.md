@@ -72,7 +72,9 @@ embedded script (§8). Content rules apply to `kind=content`, pathname rules to 
 rule is an audit error (there is no catch-all), so membership is exact and reconstructible: the member set of an OC is
 **all TSV rows whose `occurrence_class_id` equals it**; the ID range below is the sorted span (ranges of different OCs
 interleave because IDs follow the global `kind,path,line,column,ordinal` order). `Default owner` is the data-model §1
-default; **primary ownership is assigned only in `stacked-plan.md` (WP04)**. Classes are split wherever the M1–M6 owner
+default; **primary ownership is assigned only in `stacked-plan.md` (WP04), which is the primary authority whenever it
+differs from this column** (see OC-03, OC-41 below, corrected in the table to the post-squad reassignment — §4
+amendment). Classes are split wherever the M1–M6 owner
 or the semantic seam would differ (e.g. `src/doctrine/skills/**` (M4 assets) vs `src/doctrine/**` code (M2);
 `packs/built-in/glossary_packs/**` (M1 glossary authority) vs other pack content (M3/M4)).
 
@@ -80,7 +82,7 @@ or the semantic seam would differ (e.g. `src/doctrine/skills/**` (M4 assets) vs 
 |---|---|---|---|---|---|---|---|
 | OC-01 | S2 | M1 | glossary authorities: docs context, project glossary YAML, built-in glossary pack, contextive data | 221 | 8 | `H-C-000395`…`H-C-038599` | `.kittify%2Fglossaries%2Fplanning-and-tracking.yaml` · `.kittify%2Fglossaries%2Fspec_kitty_core.yaml` |
 | OC-02 | S5 | M1 | Charter Bundle authority: .kittify/charter/* (charter.md, charter.yaml, interview, graph.yml, synthesis) | 80 | 4 | `H-C-000208`…`H-C-000287` | `.kittify%2Fcharter%2Fcharter.md` · `.kittify%2Fcharter%2Fcharter.yaml` |
-| OC-03 | S5 | M1 | Charter selection/config seam: .kittify/config.yaml (governance.doctrine, org pack wiring) | 2 | 1 | `H-C-000288`…`H-C-000289` | `.kittify%2Fconfig.yaml` |
+| OC-03 | S5 | M2 (rule default M1; reassigned post-squad — §4 amendment) | Charter selection/config seam: .kittify/config.yaml (governance.doctrine, org pack wiring) | 2 | 1 | `H-C-000288`…`H-C-000289` | `.kittify%2Fconfig.yaml` |
 | OC-04 | S6 | M3 | project overlay root and overrides: .kittify/doctrine/**, .kittify/overrides/** | 55 | 13 | `H-C-000290`…`H-C-000683` | `.kittify%2Fdoctrine%2Fdirective%2FDIRECTIVE_terminus_retrospective_always_on.md` · `.kittify%2Fdoctrine%2Foverlays%2Fcalibration-documentation.yaml` |
 | OC-06 | S4 | M4 | built-in agent assets: profiles, directives, tactics, procedures, styleguides, toolguides, paradigms | 171 | 69 | `H-C-034988`…`H-C-035255` | `packs%2Fbuilt-in%2Fagent_profiles%2FREADME.md` · `packs%2Fbuilt-in%2Fagent_profiles%2Fanalyst-annie.agent.yaml` |
 | OC-07 | S4 | M4 | built-in mission prompts/governance profiles: packs/built-in/missions/** | 51 | 22 | `H-C-035111`…`H-C-035161` | `packs%2Fbuilt-in%2Fmissions%2FREADME.md` · `packs%2Fbuilt-in%2Fmissions%2Fbuilt_in_step_contracts%2Fresearch-scoping.step-contract.yaml` |
@@ -113,7 +115,7 @@ or the semantic seam would differ (e.g. `src/doctrine/skills/**` (M4 assets) vs 
 | OC-34 | S3 | M5 | project memory/evidence/mission-state history: .kittify/memory, evidence, missions, migrations, metadata.yaml | 320 | 28 | `H-C-000294`…`H-C-000632` | `.kittify%2Fevidence%2F01KTTCEAF0WTVAHYGND1D16R68%2Fevidence.md` · `.kittify%2Fevidence%2F01KTTCEAF0WTVAHYGND1D16R68%2Frecord.json` |
 | OC-35 | S3 | M5 | root repository docs: AGENTS.md, CLAUDE.md, README.md, CONTRIBUTING.md, CHANGELOG.md | 14 | 1 | `H-C-000696`…`H-C-000709` | `AGENTS.md` |
 | OC-40 | S2 | M1 | glossary authority pathname: docs/context/doctrine.md → docs/context/charter.md | 1 | 1 | `H-P-000040`…`H-P-000040` | `docs%2Fcontext%2Fdoctrine.md` |
-| OC-41 | S4 | M4 | skill source pathnames: src/doctrine/skills/** | 83 | 83 | `H-P-000196`…`H-P-000278` | `src%2Fdoctrine%2Fskills%2FREADME.md` · `src%2Fdoctrine%2Fskills%2Fad-hoc-profile-load%2FSKILL.md` |
+| OC-41 | S4 | M2 (rule default M4; reassigned post-squad as a `relocate` — §4 amendment) | skill source pathnames: src/doctrine/skills/** | 83 | 83 | `H-P-000196`…`H-P-000278` | `src%2Fdoctrine%2Fskills%2FREADME.md` · `src%2Fdoctrine%2Fskills%2Fad-hoc-profile-load%2FSKILL.md` |
 | OC-42 | S7 | M2 | old source package pathnames: src/doctrine/** | 181 | 181 | `H-P-000100`…`H-P-000363` | `src%2Fdoctrine%2FREADME.md` · `src%2Fdoctrine%2F__init__.py` |
 | OC-43 | S7 | M2 | test pathnames: tests/** | 332 | 332 | `H-P-000391`…`H-P-000722` | `tests%2Farchitectural%2F_exemptions%2Fdoctrine.txt` · `tests%2Farchitectural%2Ffixtures%2Fdoctrine_boundary%2F__init__.py` |
 | OC-44 | S7 | M2 | code pathnames: src/specify_cli/**, src/charter/**, src/kernel/**, src/runtime/** | 30 | 30 | `H-P-000097`…`H-P-000390` | `src%2Fcharter%2F_doctrine_paths.py` · `src%2Fcharter%2Faction_doctrine_bundle.py` |
@@ -141,22 +143,22 @@ is removed by M6 (`removal_wave = M6`); I6 requires state `removed` and no survi
 
 | CR | Legacy form | Seam | Intro | Canonical target | Budget | Control record | Named tests | Source rows (files) | Source OCs |
 |---|---|---|---|---|---|---|---|---|---|
-| CR-01 | `governance.doctrine` | Charter selection key read by resolver/org-pack discovery | M1 | governance.charter (3.x reader warns on old key) | 3 | test registry row + warning assertion | `test_governance_doctrine_key_warns_and_maps`, `test_governance_charter_key_canonical` | 2 (1) | OC-03 |
+| CR-01 | `governance.doctrine` | Charter selection key read by resolver/org-pack discovery | M1 | governance.charter (3.x reader warns on old key) | 3 | test registry row + warning assertion | `test_governance_doctrine_key_warns_and_maps`, `test_governance_charter_key_canonical` | 2 (1) raw-TSV tag; superseded — see §4 amendment | OC-03 raw-TSV tag; **CR-01's true source is OC-02 `.kittify/charter/charter.yaml:2,19`, and the raw OC-03 rows tagged here actually fund CR-04** — see §4 amendment (TSV bytes/hash/counts unchanged; only the ownership annotation is corrected) |
 | CR-02 | `spec-kitty doctrine <subcommand>` | top-level CLI command group + eight subcommands | M2 | spec-kitty charter … (hidden alias group warns) | 10 | hidden alias registration + warning test | `test_doctrine_group_hidden_alias_warns`, `test_charter_group_canonical_routes` | 104 (1) | OC-12 |
 | CR-03 | `--doctrine-mode / doctrine_mode / tracker doctrine block` | tracker ownership flag/field/output | M2 | --ownership-mode / ownership_mode / ownership block | 6 | tracker alias table + warning test | `test_tracker_doctrine_mode_alias_warns`, `test_tracker_ownership_mode_canonical` | 56 (5) | OC-12, OC-13 |
-| CR-04 | `doctrine.org.packs` | org-pack config key | M2 | charter_packs.org.packs (3.x reader warns) | 3 | config-key alias table + warning test | `test_org_pack_config_doctrine_key_warns` | 50 (2) | OC-16, OC-17 |
-| CR-05 | `doctrine:<kind>:<id>` | DRG target URN prefix | M2 | charter:<kind>:<id> (3.x parser accepts+warns) | 4 | URN parser alias + warning test | `test_urn_doctrine_prefix_parsed_with_warning`, `test_urn_charter_prefix_canonical` | 105 (3) | OC-16, OC-17 |
+| CR-04 | `doctrine.org.packs` | org-pack config key | M2 | charter_packs.org.packs (3.x reader warns) | 3 | config-key alias table + warning test | `test_org_pack_config_doctrine_key_warns` | 50 (2) raw-TSV tag; **plus 2 (1) more (the OC-03 rows above) under the corrected model = 52 (3)** — see §4 amendment | OC-16, OC-17 raw-TSV tag; **corrected source also includes OC-03** (`.kittify/config.yaml:28-36` block) — see §4 amendment |
+| CR-05 | `doctrine:<kind>:<id>` | DRG target URN prefix | M2 | charter:<kind>:<id> (3.x parser accepts+warns) | 4 | URN parser alias + warning test | `test_urn_doctrine_prefix_parsed_with_warning`, `test_urn_charter_prefix_canonical` | 105 (3) raw-TSV tag; superseded — see §4 amendment | OC-16, OC-17 raw-TSV tag; **corrected source is OC-16 (`drg/merge.py`, `drg/models.py`) + OC-19 producer rows `src/specify_cli/doctrine_synthesizer/apply.py:409,663`; `src/charter/drg.py` (OC-17, 62 rows) is dropped — it has no `doctrine:` literal** — see §4 amendment; exact re-sourced count is not yet re-derived from the TSV, `stacked-plan.md` §2.2 is authoritative for the composition |
 | CR-06 | `import doctrine / doctrine.api` | Python package import path and public facade | M2 | src/charter/** modules (3.x shim package re-exports + DeprecationWarning) | 8 | shim module list + warning test | `test_doctrine_import_shim_warns`, `test_charter_api_is_canonical_surface` | 31 (2) | OC-16 |
 | CR-07 | `.kittify/doctrine/` | project overlay root reader | M3 | .kittify/charter-packs/ (3.x old-root reader + migrator warns; removed M6) | 4 | old-root fixture + migration tests | `test_old_root_read_warns_and_migrates`, `test_completed_migration_has_no_old_root` | 18 (14) | OC-04, OC-45 |
 | CR-08 | `spk-doctrine-* / spec-kitty-charter-doctrine / doctrine-daphne / 018-doctrine-versioning-requirement` | skill/profile/directive IDs | M4 | spk-charter-* / spk-charter-lifecycle / charter-daphne / 018-charter-versioning-requirement (3.x alias routes+warns) | 12 | ID alias table + routing warning tests | `test_skill_id_alias_routes_with_warning`, `test_profile_directive_alias_routes_with_warning` | 365 (85) | OC-06, OC-09, OC-41, OC-46 |
 
 CR source membership = all TSV rows whose `compatibility_registry_id` equals the CR; exact file-level composition:
 
-- **CR-01**: `.kittify%2Fconfig.yaml` (2)
+- **CR-01**: `.kittify%2Fconfig.yaml` (2) — raw-TSV tag, superseded: these 2 rows fund CR-04 under the corrected model; CR-01's true source (OC-02 `.kittify/charter/charter.yaml:2,19`) carries no raw CR tag in the TSV — see §4 amendment
 - **CR-02**: `src%2Fspecify_cli%2Fcli%2Fcommands%2Fdoctrine.py` (104)
 - **CR-03**: `src%2Fspecify_cli%2Ftracker%2Fconfig.py` (20), `src%2Fspecify_cli%2Fcli%2Fcommands%2Ftracker.py` (16), `src%2Fspecify_cli%2Ftracker%2Flocal_service.py` (11), `src%2Fspecify_cli%2Ftracker%2Fsaas_service.py` (8), `src%2Fspecify_cli%2Ftracker%2Fsaas_client.py` (1)
-- **CR-04**: `src%2Fdoctrine%2Fdrg%2Forg_pack_config.py` (33), `src%2Fcharter%2Forg_pack_discovery.py` (17)
-- **CR-05**: `src%2Fcharter%2Fdrg.py` (62), `src%2Fdoctrine%2Fdrg%2Fmerge.py` (30), `src%2Fdoctrine%2Fdrg%2Fmodels.py` (13)
+- **CR-04**: `src%2Fdoctrine%2Fdrg%2Forg_pack_config.py` (33), `src%2Fcharter%2Forg_pack_discovery.py` (17) — plus, under the corrected model, the 2 `.kittify%2Fconfig.yaml` rows listed under CR-01 above (see §4 amendment)
+- **CR-05**: `src%2Fcharter%2Fdrg.py` (62), `src%2Fdoctrine%2Fdrg%2Fmerge.py` (30), `src%2Fdoctrine%2Fdrg%2Fmodels.py` (13) — raw-TSV tag, superseded: `drg.py`'s 62 rows are dropped (no `doctrine:` literal); the corrected source is `merge.py`/`models.py` plus `src/specify_cli/doctrine_synthesizer/apply.py:409,663` producer rows (OC-19), not yet re-derived from the TSV — see §4 amendment
 - **CR-06**: `src%2Fdoctrine%2Fapi.py` (23), `src%2Fdoctrine%2F__init__.py` (8)
 - **CR-07**: `.kittify%2Fdoctrine%2Fdirective%2FDIRECTIVE_terminus_retrospective_always_on.md` (2), `.kittify%2Fdoctrine%2Foverlays%2Fcalibration-documentation.yaml` (2), `.kittify%2Fdoctrine%2Foverlays%2Fcalibration-research.yaml` (2), `.kittify%2Fdoctrine%2Foverlays%2Fcalibration-software-dev.yaml` (2), `.kittify%2Fdoctrine%2Fdirective%2F.provenance%2FDIRECTIVE_evidence_logs_must_persist.yaml` (1), `.kittify%2Fdoctrine%2Fdirective%2F.provenance%2FDIRECTIVE_terminus_retrospective_always_on.yaml` (1), `.kittify%2Fdoctrine%2Fdirective%2FDIRECTIVE_evidence_logs_must_persist.md` (1), `.kittify%2Fdoctrine%2Foverlays%2Fcalibration-erp-custom.yaml` (1) … +6 more files (all rows with `compatibility_registry_id=CR-07` in the TSV)
 - **CR-08**: `src%2Fdoctrine%2Fskills%2Fspec-kitty-charter-doctrine%2FSKILL.md` (89), `src%2Fdoctrine%2Fskills%2FREADME.md` (28), `src%2Fdoctrine%2Fskills%2Fspec-kitty-mission-system%2FSKILL.md` (23), `packs%2Fbuilt-in%2Fagent_profiles%2Fdoctrine-daphne.agent.yaml` (22), `src%2Fdoctrine%2Fskills%2Fspec-kitty-runtime-next%2FSKILL.md` (19), `src%2Fdoctrine%2Fskills%2Fspec-kitty-charter-doctrine%2Freferences%2Fdoctrine-artifact-structure.md` (15), `src%2Fdoctrine%2Fskills%2Fspec-kitty-spdd-reasons%2FSKILL.md` (12), `src%2Fdoctrine%2Fskills%2Fspk-meta-skill-map%2Freferences%2Fspk-skill-map.md` (11) … +77 more files (all rows with `compatibility_registry_id=CR-08` in the TSV)
@@ -213,6 +215,16 @@ filename, a non-ASCII filename, repeated mixed-case matches on one line, and an 
 Terminal mode on the frozen base exits 1 (`hits`) with both counts reported; zero is unreachable until M6.
 
 ## 8. Audit procedure (verbatim; WP05 copies this block to regenerate)
+
+**Superseded-for-reproduction annotation (post-squad, 2026-08-23).** This committed block is frozen evidence —
+byte-identical to what WP02/WP05 ran to produce the pinned `3631531b…` TSV and hash — and is **not** rewritten here.
+It diverges from the hardened terminal-audit contract adopted after the whole-mission squad's fold: this script's
+`content_argv`/`pathname_argv` use a cwd-relative pathspec (`"."`, `:(exclude)kitty-specs/`), no `--full-tree`, and
+no toplevel-cwd guard. For **reproduction of this inventory's pinned evidence**, this block remains authoritative
+and must be run unmodified. For the **M6 terminal zero audit** (and any wave-local audit downstream of the fold),
+the hardened argv in `contracts/inventory-schema.md` (`:(top)` / `:(top,exclude)kitty-specs/`, `ls-tree --full-tree`,
+toplevel-only precondition, symlink-target + normalised-content passes) and the M6 entrypoint
+`scripts/audit_retired_term_zero.py` are authoritative instead — never this block's argv.
 
 ```python
 #!/usr/bin/env python3
