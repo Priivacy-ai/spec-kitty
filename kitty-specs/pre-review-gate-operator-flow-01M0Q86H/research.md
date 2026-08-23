@@ -88,7 +88,7 @@ An unknown-budget timeout must add:
 - `transition_applied: false` and unchanged-lane evidence;
 - guidance that a maintainer may propose a reviewed deterministic rule.
 
-One timeout does not prove structural oversize: contention, downloads, a slow host, or a hung test can cause it. Runtime code therefore has no metadata write API. Every candidate observed during delivery is manually appended through the canonical Mission approach tracer. The Mission/sprint retrospective inspects `tracer-approach.md` and records a follow-up owner, explicit no action, or explicit absence of candidates.
+One timeout does not prove structural oversize: contention, downloads, a slow host, or a hung test can cause it. Runtime code therefore has no metadata write API. Every candidate observed during delivery is manually appended through the canonical Mission approach tracer. The Mission/sprint retrospective inspects `traces/approach.md` and records a follow-up owner, explicit no action, or explicit absence of candidates.
 
 ## Decision 6 — Normalize scope identity without changing test argv
 

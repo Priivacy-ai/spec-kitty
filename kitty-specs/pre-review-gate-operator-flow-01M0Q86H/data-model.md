@@ -157,7 +157,7 @@ Only `unknown + timed_out` sets `classification_candidate=true`. Neither that tr
 
 ## 9. Retrospective observation
 
-Each observed delivery candidate is appended through `spec-kitty agent tracer-append --category approach`, producing the mission-owned `tracer-approach.md`. The retrospective consumes that durable tracer, not terminal scrollback. For each observed candidate it records:
+Each observed delivery candidate is appended through `spec-kitty agent tracer-append --category approach`, producing the mission-owned `traces/approach.md`. The retrospective consumes that durable tracer, not terminal scrollback. For each observed candidate it records:
 
 - scope identity and targets;
 - environment/context sufficient to avoid treating host contention as structural proof;

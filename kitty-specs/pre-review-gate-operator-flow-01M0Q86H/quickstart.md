@@ -147,5 +147,5 @@ Before accepting the Mission:
 - re-evaluate issue #2573 against live behavior;
 - keep async execution deferred;
 - append each observed unknown-budget timeout candidate with `spec-kitty agent tracer-append --category approach`, including identity, targets, configured budget, observed elapsed time, and environment context;
-- ensure the Mission/sprint retrospective inspects `tracer-approach.md` and records an owner, explicit no action, or explicit absence;
+- ensure the Mission/sprint retrospective inspects `traces/approach.md` and records an owner, explicit no action, or explicit absence;
 - after #3127 merges, rebase onto the resulting `main` and rerun required checks before marking #2573 release-ready.
