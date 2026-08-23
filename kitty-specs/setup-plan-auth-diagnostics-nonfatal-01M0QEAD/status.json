@@ -1,16 +1,16 @@
 {
-  "event_count": 54,
-  "last_event_id": "01M0R9YVM8PTJP5HNTP0NVWF80",
-  "materialized_at": "2026-08-23T21:55:50.024088+00:00",
+  "event_count": 53,
+  "last_event_id": "01M0R9YTSVM78MJN5JZ43P87R7",
+  "materialized_at": "2026-08-23T21:55:49.179673+00:00",
   "mission_number": "196",
   "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 4,
+    "done": 3,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -120,14 +120,14 @@
       ]
     },
     "WP04": {
-      "actor": "merge",
+      "actor": "user",
       "agent": "reviewer-renata",
       "agent_profile": "__resolved_profile_absent__",
       "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 2,
-      "lane": "done",
-      "last_event_id": "01M0R9YVM8PTJP5HNTP0NVWF80",
-      "last_transition_at": "2026-08-23T21:55:50.024088+00:00",
+      "lane": "approved",
+      "last_event_id": "01M0R9EPDWF7TSX5YMP13T8AYC",
+      "last_transition_at": "2026-08-23T21:47:00.412840+00:00",
       "model": "__resolved_model_absent__",
       "notes": [
         "WP04 implementation complete; 271 passing, 1 expected skip; Ruff and strict mypy clean"
