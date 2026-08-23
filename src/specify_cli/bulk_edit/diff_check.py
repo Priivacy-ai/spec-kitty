@@ -261,7 +261,7 @@ def _field_path_pins_for(path: str, omap: OccurrenceMap) -> tuple[str, ...]:
 
     Unlike :func:`_exception_for`, ALL matches apply, sorted for determinism
     — a single file can carry several distinct protected fields (e.g. an
-    agent profile's ``directive-references`` AND ``context-sources.tactics``,
+    agent profile's ``directive-references`` AND ``tactic-references``,
     each declared as its own ``exceptions[]`` entry).
     """
     posix = Path(path).as_posix()

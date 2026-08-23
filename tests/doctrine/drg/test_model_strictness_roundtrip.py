@@ -11,8 +11,11 @@ authored key the model does not declare was dropped on load with no warning.
 Every sibling model under ``src/doctrine/**/models.py`` already declares
 ``extra="forbid"`` (``tactics``, ``directives``, ``procedures``, ``paradigms``,
 ``missions``, ``styleguides``, ``toolguides``, ``assets``, ``glossary_packs``,
-``model_task_routing``, ``import_candidates``) and ``ContextSources`` does too —
+``model_task_routing``, ``import_candidates``) —
 ``drg/models.py`` and ``AgentProfile`` were the outliers, not the innovation.
+(The former ``ContextSources`` value object was retired in mission
+doctrine-drg-silent-drop-boundary-01M0PE7E; ``AgentProfile`` itself now carries
+the ``extra="forbid"`` boundary for the whole profile.)
 
 **Write end.** The extractor's ``_node_to_dict`` / ``_edge_to_dict`` restated
 their model's field names by hand. A field added to the model but not to the
