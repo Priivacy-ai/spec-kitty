@@ -15,6 +15,7 @@ golden harness.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import pickle
 from collections.abc import Callable
@@ -45,6 +46,11 @@ from specify_cli.runtime.resolver import TemplateConfigurationError
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DEFAULT_TEMPLATE_SET = object()
+_PRE_MISSION_GOLDEN = (
+    Path(__file__).resolve().parents[4]
+    / "fixtures"
+    / "setup_plan_pre_mission_d060cff9_payloads.json"
+)
 
 
 def _resolved_mission_type(
@@ -508,6 +514,13 @@ def _invoke_matrix_case(  # noqa: C901 - acceptance fixture encodes the binding 
 ) -> tuple[dict[str, object], int, str]:
     from specify_cli.cli.commands.agent import mission as mission_mod
 
+    # Branch-contract timestamps are the only documented volatile fields in the
+    # setup-plan envelope. Freeze the shared producer so baseline and readiness
+    # variants compare the complete payload rather than racing the wall clock.
+    mp.setattr(
+        "specify_cli.cli.commands.agent.mission_branch_context._utc_now_iso",
+        lambda: "2026-08-23T00:00:00Z",
+    )
     feature_dir, plan_file = _seed_local_case(root, case)
     template = root / "plan-template.md"
     template.write_text(
@@ -691,6 +704,50 @@ def test_real_setup_plan_preserves_full_local_matrix_across_readiness(
         assert actual_exit == baseline_exit, (case_name, variant)
 
 
+def _normalize_golden_root(value: object, root: Path) -> object:
+    if isinstance(value, dict):
+        return {key: _normalize_golden_root(item, root) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalize_golden_root(item, root) for item in value]
+    if isinstance(value, str):
+        # macOS resolves /tmp through /private/tmp; normalize both spellings.
+        return value.replace(str(root.resolve()), "{{ROOT}}").replace(str(root), "{{ROOT}}")
+    return value
+
+
+@pytest.mark.parametrize("case_name", tuple(_LOCAL_OUTCOME_CASES))
+def test_real_setup_plan_matches_immutable_pre_mission_payload_and_exit_golden(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    case_name: str,
+) -> None:
+    """The local contract is pinned to the real pre-mission implementation."""
+    golden_document = json.loads(_PRE_MISSION_GOLDEN.read_text(encoding="utf-8"))
+    assert golden_document["source_commit"] == (
+        "d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a"
+    )
+    expected = golden_document["cases"][case_name]
+    with monkeypatch.context() as mp:
+        payload, exit_code, _wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES[case_name],
+            None,
+        )
+
+    normalized = _normalize_golden_root(payload, tmp_path)
+    canonical = json.dumps(
+        normalized,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode()
+    # This is the versioned fixture's exact byte-integrity checksum, not charter freshness.
+    assert hashlib.sha256(canonical).hexdigest() == expected["payload_sha256"]  # noqa: TID251
+    assert exit_code == expected["exit_code"]
+    assert payload.get("result") == expected["result"]
+    assert payload.get("error_code") == expected["error_code"]
+
+
 def test_real_setup_plan_freezes_local_outcome_before_hostile_hosted_assessment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
@@ -700,7 +757,7 @@ def test_real_setup_plan_freezes_local_outcome_before_hostile_hosted_assessment(
     original_builder = seam._build_setup_plan_result
 
     def _recording_builder(**kwargs: object) -> seam.SetupPlanLocalOutcome:
-        outcome = original_builder(**kwargs)  # type: ignore[arg-type]
+        outcome = original_builder(**kwargs)
         order.append("local-outcome")
         return outcome
 
@@ -741,7 +798,7 @@ def test_real_setup_plan_resolves_route_exactly_once(
     def _counted(root: Path) -> tuple[bool, str | None]:
         nonlocal calls
         calls += 1
-        return original(root)
+        return cast(tuple[bool, str | None], original(root))
 
     with monkeypatch.context() as mp:
         mp.setattr(seam, "evaluate_route_availability", _counted)

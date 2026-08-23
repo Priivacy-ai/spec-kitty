@@ -5,6 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator, Mapping
 from itertools import product
 from pathlib import Path
+import socket
+import statistics
+import time
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -696,6 +699,60 @@ def test_canonical_collectors_receive_exact_arguments(tmp_path: Path) -> None:
         ("preflight", (tmp_path, False)),
         ("route", tmp_path),
     ]
+
+
+def _p95_runtime(probe: Callable[[], object], *, samples: int = 25) -> float:
+    """Return a scheduler-tolerant p95 for a small deterministic local probe."""
+    probe()  # discard import/cache warm-up
+    durations: list[float] = []
+    for _ in range(samples):
+        started = time.perf_counter()
+        probe()
+        durations.append(time.perf_counter() - started)
+    return statistics.quantiles(durations, n=20, method="inclusive")[18]
+
+
+def _assert_within_local_assessment_budget(probe: Callable[[], object]) -> None:
+    p95 = _p95_runtime(probe)
+    assert p95 < 0.100, f"local assessment p95 {p95:.6f}s exceeded 100ms"
+
+
+def test_local_auth_and_coherent_boundary_meet_nfr_007_without_network(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """NFR-007: both evidence reads are local and remain below the 100ms budget."""
+    network_attempts: list[tuple[object, ...]] = []
+
+    def _forbid_network(*args: object, **_kwargs: object) -> None:
+        network_attempts.append(args)
+        raise AssertionError("local hosted-readiness assessment attempted network I/O")
+
+    monkeypatch.setattr(socket, "create_connection", _forbid_network)
+    manager = type(
+        "LocalTokenManager",
+        (),
+        {"session_assessment": SessionAssessment(True, True, "session_usable")},
+    )()
+    preflight = PreflightResult(ok=True, auth_required=False)
+
+    _assert_within_local_assessment_budget(
+        lambda: acquire_session_assessment(tmp_path, token_manager_factory=lambda: manager)
+    )
+    _assert_within_local_assessment_budget(
+        lambda: evaluate_boundary(tmp_path, preflight_probe=lambda **_: preflight)
+    )
+    assert network_attempts == []
+
+    # Negative control: prove the no-network sentinel is live.
+    with pytest.raises(AssertionError, match="network I/O"):
+        socket.create_connection(("example.invalid", 443))
+
+
+def test_nfr_007_budget_detector_rejects_a_slow_probe() -> None:
+    """Negative control: a coherent probe moved beyond 100ms fails the gate."""
+    with pytest.raises(AssertionError, match="exceeded 100ms"):
+        _assert_within_local_assessment_budget(lambda: time.sleep(0.105))
 
 
 def test_public_serialization_contains_only_plain_json_values(tmp_path: Path) -> None:
