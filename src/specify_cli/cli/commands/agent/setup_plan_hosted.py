@@ -535,8 +535,6 @@ def _registered_diagnostic(
 
 
 __all__ = [
-    "BoundaryEvaluation",
-    "BoundaryState",
     "HostedSyncDecision",
     "HostedSyncDiagnostic",
     "acquire_session_assessment",

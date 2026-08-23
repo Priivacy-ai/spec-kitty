@@ -26,6 +26,8 @@ from specify_cli.sync.owner import UnreadableOwnerRecord
 from specify_cli.sync.preflight import PreflightResult
 from specify_cli.sync.routing import CheckoutSyncRouting
 
+pytestmark = pytest.mark.fast
+
 
 def _routing(repo_root: Path, *, available: bool) -> CheckoutSyncRouting:
     return CheckoutSyncRouting(
@@ -154,7 +156,7 @@ def test_returned_unsafe_boundary_preserves_sanitized_preflight_evidence(tmp_pat
 
 def test_raised_preflight_becomes_stable_sanitized_boundary_warning(tmp_path: Path) -> None:
     def broken_preflight(**_: object) -> PreflightResult:
-        raise RuntimeError("ciphertext=/tmp/auth.enc; token=top-secret")
+        raise RuntimeError("ciphertext=isolated/auth.enc; token=top-secret")
 
     boundary = evaluate_boundary(tmp_path, preflight_probe=broken_preflight)
     decision = decide_hosted_sync(
@@ -202,7 +204,7 @@ def test_project_store_diagnostic_is_replaced_with_stable_classification(tmp_pat
         auth_required=False,
         project_store_diagnostic=(
             "RuntimeError: token=top-secret session=opaque-session "
-            "ciphertext=/tmp/private/session.enc credential=hunter2"
+            "ciphertext=isolated/private/session.enc credential=hunter2"
         ),
     )
 
@@ -223,7 +225,7 @@ def test_project_store_diagnostic_is_replaced_with_stable_classification(tmp_pat
         "top-secret",
         "opaque-session",
         "ciphertext",
-        "/tmp/private/session.enc",
+        "isolated/private/session.enc",
         "hunter2",
     ):
         assert secret_fragment not in boundary_payload
@@ -232,7 +234,7 @@ def test_project_store_diagnostic_is_replaced_with_stable_classification(tmp_pat
 
 class _SecretObject:
     def __str__(self) -> str:
-        return "RuntimeError token=object-secret ciphertext=/tmp/object.session"
+        return "RuntimeError token=object-secret ciphertext=isolated/object.session"
 
 
 @pytest.mark.parametrize(
@@ -243,7 +245,7 @@ class _SecretObject:
             session_assessment=SessionAssessment(
                 False,
                 None,
-                "RuntimeError token=auth-secret ciphertext=/tmp/auth.session",
+                "RuntimeError token=auth-secret ciphertext=isolated/auth.session",
             ),
             boundary=BoundaryEvaluation(BoundaryState.SAFE),
             route_available=True,
@@ -255,7 +257,7 @@ class _SecretObject:
                 BoundaryState.UNSAFE,
                 "RuntimeError token=boundary-reason-secret",
                 evidence={
-                    "unknown_key": "ciphertext=/tmp/evidence.session token=evidence-secret",
+                    "unknown_key": "ciphertext=isolated/evidence.session token=evidence-secret",
                     "unknown_object": _SecretObject(),
                 },
             ),
@@ -266,7 +268,7 @@ class _SecretObject:
             session_assessment=SessionAssessment(True, True, "session_usable"),
             boundary=BoundaryEvaluation(BoundaryState.SAFE),
             route_available=False,
-            route_reason="RuntimeError token=route-secret ciphertext=/tmp/route.session",
+            route_reason="RuntimeError token=route-secret ciphertext=isolated/route.session",
         ).diagnostics[0],
         HostedSyncDiagnostic(
             code="SAAS_SYNC_BOUNDARY_UNSAFE",
@@ -276,7 +278,7 @@ class _SecretObject:
             details={
                 "reason": "RuntimeError token=direct-reason-secret",
                 "evidence": {
-                    "unknown_key": "ciphertext=/tmp/direct.session token=direct-secret",
+                    "unknown_key": "ciphertext=isolated/direct.session token=direct-secret",
                     "unknown_object": _SecretObject(),
                 },
             },
@@ -294,7 +296,7 @@ def test_every_public_detail_seam_drops_arbitrary_strings_and_objects(
         "RuntimeError",
         "token=",
         "ciphertext",
-        "/tmp/",
+        "isolated/",
         "secret",
         "unknown_key",
         "unknown_object",
@@ -550,7 +552,7 @@ def test_registry_reconstructs_every_wire_field_for_both_serializers(
     code: str,
     expected: tuple[str, list[str]],
 ) -> None:
-    sentinel = "RuntimeError token=caller-secret ciphertext=/tmp/caller.session"
+    sentinel = "RuntimeError token=caller-secret ciphertext=isolated/caller.session"
     diagnostic = HostedSyncDiagnostic(
         code=code,
         severity=sentinel,
