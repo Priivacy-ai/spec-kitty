@@ -128,10 +128,10 @@
       "criterion_id": "FR-013",
       "description": "Verify FR-013 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP04 review-cycle-2.md: exact real-entrypoint 12-outcome x 8-readiness matrix; 279 passed, 1 skipped; payload/exit and JSON/human parity verified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-23T21:51:17.047414+00:00",
       "notes": "Added after the session-assessment architecture expanded the approved specification"
     },
     {
