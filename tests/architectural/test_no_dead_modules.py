@@ -450,24 +450,38 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   saas_client.admission as part of #3262 WP11 — do not delete: the
         #   schema row it owns is live in project_store.py.
         "specify_cli.sync.admission_operations",
+        # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
+        #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06 -- predates and is
+        #   unrelated to the M2 canonical-integration entries below). The eventual-wiring
+        #   follow-up (#3236) landed: the FR-012/SC-008 backfill is now called from `src/`
+        #   by the auto-discovered upgrade migration
+        #   `upgrade.migrations.m_zz_verdict_provenance_backfill` (and its
+        #   `stranded_verdict_findings` predicate by the `accept` provenance diagnostic),
+        #   so the module has live `src/` callers and is no longer an orphan. Shrink
+        #   3 -> 2 -- reverses the post-merge green-up bump.
+        #
         # ---- M2 canonical integration (2026-08-22): reviewed M1 candidates that
         # landed a module with no src/ runtime caller; each candidate's own
         # sandbox ran targeted suites and never this gate. Registered here so the
         # fact is visible, not hidden (M2-CANONICAL-INTEGRATION.json lists them).
-        # D2-T1 dashboard.csp: REMOVED (WIRE-M2-02, 2026-08-22). send_csp_header()
-        # is now called from all 35 send_response() sites across
-        # handlers/{base,api,features,glossary,lint,static}.py, so the module has
-        # live src/ callers and is no longer an orphan. Shrink -- reverses the M2
-        # canonical-integration bump.
-        # status.migrate_lifecycle_envelope: REMOVED (WIRE-M2-03, 2026-08-22). Now has a
-        #   live src/ caller (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope), so
-        #   it is no longer an orphan. Shrink.
-        # tracker.gateway: REMOVED (WIRE-M2-01, 2026-08-22). Wired into
+        # All four were wired and removed in turn by WIRE-M2-01..04 (2026-08-22,
+        # LOCAL-RC train lrc-w1; see tests/architectural/_baselines.yaml's
+        # category_7_grandfathered_orphans for the full 7 -> 3 shrink sequence):
+        # tracker.gateway: REMOVED (WIRE-M2-01). Wired into
         #   LocalTrackerService._build_engine (local_service.py) -- Beads
         #   mutations now build their connector via
         #   gateway.build_gateway_beads_connector instead of the ungated
         #   factory.build_connector, so the module has a live src/ caller and
         #   is no longer an orphan. Shrink 7 -> 6.
+        # D2-T1 dashboard.csp: REMOVED (WIRE-M2-02). send_csp_header()
+        #   is now called from all 35 send_response() sites across
+        #   handlers/{base,api,features,glossary,lint,static}.py, so the module has
+        #   live src/ callers and is no longer an orphan. Shrink 6 -> 5.
+        # status.migrate_lifecycle_envelope: REMOVED (WIRE-M2-03). The F2-T1
+        #   one-shot F1-strict envelope rewrite is now called from `src/` by the
+        #   auto-discovered upgrade migration
+        #   `upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope`, so the module
+        #   has a live `src/` caller and is no longer an orphan. Shrink 5 -> 4.
         # zeitgeist_client.grammar: REMOVED (WIRE-M2-04, HIC-M2-DISPOSITIONS-
         #   2026-08-22 item 2). live_frame.py now imports grammar (`from . import
         #   grammar`) and routes every identity field it parses (session_ref,
@@ -475,21 +489,8 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   grammar.ident(..., REF_RE) before it reaches a PresenceView/FocusView
         #   or an internal dict key -- mirrors zeitgeist/editor.py's own
         #   rendering-time identity sanitization. Real src/ caller landed; no
-        #   longer an orphan. Shrink 7 -> 6.
-        # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
-        #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06). The
-        #   eventual-wiring follow-up (#3236) landed: the FR-012/SC-008 backfill
-        #   is now called from `src/` by the auto-discovered upgrade migration
-        #   `upgrade.migrations.m_zz_verdict_provenance_backfill` (and its
-        #   `stranded_verdict_findings` predicate by the `accept` provenance
-        #   diagnostic), so the module has live `src/` callers and is no longer
-        #   an orphan. Shrink 3 -> 2 -- reverses the post-merge green-up bump.
-        # status.migrate_lifecycle_envelope: REMOVED (WIRE-M2-03, 2026-08-22).
-        #   The F2-T1 one-shot F1-strict envelope rewrite is now called from
-        #   `src/` by the auto-discovered upgrade migration
-        #   `upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope`, so the
-        #   module has a live `src/` caller and is no longer an orphan.
-        #   Shrink 7 -> 6.
+        #   longer an orphan. Shrink 4 -> 3.
+        # All four M2-canonical-integration entries are closed; none remain open.
     }
 )
 

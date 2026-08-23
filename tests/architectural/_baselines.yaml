@@ -108,28 +108,22 @@ test_no_dead_modules:
   # justification: four reviewed M1 candidates landed modules with no src/ runtime caller
   # (D2-T1 dashboard.csp, F2-T1 status.migrate_lifecycle_envelope, TRK-M1-04 tracker.gateway,
   # Z1-T1 zeitgeist_client.grammar); their sandboxes ran targeted suites and never this gate.
-  # Registered as TODO(triage) so the fact is tracked, not hidden; follow-up bead: wire or delete
-  # each and burn this back down.
-  # 7 -> 6 (WIRE-M2-01, 2026-08-22): tracker.gateway wired into
-  # LocalTrackerService._build_engine (local_service.py) -- Beads mutations now build their
-  # connector via gateway.build_gateway_beads_connector, never the ungated factory.build_connector,
-  # so the module has a live src/ caller and is no longer an orphan. Shrink -- burns down one of
-  # the four M2-canonical-integration entries above.
-  # 6 -> 5 (WIRE-M2-02, 2026-08-22): D2-T1 dashboard.csp wired -- send_csp_header() is now
-  # called from every send_response() site in handlers/{base,api,features,glossary,lint,
-  # static}.py, so the module has live src/ callers. Shrink -- burns down one of the four
-  # M2 canonical-integration entries.
-  # (integration lrc-w1: WIRE-M2-01 and WIRE-M2-02 each burned one entry from the same 7 baseline; combined 7 -> 5.)
-  # 5 -> 4 (WIRE-M2-03, 2026-08-22): status.migrate_lifecycle_envelope now has a live
-  # src/ caller (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope), so it is no
-  # longer an orphan; the Cat-7 entry was removed. Shrink -- lock in the lower bound.
-  # (integration lrc-w1: WIRE-M2-01/02/03 each burned one entry from the same 7 baseline; combined 7 -> 4.)
-  # 4 -> 3 (WIRE-M2-04, HIC-M2-DISPOSITIONS-2026-08-22 item 2): zeitgeist_client.grammar
-  # wired into live_frame.py's identity-field parsing; it now has a live src/ caller and
-  # its Cat-7 allowlist entry was removed. Shrink -- reverses the M2-canonical-integration
-  # deferral bump for this one module; the other three (dashboard.csp,
-  # status.migrate_lifecycle_envelope, tracker.gateway) remain open under WIRE-M2-01..03.
-  # (integration lrc-w1: WIRE-M2-01/02/03/04 each burned one entry from the same 7 baseline; combined 7 -> 3.)
+  # Registered as TODO(triage) so the fact is tracked, not hidden.
+  #
+  # 7 -> 3 (WIRE-M2-01..04, 2026-08-22, LOCAL-RC train lrc-w1): each bead wired exactly one
+  # of the four modules above from src/ and burned down its Cat-7 entry in turn:
+  #   7 -> 6 (WIRE-M2-01): tracker.gateway wired into LocalTrackerService._build_engine
+  #     (local_service.py) -- Beads mutations now build their connector via
+  #     gateway.build_gateway_beads_connector, never the ungated factory.build_connector.
+  #   6 -> 5 (WIRE-M2-02): D2-T1 dashboard.csp wired -- send_csp_header() is now called
+  #     from every send_response() site in handlers/{base,api,features,glossary,lint,
+  #     static}.py.
+  #   5 -> 4 (WIRE-M2-03): status.migrate_lifecycle_envelope now has a live src/ caller
+  #     (upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope).
+  #   4 -> 3 (WIRE-M2-04, HIC-M2-DISPOSITIONS-2026-08-22 item 2): zeitgeist_client.grammar
+  #     wired into live_frame.py's identity-field parsing.
+  # All four now have live src/ callers and are no longer orphans; none remain open. Shrink --
+  # fully reverses the M2-canonical-integration deferral bump above.
   category_7_grandfathered_orphans: 3
 
 # tests/architectural/test_migration_chain_integrity.py
