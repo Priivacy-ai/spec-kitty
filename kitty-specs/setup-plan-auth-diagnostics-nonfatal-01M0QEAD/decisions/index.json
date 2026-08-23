@@ -119,6 +119,78 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T15:25:36.819283Z",
+      "decision_id": "01M0QKMB5KMS0SJWBQ8H8MDK91",
+      "final_answer": "Unknown and logged out are different states. Emit a distinct nonfatal SAAS_SYNC_AUTH_UNKNOWN diagnostic when the canonical authority cannot determine auth state.",
+      "input_key": "auth_unknown_diagnostic_v2",
+      "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
+      "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+      "opened_by": "cli",
+      "options": [
+        "Distinct auth-unknown diagnostic",
+        "Reuse unauthenticated diagnostic",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "If the canonical auth/session authority cannot determine auth state because its local store is unreadable or inconsistent, should setup-plan emit a distinct nonfatal SAAS_SYNC_AUTH_UNKNOWN diagnostic rather than label the operator unauthenticated?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T15:58:17.416822Z",
+      "resolved_by": null,
+      "slot_key": "plan.diagnostics.auth-unknown-v2",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T15:58:18.567467Z",
+      "decision_id": "01M0QNG6Y79TBRMVG6604HC0D1",
+      "final_answer": "Yes. setup-plan authentication classification is entirely local-only; a refresh-capable canonical session is logged in without a SaaS network request.",
+      "input_key": "auth_network_boundary",
+      "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
+      "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+      "opened_by": "cli",
+      "options": [
+        "Yes, local-only classification",
+        "Allow network validation or refresh",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Must setup-plan classify authentication entirely from the canonical local session authority, treating a refresh-capable session as logged in without making a SaaS network request?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T16:09:42.020277Z",
+      "resolved_by": null,
+      "slot_key": "plan.architecture.auth-network-boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T16:09:43.176143Z",
+      "decision_id": "01M0QP53G8WMPN5AGR5Y3Q5NWZ",
+      "final_answer": "Yes. Engineering Alignment confirmed: tri-state local auth authority; queue scope remains routing-only; local verification is always authoritative; unsafe hosted delivery stays fail-closed with separate diagnostics; no dependency or token-expiry scope expansion.",
+      "input_key": "engineering_alignment",
+      "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
+      "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+      "opened_by": "cli",
+      "options": [
+        "Yes, aligned",
+        "Revise alignment",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "Does the Engineering Alignment accurately capture the implementation boundary: tri-state local auth authority, queue scope only for routing, local verification always authoritative, unsafe hosted delivery fail-closed with separate diagnostics, and no dependency or token-expiry scope expansion?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T16:10:42.278967Z",
+      "resolved_by": null,
+      "slot_key": "plan.alignment.confirmation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
