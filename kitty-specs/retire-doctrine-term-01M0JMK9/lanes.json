@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "mission_slug": "retire-doctrine-term-01M0JMK9",
+  "mission_id": "01M0JMK90CFFDKA4RCCTQK9675",
+  "mission_branch": "kitty/mission-retire-doctrine-term-01M0JMK9",
+  "target_branch": "feat/retire-doctrine-term",
+  "lanes": [
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/*-retire-doctrine-term-charter-is-the-canonical-vocabulary.md",
+        "docs/adr/3.x/2026-07-15-1-doctrine-offers-charter-activates-runtime-consumes.md",
+        "docs/adr/3.x/index.md",
+        "docs/development/3-2-page-inventory.yaml",
+        "kitty-specs/retire-doctrine-term-01M0JMK9/implementation-baseline.json",
+        "kitty-specs/retire-doctrine-term-01M0JMK9/inventory-hits.tsv",
+        "kitty-specs/retire-doctrine-term-01M0JMK9/inventory.md",
+        "kitty-specs/retire-doctrine-term-01M0JMK9/methodology.md",
+        "kitty-specs/retire-doctrine-term-01M0JMK9/stacked-plan.md",
+        "kitty-specs/retire-doctrine-term-01M0JMK9/verification-report.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-22T19:33:40.631329+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP02",
+    "WP03",
+    "WP04",
+    "WP05"
+  ],
+  "planning_commit_sha": "43190071728b7c3c9559b03b67bcdebc7970e0a8"
+}
