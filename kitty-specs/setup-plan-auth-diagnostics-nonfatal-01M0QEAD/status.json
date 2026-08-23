@@ -48,7 +48,7 @@
     },
     "WP02": {
       "actor": "codex",
-      "agent": null,
+      "agent": "codex",
       "agent_profile": "implementer-ivan",
       "agent_profile_version": "1.0",
       "force_count": 6,
@@ -59,7 +59,8 @@
       "notes": [
         "Pre-existing committed kitty-specs artifacts were inherited from lane setup/dependency history; WP02 commits modify only its two owned files.",
         "Persist canonical WP02 for-review state after validated implementation.",
-        "Cycle 1 remediation complete: free-form preflight diagnostics are classified safely and the unused aggregate adapter was removed in favor of WP04 phase-aligned primitives plus one decision composer. Force only bypasses pre-existing inherited kitty-specs lane artifacts."
+        "Cycle 1 remediation complete: free-form preflight diagnostics are classified safely and the unused aggregate adapter was removed in favor of WP04 phase-aligned primitives plus one decision composer. Force only bypasses pre-existing inherited kitty-specs lane artifacts.",
+        "Cycle 3 remediation complete: one closed allowlist serializer now governs Diagnostic and Decision details across session, boundary, route, evidence, and direct-construction seams. Force only bypasses pre-existing inherited kitty-specs lane artifacts."
       ],
       "provider": "__resolved_provider_absent__",
       "review": null,
