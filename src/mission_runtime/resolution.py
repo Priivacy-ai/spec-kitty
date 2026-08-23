@@ -465,6 +465,7 @@ def _resolve_mission_slug(
     cwd: Path | None,  # noqa: ARG001 -- kept for signature compatibility
     env: Mapping[str, str] | None,  # noqa: ARG001 -- kept for signature compatibility
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> tuple[str, Path]:
     """Resolve the CANONICAL mission slug and read-side directory.
 
@@ -516,7 +517,11 @@ def _resolve_mission_slug(
     )
 
     try:
-        feature_dir = resolve_handle_to_read_path(repo_root, slug, resolver=resolver)
+        feature_dir = resolve_handle_to_read_path(
+            effective_root or repo_root,
+            slug,
+            resolver=resolver,
+        )
     except StatusReadPathNotFound as exc:
         # Boundary translation (PR #1850 M6): the read resolver's fail-closed
         # refusal (coord worktree root materialized without the mission dir)
@@ -2216,6 +2221,7 @@ def resolve_action_context(
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
     resolver: MissionResolver | None = None,
+    effective_root: Path | None = None,
 ) -> MissionExecutionContext:
     """Resolve canonical mission/work-package context for an agent action.
 
@@ -2247,16 +2253,33 @@ def resolve_action_context(
     from specify_cli.core.paths import get_main_repo_root
 
     mission_slug, feature_dir = _resolve_mission_slug(
-        repo_root, feature=feature, cwd=cwd, env=env, resolver=resolver
+        repo_root,
+        feature=feature,
+        cwd=cwd,
+        env=env,
+        resolver=resolver,
+        effective_root=effective_root,
     )
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here and
     # threaded onto both the flat substrate field and the BranchRefFragment; no
     # downstream surface re-derives it. The WP02 stored ``topology`` is read once
     # alongside it (shell read) and threaded in so the placement/surface ``kind``
     # is classified from the stored shape, never re-inferred (FR-004 / SC-001).
-    target_branch = get_feature_target_branch(repo_root, mission_slug)
+    if effective_root is None:
+        target_branch = get_feature_target_branch(repo_root, mission_slug)
+    else:
+        from specify_cli.core.git_ops import resolve_primary_branch
+        from specify_cli.core.paths import read_target_branch_from_meta
+
+        stored_target = read_target_branch_from_meta(feature_dir)
+        target_branch = stored_target or str(
+            resolve_primary_branch(get_main_repo_root(repo_root))
+        )
     topology = _resolve_topology(
-        get_main_repo_root(repo_root), mission_slug, resolver=resolver
+        get_main_repo_root(repo_root),
+        mission_slug,
+        resolver=resolver,
+        effective_root=effective_root,
     )
 
     identity, branch_ref, status_surface, workspace = _assemble_core_fragments(
@@ -2266,6 +2289,7 @@ def resolve_action_context(
         topology=topology,
         cwd=cwd,
         resolver=resolver,
+        effective_root=effective_root,
     )
     # IC-05 (WP06 / T019): the artifact-placement ref is the SAME CommitTarget
     # status events resolve to (C-PLACE-1) — assembled from ``branch_ref`` so no
