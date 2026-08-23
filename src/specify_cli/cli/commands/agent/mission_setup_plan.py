@@ -222,7 +222,12 @@ def _report_setup_plan_outcome(
 
 
 def _collect_hosted_sync_decision(repo_root: Path) -> HostedSyncDecision:
-    """Acquire all hosted evidence and compose the sole permission decision."""
+    """Acquire hosted evidence after local verification and compose permission.
+
+    Each adapter is totalized independently, so route resolution is invoked
+    exactly once and a hostile adapter cannot make setup-plan discard the local
+    result it has already computed.
+    """
     requested = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") == "1"
     if not requested:
         return decide_hosted_sync(requested=False)
@@ -242,10 +247,9 @@ def _collect_hosted_sync_decision(repo_root: Path) -> HostedSyncDecision:
 def _enforce_git_preflight_with_reporting(
     repo_root: Path,
     *,
-    decision: HostedSyncDecision,
     json_output: bool,
 ) -> None:
-    """Preserve canonical git-preflight payload while attaching diagnostics."""
+    """Preserve the canonical local git-preflight payload and exit."""
     from specify_cli.cli.commands.agent import mission as _mission
 
     if not json_output:
@@ -258,7 +262,6 @@ def _enforce_git_preflight_with_reporting(
         except typer.Exit as exc:
             _report_setup_plan_outcome(
                 SetupPlanLocalOutcome({}, exc.exit_code, "error"),
-                diagnostics=decision.diagnostics,
                 json_output=False,
             )
             raise
@@ -278,7 +281,6 @@ def _enforce_git_preflight_with_reporting(
             _mission._emit_json = original_emit
             _report_setup_plan_outcome(
                 SetupPlanLocalOutcome(emitted[0], exc.exit_code, "error"),
-                diagnostics=decision.diagnostics,
                 json_output=True,
             )
         raise
@@ -1013,7 +1015,7 @@ def _trigger_dossier_sync(feature_dir: Path, mission_slug: str, repo_root: Path)
     trigger_feature_dossier_sync_if_enabled(feature_dir, mission_slug, repo_root)
 
 
-def _emit_setup_plan_result(
+def _build_setup_plan_result(
     *,
     plan_file: Path,
     spec_file: Path,
@@ -1027,11 +1029,9 @@ def _emit_setup_plan_result(
     target_branch: str,
     current_branch: str,
     match_target_branch: str | None = None,
-    json_output: bool,
     plan_scaffold_only: bool = False,
-    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
-) -> None:
-    """Emit the setup-plan result in JSON or human form.
+) -> SetupPlanLocalOutcome:
+    """Build the authoritative setup-plan result without hosted assessment.
 
     FR-009 / #2566: ``plan_scaffold_only=True`` marks the first happy-path
     scaffold write (a pristine, byte-identical-to-template plan.md) as a
@@ -1078,8 +1078,45 @@ def _emit_setup_plan_result(
         if plan_is_substantive
         else "blocked"
     )
+    return SetupPlanLocalOutcome(result, 0, render_kind)
+
+
+def _emit_setup_plan_result(
+    *,
+    plan_file: Path,
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    plan_is_substantive: bool,
+    plan_blocked_reason: str | None,
+    plan_commit_result: CommitToBranchResult | None,
+    gap_analysis_path: str | None,
+    generators_detected: list[GeneratorConfig],
+    target_branch: str,
+    current_branch: str,
+    match_target_branch: str | None = None,
+    json_output: bool,
+    plan_scaffold_only: bool = False,
+    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
+) -> None:
+    """Compatibility reporter backed by the side-effect-free result builder."""
+    outcome = _build_setup_plan_result(
+        plan_file=plan_file,
+        spec_file=spec_file,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        plan_is_substantive=plan_is_substantive,
+        plan_blocked_reason=plan_blocked_reason,
+        plan_commit_result=plan_commit_result,
+        gap_analysis_path=gap_analysis_path,
+        generators_detected=generators_detected,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+        plan_scaffold_only=plan_scaffold_only,
+    )
     _report_setup_plan_outcome(
-        SetupPlanLocalOutcome(result, 0, render_kind),
+        outcome,
         diagnostics=diagnostics,
         json_output=json_output,
         human_message=f"[green]✓[/green] Plan scaffolded: {plan_file}",
@@ -1113,7 +1150,6 @@ def setup_plan(
     # ``_commit_to_branch``).
     from specify_cli.cli.commands.agent import mission as _mission
 
-    hosted_decision: HostedSyncDecision | None = None
     try:
 
         repo_root = _mission.locate_project_root()
@@ -1125,11 +1161,8 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        hosted_decision = _collect_hosted_sync_decision(repo_root)
-
         _enforce_git_preflight_with_reporting(
             repo_root,
-            decision=hosted_decision,
             json_output=json_output,
         )
 
@@ -1137,7 +1170,6 @@ def setup_plan(
             repo_root,
             feature,
             json_output=json_output,
-            diagnostics=hosted_decision.diagnostics,
         )
         mission_slug = feature_dir.name
         _, target_branch = _mission._show_branch_context(repo_root, mission_slug, json_output)
@@ -1192,7 +1224,6 @@ def setup_plan(
             current_branch=current_branch,
             match_target_branch=match_target_branch,
             json_output=json_output,
-            diagnostics=hosted_decision.diagnostics,
         ):
             return
 
@@ -1228,13 +1259,7 @@ def setup_plan(
             mission_slug, repo_root, target_branch=target_branch, json_output=json_output
         )
 
-        _execute_setup_plan_hosted_effects(
-            hosted_decision,
-            lifecycle_intents=tuple(lifecycle_intents),
-            dossier_intent=DossierSyncIntent(feature_dir, mission_slug, repo_root),
-        )
-
-        _emit_setup_plan_result(
+        local_outcome = _build_setup_plan_result(
             plan_file=plan_file,
             spec_file=spec_file,
             feature_dir=feature_dir,
@@ -1247,9 +1272,30 @@ def setup_plan(
             target_branch=target_branch,
             current_branch=current_branch,
             match_target_branch=match_target_branch,
-            json_output=json_output,
             plan_scaffold_only=plan_scaffold_only,
+        )
+
+        # The local workflow is now complete and its payload/exit are frozen.
+        # Only now may hosted evidence be acquired.  No adapter participates in
+        # determining the primary result.
+        try:
+            hosted_decision = _collect_hosted_sync_decision(repo_root)
+        except Exception:  # noqa: BLE001 - local outcome is already authoritative
+            logger.debug("Hosted setup-plan assessment failed closed", exc_info=True)
+            hosted_decision = decide_hosted_sync(requested=True)
+        try:
+            _execute_setup_plan_hosted_effects(
+                hosted_decision,
+                lifecycle_intents=tuple(lifecycle_intents),
+                dossier_intent=DossierSyncIntent(feature_dir, mission_slug, repo_root),
+            )
+        except Exception:  # noqa: BLE001 - hosted delivery cannot replace local result
+            logger.debug("Hosted setup-plan effects failed after local completion", exc_info=True)
+        _report_setup_plan_outcome(
+            local_outcome,
             diagnostics=hosted_decision.diagnostics,
+            json_output=json_output,
+            human_message=f"[green]✓[/green] Plan scaffolded: {plan_file}",
         )
 
     except typer.Exit:
@@ -1265,20 +1311,16 @@ def setup_plan(
         }
         if e.mapped_filename is not None:
             payload["mapped_filename"] = e.mapped_filename
-        diagnostics = hosted_decision.diagnostics if hosted_decision is not None else ()
         _report_setup_plan_outcome(
             SetupPlanLocalOutcome(payload, 1, "error"),
-            diagnostics=diagnostics,
             json_output=json_output,
             human_message=f"[red]Error:[/red] {e}",
         )
         raise typer.Exit(1) from None
     except Exception as e:
         payload = {"error": str(e)}
-        diagnostics = hosted_decision.diagnostics if hosted_decision is not None else ()
         _report_setup_plan_outcome(
             SetupPlanLocalOutcome(payload, 1, "error"),
-            diagnostics=diagnostics,
             json_output=json_output,
             human_message=f"[red]Error:[/red] {e}",
         )

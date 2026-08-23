@@ -1,11 +1,12 @@
 """No-raise hosted-readiness decision adapter for ``agent setup-plan``.
 
 This module decides whether setup-plan may perform hosted effects; it never
-performs those effects.  Its collectors remain separate because setup-plan
-acquires authentication before repository resolution, then boundary and route
-evidence afterward.  :func:`decide_hosted_sync` is their single composition
-authority.  Local setup-plan work remains authoritative when that decision
-refuses hosted delivery.
+performs those effects.  Setup-plan invokes its independent collectors only
+after producing the authoritative local outcome.  Authentication comes
+directly from the canonical ``TokenManager.session_assessment``; structural
+and routing evidence remain separate.  :func:`decide_hosted_sync` is their
+single composition authority, and every malformed or raising adapter fails
+closed without changing the local result.
 """
 
 from __future__ import annotations
@@ -16,19 +17,27 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, Protocol, cast
 
 from specify_cli.auth.token_manager import SessionAssessment
-from specify_cli.readiness.coordinator import AuthStatus
-
 if TYPE_CHECKING:
     from specify_cli.sync.preflight import PreflightResult
     from specify_cli.sync.routing import CheckoutSyncRouting
 
-AuthProbe = Callable[..., tuple[AuthStatus, str | None]]
 PreflightProbe = Callable[..., "PreflightResult"]
 RouteProbe = Callable[[Path], "CheckoutSyncRouting | None"]
 DetailsClassifier = Callable[[Mapping[str, object]], dict[str, object] | None]
+
+
+class _SessionAssessmentLike(Protocol):
+    completed: bool
+    usable_session: bool | None
+    reason: str
+
+
+class _TokenManagerLike(Protocol):
+    @property
+    def session_assessment(self) -> _SessionAssessmentLike: ...
 
 _AUTH_UNKNOWN_REASONS = frozenset(
     {
@@ -143,7 +152,13 @@ class HostedSyncDiagnostic:
             "message": spec.message,
             "remediation": list(spec.remediation),
         }
-        safe_details = spec.details_classifier(self.details or {})
+        try:
+            raw_details = self.details or {}
+            if not isinstance(raw_details, Mapping):
+                raise TypeError("diagnostic details are not a mapping")
+            safe_details = spec.details_classifier(raw_details)
+        except Exception:  # noqa: BLE001 - serialization is a fail-closed boundary
+            safe_details = spec.details_classifier({})
         if safe_details:
             payload["details"] = safe_details
         return payload
@@ -166,10 +181,23 @@ class HostedSyncDecision:
 
     def to_dict(self) -> dict[str, object]:
         """Return a plain JSON-compatible representation."""
+        serialized: list[dict[str, object]] = []
+        for diagnostic in self.diagnostics:
+            try:
+                serialized.append(diagnostic.to_dict())
+            except Exception:  # noqa: BLE001 - never expose or propagate hostile evidence
+                serialized.append(
+                    _boundary_diagnostic(
+                        BoundaryEvaluation(
+                            BoundaryState.UNKNOWN,
+                            "boundary_evaluation_failed",
+                        )
+                    ).to_dict()
+                )
         return {
             "requested": self.requested,
             "allow_effects": self.allow_effects,
-            "diagnostics": [diagnostic.to_dict() for diagnostic in self.diagnostics],
+            "diagnostics": serialized,
         }
 
 
@@ -189,29 +217,36 @@ def is_canonical_hosted_sync_decision(decision: HostedSyncDecision) -> bool:
 
 
 def acquire_session_assessment(
-    repo_root: Path,
+    _repo_root: Path,
     *,
-    auth_probe: AuthProbe | None = None,
+    token_manager_factory: Callable[[], _TokenManagerLike] | None = None,
 ) -> SessionAssessment:
-    """Project the existing no-raise readiness auth probe into WP01 evidence.
+    """Acquire the canonical invocation-local session assessment directly.
 
-    The projection intentionally does not inspect tokens, session objects, or
-    queue scope.  Unexpected invocation or return-value failures fail closed.
+    Setup-plan does not need a Teamspace classification to decide whether a
+    hosted effect has bearer authority.  Reading that broader readiness probe
+    used to couple authentication to route/context discovery and could turn a
+    conclusive no-session result into ``UNKNOWN``.  This adapter therefore
+    consumes only ``TokenManager.session_assessment`` and validates its runtime
+    shape without trusting arbitrary property access.
     """
-    if auth_probe is None:
-        from specify_cli.readiness.auth import probe_auth_status  # noqa: PLC0415
+    if token_manager_factory is None:
+        from specify_cli.auth import get_token_manager  # noqa: PLC0415
 
-        auth_probe = probe_auth_status
+        token_manager_factory = get_token_manager
 
     try:
-        status, _teamspace = auth_probe(repo_root=repo_root)
-    except Exception:  # noqa: BLE001 - command adapter is deliberately no-raise
+        assessment = token_manager_factory().session_assessment
+        completed = assessment.completed
+        usable_session = assessment.usable_session
+        reason = assessment.reason
+    except Exception:  # noqa: BLE001 - hosted evidence must not escape
         return SessionAssessment(False, None, "auth_evaluation_failed")
 
-    if status is AuthStatus.AUTHENTICATED:
-        return SessionAssessment(True, True, "session_usable")
-    if status in (AuthStatus.LOGGED_OUT_IN_TEAMSPACE, AuthStatus.NOT_IN_TEAMSPACE):
-        return SessionAssessment(True, False, "session_absent")
+    if completed is True and usable_session is True and isinstance(reason, str) and reason:
+        return SessionAssessment(True, True, reason)
+    if completed is True and usable_session is False and isinstance(reason, str) and reason:
+        return SessionAssessment(True, False, reason)
     return SessionAssessment(False, None, "auth_evaluation_failed")
 
 
@@ -228,16 +263,34 @@ def evaluate_boundary(
 
     try:
         result = preflight_probe(repo_root=repo_root, require_auth=False)
+        ok = result.ok
     except Exception:  # noqa: BLE001 - unknown safety must refuse, not abort local work
         return BoundaryEvaluation(
             BoundaryState.UNKNOWN,
             reason="boundary_evaluation_failed",
         )
 
-    if result.ok:
+    if ok is True:
         return BoundaryEvaluation(BoundaryState.SAFE)
 
-    evidence = cast(Mapping[str, object], _sanitize_preflight_evidence(result.to_dict()))
+    if ok is not False:
+        return BoundaryEvaluation(
+            BoundaryState.UNKNOWN,
+            reason="boundary_evaluation_failed",
+        )
+    try:
+        raw_evidence = result.to_dict()
+        if not isinstance(raw_evidence, Mapping):
+            raise TypeError("preflight evidence is not a mapping")
+        evidence = cast(
+            Mapping[str, object],
+            _sanitize_preflight_evidence(cast(Mapping[str, object], raw_evidence)),
+        )
+    except Exception:  # noqa: BLE001 - serialization/sanitization is evidence acquisition
+        return BoundaryEvaluation(
+            BoundaryState.UNKNOWN,
+            reason="boundary_evaluation_failed",
+        )
     return BoundaryEvaluation(
         BoundaryState.UNSAFE,
         reason="structural_preflight_failed",
@@ -258,14 +311,17 @@ def evaluate_route_availability(
 
     try:
         routing = route_probe(repo_root)
+        if routing is None:
+            return (False, "route_unavailable")
+        project_uuid = routing.project_uuid
+        effective_sync_enabled = routing.effective_sync_enabled
     except Exception:  # noqa: BLE001 - route acquisition is nonfatal to local work
         return (False, "route_evaluation_failed")
 
     if (
-        routing is not None
-        and isinstance(routing.project_uuid, str)
-        and bool(routing.project_uuid.strip())
-        and routing.effective_sync_enabled is True
+        isinstance(project_uuid, str)
+        and bool(project_uuid.strip())
+        and effective_sync_enabled is True
     ):
         return (True, None)
     return (False, "route_unavailable")
@@ -289,12 +345,21 @@ def decide_hosted_sync(
         return HostedSyncDecision(False, False, ())
 
     diagnostics: list[HostedSyncDiagnostic] = []
+    try:
+        assessment_completed = session_assessment.completed if session_assessment is not None else None
+        assessment_usable = session_assessment.usable_session if session_assessment is not None else None
+        assessment_reason = session_assessment.reason if session_assessment is not None else "auth_evidence_unavailable"
+    except Exception:  # noqa: BLE001 - malformed evidence is unknown, never fatal
+        assessment_completed = None
+        assessment_usable = None
+        assessment_reason = "auth_evaluation_failed"
+
     if session_assessment is None:
         diagnostics.append(_auth_unknown_diagnostic("auth_evidence_unavailable"))
-    elif not session_assessment.completed:
-        diagnostics.append(_auth_unknown_diagnostic(session_assessment.reason))
-    elif session_assessment.usable_session is not True:
-        diagnostics.append(_unauthenticated_diagnostic(session_assessment.reason))
+    elif assessment_completed is not True:
+        diagnostics.append(_auth_unknown_diagnostic(assessment_reason))
+    elif assessment_usable is not True:
+        diagnostics.append(_unauthenticated_diagnostic(assessment_reason))
 
     if boundary is None:
         diagnostics.append(
@@ -302,8 +367,14 @@ def decide_hosted_sync(
                 BoundaryEvaluation(BoundaryState.UNKNOWN, "boundary_evidence_unavailable")
             )
         )
-    elif boundary.state is not BoundaryState.SAFE:
-        diagnostics.append(_boundary_diagnostic(boundary))
+    else:
+        try:
+            boundary_state = boundary.state
+        except Exception:  # noqa: BLE001 - malformed evidence is unknown, never fatal
+            boundary_state = BoundaryState.UNKNOWN
+            boundary = BoundaryEvaluation(BoundaryState.UNKNOWN, "boundary_evaluation_failed")
+        if boundary_state is not BoundaryState.SAFE:
+            diagnostics.append(_boundary_diagnostic(boundary))
 
     if route_available is not True:
         diagnostics.append(_route_diagnostic(route_reason or "route_unavailable"))
@@ -311,10 +382,10 @@ def decide_hosted_sync(
     ordered_unique = tuple({diagnostic.code: diagnostic for diagnostic in diagnostics}.values())
     allow_effects = (
         session_assessment is not None
-        and session_assessment.completed
-        and session_assessment.usable_session is True
+        and assessment_completed is True
+        and assessment_usable is True
         and boundary is not None
-        and boundary.state is BoundaryState.SAFE
+        and boundary_state is BoundaryState.SAFE
         and route_available is True
     )
     decision = HostedSyncDecision(True, allow_effects, ordered_unique)
@@ -347,9 +418,14 @@ def _auth_unknown_diagnostic(reason: str) -> HostedSyncDiagnostic:
 
 
 def _boundary_diagnostic(boundary: BoundaryEvaluation) -> HostedSyncDiagnostic:
-    details: dict[str, object] = {"reason": boundary.reason or "boundary_evaluation_failed"}
-    if boundary.evidence is not None:
-        details["evidence"] = _sanitize_preflight_evidence(boundary.evidence)
+    try:
+        reason = boundary.reason or "boundary_evaluation_failed"
+        raw_evidence = boundary.evidence
+        details: dict[str, object] = {"reason": reason}
+        if raw_evidence is not None:
+            details["evidence"] = _sanitize_preflight_evidence(raw_evidence)
+    except Exception:  # noqa: BLE001 - malformed evidence becomes stable unknown
+        details = {"reason": "boundary_evaluation_failed"}
     return _registered_diagnostic(
         "SAAS_SYNC_BOUNDARY_UNSAFE",
         details=details,

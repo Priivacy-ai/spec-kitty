@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator, Mapping
 from itertools import product
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
@@ -21,7 +22,6 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     evaluate_boundary,
     evaluate_route_availability,
 )
-from specify_cli.readiness.coordinator import AuthStatus
 from specify_cli.sync.owner import UnreadableOwnerRecord
 from specify_cli.sync.preflight import PreflightResult
 from specify_cli.sync.routing import CheckoutSyncRouting
@@ -45,16 +45,19 @@ def _routing(repo_root: Path, *, available: bool) -> CheckoutSyncRouting:
 def _collect_requested_decision(
     repo_root: Path,
     *,
-    auth_probe: Callable[..., tuple[AuthStatus, str | None]],
+    assessment: SessionAssessment,
     preflight_probe: Callable[..., PreflightResult],
     route_probe: Callable[[Path], CheckoutSyncRouting | None],
 ) -> HostedSyncDecision:
-    assessment = acquire_session_assessment(repo_root, auth_probe=auth_probe)
+    acquired = acquire_session_assessment(
+        repo_root,
+        token_manager_factory=lambda: type("TM", (), {"session_assessment": assessment})(),
+    )
     boundary = evaluate_boundary(repo_root, preflight_probe=preflight_probe)
     route_available, route_reason = evaluate_route_availability(repo_root, route_probe=route_probe)
     return decide_hosted_sync(
         requested=True,
-        session_assessment=assessment,
+        session_assessment=acquired,
         boundary=boundary,
         route_available=route_available,
         route_reason=route_reason,
@@ -88,7 +91,7 @@ def test_requested_decision_without_evidence_fails_closed() -> None:
 def test_all_affirmative_evidence_allows_hosted_effects(tmp_path: Path) -> None:
     decision = _collect_requested_decision(
         tmp_path,
-        auth_probe=lambda **_: (AuthStatus.AUTHENTICATED, None),
+        assessment=SessionAssessment(True, True, "session_usable"),
         preflight_probe=lambda **_: PreflightResult(ok=True, auth_required=False),
         route_probe=lambda _: _routing(tmp_path, available=True),
     )
@@ -120,18 +123,95 @@ def test_auth_outcomes_remain_distinct(
 
 
 def test_auth_probe_failure_is_unknown_and_never_escapes(tmp_path: Path) -> None:
-    def broken_auth(**_: object) -> tuple[AuthStatus, None]:
+    def broken_auth() -> object:
         raise RuntimeError("secret-token-auth-explosion")
 
-    decision = _collect_requested_decision(
+    assessment = acquire_session_assessment(
         tmp_path,
-        auth_probe=broken_auth,
-        preflight_probe=lambda **_: PreflightResult(ok=True, auth_required=False),
-        route_probe=lambda _: _routing(tmp_path, available=True),
+        token_manager_factory=broken_auth,
+    )
+    decision = decide_hosted_sync(
+        requested=True,
+        session_assessment=assessment,
+        boundary=BoundaryEvaluation(BoundaryState.SAFE),
+        route_available=True,
     )
 
     assert [diagnostic.code for diagnostic in decision.diagnostics] == ["SAAS_SYNC_AUTH_UNKNOWN"]
     assert "secret-token-auth-explosion" not in str(decision.to_dict())
+
+
+def test_direct_completed_no_session_assessment_remains_logged_out(tmp_path: Path) -> None:
+    """No Teamspace/context projection may erase a conclusive no-session verdict."""
+    expected = SessionAssessment(True, False, "session_absent")
+
+    actual = acquire_session_assessment(
+        tmp_path,
+        token_manager_factory=lambda: SimpleNamespace(session_assessment=expected),
+    )
+
+    assert actual == expected
+    decision = decide_hosted_sync(
+        requested=True,
+        session_assessment=actual,
+        boundary=BoundaryEvaluation(BoundaryState.SAFE),
+        route_available=True,
+    )
+    assert [item.code for item in decision.diagnostics] == ["SAAS_SYNC_UNAUTHENTICATED"]
+
+
+@pytest.mark.parametrize(
+    "assessment",
+    (
+        SimpleNamespace(completed=1, usable_session=True, reason="session_usable"),
+        SimpleNamespace(completed=True, usable_session=1, reason="session_usable"),
+        SimpleNamespace(completed=True, usable_session=True, reason=object()),
+    ),
+)
+def test_auth_adapter_requires_exact_typed_affirmative_evidence(
+    tmp_path: Path,
+    assessment: object,
+) -> None:
+    actual = acquire_session_assessment(
+        tmp_path,
+        token_manager_factory=lambda: SimpleNamespace(session_assessment=assessment),
+    )
+    assert actual == SessionAssessment(False, None, "auth_evaluation_failed")
+
+
+@pytest.mark.parametrize("faulty_attribute", ("session_assessment", "completed", "usable_session", "reason"))
+def test_session_assessment_property_failures_are_stable_unknown(
+    tmp_path: Path,
+    faulty_attribute: str,
+) -> None:
+    """Every property-access seam is inside the no-raise auth adapter."""
+    class _HostileAssessment:
+        def __getattribute__(self, name: str) -> object:
+            if name == faulty_attribute:
+                raise RuntimeError("token=hostile-auth-property")
+            values: dict[str, object] = {
+                "completed": True,
+                "usable_session": True,
+                "reason": "session_usable",
+            }
+            if name in values:
+                return values[name]
+            return object.__getattribute__(self, name)
+
+    class _HostileManager:
+        @property
+        def session_assessment(self) -> object:
+            if faulty_attribute == "session_assessment":
+                raise RuntimeError("token=hostile-manager-property")
+            return _HostileAssessment()
+
+    assessment = acquire_session_assessment(
+        tmp_path,
+        token_manager_factory=_HostileManager,
+    )
+
+    assert assessment == SessionAssessment(False, None, "auth_evaluation_failed")
+    assert "hostile" not in str(assessment)
 
 
 def test_returned_unsafe_boundary_preserves_sanitized_preflight_evidence(tmp_path: Path) -> None:
@@ -175,6 +255,60 @@ def test_raised_preflight_becomes_stable_sanitized_boundary_warning(tmp_path: Pa
     assert "boundary_evaluation_failed" in payload
     assert "ciphertext" not in payload
     assert "top-secret" not in payload
+
+
+def test_preflight_integer_truth_is_not_affirmative(tmp_path: Path) -> None:
+    malformed = SimpleNamespace(ok=1, to_dict=lambda: {"ok": 1})
+    boundary = evaluate_boundary(
+        tmp_path,
+        preflight_probe=lambda **_: cast(PreflightResult, malformed),
+    )
+    assert boundary == BoundaryEvaluation(
+        BoundaryState.UNKNOWN,
+        "boundary_evaluation_failed",
+    )
+
+
+@pytest.mark.parametrize("failure", ("ok_property", "to_dict", "sanitizer"))
+def test_malformed_preflight_objects_fail_closed_across_all_adapter_seams(
+    tmp_path: Path,
+    failure: str,
+) -> None:
+    class _HostileMapping(Mapping[str, object]):
+        def __getitem__(self, key: str) -> object:
+            raise RuntimeError(f"token=mapping-secret:{key}")
+
+        def __iter__(self) -> Iterator[str]:
+            return iter(("ok",))
+
+        def __len__(self) -> int:
+            return 1
+
+        def get(self, key: str, default: object = None) -> object:
+            raise RuntimeError(f"token=sanitizer-secret:{key}")
+
+    class _HostilePreflight:
+        @property
+        def ok(self) -> bool:
+            if failure == "ok_property":
+                raise RuntimeError("token=ok-property-secret")
+            return False
+
+        def to_dict(self) -> object:
+            if failure == "to_dict":
+                raise RuntimeError("token=to-dict-secret")
+            return _HostileMapping()
+
+    boundary = evaluate_boundary(
+        tmp_path,
+        preflight_probe=lambda **_: cast(PreflightResult, _HostilePreflight()),
+    )
+
+    assert boundary == BoundaryEvaluation(
+        BoundaryState.UNKNOWN,
+        "boundary_evaluation_failed",
+    )
+    assert "secret" not in str(boundary)
 
 
 def test_returned_preflight_evidence_omits_raw_fault_detail(tmp_path: Path) -> None:
@@ -389,7 +523,7 @@ def test_exhaustive_truth_table_keeps_one_allowing_row_and_diagnostic_order(
 def test_unavailable_route_is_not_an_auth_failure(tmp_path: Path) -> None:
     decision = _collect_requested_decision(
         tmp_path,
-        auth_probe=lambda **_: (AuthStatus.AUTHENTICATED, None),
+        assessment=SessionAssessment(True, True, "session_usable"),
         preflight_probe=lambda **_: PreflightResult(ok=True, auth_required=False),
         route_probe=lambda _: _routing(tmp_path, available=False),
     )
@@ -403,7 +537,7 @@ def test_route_probe_failure_is_sanitized_and_nonfatal(tmp_path: Path) -> None:
 
     decision = _collect_requested_decision(
         tmp_path,
-        auth_probe=lambda **_: (AuthStatus.AUTHENTICATED, None),
+        assessment=SessionAssessment(True, True, "session_usable"),
         preflight_probe=lambda **_: PreflightResult(ok=True, auth_required=False),
         route_probe=broken_route,
     )
@@ -412,6 +546,67 @@ def test_route_probe_failure_is_sanitized_and_nonfatal(tmp_path: Path) -> None:
     payload = str(decision.to_dict())
     assert "route_evaluation_failed" in payload
     assert "route-secret" not in payload
+
+
+@pytest.mark.parametrize("faulty_property", ("project_uuid", "effective_sync_enabled"))
+def test_route_property_failures_are_sanitized_and_invoked_once(
+    tmp_path: Path,
+    faulty_property: str,
+) -> None:
+    calls = 0
+
+    class _HostileRoute:
+        def __getattribute__(self, name: str) -> object:
+            if name == faulty_property:
+                raise RuntimeError("token=route-property-secret")
+            values: dict[str, object] = {
+                "project_uuid": "project-123",
+                "effective_sync_enabled": True,
+            }
+            if name in values:
+                return values[name]
+            return object.__getattribute__(self, name)
+
+    def route_probe(_root: Path) -> object:
+        nonlocal calls
+        calls += 1
+        return _HostileRoute()
+
+    available, reason = evaluate_route_availability(
+        tmp_path,
+        route_probe=cast(Callable[[Path], CheckoutSyncRouting | None], route_probe),
+    )
+
+    assert (available, reason) == (False, "route_evaluation_failed")
+    assert calls == 1
+
+
+def test_diagnostic_serialization_totalizes_hostile_mapping_access() -> None:
+    class _HostileDetails(Mapping[str, object]):
+        def __getitem__(self, key: str) -> object:
+            raise RuntimeError(f"token=detail-secret:{key}")
+
+        def __iter__(self) -> Iterator[str]:
+            return iter(("reason",))
+
+        def __len__(self) -> int:
+            return 1
+
+        def get(self, key: str, default: object = None) -> object:
+            raise RuntimeError(f"token=detail-secret:{key}")
+
+    diagnostic = HostedSyncDiagnostic(
+        code="SAAS_SYNC_BOUNDARY_UNSAFE",
+        severity="malicious",
+        hosted_disposition="malicious",
+        message="token=message-secret",
+        details=_HostileDetails(),
+    )
+
+    payload = diagnostic.to_dict()
+    assert payload["code"] == "SAAS_SYNC_BOUNDARY_UNSAFE"
+    assert payload["severity"] == "warning"
+    assert "secret" not in str(payload)
 
 
 def test_combined_diagnostics_are_distinct_deduplicated_and_ordered() -> None:
@@ -462,9 +657,15 @@ def test_every_nonaffirmative_input_refuses(
 def test_canonical_collectors_receive_exact_arguments(tmp_path: Path) -> None:
     calls: list[tuple[str, object]] = []
 
-    def auth_probe(*, repo_root: Path | None = None) -> tuple[AuthStatus, None]:
-        calls.append(("auth", repo_root))
-        return (AuthStatus.AUTHENTICATED, None)
+    class _TokenManager:
+        @property
+        def session_assessment(self) -> SessionAssessment:
+            calls.append(("auth", "session_assessment"))
+            return SessionAssessment(True, True, "session_usable")
+
+    def token_manager_factory() -> _TokenManager:
+        calls.append(("auth", "factory"))
+        return _TokenManager()
 
     def preflight_probe(*, repo_root: Path, require_auth: bool) -> PreflightResult:
         calls.append(("preflight", (repo_root, require_auth)))
@@ -474,7 +675,10 @@ def test_canonical_collectors_receive_exact_arguments(tmp_path: Path) -> None:
         calls.append(("route", repo_root))
         return _routing(repo_root, available=True)
 
-    assessment = acquire_session_assessment(tmp_path, auth_probe=auth_probe)
+    assessment = acquire_session_assessment(
+        tmp_path,
+        token_manager_factory=token_manager_factory,
+    )
     boundary = evaluate_boundary(tmp_path, preflight_probe=preflight_probe)
     route_available, route_reason = evaluate_route_availability(tmp_path, route_probe=route_probe)
     decision = decide_hosted_sync(
@@ -487,7 +691,8 @@ def test_canonical_collectors_receive_exact_arguments(tmp_path: Path) -> None:
 
     assert decision.allow_effects is True
     assert calls == [
-        ("auth", tmp_path),
+        ("auth", "factory"),
+        ("auth", "session_assessment"),
         ("preflight", (tmp_path, False)),
         ("route", tmp_path),
     ]
@@ -496,7 +701,7 @@ def test_canonical_collectors_receive_exact_arguments(tmp_path: Path) -> None:
 def test_public_serialization_contains_only_plain_json_values(tmp_path: Path) -> None:
     decision = _collect_requested_decision(
         tmp_path,
-        auth_probe=lambda **_: (AuthStatus.UNKNOWN, None),
+        assessment=SessionAssessment(False, None, "auth_evaluation_failed"),
         preflight_probe=lambda **_: PreflightResult(ok=False, auth_required=False),
         route_probe=lambda _: None,
     )

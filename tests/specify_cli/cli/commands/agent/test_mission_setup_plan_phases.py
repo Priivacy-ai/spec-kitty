@@ -354,11 +354,11 @@ def test_human_reporter_renders_warning_then_local_result(
     assert output.index("Warning:") < output.index("LOCAL RESULT")
 
 
-def test_real_setup_plan_git_preflight_failure_attaches_hosted_warning_once(
+def test_real_setup_plan_git_preflight_failure_precedes_and_skips_hosted_assessment(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """Review cycle 1: git failure uses the reporter after hosted assessment."""
+    """An early local failure keeps its exact payload and never probes hosted state."""
     from specify_cli.cli.commands.agent import mission as mission_mod
 
     emitted: list[dict[str, object]] = []
@@ -368,12 +368,11 @@ def test_real_setup_plan_git_preflight_failure_attaches_hosted_warning_once(
         "error": "baseline git failure",
         "remediation": ["git worktree prune"],
     }
-    decision = HostedSyncDecision(
-        requested=True,
-        allow_effects=False,
-        diagnostics=(_diagnostic("SAAS_SYNC_UNAUTHENTICATED"),),
+    monkeypatch.setattr(
+        seam,
+        "_collect_hosted_sync_decision",
+        lambda _root: pytest.fail("hosted assessment ran before local git verification"),
     )
-    monkeypatch.setattr(seam, "_collect_hosted_sync_decision", lambda _root: decision)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_emit_json", lambda payload: emitted.append(payload))
 
@@ -389,8 +388,7 @@ def test_real_setup_plan_git_preflight_failure_attaches_hosted_warning_once(
     assert exc_info.value.exit_code == 1
     assert len(emitted) == 1
     actual = emitted[0]
-    assert {key: value for key, value in actual.items() if key != "warnings"} == baseline
-    assert actual["warnings"] == [decision.diagnostics[0].to_dict()]
+    assert actual == baseline
 
 
 _LOCAL_OUTCOME_CASES: dict[str, dict[str, object]] = {
@@ -688,6 +686,74 @@ def test_real_setup_plan_preserves_full_local_matrix_across_readiness(
         primary = {key: value for key, value in actual.items() if key != "warnings"}
         assert primary == baseline, (case_name, variant, wire)
         assert actual_exit == baseline_exit, (case_name, variant)
+
+
+def test_real_setup_plan_freezes_local_outcome_before_hostile_hosted_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The real entry point proves local result construction happens first."""
+    order: list[str] = []
+    original_builder = seam._build_setup_plan_result
+
+    def _recording_builder(**kwargs: object) -> seam.SetupPlanLocalOutcome:
+        outcome = original_builder(**kwargs)  # type: ignore[arg-type]
+        order.append("local-outcome")
+        return outcome
+
+    def _hostile_assessment(_root: Path) -> seam.HostedSyncDecision:
+        order.append("hosted-assessment")
+        raise RuntimeError("token=hostile-hosted-assessment")
+
+    with monkeypatch.context() as mp:
+        mp.setattr(seam, "_build_setup_plan_result", _recording_builder)
+        mp.setattr(seam, "_collect_hosted_sync_decision", _hostile_assessment)
+        payload, exit_code, wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            "logged_out",
+        )
+
+    assert order == ["local-outcome", "hosted-assessment"]
+    assert exit_code == 0
+    assert payload["result"] == "success"
+    assert payload["phase_complete"] is True
+    assert "hostile-hosted-assessment" not in wire
+    assert [warning["code"] for warning in cast(list[dict[str, object]], payload["warnings"])] == [
+        "SAAS_SYNC_AUTH_UNKNOWN",
+        "SAAS_SYNC_BOUNDARY_UNSAFE",
+        "SAAS_SYNC_ROUTE_UNAVAILABLE",
+    ]
+
+
+def test_real_setup_plan_resolves_route_exactly_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The real entry point has one routing acquisition for one decision."""
+    calls = 0
+    original = seam.evaluate_route_availability
+
+    def _counted(root: Path) -> tuple[bool, str | None]:
+        nonlocal calls
+        calls += 1
+        return original(root)
+
+    with monkeypatch.context() as mp:
+        mp.setattr(seam, "evaluate_route_availability", _counted)
+        payload, exit_code, _wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            "route_null",
+        )
+
+    assert exit_code == 0
+    assert calls == 1
+    assert cast(list[dict[str, object]], payload["warnings"])[0]["code"] == (
+        "SAAS_SYNC_ROUTE_UNAVAILABLE"
+    )
 
 
 def test_real_setup_plan_refusal_persists_local_events_and_touches_no_hosted_sink(

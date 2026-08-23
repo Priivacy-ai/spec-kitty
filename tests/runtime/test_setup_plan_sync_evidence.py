@@ -416,12 +416,11 @@ class TestSetupPlanRefusesWithoutAuthWhenSaasEnabled:
             f"Expected non-zero exit, got {exit_code!r}."
         )
 
-        # Hosted refusal is nonfatal; the unrelated local detection error remains.
+        # The unrelated local detection error is authoritative and happens
+        # before this invocation becomes eligible for hosted assessment.
         captured = capsys.readouterr()
         combined = captured.out + captured.err
-        assert "Hosted sync was skipped" in combined, (
-            f"Expected hosted-refusal warning, got:\n{combined!r}"
-        )
+        assert "Hosted sync was skipped" not in combined
         assert "missions found" in combined
 
         # No DB writes occurred — scoped DB never created, legacy untouched.
@@ -603,8 +602,6 @@ class TestSetupPlanPreflightIntegration:
             executable_path=nonexistent_exe,
         )
 
-        from specify_cli.cli.commands.agent.mission import setup_plan
-
         mission_slug = "wp04-orphan-test"
         feature_dir = _build_minimal_repo(tmp_path, mission_slug)
         expected_scoped = _scoped_db_path_for(
@@ -613,21 +610,16 @@ class TestSetupPlanPreflightIntegration:
         from specify_cli.sync.queue import _legacy_queue_db_path
         legacy_path = _legacy_queue_db_path()
 
-        patches = _patches_for_setup_plan(tmp_path, feature_dir)
-        for p in patches.values():
-            p.start()
-        try:
-            with pytest.raises((typer.Exit, SystemExit)) as exc_info:
-                setup_plan(feature=mission_slug, json_output=False)
-        finally:
-            for p in patches.values():
-                p.stop()
-
-        exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
-            exc_info.value, "code", None
+        payload = _run_json_setup_plan(
+            monkeypatch,
+            tmp_path,
+            feature_dir,
+            patch_boundary_safe=False,
+            hosted_effects_must_be_zero=True,
         )
-        assert exit_code == 1
-        assert "structural sync boundary was not safe" in capsys.readouterr().out
+        warning_codes = [item["code"] for item in payload["warnings"]]  # type: ignore[index]
+        assert "SAAS_SYNC_BOUNDARY_UNSAFE" in warning_codes
+        assert payload["result"] == "success"
 
         # No queue writes — refusal before enqueue.
         assert _table_row_count(expected_scoped, "body_upload_queue") == 0
@@ -665,23 +657,22 @@ class TestSetupPlanPreflightIntegration:
             auth_team="phantom-team",
         )
 
-        from specify_cli.cli.commands.agent.mission import setup_plan
-
         mission_slug = "wp04-auth-order-test"
-        _build_minimal_repo(tmp_path, mission_slug)
-
-        with pytest.raises((typer.Exit, SystemExit)) as exc_info:
-            setup_plan(feature=mission_slug, json_output=False)
-
-        exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
-            exc_info.value, "code", None
+        feature_dir = _build_minimal_repo(tmp_path, mission_slug)
+        payload = _run_json_setup_plan(
+            monkeypatch,
+            tmp_path,
+            feature_dir,
+            patch_boundary_safe=False,
+            hosted_effects_must_be_zero=True,
         )
-        assert exit_code == 1
 
-        captured = capsys.readouterr()
-        combined = captured.out + captured.err
-        assert "local authentication could not be evaluated" in combined
-        assert "structural sync boundary was not safe" in combined
+        warning_codes = [item["code"] for item in payload["warnings"]]  # type: ignore[index]
+        assert warning_codes[:2] == [
+            "SAAS_SYNC_AUTH_UNKNOWN",
+            "SAAS_SYNC_BOUNDARY_UNSAFE",
+        ]
+        assert payload["result"] == "success"
 
 
 # ---------------------------------------------------------------------------

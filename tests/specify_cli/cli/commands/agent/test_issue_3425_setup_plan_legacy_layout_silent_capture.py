@@ -52,6 +52,7 @@ import pathlib
 import sqlite3
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
@@ -475,19 +476,17 @@ class TestSetupPlanPreflightIntegration:
         legacy_path = _legacy_queue_db_path()
 
         patches = _patches_for_setup_plan(tmp_path, feature_dir)
+        patches["setup_plan_template"] = patch(
+            "specify_cli.cli.commands.agent.mission_setup_plan._resolve_plan_template",
+            return_value=SimpleNamespace(path=feature_dir / "plan.md"),
+        )
         for p in patches.values():
             p.start()
         try:
-            with pytest.raises((typer.Exit, SystemExit)) as exc_info:
-                setup_plan(feature=mission_slug, json_output=False)
+            setup_plan(feature=mission_slug, json_output=False)
         finally:
             for p in patches.values():
                 p.stop()
-
-        exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
-            exc_info.value, "code", None
-        )
-        assert exit_code == 1
 
         captured = capsys.readouterr()
         combined = captured.out + captured.err
