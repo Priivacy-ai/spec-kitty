@@ -26,6 +26,7 @@
   "purpose_tldr": "Prevent task finalization from reporting success when lane collapse produces an unexecutable cyclic dependency graph.",
   "slug": "reject-cyclic-lane-graphs-01M0QCK4",
   "source_description": "GitHub issue https://github.com/Priivacy-ai/spec-kitty/issues/3431",
+  "status_phase": "1",
   "target_branch": "fix/reject-cyclic-lane-graphs",
   "topology": "coord",
   "vcs": "git",
