@@ -2998,6 +2998,29 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-08-22-2-retire-doctrine-term-charter-is-the-canonical-vocabulary.md"
+    title: "ADR: Retire the doctrine term — Charter is the canonical vocabulary"
+    divio_type: "none"
+    abstract: "Retires the `doctrine` term for `charter` across the repo outside the immutable kitty-specs archive and in installations; M1 makes it effective, M2–M5 execute, M6 proves zero."
+    anchors:
+    - {slug: "context-and-problem-statement", text: "Context and Problem Statement", level: 2}
+    - {slug: "decision-drivers", text: "Decision Drivers", level: 2}
+    - {slug: "considered-options", text: "Considered Options", level: 2}
+    - {slug: "decision-outcome", text: "Decision Outcome", level: 2}
+    - {slug: "canonical-vocabulary", text: "Canonical vocabulary", level: 3}
+    - {slug: "explicit-operator-override-effective-at-i1", text: "Explicit operator override (effective at I1)", level: 3}
+    - {slug: "complete-scope-and-owners", text: "Complete scope and owners", level: 3}
+    - {slug: "fixed-seams-and-identifier-mappings", text: "Fixed seams and identifier mappings", level: 3}
+    - {slug: "m1-charter-authority-update-per-artifact-owner-map", text: "M1 — Charter authority update (per-artifact owner map)", level: 3}
+    - {slug: "m2-m6-execution-summary", text: "M2–M6 — execution summary", level: 3}
+    - {slug: "guard-and-exact-terminal-audit", text: "Guard and exact terminal audit", level: 3}
+    - {slug: "consequences", text: "Consequences", level: 3}
+    - {slug: "confirmation", text: "Confirmation", level: 3}
+    - {slug: "pros-and-cons-of-the-options", text: "Pros and Cons of the Options", level: 2}
+    - {slug: "a-user-facing-rename-only", text: "A. User-facing rename only", level: 3}
+    - {slug: "b-complete-extinction-outside-the-immutable-archive-chosen", text: "B. Complete extinction outside the immutable archive (chosen)", level: 3}
+    - {slug: "c-hard-break-now", text: "C. Hard break now", level: 3}
+    - {slug: "more-information", text: "More Information", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
