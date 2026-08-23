@@ -7,6 +7,7 @@
 - `spec_path`, `spec_size_bytes`, `spec_sha256`.
 - `rubric_version`, `rubric_size_bytes`, `rubric_sha256`.
 - `response_schema_version`, `response_schema_size_bytes`, `response_schema_sha256`.
+- `prompt_template_version`, `prompt_template_size_bytes`, `prompt_template_sha256`.
 - `total_payload_bytes`.
 - `manifest_sha256`: digest канонического представления всех полей выше.
 
@@ -43,14 +44,14 @@
 Доверенный host-owned artifact по `spec-review-run/v1`:
 
 - `run_id`: timestamp + random ASCII suffix.
-- `mission`, `spec_sha256`, `requested_model_route`, `rubric_version`.
+- `mission`, `spec_sha256`, `transport`, `requested_model_route`, `actual_model`, `rubric_version`.
 - `started_at`, `completed_at` в UTC.
-- `status`: `complete | auth_required | provider_error | timeout | invalid_output`.
-- `diagnostic_code`: `null` только для `complete`, обязателен для failure status.
-- `findings`: validated response findings для `complete`, пустой массив для failure status.
+- `status`: `completed | provider_error | timeout | invalid_output`.
+- `diagnostic_code`: `null` только для `completed`, обязателен для failure status.
+- `findings`: validated response findings для `completed` (включая валидный пустой массив), пустой массив для failure status.
 - `summary`: host-computed `total` и counts для severity 1–5; сумма обязана равняться `findings.length`.
 
-**Жизненный цикл**: после фактического external process start host best-effort создаёт один append-only artifact через PRIMARY resolver. Preflight refusal, missing consent и missing executable не создают run. `write_failed` не является persisted status: при отказе storage существует только metadata-only CLI diagnostic и не остаётся partial/temp file. Ни один исход не меняет mission lifecycle.
+**Жизненный цикл**: после фактического external process start host создаёт один append-only artifact через PRIMARY resolver для `completed`, `provider_error`, `timeout` или `invalid_output`. Preflight refusal, missing/mismatched consent и missing executable не создают run. `refused` и `write_failed` являются неперсистируемыми invocation outcomes: при отказе storage существует только metadata-only CLI diagnostic, findings не сохраняются и partial/temp file не остаётся. Ни один исход не меняет mission lifecycle и не вызывает повторный внешний model call.
 
 ## Failure taxonomy и exit codes
 
@@ -58,11 +59,11 @@
 |-----|---------|---------------|--------------------|------|
 | `SPEC_REVIEW_PREVIEW` | явный `--preview` | Нет | Нет | 0 |
 | `SPEC_REVIEW_CANCELLED` | интерактивный отказ | Нет | Нет | 0 |
-| `SPEC_REVIEW_CONSENT_REQUIRED` | non-interactive запуск без consent | Нет | Нет | 2 |
+| `SPEC_REVIEW_CONSENT_REQUIRED` | non-interactive запуск без consent или с несовпадающим `--confirm-digest` | Нет | Нет | 2 |
 | `SPEC_REVIEW_INPUT_REFUSED` | path/size/sensitive marker/manifest drift | Нет | Нет | 3 |
 | `SPEC_REVIEW_CLI_MISSING` | executable не найден | Нет | Нет | 4 |
-| `SPEC_REVIEW_AUTH_REQUIRED` | классифицированный auth failure | Да | Да | 4 |
-| `SPEC_REVIEW_PROVIDER_ERROR` | ненулевой provider result | Да | Да | 4 |
+| `SPEC_REVIEW_AUTH_REQUIRED` | классифицированный auth failure → status `provider_error` | Да | Да | 4 |
+| `SPEC_REVIEW_PROVIDER_ERROR` | ненулевой provider/429 result без retry | Да | Да | 4 |
 | `SPEC_REVIEW_TIMEOUT` | превышен timeout | Да | Да | 5 |
 | `SPEC_REVIEW_INVALID_OUTPUT` | framing/schema/size/privacy failure | Да | Да | 6 |
 | `SPEC_REVIEW_WRITE_FAILED` | atomic storage отказал | Да | Нет | 7 |

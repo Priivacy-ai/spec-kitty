@@ -8,7 +8,9 @@ required:
   - run_id
   - mission
   - spec_sha256
+  - transport
   - requested_model_route
+  - actual_model
   - rubric_version
   - started_at
   - completed_at
@@ -27,7 +29,13 @@ properties:
   spec_sha256:
     type: string
     pattern: '^[a-f0-9]{64}$'
+  transport:
+    const: opencode-cli
   requested_model_route:
+    type: string
+    minLength: 1
+    maxLength: 200
+  actual_model:
     type: string
     minLength: 1
     maxLength: 200
@@ -40,7 +48,7 @@ properties:
     type: string
     format: date-time
   status:
-    enum: [complete, auth_required, provider_error, timeout, invalid_output]
+    enum: [completed, provider_error, timeout, invalid_output]
   diagnostic_code:
     type: [string, 'null']
   findings:
@@ -60,7 +68,7 @@ properties:
 allOf:
   - if:
       properties:
-        status: {const: complete}
+        status: {const: completed}
     then:
       properties:
         diagnostic_code: {type: 'null'}

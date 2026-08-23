@@ -32,15 +32,16 @@
 
 ### Выбранные решения
 
-1. Новый top-level интерфейс: `spec-kitty spec-review --mission <handle> [--model <id>] [--confirm-external]`.
+1. Новый top-level интерфейс: `spec-kitty spec-review --mission <handle> [--model <id>] [--confirm-digest <sha256>]`.
 2. CLI orchestration отделена от доменного пакета `specify_cli.spec_review`; subprocess скрыт за typed runner protocol.
-3. Prompt передаётся только через stdin в документированный OpenCode argv; `shell=False`. Raw stdout/stderr не пробрасываются и не сохраняются: bounded buffers живут только в памяти, parser получает только однозначно выделенный machine payload.
+3. Prompt передаётся только через stdin в документированный OpenCode argv; `shell=False`. Raw stdout/stderr не пробрасываются и не сохраняются: bounded buffers живут только в памяти, а stdout принимается только как один JSON-документ `review-response/v1` без дополнительных байтов.
 4. Добавляется `MissionArtifactKind.SPEC_REVIEW` в PRIMARY partition и filename-anchored classifier только для `reviews/spec-review-*.yaml`; legacy review trail остаётся неклассифицированным до отдельной migration decision. Выбор фиксируется ADR.
 5. Storage получает filesystem path только через `resolve_artifact_surface(..., SPEC_REVIEW)` и commit target через canonical placement seam; запись выполняется atomically/exclusively с повторной containment и reparse/symlink проверкой.
-6. Внешний `review-response/v1` содержит только findings. Доверенный `spec-review-run/v1` с provenance, status и summary полностью строит host.
-7. Успешные и неуспешные внешние запуски не меняют mission lifecycle. До consent и при preflight refusal файл не создаётся; после фактического внешнего старта persistence best-effort. `write_failed` существует только как metadata-only CLI diagnostic.
+6. Внешний `review-response/v1` содержит только findings. Доверенный `spec-review-run/v1` с provenance, закрытым status и summary полностью строит host; transport и requested route берутся из consent manifest, а непроверяемая фактическая модель фиксируется как `actual_model: unverified`.
+7. Успешные и неуспешные внешние запуски не меняют mission lifecycle. До consent и при preflight refusal файл не создаётся; после фактического внешнего старта `completed`, `provider_error`, `timeout` и `invalid_output` сохраняются append-only. Ошибка записи возвращает `write_failed`/exit 7 без артефакта и без повторного внешнего вызова.
 8. Auth полностью принадлежит OpenCode. Код не читает `auth.json`, env tokens или credential files и не логирует их пути.
 9. Free/ZDR/ownership claims не входят в контракт. Default model — конфигурируемая текущая строка `opencode/x-preview-f-free`, которую provider может отклонить.
+10. Один подтверждённый запуск выполняет ровно одну внешнюю передачу. Автоматические retry, включая 429/rate-limit ответы, запрещены в v1.
 
 ## Charter check
 
@@ -138,7 +139,7 @@ docs/
 - **Требования**: FR-001–FR-004, FR-011, NFR-001, NFR-002, NFR-007, C-005.
 - **Поверхности**: `spec_review/preflight.py`, CLI adapter, tests.
 - **Зависимости**: нет.
-- **Риски**: TOCTOU между disclosure и запуском; digest consent покрывает spec, рубрику, schema, model route и transport. После consent spec читается один раз в immutable buffer, все digest повторно сверяются.
+- **Риски**: TOCTOU между disclosure и запуском; digest consent покрывает spec, рубрику, schema, версионированный prompt template, model route и transport. После consent spec читается один раз в immutable buffer, все digest повторно сверяются.
 
 ### IC-02 — Модель и schema contract
 
@@ -146,15 +147,15 @@ docs/
 - **Требования**: FR-004, FR-007, NFR-004.
 - **Поверхности**: `models.py`, `prompt.py`, `parser.py`, contract schema.
 - **Зависимости**: IC-01 задаёт вход.
-- **Риски**: OpenCode может смешать diagnostics и output; adapter не раскрывает raw streams, принимает только bounded/framed payload и fail-closed по формату. Evidence — только проверенный диапазон строк; exact input spans от 32 символов в model-authored text запрещены.
+- **Риски**: OpenCode может смешать diagnostics и output; adapter не раскрывает raw streams и принимает только единственный bounded JSON-документ, иначе `invalid_output`. Парсируемый `findings: []` валиден. Evidence — только проверенный диапазон строк; exact input spans от 32 символов в model-authored text запрещены.
 
 ### IC-03 — OpenCode transport
 
 - **Назначение**: безопасно выполнить внешний процесс, не владея его credentials.
-- **Требования**: FR-005, FR-006, FR-010, NFR-001, NFR-003, NFR-005, NFR-006, C-001–C-003.
+- **Требования**: FR-005, FR-006, FR-010, FR-013, NFR-001, NFR-003, NFR-005, NFR-006, C-001–C-003.
 - **Поверхности**: `runner.py`, runner tests.
 - **Зависимости**: IC-02.
-- **Риски**: timeout/process-tree cleanup на Windows; full/fragmented echo и invalid UTF-8; отсутствие live network в обычных tests. До реализации отдельно проверяется актуальный локальный `opencode run --help`, без model call.
+- **Риски**: timeout/process-tree cleanup на Windows; full/fragmented echo и invalid UTF-8; отсутствие live network в обычных tests. До реализации отдельно проверяется актуальный локальный `opencode run --help`, без model call. Runner не выполняет автоматические retry; 429/rate-limit классифицируется как `provider_error`.
 
 ### IC-04 — Review artifact authority
 
@@ -167,10 +168,10 @@ docs/
 ### IC-05 — Оркестрация и operator UX
 
 - **Назначение**: собрать preflight, consent, runner, parser и storage в advisory use case.
-- **Требования**: FR-001–FR-012, SC-001–SC-006.
+- **Требования**: FR-001–FR-013, SC-001–SC-006.
 - **Поверхности**: `service.py`, `commands/spec_review.py`, command/service tests, quickstart.
 - **Зависимости**: IC-01–IC-04.
-- **Риски**: advisory относится только к mission lifecycle. Прямая команда следует таблице exit codes из spec: preview/complete/cancel = 0, consent/input/provider/timeout/format/write failures = стабильные 2–7.
+- **Риски**: advisory относится только к mission lifecycle. Прямая команда связывает неинтерактивное согласие с `--confirm-digest <sha256>` и следует таблице exit codes из spec: preview/complete/cancel = 0, consent/input/provider/timeout/format/write failures = стабильные 2–7.
 
 ### IC-06 — Проверки и opt-in smoke
 
@@ -194,8 +195,8 @@ docs/
 
 ## Тестовая стратегия
 
-- **Acceptance**: CLI без consent, CLI с fake success, provider timeout/error, invalid output, repeated/concurrent run.
-- **Unit**: path containment, symlink escape, size boundaries, secret/PII marker detection, prompt composition, parser enums/limits, filename/run-id generation.
+- **Acceptance**: CLI без consent, несовпадающий `--confirm-digest`, CLI с fake success, provider timeout/error/429 без retry, invalid output, repeated/concurrent run.
+- **Unit**: path containment, symlink escape, size boundaries, secret/PII marker detection, manifest-wide prompt-template digest, prompt composition, parser enums/limits, filename/run-id generation.
 - **Contract**: локально подтверждённый argv OpenCode, stdin-only prompt, no shell, process-tree timeout cleanup, stable diagnostic/exit codes, `review-response/v1` → `spec-review-run/v1` round trip.
 - **Architecture**: `ProfileInvocationExecutor` по-прежнему не импортирует/не вызывает runner; `reviews/` всегда разрешается как PRIMARY через mission runtime.
 - **Privacy teeth tests**: полный и фрагментированный sentinel в stdout/stderr, invalid UTF-8, oversized stream, timeout и subprocess exception отсутствуют во всех выводах/errors/artifacts; каждый exception/error path имеет отдельную reversion-sensitive проверку.
