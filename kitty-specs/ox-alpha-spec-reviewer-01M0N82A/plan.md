@@ -40,7 +40,7 @@
 6. Внешний `review-response/v1` содержит только findings. Доверенный `spec-review-run/v1` с provenance, закрытым status и summary полностью строит host; transport и requested route берутся из consent manifest, а непроверяемая фактическая модель фиксируется как `actual_model: unverified`.
 7. Успешные и неуспешные внешние запуски не меняют mission lifecycle. До consent и при preflight refusal файл не создаётся; после фактического внешнего старта `completed`, `provider_error`, `timeout` и `invalid_output` сохраняются append-only. Ошибка записи возвращает `write_failed`/exit 7 без артефакта и без повторного внешнего вызова.
 8. Auth полностью принадлежит OpenCode. Код не читает `auth.json`, env tokens или credential files и не логирует их пути.
-9. Free/ZDR/ownership claims не входят в контракт. Default model — конфигурируемая текущая строка `opencode/x-preview-f-free`, которую provider может отклонить.
+9. Цена — launch gate, а не label: exact requested route допускается только при текущем локально доступном pricing snapshot с доказуемой нулевой стоимостью. Ненулевая, неизвестная, stale или нечитабельная цена блокирует запуск кодом `SPEC_REVIEW_MODEL_NOT_FREE`; ни fallback, ни передача prompt/spec не допускаются. Default model остаётся конфигурируемой строкой, но не является доказательством бесплатности.
 10. Один подтверждённый запуск выполняет ровно одну внешнюю передачу. Автоматические retry, включая 429/rate-limit ответы, запрещены в v1.
 
 ## Charter check

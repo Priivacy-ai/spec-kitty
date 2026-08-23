@@ -73,6 +73,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Typed runner protocol не зависит от CLI/service/storage.
 - OpenCode вызывается argv-list, `shell=False`, stdin-only prompt.
 - Default requested route configurable, без hidden fallback.
+- Перед внешним запуском runner предоставляет typed pricing snapshot только для exact requested route; ненулевая, отсутствующая или устаревшая нулевая цена не даёт запускать модель.
 - Raw stdout/stderr никогда не выводятся, не логируются и не входят в exceptions/results.
 - Stream size ограничен; framing/parse handoff не раскрывает диагностический шум.
 - Timeout завершает всё process tree за 5 секунд на supported OS.
@@ -206,6 +207,7 @@ Reviewer проверяет:
 - Не использовать unbounded buffer.
 - Не запускать real model в WP implementation.
 - Не fallback-ить на другой route/provider.
+- Не выводить из суффикса route (включая `-free`) факт бесплатности; отсутствие проверяемого snapshot — отказ до stdin.
 
 ## Verification Evidence
 

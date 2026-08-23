@@ -226,6 +226,7 @@ Reviewer проверяет:
 - Не менять mission lifecycle/status events.
 - Не добавлять arbitrary file input.
 - Не заявлять requested route как фактического provider.
+- Не запускать route при paid/unknown/stale pricing verdict и не подменять его fallback-маршрутом.
 
 ## Verification Evidence
 
