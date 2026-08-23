@@ -1,0 +1,103 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-08-23T12:07:14.744591Z",
+      "decision_id": "01M0Q8941RVMHQX32A3H6ZQXCG",
+      "final_answer": "Remain mandatory and atomic by default, with an explicit, visible skip flag for authorized callers; defer asynchronous redesign.",
+      "input_key": "gate_execution_policy",
+      "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+      "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+      "opened_by": "cli",
+      "options": [
+        "Remain mandatory and atomic, but stream progress and fail without changing lane state",
+        "Move to for_review immediately and run the gate asynchronously",
+        "Remain mandatory and atomic with an explicit skip flag for authorized callers",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When an operator moves a work package to for_review, what must the pre-review gate do by default?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T12:28:45.068589Z",
+      "resolved_by": null,
+      "slot_key": "specify.review_submission.gate_execution_policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T12:28:46.291365Z",
+      "decision_id": "01M0Q9GHAKE5M8F2KH89PNEC98",
+      "final_answer": "Preserve the current policy: newly detected test regressions warn by default and block only when the project explicitly enables blocking.",
+      "input_key": "regression_severity",
+      "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+      "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+      "opened_by": "cli",
+      "options": [
+        "Preserve current policy: warn by default and block only when configured",
+        "Block by default unless explicitly bypassed",
+        "Use severity-based blocking",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When the gate completes and detects new test regressions, should that verdict block the for_review transition by default?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T13:21:02.065981Z",
+      "resolved_by": null,
+      "slot_key": "specify.review_submission.regression_severity",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T13:21:03.307315Z",
+      "decision_id": "01M0QCG8TBG1YQPP6PM2ZWNQY2",
+      "final_answer": "Confirmed without revision.",
+      "input_key": "intent_confirmation",
+      "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+      "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+      "opened_by": "cli",
+      "options": [
+        "Confirm",
+        "Revise"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Does the Intent Summary accurately capture the Mission you want specified?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T13:22:07.435201Z",
+      "resolved_by": null,
+      "slot_key": "specify.intent.confirmation",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-08-23T13:28:29.425173Z",
+      "decision_id": "01M0QCXWFH05WZFE85Y2S2TPDT",
+      "final_answer": "Refuse quickly with actionable guidance to select the explicit skip control or a bounded test scope; do not transition automatically.",
+      "input_key": "oversized_scope_policy",
+      "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+      "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+      "opened_by": "cli",
+      "options": [
+        "Refuse quickly and explain how to choose an explicit skip or bounded scope",
+        "Warn and transition automatically",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "When the selected pre-review test scope cannot reasonably finish within the transition gate budget, should review submission refuse quickly with actionable guidance, or warn and transition automatically without an explicit skip?",
+      "rationale": null,
+      "resolved_at": "2026-08-23T13:38:28.170220Z",
+      "resolved_by": null,
+      "slot_key": "specify.review_submission.oversized_scope_policy",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+  "version": 1
+}
