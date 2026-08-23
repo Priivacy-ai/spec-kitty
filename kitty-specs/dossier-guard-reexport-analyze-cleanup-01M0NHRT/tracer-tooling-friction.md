@@ -268,6 +268,31 @@ Two distinct outcomes worth separating, against F-02's pre-registration above:
    pre-armed against), spec.md **FR-007**/**NFR-001**, this mission's own **C-001** (public-repo
    path-leak prohibition, binding on the mission's own authored artifacts too).
 
+
+## F-2026-08-23T00:20:47Z — WP02: mission-wide baseline captured, GREEN, no #3284 overlap
+
+**Verified first-hand**, 2026-08-23, by WP02 (lane-b), before its first implementation commit.
+No prior F-0N entry in this file recorded the mission-wide baseline capture command itself (the
+existing F-01 through F-09 entries cover mission-create, `finalize-tasks`, and the analyze-phase
+path leak — not this pytest run), so per this WP's "Mission-wide baseline" section's concurrency
+note this WP captured it here under a fresh UTC-timestamped heading. Ran the exact command from
+`tasks/WP02-dossier-guard-widening.md` / plan.md's "Baseline" section:
+
+```bash
+pytest tests/architectural/test_dossier_emitter_positional_guard.py \
+       tests/dossier/test_events.py \
+       tests/architectural/test_no_dead_symbols.py \
+       tests/specify_cli/test_analysis_report.py \
+       tests/specify_cli/test_analysis_report_charter_yaml_staleness.py -q
+```
+
+(via the root checkout's `.venv` with `PYTHONPATH=<lane-b worktree>/src`, since this lane
+worktree has no own `.venv/` — per AGENTS.md/CLAUDE.md's guidance never to `uv run` against a
+hand-built venv). Result: **86 passed in 110.68s, 0 failures, 0 errors.** No red at all, so
+nothing to bin against issue #3284's known ~23-failures-+2-errors set and no new GitHub issue is
+warranted for this scoped surface.
+
+
 ## F-2026-08-23T00:22:09Z — WP01 mission-wide baseline capture (lane-a)
 
 **Verified first-hand**, 2026-08-23, from lane-a worktree

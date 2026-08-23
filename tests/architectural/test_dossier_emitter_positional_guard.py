@@ -204,3 +204,59 @@ def test_detector_ignores_unrelated_same_name_free_function(tmp_path: Path) -> N
     other.write_text("result = some_other_function(1, 2, 3)\n", encoding="utf-8")
 
     assert _find_positional_emitter_calls((other,)) == []
+
+
+def test_detector_flags_attribute_chain_positional_call(tmp_path: Path) -> None:
+    """Positive-control: prove the widened detector catches attribute-chain calls.
+
+    Issue #3676's first named gap: ``specify_cli/dossier/__init__.py``
+    re-exports the four ``emit_*`` functions, so
+    ``dossier.emit_artifact_indexed(...)`` is already a valid, real Python
+    call shape any future caller could use (a *potential*, not currently
+    exercised, shape). The callee here is ``ast.Attribute`` (``dossier.emit_
+    artifact_indexed``), not ``ast.Name`` — the pre-widening detector misses
+    it entirely because ``_call_target_name`` only handled bare ``Name``
+    calls. Same planted-violation idiom and same canonical six-positional
+    -argument example as ``test_detector_flags_planted_positional_call``.
+    """
+    planted = tmp_path / "planted_attribute_chain.py"
+    planted.write_text(
+        'result = dossier.emit_artifact_indexed("m", "k", "c", "p", "h", 1)\n',
+        encoding="utf-8",
+    )
+
+    violations = _find_positional_emitter_calls((planted,))
+
+    assert len(violations) == 1
+    (violation,) = violations
+    assert violation.path == planted
+    assert violation.lineno == 1
+    assert violation.func_name == "emit_artifact_indexed"
+
+
+def test_detector_flags_aliased_import_positional_call(tmp_path: Path) -> None:
+    """Positive-control: prove the widened detector catches aliased-import calls.
+
+    Issue #3676's second named gap: ``from ...dossier.events import
+    emit_artifact_indexed as ei`` followed by ``ei(...)``. The callee IS an
+    ``ast.Name``, but its ``.id`` is ``"ei"`` — not one of the four guarded
+    names — so the pre-widening detector silently let it through. The
+    violation must be attributed to the alias's *resolved original name*
+    (``emit_artifact_indexed``), not to the alias ``"ei"`` itself, and not
+    silently dropped as an unrecognized name.
+    """
+    planted = tmp_path / "planted_aliased_import.py"
+    planted.write_text(
+        "from ...dossier.events import emit_artifact_indexed as ei\n"
+        "\n"
+        'result = ei("m", "k", "c", "p", "h", 1)\n',
+        encoding="utf-8",
+    )
+
+    violations = _find_positional_emitter_calls((planted,))
+
+    assert len(violations) == 1
+    (violation,) = violations
+    assert violation.path == planted
+    assert violation.lineno == 3
+    assert violation.func_name == "emit_artifact_indexed"
