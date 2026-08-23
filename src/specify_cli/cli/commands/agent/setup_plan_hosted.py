@@ -27,6 +27,58 @@ AuthProbe = Callable[..., tuple[AuthStatus, str | None]]
 PreflightProbe = Callable[..., "PreflightResult"]
 RouteProbe = Callable[[Path], "CheckoutSyncRouting | None"]
 
+_AUTH_UNKNOWN_REASONS = frozenset(
+    {
+        "auth_evaluation_failed",
+        "auth_evidence_unavailable",
+        "not_evaluated",
+        "session_evaluation_failed",
+        "session_materialization_failed",
+        "session_materialization_pending",
+        "storage_delete_failed",
+        "storage_read_failed",
+        "storage_write_failed",
+    }
+)
+_UNAUTHENTICATED_REASONS = frozenset(
+    {
+        "refresh_token_expired",
+        "session_absent",
+        "session_cleared",
+    }
+)
+_BOUNDARY_REASONS = frozenset(
+    {
+        "boundary_evaluation_failed",
+        "boundary_evidence_unavailable",
+        "structural_preflight_failed",
+    }
+)
+_ROUTE_REASONS = frozenset({"route_evaluation_failed", "route_unavailable"})
+_MISMATCH_FIELDS = frozenset(
+    {
+        "daemon_executable_path",
+        "daemon_package_version",
+        "daemon_queue_db_path",
+        "daemon_server_url",
+        "daemon_source_path",
+        "daemon_team_or_user",
+    }
+)
+_OWNER_FAULT_REASONS = frozenset(
+    {"invalid_fields", "invalid_json", "not_an_object", "unreadable_file"}
+)
+_PREFLIGHT_BOOL_FIELDS = (
+    "ok",
+    "auth_present",
+    "auth_required",
+)
+_PREFLIGHT_COUNT_FIELDS = (
+    "legacy_event_rows",
+    "legacy_body_upload_rows",
+    "legacy_rows_for_scope",
+)
+
 
 class BoundaryState(StrEnum):
     """Setup-plan's structural safety assessment."""
@@ -72,7 +124,9 @@ class HostedSyncDiagnostic:
             "message": self.message,
         }
         if self.details is not None:
-            payload["details"] = _plain_json_mapping(self.details)
+            safe_details = _safe_diagnostic_details(self.code, self.details)
+            if safe_details:
+                payload["details"] = safe_details
         if self.remediation:
             payload["remediation"] = list(self.remediation)
         return payload
@@ -274,31 +328,134 @@ def _route_diagnostic(reason: str) -> HostedSyncDiagnostic:
     )
 
 
-def _plain_json_mapping(value: Mapping[str, object]) -> dict[str, object]:
-    """Recursively copy a trusted sanitized mapping into JSON primitives."""
-    return {str(key): _plain_json_value(item) for key, item in value.items()}
-
-
 def _sanitize_preflight_evidence(value: Mapping[str, object]) -> dict[str, object]:
-    """Preserve structural facts while replacing every free-form diagnostic."""
-    evidence = _plain_json_mapping(value)
-    owner_fault = evidence.get("unreadable_owner_record")
-    if isinstance(owner_fault, dict):
-        owner_fault.pop("detail", None)
-    if evidence.get("project_store_diagnostic") is not None:
-        evidence["project_store_diagnostic"] = "project_store_unavailable"
+    """Copy only the closed, credential-safe structural evidence schema."""
+    evidence: dict[str, object] = {}
+    for key in _PREFLIGHT_BOOL_FIELDS:
+        item = value.get(key)
+        if isinstance(item, bool):
+            evidence[key] = item
+    for key in _PREFLIGHT_COUNT_FIELDS:
+        item = value.get(key)
+        if isinstance(item, int) and not isinstance(item, bool) and item >= 0:
+            evidence[key] = item
+
+    mismatches = value.get("mismatches")
+    if isinstance(mismatches, (list, tuple)):
+        evidence["mismatches"] = _safe_mismatches(mismatches)
+
+    orphan_records = value.get("orphan_records")
+    if isinstance(orphan_records, (list, tuple)):
+        evidence["orphan_records"] = _safe_orphan_records(orphan_records)
+
+    if "project_store_diagnostic" in value:
+        evidence["project_store_diagnostic"] = (
+            None
+            if value.get("project_store_diagnostic") is None
+            else "project_store_unavailable"
+        )
+
+    if "unreadable_owner_record" in value:
+        owner_fault = value.get("unreadable_owner_record")
+        if owner_fault is None:
+            evidence["unreadable_owner_record"] = None
+        else:
+            evidence["unreadable_owner_record"] = _safe_owner_fault(owner_fault)
     return evidence
 
 
-def _plain_json_value(value: object) -> object:
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
+def _safe_mismatches(values: list[object] | tuple[object, ...]) -> list[dict[str, str]]:
+    """Retain only recognized structural field classifications."""
+    safe: list[dict[str, str]] = []
+    for value in values:
+        if not isinstance(value, Mapping):
+            continue
+        field = value.get("field")
+        if isinstance(field, str) and field in _MISMATCH_FIELDS:
+            safe.append({"field": field})
+    return safe
+
+
+def _safe_orphan_records(
+    values: list[object] | tuple[object, ...],
+) -> list[dict[str, int]]:
+    """Retain only the primitive PID classification for orphan evidence."""
+    safe: list[dict[str, int]] = []
+    for value in values:
+        if not isinstance(value, Mapping):
+            continue
+        pid = value.get("pid")
+        if isinstance(pid, int) and not isinstance(pid, bool) and pid >= 0:
+            safe.append({"pid": pid})
+    return safe
+
+
+def _safe_owner_fault(value: object) -> dict[str, str]:
+    """Classify an unreadable owner record without retaining path or detail."""
     if isinstance(value, Mapping):
-        mapping = cast(Mapping[object, object], value)
-        return {str(key): _plain_json_value(item) for key, item in mapping.items()}
-    if isinstance(value, (list, tuple)):
-        return [_plain_json_value(item) for item in value]
-    return str(value)
+        raw_reason = value.get("reason")
+        if isinstance(raw_reason, str) and raw_reason in _OWNER_FAULT_REASONS:
+            return {"reason": raw_reason}
+    return {"reason": "owner_record_unreadable"}
+
+
+def _safe_diagnostic_details(
+    code: str,
+    details: Mapping[str, object],
+) -> dict[str, object] | None:
+    """Classify public diagnostic details through one closed serialization gate."""
+    if code == "SAAS_SYNC_UNAUTHENTICATED":
+        return {
+            "reason": _safe_reason(
+                details.get("reason"),
+                allowed=_UNAUTHENTICATED_REASONS,
+                fallback="session_absent",
+            )
+        }
+    if code == "SAAS_SYNC_AUTH_UNKNOWN":
+        return {
+            "reason": _safe_reason(
+                details.get("reason"),
+                allowed=_AUTH_UNKNOWN_REASONS,
+                fallback="auth_evaluation_failed",
+            )
+        }
+    if code == "SAAS_SYNC_ROUTE_UNAVAILABLE":
+        return {
+            "reason": _safe_reason(
+                details.get("reason"),
+                allowed=_ROUTE_REASONS,
+                fallback="route_evaluation_failed",
+            )
+        }
+    if code != "SAAS_SYNC_BOUNDARY_UNSAFE":
+        return None
+
+    safe: dict[str, object] = {
+        "reason": _safe_reason(
+            details.get("reason"),
+            allowed=_BOUNDARY_REASONS,
+            fallback="boundary_evaluation_failed",
+        )
+    }
+    raw_evidence = details.get("evidence")
+    if isinstance(raw_evidence, Mapping):
+        safe["evidence"] = _sanitize_preflight_evidence(
+            cast(Mapping[str, object], raw_evidence)
+        )
+    return safe
+
+
+def _safe_reason(
+    value: object,
+    *,
+    allowed: frozenset[str],
+    fallback: str,
+) -> str:
+    """Return an allowlisted classification without inspecting string content."""
+    if isinstance(value, str) and value in allowed:
+        return value
+    return fallback
 
 
 __all__ = [

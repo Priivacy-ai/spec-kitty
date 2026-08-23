@@ -188,8 +188,8 @@ def test_returned_preflight_evidence_omits_raw_fault_detail(tmp_path: Path) -> N
     boundary = evaluate_boundary(tmp_path, preflight_probe=lambda **_: preflight)
 
     payload = str(boundary.evidence)
-    assert "owner.json" in payload
     assert "invalid_json" in payload
+    assert "owner.json" not in payload
     assert "JSONDecodeError" not in payload
     assert "filesystem-secret" not in payload
     assert "session-secret" not in payload
