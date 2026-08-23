@@ -13,7 +13,7 @@
       "wp": "WP05"
     },
     "#2762": {
-      "evidence_ref": "Follow-up owns escaped-orphan cleanup; this Mission proves catchable cleanup and lane/event integrity without claiming hard-kill orphan cleanup.",
+      "evidence_ref": "Follow-up: #2762 owns escaped-orphan cleanup; this Mission proves catchable cleanup and lane/event integrity without claiming hard-kill orphan cleanup.",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -37,7 +37,7 @@
       "wp": "WP05"
     },
     "#3281": {
-      "evidence_ref": "Post-merge consumer validation reproduced this planning/lane conflict identically on delivery-branch HEAD and origin/main; manual recovery reached for_review and done.",
+      "evidence_ref": "Follow-up: #3281 records the planning/lane conflict reproduced identically on delivery-branch HEAD and origin/main; manual recovery reached for_review and done.",
       "fr": null,
       "nfr": null,
       "repo": null,
