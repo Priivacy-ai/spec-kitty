@@ -15,8 +15,9 @@
 Refactor `setup-plan` into two independent lanes with one explicit join. The local lane
 resolves the Mission, enforces the spec gate, scaffolds and verifies the plan, records
 local lifecycle history, commits local artifacts, and produces the authoritative
-result. The hosted-assessment lane obtains a canonical tri-state authentication
-evaluation, a no-raise structural boundary evaluation, and delivery-route availability.
+result. The hosted-assessment lane obtains canonical session evidence that preserves
+assessment failure separately from a conclusive logged-out result, a no-raise structural
+boundary evaluation, and delivery-route availability.
 One immutable `HostedSyncDecision` then allows or refuses every hosted effect. Refusal
 adds structured warnings but cannot alter the local result or exit.
 
@@ -32,7 +33,8 @@ Confirmed by the user on 2026-08-23:
 - Refuse only unsafe hosted-sync side effects.
 - Return structural problems as separate structured diagnostics.
 - Let the local verification result remain authoritative.
-- Treat unknown authentication differently from confirmed logged out.
+- Treat a failed authentication assessment differently from confirmed logged out;
+  assessment failure is not a third authentication state.
 - A refresh-capable session is authenticated even when its access token is expired.
 - SaaS may remain disabled for the whole Mission workflow.
 - No authority beyond issue #3621, the project charter, and the repository's accepted
@@ -60,7 +62,7 @@ requirements, and targeted auth/status/sync/setup-plan test surfaces
 
 | Charter gate | Application | Result |
 |---|---|---|
-| Single canonical authority | `TokenManager` owns authentication truth; `run_preflight` remains the structural detector; one command adapter composes them. | Pass |
+| Single canonical authority | `TokenManager` owns canonical session assessment; the existing readiness taxonomy contextualizes it; `run_preflight` remains the structural detector; one command adapter composes them. | Pass |
 | Architectural alignment | Encrypted file-only auth, project-store isolation, and hosted egress refusal remain unchanged. | Pass |
 | ATDD-first | Every implementation WP begins with a failing acceptance or contract test committed before production changes. | Pass |
 | Bug-class closure | A non-vacuous architectural gate proves no setup-plan hosted sink bypasses the decision seam. | Pass |
@@ -87,7 +89,7 @@ flowchart TB
     end
 
     subgraph AssessmentLane[Hosted assessment lane]
-        Auth[Canonical LocalAuthEvaluation]
+        Auth[Canonical SessionAssessment]
         Boundary[No-raise BoundaryEvaluation]
         Route[Delivery-route availability]
         Decision[HostedSyncDecision]
@@ -117,38 +119,40 @@ flowchart TB
    open or write an offline queue, body-upload queue, dossier publication, daemon
    publication, dashboard synchronization, or direct hosted transport.
 3. Local lifecycle persistence never imports or invokes hosted adapters.
-4. `UNKNOWN` is fail-closed for hosted effects but nonfatal to local verification.
+4. Failed assessment is fail-closed for hosted effects but nonfatal to local verification;
+   it is not persisted or exposed as a third authentication state.
 5. Queue scope answers where delivery can go, never whether a session is authenticated.
 6. `sync now` and other hosted-only commands retain their existing preflight behavior.
 
 ## Component Design
 
-### 1. Canonical local authentication evaluation
+### 1. Canonical local session assessment
 
-Add a typed evaluation in `src/specify_cli/auth/token_manager.py`:
+Add a typed assessment result in `src/specify_cli/auth/token_manager.py`:
 
 ```python
-class LocalAuthState(StrEnum):
-    AUTHENTICATED = "authenticated"
-    LOGGED_OUT = "logged_out"
-    UNKNOWN = "unknown"
-
 @dataclass(frozen=True, slots=True)
-class LocalAuthEvaluation:
-    state: LocalAuthState
+class SessionAssessment:
+    completed: bool
+    usable_session: bool | None
     reason: str
 ```
 
 `TokenManager` retains a typed load/materialization outcome so an absent session and an
-unreadable session are distinguishable. A readable session with a non-expired—or
-not-known-expired—refresh token is authenticated. Storage initialization, decryption,
-parsing, hot-summary materialization, or evaluation failure is unknown. No network or
-refresh occurs.
+unreadable session are distinguishable. When `completed=true`, `usable_session` is a
+Boolean: a readable session with a non-expired—or not-known-expired—refresh token is
+usable, and conclusive absence/expiry is not. When assessment fails, `completed=false`
+and `usable_session=None`. Storage initialization, decryption, parsing, hot-summary
+materialization, or evaluation failure therefore remains failure provenance rather than
+becoming an `UNKNOWN` authentication state. No network or refresh occurs.
 
 Keep `is_authenticated: bool` as the compatibility projection
-`evaluation.state is AUTHENTICATED`. `readiness.auth.probe_auth_status()` projects the
-typed authority into its contextual `AuthStatus` values and consults Teamspace detection
-only after a conclusive `LOGGED_OUT` result.
+`assessment.completed and assessment.usable_session is True`.
+`readiness.auth.probe_auth_status()` projects the assessment into its existing contextual
+`AuthStatus` taxonomy: assessment failure maps to its existing `UNKNOWN` readiness value,
+a usable session maps to `AUTHENTICATED`, and only a completed no-session assessment may
+invoke Teamspace detection to choose a logged-out/not-in-Teamspace status. No new auth
+state machine or public tri-state auth contract is introduced.
 
 ### 2. Setup-plan hosted assessment and decision
 
@@ -163,9 +167,10 @@ converts both returned unsafe results and unexpected exceptions into
 `SAAS_SYNC_BOUNDARY_UNSAFE`. It does not change `run_preflight` or catch failures for
 hosted-only callers.
 
-Decision order is deterministic: authentication, structural boundary, delivery route.
+Decision order is deterministic: session assessment, structural boundary, delivery route.
 SaaS disabled returns a non-requested/no-diagnostic decision without invoking probes.
-Only authenticated + structurally safe + routable may allow hosted effects.
+Only a completed assessment with a usable session + structurally safe + routable may
+allow hosted effects.
 
 ### 3. Local lifecycle persistence and hosted fan-out
 
@@ -212,7 +217,7 @@ freeze every existing primary field for each row.
 | Missing template or generic local exception | Existing error payload | 1 |
 | Project/context/git resolution failure | Existing payload and exit | unchanged |
 
-For authenticated, logged-out, auth-unknown, boundary-unsafe, and
+For usable-session, logged-out, auth-assessment-failed, boundary-unsafe, and
 boundary-evaluation-exception variants, primary fields and exit are identical to the
 baseline. Only the additive `warnings` collection may differ. Errors before repository
 root resolution cannot fabricate structural evidence.
@@ -222,7 +227,7 @@ root resolution cannot fabricate structural evidence.
 | Condition | Code | Command severity | Hosted disposition |
 |---|---|---|---|
 | Confirmed logged out | `SAAS_SYNC_UNAUTHENTICATED` | warning | refused |
-| Auth evaluation unknown | `SAAS_SYNC_AUTH_UNKNOWN` | warning | refused |
+| Auth assessment failed | `SAAS_SYNC_AUTH_UNKNOWN` | warning | refused |
 | Structural unsafe or evaluation failed | `SAAS_SYNC_BOUNDARY_UNSAFE` | warning | refused |
 | Authenticated but no delivery route | routing-specific stable code chosen from existing vocabulary | warning | refused/skipped |
 
@@ -233,8 +238,8 @@ credential material. Multiple conditions remain independent and deduplicated.
 
 Research is consolidated in [research.md](research.md):
 
-1. Preserve auth load truth in `TokenManager`; readiness cannot reconstruct swallowed
-   storage failures.
+1. Preserve session-assessment provenance in `TokenManager`; readiness cannot
+   reconstruct swallowed storage failures.
 2. Add a setup-plan-only no-raise adapter rather than weaken canonical preflight.
 3. Split local lifecycle persistence from adapter fan-out while retaining the old
    composed API for other callers.
@@ -302,9 +307,10 @@ does not duplicate them.
 
 ## Implementation Concern Map
 
-### IC-01 — Canonical authentication truth
+### IC-01 — Canonical session assessment
 
-- **Purpose**: Preserve authenticated/logged-out/unknown at the earliest authority.
+- **Purpose**: Preserve assessment completion separately from usable-session presence at
+  the earliest authority, without creating a tri-state auth subsystem.
 - **Relevant requirements**: FR-002–FR-006.
 - **Affected surfaces**: `auth/token_manager.py`, `readiness/auth.py`, corresponding tests.
 - **Sequencing/depends-on**: none.
@@ -315,7 +321,7 @@ does not duplicate them.
 - **Purpose**: Convert independent evidence into one fail-closed hosted permission.
 - **Relevant requirements**: FR-007, FR-008, FR-012.
 - **Affected surfaces**: new command-adapter module and focused tests.
-- **Sequencing/depends-on**: IC-01 for the typed auth value.
+- **Sequencing/depends-on**: IC-01 for typed session-assessment evidence.
 - **Risks**: treating route availability as auth or leaking raw exceptions.
 
 ### IC-03 — Lifecycle side-effect separation

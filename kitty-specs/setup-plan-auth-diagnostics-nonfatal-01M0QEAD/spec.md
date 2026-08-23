@@ -12,12 +12,13 @@ because authentication, synchronization routing, or structural hosted-sync safet
 not ready. Those signals answer whether hosted delivery is permissible; they do not
 determine whether a local specification or plan is complete.
 
-This Mission makes the local verification result authoritative. Authentication and
-structural assessment still fail closed for hosted delivery, but they become separate,
-structured diagnostics that cannot replace or prevent the local result. Authentication
-is evaluated from the supported local session authority and preserves the difference
-between a confirmed logged-out state and an evaluation failure. Queue scope remains
-delivery-routing metadata and is never treated as proof of login.
+This Mission makes the local verification result authoritative. Hosted-readiness checks
+still fail closed for hosted delivery, but they become separate, structured diagnostics
+that cannot replace or prevent the local result. The supported local session authority
+reports whether its assessment completed and, when it did, whether a usable session
+exists. A completed assessment with no usable session means logged out; an assessment
+failure is not an authentication state and must not be mislabeled as logged out. Queue
+scope remains delivery-routing metadata and is never treated as proof of login.
 
 ```mermaid
 flowchart LR
@@ -64,19 +65,19 @@ same invocation under safe hosted conditions.
 
 ---
 
-### User Story 2 - Receive truthful authentication diagnostics (Priority: P1)
+### User Story 2 - Receive truthful hosted-auth diagnostics (Priority: P1)
 
-An operator can be authenticated, conclusively logged out, or in a state where the CLI
-cannot determine authentication because encrypted session material could not be read or
-evaluated. `setup-plan` reports those conditions truthfully and never infers them from
-queue-routing metadata.
+An operator either has a usable canonical session or is conclusively logged out. The
+attempt to determine that fact can also fail because encrypted session material could
+not be read or evaluated. `setup-plan` reports those outcomes truthfully and never turns
+an assessment failure—or queue-routing metadata—into an authentication state.
 
 **Why this priority**: Collapsing an unreadable credential store into “logged out” gives
 incorrect remediation and hides the actual operational failure.
 
 **Independent Test**: Exercise the supported local session authority with a usable
-session, an absent session, and an unreadable session store; verify three distinct
-classifications and diagnostics without network or queue-scope access.
+session, an absent session, and an unreadable session store; verify usable-session,
+logged-out, and assessment-failed outcomes without network or queue-scope access.
 
 **Acceptance Scenarios**:
 
@@ -168,11 +169,11 @@ states in JSON and representative human-output cases.
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
 | FR-001 | Local verification always completes | As an operator, I want eligible local verification to run regardless of hosted readiness so that planning is not blocked by an unrelated delivery condition. | High | Approved |
-| FR-002 | Canonical tri-state authentication | As an operator, I want the supported local session authority to distinguish authenticated, logged out, and unknown so diagnostics remain truthful. | High | Approved |
+| FR-002 | Canonical session assessment | As an operator, I want the supported local session authority to report both assessment completion and usable-session presence so diagnostics remain truthful. | High | Approved |
 | FR-003 | Authentication excludes queue scope | As a maintainer, I want queue scope excluded from authentication classification so routing metadata cannot become a second auth authority. | High | Approved |
 | FR-004 | Refresh-capable sessions remain authenticated | As a logged-in operator, I want a usable refresh token to establish local authentication even when the access token is expired. | High | Approved |
 | FR-005 | Logged-out warning is nonfatal | As a logged-out operator, I want one `SAAS_SYNC_UNAUTHENTICATED` warning while local verification continues. | High | Approved |
-| FR-006 | Unknown auth is distinct | As an operator whose session cannot be evaluated, I want `SAAS_SYNC_AUTH_UNKNOWN`, never a false logged-out diagnosis. | High | Approved |
+| FR-006 | Assessment failure is distinct | As an operator whose session cannot be evaluated, I want `SAAS_SYNC_AUTH_UNKNOWN` as an assessment-failure diagnostic, never a false logged-out diagnosis. | High | Approved |
 | FR-007 | Structural assessment cannot preempt local work | As an operator, I want known unsafe results and unexpected assessment failures converted to hosted diagnostics while local verification continues. | High | Approved |
 | FR-008 | One hosted-delivery decision | As a maintainer, I want authentication, structural safety, routing availability, and the SaaS flag composed once so all hosted effects share one decision. | High | Approved |
 | FR-009 | Local lifecycle history is unconditional | As an operator, I want local phase history persisted even when hosted delivery is refused. | High | Approved |
@@ -205,16 +206,16 @@ states in JSON and representative human-output cases.
 | C-003 | No strict-sync option | This Mission does not add `--require-sync` or another mode that makes hosted readiness control local verification. | Scope | Medium | Approved |
 | C-004 | Queue scope remains routing metadata | Queue scope is not redefined, migrated, or consulted as authentication evidence. | Domain integrity | High | Approved |
 | C-005 | Hosted-only commands remain strict | `sync now` and other hosted-only entry points retain their existing refusal and preflight severity. | Compatibility | High | Approved |
-| C-006 | Unknown never authorizes hosted effects | Unknown authentication, boundary, or route state is insufficient permission for hosted delivery. | Data integrity | High | Approved |
+| C-006 | Missing affirmative evidence never authorizes hosted effects | Failed auth assessment or unknown boundary/route evidence is insufficient permission for hosted delivery. | Data integrity | High | Approved |
 | C-007 | No credential disclosure | Diagnostics contain no tokens, session contents, encryption details, or other credential material. | Security | High | Approved |
 | C-008 | No sync-store migration | Queue placement, project-store layout, consent, and delivery-route semantics are unchanged. | Scope | High | Approved |
 | C-009 | Release dependency remains external | Issue #3127 is a Mission acceptance/release gate, not an implementation-lane dependency. | Coordination | High | Approved |
 
 ### Key Entities
 
-- **Authentication Classification**: Invocation-local state with exactly
-  `authenticated`, `logged_out`, or `unknown`; derived from the canonical encrypted
-  session authority.
+- **Canonical Session Assessment**: Invocation-local evidence containing whether local
+  session evaluation completed and, only when it completed, whether a usable session
+  exists. Assessment failure is an operational diagnostic, not an authentication state.
 - **Local Verification Outcome**: The authoritative result, phase-completeness data,
   local error or blocked reason, and process exit produced by setup-plan's local work.
 - **Hosted-Delivery Diagnostic**: Stable-coded warning describing why a hosted effect
@@ -229,7 +230,7 @@ states in JSON and representative human-output cases.
 ### Measurable Outcomes
 
 - **SC-001**: Every row of the established local-outcome matrix returns identical
-  primary fields and exit code across authenticated, logged-out, auth-unknown,
+  primary fields and exit code across usable-session, logged-out, auth-assessment-failed,
   boundary-unsafe, and boundary-exception variants.
 - **SC-002**: A real encrypted refresh-capable session without queue scope produces
   zero false unauthenticated warnings through the real setup-plan entry point.

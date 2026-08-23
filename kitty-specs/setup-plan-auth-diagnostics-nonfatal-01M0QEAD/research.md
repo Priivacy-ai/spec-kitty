@@ -1,9 +1,11 @@
 # Research: Authoritative local setup-plan with safe hosted refusal
 
-## Decision 1: Preserve authentication truth inside TokenManager
+## Decision 1: Preserve session-assessment provenance inside TokenManager
 
-**Decision**: Add a typed local authentication evaluation to `TokenManager` and retain
-the outcome of initial storage load and later hot-summary materialization.
+**Decision**: Add a typed canonical session assessment to `TokenManager` and retain the
+outcome of initial storage load and later hot-summary materialization. The assessment
+records completion separately from usable-session presence; it does not add a third
+authentication state.
 
 **Rationale**: `load_from_storage_sync()` currently catches storage errors and clears
 the session. Readiness therefore receives the same Boolean for “no session” and “could
@@ -19,10 +21,12 @@ centralized.
   authority and credential-boundary violation.
 - Use queue scope as a fallback: rejected because it is delivery-routing metadata.
 
-## Decision 2: Keep Boolean compatibility as a projection
+## Decision 2: Keep Boolean compatibility and the existing readiness taxonomy
 
 **Decision**: Existing `is_authenticated` callers retain a Boolean projection while new
-readiness/setup-plan code consumes `LocalAuthEvaluation`.
+readiness/setup-plan code consumes `SessionAssessment`. The existing readiness
+`AuthStatus.UNKNOWN` remains an assessment/probe failure category; it is not promoted to
+a canonical authentication state.
 
 **Rationale**: The mission needs richer truth without forcing unrelated auth callers to
 change. A usable refresh token remains authenticated even if the access token is
@@ -65,8 +69,8 @@ disposition (`refused`).
 
 - Independent guards at each sink: rejected because the issue is a repeated authority
   and sequencing defect.
-- One generic warning: rejected because logged out, auth unknown, structural unsafe,
-  and route unavailable require different remediation.
+- One generic warning: rejected because logged out, auth assessment failure, structural
+  unsafe, and route unavailable require different remediation.
 
 ## Decision 5: Split lifecycle persistence from hosted fan-out
 

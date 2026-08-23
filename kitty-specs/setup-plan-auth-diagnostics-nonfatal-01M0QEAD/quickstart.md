@@ -59,8 +59,8 @@ Capture baseline and compare primary fields plus exit for:
 - missing template/generic local exception;
 - project/context/git resolution failure.
 
-Cross representative rows with authenticated, logged out, auth unknown, boundary
-unsafe, and boundary exception. Only `warnings` may differ.
+Cross representative rows with usable session, logged out, auth-assessment failure,
+boundary unsafe, and boundary exception. Only `warnings` may differ.
 
 ## Quality gates
 

@@ -3,22 +3,25 @@
 All values are invocation-scoped and immutable after construction. No new persistent
 schema is introduced.
 
-## LocalAuthEvaluation
+## SessionAssessment
 
 | Field | Type | Rules |
 |---|---|---|
-| `state` | `authenticated \| logged_out \| unknown` | Exactly one state. |
+| `completed` | boolean | True only when canonical local session evaluation completed. |
+| `usable_session` | boolean or null | Boolean when completed; null when assessment failed. |
 | `reason` | stable local reason code | Contains no credential material. |
 
-State rules:
+Invariant rules:
 
-- `authenticated`: session is readable and its refresh token is usable or not known
-  expired.
-- `logged_out`: storage evaluation succeeded but no usable session exists.
-- `unknown`: initialization, storage, decryption, parsing, materialization, or evaluation
-  failed.
+- `completed=true, usable_session=true`: session is readable and its refresh token is
+  usable or not known expired.
+- `completed=true, usable_session=false`: storage evaluation succeeded but no usable
+  session exists; this is conclusively logged out.
+- `completed=false, usable_session=null`: initialization, storage, decryption, parsing,
+  materialization, or evaluation failed.
 
-`unknown` and `logged_out` both refuse hosted effects but produce different diagnostics.
+Assessment failure and logged out both refuse hosted effects but produce different
+diagnostics. Failure is not an authentication state.
 
 ## BoundaryEvaluation
 
@@ -57,11 +60,11 @@ Truth table:
 | Requested | Auth | Boundary | Route | Allow |
 |---|---|---|---|---|
 | no | not evaluated | not evaluated | not evaluated | no effects attempted |
-| yes | authenticated | safe | available | yes |
-| yes | logged out | any | any | no |
-| yes | unknown | any | any | no |
-| yes | authenticated | unsafe/unknown | any | no |
-| yes | authenticated | safe | unavailable/unknown | no |
+| yes | completed + usable | safe | available | yes |
+| yes | completed + no usable session | any | any | no |
+| yes | assessment failed | any | any | no |
+| yes | completed + usable | unsafe/unknown | any | no |
+| yes | completed + usable | safe | unavailable/unknown | no |
 
 ## LifecycleEventIntent
 
@@ -95,7 +98,7 @@ diagnostics. It never mutates primary result fields.
 
 ```mermaid
 classDiagram
-    LocalAuthEvaluation --> HostedSyncDecision
+    SessionAssessment --> HostedSyncDecision
     BoundaryEvaluation --> HostedSyncDecision
     HostedSyncDecision o-- HostedSyncDiagnostic
     HostedSyncDecision --> LifecycleEventIntent : permits or refuses fan-out

@@ -62,16 +62,17 @@ Before refactoring, tests capture all existing primary fields for each row. For 
 hosted-readiness variant, those fields and the exit remain identical. Only `warnings`
 may be added. Structural warnings are available only after repository-root resolution.
 
-## Authentication mapping
+## Session-assessment mapping
 
-| Evaluation | Diagnostic | Hosted effects |
+| Assessment outcome | Diagnostic | Hosted effects |
 |---|---|---|
-| authenticated | none | depends on boundary and route |
-| logged out | `SAAS_SYNC_UNAUTHENTICATED` | refused |
-| unknown | `SAAS_SYNC_AUTH_UNKNOWN` | refused |
+| completed; usable session | none | depends on boundary and route |
+| completed; no usable session (logged out) | `SAAS_SYNC_UNAUTHENTICATED` | refused |
+| assessment failed | `SAAS_SYNC_AUTH_UNKNOWN` | refused |
 
-An expired access token with a usable refresh token is authenticated. Queue-scope
-availability does not participate.
+An expired access token with a usable refresh token is a usable session. Queue-scope
+availability does not participate. `SAAS_SYNC_AUTH_UNKNOWN` names an assessment failure;
+it does not establish an `unknown` authentication state.
 
 ## Structural mapping
 
