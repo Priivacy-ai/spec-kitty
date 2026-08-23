@@ -32,7 +32,7 @@ Synthetic controlled-clock timeout fixtures were used only as test evidence. No 
 
 ## Current mission-accept state
 
-Mission acceptance and 3.2.6 release readiness are separate gates. All five work packages are integrated and canonically `done`; FR-001 through FR-010 have passing verifier evidence in `acceptance-matrix.json`; and `issue-matrix.json` records the six relevant tracker boundaries. A final acceptance diagnosis, status materialization, canonical post-merge review, and retrospective are rerun after the adversarial remediations and before the PR.
+Mission acceptance and 3.2.6 release readiness are separate gates. All five work packages are integrated and canonically `done`; FR-001 through FR-010 have passing verifier evidence in `acceptance-matrix.json`; and `issue-matrix.json` records the six relevant tracker boundaries. Status was rematerialized and validated, and canonical post-merge review and retrospective completed after the adversarial remediations. Final acceptance is rerun from the finished production HEAD before the PR.
 
 The #3694/#3695 acceptance-evidence defect is locally fixed in integrated commit `b67b7596f`: the auto-derived public warn/block/force paths pass through the ACTIVE binding. Both tracker issues remain open and unassigned pending tracker disposition; that administrative state does not turn the repaired evidence back into an acceptance failure.
 
