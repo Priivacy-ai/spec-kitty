@@ -267,3 +267,41 @@ Two distinct outcomes worth separating, against F-02's pre-registration above:
    (the `finalize-tasks`/`record-analysis` hang pattern this WP's recovery instructions were
    pre-armed against), spec.md **FR-007**/**NFR-001**, this mission's own **C-001** (public-repo
    path-leak prohibition, binding on the mission's own authored artifacts too).
+
+## F-2026-08-23T00:22:09Z — WP01 mission-wide baseline capture (lane-a)
+
+**Verified first-hand**, 2026-08-23, from lane-a worktree
+(`.worktrees/dossier-guard-reexport-analyze-cleanup-01M0NHRT-lane-a`), before any implementation
+commit, per WP01's T001 instructions.
+
+```
+$ .venv/bin/python -m pytest tests/architectural/test_dossier_emitter_positional_guard.py \
+       tests/dossier/test_events.py \
+       tests/architectural/test_no_dead_symbols.py \
+       tests/specify_cli/test_analysis_report.py \
+       tests/specify_cli/test_analysis_report_charter_yaml_staleness.py -q
+........................................................................ [ 83%]
+..............                                                           [100%]
+86 passed in 123.62s (0:02:03)
+```
+
+**Disposition**: zero red. All 86 tests across the five files pass GREEN on
+`base_commit a513bcf27bc2678ab280e3462dbd9e8d14760b06` (lane-a's `base_commit`, matching the
+mission branch tip at WP dispatch time) — nothing to cite against #3284, nothing to file. This
+confirms the mission brief's "every test file on this mission's surface is GREEN: 472 passed, 0
+failed" claim for the 5-file subset this exact command covers. Any red surfacing later on this
+surface is introduced, not pre-existing.
+
+**Tooling friction noted in the same session (not part of this baseline run itself)**:
+`.venv/bin/spec-kitty agent action implement WP01 --agent claude --mission
+dossier-guard-reexport-analyze-cleanup-01M0NHRT` printed the full lane-worktree-ready banner
+(mission branch, lane branch, `cd` instructions, `SPEC_KITTY_TEST_DB_NAME` export) and then hung
+in `hrtimer_nanosleep` (confirmed via `/proc/<pid>/wchan`) for >3 minutes past its useful output —
+the same signature as ledger **SK-65** (event-routing/SaaS-fan-out retry loop that never resolves)
+already recorded at F-01/F-04 above, this time on `agent action implement`. `SIGTERM`ed after
+confirming via `git log`/`git status` in the lane-a worktree that the workspace was already fully
+and correctly materialized (correct base commit, correct lane branch, clean tree, WP01 status
+`doing`) — the hang carried no useful work past the banner. No new ledger entry: this is the same
+SK-65 signature, a fourth+ sighting, now confirmed on a fourth command surface
+(`create`/`finalize-tasks`/`record-analysis`-adjacent per F-01–F-09, and now `agent action
+implement`).

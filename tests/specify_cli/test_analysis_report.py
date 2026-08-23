@@ -235,7 +235,9 @@ def test_charter_hash_resolves_canonical_root_from_worktree(tmp_path):
     resolve_canonical_repo_root.cache_clear()
     hashes = collect_input_artifact_hashes(feature_dir, worktree)
 
-    assert hashes["charter"]["path"] == str(charter_file.resolve())
+    # FR-007/NFR-001: recorded path is repo-relative (relative to the resolved
+    # canonical root -- the MAIN checkout here, not the worktree), never absolute.
+    assert hashes["charter"]["path"] == str(charter_file.resolve().relative_to(main.resolve()))
     assert hashes["charter"]["sha256"] == _sha256_file(charter_file)
     assert hashes["charter"]["sha256"] != _sha256_file(worktree_charter)
 
@@ -257,7 +259,9 @@ def test_charter_hash_falls_back_to_repo_root_outside_git(tmp_path):
     resolve_canonical_repo_root.cache_clear()
     hashes = collect_input_artifact_hashes(feature_dir, tmp_path)
 
-    assert hashes["charter"]["path"] == str(charter_file)
+    # FR-007/NFR-001: outside git, canonical_root falls back to repo_root
+    # (tmp_path here), so the recorded path is relative to tmp_path.
+    assert hashes["charter"]["path"] == str(charter_file.relative_to(tmp_path))
     assert hashes["charter"]["sha256"] is not None
 
 
@@ -418,6 +422,53 @@ def test_record_analysis_command_persists_report(tmp_path, monkeypatch):
     assert frontmatter["analyzer_agent"] == "codex"
     assert frontmatter["input_artifacts"]["tasks.md"]["sha256"]
     assert "# Analysis" in body
+
+
+def test_write_analysis_report_raises_on_unrelativizable_path(tmp_path):
+    """NFR-002 / spec.md Acceptance Scenario 3: when a hash-input artifact path
+    cannot be relativized against ``repo_root`` (e.g. it lies outside it
+    entirely), ``write_analysis_report`` must raise/surface an explicit error
+    rather than silently writing an absolute path."""
+    from specify_cli.analysis_report import AnalysisReportError, write_analysis_report
+
+    feature_dir = tmp_path / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+    # repo_root deliberately does NOT contain feature_dir, so spec.md/plan.md/
+    # tasks.md cannot be relativized against it.
+    unrelated_repo_root = tmp_path / "unrelated-repo-root"
+    unrelated_repo_root.mkdir()
+
+    with pytest.raises(AnalysisReportError):
+        write_analysis_report(
+            feature_dir=feature_dir,
+            repo_root=unrelated_repo_root,
+            body="# Report\n\nPASS\n",
+        )
+
+
+def test_check_analysis_report_current_reports_relativization_failure_without_raising(tmp_path):
+    """NFR-002: unlike ``write_analysis_report``, ``check_analysis_report_current``
+    must NEVER raise -- the same unrelativizable-path condition must be caught
+    and surfaced as a typed ``AnalysisFreshness(ok=False, ...)`` result instead
+    of propagating into its caller (``_require_current_analysis_report``)."""
+    from specify_cli.analysis_report import check_analysis_report_current, write_analysis_report
+
+    feature_dir = tmp_path / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+    # First write a legitimate report with a repo_root that DOES relativize,
+    # so a real, valid `analysis-report.md` exists on disk to check freshness of.
+    write_analysis_report(feature_dir=feature_dir, repo_root=tmp_path, body="# Report\n\nPASS\n")
+
+    # Now check freshness with a repo_root that does NOT contain feature_dir --
+    # the same unrelativizable-path condition as the write-side test above.
+    unrelated_repo_root = tmp_path / "unrelated-repo-root"
+    unrelated_repo_root.mkdir()
+
+    freshness = check_analysis_report_current(feature_dir, unrelated_repo_root)
+
+    assert freshness.ok is False
+    assert freshness.stale is True
+    assert freshness.missing is False
 
 
 def test_record_analysis_refuses_dirty_worktree_before_write(tmp_path, monkeypatch):
