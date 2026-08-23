@@ -99,10 +99,10 @@ def test_watch_sends_authorization_bearer_header_too(managed_stream_double) -> N
     ``AuthenticationMiddleware`` (``Authorization: Bearer <token>``, every
     route but ``/health``) as ``POST /managed/control`` — the pre-fix
     request carried only ``X-Zeitgeist-Capability`` and was always 401'd by
-    a real relay regardless of that header's validity. Both headers now
-    carry the SAME stored credential — the "one credential, two headers"
-    model ``transport.py``'s ``offer()`` already uses for the same reason
-    (see the module docstring's FIX-M2-13 note)."""
+    a real relay regardless of that header's validity. FIX-M2-15: when
+    ``relay_token`` is unset (this test's config), both headers still fall
+    back to the SAME stored credential — the single-credential shape every
+    config built before FIX-M2-15 has."""
     stream = filtered_stream.FilteredStream(_config(managed_stream_double.url, credential="team-a-cred"))
     gen = stream.watch()
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
@@ -114,13 +114,35 @@ def test_watch_sends_authorization_bearer_header_too(managed_stream_double) -> N
     assert sent.get("X-Zeitgeist-Capability") == "team-a-cred"
 
 
+def test_watch_sends_two_independent_credentials_when_relay_token_is_configured(managed_stream_double) -> None:
+    """FIX-M2-15: a SaaS-provisioned per-team relay mints ``relay_token``
+    (the deployment's shared bearer) and ``capability_credential`` (a
+    per-actor JWT) as two INDEPENDENT secrets — each header must carry its
+    OWN configured value, never one value doing double duty."""
+    stream = filtered_stream.FilteredStream(
+        filtered_stream.TeamStreamConfig(
+            relay_url=managed_stream_double.url,
+            relay_token="team-shared-token",
+            capability_credential="actor-capability-jwt",
+        )
+    )
+    gen = stream.watch()
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
+    _drain(gen, 1)
+    gen.close()
+
+    sent = managed_stream_double.received_headers[0]
+    assert sent.get("Authorization") == "Bearer team-shared-token"
+    assert sent.get("X-Zeitgeist-Capability") == "actor-capability-jwt"
+
+
 def test_team_stream_config_has_no_team_deployment_or_repo_field() -> None:
     """Forbidden-field denial by construction: there is structurally no
     field a caller could use to smuggle a client-supplied team filter — the
     credential IS the selector. Every one of these names is a member of
     ``sanitizer.FORBIDDEN_CONTROL_KEYS``."""
     field_names = set(filtered_stream.TeamStreamConfig.__dataclass_fields__)
-    assert field_names == {"relay_url", "capability_credential"}
+    assert field_names == {"relay_url", "capability_credential", "relay_token"}
     assert field_names.isdisjoint(sanitizer.FORBIDDEN_CONTROL_KEYS)
 
 
@@ -403,6 +425,45 @@ def _authed_config(double, *, kind: str = "presence") -> filtered_stream.TeamStr
     )
     double.set_shared_token(token)
     return filtered_stream.TeamStreamConfig(relay_url=double.url, capability_credential=token)
+
+
+def test_watch_receives_real_frames_with_two_genuinely_independent_secrets(managed_stream_auth_double) -> None:
+    """FIX-M2-15's own regression pin, distinct from ``_authed_config``'s
+    existing precedent above: that helper (and every FIX-M2-13 test built
+    on it) only ever proved acceptance by setting the double's
+    ``shared_token`` EQUAL to the minted capability JWT — the exact
+    "one credential doing double duty" shape a real SaaS-provisioned
+    per-team relay does NOT use (``ZEITGEIST_TOKEN``/
+    ``ZEITGEIST_CAPABILITY_KEY`` are minted as two unrelated random
+    secrets, ``apps.live_capability.provisioning_docker.
+    DockerProvisioningDriver.provision``). This test leaves the double's
+    default, already-DIFFERENT ``shared_token``/``capability_key`` pair
+    untouched and configures ``relay_token``/``capability_credential`` to
+    match each independently — the genuinely two-secret shape DQA-M2-05
+    reproduced failing against, now proven accepted."""
+    assert managed_stream_auth_double.shared_token != managed_stream_auth_double.capability_key
+    now = now_epoch()
+    capability_jwt = mint_capability_token(
+        managed_stream_auth_double.capability_key, sub="probe", team="acme", deployment="d1",
+        repo="spec-kitty", kind="presence", iat=now, exp=now + 300,
+    )
+    stream = filtered_stream.FilteredStream(
+        filtered_stream.TeamStreamConfig(
+            relay_url=managed_stream_auth_double.url,
+            relay_token=managed_stream_auth_double.shared_token,
+            capability_credential=capability_jwt,
+        )
+    )
+    gen = stream.watch()
+    managed_stream_auth_double.push_frame(_frame(seq=1, frame=_presence()))
+    frames = _drain(gen, 1)
+    assert frames[0].frame_type == "presence"  # type: ignore[attr-defined]
+    gen.close()
+
+    sent = managed_stream_auth_double.received_headers[0]
+    assert sent.get("Authorization") == f"Bearer {managed_stream_auth_double.shared_token}"
+    assert sent.get("X-Zeitgeist-Capability") == capability_jwt
+    assert managed_stream_auth_double.denied_statuses == []
 
 
 def test_watch_receives_real_frames_when_both_headers_are_valid(managed_stream_auth_double) -> None:

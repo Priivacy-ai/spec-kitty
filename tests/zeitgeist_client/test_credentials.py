@@ -4,7 +4,11 @@
 (Z1.md decision 3/4 — own file, not shared with tracker/credentials.py; uses
 the existing declared-but-unused ``filelock`` dependency,
 ``pyproject.toml:85``). Stores ``{relay_url, token, token_issued_at,
-token_kind}`` keyed by canonical repo.
+token_kind}`` keyed by canonical repo, plus the optional FIX-M2-15
+``capability_credential`` field (omitted from the stored TOML entry
+entirely, not written as an empty string, whenever a caller does not pass
+one — see that section below and the module's own FIX-M2-15 docstring
+note).
 
 This is a scoped subset of Z1.md §3.4's full ``checkout``/``--refresh``/
 ``--revoke`` CLI contract: it covers the storage primitive
@@ -48,6 +52,64 @@ def test_store_then_load_round_trips(state_root: Path):
 
 def test_load_returns_none_when_nothing_stored(state_root: Path):
     assert credentials.load(repo="spec-kitty") is None
+
+
+# --- FIX-M2-15: the second, optional capability_credential field -----------
+
+
+def test_single_credential_store_round_trips_capability_credential_as_none(state_root: Path):
+    """Every call site that predates FIX-M2-15 (and every self-hosted,
+    single-secret deployment) never passes ``capability_credential`` —
+    ``load()`` must report that as ``None``, never as an empty string or a
+    KeyError, so every caller's existing "``None`` means use ``token`` for
+    both gates" fallback keeps working."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    loaded = credentials.load(repo="spec-kitty")
+    assert loaded is not None
+    assert loaded.capability_credential is None
+
+
+def test_two_credential_store_round_trips_both_values_independently(state_root: Path):
+    credentials.store(
+        repo="spec-kitty",
+        relay_url="http://a",
+        token="team-shared-token",
+        token_kind="shared_team",
+        capability_credential="actor-capability-jwt",
+    )
+    loaded = credentials.load(repo="spec-kitty")
+    assert loaded is not None
+    assert loaded.token == "team-shared-token"
+    assert loaded.capability_credential == "actor-capability-jwt"
+
+
+def test_empty_capability_credential_is_rejected_when_provided(state_root: Path):
+    with pytest.raises(ValueError):
+        credentials.store(
+            repo="spec-kitty",
+            relay_url="http://a",
+            token="tok-a",
+            token_kind="shared_team",
+            capability_credential="",
+        )
+    # Never left the store corrupted/partially written.
+    assert credentials.load(repo="spec-kitty") is None
+
+
+def test_stored_toml_omits_capability_credential_key_entirely_when_unset(state_root: Path):
+    """Backward-compat proof, not just a `None` read-back: a config file
+    written by this fix looks byte-for-byte like one written before it,
+    for a single-credential checkout -- no `capability_credential = ""`
+    key ever lands in the TOML entry, which would otherwise round-trip as
+    an empty string rather than `None` (and, since `store()` itself
+    rejects an explicit empty string, would signal the entry was written
+    by something that bypassed this module's own validation)."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    import tomllib
+
+    with credentials.credentials_path().open("rb") as fh:
+        raw = tomllib.load(fh)
+    assert "capability_credential" not in raw["spec-kitty"]
 
 
 def test_two_repos_hold_independent_tokens(state_root: Path):

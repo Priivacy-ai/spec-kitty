@@ -346,6 +346,31 @@ def test_offer_sends_authorization_and_capability_headers(team_kitty_double):
     assert headers["X-Zeitgeist-Capability"] == "secret-token-1"
 
 
+def test_offer_capability_credential_falls_back_to_token_when_unset(team_kitty_double):
+    """FIX-M2-15: every config built before this fix (``capability_
+    credential`` left at its default, ``None``) must keep sending the SAME
+    value to both headers — no behaviour change for a single-credential
+    deployment."""
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url, token="only-one-value"))
+    client.presence("file_edit")
+    headers = team_kitty_double.requests[0].headers
+    assert headers["Authorization"] == "Bearer only-one-value"
+    assert headers["X-Zeitgeist-Capability"] == "only-one-value"
+
+
+def test_offer_sends_two_distinct_configured_credentials(team_kitty_double):
+    """FIX-M2-15: when ``capability_credential`` IS configured, it — not
+    ``token`` — is what reaches ``X-Zeitgeist-Capability``; ``token`` alone
+    still reaches ``Authorization``."""
+    client = transport.ZeitgeistClient(
+        _config(team_kitty_double.url, token="team-shared-token", capability_credential="actor-capability-jwt")
+    )
+    client.presence("file_edit")
+    headers = team_kitty_double.requests[0].headers
+    assert headers["Authorization"] == "Bearer team-shared-token"
+    assert headers["X-Zeitgeist-Capability"] == "actor-capability-jwt"
+
+
 def test_offer_targets_managed_control_for_every_op(team_kitty_double):
     """Every offer()-driven op — presence AND every focus op AND the
     (client-unreachable-in-practice, but still wire-shape-identical)
@@ -397,6 +422,41 @@ def _kinded_client(double, *, kind: str, session_id: str = "sess-1") -> transpor
             session_id=session_id, agent_id="agent-1", repo="spec-kitty", branch="main",
         )
     )
+
+
+def test_offer_accepted_with_two_genuinely_independent_secrets(managed_control_double):
+    """FIX-M2-15's own regression pin: ``_kinded_client`` above (and every
+    FIX-M2-10 test built on it) only ever proved acceptance by setting the
+    double's ``shared_token`` EQUAL to the minted capability JWT — not the
+    genuinely two-unrelated-secrets shape a real SaaS-provisioned per-team
+    relay actually uses (``ZEITGEIST_TOKEN``/``ZEITGEIST_CAPABILITY_KEY``
+    minted independently, ``apps.live_capability.provisioning_docker.
+    DockerProvisioningDriver.provision``) — exactly what DQA-M2-05
+    reproduced failing (401/403) against by hand. This test leaves the
+    double's default, already-different ``shared_token``/
+    ``capability_key`` untouched and configures ``token``/
+    ``capability_credential`` to match each independently."""
+    assert managed_control_double.shared_token != managed_control_double.capability_key
+    now = now_epoch()
+    capability_jwt = mint_capability_token(
+        managed_control_double.capability_key, sub="probe", team="acme", deployment="d1",
+        repo="spec-kitty", kind="presence", iat=now, exp=now + 300,
+    )
+    client = transport.ZeitgeistClient(
+        transport.ClientConfig(
+            relay_url=managed_control_double.url,
+            token=managed_control_double.shared_token,
+            capability_credential=capability_jwt,
+            harness="claude-code", session_id="sess-1", agent_id="agent-1",
+            repo="spec-kitty", branch="main",
+        )
+    )
+    result = client.presence("file_edit")
+    assert result.outcome == transport.OfferOutcome.SENT
+    assert managed_control_double.applied_op_count("presence.publish") == 1
+    sent_headers = managed_control_double.last_request_headers()
+    assert sent_headers.get("Authorization") == f"Bearer {managed_control_double.shared_token}"
+    assert sent_headers.get("X-Zeitgeist-Capability") == capability_jwt
 
 
 def test_offer_presence_publish_accepted_by_protocol_faithful_double(managed_control_double):
