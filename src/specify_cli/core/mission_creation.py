@@ -185,8 +185,13 @@ def _commit_feature_file(
     """Commit a single planning artifact to its seam-resolved primary home.
 
     This is a slim, typer-free version of the ``_commit_to_branch`` helper
-    in the CLI module.  It raises on hard failures and silently succeeds
-    when there is nothing to commit.
+    in the CLI module. It delegates straight to ``safe_commit`` with no
+    try/except of its own, so it raises on BOTH a hard git failure and an
+    empty changeset (``safe_commit`` itself raises ``RuntimeError`` when
+    there is nothing to commit -- it does NOT silently no-op). Callers that
+    know their changeset is always non-empty (e.g. the FR-001 ``meta.json``
+    commit call sites, where the file genuinely differs from HEAD at create
+    time) can safely treat any raise here as a hard failure.
 
     coord-primary-partition-lock WP02 (T007 / C-001 / C-006): the commit
     destination is derived from ``placement_seam(...).write_target(SPEC)``,
@@ -711,7 +716,16 @@ def _create_mission_core_impl(
     from specify_cli.mission_metadata import set_documentation_state, write_meta
 
     write_meta(feature_dir, meta)
-    with contextlib.suppress(Exception):
+    # FR-001 (#3673): do NOT suppress -- a hard git failure here must raise
+    # so ``create_mission_core``'s existing rollback
+    # (``_restore_git_state_after_failed_create``) fires. ``_commit_feature_file``
+    # does NOT no-op on an empty changeset -- it calls ``safe_commit`` directly,
+    # which itself RAISES on an empty changeset (see its docstring). That path
+    # is safe here because ``meta.json`` genuinely differs from HEAD at create
+    # time, so the commit is non-empty on the real paths. NFR-001: re-raise
+    # with step context so the error names the failing step, not just the raw
+    # underlying git error text.
+    try:
         _commit_feature_file(
             meta_file,
             mission_slug_formatted,
@@ -720,6 +734,8 @@ def _create_mission_core_impl(
             worktree_root=effective_root,
             create_time_target=create_time_target,
         )
+    except Exception as exc:
+        raise RuntimeError(f"meta.json commit failed: {exc}") from exc
 
     # ------------------------------------------------------------------
     # 7. Documentation state (if applicable)
@@ -736,7 +752,12 @@ def _create_mission_core_impl(
                 "coverage_percentage": 0.0,
             }
             set_documentation_state(feature_dir, doc_state)
-        with contextlib.suppress(Exception):
+        # FR-001 (#3673): identical fix, second call site -- not partial to
+        # the primary mission-type branch (Acceptance Scenario 4). NFR-001:
+        # re-raise with step context (see the primary call site above for the
+        # full rationale on why the empty-changeset path is not a concern
+        # here).
+        try:
             _commit_feature_file(
                 meta_file,
                 mission_slug_formatted,
@@ -745,6 +766,8 @@ def _create_mission_core_impl(
                 worktree_root=effective_root,
                 create_time_target=create_time_target,
             )
+        except Exception as exc:
+            raise RuntimeError(f"meta.json commit failed: {exc}") from exc
 
     # ------------------------------------------------------------------
     # 8. Event emission
