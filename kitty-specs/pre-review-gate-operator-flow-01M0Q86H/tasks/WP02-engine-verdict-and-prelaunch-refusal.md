@@ -77,12 +77,14 @@ Done when launch spies prove refusal is pre-launch, terminal aggregation prevent
 - Record configured timeout and monotonic observed elapsed separately.
 - Never auto-promote or persist a classification after timeout.
 - Preserve completion/deadline precedence, cleanup machinery, baseline diff, and the canonical warn/block policy.
+- Commit at least one failing-first engine acceptance test separately before production edits; review must prove it RED on this WP's `planning_base_branch` and GREEN on the final commit.
+- If an operational CLI/dogfood run (not a synthetic timeout fixture) produces an unknown-budget candidate, immediately run `spec-kitty agent tracer-append --mission pre-review-gate-operator-flow-01M0Q86H --category approach --actor <actor> --entry <evidence>` with `provenance: operational`, identity, targets, budget, elapsed time, and environment. This canonical coordination write is not a hand-edit of another WP's owned file.
 
 ## Subtasks
 
 ### T005 – Red-first engine and aggregation tests
 
-Add failing tests for pre-launch oversized refusal, unknown run-through, bounded fixture completion, unknown timeout diagnostics, non-candidate bounded timeout, and terminal aggregation.
+Add failing tests for pre-launch oversized refusal, unknown run-through, bounded fixture completion, unknown timeout diagnostics, non-candidate bounded timeout, and terminal aggregation. Commit the red tests before T006.
 
 ### T006 – Typed outcomes, states, events, and evidence
 
@@ -98,7 +100,7 @@ Adapt the existing elapsed observer to monotonic evidence. On unknown timeout on
 
 ### T009 – Aggregation and focused regression gate
 
-Add oversized to the terminal set and prove no transition is permitted. Run the three owned test modules plus existing source-mismatch/baseline parity tests relevant to the touched verdict path.
+Add oversized to the terminal set and prove no transition is permitted. Run the three owned test modules plus existing source-mismatch/baseline parity tests relevant to the touched verdict path. Run `uv run ruff check` across all owned Python files and `uv run mypy --strict src/specify_cli/review/pre_review_gate.py src/specify_cli/review/verdict_aggregation.py`; review each new public enum, dataclass, protocol, and function for a docstring.
 
 ## Test strategy
 

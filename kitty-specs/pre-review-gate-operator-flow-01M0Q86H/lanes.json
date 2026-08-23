@@ -16,7 +16,8 @@
       ],
       "predicted_surfaces": [
         "api",
-        "legacy-cleanup"
+        "legacy-cleanup",
+        "tracker-integration"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
@@ -89,8 +90,8 @@
       ],
       "write_scope": [
         "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/release-readiness.md",
-        "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/traceability.md",
-        "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/traces/approach.md"
+        "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/retrospective-handoff.md",
+        "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/traceability.md"
       ],
       "predicted_surfaces": [
         "planning"
@@ -102,10 +103,10 @@
       "parallel_group": 3
     }
   ],
-  "computed_at": "2026-08-23T15:31:06.382469+00:00",
+  "computed_at": "2026-08-23T16:07:04.952135+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [
     "WP05"
   ],
-  "planning_commit_sha": "4a1b0db62959af8b9bc99aaf2476b60841afb158"
+  "planning_commit_sha": "7cdda16db176217bc7827a73364e616dc3720d62"
 }

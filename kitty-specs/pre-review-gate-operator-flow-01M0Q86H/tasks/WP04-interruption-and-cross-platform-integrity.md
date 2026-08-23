@@ -72,6 +72,7 @@ Done when POSIX real-process tests and deterministic Windows contract tests pass
 - Read lane/event state from an independent process/handle after the kill.
 - Never assert orphan cleanup after uncatchable parent death; #2762 retains that broader concern.
 - If a production gap is found, reject/escalate to WP02 rather than editing outside `owned_files`.
+- Any operational unknown-budget candidate observed outside synthetic fixtures must be appended immediately through the canonical `tracer-append` command with `provenance: operational`; synthetic process tests never enter the metadata-review queue.
 
 ## Subtasks
 
@@ -85,11 +86,11 @@ On POSIX, exercise real timeout and catchable cancellation through the runner; a
 
 ### T018 – Windows termination contract
 
-With deterministic unit seams, assert the exact `taskkill /PID <pid> /T` tree command and escalation behavior. Mark the Windows-CI expectation without pretending a POSIX host executed Windows.
+With deterministic unit seams, assert the exact `taskkill /PID <pid> /T` tree command and escalation behavior. Mark the test `@pytest.mark.windows_ci` so `.github/workflows/ci-windows.yml` discovers it. Do not pretend a POSIX host executed Windows; WP05 must record the actual Windows job result.
 
 ### T019 – Abrupt parent death integrity
 
-Launch the real CLI against a temporary mission/WP, wait for head validation readiness, send `SIGKILL` to the parent, then independently prove no lane move or transition event append occurred. Explicitly omit any orphan-reaping assertion.
+Launch the real CLI against a temporary mission/WP, wait for head validation readiness, send exactly `os.kill(parent_pid, signal.SIGKILL)` to the parent PID—not its process group—then independently read and prove no lane move or transition event append before bounded fixture teardown. Process-group/child termination is teardown only. Explicitly omit any orphan-reaping assertion.
 
 ## Test strategy
 

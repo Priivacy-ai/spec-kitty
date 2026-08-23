@@ -17,6 +17,7 @@
 **Depends on**: None
 
 ### Included Subtasks
+- [ ] T025 Verify/assign tracker issue #2573 to the Human-in-Charge before implementation starts.
 - [ ] T001 Write red-first normalization and classification contracts.
 - [ ] T002 Implement immutable policy and assessment types.
 - [ ] T003 Add the exact `tests/architectural` oversized rule and stable identity.
@@ -75,10 +76,10 @@
 
 ---
 
-## WP05: Traceability, Diagnostic Feedback, and Release Closeout (Priority: P1)
+## WP05: Traceability, Retrospective Handoff, and Release Gate (Priority: P1)
 
-**Goal**: Produce complete scenario-to-test evidence, durably inspect classification candidates at retrospective, and enforce the #3127/rebase/checks release boundary for #2573.
-**Independent Test**: The traceability matrix has no blank evidence cells for FR-001–FR-010; closeout records every candidate or explicit absence plus owner/no-action, and refuses release-ready status before the upstream gate is satisfied.
+**Goal**: Produce complete scenario-to-test evidence, audit durable operational candidates, hand them to the canonical post-merge retrospective, and define the executable #3127/rebase/checks release gate for #2573.
+**Independent Test**: The traceability matrix has no blank evidence cells for FR-001–FR-010; the handoff inventories every operational candidate or explicit absence; release evidence cannot claim readiness before the upstream gate is satisfied.
 **Prompt**: `tasks/WP05-traceability-feedback-and-release-closeout.md`
 **Requirement refs**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, NFR-003, NFR-005, NFR-006, NFR-007, C-001, C-002, C-003, C-004, C-005, C-006, C-007
 **Depends on**: WP03, WP04
@@ -86,9 +87,9 @@
 ### Included Subtasks
 - [ ] T020 Build the exact-node traceability matrix and verify every cell.
 - [ ] T021 Run targeted and relevant full regression gates and record trustworthy evidence.
-- [ ] T022 Append and inspect unknown-timeout candidates, or record explicit absence.
-- [ ] T023 Record a retrospective owner/no-action conclusion and keep metadata updates review-only.
-- [ ] T024 Re-evaluate #2573 and enforce the #3127 merge, rebase, and rerun boundary.
+- [ ] T022 Audit immediate operational-candidate tracer entries and distinguish synthetic evidence.
+- [ ] T023 Produce the canonical post-merge retrospective handoff.
+- [ ] T024 Re-evaluate #2573 and record the executable #3127 release-gate resume point.
 
 ---
 

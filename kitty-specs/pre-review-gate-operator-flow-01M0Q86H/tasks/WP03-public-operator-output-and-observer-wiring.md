@@ -87,12 +87,14 @@ Done when the exact public Typer entry proves the timing and all skip/disable/wa
 - Scope assessment must be visible before launch; heartbeat interval is at most 30 seconds while active and stops after the terminal result.
 - Oversized refusal names bounded scope and explicit skip. Unknown timeout names reviewed metadata follow-up, not automatic learning.
 - Preserve flag-over-env precedence, canonical env order, explicit daemon-management exception, and warn-by-default.
+- Commit at least one failing-first exact public-entry test separately before production edits. It must be RED on this WP's post-WP02 `planning_base_branch`; if already green, strengthen it before touching production. Review must verify the red and green commits.
+- If an operational CLI/dogfood run (not a synthetic controlled-clock fixture) produces an unknown-budget candidate, append it immediately through the canonical `tracer-append` command with `provenance: operational` and full diagnostic/environment data. Never enqueue synthetic fixture evidence for metadata review.
 
 ## Subtasks
 
 ### T010 – Red-first exact-entry contracts
 
-Replace the existing comment-only liveness gap with controlled-clock public-entry tests: start within one second, at least two heartbeats over a run exceeding 60 seconds, no heartbeat after finalization, and no intermediate JSON.
+Replace the existing comment-only liveness gap with controlled-clock exact Typer-entry tests parameterized over (a) the explicit `pre_review_test_scope` override fixture and (b) an unpinned active registered binding. Capture the observer passed down each route and prove equivalent identity/behavior, scope assessment before the lowest launch seam, start within one second, at least two heartbeats with deltas no greater than 30 seconds over a run exceeding 60 seconds, no heartbeat after finalization, and no intermediate JSON. Commit these red tests before T011.
 
 ### T011 – Registry context wire
 
@@ -112,7 +114,7 @@ Extend the existing `pre_review_gate` metadata object with budget and candidate 
 
 ### T015 – Compatibility matrix
 
-Re-prove explicit skip first, then `SPEC_KITTY_SYNC_DISABLE`, then `SPEC_KITTY_SYNC_MINIMAL_IMPORT`, normal default run, explicit daemon management, default warning admission, configured blocking refusal, timeout/cancellation non-transition, and ordinary success exactly once.
+Re-prove normal default run, default warning admission, configured blocking refusal, timeout/cancellation non-transition, and ordinary success exactly once. Add exact human and single-document JSON collision cases for skip+blocking, skip+both disables, and both disables without skip; assert `SPEC_KITTY_SYNC_DISABLE` wins canonical env ordering and neither validation nor implicit daemon startup occurs. Separately prove explicit daemon-management still runs under each disable variable. Finish with `uv run ruff check` on every owned Python file and `uv run mypy --strict src/specify_cli/review/gate_registry.py src/specify_cli/cli/commands/agent/tasks_move_task.py`; review all new public observer/context surfaces for docstrings.
 
 ## Test strategy
 
