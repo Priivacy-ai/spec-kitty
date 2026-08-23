@@ -8,10 +8,10 @@
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
+      "evidence": "WP04 review-cycle-2.md: exact real-entrypoint 12-outcome x 8-readiness matrix; 279 passed, 1 skipped; payload/exit and JSON/human parity verified",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-08-23T21:50:59.180334+00:00",
       "notes": "TODO: replace with a real acceptance criterion"
     },
     {
