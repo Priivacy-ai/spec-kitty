@@ -235,6 +235,53 @@ def _collect_hosted_sync_decision(repo_root: Path) -> HostedSyncDecision:
     )
 
 
+def _enforce_git_preflight_with_reporting(
+    repo_root: Path,
+    *,
+    decision: HostedSyncDecision,
+    json_output: bool,
+) -> None:
+    """Preserve canonical git-preflight payload while attaching diagnostics."""
+    from specify_cli.cli.commands.agent import mission as _mission
+
+    if not json_output:
+        try:
+            _mission._enforce_git_preflight(
+                repo_root,
+                json_output=False,
+                command_name=SETUP_PLAN_COMMAND_NAME,
+            )
+        except typer.Exit as exc:
+            _report_setup_plan_outcome(
+                SetupPlanLocalOutcome({}, exc.exit_code, "error"),
+                diagnostics=decision.diagnostics,
+                json_output=False,
+            )
+            raise
+        return
+
+    emitted: list[dict[str, object]] = []
+    original_emit = _mission._emit_json
+    _mission._emit_json = lambda payload: emitted.append(dict(payload))
+    try:
+        _mission._enforce_git_preflight(
+            repo_root,
+            json_output=True,
+            command_name=SETUP_PLAN_COMMAND_NAME,
+        )
+    except typer.Exit as exc:
+        if emitted:
+            _mission._emit_json = original_emit
+            _report_setup_plan_outcome(
+                SetupPlanLocalOutcome(emitted[0], exc.exit_code, "error"),
+                diagnostics=decision.diagnostics,
+                json_output=True,
+            )
+        raise
+    finally:
+        _mission._emit_json = original_emit
+
+
 def _execute_setup_plan_hosted_effects(
     decision: HostedSyncDecision,
     *,
@@ -1076,10 +1123,10 @@ def setup_plan(
 
         hosted_decision = _collect_hosted_sync_decision(repo_root)
 
-        _mission._enforce_git_preflight(
+        _enforce_git_preflight_with_reporting(
             repo_root,
+            decision=hosted_decision,
             json_output=json_output,
-            command_name=SETUP_PLAN_COMMAND_NAME,
         )
 
         feature_dir = _resolve_setup_plan_feature_dir(
