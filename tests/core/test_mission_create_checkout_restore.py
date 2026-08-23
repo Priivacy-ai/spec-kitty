@@ -204,6 +204,12 @@ def test_meta_json_commit_hard_failure_raises_and_restores_git_state(
     leave the checkout's branch, HEAD commit, and index tree indistinguishable
     from before ``create_mission_core`` was invoked (NFR-003).
 
+    The mock raises the RAW underlying error exactly as production's
+    ``safe_commit`` would (no "meta.json commit failed" prefix baked in --
+    that prefix is production's own contribution via the ``try/except``
+    wrapper around each ``_commit_feature_file`` call site). This proves the
+    step-naming context comes from production code, not from the mock.
+
     Revert sensitivity: reverting the fix (re-wrapping the
     ``_commit_feature_file`` call in ``contextlib.suppress(Exception)``)
     swallows ``boom`` silently, ``create_mission_core`` returns normally, and
@@ -226,21 +232,30 @@ def test_meta_json_commit_hard_failure_raises_and_restores_git_state(
     ).stdout.strip()
 
     # Simulates a hard git failure (e.g. a pre-commit hook that always
-    # rejects) surfacing from inside the meta.json commit call.
-    boom = RuntimeError("meta.json commit failed: pre-commit hook rejected (exit 1)")
+    # rejects) surfacing from inside the meta.json commit call -- the RAW
+    # ``safe_commit``-shaped error, with no step-name prefix (production adds
+    # that itself; see the docstring above).
+    boom = RuntimeError(
+        f"safe_commit: git commit failed in {tmp_path} for destination_ref='main': pre-commit hook rejected (exit 1)"
+    )
 
     def _explode(*_args: object, **_kwargs: object) -> None:
         raise boom
 
     monkeypatch.setattr("specify_cli.core.mission_creation._commit_feature_file", _explode)
 
-    with pytest.raises(RuntimeError, match="pre-commit hook rejected"):
+    with pytest.raises(RuntimeError, match="pre-commit hook rejected") as exc_info:
         create_mission_core(
             tmp_path,
             "meta-commit-hard-failure",
             allow_worktree_context=True,
             **_mission_summary("meta-commit-hard-failure"),
         )
+
+    # NFR-001: the step name is added by production's try/except wrapper
+    # around the ``_commit_feature_file`` call -- not present in the mock's
+    # raw raise -- so this proves production, not the mock, names the step.
+    assert "meta.json commit failed" in str(exc_info.value)
 
     # NFR-003: branch, HEAD commit, and index tree are unchanged -- no
     # partial mutation survives the raise.
@@ -294,6 +309,13 @@ def test_meta_json_commit_hard_failure_message_names_step_and_git_error(
     other ``specify`` failure without parsing prose -- in both the
     human-readable exit path (asserted here) and the ``--json`` path.
 
+    The mock raises the RAW underlying error exactly as production's
+    ``safe_commit`` would (no "meta.json commit failed" prefix baked in).
+    The step-name prefix asserted below must therefore come from
+    production's own ``try/except`` wrapper around the
+    ``_commit_feature_file`` call, not from the mock -- proving NFR-001 is
+    met in production, not just in the test double.
+
     WP01 owns only ``mission_creation.py`` and this test file -- the
     ``--json`` envelope itself is assembled by ``_run_create_core_phase``'s
     existing generic ``except Exception as e: _emit_json({"error": str(e)})``
@@ -314,7 +336,12 @@ def test_meta_json_commit_hard_failure_message_names_step_and_git_error(
     "DID NOT RAISE".
     """
     _init_git_repo(tmp_path)
-    boom = RuntimeError("meta.json commit failed: fatal: unable to write new index file (disk full)")
+    # RAW underlying error, shaped exactly like ``safe_commit``'s own
+    # RuntimeError -- no "meta.json commit failed" prefix baked in here.
+    boom = RuntimeError(
+        f"safe_commit: git commit failed in {tmp_path} for destination_ref='main': "
+        "fatal: unable to write new index file (disk full)"
+    )
 
     def _explode(*_args: object, **_kwargs: object) -> None:
         raise boom
@@ -330,7 +357,11 @@ def test_meta_json_commit_hard_failure_message_names_step_and_git_error(
         )
 
     message = str(exc_info.value)
-    # Names the failing step ...
-    assert "meta.json commit" in message
+    # Names the failing step -- added by production's try/except wrapper
+    # around the ``_commit_feature_file`` call, not by the mock.
+    assert "meta.json commit failed" in message
     # ... and surfaces the underlying git error text, not a generic message.
     assert "unable to write new index file" in message
+    # The exception chain preserves the original error for debuggability.
+    assert isinstance(exc_info.value.__cause__, RuntimeError)
+    assert "unable to write new index file" in str(exc_info.value.__cause__)
