@@ -2,57 +2,74 @@
 
 **Mission**: `retire-doctrine-term-01M0JMK9` · **WP02** · **Contract**: `contracts/inventory-schema.md` · **Updated**: 2026-08-23
 
+**Four-root regeneration (2026-08-23, `DM-01M0P6C8C7Q6SPBT412V39RPN0`).** This section reflects the inventory
+regenerated at the same frozen base with the fixed exclusion set widened from the single `kitty-specs/` root
+(`DM-01M0NMS9WPH33EPFCJQRTQVNSA`) to four fixed roots — `kitty-specs/`,
+`.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/` — per the operator's resolution
+of `DM-01M0P6C8C7Q6SPBT412V39RPN0` (option 1: treat tracked serialized runtime records keyed to immutable archive
+slugs or retired profile IDs as immutable historical records, amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA`). The
+regeneration used the §8 block below with `content_argv`/`pathname_audit` extended to four `:(exclude)<root>`
+pathspecs / a four-root ls-tree prefix drop (the committed §8 block itself remains the frozen single-root
+evidence for the original WP02/WP05 run — see the "Superseded-for-reproduction" note at §8). The regenerated
+content count (**48,245**) and pathname count (**719**) were independently verified against the operator's
+ground-truth figures before this section was written.
+
 ## 1. Frozen base, audits, reproduction
 
 | Item | Value |
 |---|---|
 | `base_commit` (`target_tip`, `implementation-baseline.json`) | `2621a56d06b9ae4e7da07ee206879c30a4d8b363` |
 | tree OID (`git rev-parse --verify <base>^{tree}`) | `26e6fdd2b8f0ee15c546bfac240a78ec154899f3` |
-| content argv | `["git", "grep", "-a", "-i", "-n", "-o", "--column", "--full-name", "-z", "-e", "doctrine", "2621a56d06b9ae4e7da07ee206879c30a4d8b363", "--", ".", ":(exclude)kitty-specs/"]` |
+| content argv | `["git", "grep", "-a", "-i", "-n", "-o", "--column", "--full-name", "-z", "-e", "doctrine", "2621a56d06b9ae4e7da07ee206879c30a4d8b363", "--", ".", ":(exclude)kitty-specs/", ":(exclude).kittify/migrations/mission-state/quarantine/", ":(exclude)kitty-ops/", ":(exclude).kittify/missions/"]` |
 | content raw rc / result | `0` / hits |
-| content stdout SHA-256 | `9bc3f4150d2524d8ec828861d5ec3db4659cd078c5978043877cc61af666a9de` |
+| content stdout SHA-256 | `6765e7527d698fff8a02f2f8b6a633fc8586fe15611a110eb420522920c9f59a` |
 | content stderr SHA-256 (empty) | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
-| pathname argv | `["git", "ls-tree", "-r", "-z", "--name-only", "2621a56d06b9ae4e7da07ee206879c30a4d8b363"]` |
-| git version (this run) | `git version 2.52.0` — record the version on every reproduction; a differing `git grep`/`ls-tree` output format must be reconciled before comparing hashes |
-| pathname raw rc | `0` (tracked paths 18256) |
-| pathname stdout SHA-256 | `0b2f3b782e72a9ae6d234057af16ad4a136709c1fee8418db5ba219568b3949c` |
+| pathname argv | `["git", "ls-tree", "-r", "-z", "--name-only", "2621a56d06b9ae4e7da07ee206879c30a4d8b363"]` (unchanged — the four-root drop is applied in-process after the raw ls-tree call, so this argv and its raw output are identical to the single-root run) |
+| git version (this run) | `git version 2.43.0` — differs from the original WP02 run's recorded `2.52.0`; per the contract, the version is recorded on every reproduction and reconciled before comparing hashes. This regeneration's `git grep`/`ls-tree` NUL-framed output format matched byte-for-byte with the expected structural parse (self-tests §7 all PASS on this run), so the version difference did not affect the result |
+| pathname raw rc | `0` (tracked paths 18256, unchanged) |
+| pathname stdout SHA-256 | `0b2f3b782e72a9ae6d234057af16ad4a136709c1fee8418db5ba219568b3949c` (unchanged — see pathname argv note above) |
 | pathname stderr SHA-256 (empty) | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
-| **`inventory-hits.tsv` SHA-256** | **`3631531b404cd379ce7b8d7a2dccb65cd7878f6cd65b95b922ae64d175013d2a`** |
-| TSV bytes / rows | 9,124,049 / **49,050** (48,328 content + 722 pathname) |
-| distinct paths with hits | 2,056 |
-| reproduction command | `.venv/bin/python inventory-audit.py --base 2621a56d06b9ae4e7da07ee206879c30a4d8b363 --mode inventory --out inventory-hits.tsv --summary inventory-summary.json` (script = §8 block, run from the repo root with the mission dir as cwd-relative path) |
-| self-tests | `… --selftest --base 2621a56d06b9ae4e7da07ee206879c30a4d8b363` → all PASS (§7) |
+| **`inventory-hits.tsv` SHA-256** | **`d8a09ef14206381ca12c32641463468e954147509f4be7b46290ee9e33991c2c`** (supersedes the single-root `3631531b404cd379ce7b8d7a2dccb65cd7878f6cd65b95b922ae64d175013d2a`) |
+| TSV bytes / rows | 9,106,281 / **48,964** (48,245 content + 719 pathname) |
+| distinct paths with hits | 2,034 |
+| reproduction command | `.venv/bin/python inventory-audit.py --base 2621a56d06b9ae4e7da07ee206879c30a4d8b363 --mode inventory --out inventory-hits.tsv --summary inventory-summary.json` (script = §8 block with `content_argv`/exclusion extended to the four fixed roots per the note above, run from the repo root with the mission dir as cwd-relative path) |
+| self-tests | `… --selftest --base 2621a56d06b9ae4e7da07ee206879c30a4d8b363` → all PASS, `independent_hash_recompute_all_rows` PASS (48,964 rows) (§7) |
 
 The TSV is **ephemeral evidence** (`DM-01M0NMSD60JYG7K7V5MJCKJ3P8`): generated into this directory, untracked via the
 mission-local `.gitignore`, and pinned here by SHA-256 + counts. Set equality is proven by regenerating it from the
 frozen base with the command above and matching the SHA-256/row counts byte-for-byte (WP05 repeats this independently).
-Two independent processes produced byte-identical output; all 49,050 row hashes were recomputed by a second plain
+Two independent processes produced byte-identical output; all 48,964 row hashes were recomputed by a second plain
 implementation from the raw grep/ls-tree records (§7).
 
 ### Excluded-root orientation (non-contractual)
 
-`kitty-specs/` is the single fixed exclusion root (`DM-01M0NMS9WPH33EPFCJQRTQVNSA`), applied as pathspec
-`:(exclude)kitty-specs/` and as the ls-tree prefix drop. It is never edited or renamed by any wave. For orientation only:
+The four fixed exclusion roots (`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`,
+`.kittify/missions/`; `DM-01M0NMS9WPH33EPFCJQRTQVNSA` amended by `DM-01M0P6C8C7Q6SPBT412V39RPN0`) are applied as
+one `:(exclude)<root>` pathspec per root and as four ls-tree prefix drops. No pre-existing path under any of them
+is edited or renamed by any wave; runtime may keep appending new records to the three non-archive roots. For
+orientation only:
 
-| Inside `kitty-specs/` (not audited, not work) | Count |
-|---|---|
-| content records | 39,167 |
-| tracked paths | 10,936 |
-| pathnames containing the token | 1,070 |
+| Excluded root (not audited, not work) | Content records | Tracked paths | Pathnames containing the token |
+|---|---|---|---|
+| `kitty-specs/` | 39,167 | 10,936 | 1,070 |
+| `.kittify/migrations/mission-state/quarantine/` | 54 | 13 | 3 |
+| `kitty-ops/` | 22 | 346 | 0 |
+| `.kittify/missions/` | 7 | 3 | 0 |
+| **total** | **39,250** | **11,298** | **1,073** |
 
 ## 2. Manifest totals
 
 | Kind | Rows |
 |---|---|
-| content | 48,328 |
-| pathname | 722 |
-| **total** | **49,050** |
+| content | 48,245 |
+| pathname | 719 |
+| **total** | **48,964** |
 
 | S | Category | Rows |
 |---|---|---|
 | S1 | CLI/operator routes | 633 |
 | S2 | glossary/authority | 222 |
-| S3 | current-tree prose/history | 34,118 |
+| S3 | current-tree prose/history | 34,032 |
 | S4 | agent artifacts | 572 |
 | S5 | Charter authority | 82 |
 | S6 | packs/project overlays | 111 |
@@ -80,55 +97,55 @@ or the semantic seam would differ (e.g. `src/doctrine/skills/**` (M4 assets) vs 
 
 | OC | S | Default owner | Semantic seam / rule | Rows | Files | ID span | Examples |
 |---|---|---|---|---|---|---|---|
-| OC-01 | S2 | M1 | glossary authorities: docs context, project glossary YAML, built-in glossary pack, contextive data | 221 | 8 | `H-C-000395`…`H-C-038599` | `.kittify%2Fglossaries%2Fplanning-and-tracking.yaml` · `.kittify%2Fglossaries%2Fspec_kitty_core.yaml` |
+| OC-01 | S2 | M1 | glossary authorities: docs context, project glossary YAML, built-in glossary pack, contextive data | 221 | 8 | `H-C-000395`…`H-C-038516` | `.kittify%2Fglossaries%2Fplanning-and-tracking.yaml` · `.kittify%2Fglossaries%2Fspec_kitty_core.yaml` |
 | OC-02 | S5 | M1 | Charter Bundle authority: .kittify/charter/* (charter.md, charter.yaml, interview, graph.yml, synthesis) | 80 | 4 | `H-C-000208`…`H-C-000287` | `.kittify%2Fcharter%2Fcharter.md` · `.kittify%2Fcharter%2Fcharter.yaml` |
 | OC-03 | S5 | M2 (rule default M1; reassigned post-squad — §4 amendment) | Charter selection/config seam: .kittify/config.yaml (governance.doctrine, org pack wiring) | 2 | 1 | `H-C-000288`…`H-C-000289` | `.kittify%2Fconfig.yaml` |
-| OC-04 | S6 | M3 | project overlay root and overrides: .kittify/doctrine/**, .kittify/overrides/** | 55 | 13 | `H-C-000290`…`H-C-000683` | `.kittify%2Fdoctrine%2Fdirective%2FDIRECTIVE_terminus_retrospective_always_on.md` · `.kittify%2Fdoctrine%2Foverlays%2Fcalibration-documentation.yaml` |
-| OC-06 | S4 | M4 | built-in agent assets: profiles, directives, tactics, procedures, styleguides, toolguides, paradigms | 171 | 69 | `H-C-034988`…`H-C-035255` | `packs%2Fbuilt-in%2Fagent_profiles%2FREADME.md` · `packs%2Fbuilt-in%2Fagent_profiles%2Fanalyst-annie.agent.yaml` |
-| OC-07 | S4 | M4 | built-in mission prompts/governance profiles: packs/built-in/missions/** | 51 | 22 | `H-C-035111`…`H-C-035161` | `packs%2Fbuilt-in%2Fmissions%2FREADME.md` · `packs%2Fbuilt-in%2Fmissions%2Fbuilt_in_step_contracts%2Fresearch-scoping.step-contract.yaml` |
-| OC-08 | S6 | M3 | built-in/internal pack structure: pack.yaml, pack-manifest, pack.md, *.graph.yaml, assets, packs/internal | 42 | 13 | `H-C-034980`…`H-C-035267` | `packs%2Fbuilt-in%2Fagent_profile.graph.yaml` · `packs%2Fbuilt-in%2Fassets%2FREADME.md` |
-| OC-09 | S4 | M4 | skill sources: src/doctrine/skills/** (spk-doctrine-*, spec-kitty-charter-doctrine) | 253 | 35 | `H-C-038127`…`H-C-038379` | `src%2Fdoctrine%2Fskills%2FREADME.md` · `src%2Fdoctrine%2Fskills%2Fad-hoc-profile-load%2FSKILL.md` |
-| OC-10 | S4 | M4 | agent command/prompt surfaces in host dirs (.claude, .github/prompts, .cursor, …) | 12 | 12 | `H-C-000001`…`H-C-000695` | `.agent%2Fworkflows%2Fspec-kitty-standalone.md` · `.amazonq%2Fprompts%2Fspec-kitty-standalone.md` |
-| OC-11 | S8 | M4 | generated agent-profile/skill API docs: docs/api/agent_profiles/**, docs/api/skills/** | 75 | 24 | `H-C-001525`…`H-C-001752` | `docs%2Fapi%2Fagent_profiles%2Farchitect-alphonso.md` · `docs%2Fapi%2Fagent_profiles%2Fcurator-carla.md` |
-| OC-12 | S1 | M2 | CLI routes/help/errors: src/specify_cli/cli/** (doctrine command group, charter subcommands, doctor, tracker flags) | 633 | 39 | `H-C-038733`…`H-C-039365` | `src%2Fspecify_cli%2Fcli%2Fcommands%2F__init__.py` · `src%2Fspecify_cli%2Fcli%2Fcommands%2F_cutover_doctor.py` |
-| OC-13 | S10 | M2 | tracker ownership seam: src/specify_cli/tracker/** (doctrine mode/flags/fields) | 40 | 4 | `H-C-039896`…`H-C-039935` | `src%2Fspecify_cli%2Ftracker%2Fconfig.py` · `src%2Fspecify_cli%2Ftracker%2Flocal_service.py` |
-| OC-14 | S7 | M2 | old source package distribution/build: src/doctrine/pyproject.toml, src/doctrine/hatch_build.py | 56 | 2 | `H-C-037795`…`H-C-038034` | `src%2Fdoctrine%2Fhatch_build.py` · `src%2Fdoctrine%2Fpyproject.toml` |
-| OC-15 | S8 | M2 | old source package serialized schemas/templates: src/doctrine/schemas/**, src/doctrine/templates/** | 48 | 23 | `H-C-038048`…`H-C-038454` | `src%2Fdoctrine%2Fschemas%2FREADME.md` · `src%2Fdoctrine%2Fschemas%2Fagent-profile.schema.yaml` |
-| OC-16 | S7 | M2 | old source package code/topology: src/doctrine/** (modules, symbols, imports, READMEs) | 815 | 91 | `H-C-037301`…`H-C-038472` | `src%2Fdoctrine%2FREADME.md` · `src%2Fdoctrine%2F__init__.py` |
-| OC-17 | S7 | M2 | charter package consumers: src/charter/** (imports, facades, _doctrine_paths, doctrine_service_builder) | 1,657 | 95 | `H-C-035644`…`H-C-037300` | `src%2Fcharter%2FREADME.md` · `src%2Fcharter%2F__init__.py` |
-| OC-18 | S8 | M2 | generated manifests: src/specify_cli/_completion_manifest.json, .kittify/agent_profiles_manifest.json | 54 | 2 | `H-C-000202`…`H-C-038647` | `.kittify%2Fagent_profiles_manifest.json` · `src%2Fspecify_cli%2F_completion_manifest.json` |
-| OC-19 | S7 | M2 | specify_cli doctrine modules: doctrine/, doctrine_service_factory, doctrine_synthesizer, charter_runtime, drg_writers | 312 | 27 | `H-C-038667`…`H-C-039646` | `src%2Fspecify_cli%2Fcharter_runtime%2Ffreshness%2Fcomputer.py` · `src%2Fspecify_cli%2Fcharter_runtime%2Flint%2F__init__.py` |
-| OC-20 | S7 | M2 | other specify_cli consumers: upgrade migrations, tool_surface, runtime, invocation, dossier, skills, … | 413 | 90 | `H-C-038648`…`H-C-040045` | `src%2Fspecify_cli%2Fbootstrap%2Fenv_file.py` · `src%2Fspecify_cli%2Fbulk_edit%2Foccurrence_map.py` |
-| OC-21 | S7 | M2 | other packages: src/kernel, src/runtime, src/glossary, src/mission_runtime | 110 | 21 | `H-C-038473`…`H-C-038582` | `src%2Fglossary%2Fdrg_builder.py` · `src%2Fglossary%2Fentity_pages.py` |
-| OC-22 | S7 | M2 | test fixtures/controls/baselines/allowlists (compatibility controls; M6 deletes the control machinery) | 641 | 28 | `H-C-040095`…`H-C-045206` | `tests%2Farchitectural%2F_baselines.yaml` · `tests%2Farchitectural%2F_fixtures%2Forg_packs%2Fexample_org%2Fdirectives%2Fsox-controls.directive.yaml` |
-| OC-23 | S7 | M2 | architectural gate tests: tests/architectural/** (sole-door, census, wheel closure, dead-path sweeps) | 1,566 | 70 | `H-C-040082`…`H-C-041785` | `tests%2Farchitectural%2FREADME.md` · `tests%2Farchitectural%2F_dead_path_scan.py` |
-| OC-24 | S7 | M2 | test code: tests/** (doctrine, charter, specify_cli, integration, …) | 6,076 | 641 | `H-C-040046`…`H-C-048328` | `tests%2FREADME.md` · `tests%2F_arch_shard_map.py` |
+| OC-04 | S6 | M3 | project overlay root and overrides: .kittify/doctrine/**, .kittify/overrides/** | 55 | 13 | `H-C-000290`…`H-C-000622` | `.kittify%2Fdoctrine%2Fdirective%2FDIRECTIVE_terminus_retrospective_always_on.md` · `.kittify%2Fdoctrine%2Foverlays%2Fcalibration-documentation.yaml` |
+| OC-06 | S4 | M4 | built-in agent assets: profiles, directives, tactics, procedures, styleguides, toolguides, paradigms | 171 | 69 | `H-C-034905`…`H-C-035172` | `packs%2Fbuilt-in%2Fagent_profiles%2FREADME.md` · `packs%2Fbuilt-in%2Fagent_profiles%2Fanalyst-annie.agent.yaml` |
+| OC-07 | S4 | M4 | built-in mission prompts/governance profiles: packs/built-in/missions/** | 51 | 22 | `H-C-035028`…`H-C-035078` | `packs%2Fbuilt-in%2Fmissions%2FREADME.md` · `packs%2Fbuilt-in%2Fmissions%2Fbuilt_in_step_contracts%2Fresearch-scoping.step-contract.yaml` |
+| OC-08 | S6 | M3 | built-in/internal pack structure: pack.yaml, pack-manifest, pack.md, *.graph.yaml, assets, packs/internal | 42 | 13 | `H-C-034897`…`H-C-035184` | `packs%2Fbuilt-in%2Fagent_profile.graph.yaml` · `packs%2Fbuilt-in%2Fassets%2FREADME.md` |
+| OC-09 | S4 | M4 | skill sources: src/doctrine/skills/** (spk-doctrine-*, spec-kitty-charter-doctrine) | 253 | 35 | `H-C-038044`…`H-C-038296` | `src%2Fdoctrine%2Fskills%2FREADME.md` · `src%2Fdoctrine%2Fskills%2Fad-hoc-profile-load%2FSKILL.md` |
+| OC-10 | S4 | M4 | agent command/prompt surfaces in host dirs (.claude, .github/prompts, .cursor, …) | 12 | 12 | `H-C-000001`…`H-C-000634` | `.agent%2Fworkflows%2Fspec-kitty-standalone.md` · `.amazonq%2Fprompts%2Fspec-kitty-standalone.md` |
+| OC-11 | S8 | M4 | generated agent-profile/skill API docs: docs/api/agent_profiles/**, docs/api/skills/** | 75 | 24 | `H-C-001464`…`H-C-001691` | `docs%2Fapi%2Fagent_profiles%2Farchitect-alphonso.md` · `docs%2Fapi%2Fagent_profiles%2Fcurator-carla.md` |
+| OC-12 | S1 | M2 | CLI routes/help/errors: src/specify_cli/cli/** (doctrine command group, charter subcommands, doctor, tracker flags) | 633 | 39 | `H-C-038650`…`H-C-039282` | `src%2Fspecify_cli%2Fcli%2Fcommands%2F__init__.py` · `src%2Fspecify_cli%2Fcli%2Fcommands%2F_cutover_doctor.py` |
+| OC-13 | S10 | M2 | tracker ownership seam: src/specify_cli/tracker/** (doctrine mode/flags/fields) | 40 | 4 | `H-C-039813`…`H-C-039852` | `src%2Fspecify_cli%2Ftracker%2Fconfig.py` · `src%2Fspecify_cli%2Ftracker%2Flocal_service.py` |
+| OC-14 | S7 | M2 | old source package distribution/build: src/doctrine/pyproject.toml, src/doctrine/hatch_build.py | 56 | 2 | `H-C-037712`…`H-C-037951` | `src%2Fdoctrine%2Fhatch_build.py` · `src%2Fdoctrine%2Fpyproject.toml` |
+| OC-15 | S8 | M2 | old source package serialized schemas/templates: src/doctrine/schemas/**, src/doctrine/templates/** | 48 | 23 | `H-C-037965`…`H-C-038371` | `src%2Fdoctrine%2Fschemas%2FREADME.md` · `src%2Fdoctrine%2Fschemas%2Fagent-profile.schema.yaml` |
+| OC-16 | S7 | M2 | old source package code/topology: src/doctrine/** (modules, symbols, imports, READMEs) | 815 | 91 | `H-C-037218`…`H-C-038389` | `src%2Fdoctrine%2FREADME.md` · `src%2Fdoctrine%2F__init__.py` |
+| OC-17 | S7 | M2 | charter package consumers: src/charter/** (imports, facades, _doctrine_paths, doctrine_service_builder) | 1,657 | 95 | `H-C-035561`…`H-C-037217` | `src%2Fcharter%2FREADME.md` · `src%2Fcharter%2F__init__.py` |
+| OC-18 | S8 | M2 | generated manifests: src/specify_cli/_completion_manifest.json, .kittify/agent_profiles_manifest.json | 54 | 2 | `H-C-000202`…`H-C-038564` | `.kittify%2Fagent_profiles_manifest.json` · `src%2Fspecify_cli%2F_completion_manifest.json` |
+| OC-19 | S7 | M2 | specify_cli doctrine modules: doctrine/, doctrine_service_factory, doctrine_synthesizer, charter_runtime, drg_writers | 312 | 27 | `H-C-038584`…`H-C-039563` | `src%2Fspecify_cli%2Fcharter_runtime%2Ffreshness%2Fcomputer.py` · `src%2Fspecify_cli%2Fcharter_runtime%2Flint%2F__init__.py` |
+| OC-20 | S7 | M2 | other specify_cli consumers: upgrade migrations, tool_surface, runtime, invocation, dossier, skills, … | 413 | 90 | `H-C-038565`…`H-C-039962` | `src%2Fspecify_cli%2Fbootstrap%2Fenv_file.py` · `src%2Fspecify_cli%2Fbulk_edit%2Foccurrence_map.py` |
+| OC-21 | S7 | M2 | other packages: src/kernel, src/runtime, src/glossary, src/mission_runtime | 110 | 21 | `H-C-038390`…`H-C-038499` | `src%2Fglossary%2Fdrg_builder.py` · `src%2Fglossary%2Fentity_pages.py` |
+| OC-22 | S7 | M2 | test fixtures/controls/baselines/allowlists (compatibility controls; M6 deletes the control machinery) | 641 | 28 | `H-C-040012`…`H-C-045123` | `tests%2Farchitectural%2F_baselines.yaml` · `tests%2Farchitectural%2F_fixtures%2Forg_packs%2Fexample_org%2Fdirectives%2Fsox-controls.directive.yaml` |
+| OC-23 | S7 | M2 | architectural gate tests: tests/architectural/** (sole-door, census, wheel closure, dead-path sweeps) | 1,566 | 70 | `H-C-039999`…`H-C-041702` | `tests%2Farchitectural%2FREADME.md` · `tests%2Farchitectural%2F_dead_path_scan.py` |
+| OC-24 | S7 | M2 | test code: tests/** (doctrine, charter, specify_cli, integration, …) | 6,076 | 641 | `H-C-039963`…`H-C-048245` | `tests%2FREADME.md` · `tests%2F_arch_shard_map.py` |
 | OC-25 | S9 | M2 | CI workflows: .github/workflows/** | 173 | 13 | `H-C-000007`…`H-C-000179` | `.github%2Fworkflows%2Fcanonical-producer-lint.yml` · `.github%2Fworkflows%2Fci-quality.yml` |
-| OC-26 | S8 | M5 | docs retrieval index, page inventory, ownership manifest, toc, redirect maps (serialized docs data) | 611 | 9 | `H-C-001753`…`H-C-035595` | `docs%2Fapi%2Ftoc.yml` · `docs%2Farchitecture%2F05_ownership_manifest.yaml` |
-| OC-27 | S9 | M2 | scripts: scripts/** (schema generation, doctrine inventory scripts, docs tooling) | 51 | 8 | `H-C-035570`…`H-C-035643` | `scripts%2Fcheck_nfr_003_latency.py` · `scripts%2Fdocs%2Fplantuml_invoke.py` |
-| OC-28 | S9 | M2 | root build/lint/config metadata: pyproject.toml, ruff.toml, pytest.ini, .gitignore, markdownlint, speedup workflow | 67 | 6 | `H-C-000180`…`H-C-035569` | `.gitignore` · `.kittify%2Ftest-suite-speedup-workflow.js` |
-| OC-29 | S3 | M5 | ADRs: docs/adr/** | 815 | 65 | `H-C-000710`…`H-C-001524` | `docs%2Fadr%2F2.x%2F2026-02-23-1-doctrine-artifact-governance-model.md` · `docs%2Fadr%2F2.x%2F2026-02-23-2-living-glossary-context-and-curation-model.md` |
-| OC-30 | S3 | M5 | test-sanitation evidence reports: docs/reports/** (census JSON, dispositions YAML) | 27,990 | 33 | `H-C-006966`…`H-C-034955` | `docs%2Freports%2Ftest-sanitation%2Fassertive-test-suite-sanitation-01KZME3P%2Faudit.py` · `docs%2Freports%2Ftest-sanitation%2Fassertive-test-suite-sanitation-01KZME3P%2Fdispositions.yaml` |
-| OC-31 | S3 | M5 | plans/investigations/engineering notes: docs/plans/** | 2,960 | 190 | `H-C-004006`…`H-C-006965` | `docs%2Fplans%2F3-2-doc-publication%2F3-2-archive-migration-plan.md` · `docs%2Fplans%2F3-2-doc-publication%2F3-2-information-architecture.md` |
-| OC-32 | S3 | M5 | docs prose (reference, guides, architecture, context, changelog, api command docs) | 1,660 | 115 | `H-C-001578`…`H-C-034957` | `docs%2Fapi%2Fbatch-api-contract.md` · `docs%2Fapi%2Fcharter-commands.md` |
-| OC-33 | S3 | M5 | research outputs and ops history: research-outputs/**, kitty-ops/** | 284 | 51 | `H-C-034958`…`H-C-035559` | `kitty-ops%2F01KTTCEAF0WTVAHYGND1D16R68.jsonl` · `kitty-ops%2F01KTYE0C9CF75FQN8127JP33B3.jsonl` |
-| OC-34 | S3 | M5 | project memory/evidence/mission-state history: .kittify/memory, evidence, missions, migrations, metadata.yaml | 320 | 28 | `H-C-000294`…`H-C-000632` | `.kittify%2Fevidence%2F01KTTCEAF0WTVAHYGND1D16R68%2Fevidence.md` · `.kittify%2Fevidence%2F01KTTCEAF0WTVAHYGND1D16R68%2Frecord.json` |
-| OC-35 | S3 | M5 | root repository docs: AGENTS.md, CLAUDE.md, README.md, CONTRIBUTING.md, CHANGELOG.md | 14 | 1 | `H-C-000696`…`H-C-000709` | `AGENTS.md` |
-| OC-40 | S2 | M1 | glossary authority pathname: docs/context/doctrine.md → docs/context/charter.md | 1 | 1 | `H-P-000040`…`H-P-000040` | `docs%2Fcontext%2Fdoctrine.md` |
-| OC-41 | S4 | M2 (rule default M4; reassigned post-squad as a `relocate` — §4 amendment) | skill source pathnames: src/doctrine/skills/** | 83 | 83 | `H-P-000196`…`H-P-000278` | `src%2Fdoctrine%2Fskills%2FREADME.md` · `src%2Fdoctrine%2Fskills%2Fad-hoc-profile-load%2FSKILL.md` |
-| OC-42 | S7 | M2 | old source package pathnames: src/doctrine/** | 181 | 181 | `H-P-000100`…`H-P-000363` | `src%2Fdoctrine%2FREADME.md` · `src%2Fdoctrine%2F__init__.py` |
-| OC-43 | S7 | M2 | test pathnames: tests/** | 332 | 332 | `H-P-000391`…`H-P-000722` | `tests%2Farchitectural%2F_exemptions%2Fdoctrine.txt` · `tests%2Farchitectural%2Ffixtures%2Fdoctrine_boundary%2F__init__.py` |
-| OC-44 | S7 | M2 | code pathnames: src/specify_cli/**, src/charter/**, src/kernel/**, src/runtime/** | 30 | 30 | `H-P-000097`…`H-P-000390` | `src%2Fcharter%2F_doctrine_paths.py` · `src%2Fcharter%2Faction_doctrine_bundle.py` |
+| OC-26 | S8 | M5 | docs retrieval index, page inventory, ownership manifest, toc, redirect maps (serialized docs data) | 611 | 9 | `H-C-001692`…`H-C-035512` | `docs%2Fapi%2Ftoc.yml` · `docs%2Farchitecture%2F05_ownership_manifest.yaml` |
+| OC-27 | S9 | M2 | scripts: scripts/** (schema generation, doctrine inventory scripts, docs tooling) | 51 | 8 | `H-C-035487`…`H-C-035560` | `scripts%2Fcheck_nfr_003_latency.py` · `scripts%2Fdocs%2Fplantuml_invoke.py` |
+| OC-28 | S9 | M2 | root build/lint/config metadata: pyproject.toml, ruff.toml, pytest.ini, .gitignore, markdownlint, speedup workflow | 67 | 6 | `H-C-000180`…`H-C-035486` | `.gitignore` · `.kittify%2Ftest-suite-speedup-workflow.js` |
+| OC-29 | S3 | M5 | ADRs: docs/adr/** | 815 | 65 | `H-C-000649`…`H-C-001463` | `docs%2Fadr%2F2.x%2F2026-02-23-1-doctrine-artifact-governance-model.md` · `docs%2Fadr%2F2.x%2F2026-02-23-2-living-glossary-context-and-curation-model.md` |
+| OC-30 | S3 | M5 | test-sanitation evidence reports: docs/reports/** (census JSON, dispositions YAML) | 27,990 | 33 | `H-C-006905`…`H-C-034894` | `docs%2Freports%2Ftest-sanitation%2Fassertive-test-suite-sanitation-01KZME3P%2Faudit.py` · `docs%2Freports%2Ftest-sanitation%2Fassertive-test-suite-sanitation-01KZME3P%2Fdispositions%2FWP04.yaml` |
+| OC-31 | S3 | M5 | plans/investigations/engineering notes: docs/plans/** | 2,960 | 190 | `H-C-003945`…`H-C-006904` | `docs%2Fplans%2F3-2-doc-publication%2F3-2-archive-migration-plan.md` · `docs%2Fplans%2F3-2-doc-publication%2F3-2-information-architecture.md` |
+| OC-32 | S3 | M5 | docs prose (reference, guides, architecture, context, changelog, api command docs) | 1,660 | 115 | `H-C-001517`…`H-C-034896` | `docs%2Fapi%2Fbatch-api-contract.md` · `docs%2Fapi%2Fcharter-commands.md` |
+| OC-33 | S3 | M5 | research outputs (`kitty-ops/**` was in scope; it is now a fixed exclusion root — its 22 rows left this class 2026-08-23, `DM-01M0P6C8`) | 262 | 36 | `H-C-035215`…`H-C-035476` | `research-outputs%2Fresearch%2Fdocling-graph-kitty-specs%2Fdata%2Fdocument-storage.json` · `research-outputs%2Fresearch%2Fdocling-graph-kitty-specs%2Fdata%2Froundtrip%2Fexports%2F000c8bca45c3d81615689518fcb0aaf1a000be17914a3a9acf048fc7d5226690%2F1-ffb8ef76e31fd879f754c61b51aa4e63224901117edae9f7bebebd8cf5118673.md` |
+| OC-34 | S3 | M5 | project memory/evidence/mission-state history: .kittify/memory, evidence, metadata.yaml (`.kittify/missions/**` and `.kittify/migrations/mission-state/quarantine/**` were in scope; they are now fixed exclusion roots — their combined 61 rows left this class 2026-08-23, `DM-01M0P6C8`) | 259 | 21 | `H-C-000294`…`H-C-000571` | `.kittify%2Fevidence%2F01KTTCEAF0WTVAHYGND1D16R68%2Fevidence.md` · `.kittify%2Fevidence%2F01KTTCEAF0WTVAHYGND1D16R68%2Frecord.json` |
+| OC-35 | S3 | M5 | root repository docs: AGENTS.md, CLAUDE.md, README.md, CONTRIBUTING.md, CHANGELOG.md | 14 | 1 | `H-C-000635`…`H-C-000648` | `AGENTS.md` |
+| OC-40 | S2 | M1 | glossary authority pathname: docs/context/doctrine.md → docs/context/charter.md | 1 | 1 | `H-P-000037`…`H-P-000037` | `docs%2Fcontext%2Fdoctrine.md` |
+| OC-41 | S4 | M2 (rule default M4; reassigned post-squad as a `relocate` — §4 amendment) | skill source pathnames: src/doctrine/skills/** | 83 | 83 | `H-P-000193`…`H-P-000275` | `src%2Fdoctrine%2Fskills%2FREADME.md` · `src%2Fdoctrine%2Fskills%2Fad-hoc-profile-load%2FSKILL.md` |
+| OC-42 | S7 | M2 | old source package pathnames: src/doctrine/** | 181 | 181 | `H-P-000097`…`H-P-000360` | `src%2Fdoctrine%2FREADME.md` · `src%2Fdoctrine%2F__init__.py` |
+| OC-43 | S7 | M2 | test pathnames: tests/** | 332 | 332 | `H-P-000388`…`H-P-000719` | `tests%2Farchitectural%2F_exemptions%2Fdoctrine.txt` · `tests%2Farchitectural%2Ffixtures%2Fdoctrine_boundary%2F__init__.py` |
+| OC-44 | S7 | M2 | code pathnames: src/specify_cli/**, src/charter/**, src/kernel/**, src/runtime/** | 30 | 30 | `H-P-000094`…`H-P-000387` | `src%2Fcharter%2F_doctrine_paths.py` · `src%2Fcharter%2Faction_doctrine_bundle.py` |
 | OC-45 | S6 | M3 | project overlay pathnames: .kittify/doctrine/** | 14 | 14 | `H-P-000004`…`H-P-000017` | `.kittify%2Fdoctrine%2Fdirective%2F.provenance%2FDIRECTIVE_evidence_logs_must_persist.yaml` · `.kittify%2Fdoctrine%2Fdirective%2F.provenance%2FDIRECTIVE_terminus_retrospective_always_on.yaml` |
-| OC-46 | S4 | M4 | built-in agent asset pathnames: packs/built-in/** (doctrine-daphne, 018-doctrine-versioning-requirement) | 2 | 2 | `H-P-000094`…`H-P-000095` | `packs%2Fbuilt-in%2Fagent_profiles%2Fdoctrine-daphne.agent.yaml` · `packs%2Fbuilt-in%2Fdirectives%2F018-doctrine-versioning-requirement.directive.yaml` |
-| OC-47 | S3 | M5 | docs pathnames: docs/** | 72 | 72 | `H-P-000021`…`H-P-000093` | `docs%2Fadr%2F2.x%2F2026-02-23-1-doctrine-artifact-governance-model.md` · `docs%2Fadr%2F3.x%2F2026-04-08-4-charter-doctrine-not-init-time.md` |
-| OC-48 | S9 | M2 | repo-ops pathnames: .github/**, scripts/** | 4 | 4 | `H-P-000001`…`H-P-000096` | `.github%2Fworkflows%2Fdoctrine-charter-tests.yml` · `.github%2Fworkflows%2Fmodule-doctrine-fast.yml` |
-| OC-49 | S3 | M5 | history pathnames: .kittify/migrations/**, .kittify/evidence/**, kitty-ops/**, research-outputs/** | 3 | 3 | `H-P-000018`…`H-P-000020` | `.kittify%2Fmigrations%2Fmission-state%2Fquarantine%2Fc680177cc61d4709%2Fdoctrine-silence-guards-01KYFV7Q%2Fstatus.events.jsonl` · `.kittify%2Fmigrations%2Fmission-state%2Fquarantine%2Fc680177cc61d4709%2Fdoctrine-tension-edges-01KY1WPC%2Fstatus.events.jsonl` |
+| OC-46 | S4 | M4 | built-in agent asset pathnames: packs/built-in/** (doctrine-daphne, 018-doctrine-versioning-requirement) | 2 | 2 | `H-P-000091`…`H-P-000092` | `packs%2Fbuilt-in%2Fagent_profiles%2Fdoctrine-daphne.agent.yaml` · `packs%2Fbuilt-in%2Fdirectives%2F018-doctrine-versioning-requirement.directive.yaml` |
+| OC-47 | S3 | M5 | docs pathnames: docs/** | 72 | 72 | `H-P-000018`…`H-P-000090` | `docs%2Fadr%2F2.x%2F2026-02-23-1-doctrine-artifact-governance-model.md` · `docs%2Fadr%2F3.x%2F2026-04-08-4-charter-doctrine-not-init-time.md` |
+| OC-48 | S9 | M2 | repo-ops pathnames: .github/**, scripts/** | 4 | 4 | `H-P-000001`…`H-P-000093` | `.github%2Fworkflows%2Fdoctrine-charter-tests.yml` · `.github%2Fworkflows%2Fmodule-doctrine-fast.yml` |
+| OC-49 | S3 | M5 | history pathnames: .kittify/migrations/**, .kittify/evidence/**, kitty-ops/**, research-outputs/** — **0 rows at this base** (all 3 frozen-base rows were under `.kittify/migrations/mission-state/quarantine/**`, now a fixed exclusion root, 2026-08-23 `DM-01M0P6C8`; the rule survives for any future non-excluded match, e.g. a `.kittify/migrations/` path outside the quarantine subtree or a `research-outputs/` pathname) | 0 | 0 | (none at this base) | (none at this base; formerly `.kittify%2Fmigrations%2Fmission-state%2Fquarantine%2Fc680177cc61d4709%2Fdoctrine-silence-guards-01KYFV7Q%2Fstatus.events.jsonl`) |
 
 Notes on seams: OC-22 holds test fixtures, baselines and allowlists (e.g. `tests/doctrine/fixtures/content-manifest.json`,
 `tests/architectural/_baselines.yaml`, `_inert_slots_baseline.yaml`) — compatibility *controls*: M2 renames/retargets them,
-and M6 deletes the control machinery itself. OC-30 (`docs/reports/test-sanitation/**`) is 57% of all content rows
-(census JSON/dispositions YAML of a past sanitation mission, outside `kitty-specs/`, hence M5 work). OC-26 is serialized
+and M6 deletes the control machinery itself. OC-30 (`docs/reports/test-sanitation/**`) is 58% of all content rows
+(census JSON/dispositions YAML of a past sanitation mission, outside the four fixed exclusion roots, hence M5 work). OC-26 is serialized
 docs data regenerated by docs tooling (retrieval index, page inventory, ownership manifest, toc, redirect maps) — M5 owns
 regeneration after prose rewrites. OC-11 is generated API docs for profiles/skills — regenerated by M4 after asset renames.
 
@@ -180,13 +197,15 @@ M3 (data move). OC-41 (skill-tree pathnames) is owned by M2 as a `relocate`; OC-
 
 ## 5. Scope statement
 
-Every content occurrence and matching tracked pathname outside `kitty-specs/` at the frozen base is a work item: internal
-code (`src/doctrine/**`, `src/charter/**`, `src/specify_cli/**`, `src/kernel/**`, `src/runtime/**`, `src/glossary/**`),
-tests/fixtures/baselines, build/distribution metadata (`pyproject.toml`, `src/doctrine/pyproject.toml`, `hatch_build.py`),
-CI/scripts, generated manifests, Charter/glossary sources, packs/overlays/skills/profiles/prompts/host agent dirs, ADRs,
-docs, plans, reports, evidence, ops history, memory, and every matching filename. Nothing is classified out; there is no
-X1/X2/X3, ignored, historical, internal, intentional, generated, or exempt value. `kitty-specs/` is the single fixed
-exclusion root and is never edited or renamed; the only other exclusion is Git object history outside `HEAD`.
+Every content occurrence and matching tracked pathname outside the four fixed exclusion roots at the frozen base is a
+work item: internal code (`src/doctrine/**`, `src/charter/**`, `src/specify_cli/**`, `src/kernel/**`, `src/runtime/**`,
+`src/glossary/**`), tests/fixtures/baselines, build/distribution metadata (`pyproject.toml`, `src/doctrine/pyproject.toml`,
+`hatch_build.py`), CI/scripts, generated manifests, Charter/glossary sources, packs/overlays/skills/profiles/prompts/host
+agent dirs, ADRs, docs, plans, reports, evidence, ops history, memory, and every matching filename. Nothing is
+classified out; there is no X1/X2/X3, ignored, historical, internal, intentional, generated, or exempt value.
+`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, and `.kittify/missions/` are the four
+fixed exclusion roots and no pre-existing path under any of them is edited or renamed (runtime may keep appending new
+records to the latter three); the only other exclusion is Git object history outside `HEAD`.
 
 ## 6. Assignment-readiness statement
 
@@ -207,9 +226,11 @@ row counts re-derive mechanically from the same TSV.
 | `fixture_hostile_paths_and_repeated_mixed_case` | PASS |
 | `fixture_two_process_byte_identical` | PASS |
 | `test_inventory_match_sha256_byte_identical_reproduction` | PASS |
-| `independent_hash_recompute_all_rows` | PASS (49,050 rows) |
+| `independent_hash_recompute_all_rows` | PASS (48,964 rows) |
 
-The mutation substitutes a failing git executable (`exit 3`) and an all-zero commit for each subprocess in both modes;
+Rerun 2026-08-23 against the four-fixed-root exclusion set (script extended per §8's amendment note); all eight
+self-tests still PASS, with `independent_hash_recompute_all_rows` re-verifying all 48,964 rows byte-for-byte. The
+mutation substitutes a failing git executable (`exit 3`) and an all-zero commit for each subprocess in both modes;
 every combination raises `AuditError` before any zero count is recorded. The hostile-path fixture includes a colon+tab
 filename, a non-ASCII filename, repeated mixed-case matches on one line, and an archived `kitty-specs/` file (excluded).
 Terminal mode on the frozen base exits 1 (`hits`) with both counts reported; zero is unreachable until M6.
@@ -217,14 +238,27 @@ Terminal mode on the frozen base exits 1 (`hits`) with both counts reported; zer
 ## 8. Audit procedure (verbatim; WP05 copies this block to regenerate)
 
 **Superseded-for-reproduction annotation (post-squad, 2026-08-23).** This committed block is frozen evidence —
-byte-identical to what WP02/WP05 ran to produce the pinned `3631531b…` TSV and hash — and is **not** rewritten here.
-It diverges from the hardened terminal-audit contract adopted after the whole-mission squad's fold: this script's
-`content_argv`/`pathname_argv` use a cwd-relative pathspec (`"."`, `:(exclude)kitty-specs/`), no `--full-tree`, and
-no toplevel-cwd guard. For **reproduction of this inventory's pinned evidence**, this block remains authoritative
-and must be run unmodified. For the **M6 terminal zero audit** (and any wave-local audit downstream of the fold),
-the hardened argv in `contracts/inventory-schema.md` (`:(top)` / `:(top,exclude)kitty-specs/`, `ls-tree --full-tree`,
-toplevel-only precondition, symlink-target + normalised-content passes) and the M6 entrypoint
-`scripts/audit_retired_term_zero.py` are authoritative instead — never this block's argv.
+byte-identical to what WP02/WP05 ran to produce the **original single-root** `3631531b…` TSV and hash — and is
+**not** rewritten here. It diverges from the hardened terminal-audit contract adopted after the whole-mission
+squad's fold: this script's `content_argv`/`pathname_argv` use a cwd-relative pathspec (`"."`, `:(exclude)kitty-specs/`),
+no `--full-tree`, and no toplevel-cwd guard. For **reproduction of the original single-root pinned evidence**,
+this block remains authoritative and must be run unmodified. For the **M6 terminal zero audit** (and any wave-local
+audit downstream of the fold), the hardened argv in `contracts/inventory-schema.md` (`:(top)` /
+`:(top,exclude)<root>` per fixed exclusion root, `ls-tree --full-tree`, toplevel-only precondition, symlink-target
++ normalised-content passes) and the M6 entrypoint `scripts/audit_retired_term_zero.py` are authoritative instead
+— never this block's argv.
+
+**Four-root regeneration amendment (2026-08-23, `DM-01M0P6C8C7Q6SPBT412V39RPN0`).** §1's currently-pinned TSV
+(SHA-256 `d8a09ef1…`, 48,964 rows) was produced from **this same block**, with only `content_argv` (three more
+`:(exclude)<root>` pathspecs) and the pathname-audit drop predicate (three more prefix roots) extended to cover
+the three newly-fixed exclusion roots the operator's resolution added alongside `kitty-specs/` —
+`.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`. No other line of the script
+changed; row IDs, `match_sha256` preimage construction, classification rule tables, and self-test logic are
+identical to the block below. The extended script is not committed inline (the block below stays the frozen
+single-root WP02/WP05 evidence per the annotation above); it is fully reconstructible by applying the same
+three-pathspec/three-prefix extension used throughout this mission's contracts (`contracts/inventory-schema.md`
+§"Fixed exclusion roots"). All eight self-tests (§7) re-ran PASS against the extended script, including
+`independent_hash_recompute_all_rows` over all 48,964 rows.
 
 ```python
 #!/usr/bin/env python3
