@@ -15,10 +15,11 @@ session without materializing a plaintext queue scope. The same refusal also blo
 genuinely logged-out operators even though local verification does not require hosted
 sync.
 
-This Mission makes authentication and queue-routing metadata distinct concepts. Local
-verification always runs. Hosted-sync availability is reported as a nonfatal diagnostic,
-and the local verification result alone determines whether `setup-plan` succeeds or
-fails.
+This Mission makes authentication and queue-routing metadata distinct concepts and
+separates local verification from all hosted-sync side effects. Local verification
+always runs. Authentication or structural sync-boundary problems refuse only unsafe
+hosted delivery and are reported as nonfatal diagnostics. The local verification result
+alone determines whether `setup-plan` succeeds or fails.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -93,6 +94,35 @@ the auth state is only a warning.
 2. **Given** either authentication state, **When** local verification produces the same
    result, **Then** the result's success/failure classification is identical.
 
+---
+
+### User Story 4 - Isolate structural sync failures from local work (Priority: P2)
+
+An operator runs `setup-plan` while the hosted-sync boundary is structurally unsafe,
+such as when daemon ownership is orphaned, unreadable, or inconsistent with the
+foreground process. The unsafe hosted-sync side effect is refused, but local
+verification still completes and remains authoritative.
+
+**Why this priority**: Structural guards protect hosted data integrity, but coupling
+their refusal to local plan verification creates the same wrong failure surface as the
+auth gate.
+
+**Independent Test**: Represent each structural boundary-failure class, run
+`setup-plan`, and verify local completeness is returned while hosted delivery is
+refused with a separate diagnostic.
+
+**Acceptance Scenarios**:
+
+1. **Given** a complete plan and a structurally incoherent sync boundary, **When**
+   `setup-plan` runs, **Then** local verification succeeds, unsafe hosted delivery does
+   not occur, the boundary problem is reported separately, and the process exits 0.
+2. **Given** an incomplete plan and the same boundary problem, **When** `setup-plan`
+   runs, **Then** the completeness failure remains the blocking result and the sync
+   diagnostic does not replace it.
+3. **Given** any structural boundary failure, **When** `setup-plan` reports it as
+   nonfatal, **Then** the underlying guard still refuses the unsafe hosted-sync side
+   effect rather than silently bypassing it.
+
 ### Edge Cases
 
 - A login is valid but no plaintext session or credential file contains a queue scope.
@@ -100,6 +130,9 @@ the auth state is only a warning.
 - Credentials or session material are genuinely absent.
 - Auth state is unavailable while local verification succeeds.
 - Auth state is unavailable while local verification fails for an unrelated reason.
+- Daemon ownership is mismatched, orphaned, or unreadable while local verification is
+  otherwise valid.
+- The routed project sync store is unavailable, foreign, or structurally incoherent.
 - SaaS sync is not enabled; no new auth warning is introduced.
 - Structured and human-readable output communicate the same severity without changing
   their established output contracts.
@@ -114,6 +147,8 @@ the auth state is only a warning.
   specification and plan readiness.
 - **Hosted-sync diagnostic**: A report about whether hosted synchronization can be
   guaranteed; it is supplementary to local verification.
+- **Hosted-sync side effect**: Delivery or enqueue work whose safety depends on a
+  coherent sync boundary; it may be refused without refusing local verification.
 
 ## Requirements *(mandatory)*
 
@@ -130,6 +165,9 @@ the auth state is only a warning.
 | FR-007 | Human-readable warning parity | As an interactive operator, I want a clear nonfatal warning in human-readable output that conveys the same severity as structured output. | Medium | Approved |
 | FR-008 | Completeness failure remains primary | As an operator with an incomplete plan, I want the completeness failure reported as the blocking result rather than being replaced by an auth failure. | High | Approved |
 | FR-009 | Consistent local-command policy | As a maintainer, I want `setup-plan` documented and tested consistently with sibling local Mission commands that proceed while logged out. | Medium | Approved |
+| FR-010 | Isolate unsafe hosted delivery | As an operator, I want structural sync-boundary failures to refuse only unsafe hosted-sync side effects so that local verification still completes. | High | Approved |
+| FR-011 | Structural diagnostic contract | As an automation caller, I want each structural sync-boundary failure reported separately from the local result so that I can distinguish verification readiness from delivery readiness. | High | Approved |
+| FR-012 | Local result remains authoritative | As an automation caller, I want local completeness alone to determine the command's success or failure even when hosted delivery is refused. | High | Approved |
 
 ### Non-Functional Requirements
 
@@ -140,6 +178,8 @@ the auth state is only a warning.
 | NFR-003 | Single diagnostic | A genuinely logged-out invocation emits at most one `SAAS_SYNC_UNAUTHENTICATED` warning per command execution. | Usability | Medium | Approved |
 | NFR-004 | Read-surface compatibility | All existing `setup-plan` read-surface behaviors unrelated to auth severity retain their established results, with the affected regression suite reporting zero new failures. | Compatibility | High | Approved |
 | NFR-005 | Machine-readable stability | Every structured warning response remains parseable and includes both the local verification result and a stable warning code in 100% of covered logged-out cases. | Interoperability | High | Approved |
+| NFR-006 | Structural-failure coverage | Every supported sync-boundary failure class is covered by an acceptance case proving that hosted delivery is refused while local verification still completes. | Safety | High | Approved |
+| NFR-007 | No guard weakening | All structural sync-boundary detectors retain 100% of their existing refusal coverage for unsafe hosted-sync side effects. | Data integrity | High | Approved |
 
 ### Constraints
 
@@ -151,6 +191,7 @@ the auth state is only a warning.
 | C-004 | Preserve queue-scope meaning | Queue scope remains synchronization routing metadata and must not be redefined as authentication state. | Domain integrity | High | Approved |
 | C-005 | Preserve supported login forms | Browser-mediated and encrypted-session login forms remain supported; the Mission must not narrow valid auth to plaintext queue-scope-bearing files. | Compatibility | High | Approved |
 | C-006 | Respect release dependency | Finalization follows the 3.2.6 execution DAG dependency on issue #3127. | Coordination | Medium | Approved |
+| C-007 | Fail closed for hosted delivery | A nonfatal command diagnostic must never authorize a hosted-sync side effect that the structural boundary guard considers unsafe. | Data integrity | High | Approved |
 
 ### Key Entities
 
@@ -162,6 +203,8 @@ the auth state is only a warning.
   local blocking reason.
 - **Warning Diagnostic**: Nonfatal, stable-coded information that may accompany a
   verification result without replacing it.
+- **Boundary Failure**: A structural condition that makes hosted delivery unsafe while
+  remaining independent of local plan completeness.
 
 ## Assumptions and Dependencies
 
@@ -179,6 +222,8 @@ the auth state is only a warning.
 - General access-token expiry detection, messaging, or re-login guidance.
 - Changing the authentication method or asking agents to authenticate for operators.
 - Changing queue/store placement, queue migration, or synchronization routing policy.
+- Weakening, suppressing, or bypassing structural sync-boundary detection for hosted
+  delivery.
 - Adding a default fail-closed mode or optional `--require-sync` flag.
 - Altering local completeness rules unrelated to auth severity.
 
@@ -197,6 +242,10 @@ the auth state is only a warning.
   all logged-out acceptance cases.
 - **SC-005**: The targeted existing `setup-plan` read-surface and sibling-command policy
   regression suites complete with zero failures attributable to this Mission.
+- **SC-006**: Every structural boundary-failure fixture refuses hosted delivery while
+  returning the independently computed local verification result.
+- **SC-007**: No acceptance case permits hosted delivery after its applicable structural
+  guard reports an unsafe boundary.
 
 ## Definition of Done
 
@@ -205,5 +254,7 @@ the auth state is only a warning.
 - Auth state is no longer inferred from the presence of queue scope.
 - Auth unavailability is a structured and human-readable warning, never the default
   blocking result.
+- Structural boundary failures remain fail-closed for hosted delivery but never prevent
+  local verification from completing.
 - Documentation states the same nonfatal policy as the executable behavior.
 - All targeted verification and quality gates pass without weakening unrelated guards.

@@ -36,6 +36,9 @@
 ## Notes
 
 - Validated against GitHub issue #3621 and the confirmed Intent Summary.
+- Expanded during planning by explicit operator decision: all hosted-sync boundary
+  failures are isolated from local verification while remaining fail-closed for hosted
+  delivery.
 - The optional fail-closed flag and generic token-expiry UX are explicitly out of scope.
 - Ready for `/spec-kitty.plan` after the mission-aware specification commit and
   `setup-plan` completion check succeed.
