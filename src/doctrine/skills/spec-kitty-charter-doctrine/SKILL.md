@@ -411,11 +411,14 @@ procedure = service.procedures.get("refactoring")
 # procedure.prerequisites → what must be true before starting
 ```
 
-**Agent Profiles** — Role definitions with 6 sections: context_sources,
-purpose, specialization, collaboration, mode_defaults, and
-initialization_declaration. Relationship fields such as `specializes_from` are
-not profile fields; lineage belongs in the doctrine DRG. Profiles support
-weighted matching against task context (DDR-011 algorithm).
+**Agent Profiles** — Role definitions with these sections: purpose,
+specialization, collaboration, mode_defaults, and initialization_declaration.
+Doctrine references are authored on the top-level `*-references` fields
+(`directive-references`, `tactic-references`, `toolguide-references`,
+`styleguide-references`) — the retired `context-sources` block was removed
+(mission `doctrine-drg-silent-drop-boundary`; #3629). Relationship fields such
+as `specializes_from` are not profile fields; lineage belongs in the doctrine
+DRG. Profiles support weighted matching against task context (DDR-011 algorithm).
 
 ```python
 profile = service.agent_profiles.get("implementer")

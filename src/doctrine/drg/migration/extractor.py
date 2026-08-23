@@ -554,9 +554,14 @@ def _reference_edge_kwargs(ref: dict[str, Any]) -> dict[str, str | None]:
     The ``procedure`` references branch was wired through this helper in #3605
     (WP01): shipped procedure references already author ``reason`` in YAML,
     which that branch previously dropped at the extractor -- a silent metadata
-    loss, not a triple change, so no golden-count update was required -- the
-    edge (source, target, relation) set is unchanged; only ``when``/``reason``
-    gained values. Note also that end-to-end frontmatter promotion for a non-directive
+    loss, not a triple change, and no golden-count update was required for THAT
+    change -- the edge (source, target, relation) set was unchanged; only
+    ``when``/``reason`` gained values. (The later agent-profile consolidation,
+    mission ``doctrine-drg-silent-drop-boundary-01M0PE7E`` WP02 / #3629 p1, DID
+    move the profile edge set -- see ledger entry (21) in
+    ``tests/doctrine/drg/migration/test_extractor_projection.py`` for that
+    re-ledger -- but it re-homed profile *references*, not this procedure
+    metadata branch.) Note also that end-to-end frontmatter promotion for a non-directive
     source additionally needs that kind's reference *model* + generated schema
     to accept ``reason`` (only :class:`DirectiveReference` does today); the
     extractor carrying the field is necessary but not sufficient.
@@ -601,6 +606,101 @@ def _merge_edge_metadata(existing: DRGEdge, incoming: DRGEdge) -> DRGEdge:
     if not updates:
         return existing
     return existing.model_copy(update=updates)
+
+
+# ---------------------------------------------------------------------------
+# Agent-profile edge projection
+# ---------------------------------------------------------------------------
+
+
+def _project_profile_reference_edges(
+    data: dict[str, Any],
+    src_urn: str,
+    nodes_by_urn: dict[str, DRGNode],
+    add_edge: Any,
+) -> None:
+    """Emit the four ``*-references`` edge families for one agent profile.
+
+    ``directive-references`` and ``tactic-references`` project as ``requires``;
+    ``toolguide-references`` and ``styleguide-references`` project as
+    ``suggests``. Directive ``requires`` edges are minted *bare* (no ``reason``)
+    to match the retired ``context-sources.directives`` projection byte-for-byte
+    -- only the tactic/toolguide/styleguide families carry the authored
+    rationale, mirroring the pre-consolidation asymmetry.
+    """
+    for ref in data.get("directive-references", []) or []:
+        ref_id = ref.get("code", "")
+        if not ref_id:
+            continue
+        _add_ref_edge(
+            nodes_by_urn=nodes_by_urn,
+            add_edge=add_edge,
+            source=src_urn,
+            ref_type="directive",
+            ref_id=str(ref_id),
+            relation=Relation.REQUIRES,
+        )
+    for ref in data.get("tactic-references", []) or []:
+        ref_id = ref.get("id", "")
+        if not ref_id:
+            continue
+        _add_ref_edge(
+            nodes_by_urn=nodes_by_urn,
+            add_edge=add_edge,
+            source=src_urn,
+            ref_type="tactic",
+            ref_id=ref_id,
+            relation=Relation.REQUIRES,
+            reason=ref.get("rationale"),
+        )
+    for ref_type in ("toolguide", "styleguide"):
+        for ref in data.get(f"{ref_type}-references", []) or []:
+            ref_id = ref.get("id", "")
+            if not ref_id:
+                continue
+            _add_ref_edge(
+                nodes_by_urn=nodes_by_urn,
+                add_edge=add_edge,
+                source=src_urn,
+                ref_type=ref_type,
+                ref_id=ref_id,
+                relation=Relation.SUGGESTS,
+                reason=ref.get("rationale"),
+            )
+
+
+def _emit_agent_profile_edges(
+    packs_root: Path,
+    nodes_by_urn: dict[str, DRGNode],
+    add_edge: Any,
+) -> None:
+    """Project ``agent_profile`` DRG edges from each profile's canonical
+    top-level ``*-references`` surface.
+
+    Consolidated in mission ``doctrine-drg-silent-drop-boundary-01M0PE7E``
+    (WP02, #3629 p1): the retired ``context-sources.*`` bare-string surface is
+    gone, so directive edges now project from ``directive-references`` (was
+    ``context-sources.directives``); ``tactic-references`` is unchanged; and
+    ``toolguide-references``/``styleguide-references`` newly project as
+    ``suggests`` so every authored reference becomes a first-class DRG edge with
+    no silent-drop boundary. Factored out of :func:`extract_artifact_edges`
+    (already at the ``# noqa: C901`` ceiling, NFR-004), mirroring
+    :func:`_emit_glossary_pack_nodes`.
+    """
+    profiles_dir = packs_root / "agent_profiles"
+    if not profiles_dir.is_dir():
+        return
+    for path in sorted(profiles_dir.glob("*.agent.yaml")):
+        data = _load_yaml(path)
+        if data is None:
+            continue
+        profile_id = data.get("profile-id", "")
+        if not profile_id:
+            continue
+        src_urn = artifact_to_urn("agent_profile", profile_id)
+        label = data.get("name", "")
+        _ensure_node(nodes_by_urn, src_urn, NodeKind.AGENT_PROFILE, label or None)
+        _project_profile_reference_edges(data, src_urn, nodes_by_urn, add_edge)
 
 
 # ---------------------------------------------------------------------------
@@ -904,42 +1004,7 @@ def extract_artifact_edges(  # noqa: C901
                 )
 
     # --- Agent profiles ---
-    profiles_dir = packs_root / "agent_profiles"
-    if profiles_dir.is_dir():
-        for path in sorted(profiles_dir.glob("*.agent.yaml")):
-            data = _load_yaml(path)
-            if data is None:
-                continue
-            profile_id = data.get("profile-id", "")
-            if not profile_id:
-                continue
-            src_urn = artifact_to_urn("agent_profile", profile_id)
-            label = data.get("name", "")
-            _ensure_node(nodes_by_urn, src_urn, NodeKind.AGENT_PROFILE, label or None)
-
-            context_sources = data.get("context-sources", {}) or {}
-            for directive_id in context_sources.get("directives", []) or []:
-                _add_ref_edge(
-                    nodes_by_urn=nodes_by_urn,
-                    add_edge=_add_edge,
-                    source=src_urn,
-                    ref_type="directive",
-                    ref_id=str(directive_id),
-                    relation=Relation.REQUIRES,
-                )
-            for ref in data.get("tactic-references", []) or []:
-                ref_id = ref.get("id", "")
-                if not ref_id:
-                    continue
-                _add_ref_edge(
-                    nodes_by_urn=nodes_by_urn,
-                    add_edge=_add_edge,
-                    source=src_urn,
-                    ref_type="tactic",
-                    ref_id=ref_id,
-                    relation=Relation.REQUIRES,
-                    reason=ref.get("rationale"),
-                )
+    _emit_agent_profile_edges(packs_root, nodes_by_urn, _add_edge)
 
     # --- Styleguides (T027) ---
     # Styleguide ``references`` is a plain ``list[str]`` of file paths — NOT the

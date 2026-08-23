@@ -482,14 +482,9 @@ def _agent_profile_fixups(schema: dict) -> dict:
             srp["description"] = "Self-review checklist the agent runs before handing off work"
 
     defs = schema.get("definitions", {})
-    _annotate_def(defs, "agent_context_sources", {
-        "doctrine-layers": "Doctrine layers this agent consults",
-        "directives": "Directive IDs this agent references",
-        "tactics": "Tactic IDs this agent references",
-        "toolguides": "Toolguide IDs this agent references",
-        "styleguides": "Styleguide IDs this agent references",
-        "additional": "Additional context sources",
-    })
+    # The retired ``agent_context_sources`` definition was removed in mission
+    # doctrine-drg-silent-drop-boundary-01M0PE7E; references now live solely on
+    # the top-level ``*-references`` surface.
     _annotate_def(defs, "agent_specialization", {
         "primary-focus": "Primary area of specialization",
         "secondary-awareness": "Secondary areas agent is aware of",
