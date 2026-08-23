@@ -701,34 +701,26 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
     tmp_path: Path,
     json_mode: bool,
 ) -> None:
-    """Unknown timeout evidence is diagnostic, never runtime policy learning."""
+    """The registered public route emits real unknown-timeout evidence."""
     ports, router = _build_command_fixture(tmp_path)
     assessment = assess_scope_budget(("tests/example",), 300)
+    clock = SimpleNamespace(now=0.0)
+    wait_calls = 0
 
-    def controlled_timeout(
-        scope: pre_review_gate.ScopeResult,
-        **kwargs: Any,
-    ) -> pre_review_gate.GateVerdict:
-        status_observer = kwargs.get("status_observer")
-        if status_observer is not None:
-            status_observer(pre_review_gate.ScopeAssessed(assessment))
-            status_observer(pre_review_gate.Heartbeat("candidate_head", 30.0))
-            status_observer(pre_review_gate.Heartbeat("candidate_head", 60.0))
-        return pre_review_gate.GateVerdict(
-            outcome=pre_review_gate.GateOutcome.TIMED_OUT,
-            scope=scope,
-            reason=(
-                "scoped test run timed out; budget classification unknown; scope identity "
-                f"{assessment.scope_identity.value}; normalized targets: tests/example; "
-                "configured budget: 300s; monotonic observed elapsed: 300.250s; lane remains "
-                "unchanged. This is a classification candidate for a reviewed metadata update; "
-                "runtime policy was not modified."
-            ),
-            run_state=pre_review_gate.HeadRunState.TIMED_OUT,
-            budget_assessment=assessment,
-            classification_candidate=True,
-            observed_elapsed_seconds=300.25,
-        )
+    def monotonic() -> float:
+        return float(clock.now)
+
+    def controlled_wait(process: Any, timeout: float) -> tuple[str, str]:
+        """Advance to the real deadline, then let real cleanup reap the double."""
+        nonlocal wait_calls
+        del process
+        wait_calls += 1
+        if wait_calls <= 10:
+            clock.now += timeout + (0.25 if wait_calls == 10 else 0.0)
+            raise subprocess.TimeoutExpired(cmd="controlled gate", timeout=timeout)
+        return "", "controlled timeout"
+
+    process = SimpleNamespace(pid=424242, returncode=-15)
 
     args = [
         "move-task",
@@ -754,12 +746,37 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
         patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path),
         patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)),
         patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()),
-        patch.object(pre_review_gate, "evaluate_with_scope", side_effect=controlled_timeout),
+        patch.object(tasks_move_task, "_mt_pre_review_scope_override", return_value=None),
+        patch.object(tasks_move_task, "_mt_resolve_scope_source", return_value=_FakeScopeSource()),
+        patch.object(
+            tasks_move_task,
+            "_mt_resolve_active_gate_bindings",
+            return_value=SimpleNamespace(
+                active=(SimpleNamespace(handler="spec-kitty-pre-review"),),
+                reason="active",
+            ),
+        ),
+        patch.object(
+            gate_registry,
+            "evaluate_pre_review_gate",
+            wraps=partial(
+                gate_registry.evaluate_pre_review_gate,
+                monotonic=monotonic,
+                wait=controlled_wait,
+            ),
+        ) as registered_evaluator,
+        patch.object(pre_review_gate, "evaluate_with_scope", wraps=pre_review_gate.evaluate_with_scope) as shared_evaluator,
+        patch.object(pre_review_gate, "_launch_scoped_process", return_value=process) as launch_spy,
+        patch.object(pre_review_gate, "_signal_owned_process_tree"),
     ):
         result = CliRunner().invoke(app, args)
 
     assert result.exit_code == 1
     assert router.status_calls == []
+    registered_evaluator.assert_called_once()
+    shared_evaluator.assert_called_once()
+    launch_spy.assert_called_once()
+    assert wait_calls == 11
     if json_mode:
         payload = json.loads(result.stdout)
         metadata = payload["pre_review_gate"]
@@ -771,10 +788,15 @@ def test_exact_entry_reports_unknown_timeout_candidate_without_transition(
         assert metadata["effective_budget_seconds"] == 300
         assert metadata["observed_elapsed_seconds"] == 300.25
         assert metadata["classification_candidate"] is True
+        assert metadata["matched_budget_rule"] is None
+        assert "reviewed budget metadata" in metadata["classification_guidance"]
+        assert "normalized targets: tests/example" in metadata["reason"]
+        assert "lane remains unchanged" in metadata["reason"]
         assert result.stdout.count("\n{") == 0
     else:
         output = result.output.lower()
         assert "scope assessment: unknown" in output
+        assert "targets=tests/example" in output
         assert "still running" in output
         assert assessment.scope_identity.value in result.output
         assert "configured budget: 300s" in output

@@ -221,39 +221,24 @@ def test_bounded_timeout_is_not_a_classification_candidate(
     assert verdict.observed_elapsed_seconds == 12.75
 
 
-@pytest.mark.fast
-def test_bounded_fixture_completes_under_incumbent_runner(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Bounded metadata permits the unchanged completion/diff path."""
-    bounded = ScopeBudgetAssessment(
-        classification=BudgetClassification.BOUNDED,
-        scope_identity=ScopeIdentity(
-            normalized_targets=("tests/review/test_small.py",),
-            policy_namespace="spec-kitty.pre-review-budget/v1",
-            value="budget-v1:sha256:bounded-completion-fixture",
-        ),
-        effective_budget_seconds=10,
-        matched_rule_id="bounded-completion-fixture",
-        evidence="synthetic bounded acceptance fixture",
-        guidance="run",
-    )
-    monkeypatch.setattr(pre_review_gate, "assess_scope_budget", lambda *args: bounded)
-    monkeypatch.setattr(
-        pre_review_gate,
-        "run_scoped_tests_at_head",
-        lambda *args, **kwargs: HeadRunResult(ran=True),
-    )
+def test_bounded_fixture_completes_under_incumbent_runner() -> None:
+    """Source-controlled bounded metadata permits a real candidate run."""
+    target = "tests/review/test_gate_budget.py::test_identity_matches_pinned_vector"
 
     verdict = pre_review_gate.evaluate_with_scope(
-        ScopeResult.from_override(("tests/review/test_small.py",)),
+        ScopeResult.from_override((target,)),
         repo_root=_DUMMY_ROOT,
         baseline=_make_baseline(),
-        timeout=10,
+        timeout=30,
     )
 
     assert verdict.outcome is GateOutcome.NO_NEW_FAILURES
-    assert verdict.budget_assessment is bounded
+    assert verdict.run_state is HeadRunState.COMPLETED
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.classification is BudgetClassification.BOUNDED
+    assert verdict.budget_assessment.scope_identity.normalized_targets == (target,)
+    assert verdict.budget_assessment.effective_budget_seconds == 30
+    assert verdict.budget_assessment.matched_rule_id == "spec-kitty-gate-budget-pinned-vector"
     assert verdict.classification_candidate is False
 
 

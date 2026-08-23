@@ -21,6 +21,7 @@ from specify_cli.review.gate_budget import (
 
 
 PINNED_ARCHITECTURAL_IDENTITY = "budget-v1:sha256:10c1e7475c72e48b83e4910e24437646d6ecd55052ca9a3a4f413b17153946fe"
+BOUNDED_PINNED_VECTOR_TARGET = "tests/review/test_gate_budget.py::test_identity_matches_pinned_vector"
 
 
 @pytest.mark.parametrize(
@@ -47,11 +48,32 @@ def test_exact_architectural_atom_is_oversized(targets: tuple[str, ...], expecte
     assert assessment.effective_budget_seconds == 300.0
 
 
+def test_exact_pinned_vector_atom_is_bounded() -> None:
+    assessment = assess_scope_budget((BOUNDED_PINNED_VECTOR_TARGET,), effective_budget_seconds=30)
+
+    assert assessment.classification is BudgetClassification.BOUNDED
+    assert assessment.scope_identity.normalized_targets == (BOUNDED_PINNED_VECTOR_TARGET,)
+    assert assessment.matched_rule_id == "spec-kitty-gate-budget-pinned-vector"
+    assert assessment.evidence is not None
+    assert assessment.effective_budget_seconds == 30.0
+
+
+def test_oversized_rule_outranks_bounded_atom() -> None:
+    assessment = assess_scope_budget(
+        (BOUNDED_PINNED_VECTOR_TARGET, "tests/architectural"),
+        effective_budget_seconds=300,
+    )
+
+    assert assessment.classification is BudgetClassification.OVERSIZED
+    assert assessment.matched_rule_id == "spec-kitty-architectural-full-directory"
+
+
 @pytest.mark.parametrize(
     "targets",
     [
         (),
         ("tests/unit",),
+        ("tests/review/test_gate_budget.py",),
         ("tests/architectural/test_layer_rules.py",),
         ("tests/architectural/test_layer_rules.py::test_imports",),
     ],

@@ -86,6 +86,13 @@ _RULES: tuple[ScopeBudgetRule, ...] = (
         evidence="issue #2573 dogfood, approximately 26 minutes per leg",
         guidance=("Select a bounded test scope, or explicitly skip the pre-review gate when the operator accepts that tradeoff."),
     ),
+    ScopeBudgetRule(
+        rule_id="spec-kitty-gate-budget-pinned-vector",
+        required_target_atoms=("tests/review/test_gate_budget.py::test_identity_matches_pinned_vector",),
+        classification=BudgetClassification.BOUNDED,
+        evidence="reviewed isolated contract node with no network, repository mutation, or subprocess fan-out",
+        guidance="Run this stable isolated contract node under the configured timeout.",
+    ),
 )
 
 _UNKNOWN_GUIDANCE = (
