@@ -164,8 +164,10 @@ fails.
 
 ## Risks and mitigations
 
-- **False zero via exclusion** → exact commands/token construction and the single `kitty-specs/` exclusion
-  root fixed in contract; any other narrowing, or omitting that root, fails.
+- **False zero via exclusion** → exact commands/token construction and the four fixed exclusion
+  roots (`kitty-specs/`, `.kittify/migrations/mission-state/quarantine/`, `kitty-ops/`, `.kittify/missions/`;
+  `DM-01M0P6C8C7Q6SPBT412V39RPN0` amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA`) fixed in contract; any other
+  narrowing, or omitting any root, fails.
 - **Data loss during pathname extinction** → backup, verified canonical copy/move, divergent conflict hard
   failure, no completion marker with old path.
 - **`src/charter/` collisions** → exhaustive map approval before first M2 edit; unresolved row blocks.
@@ -182,4 +184,4 @@ fails.
 ADR contract, inventory contract, data model, methodology instructions, stack schema, tasks/prompts,
 quickstart, checklist, and verification evidence state the same full-current-tree-outside-`kitty-specs/`
 scope and exact I6 gate; no conflicting internal/history/X/managed-ledger exception remains beyond the
-one fixed archive root.
+four fixed exclusion roots (`DM-01M0NMS9WPH33EPFCJQRTQVNSA` as amended by `DM-01M0P6C8C7Q6SPBT412V39RPN0`).
