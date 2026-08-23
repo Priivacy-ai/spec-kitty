@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from specify_cli.auth.token_manager import SessionAssessment
+from specify_cli.cli.commands.agent import setup_plan_hosted as hosted_adapter
 from specify_cli.cli.commands.agent.setup_plan_hosted import (
     BoundaryEvaluation,
     BoundaryState,
@@ -601,6 +602,8 @@ def test_allowing_decision_rejects_diagnostics_without_echo() -> None:
 
 
 def test_wire_registry_contains_exactly_four_codes() -> None:
+    assert set(hosted_adapter._DIAGNOSTIC_REGISTRY) == set(_WIRE_REGISTRY_EXPECTATIONS)
+
     diagnostics = tuple(
         HostedSyncDiagnostic(
             code=code,
@@ -616,3 +619,16 @@ def test_wire_registry_contains_exactly_four_codes() -> None:
         for item in HostedSyncDecision(True, False, diagnostics).to_dict()["diagnostics"]
     }
     assert wire_codes == set(_WIRE_REGISTRY_EXPECTATIONS)
+
+
+def test_wire_registry_ssot_guard_rejects_temporary_fifth_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    mutated_registry = {
+        **hosted_adapter._DIAGNOSTIC_REGISTRY,
+        "SAAS_SYNC_TEMPORARY_FIFTH": next(iter(hosted_adapter._DIAGNOSTIC_REGISTRY.values())),
+    }
+    monkeypatch.setattr(hosted_adapter, "_DIAGNOSTIC_REGISTRY", mutated_registry)
+
+    with pytest.raises(AssertionError):
+        assert set(hosted_adapter._DIAGNOSTIC_REGISTRY) == set(_WIRE_REGISTRY_EXPECTATIONS)
