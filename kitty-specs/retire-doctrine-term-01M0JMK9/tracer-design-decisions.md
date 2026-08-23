@@ -130,3 +130,21 @@ facade and implementation are never merged into one module. The sub-package name
 
 Quarantine `status.events.jsonl`, `kitty-ops/*.jsonl`, and `retrospective.yaml` files carry archive slugs / retired
 profile IDs as identity values. Opened and deferred `DM-01M0P6C8C7Q6SPBT412V39RPN0`; it is M5's only open question.
+
+## DD-020 — Immutable historical-record exclusion is four fixed roots, not one (resolves DD-019)
+
+Operator decision 2026-08-23 resolved `DM-01M0P6C8C7Q6SPBT412V39RPN0` as **Option 1**: the three record roots
+DD-019 named — `.kittify/migrations/mission-state/quarantine/` (quarantine `status.events.jsonl`), `kitty-ops/`
+(`*.jsonl`), and `.kittify/missions/` (`**/retrospective.yaml`) — join `kitty-specs/` in the fixed, enumerated
+exclusion set, amending `DM-01M0NMS9WPH33EPFCJQRTQVNSA`. Same mechanism as the archive root: one
+`:(top,exclude)<root>` content pathspec and one ls-tree prefix drop per root — four independent excludes, never an
+allowlist. No pre-existing path under any of the four is edited, renamed, or deleted by any wave; runtime may keep
+appending new records to the three non-archive roots (this is the DD-009/DD-011 archive-gate pattern extended to
+all four roots, not a new mechanism). The inventory was regenerated at the unchanged frozen base:
+content 48,328→48,245 (−83), pathname 722→719 (−3), total 49,050→48,964 (−86); the 86 rows that left the manifest
+are exactly the frozen-base rows under the three newly-fixed roots (OC-33 −22, OC-34 −61, OC-49 −3, all now M5's
+`local_design_questions = 0`). `contracts/inventory-schema.md`, `inventory.md` §1/§3/§8, the ADR's terminal-audit
+section and scope table, `data-model.md`, `methodology.md`, `stacked-plan.md`, `research.md`, and `quickstart.md`
+were propagated in this landing pass; DD-001/DD-009/DD-011 (archive root as audit boundary / per-wave gate /
+executable gate) now read as "the four fixed exclusion roots" wherever they said "the archive root" — the
+mechanism DD-001 established is unchanged, only its enumerated root set grew.
