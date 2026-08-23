@@ -65,6 +65,7 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     evaluate_boundary,
     evaluate_route_availability,
     is_canonical_hosted_sync_decision,
+    serialize_hosted_sync_diagnostics,
 )
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
@@ -205,17 +206,17 @@ def _report_setup_plan_outcome(
     human_message: str | None = None,
 ) -> None:
     """Emit one local result, attaching hosted diagnostics additively."""
+    serialized_diagnostics = serialize_hosted_sync_diagnostics(diagnostics)
     if json_output:
         payload = dict(outcome.payload)
-        if diagnostics:
-            payload["warnings"] = [diagnostic.to_dict() for diagnostic in diagnostics]
+        if serialized_diagnostics:
+            payload["warnings"] = serialized_diagnostics
         _emit_json(payload)
         return
 
-    for diagnostic in diagnostics:
+    for canonical in serialized_diagnostics:
         # Human and JSON channels consume the same reconstructed closed-registry
         # envelope.  Never render caller-provided diagnostic fields directly.
-        canonical = diagnostic.to_dict()
         console.print(f"[yellow]Warning:[/yellow] {canonical['message']}")
     if human_message is not None:
         console.print(human_message)

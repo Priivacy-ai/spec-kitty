@@ -144,24 +144,56 @@ class HostedSyncDiagnostic:
 
     def to_dict(self) -> dict[str, object]:
         """Reconstruct the complete wire envelope from the closed registry."""
-        spec = _diagnostic_spec(self.code)
-        payload: dict[str, object] = {
-            "code": self.code,
-            "severity": spec.severity,
-            "hosted_disposition": spec.hosted_disposition,
-            "message": spec.message,
-            "remediation": list(spec.remediation),
-        }
+        return _canonical_diagnostic_payload(self.code, self.details)
+
+
+def _canonical_diagnostic_payload(
+    code: str,
+    details: Mapping[str, object] | None,
+) -> dict[str, object]:
+    """Serialize one registered diagnostic without calling public methods."""
+    spec = _diagnostic_spec(code)
+    payload: dict[str, object] = {
+        "code": code,
+        "severity": spec.severity,
+        "hosted_disposition": spec.hosted_disposition,
+        "message": spec.message,
+        "remediation": list(spec.remediation),
+    }
+    try:
+        raw_details = details or {}
+        if not isinstance(raw_details, Mapping):
+            raise TypeError("diagnostic details are not a mapping")
+        safe_details = spec.details_classifier(raw_details)
+    except Exception:  # noqa: BLE001 - serialization is a fail-closed boundary
+        safe_details = spec.details_classifier({})
+    if safe_details:
+        payload["details"] = safe_details
+    return payload
+
+
+def serialize_hosted_sync_diagnostics(
+    diagnostics: tuple[HostedSyncDiagnostic, ...],
+) -> list[dict[str, object]]:
+    """Totalize the public diagnostic collection at its final wire boundary.
+
+    A patched, subclassed, or otherwise hostile ``to_dict`` implementation
+    cannot replace the already-frozen local command outcome.  The fallback is
+    reconstructed directly from the closed registry and contains no caller
+    exception text.
+    """
+    serialized: list[dict[str, object]] = []
+    for diagnostic in diagnostics:
         try:
-            raw_details = self.details or {}
-            if not isinstance(raw_details, Mapping):
-                raise TypeError("diagnostic details are not a mapping")
-            safe_details = spec.details_classifier(raw_details)
-        except Exception:  # noqa: BLE001 - serialization is a fail-closed boundary
-            safe_details = spec.details_classifier({})
-        if safe_details:
-            payload["details"] = safe_details
-        return payload
+            serialized.append(diagnostic.to_dict())
+        except Exception:  # noqa: BLE001 - local payload/exit already authoritative
+            serialized.append(
+                _canonical_diagnostic_payload(
+                    "SAAS_SYNC_BOUNDARY_UNSAFE",
+                    {"reason": "boundary_evaluation_failed"},
+                )
+            )
+    return serialized
 
 
 @dataclass(frozen=True, slots=True, weakref_slot=True)
@@ -181,23 +213,10 @@ class HostedSyncDecision:
 
     def to_dict(self) -> dict[str, object]:
         """Return a plain JSON-compatible representation."""
-        serialized: list[dict[str, object]] = []
-        for diagnostic in self.diagnostics:
-            try:
-                serialized.append(diagnostic.to_dict())
-            except Exception:  # noqa: BLE001 - never expose or propagate hostile evidence
-                serialized.append(
-                    _boundary_diagnostic(
-                        BoundaryEvaluation(
-                            BoundaryState.UNKNOWN,
-                            "boundary_evaluation_failed",
-                        )
-                    ).to_dict()
-                )
         return {
             "requested": self.requested,
             "allow_effects": self.allow_effects,
-            "diagnostics": serialized,
+            "diagnostics": serialize_hosted_sync_diagnostics(self.diagnostics),
         }
 
 
@@ -648,4 +667,5 @@ __all__ = [
     "evaluate_boundary",
     "evaluate_route_availability",
     "is_canonical_hosted_sync_decision",
+    "serialize_hosted_sync_diagnostics",
 ]
