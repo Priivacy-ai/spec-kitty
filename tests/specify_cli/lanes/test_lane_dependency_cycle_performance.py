@@ -7,7 +7,10 @@ from pytest_benchmark.fixture import BenchmarkFixture
 
 from specify_cli.lanes.compute import _find_lane_dependency_cycle
 
-pytestmark = [pytest.mark.unit]
+# ``fast`` gives this node a push-to-main collection home in fast-tests-lanes.
+# The global performance chokepoint still skips its body unless
+# SPEC_KITTY_RUN_PERFORMANCE=1, so ordinary CI does not execute the benchmark.
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _LANE_COUNT = 100
 _EDGE_COUNT = 500

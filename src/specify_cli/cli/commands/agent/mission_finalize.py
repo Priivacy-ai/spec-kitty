@@ -2919,7 +2919,7 @@ def finalize_tasks(
 
         # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011)
         tasks_md = planning_dir / TASKS_MD_FILENAME
-        if wps_manifest is not None:
+        if wps_manifest is not None and not validate_only:
             tasks_md.write_text(generate_tasks_md_from_manifest(wps_manifest, mission_slug), encoding="utf-8")
             if not json_output:
                 console.print(
