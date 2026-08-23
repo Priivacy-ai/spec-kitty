@@ -259,6 +259,7 @@ from .views import (
     format_post_mission_events,
 )
 from .work_package_lifecycle import (
+    GENERIC_IMPLEMENTATION_ACTORS,
     WorkPackageClaimConflict,
     WorkPackageStartRejected,
     start_implementation_status,
@@ -385,6 +386,7 @@ __all__ = [
     "TASKS_STARTED",
     "MissionNotCompletedError",
     "TransitionRequest",
+    "GENERIC_IMPLEMENTATION_ACTORS",
     "WorkPackageClaimConflict",
     "WorkPackageStartRejected",
     "build_saas_lifecycle_queue_event",

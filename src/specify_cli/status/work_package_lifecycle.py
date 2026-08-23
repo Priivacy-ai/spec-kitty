@@ -24,7 +24,22 @@ from specify_cli.status.models import (
 )
 from specify_cli.workspace import canonicalize_feature_dir
 
-_GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown"})
+#: Placeholder assignee identities written by callers that claim a WP without
+#: a real agent identity (``implement-command`` — the internal ``spec-kitty
+#: implement`` compat surface's default ``effective_actor`` when invoked
+#: without ``--actor``, per its own docstring "compatibility surface for
+#: direct callers"; ``unknown`` — a generic fallback elsewhere). Neither is a
+#: real owner, so every ownership check in this module (and, per FIX-M2-03,
+#: :mod:`specify_cli.cli.commands.agent.tasks_transition_core`'s
+#: ``move-task`` agent-ownership guard) treats a WP whose CURRENT assignee is
+#: one of these as unclaimed-in-practice: the first real agent identity to
+#: touch it becomes the de facto owner, no ``--force`` required. Public (no
+#: leading underscore) so both ownership checks share the ONE definition
+#: instead of drifting out of sync (the original private
+#: ``_GENERIC_IMPLEMENTATION_ACTORS`` spelling here only ever gated the
+#: claim/in_progress start path; ``move-task`` silently lacked the same
+#: allowance until FIX-M2-03).
+GENERIC_IMPLEMENTATION_ACTORS = frozenset({"implement-command", "unknown"})
 
 
 class WorkPackageClaimConflict(TransitionError):
@@ -93,7 +108,7 @@ def _actors_compatible(existing: object | None, requested: object | None, *, all
         return True
     if existing_key == requested_key:
         return True
-    return allow_generic_existing and existing_key in _GENERIC_IMPLEMENTATION_ACTORS
+    return allow_generic_existing and existing_key in GENERIC_IMPLEMENTATION_ACTORS
 
 
 def start_implementation_status(
