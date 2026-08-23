@@ -29,6 +29,21 @@ WP05 evidence is complete, but issue #2573 is **not release-ready**. As checked 
 
 Synthetic controlled-clock timeout fixtures were used only as test evidence. No operational unknown-budget timeout occurred, so no policy candidate was appended and no deterministic budget metadata was promoted.
 
+## Current final-accept diagnosis
+
+WP05 can be evidence-complete while final mission acceptance remains blocked. These blockers are current and independent of the later #3127 release prerequisite:
+
+- The canonical `acceptance-matrix.json` remains `overall_verdict: pending`; FR-001 through FR-010 are all pending and still contain scaffold acceptance descriptions rather than final verifier evidence.
+- The committed `tasks.md` projection still shows T001–T025 unchecked even though the authoritative event log records completed WP subtasks. The projection must be synchronized and validated before accept.
+- #3694 and #3695 require an explicit disposition. The auto-derived public `NEW_FAILURES` warn/block acceptance surface currently resolves `NO_COVERAGE`; unit aggregation and the passing override-route block node do not discharge that missing public-route proof.
+- WP01–WP04 evidence currently lives on separate approved lanes. The integrated delivery branch must rerun the focused and dependency suites, and the mission's new Windows node still needs an actual native `ci-windows` result where the job is available.
+
+These are accept-diagnose findings, not reasons to rewrite the release DAG. They may be remedied before #3127 closes. No final-accept or release-ready verdict is claimed here.
+
+## Separate release prerequisite
+
+#3127 remains the upstream 3.2.6 release prerequisite. Even after the accept blockers above are remedied, #2573 remains `waiting_upstream` until #3127 merges, the delivery branch is rebased on the resulting `main`, and trustworthy required checks are rerun on that rebased branch.
+
 ## Issue boundary
 
 - **#2573 — in mission, not release-ready:** implementation and focused evidence exist; final integrated and CI proof is still pending.
