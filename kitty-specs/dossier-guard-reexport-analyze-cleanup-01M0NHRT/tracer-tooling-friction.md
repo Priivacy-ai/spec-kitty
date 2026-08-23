@@ -305,3 +305,29 @@ and correctly materialized (correct base commit, correct lane branch, clean tree
 SK-65 signature, a fourth+ sighting, now confirmed on a fourth command surface
 (`create`/`finalize-tasks`/`record-analysis`-adjacent per F-01–F-09, and now `agent action
 implement`).
+
+## F-2026-08-23T00:32:00Z — WP01 T005: `agent tasks mark-status` wrote its event then hung (same SK-65 signature), and the write landed in the PRIMARY checkout, not lane-a
+
+**Verified first-hand**, 2026-08-23, closing out WP01.
+
+`spec-kitty agent tasks mark-status T005 --status done --mission
+dossier-guard-reexport-analyze-cleanup-01M0NHRT`, run from lane-a, exceeded a 60s `timeout` and
+was killed (exit 143). Checked `kitty-specs/.../status.events.jsonl` in the PRIMARY checkout
+(`/home/.../3676`, on `fix/dossier-guard-reexport-analyze-cleanup-3676` directly — this mission's
+`single_branch` topology routes the status surface to primary, not the lane worktree) and found
+the annotation event genuinely landed: `{"actor": "user", ..., "delta": {"subtasks": {"T005":
+"done"}}, ..., "wp_id": "WP01"}`. Both `status.events.jsonl` (31 lines, all parse) and
+`status.json` were confirmed structurally intact after the kill — the write completed before the
+hang, matching the SK-63/SK-65/SK-74 "writes-then-hangs" signature already recorded at F-01/F-02/
+F-04/F-05 above, this time on `agent tasks mark-status`. Also observed: `ps aux` at the same
+moment showed WP03's and WP04's own concurrent `mark-status` invocations racing the SAME shared
+primary-checkout `status.events.jsonl` file (T010/T011/T012 for WP03, T013 for WP04) — consistent
+with all four WPs in this mission running genuinely concurrently, as `parallel_group: 0` and
+`dependencies: []` on all four WPs implies. Because this file sits outside WP01's `owned_files`/
+lane write scope AND is being actively written by other concurrently-running WP agents' own
+`mark-status` calls in the primary checkout (not lane-a), this WP does **not** commit
+`status.events.jsonl`/`status.json` itself — doing so from a lane worktree copy would risk
+clobbering a sibling WP's concurrent write to the same shared file. No new ledger entry: this is
+the same SK-65 hang class, a further sighting, now confirmed on a fifth command surface
+(`create`/`finalize-tasks`/`record-analysis`-adjacent/`agent action implement` per prior entries,
+and now `agent tasks mark-status`).
