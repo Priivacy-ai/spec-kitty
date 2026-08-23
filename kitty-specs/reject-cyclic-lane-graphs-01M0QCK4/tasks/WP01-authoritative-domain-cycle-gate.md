@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: fix/reject-cyclic-lane-graphs
 merge_target_branch: fix/reject-cyclic-lane-graphs
 branch_strategy: Planning artifacts for this mission were generated on fix/reject-cyclic-lane-graphs. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/reject-cyclic-lane-graphs unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-reject-cyclic-lane-graphs-01M0QCK4
+base_commit: b35fef952089a3d581d685affac38463627d3061
+created_at: '2026-08-23T15:58:31.405095+00:00'
 subtasks:
 - T001
 - T002
