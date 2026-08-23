@@ -427,3 +427,42 @@ transition landed; per the standing "no CLI command for a transition means BLOCK
 hand-edit" rule, WP04's frontmatter/status fields were left untouched rather than hand-patched.
 Flagging for the orchestrator/reviewer: WP04's task board may show T013/T014/T015 as not
 marked-done even though the underlying work is complete and committed.
+
+## F-2026-08-23T00:51:31Z — WP04 review rejection remediated: persisted red-first regression test added post-hoc
+
+**Context**: WP04's first cycle was rejected (verdict quoted in the fresh WP-agent dispatch)
+because the T013/T015 BEFORE/AFTER grep+pytest checks were manual due diligence, not a
+persisted test — nothing in `tests/` guarded against a future re-introduction of the seven
+`spec_kitty_events` type re-exports the implementation commit (`02ef48fc3`) removed. The
+reviewer's own remediation text confirmed a red-first test WAS expressible
+(`pytest.raises(ImportError)`/`hasattr` around the seven names), so this was a genuine gap,
+not a non-applicability call.
+
+**Remediation** (this fresh WP-agent cycle, no changes to `02ef48fc3`'s `__init__.py` diff):
+added `tests/dossier/test_reexport_trim.py` — parametrized over the seven removed names
+(asserting `not hasattr`, a real `from specify_cli.dossier import <name>` raises
+`ImportError`, and each name is absent from `__all__`) and the four retained `emit_*` names
+(asserting the mirror-image positive checks), 33 test cases total.
+
+**Red→green verified honestly, not fabricated**: because charter §591's red-BEFORE-green
+ordering cannot be satisfied retroactively (the implementation commit already exists), the
+verification instead ran the finished test file against both commits directly. Copied the new
+test file into a throwaway `git worktree add --detach <tmp> 920678964` (the pre-trim commit,
+confirmed by grep that its `dossier/__init__.py` still imports all seven names) and ran it
+there: **21 failed, 12 passed** (7 removed-names × 3 assertions = 21 red; 4 retained emit_* ×
+3 assertions = 12 green, exactly as expected — the emit_* re-exports were never touched).
+Ran the same file against the lane-d worktree HEAD (`02ef48fc3` + tracer commits): **33
+passed, 0 failed**. The throwaway worktree was removed
+(`git worktree remove --force <tmp>`) immediately after, confirmed absent from
+`git worktree list`.
+
+**Also added**: a CHANGELOG.md entry under `### 🐛 Fixed` in the `[Unreleased] - 3.2.6rc3`
+section (issue #3677), noting the user-visible API change. No `pyproject.toml` version bump —
+per this WP's dispatch, the top-level `__init__.py` version-bump rule in CLAUDE.md does not
+apply to a nested package `__init__.py`, matching the last six commits touching a nested
+`src/specify_cli/*/__init__.py` (zero bumps, four CHANGELOG entries; `a69c2f04a` cited as the
+clean precedent).
+
+**Disposition**: no new tooling defect found this cycle — pure remediation of the prior
+review's finding. Filed for the mission trail per the standing tracer-file instruction, not
+because spec-kitty itself fought this cycle.
