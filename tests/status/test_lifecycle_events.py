@@ -30,6 +30,8 @@ import specify_cli.status.lifecycle_events as lifecycle
 from specify_cli.status.lifecycle_events import (
     LIFECYCLE_EVENT_TYPES,
     MISSION_CREATED,
+    PLAN_COMPLETED,
+    PLAN_STARTED,
     PROJECT_INITIALIZED,
     REVIEWER_SELF_APPROVAL,
     SPECIFY_COMPLETED,
@@ -37,6 +39,7 @@ from specify_cli.status.lifecycle_events import (
     WP_CREATED,
     append_lifecycle_event,
     emit_artifact_phase,
+    emit_artifact_phase_local,
     emit_mission_created_local,
     emit_project_initialized,
     emit_reviewer_self_approval,
@@ -46,6 +49,8 @@ from specify_cli.status.lifecycle_events import (
     mission_event_log_path,
     project_event_log_path,
     read_lifecycle_events,
+    fanout_lifecycle_event_hosted,
+    persist_lifecycle_event_local,
 )
 
 
@@ -232,6 +237,85 @@ def test_artifact_phase_records_optional_metadata(feature_dir: Path) -> None:
     assert payload["artifact_path"] == "kitty-specs/demo-mission/tasks.md"
     assert payload["summary"] == "Created three work packages"
     assert payload["wp_count"] == 3
+
+
+def test_local_artifact_phase_persists_started_without_hosted_fanout(
+    feature_dir: Path,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+
+    def capture(**kwargs: object) -> None:
+        captured.append(dict(kwargs))
+
+    adapters.register_lifecycle_saas_fanout_handler(capture)
+    try:
+        envelope = emit_artifact_phase_local(
+            feature_dir,
+            event_type=PLAN_STARTED,
+            mission_slug="demo-mission",
+            actor="test",
+            artifact_path="kitty-specs/demo-mission/plan.md",
+        )
+
+        assert envelope is not None
+        entries = read_lifecycle_events(mission_event_log_path(feature_dir))
+        assert entries == [envelope]
+        assert entries[0]["payload"]["artifact_path"] == (
+            "kitty-specs/demo-mission/plan.md"
+        )
+        assert captured == []
+    finally:
+        adapters.reset_handlers()
+
+
+def test_local_artifact_phase_persists_completed_without_hosted_fanout(
+    feature_dir: Path,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+    adapters.register_lifecycle_saas_fanout_handler(
+        lambda **kwargs: captured.append(dict(kwargs))
+    )
+    try:
+        envelope = emit_artifact_phase_local(
+            feature_dir,
+            event_type=PLAN_COMPLETED,
+            mission_slug="demo-mission",
+            actor="test",
+            artifact_path="kitty-specs/demo-mission/plan.md",
+            summary="Plan generated",
+        )
+
+        assert envelope is not None
+        assert read_lifecycle_events(mission_event_log_path(feature_dir)) == [envelope]
+        assert envelope["payload"]["summary"] == "Plan generated"
+        assert captured == []
+    finally:
+        adapters.reset_handlers()
+
+
+def test_local_artifact_phase_retains_strict_event_type_validation(
+    feature_dir: Path,
+) -> None:
+    with pytest.raises(ValueError, match="Unsupported artifact phase event_type"):
+        emit_artifact_phase_local(
+            feature_dir,
+            event_type="NotARealPhase",
+            mission_slug="demo-mission",
+        )
+
+    with pytest.raises(ValueError):
+        emit_artifact_phase_local(
+            feature_dir,
+            event_type=PLAN_STARTED,
+            mission_slug="demo-mission",
+            mission_number="not-an-integer",  # type: ignore[arg-type]
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -587,6 +671,99 @@ def test_append_lifecycle_event_returns_none_when_write_fails(feature_dir: Path,
         )
         is None
     )
+
+
+def test_persist_local_then_explicit_hosted_fanout_uses_same_envelope(
+    feature_dir: Path,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+
+    def capture(**kwargs: object) -> None:
+        captured.append(dict(kwargs))
+
+    adapters.register_lifecycle_saas_fanout_handler(capture)
+    log_path = mission_event_log_path(feature_dir)
+    try:
+        envelope = persist_lifecycle_event_local(
+            log_path,
+            WP_CREATED,
+            {"mission_slug": "demo-mission", "wp_id": "WP01"},
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+        )
+
+        assert envelope is not None
+        assert read_lifecycle_events(log_path) == [envelope]
+        assert captured == []
+
+        fanout_lifecycle_event_hosted(envelope, log_path=log_path)
+
+        assert captured == [{"envelope": envelope, "log_path": log_path}]
+        assert captured[0]["envelope"] is envelope
+        assert read_lifecycle_events(log_path) == [envelope]
+    finally:
+        adapters.reset_handlers()
+
+
+def test_append_lifecycle_event_composes_local_write_and_hosted_fanout(
+    feature_dir: Path,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+    adapters.register_lifecycle_saas_fanout_handler(
+        lambda **kwargs: captured.append(dict(kwargs))
+    )
+    log_path = mission_event_log_path(feature_dir)
+    try:
+        envelope = append_lifecycle_event(
+            log_path,
+            WP_CREATED,
+            {"mission_slug": "demo-mission", "wp_id": "WP01"},
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+        )
+
+        assert envelope is not None
+        assert read_lifecycle_events(log_path) == [envelope]
+        assert captured == [{"envelope": envelope, "log_path": log_path}]
+    finally:
+        adapters.reset_handlers()
+
+
+def test_local_write_failure_returns_none_without_hosted_fanout(
+    feature_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from specify_cli.status import adapters
+
+    adapters.reset_handlers()
+    captured: list[dict[str, object]] = []
+    adapters.register_lifecycle_saas_fanout_handler(
+        lambda **kwargs: captured.append(dict(kwargs))
+    )
+
+    def fail_write(path: Path, line: str) -> None:
+        raise OSError("disk full")
+
+    monkeypatch.setattr(lifecycle, "_atomic_append", fail_write)
+    try:
+        envelope = persist_lifecycle_event_local(
+            mission_event_log_path(feature_dir),
+            WP_CREATED,
+            {"mission_slug": "demo-mission", "wp_id": "WP01"},
+            aggregate_id="WP01",
+            aggregate_type="WorkPackage",
+        )
+
+        assert envelope is None
+        assert captured == []
+    finally:
+        adapters.reset_handlers()
 
 
 def test_lifecycle_saas_outbox_skips_when_disabled(
