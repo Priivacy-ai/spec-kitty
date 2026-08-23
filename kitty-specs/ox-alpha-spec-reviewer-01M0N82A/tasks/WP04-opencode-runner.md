@@ -128,8 +128,8 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 
 - Захватывай server stdout/stderr и HTTP response body в bounded in-memory sinks; не используй unbounded `communicate()` или неограниченное чтение HTTP-тела.
 - При превышении 2 MiB заверши process tree и верни `invalid_output` metadata-only.
-- Raw server stderr никогда не передаётся parser; parser получает только один JSON-документ `review-response/v1` из HTTP-тела без префикса, суффикса или дополнительных событий.
-- Любые дополнительные байты в HTTP-теле классифицируются как `invalid_output`; delimiter-based extraction и выбор «последнего JSON» запрещены.
+- Raw server stderr никогда не передаётся parser; parser получает только единственный `text` part из документированного HTTP message-envelope, который обязан содержать один JSON-документ `review-response/v1` без префикса, суффикса или дополнительных событий.
+- Иной envelope, несколько text parts либо дополнительные байты в извлечённом text part классифицируются как `invalid_output`; delimiter-based extraction и выбор «последнего JSON» запрещены.
 - Invalid UTF-8 обрабатывается без включения raw bytes в error.
 
 ### T020 — Cross-platform process-tree cleanup
