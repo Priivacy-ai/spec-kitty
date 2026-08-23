@@ -189,6 +189,15 @@ is executable from the artifacts alone. Nothing here performs a rename (C-001).
 | `invariant_after` | **I6** |
 | `local_design_questions` | **0** (no exception question) |
 
+**Contingency note (operator decision: leave `DM-01M0P6C8` deferred).** M6's single-fixed-`kitty-specs/`-exclusion
+terminal contract above is **not** a finalized exclusion set — it is contingent on M5's deferred operator decision
+`DM-01M0P6C8C7Q6SPBT412V39RPN0` (disposition of tracked serialized runtime records outside `kitty-specs/`:
+quarantine `status.events.jsonl`, `kitty-ops/*.jsonl`, `.kittify/missions/**/retrospective.yaml`). If that decision
+resolves to Option 1 (exclude alongside `kitty-specs/`) or Option 3 (schema-aware rewrite), M6's terminal audit
+contract (and this table's `purpose`/`merge_gate` fields) require a scoped re-author before I6 can be claimed;
+Option 2 (untrack after backup) does not change the exclusion set. Do not treat I6's exclusion set as finalized
+until `DM-01M0P6C8` resolves; tracked upstream in issue #3684.
+
 ## 2. Assignment tables (T014)
 
 ### 2.1 One row per OC — exactly one M1–M6 primary owner

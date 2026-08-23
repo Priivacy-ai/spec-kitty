@@ -70,8 +70,13 @@ any other narrowing fails closed.
 * **Charter Bundle** — the per-project materialised governance file set under `.kittify/charter/`.
 * **Charter Pack** — the offer-side versioned, distributable catalogue of governance artefacts from the
   built-in, organisation, or project-overlay layer; it is not the materialised Charter Bundle.
-* **Active Charter** — a governance artefact activated/wired for a project.
-* **Inactive Charter** — an artefact available from a Charter Pack but not activated.
+* **Active Charter artefact** — a governance artefact activated/wired for a project.
+* **Inactive Charter artefact** — an artefact available from a Charter Pack but not activated.
+* **Doctrine Reference Graph (DRG)** — the graph model underlying activation resolution (the DRG identifier
+  family, ~1,424 current-tree sites). The byte-literal audit catches the "Doctrine Reference Graph"
+  expansion but not the bare `DRG` acronym, so this graph model must be given a canonical charter-side name
+  and the acronym's fate decided explicitly; M2 fixes both at its map approval gate, the same deferral
+  mechanism the offer/activation module names already use (see the M2 topology split above).
 * The existing kind labels (`directive`, `tactic`, `styleguide`, `toolguide`, `paradigm`, `procedure`,
   agent profile, glossary pack, mission step contract) retain their roles.
 
@@ -174,6 +179,14 @@ stored literal. At M1's close, generated `charter.yaml` partitions whose produce
 summaries emitted by `src/charter/compiler.py`, activation IDs renamed by M4) are carried forward in M1's
 occurrence map, not rewritten by hand. **M1 requires zero new operator decisions.**
 
+**Terminology-Canon obligation.** Retiring `doctrine` concentrates ambiguity onto `charter` (Charter Bundle /
+Charter Pack / the `src/charter/` package / the `spec-kitty charter` CLI group / Active/Inactive Charter
+artefact). M1 owes a first-class deliverable, distinct from the owner map above: author a `charter`
+disambiguation entry in the Terminology Canon / glossary enumerating these five-plus senses with explicit
+"do NOT use when" guards, following the pattern this repository already mandates for `primary`/`merge`/
+`routing` (`CLAUDE.md` Terminology Canon). This ADR records the obligation; the Canon entry itself is
+authored by M1, not by this planning mission.
+
 ### M2–M6 — execution summary
 
 * **M2 `charter-code-topology`** freezes one exhaustive internal+public topology map (every package,
@@ -262,6 +275,14 @@ exclusion, any other narrowed root, non-toplevel cwd, or audit error blocks 4.0.
 
 The per-hit inventory manifest (`inventory-hits.tsv`) is ephemeral evidence: regenerated deterministically
 from the frozen base and hash-pinned in the committed `inventory.md` (`DM-01M0NMSD60JYG7K7V5MJCKJ3P8`).
+
+**Contingency on the deferred serialized-records decision.** M6's single-fixed-`kitty-specs/`-exclusion
+terminal contract above is stated as final, but it is contingent on the still-deferred operator decision
+`DM-01M0P6C8` (disposition of tracked serialized runtime records outside `kitty-specs/`: quarantine
+`status.events.jsonl`, `kitty-ops/*.jsonl`, `retrospective.yaml`). Options 1 (exclude alongside
+`kitty-specs/`) or 3 (schema-aware rewrite) in that decision would require a scoped re-author of this
+terminal audit contract; option 2 (untrack after backup) does not. Until `DM-01M0P6C8` resolves, I6's
+exclusion set is **not** finalized; tracked upstream in issue #3684.
 
 ### Consequences
 
