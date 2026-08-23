@@ -31,8 +31,8 @@ Allowed warning codes for this Mission:
 - `SAAS_SYNC_UNAUTHENTICATED`
 - `SAAS_SYNC_AUTH_UNKNOWN`
 - `SAAS_SYNC_BOUNDARY_UNSAFE`
-- an existing or explicitly introduced routing-specific code for authenticated/no-route
-  cases; it must never be an authentication code.
+- `SAAS_SYNC_ROUTE_UNAVAILABLE` for a missing, denied, or failed canonical read-only
+  route assessment; it is never an authentication code.
 
 Warnings are deduplicated and ordered authentication, structural boundary, delivery
 route. `details` may include sanitized preflight evidence but never credentials or raw
@@ -58,9 +58,11 @@ when only hosted delivery was refused.
 | Missing template or generic local exception | current error payload | 1 |
 | Project/context/git resolution failure | current payload | current exit |
 
-Before refactoring, tests capture all existing primary fields for each row. For every
-hosted-readiness variant, those fields and the exit remain identical. Only `warnings`
-may be added. Structural warnings are available only after repository-root resolution.
+Before refactoring, tests capture the complete existing payload for each row. The full
+parameterized cross-product with every applicable hosted-readiness variant compares that
+payload after removing only additive `warnings`, plus exact exit equality. Structural and
+routing warnings are available only after repository-root resolution; pre-root rows prove
+those probes are not called and those warnings are not fabricated.
 
 ## Session-assessment mapping
 
@@ -83,6 +85,14 @@ it does not establish an `unknown` authentication state.
   `boundary_evaluation_failed` reason and no raw exception text.
 
 The latter two refuse hosted effects and do not change local status or exit.
+
+## Routing mapping
+
+`resolve_checkout_sync_routing_readonly(repo_root)` is the sole route authority for this
+command. A route is available only when the result is non-null, `project_uuid` is
+non-empty, and `effective_sync_enabled` is true. Any other result or resolver exception
+adds exactly one `SAAS_SYNC_ROUTE_UNAVAILABLE` warning and refuses hosted effects without
+changing the local result.
 
 ## Hosted-effect boundary
 

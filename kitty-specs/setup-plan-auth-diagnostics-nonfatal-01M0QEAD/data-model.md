@@ -46,6 +46,8 @@ insufficient permission for hosted effects.
 | `remediation` | list of strings | Advice only; no automatic login or repair. |
 
 Diagnostics are deduplicated by code and ordered authentication → structural → route.
+Route refusal uses `SAAS_SYNC_ROUTE_UNAVAILABLE` and is derived only from the canonical
+read-only routing resolver.
 
 ## HostedSyncDecision
 
@@ -65,6 +67,10 @@ Truth table:
 | yes | assessment failed | any | any | no |
 | yes | completed + usable | unsafe/unknown | any | no |
 | yes | completed + usable | safe | unavailable/unknown | no |
+
+Route is available only when `resolve_checkout_sync_routing_readonly()` returns a value
+with non-empty `project_uuid` and `effective_sync_enabled=true`. Null, resolver failure,
+missing identity, unreadable policy, or denied consent is unavailable.
 
 ## LifecycleEventIntent
 

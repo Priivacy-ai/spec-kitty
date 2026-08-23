@@ -21,7 +21,9 @@ WP04 integrates the three seams into setup-plan, freezes every local outcome, an
 the non-vacuous hosted-effect gate.
 
 Every WP is ATDD-first: its first implementation commit must contain a failing test that
-is red on `planning_base_branch` and green on the final WP commit.
+is red on that WP's dependency-resolved lane base immediately before production changes
+and green on the final WP commit. For independent WP01/WP03 the lane base is the planning
+base; the original end-to-end issue may additionally be demonstrated there.
 
 ---
 
@@ -160,19 +162,19 @@ hosted calls whenever the decision refuses.
 
 ### Included Subtasks
 
-- [x] T013 Capture baseline payloads/exits and commit the rejecting setup-plan compatibility matrix (WP04)
+- [ ] T013 Capture baseline payloads/exits and commit the rejecting setup-plan compatibility matrix (WP04)
 
-- [x] T014 Replace early auth and boundary exits with evidence collection and one hosted decision (WP04)
+- [ ] T014 Replace early auth and boundary exits with evidence collection and one hosted decision (WP04)
 
-- [x] T015 Route local lifecycle intents and every hosted sink through the explicit executor boundary (WP04)
+- [ ] T015 Route local lifecycle intents and every hosted sink through the explicit executor boundary (WP04)
 
-- [x] T016 Introduce one local-outcome reporter and attach diagnostics to all eligible success, blocked, and error paths (WP04)
+- [ ] T016 Introduce one local-outcome reporter and attach diagnostics to all eligible success, blocked, and error paths (WP04)
 
-- [x] T017 Add real encrypted-storage production-chain and structural-exception acceptance tests (WP04)
+- [ ] T017 Add real encrypted-storage production-chain and structural-exception acceptance tests (WP04)
 
-- [x] T018 Add the non-vacuous hosted-effect architectural gate and named sibling-policy documentation parity (WP04)
+- [ ] T018 Add the non-vacuous hosted-effect architectural gate and named sibling-policy documentation parity (WP04)
 
-- [x] T019 Run targeted regressions, requirement evidence, and issue 3127 release-closeout check (WP04)
+- [ ] T019 Run targeted regressions, requirement evidence, and issue 3127 release-closeout check (WP04)
 
 ### Implementation Notes
 
@@ -206,8 +208,9 @@ hosted calls whenever the decision refuses.
   are also file-disjoint.
 - **MVP Scope**: All four WPs. Each foundation is independently reviewable, but issue
   #3621 is not user-complete until WP04 integrates them.
-- **Release gate**: GitHub issue #3127 must be resolved before Mission acceptance or
-  release readiness; it is not a code-lane dependency.
+- **Release gate**: Mission acceptance records GitHub issue #3127 as fixed or
+  deferred-with-followup. If unresolved, it blocks release-readiness declaration but is
+  not a code-lane or Mission-completion dependency.
 
 ## Requirements Coverage Summary
 
