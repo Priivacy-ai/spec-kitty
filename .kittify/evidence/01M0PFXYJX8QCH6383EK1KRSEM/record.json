@@ -1,0 +1,8 @@
+{
+  "event": "completed",
+  "invocation_id": "01M0PFXYJX8QCH6383EK1KRSEM",
+  "completed_at": "2026-08-23T05:10:48.308086+00:00",
+  "outcome": "done",
+  "closed_by": "agent",
+  "evidence_ref": "Ox Alpha route opencode/x-preview-f-free; spec SHA256 fa2f4dd8e10ccfe83cc9537101650f11ee626e1fdf2e6911a997d212d1a4b8ed; verdict PASS_WITH_CHANGES; score 72; provider cost 0"
+}
