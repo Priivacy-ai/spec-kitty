@@ -382,27 +382,52 @@ correcting only `missing_paths` would leave the primary rendered sentence wrong.
 **New field feeding WP2's dedup (this WP's own addition — additive on top of
 `spec.md`'s Key Entities contract, which pins `missing_paths`/`warnings`/
 `suggestions` but does not forbid a further field)**: WP2's token-normalization step
-(see WP2 below) needs a `feature_dir`-relative counterpart to each `missing_paths`
-entry, and nothing available to `evaluate_path_conventions` today can derive one from
-`missing_paths` alone — `missing_paths` entries are `project_root`-relative resolved
-strings, and `_normalize_path_token` only slash-strips, it does not compute a
-relative path. Rather than have WP2 re-derive one, WP1 computes it directly, in the
-same loop iteration where `candidate`/artifact-tagging is already known (`:194-208`),
-since it is trivial there. Add a new dataclass field,
+(see WP2 below) needs to identify, per `missing_paths` entry, whether it originated
+from an artifact-tagged declaration and, when it did, recover its real
+`feature_dir`-relative token; nothing available to `evaluate_path_conventions` today
+can derive that from `missing_paths` alone — `missing_paths` entries are, post-WP1,
+`project_root`-relative resolved strings for every branch, and `_normalize_path_token`
+only slash-strips, it does not compute a relative path or recover which branch
+produced a given entry. Rather than have WP2 re-derive this, WP1 computes it
+directly, in the same loop iteration where `candidate`/artifact-tagging is already
+known (`:194-208`), since it is trivial there. Add a new dataclass field,
 **`missing_paths_feature_relative: list[str] = field(default_factory=list)`**
 (alongside `PathValidationResult`'s existing list fields, `:34-37`), parallel-
-populated alongside `result.missing_paths.append(resolved)`:
+populated alongside `result.missing_paths.append(resolved)` for **every** entry,
+across all three of `validate_mission_paths`'s mutually-exclusive branches
+(`:196-202`).
+
+**The field's values are NOT uniformly `feature_dir`-relative** — only the
+artifact-tagged branch's entries are. The other two branches populate a
+`project_root`-relative (or, for the absolute case, unchanged-absolute) placeholder.
+WP2's consumption of this field (below) is designed to structurally exclude those
+placeholder entries from its comparison set via a membership check, not by assuming
+they are harmless because they happen not to collide with a real artifact token
+today:
 - For an artifact-tagged entry (the `elif _normalize_path_token(declared[key]) in
   artifact_tokens:` branch, `:198-200`), append `_normalize_path_token(relative_path)`
-  — the pre-resolution declared token itself, e.g. `"contracts"`. It is already
+  — the pre-resolution declared token itself, e.g. `"contracts"`. This IS
   `feature_dir`-relative by construction: `full_path = feature_dir / candidate` is
-  built directly from it, so no further relative-path computation is needed.
+  built directly from it, so no further relative-path computation is needed. This is
+  the only branch whose entries carry real `feature_dir`-relative semantics.
 - For a build/repo-root entry (the `else:` branch, `:201-202`), append
-  `_normalize_path_token(resolved)` instead — a defined, harmless placeholder that
-  keeps the new list parallel-indexed with `missing_paths`. It can never spuriously
-  match a real `optional_missing` token in WP2's comparison, since `optional_missing`
-  entries are only ever produced for genuine mission artifacts, never build/repo-root
-  paths.
+  `_normalize_path_token(resolved)` instead — a `project_root`-relative placeholder
+  (`resolved` in this branch is `full_path.relative_to(project_root)`, or
+  `str(full_path)` on `ValueError`), **not** a `feature_dir`-relative value. WP2's
+  comparison-set construction (below) structurally excludes this entry via an
+  `artifact_tokens` membership check — the same recipe `validate_mission_paths`
+  computes internally (`:187-192`) — rather than relying on this placeholder simply
+  not colliding with a real artifact token by chance.
+- For an absolute declared path (the `if candidate.is_absolute():` branch,
+  `:196-197`), append `_normalize_path_token(resolved)` too — folded into the same
+  placeholder bucket as the build/repo-root case above. Per this WP's Fix direction
+  above, `resolved` for an absolute `full_path` is unaffected by this mission: the
+  `relative_to(project_root)` computation raises `ValueError` for a path outside
+  `project_root`, so `resolved` falls back to `str(full_path)` — the absolute path
+  string itself, unchanged — matching spec.md's Edge Case pin that absolute-path
+  resolution/reporting stays unaffected by this mission. This entry, too, is
+  structurally excluded from WP2's comparison set by the same `artifact_tokens`
+  membership check, not by any special-casing in WP1's population logic itself.
 
 `evaluate_path_conventions` already holds the full `path_result` object returned by
 `validate_mission_paths` (`summary_core.py:137-143`), not just `missing_paths` in
@@ -410,9 +435,15 @@ isolation, so this new field is available to it at no extra plumbing cost.
 
 **Covers**: FR-001, SC-001, User Story 1 (both Acceptance Scenarios).
 
-**Revert test** (must fail if WP1 is reverted): a test asserting, for a
-mission-artifact-tagged path convention (`contracts/`) missing under a real
-`feature_dir` distinct from `project_root`, that:
+**Revert test** (must fail if WP1 is reverted): two cases in the same test file, one
+per Acceptance Scenario — Case A covers Scenario 1 (artifact-tagged resolution),
+Case B is the build/repo-root companion covering Scenario 2 (repo-root reporting
+stays unchanged); Case B is what the Test Strategy table's US1/Scenario-2 row cites
+as "WP1 revert test's build-path companion assertion."
+
+*Case A — artifact-tagged path (Scenario 1)*: for a mission-artifact-tagged path
+convention (`contracts/`) missing under a real `feature_dir` distinct from
+`project_root`:
 1. `PathValidationResult.missing_paths` and `.suggestions` both contain the resolved
    `feature_dir`-relative string (e.g. `kitty-specs/<slug>/contracts/`) and do **not**
    contain the bare token `contracts/` alone, **and**
@@ -421,6 +452,22 @@ mission-artifact-tagged path convention (`contracts/`) missing under a real
    contain the bare token — this second assertion is the one that actually falsifies
    FR-001's defect, since `warnings`/`suggestions`, not `missing_paths`, are what
    `format_errors()`/`format_warnings()` render.
+
+*Case B — build/repo-root path (Scenario 2, companion assertion)*: for a missing,
+non-artifact-tagged, `src/`-style declared path (the `else:` branch, `:201-202`)
+under the same fixture's `project_root`:
+3. `PathValidationResult.missing_paths` and `.warnings` contain a `project_root`-
+   relative resolved string — the same namespace this branch already reported in
+   before WP1 (`resolved` there is `full_path.relative_to(project_root)`, or
+   `str(full_path)` on `ValueError`) — confirming WP1's fix to the artifact-tagged
+   branch's namespace does not change the build/repo-root branch's, **and**
+4. the reported string is unchanged in value from what today's (pre-WP1) code
+   reports for this same fixture (pre-WP1, the bare declared token for a build path
+   is itself already `project_root`-relative-shaped text, since build paths are
+   declared relative to the repo root; post-WP1 `resolved` reduces to the same
+   string) — a genuine "stays the same" assertion, not merely "doesn't crash,"
+   directly catching a regression where WP1's refactor accidentally re-namespaces the
+   build/repo-root branch too.
 
 `missing_paths_feature_relative` itself has no independent operator-visible behavior,
 so this revert test does not need to assert on it directly — its correctness is
@@ -479,19 +526,37 @@ as specified, not re-derived)**:
   Key Entities wording suggests exactly this comparable-token form), normalize
   **both sides relative to `feature_dir`, slash-stripped**, consuming WP1's new
   `PathValidationResult.missing_paths_feature_relative` field (see WP1 above) rather
-  than re-deriving a relative path from `missing_paths` here: build a set of
-  `_normalize_path_token(token)` over `path_result.missing_paths_feature_relative`
-  (each entry is already `feature_dir`-relative by construction — WP1 populates it
-  directly from the declared token for artifact-tagged entries — so
-  `_normalize_path_token` here only performs its ordinary slash-strip, not a
-  re-derivation), then drop from `optional_missing_to_dedup` any entry whose own
-  `_normalize_path_token(entry)` is in that set. This closes the basename-collision
-  risk at no added cost, since WP1's new field is populated in the same loop that
-  already knows artifact-tagging per path. Example: `"contracts"` (bare,
-  `optional_missing_to_dedup`) matches `path_result.missing_paths_feature_relative`'s
-  corresponding entry, also `"contracts"` (populated by WP1 from the declared token
-  `"contracts/"`) — both normalize to `"contracts"`, correctly identifying the same
-  fact as `missing_paths`'s parallel (but `project_root`-relative) entry
+  than re-deriving a relative path from `missing_paths` here — but WP1's field is
+  mixed-namespace (real `feature_dir`-relative tokens only for artifact-tagged
+  entries; `project_root`-relative or unchanged-absolute placeholders for the other
+  two branches — see WP1 above), so WP2 must not blindly consume the whole list as if
+  every entry were `feature_dir`-relative. **Structurally exclude the placeholder
+  entries first**: `evaluate_path_conventions` recomputes the same `artifact_tokens`
+  set `validate_mission_paths` computes internally (`paths.py:187-192` —
+  `{_normalize_path_token(name) for name in (*required, *optional)}` over
+  `getattr(mission.config, "artifacts", None)`'s `.required`/`.optional`, each
+  defaulted via `getattr(artifacts, "...", ()) or ()` — the identical defensive
+  recipe, for the identical partial-mock-safety reason), then builds its comparison
+  set only from `path_result.missing_paths_feature_relative` entries whose own
+  `_normalize_path_token(token)` is a member of that recomputed `artifact_tokens` set:
+  `{_normalize_path_token(t) for t in path_result.missing_paths_feature_relative if
+  _normalize_path_token(t) in artifact_tokens}`. This is a structural exclusion
+  (membership-tested against the mission's real declared artifact set), not reliance
+  on the build/repo-root and absolute-path placeholders happening not to collide with
+  a real artifact token — a future mission type's build-path convention could
+  otherwise share a normalized token with a future `artifacts.optional` entry and
+  silently corrupt the dedup, and this membership filter forecloses that regardless
+  of what literal value WP1's placeholder branches assign. Then drop from
+  `optional_missing_to_dedup` any entry whose own `_normalize_path_token(entry)` is in
+  that filtered set. This closes the basename-collision risk at no added cost beyond
+  one extra `artifact_tokens` recomputation, since WP1's new field is populated in the
+  same loop that already knows artifact-tagging per path. Example: `"contracts"`
+  (bare, `optional_missing_to_dedup`) matches
+  `path_result.missing_paths_feature_relative`'s corresponding entry, also
+  `"contracts"` (populated by WP1 from the declared token `"contracts/"`, and a member
+  of the recomputed `artifact_tokens` set because `"contracts"` is declared under
+  `artifacts.optional`) — both normalize to `"contracts"`, correctly identifying the
+  same fact as `missing_paths`'s parallel (but `project_root`-relative) entry
   `"kitty-specs/<slug>/contracts/"`, without ever needing to parse that resolved
   string. This is correct for a future multi-segment token too (e.g.
   `docs/contracts`), where a basename-only match would have collided.
@@ -684,7 +749,7 @@ check above rather than by a further meta-test.
 
 | WP | Revert test (fails if WP is reverted) | Location |
 |----|----------------------------------------|----------|
-| WP1 | Asserts `missing_paths`/`suggestions` contain the resolved `feature_dir`-relative path, not the bare token, for a real artifact-tagged mission fixture. | `tests/specify_cli/acceptance/` or `tests/agent/test_validators_unit.py` |
+| WP1 | Case A asserts `missing_paths`/`suggestions`/`warnings` contain the resolved `feature_dir`-relative path, not the bare token, for a real artifact-tagged mission fixture; Case B (build-path companion) asserts the build/repo-root branch's reported string stays `project_root`-relative and unchanged. | `tests/specify_cli/acceptance/` or `tests/agent/test_validators_unit.py` |
 | WP2 | Asserts `"contracts"` surfaces through exactly one of `optional_missing`/`path_violations` AND `AcceptanceSummary.ok is False` for the dual-declared fixture; plus a console-render test asserting `"Optional artifacts missing"` prints at most once; plus a lenient-mode test on the same fixture asserting `optional_missing` is left untouched by the dedup. | `tests/specify_cli/acceptance/`, `tests/specify_cli/cli/commands/` |
 | WP3 | Asserts `format_errors()` output contains `"--lenient"` before any `mkdir -p`, no unconditional "required" claim, `--help` mentions path conventions; plus an unmodified re-run of the pinned lenient-render test as the #2330 non-regression guard. | `tests/agent/test_validators_unit.py`, `tests/specify_cli/cli/commands/` |
 | WP4 | The FR-007 fixture itself (`test_accept_contracts_path_repro.py`), verified red-on-pre-fix/green-on-post-fix by the reversibility check described above. | `tests/specify_cli/acceptance/test_accept_contracts_path_repro.py` (new) |
