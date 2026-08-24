@@ -379,6 +379,28 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         notes=("Machine-local reverse-scan performance cache; never commit. Durable records live in kitty-ops/<op_id>.jsonl."),
     ),
     StateSurface(
+        name="worktrees_root",
+        path_pattern=".worktrees/",
+        root=StateRoot.PROJECT,
+        format=StateFormat.DIRECTORY,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="core/worktree",
+        creation_trigger="mission worktree creation (WORKTREES_DIR)",
+        notes=(
+            "Execution worktrees root: every mission worktree is a full "
+            "checkout under .worktrees/<slug>-<mid8>. Must be gitignored in "
+            "the main checkout -- an unignored root shows as permanent "
+            "untracked dirt and a stray `git add -A` stages entire nested "
+            "checkouts. Historically only migration 0.13.1 excluded it (via "
+            "the local-only .git/info/exclude), so projects initialised "
+            "since then had no coverage; registering it here makes init "
+            "emit it through get_runtime_gitignore_entries(), and the "
+            "3.2.6rc3_worktrees_gitignore_backfill migration heals "
+            "existing projects (#3689)."
+        ),
+    ),
+    StateSurface(
         name="shared_skills_projection",
         path_pattern=".agents/skills/<skill_name>/",
         root=StateRoot.PROJECT,
