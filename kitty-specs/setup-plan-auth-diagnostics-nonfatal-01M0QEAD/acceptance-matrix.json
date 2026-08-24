@@ -148,7 +148,7 @@
       "criterion_id": "FR-015",
       "description": "agent mission create and setup-plan are documented consistently with the logged-out Teamspace local-command policy.",
       "proof_type": "automated_test",
-      "evidence": "E-TARGET includes read/documentation surfaces; issue #2695 is fixed with docs/operations/logged-out-teamspace.md evidence.",
+      "evidence": "E-DOC-POLICY; tests/docs/test_logged_out_teamspace_local_mission_policy.py verifies the exact agent mission create/setup-plan local-command policy wording.",
       "pass_fail": "pass",
       "verified_by": "final-mission-review",
       "verified_at": "2026-08-24T00:14:50+00:00",
@@ -298,11 +298,11 @@
       "criterion_id": "SC-007",
       "description": "Targeted auth, lifecycle, sync-boundary, setup-plan read-surface, and architectural gates pass with no new failures.",
       "proof_type": "automated_test",
-      "evidence": "E-TARGET 307 passed; E-WP02 96 passed, 1 skipped; E-CONTRACT 297 passed, 5 skipped; E-ARCH 1681 passed, 5 skipped, 2 xfailed; E-E2E 6 passed.",
+      "evidence": "E-TARGET 307 passed; E-WP02 96 passed, 1 skipped; E-CONTRACT 297 passed, 5 skipped; E-ARCH 1689 passed, 5 skipped, 2 xfailed; E-E2E 6 passed.",
       "pass_fail": "pass",
       "verified_by": "final-mission-review",
-      "verified_at": "2026-08-24T00:14:50+00:00",
-      "notes": "E-ARCH is the completed pre-dossier-remediation run; final-current rerun follows this documentation-only commit."
+      "verified_at": "2026-08-24T01:03:00+00:00",
+      "notes": "The final full architectural rerun passed on immutable product/test HEAD f554889ea79e9c61706a493f895cab2276a7e19c."
     },
     {
       "criterion_id": "SC-008",
@@ -464,10 +464,10 @@
       "invariant_id": "NI-005",
       "description": "The Mission must not declare release readiness while issue #3127 remains deferred and unresolved.",
       "verification_method": "custom_command",
-      "verification_command": "uv run python -c \"import json,pathlib; p=json.loads(pathlib.Path('kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD/issue-matrix.json').read_text()); assert p['rows']['#3127']['verdict']=='deferred-with-followup'; assert 'Follow-up: #3127' in p['rows']['#3127']['evidence_ref']\"",
+      "verification_command": "uv run python -c \"import json,pathlib,re; d=pathlib.Path('kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD'); row=json.loads((d/'issue-matrix.json').read_text())['rows']['#3127']; files=[d/n for n in ('spec.md','tasks.md','quickstart.md','acceptance-matrix.json','mission-review-report.md','status.json','issue-matrix.json','retrospective.yaml','dossier-review-notes.md')]; pat=re.compile(r'(?im)^[ ]*(?:[-*][ ]*)?(?:[*][*])?release[-_ ]readiness(?:[*][*])?[ ]*[:=][ ]*(?:passed|pass|ready|true|yes)(?:[ ]|$)'); claims=[f'{p.name}:{m.group(0)}' for p in files for m in pat.finditer(p.read_text(encoding='utf-8'))]; assert row['verdict']=='deferred-with-followup' and 'Follow-up: #3127' in row['evidence_ref']; assert not claims, claims\"",
       "result": "confirmed_absent",
-      "evidence": "Issue matrix records #3127 as the external P0 release-readiness gate; spec, tasks, quickstart, and mission review withhold release readiness.",
-      "verified_ref": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+      "evidence": "The executable scan found zero affirmative release-readiness declarations across the explicitly bounded nine-file dossier set while issue-matrix.json kept #3127 deferred-with-followup. See dossier-review-notes.md for scope and retry policy.",
+      "verified_ref": "f0d7d49c184c4eb58f656aef1ff5f2feb55c3aec",
       "verified_surface_kind": "primary",
       "provenance_origin": "recorded"
     }
@@ -489,28 +489,36 @@
       "result": "12 passed; archived source entry point replayed in an isolated subprocess; full normalized payload and exit compared."
     },
     "E-TARGET": {
-      "verified_ref": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+      "verified_ref": "f554889ea79e9c61706a493f895cab2276a7e19c",
       "command": "uv run pytest -q tests/auth/test_token_manager.py tests/readiness/test_auth_probe.py tests/status/test_lifecycle_events.py tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py tests/specify_cli/cli/commands/agent/test_setup_plan_read_surface.py tests/specify_cli/cli/commands/agent/test_issue_3425_setup_plan_legacy_layout_silent_capture.py tests/architectural/test_setup_plan_hosted_effect_gate.py",
-      "result": "307 passed in 12.27s, 0 failed"
+      "result": "307 passed, 0 failed after the home-pin remediation"
     },
     "E-WP02": {
       "verified_ref": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
       "command": "uv run pytest -q tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py tests/sync/test_sync_boundary_preflight.py",
       "result": "96 passed, 1 skipped in 4.46s"
     },
+    "E-DOC-POLICY": {
+      "verified_ref": "f554889ea79e9c61706a493f895cab2276a7e19c",
+      "command": "uv run pytest -q tests/docs/test_logged_out_teamspace_local_mission_policy.py",
+      "result": "2 passed in 1.02s"
+    },
     "E-CONTRACT": {
+      "verified_ref": "f554889ea79e9c61706a493f895cab2276a7e19c",
       "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run pytest tests/contract/ -q",
-      "result": "297 passed, 5 skipped in 42.73s"
+      "result": "297 passed, 5 skipped in 42.17s"
     },
     "E-ARCH": {
+      "verified_ref": "f554889ea79e9c61706a493f895cab2276a7e19c",
       "command": "uv run pytest tests/architectural/ -q",
-      "result": "1681 passed, 5 skipped, 2 xfailed, 1 warning in 866.20s",
-      "note": "Completed before the final dossier-only remediation commit; final-current rerun remains required."
+      "result": "1689 passed, 5 skipped, 2 xfailed, 1 warning in 866.82s (0:14:26), exit 0",
+      "note": "Final current-product/test-HEAD architectural hard-gate rerun."
     },
     "E-E2E": {
       "harness_commit": "71d8202",
+      "product_commit": "f554889ea79e9c61706a493f895cab2276a7e19c",
       "command": "SPEC_KITTY_ENABLE_SAAS_SYNC=1 SK_E2E_SAAS_URL=https://app.spec-kitty.ai SPEC_KITTY_REPO=<authoritative-spec-kitty> PATH=<authoritative-spec-kitty>/.venv/bin:$PATH uv run pytest scenarios/ -vv",
-      "result": "6 passed in 413.47s"
+      "result": "6 passed in 413.93s"
     }
   }
 }
