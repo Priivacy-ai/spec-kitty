@@ -339,9 +339,9 @@ def _closed_boundary_shape_edges(source: str) -> list[_Edge]:
             edges.append(_Edge("protocol-method-shape", class_name, class_node.lineno))
         for method in methods.values():
             inert_property = (
-                len(method.decorator_list) == 1
+                len(method.decorator_list) == 1  # golden-count: cardinality-is-contract
                 and _qualified_name(method.decorator_list[0]) == "property"
-                and len(method.body) == 1
+                and len(method.body) == 1  # golden-count: cardinality-is-contract
                 and isinstance(method.body[0], ast.Expr)
                 and isinstance(method.body[0].value, ast.Constant)
                 and method.body[0].value.value is Ellipsis
@@ -385,7 +385,7 @@ def _has_terminal_identity_guard(
         and len(call.args) == 1
         and isinstance(call.args[0], ast.Name)
         and call.args[0].id in decision_names
-        and len(statement.body) == 1
+        and len(statement.body) == 1  # golden-count: cardinality-is-contract
         and isinstance(statement.body[0], ast.Return)
         and statement.body[0].value is None
         and not statement.orelse
