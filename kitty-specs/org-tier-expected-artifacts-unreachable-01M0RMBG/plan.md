@@ -410,10 +410,9 @@ spec-level, operator-decided constraint already closed at spec phase (spec.md C-
 extension beyond these six files would need a direct, proportional connection to this
 specific defect, which none exists for" — written before this drift was independently found
 during plan review). This finding narrows, but does not overturn, C-001's "which none exists
-for" clause: that clause predates the docstring drift being found during plan review, so the
-direct, proportional connection now demonstrably exists — but Boy Scout Rule (step 2)
-independently bars adding files to the set regardless of whether the connection test is met,
-so the practical scope decision (defer) is unchanged by this narrowing. Re-opening a
+for" clause: that clause predates the docstring drift found during plan review. The practical
+scope decision (defer) is unchanged by this narrowing, since Boy Scout Rule already settles it
+regardless of the connection test's outcome (see above). Re-opening a
 spec-level, Open/High-priority decision is not this plan's
 call to make unilaterally by quietly growing the file set. The correct next step is a fast
 follow-up carrying the same edit shape as FR-002 (one docstring line corrected in each of the
@@ -535,12 +534,14 @@ Rough WP-level shape (tasks.md does the detailed breakdown next phase):
 5. **Gate verification**: run the full target surface
    (`pytest tests/charter/test_org_expected_artifacts.py tests/charter/test_mission_type_profiles.py tests/dossier/test_manifest.py tests/dossier/test_rebaseline.py tests/dossier/test_indexer.py`)
    against the baseline captured per Baseline Discipline above, confirm no new red beyond
-   #3284's pre-existing set, then confirm mypy --strict, TID251, the Contextive glossary
+   #3284's pre-existing set, then confirm TID251, the Contextive glossary
    freshness check (`uv run python scripts/generate_contextive_glossaries.py check` —
    expected pass-through, since this mission changes no glossary-relevant terminology, but
    the check does execute against this diff and is worth confirming locally rather than
    assumed), and the diff-coverage critical-path gate locally before treating the WP as
-   CI-ready (per the named gate set above).
+   CI-ready (per the named gate set above). Also worth checking for typing hygiene, but
+   explicitly optional and not a CI-ready precondition: `mypy --strict` (advisory only,
+   non-blocking; see Gate Set item 5).
 
 ## Complexity Tracking
 
