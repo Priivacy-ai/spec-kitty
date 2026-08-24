@@ -104,3 +104,22 @@ same list, no exception raised.
 Genuinely witnessed fail-then-pass across the same revert/restore cycle, not merely asserted — T007
 satisfied. All three tests in `TestLayeredProjectionThreadsPackContext` pin the defect (none is
 vacuous under this cycle).
+
+## WP01 implementation phase (2026-08-24) — T008 full targeted-suite run + baseline triage (SC-005)
+
+```
+$ .venv/bin/python -m pytest tests/doctrine/missions/test_mission_type_repository.py tests/runtime/test_runtime_seam.py -q -p no:cacheprovider
+........................................................................ [ 97%]
+..                                                                       [100%]
+74 passed in 1.30s
+```
+
+74 passed, 0 failed, 0 errors — against T001's baseline of 70 passed, 0 failed, 0 errors. The
+delta (+4) is accounted for exactly by this WP's own new tests: T002 added 2
+(`test_org_tier_steps_only_projection_resolves_non_empty_sequence`,
+`test_governed_entry_point_does_not_raise_for_steps_only_org_type`), T004 added 1
+(`test_builtin_layer_scan_receives_the_real_pack_context_once_per_type`), T005 added 1
+(`test_project_tier_steps_only_projection_resolves`). No test id present at baseline is red
+post-fix — zero mission-introduced red. No test id is red at all in this scoped run, so there is
+nothing to cross-check against issue #3284's baseline breakdown here (that breakdown lives
+elsewhere in the suite, per T001's own finding).
