@@ -18,10 +18,10 @@
       "criterion_id": "FR-002",
       "description": "Canceled work packages are excluded from ownership validation.",
       "proof_type": "automated_test",
-      "evidence": "Commit 53ebfc3f4 adds normal and validate-only ownership-less canceled-prompt controls: canceled prompt bytes remain unchanged with no inferred ownership or warning, while the equivalent eligible prompt still follows ownership inference and validation",
+      "evidence": "53ebfc3f4; normal and validate-only canceled ownership-less prompt controls plus eligible validation pairs",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:14:54.853016+00:00",
+      "verified_at": "2026-08-24T12:01:52.302343+00:00",
       "notes": "Pass when canceled packages cannot trigger ownership presence, validity, overlap, path, surface, or audit-coverage failures while equivalent active packages still can."
     },
     {
