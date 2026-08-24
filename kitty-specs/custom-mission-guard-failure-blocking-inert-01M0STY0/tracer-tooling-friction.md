@@ -169,3 +169,47 @@ CLI subcommand that both intermittently hangs AND intermittently prints a noisy-
 already-logged pattern; recommend the ledger also note `agent tasks mark-status` as a repeat call
 site, and that the `LayoutCutoverIncompleteError` traceback specifically is cosmetic noise on the
 success path, not evidence of failure, when a `✓ Marked ... as done` line follows it.
+
+2026-08-24 (WP02 implement phase) — `agent action implement WP02` hit ledger SK-93 a **sixth**
+time on this mission: ran with `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1` exported and `timeout 120`-wrapped
+per this mission's own standing tracer guidance; the process printed **zero bytes of output** for
+the full 120s before being killed (exit 143, `Terminated` — the outer shell's own timeout
+signature, not the CLI's). Per SK-93 guidance, the exit code/hang was **not** treated as evidence
+either way: ground truth was verified directly instead. `spec-kitty agent tasks status --mission
+custom-mission-guard-failure-blocking-inert-01M0STY0` (repo-root primary partition; this mission's
+`single_branch` topology routes status there) showed WP02 already in the "Doing" lane, `stale:
+27.8m, agent: claude` — and `status.events.jsonl` on the repo-root primary checkout confirmed two
+real events (`claimed` then `in_progress` for WP02, actor `claude`, `policy_metadata.shell_pid:
+913164`), already committed on `fix/custom-mission-guard-3704` at commit `042880ea1` ("chore(spec-kitty):
+status transition batch WP02"). The state transition had landed before the dossier body-upload
+stall; only the CLI's own completion echo was lost with the killed process, same shape as every
+prior SK-93 occurrence logged above. The same hang/silent-success shape recurred repeatedly on
+`spec-kitty agent tasks mark-status T008..T015 --status done` (run in a loop and individually):
+several individual invocations hit their own `timeout 30`/`timeout 60` wall with zero stdout
+before being killed, yet `status.events.jsonl`'s `kind: annotation` / `delta.subtasks` entries for
+every one of T008-T015 were present and correctly ordered afterward, confirmed via direct
+`grep`/`git log`, not by trusting any exit code. Nothing hand-edited to work around any of this.
+
+2026-08-24 (WP02 implement phase, kitty-specs/lane-branch near-miss) — a **new** friction shape,
+distinct from SK-93: this WP's own tracer-file append (the entry directly above) was first
+written and committed **on the lane worktree branch**
+(`kitty/mission-custom-mission-guard-failure-blocking-inert-01M0STY0-lane-a`), because
+`kitty-specs/` is a real, git-tracked directory inside that worktree and `spec-kitty safe-commit`
+accepted the commit with only an advisory `[spec-kitty guard] WARNING: Protected path: ... —
+implementation branches must not modify kitty-specs/` (not a hard block at commit time). The
+lane worktree's copy of `kitty-specs/` was a **stale snapshot** relative to the planning branch
+(`fix/custom-mission-guard-3704`) -- it predated WP01's own tracer entries and status/issue-matrix
+updates that had already landed on the planning branch via WP01's own repo-root `safe-commit`
+calls. Appending to the lane branch's stale copy and committing it there would have **silently
+reverted WP01's planning-branch-only tracer entries and status updates** had it ever merged. The
+defect surfaced only later, as a hard block: `spec-kitty agent tasks move-task WP02 --to
+for_review` refused with `Cannot move WP02 to for_review ... kitty-specs/ changes are not allowed
+on lane branches`, naming the offending commit and providing the exact recovery (`git restore
+--source fix/custom-mission-guard-3704 --staged --worktree -- kitty-specs/`). Recovered by
+following that guidance exactly (commit `e058350ed` on the lane branch, "chore: remove planning
+artifacts from lane branch"), then re-applying this tracer entry directly on the planning branch
+at the repo-root checkout instead. **Recommend**: `safe-commit` should refuse (not just warn) a
+`kitty-specs/` write on an implementation lane branch at commit time, matching `move-task`'s own
+enforcement -- the current advisory-warn-then-hard-block-later shape lets a lane-branch tracer/kitty-specs
+commit land and only surfaces the problem at the next state transition, after the (wrong) commit is
+already made.
