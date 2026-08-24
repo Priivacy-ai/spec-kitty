@@ -604,9 +604,7 @@ def test_commit_skipped_when_branch_detection_fails(
     monkeypatch.setattr(
         autocommit,
         "safe_commit",
-        lambda **_kw: (_ for _ in ()).throw(
-            AssertionError("safe_commit must not run when branch detection fails")
-        ),
+        lambda **_kw: (_ for _ in ()).throw(AssertionError("safe_commit must not run when branch detection fails")),
     )
     monkeypatch.setattr(
         subprocess,
