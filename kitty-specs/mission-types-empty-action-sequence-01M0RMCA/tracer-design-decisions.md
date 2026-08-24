@@ -17,3 +17,19 @@ Considered splitting the plan's Implementation Concern Map into per-function ICs
 ## Plan-phase decision — campsite-clean scope
 
 Identified one real candidate for the opening campsite-clean (the near-duplicated per-file YAML-parse/validate block between `MissionTypeRepository._load()` and `_load_layered_mission_type_file`) but declined to fold it: extracting a shared helper would necessarily touch `_load()`'s body, which spec.md's own FR-005/C-001 require to stay untouched (threading a project-dependent value into `_load()`'s `cls`-keyed cache would poison it for later-resolved projects in the same process — the exact hazard FR-005 exists to prevent — and even a *non*-pack_context-related touch to `_load()` would still make it a fifth touched function under C-007's four-function bound). Recorded this as an explicit "not folded, flagged for a future mission" finding in plan.md's Campsite-clean section rather than silently skipping it or silently folding it anyway.
+
+## Tasks-phase decision — one WP, not several
+
+Per plan.md's own "PR shape" section (explicit instruction: "/spec-kitty.tasks should reflect
+that as (most likely) a single WP, or at most a small number of WPs that still land in one PR"),
+authored `wps.yaml` with exactly one WP (WP01) covering all of FR-001..FR-008, NFR-001..NFR-004,
+and C-001..C-008. Considered and rejected splitting into e.g. a "production code" WP and a "test"
+WP: red-first/ATDD discipline (C-011, spec.md SC-004) requires the red test to be authored and
+witnessed red *before* the production-code fix lands, and both must be verified together (the
+git-stash/rerun/stash-pop cycle) by the same actor in the same sitting — splitting across two WPs
+would either force an artificial dependency (test-WP blocks code-WP, defeating the point of
+parallelizable WPs) or break the stash/rerun witnessing requirement across two different
+implementers who cannot literally `git stash` each other's uncommitted work. IC-01 is one seam,
+one coherent change; the four touched functions and their three call-site edits are inseparable
+(a partial threading leaves the defect live end-to-end, per plan.md's own IC-01 framing). One WP
+is the honest decomposition — confirmed, not just carried forward by default.

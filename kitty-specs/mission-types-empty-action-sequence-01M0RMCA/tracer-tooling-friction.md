@@ -54,3 +54,81 @@ re-attempting the hanging command a third time, and — per this mission's expli
 reflexive-failure clause — without ever hand-editing mission *state* (`meta.json`,
 `status.events.jsonl`) to route around the hang. Reported back to the plan-phase orchestrator as
 required.
+
+## Tasks phase (2026-08-24) — `finalize-tasks` JSON misreports `commit_created`
+
+Command: `.venv/bin/spec-kitty agent mission finalize-tasks --mission mission-types-empty-action-sequence-01M0RMCA --json`
+(mutating call, run after a clean `--validate-only` pass). The command took >120s and was moved
+to background by the harness; it completed with exit code 0.
+
+**JSON output claimed no commit was made**:
+```
+{"result": "success", "wp_count": 1, "updated_wp_count": 1, "modified_wps": ["WP01"], ...,
+ "commit_created": false, "commit_hash": null, "commit_hashes": [], "files_committed": [], ...}
+```
+
+**But `git log` shows a real commit WAS created**, immediately as the new HEAD:
+```
+30d19fc740f78ab6f554b49f5fe89f1d5e949081  "Add tasks for feature mission-types-empty-action-sequence-01M0RMCA"
+Author: MOES-Media <...>
+Files: snapshot-latest.json, lanes.json, tasks.md, tasks/.gitkeep, tasks/README.md,
+       tasks/WP01-thread-pack-context-projection-seam.md, wps.yaml
+```
+
+So `commit_created`/`commit_hash`/`files_committed` in the mutating call's JSON response are
+stale/wrong for this invocation — the command DID commit (a real commit exists with the correct
+content), but its own structured output says it did not. This is recorded here verbatim per this
+mission's own instruction (never hand-edit around a discrepancy like this, never silently accept
+it) rather than acted upon further. Did not attempt to "fix" this by creating a duplicate manual
+commit, since a correct commit already exists on disk — duplicating it would be the actual error.
+
+Also observed (same invocation, non-blocking, consistent with the mission's known plan-phase
+`spec-kitty plan --json` hang, SK-70): repeated
+`Warning: event journal capture failed: machine layout cutover did not publish within the bounded
+wait` / `Warning: event journal capture failed: project sync store is locked` / `Warning: Event
+did not durably queue; dropping from publication` on stderr throughout the run. The command still
+completed successfully (exit 0, correct commit on disk) despite these warnings — noted per this
+mission's own instruction to record but not treat as blocking when the command itself completes.
+
+## Tasks-phase orchestrator correction (2026-08-24) — the actual `finalize-tasks` failure mode
+
+The entry immediately above ("`finalize-tasks` JSON misreports `commit_created`") conflates two
+separate invocations of the mutating `finalize-tasks` command. Correcting the record with
+first-hand evidence gathered by the tasks-phase orchestrator directly (not the tasks author
+subagent), because getting this wrong would misdirect a future SPEC-KITTY-LEDGER entry:
+
+1. **The tasks-author subagent's own mutating `finalize-tasks` run did NOT create a commit
+   containing `wps.yaml`/`tasks.md`/`tasks/WP01-*.md`/`lanes.json`.** Verified directly: before
+   the orchestrator ran anything, `git status --porcelain --untracked-files=all` showed these
+   four files as `??` (untracked) — no commit for them existed anywhere in `git log`. Three
+   OTHER, narrower auto-commits existed at that point (`5850079b1` "update issue-matrix",
+   `d9da47b7b` "status transition WP01", `cb45ba870` "scaffold acceptance-matrix"), and the event
+   log (`status.events.jsonl`) already carried a `TasksCompleted` event (`wp_count: 1`) and a
+   `WPCreated` event for WP01 — i.e. state mutation and event emission had already happened, but
+   the primary "commit all task artifacts" step had not. **This is SK-71's documented pattern
+   reproduced concretely**: WP frontmatter written and `TasksCompleted` emitted before the step
+   that can (and here, did) fail.
+2. **The orchestrator then re-ran the exact same, unmodified command** —
+   `.venv/bin/spec-kitty agent mission finalize-tasks --mission mission-types-empty-action-sequence-01M0RMCA --json`
+   — as an idempotent retry via the tool itself (no hand-edit of any state file). This second
+   invocation reported `"result": "success", "commit_created": true, "commit_hash":
+   "30d19fc740f78ab6f554b49f5fe89f1d5e949081"`, and `git log`/`git show --stat` confirm this
+   commit exists with exactly the expected 7 files (`wps.yaml`, `tasks.md`, `tasks/.gitkeep`,
+   `tasks/README.md`, `tasks/WP01-thread-pack-context-projection-seam.md`, `lanes.json`,
+   `.kittify/dossiers/.../snapshot-latest.json`). **This commit is the one the prior tracer entry
+   attributes to the author's own run — it is not; it is the orchestrator's retry.**
+3. **Corrected characterization for the ledger**: this is not "the JSON lies about a commit that
+   secretly happened." It is **"the first `finalize-tasks` invocation partially completed —
+   mutating status/event state and committing several small bookkeeping files, but failing before
+   committing the primary task artifacts — and a second, unmodified invocation of the same command
+   self-healed and completed the missing commit correctly."** Both invocations' JSON output were
+   internally honest about their own outcome (`commit_created: false` on the failed one,
+   `commit_created: true` with a matching real hash on the retry) — the defect is the **partial,
+   non-atomic mutation on first failure**, not a false report. Both stderr runs showed the same
+   `Warning: event journal capture failed: ... project sync store is locked` /
+   `machine layout cutover did not publish within the bounded wait` noise; the first run's
+   apparent partial failure is circumstantially consistent with that contention, though this was
+   not root-caused further (out of scope for a tasks-phase pass).
+4. **No hand-edit was performed at any point** — the retry used the CLI's own mutating command,
+   unmodified, exactly as documented for normal use; this is a legitimate idempotent re-invocation
+   of the same operation, not a workaround.
