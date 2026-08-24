@@ -9,6 +9,7 @@
   "purpose_context": "This mission advances Org-tier expected-artifacts.yaml is unreachable: resolver anchors at <org_root>/<type>/ instead of <org_root>/missions/<type>/ on fix/org-tier-expected-artifacts-3703 so stakeholders can track the work from mission creation onward.",
   "purpose_tldr": "Org-tier expected-artifacts.yaml is unreachable: resolver anchors at <org_root>/<type>/ instead of <org_root>/missions/<type>/",
   "slug": "org-tier-expected-artifacts-unreachable-01M0RMBG",
+  "status_phase": "1",
   "target_branch": "fix/org-tier-expected-artifacts-3703",
   "topology": "single_branch"
 }

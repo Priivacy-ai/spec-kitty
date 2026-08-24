@@ -253,3 +253,53 @@ trail commit — `docs(reviews):` or `chore(reviews):` would pass.
 **Disposition**: all seven are `sk-land`'s to fold — rewording in-range is a history rewrite
 requiring force-with-lease, which that runbook owns. **The shared lint config is NOT to be
 loosened** (SK-64's stated preference, and a landing pass must not weaken a repo-wide gate).
+
+## F9 — `cutover-guard` reds the PR; the remedy works but DENIES having worked (SK-50, 4th first-hand corroboration)
+
+CI `cutover-guard` failed on the first full run of PR #3708:
+
+```
+cutover-guard report
+  Missions touched by diff : 1
+  Un-cut-over              : 1
+
+Un-cut-over mission(s) block this diff:
+  org-tier-expected-artifacts-unreachable-01M0RMBG: status_phase not flipped
+  despite event-log runtime evidence
+    remedy: spec-kitty migrate backfill-runtime-state --mission org-tier-...-01M0RMBG
+```
+
+Root cause is the SK-50/SK-51 family: `agent mission create` does not stamp `status_phase` at
+scaffold time, so a mission created by the current version is un-cut-over by default and the
+guard fires on the happy path. `meta.json` carried **no** `status_phase` key at all before the
+remedy.
+
+**SK-50 reproduced exactly — the summary lied.** Ran the guard's own prescribed remedy from the
+mission's primary checkout (SK-49's worktree hazard did not apply — this mission's branch lives
+in the checkout itself, not a linked worktree):
+
+```
+backfill-runtime-state summary
+  Total missions scanned : 1
+  Flipped                     : 0
+  Skipped (already migrated)  : 1
+  Seed events                 : 0
+  Failed                      : 0
+```
+
+...while `git diff` showed it had just added `"status_phase": "1"` to `meta.json`. **The write
+was real and the report denied it.** Following SK-50's operational rule — *ignore the summary,
+check `git diff` on the mission's `meta.json`* — is what caught this. Trusting the summary would
+have led to hunting a nonexistent second defect.
+
+Not a hand-edit: the value was written by the sanctioned CLI, then committed as a landing fold.
+
+**This is the fourth independent first-hand corroboration of SK-50** (prior: PR #3524 /
+`up-org-template-fsm-01M06F9K`, PR #3681 / `mission-scaffold-tasks-lanes-defects-01M0NERD`, and
+the entry's original observation). The defect is stable, reproducible, and on the default happy
+path of every new mission — `Flipped: 0 / Skipped (already migrated): 1` is what a SUCCESSFUL
+flip looks like.
+
+**Fix direction (unchanged from SK-50/SK-51)**: have `agent mission create` stamp the current
+`status_phase` at scaffold time, since a mission created by the current version is by definition
+already cut over; and separately, make the summary count the write it actually performed.
