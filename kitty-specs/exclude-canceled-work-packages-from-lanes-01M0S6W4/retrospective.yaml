@@ -45,7 +45,7 @@ policy_source:
   permissions.apply_structural_changes: <default>
   precedence: <default>
   generator: <default>
-findings_status: no_findings
+findings_status: has_findings
 helped:
 - id: h-001
   category: doc

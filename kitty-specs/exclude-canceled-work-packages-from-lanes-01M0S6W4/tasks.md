@@ -55,10 +55,10 @@ Introduce one canonical cancellation-eligibility boundary in `finalize-tasks`. R
 1. Add and separately commit non-vacuous CLI acceptance tests that fail on the planning base for cancellation behavior, without production changes.
 2. Before production behavior changes, perform and separately record the tidy-first campsite assessment/cleanup on the touched finalizer methods.
 3. Add a small immutable/pure `finalization_eligibility.py` seam and direct unit tests, including a literal Windows-critical test marker.
-4. In `mission_finalize.py`, take one coordination-aware canonical lifecycle snapshot after raw graph validation and before every writer; reuse it for eligibility and later provenance consumers, render all stale cut edges, and exit.
+4. In `mission_finalize.py`, validate raw dependency ID/reference integrity, take one coordination-aware canonical lifecycle snapshot before every writer, reuse it for eligibility and later provenance consumers, reject all stale cut edges, then validate DAG cycles on `eligible_dependencies`. Canceled-only or isolated canceled cycles do not block; eligible cycles still do.
 5. Apply the same eligible-ID set to frontmatter, ownership manifests, bodies, dependencies, validate-only preview, committed lane computation, and reports.
 6. Retain existing empty-input refusal when eligible work remains, but call the allocator's existing empty-safe path when all known work is canceled.
-7. Exercise cancellation-only and no-cancellation compatibility, corrupt status refusal, deterministic ordering, #3431 cycles, Windows collection, and the governed 100-WP benchmark protocol.
+7. Exercise cancellation-only and no-cancellation compatibility, corrupt status refusal, deterministic ordering, canceled-only and isolated-canceled cycle success, eligible-cycle and stale-cut refusal, #3431 surviving-graph cycles, Windows collection, and the governed 100-WP benchmark protocol.
 8. Close with a 90% changed-line coverage floor, focused tests, lint, strict typing, architecture/terminology gates, clean diff, and review-ready evidence.
 
 ### Parallel Opportunities

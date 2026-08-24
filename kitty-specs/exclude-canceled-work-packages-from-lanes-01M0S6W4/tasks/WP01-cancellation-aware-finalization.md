@@ -201,15 +201,16 @@ Ground implementation in the current code, especially:
 
 **Steps**:
 
-1. In `mission_finalize.finalize_tasks`, keep read-only repository/Mission/branch/task/dependency resolution first. Raw dependency coverage and cycle validation must still run before projection.
+1. In `mission_finalize.finalize_tasks`, keep read-only repository/Mission/branch/task/dependency resolution first. Validate raw dependency ID format and unknown references before projection, but defer DAG cycle validation until cancellation has projected `eligible_dependencies`.
 2. Resolve the authoritative read directory with `resolve_status_surface_with_anchor`; read current lanes exactly once with the canonical event reader. Do not reuse `_execution_has_begun`, whose documented contract deliberately degrades read failures to `False`.
 3. If the event log or surface is absent on a genuine first-finalize path, distinguish that valid no-WP-events state from unreadable/corrupt authority using existing status primitives. Never infer cancellation from prompt metadata or prior `lanes.json`.
 4. Build the projection from known task-file IDs and the resolved dependency graph. Thread the same lifecycle snapshot into later provenance/execution-begun logic so `_preserve_or_capture_planning_commit_sha` does not cause a second event-log read. “Once” means one event-derived lifecycle snapshot for the whole `finalize-tasks` invocation, not merely one read inside the eligibility helper.
 5. If stale edges exist, emit one human or JSON refusal and raise `typer.Exit(1)`. JSON uses `CANCELED_WP_DEPENDENCY` and the contract's sorted record array. Human mode renders the same full set.
 6. Each recovery record must name the dependent and canceled prerequisite and say to remove or repoint that dependent's dependency.
-7. Move existing writers behind this guard. Audit at least target-branch override persistence, issue-matrix scaffolding, frontmatter writes, event emission/bootstrap, `tasks.md` regeneration, lane/acceptance artifacts, dossier sync, and commits.
-8. Preserve the existing target-branch override rollback contract for errors occurring after persistence; the new stale refusal should occur before persistence and need no rollback.
-9. Add phase-level tests for corrupt status, unavailable coordination surface, fresh Mission with no per-WP lifecycle events, complete multi-edge JSON, and complete human rendering.
+7. After the stale-edge guard, validate cycles on `eligible_dependencies`. Canceled-only and isolated canceled cycles do not block; eligible cycles still fail deterministically before mutation under C-004/#3431.
+8. Move existing writers behind both guards. Audit at least target-branch override persistence, issue-matrix scaffolding, frontmatter writes, event emission/bootstrap, `tasks.md` regeneration, lane/acceptance artifacts, dossier sync, and commits.
+9. Preserve the existing target-branch override rollback contract for errors occurring after persistence; the new stale refusal should occur before persistence and need no rollback.
+10. Add phase-level tests for corrupt status, unavailable coordination surface, fresh Mission with no per-WP lifecycle events, canceled-only/isolated-canceled cycles, eligible cycles, complete multi-edge JSON, and complete human rendering.
 
 **Validation**:
 
@@ -248,7 +249,7 @@ Ground implementation in the current code, especially:
 
 **Steps**:
 
-1. Preserve structural validation of the raw known work-package set and dependency graph before projection.
+1. Preserve raw work-package shape, dependency ID format, and unknown-reference validation before projection; validate cycles only on the projected eligible graph.
 2. Thread enough projection context into `_emit_validate_only_report` and `_compute_and_write_lanes` to distinguish `eligible_count == 0 && canceled_count == known_count > 0` from genuinely absent/malformed input.
 3. For the proven all-canceled case, call pure `compute_lanes` with empty eligible maps. Reuse its existing empty-manifest result rather than constructing a competing manifest inline.
 4. In normal mode, write the standard `lanes.json` shape with zero execution lanes and keep the rest of successful finalization reporting truthful.
@@ -273,7 +274,7 @@ Ground implementation in the current code, especially:
 1. Add a `done` fixture and assert it remains eligible under C-002.
 2. Add a formerly canceled but governed-current-non-canceled fixture and assert current state participates normally.
 3. For a no-cancellation fixture, compare execution-lane membership, dependency edges, ownership findings, planning-artifact classification, collapse report, and cycle findings against the existing baseline behavior.
-4. Keep `tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py` and lane cycle suites unchanged unless a fixture extension is strictly necessary. The surviving eligible graph must still reach #3431's deterministic post-collapse cycle gate.
+4. Keep `tests/specify_cli/cli/commands/agent/test_finalize_lane_dependency_cycle.py` and lane cycle suites unchanged unless a fixture extension is strictly necessary. Canceled-only and isolated canceled cycles are excluded, while the surviving eligible graph must still reach #3431's deterministic post-collapse cycle gate.
 5. Cover a canceled node that was the sole member of a prior execution lane and ensure no empty dangling execution-lane dependency survives.
 6. Cover direct and transitive shapes: only direct eligible-to-canceled cut edges are diagnosed; an eligible path cannot silently traverse a removed canceled node.
 7. Create `tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages_performance.py` with a deterministic 100-work-package fixture containing representative direct edges and canceled nodes. Mark the node `pytest.mark.performance` and `pytest.mark.benchmark(group="cli")`.

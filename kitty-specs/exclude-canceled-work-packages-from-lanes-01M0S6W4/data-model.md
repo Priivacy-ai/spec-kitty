@@ -55,7 +55,7 @@ The persisted schema is unchanged. A mixed Mission contains only eligible work p
 ## State and projection flow
 
 ```text
-Validated definitions + direct dependencies
+Definitions + direct dependencies with valid IDs/references
                  |
 Canonical current lifecycle map (one read)
                  |
@@ -64,7 +64,9 @@ Canonical current lifecycle map (one read)
           |               |
   stale edges exist   no stale edges
           |               |
- explicit refusal     filter ownership/body/frontmatter maps
+ explicit refusal     validate eligible DAG cycles
+                          |
+                  filter ownership/body/frontmatter maps
                           |
                    pure compute_lanes
                           |
@@ -73,10 +75,11 @@ Canonical current lifecycle map (one read)
 
 ## Validation rules
 
-1. Structural dependency validation runs on raw definitions before projection.
+1. Raw dependency ID format and unknown-reference integrity run before projection; raw cycles do not, because canceled-only nodes are not executable DAG input.
 2. Status authority must resolve and parse successfully.
 3. All stale direct edges are collected before any node is removed.
 4. A nonempty stale set blocks all finalization writers.
-5. Ownership and execution consumers receive maps keyed only by eligible IDs.
-6. Empty eligible input is accepted only when known IDs are nonempty and all are canceled.
-7. Missing ownership for remaining eligible code work retains existing failure behavior.
+5. DAG cycle validation runs on `eligible_dependencies`; canceled-only or isolated canceled cycles do not block, while every surviving eligible cycle does.
+6. Ownership and execution consumers receive maps keyed only by eligible IDs.
+7. Empty eligible input is accepted only when known IDs are nonempty and all are canceled.
+8. Missing ownership for remaining eligible code work retains existing failure behavior.

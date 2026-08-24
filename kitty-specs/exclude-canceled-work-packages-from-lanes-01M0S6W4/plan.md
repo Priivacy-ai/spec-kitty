@@ -59,7 +59,7 @@ flowchart TD
 
 ### Eligibility boundary
 
-After task files, the manifest, and the dependency graph have been read and structurally validated, `finalize-tasks` resolves the coordination-aware status read directory and takes exactly one event-derived lifecycle snapshot for the command. A new pure helper receives the known work-package IDs, dependencies, and lifecycle map and returns an immutable `FinalizationEligibility` value:
+After task files, the manifest, and the dependency graph have been read, raw dependency ID format and unknown-reference integrity are validated before projection. Raw cycles are not rejected at that stage because canceled-only declarations are not executable DAG input. `finalize-tasks` then resolves the coordination-aware status read directory and takes exactly one event-derived lifecycle snapshot for the command. A new pure helper receives the known work-package IDs, dependencies, and lifecycle map and returns an immutable `FinalizationEligibility` value:
 
 - sorted `eligible_wp_ids` and `canceled_wp_ids`;
 - the dependency graph projected onto eligible work packages;
@@ -68,9 +68,11 @@ After task files, the manifest, and the dependency graph have been read and stru
 
 Unknown/corrupt status authority fails through the existing status error boundary. A known work package with no lifecycle entry is treated as not canceled so the first finalization can bootstrap it. A reopened package participates because only its current lane is consulted. The same snapshot is threaded to later lifecycle consumers, including the planning-provenance execution-begun decision; they must not re-read the event log. The pure projection does not read files or emit output.
 
+After projection, every eligible-to-canceled direct edge is rejected as stale, then DAG cycle validation runs on `eligible_dependencies`. A cycle wholly inside canceled work, or isolated there beside active acyclic work, does not block finalization. Any cycle that survives in eligible work still blocks deterministically, preserving C-004 and #3431.
+
 ### Mutation ordering
 
-The stale-edge check is moved ahead of `_persist_target_branch_override`, issue-matrix scaffolding, frontmatter writes, lifecycle bootstrap/events, `tasks.md` regeneration, `lanes.json`, acceptance-matrix generation, dossier sync, and commits. Read-only branch resolution and dependency validation may precede it. This makes both normal and `--validate-only` paths share the same guard and prevents partial finalization residue on rejection.
+The stale-edge check is moved ahead of `_persist_target_branch_override`, issue-matrix scaffolding, frontmatter writes, lifecycle bootstrap/events, `tasks.md` regeneration, `lanes.json`, acceptance-matrix generation, dossier sync, and commits. Read-only branch resolution and raw dependency reference/ID validation may precede it; eligible-graph DAG cycle validation follows the stale cut and still precedes every writer. This makes both normal and `--validate-only` paths share the same guard and prevents partial finalization residue on rejection.
 
 ### Downstream filtering
 
@@ -86,7 +88,7 @@ Prompt files, task-outline entries, event history, bootstrap bookkeeping, and st
 
 ### Zero executable work
 
-Existing raw-input validation remains in force before projection. If eligible work exists but no ownership manifests can be resolved, finalization retains `LANE_COMPUTATION_ABORTED_EMPTY_INPUTS`. If the raw Mission is valid and the projection proves that every work package is canceled, the finalizer calls the already-empty-safe pure allocator with empty eligible maps and persists a normal `LanesManifest` containing zero execution lanes. Validate-only reports `computed: true` and `count: 0` for the same case.
+Existing raw ID/reference and input-shape validation remains in force before projection; DAG cycle validity is evaluated afterward on eligible work only. If eligible work exists but no ownership manifests can be resolved, finalization retains `LANE_COMPUTATION_ABORTED_EMPTY_INPUTS`. If the raw Mission is valid and the projection proves that every work package is canceled, the finalizer calls the already-empty-safe pure allocator with empty eligible maps and persists a normal `LanesManifest` containing zero execution lanes. Validate-only reports `computed: true` and `count: 0` for the same case.
 
 ## Project Structure
 
