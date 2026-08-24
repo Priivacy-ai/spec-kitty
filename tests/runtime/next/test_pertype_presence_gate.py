@@ -220,3 +220,180 @@ def test_unregistered_family_guard_dispatch_strict_raise_is_retained(
 
     with pytest.raises(UnregisteredMissionFamilyError):
         evaluate_guards_strict(snapshot)
+
+
+# ---------------------------------------------------------------------------
+# WP02 T009 (FR-004/FR-005/FR-007/FR-008, AC-4/AC-5/AC-6): org-tier awareness
+# + whole-file-replacement precedence, threaded through
+# ``gather_artifact_presence``'s new ``repo_root`` parameter.
+# ---------------------------------------------------------------------------
+
+_ORG_PRESENCE_FAMILY = "org-presence-family"
+_ORG_STEP_ONE = "step-one"
+_ORG_STEP_TWO = "step-two"
+
+_ORG_PRESENCE_BUILTIN_YAML = f"""\
+schema_version: "1.0"
+mission_type: "{_ORG_PRESENCE_FAMILY}"
+manifest_version: "1"
+required_always: []
+required_by_step:
+  {_ORG_STEP_ONE}:
+    - artifact_key: "output.builtin.one"
+      artifact_class: "output"
+      path_pattern: "builtin-one.md"
+      blocking: true
+  {_ORG_STEP_TWO}:
+    - artifact_key: "output.builtin.two"
+      artifact_class: "output"
+      path_pattern: "builtin-two.md"
+      blocking: true
+optional_always: []
+"""
+
+
+@pytest.fixture
+def org_presence_family_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Built-in-tier control manifest for ``_ORG_PRESENCE_FAMILY`` -- present
+    so the org-tier override test can prove the org file wins WHOLE-FILE
+    (never field-merged) rather than merely "the only manifest that exists"."""
+    missions_root = tmp_path / "missions-root-org-presence"
+    family_dir = missions_root / _ORG_PRESENCE_FAMILY
+    family_dir.mkdir(parents=True)
+    (family_dir / "expected-artifacts.yaml").write_text(
+        _ORG_PRESENCE_BUILTIN_YAML, encoding="utf-8"
+    )
+
+    monkeypatch.setattr(
+        MissionTemplateRepository,
+        "default",
+        classmethod(lambda cls: MissionTemplateRepository(missions_root)),
+    )
+
+
+def _write_org_presence_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    if packs:
+        lines += ["doctrine:", "  org:", "    packs:"]
+        for name, local_path in packs:
+            lines.append(f"      - name: {name}")
+            lines.append(f"        local_path: {local_path}")
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_org_presence_manifest(org_root: Path, mission_type: str, yaml_text: str) -> None:
+    target_dir = org_root / "missions" / mission_type
+    target_dir.mkdir(parents=True, exist_ok=True)
+    (target_dir / "expected-artifacts.yaml").write_text(yaml_text, encoding="utf-8")
+
+
+_ORG_PRESENCE_ORG_YAML = f"""\
+schema_version: "1.0"
+mission_type: "{_ORG_PRESENCE_FAMILY}"
+manifest_version: "org-1"
+required_always: []
+required_by_step:
+  {_ORG_STEP_ONE}:
+    - artifact_key: "output.org.one-required"
+      artifact_class: "output"
+      path_pattern: "org-one-required.md"
+      blocking: true
+    - artifact_key: "output.org.one-optional"
+      artifact_class: "output"
+      path_pattern: "org-one-optional.md"
+      blocking: false
+  {_ORG_STEP_TWO}:
+    - artifact_key: "output.org.two-required"
+      artifact_class: "output"
+      path_pattern: "org-two-required.md"
+      blocking: true
+optional_always: []
+"""
+
+
+class TestGatherArtifactPresenceOrgTier:
+    """AC-4/AC-5/AC-6: org file wins whole-file; only ``blocking: true``
+    absences surface in ``blocking_artifact_names``."""
+
+    def test_org_manifest_wins_whole_file_over_built_in_control(
+        self, tmp_path: Path, org_presence_family_repo: None
+    ) -> None:
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_presence_manifest(org_root, _ORG_PRESENCE_FAMILY, _ORG_PRESENCE_ORG_YAML)
+        _write_org_presence_pack_config(project_root, packs=[("acme", org_root)])
+        feature_dir = tmp_path / "feature"
+        feature_dir.mkdir()
+
+        snapshot = gather_artifact_presence(
+            feature_dir,
+            mission_family=_ORG_PRESENCE_FAMILY,
+            step_id=_ORG_STEP_ONE,
+            repo_root=project_root,
+        )
+
+        # AC-6: whole-file replacement -- the built-in control's filename
+        # must NOT leak into the org-resolved blocking set.
+        assert snapshot.blocking_artifact_names == frozenset({"org-one-required.md"})
+
+    def test_blocking_false_absence_never_surfaces_at_any_declared_step(
+        self, tmp_path: Path, org_presence_family_repo: None
+    ) -> None:
+        """AC-5: a ``blocking: false`` entry's absence never produces a
+        guard failure, at every step it's declared for."""
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_presence_manifest(org_root, _ORG_PRESENCE_FAMILY, _ORG_PRESENCE_ORG_YAML)
+        _write_org_presence_pack_config(project_root, packs=[("acme", org_root)])
+        feature_dir = tmp_path / "feature"
+        feature_dir.mkdir()
+
+        snapshot_step_one = gather_artifact_presence(
+            feature_dir,
+            mission_family=_ORG_PRESENCE_FAMILY,
+            step_id=_ORG_STEP_ONE,
+            repo_root=project_root,
+        )
+        snapshot_step_two = gather_artifact_presence(
+            feature_dir,
+            mission_family=_ORG_PRESENCE_FAMILY,
+            step_id=_ORG_STEP_TWO,
+            repo_root=project_root,
+        )
+
+        assert "org-one-optional.md" not in snapshot_step_one.blocking_artifact_names
+        assert snapshot_step_two.blocking_artifact_names == frozenset({"org-two-required.md"})
+
+    def test_repo_root_with_no_org_pack_falls_through_to_built_in_control_unchanged(
+        self, tmp_path: Path, org_presence_family_repo: None
+    ) -> None:
+        """TASKS-VERIFY-003 fix: ``repo_root`` supplied but no org pack
+        resolves for it -- the org-tier consult's "no match" path must fall
+        through cleanly to the built-in-tier manifest, distinct from the
+        ``repo_root=None``-never-invokes-org-tier-at-all case."""
+        project_root = tmp_path / "project-no-org-pack"
+        project_root.mkdir()
+        feature_dir = tmp_path / "feature"
+        feature_dir.mkdir()
+
+        with_repo_root = gather_artifact_presence(
+            feature_dir,
+            mission_family=_ORG_PRESENCE_FAMILY,
+            step_id=_ORG_STEP_ONE,
+            repo_root=project_root,
+        )
+        without_repo_root = gather_artifact_presence(
+            feature_dir,
+            mission_family=_ORG_PRESENCE_FAMILY,
+            step_id=_ORG_STEP_ONE,
+        )
+
+        assert (
+            with_repo_root.blocking_artifact_names
+            == without_repo_root.blocking_artifact_names
+            == frozenset({"builtin-one.md"})
+        )

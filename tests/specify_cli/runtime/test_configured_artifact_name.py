@@ -417,3 +417,185 @@ class TestThirdKindBoundaryPins:
 
         with pytest.raises(KeyError, match="no silent default"):
             _kind_for_artifact("docs")
+
+
+# ---------------------------------------------------------------------------
+# WP02 T008/T009b -- org-tier ``repo_root`` awareness (FR-008) for
+# ``required_artifacts_for`` / ``_load_expected_artifact_manifest``, plus the
+# ANALYZE-ARCH-001 fix round's schema-error handling (FR-010). Mirrors
+# ``ManifestRegistry.load_manifest``'s own FR-008/WP05 test shape
+# (``tests/dossier/test_manifest.py::TestManifestRegistryOrgTier``).
+# ---------------------------------------------------------------------------
+
+
+def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) -> None:
+    """Write ``<repo_root>/.kittify/config.yaml`` with a ``doctrine.org.packs``
+    registry only -- mirrors ``tests/dossier/test_manifest.py``'s helper of the
+    same name/shape (the org-tier resolution path this WP threads through
+    ``specify_cli.runtime.resolver`` reads org packs the same way).
+    """
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    if packs:
+        lines += ["doctrine:", "  org:", "    packs:"]
+        for name, local_path in packs:
+            lines.append(f"      - name: {name}")
+            lines.append(f"        local_path: {local_path}")
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _write_org_manifest(org_root: Path, mission_type: str, data: dict) -> None:
+    """Write ``<org_root>/missions/<mission_type>/expected-artifacts.yaml``."""
+    target_dir = org_root / "missions" / mission_type
+    target_dir.mkdir(parents=True, exist_ok=True)
+    from ruamel.yaml import YAML
+
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with (target_dir / "expected-artifacts.yaml").open("w") as fh:
+        yaml.dump(data, fh)
+
+
+class TestRequiredArtifactsForOrgTier:
+    """T008/T009 (WP02, FR-008): ``required_artifacts_for``'s ``repo_root``
+    parameter resolves an org-tier ``expected-artifacts.yaml`` in preference
+    to the built-in manifest for the same mission type, whole-file (never
+    field-merged).
+    """
+
+    def test_org_override_resolves_in_preference_to_built_in(self, tmp_path: Path) -> None:
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(
+            org_root,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "org-1",
+                "required_by_step": {
+                    "specify": [
+                        {
+                            "artifact_key": "input.spec.main",
+                            "artifact_class": "input",
+                            "path_pattern": "org-spec.md",
+                            "blocking": True,
+                        }
+                    ]
+                },
+            },
+        )
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+
+        result = required_artifacts_for("specify", "software-dev", repo_root=project_root)
+
+        assert result == ["org-spec.md"]
+        # The built-in tier's own filename must not leak in -- whole-file
+        # replacement, never a field-merge.
+        assert "spec.md" not in result
+
+    def test_repo_root_with_no_org_pack_falls_through_to_built_in_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        """TASKS-VERIFY-003 fix: ``repo_root`` given but no
+        ``missions/<type>/expected-artifacts.yaml`` exists under it --
+        the org-tier consult's "no match" path must fall through cleanly to
+        the built-in manifest, identical to the ``repo_root=None`` result.
+        """
+        project_root = tmp_path / "project-no-org-pack"
+        project_root.mkdir()
+
+        with_repo_root = required_artifacts_for(
+            "specify", "software-dev", repo_root=project_root
+        )
+        without_repo_root = required_artifacts_for("specify", "software-dev")
+
+        assert with_repo_root == without_repo_root == ["spec.md"]
+
+    def test_no_repo_root_argument_is_byte_identical_to_pre_wp_behavior(self) -> None:
+        """The optional ``repo_root`` parameter defaults to ``None`` -- no
+        call-site with no ``repo_root`` in scope is affected by this WP."""
+        assert required_artifacts_for("specify", "software-dev") == ["spec.md"]
+        assert required_artifacts_for("specify", "software-dev", repo_root=None) == ["spec.md"]
+
+
+class TestManifestSchemaErrorPerTier:
+    """T009b (WP02, ANALYZE-ARCH-001 fix round): a manifest that parses as
+    YAML but fails ``ExpectedArtifactManifest`` schema validation
+    (``extra="forbid"``) raises ``ManifestSchemaError`` -- not a bare
+    ``pydantic.ValidationError`` -- for BOTH the built-in and org tiers.
+    """
+
+    _BROKEN_MISSION_TYPE = "broken-builtin-schema"
+
+    @pytest.fixture
+    def broken_builtin_repo(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Point ``MissionTemplateRepository.default()`` at a temp missions
+        root shipping a mission type whose manifest fails schema validation
+        (an ``extra="forbid"``-rejected key)."""
+        missions_root = tmp_path / "missions-root"
+        broken_dir = missions_root / self._BROKEN_MISSION_TYPE
+        broken_dir.mkdir(parents=True)
+        (broken_dir / "expected-artifacts.yaml").write_text(
+            "schema_version: '1.0'\n"
+            f"mission_type: '{self._BROKEN_MISSION_TYPE}'\n"
+            "manifest_version: '1'\n"
+            "not_a_real_field: true\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(
+            MissionTemplateRepository,
+            "default",
+            classmethod(lambda cls: MissionTemplateRepository(missions_root)),
+        )
+
+    def test_built_in_schema_invalid_manifest_raises_manifest_schema_error(
+        self, broken_builtin_repo: None
+    ) -> None:
+        from specify_cli.dossier.manifest import ManifestSchemaError
+
+        with pytest.raises(ManifestSchemaError) as exc_info:
+            required_artifacts_for("specify", self._BROKEN_MISSION_TYPE)
+
+        exc = exc_info.value
+        assert exc.mission_type == self._BROKEN_MISSION_TYPE
+        # Built-in branch: ``config.origin`` is a real, reachable attribute
+        # here (mirrors ``ManifestRegistry.load_manifest``'s own built-in
+        # except-block, manifest.py:326-340).
+        assert self._BROKEN_MISSION_TYPE in exc.origin
+
+    def test_org_tier_schema_invalid_manifest_raises_manifest_schema_error(
+        self, tmp_path: Path
+    ) -> None:
+        """ANALYZE-FRESH-001: the org-tier branch has no ``config`` variable
+        of type ``ConfigResult`` in scope, so ``.origin`` must NOT be read
+        off it (that raises ``AttributeError``, not ``ManifestSchemaError``,
+        defeating this fix on exactly the org-tier path FR-010 exists to
+        cover). The origin must instead be a synthesized, descriptive
+        string naming the org tier and the mission type.
+        """
+        from specify_cli.dossier.manifest import ManifestSchemaError
+
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        org_root = tmp_path / "org-pack"
+        _write_org_manifest(
+            org_root,
+            "software-dev",
+            # Missing required `mission_type` field -> pydantic ValidationError.
+            {"schema_version": "1.0", "manifest_version": "broken"},
+        )
+        _write_org_pack_config(project_root, packs=[("acme", org_root)])
+
+        with pytest.raises(ManifestSchemaError) as exc_info:
+            required_artifacts_for("specify", "software-dev", repo_root=project_root)
+
+        exc = exc_info.value
+        assert exc.mission_type == "software-dev"
+        # Descriptive org-tier origin -- never the unreachable built-in
+        # `config.origin` expression (would raise `AttributeError` if used
+        # by mistake in this branch).
+        assert "org-tier" in exc.origin
+        assert "software-dev" in exc.origin
