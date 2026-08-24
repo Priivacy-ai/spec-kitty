@@ -232,6 +232,95 @@ class TestGoldenParityUnaffectedByPackContextThreading:
             assert bundle.template_set is not None
             assert dict(bundle.template_set) == expected_template_set
 
+    def test_builtin_layer_scan_receives_the_real_pack_context_once_per_type(
+        self, tmp_path: Path
+    ) -> None:
+        """WP01/T004 (NFR-004, mission mission-types-empty-action-sequence-01M0RMCA,
+        #3701): closes two claims with call-level evidence rather than
+        architectural assertion alone.
+
+        1. **No new filesystem walk**: threading ``pack_context`` into the
+           built-in-equivalent layer's own ``scan_mission_types_dir(base_dir,
+           pack_context=pack_context)`` call (this WP's fix) must not cause
+           ``"software-dev"``'s own step set to be resolved more than once.
+        2. **Not vacuous**: an empirical revert of just that one call site
+           (confirmed manually per this subtask's own instructions -- not
+           committed) leaves the sibling test directly above
+           (``test_builtin_type_unaffected_by_real_pack_context_with_org_root``)
+           passing unchanged, because this fixture's org root declares no
+           content for any built-in type id -- the byte-level parity
+           assertion is correctly invariant either way (an *unrelated* org
+           pack must never perturb output, by design), so it cannot by
+           itself prove the new call site is live. This test closes that
+           gap directly: it asserts the resolved call for ``"software-dev"``
+           actually received *this* real, non-``None`` ``pack_context``
+           instance (identity, not just a truthy check), which only WP01's
+           fix could deliver -- pre-fix, ``_inject_projected_fields``
+           hardcoded ``pack_context=None`` regardless of what its callers
+           held (see that function's own pre-WP01 docstring in git history).
+
+        Spy shape (deviation from the WP prompt's literal instance-``patch.object``
+        suggestion, recorded here and in the tracer files per this mission's own
+        "verify rather than trust" standard): ``MissionStepRepository.default()``
+        is a plain ``@classmethod`` with **no** ``functools.cache`` -- unlike
+        ``MissionTypeRepository.default()`` -- so it returns a *fresh* instance on
+        every call. An instance-level
+        ``patch.object(instance, "resolve_all_for_mission_type", wraps=...)``
+        against a pre-captured ``instance`` therefore observes **zero** calls
+        (empirically confirmed: the seam's own internal
+        ``MissionStepRepository.default()`` call constructs a *different* object),
+        not a `TypeError`. This test instead reuses the plain-function
+        class-attribute-spy shape ``TestMemoizedDefaultNoHotPathIO.
+        test_default_does_not_rewalk_mission_steps_on_repeat_calls`` above already
+        applies successfully in this same file: a plain function (not a ``Mock``)
+        set as the class attribute correctly binds ``self`` via Python's normal
+        descriptor protocol when accessed through *any* instance, sidestepping the
+        instance-identity problem entirely.
+
+        Counts only calls whose ``mission_type_id`` is ``"software-dev"``:
+        the built-in-equivalent layer's scan loads all 4 built-in YAML
+        files in one pass (``TestMemoizedDefaultNoHotPathIO`` above pins
+        this: ``len(calls) == len(_BUILTIN_TYPE_IDS)`` for a full-roster
+        resolution), so a raw, unfiltered call count would conflate "one
+        walk per type in the directory" (expected, unrelated to this WP)
+        with "one walk for the single type this test resolves" (the actual
+        claim under test).
+        """
+        from charter.pack_context import PackContext
+
+        org_root = tmp_path / "org-pack"
+        (org_root / "mission_types").mkdir(parents=True)
+        pack_context = PackContext(
+            activated_kinds=frozenset(),
+            activated_mission_types=frozenset(_BUILTIN_TYPE_IDS),
+            pack_roots=(tmp_path / "unused-builtin-placeholder", org_root),
+            org_pack_names=("org-pack",),
+            repo_root=tmp_path,
+        )
+
+        original = MissionStepRepository.resolve_all_for_mission_type
+        calls: list[tuple[str, Any]] = []
+
+        def _spy(
+            self: MissionStepRepository,
+            mission_type_id: str,
+            pack_context: Any = None,
+        ) -> dict[str, Any]:
+            calls.append((mission_type_id, pack_context))
+            return original(self, mission_type_id, pack_context)
+
+        with (
+            patch.object(MissionStepRepository, "resolve_all_for_mission_type", _spy),
+            patch(
+                "charter.pack_context.PackContext.from_config", return_value=pack_context
+            ),
+        ):
+            _resolve_via_seam(tmp_path, "software-dev")
+
+        calls_for_software_dev = [c for c in calls if c[0] == "software-dev"]
+        assert len(calls_for_software_dev) == 1
+        assert calls_for_software_dev[0][1] is pack_context
+
     def test_org_root_content_actually_resolves_through_the_seam(
         self, tmp_path: Path
     ) -> None:
