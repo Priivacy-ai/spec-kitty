@@ -132,3 +132,48 @@ subagent), because getting this wrong would misdirect a future SPEC-KITTY-LEDGER
 4. **No hand-edit was performed at any point** — the retry used the CLI's own mutating command,
    unmodified, exactly as documented for normal use; this is a legitimate idempotent re-invocation
    of the same operation, not a workaround.
+
+## Analyze phase (2026-08-24) — `record-analysis` hang (SK-63-family) and host-absolute-path leak (SK-32) both reproduced
+
+Command: `.venv/bin/spec-kitty agent mission record-analysis --mission mission-types-empty-action-sequence-01M0RMCA --input-file <temp-carrier.md> --json`.
+
+**Hang, SK-63-family (not identical, but same root symptom):** the invocation was wrapped in a
+90s `timeout` and was killed (`exit 124`) having printed zero JSON — only the now-familiar
+`Warning: event journal capture failed: project sync store is locked` /
+`Warning: Event routing failed: project sync store is locked` /
+`Warning: Event did not durably queue; dropping from publication` /
+`Warning: Explicit-context event capture failed: machine layout cutover did not publish within
+the bounded wait` stream on stderr, matching this same mission's already-recorded `spec-kitty
+plan --json` hang (SK-70) and the `finalize-tasks` contention noted in the tasks-phase entries
+above. SK-63 as ledgered is "prints success JSON, then hangs without committing" — this run never
+printed JSON at all, so it is the same event-journal/sync-store-lock contention family, not a
+byte-for-byte match to SK-63's documented shape. **Despite the killed process, the underlying
+write DID complete and commit** (see below) — the analyze-phase author subagent verified
+`git status` was clean and `analysis-report.md` existed as a real, tracked commit after the
+timeout-killed invocation returned control. No hand-edit or workaround was used; the timeout-kill
+was a controlled termination of a foregrounded call, not a hand-edit of any state file, and the
+commit that resulted came from the tool's own (apparently still-running, or already-completed
+pre-kill) write path, not from anything the subagent did to route around it.
+
+**SK-32 reproduced — host-absolute paths baked into a committed, PUBLIC-repo artifact:** the
+committed `kitty-specs/mission-types-empty-action-sequence-01M0RMCA/analysis-report.md`
+(commit `a1de4cb5e`) has its `input_artifacts.*.path` fields written as full host-absolute paths:
+
+```
+$ grep -n "/home/jeroennouws" kitty-specs/mission-types-empty-action-sequence-01M0RMCA/analysis-report.md
+11:    path: /home/jeroennouws/dev/SK-missions/3701/kitty-specs/mission-types-empty-action-sequence-01M0RMCA/spec.md
+14:    path: /home/jeroennouws/dev/SK-missions/3701/kitty-specs/mission-types-empty-action-sequence-01M0RMCA/plan.md
+17:    path: /home/jeroennouws/dev/SK-missions/3701/kitty-specs/mission-types-empty-action-sequence-01M0RMCA/tasks.md
+20:    path: /home/jeroennouws/dev/SK-missions/3701/.kittify/charter/charter.yaml
+```
+
+This is `record-analysis` writing its own `input_artifacts[*].path` fields as absolute
+filesystem paths from the machine that ran it (`/home/jeroennouws/dev/SK-missions/3701/...`),
+not a mission-relative or repo-relative path. This repo is PUBLIC and this commit is already
+pushed to the mission branch — the local directory layout (`/home/jeroennouws/...`) is now
+permanently visible in the git history. Per this mission's explicit reflexive-failure clause,
+**this was NOT hand-edited** — `record-analysis` is spec-kitty's own machinery and the fix
+belongs upstream (ledger SK-32 / upstream #3398), not in a patch applied by this mission's
+analyze phase. Reported verbatim to the design-phase orchestrator for the ledger; the analyze
+phase's own verdict (`ready`) and findings are otherwise unaffected by this tooling defect, since
+it is a metadata field on the report, not a defect in the cross-artifact analysis itself.
