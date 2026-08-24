@@ -292,7 +292,16 @@ No contract moves. Verified against each contract surface named in the mission b
 - **C-002/C-007 bound this explicitly**: C-002 forbids any `template_set`-style migration of
   `action_sequence` off the `MissionType` model (none is made); C-007 bounds the diff to the one
   named file and two named test files (checkable via SC-006's `git diff --name-only` mechanism at
-  merge time). No contract file is in that bounded set, so none moves.
+  merge time). No contract file is in that bounded set, so none moves. **Scope of SC-006's check**:
+  C-007's file-set bound, and therefore SC-006's `git diff --name-only main...HEAD` check, applies
+  to the `src/`- and `tests/`-side changes only — the one named `src/` file and the two named test
+  files. This mission's own `kitty-specs/mission-types-empty-action-sequence-01M0RMCA/**` artifacts
+  (`spec.md`, `plan.md`, the `tracer-*.md` files, `tasks.md`, `checklists/`, `research/`,
+  `reviews/`, `meta.json`, `status.events.jsonl`) necessarily appear in the same PR diff under this
+  repository's one-PR-per-mission model (see "PR shape" below) and are expected mission bookkeeping,
+  not a C-002/C-003/C-007 violation — SC-006's diff check is scoped to whether any `src/`/`tests/`
+  path *outside* C-007's three named files appears, not to whether this mission's own planning
+  directory appears at all.
 
 ## Campsite-clean
 
@@ -345,7 +354,7 @@ This is an internal doctrine-layer signature change with new parameters that def
   types with steps-only projection start resolving correctly. **Corrected caller count** (re-verified
   against this checkout via `grep -rn "resolve_layered_mission_types(" src/`, including through the
   `charter.missions` re-export alias, rather than trusted from
-  `mission_type_repository.py:22-31`'s module comment, which is scoped to a prior mission's WP04
+  `mission_type_repository.py:23-32`'s module comment, which is scoped to a prior mission's WP04
   historical framing and predates the later WP07 additions below — an earlier draft of this plan
   trusted that comment uncritically, which is exactly the failure mode this mission's own "verify
   rather than trust" standard exists to catch): there are **three** production `src/` callers, not
