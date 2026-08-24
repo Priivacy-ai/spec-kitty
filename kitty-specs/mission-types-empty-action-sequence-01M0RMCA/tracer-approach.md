@@ -33,3 +33,74 @@ against `gh issue view 3284` — both target files are 100% green at this baseli
 ~23 known-red/2-error baseline on `main` (issue #3284) is confirmed elsewhere in the suite, not
 in these two files, and T001's cross-check step is a no-op by construction (nothing red to
 triage). Proceeding to T002 (red-first test) on this confirmed-clean baseline.
+
+## WP01 implementation phase (2026-08-24) — T005/T006
+
+**T005**: Added `test_project_tier_steps_only_projection_resolves`
+(`tests/doctrine/missions/test_mission_type_repository.py`), verifying the project-tier path
+conventions live against `mission_step_repository.py`'s own source before writing the fixture
+(not assumed): project-tier mission-type YAML at
+`<repo_root>/.kittify/missions/mission_types/<id>.yaml`
+(`_PROJECT_MISSION_TYPES_RELATIVE`), project-tier step tree at
+`<repo_root>/.kittify/overrides/mission-steps/<id>/<step>/step.yaml`
+(`_project_mission_type_dir`/`_resolve_project_layer`). Manual verification per T005's own
+validation step: temporarily reverted ONLY the project-dir call site
+(`mission_type_repository.py:574`, `scan_mission_types_dir(project_dir, pack_context=pack_context)`
+→ `scan_mission_types_dir(project_dir)`), reran the new test — it FAILED
+(`action_sequence` was `None` instead of the expected 7-step list), confirming the test genuinely
+exercises the project layer specifically, not vacuously. Restored the line immediately
+(`git diff --stat` confirmed zero pending change before continuing); never committed.
+
+**T006**: Confirmed rather than duplicated — `TestLayeredMissionTypesCacheKeyAndClear`'s existing
+tests (e.g. `test_same_key_is_a_cache_hit`, `test_two_projects_same_process_return_distinct_correct_results`)
+already use `_mission_type_yaml(mission_type_id, action_sequence=[...])` (which always authors an
+explicit `action_sequence:` key) with a real `_StubPackContext` and **no** matching step tree
+written for that type, so the step-file projection is empty and the explicit YAML value is what's
+returned. These tests exercise exactly FR-006/Acceptance Scenario 4's fallback shape and pass
+unchanged post-WP01 (confirmed in the T008 full targeted-suite run below), so per WP01's own T006
+step 2 ("if an equivalent case already exists ... note that explicitly rather than duplicating a
+test"), no new test was added for T006.
+
+## WP01 implementation phase (2026-08-24) — T007 red-first witness (SC-004)
+
+T002's test commit (`ca75f7efd`) and T003's fix commit (`a03a39c7f`) are separate, already
+committed. Per WP01's own SC-004 procedure (using `git revert --no-commit`, NOT `git stash`,
+because T002/T003 land as separate commits — C-011/plan.md, and `spec.md`/`plan.md`'s own
+"stash" wording is superseded by WP01's own executed correction, accepted at analyze finding A2):
+
+**Run 1 — fix reverted (must FAIL):**
+```
+$ git revert --no-commit a03a39c7f
+(clean apply, no conflicts)
+$ .venv/bin/python -m pytest tests/doctrine/missions/test_mission_type_repository.py -k "TestLayeredProjectionThreadsPackContext" -v -p no:cacheprovider
+tests/doctrine/missions/test_mission_type_repository.py::TestLayeredProjectionThreadsPackContext::test_org_tier_steps_only_projection_resolves_non_empty_sequence FAILED
+tests/doctrine/missions/test_mission_type_repository.py::TestLayeredProjectionThreadsPackContext::test_governed_entry_point_does_not_raise_for_steps_only_org_type FAILED
+tests/doctrine/missions/test_mission_type_repository.py::TestLayeredProjectionThreadsPackContext::test_project_tier_steps_only_projection_resolves FAILED
+3 failed, 42 deselected in 0.44s
+```
+Observed `action_sequence` values: `None` (both the direct `resolve_layered_mission_types` cases —
+org-tier and project-tier), and `MissionTypeEmptyActionSequenceError: mission type 'qa' resolved
+from layer 'org' has an empty action sequence.` raised (governed entry point case) — exactly the
+pre-fix defect shape.
+
+**Restore:**
+```
+$ git revert --abort
+$ git status --short   # only the tracer file itself (this entry, being written) shows pending
+$ git diff --stat src/doctrine/missions/mission_type_repository.py   # empty — fix fully restored
+```
+
+**Run 2 — fix restored (must PASS):**
+```
+$ .venv/bin/python -m pytest tests/doctrine/missions/test_mission_type_repository.py -k "TestLayeredProjectionThreadsPackContext" -v -p no:cacheprovider
+tests/doctrine/missions/test_mission_type_repository.py::TestLayeredProjectionThreadsPackContext::test_org_tier_steps_only_projection_resolves_non_empty_sequence PASSED
+tests/doctrine/missions/test_mission_type_repository.py::TestLayeredProjectionThreadsPackContext::test_governed_entry_point_does_not_raise_for_steps_only_org_type PASSED
+tests/doctrine/missions/test_mission_type_repository.py::TestLayeredProjectionThreadsPackContext::test_project_tier_steps_only_projection_resolves PASSED
+3 passed, 42 deselected in 0.69s
+```
+Observed `action_sequence` value post-fix: `['discovery', 'specify', 'plan', 'tasks', 'implement', 'review', 'accept']` for both direct cases; the governed entry point returns a bundle with the
+same list, no exception raised.
+
+Genuinely witnessed fail-then-pass across the same revert/restore cycle, not merely asserted — T007
+satisfied. All three tests in `TestLayeredProjectionThreadsPackContext` pin the defect (none is
+vacuous under this cycle).
