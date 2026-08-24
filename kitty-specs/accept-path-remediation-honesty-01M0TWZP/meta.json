@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-08-24T22:06:49.511032+00:00",
+  "flattened": false,
+  "friendly_name": "accept: honest path-convention remediation",
+  "mission_id": "01M0TWZPN58FPFQATN13SREQHM",
+  "mission_number": null,
+  "mission_slug": "accept-path-remediation-honesty-01M0TWZP",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances accept: honest path-convention remediation on fix/accept-path-remediation-honesty-3730 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "accept: honest path-convention remediation",
+  "slug": "accept-path-remediation-honesty-01M0TWZP",
+  "target_branch": "fix/accept-path-remediation-honesty-3730",
+  "topology": "single_branch"
+}
