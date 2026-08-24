@@ -2842,9 +2842,7 @@ def _read_finalization_lifecycle_snapshot(
 ) -> _FinalizationLifecycleSnapshot:
     """Read one canonical event stream for current eligibility and provenance."""
     from specify_cli.coordination.surface_resolver import resolve_status_surface_with_anchor
-    from specify_cli.status.lane_reader import has_event_log
-    from specify_cli.status.reducer import reduce
-    from specify_cli.status.store import read_events
+    from specify_cli.status import has_event_log, read_events, reduce
 
     read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
     if not has_event_log(read_dir):

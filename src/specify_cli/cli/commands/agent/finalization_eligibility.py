@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import TypeVar
 
-from specify_cli.status.models import Lane
+from specify_cli.status import Lane
 
 _T = TypeVar("_T")
 
