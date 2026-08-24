@@ -61,7 +61,7 @@ the ledger's retraction.
 `lanes.json`'s `lanes[0].predicted_surfaces` lists `api`, `app-shell`, `artifact-rendering`,
 `tests`, `tracker-integration` for this mission — a pure `src/charter/` + five test-file
 path-join bugfix that touches none of those subsystems. `infer_surfaces()`
-(`src/specify_cli/lanes/compute.py:98-118`) derives `predicted_surfaces` via case-insensitive
+(`src/specify_cli/lanes/compute.py:162-176`) derives `predicted_surfaces` via case-insensitive
 substring matching against the WP prompt's prose, not `owned_files` — e.g. it matched
 "tracker" inside the WP01 frontmatter's own `tracker_refs: []` key name, and similar
 incidental matches produced the other four labels.

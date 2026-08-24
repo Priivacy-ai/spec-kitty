@@ -360,9 +360,17 @@ Gate Set For This Mission" section before treating this WP as CI-ready.
        --fail-under=90 --include 'src/charter/*'
    ```
    `--compare-branch` names this mission's `planning_base_branch` (see frontmatter) as the
-   diff base — use that ref (or `origin/main` if this checkout has no local
-   `fix/org-tier-expected-artifacts-3703`/`origin/main` ref reachable, fetch it first:
-   `git fetch origin main`). This mirrors the real CI gate
+   diff base — use that ref (if this checkout has no local
+   `fix/org-tier-expected-artifacts-3703` ref reachable, fetch it first: `git fetch origin
+   fix/org-tier-expected-artifacts-3703`). Do not substitute `origin/main` here: CI's
+   `diff-coverage` job compares against `origin/${{ github.base_ref }}`, and this mission's
+   base_ref — per `meta.json`'s `target_branch` and this WP's `merge_target_branch`
+   frontmatter field — is `fix/org-tier-expected-artifacts-3703`, not `main`. The two
+   currently coincide (main has not diverged from this branch), so diffing against
+   `origin/main` happens to be harmless today, but that is incidental, not guaranteed, and
+   would silently diverge from what CI reports once main moves independently — always use
+   the mission's actual base ref above, never a hardcoded `main` fallback. With the correct
+   compare-branch, this mirrors the real CI gate
    (`.github/workflows/ci-quality.yml`'s `diff-coverage` job, "diff-coverage (critical-path,
    enforced)" step) which aggregates coverage XML from CI's separate fast+integration jobs
    and compares against `origin/${{ github.base_ref }}`; the single-file `--cov-report`
