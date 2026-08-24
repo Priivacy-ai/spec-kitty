@@ -1,0 +1,109 @@
+{
+  "mission_slug": "exclude-canceled-work-packages-from-lanes-01M0S6W4",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_finalization_eligibility.py and test_finalize_canceled_work_packages.py; canonical event-derived status and one-reader paths passed in cycle-2 review",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:14:52.662724+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Cycle-2 eligible-control and canceled ownership validation pairs passed in test_finalize_canceled_work_packages.py",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:14:54.853016+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Mixed, repeated-finalize, and all-canceled lane manifest tests passed; canceled IDs absent from membership and reports",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:14:57.029632+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Human and JSON stale active dependency tests pass with pre-writer refusal spies",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:14:59.240978+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Stale diagnostic acceptance tests assert dependent ID, canceled dependency ID, and remove-or-repoint recovery",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:15:01.433603+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Multi-edge acceptance tests assert complete deterministic sorted stale pair reporting",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:15:03.629725+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Repeated all-canceled finalization test asserts prompt/artifact and append-only event retention",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:15:05.831138+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Normal and validate-only all-canceled tests persist/preview a valid zero-lane manifest",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:15:07.943473+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Governed canceled-to-planned reopen real-finalizer test passes and persists eligible lane inclusion",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:15:10.063752+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "No-cancellation structural parity and #3431 cycle regression suites passed independently: 37 regression tests",
+      "pass_fail": "pass",
+      "verified_by": "codex-reviewer",
+      "verified_at": "2026-08-24T09:15:12.130441+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}

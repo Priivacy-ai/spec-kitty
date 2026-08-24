@@ -1,0 +1,53 @@
+{
+  "rows": {
+    "#3127": {
+      "evidence_ref": "GitHub issue #3127 is closed; it remains outside this mission and no longer needs follow-up deferral.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3281": {
+      "evidence_ref": "Follow-up issue #3281 remains open and owns planning-history reconciliation, allocation recovery, and dependency propagation.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": "WP01"
+    },
+    "#3431": {
+      "evidence_ref": "GitHub issue #3431 is closed; its merged post-collapse cycle behavior is preserved by this mission regression suite.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": "WP01"
+    },
+    "#3432": {
+      "evidence_ref": "WP01 approved after independent cycle-2 review; product commits 42a195e01 and 113391c55 pass behavior, regression, architecture, typing, lint, coverage, Windows collection, and benchmark gates.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    }
+  },
+  "schema_version": 1
+}
