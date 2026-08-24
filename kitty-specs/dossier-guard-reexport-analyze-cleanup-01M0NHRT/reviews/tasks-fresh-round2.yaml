@@ -1,0 +1,40 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: TASKS-FRESH2-001
+    lens: fresh-sweep
+    severity: 3
+    title: spec.md's own §106 change-scope reconciliation sentence still carries a stale "six-file scope" phrase, inside the exact sentence round-1 cited as proof the file was already fixed
+    evidence:
+      - artifact: "spec.md §106 change-scope reconciliation (Charter-clause resolutions section)"
+      - code: "spec.md:23 — the sentence introducing the 7th file ends: \"...after the tasking review found the original two-option \\\"Files\\\" guidance either collided with WP01's exclusively-owned test files or fell outside this six-file scope). No other file is touched, beyond the seven files named above.\""
+      - artifact: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/reviews/tasks-fresh.yaml (round-1 fresh sweep, TASKS-FRESH-001)"
+      - code: "reviews/tasks-fresh.yaml TASKS-FRESH-001 evidence quotes only the tail of spec.md:23 (\"now names a seventh file ... closes with 'No other file is touched, beyond the seven files named above.'\") as proof spec.md was 'already fixed,' and scoped its remediation to plan.md only — never noticing the embedded \"six-file scope\" clause earlier in that same run-on sentence"
+      - artifact: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/tracer-tooling-friction.md F-06"
+      - code: "F-06 states the round-2 fix hand-edited only plan.md and the four tasks/WP0{1,2,3,4}-*.md files, and that tasks.md was inspected and found clean — spec.md is never mentioned as re-checked in round 2 either"
+    claim: >
+      Round-1's fresh sweep (TASKS-FRESH-001) correctly identified plan.md's ~21 stale "six file(s)"
+      references and correctly treated spec.md as already reconciled to seven files — but the reviewer's
+      own evidence quote for spec.md:23 only captured the sentence's closing clause ("seven files named
+      above"), not an earlier clause in the SAME sentence that still reads "fell outside this six-file
+      scope." The round-2 fix commit (8e6888acc) then verifiably touched only plan.md and the four WP
+      files (confirmed via `git diff 1543117f9 8e6888acc`), so spec.md was never revisited and this
+      residual phrase survived two review rounds untouched. Read in context, the sentence now says a file
+      was added because it "fell outside this six-file scope" and then, three words later, "No other file
+      is touched, beyond the seven files named above" — an internal contradiction inside spec.md's own
+      binding §106 clause about whether the mission's scope, at the point this reasoning is describing,
+      was six or seven files. A reader auditing spec.md's authority over plan.md's restated §106 section
+      (plan.md is explicitly "restatement, not fresh derivation" of spec.md) hits this residual "six"
+      immediately after plan.md's ~21-occurrence sweep was completed, undermining confidence that the
+      seven-file reconciliation is actually complete mission-wide.
+    remediation: >
+      Edit spec.md:23's clause "fell outside this six-file scope" to something that doesn't read as a
+      live scope assertion — e.g. "fell outside the then-six-file scope (before this file was added)" if
+      the historical framing is intentional, or simply drop the parenthetical's ambiguity by rephrasing
+      to "or fell outside the pre-fix file scope." Also re-check spec.md end-to-end for any other
+      "six"-adjacent residue the round-1 evidence quote's truncation may have caused reviewers to skip
+      over (this instance was found precisely because the fresh-sweep evidence line quoted only part of
+      the sentence it was validating).

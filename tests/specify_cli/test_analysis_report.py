@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+import traceback
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -235,7 +236,9 @@ def test_charter_hash_resolves_canonical_root_from_worktree(tmp_path):
     resolve_canonical_repo_root.cache_clear()
     hashes = collect_input_artifact_hashes(feature_dir, worktree)
 
-    assert hashes["charter"]["path"] == str(charter_file.resolve())
+    # FR-007/NFR-001: recorded path is repo-relative (relative to the resolved
+    # canonical root -- the MAIN checkout here, not the worktree), never absolute.
+    assert hashes["charter"]["path"] == str(charter_file.resolve().relative_to(main.resolve()))
     assert hashes["charter"]["sha256"] == _sha256_file(charter_file)
     assert hashes["charter"]["sha256"] != _sha256_file(worktree_charter)
 
@@ -257,7 +260,9 @@ def test_charter_hash_falls_back_to_repo_root_outside_git(tmp_path):
     resolve_canonical_repo_root.cache_clear()
     hashes = collect_input_artifact_hashes(feature_dir, tmp_path)
 
-    assert hashes["charter"]["path"] == str(charter_file)
+    # FR-007/NFR-001: outside git, canonical_root falls back to repo_root
+    # (tmp_path here), so the recorded path is relative to tmp_path.
+    assert hashes["charter"]["path"] == str(charter_file.relative_to(tmp_path))
     assert hashes["charter"]["sha256"] is not None
 
 
@@ -418,6 +423,150 @@ def test_record_analysis_command_persists_report(tmp_path, monkeypatch):
     assert frontmatter["analyzer_agent"] == "codex"
     assert frontmatter["input_artifacts"]["tasks.md"]["sha256"]
     assert "# Analysis" in body
+
+
+def test_write_analysis_report_raises_on_unrelativizable_path(tmp_path):
+    """NFR-002 / spec.md Acceptance Scenario 3: when a hash-input artifact path
+    cannot be relativized against ``repo_root`` (e.g. it lies outside it
+    entirely), ``write_analysis_report`` must raise/surface an explicit error
+    rather than silently writing an absolute path."""
+    from specify_cli.analysis_report import AnalysisReportError, write_analysis_report
+
+    feature_dir = tmp_path / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+    # repo_root deliberately does NOT contain feature_dir, so spec.md/plan.md/
+    # tasks.md cannot be relativized against it.
+    unrelated_repo_root = tmp_path / "unrelated-repo-root"
+    unrelated_repo_root.mkdir()
+
+    with pytest.raises(AnalysisReportError) as exc_info:
+        write_analysis_report(
+            feature_dir=feature_dir,
+            repo_root=unrelated_repo_root,
+            body="# Report\n\nPASS\n",
+        )
+
+    # pr-fresh-001: the raised message must stay diagnosable WITHOUT embedding
+    # either absolute path -- this mission exists to stop local paths
+    # (/home/<user>/...) leaking out of spec-kitty, and this fail-loud path is
+    # an operator-visible surface (CLI error output, CI logs on a public repo)
+    # just like the committed artifact channel WP01 already closed. Assert
+    # both halves: no absolute-path leak, and the message still names the
+    # failing artifact so it stays debuggable.
+    message = str(exc_info.value)
+    assert str(feature_dir) not in message
+    assert str(unrelated_repo_root) not in message
+    assert str(tmp_path) not in message
+    assert "spec.md" in message
+
+    rendered_traceback = "".join(
+        traceback.format_exception(
+            exc_info.type,
+            exc_info.value,
+            exc_info.value.__traceback__,
+        )
+    )
+    assert str(feature_dir) not in rendered_traceback
+    assert str(unrelated_repo_root) not in rendered_traceback
+    assert str(tmp_path) not in rendered_traceback
+
+
+def test_write_analysis_report_rejects_symlink_escape(tmp_path):
+    """FR-007/NFR-002: resolved inputs outside the governing root fail closed."""
+    from specify_cli.analysis_report import AnalysisReportError, write_analysis_report
+
+    repo_root = tmp_path / "repo"
+    linked_feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    external_feature_dir = tmp_path / "external" / "sample-01KS"
+    _write_required_artifacts(external_feature_dir)
+    linked_feature_dir.parent.mkdir(parents=True)
+    try:
+        linked_feature_dir.symlink_to(external_feature_dir, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlinks unavailable: {exc}")
+
+    with pytest.raises(AnalysisReportError, match="spec.md"):
+        write_analysis_report(
+            feature_dir=linked_feature_dir,
+            repo_root=repo_root,
+            body="# Report\n\nPASS\n",
+        )
+
+
+def test_write_analysis_report_preserves_in_repo_symlink_identity(tmp_path):
+    """Resolved containment checks do not rewrite a valid logical artifact path."""
+    repo_root = tmp_path / "repo"
+    linked_feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    real_feature_dir = repo_root / "stored-missions" / "sample-01KS"
+    _write_required_artifacts(real_feature_dir)
+    linked_feature_dir.parent.mkdir(parents=True)
+    try:
+        linked_feature_dir.symlink_to(real_feature_dir, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlinks unavailable: {exc}")
+
+    result = write_analysis_report(
+        feature_dir=linked_feature_dir,
+        repo_root=repo_root,
+        body="# Report\n\nPASS\n",
+    )
+
+    assert result.input_artifacts["spec.md"]["path"] == "kitty-specs/sample-01KS/spec.md"
+
+
+def test_check_analysis_report_current_reports_relativization_failure_without_raising(tmp_path):
+    """NFR-002: unlike ``write_analysis_report``, ``check_analysis_report_current``
+    must NEVER raise -- the same unrelativizable-path condition must be caught
+    and surfaced as a typed ``AnalysisFreshness(ok=False, ...)`` result instead
+    of propagating into its caller (``_require_current_analysis_report``)."""
+    from specify_cli.analysis_report import check_analysis_report_current, write_analysis_report
+
+    feature_dir = tmp_path / "kitty-specs" / "sample-01KS"
+    _write_required_artifacts(feature_dir)
+    # First write a legitimate report with a repo_root that DOES relativize,
+    # so a real, valid `analysis-report.md` exists on disk to check freshness of.
+    write_analysis_report(feature_dir=feature_dir, repo_root=tmp_path, body="# Report\n\nPASS\n")
+
+    # Now check freshness with a repo_root that does NOT contain feature_dir --
+    # the same unrelativizable-path condition as the write-side test above.
+    unrelated_repo_root = tmp_path / "unrelated-repo-root"
+    unrelated_repo_root.mkdir()
+
+    freshness = check_analysis_report_current(feature_dir, unrelated_repo_root)
+
+    assert freshness.ok is False
+    assert freshness.stale is True
+    assert freshness.missing is False
+    assert freshness.reason.startswith("path_relativization_failed:")
+    assert str(tmp_path) not in freshness.reason
+
+
+def test_check_analysis_report_current_reports_symlink_escape_without_raising(tmp_path):
+    """NFR-002: freshness maps a resolved-path escape to a typed failure."""
+    from specify_cli.analysis_report import check_analysis_report_current, write_analysis_report
+
+    repo_root = tmp_path / "repo"
+    linked_feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    external_feature_dir = tmp_path / "external" / "sample-01KS"
+    _write_required_artifacts(external_feature_dir)
+    write_analysis_report(
+        feature_dir=external_feature_dir,
+        repo_root=tmp_path,
+        body="# Report\n\nPASS\n",
+    )
+    linked_feature_dir.parent.mkdir(parents=True)
+    try:
+        linked_feature_dir.symlink_to(external_feature_dir, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlinks unavailable: {exc}")
+
+    freshness = check_analysis_report_current(linked_feature_dir, repo_root)
+
+    assert freshness.ok is False
+    assert freshness.stale is True
+    assert freshness.missing is False
+    assert freshness.reason.startswith("path_relativization_failed:")
+    assert str(tmp_path) not in freshness.reason
 
 
 def test_record_analysis_refuses_dirty_worktree_before_write(tmp_path, monkeypatch):

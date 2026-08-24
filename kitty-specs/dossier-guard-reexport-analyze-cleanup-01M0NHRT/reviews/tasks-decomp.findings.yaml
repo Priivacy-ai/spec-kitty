@@ -1,0 +1,95 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: decomp
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: TASKS-DECOMP-001
+    lens: "Mission-derived — IC-03 split disjointness"
+    severity: 4
+    title: WP03's own RED-first instruction (T010) offers WP01's exclusively-owned test file as the primary landing spot, or else silently blows the mission's binding six-file scope
+    evidence:
+      - artifact: "tasks/WP03-commit-subject-fix.md § Subtask T010 (Files line, ~lines 127-131)"
+        note: >
+          "Files: tests/specify_cli/test_analysis_report.py or a more targeted new/existing test
+          module covering mission_record_analysis.py's commit-message construction (choose the
+          most appropriate existing test file for this command's unit tests; if none fits
+          cleanly, a small addition to the closest existing test module for
+          mission_record_analysis.py is acceptable ...)"
+      - artifact: "wps.yaml WP03.owned_files / tasks/WP03-commit-subject-fix.md frontmatter owned_files"
+        note: "WP03's owned_files is exactly one entry: src/specify_cli/cli/commands/agent/mission_record_analysis.py. No test file is listed."
+      - artifact: "wps.yaml WP01.owned_files / tasks/WP01-sk63-path-relativization.md frontmatter owned_files"
+        note: "WP01 owned_files includes tests/specify_cli/test_analysis_report.py and tests/specify_cli/test_analysis_report_charter_yaml_staleness.py — exclusively."
+      - artifact: "lanes.json lane-c.write_scope (WP03) vs lane-a.write_scope (WP01)"
+        note: "lane-c write_scope = [mission_record_analysis.py] only; lane-a write_scope = the three WP01 files including test_analysis_report.py. Both lanes have depends_on_lanes: [] and parallel_group: 0 — the mission's own topology assumes these lanes are safe to run and merge concurrently because their write scopes are disjoint."
+      - artifact: "spec.md § Charter-clause resolutions, §106 change-scope reconciliation (binding — 'This section is binding and takes precedence over any ambiguity...')"
+        note: "'No other file is touched, beyond the six files named above.' The six-file set is: test_dossier_emitter_positional_guard.py, dossier/__init__.py, mission_record_analysis.py, analysis_report.py, test_analysis_report.py, test_analysis_report_charter_yaml_staleness.py — no dedicated test file for mission_record_analysis.py/FR-006 is in this set."
+      - code: "tests/specify_cli/test_analysis_report.py:374-419 (test_record_analysis_command_persists_report)"
+        note: "This is the existing end-to-end CLI-invocation test for the record-analysis command (invokes mission_app's record-analysis subcommand via CliRunner) — the single most natural landing spot for a commit-message/commitlint RED-first fixture, and it lives inside WP01's exclusively-owned file."
+      - code: "src/specify_cli/policy/commit_guard.py:108-119 (validate_staged_files ownership-scope check)"
+        note: "A real pre-commit ownership guard exists and flags any staged file not matching a WP's owned_files globs as a violation (mode defaults to 'warn' per src/specify_cli/policy/config.py:27/40, but the mechanism exists specifically to prevent exactly this cross-WP file touch)."
+    claim: >
+      WP03 (FR-006, mission_record_analysis.py's message= fix) is charter-C-011-bound to land a
+      RED-first fixture proving the current commit subject fails commitlint (subtask T010),
+      committed as its own commit before the GREEN fix. That fixture must live in some file, but
+      WP03's own frontmatter and wps.yaml/lanes.json declare its owned_files/write_scope as
+      exactly one file — mission_record_analysis.py itself, no test file. T010's "Files" guidance
+      resolves this gap by offering two options, and both are defective: (a) the first-named
+      option, tests/specify_cli/test_analysis_report.py, is WP01's exclusively-owned file (per
+      WP01's own frontmatter and lane-a's write_scope) — if an implementer takes it, WP03's lane-c
+      branch and WP01's lane-a branch (both dependencies: [], both parallel_group 0, both assumed
+      mergeable without conflict-handling because their write scopes are disjoint) now both touch
+      the same file independently, creating a real git-merge conflict at lane consolidation and
+      breaking the "genuinely disjoint owned_files" premise that justified splitting IC-03 into
+      WP01/WP03 in the first place (plan.md's own stated reason: "both live in the same file
+      family but touch disjoint code paths"); or (b) the fallback option, "a more targeted
+      new/existing test module" (e.g. the already-existing
+      tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py, which has no
+      commit-message tests today), is not in WP01's scope so avoids the cross-WP conflict, but it
+      is a file outside the six-file set spec.md's own §106 declares BINDING ("No other file is
+      touched, beyond the six files named above") — taking this option means WP03 silently
+      violates the mission's own binding scope contract. Every implementer choice here either (a)
+      creates a real cross-lane file conflict the split was specifically designed to avoid, or (b)
+      violates a binding charter-clause resolution in spec.md. This is not a hypothetical
+      interface-coupling risk the "disjoint code paths" framing overlooked — it is a concrete gap
+      in where FR-006's own required ATDD evidence is supposed to live, unresolved in either the
+      spec's binding file-set or the WP's own instructions.
+    remediation: >
+      Pick one file for the FR-006 RED-first fixture and make every artifact agree: recommended is
+      to extend the already-existing, already FR-006-adjacent
+      tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py (it already exercises
+      this exact command's other behaviors and shares no owner with WP01). Concretely: (1) rewrite
+      WP03's T010 "Files" line to name that one file only, and explicitly state "do NOT touch
+      tests/specify_cli/test_analysis_report.py or test_analysis_report_charter_yaml_staleness.py
+      — those are WP01's exclusively-owned files"; (2) add
+      tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py to WP03's owned_files
+      in both its frontmatter and wps.yaml, and to lane-c's write_scope in lanes.json; (3) add that
+      same file to spec.md's §106 binding file-set (and plan.md's mirrored §106 table), since §106
+      currently states no file beyond the six named is touched and this is now a seventh.
+  - id: TASKS-DECOMP-002
+    lens: "Catalog decomp"
+    severity: 1
+    title: Mission-wide baseline capture text is duplicated near-verbatim across all four WP prompts
+    evidence:
+      - artifact: "tasks/WP01-sk63-path-relativization.md § Mission-wide baseline (lines 71-93)"
+      - artifact: "tasks/WP02-dossier-guard-widening.md § Mission-wide baseline (lines 57-76)"
+      - artifact: "tasks/WP03-commit-subject-fix.md § Mission-wide baseline (lines 51-74)"
+      - artifact: "tasks/WP04-dossier-reexport-trim.md § Mission-wide baseline (lines 57-79)"
+    claim: >
+      The exact same baseline pytest command, disposition rule, and "check tracer-tooling-friction.md
+      for an existing F-0N entry, else capture it yourself" instruction is restated nearly
+      verbatim in all four WP prompts. This is intentional and correctly justified by the mission's
+      own reasoning (WP execution order is not fixed at authoring time, so each WP must be able to
+      stand alone per the tasks-decomp lens's own "reviewable without re-deriving the plan"
+      requirement) — this is NOT flagged as a defect, only noted as the one place a human skimming
+      all four WPs back-to-back in one sitting will notice repetition. No implementation risk
+      results from it.
+    remediation: >
+      No action required — this is a nit noted for completeness, not a gap. If the mission wanted
+      to reduce the duplication cost, the four WPs could instead point to a single canonical
+      "run this once, first WP to reach it wins" instruction in tasks.md's preamble and each WP
+      prompt could reference it by section name rather than repeating the full text, but the
+      current repetition is a deliberate and reasonable tradeoff for WP standalone-readability, not
+      a correctness problem.
+findings_count_note: "2 findings total (1 high, 1 nit)."

@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: spec.md:23 now reads "fell outside the pre-fix file scope" instead of "this six-file scope," removing the six-vs-seven contradiction, and both remaining "six" hits (spec.md:76, WP02:108) are the unrelated "six bare positional arguments" AC fixture description.

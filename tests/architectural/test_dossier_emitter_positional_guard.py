@@ -15,26 +15,36 @@ CI if any production code under ``src/`` calls ``emit_artifact_indexed``,
 
 **What this guard covers**: every ``*.py`` file under ``src/`` (production
 code only), scanned via ``ast.parse()`` for ``ast.Call`` nodes whose callee
-is a simple ``Name`` (module-level function call, e.g. ``emit_x(...)``)
-matching one of the four dossier-emitter names, flagged when
-``node.args`` (positional arguments) is non-empty.
+resolves to one of the four dossier-emitter names, flagged when
+``node.args`` (positional arguments) is non-empty. Callee resolution
+(``_call_target_name``) handles three call shapes:
 
-**What this guard deliberately does NOT cover** (spec.md's own design scope,
-matching the emitters' actual usage pattern — no aliasing/re-export exists
-in ``src/`` today):
+- bare ``Name`` calls (``emit_x(...)``) — matched directly on the name.
+- attribute-chain calls (``module.emit_artifact_indexed(...)``, e.g. via
+  ``specify_cli/dossier/__init__.py``'s re-export of the four emitters) —
+  matched on the final attribute name (``.attr`` of the outermost
+  ``ast.Attribute`` node), regardless of chain depth.
+- single-level, same-file import-alias calls (``from ...dossier.events
+  import emit_artifact_indexed as ei`` followed by ``ei(...)``) — the
+  alias is resolved back to its original imported name via a syntactic
+  ``ast.ImportFrom``-alias map built once per file (``_build_import_alias_
+  map``) before comparing against the guarded name set.
+
+**What this guard still does NOT cover** (the widened detector's real,
+current boundary — spec.md's Edge Cases section):
 
 - ``tests/`` and any other non-``src/`` path (test fixtures may legitimately
   construct throwaway positional calls to exercise error paths; policing
   them is out of scope and would be a false-positive risk for no benefit).
-- Attribute-chain calls (``module.emit_artifact_indexed(...)``) — the four
-  emitters are always called as bare module-level names in ``src/`` today,
-  never via a qualified attribute access, so this guard does simple
-  ``Name``-based matching only, not full call-graph/import resolution.
-- Aliased imports (``from ... import emit_artifact_indexed as ei``) — an
-  alias would not match the name set and would silently escape detection;
-  none exist in ``src/`` today (spec.md's own readiness probe verified
-  this), so widening the detector to handle aliasing is explicitly deferred
-  until a real aliased call site exists.
+- No full call-graph/data-flow resolution beyond the three shapes above.
+- Alias reassignment after binding — e.g. ``ei = emit_artifact_indexed``
+  followed later by ``ei = something_else`` — is not tracked. The alias map
+  is a syntactic same-file ``ImportFrom``-alias lookup, not data-flow
+  tracking, so a rebound name is invisible to it.
+- Dynamic/reflective dispatch — ``getattr(module, "emit_artifact_indexed")
+  (...)``, a dispatch-dict table keyed by name, or a ``functools.partial``
+  -wrapped emitter — is invisible to this detector; it performs syntactic
+  AST matching only, never runtime reflection tracking.
 
 Modeled directly on this repo's own established AST-guard idiom:
 ``tests/architectural/test_shared_package_boundary.py``'s
@@ -89,20 +99,57 @@ class PositionalCallViolation:
         )
 
 
-def _call_target_name(node: ast.Call) -> str | None:
-    """Return the simple callee name of *node*, or ``None`` if not a bare Name call."""
+def _build_import_alias_map(tree: ast.AST) -> dict[str, str]:
+    """Map ``asname`` -> original imported name for every ``ImportFrom`` alias in *tree*.
+
+    Syntactic, same-file resolution only (spec.md Edge Cases): a single
+    ``from ... import x as y`` binding is matched back to its original
+    imported name. This is NOT data-flow/reassignment tracking — a later
+    ``y = something_else`` rebind is invisible to this map and out of scope.
+    """
+    alias_map: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ImportFrom):
+            continue
+        for alias in node.names:
+            if alias.asname:
+                alias_map[alias.asname] = alias.name
+    return alias_map
+
+
+def _call_target_name(node: ast.Call, alias_map: dict[str, str] | None = None) -> str | None:
+    """Return the resolved callee name of *node*, or ``None`` if not resolvable.
+
+    Handles three call shapes:
+
+    - bare ``Name`` calls (``emit_x(...)``) — returns the name directly
+      (unchanged pre-widening behavior).
+    - attribute-chain calls (``module.emit_x(...)``) — returns the final
+      attribute name (``.attr`` of the outermost ``ast.Attribute`` node)
+      regardless of chain depth, so ``dossier.emit_artifact_indexed(...)``
+      resolves the same as a bare-Name call to that name.
+    - aliased-name calls (``ei(...)`` where ``ei`` came from
+      ``from ... import emit_x as ei``) — resolved via *alias_map* (see
+      ``_build_import_alias_map``) back to the original imported name.
+    """
+    if isinstance(node.func, ast.Attribute):
+        return node.func.attr
     if isinstance(node.func, ast.Name):
-        return node.func.id
+        name = node.func.id
+        if alias_map and name in alias_map:
+            return alias_map[name]
+        return name
     return None
 
 
 def _violations_in_tree(tree: ast.AST, path: Path) -> list[PositionalCallViolation]:
     """Return every guarded-emitter positional call found in *tree*."""
+    alias_map = _build_import_alias_map(tree)
     found: list[PositionalCallViolation] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
-        name = _call_target_name(node)
+        name = _call_target_name(node, alias_map)
         if name not in _GUARDED_EMITTERS:
             continue
         if node.args:
@@ -204,3 +251,59 @@ def test_detector_ignores_unrelated_same_name_free_function(tmp_path: Path) -> N
     other.write_text("result = some_other_function(1, 2, 3)\n", encoding="utf-8")
 
     assert _find_positional_emitter_calls((other,)) == []
+
+
+def test_detector_flags_attribute_chain_positional_call(tmp_path: Path) -> None:
+    """Positive-control: prove the widened detector catches attribute-chain calls.
+
+    Issue #3676's first named gap: ``specify_cli/dossier/__init__.py``
+    re-exports the four ``emit_*`` functions, so
+    ``dossier.emit_artifact_indexed(...)`` is already a valid, real Python
+    call shape any future caller could use (a *potential*, not currently
+    exercised, shape). The callee here is ``ast.Attribute`` (``dossier.emit_
+    artifact_indexed``), not ``ast.Name`` — the pre-widening detector misses
+    it entirely because ``_call_target_name`` only handled bare ``Name``
+    calls. Same planted-violation idiom and same canonical six-positional
+    -argument example as ``test_detector_flags_planted_positional_call``.
+    """
+    planted = tmp_path / "planted_attribute_chain.py"
+    planted.write_text(
+        'result = dossier.emit_artifact_indexed("m", "k", "c", "p", "h", 1)\n',
+        encoding="utf-8",
+    )
+
+    violations = _find_positional_emitter_calls((planted,))
+
+    assert len(violations) == 1
+    (violation,) = violations
+    assert violation.path == planted
+    assert violation.lineno == 1
+    assert violation.func_name == "emit_artifact_indexed"
+
+
+def test_detector_flags_aliased_import_positional_call(tmp_path: Path) -> None:
+    """Positive-control: prove the widened detector catches aliased-import calls.
+
+    Issue #3676's second named gap: ``from ...dossier.events import
+    emit_artifact_indexed as ei`` followed by ``ei(...)``. The callee IS an
+    ``ast.Name``, but its ``.id`` is ``"ei"`` — not one of the four guarded
+    names — so the pre-widening detector silently let it through. The
+    violation must be attributed to the alias's *resolved original name*
+    (``emit_artifact_indexed``), not to the alias ``"ei"`` itself, and not
+    silently dropped as an unrecognized name.
+    """
+    planted = tmp_path / "planted_aliased_import.py"
+    planted.write_text(
+        "from ...dossier.events import emit_artifact_indexed as ei\n"
+        "\n"
+        'result = ei("m", "k", "c", "p", "h", 1)\n',
+        encoding="utf-8",
+    )
+
+    violations = _find_positional_emitter_calls((planted,))
+
+    assert len(violations) == 1
+    (violation,) = violations
+    assert violation.path == planted
+    assert violation.lineno == 3
+    assert violation.func_name == "emit_artifact_indexed"

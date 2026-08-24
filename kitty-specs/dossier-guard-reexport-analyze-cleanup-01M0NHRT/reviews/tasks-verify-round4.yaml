@@ -1,0 +1,7 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH3-001
+    status: resolved
+    reason: WP04's "Mission-wide baseline" section no longer points to a nonexistent "tasks.md's preamble"; it now says the baseline was already captured, and the inlined pytest command remains intact in the same section.
