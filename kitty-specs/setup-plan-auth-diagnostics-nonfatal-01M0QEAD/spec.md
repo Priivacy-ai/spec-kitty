@@ -2,7 +2,7 @@
 
 **Mission Branch**: `fix/setup-plan-auth-diagnostics-nonfatal`  
 **Created**: 2026-08-23  
-**Status**: Draft  
+**Status**: Accepted — implementation complete; WP01–WP04 merged to `fix/setup-plan-auth-diagnostics-nonfatal`
 **Input**: [GitHub issue #3621](https://github.com/Priivacy-ai/spec-kitty/issues/3621)
 
 ## Context and Intent

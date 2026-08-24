@@ -39,13 +39,13 @@ recognizes an expired-access/usable-refresh session, and keeps Boolean compatibi
 
 ### Included Subtasks
 
-- [ ] T001 Write and commit rejecting TokenManager/readiness assessment-provenance tests (WP01)
+- [x] T001 Write and commit rejecting TokenManager/readiness assessment-provenance tests (WP01)
 
-- [ ] T002 Preserve storage-load and materialization outcomes in TokenManager and expose typed session assessment (WP01)
+- [x] T002 Preserve storage-load and materialization outcomes in TokenManager and expose typed session assessment (WP01)
 
-- [ ] T003 Project session assessment into readiness while preserving Boolean compatibility and Teamspace distinctions (WP01)
+- [x] T003 Project session assessment into readiness while preserving Boolean compatibility and Teamspace distinctions (WP01)
 
-- [ ] T004 Run focused auth, readiness, lint, typing, and queue-independence gates (WP01)
+- [x] T004 Run focused auth, readiness, lint, typing, and queue-independence gates (WP01)
 
 ### Implementation Notes
 
@@ -81,13 +81,13 @@ structural failures produce separate warnings.
 
 ### Included Subtasks
 
-- [ ] T005 Write and commit rejecting hosted-decision truth-table tests (WP02)
+- [x] T005 Write and commit rejecting hosted-decision truth-table tests (WP02)
 
-- [ ] T006 Implement the setup-plan-only no-raise structural boundary adapter (WP02)
+- [x] T006 Implement the setup-plan-only no-raise structural boundary adapter (WP02)
 
-- [ ] T007 Implement immutable diagnostic and HostedSyncDecision composition (WP02)
+- [x] T007 Implement immutable diagnostic and HostedSyncDecision composition (WP02)
 
-- [ ] T008 Verify disabled-mode short-circuit, deterministic ordering, sanitization, lint, and typing (WP02)
+- [x] T008 Verify disabled-mode short-circuit, deterministic ordering, sanitization, lint, and typing (WP02)
 
 ### Implementation Notes
 
@@ -121,13 +121,13 @@ and invokes zero registered SaaS handlers; legacy composed emission still fans o
 
 ### Included Subtasks
 
-- [ ] T009 Write and commit rejecting local-persistence versus hosted-fan-out tests (WP03)
+- [x] T009 Write and commit rejecting local-persistence versus hosted-fan-out tests (WP03)
 
-- [ ] T010 Extract explicit local persistence and hosted fan-out operations (WP03)
+- [x] T010 Extract explicit local persistence and hosted fan-out operations (WP03)
 
-- [ ] T011 Add a supported local-only artifact-phase emission path and preserve composed compatibility (WP03)
+- [x] T011 Add a supported local-only artifact-phase emission path and preserve composed compatibility (WP03)
 
-- [ ] T012 Run lifecycle, producer-conformance, adapter-fanout, lint, and typing regressions (WP03)
+- [x] T012 Run lifecycle, producer-conformance, adapter-fanout, lint, and typing regressions (WP03)
 
 ### Implementation Notes
 
@@ -162,19 +162,19 @@ hosted calls whenever the decision refuses.
 
 ### Included Subtasks
 
-- [ ] T013 Capture baseline payloads/exits and commit the rejecting setup-plan compatibility matrix (WP04)
+- [x] T013 Capture baseline payloads/exits and commit the rejecting setup-plan compatibility matrix (WP04)
 
-- [ ] T014 Replace early auth and boundary exits with evidence collection and one hosted decision (WP04)
+- [x] T014 Replace early auth and boundary exits with evidence collection and one hosted decision (WP04)
 
-- [ ] T015 Route local lifecycle intents and every hosted sink through the explicit executor boundary (WP04)
+- [x] T015 Route local lifecycle intents and every hosted sink through the explicit executor boundary (WP04)
 
-- [ ] T016 Introduce one local-outcome reporter and attach diagnostics to all eligible success, blocked, and error paths (WP04)
+- [x] T016 Introduce one local-outcome reporter and attach diagnostics to all eligible success, blocked, and error paths (WP04)
 
-- [ ] T017 Add real encrypted-storage production-chain and structural-exception acceptance tests (WP04)
+- [x] T017 Add real encrypted-storage production-chain and structural-exception acceptance tests (WP04)
 
-- [ ] T018 Add the non-vacuous hosted-effect architectural gate and named sibling-policy documentation parity (WP04)
+- [x] T018 Add the non-vacuous hosted-effect architectural gate and named sibling-policy documentation parity (WP04)
 
-- [ ] T019 Run targeted regressions, requirement evidence, and issue 3127 release-closeout check (WP04)
+- [x] T019 Run targeted regressions, requirement evidence, and issue 3127 release-closeout check (WP04)
 
 ### Implementation Notes
 

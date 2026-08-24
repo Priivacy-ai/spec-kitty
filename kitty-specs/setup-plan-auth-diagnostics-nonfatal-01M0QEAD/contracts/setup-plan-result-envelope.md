@@ -19,7 +19,7 @@ present, warnings use:
       "code": "SAAS_SYNC_AUTH_UNKNOWN",
       "severity": "warning",
       "hosted_disposition": "refused",
-      "message": "Hosted sync was skipped because local authentication could not be evaluated.",
+      "message": "Hosted sync was skipped because local authentication could not be evaluated; local setup-plan continued.",
       "remediation": ["Inspect local authentication storage before retrying hosted sync."]
     }
   ]
