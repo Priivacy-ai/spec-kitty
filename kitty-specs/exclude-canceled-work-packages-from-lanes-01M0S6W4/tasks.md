@@ -41,14 +41,14 @@ Introduce one canonical cancellation-eligibility boundary in `finalize-tasks`. R
 
 ### Included Subtasks
 
-- [ ] T001 Commit exact-command RED cancellation acceptance coverage (WP01)
-- [ ] T002 Perform the distinct tidy-first campsite checkpoint (WP01)
-- [ ] T003 Implement and unit-test the immutable eligibility projection (WP01)
-- [ ] T004 Reuse one canonical lifecycle snapshot and reject stale edges before writes (WP01)
-- [ ] T005 Filter every ownership and execution-lane consumer through the eligible set (WP01)
-- [ ] T006 Support normal and validate-only all-canceled zero-work success (WP01)
-- [ ] T007 Complete compatibility, integrity, determinism, Windows, and performance regressions (WP01)
-- [ ] T008 Enforce coverage and focused quality gates and prepare review evidence (WP01)
+- [x] T001 Commit exact-command RED cancellation acceptance coverage (WP01)
+- [x] T002 Perform the distinct tidy-first campsite checkpoint (WP01)
+- [x] T003 Implement and unit-test the immutable eligibility projection (WP01)
+- [x] T004 Reuse one canonical lifecycle snapshot and reject stale edges before writes (WP01)
+- [x] T005 Filter every ownership and execution-lane consumer through the eligible set (WP01)
+- [x] T006 Support normal and validate-only all-canceled zero-work success (WP01)
+- [x] T007 Complete compatibility, integrity, determinism, Windows, and performance regressions (WP01)
+- [x] T008 Enforce coverage and focused quality gates and prepare review evidence (WP01)
 
 ### Implementation Sketch
 
