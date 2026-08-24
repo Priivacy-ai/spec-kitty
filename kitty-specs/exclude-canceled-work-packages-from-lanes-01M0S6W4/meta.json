@@ -13,5 +13,7 @@
   "slug": "exclude-canceled-work-packages-from-lanes-01M0S6W4",
   "source_description": "GitHub issue #3432: canceled work packages cannot satisfy lane computation",
   "target_branch": "fix/exclude-canceled-work-packages-from-lanes",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-24T08:04:00.441313+00:00"
 }

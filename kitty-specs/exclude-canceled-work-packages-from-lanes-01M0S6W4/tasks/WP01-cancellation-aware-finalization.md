@@ -27,6 +27,9 @@ requirement_refs:
 planning_base_branch: fix/exclude-canceled-work-packages-from-lanes
 merge_target_branch: fix/exclude-canceled-work-packages-from-lanes
 branch_strategy: Planning artifacts for this mission were generated on fix/exclude-canceled-work-packages-from-lanes. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/exclude-canceled-work-packages-from-lanes unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-exclude-canceled-work-packages-from-lanes-01M0S6W4
+base_commit: 16f5ae9e7b5e8cd2c7ba63660e8700a7d6de9885
+created_at: '2026-08-24T08:04:06.590776+00:00'
 subtasks:
 - T001
 - T002
