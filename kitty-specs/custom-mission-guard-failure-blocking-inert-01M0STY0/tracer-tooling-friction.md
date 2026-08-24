@@ -21,9 +21,15 @@ dropping from publication`, and `Explicit-context event capture failed: machine 
 did not publish within the bounded wait`. The command still succeeded (`"result": "success"`,
 `plan_file` written, `scaffold_only: true`) and the plan.md scaffold was written correctly
 despite the noisy event-journal-lock warnings — did not block planning, just needed to be read
-past. Likely the shared test-venv/event-store contention issue already tracked elsewhere
-(adjacent to issue #3283's shared-lock-timeout class); not re-diagnosed here since it did not
-block this mission's work.
+past. This is the SK-63/SK-65/SK-70 warning-signature family in SPEC-KITTY-LEDGER.md (identical
+`event journal capture failed: project sync store is locked` /
+`Explicit-context event capture failed: machine layout cutover did not publish within the
+bounded wait` text, same command shape `spec-kitty plan --mission <slug> --json`), adjacent to
+issue #3283's shared-lock-timeout class. Specifically, this occurrence matches SK-63/SK-65's
+milder variant — warned but completed, JSON payload returned, `"result": "success"` — not
+SK-70's full hang (partial state written, no JSON, no exit). Not re-diagnosed further here
+since it did not block this mission's work; see the ledger entries for the tracked root cause
+and recommended fix.
 
 2026-08-24 — The mission brief's blast-radius list named `doctrine/missions/step_projection.py`
 alongside the actually-edited files. Reading it in full (rather than assuming it needed an edit

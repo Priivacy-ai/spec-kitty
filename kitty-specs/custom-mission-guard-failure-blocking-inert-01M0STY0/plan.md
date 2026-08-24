@@ -178,6 +178,45 @@ No coordinated `spec-kitty-events` release is needed. This conclusion is stated 
 record, not deferred — if a reviewer at a later gate finds a cross-process consumer this plan
 missed, that is a plan-phase finding to raise, not a silent reversal.
 
+## Blast radius to downstream workspaces
+
+The Contract-moves check above is correct as far as it goes — `ArtifactPresenceSnapshot` /
+`blocking_artifact_names` itself never crosses a process boundary — but that is one hop short of
+the full picture, so this section follows the causal chain one hop further, to the field these
+internal types feed.
+
+1. **The internal dataclass stays internal, confirmed.** `ArtifactPresenceSnapshot` and
+   `blocking_artifact_names` are referenced only inside `runtime_bridge_io.py`/
+   `runtime_bridge_cores.py` and their own test files (`tests/runtime/test_bridge_cores.py`,
+   `tests/runtime/test_bridge_composition.py`,
+   `tests/architectural/test_bridge_cores_import_boundary.py`) — never by
+   `orchestrator_api/commands.py` (which uses an unrelated `GateDecision` type) or any
+   `spec_kitty_events`-adjacent code. No finding on that narrow claim.
+2. **But `evaluate_guards_strict`'s new branch writes its verdict into an already-external
+   field.** The new `is None` branch's failure strings populate `Decision.guard_failures: list[str]`
+   (`src/runtime/next/decision.py:94`), and `Decision.guard_failures` IS already part of
+   `spec-kitty next --json`'s literal external stdout contract:
+   `_print_decision()` (`src/specify_cli/cli/commands/next_cmd.py:899-905`) calls
+   `decision.to_dict()` and dumps it via `json.dumps(...)` under `--json`; the human-readable path
+   (`next_cmd.py:1056-1057`) prints `decision.guard_failures` directly too. So while
+   `blocking_artifact_names` never crosses a process boundary, the value it drives DOES — this
+   mission changes `guard_failures`'s CONTENT for any custom mission family with a declared
+   manifest, not its schema (the field already exists, already typed `list[str]`, already
+   serialized).
+3. **Concrete downstream risk (this is NFR-002's own point, restated with the mechanism named).**
+   Before this mission, `guard_failures` for any family outside `_GUARD_TABLES` was
+   unconditionally `[]` — silently "always passing" from any external caller's point of view
+   (CI pipelines, the orchestrator-api-operator integration pattern, or a downstream workspace
+   such as team-kitty-missions/muster-missions running a custom mission family). After this
+   mission, a custom family with a declared manifest will, for the first time, emit real failure
+   strings and a `blocked` `Decision.kind` at exactly the steps NFR-002 describes. A downstream
+   consumer that has been treating `guard_failures == []` as "this custom family always passes"
+   will start seeing real blocks after this mission ships — the change is real and
+   operator-visible, "not silently absorbed," per NFR-002.
+
+This documentation obligation is not left unowned: see WP04 in "ATDD-first per WP" and "Phasing /
+work-package shape" below, which now carries it as an explicit deliverable.
+
 ## SPEC-FRESH-001 preservation — `None` vs `frozenset()` invariant
 
 The `None`-vs-`frozenset()` distinction on `ArtifactPresenceSnapshot.blocking_artifact_names` is
@@ -265,13 +304,18 @@ migration).
   dependencies.
 - **`uv.lock` freshness** (`ci-quality.yml:3915`, NFR-005) — applies repo-wide; since no
   dependency changes, `uv.lock` stays untouched and the check passes trivially.
-- **Coverage-floored shards**: **NEITHER the kernel 90% floor NOR the mission-loader 90% floor
-  applies to this mission's changed files.** Verified directly against
-  `tests/architectural/_gate_coverage.py` and the workflow files it models, not assumed:
-  - The kernel 90% floor (`module-kernel.yml:58`, `--cov=src/kernel`, `--cov-fail-under` via its
-    own Python enforcement step) measures `src/kernel` only. This mission's blast radius has zero
-    files under `src/kernel`.
-  - The mission-loader 90% floor (`ci-quality.yml:1437-1456`, job `mission-loader-coverage`,
+- **Coverage-floored shards**: **the kernel and mission-loader TOTAL-coverage floors do not
+  apply, but a THIRD, DIFFERENT-MECHANISM floor — the `diff-coverage` job's 90% DIFF-coverage
+  floor — DOES apply and DOES enforced-gate 4 of this mission's 5 blast-radius files.** Verified
+  directly against `tests/architectural/_gate_coverage.py` and the workflow files it models, not
+  assumed. The first grep pass here only searched for the literal pytest-cov flag string
+  `cov-fail-under` and missed `diff-cover`'s bare `--fail-under` flag (no `cov-` prefix) — that
+  narrow-grep gap is corrected below.
+  - **(a) The kernel 90% TOTAL-coverage floor does not apply.** (`module-kernel.yml:58`,
+    `--cov=src/kernel`, `--cov-fail-under` via its own Python enforcement step) measures
+    `src/kernel` only. This mission's blast radius has zero files under `src/kernel`.
+  - **(b) The mission-loader 90% TOTAL-coverage floor does not apply.**
+    (`ci-quality.yml:1437-1456`, job `mission-loader-coverage`,
     `--cov=src/specify_cli/mission_loader --cov-fail-under=90`) measures
     `src/specify_cli/mission_loader` only — a different package this mission does not touch. That
     job DOES run whenever this mission's changes land (its trigger condition includes
@@ -279,19 +323,39 @@ migration).
     change-filter, `ci-quality.yml`'s `changes` job, paths `src/specify_cli/runtime/**` and
     `src/runtime/next/**`), but it is measuring an unrelated package's pre-existing coverage, not
     this mission's diff — expected to pass unaffected.
-  - The actual coverage collection over this mission's own files is `fast-tests-next`
-    (`ci-quality.yml`, `--cov=src/runtime/next`, tests
-    `tests/next/ tests/specify_cli/next/ tests/runtime/`) and the `missions` change-filter's
-    `fast-tests-missions` job (`--cov=doctrine.missions`, covers `step_projection.py` although
-    this mission does not edit it) — **neither of these two jobs carries a `--cov-fail-under`
-    flag** (grepped `.github/workflows/ci-quality.yml` for every `cov-fail-under` occurrence:
-    only 90 for mission-loader-coverage, 55 for fast-tests-charter, 10 for fast-tests-agent, and
-    kernel's separate 90 — none target this mission's paths). This mission's own files are
-    covered by tests but not gated by a numeric coverage floor in CI.
-  - This finding is the concrete answer to the task's mandatory question, not a hedge: for this
-    mission's specific blast-radius paths, no coverage-floor gate applies; the WPs still write
-    thorough tests per ATDD-first discipline and the spec's own AC/SC coverage, just not because
-    a CI floor forces it.
+  - **(c) The `diff-coverage` job's 90% DIFF-coverage floor DOES apply and IS ENFORCED for 4 of
+    5 blast-radius files.** The `diff-coverage` job (`.github/workflows/ci-quality.yml:3283`,
+    runs on every PR unless labeled `pr:deferred`/`pr:skip-ci`) has an enforced step, "diff-coverage
+    (critical-path, enforced)" (`ci-quality.yml:3333`), that builds a `critical_paths` shell array
+    (`ci-quality.yml:3345-3367`) which literally includes `'src/runtime/next/*'`
+    (`ci-quality.yml:3366`), then runs `uv run diff-cover ... --compare-branch=origin/${{
+    github.base_ref }} --fail-under=90 --include "${critical_paths[@]}"`
+    (`ci-quality.yml:3391-3394`). This directly, by name, diff-coverage-gates every new/changed
+    line in 4 of this mission's 5 blast-radius files — `runtime_bridge_cores.py`,
+    `runtime_bridge_io.py`, `runtime_bridge.py`, `runtime_bridge_composition.py` (all under
+    `src/runtime/next/`) — at a 90% floor on every PR, sourced from the union of uploaded
+    coverage XMLs (primarily `fast-tests-next`'s `--cov=src/runtime/next`). This is a real,
+    enforced gate, not advisory: the step has no `|| true`/continue-on-error escape, so
+    `diff-cover`'s own non-zero exit when new/changed lines fall under 90% coverage fails the
+    step (and the job) outright — distinct from the separate `exit 1` at `ci-quality.yml:3388`,
+    which only fires when no coverage reports were uploaded at all. Only
+    `src/specify_cli/runtime/resolver.py` is NOT in `critical_paths` (it matches no entry in the
+    array) and therefore escapes this specific job, falling instead to the "diff-coverage
+    (full-diff, advisory)" step (`ci-quality.yml:3396`, non-blocking `|| true`) — the plan's
+    original "no floor applies" claim is correct for that one file only, not for the other four.
+    The repo's own architectural model (`tests/architectural/_gate_coverage.py:409-410`
+    `_CRITICAL_PATHS_RE`, `:574-575` `_diff_cover_critical_paths()`, `:717`
+    `diff_cover_critical_paths` field) explicitly tracks this job's critical-path array as a
+    first-class CI gate, confirming it is not an obscure or incidental job.
+  - **Net effect on tasks/implement**: this mission's `src/runtime/next/*` files ARE
+    coverage-gated (enforced, 90% diff), even though neither total-coverage floor applies. Each
+    WP touching those files must budget test coverage for its own new/changed lines to avoid
+    failing this gate — e.g. WP01's new `blocking_artifact_names is None` branch in
+    `evaluate_guards_strict`, WP02's org-tier branches in `_presence_filenames_for`/
+    `gather_artifact_presence`, and WP03's `repo_root`-threading call sites in
+    `runtime_bridge.py`/`runtime_bridge_composition.py`. `resolver.py` changes remain outside
+    this specific job's scope (advisory full-diff step only), but the WPs still write thorough
+    tests for it per ATDD-first discipline regardless.
 
 **ADVISORY-ONLY (non-gating), stated explicitly, never "CI will catch it":**
 
@@ -320,6 +384,11 @@ uv run pytest tests/runtime/next/test_pertype_presence_gate.py tests/runtime/nex
 uv run pytest tests/specify_cli/runtime/test_configured_artifact_name.py -v # NFR-001 byte-compat
 uv run pytest tests/specify_cli/next/test_runtime_bridge_composition.py -v
 ```
+
+**Coverage budget note**: every WP above touches `src/runtime/next/*`, which the `diff-coverage`
+job's enforced 90% diff-coverage floor covers (see "Gate set for this mission" § "Coverage-floored
+shards" below) — running the tests above is necessary but not sufficient; each WP's new/changed
+lines in those files need ≥90% coverage from that run, not just a passing exit code.
 
 ## Baseline
 
@@ -387,10 +456,16 @@ inside the touched-file set by construction):
 
 **Sequencing**: this campsite-clean item (resolver.py comment + `__all__`) is folded into the
 SAME WP that adds `required_artifacts_for`'s first real caller (Part 2 / WP touching
-`gather_artifact_presence`), as a distinct commit preceding that WP's functional
-implementation commit — because the comment only becomes stale once the caller exists; cleaning
-it any earlier would be premature (nothing to point at yet) and any later would leave the false
-claim live past its falsification point.
+`gather_artifact_presence`), landing as a distinct commit that immediately FOLLOWS that WP's
+functional implementation commit (or is combined into the same commit) — never before it. The
+commit order within that WP is: (1) the functional commit that wires `required_artifacts_for`
+into `gather_artifact_presence`, giving it its first real caller, then (2) the campsite-clean
+commit (stale-comment removal + `__all__` restoration). Reversing that order — landing the
+campsite-clean commit first — would add `required_artifacts_for` to `__all__` with zero callers
+at that commit and red `tests/architectural/test_no_dead_symbols.py`, the exact failure the
+stale comment itself warns about. Cleaning any earlier than the caller existing would be
+premature (nothing true to point at yet); leaving it any later than immediately-after would
+leave the now-false claim live past its falsification point.
 
 ## ATDD-first per WP (charter C-011)
 
@@ -401,11 +476,11 @@ reviewer working WP-by-WP needs it locally without cross-referencing.
 
 | WP | Extends/adds test file(s) | Red-first anchor |
 |---|---|---|
-| WP00 (campsite-clean) | N/A — behaviour-preserving comment/`__all__` change; verified by `tests/architectural/test_no_dead_symbols.py` staying green (it currently would RED if `required_artifacts_for` were added to `__all__` with no caller — this WP adds the caller in the same WP as required by FR-007's sequencing, see below) | `fix/org-tier-expected-artifacts-3703` |
+| WP00 (campsite-clean, folded into WP02) | N/A — behaviour-preserving comment/`__all__` change; its commit lands immediately AFTER (or combined with) WP02's functional commit that adds `required_artifacts_for`'s first real caller, never before it; verified by `tests/architectural/test_no_dead_symbols.py` staying green (it would RED if `required_artifacts_for` were added to `__all__` before that caller exists — see "Sequencing" above) | `fix/org-tier-expected-artifacts-3703` |
 | WP01 — FR-006 snapshot field + cores.py branch | Extends `tests/runtime/test_bridge_cores.py` (new cases for `evaluate_guards_strict`'s `blocking_artifact_names is None` branch) and `tests/runtime/next/test_pertype_presence_gate.py` (extends `TestCustomFamilyPresenceGateFailsClosedBothDirections`, AC-9's two-family distinguishability case) | `fix/org-tier-expected-artifacts-3703` |
 | WP02 — FR-004/FR-008 org-tier threading into `_presence_filenames_for`/`required_artifacts_for`/`_load_expected_artifact_manifest` | Extends `tests/specify_cli/runtime/test_configured_artifact_name.py` (org-tier cases mirroring `ManifestRegistry.load_manifest`'s existing FR-008/WP05 test shape) and `tests/runtime/next/test_pertype_presence_gate.py` (AC-4/AC-5/AC-6 org-tier + whole-file-replacement scenarios) | `fix/org-tier-expected-artifacts-3703` |
 | WP03 — FR-003 call-site convergence (`_check_cli_guards`, `_check_composed_action_guard`, both `_dn_dependency_gate` sites, `_dispatch_via_composition`'s dropped `repo_root`) | Extends `tests/runtime/next/test_cli_guard_family.py` (AC-1/AC-2/AC-8) and `tests/runtime/test_bridge_parity.py` (regression: `test_non_software_dev_missing_artifact_owned_by_composed_guard` stays green, NFR-004) | `fix/org-tier-expected-artifacts-3703` |
-| WP04 — NFR-001/AC-3/AC-7/AC-9 full regression sweep + `TestTypelessMissionFamily`/`TestIssue3627WpIterationUnregisteredFamilyDegrades` stay green | Runs (does not necessarily extend) `tests/runtime/test_bridge_parity.py::test_coverage_floor_is_met`, `tests/specify_cli/next/test_runtime_bridge_composition.py::TestCustomMissionComposition`, full byte-compat suite | `fix/org-tier-expected-artifacts-3703` |
+| WP04 — NFR-001/AC-3/AC-7/AC-9 full regression sweep + `TestTypelessMissionFamily`/`TestIssue3627WpIterationUnregisteredFamilyDegrades` stay green + NFR-002 documentation deliverable | Runs (does not necessarily extend) `tests/runtime/test_bridge_parity.py::test_coverage_floor_is_met`, `tests/specify_cli/next/test_runtime_bridge_composition.py::TestCustomMissionComposition`, full byte-compat suite; also lands a CHANGELOG.md entry and/or an operator-facing note in tracer-design-decisions.md documenting the `spec-kitty next --json` `guard_failures` behavior change per NFR-002 (see "Blast radius to downstream workspaces" above) — no test file, but a required non-test deliverable of this WP | `fix/org-tier-expected-artifacts-3703` |
 
 ## Phasing / work-package shape
 
@@ -427,8 +502,9 @@ Test" framing) and can be built as ordered, dependent WPs within the single PR, 
 has a real (not synthetic) consumer/producer by the time it lands:
 
 1. **WP00 — campsite-clean** (resolver.py stale comment + `__all__`, folded into the WP that adds
-   the real caller — see below; listed first here for sequencing clarity but its commit lands
-   alongside WP02).
+   the real caller — see below; listed first here for sequencing clarity, but its commit lands
+   immediately AFTER — or combined with — WP02's functional commit that adds the real caller,
+   never before it).
 2. **WP01 — FR-006's snapshot field + Protocol property + `evaluate_guards_strict`'s branch**,
    built first with the field populated by a **minimal, test-only** stub inside
    `gather_artifact_presence` (not the full org-aware resolution yet) so WP01's own ATDD tests can
@@ -437,9 +513,10 @@ has a real (not synthetic) consumer/producer by the time it lands:
    the import-boundary gate concern (the hardest constraint) isolated to its own reviewable WP.
 3. **WP02 — FR-004/005/007/008**: org-tier-aware `_presence_filenames_for`/`required_artifacts_for`/
    `_load_expected_artifact_manifest`, replacing WP01's stub with the real resolution inside
-   `gather_artifact_presence`. Folds WP00's campsite-clean commit (the `__all__`/stale-comment fix
-   becomes truthful exactly here, since this WP is where `required_artifacts_for` gets its first
-   real caller).
+   `gather_artifact_presence`. Folds in WP00's campsite-clean commit immediately after this WP's
+   functional commit (the `__all__`/stale-comment fix becomes truthful exactly here, since this
+   WP is where `required_artifacts_for` gets its first real caller) — the campsite-clean commit
+   is never the first commit of this WP.
 4. **WP03 — FR-003 convergence**: thread `repo_root` through all 3 real call sites
    (`_check_cli_guards`, `_dn_dependency_gate`'s two call sites, `_check_composed_action_guard`,
    `_dispatch_via_composition`'s dropped forward) so the org-tier reach from WP02 is genuinely
@@ -450,7 +527,12 @@ has a real (not synthetic) consumer/producer by the time it lands:
    (`TestCustomMissionComposition`) all stay green; AC-10 end-to-end demonstration at the
    conventional `<org_root>/missions/<type>/` layout (only reachable now that this branch is
    stacked on #3708's path fix, per the operator's stacking rationale in spec.md's
-   Clarifications).
+   Clarifications). **Also owns NFR-002's documentation deliverable**: a CHANGELOG.md entry
+   and/or an operator-facing note in tracer-design-decisions.md stating that
+   `spec-kitty next --json`'s `guard_failures`/`Decision.kind` output for custom mission
+   families with a declared manifest changes content (a family that previously always emitted
+   `guard_failures == []` can now emit real failure strings and a `blocked` decision) — see
+   "Blast radius to downstream workspaces" above for the mechanism.
 
 This sequencing is presented as informational input to the tasks phase, not a final WP cut — the
 tasks phase may re-slice WP boundaries, but MUST preserve this dependency order (WP01's snapshot
