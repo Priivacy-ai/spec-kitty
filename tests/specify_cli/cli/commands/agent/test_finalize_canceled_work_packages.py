@@ -497,6 +497,26 @@ def test_execution_begun_ignores_only_planned_and_canceled_states(
     )
 
 
+def test_execution_begun_reads_cancellation_as_pre_execution_but_claim_as_begun(
+    tmp_path: Path,
+) -> None:
+    canceled_root = tmp_path / "canceled"
+    canceled_dir = _build_mission(
+        canceled_root,
+        {"WP01": _wp_document("WP01", owned_files=("src/example/active.py",))},
+    )
+    _cancel(canceled_dir, "WP01")
+    assert not finalizer._execution_has_begun(canceled_root, canceled_dir.name)
+
+    claimed_root = tmp_path / "claimed"
+    claimed_dir = _build_mission(
+        claimed_root,
+        {"WP01": _wp_document("WP01", owned_files=("src/example/active.py",))},
+    )
+    _set_lane(claimed_dir, "WP01", Lane.CLAIMED)
+    assert finalizer._execution_has_begun(claimed_root, claimed_dir.name)
+
+
 def test_no_cancellation_retains_full_finalizer_structure(tmp_path: Path) -> None:
     mission_slug = "3432-canceled-finalization"
     planning_path = f"kitty-specs/{mission_slug}/plan.md"
@@ -654,7 +674,7 @@ def test_missing_prior_manifest_refuses_execution_begun_json(
             tmp_path,
             "3432-canceled-finalization",
             "main",
-            lifecycle_lanes={"WP01": Lane.CANCELED},
+            lifecycle_lanes={"WP01": Lane.CLAIMED},
             json_output=True,
         )
     assert "no lanes.json exists" in emit.call_args.args[0]["error"]

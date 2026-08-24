@@ -1848,6 +1848,22 @@ def _capture_target_branch_tip(repo_root: Path, target_branch: str) -> str | Non
     return sha or None
 
 
+def _lifecycle_snapshot_has_execution_begun(
+    lifecycle_lanes: Mapping[str, Lane],
+) -> bool:
+    """Return whether current lifecycle state proves execution has begun.
+
+    ``planned`` is pre-execution, and ``canceled`` is a planning disposition:
+    cancellation removes work before allocation and therefore cannot establish
+    planning provenance that a later finalization must preserve. Every other
+    lifecycle lane represents genuine execution or post-execution state.
+    """
+    return any(
+        lane not in (Lane.PLANNED, Lane.CANCELED)
+        for lane in lifecycle_lanes.values()
+    )
+
+
 def _execution_has_begun(
     repo_root: Path,
     mission_slug: str,
@@ -1868,11 +1884,11 @@ def _execution_has_begun(
     begun (a fresh mission, or the very first finalize run).
 
     Returns:
-        ``True`` iff any WP's current lane is something other than
-        ``planned`` (claimed, in_progress, for_review, ..., done, blocked,
-        canceled). ``False`` when the event log is absent, empty, every
-        seeded WP is still ``planned``, or the surface/event log cannot be
-        read at all (degrades gracefully like this module's sibling
+        ``True`` iff any WP's current lane proves genuine execution or
+        post-execution state (claimed, in_progress, for_review, ..., done,
+        blocked). ``planned`` and ``canceled`` are both pre-execution for
+        provenance purposes. ``False`` also covers an absent/empty event log
+        or an unreadable surface (degrades gracefully like this module's sibling
         ``_capture_target_branch_tip`` — a signal-computation helper must
         never crash the whole ``finalize-tasks`` command over an unreadable
         read-only surface; a corrupted event log is a pre-existing store
@@ -1887,7 +1903,7 @@ def _execution_has_begun(
     from specify_cli.status import StoreError, get_all_wp_lanes, has_event_log
 
     if lifecycle_lanes is not None:
-        return any(lane != Lane.PLANNED for lane in lifecycle_lanes.values())
+        return _lifecycle_snapshot_has_execution_begun(lifecycle_lanes)
 
     try:
         read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
@@ -1905,7 +1921,7 @@ def _execution_has_begun(
         # Corrupted/malformed event log content. Degrade to "not begun"
         # rather than raise — see the docstring's graceful-degradation note.
         return False
-    return any(lane != Lane.PLANNED for lane in lanes.values())
+    return _lifecycle_snapshot_has_execution_begun(lanes)
 
 
 def _preserve_or_capture_planning_commit_sha(
