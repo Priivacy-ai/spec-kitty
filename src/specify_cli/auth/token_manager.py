@@ -210,7 +210,7 @@ class TokenManager:
         self._hot_path_summary = None
         try:
             self._storage.write(session)
-        except Exception:
+        except Exception:  # noqa: BLE001 — record failed storage assessment, then re-raise unchanged
             self._session_assessment = SessionAssessment(
                 completed=False,
                 usable_session=None,
@@ -229,7 +229,7 @@ class TokenManager:
         self._hot_path_summary = None
         try:
             self._storage.delete()
-        except Exception:
+        except Exception:  # noqa: BLE001 — record failed storage assessment, then re-raise unchanged
             self._session_assessment = SessionAssessment(
                 completed=False,
                 usable_session=None,
