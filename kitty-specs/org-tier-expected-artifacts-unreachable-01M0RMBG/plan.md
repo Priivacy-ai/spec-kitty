@@ -79,12 +79,12 @@ src/charter/
 
 tests/charter/
 ├── test_org_expected_artifacts.py    # FR-003 (helper + 5 hand-built paths + 1 new test case)
-└── test_mission_type_profiles.py     # FR-004 (duplicated helper, lines ~996-1010)
+└── test_mission_type_profiles.py     # FR-004 (duplicated helper, lines ~996-1011)
 
 tests/dossier/
-├── test_manifest.py                  # FR-005 (duplicated helper, lines ~516-524)
-├── test_rebaseline.py                # FR-005 (duplicated helper, lines ~494-500)
-└── test_indexer.py                   # FR-005 (locally-duplicated method helper, lines ~714-721)
+├── test_manifest.py                  # FR-005 (duplicated helper, lines ~516-525)
+├── test_rebaseline.py                # FR-005 (duplicated helper, lines ~494-501)
+└── test_indexer.py                   # FR-005 (locally-duplicated method helper, lines ~714-722)
 ```
 
 No other file is touched. `src/specify_cli/runtime/resolver.py` and
