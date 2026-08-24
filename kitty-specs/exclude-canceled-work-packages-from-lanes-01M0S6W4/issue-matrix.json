@@ -8,7 +8,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "ci: fast-tests-status has been silently skipped for 4+ runs by a job-dependency gate, not a path filter",
       "verdict": "verified-already-fixed",
       "wp": "WP01"
     },
@@ -20,7 +20,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "origin HEAD: recorded planning merge conflicts during lane allocation; retry skips dependency propagation",
       "verdict": "deferred-with-followup",
       "wp": "WP01"
     },
@@ -32,7 +32,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "bug: write_scope_overlap lane collapse can produce a circular lane dependency graph, and finalize-tasks reports success",
       "verdict": "verified-already-fixed",
       "wp": "WP01"
     },
@@ -44,7 +44,7 @@
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "<fill at WP-implementation time>",
+      "title": "bug: a canceled work package cannot satisfy lane computation — every route to retiring one is refused",
       "verdict": "fixed",
       "wp": "WP01"
     }
