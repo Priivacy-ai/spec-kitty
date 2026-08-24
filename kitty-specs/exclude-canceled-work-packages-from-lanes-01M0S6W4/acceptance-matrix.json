@@ -28,10 +28,10 @@
       "criterion_id": "FR-003",
       "description": "Canceled work packages are excluded from execution-lane allocation.",
       "proof_type": "automated_test",
-      "evidence": "Commits ae591dca4 and 53ebfc3f4 fix cancellation projection and provenance freeze; mixed first-finalize and canceled-cycle real-finalizer regressions omit canceled work while retaining surviving active lanes",
+      "evidence": "53ebfc3f4 and 85c9df87a; canceled nodes and canceled-only cycles are excluded while surviving active lanes remain",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:14:57.029632+00:00",
+      "verified_at": "2026-08-24T12:01:55.746808+00:00",
       "notes": "Pass when first and repeated normal finalization omit canceled packages from every lane-derived surface and retain all eligible packages."
     },
     {
