@@ -183,7 +183,7 @@ Advisory означает «не меняет lifecycle», а не «всегд�
 - [ ] T028 Написать operator guide и compatibility/changelog note без provider promises (WP06)
 - [ ] T029 Добавить opt-in synthetic live-smoke harness/marker без CI dependency (WP06)
 - [ ] T030 Запустить targeted tests, Ruff, mypy и измерить coverage новых ветвей (WP06)
-- [ ] T031 Выполнить full relevant regression suite и проверить code map drift (WP06)
+- [x] T031 Выполнить full relevant regression suite и проверить code map drift (WP06)
 - [ ] T032 Сверить фактический результат со spec/plan/tasks и подготовить review evidence (WP06)
 
 ### Implementation Notes
