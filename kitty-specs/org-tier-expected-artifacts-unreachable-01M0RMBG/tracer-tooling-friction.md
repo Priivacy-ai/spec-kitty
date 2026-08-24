@@ -73,3 +73,62 @@ computed file (SK-72 bans hand-editing spec-kitty state) and confirmed adversari
 pre-existing `infer_surfaces()` keyword-matching behavior in the tooling itself. Recording it
 here so a future reader of this mission's `lanes.json` does not mistake `predicted_surfaces`
 for a claim about which subsystems WP01 actually touches.
+
+## F4 — analyze phase (2026-08-24): commitlint trap CONFIRMED first-hand; SK-06/#3133 NOT reproduced
+
+**Commitlint trap (F2's prediction, now observed).** `spec-kitty agent mission
+record-analysis` auto-commits its own write with the subject `Add analysis report for mission
+org-tier-expected-artifacts-unreachable-01M0RMBG`. That subject matches neither
+`commitlint.config.cjs`'s `ignores` regex (`^(Add|Update) (meta|spec|tasks|plan) for
+(feature|mission) `— "analysis report" is not in the `meta|spec|tasks|plan` alternation) nor
+any `type-enum` prefix, so it fails `type-empty`/`subject-empty` exactly as F2 predicted. It
+fired **four times** in this phase — once per analyze round, because every re-run after a fix
+commit re-invokes `record-analysis`:
+- `e051ba2b0` (round 1, one finding: I1)
+- `a5ec593ed` (round 2, after I1 fix, one finding: I2)
+- `195b3b385` (round 3, after I2 fix, one finding: I3)
+- `6c3a00d7a` (round 4, after I3 fix, findings-free, verdict `ready`)
+
+Only the **last** of these (`6c3a00d7a`) is the one that matters for the final artifact state;
+the earlier three are superseded intermediate states still reachable in history. **PR-prep
+must reword all four commits in-range** (or fold them) — not just one — since commitlint runs
+per-commit across the PR range, not just on the tip. Confirming the SK-64-sanctioned choice:
+do not loosen the shared lint config.
+
+**record-analysis requires a clean worktree — new operational finding, not previously
+documented in this mission's tracer.** `record-analysis` fails loudly with
+`error_code: DIRTY_WORKTREE` if any tracked file is modified/uncommitted when it's invoked
+(confirmed first-hand: a verify-round subagent hit this after a fixer subagent's edits were
+still uncommitted). Remediation is exactly what the error names: commit the fix first, then
+re-run analyze. This is sane fail-closed behavior, not a defect — recording it here because it
+changes this mission's fix-loop shape: every analyze round in this phase was FIX (fresh
+subagent) → COMMIT (orchestrator, `safe-commit`) → RE-ANALYZE (fresh subagent), not
+FIX-then-immediately-re-analyze-in-the-same-subagent as a naive reading of the design-pipeline
+doc's 4b template might suggest.
+
+**Side effect, every round:** each `record-analysis` invocation also regenerates
+`.kittify/dossiers/<slug>/snapshot-latest.json` (new `snapshot_id`, updated `parity_hash_*`)
+but does NOT always fold that file into its own auto-commit — three of the four rounds left it
+modified-but-uncommitted, requiring the orchestrator to fold it into the next `safe-commit`
+alongside the actual fix. Not blocking, just an extra file to remember when committing.
+
+**SK-06 / issue #3133 ("record-analysis silently writes verdict: unknown for an explicitly
+ready report") — investigated, NOT reproduced on this checkout.** Read
+`src/specify_cli/analysis_report.py` directly: `verdict: unknown` is reachable ONLY when the
+report body carries no `analysis-findings/v1` carrier at all (`parse_structured_findings`
+returns `None` for a missing/foreign leading frontmatter block —
+`write_analysis_report`'s `structured is None` branch, `analysis_report.py:433-437`). Given a
+present, schema-valid carrier, the verdict is `compute_verdict_from_findings()` — a pure
+function of `findings[].severity`, deterministic, never `unknown`. Across all four analyze
+rounds this phase ran (one with a real medium finding, one with a real medium finding, one
+with a real low finding, one clean), the persisted verdict matched the carrier's computed
+verdict exactly every time — `ready` in all four cases (none of this mission's findings ever
+reached high/critical). **Conclusion: the carrier-based recorder in this checkout already
+implements the fix #3133 asks for** (a documented, structured verdict/count block, per its
+"Expected" section) — issue #3133 is open upstream but its reproduction (`spec-kitty-saas`
+mission on 3.2.6, an OLDER/different codepath) does not describe this checkout's current
+`analysis_report.py`. Not closing #3133 ourselves (out of this mission's scope and no access
+to re-verify the original repro's exact version), but recording here that a phase-agent on a
+current `main` checkout should NOT expect to hit it as long as the analyzing agent emits the
+carrier per `packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md` — omitting
+the carrier, not a tooling defect, is the only way `unknown` occurs on this checkout.
