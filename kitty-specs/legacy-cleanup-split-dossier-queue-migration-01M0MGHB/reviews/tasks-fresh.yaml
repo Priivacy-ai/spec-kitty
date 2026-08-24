@@ -1,0 +1,159 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: TASKS-FRESH-001
+    lens: verification
+    severity: 3
+    title: "T020's revert-and-confirm-red capture seam cannot observe the mirror-class swap it is designed to detect"
+    evidence:
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Subtask T020, steps 1 and 3 (lines 237-283)"
+    claim: >
+      Step 1 has the implementer monkeypatch `model_dump` on the *canonical*
+      `MissionDossierArtifactIndexedPayload` class object (imported in the test module)
+      to populate `captured_payload_objects`. Step 3's revert-and-confirm-red proof then
+      rebinds the name `MissionDossierArtifactIndexedPayload` inside
+      `specify_cli.dossier.events`'s own module namespace to a distinct mirror-shaped
+      class (via `monkeypatch.setattr(specify_cli.dossier.events,
+      "MissionDossierArtifactIndexedPayload", <mirror class>)` or a temporary import
+      edit). Once that happens, `emit_artifact_indexed` constructs an instance of the
+      *mirror* class, not the canonical one — so the patched `model_dump` on the
+      canonical class object is never invoked, `captured_payload_objects` stays empty,
+      and `captured_payload_objects[0]` raises `IndexError` before `isinstance(...)` is
+      ever evaluated. The step's own description ("the new isinstance assertion (step 2)
+      goes red, and this file's existing jsonschema.validate/_assert_valid assertions
+      stay green") describes a clean False-isinstance failure that this mechanism cannot
+      actually produce — the real failure mode is a crash in the test seam itself, not
+      the isinstance check evaluating to False. An implementer following the recipe
+      literally will hit an unexplained `IndexError` and have to redesign the capture
+      mechanism mid-subtask.
+    remediation: >
+      Redesign the capture seam so it observes whatever class is actually bound at call
+      time — e.g. monkeypatch `emit_artifact_indexed`/`emit_artifact_missing` themselves
+      to record their constructed payload object before calling `.model_dump()`, or
+      patch the module-level name and then separately capture on *both* the canonical
+      and the swapped-in class's `model_dump`. Alternatively, make the step 3 guidance
+      explicit that the expected red-state failure is an `IndexError` (empty
+      `captured_payload_objects`), not a False `isinstance()` result, so the divergence
+      claim ("isinstance check catches it, schema check doesn't") is phrased accurately.
+
+  - id: TASKS-FRESH-002
+    lens: correspondence
+    severity: 1
+    title: "T020's new heading cites 'SC-001' for a claim spec.md defines under Acceptance Scenario 1, not SC-001"
+    evidence:
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Subtask T020 heading (line 219)"
+      - artifact: "spec.md § Success Criteria (SC-001, line 445) vs. § User Story 1 Acceptance Scenario 1 (line 247)"
+    claim: >
+      The fix round's new subtask heading reads "Subtask T020 – Add canonical-type
+      identity assertions (binding, FR-001/SC-001)". Per spec.md, SC-001 is specifically
+      the structural check `grep -c "^class.*BaseModel" src/specify_cli/dossier/events.py`
+      returning `0` — it says nothing about isinstance/runtime-type proof. The
+      isinstance claim T020 actually proves is spec.md's User Story 1, Acceptance
+      Scenario 1 ("the emitted payload's runtime type is the spec_kitty_events-owned
+      class ... isinstance check ... succeeds"), a distinct measurable claim from SC-001.
+      The pre-existing body text ("Prove SC-001/Acceptance Scenario 1's isinstance claim
+      directly") already blurred this, but the fix round's new heading repeats and
+      foregrounds the imprecise "SC-001" label, which could send a reviewer checking
+      T020 against the wrong spec.md criterion.
+    remediation: >
+      Change the heading (and any other new binding-language callouts) to cite
+      "FR-001/Acceptance Scenario 1" rather than "FR-001/SC-001", keeping SC-001
+      reserved for its own grep-based class-count check.
+
+  - id: TASKS-FRESH-003
+    lens: decomposition
+    severity: 2
+    title: "WP01's T004 and T005 disagree about which subtask actually deletes the shared _consume_legacy_values helper"
+    evidence:
+      - artifact: "tasks/WP01-canonical-type-adoption-and-legacy-bridge-removal.md § Subtask T004 step 5 (lines 275-279)"
+      - artifact: "tasks/WP01-canonical-type-adoption-and-legacy-bridge-removal.md § Subtask T005 step 7 (line 324)"
+    claim: >
+      T004 step 5 instructs "Also delete `_consume_legacy_values` itself ... delete it
+      once both call sites are gone" — worded as an action T004 itself performs, gated
+      on a precondition ("both call sites gone") that is not actually true yet when T004
+      runs (T005 hasn't edited `emit_artifact_missing` yet). T005 step 7 then separately
+      instructs "Now delete `_consume_legacy_values` ... its only two call sites (this
+      one and T004's) are both gone" as if T004 had not already done it. If an
+      implementer follows T004 literally and deletes the helper during T004, this breaks
+      `emit_artifact_missing`'s still-unedited call to it, contradicting this same WP's
+      own "Test Strategy" instruction to run the NFR-003 targeted surface "after each
+      subtask" (that run would go red between T004 and T005 for a reason unrelated to
+      the mission's actual scope).
+    remediation: >
+      Remove the "delete it" instruction from T004 step 5 (keep only the grep-verification
+      of T005's scheduling) and leave the single physical deletion instruction in T005
+      step 7, where the precondition is actually satisfied.
+
+  - id: TASKS-FRESH-004
+    lens: decomposition
+    severity: 1
+    title: "plan.md's corrected PR Shape total (~600-870 LOC) doesn't sum from its own per-file estimate rows"
+    evidence:
+      - artifact: "plan.md § PR Shape table and 'Total estimate' line (table rows ~840-849)"
+    claim: >
+      Summing the table's own per-file ranges at their stated upper bounds (180 + 100 +
+      15 + 10 + 50 + 120 + 15 + 60 + 200) yields ~750, not the stated upper bound of 870
+      — a ~120 LOC gap the fix round's arithmetic correction did not tighten (it only
+      updated the row for `tests/sync/test_events.py` and bumped the total from
+      570-820/8 files to 600-870/9 files, carrying the same ~120 LOC slack forward from
+      before the fix). The lower bound (600) is also slightly below the rows' own summed
+      floor (~620), which is conservative rather than misleading, but the upper bound is
+      the more consequential drift since it inflates the "how big could this really get"
+      figure cited elsewhere (tasks.md's PR Shape Recommendation, Dependency & Execution
+      Summary).
+    remediation: >
+      Recompute the total directly from the table's own row ranges (~620-750) and use
+      that recomputed figure everywhere it is currently repeated (plan.md's own Total
+      estimate line, tasks.md's PR Shape Recommendation section, and the Dependency &
+      Execution Summary's LOC callout), or explicitly note the total carries an
+      additional buffer beyond the row sum if that is intentional.
+
+  - id: TASKS-FRESH-005
+    lens: verification
+    severity: 2
+    title: "WP04's WP-level Objectives & Success Criteria summary wasn't updated to reflect T020's newly-hardened binding bar"
+    evidence:
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Objectives & Success Criteria (lines 78-95)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Subtask T020 (lines 219-233), post-fix"
+    claim: >
+      The fix round rewrote T020's subtask body to make the isinstance assertion and its
+      revert-and-confirm-red proof explicitly mandatory ("not optional... no 'minimal
+      addition or none' option"), replacing what was previously a judgment call ("a
+      minimal addition, or none beyond a clarifying comment, is acceptable"). The WP-level
+      "Objectives & Success Criteria" section that a reviewer/orchestrator reads first to
+      gauge this WP's scope still only says "SC-001 through SC-006 all hold across the
+      mission's combined diff — this WP's T021 is the final confirmation pass, not a new
+      claim," with no bullet calling out that T020's identity proof is now a hard
+      requirement with its own mandatory red-first cycle. A skim-level reader relying on
+      the Objectives section alone would underestimate WP04's now-larger required scope.
+    remediation: >
+      Add a bullet to the Objectives & Success Criteria list explicitly stating that
+      T020's isinstance assertion (with its mandatory revert-and-confirm-red step) is a
+      binding proof of SC-001's/Acceptance Scenario 1's runtime-identity claim, matching
+      the language already present in T020's own body and Review Guidance.
+
+  - id: TASKS-FRESH-006
+    lens: correspondence
+    severity: 2
+    title: "WP04's requirement_refs/Requirement Refs metadata omits FR-001 despite T020's heading now binding the subtask to FR-001"
+    evidence:
+      - artifact: "tasks.md § Work Package WP04, 'Requirement Refs' line (line 267)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md frontmatter `requirement_refs` (lines 5-7)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Subtask T020 heading (line 219)"
+    claim: >
+      The fix round retitled T020 to "(binding, FR-001/SC-001)", explicitly making T020
+      a binding proof obligation for FR-001. Neither tasks.md's WP04 "Requirement Refs"
+      line ("FR-009, FR-010") nor the WP04 prompt file's own frontmatter
+      `requirement_refs: [FR-009, FR-010]` was updated to include FR-001, even though the
+      Requirements Coverage Summary table still lists "FR-001 | WP01" only. Any tooling
+      or reviewer relying on `requirement_refs`/the Requirement Refs line to answer "which
+      WPs touch FR-001" will miss WP04's newly-binding T020 obligation.
+    remediation: >
+      Either add FR-001 as a secondary requirement_ref on WP04 (frontmatter and the
+      tasks.md WP04 section) to reflect T020's binding proof role, or, if the mission
+      intends FR-001 to remain WP01-exclusive in the coverage model, soften T020's
+      heading to reference the proof relationship without implying WP04 itself now
+      covers FR-001 (e.g. "regression proof for WP01's FR-001").

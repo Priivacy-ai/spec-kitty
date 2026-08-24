@@ -1,0 +1,43 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: fresh-sweep
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+scope: git show 16ba83026 (the fix round's own diff, +293/-16 across 8 files)
+note: Findings a fix introduces are real findings. This sweep reviewed the fix commit as a diff in its own right.
+highest_risk_item_traced:
+  question: >-
+    PR-CONTRACT-001 made provenance raise where it previously returned None. sync/dossier_pipeline.py
+    calls emit_artifact_indexed - does an exception now escape into a caller that did not expect one?
+  verdict: NO REGRESSION
+  evidence: >-
+    _emit_artifact_events (dossier_pipeline.py:100-120) calls emit_artifact_indexed without a provenance
+    kwarg at all, so the raise path is unreachable from the only production caller. Independently, that
+    call already sits inside a per-artifact try/except Exception that PREDATES this fix, so even a future
+    malformed caller degrades to the same not-counted-and-logged outcome as the old silent-None path,
+    with a more informative log line. Traced, not assumed.
+findings:
+  - id: PR-FRESH-001
+    severity: 2
+    file: tests/contract/test_handoff_fixtures.py
+    line: 271
+    title: The guard is production-wired but only synthetically tested
+    detail: >-
+      The in-place `if is_dossier_delegate(rules)` branch is never executed by the real FIXTURE_EVENTS
+      parametrize loop, and cannot be until a dossier fixture is added - which test_all_event_types_covered's
+      exact-set assertion currently forbids. A regression deleting that specific branch would go uncaught
+      until a real dossier fixture exists. Acknowledged in the fixer's own docstring; confirmed true.
+  - id: PR-FRESH-002
+    severity: 1
+    file: src/specify_cli/dossier/events.py
+    title: The loud-failure benefit is currently dormant
+    detail: >-
+      No production caller passes provenance, so the improved failure mode is visible only to a future or
+      direct caller. Correct behaviour; noted for honesty, consistent with the original finding's own
+      dormancy framing.
+clean:
+  - No severity >=3 findings.
+  - No silent-success regressions; no new banned imports or TID251 hits (ruff clean on all 8 files).
+  - No new patch()/mock targets - the new tests call real functions.
+  - No re-vendored validation strictness.
+  - Scope held: dossier/__init__.py, sync/queue.py, sync/migrate_journal.py byte-for-byte untouched.

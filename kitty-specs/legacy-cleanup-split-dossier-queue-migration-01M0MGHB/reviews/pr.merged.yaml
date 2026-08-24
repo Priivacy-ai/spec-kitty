@@ -1,0 +1,25 @@
+schema: review-merged/v1
+complete: true
+phase: pr
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+diff_base: 8a03733e734f002ab97cc4ee74a006a70f683048
+note: >-
+  R2 merge/dedup performed by the orchestrator - bookkeeping only, per the all-Claude overlay.
+  Code phases are R1-R3 REPORT-ONLY: no fix round runs inside the squad, because verdict and change
+  would share an author. Findings are routed OUT to a separate fix dispatch.
+raw_count: 6
+merged_count: 6
+deduped: 0
+pre_declared_known_items_excluded_from_lens_scope:
+  - canonical validation looser than deleted local checks (ContentHashRef case-folding; validate_event
+    accepts malformed-but-non-empty hashes). Accepted under FR-006; disclosed in PR body.
+  - assert isinstance(rules, dict) used for mypy narrowing where repo convention is raise (-O strips
+    asserts). Severity 2, carried from WP02 review into this fix round.
+  - AST guard does not cover attribute-chain or aliased calls. Spec-sanctioned scope; follow-up issue.
+findings:
+  - {id: PR-TESTS-001,    severity: 4, group: tests,    blocking: true}
+  - {id: PR-BOUNDARY-001, severity: 3, group: boundary, blocking: false}
+  - {id: PR-CONTRACT-001, severity: 3, group: contract, blocking: false}
+  - {id: PR-CONTRACT-002, severity: 2, group: contract, blocking: false}
+  - {id: PR-BOUNDARY-002, severity: 2, group: boundary, blocking: false}
+  - {id: PR-BOUNDARY-003, severity: 1, group: boundary, blocking: false}

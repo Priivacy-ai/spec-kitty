@@ -1,0 +1,105 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: verify
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: PLAN-VERIFY-001
+    lens: gates
+    severity: 3
+    title: Gate Set table misidentifies which CI shards collect this mission's touched tests and overstates coverage-floor protection
+    evidence:
+      - artifact: "plan.md § Gate Set (line ~553): \"Test shards with coverage (kernel 90% floor, fast-doctrine, fast-status, integration-doctrine, integration-status, e2e/cross-cutting, slow) | Yes — always | ... this mission's new/changed tests land in the fast-doctrine-adjacent and slow/architectural shards depending on CI's existing bucketing of tests/dossier/, tests/sync/, tests/architectural/ ...\""
+      - code: ".github/workflows/ci-quality.yml:376 (`tests/dossier/**` is a member of the same path-filter group as `tests/architectural/**` at :353, both routing to `integration-tests-core-misc`'s `misc` shard matrix leg, whose `paths` list includes `tests/dossier` at :1953)"
+      - code: ".github/workflows/ci-quality.yml:264 (`tests/sync/**` routes to `fast-tests-sync`/`integration-tests-sync`/`integration-tests-sync-real-port`, not \"fast-doctrine\" or \"slow\")"
+      - code: ".github/workflows/ci-quality.yml:2034-2067 (`tests/architectural/**` is also always-on-collected by the dedicated `arch-adversarial` 3-shard job)"
+      - code: "No `--cov-fail-under` flag present in the pytest invocations for `integration-tests-core-misc` (:1996-2005), `fast-tests-sync` (:1134-1139), or `arch-adversarial` (:2130-2144) — each only uploads a coverage XML artifact (consumed by the separate SonarCloud Quality Gate). The only jobs in the file with an actual `--cov-fail-under` threshold are `kernel-tests` (module-kernel.yml:53-69, 90% floor), `mission-loader-coverage` (:1456, 90%), `fast-tests-charter` (:2309, 55%), and `fast-tests-agent` (:2356, 10%)."
+    claim: >
+      The plan's Gate Set row bundles this mission's touched test surface
+      (tests/dossier/, tests/sync/, tests/architectural/) under the same row
+      as the repo's genuinely coverage-floor-enforced shards (kernel 90%,
+      mission-loader 90%, etc.), and separately asserts these tests "land in
+      the fast-doctrine-adjacent and slow/architectural shards" — but neither
+      shard name is where these tests actually run. tests/dossier/ and
+      tests/architectural/ are swept by the `changes` job's path-filter
+      "misc" group into `integration-tests-core-misc`, and tests/architectural/
+      is also covered by the separate always-on `arch-adversarial` job;
+      tests/sync/ routes to `fast-tests-sync`/`integration-tests-sync`. None
+      of these four actual jobs carries a `--cov-fail-under` threshold — they
+      only emit coverage XML for SonarCloud's separate, project-wide
+      new-code-coverage Quality Gate, which is a materially different and
+      weaker guarantee than a per-shard pytest floor. This is exactly the
+      shard-identity check the mission's Gates lens was asked to spot-check,
+      and the plan's answer names the wrong shards and implies a
+      floor-style backstop for the new FR-004/FR-008 tests that does not
+      exist at the pytest level.
+    remediation: >
+      Correct the Gate Set table's "Test shards with coverage" row (and the
+      Technical Context "Testing" paragraph, plan.md line 47-52, which makes
+      the same claim) to name the actual jobs — `integration-tests-core-misc`
+      (tests/dossier/, tests/architectural/ via the misc path-filter group),
+      `arch-adversarial` (tests/architectural/, always-on, 3-shard), and
+      `fast-tests-sync` / `integration-tests-sync` (tests/sync/) — and state
+      plainly that none of them enforce a local `--cov-fail-under` floor;
+      the only coverage-floor protection this mission's new tests receive is
+      SonarCloud's project-level Quality Gate (already listed as its own
+      separate row), not a shard-local floor. This doesn't change the
+      mission's scope, only the plan's stated gate reasoning.
+
+  - id: PLAN-VERIFY-002
+    lens: FR-004 revert-test guarantee
+    severity: 4
+    title: FR-004's binding "Test bar" specifies autospec mocking but never requires asserting the payload/behavioral content AC1/AC2 demand, risking a vacuous-for-purpose test
+    evidence:
+      - artifact: "plan.md § \"FR-004 raise/report/refuse contract\", point 4 (line ~417-427): \"Test bar (binding, per FR-004 in spec.md): ... A new test (or an existing test modified to add autospec=True/spec=emit_artifact_indexed) is required\" — no assertion target is named."
+      - artifact: "plan.md § Red-First / ATDD Test Mapping, FR-004 row (line ~734): \"... with autospec=True, the mock enforces the real signature and raises the same TypeError, so the test goes red; with a plain Mock it would NOT ...\" — again names only the signature-binding mechanism, not a required assertion on payload content or emit/no-emit behavior."
+      - artifact: "spec.md FR-004 (line 369) and User Story 2 AC1/AC2 (lines 298-314): AC1 requires the test to check that \"the resulting payload's context_diagnostics still contains artifact_key and required_status, and step_id is still threaded into the payload's step_id field\"; AC2 requires the test to check that emit_artifact_missing \"still returns None without emitting when blocking evaluates False, and still emits when blocking evaluates True.\" Both are internal behavior of the emitter function bodies (diagnostics folding, the blocking short-circuit)."
+      - code: "src/specify_cli/dossier/events.py:455-457 (`if not blocking: ... return None`) and :392-395 (`diagnostics.setdefault(\"artifact_key\", artifact_key); diagnostics.setdefault(\"required_status\", required_status)`) — both are logic inside emit_artifact_indexed/emit_artifact_missing's own body, unreachable if the function is replaced by an autospec Mock."
+      - code: "Verified empirically (`unittest.mock.create_autospec`): calling an autospec'd mock with a keyword name absent from the mocked function's current signature raises TypeError with call_count staying 0 (the call is never recorded) — confirming autospec's signature check is real, but also confirming that *if* an implementation asserts anything other than the mock's call-recording state (e.g. asserts on `sync_feature_dossier`'s / `_emit_artifact_events`'s return value without checking `events_emitted` or `mock_emit.call_args`), the test would pass identically whether FR-004 is reverted or not, since dossier_pipeline.py's `except Exception` (src/specify_cli/sync/dossier_pipeline.py:114-119, 133-138) swallows the TypeError either way."
+    claim: >
+      FR-004's whole rationale (both in spec.md and in this plan's own
+      "FR-004 raise/report/refuse contract" narrative) is that a naive
+      "does it raise" test is insufficient because dossier_pipeline.py's
+      per-artifact try/except silently swallows the TypeError a reverted
+      promotion would produce — the mission explicitly frames this as the
+      "silent success" defect class the charter singles out. Yet the plan's
+      own binding "Test bar" (point 4) and the ATDD Test Mapping table's
+      FR-004 row commit only to "use autospec=True/spec=" as the fix,
+      without ever stating what the test must assert once the call is
+      wrapped in that try/except. Two failure modes follow if an
+      implementer follows the plan literally: (1) using autospec=True to
+      mock emit_artifact_indexed/emit_artifact_missing away entirely proves
+      only that dossier_pipeline.py's keyword call *binds* to the real
+      signature — it structurally cannot exercise or verify diagnostics
+      folding (AC1) or the blocking short-circuit (AC2), since those live
+      inside the function body the mock replaces; (2) even the
+      signature-binding proof only "goes red" on revert if the test
+      specifically asserts a post-call, try/except-surviving state (e.g.
+      `_emit_artifact_events`'s returned `events_emitted` count, or
+      `mock_emit.call_args`) — the plan never says this, and a plausible
+      literal reading ("assert the pipeline call didn't raise") is exactly
+      the vacuous pattern spec.md's own AC1 wording warns against but the
+      plan does not carry that warning into its own concrete test design.
+      The ATDD table's separate "or exercising the real functions
+      end-to-end" phrase (only in the table, absent from the primary
+      "Test bar" section) is the one branch that actually can satisfy
+      AC1/AC2, but the plan presents it as an interchangeable alternative
+      to autospec rather than the one that is actually required for those
+      two acceptance scenarios.
+    remediation: >
+      Revise plan.md's "FR-004 raise/report/refuse contract" point 4 and
+      the ATDD Test Mapping table's FR-004 row to state explicitly, as the
+      binding test bar: (a) at least one new test must call the real,
+      unmocked emit_artifact_indexed/emit_artifact_missing end-to-end
+      (through sync_feature_dossier or _emit_artifact_events, with only
+      unrelated collaborators like Indexer/ManifestRegistry mocked) and
+      assert directly on the returned/fired payload's context_diagnostics
+      and step_id fields (AC1) and on the blocking-driven emit/no-emit
+      outcome via _emit_artifact_events's events_emitted return value or an
+      equivalent captured-event assertion (AC2); (b) if an autospec=True
+      mock is additionally used to pin the signature-binding property, the
+      test must assert on a try/except-surviving observable (events_emitted
+      count or mock_emit.call_args), not merely that the outer call did not
+      raise. Autospec mocking should be documented as a supplementary,
+      narrower check, not a substitute for the real-call assertion AC1/AC2
+      require.

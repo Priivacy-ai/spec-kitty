@@ -1,0 +1,103 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: PLAN-FRESH2-001
+    lens: fresh-eyes
+    severity: 2
+    title: "spec.md Key Entities pseudocode still names the predicate `_is_dossier_delegate` (private), diverging from the binding public `is_dossier_delegate` name plan.md settles on"
+    evidence:
+      - artifact: "spec.md § Key Entities, line 424"
+      - code: "kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/spec.md:424 — \"if _is_dossier_delegate(rules): return self._validate_dossier_payload(event_type, payload)\""
+      - artifact: "plan.md § FR-006/FR-007 sentinel shape, lines 380-391 — defines and consistently uses public `is_dossier_delegate()` (no underscore) as the one shared predicate"
+      - artifact: "tracer-design-decisions.md:192-195 — an earlier remediation round already noticed and fixed a stray comment referencing the same nonexistent `_is_dossier_delegate` name inside plan.md, explicitly noting spec.md's Key Entities sketch is where the wrong name originated, but left spec.md itself unedited"
+    claim: >
+      spec.md's own illustrative sentinel-check snippet in Key Entities uses the private-style
+      name `_is_dossier_delegate`, but the actual, binding predicate name settled on everywhere
+      in plan.md (including this round's PLAN-FRESH-002 unification) is the public
+      `is_dossier_delegate`. This exact discrepancy was already noticed once (tracer-design-
+      decisions.md) and fixed inside plan.md, but the upstream spec.md text that is the source
+      of the wrong name was never corrected, so a reader who greps spec.md for the predicate name
+      still finds a symbol that doesn't exist in the real design.
+    remediation: >
+      Update spec.md line 424's illustrative snippet to read `if is_dossier_delegate(rules):`
+      (or add a footnote noting the exact name is finalized in plan.md as `is_dossier_delegate`,
+      not `_is_dossier_delegate`), so spec.md and plan.md agree on the one symbol name this
+      round's remediation was specifically about unifying.
+
+  - id: PLAN-FRESH2-002
+    lens: fresh-eyes
+    severity: 3
+    title: "FR-011 has no corresponding Acceptance Scenario in any User Story — the mandatory User Scenarios & Testing section was not backfilled when FR-011 was added"
+    evidence:
+      - artifact: "spec.md § Requirements → FR-011 (line 376) — states explicit, concrete acceptance behavior: \"(a) no crash and (b) the invalid case reports a real ConformanceResult-sourced violation in DiagnoseResult.errors\""
+      - artifact: "spec.md § User Story 1, Acceptance Scenarios 1-3 (lines 249-271) — the closest analogous scenario (AS3) only covers `EventEmitter._validate_payload()`'s behavior, never `diagnose.py`/`diagnose_events()`"
+      - artifact: "spec.md § User Story 2 and User Story 3, Acceptance Scenarios — neither mentions diagnose.py or the sync diagnose CLI path either"
+    claim: >
+      Every other FR in this spec traces back to a Given/When/Then Acceptance Scenario under one
+      of the three User Stories (e.g. FR-006's delegation behavior is AS3 of User Story 1). FR-011
+      — a newly added, High-priority FR with its own explicit, two-part acceptance behavior — has
+      no matching scenario anywhere in the mandatory "User Scenarios & Testing" section. Its
+      acceptance criteria exist only as prose inside the FR table row, which is a structurally
+      weaker/lower-visibility location than the rest of this spec uses for the same purpose, and
+      makes FR-011 the one FR whose behavior a reviewer scanning User Stories would miss entirely.
+    remediation: >
+      Add a fourth Acceptance Scenario to User Story 1 (or a short new User Story) stating: Given
+      the FR-006 sentinel lands in `_PAYLOAD_RULES`, When `diagnose_events()` processes a
+      dossier-typed event with a valid and an invalid payload, Then it does not crash and the
+      invalid case's violation appears in `DiagnoseResult.errors` — mirroring FR-011's own table
+      text so User Scenarios & Testing stays the complete, mandatory source of truth for
+      acceptance behavior.
+
+  - id: PLAN-FRESH2-003
+    lens: fresh-eyes
+    severity: 3
+    title: "Success Criteria (Measurable Outcomes) section has no entry for FR-011, and SC-003's test-file list was not updated to include tests/sync/test_diagnose.py"
+    evidence:
+      - artifact: "spec.md § Success Criteria, SC-001 through SC-005 (lines 441-461) — SC-005 is FR-006's measurable outcome; no SC-006 exists for FR-011"
+      - artifact: "spec.md § Success Criteria, SC-003 (line 448-452) — lists \"tests/dossier/test_events.py, tests/dossier/test_emitter_adapter.py, tests/sync/test_events_namespace.py, and tests/sync/test_dossier_pipeline.py\" as the files whose passing behavior is the measurable outcome; tests/sync/test_diagnose.py is absent"
+      - artifact: "spec.md § Non-Functional Requirements, NFR-003 (line 384) — this row *was* updated in this revision to add \"tests/sync/test_diagnose.py (FR-011's diagnose.py regression coverage)\" to the bounded test scope, showing the authors touched the adjacent NFR row but not the Success Criteria section"
+    claim: >
+      FR-006 (High priority) is backed by a dedicated measurable outcome, SC-005. FR-011 (also
+      High priority, and this revision's whole subject) gets no equivalent SC entry, so the spec's
+      own "Success Criteria" section — the artifact a merge/accept gate would check against — has
+      no measurable statement that the diagnose.py crash is actually fixed. The revision did
+      update the neighboring NFR-003 row to add test_diagnose.py to scope, which shows the gap in
+      Success Criteria is an omission, not a deliberate design choice.
+    remediation: >
+      Add an SC-006 stating the FR-011 measurable outcome, e.g.: "`diagnose_events()` no longer
+      raises `AttributeError` on a dossier-typed queued event; a hand-constructed invalid dossier
+      payload run through it reports a real `ConformanceResult`-sourced violation in
+      `DiagnoseResult.errors`." Optionally also add `tests/sync/test_diagnose.py` to SC-003's file
+      list if its unmodified-existing assertions are meant to be covered there too.
+
+  - id: PLAN-FRESH2-004
+    lens: fresh-eyes
+    severity: 3
+    title: "NFR-002's binding visibility contract (\"printed [yellow]Warning\") is stated for a bare `_validate_payload`, but FR-011 gives diagnose.py's `_validate_payload` a different, non-printing visibility mechanism"
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements, NFR-002 (line 383) — \"An invalid dossier payload reaching `_validate_payload` after this mission still produces a printed `[yellow]Warning: ...` message ... and the event is still dropped (not queued)\""
+      - artifact: "plan.md § diagnose.py coordinated fix (lines 516-521) — \"folding the returned `ConformanceResult`'s violations into `diagnose.py`'s existing `errors: list[str]` accumulator ... rather than the emitter's `_console.print` warning path, since `diagnose.py`'s contract is 'return structured errors,' not 'print a warning.'\""
+      - artifact: "plan.md § Technical Context, Constraints (line 71-73) — restates NFR-002 verbatim as \"validation failures stay visible via the existing `[yellow]Warning: ...]` + drop-not-queue contract\" with no diagnose.py exception noted"
+    claim: >
+      NFR-002 names the function `_validate_payload` without qualifying which of the two
+      now-existing functions of that name it governs, and its concrete mechanism ("printed
+      [yellow]Warning", "dropped (not queued)") describes only emitter.py's method. FR-011's
+      diagnose.py coordinated fix — added in this exact revision — deliberately uses a different
+      mechanism (accumulate into `DiagnoseResult.errors`, no print, no queue-drop semantics since
+      diagnose.py doesn't own the queue). plan.md itself resolves this correctly in its diagnose.py
+      section, but spec.md's NFR-002 (a "binding," High-priority requirement) was never updated to
+      scope its printed-warning language to emitter.py specifically or to state the parallel
+      structured-error contract for diagnose.py, and plan.md's own Technical Context restates the
+      un-scoped NFR-002 language without exception. A reader taking NFR-002 literally against
+      diagnose.py's new code path would expect a printed warning that FR-011's design never
+      produces.
+    remediation: >
+      Scope NFR-002 explicitly to `emitter.py::_validate_payload` (its printed-Warning +
+      drop-not-queue contract), and add a parallel sentence — or a new NFR — stating
+      diagnose.py::_validate_payload's contract is "surface the violation in
+      `DiagnoseResult.errors`" rather than print a warning, so the two `_validate_payload`
+      functions' differing visibility mechanisms are both binding and neither reads as
+      contradicting FR-011's design.

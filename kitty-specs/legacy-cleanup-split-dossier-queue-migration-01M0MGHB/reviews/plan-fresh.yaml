@@ -1,0 +1,71 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: PLAN-FRESH-001
+    lens: spec-plan correspondence
+    severity: 4
+    title: diagnose.py fix has no owning FR in spec.md and its required test contradicts NFR-003's bounded test-scope list
+    evidence:
+      - artifact: "plan.md § Technical Context (Testing paragraph, lines 47-62)"
+      - artifact: "plan.md § Mission-Specific Design Decisions › \"diagnose.py coordinated fix\" (lines 457-524)"
+      - artifact: "spec.md § Requirements › Functional Requirements FR-001..FR-010 (lines 366-375) — grepped, zero mentions of diagnose.py"
+      - artifact: "spec.md § Non-Functional Requirements NFR-003 (line 383) — bounded test-scope list does not include tests/sync/test_diagnose.py"
+      - code: "src/specify_cli/sync/diagnose.py:301-306 (_validate_payload: rules.get(\"required\", set()) with no shape guard — confirms the crash risk the remediation is fixing is real)"
+    claim: >
+      This revision adds a full coordinated production-code change (a new public
+      function `is_dossier_delegate()` in emitter.py, a new early-return branch in
+      `diagnose.py::_validate_payload`, plus a required new regression test file
+      `tests/sync/test_diagnose.py`) as "plan-review remediation" closing
+      PLAN-ARCH-001/004, but spec.md's FR table (FR-001..FR-010) contains zero
+      mention of diagnose.py — confirmed by grep, zero hits for "diagnose" anywhere
+      in spec.md. NFR-003 explicitly enumerates the bounded per-WP test-validation
+      surface as `tests/dossier/`, `tests/sync/test_events_namespace.py`,
+      `tests/sync/test_dossier_pipeline.py`, and `tests/architectural/` —
+      `tests/sync/test_diagnose.py` is not on that list, so the plan's own revised
+      Testing paragraph now contradicts spec.md's binding NFR-003 as written. Because
+      the next mission phase (tasks.md / WP generation) typically derives its work
+      packages from spec.md's FR enumeration, work with no FR peg and a test surface
+      spec.md's own NFR-003 doesn't authorize is at real risk of being silently
+      dropped from tasks.md, even though the underlying bug is real and independently
+      verified (diagnose_events() raises AttributeError on any dossier event once the
+      FR-006 sentinel lands, per direct code inspection of diagnose.py).
+    remediation: >
+      Before or alongside this plan, update spec.md: either broaden FR-006's scope
+      statement to explicitly name the diagnose.py::_validate_payload coordinated
+      fix and add tests/sync/test_diagnose.py to NFR-003's bounded list, or add a new
+      FR-011 covering the diagnose.py delegate branch and its regression test, so
+      tasks.md's WP generation has an FR to trace this work to and NFR-003 stops
+      contradicting the plan's actual test surface.
+
+  - id: PLAN-FRESH-002
+    lens: internal consistency
+    severity: 3
+    title: New is_dossier_delegate() predicate is introduced for diagnose.py but emitter.py's own _validate_payload still shown using a raw `is` sentinel comparison
+    evidence:
+      - artifact: "plan.md § FR-006/FR-007 sentinel shape (pre-existing/unchanged code sample, ~line 402): `if rules is _DOSSIER_VALIDATE_EVENT_DELEGATE: return self._validate_dossier_payload(...)`"
+      - artifact: "plan.md § Mission-Specific Design Decisions › \"diagnose.py coordinated fix\" (lines 479-513): defines `is_dossier_delegate(rules)` and has diagnose.py call it"
+    claim: >
+      The plan's pre-existing (unchanged by this revision) code sample for
+      emitter.py::_validate_payload does the sentinel check via a raw identity
+      comparison, `rules is _DOSSIER_VALIDATE_EVENT_DELEGATE`, not via any predicate
+      function. This revision's new remediation section introduces
+      `is_dossier_delegate(rules)` specifically so diagnose.py can check the sentinel
+      without importing the private `_DOSSIER_VALIDATE_EVENT_DELEGATE` object
+      directly, and explicitly claims diagnose.py "delegates ... the same way
+      emitter.py::_validate_dossier_payload does" — implying behavioral parity — but
+      never updates emitter.py's own `_validate_payload` sample to call the new
+      predicate too. As specified, the plan leaves the exact same identity check
+      implemented two different ways across the two files that land in the same
+      commit (Phase 3): raw `is` in emitter.py, wrapped predicate in diagnose.py.
+      That's an avoidable inconsistency an implementer or code reviewer is likely to
+      stop and reconcile mid-WP, and if the sentinel-check logic ever needs to change
+      later, only the diagnose.py call site would pick up the change automatically.
+    remediation: >
+      Update the emitter.py `_validate_payload` code sample in "FR-006/FR-007
+      sentinel shape" to also call `is_dossier_delegate(rules)` instead of the raw
+      `rules is _DOSSIER_VALIDATE_EVENT_DELEGATE` comparison, so both consumers share
+      one predicate and only `is_dossier_delegate()`'s own definition needs to
+      reference the sentinel object directly.

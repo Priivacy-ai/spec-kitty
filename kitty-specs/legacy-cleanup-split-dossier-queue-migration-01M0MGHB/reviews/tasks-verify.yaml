@@ -1,0 +1,16 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-DECOMP-001
+    status: resolved
+    reason: plan.md's PR Shape LOC table now has a real row for tests/sync/test_events.py (~30-50 LOC, tied to WP02/T012) and both plan.md and tasks.md's restated figures were changed in place to matching corrected totals (9 files, ~600-870 LOC), not just a footnote bolted onto the old 8-files/570-820 numbers.
+  - id: TASKS-DECOMP-002
+    status: resolved
+    reason: WP02's Objectives & Success Criteria now opens with an explicit "(1) sentinel delegation mechanism ... (2) coordinated diagnose.py consumer fix" naming of the two bundled sub-concerns, closing the gap of having to reconstruct them from scattered Purpose fields.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: T020 now states the isinstance assertion is binding and must be present in the diff, adds a mandatory revert-and-confirm-red step matching T006/T011/T012/T016's pattern, Review Guidance gained a corresponding closing line, and the "minimal addition (or none)" escape hatch is fully removed and replaced with explicit "There is no ... option" language, not merely softened.
+  - id: TASKS-VERIFY-002
+    status: resolved
+    reason: T018 step 4 now requires explicitly running pytest ...::TestWirePayloadModelsRejectExtras::test_extras_rejected after the import swap and confirming it passes unmodified, and Review Guidance gained a corresponding line referencing SC-003/plan.md's FR-001 row.

@@ -1,0 +1,186 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: confirmed
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+- id: SPEC-GOV-001
+  merged_from:
+  - SPEC-GOV-001
+  - SPEC-VERIFY-002
+  lens: Scope-correction fidelity / Falsifiability / evidence accuracy
+  severity: 2
+  title: FR-006's cited emitter.py:827-897 range overstates the touched region by including the unrelated
+    MissionOriginBound rule
+  evidence:
+  - artifact: "spec.md \xA7 FR-006 (Requirements table, line 371)"
+  - code: "src/specify_cli/sync/emitter.py:827-875 (the four dossier _PAYLOAD_RULES entries; line 875\
+      \ is the closing `},` of MissionDossierParityDriftDetected, the last of the four \u2014 independently\
+      \ confirmed by orchestrator re-check)"
+  - code: src/specify_cli/sync/emitter.py:876-893 (MissionOriginBound entry, unrelated, must NOT be touched
+      by this mission)
+  - code: src/specify_cli/sync/emitter.py:895-897 (dict close + VALID_EVENT_TYPES assignment)
+  claim: 'FR-006 cites "_PAYLOAD_RULES (`emitter.py:827-897`)" as the location of "the four hand-maintained
+    dossier entries." Verified independently by two lens sessions (gov, verify) and re-confirmed by the
+    orchestrator during R2: the four dossier entries actually span lines 827-875 (line 875 closes the
+    last entry, MissionDossierParityDriftDetected). Lines 876-893 are the unrelated MissionOriginBound
+    entry, and 895-897 are the dict''s closing brace plus the VALID_EVENT_TYPES assignment. The cited
+    range is ~22 lines wider than the actual dossier entries and includes a sibling event type''s validation
+    rules. The FR''s prose is otherwise unambiguous (it names the four dossier entries by type-string),
+    so this does not change what an implementer would build on its own, but combined with SPEC-ARCH-002''s
+    shape-tension finding below, an imprecise line range compounds the risk of an implementer touching
+    MissionOriginBound''s block by mistake.
+
+    '
+  remediation: 'Correct FR-006''s citation to "emitter.py:827-875" (the four dossier entries only), or
+    drop the numeric range and rely on the type-string enumeration already in the FR text, so the citation
+    does not imply MissionOriginBound (876-893) is part of the edit surface.
+
+    '
+- id: SPEC-GOV-002
+  merged_from:
+  - SPEC-GOV-002
+  - SPEC-ARCH-004
+  lens: Scope-correction fidelity / Contracts (citation accuracy)
+  severity: 1
+  title: FR-007 cites emitter.py:2510-2512 for the unknown-event-type rejection check; the actual `if`
+    line is 2514 (block spans ~2513-2516)
+  evidence:
+  - artifact: "spec.md \xA7 FR-007 (Requirements table)"
+  - code: src/specify_cli/sync/emitter.py:2508-2510 (tail of the preceding aggregate_type check, ending
+      in `return False`), 2511 blank, 2512 (comment `# 3. Validate event_type is one of the 8 known types`)
+  - code: "src/specify_cli/sync/emitter.py:2513 (`event_type = event[\"event_type\"]`), 2514 (`if event_type\
+      \ not in VALID_EVENT_TYPES:` \u2014 the actual rejection check), 2515-2516 (warning print + `return\
+      \ False`)"
+  claim: "FR-007 cites \"the unknown-event-type rejection path (`emitter.py:2510-2512`)\". Verified independently\
+    \ by two lens sessions (gov, arch) and re-confirmed by the orchestrator during R2: lines 2510-2512\
+    \ are the tail of the *preceding* aggregate_type check plus a comment line, not the event_type rejection\
+    \ itself. The actual `if event_type not in VALID_EVENT_TYPES:` check is on line 2514 (block context\
+    \ 2513-2516). The underlying requirement (keep the four dossier keys in _PAYLOAD_RULES/VALID_EVENT_TYPES\
+    \ so this path stays unaffected) is independently correct and verified by all three lens sessions\
+    \ \u2014 only the pinpoint citation drifted.\n"
+  remediation: 'Correct the citation to "emitter.py:2513-2516" (or "2514" for the `if` line alone), or
+    drop the specific line range and cite the function name only, since implementation-time edits above
+    this point will shift it again regardless.
+
+    '
+- id: SPEC-ARCH-001
+  lens: Type-compatibility trap (FR-005) / Reflexivity
+  severity: 3
+  title: FR-005 drops the dormant last_known content-hash parameters without naming the mechanism that
+    keeps a future re-introduction loud rather than silent
+  evidence:
+  - artifact: "spec.md \xA7 Clarifications (\"Q: Can the canonical MissionDossierArtifactMissingPayload.last_known_ref...\"\
+      ) and \xA7 FR-005"
+  - code: src/specify_cli/dossier/events.py:424-481 (current last_known_content_hash_sha256/last_known_size_bytes
+      branch being dropped)
+  - code: 'src/specify_cli/sync/dossier_pipeline.py:126-140 (the emit_artifact_missing call site is wrapped
+      in `except Exception as e: logger.warning(...)`, confirmed at line 140)'
+  claim: "FR-005's resolution (drop the dormant last_known_content_hash_sha256/last_known_size_bytes parameters\
+    \ entirely, no shim) is architecturally sound for the current call graph, but neither FR-005 nor its\
+    \ Clarification states what happens if a future in-repo caller adds last_known_content_hash_sha256=...\
+    \ back to an emit_artifact_missing(...) call. Because FR-003 also removes emit_artifact_missing's\
+    \ **kwargs: Any (the whole legacy bridge), such a call would raise TypeError, which \u2014 if it landed\
+    \ in sync/dossier_pipeline.py's existing artifact-missing call site \u2014 is caught by the same broad\
+    \ except Exception this spec elsewhere identifies (Clarifications, re: _consume_legacy_values) as\
+    \ the repo's dominant silent-success failure mode, the exact class FR-004 exists to close for the\
+    \ other dropped parameters. FR-005 relies implicitly on the repo's mypy zero-issues gate catching\
+    \ an unexpected-keyword call statically, but never says so.\n"
+  remediation: "Add one sentence to FR-005 (or a new NFR) naming the structural mechanism that keeps a\
+    \ future re-introduction loud, not silent: e.g. \"Any future caller passing these removed parameter\
+    \ names is rejected at mypy/type-check time (TypeError: unexpected keyword argument) before it can\
+    \ reach dossier_pipeline.py's broad except-Exception wrapping\" \u2014 and state that if this data\
+    \ need resurfaces it must be threaded through as an explicit, typed, keyword-only parameter (never\
+    \ via a re-added **kwargs), consistent with FR-004's own promotion pattern.\n"
+- id: SPEC-ARCH-002
+  lens: Contracts
+  severity: 3
+  title: FR-006 and FR-007 leave the post-change data shape of the four dossier _PAYLOAD_RULES entries
+    unspecified, and it is not a shape the current generic validator code can consume unchanged
+  evidence:
+  - artifact: "spec.md \xA7 FR-006 and \xA7 FR-007"
+  - code: 'src/specify_cli/sync/emitter.py:2549-2572 (_validate_payload: `rules = _PAYLOAD_RULES.get(event_type)`,
+      then unconditionally `rules["required"] - set(payload.keys())` and `rules["validators"].items()`)'
+  - code: 'src/specify_cli/sync/emitter.py:827-875 (the four dossier entries as `{"required": {...}, "validators":
+      {...}}` dicts) and emitter.py:897 (`VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())`)'
+  claim: "FR-006 says the four hand-maintained dossier entries in _PAYLOAD_RULES are \"replaced\" by a\
+    \ code path that calls spec_kitty_events.conformance.validate_event(...) from inside _validate_payload.\
+    \ FR-007 separately requires the four dossier event-type strings to remain keys in _PAYLOAD_RULES\
+    \ (not merely in VALID_EVENT_TYPES) so the unknown-event-type rejection path is unaffected. But _validate_payload's\
+    \ single, generic code path (verified at emitter.py:2549-2572) treats every _PAYLOAD_RULES[event_type]\
+    \ value uniformly as {\"required\": set[str], \"validators\": dict[str, Callable]} \u2014 there is\
+    \ no existing per-event- type branch. FR-006+FR-007 together therefore require either (a) the dossier\
+    \ keys' values change shape while _validate_payload gains a new early-return branch for dossier event\
+    \ types before the generic rules[\"required\"]/rules[\"validators\"] access, or (b) some other reconciliation\
+    \ \u2014 but the spec never states which. An implementer following FR-006 literally (delete the four\
+    \ rule-dicts) while also satisfying FR-007 literally (keep the four keys in _PAYLOAD_RULES) without\
+    \ independently inventing this branch will hit a KeyError/type-shape mismatch in the existing generic\
+    \ loop the first time a dossier event is validated.\n"
+  remediation: "Add a sentence to FR-006 (or a Key Entities bullet) stating the concrete post-change shape,\
+    \ e.g.: \"_PAYLOAD_RULES[event_type] for the four dossier types becomes a sentinel value (or is removed\
+    \ and validated via a DOSSIER_EVENT_TYPES frozenset unioned into VALID_EVENT_TYPES instead \u2014\
+    \ pick one), and _validate_payload gains an explicit `if event_type in DOSSIER_EVENT_TYPES: return\
+    \ self._validate_dossier_payload(event_type, payload)` branch ahead of the generic rules[\"required\"\
+    ]/rules[\"validators\"] access, so the two code paths never both try to interpret the same dict value.\"\
+    \n"
+- id: SPEC-ARCH-003
+  lens: Contracts
+  severity: 2
+  title: FR-006's call target spec_kitty_events.conformance.validate_event(...) is not reachable via bare
+    attribute access after the package's existing top-level import style
+  evidence:
+  - artifact: "spec.md \xA7 FR-006 (\"calls spec_kitty_events.conformance.validate_event(payload, event_type,\
+      \ strict=True)\")"
+  - code: 'src/specify_cli/sync/emitter.py (existing style: `from spec_kitty_events import Event as EventModel`,
+      inside _validate_event)'
+  claim: "Verified directly against the installed 6.1.0 package: `import spec_kitty_events; 'conformance'\
+    \ in dir(spec_kitty_events)` returns False \u2014 the conformance submodule is not auto-exposed as\
+    \ an attribute of the top-level spec_kitty_events package by a bare `import spec_kitty_events`. FR-006's\
+    \ phrasing, read as written, could lead an implementer to write spec_kitty_events.conformance.validate_event(...)\
+    \ as a bare attribute chain after only the existing `from spec_kitty_events import Event as EventModel`-style\
+    \ import, which raises AttributeError: module 'spec_kitty_events' has no attribute 'conformance' on\
+    \ first call. This fails loudly (not a silent-failure risk), so it is a minor correctness/precision\
+    \ gap.\n"
+  remediation: 'State the exact import in FR-006: "from spec_kitty_events.conformance import validate_event
+    (imported at module scope in emitter.py, alongside the existing `from spec_kitty_events import Event`
+    import)."
+
+    '
+- id: SPEC-VERIFY-001
+  lens: FR-004 revert-test / silent-swallow verification
+  severity: 4
+  title: FR-004's cited regression coverage mocks the emitters without autospec, so it would not catch
+    the exact TypeError-swallowed-by-except-Exception regression the AC exists to guard against
+  evidence:
+  - artifact: "spec.md \xA7 User Story 2, Independent Test and Acceptance Scenario 1 (lines ~290-307)"
+  - artifact: "spec.md \xA7 FR-004 (line 369)"
+  - code: "tests/sync/test_dossier_pipeline.py:108-113 \u2014 @patch(\"specify_cli.dossier.events.emit_snapshot_computed\"\
+      ) / @patch(\"specify_cli.dossier.events.emit_artifact_indexed\") applied at the TestSyncFeatureDossier\
+      \ class level, no autospec=True and no spec=..."
+  - code: "tests/sync/test_dossier_pipeline.py:462 \u2014 @patch(\"specify_cli.dossier.events.emit_artifact_missing\"\
+      ), same plain-Mock pattern"
+  - code: "src/specify_cli/sync/dossier_pipeline.py:101-122, 126-145 \u2014 the two call sites, each wrapped\
+      \ in except Exception as e: logger.warning(...)"
+  claim: "User Story 2's Independent Test says to run \"sync/dossier_pipeline.py's artifact-indexing/missing\
+    \ path end-to-end against a real dossier fixture (existing tests/sync/test_dossier_pipeline.py coverage)\
+    \ after the bridge is removed\", and FR-004's Acceptance Scenario 1 states the AC \"fails (regresses)\
+    \ if reverting FR-004's parameter promotion causes the call to raise, because that raise is caught\
+    \ by dossier_pipeline.py's except Exception ... which a plain 'does it crash' test would not catch.\"\
+    \ Verified directly: every existing test in tests/sync/test_dossier_pipeline.py that exercises sync_feature_dossier\
+    \ patches the three emitters with plain unittest.mock.patch (no autospec=True, no spec=). A plain\
+    \ MagicMock accepts arbitrary keyword arguments regardless of the real function's signature \u2014\
+    \ it will never raise TypeError for an unexpected keyword, so dossier_pipeline.py's except Exception\
+    \ branch is never exercised by these tests and events_emitted never regresses even if emit_artifact_indexed/emit_artifact_missing\
+    \ were reverted to reject step_id=/required_status=/blocking=. No other test file in the repo calls\
+    \ sync_feature_dossier (or the pipeline's internal _emit_artifact_events) with the real, unmocked\
+    \ emitter functions. The spec never mentions autospec or instructs the implementer to exercise the\
+    \ real (unmocked) emitter through the pipeline call site; nothing in FR-004/AC1/AC2 text rules out\
+    \ satisfying the AC with another mocked-emitter test following the file's existing convention, which\
+    \ would be vacuous for the stated regression class.\n"
+  remediation: "Add an explicit instruction to FR-004 (or a new acceptance scenario) requiring the regression\
+    \ test to call sync_feature_dossier (or the internal pipeline helper) WITHOUT mocking emit_artifact_indexed/emit_artifact_missing\
+    \ \u2014 either exercise the real functions end-to-end (asserting the real TypeError cannot occur\
+    \ post-fix) or, if mocking is retained for isolation, require autospec=True (or spec=emit_artifact_indexed)\
+    \ so an unexpected/removed keyword argument still raises TypeError through the mock. Name this explicitly\
+    \ so implementation and review can verify the new test would actually go red if FR-004's promotion\
+    \ were reverted.\n"
