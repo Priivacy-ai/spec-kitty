@@ -94,7 +94,7 @@ uv run --extra test ruff check \
   tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages_performance.py \
   tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py
 
-uv run --extra test mypy --strict \
+uv run --extra lint mypy --strict \
   src/specify_cli/cli/commands/agent/finalization_eligibility.py \
   src/specify_cli/cli/commands/agent/mission_finalize.py
 ```
