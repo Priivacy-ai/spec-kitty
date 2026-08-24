@@ -756,7 +756,6 @@ def test_local_auth_and_coherent_boundary_meet_nfr_007_without_network(
         queue_db_path=tmp_path / "queue.db",
         pid=1,
     )
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     monkeypatch.setattr(
         "specify_cli.sync.preflight.classify_owner_record", lambda: None
     )
