@@ -36,6 +36,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from runtime.next import runtime_bridge as rb
+from runtime.next._internal_runtime import MissionRunRef
+from runtime.next.decision import DecisionKind
 from runtime.next.runtime_bridge import _check_cli_guards
 from runtime.next.runtime_bridge_cores import (
     _GUARD_TABLES,
@@ -363,7 +365,7 @@ class TestAC1AC2ComposedActionGuardOrgTierConvergence:
 
         run_dir = tmp_path / "run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        run_ref = rb.MissionRunRef(run_id="run-qa", run_dir=str(run_dir), mission_key="042-qa-mission")
+        run_ref = MissionRunRef(run_id="run-qa", run_dir=str(run_dir), mission_key="042-qa-mission")
         ctx = rb.DecideNextContext(
             agent="agent-x",
             mission_slug="042-qa-mission",
@@ -383,7 +385,7 @@ class TestAC1AC2ComposedActionGuardOrgTierConvergence:
 
         decision = rb._dn_composition_blocked_decision(ctx, "accept", failures)
 
-        assert decision.kind == rb.DecisionKind.blocked
+        assert decision.kind == DecisionKind.blocked
         assert decision.guard_failures == failures
 
     def test_present_artifact_passes_via_genuine_evaluation(self, tmp_path: Path) -> None:
@@ -459,7 +461,7 @@ class TestAC8RepoRootThreadedThroughDnDependencyGate:
 
         run_dir = tmp_path / "run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        run_ref = rb.MissionRunRef(
+        run_ref = MissionRunRef(
             run_id="run-custom", run_dir=str(run_dir), mission_key="042-custom-mission"
         )
         ctx = rb.DecideNextContext(
@@ -515,7 +517,7 @@ class TestAC8RepoRootThreadedThroughDnDependencyGate:
 
         run_dir = tmp_path / "run"
         run_dir.mkdir(parents=True, exist_ok=True)
-        run_ref = rb.MissionRunRef(
+        run_ref = MissionRunRef(
             run_id="run-sd", run_dir=str(run_dir), mission_key="042-sd-feature"
         )
         ctx = rb.DecideNextContext(
