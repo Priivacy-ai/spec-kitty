@@ -1,7 +1,7 @@
 {
-  "event_count": 2,
-  "last_event_id": "01M0S08RPN9BGGM803KQWX53T6",
-  "materialized_at": "2026-08-24T04:25:43.381154+00:00",
+  "event_count": 3,
+  "last_event_id": "01M0S08TMQREYTYXEG0KZFPXGV",
+  "materialized_at": "2026-08-24T04:25:45.367902+00:00",
   "mission_number": "",
   "mission_slug": "org-tier-expected-artifacts-unreachable-01M0RMBG",
   "mission_type": "software-dev",
@@ -9,10 +9,10 @@
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
-    "claimed": 1,
+    "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 0
   },
@@ -20,9 +20,9 @@
     "WP01": {
       "actor": "claude",
       "force_count": 0,
-      "lane": "claimed",
-      "last_event_id": "01M0S08RPN9BGGM803KQWX53T6",
-      "last_transition_at": "2026-08-24T04:25:43.381154+00:00",
+      "lane": "in_progress",
+      "last_event_id": "01M0S08TMQREYTYXEG0KZFPXGV",
+      "last_transition_at": "2026-08-24T04:25:45.367902+00:00",
       "subtasks": {
         "T001": "done",
         "T002": "done",
