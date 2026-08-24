@@ -1,3 +1,12 @@
+---
+title: 'Research: the declared-but-inert doctrine/DRG seam family (#3608, #3530, #3629)'
+description: 'Research brief for the declared-but-inert doctrine/DRG seam family: the shared declaration-vs-consumption root cause and per-issue accuracy verdicts (#3608, #3530, #3629).'
+doc_status: deprecated
+updated: '2026-08-24'
+related:
+- docs/plans/3-2-x-milestone-roadmap.md
+- docs/plans/domains/doctrine-charter-domain-plan.md
+---
 # Research: the "declared-but-inert" doctrine/DRG seam family (#3608, #3530, #3514, #3511, #3629)
 
 **Date:** 2026-08-23
