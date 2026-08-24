@@ -48,7 +48,7 @@ from spec_kitty_events.conformance.validators import (
     _EVENT_TYPE_TO_MODEL as _CANONICAL_EVENT_TYPE_MODELS,
 )
 from .batch import categorize_error
-from .emitter import _PAYLOAD_RULES, VALID_AGGREGATE_TYPES
+from .emitter import _PAYLOAD_RULES, VALID_AGGREGATE_TYPES, is_dossier_delegate
 
 if TYPE_CHECKING:
     from .body_queue import BodyQueueStats, OfflineBodyUploadQueue
@@ -301,6 +301,28 @@ def _validate_payload(
     rules = _PAYLOAD_RULES.get(event_type)
     if rules is None:
         return
+
+    if is_dossier_delegate(rules):
+        from spec_kitty_events.conformance import validate_event
+
+        result = validate_event(payload, event_type, strict=True)
+        if not result.valid:
+            errors.extend(
+                str(v) for v in (*result.model_violations, *result.schema_violations)
+            )
+        return
+
+    # rules is not the dossier delegation sentinel at this point, so it is
+    # the generic {"required": ..., "validators": ...} dict shape -- narrow
+    # for mypy (``_PAYLOAD_RULES``'s value type is ``dict[str, Any] | object``).
+    # `raise`, not `assert` -- `assert` is stripped under `python -O`, which
+    # would leave `rules.get(...)` below silently misbehaving against a
+    # non-dict instead of failing loudly (WP02-ASSERT-RAISE).
+    if not isinstance(rules, dict):
+        raise TypeError(
+            f"_PAYLOAD_RULES[{event_type!r}] is neither the dossier "
+            f"delegation sentinel nor a dict; got {type(rules).__name__}"
+        )
 
     # Required fields
     required: set[str] = rules.get("required", set())

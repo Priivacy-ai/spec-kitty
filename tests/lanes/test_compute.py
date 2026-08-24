@@ -10,6 +10,7 @@ from specify_cli.lanes.compute import (
     find_overlap_pairs,
     infer_surfaces,
 )
+from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 pytestmark = pytest.mark.fast
@@ -21,6 +22,19 @@ def _manifest(owned_files: list[str], mode: str = "code_change") -> OwnershipMan
         owned_files=tuple(owned_files),
         authoritative_surface=owned_files[0] if owned_files else "",
     )
+
+
+def _assert_manifest_graph_is_acyclic(manifest: LanesManifest) -> None:
+    """Independently prove the returned lane graph admits a topological order."""
+    remaining = {lane.lane_id: set(lane.depends_on_lanes) for lane in manifest.lanes}
+    visited: set[str] = set()
+    while ready := sorted(
+        lane_id
+        for lane_id, dependencies in remaining.items()
+        if lane_id not in visited and dependencies <= visited
+    ):
+        visited.update(ready)
+    assert visited == set(remaining)
 
 
 # ---------------------------------------------------------------------------
@@ -45,6 +59,11 @@ class TestDependenciesGrouping:
         assert by_wp["WP01"].parallel_group == 0
         assert by_wp["WP02"].parallel_group == 1
         assert by_wp["WP03"].parallel_group == 2
+        assert result.mission_branch == "kitty/mission-test-feat"
+        assert result.target_branch == "main"
+        assert result.collapse_report is not None
+        assert result.collapse_report.events == []
+        _assert_manifest_graph_is_acyclic(result)
 
     def test_diamond_dag_keeps_middle_parallel(self):
         """A→B, A→C, B→D, C→D: B and C can run in parallel."""
@@ -70,6 +89,8 @@ class TestDependenciesGrouping:
             by_wp["WP03"].lane_id,
         }
         assert by_wp["WP02"].parallel_group == by_wp["WP03"].parallel_group
+        assert all(lane.depends_on_lanes == tuple(sorted(lane.depends_on_lanes)) for lane in result.lanes)
+        _assert_manifest_graph_is_acyclic(result)
 
     def test_two_independent_chains_keep_parallel_starts(self):
         """A→B and C→D with no overlap → four lanes across two depths."""
@@ -137,6 +158,9 @@ class TestWriteScopeGrouping:
         wp01_lane = next(lane for lane in result.lanes if lane.wp_ids == ("WP01",))
         overlap_lane = next(lane for lane in result.lanes if set(lane.wp_ids) == {"WP02", "WP03"})
         assert overlap_lane.depends_on_lanes == (wp01_lane.lane_id,)
+        assert result.collapse_report is not None
+        assert result.collapse_report.independent_wps_collapsed == 1
+        _assert_manifest_graph_is_acyclic(result)
 
 
 # ---------------------------------------------------------------------------
@@ -241,6 +265,9 @@ class TestPlanningArtifactLane:
                 code_wp_ids.update(lane.wp_ids)
         assert "WP01" in code_wp_ids
         assert "WP03" in code_wp_ids
+        assert planning_lane.depends_on_lanes == ()
+        assert result.planning_artifact_wps == ["WP02"]
+        _assert_manifest_graph_is_acyclic(result)
 
     def test_planning_artifact_wps_is_derived_view(self):
         """LanesManifest.planning_artifact_wps is a derived view from lane-planning."""
@@ -339,6 +366,7 @@ class TestLaneLevelDependencies:
         assert result.lanes[0].wp_ids == ("WP02",)
         assert result.lanes[1].wp_ids == ("WP01",)
         assert result.lanes[1].depends_on_lanes == (result.lanes[0].lane_id,)
+        _assert_manifest_graph_is_acyclic(result)
 
 
 # ---------------------------------------------------------------------------

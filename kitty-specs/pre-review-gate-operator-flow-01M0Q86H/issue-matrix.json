@@ -1,0 +1,77 @@
+{
+  "rows": {
+    "#2573": {
+      "evidence_ref": "Mission implementation and local acceptance are complete; release remains waiting_upstream on #3127 and native Windows CI.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "move-task --to for_review runs a synchronous multi-minute pre-review gate that reads as a hang (no skip flag, sync-daemon deaf to disable env)",
+      "verdict": "in-mission",
+      "wp": "WP05"
+    },
+    "#2762": {
+      "evidence_ref": "Follow-up: #2762 owns escaped-orphan cleanup; this Mission proves catchable cleanup and lane/event integrity without claiming hard-kill orphan cleanup.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "pre-review gate leaks orphan daemons that escaped the process group (setsid grandchildren survive killpg/taskkill)",
+      "verdict": "deferred-with-followup",
+      "wp": "WP04"
+    },
+    "#3127": {
+      "evidence_ref": "Open upstream release prerequisite; after it merges, rebase, rerun required checks and actual ci-windows, then reassess #2573.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "ci: fast-tests-status has been silently skipped for 4+ runs by a job-dependency gate, not a path filter",
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    },
+    "#3281": {
+      "evidence_ref": "Follow-up: #3281 records the planning/lane conflict reproduced identically on delivery-branch HEAD and origin/main; manual recovery reached for_review and done.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "mission-review.md",
+      "title": "origin HEAD: recorded planning merge conflicts during lane allocation; retry skips dependency propagation",
+      "verdict": "deferred-with-followup",
+      "wp": "WP05"
+    },
+    "#3694": {
+      "evidence_ref": "The local acceptance defect is fixed by the integrated canonical mission-meta fixture; tracker closure remains pending PR evidence.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "traceability.md",
+      "title": "Pre-review integration fixtures resolve an empty mission-type gate contract",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    },
+    "#3695": {
+      "evidence_ref": "The local acceptance defect is fixed by the integrated ACTIVE software-dev/review binding assertion; tracker closure remains pending PR evidence.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "traceability.md",
+      "title": "Pre-review gate integration fixtures no longer activate review contract",
+      "verdict": "in-mission",
+      "wp": "WP03"
+    }
+  },
+  "schema_version": 1
+}

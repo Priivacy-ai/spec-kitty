@@ -1,0 +1,26 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: refuted
+    reason: Commit 75d707d89 and its defects (no commitlint prefix, "feature" wording) are real and confirmed live, but plan.md's own Tracer Files section explicitly states tracer-file items are "assessed per Standing Order #3's 'assess at close' step (handled by the review/close phase, not this plan)" — the commit-hygiene note is already correctly deferred by the mission's own documented process (tracer file + SPEC-KITTY-LEDGER SK-64), not omitted through oversight, so this is not a plan-phase defect.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: Verified src/specify_cli/sync/diagnose.py:51,215,301-314 imports and consumes _PAYLOAD_RULES via rules.get("required"/"validators") with no try/except or sentinel check, plan.md's sentinel fix only patches EventEmitter's own method (not this independent free-function consumer), and grep confirms plan.md never mentions diagnose.py anywhere.
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: Verified tests/dossier/test_snapshot_emit.py:223-227 directly subscripts _PAYLOAD_RULES["MissionDossierSnapshotComputed"]["validators"], which would TypeError once that key becomes the sentinel object(); this file sits inside tests/dossier/ (in-scope per NFR-003) but plan.md's PR Shape table lists only test_events.py from that directory, confirmed absent from Phasing/ATDD mapping too.
+  - id: PLAN-ARCH-003
+    verdict: confirmed
+    reason: Verified src/specify_cli/sync/emitter.py:521 declares _PAYLOAD_RULES as dict[str, dict[str, Any]], the plan's sentinel design assigns object() to four keys without updating this annotation anywhere in the FR-006/FR-007 sentinel section, and CLAUDE.md's Code Style section does bind new code to pass mypy with zero issues independent of CI enforcement.
+  - id: PLAN-ARCH-004
+    verdict: confirmed
+    reason: A repo-wide grep for _PAYLOAD_RULES confirms consumers outside emitter.py beyond even what this finding lists (diagnose.py, test_snapshot_emit.py, plus test_handoff_fixtures.py and others), none enumerated in plan.md's Scale/Scope or Seam Identification sections, substantiating the claim that the blast-radius grep was never run.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: Verified in .github/workflows/ci-quality.yml that tests/dossier/** and tests/architectural/** share the "misc" path-filter group feeding integration-tests-core-misc (paths list includes tests/dossier at ~line 1953) while tests/sync/** routes separately to fast-tests-sync/integration-tests-sync, and a repo-wide grep for --cov-fail-under shows only three jobs (lines 1456, 2309, 2356) carry a floor — none of them the shards this mission's tests land in — confirming the Gate Set row misnames the shards and overstates floor protection.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: Verified dossier_pipeline.py wraps both emit_artifact_indexed/emit_artifact_missing calls in except Exception (swallowing a reverted-promotion TypeError), and plan.md's own "Test bar" (point 4) and ATDD FR-004 row both describe only the autospec signature-binding mechanism ("the mock enforces the real signature and raises the same TypeError, so the test goes red") without stating that an assertion on AC1/AC2's payload/behavioral content (diagnostics fields, blocking short-circuit) is required, leaving a literal reading of the plan's own binding test bar vacuous-for-purpose.
