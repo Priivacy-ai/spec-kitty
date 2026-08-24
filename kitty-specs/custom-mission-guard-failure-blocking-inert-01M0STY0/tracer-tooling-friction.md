@@ -129,3 +129,5 @@ custom-mission-guard-failure-blocking-inert-01M0STY0") — verified the same way
 occurrence: `git log`/`git status --porcelain -uno` read directly rather than trusting the hang
 or exit code, confirming `verdict: ready`, `findings: []`. Nothing hand-edited; this is a
 recurrence of the pattern already fully documented above, not a new root cause.
+
+2026-08-24 (analyze phase, fix round 2 re-run) — `record-analysis` hit ledger SK-93 a **third** time on this mission, same command and warning signature, this time on commit `26c80c758` ("Add analysis report for mission custom-mission-guard-failure-blocking-inert-01M0STY0"); ground truth verified the same way (`git log`/`git status --porcelain -uno` read directly) confirming `verdict: ready`, `findings: []` — same recurring pattern, nothing hand-edited.
