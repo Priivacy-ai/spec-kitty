@@ -1,0 +1,18 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: Verified `AcceptanceSummary.ok` (acceptance/__init__.py:368-379) gates on `not self.path_violations`/`not self.missing_artifacts` but never references `self.optional_missing`, and FR-002/Acceptance Scenario 1/C-001 in spec.md never state which side of the dedup (missing_optional vs path_violations) wins, so C-001's "not already implied by FR-002's dedup" clause is circular and does not pin the resolution direction.
+  - id: SPEC-GOV-002
+    verdict: refuted
+    reason: "`_missing_artifacts` (acceptance/__init__.py:585-595) checks a hardcoded literal list (quickstart.md, data-model.md, research.md, \"contracts\") that does NOT include \"data\", so even though research/mission.yaml declares data/ under both artifacts.optional (line 134) and paths.data (line 143), missing_optional never surfaces \"data\" today — the claimed pre-existing double-report defect for research's data/ does not reproduce, refuting the finding's central factual claim."
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: Verified `format_warnings()` (paths.py:44-59) and `format_errors()` (paths.py:61-78) both render from the same shared `PathValidationResult.warnings`/`.suggestions` fields built once by `validate_mission_paths`, and issue #2330 explicitly complains that "even with --lenient the path-convention warning and the mkdir -p ... suggestion still print" — the exact surface Story 3/FR-005 touches — while spec.md's Edge Cases never explicitly pins format_warnings() output as unchanged.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: 'Verified `_missing_artifacts(feature_dir: Path)` (acceptance/__init__.py:585-595) takes no `mission` parameter and never reads `mission.config.artifacts` (confirmed via grep: zero matches for `.config.artifacts` in acceptance/__init__.py or summary_core.py), unlike `validate_mission_paths` (paths.py:170-207) which genuinely reads `mission.config.paths` and cross-references `mission.config.artifacts.{required,optional}` — so spec.md''s Key Entities section attributing missing_optional''s computation to "the functions that read both lists" misdescribes the actual code, and the coincidence (hardcoded "contracts" matching software-dev''s declared token) is confirmed not to generalize to research''s data/ token.'

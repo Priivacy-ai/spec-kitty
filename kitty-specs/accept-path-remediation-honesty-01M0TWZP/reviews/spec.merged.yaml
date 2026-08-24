@@ -1,0 +1,328 @@
+# review-findings/v1 — merged (R2, mechanical concatenation + dedup by orchestrator)
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: merged
+mission: accept-path-remediation-honesty-01M0TWZP
+note: >
+  Mechanical merge of spec-gov.findings.yaml (3), spec-arch.findings.yaml (2),
+  spec-verify.findings.yaml (3) = 8 total. No duplicates found (no two findings
+  cite the same artifact section/file:line making substantially the same claim),
+  so all 8 pass through unchanged, ids preserved, nothing renumbered.
+  FLAG FOR REFUTER (not resolved here, per R2's mechanical-only mandate):
+  SPEC-GOV-002 and SPEC-ARCH-001 make FACTUALLY CONFLICTING claims about the same
+  code (_missing_artifacts in acceptance/__init__.py:585-595). GOV-002 claims the
+  research mission type's dual-declared `data/` token already reproduces the
+  #3085 double-report defect today. ARCH-001 claims (with a grep citation) that
+  _missing_artifacts uses a hardcoded literal list that does not include "data",
+  so no double-report exists for research today. Both cannot be confirmed as
+  written — check the live code independently rather than accepting either at
+  face value.
+findings:
+  - id: SPEC-GOV-001
+    lens: Non-goal boundary discipline (mission-derived)
+    severity: 4
+    title: FR-002 does not specify which severity "wins" when reconciling the dual-declared fact, leaving the pass/fail boundary for contracts/ effectively open to drift into #3016's territory
+    evidence:
+      - artifact: "spec.md § FR-002 (line 236), § User Story 2 Acceptance Scenario 1 (lines 102-107), § C-001 (line 256)"
+      - code: "src/specify_cli/acceptance/__init__.py:369-378 (AcceptanceSummary.ok gates on `not self.path_violations` but NOT on `optional_missing`)"
+      - code: "src/specify_cli/acceptance/summary_core.py:129-148 (evaluate_path_conventions), src/specify_cli/acceptance/__init__.py:585-595 (_missing_artifacts) — the two independent computations FR-002 must reconcile"
+    claim: >
+      FR-002 and its Acceptance Scenario 1 say the dual-declared fact must resolve to
+      "exactly one of missing_optional (non-blocking) or path_violations (blocking) —
+      never both" but never state which one it resolves to. This is not a stylistic gap:
+      `AcceptanceSummary.ok` (acceptance/__init__.py:369-378) gates on `path_violations`
+      but not on `optional_missing`, so the resolution direction chosen by whoever
+      implements FR-002 directly decides whether `accept` in strict mode continues to
+      hard-fail software-dev missions missing `contracts/`, or silently starts passing
+      them. C-001 tries to bound this ("no change to the pass/fail boundary... not
+      already implied by FR-002's dedup") but that clause is circular — any direction
+      chosen can be described as "implied by the dedup" — so it does not actually
+      constrain the choice. If an implementer resolves toward `missing_optional`
+      (treating the artifacts.optional declaration as authoritative), `accept` would
+      stop blocking on missing `contracts/` for every software-dev mission, which is
+      substantively the same relief #3016 asks for (make the convention non-blocking /
+      configurable) — landed here, silently, as a side effect of a "reporting-only"
+      dedup, exactly the drift the Non-Goals section says is out of scope ("#3016 ...
+      out of scope; This mission fixes what the check says, not what it enforces").
+    remediation: >
+      State the resolution direction explicitly in FR-002 (or as a new constraint next
+      to C-001): the reconciliation must preserve the more restrictive/blocking
+      severity when a token is declared in both lists (i.e. `path_violations` wins,
+      `missing_optional` drops the now-redundant entry) — matching the outcome that
+      is neutral with respect to #3016 (enforcement stays exactly as strict as today).
+      Add this as an explicit acceptance scenario asserting `AcceptanceSummary.ok` is
+      unchanged (still False) for the exact fixture used today, so a reviewer or CI
+      test can catch a regression toward the non-blocking resolution.
+
+  - id: SPEC-GOV-002
+    lens: Non-goal boundary discipline (mission-derived)
+    severity: 4
+    title: FR-002's dedup fix is code-side and mission-type-generic, but the spec's investigation (Key Entities, Verification Notes) checked only software-dev's contracts/ — research/mission.yaml has an identical, unacknowledged, untested dual declaration for data/
+    evidence:
+      - artifact: "spec.md § Key Entities (lines 272-276), § Verification Notes (lines 338-343) — both state/imply contracts/ in software-dev/mission.yaml is the source of the dual declaration, with no mention of any other mission type"
+      - code: "src/specify_cli/missions/research/mission.yaml:126-145 — `paths.data: \"data/\"` and `artifacts.optional` both declare `data/` for the same resolved location (verified programmatically: normalized token \"data\" is a member of both sets)"
+      - code: "src/specify_cli/acceptance/summary_core.py:129-148 and src/specify_cli/acceptance/__init__.py:585-595 — both functions run unconditionally for every mission type, so today's #3085 double-report defect (and whatever FR-002's fix does) already applies to research's data/ token exactly as it does to software-dev's contracts/"
+    claim: >
+      The spec's own investigation ("Key Entities", "Verification Notes") frames the
+      dual-declaration defect as a `software-dev`/`contracts/`-specific fact, and only
+      cites `src/specify_cli/missions/software-dev/mission.yaml` and its
+      `packs/built-in/` twin as evidence. But `evaluate_path_conventions` and
+      `_missing_artifacts` are mission-type-agnostic — they read whatever
+      `mission.config.artifacts`/`mission.config.paths` declare — and
+      `research/mission.yaml` independently declares `data/` under both
+      `artifacts.optional` and `paths.data` for the identical resolved location. This
+      means: (a) the pre-existing #3085 double-report defect this mission fixes already
+      reproduces for research missions missing `data/`, not just software-dev missions
+      missing `contracts/`, and the mission's own defect description is incomplete; and
+      (b) whatever code-side reconciliation FR-002 lands will change research-mission
+      `accept` behavior too, silently, with zero test coverage or acknowledgment — no
+      pinned test, fixture, or Success Criterion mentions `research` or `data/`. Given
+      SPEC-GOV-001's finding that the resolution direction itself is unspecified, this
+      compounds: research missions get an unreviewed, untested pass/fail-boundary
+      change riding on a fix scoped and verified against only one of four mission
+      types.
+    remediation: >
+      Either (a) explicitly widen FR-002/Key Entities to acknowledge the pattern is
+      mission-type-generic, add a second fixture/test using the research mission type's
+      `data/` dual declaration (mirroring FR-007's fixture), and confirm the same
+      resolution direction applies there with an explicit acceptance scenario; or (b) if
+      the mission intends to scope the code-side fix narrowly (e.g. only reconciling
+      when invoked for software-dev), state that constraint explicitly in C-001/C-002
+      and explain why research's identical-shaped defect is deliberately left
+      unfixed/out of scope for this mission (with a follow-up ledger/issue reference).
+      Silence on this is the actual gap — either choice is fine, but the spec must make
+      one and test it.
+
+  - id: SPEC-GOV-003
+    lens: Non-goal boundary discipline (mission-derived) / Scope
+    severity: 2
+    title: Non-Goals' "#2330 — out of scope; not touched by any requirement above" is not backed by an explicit guard against the one place this mission's own design decision could touch #2330's exact complaint
+    evidence:
+      - artifact: "spec.md § Non-Goals (line 322): \"#2330 — out of scope; not touched by any requirement above.\""
+      - artifact: "spec.md § User Story 3 Acceptance Scenarios (lines 145-155) — scoped explicitly to \"default (strict) mode\"/format_errors(), not the --lenient warning path"
+      - artifact: "tracer-design-decisions.md lines 23-33 — WP3's design keeps the mkdir -p suggestion and \"rank[s] --lenient first with a note\", implemented \"via a mode-parameter\""
+      - code: "src/specify_cli/validators/paths.py:44-59 (format_warnings, used under --lenient) vs. :61-78 (format_errors, strict mode) — both currently read from the SAME shared `self.suggestions` list built once by suggest_directory_creation"
+    claim: >
+      Issue #2330 explicitly names, as one of its own complaints, that "[e]ven with
+      --lenient the path-convention warning and the mkdir -p ... suggestion still
+      print, which is noise / actively misleading" for non-Python repos — i.e. the
+      exact `suggestions` content this mission's Story 3 is reworking (ranking
+      --lenient first, adding a note) for the strict-mode message. Because
+      `format_warnings()` (the lenient-mode print #2330 is about) and `format_errors()`
+      (the strict-mode print Story 3 targets) both currently draw from the same
+      `PathValidationResult.suggestions` list, an implementation of FR-005's "mode-
+      parameter" approach that touches the shared suggestions builder (rather than only
+      the trailing prose in `format_errors()`) risks also changing the lenient-mode
+      warning text — the exact surface #2330 is about. The spec's Acceptance Scenarios
+      are careful to say "default (strict) mode" throughout, which likely keeps this
+      mission clear of #2330 in practice, but there is no explicit edge case or
+      constraint pinning `format_warnings()`'s output as unchanged, so the Non-Goals
+      claim is asserted rather than demonstrated.
+    remediation: >
+      Add one edge case (alongside the existing "--json output" and "strict_metadata is
+      true but path is build/repo path" edge cases) stating explicitly:
+      "format_warnings()'s lenient-mode output (used under --lenient) is unchanged by
+      this mission — only format_errors()'s strict-mode message and --help text
+      change." This turns the current implicit boundary into a checkable constraint and
+      removes any ambiguity for the WP3 implementer about the shared `suggestions`
+      list.
+
+  - id: SPEC-ARCH-001
+    lens: Canonical source / mission-derived generality
+    severity: 4
+    title: "Key Entities section misattributes missing_optional's computation to a config read that does not exist in the code"
+    evidence:
+      - artifact: "spec.md § Key Entities — `AcceptanceSummary` paragraph, and (same claim) tracer-design-decisions.md § \"Decision: WP2's fix is code-side reconciliation\""
+      - code: "src/specify_cli/acceptance/__init__.py:585-595 (`_missing_artifacts`) and :1049 (its call site in `collect_feature_summary`)"
+    claim: >
+      The spec's Key Entities section states FR-002's reconciliation is code-side, "in the
+      functions that read both lists" (`mission.yaml`'s `artifacts.optional` and
+      `paths.deliverables`), implying `missing_optional` is computed by reading
+      `mission.config.artifacts.optional`. It is not: `_missing_artifacts(feature_dir: Path)`
+      takes no `mission` parameter at all and instead checks a hardcoded, mission-type-agnostic
+      literal list (`QUICKSTART_FILE`, `DATA_MODEL_FILE`, `RESEARCH_FILE`, and the bare string
+      `"contracts"`). It never reads `mission.config.artifacts` for any mission type. Verified by
+      grep: no occurrence of `mission.config.artifacts` / `.config.artifacts` anywhere in
+      `acceptance/__init__.py` or `acceptance/summary_core.py`. By contrast, `path_violations`
+      (via `evaluate_path_conventions` → `validate_mission_paths`) genuinely does read
+      `mission.config.paths` and `mission.config.artifacts.{required,optional}` — so only one
+      side of the "dual declaration" the spec describes is actually config-driven; the other is
+      a coincidental hardcoded literal that happens to match `contracts/` for `software-dev`
+      today. Confirmed the same coincidence does NOT hold for other mission types: the
+      `research` mission type declares an analogous dual-declared token (`data/` under both
+      `artifacts.optional` and `paths.data`, `src/specify_cli/missions/research/mission.yaml`
+      lines 134/143) but `_missing_artifacts`'s hardcoded list never checks `data/`, so no
+      double-report bug exists there today — despite the spec's Edge Cases section implying the
+      dedup logic generalizes to "a token declared under *both* lists for the same resolved
+      location" as if that were the operative test. An implementer trusting the spec's framing
+      literally could either (a) misdiagnose the fix location and attempt to make
+      `_missing_artifacts` genuinely config-driven — a materially larger change than scoped,
+      risking a C-001 violation (changes which paths are reported/enforced for `research` and
+      any future mission type by newly surfacing `data/` in `missing_optional`), or (b) write a
+      reconciliation keyed on "declared in both YAML lists" that silently does nothing today
+      (since `missing_optional` isn't actually driven by that declaration) while believing it
+      fixed the general case.
+    remediation: >
+      Correct the Key Entities section (and flag the same wording in
+      tracer-design-decisions.md, which the plan phase will read) to state precisely:
+      `missing_optional` is computed by `_missing_artifacts()` from a hardcoded literal list
+      that happens to include `"contracts"` — it does not read `mission.config.artifacts`.
+      FR-002's reconciliation must therefore operate as a post-hoc cross-reference between the
+      two already-computed result lists (`missing_optional` values vs. the resolved paths behind
+      `path_violations`/`missing_paths`), not as a "read both declared YAML lists" join. State
+      explicitly that this mission does not extend the fix to other mission types' potential
+      future dual declarations (e.g., `research`'s `data/`) since no double-report defect
+      currently exists there, to head off unintended scope creep in WP2.
+
+  - id: SPEC-ARCH-002
+    lens: Layering
+    severity: 3
+    title: "FR-004/FR-005 don't constrain which layer composes the --lenient-referencing text, risking a validator → CLI-vocabulary leak"
+    evidence:
+      - artifact: "spec.md FR-004, FR-005, User Story 3 Acceptance Scenario 2; tracer-design-decisions.md § \"Decision: WP3's honesty fix combines three of #3730's four candidate directions\""
+      - code: "src/specify_cli/validators/paths.py:61-78 (`PathValidationResult.format_errors`), `__all__` at :11-16 (public/reusable surface); src/specify_cli/acceptance/summary_core.py:137-148 (`evaluate_path_conventions`, the sole production caller)"
+    claim: >
+      `format_errors()` lives in `validators/paths.py` — a reusable, exported (`__all__`)
+      validator module with no knowledge of CLI flags today (it currently emits only the generic
+      "These directories are required by the active mission. Create them before continuing.").
+      FR-005 requires the strict-mode failure text to name `--lenient` specifically, a
+      command-layer flag name. The tracer-design-decisions.md file explicitly recognizes this
+      coupling risk ("via a mode-parameter, not a hardcoded flag-name string, to avoid
+      validator/CLI coupling") but that mitigation is not carried into spec.md as a binding
+      constraint, and even the tracer's own mitigation ("mode-parameter") only avoids hardcoding
+      *when* the text is shown — it does not itself prevent the literal string `"--lenient"` from
+      being composed inside `validators/paths.py`. Nothing in FR-004/FR-005/C-004 states where the
+      `--lenient`-referencing text must be composed. Since `validate_mission_paths` is called with
+      `strict=False` from the only production call site (`evaluate_path_conventions` always
+      passes `strict=False`), `format_errors()` is used purely as a string formatter here, not as
+      the trigger for `PathValidationError` — so there is no functional obstacle to composing the
+      mode-aware, `--lenient`-referencing wording in `summary_core.py` (which already has
+      `strict_metadata` in scope) or `accept.py` instead of inside the reusable validator. Absent
+      an explicit constraint, an implementer following FR-005's literal wording is equally likely
+      to hardcode "--lenient" directly into `PathValidationResult.format_errors()`, coupling a
+      reusable, exported validator to one specific CLI command's flag vocabulary — a concrete
+      architectural-integrity/context-aware-design gap (Directives 001/031) likely to surface as
+      review rework on WP3.
+    remediation: >
+      Add a constraint (alongside C-004, scoped to the same touched-surfaces list) stating that
+      the `--lenient` reference (or equivalent pointer) must be composed at or above the
+      acceptance layer (`summary_core.py`/`accept.py`), not hardcoded as a literal CLI-flag string
+      inside `validators/paths.py`'s `PathValidationResult`/`format_errors()`; the validator should
+      expose only the generic conditional-requirement fact (e.g., an existing boolean/parameter
+      already in scope, or a return-value the caller composes text around), preserving the
+      validator's reusability independent of any one CLI command's flag names.
+
+  - id: SPEC-VERIFY-001
+    lens: silent-success
+    severity: 4
+    title: "FR-002's dedup wording ('never both') does not explicitly forbid a reconciliation that reports the missing fact through NEITHER channel"
+    evidence:
+      - artifact: "spec.md § FR-002 (Functional Requirements table)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 1"
+      - artifact: "spec.md § SC-002 (Success Criteria)"
+      - artifact: "spec.md § Key Entities, AcceptanceSummary paragraph"
+      - code: "src/specify_cli/acceptance/__init__.py:585-595 (_missing_artifacts) and :1049-1117 (collect_feature_summary) — missing_optional and path_violations are two independent fields; .ok gates only on path_violations, not optional_missing (line 378)"
+    claim: >
+      FR-002's own row text is "so that 'optional' and 'blocking' never contradict
+      each other"; User Story 2's Acceptance Scenario 1 says the fact must be
+      "surfaced through exactly one of missing_optional (non-blocking) or
+      path_violations (blocking) — never both"; SC-002 repeats "either ... or ...,
+      never both"; the Key Entities paragraph says the two fields "never both carry
+      the same fact." In every one of these four places the emphasized, testable
+      clause is "never both" — none of them state "and never neither" as an
+      equally explicit requirement. A technically-compliant-but-wrong
+      "reconciliation" for a token declared under both artifacts.optional and
+      paths.* could satisfy "never both" by excluding the token from BOTH
+      missing_optional and path_violations when a conflict is detected (e.g. "if
+      dual-declared and missing, treat as already handled, skip both lists").
+      That would make AcceptanceSummary.ok true and print no warning at all for a
+      genuinely-missing kitty-specs/<slug>/contracts/ — i.e. the repo's dominant
+      silent-success failure mode (report success / drop the fact silently)
+      instead of the FR's intent (report it once, honestly). The only place the
+      spec states the stronger, unambiguous guard is the "Independent Test" prose
+      for Story 2 ("mentions contracts exactly once ... combined") — narrative
+      text that a task-writer working from the FR/SC tables (the more likely
+      source for /tasks generation) could miss. Story 4's fixture ACs (1-2) also
+      only repeat "reported through exactly one severity," the same ambiguous
+      phrasing, so the fixture itself would not obviously catch a
+      drop-both implementation unless its assertion is written to require
+      presence in at least one field, not just absence-of-both.
+    remediation: >
+      In FR-002's row, Story 2 Acceptance Scenario 1, SC-002, and the Key
+      Entities AcceptanceSummary paragraph, replace "never both" with an
+      explicit XOR framing that rules out the empty case too, e.g.: "the missing
+      fact MUST appear in exactly one of missing_optional or path_violations —
+      never in both, and never in neither; a dual-declared token whose resolved
+      location is missing must always surface as one or the other." Also
+      strengthen Story 4's fixture Acceptance Scenario 2 to assert presence in
+      exactly one field (not merely "not both"), mirroring the "exactly once"
+      wording already used in Story 2's Independent Test paragraph, so the
+      repro fixture itself would fail against a silently-drops-both
+      implementation.
+
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 2
+    title: "Story 3 Acceptance Scenario 4 ('not presented as the only or primary path') has no objectively falsifiable signal in spec.md itself"
+    evidence:
+      - artifact: "spec.md § User Story 3, Acceptance Scenario 4"
+      - artifact: "tracer-design-decisions.md § Decision: WP3's honesty fix combines three of #3730's four candidate directions"
+    claim: >
+      AC4 requires that when the mkdir -p suggestion is still offered, "it is not
+      presented as the only or primary path off the failure." Nothing in spec.md
+      defines what signal a test would check to determine "primary-ness" (text
+      order, bolding, a "secondary"/"optional" label, position relative to the
+      --lenient mention, etc.), so two different, equally spec-compliant
+      implementations could disagree about whether they satisfy this AC. The
+      concrete resolution actually exists — tracer-design-decisions.md states
+      "rank --lenient first with a note that mkdir -p only silences the check" —
+      but that resolution lives only in the tracer file, not in the spec's own
+      testable Acceptance Scenario text, so a reader of spec.md alone (e.g. a
+      fresh implementer or reviewer not cross-referencing the tracer) has no
+      falsifiable criterion to check against.
+    remediation: >
+      Fold the tracer's concrete resolution into AC4 itself, e.g.: "Given the
+      same failure, When the mkdir -p suggestion is still offered, Then the
+      --lenient pointer appears before the mkdir -p suggestion in the printed
+      failure text, and the mkdir -p line is explicitly marked as a secondary/
+      optional remedy (e.g. via wording such as '... or, if you want to adopt
+      the convention: mkdir -p ...')." This makes the AC checkable by a plain
+      string-order/string-content assertion without requiring the tracer file
+      as an external dependency.
+
+  - id: SPEC-VERIFY-003
+    lens: repro fixture testability & vacuity (mission-derived)
+    severity: 2
+    title: "FR-007/SC-004 do not pin which production entry point(s) the repro fixture must invoke, unlike FR-001"
+    evidence:
+      - artifact: "spec.md § FR-007 (Functional Requirements table)"
+      - artifact: "spec.md § SC-004 (Success Criteria)"
+      - artifact: "spec.md § FR-001 (Functional Requirements table) — for contrast, names validate_mission_paths as the tested unit via its Independent Test"
+      - artifact: "spec.md § NFR-001 — 'reproduced through the pre-existing entry point, per charter Standing Order 4 / ATDD', applies to FR-007 by cross-reference only"
+    claim: >
+      FR-007's own text and SC-004 require a fixture that "fails on pre-fix code
+      and passes on post-fix code" and (per Story 4's Acceptance Scenarios)
+      "observes" the bare-token path / dual-severity contradiction — but neither
+      FR-007 nor SC-004 names which function(s) or entry point the fixture must
+      actually call (contrast FR-001, whose Independent Test explicitly names
+      "invoke validate_mission_paths directly"). The anti-vacuity guarantee for
+      FR-007 currently depends entirely on inferring that NFR-001's general
+      "reproduced through the pre-existing entry point" clause also covers FR-007
+      (it says "every FR above 001-007," so it does apply, but only by cross-
+      reference, not by FR-007 being self-contained). A technically-compliant
+      fixture that hand-constructs a PathValidationResult/AcceptanceSummary
+      object in-test (never calling validate_mission_paths or
+      collect_feature_summary) would satisfy FR-007's literal "fails pre-fix,
+      passes post-fix" if the test author gates the assertion on a manual
+      constant rather than on real code — the git-stash-reversibility check in
+      the Independent Test paragraph would catch this only if a reviewer
+      actually performs it, which is not itself an enforced/testable AC.
+    remediation: >
+      Name the specific entry point(s) directly in FR-007's row and/or SC-004,
+      e.g.: "...by invoking validate_mission_paths and collect_feature_summary
+      (or the accept CLI command) directly against a real/realistic mission
+      layout — not a hand-built PathValidationResult/AcceptanceSummary stand-in
+      — so that reverting Stories 1-2's code changes necessarily flips the
+      fixture's own pass/fail result." This makes FR-007 self-contained rather
+      than relying on a reader connecting it to NFR-001's general clause.

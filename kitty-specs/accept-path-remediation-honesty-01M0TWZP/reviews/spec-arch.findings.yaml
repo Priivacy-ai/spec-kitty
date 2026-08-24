@@ -1,0 +1,92 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true              # yaml self-check passed
+phase: spec
+lens_group: arch
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: SPEC-ARCH-001
+    lens: Canonical source / mission-derived generality
+    severity: 4
+    title: "Key Entities section misattributes missing_optional's computation to a config read that does not exist in the code"
+    evidence:
+      - artifact: "spec.md § Key Entities — `AcceptanceSummary` paragraph, and (same claim) tracer-design-decisions.md § \"Decision: WP2's fix is code-side reconciliation\""
+      - code: "src/specify_cli/acceptance/__init__.py:585-595 (`_missing_artifacts`) and :1049 (its call site in `collect_feature_summary`)"
+    claim: >
+      The spec's Key Entities section states FR-002's reconciliation is code-side, "in the
+      functions that read both lists" (`mission.yaml`'s `artifacts.optional` and
+      `paths.deliverables`), implying `missing_optional` is computed by reading
+      `mission.config.artifacts.optional`. It is not: `_missing_artifacts(feature_dir: Path)`
+      takes no `mission` parameter at all and instead checks a hardcoded, mission-type-agnostic
+      literal list (`QUICKSTART_FILE`, `DATA_MODEL_FILE`, `RESEARCH_FILE`, and the bare string
+      `"contracts"`). It never reads `mission.config.artifacts` for any mission type. Verified by
+      grep: no occurrence of `mission.config.artifacts` / `.config.artifacts` anywhere in
+      `acceptance/__init__.py` or `acceptance/summary_core.py`. By contrast, `path_violations`
+      (via `evaluate_path_conventions` → `validate_mission_paths`) genuinely does read
+      `mission.config.paths` and `mission.config.artifacts.{required,optional}` — so only one
+      side of the "dual declaration" the spec describes is actually config-driven; the other is
+      a coincidental hardcoded literal that happens to match `contracts/` for `software-dev`
+      today. Confirmed the same coincidence does NOT hold for other mission types: the
+      `research` mission type declares an analogous dual-declared token (`data/` under both
+      `artifacts.optional` and `paths.data`, `src/specify_cli/missions/research/mission.yaml`
+      lines 134/143) but `_missing_artifacts`'s hardcoded list never checks `data/`, so no
+      double-report bug exists there today — despite the spec's Edge Cases section implying the
+      dedup logic generalizes to "a token declared under *both* lists for the same resolved
+      location" as if that were the operative test. An implementer trusting the spec's framing
+      literally could either (a) misdiagnose the fix location and attempt to make
+      `_missing_artifacts` genuinely config-driven — a materially larger change than scoped,
+      risking a C-001 violation (changes which paths are reported/enforced for `research` and
+      any future mission type by newly surfacing `data/` in `missing_optional`), or (b) write a
+      reconciliation keyed on "declared in both YAML lists" that silently does nothing today
+      (since `missing_optional` isn't actually driven by that declaration) while believing it
+      fixed the general case.
+    remediation: >
+      Correct the Key Entities section (and flag the same wording in
+      tracer-design-decisions.md, which the plan phase will read) to state precisely:
+      `missing_optional` is computed by `_missing_artifacts()` from a hardcoded literal list
+      that happens to include `"contracts"` — it does not read `mission.config.artifacts`.
+      FR-002's reconciliation must therefore operate as a post-hoc cross-reference between the
+      two already-computed result lists (`missing_optional` values vs. the resolved paths behind
+      `path_violations`/`missing_paths`), not as a "read both declared YAML lists" join. State
+      explicitly that this mission does not extend the fix to other mission types' potential
+      future dual declarations (e.g., `research`'s `data/`) since no double-report defect
+      currently exists there, to head off unintended scope creep in WP2.
+
+  - id: SPEC-ARCH-002
+    lens: Layering
+    severity: 3
+    title: "FR-004/FR-005 don't constrain which layer composes the --lenient-referencing text, risking a validator → CLI-vocabulary leak"
+    evidence:
+      - artifact: "spec.md FR-004, FR-005, User Story 3 Acceptance Scenario 2; tracer-design-decisions.md § \"Decision: WP3's honesty fix combines three of #3730's four candidate directions\""
+      - code: "src/specify_cli/validators/paths.py:61-78 (`PathValidationResult.format_errors`), `__all__` at :11-16 (public/reusable surface); src/specify_cli/acceptance/summary_core.py:137-148 (`evaluate_path_conventions`, the sole production caller)"
+    claim: >
+      `format_errors()` lives in `validators/paths.py` — a reusable, exported (`__all__`)
+      validator module with no knowledge of CLI flags today (it currently emits only the generic
+      "These directories are required by the active mission. Create them before continuing.").
+      FR-005 requires the strict-mode failure text to name `--lenient` specifically, a
+      command-layer flag name. The tracer-design-decisions.md file explicitly recognizes this
+      coupling risk ("via a mode-parameter, not a hardcoded flag-name string, to avoid
+      validator/CLI coupling") but that mitigation is not carried into spec.md as a binding
+      constraint, and even the tracer's own mitigation ("mode-parameter") only avoids hardcoding
+      *when* the text is shown — it does not itself prevent the literal string `"--lenient"` from
+      being composed inside `validators/paths.py`. Nothing in FR-004/FR-005/C-004 states where the
+      `--lenient`-referencing text must be composed. Since `validate_mission_paths` is called with
+      `strict=False` from the only production call site (`evaluate_path_conventions` always
+      passes `strict=False`), `format_errors()` is used purely as a string formatter here, not as
+      the trigger for `PathValidationError` — so there is no functional obstacle to composing the
+      mode-aware, `--lenient`-referencing wording in `summary_core.py` (which already has
+      `strict_metadata` in scope) or `accept.py` instead of inside the reusable validator. Absent
+      an explicit constraint, an implementer following FR-005's literal wording is equally likely
+      to hardcode "--lenient" directly into `PathValidationResult.format_errors()`, coupling a
+      reusable, exported validator to one specific CLI command's flag vocabulary — a concrete
+      architectural-integrity/context-aware-design gap (Directives 001/031) likely to surface as
+      review rework on WP3.
+    remediation: >
+      Add a constraint (alongside C-004, scoped to the same touched-surfaces list) stating that
+      the `--lenient` reference (or equivalent pointer) must be composed at or above the
+      acceptance layer (`summary_core.py`/`accept.py`), not hardcoded as a literal CLI-flag string
+      inside `validators/paths.py`'s `PathValidationResult`/`format_errors()`; the validator should
+      expose only the generic conditional-requirement fact (e.g., an existing boolean/parameter
+      already in scope, or a return-value the caller composes text around), preserving the
+      validator's reusability independent of any one CLI command's flag names.
+

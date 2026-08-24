@@ -1,0 +1,64 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: SPEC-FRESH2-001
+    lens: "fresh-eyes / code-truth verification (structural: mechanism-vs-outcome gap in the round-2 Key Entities rewrite)"
+    severity: 3
+    title: >
+      Key Entities' round-2 FR-002 mechanism describes WHAT evaluate_path_conventions
+      must do to optional_missing ("drop... from that caller-owned list") but never
+      states HOW the filtered result gets back to the caller, and the only mechanism
+      consistent with the section's own pinned-return-arity constraint is an unstated,
+      atypical-for-this-module in-place mutation of the caller's list
+    evidence:
+      - artifact: "spec.md § Key Entities — `AcceptanceSummary` bullet: \"`evaluate_path_conventions` must gain a way to receive `optional_missing`'s tokens so it can drop, from that caller-owned list, whichever entries also appear (after normalization) in the resolved `missing_paths` — before `format_errors()` renders `path_violations`\""
+      - artifact: "spec.md § Key Entities, same bullet: \"the interface change WP2 makes must be additive on the **input** side (e.g. a new, defaulted parameter the two pinned tests' existing calls simply omit) — not a change to what the function returns\""
+      - code: "src/specify_cli/acceptance/summary_core.py:110-148 (`evaluate_path_conventions`) — currently returns only `tuple[list[str], str | None]`; every other function in this file is documented \"Pure:\" (e.g. `build_warnings` at line 151, `build_work_package_state`) and communicates results exclusively via return values, never by mutating an argument"
+      - code: "src/specify_cli/acceptance/summary_core.py:1-14 (module docstring) — \"Every function here is a deterministic transform over already-resolved inputs ... no filesystem or git I/O of its own\", establishing the module's existing pure-input/pure-output convention that the described mechanism would depart from"
+      - code: "src/specify_cli/acceptance/__init__.py:1049-1060 (`collect_feature_summary`) — `missing_optional` is bound once from `_missing_artifacts(...)`, then read by `build_warnings(missing_optional=missing_optional, ...)` and later stored verbatim into `AcceptanceSummary(optional_missing=missing_optional, ...)` at line 1115; there is no other point in this function where a caller-side filter could be applied, because `path_violations` (the only value `evaluate_path_conventions` does return) is confirmed by SPEC-FRESH-001/spec-verify-2.yaml to be an opaque rendered string, not structured per-path data the caller could cross-reference itself"
+    claim: >
+      Round 2 correctly fixed SPEC-FRESH-001 (path_violations is an opaque rendered
+      string, not a comparable list, so the dedup must be an interface change on
+      evaluate_path_conventions rather than a post-hoc list comparison) and correctly
+      pins the constraint that the function's return arity cannot change. But those two
+      constraints together leave exactly one way for the caller
+      (`collect_feature_summary`) to ever see the deduped `missing_optional`: the
+      function must mutate the list object passed in as the new `optional_missing`
+      argument (e.g. `optional_missing[:] = [...]` or `.remove(...)`) rather than
+      returning a new one. The spec's phrasing — "so it can drop ... from that
+      caller-owned list" — gestures at this but never states it as the concrete
+      contract. This matters because it is a real fork: an implementer who (correctly,
+      per the module's own established style — every sibling function is "Pure" and
+      returns rather than mutates) treats function arguments as read-only would
+      naturally compute the filtered set internally, discard it (since nothing consumes
+      a return value for it), and ship code that adds the parameter, satisfies every
+      literal sentence in the Key Entities bullet, still passes both SC-005 pinned
+      tests unmodified (they never pass `optional_missing` at all), yet never actually
+      removes the redundant entry from `AcceptanceSummary.optional_missing` — silently
+      failing FR-002/User Story 2 Acceptance Scenario 1 and SC-002 while looking
+      spec-compliant. Given this section already went to the trouble of nailing down
+      the return-arity constraint and the token-normalization rule to head off exactly
+      this class of "looks right, isn't" gap (per SPEC-FRESH-001's own remediation),
+      leaving the propagation mechanism itself unstated is an inconsistency in the
+      section's own completeness, not merely an implementation detail properly deferred
+      to planning.
+    remediation: >
+      Add one sentence to the Key Entities `AcceptanceSummary` bullet (or a short new
+      sentence at the end of the existing FR-002 paragraph) naming the concrete
+      contract: "`evaluate_path_conventions` mutates the `optional_missing` list it is
+      passed in place (removing the matching, normalized entries before returning), so
+      `collect_feature_summary`'s existing `missing_optional` binding reflects the
+      dedup for both `build_warnings(...)` and the `AcceptanceSummary(optional_missing=
+      missing_optional, ...)` construction that follow it — this is a deliberate,
+      documented departure from this module's otherwise-pure-transform style, and WP2
+      should note it in the function's docstring/type hint (e.g. name the parameter to
+      signal the side effect) so a reviewer does not mistake it for a no-op input." If
+      in-place mutation is judged too surprising for this module's conventions,
+      alternatively require WP2 to spell out the alternative contract explicitly (e.g. a
+      small mutable result wrapper) — either is acceptable, but the spec should commit
+      to one so an implementer cannot satisfy the letter of the bullet while missing its
+      effect.
