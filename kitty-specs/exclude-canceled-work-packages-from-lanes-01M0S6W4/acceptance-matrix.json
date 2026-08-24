@@ -58,10 +58,10 @@
       "criterion_id": "FR-006",
       "description": "All direct stale dependency pairs are reported deterministically.",
       "proof_type": "automated_test",
-      "evidence": "Multi-edge acceptance tests assert complete deterministic sorted stale pair reporting",
+      "evidence": "test_finalize_canceled_work_packages.py multi-edge controls prove complete deterministic sorted stale-pair reporting",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:15:03.629725+00:00",
+      "verified_at": "2026-08-24T12:02:05.872234+00:00",
       "notes": "Pass when one attempt reports the complete sorted set of direct active-to-canceled dependency pairs."
     },
     {
