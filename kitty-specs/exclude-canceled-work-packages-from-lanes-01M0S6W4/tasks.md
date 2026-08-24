@@ -16,12 +16,13 @@ The implementer must still use checkpointed commits. The first commit is the pla
 | ID | Description | WP | Parallel |
 |---|---|---|---|
 | T001 | Commit exact-command RED cancellation acceptance coverage | WP01 | No |
-| T002 | Implement and unit-test the immutable eligibility projection | WP01 | No |
-| T003 | Resolve canonical lifecycle state once and reject stale edges before writes | WP01 | No |
-| T004 | Filter every ownership and execution-lane consumer through the eligible set | WP01 | No |
-| T005 | Support normal and validate-only all-canceled zero-work success | WP01 | No |
-| T006 | Complete compatibility, integrity, determinism, and performance regressions | WP01 | No |
-| T007 | Run focused quality gates and prepare review evidence | WP01 | No |
+| T002 | Perform the distinct tidy-first campsite checkpoint | WP01 | No |
+| T003 | Implement and unit-test the immutable eligibility projection | WP01 | No |
+| T004 | Reuse one canonical lifecycle snapshot and reject stale edges before writes | WP01 | No |
+| T005 | Filter every ownership and execution-lane consumer through the eligible set | WP01 | No |
+| T006 | Support normal and validate-only all-canceled zero-work success | WP01 | No |
+| T007 | Complete compatibility, integrity, determinism, Windows, and performance regressions | WP01 | No |
+| T008 | Enforce coverage and focused quality gates and prepare review evidence | WP01 | No |
 
 ## Work Package WP01: Cancellation-Aware Finalization
 
@@ -30,7 +31,7 @@ The implementer must still use checkpointed commits. The first commit is the pla
 **Prompt**: `tasks/WP01-cancellation-aware-finalization.md`  
 **Requirement refs**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010; NFR-001, NFR-002, NFR-003, NFR-004, NFR-005; C-001, C-002, C-003, C-004, C-005, C-006  
 **Plan concerns**: IC-01, IC-02, IC-03, IC-04  
-**Estimated prompt size**: 360–440 lines
+**Estimated prompt size**: approximately 376 lines (target: 200–500)
 
 ### Summary
 
@@ -41,22 +42,24 @@ Introduce one canonical cancellation-eligibility boundary in `finalize-tasks`. R
 ### Included Subtasks
 
 - [ ] T001 Commit exact-command RED cancellation acceptance coverage (WP01)
-- [ ] T002 Implement and unit-test the immutable eligibility projection (WP01)
-- [ ] T003 Resolve canonical lifecycle state once and reject stale edges before writes (WP01)
-- [ ] T004 Filter every ownership and execution-lane consumer through the eligible set (WP01)
-- [ ] T005 Support normal and validate-only all-canceled zero-work success (WP01)
-- [ ] T006 Complete compatibility, integrity, determinism, and performance regressions (WP01)
-- [ ] T007 Run focused quality gates and prepare review evidence (WP01)
+- [ ] T002 Perform the distinct tidy-first campsite checkpoint (WP01)
+- [ ] T003 Implement and unit-test the immutable eligibility projection (WP01)
+- [ ] T004 Reuse one canonical lifecycle snapshot and reject stale edges before writes (WP01)
+- [ ] T005 Filter every ownership and execution-lane consumer through the eligible set (WP01)
+- [ ] T006 Support normal and validate-only all-canceled zero-work success (WP01)
+- [ ] T007 Complete compatibility, integrity, determinism, Windows, and performance regressions (WP01)
+- [ ] T008 Enforce coverage and focused quality gates and prepare review evidence (WP01)
 
 ### Implementation Sketch
 
 1. Add and separately commit non-vacuous CLI acceptance tests that fail on the planning base for cancellation behavior, without production changes.
-2. Add a small immutable/pure `finalization_eligibility.py` seam and direct unit tests.
-3. In `mission_finalize.py`, read the coordination-aware canonical status surface once after raw graph validation and before every finalization writer; render all stale cut edges and exit.
-4. Apply the same eligible-ID set to frontmatter, ownership manifests, bodies, dependencies, validate-only preview, committed lane computation, and reports.
-5. Retain existing empty-input refusal when eligible work remains, but call the allocator's existing empty-safe path when all known work is canceled.
-6. Exercise cancellation-only and no-cancellation compatibility, corrupt status refusal, deterministic ordering, #3431 cycles, and the 100-WP performance target.
-7. Close with focused tests, lint, strict typing, architecture/terminology gates, clean diff, and review-ready evidence.
+2. Before production behavior changes, perform and separately record the tidy-first campsite assessment/cleanup on the touched finalizer methods.
+3. Add a small immutable/pure `finalization_eligibility.py` seam and direct unit tests, including a literal Windows-critical test marker.
+4. In `mission_finalize.py`, take one coordination-aware canonical lifecycle snapshot after raw graph validation and before every writer; reuse it for eligibility and later provenance consumers, render all stale cut edges, and exit.
+5. Apply the same eligible-ID set to frontmatter, ownership manifests, bodies, dependencies, validate-only preview, committed lane computation, and reports.
+6. Retain existing empty-input refusal when eligible work remains, but call the allocator's existing empty-safe path when all known work is canceled.
+7. Exercise cancellation-only and no-cancellation compatibility, corrupt status refusal, deterministic ordering, #3431 cycles, Windows collection, and the governed 100-WP benchmark protocol.
+8. Close with a 90% changed-line coverage floor, focused tests, lint, strict typing, architecture/terminology gates, clean diff, and review-ready evidence.
 
 ### Parallel Opportunities
 
@@ -73,4 +76,4 @@ No intra-package file-edit parallelism is authorized. The new pure helper and te
 
 ### Completion Gate
 
-The WP is complete only when the exact command succeeds for mixed and all-canceled Missions, refuses every stale direct edge before mutation, retains all canceled history, preserves no-cancellation lane results and #3431 cycle findings, meets the 100-WP target, and passes the focused quality gates without retries or blanket suppressions.
+The WP is complete only when the exact command succeeds for mixed and all-canceled Missions, refuses every stale direct edge before mutation, retains all canceled history, preserves no-cancellation lane results and #3431 cycle findings, meets the governed 100-WP benchmark, is collected by Windows CI, reaches at least 90% changed-line coverage, and passes the focused quality gates without retries or blanket suppressions.

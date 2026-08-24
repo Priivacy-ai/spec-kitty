@@ -15,6 +15,7 @@
         "src/specify_cli/cli/commands/agent/mission_finalize.py",
         "tests/specify_cli/cli/commands/agent/test_finalization_eligibility.py",
         "tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages.py",
+        "tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages_performance.py",
         "tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py"
       ],
       "predicted_surfaces": [
@@ -28,8 +29,8 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-08-24T07:09:27.791403+00:00",
+  "computed_at": "2026-08-24T07:24:12.795887+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "894c288438dafc79bd1b1e9f5c0adb054261bdd7"
+  "planning_commit_sha": "4b95dad9b020802eb2fb18b896ebfea9f8b48b81"
 }
