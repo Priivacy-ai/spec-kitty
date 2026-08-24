@@ -103,7 +103,12 @@ def version_callback(value: bool) -> None:
         # a fork's version_label wins, else its package_name.
         profile = resolve_distribution_profile()
         label = profile.version_label or profile.package_name
-        console.print(f"{label} version {__version__}")
+        console.print(
+            f"{label} version {__version__}",
+            soft_wrap=True,
+            highlight=False,
+            markup=False,
+        )
         raise typer.Exit()
 
 def main_callback(
