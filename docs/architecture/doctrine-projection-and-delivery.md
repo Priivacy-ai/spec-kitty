@@ -146,12 +146,13 @@ For DRG edge semantics (`requires`, `suggests`, `specializes_from`, and the rest
 of the relation vocabulary), see
 [Doctrine relationships](doctrine-relationships.md).
 
-**Known follow-up (out of scope here):** `AgentProfile`'s
+**Resolved (#3629):** `AgentProfile` previously carried a
 `context-sources.{doctrine-layers,tactics,toolguides,styleguides,additional}`
-field family (`src/doctrine/agent_profiles/profile.py`) is schema-legit but
-never read and reaches no delivery path — it never enters the DRG, so it sits
-outside both contracts this page documents. Tracked as dead-field cleanup
-follow-up #3629, not fixed here.
+field family that was schema-legit but never read and reached no delivery path.
+It has since been removed from the model and schema; profiles declare references
+solely on the top-level `*-references` fields, which the extractor projects as
+`agent_profile` DRG edges (`directive-references`/`tactic-references` →
+`requires`, `toolguide-references`/`styleguide-references` → `suggests`).
 
 ## See also
 
