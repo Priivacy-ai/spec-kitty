@@ -438,7 +438,9 @@ def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
     monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd: True)
-    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd: ["missing artifact"])
+    monkeypatch.setattr(
+        rb, "_check_cli_guards", lambda step, fd, repo_root=None: ["missing artifact"]
+    )
 
     sentinel = _sentinel_decision("guard-blocked")
     captured: dict[str, Any] = {}
@@ -461,7 +463,7 @@ def test_dependency_gate_falls_through_when_wp_step_advances_cleanly(
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
     monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd: True)
-    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd: [])
+    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, repo_root=None: [])
 
     assert rb._dn_dependency_gate(ctx) is None
 
@@ -471,7 +473,9 @@ def test_dependency_gate_returns_step_decision_for_non_wp_guard_failure(
 ) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="specify")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
-    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd: ["spec incomplete"])
+    monkeypatch.setattr(
+        rb, "_check_cli_guards", lambda step, fd, repo_root=None: ["spec incomplete"]
+    )
     monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission: ("specify", None, None))
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("hello")
@@ -494,7 +498,7 @@ def test_dependency_gate_falls_back_to_blocked_when_no_action_mapped(
 ) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="mystery_step")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
-    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd: ["blocked"])
+    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, repo_root=None: ["blocked"])
     monkeypatch.setattr(rb, "_state_to_action", lambda *a: (None, None, None))
     monkeypatch.setattr(rb, "_build_prompt_or_error", _raising)
 
