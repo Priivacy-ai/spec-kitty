@@ -797,8 +797,11 @@ def test_planning_tip_capture_returns_stripped_sha(tmp_path: Path) -> None:
         assert finalizer._capture_target_branch_tip(tmp_path, "main") == "abc123"
 
 
-def test_missing_prior_manifest_refuses_execution_begun_json(
+@pytest.mark.parametrize("json_output", [False, True])
+def test_missing_prior_manifest_refuses_execution_begun(
     tmp_path: Path,
+    json_output: bool,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
     emit = MagicMock()
     with (
@@ -811,9 +814,13 @@ def test_missing_prior_manifest_refuses_execution_begun_json(
             "3432-canceled-finalization",
             "main",
             lifecycle_lanes={"WP01": Lane.CLAIMED},
-            json_output=True,
+            json_output=json_output,
         )
-    assert "no lanes.json exists" in emit.call_args.args[0]["error"]
+    if json_output:
+        assert "no lanes.json exists" in emit.call_args.args[0]["error"]
+    else:
+        assert "no lanes.json exists" in capsys.readouterr().out
+        emit.assert_not_called()
 
 
 def test_existing_manifest_preserves_planning_sha_after_claim_then_cancel(

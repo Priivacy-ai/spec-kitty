@@ -1882,12 +1882,14 @@ _PRE_EXECUTION_LANES = frozenset(
 def _lifecycle_snapshot_has_execution_begun(
     lifecycle_lanes: Mapping[str, Lane],
 ) -> bool:
-    """Return whether current lifecycle state proves execution has begun.
+    """Return whether a current-lane mapping proves execution has begun.
 
     ``planned`` is pre-execution, and ``canceled`` is a planning disposition:
     cancellation removes work before allocation and therefore cannot establish
     planning provenance that a later finalization must preserve. Every other
-    lifecycle lane represents genuine execution or post-execution state.
+    lifecycle lane represents genuine execution or post-execution state. The
+    finalizer's canonical snapshot additionally preserves historical execution
+    evidence when a genuinely started package was later canceled.
     """
     return any(
         lane not in _PRE_EXECUTION_LANES
@@ -1915,16 +1917,13 @@ def _execution_has_begun(
     begun (a fresh mission, or the very first finalize run).
 
     Returns:
-        ``True`` iff any WP's current lane proves genuine execution or
-        post-execution state (claimed, in_progress, for_review, ..., done,
-        blocked). ``planned`` and ``canceled`` are both pre-execution for
-        provenance purposes. ``False`` also covers an absent/empty event log
-        or an unreadable surface (degrades gracefully like this module's sibling
-        ``_capture_target_branch_tip`` — a signal-computation helper must
-        never crash the whole ``finalize-tasks`` command over an unreadable
-        read-only surface; a corrupted event log is a pre-existing store
-        problem `status doctor` surfaces separately, not something this gate
-        should newly turn into a hard finalize failure).
+        With a canonical snapshot, ``True`` iff its append-only event history
+        proves genuine execution began, even if the current lane is canceled.
+        With a plain mapping, ``True`` iff any current lane is genuinely
+        executing or post-execution. ``False`` also covers an absent/empty
+        event log or an unreadable surface (graceful degradation for legacy
+        direct callers; the finalization pipeline supplies its one-read
+        canonical snapshot instead).
     """
     from specify_cli.coordination.surface_resolver import (
         CoordinationBranchDeleted,
@@ -1994,19 +1993,17 @@ def _preserve_or_capture_planning_commit_sha(
     if not _execution_has_begun(repo_root, mission_slug, lifecycle_lanes):
         return _capture_target_branch_tip(repo_root, target_branch)
 
-    if existing is None:
-        error_msg = (
-            f"Cannot re-finalize mission {mission_slug!r}: execution has begun "
-            "(a WP is past 'planned') but no lanes.json exists on disk to "
-            "preserve planning provenance from. Refusing to write a new "
-            "lanes.json rather than guess a planning_commit_sha."
-        )
-        if json_output:
-            _emit_json({"error": error_msg})
-        else:
-            console.print(f"[red]Error:[/red] {error_msg}")
-        raise typer.Exit(1)
-    raise AssertionError("unreachable: existing manifest handled before provenance refusal")
+    error_msg = (
+        f"Cannot re-finalize mission {mission_slug!r}: execution has begun "
+        "(a WP is past 'planned') but no lanes.json exists on disk to "
+        "preserve planning provenance from. Refusing to write a new "
+        "lanes.json rather than guess a planning_commit_sha."
+    )
+    if json_output:
+        _emit_json({"error": error_msg})
+    else:
+        console.print(f"[red]Error:[/red] {error_msg}")
+    raise typer.Exit(1)
 
 
 def _compute_and_write_lanes(
