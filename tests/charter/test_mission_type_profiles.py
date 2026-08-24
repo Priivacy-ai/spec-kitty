@@ -459,30 +459,39 @@ def _write_org_mission_step_yaml(
     mission_type_id: str,
     step_id: str,
     *,
-    artifact_key: str,
-    template_file: str,
+    artifact_key: str | None = None,
+    template_file: str | None = None,
     sequence_index: int = 0,
 ) -> None:
-    """Write a step.yaml in the org-pack layout carrying a template ref.
+    """Write a step.yaml in the org-pack layout, optionally carrying a
+    template ref.
 
     Org-pack layout convention (mirrors
     ``tests/doctrine/missions/test_mission_step_resolver.py::_write_org_step``):
     ``{org_root}/mission-steps/{mission_type_id}/{step_id}/step.yaml``.
+
+    ``artifact_key``/``template_file`` default to ``None``; the ``template:``
+    block is emitted only when both are provided, matching
+    ``MissionStep.template`` being optional (``None`` for template-less
+    steps).
     """
     step_dir = org_root / "mission-steps" / mission_type_id / step_id
     step_dir.mkdir(parents=True, exist_ok=True)
-    (step_dir / "step.yaml").write_text(
+    content = (
         f"id: {step_id}\n"
         f"display_name: {step_id.title()}\n"
         "step_type: agent\n"
         "prompt_template: prompt.md\n"
         "in_action_sequence: true\n"
         f"sequence_index: {sequence_index}\n"
-        "template:\n"
-        f"  artifact_key: {artifact_key}\n"
-        f"  template_file: {template_file}\n",
-        encoding="utf-8",
     )
+    if artifact_key is not None and template_file is not None:
+        content += (
+            "template:\n"
+            f"  artifact_key: {artifact_key}\n"
+            f"  template_file: {template_file}\n"
+        )
+    (step_dir / "step.yaml").write_text(content, encoding="utf-8")
 
 
 class TestPackContextProjection:
@@ -539,6 +548,12 @@ class TestPackContextProjection:
             "design",
             artifact_key="spec",
             template_file="qa-spec-template.md",
+        )
+        _write_org_mission_step_yaml(
+            org_root,
+            "qa",
+            "implement",
+            sequence_index=1,
         )
         pack_context = PackContext(
             activated_kinds=frozenset(),
