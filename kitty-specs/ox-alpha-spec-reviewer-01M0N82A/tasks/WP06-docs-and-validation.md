@@ -44,7 +44,7 @@ execution_mode: code_change
 model: ''
 owned_files:
 - docs/guides/spec-review.md
-- CHANGELOG.md
+- docs/changelog/CHANGELOG.md
 - tests/integration/test_spec_review_integration.py
 - tests/integration/test_spec_review_live.py
 role: curator
