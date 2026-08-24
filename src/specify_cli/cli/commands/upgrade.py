@@ -69,10 +69,7 @@ from specify_cli.upgrade.runner import UpgradeResult
 
 _PROJECT_COMPAT_CHECK_COMMAND = ("__project_compat_check__",)
 
-_LEFT_UNCOMMITTED_MESSAGE = (
-    "[yellow]⚠ Changes were left uncommitted (auto_commit is disabled)"
-    " — commit them yourself.[/yellow]"
-)
+_LEFT_UNCOMMITTED_MESSAGE = "[yellow]⚠ Changes were left uncommitted (auto_commit is disabled) — commit them yourself.[/yellow]"
 
 
 def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[str]:
@@ -413,19 +410,12 @@ def _repair_stale_command_manifest(project_path: Path, *, json_output: bool) -> 
         if json_output:
             return
         if repair_result.added or repair_result.removed:
-            console.print(
-                f"[dim]Repaired command-skill manifest "
-                f"(+{len(repair_result.added)}/-{len(repair_result.removed)} entries)[/dim]"
-            )
+            console.print(f"[dim]Repaired command-skill manifest (+{len(repair_result.added)}/-{len(repair_result.removed)} entries)[/dim]")
         if symlink_result.symlinks_removed:
-            console.print(
-                f"[dim]Removed {len(symlink_result.symlinks_removed)} unsafe symlink artifact(s)[/dim]"
-            )
+            console.print(f"[dim]Removed {len(symlink_result.symlinks_removed)} unsafe symlink artifact(s)[/dim]")
     except Exception as manifest_exc:  # noqa: BLE001
         if not json_output:
-            console.print(
-                f"[dim]Note: Could not repair command-skill manifest: {manifest_exc}[/dim]"
-            )
+            console.print(f"[dim]Note: Could not repair command-skill manifest: {manifest_exc}[/dim]")
 
 
 def _run_upgrade_surface_repair(
@@ -476,9 +466,7 @@ def _run_upgrade_surface_repair(
     except Exception as surf_exc:  # noqa: BLE001
         # Never fail upgrade due to surface repair errors; report and continue.
         if not json_output:
-            console.print(
-                f"[dim]Note: Could not run tool surface repair: {surf_exc}[/dim]"
-            )
+            console.print(f"[dim]Note: Could not run tool surface repair: {surf_exc}[/dim]")
         return None
 
 
@@ -513,15 +501,10 @@ def _surface_drift_exit_required(
 
 
 def _surface_drift_error(summary: DriftPolicySummary) -> str:
-    return (
-        f"Unresolved tool-surface drift in {len(summary.drifted_reported)} "
-        "file(s); run 'spec-kitty doctor tool-surfaces' to review."
-    )
+    return f"Unresolved tool-surface drift in {len(summary.drifted_reported)} file(s); run 'spec-kitty doctor tool-surfaces' to review."
 
 
-def _provision_missing_mission_type_activations(
-    project_path: Path, *, dry_run: bool
-) -> list[str]:
+def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: bool) -> list[str]:
     """Backfill a missing ``mission_type_activations`` key on upgrade.
 
     Fold for PR #3246 (mission ``resolution-activation-foundation-01KZ9FKG``,
@@ -599,9 +582,7 @@ def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
     return "mission_type_activations" not in data
 
 
-def _print_dry_run_provisioning_notice(
-    project_path: Path, *, dry_run: bool, json_output: bool
-) -> None:
+def _print_dry_run_provisioning_notice(project_path: Path, *, dry_run: bool, json_output: bool) -> None:
     """Print a human-readable preview line for the provisioning seed.
 
     FR-009: a ``--dry-run`` skips the real ``mission_type_activations`` seed, so
@@ -611,10 +592,7 @@ def _print_dry_run_provisioning_notice(
     if not dry_run or json_output:
         return
     if _mission_type_activation_provisioning_pending(project_path):
-        console.print(
-            "[dim]Would provision missing mission_type_activations "
-            "(seeded on a real upgrade).[/dim]"
-        )
+        console.print("[dim]Would provision missing mission_type_activations (seeded on a real upgrade).[/dim]")
 
 
 def _check_project_not_too_new(
@@ -670,8 +648,7 @@ def _check_project_not_too_new(
                 hint = build_upgrade_hint(method)
                 hint_str = hint.command if hint.command is not None else hint.note or "Upgrade your CLI."
                 console.print(
-                    f"[red]Error:[/red] This project uses Spec Kitty project schema {schema_v}, "
-                    f"but this CLI supports up to schema {MAX_SUPPORTED_SCHEMA}."
+                    f"[red]Error:[/red] This project uses Spec Kitty project schema {schema_v}, but this CLI supports up to schema {MAX_SUPPORTED_SCHEMA}."
                 )
                 console.print(f"[cyan]Upgrade your CLI:[/cyan] {hint_str}")
             raise typer.Exit(5)
@@ -829,9 +806,7 @@ def _build_no_migrations_outcome(
     return UpgradeOutcome(result=result, worktree_failures=worktree_failures)
 
 
-def _combined_errors(
-    outcome: UpgradeOutcome, surface_repair_summary: DriftPolicySummary | None
-) -> list[str]:
+def _combined_errors(outcome: UpgradeOutcome, surface_repair_summary: DriftPolicySummary | None) -> list[str]:
     """Fold the errors channel (data-model.md): ``result.errors`` +
     ``activation_errors`` + ``worktree_failures`` + the surface-drift
     message, read from the finalized outcome — the one place both renderers
@@ -886,14 +861,10 @@ def _build_migration_json_payload(
                 "target_version": migration.target_version,
                 "status": status,
                 "manual_review_required": (
-                    result.migration_results.get(migration.migration_id).manual_review_required
-                    if migration.migration_id in result.migration_results
-                    else False
+                    result.migration_results.get(migration.migration_id).manual_review_required if migration.migration_id in result.migration_results else False
                 ),
                 "preserved_paths": (
-                    result.migration_results.get(migration.migration_id).preserved_paths
-                    if migration.migration_id in result.migration_results
-                    else []
+                    result.migration_results.get(migration.migration_id).preserved_paths if migration.migration_id in result.migration_results else []
                 ),
             }
         )
@@ -964,9 +935,7 @@ def _build_no_migrations_json_payload(
     }
 
 
-def _display_no_migrations_results(
-    outcome: UpgradeOutcome, *, auto_commit_paths: list[str], left_uncommitted: bool = False
-) -> None:
+def _display_no_migrations_results(outcome: UpgradeOutcome, *, auto_commit_paths: list[str], left_uncommitted: bool = False) -> None:
     """Render the human-readable up-to-date (no-migrations) outcome.
 
     Pure rendering (T022): never raises. The caller derives the exit code
@@ -1108,9 +1077,7 @@ def _finalizer_step_offer_repair(
     )
 
 
-def _reject_downgrade_target(
-    validation_error: str | None, *, current_version: str, target_version: str, json_output: bool
-) -> None:
+def _reject_downgrade_target(validation_error: str | None, *, current_version: str, target_version: str, json_output: bool) -> None:
     """Raise ``typer.Exit(1)`` when *validation_error* is set (a downgrade
     target); a no-op otherwise. Pure extraction — this is a legitimate
     pre-finalizer gate (no ``UpgradeOutcome`` exists yet at this point)."""
@@ -1260,7 +1227,7 @@ def upgrade(
     if not json_output:
         show_banner()
 
-    baseline_changed_paths = autocommit.git_status_paths(project_path)
+    baseline_changed_paths = autocommit.capture_upgrade_baseline(project_path)
 
     # Import upgrade system (lazy to avoid circular imports)
     from specify_cli.upgrade.detector import VersionDetector
@@ -1335,9 +1302,7 @@ def upgrade(
         )
         manual_review_paths = _collect_manual_review_paths(result.migration_results)
         if manual_review_paths:
-            result.warnings.append(
-                "Skipped auto-commit because the upgrade preserved customized files that require manual review."
-            )
+            result.warnings.append("Skipped auto-commit because the upgrade preserved customized files that require manual review.")
         outcome = UpgradeOutcome(
             result=result,
             manual_review_paths=[Path(p) for p in manual_review_paths],
@@ -1347,9 +1312,7 @@ def upgrade(
     # T017/C4 — one shared tail: wire the finalizer with the step
     # implementations as injected callables (the finalizer itself does not
     # import cli.commands — see upgrade/finalize.py's module docstring).
-    should_commit_main = autocommit.should_auto_commit(
-        project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths)
-    )
+    should_commit_main = autocommit.should_auto_commit(project_path, dry_run=dry_run, manual_review=bool(outcome.manual_review_paths))
     render_ctx = _FinalizerRenderContext()
 
     from specify_cli.upgrade.finalize import finalize_upgrade
@@ -1495,9 +1458,7 @@ def _display_upgrade_results(
             )
         )
 
-    _print_upgrade_section(
-        "[green]Migrations applied:[/green]", result.migrations_applied, "  [green]✓[/green] "
-    )
+    _print_upgrade_section("[green]Migrations applied:[/green]", result.migrations_applied, "  [green]✓[/green] ")
     _print_upgrade_section(
         "[dim]Migrations skipped (already applied or not needed):[/dim]",
         result.migrations_skipped,
@@ -1505,9 +1466,7 @@ def _display_upgrade_results(
     )
     _print_upgrade_section("[yellow]Warnings:[/yellow]", result.warnings, "  [yellow]![/yellow] ")
     _print_upgrade_section("[red]Errors:[/red]", errors, "  [red]✗[/red] ")
-    _print_upgrade_section(
-        "[yellow]Manual review required:[/yellow]", manual_review_paths, "  [yellow]![/yellow] "
-    )
+    _print_upgrade_section("[yellow]Manual review required:[/yellow]", manual_review_paths, "  [yellow]![/yellow] ")
 
     console.print()
     if not effective_success:
@@ -1515,10 +1474,7 @@ def _display_upgrade_results(
         return
     if result.dry_run:
         # Honest dry-run: nothing was applied, so do not imply it was.
-        console.print(
-            "[bold yellow]Dry run complete[/bold yellow] — no changes applied. "
-            f"({result.from_version} -> {result.to_version} previewed)"
-        )
+        console.print(f"[bold yellow]Dry run complete[/bold yellow] — no changes applied. ({result.from_version} -> {result.to_version} previewed)")
     else:
         console.print(f"[bold green]Upgrade complete![/bold green] {result.from_version} -> {result.to_version}")
         if auto_committed:
@@ -1532,9 +1488,7 @@ def _display_upgrade_results(
 # ---------------------------------------------------------------------------
 
 
-def _real_pending_migrations_contract(
-    project_path: Path, target_version: str
-) -> list[dict[str, object]]:
+def _real_pending_migrations_contract(project_path: Path, target_version: str) -> list[dict[str, object]]:
     """Return the contract-shaped pending-migration list the real run applies.
 
     Drives the preview through :meth:`VersionDetector.applicable_migrations`
@@ -1554,20 +1508,13 @@ def _real_pending_migrations_contract(
     from specify_cli.compat.planner import _migration_step_from
     from specify_cli.upgrade.detector import VersionDetector
 
-    steps = [
-        _migration_step_from(m)
-        for m in VersionDetector(project_path).applicable_migrations(target_version)
-    ]
+    steps = [_migration_step_from(m) for m in VersionDetector(project_path).applicable_migrations(target_version)]
     return [
         {
             "migration_id": step.migration_id,
             "target_schema_version": int(step.target_schema_version),
             "description": step.description,
-            "files_modified": (
-                [str(f) for f in step.files_modified]
-                if step.files_modified is not None
-                else None
-            ),
+            "files_modified": ([str(f) for f in step.files_modified] if step.files_modified is not None else None),
         }
         for step in steps
     ]
@@ -1634,9 +1581,7 @@ def _run_planner_json(
     result = plan(invocation, **kwargs)  # type: ignore[arg-type]
 
     payload = dict(result.rendered_json)
-    payload["pending_migrations"] = _real_pending_migrations_contract(
-        project_path, target_version
-    )
+    payload["pending_migrations"] = _real_pending_migrations_contract(project_path, target_version)
 
     exit_code = 0 if dry_run else result.exit_code
     print(json.dumps(payload, indent=2))
