@@ -366,10 +366,13 @@ receives the real `pack_context` for the first time.
 3. Follow the existing `unittest.mock.patch("charter.pack_context.PackContext.from_config", ...)`
    pattern already in this class for constructing the "real, non-`None` pack_context" — do not
    invent a new patch target string (the `patch()` target validation CI gate checks these).
-4. **NFR-004 evidence (no new filesystem walk)**: in the same test, wrap
-   `doctrine.missions.mission_step_repository.MissionStepRepository.resolve_all_for_mission_type`
-   with `unittest.mock.patch(..., wraps=MissionStepRepository.resolve_all_for_mission_type)` (a
-   call-count spy, not a value replacement) around one `resolve_layered_mission_types` /
+4. **NFR-004 evidence (no new filesystem walk)**: in the same test, spy on the specific
+   `MissionStepRepository.default()` instance this seam calls — `instance =
+   MissionStepRepository.default()` — using `unittest.mock.patch.object(instance,
+   "resolve_all_for_mission_type", wraps=instance.resolve_all_for_mission_type)` (a call-count
+   spy on the *bound* method, not a value replacement; do not patch the class attribute with an
+   unbound `wraps=` target — `Mock` is not a descriptor and will not bind `self` when the mock is
+   invoked through an instance, raising `TypeError`) around one `resolve_layered_mission_types` /
    `_resolve_via_seam` invocation for a single built-in type, and assert the call count is
    exactly what it was pre-fix (one call for that type's resolution) — closing the "no new
    filesystem walk" claim with evidence rather than architectural assertion alone.
@@ -516,7 +519,7 @@ and self-check against the full CI gate set plan.md names, before marking this W
    `mission_type_repository.py` is a touched file (it is — that's expected) but cannot by itself
    confirm `_load()` specifically has zero diff, since the whole file is one of this WP's owned
    files. Run `git diff <base>...HEAD -- src/doctrine/missions/mission_type_repository.py` and
-   confirm no hunk's line range overlaps `_load()`'s body (lines 157–174, call site line 165) —
+   confirm no hunk's line range overlaps `_load()`'s body (lines 144–176, call site line 165) —
    every hunk in this file's diff must fall outside that range. If any hunk does overlap, this is
    an FR-005/C-001 violation and must be fixed before this WP is marked done.
 3. Self-check against plan.md's "The gate set" section (transcribed summary — see plan.md for
@@ -561,7 +564,7 @@ issue.
 - T003's four signature edits and three call-site edits are complete, all typed
   `_PackContextLike | None` (never the concrete `PackContext` class, never under
   `TYPE_CHECKING`) — C-008 satisfied.
-- `MissionTypeRepository._load()` (line 157–174, call site line 165) is untouched — FR-005/C-001
+- `MissionTypeRepository._load()` (line 144–176, call site line 165) is untouched — FR-005/C-001
   satisfied.
 - `charter/pack_manager.py:865` is untouched — FR-008 satisfied.
 - T004's golden-parity extension passes, correctly scoped to "unrelated org pack" parity, not
@@ -604,7 +607,7 @@ issue.
 - Confirm all four functions type `pack_context` as `_PackContextLike | None` — grep for any
   stray `PackContext` (the concrete class) import into `mission_type_repository.py`; there
   should be none, not even under `TYPE_CHECKING`.
-- Confirm `MissionTypeRepository._load()` (lines 157–174) has zero diff.
+- Confirm `MissionTypeRepository._load()` (lines 144–176) has zero diff.
 - Confirm `charter/pack_manager.py` has zero diff.
 - Confirm the red-first test (T002) is in a separate commit from the production fix (T003), in
   that order, per `git log`.
