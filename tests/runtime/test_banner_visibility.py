@@ -35,8 +35,8 @@ def _clean_agent_env(monkeypatch: pytest.MonkeyPatch) -> None:
     ],
 )
 @pytest.mark.usefixtures("_clean_agent_env")
-def test_banner_scope_is_limited_to_init_and_version(argv: list[str], expected: bool) -> None:
-    """ASCII art should be limited to init and version invocations."""
+def test_banner_scope_is_limited_to_init(argv: list[str], expected: bool) -> None:
+    """ASCII art should be limited to init invocations."""
     # Arrange — argv and expected supplied by parametrize
     # Assumption check
     assert isinstance(argv, list)
@@ -79,8 +79,7 @@ def test_version_callback_does_not_render_banner(monkeypatch: pytest.MonkeyPatch
     def _fake_show_banner(*, force: bool = False) -> None:
         calls.append(force)
 
-    # version_callback imports show_banner locally from specify_cli.cli.helpers,
-    # so patch at the source module rather than on cli_module's namespace.
+    # Keep a sentinel on the banner authority to prove the callback never reaches it.
     monkeypatch.setattr("specify_cli.cli.helpers.show_banner", _fake_show_banner)
     # Assumption check
     assert calls == []

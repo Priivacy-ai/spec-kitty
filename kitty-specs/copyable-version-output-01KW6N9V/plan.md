@@ -1,7 +1,7 @@
 # Implementation Plan: Copyable Version Output
 
 **Branch**: `copyable-version-output-01KW6N9V` | **Date**: 2026-06-28 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/kitty-specs/copyable-version-output-01KW6N9V/spec.md`
+**Input**: Mission specification from `/kitty-specs/copyable-version-output-01KW6N9V/spec.md`
 
 ## Summary
 

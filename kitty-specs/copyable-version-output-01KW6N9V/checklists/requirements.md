@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-06-28
-**Feature**: [spec.md](../spec.md)
+**Mission**: [spec.md](../spec.md)
 
 ## Content Quality
 
@@ -26,11 +26,11 @@
 - [x] Scope is clearly bounded
 - [x] Dependencies and assumptions identified
 
-## Feature Readiness
+## Mission Readiness
 
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
+- [x] Mission meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
 ## Notes
