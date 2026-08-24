@@ -56,20 +56,11 @@ AUTHORIZED_HOSTED_IMPORTS = frozenset(
         ),
     }
 )
-REFLECTION_SELECTORS = frozenset(
-    {
-        "eval",
-        "exec",
-        "getattr",
-        "globals",
-        "import_module",
-        "locals",
-        "vars",
-        "__import__",
-        "__dict__",
-        "getitem",
-    }
-)
+SINK_OWNERS = frozenset({"_trigger_dossier_sync", EXECUTOR})
+PROTOCOL_METHODS = {
+    "_LifecycleEventIntent": frozenset({"envelope", "log_path"}),
+    "_DossierSyncIntent": frozenset({"feature_dir", "mission_slug", "repo_root"}),
+}
 
 
 @dataclass(frozen=True)
@@ -260,44 +251,121 @@ def _physical_sink_census(source: str) -> tuple[list[_SinkUse], list[_Edge]]:
     )
 
 
-def _reflection_edges(source: str) -> list[_Edge]:
-    """Reject dynamic namespace selectors from the deliberately closed boundary."""
+def _body_without_docstring(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> list[ast.stmt]:
+    body = function.body
+    if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) and isinstance(body[0].value.value, str):
+        return body[1:]
+    return body
+
+
+def _statement_shape(statements: list[ast.stmt]) -> str:
+    return ast.dump(ast.Module(body=statements, type_ignores=[]), include_attributes=False)
+
+
+EXPECTED_SINK_OWNER_BODIES = {
+    "_trigger_dossier_sync": _statement_shape(
+        ast.parse(
+            "if not is_canonical_hosted_sync_decision(decision):\n"
+            "    return\n"
+            "trigger_feature_dossier_sync_if_enabled(\n"
+            "    intent.feature_dir, intent.mission_slug, intent.repo_root\n"
+            ")\n"
+        ).body
+    ),
+    EXECUTOR: _statement_shape(
+        ast.parse(
+            "if not is_canonical_hosted_sync_decision(decision):\n"
+            "    return\n"
+            "for intent in lifecycle_intents:\n"
+            "    fanout_lifecycle_event_hosted(\n"
+            "        intent.envelope, log_path=intent.log_path\n"
+            "    )\n"
+            "if dossier_intent is not None:\n"
+            "    _trigger_dossier_sync(decision, dossier_intent)\n"
+        ).body
+    ),
+}
+
+
+def _definition_preamble_has_call(
+    function: ast.FunctionDef | ast.AsyncFunctionDef,
+) -> bool:
+    """Detect decorators/defaults/annotations evaluated before a function guard."""
+    expressions: list[ast.AST] = [*function.decorator_list, *function.args.defaults]
+    expressions.extend(default for default in function.args.kw_defaults if default is not None)
+    expressions.extend(
+        annotation
+        for annotation in (
+            function.returns,
+            *(argument.annotation for argument in function.args.posonlyargs),
+            *(argument.annotation for argument in function.args.args),
+            *(argument.annotation for argument in function.args.kwonlyargs),
+        )
+        if annotation is not None
+    )
+    return any(isinstance(node, ast.Call) for expression in expressions for node in ast.walk(expression))
+
+
+def _closed_boundary_shape_edges(source: str) -> list[_Edge]:
+    """Enforce the boundary's complete declaration and execution shape."""
     tree = ast.parse(source)
+    parents = _parent_map(tree)
     edges: list[_Edge] = []
+    functions = {node.name: node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    if set(functions) != SINK_OWNERS:
+        edges.append(
+            _Edge(
+                "top-level-function-shape",
+                ",".join(sorted(functions)),
+                0,
+            )
+        )
+    for name, expected in EXPECTED_SINK_OWNER_BODIES.items():
+        function = functions.get(name)
+        if function is None or _statement_shape(_body_without_docstring(function)) != expected:
+            edges.append(_Edge("sink-owner-body-shape", name, getattr(function, "lineno", 0)))
+
+    classes = {node.name: node for node in tree.body if isinstance(node, ast.ClassDef)}
+    if set(classes) != set(PROTOCOL_METHODS):
+        edges.append(_Edge("protocol-class-shape", ",".join(sorted(classes)), 0))
+    for class_name, expected_methods in PROTOCOL_METHODS.items():
+        class_node = classes.get(class_name)
+        if class_node is None:
+            continue
+        methods = {node.name: node for node in class_node.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        if set(methods) != expected_methods:
+            edges.append(_Edge("protocol-method-shape", class_name, class_node.lineno))
+        for method in methods.values():
+            inert_property = (
+                len(method.decorator_list) == 1
+                and _qualified_name(method.decorator_list[0]) == "property"
+                and len(method.body) == 1
+                and isinstance(method.body[0], ast.Expr)
+                and isinstance(method.body[0].value, ast.Constant)
+                and method.body[0].value.value is Ellipsis
+                and not method.args.defaults
+                and not any(method.args.kw_defaults)
+            )
+            if not inert_property:
+                edges.append(_Edge("protocol-method-execution", method.name, method.lineno))
+
     for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in REFLECTION_SELECTORS:
-            edges.append(_Edge("boundary-reflection", node.id, node.lineno))
-        elif isinstance(node, ast.Attribute) and (node.attr in REFLECTION_SELECTORS or _qualified_name(node) == "sys.modules"):
-            edges.append(
-                _Edge(
-                    "boundary-reflection",
-                    _qualified_name(node) or node.attr,
-                    node.lineno,
-                )
-            )
-        elif isinstance(node, ast.ImportFrom) and node.module in {
-            "builtins",
-            "operator",
-            "importlib",
-        }:
-            edges.extend(
-                _Edge(
-                    "boundary-reflection-import",
-                    f"{node.module}.{item.name}",
-                    node.lineno,
-                )
-                for item in node.names
-                if item.name in REFLECTION_SELECTORS
-            )
+        if isinstance(node, ast.Call) and _enclosing_function(node, parents) is None:
+            edges.append(_Edge("module-or-class-call", _qualified_name(node.func) or "call", node.lineno))
+        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and _definition_preamble_has_call(node):
+            edges.append(_Edge("definition-preamble-call", node.name, node.lineno))
+    for node in tree.body:
+        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+            edges.append(_Edge("module-assignment", type(node).__name__, node.lineno))
     return sorted(set(edges), key=lambda item: (item.lineno, item.kind, item.value))
 
 
 def _first_executable_statement(
     function: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> ast.stmt:
-    statements = function.body
-    if statements and isinstance(statements[0], ast.Expr) and isinstance(statements[0].value, ast.Constant) and isinstance(statements[0].value.value, str):
-        statements = statements[1:]
+    statements = _body_without_docstring(function)
     assert statements, f"{function.name} has no executable body"
     return statements[0]
 
@@ -317,8 +385,10 @@ def _has_terminal_identity_guard(
         and len(call.args) == 1
         and isinstance(call.args[0], ast.Name)
         and call.args[0].id in decision_names
-        and bool(statement.body)
-        and isinstance(statement.body[-1], (ast.Return, ast.Raise))
+        and len(statement.body) == 1
+        and isinstance(statement.body[0], ast.Return)
+        and statement.body[0].value is None
+        and not statement.orelse
     )
 
 
@@ -326,7 +396,7 @@ def _boundary_violations(source: str) -> list[_Edge]:
     """Return unguarded selections and all sink capability escapes."""
     functions = _functions(source)
     uses, violations = _physical_sink_census(source)
-    violations.extend(_reflection_edges(source))
+    violations.extend(_closed_boundary_shape_edges(source))
     for use in uses:
         if use.kind != "direct-call":
             violations.append(_Edge("sink-escape", use.sink, use.lineno))
@@ -468,20 +538,6 @@ def test_missing_or_late_identity_guard_fails_dominance_oracle() -> None:
             "    vars(hostile_transport).get(name)()\n",
         ),
         (
-            "boundary-reflection",
-            "\ndef hostile(decision):\n"
-            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
-            '    globals()["fanout_lifecycle_event_hosted"]({})\n',
-        ),
-        (
-            "boundary-reflection",
-            "\nimport sys\n"
-            "def hostile(decision):\n"
-            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
-            "    getattr(sys.modules[__name__], "
-            '"fanout_lifecycle_event_hosted")({})\n',
-        ),
-        (
             "aliased-hosted-import",
             "\nfrom specify_cli.status.lifecycle_events import fanout_lifecycle_event_hosted as emit\n",
         ),
@@ -494,6 +550,43 @@ def test_missing_or_late_identity_guard_fails_dominance_oracle() -> None:
 def test_boundary_census_rejects_hostile_internal_mutations(
     expected_kind: str,
     mutation: str,
+) -> None:
+    source = BOUNDARY.read_text(encoding="utf-8") + mutation
+    assert expected_kind in {finding.kind for finding in _boundary_violations(source)}
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        'globals()["fanout_lifecycle_event_hosted"]({})',
+        'getattr(sys.modules[__name__], "fanout_lifecycle_event_hosted")({})',
+        '__builtins__["globals"]()["fanout_lifecycle_event_hosted"]({})',
+        '__builtins__["getattr"](__builtins__, "globals")()["fanout_lifecycle_event_hosted"]({})',
+    ],
+)
+def test_closed_sink_owner_body_rejects_namespace_lookup_bypasses(
+    statement: str,
+) -> None:
+    source = BOUNDARY.read_text(encoding="utf-8")
+    marker = "    for intent in lifecycle_intents:\n"
+    assert source.count(marker) == 1
+    mutated = source.replace(marker, f"    {statement}\n{marker}", 1)
+    assert "sink-owner-body-shape" in {finding.kind for finding in _boundary_violations(mutated)}
+
+
+@pytest.mark.parametrize(
+    ("mutation", "expected_kind"),
+    [
+        ("\nfactory()\n", "module-or-class-call"),
+        ("\nVALUE = factory()\n", "module-assignment"),
+        ("\n@factory()\ndef extra():\n    pass\n", "definition-preamble-call"),
+        ("\ndef extra(value=factory()):\n    pass\n", "definition-preamble-call"),
+        ("\ndef extra(value: factory()):\n    pass\n", "definition-preamble-call"),
+    ],
+)
+def test_closed_boundary_rejects_pre_guard_execution_surfaces(
+    mutation: str,
+    expected_kind: str,
 ) -> None:
     source = BOUNDARY.read_text(encoding="utf-8") + mutation
     assert expected_kind in {finding.kind for finding in _boundary_violations(source)}
