@@ -48,10 +48,10 @@
       "criterion_id": "FR-005",
       "description": "Stale dependency diagnostics explain recovery.",
       "proof_type": "automated_test",
-      "evidence": "Stale diagnostic acceptance tests assert dependent ID, canceled dependency ID, and remove-or-repoint recovery",
+      "evidence": "test_finalize_canceled_work_packages.py human and JSON stale diagnostics name both IDs and remove-or-repoint recovery",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:15:01.433603+00:00",
+      "verified_at": "2026-08-24T12:02:02.612767+00:00",
       "notes": "Pass when human and JSON diagnostics name the dependent and canceled IDs and direct the operator to remove or repoint the edge."
     },
     {
