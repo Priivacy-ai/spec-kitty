@@ -1,0 +1,36 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: contract
+profile: reviewer-renata
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+diff_base: 8a03733e734f002ab97cc4ee74a006a70f683048
+findings:
+  - id: PR-CONTRACT-001
+    severity: 3
+    file: src/specify_cli/dossier/events.py
+    line: 197
+    title: emit_artifact_indexed advertises provenance as a free-form dict; canonical type forbids it
+    detail: >-
+      Signature still reads provenance: dict[str, Any] | None. Canonical ProvenanceRef is frozen with
+      extra=forbid and fields [actor_id, actor_kind, git_ref, git_sha, revised_at, source_event_ids].
+      The dossier module's own documented provenance shape (models.py:83-86) is
+      {source_kind, actor_id, captured_at} - two of three are not canonical fields, so the canonical
+      model rejects it. The resulting ValidationError is caught by a blanket except (TypeError, ValueError)
+      and the function returns None: the event is SILENTLY DROPPED. Dormant (no caller passes provenance)
+      and zero test coverage. Same root cause as the known tuple/list case; this repo's dominant
+      silent-success failure mode, in a public signature.
+    orchestrator_verification: CONFIRMED first-hand (canonical fields + extra=forbid; signature unchanged)
+  - id: PR-CONTRACT-002
+    severity: 2
+    file: tests/dossier/test_snapshot_emit.py
+    line: 69
+    title: Mission's own fixtures use a drift_kind value canonical validation rejects
+    detail: >-
+      Canonical drift_kind is Literal[artifact_added, artifact_removed, artifact_mutated,
+      anomaly_introduced, anomaly_resolved, manifest_version_changed]. The new fixtures at
+      test_snapshot_emit.py:69 and test_diagnose.py:646 both use "content_mismatch", which is not a
+      member. Tests pass only because they assert does-not-crash or check a different deliberately
+      broken field. Net effect: no positive-path test anywhere proves a valid drift_kind round-trips,
+      and a reader reconstructing the contract from these tests would conclude "content_mismatch" is legal.
+    orchestrator_verification: CONFIRMED first-hand (Literal members vs fixture values)

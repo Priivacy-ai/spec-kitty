@@ -34,7 +34,8 @@ from specify_cli.dossier.emitter_adapter import (
 )
 from specify_cli.dossier.events import emit_snapshot_computed
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
-from specify_cli.sync.emitter import _PAYLOAD_RULES, _is_canonical_snapshot_hash
+from spec_kitty_events.conformance import validate_event
+from specify_cli.sync.emitter import _PAYLOAD_RULES, _is_canonical_snapshot_hash, is_dossier_delegate
 from specify_cli.sync.layout_generation import LayoutGenerationAuthority
 from specify_cli.sync.project_context import ProjectSyncContext
 from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
@@ -48,6 +49,29 @@ NAMESPACE_DICT = {
     "target_branch": "main",
     "mission_type": "software-dev",
     "manifest_version": "1",
+}
+
+# T013 (FR-006 rewrite): minimal valid canonical payloads for the two
+# hash-bearing dossier event types, used to isolate the hash-field checks
+# from the rest of validate_event()'s required-field validation.
+_VALID_SNAPSHOT_COMPUTED_PAYLOAD = {
+    "namespace": NAMESPACE_DICT,
+    "snapshot_hash": "sha256:" + "a" * 64,
+    "artifact_count": 1,
+    "anomaly_count": 0,
+    "computed_at": "2026-08-22T12:00:00Z",
+}
+
+_VALID_PARITY_DRIFT_PAYLOAD = {
+    "namespace": NAMESPACE_DICT,
+    "expected_hash": "sha256:" + "a" * 64,
+    "actual_hash": "sha256:" + "b" * 64,
+    # PR-CONTRACT-002: "content_mismatch" is not a member of the canonical
+    # Literal[artifact_added, artifact_removed, artifact_mutated,
+    # anomaly_introduced, anomaly_resolved, manifest_version_changed] --
+    # "artifact_mutated" is the real member for a changed-content drift.
+    "drift_kind": "artifact_mutated",
+    "detected_at": "2026-08-22T12:00:00Z",
 }
 
 
@@ -218,11 +242,55 @@ class TestCanonicalSnapshotHashValidator:
         assert _is_canonical_snapshot_hash(value) is False
 
     def test_emit_rule_wires_canonical_validator_for_hash_fields(self) -> None:
-        # The MissionDossierSnapshotComputed and ParityDriftDetected hash fields
-        # must validate through the canonical-accepting successor.
-        snap_validators = _PAYLOAD_RULES["MissionDossierSnapshotComputed"]["validators"]
-        assert snap_validators["snapshot_hash"] is _is_canonical_snapshot_hash
+        """FR-006 rewrite: the MissionDossierSnapshotComputed and
+        ParityDriftDetected entries no longer hold a subscriptable
+        ``{"validators": {...}}`` dict -- WP02 replaced them with the
+        ``_DOSSIER_VALIDATE_EVENT_DELEGATE`` sentinel, so hash-field
+        validation now flows through ``spec_kitty_events.conformance
+        .validate_event()`` instead of the local
+        ``_is_canonical_snapshot_hash`` lambda wiring.
 
-        drift_validators = _PAYLOAD_RULES["MissionDossierParityDriftDetected"]["validators"]
-        assert drift_validators["expected_hash"] is _is_canonical_snapshot_hash
-        assert drift_validators["actual_hash"] is _is_canonical_snapshot_hash
+        This was previously
+        ``_PAYLOAD_RULES["MissionDossierSnapshotComputed"]["validators"]
+        ["snapshot_hash"] is _is_canonical_snapshot_hash`` -- that subscript
+        now raises ``TypeError: 'object' object is not subscriptable``
+        because the dict value is the sentinel, not a dict.
+        """
+        assert is_dossier_delegate(_PAYLOAD_RULES["MissionDossierSnapshotComputed"])
+        assert is_dossier_delegate(_PAYLOAD_RULES["MissionDossierParityDriftDetected"])
+
+        # PR-CONTRACT-002: positive-path proof that a real (canonical)
+        # drift_kind round-trips valid=True -- nothing here previously
+        # asserted this, so the fixtures had silently drifted onto a
+        # non-canonical "content_mismatch" value that only "did not crash".
+        result = validate_event(dict(_VALID_PARITY_DRIFT_PAYLOAD), "MissionDossierParityDriftDetected", strict=True)
+        assert result.valid is True, (result.model_violations, result.schema_violations)
+
+        # A genuinely malformed (empty-string) hash value is still rejected,
+        # via the canonical validator, naming the real violated field --
+        # not the retired local _is_canonical_snapshot_hash format check.
+        snapshot_payload = dict(_VALID_SNAPSHOT_COMPUTED_PAYLOAD)
+        snapshot_payload["snapshot_hash"] = ""
+        result = validate_event(snapshot_payload, "MissionDossierSnapshotComputed", strict=True)
+        assert result.valid is False
+        assert any(
+            "snapshot_hash" in str(v) for v in (*result.model_violations, *result.schema_violations)
+        )
+
+        drift_payload = dict(_VALID_PARITY_DRIFT_PAYLOAD)
+        drift_payload["expected_hash"] = ""
+        result = validate_event(drift_payload, "MissionDossierParityDriftDetected", strict=True)
+        assert result.valid is False
+        assert any(
+            "expected_hash" in str(v) for v in (*result.model_violations, *result.schema_violations)
+        )
+
+        # The formerly-rejected-by-_is_canonical_snapshot_hash malformed
+        # forms (wrong prefix casing, bad algorithm tag, wrong length) are
+        # NOT format-checked by the canonical schema -- it only requires a
+        # non-empty string. This is an intentional consequence of FR-006's
+        # delegation (the canonical validator is now the sole source of
+        # truth for shape), not a residual local check to preserve.
+        loose_payload = dict(_VALID_SNAPSHOT_COMPUTED_PAYLOAD)
+        loose_payload["snapshot_hash"] = "sha1:" + "a" * 64
+        assert validate_event(loose_payload, "MissionDossierSnapshotComputed", strict=True).valid is True

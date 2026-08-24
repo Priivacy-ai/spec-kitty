@@ -1,0 +1,59 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: PLAN-GOV-001
+    lens: PR-shape / Ledger / Directive (Terminology Canon hard-break)
+    severity: 4
+    title: >-
+      Plan's Gate Set and PR Shape sections omit a known, already-verified
+      commitlint-failing, Terminology-Canon-violating commit already sitting
+      on this mission's own branch
+    evidence:
+      - artifact: "plan.md § Gate Set (line ~542): 'Commit message linting (commitlint) | Yes — every commit | Applies unconditionally to every commit this mission makes.'"
+      - artifact: "plan.md § PR Shape (lines 614-642): recommends one PR, no mention of the pre-existing non-conformant commit"
+      - artifact: "plan.md § Phasing (lines 646-724): no phase/step addresses reconciling the branch's existing commit history before PR-prep"
+      - code: "git log --oneline shows commit 75d707d89 'Add meta for feature legacy-cleanup-split-dossier-queue-migration-01M0MGHB' as the first commit on refactor/dossier-emitters-canonical-only-1058, directly on top of main"
+      - artifact: "kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/tracer-tooling-friction.md § 'Commit-hygiene observation': already documents this exact commit as carrying no conventional-commit prefix and the word 'feature', 'Left untouched ... recorded for PR-prep / operator ledger tracking'"
+      - artifact: "SK-missions/SPEC-KITTY-LEDGER.md § SK-64 (same mission, verified first-hand 2026-08-22): confirms the identical defect class — no commitlint-conforming prefix, and a live Terminology Canon violation"
+      - artifact: ".kittify/charter/charter.md § Terminology Canon (Mission vs Feature): 'Hard-break policy: do not introduce or preserve feature* aliases ... Historical archived artifacts may retain legacy wording only as immutable snapshots and must be explicitly marked legacy' — this commit is neither archived nor marked legacy, it is live, unmerged branch history"
+      - artifact: ".kittify/charter/charter.md § Code Quality > Pull Request Requirements: 'Linear — rebased onto the current upstream base and compacted into a small set of logically-sliced commits ... never an interactive reorder'"
+    claim: >-
+      The mission's own branch already carries commit 75d707d89 ("Add meta
+      for feature legacy-cleanup-split-dossier-queue-migration-01M0MGHB"),
+      produced by the tooling's own auto-commit during `agent mission create
+      --start-branch`. This commit (a) has no conventional-commit type
+      prefix, so it will fail the commitlint gate the plan's own Gate Set
+      table lists as "Yes — every commit ... unconditionally", and (b) uses
+      the word "feature" for what is unambiguously a Mission, a direct hit
+      on the charter's binding, hard-break Terminology Canon — and it is not
+      an archived/immutable snapshot, it is live history on a branch headed
+      for a PR on this public repo. The mission's own tracer-tooling-friction.md
+      already caught and recorded this fact first-hand, explicitly flagging
+      it as deferred to "PR-prep / operator ledger tracking" — but plan.md's
+      Gate Set, PR Shape, and Phasing sections (the exact sections whose job
+      is to reason about what lands in the PR and which gates it must pass)
+      never reference it, never assign it a remediation step, and the Gate
+      Set's commitlint row makes an unqualified "applies unconditionally"
+      claim that is already false for this branch's existing history. Without
+      an explicit plan step, PR-prep is the only place left to catch this,
+      and nothing in the plan obligates that catch to happen — a real risk
+      that either CI reds on commitlint or a Terminology Canon violation
+      ships permanently into public PR history.
+    remediation: >-
+      Add an explicit step to the plan (either as a Phase 0 sub-item or a
+      dedicated "PR-prep housekeeping" note in the PR Shape section) that:
+      (1) names commit 75d707d89 as a known non-conformant commit requiring
+      remediation before the PR is opened, (2) states the mechanism — since
+      the charter's "Linear" requirement permits compaction but forbids
+      interactive reorder, the safe remediation is folding/squashing this
+      metadata-only commit into the first substantive commit of the mission
+      (or amending its message alone, without reordering) during the
+      standard `mission-wrap-up-sequence` compact-history step — not a
+      standalone interactive rebase edit, and (3) cross-references the
+      already-recorded tracer-file entry and SPEC-KITTY-LEDGER.md SK-64 so
+      the remediation isn't rediscovered from scratch at PR-prep time.
+# yaml self-check passed via python3 -c "import yaml,sys;yaml.safe_load(open(sys.argv[1]))"

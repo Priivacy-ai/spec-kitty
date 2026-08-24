@@ -1,0 +1,26 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      spec.md now has FR-011 (Requirements table, sequential FR-001..FR-011, no
+      numbering gaps) explicitly naming the diagnose.py::_validate_payload
+      coordinated fix and its tests/sync/test_diagnose.py regression test;
+      NFR-003's bounded test-scope list now includes tests/sync/test_diagnose.py;
+      Key Entities' FR-006/FR-007 reconciliation paragraph cross-references
+      FR-011; and plan.md's diagnose.py sections (Technical Context, Scale/Scope
+      consumer table, "diagnose.py coordinated fix", Phasing Phase 3, PR Shape,
+      Red-First/ATDD Test Mapping's split FR-011 row) now cite FR-011 instead of
+      being FR-less/citing bare PLAN-ARCH-001.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      plan.md's emitter.py::_validate_payload code sample (line ~422) now calls
+      is_dossier_delegate(rules) instead of the raw `rules is
+      _DOSSIER_VALIDATE_EVENT_DELEGATE` comparison; is_dossier_delegate() is
+      defined exactly once, module-level in emitter.py right after the sentinel,
+      and both emitter.py's and diagnose.py's _validate_payload code samples
+      reference that single definition rather than duplicating the identity
+      check.

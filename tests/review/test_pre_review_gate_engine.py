@@ -11,6 +11,7 @@ composites) so the shape + exclusion assertions still pin the real-world
 scenarios named in the spec (SC-003/SC-004/SC-007), just against a stable,
 hand-built substrate instead of the live workflow file.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -25,6 +26,7 @@ import pytest
 from specify_cli.review import baseline as baseline_module
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, BaselineTestResult
+from specify_cli.review.gate_budget import BudgetClassification, ScopeBudgetAssessment, ScopeIdentity
 from specify_cli.review.pre_review_gate import (
     GateOutcome,
     HeadRunResult,
@@ -84,6 +86,160 @@ FAKE_ROUTING: dict[str, pre_review_gate._CompositeRoute] = {
 }
 
 _DUMMY_ROOT = Path(".")
+
+
+# ---------------------------------------------------------------------------
+# Mission pre-review-gate-operator-flow WP02: budget-authoritative engine seam
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.fast
+def test_oversized_override_refuses_before_process_launch(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The explicit-override route refuses an exact oversized atom pre-launch."""
+
+    def _launch_boom(*args: object, **kwargs: object) -> object:
+        raise AssertionError("oversized scope must not create a process")
+
+    monkeypatch.setattr(pre_review_gate, "_launch_scoped_process", _launch_boom)
+    events: list[object] = []
+
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override(("tests/architectural",)),
+        repo_root=_DUMMY_ROOT,
+        baseline=None,
+        status_observer=events.append,
+    )
+
+    assert verdict.outcome.value == "scope_oversized"
+    assert verdict.run_state.value == "not_started"
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.classification is BudgetClassification.OVERSIZED
+    assert verdict.classification_candidate is False
+    assert len(events) == 1
+    assert isinstance(events[0], pre_review_gate.ScopeAssessed)
+
+
+@pytest.mark.fast
+def test_unknown_scope_runs_and_emits_typed_scope_then_heartbeat(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unknown metadata is advisory: the incumbent runner still executes."""
+    callbacks: list[object] = []
+
+    def _run(*args: object, **kwargs: object) -> HeadRunResult:
+        progress = kwargs["progress_callback"]
+        assert callable(progress)
+        progress(31.25)
+        return HeadRunResult(ran=True)
+
+    monkeypatch.setattr(pre_review_gate, "run_scoped_tests_at_head", _run)
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override(("tests/review/test_small.py",)),
+        repo_root=_DUMMY_ROOT,
+        baseline=_make_baseline(),
+        status_observer=callbacks.append,
+    )
+
+    assert verdict.outcome is GateOutcome.NO_NEW_FAILURES
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.classification is BudgetClassification.UNKNOWN
+    assert isinstance(callbacks[0], pre_review_gate.ScopeAssessed)
+    assert callbacks[1] == pre_review_gate.Heartbeat(phase="candidate_head", observed_elapsed_seconds=31.25)
+
+
+@pytest.mark.fast
+def test_unknown_timeout_is_classification_candidate_with_separate_elapsed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Only an unknown timeout carries immutable-policy follow-up evidence."""
+    monkeypatch.setattr(
+        pre_review_gate,
+        "run_scoped_tests_at_head",
+        lambda *args, **kwargs: HeadRunResult(
+            ran=False,
+            error="timed out",
+            state=HeadRunState.TIMED_OUT,
+            observed_elapsed_seconds=12.75,
+        ),
+    )
+
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override(("tests/review/test_small.py",)),
+        repo_root=_DUMMY_ROOT,
+        baseline=None,
+        timeout=10,
+    )
+
+    assert verdict.outcome is GateOutcome.TIMED_OUT
+    assert verdict.classification_candidate is True
+    assert verdict.observed_elapsed_seconds == 12.75
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.effective_budget_seconds == 10.0
+    assert verdict.budget_assessment.scope_identity.value in (verdict.reason or "")
+    assert "lane remains unchanged" in (verdict.reason or "")
+    assert "reviewed metadata update" in (verdict.reason or "")
+
+
+@pytest.mark.fast
+def test_bounded_timeout_is_not_a_classification_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A timeout cannot auto-promote already-bounded deterministic metadata."""
+    bounded = ScopeBudgetAssessment(
+        classification=BudgetClassification.BOUNDED,
+        scope_identity=ScopeIdentity(
+            normalized_targets=("tests/review/test_small.py",),
+            policy_namespace="spec-kitty.pre-review-budget/v1",
+            value="budget-v1:sha256:bounded-fixture",
+        ),
+        effective_budget_seconds=10,
+        matched_rule_id="bounded-fixture",
+        evidence="synthetic bounded acceptance fixture",
+        guidance="run",
+    )
+    monkeypatch.setattr(pre_review_gate, "assess_scope_budget", lambda *args: bounded)
+    monkeypatch.setattr(
+        pre_review_gate,
+        "run_scoped_tests_at_head",
+        lambda *args, **kwargs: HeadRunResult(
+            ran=False,
+            error="timed out",
+            state=HeadRunState.TIMED_OUT,
+            observed_elapsed_seconds=12.75,
+        ),
+    )
+
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override(("tests/review/test_small.py",)),
+        repo_root=_DUMMY_ROOT,
+        baseline=None,
+        timeout=10,
+    )
+
+    assert verdict.outcome is GateOutcome.TIMED_OUT
+    assert verdict.classification_candidate is False
+    assert verdict.observed_elapsed_seconds == 12.75
+
+
+def test_bounded_fixture_completes_under_incumbent_runner() -> None:
+    """Source-controlled bounded metadata permits a real candidate run."""
+    target = "tests/review/test_gate_budget.py::test_identity_matches_pinned_vector"
+
+    verdict = pre_review_gate.evaluate_with_scope(
+        ScopeResult.from_override((target,)),
+        repo_root=_DUMMY_ROOT,
+        baseline=_make_baseline(),
+        timeout=30,
+    )
+
+    assert verdict.outcome is GateOutcome.NO_NEW_FAILURES
+    assert verdict.run_state is HeadRunState.COMPLETED
+    assert verdict.budget_assessment is not None
+    assert verdict.budget_assessment.classification is BudgetClassification.BOUNDED
+    assert verdict.budget_assessment.scope_identity.normalized_targets == (target,)
+    assert verdict.budget_assessment.effective_budget_seconds == 30
+    assert verdict.budget_assessment.matched_rule_id == "spec-kitty-gate-budget-pinned-vector"
+    assert verdict.classification_candidate is False
 
 
 # ---------------------------------------------------------------------------
@@ -336,7 +492,8 @@ def test_scope_result_from_source_stays_flat_for_non_narrowing_source(tmp_path: 
     groups by construction — its ``ScopeResult`` is the flat ``file_to_scope``
     union only, unchanged from before."""
     scope = pre_review_gate._scope_result_from_source(
-        DeclaredCommandScopeSource(repo_root=tmp_path), ["anything/at/all.rb"],
+        DeclaredCommandScopeSource(repo_root=tmp_path),
+        ["anything/at/all.rb"],
     )
 
     assert scope.test_targets == ()
@@ -355,7 +512,10 @@ def test_narrowing_source_empty_scope_is_no_coverage_not_a_whole_suite_run() -> 
     assert empty_scope.is_empty
 
     verdict = pre_review_gate.evaluate_with_scope(
-        empty_scope, repo_root=_DUMMY_ROOT, baseline=None, scope_source=impl,
+        empty_scope,
+        repo_root=_DUMMY_ROOT,
+        baseline=None,
+        scope_source=impl,
     )
 
     assert verdict.outcome is GateOutcome.NO_COVERAGE
@@ -530,7 +690,8 @@ def _spy_on_resolve_pytest_command(
 
 @pytest.mark.integration
 def test_real_subprocess_run_parses_junit_and_captures_current_failures(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     _write_tiny_pytest_project(tmp_path, failing=True)
     calls = _spy_on_resolve_pytest_command(monkeypatch)
@@ -547,7 +708,8 @@ def test_real_subprocess_run_parses_junit_and_captures_current_failures(
 
 @pytest.mark.integration
 def test_real_subprocess_run_with_no_failures_yields_empty_current_failures(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     _write_tiny_pytest_project(tmp_path, failing=False)
     calls = _spy_on_resolve_pytest_command(monkeypatch)
@@ -562,7 +724,8 @@ def test_real_subprocess_run_with_no_failures_yields_empty_current_failures(
 
 @pytest.mark.fast
 def test_missing_junit_output_degrades_to_a_warn_not_a_crash(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     monkeypatch.setattr(
         pre_review_gate.subprocess,
@@ -749,9 +912,7 @@ def test_reap_is_bounded_when_escaped_grandchild_holds_pipe(
         del candidate
         raise subprocess.TimeoutExpired(cmd="pytest", timeout=timeout)
 
-    monkeypatch.setattr(
-        pre_review_gate, "_signal_owned_process_tree", lambda *a, **k: None
-    )
+    monkeypatch.setattr(pre_review_gate, "_signal_owned_process_tree", lambda *a, **k: None)
 
     output = pre_review_gate._terminate_and_reap(process, wait=_wait)  # type: ignore[arg-type]
 
@@ -968,7 +1129,9 @@ def test_pre_existing_failure_does_not_block_no_new_failures_outcome(
 ) -> None:
     """SC-002: a base failure in the affected shard does NOT block the WP."""
     shared_failure = BaselineFailure(
-        test="tests.git.test_known_red", error="pre-existing", file="tests/git/test_x.py:1",
+        test="tests.git.test_known_red",
+        error="pre-existing",
+        file="tests/git/test_x.py:1",
     )
     monkeypatch.setattr(
         pre_review_gate,
@@ -993,7 +1156,8 @@ def test_new_failure_is_surfaced_via_the_real_diff_baseline(monkeypatch: pytest.
     real_diff_baseline = pre_review_gate.diff_baseline
 
     def _spy(
-        baseline: BaselineTestResult, current_failures: list[BaselineFailure],
+        baseline: BaselineTestResult,
+        current_failures: list[BaselineFailure],
     ) -> tuple[list[BaselineFailure], list[BaselineFailure], list[str]]:
         calls.append((baseline, list(current_failures)))
         return real_diff_baseline(baseline, current_failures)
@@ -1001,7 +1165,9 @@ def test_new_failure_is_surfaced_via_the_real_diff_baseline(monkeypatch: pytest.
     monkeypatch.setattr(pre_review_gate, "diff_baseline", _spy)
 
     new_failure = BaselineFailure(
-        test="tests.git.test_newly_broken", error="AssertionError", file="tests/git/test_x.py:5",
+        test="tests.git.test_newly_broken",
+        error="AssertionError",
+        file="tests/git/test_x.py:5",
     )
     monkeypatch.setattr(
         pre_review_gate,
@@ -1061,13 +1227,15 @@ def _write_declared_command_config(repo_root: Path, script_path: Path) -> None:
     kittify_dir = repo_root / ".kittify"
     kittify_dir.mkdir(parents=True, exist_ok=True)
     (kittify_dir / "config.yaml").write_text(
-        f'review:\n  test_command: "{sys.executable} {script_path}"\n', encoding="utf-8",
+        f'review:\n  test_command: "{sys.executable} {script_path}"\n',
+        encoding="utf-8",
     )
 
 
 @pytest.mark.integration
 def test_declared_command_source_runs_and_parses_a_real_non_pytest_failure_never_importing_gate_coverage(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """T015 (#2330 closure): a non-pytest, non-``src/specify_cli/`` layout
     gates via ITS OWN declared command through the engine — the command
@@ -1153,7 +1321,10 @@ def test_declared_command_source_no_config_yields_no_coverage(tmp_path: Path) ->
     scope_source = DeclaredCommandScopeSource(repo_root=tmp_path)
 
     verdict = pre_review_gate.evaluate_pre_review_gate(
-        ["anything/at/all.rb"], repo_root=tmp_path, baseline=None, scope_source=scope_source,
+        ["anything/at/all.rb"],
+        repo_root=tmp_path,
+        baseline=None,
+        scope_source=scope_source,
     )
 
     assert verdict.outcome is GateOutcome.NO_COVERAGE

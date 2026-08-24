@@ -1,0 +1,145 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: SPEC-FRESH-001
+    lens: fresh-eyes / citation-verification
+    severity: 4
+    title: FR-006's new import guidance invents a module-scope `Event` import that does not exist
+    evidence:
+      - artifact: "spec.md § FR-006 (requirements table row)"
+      - code: "src/specify_cli/sync/emitter.py:63"
+      - code: "src/specify_cli/sync/emitter.py:2477"
+    claim: >
+      This fix round added text to FR-006 requiring `from spec_kitty_events.conformance
+      import validate_event` to be added "at module scope in `emitter.py` (alongside the
+      existing `from spec_kitty_events import Event` import — a bare
+      `spec_kitty_events.conformance.validate_event(...)` attribute chain is not reachable
+      after that existing import style)". Re-derived directly against
+      `src/specify_cli/sync/emitter.py`: there is no module-scope `from spec_kitty_events
+      import Event` import anywhere in the file. The module-level imports of
+      `spec_kitty_events` are limited to `from spec_kitty_events import normalize_event_id
+      as _normalize_event_id` (line 63). The only `Event` import in the file is `from
+      spec_kitty_events import Event as EventModel` at line 2477, which is a LOCAL import
+      scoped inside `_validate_event`'s function body — the same pattern used by every
+      other `spec_kitty_events` type import in this file (e.g. `BuildRegisteredPayload` at
+      line 1120, `WPCreatedPayload` at line 1302, `MissionOriginBoundPayload` at line 1970,
+      etc. — all local, lazy imports inside the function that uses them). FR-006 misstates
+      the file's actual, consistent lazy-import convention and directs the implementer to
+      place a new import "alongside" an import that does not exist at module scope.
+    remediation: >
+      Correct FR-006 to match the file's real convention: import `validate_event` lazily
+      inside `_validate_payload` (or wherever the dossier delegation branch lives),
+      consistent with every other `spec_kitty_events` payload/model import in this file —
+      or, if a module-scope import is genuinely intended as a deliberate deviation from
+      that convention, say so explicitly with a rationale instead of citing a nonexistent
+      precedent.
+
+  - id: SPEC-FRESH-002
+    lens: fresh-eyes / cross-artifact-consistency
+    severity: 4
+    title: New "Reconciling FR-006 and FR-007" note offers an option that contradicts SC-005 and FR-007's own text
+    evidence:
+      - artifact: "spec.md § Key Entities → Reconciling FR-006 and FR-007 (new in this revision)"
+      - artifact: "spec.md § SC-005"
+      - artifact: "spec.md § FR-007"
+      - code: "src/specify_cli/sync/emitter.py:897"
+    claim: >
+      This fix round added a whole new paragraph under Key Entities to reconcile FR-006
+      (delegate dossier validation to `validate_event()`) and FR-007 (keep the four
+      dossier keys recognized). It offers two "e.g." options, the second being: "the four
+      keys are removed from `_PAYLOAD_RULES` and instead folded into `VALID_EVENT_TYPES`
+      via a separate `DOSSIER_EVENT_TYPES` frozenset". This option directly contradicts
+      two other parts of the same spec that this revision did NOT touch: (1) SC-005 says
+      "`_PAYLOAD_RULES`'s four dossier entries route through
+      `spec_kitty_events.conformance.validate_event(...)`" — which requires the entries to
+      still exist IN `_PAYLOAD_RULES`, not be removed from it; (2) FR-007's own binding
+      text says "Keep the four dossier event-type strings as keys in `_PAYLOAD_RULES` /
+      `VALID_EVENT_TYPES`" — under option B the keys are explicitly NOT kept in
+      `_PAYLOAD_RULES`. Live source confirms `VALID_EVENT_TYPES` is currently *derived*
+      from `_PAYLOAD_RULES` (`VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())`,
+      `emitter.py:897`), so option B would also require changing that derivation — a
+      further structural change the reconciliation note never calls out. If plan.md picks
+      option B (which the note presents as an equally valid "e.g." choice), the resulting
+      implementation fails SC-005 and FR-007 as literally written.
+    remediation: >
+      Remove option B from the reconciliation note, or mark it explicitly non-viable given
+      SC-005/FR-007's binding wording. Keep only the sentinel-value-inside-`_PAYLOAD_RULES`
+      option (option A), which is the only one compatible with SC-005 and FR-007 as
+      written. If option B is genuinely wanted, amend FR-007 and SC-005 first and add the
+      required `VALID_EVENT_TYPES` derivation change to the reconciliation note.
+
+  - id: SPEC-FRESH-003
+    lens: fresh-eyes / citation-verification
+    severity: 3
+    title: 'Corrected dossier_pipeline.py citation (101-116) is still off by two lines'
+    evidence:
+      - artifact: "spec.md § Clarifications (Q: is deleting the bridge pure dead-code removal?)"
+      - artifact: "spec.md § FR-004 (rationale column)"
+      - code: "src/specify_cli/sync/dossier_pipeline.py:101-114"
+    claim: >
+      This fix round changed the `emit_artifact_indexed(...)` call-site citation in two
+      places from "(lines 101-119)" to "(lines 101-116)". Re-derived directly against
+      `src/specify_cli/sync/dossier_pipeline.py`: the `emit_artifact_indexed(...)` call
+      statement itself spans lines 101-114 (opening call at line 101, closing paren at
+      line 114). Lines 115-116 are the following, separate `if result is not None:` /
+      `events_emitted += 1` statements — not part of the call being cited. The revised
+      citation is closer to correct than the original but is still 2 lines too long. The
+      sibling citation "(lines 126-139)" for the `emit_artifact_missing(...)` call (not
+      touched by this fix round) has the identical off-by-two pattern — that call spans
+      lines 126-137, not 126-139.
+    remediation: >
+      Cite `dossier_pipeline.py:101-114` for the `emit_artifact_indexed` call and
+      `dossier_pipeline.py:126-137` for the `emit_artifact_missing` call, in both the
+      Clarifications section and FR-004's rationale column.
+
+  - id: SPEC-FRESH-004
+    lens: fresh-eyes / citation-verification
+    severity: 3
+    title: 'SpecKittyEventEmitter is not a real class — the actual class is EventEmitter'
+    evidence:
+      - artifact: "spec.md § User Story 1 → Independent Test"
+      - artifact: "spec.md § SC-005"
+      - code: "src/specify_cli/sync/emitter.py:945"
+    claim: >
+      Both User Story 1's Independent Test ("drive it through
+      `SpecKittyEventEmitter._validate_payload()`") and SC-005 ("run through
+      `SpecKittyEventEmitter._validate_payload()`") name a class `SpecKittyEventEmitter`.
+      Grepped `src/` and `tests/` in full: zero hits for that name anywhere in the
+      repository. The class that actually defines `_validate_payload`/`_validate_event` is
+      `EventEmitter` (`src/specify_cli/sync/emitter.py:945`). These sections were not
+      touched by this fix round, but they describe the acceptance test for exactly the
+      surface (`_validate_payload`, dossier `_PAYLOAD_RULES`) that FR-006/FR-007 are
+      changing in this revision, so the broken cross-reference sits directly next to the
+      changed requirements and would mislead whoever writes the SC-005 acceptance check
+      from the literal spec text.
+    remediation: >
+      Replace `SpecKittyEventEmitter` with `EventEmitter` in both User Story 1's
+      Independent Test and SC-005.
+
+  - id: SPEC-FRESH-005
+    lens: fresh-eyes / test-strategy-consistency
+    severity: 2
+    title: FR-004's new anti-mock/autospec requirement names only Acceptance Scenario 1, not the equally-exposed Scenario 2
+    evidence:
+      - artifact: "spec.md § FR-004 (rationale column, new sentence)"
+      - artifact: "spec.md § User Story 2 → Acceptance Scenario 2"
+    claim: >
+      FR-004's newly added test-isolation sentence requires the regression test for "User
+      Story 2, Acceptance Scenario 1" to avoid a plain (non-autospec) `Mock` of
+      `emit_artifact_indexed`/`emit_artifact_missing`, so a removed/renamed keyword
+      argument still raises `TypeError` through the mock instead of passing silently. The
+      sentence talks about both `emit_artifact_indexed` and `emit_artifact_missing`, but by
+      name it binds the requirement only to Acceptance Scenario 1 (which covers
+      `emit_artifact_indexed`). Acceptance Scenario 2 (the `emit_artifact_missing`
+      `blocking` short-circuit test) carries the identical masking risk — a plain `Mock`
+      there would equally hide a `TypeError` from a reverted parameter promotion — but is
+      not named in the anti-mock clause, leaving it ambiguous whether AC2's test is bound
+      by the same non-mock/autospec requirement.
+    remediation: >
+      Reword FR-004's test-isolation sentence to cover "User Story 2, Acceptance Scenarios
+      1 and 2" (or state the requirement generically for any test proving FR-004, rather
+      than naming one scenario) so the `emit_artifact_missing`/`blocking` regression test
+      is unambiguously held to the same non-mock/autospec bar.

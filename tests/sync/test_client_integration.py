@@ -297,15 +297,17 @@ def _build_session(*, teams: list[Team]) -> StoredSession:
 def token_manager_with_shared_only_session() -> TokenManager:
     storage = _FakeStorage()
     tm = TokenManager(storage, saas_base_url=_SAAS_BASE_URL)
-    tm._session = _build_session(
-        teams=[
+    tm.set_session(
+        _build_session(
+            teams=[
             Team(
                 id="t-shared",
                 name="Shared",
                 role="member",
                 is_private_teamspace=False,
             )
-        ]
+            ]
+        )
     )
     return tm
 
@@ -314,8 +316,9 @@ def token_manager_with_shared_only_session() -> TokenManager:
 def token_manager_with_private_session() -> TokenManager:
     storage = _FakeStorage()
     tm = TokenManager(storage, saas_base_url=_SAAS_BASE_URL)
-    tm._session = _build_session(
-        teams=[
+    tm.set_session(
+        _build_session(
+            teams=[
             Team(
                 id="t-shared",
                 name="Shared",
@@ -328,7 +331,8 @@ def token_manager_with_private_session() -> TokenManager:
                 role="owner",
                 is_private_teamspace=True,
             ),
-        ]
+            ]
+        )
     )
     return tm
 

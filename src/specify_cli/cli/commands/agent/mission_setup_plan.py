@@ -27,11 +27,10 @@ import. Behavior is preserved byte-for-byte from the pre-decomposition
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 import contextlib
 from dataclasses import dataclass
 import logging
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -57,6 +56,20 @@ from specify_cli.runtime.resolver import TemplateConfigurationError
 from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
 )
+from specify_cli.cli.commands.agent.setup_plan_hosted import (
+    HostedSyncDecision,
+    HostedSyncDiagnostic,
+    acquire_session_assessment,
+    decide_hosted_sync,
+    evaluate_boundary,
+    evaluate_route_availability,
+    serialize_hosted_sync_diagnostics,
+)
+from specify_cli.cli.commands.agent.setup_plan_hosted_effects import (
+    execute_setup_plan_hosted_effects as _execute_setup_plan_hosted_effects,
+)
+from specify_cli.auth.token_manager import SessionAssessment
+from specify_cli.core.saas_sync_config import is_saas_sync_enabled
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
     _build_setup_plan_detection_error,
@@ -162,6 +175,121 @@ class CommitToBranchResult:
     diagnostic: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class SetupPlanLocalOutcome:
+    """Authoritative setup-plan payload and its pre-existing process exit."""
+
+    payload: Mapping[str, object]
+    exit_code: int
+    render_kind: Literal["success", "scaffold", "blocked", "error"]
+
+
+@dataclass(frozen=True, slots=True)
+class LifecycleEventIntent:
+    """A locally persisted lifecycle envelope eligible for hosted fan-out."""
+
+    envelope: Mapping[str, object]
+    log_path: Path
+
+
+@dataclass(frozen=True, slots=True)
+class DossierSyncIntent:
+    """Arguments for the setup-plan dossier hosted effect."""
+
+    feature_dir: Path
+    mission_slug: str
+    repo_root: Path
+
+
+def _report_setup_plan_outcome(
+    outcome: SetupPlanLocalOutcome,
+    *,
+    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
+    json_output: bool,
+    human_message: str | None = None,
+) -> None:
+    """Emit one local result, attaching hosted diagnostics additively."""
+    serialized_diagnostics = serialize_hosted_sync_diagnostics(diagnostics)
+    if json_output:
+        payload = dict(outcome.payload)
+        if serialized_diagnostics:
+            payload["warnings"] = serialized_diagnostics
+        _emit_json(payload)
+        return
+
+    for canonical in serialized_diagnostics:
+        # Human and JSON channels consume the same reconstructed closed-registry
+        # envelope.  Never render caller-provided diagnostic fields directly.
+        console.print(f"[yellow]Warning:[/yellow] {canonical['message']}")
+    if human_message is not None:
+        console.print(human_message)
+
+
+def _collect_hosted_sync_decision(repo_root: Path) -> HostedSyncDecision:
+    """Acquire hosted evidence after local verification and compose permission.
+
+    Each adapter is totalized independently, so route resolution is invoked
+    exactly once and a hostile adapter cannot make setup-plan discard the local
+    result it has already computed.
+    """
+    requested = is_saas_sync_enabled()
+    if not requested:
+        return decide_hosted_sync(requested=False)
+
+    try:
+        assessment = acquire_session_assessment(repo_root)
+    except Exception:  # noqa: BLE001 - one failed adapter must not erase peers
+        logger.debug("Hosted setup-plan authentication assessment failed", exc_info=True)
+        assessment = SessionAssessment(False, None, "auth_evaluation_failed")
+    boundary = evaluate_boundary(repo_root)
+    route_available, route_reason = evaluate_route_availability(repo_root)
+    return decide_hosted_sync(
+        requested=True,
+        session_assessment=assessment,
+        boundary=boundary,
+        route_available=route_available,
+        route_reason=route_reason,
+    )
+
+
+
+
+def _finalize_setup_plan_outcome(
+    outcome: SetupPlanLocalOutcome,
+    *,
+    repo_root: Path,
+    json_output: bool,
+    human_message: str | None,
+    lifecycle_intents: tuple[LifecycleEventIntent, ...] = (),
+    dossier_intent: DossierSyncIntent | None = None,
+) -> None:
+    """Report a frozen local outcome after additive hosted assessment.
+
+    This is the sole post-context finalization seam. Hosted adapters run only
+    after the complete local payload and exit code exist, and neither adapter
+    failures nor hosted-effect failures can replace that authoritative result.
+    """
+    try:
+        hosted_decision = _collect_hosted_sync_decision(repo_root)
+    except Exception:  # noqa: BLE001 - frozen local outcome is authoritative
+        logger.debug("Hosted setup-plan assessment failed closed", exc_info=True)
+        hosted_decision = decide_hosted_sync(requested=True)
+    try:
+        _execute_setup_plan_hosted_effects(
+            hosted_decision,
+            lifecycle_intents=lifecycle_intents,
+            dossier_intent=dossier_intent,
+        )
+    except Exception:  # noqa: BLE001 - hosted delivery cannot replace local result
+        logger.debug("Hosted setup-plan effects failed after local completion", exc_info=True)
+    _report_setup_plan_outcome(
+        outcome,
+        diagnostics=hosted_decision.diagnostics,
+        json_output=json_output,
+        human_message=human_message,
+    )
+
+
 # write-surface-coherence WP02 (T007): the ``artifact_type`` → canonical
 # :class:`~mission_runtime.MissionArtifactKind` map and its ``_kind_for_artifact``
 # lookup were RELOCATED to ``mission_feature_resolution`` (the INV-8 one-way leaf)
@@ -262,27 +390,13 @@ def _commit_to_branch(
 # ---------------------------------------------------------------------------
 
 
-def _enforce_saas_sync_boundary_preflight(repo_root: Path) -> None:
-    """FR-002 / FR-009 read-only boundary preflight (WP04).
-
-    Guarded by ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` and run AFTER project-root
-    resolution and the FR-011 auth refusal (:func:`_enforce_saas_sync_auth_refusal`).
-    Exits 2 on any structural incoherence (owner mismatch, orphan record, legacy
-    rows in scope, missing hosted auth). No-op when SaaS sync is disabled.
-    """
-    if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
-        return
-
-    from specify_cli.sync.preflight import run_preflight
-
-    _boundary_result = run_preflight(repo_root=repo_root, require_auth=True)
-    if not _boundary_result.ok:
-        console.print(f"[red]Refusing `{SETUP_PLAN_COMMAND_NAME}`.[/red]")
-        _boundary_result.render(console)
-        raise typer.Exit(code=2)
-
-
-def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, json_output: bool) -> Path:
+def _resolve_setup_plan_feature_dir(
+    repo_root: Path,
+    feature: str | None,
+    *,
+    json_output: bool,
+    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
+) -> Path:
     """Resolve the feature directory for setup-plan; exit 1 with a detection payload on failure.
 
     FR-004 / #4: when no ``--mission`` was given and exactly one substantive
@@ -307,37 +421,19 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
         return feature_dir
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
-        if json_output:
-            _emit_json(payload)
-        else:
-            console.print(f"[red]Error:[/red] {payload['error']}")
+        human_lines = [f"[red]Error:[/red] {payload['error']}"]
+        if not json_output:
             for slug in cast(list[str], payload.get("available_missions", []))[:10]:
-                console.print(f"  - {slug}")
+                human_lines.append(f"  - {slug}")
             if "example_command" in payload:
-                console.print(f"  {payload['example_command']}")
+                human_lines.append(f"  {payload['example_command']}")
+        _report_setup_plan_outcome(
+            SetupPlanLocalOutcome(payload, 1, "error"),
+            diagnostics=diagnostics,
+            json_output=json_output,
+            human_message="\n".join(human_lines),
+        )
         raise typer.Exit(1) from None
-
-
-def _emit_spec_missing(spec_file: Path, feature_dir: Path, mission_slug: str, *, json_output: bool) -> None:
-    """Emit the SPEC_FILE_MISSING payload and exit 1."""
-    payload: dict[str, object] = {
-        "error_code": "SPEC_FILE_MISSING",
-        "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
-        "mission_slug": mission_slug,
-        "feature_dir": str(feature_dir.resolve()),
-        "spec_file": str(spec_file.resolve()),
-        "remediation": [
-            f"Restore the missing spec file at {spec_file.resolve()}",
-            f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
-        ],
-    }
-    if json_output:
-        _emit_json(payload)
-    else:
-        console.print(f"[red]Error:[/red] {payload['error']}")
-        for step in cast(list[str], payload["remediation"]):
-            console.print(f"  - {step}")
-    raise typer.Exit(1)
 
 
 def _resolve_branch_match_operands(
@@ -382,6 +478,7 @@ def _enforce_spec_gate(
     current_branch: str,
     match_target_branch: str | None = None,
     json_output: bool,
+    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
 ) -> bool:
     """Issue #846 entry gate: spec must exist + be committed + substantive.
 
@@ -389,8 +486,56 @@ def _enforce_spec_gate(
     the blocked payload as a side effect. Returns ``False`` when the spec passes.
     Raises ``typer.Exit(1)`` when the spec file is entirely missing.
     """
+    outcome, human_message = _evaluate_spec_gate(
+        spec_file,
+        feature_dir,
+        mission_slug,
+        repo_root,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+    )
+    if outcome is None:
+        return False
+    _report_setup_plan_outcome(
+        outcome,
+        diagnostics=diagnostics,
+        json_output=json_output,
+        human_message=human_message,
+    )
+    if outcome.exit_code:
+        raise typer.Exit(outcome.exit_code)
+    return True
+
+
+def _evaluate_spec_gate(
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    target_branch: str,
+    current_branch: str,
+    match_target_branch: str | None = None,
+) -> tuple[SetupPlanLocalOutcome | None, str | None]:
+    """Build, but do not report, the authoritative local spec-gate result."""
     if not spec_file.exists():
-        _emit_spec_missing(spec_file, feature_dir, mission_slug, json_output=json_output)
+        payload: dict[str, object] = {
+            "error_code": "SPEC_FILE_MISSING",
+            "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
+            "mission_slug": mission_slug,
+            "feature_dir": str(feature_dir.resolve()),
+            "spec_file": str(spec_file.resolve()),
+            "remediation": [
+                f"Restore the missing spec file at {spec_file.resolve()}",
+                f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
+            ],
+        }
+        message = "\n".join(
+            [f"[red]Error:[/red] {payload['error']}"]
+            + [f"  - {step}" for step in cast(list[str], payload["remediation"])]
+        )
+        return SetupPlanLocalOutcome(payload, 1, "error"), message
 
     # FR-011: single read-surface commit check. ``spec_file`` is the
     # READ-resolved surface — since gate-read-surface-completion WP02 it is
@@ -407,7 +552,7 @@ def _enforce_spec_gate(
     spec_is_committed = is_committed(spec_file, repo_root, diagnostics=_commit_diagnostics)
     spec_is_substantive = is_substantive(spec_file, "spec")
     if spec_is_committed and spec_is_substantive:
-        return False
+        return None, None
 
     blocked_reason = (
         "spec.md must be committed AND substantive before setup-plan can run. "
@@ -426,18 +571,16 @@ def _enforce_spec_gate(
         "spec_substantive": spec_is_substantive,
         "spec_commit_surfaces_checked": _commit_diagnostics,
     }
-    if json_output:
-        _emit_json(
-            _inject_branch_contract(
-                payload,
-                target_branch=target_branch,
-                current_branch=current_branch,
-                match_target_branch=match_target_branch,
-            )
-        )
-    else:
-        console.print(f"[yellow]Blocked:[/yellow] {blocked_reason}")
-    return True
+    rendered_payload = _inject_branch_contract(
+        payload,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+    )
+    return (
+        SetupPlanLocalOutcome(rendered_payload, 0, "blocked"),
+        f"[yellow]Blocked:[/yellow] {blocked_reason}",
+    )
 
 
 def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResult:
@@ -582,30 +725,43 @@ def _is_plan_pristine(
     )
 
 
-def _emit_spec_plan_phase_events(feature_dir: Path, mission_slug: str, spec_file: Path, repo_root: Path) -> None:
-    """Record SpecifyCompleted + PlanStarted lifecycle markers (issue #1067)."""
+def _emit_spec_plan_phase_events(
+    feature_dir: Path,
+    mission_slug: str,
+    spec_file: Path,
+    repo_root: Path,
+    *,
+    lifecycle_intents: list[LifecycleEventIntent] | None = None,
+) -> None:
+    """Persist SpecifyCompleted + PlanStarted locally and retain fan-out intents."""
     from specify_cli.cli.commands.agent import mission as _mission
 
     try:
-        from specify_cli.status import (
-            emit_artifact_phase,
+        from specify_cli.status.lifecycle_events import (
+            emit_artifact_phase_local,
+            mission_event_log_path,
             SPECIFY_COMPLETED,
             PLAN_STARTED,
         )
 
-        emit_artifact_phase(
+        log_path = mission_event_log_path(feature_dir)
+        specify_envelope = emit_artifact_phase_local(
             feature_dir,
             event_type=SPECIFY_COMPLETED,
             mission_slug=mission_slug,
             actor=SETUP_PLAN_COMMAND_NAME,
             artifact_path=_mission._branch_tree_relative_path(spec_file, repo_root),
         )
-        emit_artifact_phase(
+        plan_envelope = emit_artifact_phase_local(
             feature_dir,
             event_type=PLAN_STARTED,
             mission_slug=mission_slug,
             actor=SETUP_PLAN_COMMAND_NAME,
         )
+        if lifecycle_intents is not None:
+            for envelope in (specify_envelope, plan_envelope):
+                if envelope is not None:
+                    lifecycle_intents.append(LifecycleEventIntent(envelope, log_path))
     except Exception as _phase_exc:  # noqa: BLE001
         logger.debug("Lifecycle phase emission skipped: %s", _phase_exc)
 
@@ -619,6 +775,7 @@ def _commit_plan_if_substantive(
     target_branch: str,
     json_output: bool,
     plan_template: ResolutionResult,
+    lifecycle_intents: list[LifecycleEventIntent] | None = None,
 ) -> tuple[CommitToBranchResult | None, str | None, bool]:
     """Commit plan.md when substantive; otherwise resolve blocked vs. scaffold_only.
 
@@ -637,15 +794,23 @@ def _commit_plan_if_substantive(
     if is_substantive(plan_file, "plan"):
         commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
         try:
-            from specify_cli.status import emit_artifact_phase, PLAN_COMPLETED
+            from specify_cli.status.lifecycle_events import (
+                emit_artifact_phase_local,
+                mission_event_log_path,
+                PLAN_COMPLETED,
+            )
 
-            emit_artifact_phase(
+            envelope = emit_artifact_phase_local(
                 feature_dir,
                 event_type=PLAN_COMPLETED,
                 mission_slug=mission_slug,
                 actor=SETUP_PLAN_COMMAND_NAME,
                 artifact_path=_mission._branch_tree_relative_path(plan_file, repo_root),
             )
+            if lifecycle_intents is not None and envelope is not None:
+                lifecycle_intents.append(
+                    LifecycleEventIntent(envelope, mission_event_log_path(feature_dir))
+                )
         except Exception as _plan_exc:  # noqa: BLE001
             logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
         return commit_result, None, False
@@ -821,15 +986,7 @@ def _run_documentation_wiring(
     return gap_analysis_path, generators_detected
 
 
-def _trigger_dossier_sync(feature_dir: Path, mission_slug: str, repo_root: Path) -> None:
-    """Fire-and-forget dossier sync."""
-    with contextlib.suppress(Exception):
-        from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-
-        trigger_feature_dossier_sync_if_enabled(feature_dir, mission_slug, repo_root)
-
-
-def _emit_setup_plan_result(
+def _build_setup_plan_result(
     *,
     plan_file: Path,
     spec_file: Path,
@@ -843,10 +1000,9 @@ def _emit_setup_plan_result(
     target_branch: str,
     current_branch: str,
     match_target_branch: str | None = None,
-    json_output: bool,
     plan_scaffold_only: bool = False,
-) -> None:
-    """Emit the setup-plan result in JSON or human form.
+) -> SetupPlanLocalOutcome:
+    """Build the authoritative setup-plan result without hosted assessment.
 
     FR-009 / #2566: ``plan_scaffold_only=True`` marks the first happy-path
     scaffold write (a pristine, byte-identical-to-template plan.md) as a
@@ -855,10 +1011,6 @@ def _emit_setup_plan_result(
     stays tied to ``plan_is_substantive`` alone, so the scaffold_only case
     still reports ``phase_complete: false``.
     """
-    if not json_output:
-        console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
-        return
-
     result: dict[str, object] = {
         "result": "success" if (plan_is_substantive or plan_scaffold_only) else "blocked",
         "phase_complete": plan_is_substantive,
@@ -884,13 +1036,61 @@ def _emit_setup_plan_result(
         result["gap_analysis"] = gap_analysis_path
     if generators_detected:
         result["generators_detected"] = generators_detected
-    _emit_json(
-        _inject_branch_contract(
-            result,
-            target_branch=target_branch,
-            current_branch=current_branch,
-            match_target_branch=match_target_branch,
-        )
+    result = _inject_branch_contract(
+        result,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+    )
+    render_kind: Literal["success", "scaffold", "blocked", "error"] = (
+        "scaffold"
+        if plan_scaffold_only
+        else "success"
+        if plan_is_substantive
+        else "blocked"
+    )
+    return SetupPlanLocalOutcome(result, 0, render_kind)
+
+
+def _emit_setup_plan_result(
+    *,
+    plan_file: Path,
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    plan_is_substantive: bool,
+    plan_blocked_reason: str | None,
+    plan_commit_result: CommitToBranchResult | None,
+    gap_analysis_path: str | None,
+    generators_detected: list[GeneratorConfig],
+    target_branch: str,
+    current_branch: str,
+    match_target_branch: str | None = None,
+    json_output: bool,
+    plan_scaffold_only: bool = False,
+    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
+) -> None:
+    """Compatibility reporter backed by the side-effect-free result builder."""
+    outcome = _build_setup_plan_result(
+        plan_file=plan_file,
+        spec_file=spec_file,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        plan_is_substantive=plan_is_substantive,
+        plan_blocked_reason=plan_blocked_reason,
+        plan_commit_result=plan_commit_result,
+        gap_analysis_path=gap_analysis_path,
+        generators_detected=generators_detected,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+        plan_scaffold_only=plan_scaffold_only,
+    )
+    _report_setup_plan_outcome(
+        outcome,
+        diagnostics=diagnostics,
+        json_output=json_output,
+        human_message=f"[green]✓[/green] Plan scaffolded: {plan_file}",
     )
 
 
@@ -907,63 +1107,12 @@ def setup_plan(
         spec-kitty agent mission setup-plan --json
         spec-kitty agent mission setup-plan --mission 020-my-feature --json
 
-    ------------------------------------------------------------------
-    WP04 / FR-011 + FR-012 audit (2026-05-17)
-    ------------------------------------------------------------------
-    This command's full call graph was audited to confirm every body
-    upload / queue write goes through ``default_queue_db_path()`` and
-    that no setup-plan path opens the legacy home-scoped queue database
-    directly. The audit covered:
-
-      * ``trigger_feature_dossier_sync_if_enabled()`` (this function
-        constructs ``OfflineBodyUploadQueue()`` which delegates to
-        ``default_queue_db_path()`` — FR-012 lock).
-      * ``OfflineBodyUploadQueue.__init__`` (``sync.body_queue``) —
-        falls back to ``default_queue_db_path()`` when ``db_path`` is
-        ``None``.
-      * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /
-        ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local
-        lifecycle JSONL only, no queue DB.
-      * ``commit_for_mission()`` / underlying safe-commit — local git only, no queue DB.
-
-    No direct ``_legacy_queue_db_path()`` call sites exist in the
-    setup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly
-    guard (now in :func:`_enforce_saas_sync_auth_refusal`) is the
-    load-bearing gate that ensures we never silently fall back to the
-    legacy queue when SaaS sync is enabled but the foreground is
-    unauthenticated.
-
-    ------------------------------------------------------------------
-    WP04 (mission ``mvp-cli-sync-boundary-completion-01KRX11M``)
-    boundary preflight integration — 2026-05-18
-    ------------------------------------------------------------------
-    Immediately after the FR-011 hosted-auth refusal above (and only
-    when ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, matching the existing FR-011
-    gate), setup-plan invokes
-    :func:`specify_cli.sync.preflight.run_preflight` with
-    ``require_auth=True`` to enforce FR-002 / FR-009 (now in
-    :func:`_enforce_saas_sync_boundary_preflight`). The boundary preflight
-    refuses (``typer.Exit(2)``) on:
-
-      * any of the six canonical daemon-owner / foreground mismatch
-        fields (D-3 canon);
-      * any orphan daemon owner record on disk;
-      * any legacy queue rows belonging to the active scope; or
-      * missing hosted auth when SaaS sync is required.
-
-    The preflight is read-only — no DB writes, no SaaS round-trip — so
-    placing it AFTER the FR-011 auth guard and BEFORE any
-    ``emit_artifact_phase`` / ``trigger_feature_dossier_sync`` /
-    ``emit_wp_created`` call ensures every SaaS-producing code path
-    downstream of this function has passed the gate. The same gate is
-    applied in ``sync now`` (WP03); the two surfaces share
-    :func:`specify_cli.sync.preflight.build_boundary_failure_set` as
-    their single source of truth.
-
-    Cross-reference: WP04 of mission
-    ``mvp-sync-boundary-cli-01KRVCQS``; regression tests in
-    ``tests/runtime/test_setup_plan_sync_evidence.py``.
-    ------------------------------------------------------------------
+    Local verification is authoritative. When hosted sync is requested, the
+    command collects canonical session, structural-boundary, and route evidence
+    without raising, composes one immutable decision, and reports any refusal as
+    additive warnings. Lifecycle JSONL is persisted locally first. Lifecycle
+    fan-out and dossier publication are executed only by
+    :func:`_execute_setup_plan_hosted_effects` after an allowing decision.
     """
     # Deferred import keeps this leaf free of an import cycle while honoring the
     # historical ``mission.<name>`` patch seams (``locate_project_root`` /
@@ -972,8 +1121,10 @@ def setup_plan(
     # ``_commit_to_branch``).
     from specify_cli.cli.commands.agent import mission as _mission
 
+    repo_root: Path | None = None
+    mission_context_ready = False
+
     try:
-        _enforce_saas_sync_auth_refusal(json_output=json_output)
 
         repo_root = _mission.locate_project_root()
         if repo_root is None:
@@ -984,17 +1135,20 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        _enforce_saas_sync_boundary_preflight(repo_root)
-
         _mission._enforce_git_preflight(
             repo_root,
             json_output=json_output,
             command_name=SETUP_PLAN_COMMAND_NAME,
         )
 
-        feature_dir = _resolve_setup_plan_feature_dir(repo_root, feature, json_output=json_output)
+        feature_dir = _resolve_setup_plan_feature_dir(
+            repo_root,
+            feature,
+            json_output=json_output,
+        )
         mission_slug = feature_dir.name
         _, target_branch = _mission._show_branch_context(repo_root, mission_slug, json_output)
+        mission_context_ready = True
 
         # gate-read-surface-completion WP02 / FR-001 / #2107 (out-of-map edit —
         # WP01 owns ``mission.py``; rationale: re-point ``setup_plan``'s PLANNING
@@ -1037,7 +1191,7 @@ def setup_plan(
             get_current_branch=_mission.get_current_branch,
         )
 
-        if _enforce_spec_gate(
+        gate_outcome, gate_message = _evaluate_spec_gate(
             spec_file,
             feature_dir,
             mission_slug,
@@ -1045,8 +1199,16 @@ def setup_plan(
             target_branch=target_branch,
             current_branch=current_branch,
             match_target_branch=match_target_branch,
-            json_output=json_output,
-        ):
+        )
+        if gate_outcome is not None:
+            _finalize_setup_plan_outcome(
+                gate_outcome,
+                repo_root=repo_root,
+                json_output=json_output,
+                human_message=gate_message,
+            )
+            if gate_outcome.exit_code:
+                raise typer.Exit(gate_outcome.exit_code)
             return
 
         try:
@@ -1054,7 +1216,14 @@ def setup_plan(
         except FileNotFoundError as exc:
             raise FileNotFoundError("Plan template not found in repository or package") from exc
         _scaffold_plan_template(plan_file, plan_template)
-        _emit_spec_plan_phase_events(feature_dir, mission_slug, spec_file, repo_root)
+        lifecycle_intents: list[LifecycleEventIntent] = []
+        _emit_spec_plan_phase_events(
+            feature_dir,
+            mission_slug,
+            spec_file,
+            repo_root,
+            lifecycle_intents=lifecycle_intents,
+        )
 
         from specify_cli.missions._substantive import is_substantive
 
@@ -1067,15 +1236,14 @@ def setup_plan(
             target_branch=target_branch,
             json_output=json_output,
             plan_template=plan_template,
+            lifecycle_intents=lifecycle_intents,
         )
 
         gap_analysis_path, generators_detected = _run_documentation_wiring(
             mission_slug, repo_root, target_branch=target_branch, json_output=json_output
         )
 
-        _trigger_dossier_sync(feature_dir, mission_slug, repo_root)
-
-        _emit_setup_plan_result(
+        local_outcome = _build_setup_plan_result(
             plan_file=plan_file,
             spec_file=spec_file,
             feature_dir=feature_dir,
@@ -1088,8 +1256,16 @@ def setup_plan(
             target_branch=target_branch,
             current_branch=current_branch,
             match_target_branch=match_target_branch,
-            json_output=json_output,
             plan_scaffold_only=plan_scaffold_only,
+        )
+
+        _finalize_setup_plan_outcome(
+            local_outcome,
+            repo_root=repo_root,
+            json_output=json_output,
+            human_message=f"[green]✓[/green] Plan scaffolded: {plan_file}",
+            lifecycle_intents=tuple(lifecycle_intents),
+            dossier_intent=DossierSyncIntent(feature_dir, mission_slug, repo_root),
         )
 
     except typer.Exit:
@@ -1105,54 +1281,35 @@ def setup_plan(
         }
         if e.mapped_filename is not None:
             payload["mapped_filename"] = e.mapped_filename
-        if json_output:
-            _emit_json(payload)
+        outcome = SetupPlanLocalOutcome(payload, 1, "error")
+        if mission_context_ready and repo_root is not None:
+            _finalize_setup_plan_outcome(
+                outcome,
+                repo_root=repo_root,
+                json_output=json_output,
+                human_message=f"[red]Error:[/red] {e}",
+            )
         else:
-            console.print(f"[red]Error:[/red] {e}")
+            _report_setup_plan_outcome(
+                outcome,
+                json_output=json_output,
+                human_message=f"[red]Error:[/red] {e}",
+            )
         raise typer.Exit(1) from None
     except Exception as e:
-        if json_output:
-            _emit_json({"error": str(e)})
+        payload = {"error": str(e)}
+        outcome = SetupPlanLocalOutcome(payload, 1, "error")
+        if mission_context_ready and repo_root is not None:
+            _finalize_setup_plan_outcome(
+                outcome,
+                repo_root=repo_root,
+                json_output=json_output,
+                human_message=f"[red]Error:[/red] {e}",
+            )
         else:
-            console.print(f"[red]Error:[/red] {e}")
+            _report_setup_plan_outcome(
+                outcome,
+                json_output=json_output,
+                human_message=f"[red]Error:[/red] {e}",
+            )
         raise typer.Exit(1) from None
-
-
-def _enforce_saas_sync_auth_refusal(*, json_output: bool) -> None:
-    """FR-011 auth refusal that must run BEFORE project-root resolution.
-
-    The original ``setup_plan`` ran the FR-011 ``read_queue_scope`` refusal at
-    the very top (before ``locate_project_root``), so an unauthenticated
-    SaaS-enabled invocation refuses even outside a repo. This phase preserves
-    that ordering; the repo-scoped boundary preflight runs later in
-    :func:`_enforce_saas_sync_preflight`.
-    """
-    if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
-        return
-    from specify_cli.sync.queue import (
-        read_queue_scope_from_credentials,
-        read_queue_scope_from_session,
-    )
-
-    # ``_scope`` is consumed purely as a boolean **auth signal** ("is this host
-    # authenticated?") — it is never passed to ``scope_db_path`` or any store
-    # selector here. The credential parse (queue.read_queue_scope_from_credentials)
-    # is deliberately inert for physical-store selection (FR-009 / C-003); the
-    # authoritative queue DB is owned by ProjectSyncStore via ``_derive_queue_scope``.
-    _scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
-    if _scope:
-        return
-    error_msg = "SaaS sync cannot be guaranteed: no authenticated session/credentials found."
-    remediation = "Run `spec-kitty auth login` or unset SPEC_KITTY_ENABLE_SAAS_SYNC before running setup-plan."
-    if json_output:
-        _emit_json(
-            {
-                "error_code": "SAAS_SYNC_UNAUTHENTICATED",
-                "error": error_msg,
-                "remediation": [remediation],
-            }
-        )
-    else:
-        console.print(f"[red]Error[/red]: {error_msg}")
-        console.print(remediation)
-    raise typer.Exit(code=2)

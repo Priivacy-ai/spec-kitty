@@ -1,0 +1,112 @@
+{
+  "version": 1,
+  "mission_slug": "pre-review-gate-operator-flow-01M0Q86H",
+  "mission_id": "01M0Q86H4M8GX5EQ6ZGC6WE4GJ",
+  "mission_branch": "kitty/mission-pre-review-gate-operator-flow-01M0Q86H",
+  "target_branch": "fix/pre-review-gate-operator-flow",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/gate_budget.py",
+        "tests/review/test_gate_budget.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/pre_review_gate.py",
+        "src/specify_cli/review/verdict_aggregation.py",
+        "tests/review/test_pre_review_gate_engine.py",
+        "tests/review/test_pre_review_gate_integration.py",
+        "tests/review/test_verdict_aggregation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "src/specify_cli/review/gate_registry.py",
+        "tests/review/test_gate_registry.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_observability.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/review/test_pre_review_gate_process_tree.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_pre_review_gate_parent_death.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/release-readiness.md",
+        "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/retrospective-handoff.md",
+        "kitty-specs/pre-review-gate-operator-flow-01M0Q86H/traceability.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-08-23T16:07:04.952135+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "planning_commit_sha": "7cdda16db176217bc7827a73364e616dc3720d62"
+}

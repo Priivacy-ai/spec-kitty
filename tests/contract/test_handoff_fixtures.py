@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 from spec_kitty_events import Event
-from specify_cli.sync.emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES
+from spec_kitty_events.conformance import validate_event
+from specify_cli.sync.emitter import _PAYLOAD_RULES, VALID_EVENT_TYPES, is_dossier_delegate
 
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
@@ -259,11 +260,29 @@ class TestFixtureValidation:
 
     @pytest.mark.parametrize("event_data", FIXTURE_EVENTS, ids=_event_test_id)
     def test_fixture_payload_passes_emitter_rules(self, event_data: dict):
-        """Each fixture payload must satisfy _PAYLOAD_RULES from the emitter."""
+        """Each fixture payload must satisfy _PAYLOAD_RULES from the emitter.
+
+        PR-BOUNDARY-001: this is the third consumer of the module-level
+        ``_PAYLOAD_RULES`` dict (alongside emitter.py and diagnose.py), and
+        for a dossier event type the dict value is not a
+        ``{"required": ..., "validators": ...}`` dict at all but the
+        ``_DOSSIER_VALIDATE_EVENT_DELEGATE`` sentinel -- guard with the same
+        ``is_dossier_delegate`` predicate the two production consumers use
+        (FR-011) and route to the canonical ``validate_event()`` instead of
+        dict-shaped access, rather than duplicating that predicate.
+        """
         event_type = event_data["event_type"]
         payload = event_data["payload"]
         rules = _PAYLOAD_RULES.get(event_type)
         assert rules is not None, f"No payload rules found for event type: {event_type}"
+
+        if is_dossier_delegate(rules):
+            result = validate_event(payload, event_type, strict=True)
+            assert result.valid, (
+                f"{event_type} payload failed canonical validate_event(): "
+                f"{[*result.model_violations, *result.schema_violations]}"
+            )
+            return
 
         # Check required fields
         missing = rules["required"] - set(payload.keys())
@@ -428,3 +447,73 @@ class TestLaneMapping:
                 payload = event_data["payload"]
                 assert payload["from_lane"] in valid_lanes, f"Invalid from_lane: {payload['from_lane']}"
                 assert payload["to_lane"] in valid_lanes, f"Invalid to_lane: {payload['to_lane']}"
+
+
+class TestDossierFixtureGuard:
+    """PR-BOUNDARY-001 regression coverage.
+
+    ``FIXTURE_EVENTS`` above holds no dossier event types today, so the
+    ``is_dossier_delegate`` guard added to ``test_fixture_payload_passes_emitter_rules``
+    is otherwise never exercised by this file (the defect was latent, not
+    triggered, until a dossier fixture is added). These tests drive the same
+    guarded code path directly with a stand-in dossier event -- not added to
+    ``FIXTURE_EVENTS`` itself, since ``TestEventTypeCoverage.test_all_event_types_covered``
+    asserts that list's event-type set exactly matches the 8 documented
+    non-dossier types -- so the guard cannot silently regress into the
+    unguarded ``TypeError: 'object' object is not subscriptable`` the first
+    real dossier fixture would otherwise hit.
+    """
+
+    _NAMESPACE = {
+        "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
+        "mission_slug": "042-feat",
+        "target_branch": "main",
+        "mission_type": "software-dev",
+        "manifest_version": "1",
+    }
+
+    def _assert_guarded(self, event_type: str, payload: dict, *, expect_valid: bool) -> None:
+        """Reproduces the guarded branch under test, unguarded call included
+        below to prove the TypeError is real without the guard.
+        """
+        rules = _PAYLOAD_RULES.get(event_type)
+        assert is_dossier_delegate(rules)
+
+        # Sanity: without the guard, this is exactly the reported TypeError.
+        with pytest.raises(TypeError):
+            _ = rules["required"]  # type: ignore[index]
+
+        result = validate_event(payload, event_type, strict=True)
+        assert result.valid is expect_valid
+
+    def test_guarded_path_accepts_a_valid_dossier_payload(self):
+        payload = {
+            "namespace": dict(self._NAMESPACE),
+            "artifact_id": {
+                "mission_type": "software-dev",
+                "path": "spec.md",
+                "artifact_class": "input",
+            },
+            "content_ref": {
+                "hash": "a" * 64,
+                "algorithm": "sha256",
+            },
+            "indexed_at": "2026-08-22T12:00:00Z",
+        }
+        self._assert_guarded("MissionDossierArtifactIndexed", payload, expect_valid=True)
+
+    def test_guarded_path_rejects_an_invalid_dossier_payload(self):
+        payload = {
+            "namespace": dict(self._NAMESPACE),
+            "artifact_id": {
+                "mission_type": "software-dev",
+                "path": "spec.md",
+                "artifact_class": "input",
+            },
+            "content_ref": {
+                "hash": "a" * 64,
+                "algorithm": "sha256",
+            },
+            # indexed_at deliberately omitted (required field)
+        }
+        self._assert_guarded("MissionDossierArtifactIndexed", payload, expect_valid=False)

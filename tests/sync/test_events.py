@@ -1184,3 +1184,125 @@ class TestRouteEvent:
         }
         assert emitter._route_event(event) is True
         emitter.queue.queue_event.assert_called_once()
+
+
+class TestDossierValidateEventDelegation:
+    """FR-006/FR-007/SC-005: dossier payload validation delegates to
+    ``spec_kitty_events.conformance.validate_event()`` via the
+    ``_DOSSIER_VALIDATE_EVENT_DELEGATE`` sentinel in ``_PAYLOAD_RULES``,
+    while the four dossier event-type strings remain recognised.
+    """
+
+    _VALID_ARTIFACT_INDEXED_PAYLOAD = {
+        "namespace": {
+            "project_uuid": "11111111-2222-4333-8444-555555555555",
+            "mission_slug": "042-feat",
+            "target_branch": "main",
+            "mission_type": "software-dev",
+            "manifest_version": "1",
+        },
+        "artifact_id": {
+            "mission_type": "software-dev",
+            "path": "spec.md",
+            "artifact_class": "input",
+        },
+        "content_ref": {
+            "hash": "a" * 64,
+            "algorithm": "sha256",
+        },
+        "indexed_at": "2026-08-22T12:00:00Z",
+    }
+
+    def test_valid_dossier_payload_passes(self, emitter: EventEmitter):
+        """SC-005 baseline: a valid dossier payload validates True."""
+        assert emitter._validate_payload("MissionDossierArtifactIndexed", dict(self._VALID_ARTIFACT_INDEXED_PAYLOAD)) is True
+
+    def test_invalid_dossier_payload_returns_false_with_real_violation(self, emitter: EventEmitter, capsys: pytest.CaptureFixture[str]):
+        """SC-005: a hand-constructed invalid dossier payload returns False,
+        and the captured warning contains a real field/violation identifier
+        sourced from ConformanceResult (not the old generic message).
+        """
+        payload = dict(self._VALID_ARTIFACT_INDEXED_PAYLOAD)
+        del payload["indexed_at"]  # drop a required field
+
+        result = emitter._validate_payload("MissionDossierArtifactIndexed", payload)
+
+        assert result is False
+        captured = capsys.readouterr()
+        assert "indexed_at" in captured.err
+        assert "MissionDossierArtifactIndexed" in captured.err
+
+    def test_dossier_event_types_remain_in_valid_event_types(self):
+        """FR-007: the sentinel does not remove the four dossier keys from
+        VALID_EVENT_TYPES -- _validate_event's unknown-event-type rejection
+        check stays unaffected for dossier types.
+        """
+        from specify_cli.sync.emitter import VALID_EVENT_TYPES
+
+        assert {
+            "MissionDossierArtifactIndexed",
+            "MissionDossierArtifactMissing",
+            "MissionDossierSnapshotComputed",
+            "MissionDossierParityDriftDetected",
+        } <= VALID_EVENT_TYPES
+
+    def test_unknown_dossier_event_type_still_rejected(self, emitter: EventEmitter, temp_queue):
+        """A typo'd dossier-like event type is still rejected via the
+        existing unknown-event-type branch, not silently accepted.
+        """
+        event = {
+            "event_id": emitter.generate_causation_id(),
+            "event_type": "MissionDossierBogus",
+            "aggregate_id": "042-feat:x",
+            "aggregate_type": "MissionDossier",
+            "payload": dict(self._VALID_ARTIFACT_INDEXED_PAYLOAD),
+            "node_id": "test-node-id",
+            "lamport_clock": 1,
+            "causation_id": None,
+            "timestamp": "2026-02-04T12:00:00+00:00",
+            "team_slug": "test-team",
+        }
+        assert emitter._validate_event(event) is False
+
+    _VALID_SNAPSHOT_COMPUTED_PAYLOAD = {
+        "namespace": {
+            "project_uuid": "11111111-2222-4333-8444-555555555555",
+            "mission_slug": "042-feat",
+            "target_branch": "main",
+            "mission_type": "software-dev",
+            "manifest_version": "1",
+        },
+        "snapshot_hash": "sha256:" + "a" * 64,
+        "artifact_count": 1,
+        "anomaly_count": 0,
+        "computed_at": "2026-08-22T12:00:00Z",
+    }
+
+    def test_malformed_but_nonempty_hash_passes_through_real_delegation(self, emitter: EventEmitter):
+        """PR-TESTS-001 discriminator: proves REAL delegation, not merely
+        that the sentinel branch exists.
+
+        The retired local ``_is_canonical_snapshot_hash`` regex
+        (``^(?:sha256:)?[a-f0-9]{64}$``) rejected a ``sha1:``-prefixed
+        value. Canonical ``spec_kitty_events.conformance.validate_event()``
+        has no such format rule for ``snapshot_hash`` -- it only requires a
+        non-empty string -- so it ACCEPTS this value. A stub reproducing the
+        old hand-rolled format-checking rules could not produce this
+        accept. Routed through ``emitter._validate_payload`` itself (not a
+        direct ``validate_event()`` call) to prove the wiring, not just the
+        branch.
+        """
+        payload = dict(self._VALID_SNAPSHOT_COMPUTED_PAYLOAD)
+        payload["snapshot_hash"] = "sha1:" + "a" * 40  # malformed by the old regex, non-empty
+
+        assert emitter._validate_payload("MissionDossierSnapshotComputed", payload) is True
+
+    def test_wrong_length_hash_passes_through_real_delegation(self, emitter: EventEmitter):
+        """Second discriminator instance: wrong-length hex also passed the
+        old regex's length check and was rejected; canonical delegation
+        does not check length at all.
+        """
+        payload = dict(self._VALID_SNAPSHOT_COMPUTED_PAYLOAD)
+        payload["snapshot_hash"] = "sha256:" + "a" * 10  # wrong length, non-empty
+
+        assert emitter._validate_payload("MissionDossierSnapshotComputed", payload) is True

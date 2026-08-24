@@ -1,0 +1,35 @@
+{
+  "accept_commit": "e9db577b92f9b431df9eb0481a1e2b7187bb4d6b",
+  "acceptance_history": [
+    {
+      "accept_commit": "e9db577b92f9b431df9eb0481a1e2b7187bb4d6b",
+      "acceptance_mode": "local",
+      "accepted_at": "2026-08-23T21:51:26.636583+00:00",
+      "accepted_by": "codex",
+      "accepted_from_commit": "46df2015f1f799fdc3c885434f1edc0ce3337307"
+    }
+  ],
+  "acceptance_mode": "local",
+  "accepted_at": "2026-08-23T21:51:26.636583+00:00",
+  "accepted_by": "codex",
+  "accepted_from_commit": "46df2015f1f799fdc3c885434f1edc0ce3337307",
+  "baseline_merge_commit": "4952f79e184afe2999f65446a3763c99fcaf94fc",
+  "coordination_branch": "kitty/mission-setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+  "created_at": "2026-08-23T13:52:48.242997+00:00",
+  "flattened": false,
+  "friendly_name": "Nonfatal setup-plan auth diagnostics",
+  "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
+  "mission_number": 196,
+  "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Issue #3621 requires setup-plan to use canonical session assessment rather than queue-scope availability, preserve assessment failure separately from conclusive logout without creating a third auth state, and report unavailable hosted sync as a nonfatal diagnostic while preserving the local phase-completeness result.",
+  "purpose_tldr": "Keep setup-plan local verification usable regardless of SaaS authentication state.",
+  "slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+  "source_description": "GitHub issue Priivacy-ai/spec-kitty#3621",
+  "status_phase": "1",
+  "target_branch": "fix/setup-plan-auth-diagnostics-nonfatal",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-23T19:01:33.662971+00:00"
+}

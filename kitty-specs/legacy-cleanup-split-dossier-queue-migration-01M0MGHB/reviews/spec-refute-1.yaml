@@ -1,0 +1,61 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >
+      Direct line count of emitter.py confirms the four dossier _PAYLOAD_RULES entries
+      span 827-876 (MissionOriginBound is 877-894, dict close+VALID_EVENT_TYPES at
+      895-897), so FR-006's cited "827-897" range does fully contain the unrelated
+      MissionOriginBound block; the finding's own sub-claim that line 875 (not 876)
+      closes the last dossier entry is off by one, but that does not change the
+      substantive, verified claim that the citation overstates the edit surface.
+
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >
+      Verified exactly against emitter.py: line 2510 is "return False" (tail of the
+      preceding aggregate_type check), 2511 blank, 2512 a comment, and the real
+      "if event_type not in VALID_EVENT_TYPES:" check is at line 2514 — FR-007's cited
+      "2510-2512" is confirmed off-target by the precise amount the finding states.
+
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >
+      Confirmed events.py:424-481 contains the last_known_content_hash_sha256/
+      last_known_size_bytes params and branch being dropped, dossier_pipeline.py:140
+      is indeed "except Exception as e: logger.warning(...)" wrapping the call site,
+      FR-003 does remove **kwargs from emit_artifact_missing, and a full grep of
+      spec.md for "mypy"/"TypeError"/"unexpected keyword" shows no sentence stating
+      the static-typecheck mechanism the finding says is missing.
+
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >
+      Verified emitter.py:2549-2572's _validate_payload uses one unconditional generic
+      path (rules["required"] - set(...), rules["validators"].items()) with no
+      per-event-type branch today, and while the Clarifications describe the dossier
+      entries as coming to "call validate_event(...)", neither FR-006, FR-007, nor the
+      Clarifications state the concrete post-change value shape of the four dossier
+      keys or an explicit early-return branch reconciling it with the generic access —
+      a real, evidenced precision gap.
+
+  - id: SPEC-ARCH-003
+    verdict: confirmed
+    reason: >
+      Directly reproduced against the installed package: `'conformance' in
+      dir(spec_kitty_events)` is False on spec_kitty_events 6.1.0, and emitter.py's
+      existing import style at line 2477 is `from spec_kitty_events import Event as
+      EventModel` — exactly matching the finding's evidence and claim.
+
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >
+      Confirmed tests/sync/test_dossier_pipeline.py:108-113 and :462 use plain
+      @patch(...) with no autospec/spec, and the only other file touching the pipeline
+      internals (tests/sync/test_sonar_complexity_helpers.py) also monkeypatches the
+      emitters with plain MagicMock — no test in the repo exercises the real,
+      unmocked emitter signatures through this call path, so the described
+      TypeError-swallowed-by-except-Exception regression would not be caught.

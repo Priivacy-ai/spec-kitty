@@ -677,8 +677,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
         SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.lifecycle_events::append_lifecycle_event
+        # WP03 compatibility refactor hash refresh; no allowlist growth.
         SymbolKey(
-            "append_lifecycle_event", "44bbd8d10caea88cf4765a3952d39b9c790cb33de16111d5110aa3fb2d574659", source_module="specify_cli.status.lifecycle_events"
+            "append_lifecycle_event", "f9dceb5b9277ba3c6bcd30def9dd6bf33cc2b031cbdbe84a9aeaddab2c4f1dcb", source_module="specify_cli.status.lifecycle_events"
         ),
         # specify_cli.status.lifecycle_events::has_lifecycle_event
         SymbolKey("has_lifecycle_event", "ded63398ebd799f9cbdb0519033bf4ed4cb4dee39e51837f7c1b1fe7d562e69d", source_module="specify_cli.status.lifecycle_events"),

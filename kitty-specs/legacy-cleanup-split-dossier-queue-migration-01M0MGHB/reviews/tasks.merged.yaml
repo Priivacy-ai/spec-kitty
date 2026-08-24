@@ -1,0 +1,127 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+merged_from:
+  - tasks-decomp.findings.yaml
+  - tasks-seq.findings.yaml
+  - tasks-verify.findings.yaml
+note: >
+  Mechanical merge (R2, orchestrator hands, no dedup judgment applied — no two
+  findings across the three lens groups cite the same artifact section or
+  file:line / make substantially the same claim, so nothing was collapsed).
+  seq group returned findings: [] (zero findings). Original ids and severities
+  preserved unchanged; no renumbering.
+findings:
+  - id: TASKS-DECOMP-001
+    lens: pr-shape-diff-size
+    severity: 2
+    title: "PR Shape LOC/file-count estimate tasks.md restates as still valid omits tests/sync/test_events.py entirely"
+    evidence:
+      - artifact: "plan.md § PR Shape (LOC table, ~line 836-870)"
+      - artifact: "tasks.md § ⚠️ PR Shape Recommendation (~line 41-49)"
+      - artifact: "tasks.md § WP02 Owned files / T012 (line 64, 159, 169)"
+      - code: "kitty-specs/legacy-cleanup-split-dossier-queue-migration-01M0MGHB/plan.md:846"
+    claim: >
+      plan.md's "PR Shape" LOC table itemizes exactly 8 files totalling the
+      ~570-820 LOC estimate that both plan.md and tasks.md rely on to justify
+      shipping one un-split PR "reviewable in a single sitting." The table's
+      only "test_events.py" row is tests/dossier/test_events.py (~10 LOC,
+      WP04's FR-009 import re-point) — tests/sync/test_events.py never
+      appears anywhere in plan.md (grep-confirmed). tasks.md lists
+      tests/sync/test_events.py as one of WP02's five owned files and
+      assigns it real new test content in T012 (new SC-005/FR-006 and FR-007
+      VALID_EVENT_TYPES membership tests). tasks.md's restatement ("The
+      estimate holds after this WP decomposition") therefore restates an
+      incomplete arithmetic without correcting it: real file count is 9, not
+      8, and the LOC total is understated.
+    remediation: >
+      Add a row for tests/sync/test_events.py to plan.md's PR Shape LOC table
+      (or a corrective footnote in tasks.md's restated PR Shape section)
+      covering T012's two new tests, and update the "8 files" / "570-820 LOC"
+      figures tasks.md quotes verbatim.
+
+  - id: TASKS-DECOMP-002
+    lens: single-concern-atomicity-clarity
+    severity: 1
+    title: "WP02's two sub-concerns (sentinel mechanism vs. second coordinated consumer) are correctly bundled and enforceable, but never named as two sub-concerns in a heading"
+    evidence:
+      - artifact: "tasks.md § ⚠️ Chokepoint Called Out Explicitly (~line 51-62)"
+      - artifact: "plan.md § FR-006/FR-007 sentinel shape (~line 355-450), § Phasing Phase 3 (~line 916-943)"
+      - artifact: "WP02 prompt § Objectives & Success Criteria (lines 86-114), § Test Strategy (lines 441-457), § Risks & Mitigations (458-471), § Review Guidance (473-486)"
+    claim: >
+      Derived verdict: bundling FR-006/FR-007 with FR-011 into one WP is
+      correct, not a padding-driven merge — plan.md's Phase 3 rationale is
+      specific (landing the sentinel alone crashes diagnose_events() with an
+      uncaught AttributeError, verified against diagnose.py:301) and WP02
+      makes the atomicity requirement mechanically enforceable (explicit
+      "do not commit T007-T009 separately from T010-T011" instruction,
+      dedicated Risks entry, per-subtask Purpose attribution). The one gap:
+      nothing gives the two sub-concerns an explicit heading/label; a
+      reviewer skimming only the subtask title list has to reconstruct the
+      two-part shape from scattered Purpose fields.
+    remediation: >
+      Optional, nit-level: add one short sentence to WP02's "Objectives &
+      Success Criteria" naming the two sub-concerns this WP bundles
+      (sentinel mechanism vs. coordinated diagnose.py consumer fix).
+
+  - id: TASKS-VERIFY-001
+    lens: per-AC test strategy concrete / red-first fidelity (FR-001 spot-check)
+    severity: 4
+    title: "WP04 T020 offers an escape hatch that lets FR-001's binding isinstance/identity requirement be satisfied by a shape-only jsonschema check — reopening the vacuous-test trap the mission explicitly closed for FR-004"
+    evidence:
+      - artifact: "plan.md § Red-First / ATDD Test Mapping, FR-001 row (line 977)"
+      - artifact: "plan.md § \"Why the local mirror survived the existing boundary gate\" (~line 330-338)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Subtask T020 (lines ~207-233)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Test Strategy (lines 287-296) and Review Guidance (lines 309-318)"
+      - code: "tests/dossier/test_events.py:381-392 (TestWirePayloadModelsRejectExtras / test_extras_rejected)"
+    claim: >
+      plan.md's FR-001 Red-First row requires isinstance checks proving the
+      emitted payload's runtime type is the spec_kitty_events-owned class,
+      with explicit fails-when-reverted reasoning. plan.md's own analysis
+      establishes the local mirror duplicates the canonical shape by field
+      name, so a jsonschema shape check cannot distinguish "canonical class"
+      from "local mirror class." WP04's T020 explicitly permits satisfying
+      this AC via a jsonschema.validate fallback, and even licenses skipping
+      any new assertion entirely ("a minimal addition (or none beyond a
+      clarifying comment) is acceptable"). Every other binding-test subtask
+      in this mission (T006/WP01, T011+T012/WP02, T016/WP03) requires an
+      explicit revert-and-confirm-red step before the subtask is done — T020
+      has none, and WP04's Test Strategy/Review Guidance never mention T020,
+      SC-001, or the isinstance claim at all.
+    remediation: >
+      Rewrite WP04 T020 to state the isinstance/identity requirement as
+      binding: capture the pre-serialization payload object and assert
+      isinstance(payload, <canonical_class>) directly on at least one emitted
+      payload per emitter under test; remove the "minimal addition or none"
+      escape hatch. Add a mandatory revert-and-confirm-red step matching
+      T006/T011/T012/T016's pattern. Add "confirm SC-001's isinstance claim
+      is proven directly, not only via schema validation" to WP04's Review
+      Guidance.
+
+  - id: TASKS-VERIFY-002
+    lens: red-first / ATDD test mapping fidelity (FR-001 spot-check, SC-003 named test)
+    severity: 3
+    title: "WP04 never names or tracks tests/dossier/test_events.py::TestWirePayloadModelsRejectExtras::test_extras_rejected, a test both plan.md's FR-001 row and spec.md's SC-003 explicitly require to keep passing"
+    evidence:
+      - artifact: "plan.md § Red-First / ATDD Test Mapping, FR-001 row (line 977)"
+      - artifact: "spec.md § Success Criteria, SC-003 (line ~452-456)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md — no occurrence of 'test_extras_rejected' or 'TestWirePayloadModelsRejectExtras' anywhere (grep confirmed)"
+      - artifact: "tasks/WP04-test-import-repointing-and-final-validation.md § Subtask T019 (lines 176-206) — parallel dedicated treatment given to the sibling named test test_preserves_legacy_positional_order"
+      - code: "tests/dossier/test_events.py:381-392"
+    claim: >
+      plan.md's binding Red-First/ATDD table and spec.md's SC-003 both name
+      test_extras_rejected as required to pass unmodified after WP04's
+      import-source edit. WP04 is the only WP that touches test_events.py.
+      T019 gives the sibling named test a dedicated subtask with a
+      byte-for-byte diff check and its own Review Guidance line; no
+      equivalent treatment exists anywhere in WP04 for test_extras_rejected
+      — not in T018, T019, T020, T021, Test Strategy, or Review Guidance.
+    remediation: >
+      Add an explicit check to WP04 T018 (or a new T018a) requiring the
+      implementer to run
+      pytest tests/dossier/test_events.py::TestWirePayloadModelsRejectExtras::test_extras_rejected -v
+      after the import swap and confirm it still passes against the
+      canonical classes' model_config, mirroring T019's treatment. Add a
+      corresponding Review Guidance line referencing SC-003 / plan.md's
+      FR-001 row.

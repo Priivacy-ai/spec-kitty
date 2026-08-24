@@ -1,0 +1,43 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: boundary
+profile: architect-alphonso
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+diff_base: 8a03733e734f002ab97cc4ee74a006a70f683048
+findings:
+  - id: PR-BOUNDARY-001
+    severity: 3
+    file: tests/contract/test_handoff_fixtures.py
+    line: 268
+    title: Third, unguarded consumer of _PAYLOAD_RULES will TypeError on the sentinel
+    detail: >-
+      FR-011 coordinated the two production consumers of the module-level _PAYLOAD_RULES dict
+      (emitter.py::_validate_payload, diagnose.py::_validate_payload) behind the shared
+      is_dossier_delegate() predicate. A third consumer, test_fixture_payload_passes_emitter_rules,
+      does rules["required"] with no sentinel guard and never imports is_dossier_delegate.
+      Reproduced: _PAYLOAD_RULES.get("MissionDossierArtifactIndexed") returns type object;
+      subscripting raises TypeError: 'object' object is not subscriptable. Latent only because
+      FIXTURE_EVENTS currently contains no dossier event types -- and that file is the repo's
+      consumer-fixture harness, i.e. the exact mechanism the charter's Shared Package Boundaries
+      section prescribes for validating cross-repo contract behaviour. The first person following
+      that guidance gets an opaque TypeError instead of a validation result.
+    orchestrator_verification: CONFIRMED first-hand (reproduced the TypeError; grep shows 0 guards)
+  - id: PR-BOUNDARY-002
+    severity: 2
+    file: src/specify_cli/dossier/__init__.py
+    title: __all__ re-exports external canonical types under the CLI namespace
+    detail: >-
+      The seven names were locally-owned mirrors before this mission; events.py now re-imports them
+      from spec_kitty_events, so __init__ transitively republishes the external package's classes as
+      specify_cli.dossier.*, creating two import paths to one canonical type. Charter
+      Shared Package Boundaries argues against this in spirit. Verified the surface is currently
+      dead - nothing in src/ or tests/ imports these seven via specify_cli.dossier.
+    orchestrator_verification: CONFIRMED (dead surface); recommend follow-up issue, not this PR
+  - id: PR-BOUNDARY-003
+    severity: 1
+    file: src/specify_cli/sync/emitter.py
+    line: 527
+    title: _DOSSIER_EVENT_TYPES defined but never referenced
+    detail: Dead code introduced alongside the sentinel. Cosmetic.
+    orchestrator_verification: not independently checked

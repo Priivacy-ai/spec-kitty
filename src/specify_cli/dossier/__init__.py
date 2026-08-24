@@ -26,13 +26,13 @@ from charter.missions import (
 )
 from .manifest import ManifestRegistry
 from .events import (
-    ArtifactIdentity,
-    ContentHashRef,
-    LocalNamespaceTuple,
-    MissionDossierArtifactIndexedPayload,
-    MissionDossierArtifactMissingPayload,
-    MissionDossierSnapshotComputedPayload,
-    MissionDossierParityDriftDetectedPayload,
+    ArtifactIdentity as ArtifactIdentity,
+    ContentHashRef as ContentHashRef,
+    LocalNamespaceTuple as LocalNamespaceTuple,
+    MissionDossierArtifactIndexedPayload as MissionDossierArtifactIndexedPayload,
+    MissionDossierArtifactMissingPayload as MissionDossierArtifactMissingPayload,
+    MissionDossierSnapshotComputedPayload as MissionDossierSnapshotComputedPayload,
+    MissionDossierParityDriftDetectedPayload as MissionDossierParityDriftDetectedPayload,
     emit_artifact_indexed,
     emit_artifact_missing,
     emit_snapshot_computed,

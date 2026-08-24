@@ -8,6 +8,7 @@ to avoid touching ~/.kittify/ in CI.
 from __future__ import annotations
 
 import io
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -253,6 +254,126 @@ def test_gitignore_written(
     content = gitignore.read_text(encoding="utf-8")
     # GitignoreManager protects all agent directories; at least one should appear
     assert len(content.strip()) > 0, ".gitignore is empty"
+
+
+def test_init_in_existing_git_repo_effectively_ignores_worktrees_root(
+    cli_app: tuple[Typer, Console],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """#3689: the real init path protects a populated execution-worktrees root."""
+    app, _console = cli_app
+    project = tmp_path / "existing-repo"
+    project.mkdir()
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    # Reproduce the false-safe shape from the adversarial review: textual
+    # presence alone is insufficient when a later rule negates it.
+    project.joinpath(".gitignore").write_text(
+        ".worktrees/\n!.worktrees/\n.worktrees/*\n!.worktrees/demo-mission-abc123/\n!.worktrees/demo-mission-abc123/**\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(
+        app,
+        ["init", ".", "--ai", "claude", "--non-interactive"],
+    )
+
+    assert result.exit_code == 0, result.output
+    nested = project / ".worktrees" / "demo-mission-abc123"
+    nested.mkdir(parents=True)
+    nested.joinpath("file.txt").write_text("x\n", encoding="utf-8")
+    ignored = subprocess.run(
+        [
+            "git",
+            "check-ignore",
+            "--quiet",
+            ".worktrees/demo-mission-abc123/file.txt",
+        ],
+        cwd=project,
+        check=False,
+    )
+    assert ignored.returncode == 0
+    porcelain = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert ".worktrees" not in porcelain
+
+
+def test_init_fails_for_tracked_worktrees_content_without_mutating_index(
+    cli_app: tuple[Typer, Console],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Init cannot make already-indexed worktree content safe via .gitignore."""
+    app, console = cli_app
+    project = tmp_path / "tracked-worktree-repo"
+    tracked = project / ".worktrees" / "demo" / "file.txt"
+    tracked.parent.mkdir(parents=True)
+    tracked.write_text("tracked\n", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=project, check=True)
+    subprocess.run(["git", "add", ".worktrees/demo/file.txt"], cwd=project, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Spec Kitty Test",
+            "-c",
+            "user.email=spec-kitty@example.invalid",
+            "commit",
+            "-qm",
+            "track worktree fixture",
+        ],
+        cwd=project,
+        check=True,
+    )
+
+    monkeypatch.chdir(project)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", ".", "--ai", "claude", "--non-interactive"])
+
+    output = " ".join(console.file.getvalue().split())
+    assert result.exit_code == 1
+    assert "Tracked paths exist under .worktrees" in output
+    assert "git rm -r --cached -- .worktrees" in output
+    assert "rerun `spec-kitty upgrade`" in output
+    assert not project.joinpath(".kittify", "config.yaml").exists()
+    indexed = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", ".worktrees/demo/file.txt"],
+        cwd=project,
+        capture_output=True,
+        check=False,
+    )
+    assert indexed.returncode == 0
+    assert tracked.read_text(encoding="utf-8") == "tracked\n"
+
+    subprocess.run(["git", "rm", "-r", "--cached", "--", ".worktrees"], cwd=project, check=True)
+    recovered = _run(app, ["init", ".", "--ai", "claude", "--non-interactive"])
+
+    assert recovered.exit_code == 0, recovered.output
+    config = yaml.safe_load(project.joinpath(".kittify", "config.yaml").read_text(encoding="utf-8"))
+    assert config["mission_type_activations"]
+    assert project.joinpath(".kittify", "metadata.yaml").exists()
+    assert init_module._EVENT_LOG_GITATTRIBUTES_ENTRY in project.joinpath(".gitattributes").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        subprocess.run(
+            ["git", "check-ignore", "--quiet", ".worktrees/demo/file.txt"],
+            cwd=project,
+            check=False,
+        ).returncode
+        == 0
+    )
 
 
 # ---------------------------------------------------------------------------
