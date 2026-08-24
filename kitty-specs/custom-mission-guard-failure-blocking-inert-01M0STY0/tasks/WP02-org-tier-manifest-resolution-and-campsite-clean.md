@@ -166,8 +166,14 @@ manifest with the same defect, each asserting `_load_expected_artifact_manifest`
 `required_artifacts_for` raise `ManifestSchemaError` — not a bare `pydantic.ValidationError` —
 for both tiers. This is FR-010's actual contract: today `_load_expected_artifact_manifest` calls
 `ExpectedArtifactManifest.model_validate(...)` with zero exception handling (verified against live
-source), so this test is genuinely RED before T010b lands. Verify RED against
-`fix/org-tier-expected-artifacts-3703` before writing implementation code.
+source), so this test is genuinely RED before T010b lands. **For the org-tier case specifically
+(ANALYZE-FRESH-001 fix), also assert on the raised `ManifestSchemaError.origin` value: it must be
+a non-empty descriptive string naming the org tier and the mission type (mirroring
+`ManifestRegistry.load_manifest`'s synthesized org-tier origin, `manifest.py:283-291`) — never the
+built-in branch's `config.origin` expression, which is unreachable in the org-tier branch and
+would raise `AttributeError` there if used by mistake.** This origin assertion is what actually
+pins T010b's corrected per-branch origin derivation, not just the exception type. Verify RED
+against `fix/org-tier-expected-artifacts-3703` before writing implementation code.
 
 **T010** `_load_expected_artifact_manifest` (`src/specify_cli/runtime/resolver.py:555`) gains
 `repo_root: Path | None = None`, becomes org-aware via `resolve_org_expected_artifacts` (FR-008),
@@ -180,21 +186,46 @@ manifest raises a bare `pydantic.ValidationError`, uncaught. T010b (below) is th
 actually makes the docstring's claim true; do not assume it is already satisfied when landing
 T010's org-tier-awareness change.
 
-**T010b [ANALYZE-ARCH-001 fix round]** `_load_expected_artifact_manifest` wraps its
-`ExpectedArtifactManifest.model_validate(...)` call in `try/except pydantic.ValidationError`,
-re-raising `ManifestSchemaError(mission_type, config.origin)` — imported from
-`specify_cli.dossier.manifest`, mirroring `ManifestRegistry.load_manifest`'s own
-`except ValidationError as exc: raise ManifestSchemaError(...) from exc` pattern
-(`src/specify_cli/dossier/manifest.py:326-340`) — for both the built-in and the T010-added
-org-tier branch. This import crosses `specify_cli.runtime` → `specify_cli.dossier`, the same
-sibling-package seam `specify_cli.sync.namespace` and `specify_cli.sync.dossier_pipeline` already
-cross for this exact type; no architectural boundary gate forbids it (checked against
-`tests/architectural/test_runtime_charter_doctrine_boundary.py` and
-`tests/architectural/test_dossier_sync_boundary.py` — neither covers `runtime`→`dossier`). Lands
-in the same commit as T010 (or immediately after it, before T011). Makes T009b GREEN. Closes the
-crash risk FR-010 exists to address: today `resolver.py` has zero org-tier lookup, so this exact
-uncaught-`ValidationError` path does not yet exist for org manifests — T010 is what makes it
-reachable, so T010b must land no later than T010 for FR-010 to genuinely hold once WP02 is done.
+**T010b [ANALYZE-ARCH-001 fix round; org-tier origin corrected per ANALYZE-FRESH-001]**
+`_load_expected_artifact_manifest` wraps EACH tier's `ExpectedArtifactManifest.model_validate(...)`
+call in its own `try/except pydantic.ValidationError`, re-raising the existing `ManifestSchemaError`
+— imported from `specify_cli.dossier.manifest` — with a **branch-specific `origin` argument**,
+mirroring `ManifestRegistry.load_manifest`'s own TWO DIFFERENT origin expressions per branch
+(`src/specify_cli/dossier/manifest.py:274-340`), not one shared expression used for both:
+
+- **Built-in branch** (`config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)`,
+  a `ConfigResult`): `raise ManifestSchemaError(mission_type, config.origin) from exc` —
+  `config.origin` is a real attribute here, exactly mirroring `manifest.py:326-340`'s built-in
+  except-block.
+- **Org-tier branch** (`org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)`, a
+  bare `Mapping[str, Any] | None` with **no `.origin` attribute**): synthesize a descriptive origin
+  string naming the mission type and the org roots checked, exactly as `ManifestRegistry
+  .load_manifest`'s org-tier except-block does (`manifest.py:283-291`), e.g.:
+  ```python
+  origin = (
+      f"org-tier expected-artifacts.yaml for mission type {mission_type!r} "
+      f"(no single source file path available; checked org roots: "
+      f"{', '.join(str(root) for root in org_roots)})"
+  )
+  raise ManifestSchemaError(mission_type, origin) from exc
+  ```
+
+**Do NOT reuse `config.origin` for the org-tier branch** — in that branch there is no `config`
+variable of type `ConfigResult` in scope; reading `.origin` off the org-tier mapping/`org_parsed`
+raises `AttributeError`, not `ManifestSchemaError`, defeating this fix on exactly the org-tier path
+FR-010 exists to cover (ANALYZE-FRESH-001). **Do NOT paper over that `AttributeError` risk with a
+broad `except Exception` wrapped around the org-tier branch either** — that would silently swallow
+genuine schema errors instead of surfacing `ManifestSchemaError`, reintroducing the exact
+silent-failure hazard this fix round exists to close. This import crosses `specify_cli.runtime` →
+`specify_cli.dossier`, the same sibling-package seam `specify_cli.sync.namespace` and
+`specify_cli.sync.dossier_pipeline` already cross for this exact type; no architectural boundary
+gate forbids it (checked against `tests/architectural/test_runtime_charter_doctrine_boundary.py`
+and `tests/architectural/test_dossier_sync_boundary.py` — neither covers `runtime`→`dossier`).
+Lands in the same commit as T010 (or immediately after it, before T011). Makes T009b GREEN
+(including its org-tier `.origin` assertion). Closes the crash risk FR-010 exists to address:
+today `resolver.py` has zero org-tier lookup, so this exact uncaught-`ValidationError` path does
+not yet exist for org manifests — T010 is what makes it reachable, so T010b must land no later
+than T010 for FR-010 to genuinely hold once WP02 is done.
 
 **T011** `required_artifacts_for` (`src/specify_cli/runtime/resolver.py:634`) gains
 `repo_root: Path | None = None`, forwards it to `_load_expected_artifact_manifest`. Its own return

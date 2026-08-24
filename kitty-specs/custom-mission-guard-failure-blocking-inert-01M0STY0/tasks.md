@@ -346,17 +346,27 @@ T009b [ATDD-RED, FR-010 fix round] Add schema-invalid-manifest test cases to
 `tests/specify_cli/runtime/test_configured_artifact_name.py`: a built-in manifest and an org-tier
 manifest that each parse as YAML but fail `ExpectedArtifactManifest`'s Pydantic schema
 (`extra="forbid"`), asserting `_load_expected_artifact_manifest`/`required_artifacts_for` raise
-`ManifestSchemaError` (not a bare `pydantic.ValidationError`) for both tiers. Verify RED against
+`ManifestSchemaError` (not a bare `pydantic.ValidationError`) for both tiers. For the org-tier
+case, also assert `ManifestSchemaError.origin` is a non-empty descriptive string naming the org
+tier + mission type (mirrors `manifest.py`'s synthesized org-tier origin, `manifest.py:283-291`
+— never the built-in branch's `config.origin`, which is unreachable and `AttributeError`-prone
+in the org-tier branch — ANALYZE-FRESH-001). Verify RED against
 `fix/org-tier-expected-artifacts-3703` before writing implementation code.
 T010 `_load_expected_artifact_manifest` (`src/specify_cli/runtime/resolver.py:555`) gains
 `repo_root: Path | None = None`, becomes org-aware via `resolve_org_expected_artifacts` (FR-008),
 mirroring `ManifestRegistry.load_manifest`'s parameter shape (`src/specify_cli/dossier/manifest.py:193-233`)
-T010b [FR-010 fix round] `_load_expected_artifact_manifest` wraps its
-`ExpectedArtifactManifest.model_validate(...)` call in `try/except pydantic.ValidationError`,
-re-raising `ManifestSchemaError(mission_type, config.origin)` (imported from
-`specify_cli.dossier.manifest`, mirroring `ManifestRegistry.load_manifest`'s own
-`except ValidationError as exc: raise ManifestSchemaError(...) from exc` pattern) for both the
-built-in and the T010-added org-tier branch. Closes ANALYZE-ARCH-001/FR-010's crash risk; lands
+T010b [FR-010 fix round; org-tier origin corrected per ANALYZE-FRESH-001]
+`_load_expected_artifact_manifest` wraps each tier's `ExpectedArtifactManifest.model_validate(...)`
+call in its own `try/except pydantic.ValidationError`, re-raising `ManifestSchemaError` (imported
+from `specify_cli.dossier.manifest`) with a **branch-specific origin** — mirroring
+`ManifestRegistry.load_manifest`'s own two DIFFERENT origin expressions per branch
+(`src/specify_cli/dossier/manifest.py:274-340`), NOT a single shared `config.origin`: the built-in
+branch uses `ManifestSchemaError(mission_type, config.origin)` (`config` is a real `ConfigResult`
+there, `manifest.py:326-340`); the org-tier branch synthesizes a descriptive origin string (mission
+type + org roots checked, mirroring `manifest.py:283-291`'s org-tier except-block) because
+`resolve_org_expected_artifacts` returns a bare `Mapping` with no `.origin` attribute — using
+`config.origin` there would raise `AttributeError`, not `ManifestSchemaError`. Do not mask that
+risk with a broad `except Exception` either. Closes ANALYZE-ARCH-001/FR-010's crash risk; lands
 in the same commit as T010 (or immediately after it, before T011) — makes T009b GREEN.
 T011 `required_artifacts_for` (`src/specify_cli/runtime/resolver.py:634`) gains
 `repo_root: Path | None = None`, forwards to `_load_expected_artifact_manifest`
