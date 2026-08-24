@@ -407,7 +407,7 @@ def branch_context(
         # the primary checkout for shared metadata reads. Branch identity is
         # invocation-owned state, so resolve the invoking checkout through the
         # canonical checkout-identity seam before asking Git for its branch.
-        identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
+        identity = resolve_checkout_identity(Path.cwd(), Intent.PRIMARY_READ)
         current_branch = _mission.get_current_branch(identity.invoking_root)
         if not current_branch or current_branch == "HEAD":
             error_msg = "Must be on a branch to resolve branch context (detached HEAD detected)."

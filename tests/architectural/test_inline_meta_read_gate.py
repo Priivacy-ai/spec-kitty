@@ -313,8 +313,12 @@ FLOOR_MARGIN = 2
 # uses ``load_meta_fail_closed``, and merge-baseline decoding now uses
 # ``decode_meta``. Live rises 144 -> 146; floor raised 141 -> 143 to preserve
 # the established 3-below-live gap (``142 <= 143 < 146``).
+# RAISED 2026-08-24 (#2938): four legacy branch-contract call sites now route
+# through ``load_meta_fail_closed``. Live rises 146 -> 150; floor raised
+# 143 -> 146, the lowest permitted value within the four-site margin
+# (``146 <= 146 < 150``).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 143
+ROUTED_LOAD_META_FLOOR = 146
 
 
 # --------------------------------------------------------------------------- #

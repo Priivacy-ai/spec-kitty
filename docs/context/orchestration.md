@@ -2,7 +2,7 @@
 title: 'Context: Orchestration'
 description: 'Glossary context for orchestration: lifecycle and runtime orchestration semantics, including the repository, project, and mission-run terms.'
 doc_status: active
-updated: '2026-07-30'
+updated: '2026-08-24'
 related:
 - docs/context/doctrine.md
 - docs/context/identity.md
@@ -442,7 +442,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The durable branch that owns a mission's planning artifacts and from which WP work is based. Stored in every WP prompt's frontmatter and in `lanes.json` to root lane-worktree allocation. It normally equals mission `target_branch`; for the legacy PR-bound #2938 shape, `finalize-tasks` recovers the invoking non-protected feature branch as the planning branch and preserves the old protected target as `merge_target_branch`. JSON key: `planning_base_branch`. |
+| **Definition** | The durable branch that owns a mission's planning artifacts and from which WP work is based. Stored in every WP prompt's frontmatter and in `lanes.json` to root lane-worktree allocation. It normally equals mission `target_branch`; for the legacy PR-bound #2938 shape, the operator supplies the otherwise-unprovable planning ref through `finalize-tasks --target-branch`, which preserves the old protected target as `merge_target_branch`. JSON key: `planning_base_branch`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
@@ -491,7 +491,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The git branch that owns a mission's planning artifacts and status contract. Persisted in `meta.json` under `target_branch`; `merge_target_branch` separately records a different final landing branch when required. Downstream commands derive planning placement from this stored value. A narrow compatibility migration in `finalize-tasks` repairs the legacy PR-bound #2938 shape (`pr_bound=true`, protected `target_branch`, no `merge_target_branch`) by recording the invoking feature branch as `target_branch` and retaining the previous target as `merge_target_branch`. |
+| **Definition** | The git branch that owns a mission's planning artifacts and status contract. Persisted in `meta.json` under `target_branch`; `merge_target_branch` separately records a different final landing branch when required. Downstream commands derive planning placement from this stored value. A narrow compatibility migration in `finalize-tasks` repairs the legacy PR-bound #2938 shape (`pr_bound=true`, protected `target_branch`, no `merge_target_branch`) only when the operator explicitly supplies the planning ref with `--target-branch` from the owning checkout; it records that ref as `target_branch` and atomically retains the previous target as `merge_target_branch`. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `2.x`, `3.x` |

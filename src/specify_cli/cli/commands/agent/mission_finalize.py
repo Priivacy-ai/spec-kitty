@@ -47,8 +47,7 @@ from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.core.checkout_identity import Intent, resolve_checkout_identity
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
-from specify_cli.core.git_ops import get_current_branch
+from specify_cli.core.dependency_graph import detect_cycles
 from specify_cli.core.paths import assert_safe_path_segment, load_meta_fail_closed
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
@@ -549,9 +548,10 @@ def _resolve_target_branch(
 ) -> str:
     """Resolve the planning branch, including the narrow #2938 legacy repair.
 
-    Normal resolution remains metadata-only. The checkout-aware compatibility
-    arm applies only to PR-bound legacy metadata that conflated a protected
-    final target with its non-protected invoking planning branch.
+    Normal resolution remains metadata-only. A PR-bound legacy mission that
+    conflated its protected final target with the planning branch cannot prove
+    the original planning branch from current checkout state, so recovery
+    requires the operator to name it explicitly with ``--target-branch``.
     """
     try:
         declared_target = _resolve_planning_branch_via_mission(
@@ -565,31 +565,39 @@ def _resolve_target_branch(
             console.print("[yellow]Hint:[/yellow] re-run with [bold]--target-branch <ref>[/bold] to override.")
         raise typer.Exit(1) from exc
 
-    if target_branch_override and target_branch_override.strip():
-        return declared_target
-
-    meta = load_meta_fail_closed(primary_dir)
+    meta = load_meta_fail_closed(primary_dir) or {}
     if not meta.get("pr_bound") or meta.get("merge_target_branch"):
         return declared_target
-
-    identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
-    invoking_branch = get_current_branch(identity.invoking_root)
-    if not invoking_branch or invoking_branch == declared_target:
+    if target_branch_override and target_branch_override.strip():
         return declared_target
 
     from specify_cli.git.protection_policy import ProtectionPolicy
 
     policy = ProtectionPolicy.resolve(repo_root)
-    if not policy.is_protected(declared_target) or policy.is_protected(
-        invoking_branch
-    ):
+    if not policy.is_protected(declared_target):
         return declared_target
-    return cast(str, invoking_branch)
+
+    message = (
+        "Legacy PR-bound metadata records a protected merge target as its "
+        "planning branch, but the original planning branch cannot be proven "
+        "from the current checkout. Re-run with --target-branch <planning-ref> "
+        "to repair the branch contract explicitly."
+    )
+    if json_output:
+        _emit_json(
+            {
+                "error": message,
+                "error_code": "PR_BOUND_PLANNING_BRANCH_REQUIRED",
+            }
+        )
+    else:
+        console.print(f"[red]Error:[/red] {message}")
+    raise typer.Exit(1)
 
 
 def _resolve_merge_target_branch(primary_dir: Path, planning_branch: str) -> str:
     """Resolve final landing without conflating it with planning placement."""
-    meta = load_meta_fail_closed(primary_dir)
+    meta = load_meta_fail_closed(primary_dir) or {}
     explicit_target = meta.get("merge_target_branch")
     if isinstance(explicit_target, str) and explicit_target.strip():
         return explicit_target.strip()
@@ -620,7 +628,7 @@ def _preflight_recovered_pr_bound_contract(
     first finalize mutation so the operator can commit or discard the foreign
     edit explicitly.
     """
-    meta = load_meta_fail_closed(planning_dir)
+    meta = load_meta_fail_closed(planning_dir) or {}
     if not meta.get("pr_bound") or meta.get("target_branch") == planning_branch:
         return
     meta_path = planning_dir / META_JSON_FILENAME
@@ -651,7 +659,7 @@ def _persist_recovered_pr_bound_contract(
     merge_target_branch: str,
 ) -> bool:
     """Normalize #2938 legacy metadata; return whether bytes were written."""
-    meta = load_meta_fail_closed(planning_dir)
+    meta = load_meta_fail_closed(planning_dir) or {}
     if not meta.get("pr_bound") or meta.get("target_branch") == planning_branch:
         return False
 
@@ -661,6 +669,63 @@ def _persist_recovered_pr_bound_contract(
 
     write_meta(planning_dir, meta)
     return True
+
+
+def _enforce_branch_contract_write_ownership(*, json_output: bool) -> None:
+    """Refuse branch-contract metadata writes from a foreign linked worktree."""
+    identity = resolve_checkout_identity(Path.cwd(), Intent.WRITE)
+    refusal = identity.write_refusal()
+    if refusal is None:
+        return
+
+    message = refusal.message()
+    if json_output:
+        _emit_json(
+            {
+                "error": message,
+                "error_code": "CHECKOUT_WRITE_OWNERSHIP_REFUSED",
+            }
+        )
+    else:
+        console.print(f"[red]Error:[/red] {message}")
+    raise typer.Exit(1)
+
+
+def _persist_branch_contract_for_finalize(
+    primary_dir: Path,
+    *,
+    planning_branch: str,
+    merge_target_branch: str,
+    target_branch_override: str | None,
+    json_output: bool,
+) -> TargetBranchPersistOutcome:
+    """Persist an explicit branch repair atomically and only from its owner."""
+    original_target = (load_meta_fail_closed(primary_dir) or {}).get("target_branch")
+    needs_write = bool(
+        target_branch_override
+        and target_branch_override.strip()
+        and original_target != planning_branch
+    )
+    if needs_write:
+        _enforce_branch_contract_write_ownership(json_output=json_output)
+    recovered = _persist_recovered_pr_bound_contract(
+        primary_dir,
+        planning_branch=planning_branch,
+        merge_target_branch=merge_target_branch,
+    )
+    if recovered:
+        return TargetBranchPersistOutcome(
+            persisted=True,
+            previous_value=(
+                str(original_target) if original_target is not None else None
+            ),
+        )
+    return _persist_target_branch_override(
+        primary_dir,
+        planning_branch,
+        target_branch_override=target_branch_override,
+        json_output=json_output,
+    )
 
 
 @dataclass(frozen=True)
@@ -3101,7 +3166,6 @@ def finalize_tasks(
         )
         if not json_output:
             console.print(f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)")
-
         tasks_dir, wp_files = _load_work_package_files(planning_dir, json_output=json_output)
         expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
@@ -3172,9 +3236,10 @@ def finalize_tasks(
             meta_original_text = (
                 meta_path_for_revert.read_text(encoding="utf-8") if meta_path_for_revert.exists() else None
             )
-            target_branch_persist = _persist_target_branch_override(
+            target_branch_persist = _persist_branch_contract_for_finalize(
                 primary_dir,
-                target_branch,
+                planning_branch=target_branch,
+                merge_target_branch=merge_target_branch,
                 target_branch_override=target_branch_override,
                 json_output=json_output,
             )
@@ -3266,13 +3331,7 @@ def finalize_tasks(
             )
             return
 
-        recovered_contract_persisted = _persist_recovered_pr_bound_contract(
-            planning_dir,
-            planning_branch=target_branch,
-            merge_target_branch=merge_target_branch,
-        )
-        if recovered_contract_persisted:
-            meta_json_persisted = True
+        if meta_json_persisted:
             meta = _read_meta_for_emission(planning_dir)
 
         _run_commit_pipeline(
