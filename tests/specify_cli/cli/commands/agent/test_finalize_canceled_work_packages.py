@@ -32,18 +32,24 @@ def _wp_document(
     execution_mode: str = "code_change",
     owned_files: tuple[str, ...] = (),
     authoritative_surface: str = "src/example/",
+    include_ownership_fields: bool = True,
 ) -> str:
     dependency_yaml = "[]" if not dependencies else "[" + ", ".join(dependencies) + "]"
     owned_yaml = "[]\n" if not owned_files else "\n" + "".join(f"  - {path}\n" for path in owned_files)
+    ownership = (
+        f"execution_mode: {execution_mode}\n"
+        f"owned_files: {owned_yaml}"
+        f"authoritative_surface: {authoritative_surface}\n"
+        if include_ownership_fields
+        else ""
+    )
     return (
         "---\n"
         f"work_package_id: {wp_id}\n"
         f"title: {wp_id} cancellation acceptance fixture\n"
         f"dependencies: {dependency_yaml}\n"
         "requirement_refs: [FR-001]\n"
-        f"execution_mode: {execution_mode}\n"
-        f"owned_files: {owned_yaml}"
-        f"authoritative_surface: {authoritative_surface}\n"
+        f"{ownership}"
         "---\n"
         f"# {wp_id}\n"
     )
@@ -93,6 +99,23 @@ def _set_lane(mission_dir: Path, wp_id: str, lane: Lane) -> None:
 
 def _cancel(mission_dir: Path, wp_id: str) -> None:
     _set_lane(mission_dir, wp_id, Lane.CANCELED)
+
+
+def _transition(mission_dir: Path, wp_id: str, from_lane: Lane, to_lane: Lane) -> None:
+    append_event(
+        mission_dir,
+        StatusEvent(
+            event_id=f"01J3432{wp_id}{from_lane.value.upper()}{to_lane.value.upper()}000",
+            mission_slug=mission_dir.name,
+            wp_id=wp_id,
+            from_lane=from_lane,
+            to_lane=to_lane,
+            at="2026-08-24T00:02:00Z",
+            actor="codex",
+            force=False,
+            execution_mode="worktree",
+        ),
+    )
 
 
 def _reopen(mission_dir: Path, wp_id: str) -> None:
@@ -368,6 +391,106 @@ def test_canceled_invalid_surface_and_missing_literal_are_ignored(tmp_path: Path
     result = _invoke(tmp_path, mission_dir)
 
     assert result.exit_code == 0, result.stdout
+
+
+@pytest.mark.parametrize("validate_only", [False, True])
+def test_canceled_prompt_without_ownership_is_never_fabricated_or_warned(
+    tmp_path: Path,
+    validate_only: bool,
+) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {
+            "WP01": _wp_document("WP01", include_ownership_fields=False),
+            "WP02": _wp_document("WP02", owned_files=("src/example/active.py",)),
+        },
+    )
+    _cancel(mission_dir, "WP01")
+    prompt = mission_dir / "tasks" / "WP01-fixture.md"
+    before = prompt.read_bytes()
+
+    result = (
+        _invoke(tmp_path, mission_dir, validate_only=True)
+        if validate_only
+        else _invoke_normal(tmp_path, mission_dir)
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert prompt.read_bytes() == before
+    assert "execution_mode" not in prompt.read_text(encoding="utf-8")
+    payload = _payload(result.stdout)
+    assert not any(
+        row.get("wp_id") == "WP01"
+        for row in payload.get("would_modify", [])  # type: ignore[union-attr]
+    )
+    assert not any("WP01" in warning for warning in payload["ownership_warnings"])  # type: ignore[union-attr]
+
+
+def test_eligible_prompt_without_ownership_still_infers_and_fails(tmp_path: Path) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {
+            "WP01": _wp_document("WP01", include_ownership_fields=False),
+            "WP02": _wp_document("WP02", owned_files=("src/example/active.py",)),
+        },
+    )
+
+    result = _invoke(tmp_path, mission_dir)
+
+    assert result.exit_code == 1
+    assert "ownership" in str(_payload(result.stdout)["error"]).lower()
+
+
+def test_all_canceled_dependency_cycle_is_excluded_before_cycle_validation(
+    tmp_path: Path,
+) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {
+            "WP01": _wp_document("WP01", dependencies=("WP02",)),
+            "WP02": _wp_document("WP02", dependencies=("WP01",)),
+        },
+    )
+    _cancel(mission_dir, "WP01")
+    _cancel(mission_dir, "WP02")
+
+    result = _invoke(tmp_path, mission_dir)
+
+    assert result.exit_code == 0, result.stdout
+    assert _payload(result.stdout)["validation"]["lanes_preview"]["count"] == 0  # type: ignore[index]
+
+
+def test_isolated_canceled_cycle_does_not_block_active_graph(tmp_path: Path) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {
+            "WP01": _wp_document("WP01", dependencies=("WP02",)),
+            "WP02": _wp_document("WP02", dependencies=("WP01",)),
+            "WP03": _wp_document("WP03", owned_files=("src/example/active.py",)),
+        },
+    )
+    _cancel(mission_dir, "WP01")
+    _cancel(mission_dir, "WP02")
+
+    result = _invoke(tmp_path, mission_dir)
+
+    assert result.exit_code == 0, result.stdout
+    assert _payload(result.stdout)["validation"]["lanes_preview"]["count"] == 1  # type: ignore[index]
+
+
+def test_eligible_dependency_cycle_still_fails(tmp_path: Path) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {
+            "WP01": _wp_document("WP01", dependencies=("WP02",)),
+            "WP02": _wp_document("WP02", dependencies=("WP01",)),
+        },
+    )
+
+    result = _invoke(tmp_path, mission_dir)
+
+    assert result.exit_code == 1
+    assert _payload(result.stdout)["cycles"]
 
 
 def test_corrupt_canonical_status_fails_closed(tmp_path: Path) -> None:
@@ -678,6 +801,67 @@ def test_missing_prior_manifest_refuses_execution_begun_json(
             json_output=True,
         )
     assert "no lanes.json exists" in emit.call_args.args[0]["error"]
+
+
+def test_existing_manifest_preserves_planning_sha_after_claim_then_cancel(
+    tmp_path: Path,
+) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {"WP01": _wp_document("WP01", owned_files=("src/example/active.py",))},
+    )
+    capture = MagicMock(side_effect=["planning-old", "planning-new"])
+    with patch(
+        "specify_cli.cli.commands.agent.mission_finalize._capture_target_branch_tip",
+        capture,
+    ):
+        first = _invoke_normal(tmp_path, mission_dir)
+        assert first.exit_code == 0, first.stdout
+        _transition(mission_dir, "WP01", Lane.PLANNED, Lane.CLAIMED)
+        _transition(mission_dir, "WP01", Lane.CLAIMED, Lane.CANCELED)
+        second = _invoke_normal(tmp_path, mission_dir)
+
+    assert second.exit_code == 0, second.stdout
+    manifest = read_lanes_json(mission_dir)
+    assert manifest is not None
+    assert manifest.planning_commit_sha == "planning-old"
+    capture.assert_called_once()
+
+
+def test_planned_to_canceled_without_manifest_is_pre_execution(tmp_path: Path) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {"WP01": _wp_document("WP01", include_ownership_fields=False)},
+    )
+    _transition(mission_dir, "WP01", Lane.PLANNED, Lane.CANCELED)
+    assert not (mission_dir / "lanes.json").exists()
+
+    result = _invoke_normal(tmp_path, mission_dir)
+
+    assert result.exit_code == 0, result.stdout
+    manifest = read_lanes_json(mission_dir)
+    assert manifest is not None
+    assert manifest.lanes == []
+
+
+@pytest.mark.parametrize("executing_lane", [Lane.CLAIMED, Lane.IN_PROGRESS])
+def test_execution_then_canceled_without_manifest_refuses_provenance_guess(
+    tmp_path: Path,
+    executing_lane: Lane,
+) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {"WP01": _wp_document("WP01", include_ownership_fields=False)},
+    )
+    _transition(mission_dir, "WP01", Lane.PLANNED, executing_lane)
+    _transition(mission_dir, "WP01", executing_lane, Lane.CANCELED)
+    assert not (mission_dir / "lanes.json").exists()
+
+    result = _invoke_normal(tmp_path, mission_dir)
+
+    assert result.exit_code == 1
+    assert "no lanes.json exists" in str(_payload(result.stdout)["error"])
+    assert not (mission_dir / "lanes.json").exists()
 
 
 @pytest.mark.parametrize("json_output", [False, True])
