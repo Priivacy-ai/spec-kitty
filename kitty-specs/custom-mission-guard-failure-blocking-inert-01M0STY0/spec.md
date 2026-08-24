@@ -78,10 +78,12 @@ outside `_GUARD_TABLES`** — that gap is exactly issue #3704's Part 1. This mis
 **fulfil** that ADR's stated decision, not reverse it: no entry gets added to `_GUARD_TABLES`
 for custom families, and `UnregisteredMissionFamilyError`'s strict-raise stays exactly as-is for
 a family with **no** declared manifest anywhere. This spec's own acceptance criteria are numbered
-fresh (**AC-1** onward, see below) to avoid confusion with the pre-existing AC-10/AC-13/AC-14;
-where a new AC extends or depends on one of those three, it says so explicitly by full external
-reference (`rc3-charter-gate-predicate-inversion-01M0GGT1#AC-10`, etc.) rather than reusing the
-bare number.
+fresh — **AC-1** through **AC-8**, a single flat series that does not reset per user story
+(AC-1–AC-3 under User Story 1, AC-4–AC-8 under User Story 2, both in the **Acceptance Scenarios**
+subsections below) — to avoid confusion with the pre-existing AC-10/AC-13/AC-14; where a new AC
+extends or depends on one of those three, it says so explicitly by full external reference
+(`rc3-charter-gate-predicate-inversion-01M0GGT1#AC-10`, etc.) rather than reusing the bare
+number.
 
 ### Ledger corroboration
 
@@ -130,20 +132,20 @@ exception) in the present case.
 
 **Acceptance Scenarios**:
 
-1. **Given** a custom mission family `qa` with a declared manifest requiring `qa-coverage.json`
-   (`blocking: true`) at step `accept`, and the file absent, **When** the composed-action guard
-   evaluates step `accept`, **Then** `guard_failures` contains an entry naming the missing
-   artifact and the resulting `Decision.kind` is `blocked` — not `[]`.
-2. **Given** the same family and step with `qa-coverage.json` present, **When** the same guard
-   evaluates, **Then** `guard_failures` is empty **and** this emptiness is reachable only via
-   real evaluation against the manifest (provable by flipping the file's presence and observing
-   the failure list change — a swallowed-exception `[]` cannot do this).
-3. **Given** a mission family with **no** manifest declared at any tier (genuinely unregistered,
-   e.g. a typeless mission), **When** any of the three call sites evaluate a guard, **Then**
-   behavior is **unchanged**: `evaluate_guards_strict` raises `UnregisteredMissionFamilyError`,
-   and every tolerant caller degrades to `[]` — the extension point non-goal stays intact
-   (`TestTypelessMissionFamily`, `TestIssue3627WpIterationUnregisteredFamilyDegrades` stay
-   green).
+**AC-1**. **Given** a custom mission family `qa` with a declared manifest requiring
+   `qa-coverage.json` (`blocking: true`) at step `accept`, and the file absent, **When** the
+   composed-action guard evaluates step `accept`, **Then** `guard_failures` contains an entry
+   naming the missing artifact and the resulting `Decision.kind` is `blocked` — not `[]`.
+**AC-2**. **Given** the same family and step with `qa-coverage.json` present, **When** the same
+   guard evaluates, **Then** `guard_failures` is empty **and** this emptiness is reachable only
+   via real evaluation against the manifest (provable by flipping the file's presence and
+   observing the failure list change — a swallowed-exception `[]` cannot do this).
+**AC-3**. **Given** a mission family with **no** manifest declared at any tier (genuinely
+   unregistered, e.g. a typeless mission), **When** any of the three call sites evaluate a guard,
+   **Then** behavior is **unchanged**: `evaluate_guards_strict` raises
+   `UnregisteredMissionFamilyError`, and every tolerant caller degrades to `[]` — the extension
+   point non-goal stays intact (`TestTypelessMissionFamily`,
+   `TestIssue3627WpIterationUnregisteredFamilyDegrades` stay green).
 
 ---
 
@@ -170,22 +172,31 @@ absence never does — at each step independently.
 
 **Acceptance Scenarios**:
 
-1. **Given** an org-tier manifest at `<org_root>/missions/qa/expected-artifacts.yaml` (the path
-   #3703/#3708 fixed) declaring `qa-coverage.json` as `blocking: true` at `accept`, and a
+**AC-4**. **Given** an org-tier manifest at `<org_root>/missions/qa/expected-artifacts.yaml` (the
+   path #3703/#3708 fixed) declaring `qa-coverage.json` as `blocking: true` at `accept`, and a
    built-in manifest for `qa` that does NOT exist, **When** the guard evaluates step `accept`
    with the file absent, **Then** the org manifest is the one consulted (not silently treated as
    "no manifest") and the step blocks.
-2. **Given** the same org manifest also declaring `defect-log.md` as `blocking: false` at
+**AC-5**. **Given** the same org manifest also declaring `defect-log.md` as `blocking: false` at
    `accept`, absent, **When** the guard evaluates, **Then** its absence does NOT appear in
    `guard_failures` — the flag is honored, not decorative.
-3. **Given** both a built-in manifest for `qa` (if one existed) and an org manifest for `qa`,
-   **When** the manifest is resolved, **Then** the org file wins as a whole-file replacement —
-   never field-merged with the built-in one, matching `resolve_org_expected_artifacts`'s
-   documented last-existing-match-wins / whole-file-replacement contract (#3703).
-4. **Given** the four built-in families (`research`, `documentation`, `software-dev`, `plan`),
-   **When** any of their guards evaluate under the fixed code, **Then** `guard_failures` output
-   is byte-identical to pre-fix behavior at every existing fixture — none of them is
+**AC-6**. **Given** both a built-in manifest for `qa` (if one existed) and an org manifest for
+   `qa`, **When** the manifest is resolved, **Then** the org file wins as a whole-file
+   replacement — never field-merged with the built-in one, matching
+   `resolve_org_expected_artifacts`'s documented last-existing-match-wins /
+   whole-file-replacement contract (#3703).
+**AC-7**. **Given** the four built-in families (`research`, `documentation`, `software-dev`,
+   `plan`), **When** any of their guards evaluate under the fixed code, **Then** `guard_failures`
+   output is byte-identical to pre-fix behavior at every existing fixture — none of them is
    step-scoped or blocking-filtered differently than today (NFR-003; see Non-Goals).
+**AC-8**. **Given** the CLI/WP-iteration dispatch path (`_dn_dependency_gate`,
+   `runtime_bridge.py`, ~line 1538-1643, which already holds `repo_root` as a local both before
+   and after its `_check_cli_guards` calls at ~line 1608 and ~line 1643) runs a custom mission
+   family with an org-tier manifest and no built-in manifest, **When** the guard is evaluated,
+   **Then** `resolve_org_roots` is invoked with the real, non-`None` `repo_root` the enclosing
+   function already holds — not a default `repo_root=None` left unthreaded — so the org manifest
+   is genuinely reachable from this call site, not merely reachable in a unit test that calls
+   the leaf function directly (see FR-004).
 
 ---
 
@@ -237,12 +248,19 @@ absence never does — at each step independently.
 | FR-012 | `mission_v1.guards`/`GUARD_REGISTRY` not touched | Non-goals | Medium | Open |
 
 **FR-001 — Data-driven evaluation for a declared-but-untabled family.** When
-`_GUARD_TABLES.get(snapshot.mission_family)` (`runtime_bridge_cores.py:676-681`) has no entry
-for the family, AND that family has a declared `expected-artifacts.yaml` manifest reachable at
-built-in or org tier (per FR-004), guard evaluation MUST consult that manifest's blocking
-requirements for `snapshot.step_id` and return real `guard_failures` — instead of raising
-`UnregisteredMissionFamilyError` / degrading to `[]`. No entry is added to the `_GUARD_TABLES`
-dict for the family (ADR-preserving, see Clarifications).
+`_GUARD_TABLES.get(snapshot.mission_family)` (`_GUARD_TABLES` declared at
+`runtime_bridge_cores.py:676-681`; the `.get()` dispatch call itself is at
+`runtime_bridge_cores.py:693`, inside `evaluate_guards_strict`) has no entry for the family, AND
+that family has a declared `expected-artifacts.yaml` manifest reachable at built-in or org tier
+(per FR-004), guard evaluation MUST produce real `guard_failures` for `snapshot.step_id` from
+that manifest's blocking requirements — instead of raising `UnregisteredMissionFamilyError` /
+degrading to `[]`. No entry is added to the `_GUARD_TABLES` dict for the family
+(ADR-preserving, see Clarifications). **Layering note (see FR-006):** the manifest's blocking
+requirements are resolved into a snapshot-carried name set in the I/O layer, before the snapshot
+ever reaches `runtime_bridge_cores.py` — `evaluate_guards_strict`'s own code, which lives inside
+`runtime_bridge_cores.py` and is therefore bound by that module's stdlib-only import boundary
+(`tests/architectural/test_bridge_cores_import_boundary.py`), only compares snapshot data it is
+handed; it never itself calls a manifest-loading, non-stdlib-importing function.
 
 **FR-002 — Three distinguishable dispatch outcomes.** After this fix, exactly three outcomes
 must be reachable and distinguishable for a family outside `_GUARD_TABLES`, never collapsed into
@@ -260,22 +278,53 @@ one silent `[]`:
 **FR-003 — All three call sites converge on one evaluation.** The tolerant wrapper
 (`evaluate_guards`, `runtime_bridge_cores.py:699-716`), the composed-action guard
 (`_check_composed_action_guard`, `runtime_bridge_composition.py:429-499`), and both of
-`runtime_bridge.py`'s pre-check blocks (WP-iteration, ~line 1607-1610; the CLI pre-check,
-~line 1631-1643) MUST reach the same FR-001 evaluation for the same `(mission_family, step_id)`
-input, so the WP-iteration path and the composed-action path cannot disagree for the same
-on-disk artifact state (see Edge Cases).
+`runtime_bridge.py`'s pre-check blocks (WP-iteration, ~line 1607-1610, inside
+`_dn_dependency_gate`; the CLI pre-check, ~line 1631-1643) MUST reach the same FR-001/FR-006
+evaluation result for the same `(mission_family, step_id)` input, so the WP-iteration path and
+the composed-action path cannot disagree for the same on-disk artifact state (see Edge Cases).
+**Layering note:** "reach the same evaluation" means every one of these callers ends up invoking
+`runtime_bridge_cores.evaluate_guards_strict`/`evaluate_guards` over an
+`ArtifactPresenceSnapshot` that the I/O layer already populated with the manifest-derived
+`blocking_artifact_names` field (FR-006) — none of these call sites, including
+`evaluate_guards`/`evaluate_guards_strict` themselves, calls `required_artifacts_for` or any
+other manifest-loading function directly; only `runtime_bridge_io.py`'s presence-gathering code
+does that, upstream of the snapshot. Regression guard for this convergence:
+`test_non_software_dev_missing_artifact_owned_by_composed_guard`
+(`tests/runtime/test_bridge_parity.py:1242`; see NFR-004).
 
-**FR-004 — Org-tier-aware manifest lookup for the presence gate.** `_presence_filenames_for`
-(`runtime_bridge_io.py:841`, currently calling only `MissionTemplateRepository.default()`) MUST
-also consult the org tier via `charter.org_expected_artifacts.resolve_org_expected_artifacts`
-(already in this branch's history from #3703/PR #3708) against
-`<org_root>/missions/<mission_type>/expected-artifacts.yaml`, with the same last-existing-match-
-wins precedence and whole-file (never field-merged) replacement `resolve_org_expected_artifacts`
-already implements. The threading pattern to follow is the one
+**FR-004 — Org-tier-aware manifest lookup for the presence gate, threaded to every real call
+site.** `_presence_filenames_for` (`runtime_bridge_io.py:841`, currently calling only
+`MissionTemplateRepository.default()`) MUST also consult the org tier via
+`charter.org_expected_artifacts.resolve_org_expected_artifacts` (already in this branch's
+history from #3703/PR #3708) against `<org_root>/missions/<mission_type>/expected-artifacts.yaml`,
+with the same last-existing-match-wins precedence and whole-file (never field-merged) replacement
+`resolve_org_expected_artifacts` already implements. The parameter shape to follow is the one
 `specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s FR-008/WP05 fix already
 established: an optional `repo_root: Path | None = None`-shaped parameter, defaulting to
 today's built-in-only behavior for any existing caller that does not (yet) have a project root
-in scope, so this fix does not require every current call site to change shape simultaneously.
+in scope, so this fix does not require every current call site to change shape simultaneously —
+but the optionality is a compatibility default for callers with no root in scope, **not**
+license to leave a real, already-in-scope `repo_root` unforwarded. Specifically, this FR REQUIRES
+that each of the following gains a `repo_root: Path | None = None` parameter (or, where it
+already has one, forwards it) and passes the REAL value it already holds down to
+`_presence_filenames_for` and `required_artifacts_for` — an implementation that adds the optional
+parameter only at the leaf and stops does NOT satisfy this FR:
+1. `gather_artifact_presence` (`runtime_bridge_io.py:931`) — MUST gain and forward `repo_root`.
+2. `_check_cli_guards` (`runtime_bridge.py:751`) — MUST gain and forward `repo_root`, called from
+   `_dn_dependency_gate` (`runtime_bridge.py`, ~lines 1538-1643), which already holds `repo_root`
+   as a local (`repo_root = ctx.repo_root`) both before and after its two `_check_cli_guards`
+   calls (~line 1608, ~line 1643) — that already-live local MUST be the value forwarded, not a
+   dropped default.
+3. `_check_composed_action_guard` (`runtime_bridge_composition.py:429`) — MUST gain and forward
+   `repo_root`, called from `_dispatch_via_composition` (`runtime_bridge_composition.py:502`),
+   which already receives `repo_root` as a REQUIRED keyword parameter — its call to the guard at
+   `runtime_bridge_composition.py:626` (`_rb._check_composed_action_guard(action, feature_dir,
+   mission=mission, legacy_step_id=legacy_step_id)`) currently drops it, and this FR requires
+   that it stop dropping it.
+
+See AC-8 for the acceptance scenario pinning this end-to-end wiring (asserting `resolve_org_roots`
+is invoked with the real `repo_root` when the CLI/WP-iteration path runs a custom family with an
+org-tier manifest).
 
 **FR-005 — Presence gathering stays family-scoped, not step-scoped.** `_presence_filenames_for`
 continues to union `required_always` + every `required_by_step` list + `optional_always` across
@@ -286,15 +335,29 @@ spuriously blocking the software-dev composed `tasks` guard and the `plan` famil
 fix must not re-trigger `tests/runtime/test_bridge_parity.py::test_coverage_floor_is_met`, which
 already caught that regression once.
 
-**FR-006 — `blocking:` honored at the evaluation layer, not the gathering layer.** The
-`blocking:` distinction (dropped entirely today by `project_artifact_name_set`,
-`step_projection.py:128-160`, which the presence-gathering path uses) is honored by the new
-FR-001 evaluator consulting `required_artifacts_for(step, mission_type)` — already step-scoped
-and already filtered to `spec.blocking` (`resolver.py:634-654`) — against the family-scoped
-presence snapshot FR-005 gathers. This keeps the gathering layer's union-everything shape
-(preserving FR-005) while making the actual pass/fail decision both step-scoped and
-`blocking:`-aware, which is what AC-10 (the prior mission's docstring claim) always meant but
-never had a consumer to enforce.
+**FR-006 — `blocking:` honored at the evaluation layer, not the gathering layer, computed in the
+I/O layer and handed to cores.py as data.** The `blocking:` distinction (dropped entirely today
+by `project_artifact_name_set`, `step_projection.py:128-160`, which the presence-gathering path
+uses) MUST be resolved by calling `required_artifacts_for(step, mission_type)` — already
+step-scoped and already filtered to `spec.blocking` (`resolver.py:634-654`) —
+**from `runtime_bridge_io.py`, alongside `_presence_filenames_for`, during the same
+presence-gathering pass FR-005 performs**, and the resulting blocking-filtered artifact-name set
+MUST be threaded into `ArtifactPresenceSnapshot` (`runtime_bridge_io.py:900`) as a new field,
+`blocking_artifact_names`. `runtime_bridge_cores.py`'s evaluator (`evaluate_guards_strict` /
+`evaluate_guards`) then compares `snapshot.present_artifacts` against
+`snapshot.blocking_artifact_names` — it stays a pure function of snapshot data it is merely
+handed, and is **never itself a caller of `required_artifacts_for`** or any other
+non-stdlib-importing resolver. This is a hard requirement, not an implementation suggestion:
+`runtime_bridge_cores.py` is bound by `tests/architectural/test_bridge_cores_import_boundary.py`
+(an AST-walk gate, catching in-function and in-`try` imports, forbidding any non-stdlib import
+out of that module other than `runtime.next.decision`), and `required_artifacts_for` imports
+`charter.missions` (non-stdlib) to do its manifest I/O — calling it from inside
+`evaluate_guards_strict`/`evaluate_guards` would red that gate. This keeps the gathering layer's
+union-everything shape (preserving FR-005) while making the actual pass/fail decision both
+step-scoped and `blocking:`-aware, which is what AC-10 (the prior mission's docstring claim)
+always meant but never had a consumer to enforce. (Non-goal: relaxing
+`test_bridge_cores_import_boundary.py`'s zero-dependency-leaf invariant — this FR's whole point
+is to keep that gate green by construction rather than touch it.)
 
 **FR-007 — `required_artifacts_for` wired in and restored to `__all__`.** Once FR-001/FR-006
 give `required_artifacts_for` (`resolver.py:634`) its first production caller under `src/`, it
@@ -335,8 +398,8 @@ Non-Goals.
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Byte-compat for built-in families | `guard_failures` output for `research`/`documentation`/`software-dev`/`plan` is byte-identical, at every existing fixture in `tests/runtime/test_bridge_parity.py` and `tests/specify_cli/runtime/test_configured_artifact_name.py`, before and after this change. | Reliability | High | Open |
 | NFR-002 | Reflexivity — mid-flight missions | A mission already running when this change lands is not retroactively re-evaluated: `status.events.jsonl` and past `Decision`s are never rewritten. The mission's *next* `next`/guard-evaluation call after deploy uses the corrected logic. A custom mission previously advancing silently past a step with an unmet `blocking: true` requirement may, on its next evaluation, correctly BLOCK where it previously would not — this is the intended fix, and must be documented as an operator-visible behavior change for in-flight custom missions, not silently absorbed. | Reliability | High | Open |
-| NFR-003 | ATDD-first / red-first discipline (charter C-011) | Every WP has a failing-first ATDD test committed as a separate commit before any implementation commit for that WP. Because this mission is stacked (see Clarifications), red-verification MUST use `planning_base_branch = fix/org-tier-expected-artifacts-3703`, not `main`; green is verified on the WP's final commit. | Process | High | Open |
-| NFR-004 | Coverage floor stays met | `tests/runtime/test_bridge_parity.py::test_coverage_floor_is_met`'s guard-branch floor (currently >= 18 branches reached) must stay met after this change; FR-005's family-scoping preservation is the specific mechanism that keeps it from regressing (see the docstring rationale on `_GUARD_BRANCH_FLOOR`). | Reliability | High | Open |
+| NFR-003 | ATDD-first / red-first discipline (charter C-011) | Every WP has a failing-first ATDD test committed as a separate commit before any implementation commit for that WP. Because this mission is stacked (see Clarifications), red-verification MUST use `planning_base_branch = fix/org-tier-expected-artifacts-3703`, not `main`; green is verified on the WP's final commit. **Accepted baseline:** `main` (and therefore this stacked branch) carries known-red tests unrelated to this mission (issue #3284, ~23 failures + 2 errors, confirmed genuinely open, not this mission's to fix) — before implementing, each WP MUST re-run the narrow test files it touches on `fix/org-tier-expected-artifacts-3703` (not `main`) to establish this mission's own true-red baseline for those files, and apply CLAUDE.md's baseline-red classification protocol (§"Test-run baseline-red gotcha") so "green is verified" above is unambiguous about what counts as green versus accepted pre-existing noise. | Process | High | Open |
+| NFR-004 | Coverage floor stays met | `tests/runtime/test_bridge_parity.py::test_coverage_floor_is_met`'s guard-branch floor (currently >= 18 branches reached, `_GUARD_BRANCH_FLOOR` at `test_bridge_parity.py:1196`) must stay met after this change. The specific mechanism that keeps it from regressing is the family-scoping of `_check_cli_guards`/the non-WP CLI pre-check to the `software-dev` mission family alone (`runtime_bridge.py`, ~line 1642, #3407/M3) — **not** FR-005 (FR-005's family-scoping is a separate, unrelated mechanism in `runtime_bridge_io.py`'s presence-gathering; see its own rationale). This mission's FR-003 call-site convergence touches exactly the CLI-pre-check code the floor's history (`test_bridge_parity.py:1170-1195`) is about, so `test_non_software_dev_missing_artifact_owned_by_composed_guard` (`test_bridge_parity.py:1242`) — which pins that the CLI pre-check stays software-dev-scoped — is the regression guard that must keep passing. | Reliability | High | Open |
 
 ### Constraints
 
@@ -358,7 +421,10 @@ Non-Goals.
   `artifact_key`, `path_pattern`, `blocking`.
 - **`ArtifactPresenceSnapshot`** (`runtime_bridge_io.py`): the fact-only structure
   `gather_artifact_presence` builds, including `present_artifacts` (populated from
-  `_presence_filenames_for`'s family-scoped, now org-aware, filename set).
+  `_presence_filenames_for`'s family-scoped, now org-aware, filename set) and the new
+  `blocking_artifact_names` field (FR-006) — the step-scoped, `blocking:`-filtered name set
+  `required_artifacts_for` resolves, computed in the I/O layer so
+  `runtime_bridge_cores.py`'s evaluator stays a pure consumer of snapshot data.
 - **`Decision` / `DecisionKind.blocked`** (`runtime_bridge_cores.py`): the outcome type a
   non-empty `guard_failures` list surfaces as, via `step_or_blocked`.
 - **Org roots** (`charter.drg.org_pack_config.resolve_org_roots`): the existing-filtered list of
