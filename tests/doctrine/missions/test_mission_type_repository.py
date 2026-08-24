@@ -455,6 +455,162 @@ def _mission_type_yaml(mission_type_id: str, *, action_sequence: list[str]) -> s
     )
 
 
+def _mission_type_yaml_steps_only(mission_type_id: str) -> str:
+    """Sibling to :func:`_mission_type_yaml` -- NO ``action_sequence:`` key at all.
+
+    WP01/NFR-001's steps-only fixture shape: the org/project mission-type
+    YAML authors only ``schema_version``/``id``/``display_name``, so
+    ``action_sequence`` must come entirely from step-file projection
+    (:func:`~doctrine.missions.step_projection.project_action_sequence`) --
+    the exact defect shape issue #3701 reports (``_inject_projected_fields``
+    hardcoding ``pack_context=None`` means this projection was always empty
+    for org/project types). ``_mission_type_yaml`` above always writes an
+    explicit ``action_sequence:`` key and is reused by other tests in this
+    file that depend on that exact behavior, so this is a new sibling
+    helper rather than a repurposing of it.
+    """
+    return (
+        f"schema_version: 1\nid: {mission_type_id}\ndisplay_name: "
+        f"{mission_type_id.title()}\n"
+    )
+
+
+def _write_step_with_sequence(
+    root: Path,
+    mission_type_id: str,
+    step_id: str,
+    *,
+    sequence_index: int,
+    display_name: str = "Test Step",
+) -> Path:
+    """Write a ``step.yaml`` under *root* carrying ``sequence_index``/``in_action_sequence``.
+
+    ``tests/doctrine/missions/test_mission_step_resolver.py``'s
+    ``_write_step``/``_write_org_step``/``_write_project_step`` write
+    minimal ``step.yaml`` files that omit ``sequence_index``/
+    ``in_action_sequence``, so they project to an empty sequence as-is and
+    do not fit this WP's fixtures. Per this WP's own no-cross-file-helper-
+    import convention (each test file's helpers are local), this is a new,
+    local helper rather than an import of those. *root* is the directory
+    that directly contains ``<mission_type_id>/<step_id>/step.yaml`` (e.g.
+    an org pack's ``mission-steps/`` dir or a project's
+    ``.kittify/overrides/mission-steps/`` dir) -- callers pass the
+    layer-specific parent, mirroring the field shape confirmed live in a
+    built-in ``step.yaml`` (e.g.
+    ``packs/built-in/missions/mission-steps/software-dev/specify/step.yaml``).
+    """
+    step_dir = root / mission_type_id / step_id
+    step_dir.mkdir(parents=True, exist_ok=True)
+    (step_dir / "step.yaml").write_text(
+        f"id: {step_id}\ndisplay_name: {display_name!r}\nstep_type: agent\n"
+        f"prompt_template: prompt.md\nsequence_index: {sequence_index}\n"
+        "in_action_sequence: true\n",
+        encoding="utf-8",
+    )
+    return step_dir
+
+
+_STEPS_ONLY_FIXTURE_STEP_IDS: tuple[str, ...] = (
+    "discovery",
+    "specify",
+    "plan",
+    "tasks",
+    "implement",
+    "review",
+    "accept",
+)
+
+
+class TestLayeredProjectionThreadsPackContext:
+    """WP01/T002 red-first (NFR-001, Acceptance Scenarios 1 & 2): an org-tier
+    steps-only mission-type YAML (no ``action_sequence:`` key) must resolve
+    a non-empty ``action_sequence`` from its step-file projection once
+    ``pack_context`` is threaded through ``_inject_projected_fields`` and
+    the three functions above it in the call chain. Before the fix,
+    ``_inject_projected_fields`` hardcoded ``pack_context=None`` regardless
+    of what its callers held, so every org/project type relying on
+    step-file projection (no explicit ``action_sequence:`` authored)
+    resolved ``action_sequence = None``/``[]`` and the governed entry point
+    (``charter.mission_type_profiles.resolve_mission_type_context``) raised
+    :class:`~charter.mission_type_profiles.MissionTypeEmptyActionSequenceError`.
+
+    Both assertions in this class MUST fail against the pre-fix production
+    code (T002 step 2) and pass once T003's threading lands (T003 step 7) --
+    this is the red-first pin, not incidental coverage.
+    """
+
+    def setup_method(self) -> None:
+        resolve_layered_mission_types.cache_clear()
+
+    def teardown_method(self) -> None:
+        resolve_layered_mission_types.cache_clear()
+
+    def _write_steps_only_org_fixture(self, org_root: Path, mission_type_id: str) -> None:
+        _write_layered_yaml(
+            org_root / "mission_types",
+            f"{mission_type_id}.yaml",
+            _mission_type_yaml_steps_only(mission_type_id),
+        )
+        step_root = org_root / "mission-steps"
+        for index, step_id in enumerate(_STEPS_ONLY_FIXTURE_STEP_IDS):
+            _write_step_with_sequence(
+                step_root, mission_type_id, step_id, sequence_index=index
+            )
+
+    def test_org_tier_steps_only_projection_resolves_non_empty_sequence(
+        self, tmp_path: Path
+    ) -> None:
+        """Direct assertion against :func:`resolve_layered_mission_types` --
+        the low-level function at the bottom of the four-function chain."""
+        org_root = tmp_path / "org"
+        self._write_steps_only_org_fixture(org_root, "qa")
+
+        dirs = (tmp_path / "builtin" / "mission_types",)
+        ctx = _StubPackContext(
+            pack_roots=(dirs[0].parent, org_root), repo_root=tmp_path / "project"
+        )
+
+        result = resolve_layered_mission_types(dirs, ctx)
+
+        assert result["qa"].action_sequence == list(_STEPS_ONLY_FIXTURE_STEP_IDS)
+
+    def test_governed_entry_point_does_not_raise_for_steps_only_org_type(
+        self, tmp_path: Path
+    ) -> None:
+        """Also closes Acceptance Scenario 2: the *governed* seam
+        (``resolve_mission_type_context``) must succeed for a steps-only
+        org type, not raise ``MissionTypeEmptyActionSequenceError``.
+        Follows the exact two-patch pattern
+        ``TestGoldenParityUnaffectedByPackContextThreading`` already uses in
+        ``tests/runtime/test_runtime_seam.py`` (patch target strings are
+        CI-validated, so this reuses those exact strings rather than
+        inventing a new patch shape)."""
+        from unittest.mock import patch
+
+        from charter.mission_type_profiles import resolve_mission_type_context
+
+        org_root = tmp_path / "org"
+        self._write_steps_only_org_fixture(org_root, "qa")
+
+        dirs = (tmp_path / "builtin" / "mission_types",)
+        repo_root = tmp_path / "project"
+        ctx = _StubPackContext(pack_roots=(dirs[0].parent, org_root), repo_root=repo_root)
+
+        with (
+            patch(
+                "charter.mission_type_profiles.existing_mission_types",
+                return_value=["qa"],
+            ),
+            patch(
+                "charter.pack_context.PackContext.from_config",
+                return_value=ctx,
+            ),
+        ):
+            bundle = resolve_mission_type_context(repo_root, mission_type="qa")
+
+        assert bundle.action_sequence == list(_STEPS_ONLY_FIXTURE_STEP_IDS)
+
+
 class TestLayeredMissionTypesCacheKeyAndClear:
     """FR-001/NFR-001: cache-hit/miss identity, two-project isolation, cache_clear()."""
 
