@@ -2268,12 +2268,20 @@ def resolve_action_context(
     if effective_root is None:
         target_branch = get_feature_target_branch(repo_root, mission_slug)
     else:
-        from specify_cli.core.git_ops import resolve_primary_branch
+        # Prefer the caller-owned surface's stored value, but fall back through
+        # the SINGLE canonical adapter (FR-005 thin-reader doctrine): under coord
+        # topology ``feature_dir`` may be the coordination worktree, whose mission
+        # dir carries no meta.json — falling back to the bare repo default there
+        # would silently drop the stored ``target_branch`` (the WP00/FR-004 bug
+        # class). ``get_feature_target_branch`` reads the PRIMARY surface's meta
+        # and only then degrades to the primary branch.
         from specify_cli.core.paths import read_target_branch_from_meta
 
         stored_target = read_target_branch_from_meta(feature_dir)
-        target_branch = stored_target or str(
-            resolve_primary_branch(get_main_repo_root(repo_root))
+        target_branch = (
+            stored_target
+            if stored_target is not None
+            else get_feature_target_branch(repo_root, mission_slug)
         )
     topology = _resolve_topology(
         get_main_repo_root(repo_root),
