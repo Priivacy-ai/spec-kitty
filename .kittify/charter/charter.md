@@ -487,6 +487,11 @@ Operational reference:
 
 1. When an agent encounters pre-existing test failures while working in this repository, the agent MUST open a GitHub issue reporting them before treating those failures as accepted baseline context or continuing past them. The issue must include the command run, the relevant failure summary, and why the agent believes the failures are pre-existing rather than introduced by its current change.
 
+## Issue Closure Linkage Rule
+
+1. Any commit or pull request that fully resolves a tracked GitHub issue MUST include a closing keyword reference — `Fixes #N`, `Closes #N`, or `Resolves #N` — in the commit message body **and/or** the PR description, so GitHub auto-closes the issue when the change lands on `main`. A bare mention (`resolve #3513` in a subject line, `Refs #N`, or a plain `#N` reference) links the issue but never closes it.
+2. For partial fixes, do NOT use a closing keyword; use `Refs #N` plus an explicitly tracked follow-up (comment on the issue naming the remaining scope).
+
 ---
 
 ## Governance
