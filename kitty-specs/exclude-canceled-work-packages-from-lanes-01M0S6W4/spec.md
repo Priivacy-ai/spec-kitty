@@ -3,6 +3,7 @@
 **Mission Branch**: `fix/exclude-canceled-work-packages-from-lanes`  
 **Created**: 2026-08-24  
 **Status**: Ready for Implementation
+
 **Audience**: Agentic framework core team  
 **Source**: [GitHub issue #3432](https://github.com/Priivacy-ai/spec-kitty/issues/3432)  
 **Input**: Canceled work packages cannot currently satisfy ownership validation or execution-lane computation, forcing operators to delete workflow-managed files. Address this before #3281 while preserving a clear scope boundary between the two lane-allocation issues.
