@@ -706,7 +706,12 @@ def _scaffold_minimal_kittify_repo(repo_root: pathlib.Path) -> None:
     ``agents.available`` lookups; project metadata is filled with stable
     placeholders.
     """
-    subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "init", "-q", "--initial-branch", "fixture-feature"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    )
     subprocess.run(
         [
             "git",

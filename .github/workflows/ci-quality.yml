@@ -1553,6 +1553,10 @@ jobs:
       && (needs.changes.outputs.cli == 'true' || github.event_name == 'push')
     steps:
       - uses: actions/checkout@v6
+        with:
+          # The setup-plan immutable replay regression test archives a pinned
+          # pre-mission commit, so this shard deliberately requires history.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'

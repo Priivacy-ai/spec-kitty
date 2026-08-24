@@ -13,6 +13,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import typer
+from pydantic import BaseModel, ConfigDict
 
 from specify_cli.cli.commands.agent import mission as mission_mod
 from specify_cli.cli.commands.agent import mission_branch_context
@@ -43,6 +44,15 @@ CASES: dict[str, dict[str, object]] = {
 }
 
 
+class ReplayResult(BaseModel):
+    """Typed, test-local envelope for one immutable setup-plan replay."""
+
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
+    exit_code: int
+    payload: dict[str, object]
+
+
 def _normalize(value: object, root: Path) -> object:
     if isinstance(value, dict):
         return {key: _normalize(item, root) for key, item in value.items()}
@@ -53,7 +63,7 @@ def _normalize(value: object, root: Path) -> object:
     return value
 
 
-def _invoke(case: dict[str, object]) -> dict[str, object]:  # noqa: C901
+def _invoke(case: dict[str, object]) -> ReplayResult:  # noqa: C901
     root = Path(tempfile.mkdtemp(prefix="setup-plan-pinned-replay-"))
     feature_dir = root / "kitty-specs" / "001-matrix"
     feature_dir.mkdir(parents=True)
@@ -166,7 +176,12 @@ def _invoke(case: dict[str, object]) -> dict[str, object]:  # noqa: C901
             exit_code = error.exit_code
 
     assert len(emitted) == 1
-    return {"exit_code": exit_code, "payload": _normalize(emitted[0], root)}
+    normalized = _normalize(emitted[0], root)
+    assert isinstance(normalized, dict)
+    return ReplayResult(
+        exit_code=exit_code,
+        payload=normalized,
+    )
 
 
 def main() -> None:
@@ -178,7 +193,10 @@ def main() -> None:
         json.dumps(
             {
                 "loaded_module": str(loaded_module.relative_to(source_root)),
-                "cases": {name: _invoke(case) for name, case in CASES.items()},
+                "cases": {
+                    name: _invoke(case).model_dump(mode="json")
+                    for name, case in CASES.items()
+                },
             },
             sort_keys=True,
         )

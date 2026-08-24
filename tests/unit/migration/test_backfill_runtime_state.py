@@ -534,6 +534,58 @@ def test_fault_injected_value_mismatch_aborts_with_count_match(tmp_path: Path) -
     assert any("subtasks mismatch" in m for m in result.mismatches)
 
 
+def test_later_legitimate_completion_supersedes_immutable_planned_seed(
+    tmp_path: Path,
+) -> None:
+    feature_dir = build_mission(tmp_path)
+    tasks_md = feature_dir / "tasks.md"
+    tasks_md.write_text(
+        "# Tasks\n\n## WP01 Demo\n- [ ] T001 first subtask\n- [ ] T002 second subtask\n",
+        encoding="utf-8",
+    )
+    b.backfill_runtime_state(feature_dir)
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            b.annotate(
+                "WP01",
+                WPInnerStateDelta(
+                    subtasks={"T001": Lane.DONE, "T002": Lane.DONE}
+                ),
+                actor="user",
+                at="2026-01-02T05:00:00+00:00",
+                event_id="01BBBBBBBBBBBBBBBBBBBBBBB2",
+            )
+        ],
+    )
+    tasks_md.write_text(
+        "# Tasks\n\n## WP01 Demo\n- [x] T001 first subtask\n- [x] T002 second subtask\n",
+        encoding="utf-8",
+    )
+
+    assert b.verify_backfill(feature_dir).ok is True
+
+
+def test_changed_checklist_without_later_history_remains_tamper_mismatch(
+    tmp_path: Path,
+) -> None:
+    feature_dir = build_mission(tmp_path)
+    tasks_md = feature_dir / "tasks.md"
+    tasks_md.write_text(
+        "# Tasks\n\n## WP01 Demo\n- [ ] T001 first subtask\n- [ ] T002 second subtask\n",
+        encoding="utf-8",
+    )
+    b.backfill_runtime_state(feature_dir)
+    tasks_md.write_text(
+        "# Tasks\n\n## WP01 Demo\n- [x] T001 first subtask\n- [x] T002 second subtask\n",
+        encoding="utf-8",
+    )
+
+    result = b.verify_backfill(feature_dir)
+    assert result.ok is False
+    assert any("subtasks mismatch" in mismatch for mismatch in result.mismatches)
+
+
 def test_scalar_value_mismatch_aborts(tmp_path: Path) -> None:
     feature_dir = build_mission(tmp_path)
     b.backfill_runtime_state(feature_dir)
