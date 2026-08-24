@@ -1,0 +1,17 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: "plan.md lines 388-393 literally states the campsite-clean commit is 'a distinct commit preceding that WP's functional implementation commit' while the same sentence also says cleaning it 'any earlier would be premature (nothing to point at yet)' — a direct self-contradiction, since preceding the caller-adding commit is exactly what 'earlier' means, and the later Phasing section (line ~440) uses inconsistent 'lands alongside'/'folds into' language rather than resolving it."
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: "tracer-tooling-friction.md's first entry reproduces the exact SK-63/SK-65/SK-70 warning signature (event journal capture failed: project sync store is locked; machine layout cutover did not publish within the bounded wait) verbatim yet cites only a generic '#3283' pointer that appears nowhere else in SPEC-KITTY-LEDGER.md, never the matching SK-IDs at lines 461 (SK-70), 4812 (SK-63), 4880 (SK-65)."
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: "decision.py:94/156 confirms guard_failures is a Decision field serialized by to_dict(), and next_cmd.py:899-905/1056-1057 confirms both the --json and human paths print it directly, while plan.md's only NFR-002 mention (line 231) dismisses it as a data-migration non-issue and no WP or section anywhere in the file (grepped for changelog/operator-visible/documentation deliverable) assigns the spec's own required operator-visible-behavior-change documentation to a WP."
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: "ci-quality.yml's diff-coverage job (line 3283) runs on every pull_request unless labeled pr:deferred/pr:skip-ci, its critical_paths array literally includes 'src/runtime/next/*', and its enforced step (no continue-on-error) runs diff-cover --fail-under=90 scoped to that array — plan.md's Gate set section explicitly greps only for 'cov-fail-under' (its own quoted methodology) and never once mentions diff-coverage/diff-cover/fail-under anywhere in the file, so the 'neither floor applies' claim is factually wrong for 4 of 5 blast-radius files."
