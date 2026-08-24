@@ -1,0 +1,13 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-SEQ-001
+    status: resolved
+    reason: tasks.md's Baseline and Write-scopes sections now correctly state PR #3708 merged (2026-08-24T14:01:27Z, verified live matching gh pr view), the open-PR count is re-run to the live 17 (matching gh pr list live), and an explicit (recorded-not-executed) pre-implementation rebase decision is added, while planning_base_branch frontmatter across all 4 WP files remains fix/org-tier-expected-artifacts-3703-anchored and unchanged.
+  - id: TASKS-VERIFY-001
+    status: resolved
+    reason: WP03 T017b is a genuine new software-dev-family-scoped test case targeting the runtime_bridge.py:1642-1643 CLI pre-check call site (line numbers and MISSION_TYPE_SOFTWARE_DEV gating condition confirmed by direct read), distinct from T017's custom-family WP-iteration-path case, has no T-ID collision across WP01-WP04 (T001-T029 + T017b all unique), and tasks.md's Subtask Index/Included Subtasks table was updated to list it.
+  - id: TASKS-VERIFY-003
+    status: resolved
+    reason: WP02's T008 and T009 each now name a concrete repo_root-supplied-but-no-org-pack fallback case asserting fall-through to the built-in manifest, explicitly distinguished in the prose from both the repo_root=None regression case and the org-pack-present precedence cases.

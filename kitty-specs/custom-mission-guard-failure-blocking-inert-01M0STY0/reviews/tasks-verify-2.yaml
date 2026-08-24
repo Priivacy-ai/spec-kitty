@@ -1,0 +1,26 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+round: 2
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: >-
+      T017b now drops the "e.g. ... or ..." dual-technique phrasing, explicitly forbids the
+      presence-flip technique for the software-dev scenario with a "Do NOT use" callout, and
+      mandates the patch-and-assert-call-arguments technique instead; live verification of
+      src/runtime/next/runtime_bridge_cores.py confirms the fix's own reasoning is technically
+      sound — _evaluate_software_dev_guards (lines 618-628) branches purely on step_id and never
+      reads snapshot.blocking_artifact_names, and evaluate_guards_strict (lines 684-696) dispatches
+      software-dev through _GUARD_TABLES["software-dev"] (line 679) directly, bypassing the
+      guard_table_entry is None arm entirely, so flipping the org-declared artifact's presence
+      genuinely cannot move guard_failures for software-dev.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >-
+      T017b now carries an explicit "Traceability note (TASKS-FRESH-002, this fix round)"
+      paragraph reconciling the software-dev substitution against AC-8's literal "a custom mission
+      family" wording, stating the ~1643 site is software-dev-scoped by design so no custom family
+      can reach it, that T017 covers the literal custom-family half of AC-8 at the ~1608 site, and
+      that this is a documentation/traceability reconciliation only with no change implied to
+      spec.md's already-PASSED AC-8 wording.

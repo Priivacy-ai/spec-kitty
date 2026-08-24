@@ -1,0 +1,32 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+round: 3
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      WP03 T017b now labels WP01's branch the "blocking_artifact_names-comparison branch" and adds
+      a parenthetical stating the real org-tier consult happens earlier and unconditionally inside
+      WP02's gather_artifact_presence, regardless of which evaluate_guards_strict branch later
+      runs — the layer conflation is gone.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >-
+      Live grep -n plus full-body read of src/runtime/next/runtime_bridge_cores.py confirms
+      evaluate_guards_strict runs exactly lines 684-696 (def through `return
+      guard_table_entry(snapshot)`) and _evaluate_software_dev_guards runs exactly lines 618-630
+      (def through `return []`) — both match the corrected citations in the current file verbatim.
+  - id: TASKS-FRESH2-003
+    status: resolved
+    reason: >-
+      T017b's parenthetical now reads "per this WP's T022 subtask / tasks.md's Implementation
+      Notes"; confirmed T017's own structural note (unchanged) still lacks the citation while T022
+      (WP03 file line 184) and tasks.md's WP03 Implementation Notes (line 450) both actually contain
+      "#3407 M3", so the new attribution is accurate.
+  - id: TASKS-FRESH2-004
+    status: resolved
+    reason: >-
+      WP03's Gates section now reads "T016/T017/T017b's new tests" in the patch() target-validation
+      parenthetical, closing the staleness gap now that patching is T017b's sole sanctioned
+      technique.

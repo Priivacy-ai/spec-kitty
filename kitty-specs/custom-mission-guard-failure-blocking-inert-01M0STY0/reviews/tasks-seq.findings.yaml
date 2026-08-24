@@ -1,0 +1,44 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: TASKS-SEQ-001
+    lens: write scopes
+    severity: 3
+    title: "Cross-mission open-PR claim (PR #3708 'unmerged', '19 open PRs') is stale as of review time — PR #3708, this mission's own stacked parent, merged to main minutes after tasks.md was authored"
+    evidence:
+      - artifact: "tasks.md § 'Write scopes / lanes / chokepoints', lines 195-201: \"19 open PRs exist on Priivacy-ai/spec-kitty as of 2026-08-24; none touch any of this mission's 5 blast-radius files ... PR #3708 (fix/org-tier-expected-artifacts-3703, this mission's own stacked parent) is among those 19, but its files are already in this mission's base — not a conflict source, an ancestor.\""
+      - artifact: "tasks.md § 'Baseline', lines 65-66: \"...fix/org-tier-expected-artifacts-3703 (PR #3708, green, mergeable, unmerged) — verified live\""
+      - code: "live: `gh pr view 3708 --repo Priivacy-ai/spec-kitty --json state,mergedAt` → {\"state\":\"MERGED\",\"mergedAt\":\"2026-08-24T14:01:27Z\"}"
+      - code: "live: `git log -1 --format=%ci` on the tasks.md-finalizing commit (cdec05af6) = 2026-08-24 15:58:26 +0200 = 13:58:26Z, i.e. only ~3 minutes before PR #3708 merged"
+      - code: "live: `git merge-base --is-ancestor ae3e5ad7a origin/main` succeeds; `origin/main` tip (3f8716fac) is literally PR #3708's merge commit"
+      - code: "live: `gh pr list --repo Priivacy-ai/spec-kitty --state open --json number` returns 17 open PRs (not 19); #3707 and #3708 both merged at ~14:01Z, after tasks.md's authoring finished — 17 + those 2 = 19, confirming the count was accurate at authoring time and has since gone stale"
+    claim: >
+      tasks.md's binding cross-mission-conflict check and its "Baseline" section both assert
+      PR #3708 is open/unmerged and count it among 19 currently-open PRs. Live verification
+      (as this review's own instructions required) shows PR #3708 — this mission's own stacked
+      parent — was merged into origin/main at 2026-08-24T14:01:27Z, roughly 3 minutes after
+      tasks.md's authoring session's final commit, and is no longer part of the open-PR set
+      (17 open PRs remain, not 19). The substantive "no blast-radius conflict" conclusion still
+      holds today (none of the 17 currently-open PRs touch this mission's 5 blast-radius files),
+      but the "unmerged"/"19 open PRs including #3708" framing that tasks.md and the Baseline
+      section state as verified fact is now false, and the WP-implementing agent that inherits
+      this tasks.md has no signal that the stacked-parent branch has since landed on main —
+      it will red-verify against `fix/org-tier-expected-artifacts-3703` (still mechanically
+      valid, since that ref is unaffected and still points to the same commit) without ever
+      being told the mission's own local `main`/target branch relationship should now be
+      re-examined for a pre-implementation rebase.
+    remediation: >
+      Before implementation starts: (1) re-run `gh pr list --repo Priivacy-ai/spec-kitty --state
+      open --json number,files` and update tasks.md's "19 open PRs... PR #3708 is among those 19"
+      sentence and the Baseline section's "unmerged" claim to reflect that PR #3708 has merged;
+      (2) decide and record whether `fix/custom-mission-guard-3704` should be rebased onto current
+      `origin/main` before WP01 lands its first commit (mechanically a no-op today, since no
+      functional commits exist yet and `ae3e5ad7a` is already an ancestor of `origin/main`), so
+      the eventual PR opened for this mission does not surprise WP04's close-out with an
+      unexpectedly large diff; (3) the `planning_base_branch = fix/org-tier-expected-artifacts-3703`
+      red-verification instruction in every WP body remains valid and should NOT be changed as a
+      result of this finding — only the stale prose describing PR #3708's GitHub state needs
+      correcting.
