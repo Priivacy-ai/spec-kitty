@@ -10,5 +10,7 @@
   "purpose_tldr": "A custom mission family can never report a guard failure, and its blocking: manifest is never read",
   "slug": "custom-mission-guard-failure-blocking-inert-01M0STY0",
   "target_branch": "fix/custom-mission-guard-3704",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-24T15:48:49.827418+00:00"
 }

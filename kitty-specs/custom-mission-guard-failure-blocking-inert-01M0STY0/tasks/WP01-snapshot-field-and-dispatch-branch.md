@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: fix/custom-mission-guard-3704
 merge_target_branch: fix/custom-mission-guard-3704
 branch_strategy: Planning artifacts for this mission were generated on fix/custom-mission-guard-3704. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/custom-mission-guard-3704 unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-custom-mission-guard-failure-blocking-inert-01M0STY0
+base_commit: 8685dec23a28ee51026cfcebbf2ecea17ad619ed
+created_at: '2026-08-24T15:48:50.856229+00:00'
 subtasks:
 - T001
 - T002

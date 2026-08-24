@@ -132,25 +132,40 @@ recurrence of the pattern already fully documented above, not a new root cause.
 
 2026-08-24 (analyze phase, fix round 2 re-run) — `record-analysis` hit ledger SK-93 a **third** time on this mission, same command and warning signature, this time on commit `26c80c758` ("Add analysis report for mission custom-mission-guard-failure-blocking-inert-01M0STY0"); ground truth verified the same way (`git log`/`git status --porcelain -uno` read directly) confirming `verdict: ready`, `findings: []` — same recurring pattern, nothing hand-edited.
 
-2026-08-24 (WP02 implement phase) — `agent action implement WP02` hit ledger SK-93 a **fourth**
-observed call site (WP01's tracer entries logged `record-analysis`x3 and `agent action implement
-WP03` from a prior mission; this is `agent action implement WP02` on this mission specifically).
-Ran with `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1` exported and `timeout 120`-wrapped per this mission's
-own standing tracer guidance; the process printed **zero bytes of output** for the full 120s
-before being killed (exit 143, `Terminated` — the outer shell's own timeout signature, not the
-CLI's). Per SK-93's guidance, the exit code/hang was **not** treated as evidence either way:
-verified ground truth directly instead. `spec-kitty agent tasks status --mission
-custom-mission-guard-failure-blocking-inert-01M0STY0` (repo-root primary partition, this
-mission's `single_branch` topology routes status there) showed WP02 already in the "Doing" lane,
-`stale: 27.8m, agent: claude` — and `kitty-specs/.../status.events.jsonl` on the repo-root primary
-checkout confirmed two real events (`claimed` then `in_progress` for WP02, actor `claude`,
-`policy_metadata.shell_pid: 913164`), already committed on `fix/custom-mission-guard-3704` at
-commit `042880ea1` ("chore(spec-kitty): status transition batch WP02"). The state transition had
-landed before the dossier body-upload stall; only the CLI's own completion echo was lost with the
-killed process, same shape as every prior SK-93 occurrence logged above. Nothing hand-edited;
-implementation proceeded directly in the already-claimed lane worktree. One residual: the
-repo-root primary checkout was left with an uncommitted `snapshot-latest.json` diff under
-`kitty-specs/.../.kittify/dossiers/.../` from the same interrupted sync attempt — left as-is per
-"never checkout/reset/clean a tree you did not intentionally dirty"; it is the natural byproduct
-of this exact SK-93 stall, not unrelated dirty state, and is safe for a later spec-kitty command
-or operator `safe-commit` to pick up.
+2026-08-24 (WP01 implement phase, Wrangler Wendy) — `timeout 60 .venv/bin/spec-kitty agent action
+implement WP01 --agent claude --mission custom-mission-guard-failure-blocking-inert-01M0STY0` hit
+ledger SK-93 a **fourth** time on this mission, on a new call site (`agent action implement`, not
+previously logged for this mission — SK-93's own log lists `agent action implement WP03` from a
+different mission as one of its four originally observed shapes, so this is that same shape
+recurring on a different WP/mission pair): the command hung past the 60s timeout with exit 124 and
+no visible completion output. Per SK-93 guidance, ground truth was verified independently rather
+than trusting the exit code: `git worktree list` showed the lane-a worktree
+(`.worktrees/custom-mission-guard-failure-blocking-inert-01M0STY0-lane-a`) already materialized on
+branch `kitty/mission-custom-mission-guard-failure-blocking-inert-01M0STY0-lane-a` at commit
+`8685dec23`, and `spec-kitty agent tasks status --mission ...` confirmed WP01 had already
+transitioned to `in_progress` (claimed by `claude`, marked "stale: 10.3m" — the CLI's own staleness
+detector noticing the same hang). So the underlying claim + worktree materialization had already
+succeeded before the process stalled; nothing was hand-edited to work around it. Recommend SK-93's
+tracked defect list be updated to include `agent action implement` (initial claim, not just
+resume) as a fifth/recurring call site across missions, not just WP03-specific.
+
+2026-08-24 (WP01 subtask bookkeeping, Wrangler Wendy) — `spec-kitty agent tasks mark-status
+T001..T004 --status done --mission custom-mission-guard-failure-blocking-inert-01M0STY0` (run in a
+loop) hit ledger SK-93 a **fifth** time on this mission: the first three (`T001`-`T003`) hung past
+their individual `timeout 30`s (exit 124, no visible output before the kill) and the fourth
+(`T004`) was cut off mid-hang when the surrounding shell loop itself hit its own outer timeout.
+`T005`-`T007` (run individually afterward with `timeout 40`) printed the same
+`LayoutCutoverIncompleteError: machine layout cutover did not publish within the bounded wait`
+traceback to stderr but this time *also* printed the command's own `✓ Marked T00N as done` success
+line and returned exit 0 — so for those three the printed result line WAS available and matched
+ground truth. For `T001`-`T004`, per SK-93 guidance, ground truth was verified independently
+instead of trusting the hang: `status.events.jsonl` already carried four `kind: annotation` events
+(`delta: {"subtasks": {"T00N": "done"}}`) for `T001`-`T004` timestamped seconds after each command
+was issued, and `status.json`'s materialized `work_packages.WP01.subtasks` reflected all four as
+`"done"` — confirming the underlying writes had already landed before each process stalled on the
+sync/telemetry tail. Nothing hand-edited to work around any of this. This occurrence's shape (a
+CLI subcommand that both intermittently hangs AND intermittently prints a noisy-but-harmless
+`LayoutCutoverIncompleteError` traceback while still succeeding) most closely matches SK-93's
+already-logged pattern; recommend the ledger also note `agent tasks mark-status` as a repeat call
+site, and that the `LayoutCutoverIncompleteError` traceback specifically is cosmetic noise on the
+success path, not evidence of failure, when a `✓ Marked ... as done` line follows it.
