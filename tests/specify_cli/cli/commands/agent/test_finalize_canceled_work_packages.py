@@ -848,6 +848,53 @@ def test_existing_manifest_preserves_planning_sha_after_claim_then_cancel(
     capture.assert_called_once()
 
 
+def test_existing_manifest_recaptures_moved_tip_while_all_work_is_planned(
+    tmp_path: Path,
+) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {"WP01": _wp_document("WP01", owned_files=("src/example/active.py",))},
+    )
+    capture = MagicMock(side_effect=["planning-old", "planning-new"])
+    with patch(
+        "specify_cli.cli.commands.agent.mission_finalize._capture_target_branch_tip",
+        capture,
+    ):
+        first = _invoke_normal(tmp_path, mission_dir)
+        assert first.exit_code == 0, first.stdout
+        second = _invoke_normal(tmp_path, mission_dir)
+
+    assert second.exit_code == 0, second.stdout
+    manifest = read_lanes_json(mission_dir)
+    assert manifest is not None
+    assert manifest.planning_commit_sha == "planning-new"
+    assert capture.call_count == 2
+
+
+def test_existing_manifest_preserves_planning_sha_after_plan_then_cancel(
+    tmp_path: Path,
+) -> None:
+    mission_dir = _build_mission(
+        tmp_path,
+        {"WP01": _wp_document("WP01", owned_files=("src/example/active.py",))},
+    )
+    capture = MagicMock(side_effect=["planning-old", "planning-new"])
+    with patch(
+        "specify_cli.cli.commands.agent.mission_finalize._capture_target_branch_tip",
+        capture,
+    ):
+        first = _invoke_normal(tmp_path, mission_dir)
+        assert first.exit_code == 0, first.stdout
+        _transition(mission_dir, "WP01", Lane.PLANNED, Lane.CANCELED)
+        second = _invoke_normal(tmp_path, mission_dir)
+
+    assert second.exit_code == 0, second.stdout
+    manifest = read_lanes_json(mission_dir)
+    assert manifest is not None
+    assert manifest.planning_commit_sha == "planning-old"
+    capture.assert_called_once()
+
+
 def test_planned_to_canceled_without_manifest_is_pre_execution(tmp_path: Path) -> None:
     mission_dir = _build_mission(
         tmp_path,
@@ -856,12 +903,19 @@ def test_planned_to_canceled_without_manifest_is_pre_execution(tmp_path: Path) -
     _transition(mission_dir, "WP01", Lane.PLANNED, Lane.CANCELED)
     assert not (mission_dir / "lanes.json").exists()
 
-    result = _invoke_normal(tmp_path, mission_dir)
+    capture = MagicMock(return_value="planning-current")
+    with patch(
+        "specify_cli.cli.commands.agent.mission_finalize._capture_target_branch_tip",
+        capture,
+    ):
+        result = _invoke_normal(tmp_path, mission_dir)
 
     assert result.exit_code == 0, result.stdout
     manifest = read_lanes_json(mission_dir)
     assert manifest is not None
     assert manifest.lanes == []
+    assert manifest.planning_commit_sha == "planning-current"
+    capture.assert_called_once()
 
 
 @pytest.mark.parametrize("executing_lane", [Lane.CLAIMED, Lane.IN_PROGRESS])
