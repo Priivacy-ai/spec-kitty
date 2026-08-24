@@ -98,10 +98,10 @@
       "criterion_id": "FR-010",
       "description": "Missions without cancellations preserve existing behavior.",
       "proof_type": "automated_test",
-      "evidence": "No-cancellation structural parity and #3431 cycle regression suites preserve eligible-cycle rejection; commit 53ebfc3f4 projects only canceled-only cycles out of executable graph validation",
+      "evidence": "f753071f8 and 85c9df87a; all-planned missions recapture moved tips and eligible/#3431 cycle regressions remain blocking",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:15:12.130441+00:00",
+      "verified_at": "2026-08-24T12:02:19.101965+00:00",
       "notes": "Pass when no-cancellation ownership, grouping, dependencies, collapse-cycle checks, and reports remain structurally unchanged."
     }
   ],
