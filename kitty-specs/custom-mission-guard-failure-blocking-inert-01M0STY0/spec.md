@@ -78,12 +78,13 @@ outside `_GUARD_TABLES`** — that gap is exactly issue #3704's Part 1. This mis
 **fulfil** that ADR's stated decision, not reverse it: no entry gets added to `_GUARD_TABLES`
 for custom families, and `UnregisteredMissionFamilyError`'s strict-raise stays exactly as-is for
 a family with **no** declared manifest anywhere. This spec's own acceptance criteria are numbered
-fresh — **AC-1** through **AC-8**, a single flat series that does not reset per user story
-(AC-1–AC-3 under User Story 1, AC-4–AC-8 under User Story 2, both in the **Acceptance Scenarios**
-subsections below) — to avoid confusion with the pre-existing AC-10/AC-13/AC-14; where a new AC
-extends or depends on one of those three, it says so explicitly by full external reference
-(`rc3-charter-gate-predicate-inversion-01M0GGT1#AC-10`, etc.) rather than reusing the bare
-number.
+fresh — **AC-1** through **AC-9**, a single flat series that does not reset per user story
+(AC-1–AC-3 under User Story 1, AC-4–AC-9 under User Story 2's **Acceptance Scenarios** subsection
+— AC-9 appended there to keep the series flat and append-only even though it closes a loop opened
+under User Story 1/FR-002, see AC-9's own text) — to avoid confusion with the pre-existing
+AC-10/AC-13/AC-14; where a new AC extends or depends on one of those three, it says so explicitly
+by full external reference (`rc3-charter-gate-predicate-inversion-01M0GGT1#AC-10`, etc.) rather
+than reusing the bare number.
 
 ### Ledger corroboration
 
@@ -197,6 +198,18 @@ absence never does — at each step independently.
    function already holds — not a default `repo_root=None` left unthreaded — so the org manifest
    is genuinely reachable from this call site, not merely reachable in a unit test that calls
    the leaf function directly (see FR-004).
+**AC-9**. **Given** two families evaluated at the same step — (a) `qa` with a manifest present
+   (built-in or org tier) whose `required_by_step` for that step is empty or contains only
+   `blocking: false` entries, so `required_artifacts_for` returns `[]`; and (b) a genuinely
+   typeless family with **no** manifest at any tier, whose `required_artifacts_for` also returns
+   `[]` for the same reason — **When** `evaluate_guards_strict` evaluates both, **Then** they are
+   NOT treated identically despite both having an empty `required_artifacts_for` result: (a)
+   returns `guard_failures == []` via genuine evaluation (`snapshot.blocking_artifact_names ==
+   frozenset()`, not `None`) and does **not** raise; (b) still raises
+   `UnregisteredMissionFamilyError` (`snapshot.blocking_artifact_names is None`), exactly as AC-3
+   requires. This proves FR-002 outcome 1 and outcome 2 are actually distinguishable end to end
+   from the snapshot alone — not merely "both empty" (FR-006's `None`-vs-`frozenset()` signal;
+   see `SPEC-FRESH-001`).
 
 ---
 
@@ -275,6 +288,14 @@ one silent `[]`:
    `Decision(kind=blocked)` by the existing `step_or_blocked` machinery
    (`runtime_bridge_cores.py`).
 
+**Routing signal (see FR-006):** `required_artifacts_for` alone cannot tell outcome 1 apart from
+outcomes 2/3 — its own docstring (`resolver.py:634-654`) collapses "no manifest anywhere" and
+"manifest declared, nothing blocking at this step" into the same empty `list[str]`. The signal
+that lets `evaluate_guards_strict` route between outcome 1 and outcomes 2/3 is
+`ArtifactPresenceSnapshot.blocking_artifact_names`'s `None`-vs-`frozenset()` distinction — `None`
+only when no manifest is reachable at any tier, a real (possibly empty) `frozenset` whenever one
+is. FR-006 specifies exactly how the I/O layer populates it and how the evaluator consults it.
+
 **FR-003 — All three call sites converge on one evaluation.** The tolerant wrapper
 (`evaluate_guards`, `runtime_bridge_cores.py:699-716`), the composed-action guard
 (`_check_composed_action_guard`, `runtime_bridge_composition.py:429-499`), and both of
@@ -336,28 +357,62 @@ fix must not re-trigger `tests/runtime/test_bridge_parity.py::test_coverage_floo
 already caught that regression once.
 
 **FR-006 — `blocking:` honored at the evaluation layer, not the gathering layer, computed in the
-I/O layer and handed to cores.py as data.** The `blocking:` distinction (dropped entirely today
-by `project_artifact_name_set`, `step_projection.py:128-160`, which the presence-gathering path
+I/O layer and handed to cores.py as data — carrying an explicit manifest-declared signal, not
+just an empty set.** The `blocking:` distinction (dropped entirely today by
+`project_artifact_name_set`, `step_projection.py:128-160`, which the presence-gathering path
 uses) MUST be resolved by calling `required_artifacts_for(step, mission_type)` — already
 step-scoped and already filtered to `spec.blocking` (`resolver.py:634-654`) —
 **from `runtime_bridge_io.py`, alongside `_presence_filenames_for`, during the same
-presence-gathering pass FR-005 performs**, and the resulting blocking-filtered artifact-name set
-MUST be threaded into `ArtifactPresenceSnapshot` (`runtime_bridge_io.py:900`) as a new field,
-`blocking_artifact_names`. `runtime_bridge_cores.py`'s evaluator (`evaluate_guards_strict` /
-`evaluate_guards`) then compares `snapshot.present_artifacts` against
-`snapshot.blocking_artifact_names` — it stays a pure function of snapshot data it is merely
-handed, and is **never itself a caller of `required_artifacts_for`** or any other
-non-stdlib-importing resolver. This is a hard requirement, not an implementation suggestion:
-`runtime_bridge_cores.py` is bound by `tests/architectural/test_bridge_cores_import_boundary.py`
-(an AST-walk gate, catching in-function and in-`try` imports, forbidding any non-stdlib import
-out of that module other than `runtime.next.decision`), and `required_artifacts_for` imports
-`charter.missions` (non-stdlib) to do its manifest I/O — calling it from inside
-`evaluate_guards_strict`/`evaluate_guards` would red that gate. This keeps the gathering layer's
-union-everything shape (preserving FR-005) while making the actual pass/fail decision both
-step-scoped and `blocking:`-aware, which is what AC-10 (the prior mission's docstring claim)
-always meant but never had a consumer to enforce. (Non-goal: relaxing
-`test_bridge_cores_import_boundary.py`'s zero-dependency-leaf invariant — this FR's whole point
-is to keep that gate green by construction rather than touch it.)
+presence-gathering pass FR-005 performs**. The resulting blocking-filtered artifact-name set MUST
+be threaded into `ArtifactPresenceSnapshot` (`runtime_bridge_io.py:900`) as a new field typed
+`blocking_artifact_names: frozenset[str] | None`, following the same `X | None = None`
+optional-field idiom this dataclass already uses for `legacy_step_id` and `wp_advance_ready`. Its
+`None`-vs-empty-`frozenset` states are load-bearing and MUST NOT be conflated:
+
+- **`None`** — no `expected-artifacts.yaml` is reachable for this family at *any* tier (built-in
+  or org, per FR-004). `required_artifacts_for`'s own collapsing of "no manifest" and "manifest,
+  nothing blocking at this step" into the same empty `list[str]` (its documented behavior,
+  `resolver.py:634-654`) is therefore NOT what populates this field directly:
+  `gather_artifact_presence` MUST determine manifest-reachability itself, reusing the exact same
+  tier-checking `config is None` / org-tier-equivalent logic FR-004/FR-005 already have to run for
+  `_presence_filenames_for` (`runtime_bridge_io.py:892-893`) — and set `blocking_artifact_names` to
+  `None` only when that check finds no manifest at either tier.
+- **A real `frozenset`, including `frozenset()`** — a manifest WAS resolved at one of the two
+  tiers; `required_artifacts_for(step, mission_type)`'s result (possibly empty, if the manifest
+  declares nothing blocking at this particular step) is wrapped in `frozenset(...)` and threaded
+  through as-is. An empty `frozenset()` here is therefore a genuine, resolved "nothing blocking"
+  fact — never a stand-in for "no manifest".
+
+Because `runtime_bridge_cores.py` types the snapshot only through its structural
+`_ArtifactPresenceSnapshotLike` Protocol (`runtime_bridge_cores.py:354`, one read-only `@property`
+per field, deliberately not importing `runtime_bridge_io.ArtifactPresenceSnapshot` itself — see
+that Protocol's own docstring), the Protocol MUST also gain a matching
+`blocking_artifact_names -> frozenset[str] | None` property alongside the dataclass field, exactly
+as it already mirrors `legacy_step_id` and `wp_advance_ready`.
+
+`evaluate_guards_strict` reads this signal as the first branch taken once `_GUARD_TABLES.get(snapshot.mission_family)`
+(`runtime_bridge_cores.py:693`) misses, mirroring the existing `if guard_table_entry is None:
+raise` idiom immediately below that lookup (`runtime_bridge_cores.py:694-695`): it next checks
+`snapshot.blocking_artifact_names is None` — if `True`, it raises `UnregisteredMissionFamilyError`
+exactly as today (FR-002 outcome 1 / AC-3 / C-001, no manifest anywhere, nothing new to evaluate);
+if `False` (a real, possibly-empty, `frozenset`), it evaluates genuinely by comparing
+`snapshot.present_artifacts` against `snapshot.blocking_artifact_names`, returning `[]` when the
+blocking set is a subset of what's present — including the degenerate case where
+`blocking_artifact_names` is itself `frozenset()`, which is now visibly distinct from the `None`
+case and yields a genuine pass (FR-002 outcome 2), never a raise. `runtime_bridge_cores.py` stays
+a pure function of snapshot data it is merely handed, and is **never itself a caller of
+`required_artifacts_for`** or any other non-stdlib-importing resolver. This is a hard requirement,
+not an implementation suggestion: `runtime_bridge_cores.py` is bound by
+`tests/architectural/test_bridge_cores_import_boundary.py` (an AST-walk gate, catching
+in-function and in-`try` imports, forbidding any non-stdlib import out of that module other than
+`runtime.next.decision`), and `required_artifacts_for` imports `charter.missions` (non-stdlib) to
+do its manifest I/O — calling it from inside `evaluate_guards_strict`/`evaluate_guards` would red
+that gate. This keeps the gathering layer's union-everything shape (preserving FR-005) while
+making the actual pass/fail decision both step-scoped and `blocking:`-aware, which is what AC-10
+(the prior mission's docstring claim) always meant but never had a consumer to enforce, AND makes
+FR-002's three outcomes actually distinguishable end to end rather than "both empty" (see AC-9).
+(Non-goal: relaxing `test_bridge_cores_import_boundary.py`'s zero-dependency-leaf invariant —
+this FR's whole point is to keep that gate green by construction rather than touch it.)
 
 **FR-007 — `required_artifacts_for` wired in and restored to `__all__`.** Once FR-001/FR-006
 give `required_artifacts_for` (`resolver.py:634`) its first production caller under `src/`, it
@@ -422,9 +477,17 @@ Non-Goals.
 - **`ArtifactPresenceSnapshot`** (`runtime_bridge_io.py`): the fact-only structure
   `gather_artifact_presence` builds, including `present_artifacts` (populated from
   `_presence_filenames_for`'s family-scoped, now org-aware, filename set) and the new
-  `blocking_artifact_names` field (FR-006) — the step-scoped, `blocking:`-filtered name set
-  `required_artifacts_for` resolves, computed in the I/O layer so
-  `runtime_bridge_cores.py`'s evaluator stays a pure consumer of snapshot data.
+  `blocking_artifact_names: frozenset[str] | None` field (FR-006) — the step-scoped,
+  `blocking:`-filtered name set `required_artifacts_for` resolves, computed in the I/O layer so
+  `runtime_bridge_cores.py`'s evaluator stays a pure consumer of snapshot data. `None` and
+  `frozenset()` are two distinct, load-bearing states, not interchangeable emptiness: `None` means
+  no manifest is reachable for the family at any tier (routes `evaluate_guards_strict` to raise
+  `UnregisteredMissionFamilyError` / degrade, FR-002 outcome 1); `frozenset()` means a manifest
+  WAS resolved and declares nothing blocking at this step (routes to a genuine `guard_failures ==
+  []` pass, FR-002 outcome 2) — see FR-006. The structural `_ArtifactPresenceSnapshotLike`
+  Protocol `runtime_bridge_cores.py` types against (`runtime_bridge_cores.py:354`) carries a
+  matching `frozenset[str] | None` property so the evaluator can read the signal without importing
+  this dataclass.
 - **`Decision` / `DecisionKind.blocked`** (`runtime_bridge_cores.py`): the outcome type a
   non-empty `guard_failures` list surfaces as, via `step_or_blocked`.
 - **Org roots** (`charter.drg.org_pack_config.resolve_org_roots`): the existing-filtered list of
