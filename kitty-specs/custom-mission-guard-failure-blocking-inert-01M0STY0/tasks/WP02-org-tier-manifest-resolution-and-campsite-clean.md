@@ -16,7 +16,9 @@ branch_strategy: Planning artifacts for this mission were generated on fix/custo
 subtasks:
 - T008
 - T009
+- T009b
 - T010
+- T010b
 - T011
 - T012
 - T013
@@ -72,6 +74,16 @@ Two things, in this order, within this one WP:
    has to run for `_presence_filenames_for` (lines ~891-892) to decide `None` (no manifest at
    either tier) vs. a real `frozenset` (manifest resolved — wrap `required_artifacts_for(step,
    mission_type, repo_root=...)`'s `list[str]` result in `frozenset(...)`).
+3. **Close FR-010's org-tier schema-crash risk (ANALYZE-ARCH-001 fix round).** Item 1 above is the
+   first change that makes `_load_expected_artifact_manifest`'s
+   `ExpectedArtifactManifest.model_validate(...)` call reachable for an org-authored manifest
+   (today `resolver.py` has zero org-tier lookup, so this path does not yet exist for org
+   manifests). That call has zero exception handling today, for either tier — a schema-invalid
+   manifest raises a bare, uncaught `pydantic.ValidationError`. T009b/T010b close this: wrap the
+   call and re-raise the existing `ManifestSchemaError` (from `specify_cli.dossier.manifest`) for
+   both tiers. Out of scope: the separate, pre-existing built-in/org asymmetry on YAML-*syntax*
+   failures (built-in raises `MalformedManifestError`; org degrades silently) — this WP does not
+   reconcile that; see spec.md's FR-010 for the corrected record and rationale.
 
 The parameter shape to follow throughout: an optional `repo_root: Path | None = None` parameter,
 mirroring `specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s existing FR-008/WP05
@@ -146,12 +158,43 @@ rather than raising or silently dropping the built-in result — distinct from t
 `repo_root=None`-never-invokes-org-tier-at-all case already covered by regression. Verify RED
 against `fix/org-tier-expected-artifacts-3703`.
 
+**T009b [ATDD-RED — same commit family as T008/T009, before implementation; ANALYZE-ARCH-001 fix
+round]** Add schema-invalid-manifest test cases to
+`tests/specify_cli/runtime/test_configured_artifact_name.py`: a built-in manifest that parses as
+YAML but fails `ExpectedArtifactManifest`'s Pydantic schema (`extra="forbid"`), and an org-tier
+manifest with the same defect, each asserting `_load_expected_artifact_manifest`/
+`required_artifacts_for` raise `ManifestSchemaError` — not a bare `pydantic.ValidationError` —
+for both tiers. This is FR-010's actual contract: today `_load_expected_artifact_manifest` calls
+`ExpectedArtifactManifest.model_validate(...)` with zero exception handling (verified against live
+source), so this test is genuinely RED before T010b lands. Verify RED against
+`fix/org-tier-expected-artifacts-3703` before writing implementation code.
+
 **T010** `_load_expected_artifact_manifest` (`src/specify_cli/runtime/resolver.py:555`) gains
 `repo_root: Path | None = None`, becomes org-aware via `resolve_org_expected_artifacts` (FR-008),
 mirroring `ManifestRegistry.load_manifest`'s parameter shape exactly
-(`src/specify_cli/dossier/manifest.py:193-233`). Preserve its docstring's contract otherwise
-(schema-invalid manifests still raise `ManifestSchemaError` loudly per #3542's precedent —
-FR-010; do not invent a second, softer failure mode).
+(`src/specify_cli/dossier/manifest.py:193-233`). **Correction (ANALYZE-ARCH-001 fix round):** this
+subtask's prior text claimed the docstring's "schema-invalid manifests raise `ManifestSchemaError`
+loudly per #3542's precedent" contract already held here — that was false: this function calls
+`ExpectedArtifactManifest.model_validate(...)` with zero exception handling, so a schema-invalid
+manifest raises a bare `pydantic.ValidationError`, uncaught. T010b (below) is the subtask that
+actually makes the docstring's claim true; do not assume it is already satisfied when landing
+T010's org-tier-awareness change.
+
+**T010b [ANALYZE-ARCH-001 fix round]** `_load_expected_artifact_manifest` wraps its
+`ExpectedArtifactManifest.model_validate(...)` call in `try/except pydantic.ValidationError`,
+re-raising `ManifestSchemaError(mission_type, config.origin)` — imported from
+`specify_cli.dossier.manifest`, mirroring `ManifestRegistry.load_manifest`'s own
+`except ValidationError as exc: raise ManifestSchemaError(...) from exc` pattern
+(`src/specify_cli/dossier/manifest.py:326-340`) — for both the built-in and the T010-added
+org-tier branch. This import crosses `specify_cli.runtime` → `specify_cli.dossier`, the same
+sibling-package seam `specify_cli.sync.namespace` and `specify_cli.sync.dossier_pipeline` already
+cross for this exact type; no architectural boundary gate forbids it (checked against
+`tests/architectural/test_runtime_charter_doctrine_boundary.py` and
+`tests/architectural/test_dossier_sync_boundary.py` — neither covers `runtime`→`dossier`). Lands
+in the same commit as T010 (or immediately after it, before T011). Makes T009b GREEN. Closes the
+crash risk FR-010 exists to address: today `resolver.py` has zero org-tier lookup, so this exact
+uncaught-`ValidationError` path does not yet exist for org manifests — T010 is what makes it
+reachable, so T010b must land no later than T010 for FR-010 to genuinely hold once WP02 is done.
 
 **T011** `required_artifacts_for` (`src/specify_cli/runtime/resolver.py:634`) gains
 `repo_root: Path | None = None`, forwards it to `_load_expected_artifact_manifest`. Its own return
@@ -192,11 +235,11 @@ currently claims "no runtime caller under src/ outside this module until WP04b" 
 now false). Do not land this commit, or any part of it, before T013's commit exists — see
 "Campsite-clean fold" above for why.
 
-**T015** Run this WP's full regression scope; confirm T008/T009 go GREEN; confirm
+**T015** Run this WP's full regression scope; confirm T008/T009/T009b go GREEN; confirm
 `tests/architectural/test_no_dead_symbols.py` stays GREEN (this is the mechanical proof that T014
 landed in the correct order relative to T013 — it would RED if `required_artifacts_for` were in
 `__all__` with no caller); budget test coverage for T012/T013's new/changed lines in
-`src/runtime/next/runtime_bridge_io.py` toward the enforced 90% diff-coverage floor. T010/T011's
+`src/runtime/next/runtime_bridge_io.py` toward the enforced 90% diff-coverage floor. T010/T010b/T011's
 `resolver.py` changes are NOT in `critical_paths` (they fall to the advisory full-diff step
 only, per Gate set in `../tasks.md`) — write thorough tests for them per ATDD-first discipline
 regardless, just note this file is not enforcement-gated the same way:
@@ -214,11 +257,11 @@ uv run pytest tests/specify_cli/next/test_runtime_bridge_composition.py -v
 ## Gates that apply to this WP's files
 
 **ENFORCED**: commitlint; doctrine schema freshness (trivial pass); Contextive glossary (trivial
-pass); TID251; `patch()` target validation (T008/T009's new tests will patch
+pass); TID251; `patch()` target validation (T008/T009/T009b's new tests will patch
 `resolve_org_expected_artifacts`/`required_artifacts_for` — every patch target must resolve to a
 real importable path); Bandit; pip-audit; `uv.lock` freshness; **`diff-coverage` 90% floor on
 `src/runtime/next/*`** — applies to T012/T013 (`runtime_bridge_io.py`). `src/specify_cli/runtime/resolver.py`
-(T010/T011) is exempt from this specific enforced job, falling to the advisory full-diff step.
+(T010/T010b/T011) is exempt from this specific enforced job, falling to the advisory full-diff step.
 
 **ADVISORY-ONLY**: `ruff`, `mypy` — run `make lint` locally; this WP adds several
 `repo_root: Path | None = None` parameters worth type-checking.
@@ -234,3 +277,7 @@ real importable path); Bandit; pip-audit; `uv.lock` freshness; **`diff-coverage`
   verification step and this file's repeated ordering warning.
 - Reintroducing step-scoped gathering while adding org-tier awareness. Mitigated by T012's
   explicit "stays family-scoped, NOT step-scoped" instruction and C-002's citation.
+- Landing T010 (org-tier awareness) without T010b (schema-error handling) would make T010's own
+  change the origin of a new, silent org-tier crash risk (ANALYZE-ARCH-001). Mitigated by T009b's
+  RED test failing until T010b lands, and by this file's explicit "T010b must land no later than
+  T010" note in T010b's own text.

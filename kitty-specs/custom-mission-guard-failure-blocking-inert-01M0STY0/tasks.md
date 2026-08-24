@@ -342,9 +342,22 @@ T008 [ATDD-RED] Add org-tier test cases to `tests/specify_cli/runtime/test_confi
 T009 [ATDD-RED] Add AC-4/AC-5/AC-6 org-tier + whole-file-replacement scenarios to
 `tests/runtime/next/test_pertype_presence_gate.py`; includes a named
 `repo_root`-supplied-but-no-org-pack fallback case (TASKS-VERIFY-003 fix)
+T009b [ATDD-RED, FR-010 fix round] Add schema-invalid-manifest test cases to
+`tests/specify_cli/runtime/test_configured_artifact_name.py`: a built-in manifest and an org-tier
+manifest that each parse as YAML but fail `ExpectedArtifactManifest`'s Pydantic schema
+(`extra="forbid"`), asserting `_load_expected_artifact_manifest`/`required_artifacts_for` raise
+`ManifestSchemaError` (not a bare `pydantic.ValidationError`) for both tiers. Verify RED against
+`fix/org-tier-expected-artifacts-3703` before writing implementation code.
 T010 `_load_expected_artifact_manifest` (`src/specify_cli/runtime/resolver.py:555`) gains
 `repo_root: Path | None = None`, becomes org-aware via `resolve_org_expected_artifacts` (FR-008),
 mirroring `ManifestRegistry.load_manifest`'s parameter shape (`src/specify_cli/dossier/manifest.py:193-233`)
+T010b [FR-010 fix round] `_load_expected_artifact_manifest` wraps its
+`ExpectedArtifactManifest.model_validate(...)` call in `try/except pydantic.ValidationError`,
+re-raising `ManifestSchemaError(mission_type, config.origin)` (imported from
+`specify_cli.dossier.manifest`, mirroring `ManifestRegistry.load_manifest`'s own
+`except ValidationError as exc: raise ManifestSchemaError(...) from exc` pattern) for both the
+built-in and the T010-added org-tier branch. Closes ANALYZE-ARCH-001/FR-010's crash risk; lands
+in the same commit as T010 (or immediately after it, before T011) — makes T009b GREEN.
 T011 `required_artifacts_for` (`src/specify_cli/runtime/resolver.py:634`) gains
 `repo_root: Path | None = None`, forwards to `_load_expected_artifact_manifest`
 T012 `_presence_filenames_for` (`src/runtime/next/runtime_bridge_io.py:841`) gains
@@ -359,16 +372,16 @@ reuses the same tier-checking `config is None`/org-tier-equivalent logic already
 T014 [campsite-clean commit, folds WP00 — lands immediately AFTER T013, never before] Restore
 `required_artifacts_for` to `resolver.py`'s `__all__` (lines 46-57); remove/update the stale
 WP04b-deferral comment (lines 58-66) to reflect the real wiring T013 just landed
-T015 Run WP02's regression command block; verify T008/T009 green; verify
+T015 Run WP02's regression command block; verify T008/T009/T009b green; verify
 `tests/architectural/test_no_dead_symbols.py` stays green (would RED if T014 landed before T013);
 budget coverage for new/changed lines toward the 90% diff-coverage floor (resolver.py changes fall
 to the advisory full-diff step only, per Gate set above)
 
 ### Implementation Notes
 
-- Commit order inside this WP is load-bearing: (1) T008/T009 RED tests, (2) T010-T013 functional
-  implementation (GREEN), (3) T014 campsite-clean — never T014 before T013 (PLAN-GOV-001,
-  `reviews/plan.confirmed.yaml`).
+- Commit order inside this WP is load-bearing: (1) T008/T009/T009b RED tests, (2)
+  T010/T010b-T013 functional implementation (GREEN), (3) T014 campsite-clean — never T014 before
+  T013 (PLAN-GOV-001, `reviews/plan.confirmed.yaml`).
 - `required_artifacts_for` itself keeps returning `list[str]` — the `frozenset(...)` wrap happens
   at the `gather_artifact_presence` call site (T013), not inside `required_artifacts_for`, so its
   own existing unit-tested contract (`tests/specify_cli/runtime/test_configured_artifact_name.py`)
@@ -377,11 +390,25 @@ to the advisory full-diff step only, per Gate set above)
   a prior attempt reverted after redding `test_coverage_floor_is_met` by spuriously blocking
   software-dev's composed `tasks` guard and `plan`'s `specify`/`plan` guards. `blocking:`-awareness
   is solved at the evaluation layer (WP01), not by gathering-layer step-scoping.
-- FR-010 (malformed manifest handling) requires no new code path: YAML-syntax failures degrade to
-  "no manifest" (matches #3412's existing gap), schema failures raise `ManifestSchemaError`
-  loudly (matches #3542's precedent) — both already implemented by the functions this WP calls
-  through (`MissionTemplateRepository.get_expected_artifacts`, `resolve_org_expected_artifacts`);
-  this WP does not invent a second, softer contract.
+- FR-010 (malformed manifest handling) — **corrected (ANALYZE-ARCH-001 fix round; a prior draft
+  of this note falsely claimed both halves were "already implemented" — they were not):**
+  built-in YAML-syntax failures already raise `MalformedManifestError` loudly
+  (`MissionTemplateRepository.get_expected_artifacts`, #3412 already fixed there); org-tier
+  YAML-syntax failures still degrade silently (`resolve_org_expected_artifacts`) — a pre-existing,
+  out-of-scope built-in/org asymmetry this WP does not reconcile. Neither tier raises
+  `ManifestSchemaError` on this WP's call path today — that type is defined/raised only in
+  `specify_cli.dossier.manifest.ManifestRegistry.load_manifest`, a sibling module none of this
+  WP's functions call. Because T010 edits `_load_expected_artifact_manifest` to add org-tier
+  awareness (FR-008) — the first change that makes the org tier reach
+  `ExpectedArtifactManifest.model_validate(...)` — this WP also closes the resulting
+  uncaught-`pydantic.ValidationError` crash risk in that same function, for both tiers, via T009b
+  (RED) and T010b (GREEN): wrap `model_validate(...)` in `try/except pydantic.ValidationError`,
+  re-raise `ManifestSchemaError` (imported from `specify_cli.dossier.manifest`, precedented by
+  `specify_cli.sync.namespace`/`specify_cli.sync.dossier_pipeline`'s existing imports of that
+  type — no architectural boundary gate forbids `specify_cli.runtime` importing
+  `specify_cli.dossier`). This is a small, in-file addition to a function this WP already edits;
+  it does not expand WP02's `owned_files` beyond what it already lists, nor plan.md's Seam table
+  beyond the row it already commits to.
 - This WP touches `src/runtime/next/*` (T012, T013) — budget coverage for those new/changed lines
   toward the enforced 90% diff-coverage floor.
 
@@ -563,7 +590,7 @@ final time against this WP's final commit; confirm every blast-radius file is gr
 | FR-007 | WP02 | `required_artifacts_for` wired in + restored to `__all__` (WP00 fold) |
 | FR-008 | WP02 | `required_artifacts_for`'s own manifest lookup becomes org-aware |
 | FR-009 | WP04 | Byte-identical behavior for the 4 built-in families (verification) |
-| FR-010 | WP02 | Malformed-manifest handling mirrors existing precedent |
+| FR-010 | WP02 (T009b/T010b) | Malformed-manifest handling: correct the precedent claim; close org-tier schema-validation crash risk |
 | FR-011 | Not touched (non-goal) | `accept` step's built-in `[]` stays untouched; confirmed unchanged by WP04's regression sweep |
 | FR-012 | Not touched (non-goal) | `mission_v1.guards`/`GUARD_REGISTRY` not revived; no WP touches this surface |
 | NFR-001 | WP04 | Byte-compat for built-in families (verification) |
@@ -601,7 +628,9 @@ final time against this WP's final commit; confirm every blast-radius file is gr
 | T007 | WP01 regression run + coverage budget | WP01 | P1 | No |
 | T008 | ATDD-RED: org-tier `test_configured_artifact_name.py` cases + no-org-pack fallback (TASKS-VERIFY-003) | WP02 | P1 | No |
 | T009 | ATDD-RED: AC-4/AC-5/AC-6 org-tier scenarios + no-org-pack fallback (TASKS-VERIFY-003) | WP02 | P1 | No |
+| T009b | ATDD-RED: schema-invalid-manifest cases, both tiers (FR-010, ANALYZE-ARCH-001 fix) | WP02 | P1 | No |
 | T010 | `_load_expected_artifact_manifest` org-aware | WP02 | P1 | No |
+| T010b | `_load_expected_artifact_manifest` re-raises `ManifestSchemaError` on schema-invalid manifests, both tiers (FR-010, ANALYZE-ARCH-001 fix) | WP02 | P1 | No |
 | T011 | `required_artifacts_for` gains `repo_root` | WP02 | P1 | No |
 | T012 | `_presence_filenames_for` org-tier consult | WP02 | P1 | No |
 | T013 | `gather_artifact_presence` real resolution (functional commit) | WP02 | P1 | No |

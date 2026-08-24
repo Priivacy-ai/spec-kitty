@@ -216,16 +216,30 @@ absence never does — at each step independently.
 
 ### Edge Cases
 
-- **Malformed manifest — YAML-syntax invalid.** Mirrors the existing, unfixed gap tracked by
-  issue #3412 (explicitly out of scope for this mission, see Non-Goals): a manifest file that
-  exists but fails to parse as YAML degrades to "no manifest" silently, at both built-in and org
-  tier, exactly as `MissionTemplateRepository.get_expected_artifacts` and
-  `resolve_org_expected_artifacts` already do today. Not changed by this mission.
-- **Malformed manifest — schema invalid.** A manifest that parses as YAML but fails
-  `ExpectedArtifactManifest`'s Pydantic schema (`extra="forbid"`) MUST raise `ManifestSchemaError`
-  loudly, matching the precedent `ManifestRegistry.load_manifest` already established for both
-  built-in and org tiers (#3542). This mission's new manifest-consuming call sites reuse that
-  same fail-loud contract rather than inventing a second, softer one.
+- **Malformed manifest — YAML-syntax invalid.** Corrected against live source (a prior draft of
+  this spec claimed both tiers degrade "silently... exactly the same" — false; see FR-010): the
+  built-in and org tiers are **asymmetric** today, and this mission does not reconcile that
+  asymmetry (out of scope). Built-in tier: `MissionTemplateRepository.get_expected_artifacts`
+  raises `MalformedManifestError` loudly for a present-but-YAML-broken manifest — fail-loud by
+  design, already fixed (issue #3412 is resolved at this call site, not an open gap; pinned by
+  the live, passing `tests/doctrine/missions/test_repository.py::test_malformed_manifest_fails_loud_distinct_from_absent`).
+  Org tier: `resolve_org_expected_artifacts` still degrades a YAML-syntax failure to "no manifest"
+  silently (logging a `WARNING`, not raising). Neither behavior changes in this mission.
+- **Malformed manifest — schema invalid.** Corrected against live source (a prior draft claimed
+  this "already" raises `ManifestSchemaError` for both tiers "matching the precedent
+  `ManifestRegistry.load_manifest` already established" — false for this mission's call path; see
+  FR-010): `ManifestSchemaError` is defined and raised only by
+  `specify_cli.dossier.manifest.ManifestRegistry.load_manifest`, a sibling module this mission's
+  blast radius does not call. This mission's own call path
+  (`resolver.py::_load_expected_artifact_manifest` → `ExpectedArtifactManifest.model_validate(...)`)
+  has zero exception handling today, so a schema-invalid manifest raises a bare, undomained
+  `pydantic.ValidationError` that would otherwise propagate uncaught through
+  `decide_next_via_runtime` (the only exception caught on that call path is
+  `UnregisteredMissionFamilyError`). Because this mission's WP02 already edits
+  `_load_expected_artifact_manifest` to add org-tier awareness (FR-008) — the change that first
+  makes this exact crash reachable for the org tier — FR-010 closes that specific crash risk in
+  the same function, for both tiers, rather than leaving it as a silent side effect of the
+  org-tier work. See FR-010 for the resulting contract and the rationale for this scope choice.
 - **Missing manifest at both tiers.** A family with no `expected-artifacts.yaml` in the built-in
   pack AND no org-pack override resolves identically to today's "no manifest" case: empty
   presence set, `UnregisteredMissionFamilyError` strict-raise retained at dispatch, tolerant
@@ -257,7 +271,7 @@ absence never does — at each step independently.
 | FR-007 | `required_artifacts_for` wired in and restored to `__all__` | US1/US2 | High | Open |
 | FR-008 | `required_artifacts_for`'s own manifest lookup becomes org-aware | US2 | High | Open |
 | FR-009 | Byte-identical behavior for the 4 built-in families | US2 | High | Open |
-| FR-010 | Malformed-manifest handling mirrors existing precedent | Edge cases | Medium | Open |
+| FR-010 | Malformed-manifest handling: correct the precedent claim; close the org-tier schema-validation crash risk WP02 introduces | Edge cases | Medium | Open |
 | FR-011 | `accept` step's built-in `[]` stays untouched | Non-goals | Medium | Open |
 | FR-012 | `mission_v1.guards`/`GUARD_REGISTRY` not touched | Non-goals | Medium | Open |
 
@@ -438,11 +452,46 @@ happen to carry a manifest. Pinned by
 `tests/specify_cli/runtime/test_configured_artifact_name.py`'s byte-compat characterization and
 the existing `TestAC14SoftwareDevUnchanged`-class tests in `test_cli_guard_family.py`.
 
-**FR-010 — Malformed-manifest handling mirrors existing precedent.** See Edge Cases above: no
-new malformed-manifest semantics are introduced. YAML-syntax failures degrade to "no manifest"
-(matches #3412's known, out-of-scope gap); schema failures raise `ManifestSchemaError` loudly
-(matches #3542's precedent), for both built-in and org tiers, at every new call site this
-mission adds.
+**FR-010 — Malformed-manifest handling: correct the record, close the new org-tier
+schema-validation crash risk.** A prior draft of this FR and its Edge Cases entries asserted
+this was already fully handled by existing precedent, at both tiers, identically — that claim is
+false against live source (ANALYZE-ARCH-001). True current state, verified against live source:
+
+1. Built-in-tier YAML-syntax failures raise `MalformedManifestError` loudly
+   (`MissionTemplateRepository.get_expected_artifacts`) — already fixed, not an open #3412 gap.
+2. Org-tier YAML-syntax failures degrade silently (`resolve_org_expected_artifacts`, with a
+   `WARNING` log) — a pre-existing built-in/org asymmetry this mission does **not** reconcile
+   (out of scope; the two tiers are not symmetric today and this FR does not change that).
+3. Neither tier raises `ManifestSchemaError` for schema-invalid content on this mission's call
+   path. That contract lives only in `specify_cli.dossier.manifest.ManifestRegistry.load_manifest`
+   — a sibling module this mission never calls. `resolver.py::_load_expected_artifact_manifest`
+   calls `ExpectedArtifactManifest.model_validate(...)` with zero exception handling, so a
+   schema-invalid manifest raises a bare `pydantic.ValidationError`, uncaught, today.
+
+**Design decision (Option A — close the crash risk, chosen over scoping it out):** WP02
+(FR-008) already edits `_load_expected_artifact_manifest` to add org-tier awareness — the change
+that, for the first time, makes this exact `model_validate(...)` call reachable for an
+org-authored manifest (today `resolver.py` has zero org-tier lookup, so this crash path does not
+yet exist for org manifests). Rather than leave that newly-introduced crash exposure as an
+undocumented side effect of FR-008, this mission closes it in the same function: wrap
+`ExpectedArtifactManifest.model_validate(...)` in `try/except pydantic.ValidationError`, and
+re-raise the existing domain `ManifestSchemaError` (imported from `specify_cli.dossier.manifest`
+— precedented by `specify_cli.sync.namespace` and `specify_cli.sync.dossier_pipeline`, which
+already import that same type across the identical `specify_cli.runtime` ↔ `specify_cli.dossier`
+sibling-package seam; no architectural boundary gate forbids it), for both the built-in and the
+new org-tier branch. This is a small, in-file addition to a function WP02 already edits — it adds
+no new file to WP02's owned-files set and does not expand plan.md's Seam/module-placement table
+beyond the row it already commits to for `_load_expected_artifact_manifest`. See tasks.md/WP02's
+new T009b (ATDD-RED) and T010b (implementation) subtasks.
+
+**Rationale for Option A over Option B (explicit scope-out):** Option B (documenting the
+uncaught-crash as an accepted risk) was considered and rejected here specifically because the
+fix's cost is smaller than the honesty cost of documenting a self-inflicted, easily-closed defect
+as "accepted" — the touched function, the exception type, and the import precedent all already
+exist; only the `try/except` and the re-raise are new. This does not reconcile the separate,
+pre-existing built-in/org YAML-syntax asymmetry (#2 above), which remains explicitly out of scope
+for this mission (matches the smallest-viable-diff / locality-of-change reconciliation the
+charter requires: fix only what this mission's own new code introduces).
 
 **FR-011 / FR-012 — Non-goal preservation.** The `accept` step's deliberate `[]` for built-in
 families, and `mission_v1.guards`/`GUARD_REGISTRY`, are untouched by this mission — see
