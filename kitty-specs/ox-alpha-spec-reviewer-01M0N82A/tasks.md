@@ -108,7 +108,7 @@ Directory classifier захватит historical trail → только filename
 **Цель**: реализовать заменяемый subprocess runner с stdin-only input, bounded private streams и cleanup всего process tree.  
 **Независимая проверка**: fake process contract доказывает точный argv, `shell=False`, отсутствие raw stream leakage и корректные diagnostic codes на Windows/Linux/macOS paths.  
 **Prompt**: `tasks/WP04-opencode-runner.md`  
-**Requirement refs**: FR-005, FR-006, FR-010, FR-013, NFR-001, NFR-003, NFR-004, NFR-005, NFR-006, C-001, C-003.
+**Requirement refs**: FR-005, FR-006, FR-010, FR-013, FR-014, NFR-001, NFR-003, NFR-004, NFR-005, NFR-006, C-001, C-003.
 
 ### Included Subtasks
 
@@ -142,7 +142,7 @@ OpenCode output contract может отличаться от предполож
 **Цель**: собрать preflight, consent, runner, parser и storage в отдельную `spec-kitty spec-review`, сохранив существующий `spec-kitty review`.  
 **Независимая проверка**: root help показывает обе команды; `--confirm-digest` принимает только текущий manifest digest; preview/complete/cancel возвращают 0, failure outcomes — 2–7; mission state и `spec.md` неизменны.
 **Prompt**: `tasks/WP05-service-and-cli.md`  
-**Requirement refs**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, NFR-001, NFR-007, C-002, C-004.
+**Requirement refs**: FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-009, FR-010, FR-011, FR-012, FR-013, FR-014, NFR-001, NFR-007, C-002, C-004.
 
 ### Included Subtasks
 
@@ -176,7 +176,7 @@ Advisory означает «не меняет lifecycle», а не «всегд�
 **Цель**: завершить публичную документацию, regression/coverage gates и отделённый synthetic live smoke.  
 **Независимая проверка**: docs не обещают free/ZDR/provider ownership; Ruff, mypy, tests и coverage проходят; live smoke отсутствует в обычном CI и требует отдельного consent.  
 **Prompt**: `tasks/WP06-docs-and-validation.md`  
-**Requirement refs**: FR-006, FR-009, FR-010, FR-012, FR-013, NFR-001, NFR-003, NFR-005, NFR-006, NFR-008, C-003, C-004.
+**Requirement refs**: FR-006, FR-009, FR-010, FR-012, FR-013, FR-014, NFR-001, NFR-003, NFR-005, NFR-006, NFR-008, C-003, C-004.
 
 ### Included Subtasks
 
@@ -224,6 +224,7 @@ Green fake tests не доказывают provider → live evidence марки
 | FR-011 | WP02, WP05 |
 | FR-012 | WP03, WP05, WP06 |
 | FR-013 | WP04, WP05, WP06 |
+| FR-014 | WP04, WP05, WP06 |
 | NFR-001–NFR-008 | WP01–WP06 по профильным границам |
 | C-001–C-005 | WP01–WP06 по профильным границам |
 

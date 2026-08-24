@@ -152,7 +152,7 @@ docs/
 ### IC-03 — OpenCode transport
 
 - **Назначение**: безопасно выполнить внешний процесс, не владея его credentials.
-- **Требования**: FR-005, FR-006, FR-010, FR-013, NFR-001, NFR-003, NFR-005, NFR-006, C-001–C-003.
+- **Требования**: FR-005, FR-006, FR-010, FR-013, FR-014, NFR-001, NFR-003, NFR-005, NFR-006, C-001–C-003.
 - **Поверхности**: `runner.py`, runner tests.
 - **Зависимости**: IC-02.
 - **Риски**: timeout/process-tree cleanup на Windows; full/fragmented echo и invalid UTF-8; отсутствие live network в обычных tests. До реализации отдельно проверяется актуальный локальный `opencode run --help`, без model call. Runner не выполняет автоматические retry; 429/rate-limit классифицируется как `provider_error`.
@@ -168,7 +168,7 @@ docs/
 ### IC-05 — Оркестрация и operator UX
 
 - **Назначение**: собрать preflight, consent, runner, parser и storage в advisory use case.
-- **Требования**: FR-001–FR-013, SC-001–SC-006.
+- **Требования**: FR-001–FR-014, SC-001–SC-007.
 - **Поверхности**: `service.py`, `commands/spec_review.py`, command/service tests, quickstart.
 - **Зависимости**: IC-01–IC-04.
 - **Риски**: advisory относится только к mission lifecycle. Прямая команда связывает неинтерактивное согласие с `--confirm-digest <sha256>` и следует таблице exit codes из spec: preview/complete/cancel = 0, consent/input/provider/timeout/format/write failures = стабильные 2–7.
@@ -176,7 +176,7 @@ docs/
 ### IC-06 — Проверки и opt-in smoke
 
 - **Назначение**: доказать privacy, portability и advisory semantics без зависимости CI от модели.
-- **Требования**: все NFR и SC.
+- **Требования**: FR-006, FR-009, FR-010, FR-012–FR-014, все NFR и SC.
 - **Поверхности**: tests, markers, documentation, codemap.
 - **Зависимости**: IC-01–IC-05.
 - **Риски**: green fake tests не подтверждают реальную модель; live smoke фиксируется отдельно и никогда не передаёт реальную project spec.

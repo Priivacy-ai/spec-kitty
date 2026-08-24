@@ -13,6 +13,7 @@ requirement_refs:
 - FR-010
 - FR-012
 - FR-013
+- FR-014
 - NFR-001
 - NFR-003
 - NFR-005
@@ -110,6 +111,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Artifact path/schema и manual treatment of findings.
 - Privacy limits: heuristic scanner не гарантирует обезличивание.
 - No auto-fix, no mandatory workflow gate, no fallback model.
+- Документировать fail-closed pricing gate: paid/unknown/stale snapshot блокирует запуск до prompt и передачи spec.
 - No automatic retry; 429/rate limit отображается как provider error и требует нового ручного запуска с новым consent.
 - Changelog entry concise, user-facing, без benchmark marketing claims.
 
@@ -118,6 +120,7 @@ Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the 
 - Deterministic integration test создаёт temp mission и fake OpenCode runner.
 - Проходит preview → confirmed `completed` → persisted host artifact → новый отдельно подтверждённый run.
 - Проверяет hashes, summary, line ranges, exit 0, non-mutation.
+- Проверяет, что paid/unknown/stale pricing возвращает `SPEC_REVIEW_MODEL_NOT_FREE` до prompt composition и вызова runner.
 - Failure cases representative: 429 без retry, timeout/invalid output/write failure.
 - `test_spec_review_live.py` помечен explicit marker/env opt-in, принимает только встроенный synthetic spec.
 - Live test не читает repo mission specs и не запускается в обычном CI.
