@@ -121,15 +121,37 @@ pre-check call site T017 structurally cannot: drive `_dn_dependency_gate` (or `d
 `expected-artifacts.yaml` override for `software-dev` declaring a blocking artifact that has no
 equivalent built-in requirement, and no built-in manifest entry for that artifact. Assert
 `resolve_org_roots` (or the org-tier manifest it resolves) is consulted with the real, non-`None`
-`repo_root` specifically through the `runtime_bridge.py:1643` call site — e.g. by flipping the
-org-declared blocking artifact's on-disk presence and observing `guard_failures` change
-accordingly, or by patching `resolve_org_roots`/`resolve_org_expected_artifacts` and asserting the
-real `repo_root` value in the call arguments, the same technique T017 already uses for the
-custom-family case. This test MUST go through `_dn_dependency_gate`'s software-dev-scoped block
-(~line 1642-1643), not call `_check_cli_guards` directly (calling it directly is what
+`repo_root` specifically through the `runtime_bridge.py:1643` call site by patching
+`resolve_org_roots`/`resolve_org_expected_artifacts` and asserting the real `repo_root` value in
+the call arguments — the same technique T017 already uses for the custom-family case. **Do NOT use
+a "flip the org-declared artifact's on-disk presence and observe `guard_failures` change"
+technique for this software-dev case (TASKS-FRESH-001, this fix round):** unlike T017's
+custom-family scenario, that presence-flip technique is structurally incapable of proving anything
+here. `evaluate_guards_strict` (`src/runtime/next/runtime_bridge_cores.py:684-695`) dispatches
+`software-dev` through `_GUARD_TABLES["software-dev"]` (registry at
+`runtime_bridge_cores.py:676-681`) straight to `_evaluate_software_dev_guards`
+(`runtime_bridge_cores.py:618-628`), which branches purely on `step_id` and never reads
+`snapshot.blocking_artifact_names` — WP01's new org-tier-consulting branch is reached only in the
+`guard_table_entry is None` arm (`runtime_bridge_cores.py:694`), i.e. only for families outside
+`_GUARD_TABLES`, which `software-dev` never is. So flipping the org-declared artifact's presence
+cannot move `guard_failures` for a software-dev mission regardless of whether `repo_root` was
+genuinely threaded to `resolve_org_roots`; a test built on that technique would either fail for the
+wrong reason or pass vacuously. The presence-flip technique remains valid only for T017's
+custom-family scenario above, where `evaluate_guards_strict` genuinely dispatches through that
+`is None`/`frozenset` branch. This test MUST go through `_dn_dependency_gate`'s software-dev-scoped
+block (~line 1642-1643), not call `_check_cli_guards` directly (calling it directly is what
 `TestAC14SoftwareDevUnchanged` in `tests/runtime/next/test_cli_guard_family.py` already does, and
 is exactly the gap this subtask closes — direct-call tests bypass the call site AC-8 is about).
 Verify RED against `fix/org-tier-expected-artifacts-3703`.
+
+**Traceability note (TASKS-FRESH-002, this fix round):** AC-8's Given clause literally names "a
+custom mission family" for both cited call sites. T017b necessarily substitutes `software-dev`
+here because the ~1643 call site is software-dev-scoped by design (#3407 M3, per T017's own
+structural note above) — no custom family can ever reach it. AC-8's underlying intent (repo_root
+genuinely threaded through this call site, not left as a dropped default) is satisfied via the
+only family that can structurally reach it; T017 covers the literal custom-family half of AC-8's
+scenario at the ~1608 site. This is a documentation/traceability reconciliation only — no change
+to spec.md's already-PASSED AC-8 wording is implied.
 
 **T018** `_check_cli_guards` (`src/runtime/next/runtime_bridge.py:751`) gains
 `repo_root: Path | None = None`, forwards it to `gather_artifact_presence`.
