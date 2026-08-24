@@ -31,28 +31,26 @@ from pathlib import Path
 from specify_cli.gitignore_manager import (
     GitignoreManager,
     GitignorePathError,
-    read_gitignore_text,
+    is_gitignore_root_effectively_ignored,
 )
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 _WORKTREES_ENTRY = ".worktrees/"
-# Any of these existing forms already covers the root (same
-# any-equivalent-form check shape as the sibling directory backfills).
+_WORKTREES_PROBE = ".worktrees/.spec-kitty-ignore-probe"
+# Any of these forms is a whole-root rule. Coverage also requires that no
+# later negation can re-include a narrower descendant.
 _EQUIVALENT_ENTRIES: frozenset[str] = frozenset({".worktrees", ".worktrees/", "/.worktrees/", "/.worktrees"})
 
 
-def _read_gitignore_entries(project_path: Path) -> set[str]:
-    gitignore_path = project_path / ".gitignore"
-    content = read_gitignore_text(gitignore_path)
-    if content is None:
-        return set()
-    return {line.strip() for line in content.splitlines() if line.strip() and not line.lstrip().startswith("#")}
-
-
-def _is_missing(present: set[str]) -> bool:
-    return _EQUIVALENT_ENTRIES.isdisjoint(present)
+def _needs_backfill(project_path: Path) -> bool:
+    return not is_gitignore_root_effectively_ignored(
+        project_path,
+        root_path=".worktrees",
+        equivalent_entries=_EQUIVALENT_ENTRIES,
+        probe_path=_WORKTREES_PROBE,
+    )
 
 
 @MigrationRegistry.register
@@ -65,7 +63,7 @@ class WorktreesGitignoreBackfillMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         try:
-            return _is_missing(_read_gitignore_entries(project_path))
+            return _needs_backfill(project_path)
         except (GitignorePathError, OSError):
             # Route unsafe/unreadable files through can_apply() so the runner
             # records a loud migration failure instead of silently skipping it.
@@ -75,14 +73,14 @@ class WorktreesGitignoreBackfillMigration(BaseMigration):
         if not project_path.exists():
             return False, f"Project path does not exist: {project_path}"
         try:
-            _read_gitignore_entries(project_path)
+            _needs_backfill(project_path)
         except (GitignorePathError, OSError) as exc:
             return False, str(exc)
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         try:
-            missing = _is_missing(_read_gitignore_entries(project_path))
+            missing = _needs_backfill(project_path)
         except (GitignorePathError, OSError) as exc:
             return MigrationResult(success=False, errors=[str(exc)])
 
@@ -98,7 +96,19 @@ class WorktreesGitignoreBackfillMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=["gitignore entry already present"])
 
         try:
-            GitignoreManager(project_path).ensure_entries([_WORKTREES_ENTRY])
+            # Force-append is required when an earlier canonical rule is
+            # neutralized by a later negation. Reasserting at EOF preserves
+            # user-authored rules while making the managed protection effective.
+            GitignoreManager(project_path).ensure_entries([_WORKTREES_ENTRY], force_append=True)
+        except (GitignorePathError, OSError) as exc:
+            return MigrationResult(success=False, errors=[str(exc)])
+
+        try:
+            if _needs_backfill(project_path):
+                return MigrationResult(
+                    success=False,
+                    errors=[".worktrees/ is still not effectively gitignored after backfill"],
+                )
         except (GitignorePathError, OSError) as exc:
             return MigrationResult(success=False, errors=[str(exc)])
         return MigrationResult(
