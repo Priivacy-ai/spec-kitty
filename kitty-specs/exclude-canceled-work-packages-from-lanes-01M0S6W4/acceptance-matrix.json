@@ -68,10 +68,10 @@
       "criterion_id": "FR-007",
       "description": "Canceled work-package history and definitions are preserved.",
       "proof_type": "automated_test",
-      "evidence": "Repeated all-canceled finalization test asserts prompt/artifact and append-only event retention",
+      "evidence": "test_finalize_canceled_work_packages.py repeated finalization retains canceled prompts, tasks, and append-only events",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:15:05.831138+00:00",
+      "verified_at": "2026-08-24T12:02:09.205432+00:00",
       "notes": "Pass when finalization leaves canceled prompts, task-outline entries, and append-only lifecycle events intact."
     },
     {
