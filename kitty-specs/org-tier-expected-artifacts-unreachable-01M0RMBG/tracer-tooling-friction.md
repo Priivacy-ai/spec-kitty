@@ -55,3 +55,21 @@ SK-64-sanctioned choice) rather than loosening the shared lint config.
 
 Upstream doc drift worth noting: `~/.hermes/skills/sk/SKILL.md` should be corrected to match
 the ledger's retraction.
+
+## F3 — lanes.json `predicted_surfaces` is keyword-match noise, not a real surface claim
+
+`lanes.json`'s `lanes[0].predicted_surfaces` lists `api`, `app-shell`, `artifact-rendering`,
+`tests`, `tracker-integration` for this mission — a pure `src/charter/` + five test-file
+path-join bugfix that touches none of those subsystems. `infer_surfaces()`
+(`src/specify_cli/lanes/compute.py:98-118`) derives `predicted_surfaces` via case-insensitive
+substring matching against the WP prompt's prose, not `owned_files` — e.g. it matched
+"tracker" inside the WP01 frontmatter's own `tracker_refs: []` key name, and similar
+incidental matches produced the other four labels.
+
+This is inert for this single-WP mission (no lane-overlap comparison ever runs against a
+single lane), so no functional change was made to `lanes.json` — it is a generated,
+computed file (SK-72 bans hand-editing spec-kitty state) and confirmed adversarial review
+(TASKS-SEQ-001) found no fix belongs inside this mission's own artifacts; the root cause is
+pre-existing `infer_surfaces()` keyword-matching behavior in the tooling itself. Recording it
+here so a future reader of this mission's `lanes.json` does not mistake `predicted_surfaces`
+for a claim about which subsystems WP01 actually touches.

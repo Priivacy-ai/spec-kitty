@@ -85,14 +85,21 @@ binding detail this WP implements; both files live in this mission's `feature_di
 **This is the ONLY work package for this mission.** `plan.md`'s Phasing section describes
 five logical steps (campsite-clean: none; RED-first tests; FR-001/002 implementation;
 FR-003/004/005 maintenance; gate verification). Those five steps are carried here as six
-ordered subtasks (T001–T006) inside **one** WP rather than split across multiple WPs,
-because `tests/charter/test_org_expected_artifacts.py` is touched by both the RED-first
-step (T001) and the maintenance step (T003) — two narrow WPs both claiming that file would
-fail spec-kitty's ownership validator (file-level overlap, not line-level; `codebase-wide`
-is the only exemption and does not apply to a narrow six-file fix like this one). One WP
-with an internally ordered commit sequence is the correct shape. All six subtasks land as
-part of the mission's single PR (per `plan.md`'s "PR Shape" section) — do not open more
-than one PR and do not create additional WPs.
+ordered subtasks (T001–T006) inside **one** WP rather than split across multiple WPs.
+`tests/charter/test_org_expected_artifacts.py` is touched by both the RED-first step (T001)
+and the maintenance step (T003); spec-kitty's ownership validator
+(`validate_no_overlap`, `src/specify_cli/ownership/validation.py`) checks file-level overlap,
+not line-level, but that check is not the reason this stayed one WP — the validator exempts
+both codebase-wide-scoped WPs **and** dependency-ordered ("same-lane sequential") WP pairs
+(a directed dependency edge between two WPs means they are never concurrent, so a
+two-WP chain with WP02 depending on WP01 could legitimately share this file too). A
+dependency-ordered two-WP split was therefore technically available here; it was not chosen.
+The single-WP shape was picked on its own merits: six files is small enough that one WP with
+an internally ordered commit sequence is simpler to review than a two-WP dependency chain,
+and it matches `plan.md`'s own linear Phasing more directly than splitting it across an
+artificial WP boundary would. All six subtasks land as part of the mission's single PR (per
+`plan.md`'s "PR Shape" section) — do not open more than one PR and do not create additional
+WPs.
 
 **Commit ordering is load-bearing (charter C-011, spec.md NFR-001).** T001's RED-first test
 commit MUST be its own commit, landing BEFORE T002's implementation commit. The reviewer
@@ -343,7 +350,24 @@ Gate Set For This Mission" section before treating this WP as CI-ready.
    `diff-coverage` job's enforced `critical_paths` list (`--fail-under=90`) — the changed
    lines in `src/charter/org_expected_artifacts.py` (the path join + docstring) must be
    covered at ≥90% by the test suite. The existing and T001-added tests already exercise
-   the changed line directly, so this is expected to pass; confirm rather than assume.
+   the changed line directly, so this is expected to pass — run it locally rather than
+   assuming:
+   ```bash
+   pytest tests/charter/test_org_expected_artifacts.py --cov=charter \
+     --cov-report=xml:coverage.xml -q \
+     && uv run diff-cover coverage.xml \
+       --compare-branch=fix/org-tier-expected-artifacts-3703 \
+       --fail-under=90 --include 'src/charter/*'
+   ```
+   `--compare-branch` names this mission's `planning_base_branch` (see frontmatter) as the
+   diff base — use that ref (or `origin/main` if this checkout has no local
+   `fix/org-tier-expected-artifacts-3703`/`origin/main` ref reachable, fetch it first:
+   `git fetch origin main`). This mirrors the real CI gate
+   (`.github/workflows/ci-quality.yml`'s `diff-coverage` job, "diff-coverage (critical-path,
+   enforced)" step) which aggregates coverage XML from CI's separate fast+integration jobs
+   and compares against `origin/${{ github.base_ref }}`; the single-file `--cov-report`
+   above is the local stand-in for that aggregation, not a literal reproduction of the CI
+   step.
 5. Optional, not a CI-ready precondition (advisory-only gate): `mypy --strict src/charter`
    for typing hygiene.
 6. Confirm the six-file set (C-001) is exactly what changed — `git diff --stat` against the
@@ -366,7 +390,7 @@ confirms exactly six files changed.
 - [ ] No sibling-fallback to the old path exists anywhere in the diff (C-002).
 - [ ] No `pack_validator` reachability gate is added (C-003 — out of scope).
 - [ ] Full five-file target test surface (`pytest tests/charter/test_org_expected_artifacts.py tests/charter/test_mission_type_profiles.py tests/dossier/test_manifest.py tests/dossier/test_rebaseline.py tests/dossier/test_indexer.py`) is GREEN, modulo #3284's pre-existing baseline red (not attributable to this mission — C-006).
-- [ ] TID251 lint clean; Contextive glossary freshness check passes; `src/charter/*` diff-coverage locally confirmed ≥90% on changed lines.
+- [ ] TID251 lint clean; Contextive glossary freshness check passes; `src/charter/*` diff-coverage locally confirmed ≥90% on changed lines via the command in T006 step 4 (`pytest tests/charter/test_org_expected_artifacts.py --cov=charter --cov-report=xml:coverage.xml -q && uv run diff-cover coverage.xml --compare-branch=fix/org-tier-expected-artifacts-3703 --fail-under=90 --include 'src/charter/*'`) — not asserted from memory.
 - [ ] Exactly six files changed in the whole WP diff (C-001) — no scope creep into `resolver.py`, `manifest.py`, `mission_type_profiles.py` (the two untouched callers), or the frozen contract doc under `kitty-specs/up-org-doctrine-consumers-01M05YAB/`.
 - [ ] Per-subtask completion is recorded via `spec-kitty agent tasks mark-status <Txxx> --status done` for T001–T006 (event-sourced; not a hand-ticked checkbox).
 

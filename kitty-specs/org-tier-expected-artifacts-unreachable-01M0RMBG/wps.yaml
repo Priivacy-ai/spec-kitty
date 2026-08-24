@@ -25,7 +25,6 @@ work_packages:
       - C-005
       - C-006
       - C-007
-    cross_cutting: true
     subtasks:
       - T001
       - T002
