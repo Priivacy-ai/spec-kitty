@@ -18,8 +18,10 @@ print of the warning; (3) the strict-mode failure text asserts an unconditional
 "required" claim that `--lenient` immediately disproves, without ever mentioning
 `--lenient`. This mission fixes all three as a four-WP sequence (resolved-path
 correctness → dedup → honest wording → red-first tests including a named repro
-fixture), landing entirely on the CLI/validators/acceptance layer with zero kernel or
-doctrine coupling.
+fixture), landing entirely on the CLI/validators/acceptance layer and introducing no
+NEW kernel or doctrine coupling (one of the four touched files, `acceptance/__init__.py`,
+already imports two kernel utilities for pre-existing, unrelated functionality — see
+"Which seam the change lands on" below for the precise claim).
 
 ## Technical Context
 
@@ -54,7 +56,8 @@ tree only), C-004 (campsite-clean is a plan-phase decision, resolved below).
   path or a second source of truth for "is this path required" — satisfies
   reconcile-don't-duplicate.
 - **Architectural alignment**: change lands entirely within the existing
-  CLI → acceptance → validators layering; no new seam, no kernel/doctrine coupling.
+  CLI → acceptance → validators layering; no new seam, no NEW kernel/doctrine coupling
+  (one touched file already has pre-existing, unrelated kernel imports — see below).
   See "Which seam the change lands on" below.
 - **ATDD-first / red-first** (charter Standing Order 4): WP4 is sequenced explicitly
   to require, per WP, a test that fails on revert — not merely new green coverage. See
@@ -84,13 +87,20 @@ tree only), C-004 (campsite-clean is a plan-phase decision, resolved below).
 - `src/specify_cli/cli/commands/accept.py` — `_print_acceptance_summary` (dedup
   removal), the `accept()` command's `--lenient` `typer.Option` help string.
 
-**No kernel/doctrine coupling.** None of the four files import from `src/kernel/`,
-`src/doctrine/`, or `src/mission_loader/`; `mission.yaml` is read via the existing
-`Mission`/`MissionConfig` objects already passed into these functions today — this
-mission adds no new read of mission config, only reconciles two reads that already
-exist (per SPEC-ARCH-001's correction: only `evaluate_path_conventions` reads
-`mission.config`; `_missing_artifacts` reads a hardcoded literal list and gains no new
-`mission` parameter).
+**No NEW kernel/doctrine coupling.** Precisely: this mission introduces no NEW
+kernel/doctrine import or read anywhere in its diff. It is **not** true that none of the
+four files import from `src/kernel/` — `src/specify_cli/acceptance/__init__.py` already
+imports `kernel.clock.now_utc_stamp` (`:10`) and `kernel.paths.to_posix` (`:14`), both
+live call sites (used for acceptance-timestamp generation and status-artifact basename
+normalization respectively, at `:1367` and `:205`) for pre-existing functionality
+untouched by this mission's WPs. None of the other three files (`validators/paths.py`,
+`acceptance/summary_core.py`, `cli/commands/accept.py`) import from `src/kernel/`,
+`src/doctrine/`, or `src/mission_loader/`, and no WP below adds a new such import.
+`mission.yaml` is read via the existing `Mission`/`MissionConfig` objects already passed
+into these functions today — this mission adds no new read of mission config, only
+reconciles two reads that already exist (per SPEC-ARCH-001's correction: only
+`evaluate_path_conventions` reads `mission.config`; `_missing_artifacts` reads a
+hardcoded literal list and gains no new `mission` parameter).
 
 ## Canonical sources
 
@@ -162,10 +172,16 @@ across the 15 currently-open PRs; #3729 is thematically adjacent (also touches
   down there.
 - Every function this mission's WPs touch is small: `validate_mission_paths` (~80
   lines, single loop, no nested conditionals beyond the existing artifact/build-path
-  branch), `evaluate_path_conventions` (~20 lines), `_missing_artifacts` (~10 lines),
-  `format_errors`/`format_warnings` (~15 lines each), `_print_acceptance_summary`
-  (~15 lines). None are near the 15-ceiling by inspection or by the extraction
-  history above.
+  branch), `evaluate_path_conventions` (~38-39 lines including its docstring —
+  `summary_core.py:110-148`), `_missing_artifacts` (~10 lines), `format_errors`/
+  `format_warnings` (~15 lines each), `_print_acceptance_summary` (~29-31 lines —
+  `accept.py:453-483`). None are near the 15-ceiling *complexity* by inspection or by
+  the extraction history above — `evaluate_path_conventions` and
+  `_print_acceptance_summary` are longer in raw line count than the earlier estimate
+  in this section, but neither has nested branching or cyclomatic complexity anywhere
+  near the charter's 15-ceiling (each is a short sequence of guard clauses / linear
+  prints, not deep nesting), so the "not warranted" conclusion below still holds at
+  the corrected sizes.
 - Duplicated-literal check (>=3x threshold) on the four touched files: `"Optional
   artifacts missing"` occurs exactly twice (`summary_core.py:160`,
   `accept.py:478`) — WP2/WP3 removes one of those two occurrences as the functional
@@ -200,7 +216,9 @@ The four touched files (`validators/paths.py`, `acceptance/__init__.py`,
   list — `src/kernel/*`, `src/doctrine/*`, `src/charter/*`, `src/specify_cli/status/*`,
   `src/specify_cli/lanes/branch_naming.py`, `src/specify_cli/dashboard/handlers/*`,
   `src/specify_cli/dashboard/scanner.py`, `src/specify_cli/merge/*`,
-  `src/runtime/next/*`, `src/mission_runtime/*` (`.github/workflows/ci-quality.yml:3327-3345`).
+  `src/runtime/next/*`, `src/mission_runtime/*` (`.github/workflows/ci-quality.yml:3349-3372`,
+  the `critical_paths=( ... )` array itself — re-verify at implementation time since CI
+  workflow line numbers drift with every edit to the file).
   None of `validators/**`, `acceptance/**`, or `cli/**` is in that list. The *only*
   other diff-coverage step ("full-diff, advisory") runs `diff-cover ... || true` —
   genuinely non-blocking, its failure cannot fail the job
@@ -224,11 +242,11 @@ and each downstream job's `if:` condition.
 
 **Path-filter groups this diff falls into:**
 - `src/specify_cli/validators/**` → `governance` filter group
-  (`.github/workflows/ci-quality.yml:509`).
+  (`.github/workflows/ci-quality.yml:510`).
 - `src/specify_cli/acceptance/**` → its own `acceptance` filter group
   (`.github/workflows/ci-quality.yml:461-462`).
 - `src/specify_cli/cli/**` and `tests/specify_cli/cli/**` → `cli` filter group
-  (`.github/workflows/ci-quality.yml:317-320`).
+  (`.github/workflows/ci-quality.yml:318-321`).
 - `tests/agent/**` → its own `agent` filter group (`.github/workflows/ci-quality.yml:437-439`).
 - `tests/characterization/**` → routed into the `core_misc` filter group (explicit
   comment in the workflow naming this exact directory,
@@ -314,10 +332,27 @@ into the tracer files per Standing Order 3.
 actual filesystem location tested via `full_path.exists()`. For an artifact-tagged
 token, `full_path = feature_dir / candidate`; for everything else,
 `full_path = project_root / candidate`. `full_path` is discarded after the
-`.exists()` check instead of being reported.
+`.exists()` check instead of being reported. The very next line, `:208`
+(`result.warnings.append(f"{mission.name} expects {key} path: {relative_path} (not
+found)")`), builds the primary operator-visible sentence from the **same** bare
+`relative_path` token — it has the identical defect and must be fixed together with
+line 207, not as an afterthought: `format_errors()`/`format_warnings()` (`:61-78`,
+`:44-58`) render `self.warnings` and `self.suggestions` as their content lines;
+`self.missing_paths` is never rendered directly anywhere in the codebase (its only
+other reader is `suggest_directory_creation`, which builds `self.suggestions`). Fixing
+only line 207 would leave the actual first-read sentence — "`{mission.name} expects
+{key} path: {relative_path} (not found)`" — printing the wrong (bare-token) location
+forever.
 
-**Fix direction**: compute and append a *resolved, reportable* string derived from
-`full_path` instead of the bare `relative_path`, while preserving:
+**Fix direction**: compute the resolved, reportable string **once**, before either
+`append` call, and reuse that single local value for **both**:
+- `result.missing_paths.append(resolved)` (replacing line 207's
+  `result.missing_paths.append(relative_path)`), and
+- `result.warnings.append(f"{mission.name} expects {key} path: {resolved} (not
+  found)")` (replacing line 208's `{relative_path}` interpolation with the same
+  `resolved` value) —
+
+while preserving:
 - the trailing-slash convention `suggest_directory_creation` depends on (`path_str.
   endswith("/")` decides `mkdir -p` vs. `touch` — the resolved string must carry the
   same trailing slash the declared token had, since `full_path` as a bare `Path`
@@ -330,19 +365,28 @@ token, `full_path = feature_dir / candidate`; for everything else,
 - the `candidate.is_absolute()` case and the no-`paths:`-declared no-op case
   unaffected, per spec Edge Cases.
 
-This changes what value lands in `result.missing_paths` — which
-`suggest_directory_creation` and both `format_errors()`/`format_warnings()` already
-consume unmodified, so the reporting fix flows through both strict and lenient text
-for free once the stored string is correct.
+This changes what value lands in both `result.missing_paths` **and**
+`result.warnings`. `suggest_directory_creation` consumes `missing_paths` (for the
+`mkdir -p`/`touch` suggestions), while `format_errors()`/`format_warnings()` consume
+`warnings` and `suggestions` — **not** `missing_paths` directly — so both call sites
+must be corrected together for the reporting fix to reach the operator-visible text;
+correcting only `missing_paths` would leave the primary rendered sentence wrong.
 
 **Covers**: FR-001, SC-001, User Story 1 (both Acceptance Scenarios).
 
 **Revert test** (must fail if WP1 is reverted): a test asserting, for a
 mission-artifact-tagged path convention (`contracts/`) missing under a real
-`feature_dir` distinct from `project_root`, that `PathValidationResult.missing_paths`
-and `.suggestions` both contain the resolved `feature_dir`-relative string (e.g.
-`kitty-specs/<slug>/contracts/`) and do **not** contain the bare token `contracts/`
-alone. Lives in `tests/specify_cli/acceptance/` (or `tests/agent/test_validators_unit.py`,
+`feature_dir` distinct from `project_root`, that:
+1. `PathValidationResult.missing_paths` and `.suggestions` both contain the resolved
+   `feature_dir`-relative string (e.g. `kitty-specs/<slug>/contracts/`) and do **not**
+   contain the bare token `contracts/` alone, **and**
+2. `PathValidationResult.warnings` (or the full rendered `format_errors()`/
+   `format_warnings()` output) also contains the resolved string and does **not**
+   contain the bare token — this second assertion is the one that actually falsifies
+   FR-001's defect, since `warnings`/`suggestions`, not `missing_paths`, are what
+   `format_errors()`/`format_warnings()` render.
+
+Lives in `tests/specify_cli/acceptance/` (or `tests/agent/test_validators_unit.py`,
 matching where `validate_mission_paths` is already unit-tested) — new test, red
 against current `main`/pre-WP1 code (asserts on the corrected value, which the
 current code cannot produce), green once WP1 lands.
@@ -350,9 +394,9 @@ current code cannot produce), green once WP1 lands.
 ### WP2 — stop double-reporting
 
 **Files**: `src/specify_cli/acceptance/summary_core.py` (`evaluate_path_conventions`,
-`:129-148`) + `src/specify_cli/acceptance/__init__.py` (call site `:1049-1056`) +
+`:110-148`) + `src/specify_cli/acceptance/__init__.py` (call site `:1049-1056`) +
 `src/specify_cli/cli/commands/accept.py` (`_print_acceptance_summary`, remove the
-duplicate print at `:474-480`).
+duplicate print at `:476-481`).
 
 **Root cause** (confirmed): `software-dev/mission.yaml` declares `contracts/` at
 both `artifacts.optional[]` (`:145`) and `paths.deliverables` (`:154`). Per
@@ -383,16 +427,26 @@ as specified, not re-derived)**:
   this is a documented side effect, not a pass-through parameter."*
 - **Token normalization**: `optional_missing`'s entries are bare, `feature_dir`-
   relative strings (e.g. `"contracts"`, from `_missing_artifacts`'s
-  `str(p.relative_to(feature_dir))`); `missing_paths` entries are, post-WP1, more
-  qualified resolved strings (e.g. `"kitty-specs/<slug>/contracts/"`). The
-  comparison normalizes both sides via the module-local helper pattern already
-  present in `validators/paths.py` (`_normalize_path_token` — strip + strip("/")),
-  applied to the **basename-independent trailing path segment**, i.e. compare
-  `optional_missing`'s bare token against `Path(missing_path_entry).name` (or the
-  last path component) after slash-stripping, not full-string equality — this is the
-  concrete comparable-token rule spec.md's Key Entities section requires WP2 to
-  define. Example: `"contracts"` (bare) vs. `"kitty-specs/<slug>/contracts/"`
-  (resolved) both normalize to `"contracts"` for the comparison.
+  `str(p.relative_to(feature_dir))` at `acceptance/__init__.py:594`); `missing_paths`
+  entries are, post-WP1, resolved strings relative to `project_root` (e.g.
+  `"kitty-specs/<slug>/contracts/"`). Rather than comparing basenames/last-path-
+  components (which cannot distinguish two future dual-declared tokens sharing a
+  final segment, e.g. a hypothetical `docs/contracts` optional artifact vs. an
+  unrelated `api/contracts` declared path — spec.md's own Key Entities wording
+  suggests exactly this comparable-token form), normalize **both sides relative to
+  `feature_dir`, slash-stripped**: for a `missing_paths` entry that WP1 resolved
+  against `feature_dir` (an artifact-tagged token), re-derive its `feature_dir`-
+  relative form (mirroring `optional_missing`'s own `str(p.relative_to(feature_dir))`
+  shape) via the module-local helper pattern already present in `validators/paths.py`
+  (`_normalize_path_token` — strip + `strip("/")`), then compare that against
+  `optional_missing`'s bare token with full-string equality. This closes the
+  basename-collision risk at no added cost, since WP1's own fix already computes a
+  feature_dir-relative candidate for every artifact-tagged path before falling back to
+  `project_root`-relative. Example: `"contracts"` (bare, `optional_missing`) vs.
+  `"kitty-specs/<slug>/contracts/"` (resolved, `missing_paths`) both normalize to
+  `"contracts"` relative to `feature_dir` for the comparison — identical result to a
+  basename match for today's single-segment fixture, but correct for a future
+  multi-segment token where basename matching would collide.
 - **Propagation mechanism (pinned, not left to WP2's judgment)**: because the return
   arity cannot change, and `collect_feature_summary` binds `missing_optional` once
   and reuses that list object for both `build_warnings(...)` and the
@@ -401,13 +455,25 @@ as specified, not re-derived)**:
   `optional_missing_to_dedup=missing_optional` into `evaluate_path_conventions`
   **before** the `build_warnings(...)` call that currently follows it, so the mutated
   list is what `build_warnings` and the later `AcceptanceSummary(...)` construction
-  both see.
+  both see. **The mutation fires ONLY inside the `if strict_metadata:` branch** of
+  `evaluate_path_conventions` (`summary_core.py:147`) — never unconditionally before
+  that branch. This matches spec.md's own Acceptance Scenario 1 for FR-002, which is
+  scoped explicitly to "default (strict) mode": in lenient mode, `validate_mission_paths`
+  is still called non-strict and `path_violations` is always `[]` (the function's
+  `strict_metadata=False` branch returns `format_warnings()`'s text instead), so the
+  double-*severity* contradiction FR-002 fixes cannot occur there — only a cosmetic
+  double-mention would be theoretically possible, and this mission does not touch it.
+  Concretely: `optional_missing_to_dedup` is threaded into the call unconditionally
+  (the parameter is always passed the same list reference), but the *mutation logic
+  inside* `evaluate_path_conventions` only executes the dedup when it is also about to
+  return the `strict_metadata=True` branch's `path_violations`; the `strict_metadata=False`
+  branch returns before ever consulting `optional_missing_to_dedup`.
 - `path_violations` keeps rendering the **full, unfiltered** `missing_paths` inside
   `format_errors()` exactly as today — only `optional_missing` loses the redundant
   entry. This is what keeps `path_violations` (not `optional_missing`) as the side
   that wins, and keeps `AcceptanceSummary.ok` unchanged for today's fixture (C-001).
 
-**Dedup print removal**: `cli/commands/accept.py:474-480`'s
+**Dedup print removal**: `cli/commands/accept.py:476-481`'s
 `if summary.optional_missing: console.print("\n[yellow]Optional artifacts missing:...")`
 block is deleted outright — `_print_acceptance_warnings` (called immediately above
 it) already renders the identical "Optional artifacts missing: ..." line from
@@ -433,7 +499,12 @@ never both, and (b) `AcceptanceSummary.ok is False` (the C-001 pass/fail-boundar
 guard — Scenario 2 of User Story 2 made concrete). A second, narrower test asserts
 `_print_acceptance_summary`'s console output contains the literal substring
 `"Optional artifacts missing"` at most once (FR-003 / Scenario 3 of User Story 2,
-directly targeting the removed print block).
+directly targeting the removed print block). A third, lenient-mode test on the same
+dual-declared fixture (`strict_metadata=False`) asserts `AcceptanceSummary.optional_missing`
+is left **untouched** by the dedup (still contains `"contracts"`) — pinning that the
+mutation fires only inside the strict-mode branch, per the Propagation mechanism note
+above, and giving spec.md's Acceptance Scenario 1 strict-mode scoping an explicit
+lenient-mode counterpart-check rather than leaving it implicit.
 
 ### WP3 — honest remediation text + flag discoverability
 
@@ -447,21 +518,29 @@ resolved-path world).
 
 **Design (combining three of #3730's four candidate directions, per the tracer's
 settled decision — not re-derived here)**:
-- `format_errors()` accepts a mode-signal — a boolean parameter (e.g.
-  `strict_mode: bool` or equivalent) threaded from the caller
-  (`evaluate_path_conventions` already knows `strict_metadata` at its call site) —
-  rather than a hardcoded flag-name string baked into the validator, to avoid
-  validator/CLI coupling per the tracer's explicit instruction. `PathValidationError`
-  (raised only from the `strict=True` code path in `validate_mission_paths`) always
-  passes the strict-mode variant since it can only be reached when strict.
+- `format_errors()` gets **no new parameter**. `grep -rn '\.format_errors(' src/`
+  confirms exactly two call sites in the whole codebase — `PathValidationError.__init__`
+  (`paths.py:24`, reached only via `validate_mission_paths(..., strict=True)`) and
+  `evaluate_path_conventions`'s `if strict_metadata:` branch (`summary_core.py:147`,
+  the function's *other* branch calls `format_warnings()` instead, never
+  `format_errors()`) — both already reachable only when the caller is in the
+  strict/blocking branch. Since `format_errors()` is by construction only ever invoked
+  in the strict/blocking context (that is the entire reason the strict/lenient split
+  exists as two separate methods), a mode-signal boolean parameter would be a
+  compile-time-constant argument at every call site — an untested, unreachable `False`
+  branch the charter's Sonar Expectations forbid. Instead, the new `--lenient`-pointer
+  wording is added **unconditionally** to `format_errors()`'s existing trailing prose
+  — no new parameter, no branch, no risk of dead/untested code.
 - Replace the unconditional line `"These directories are required by the active
-  mission. Create them before continuing."` with wording conditioned on the actual
-  mode in effect for the run, that (a) does not claim an unconditional requirement,
-  and (b) names `--lenient` as a remedy **before** the `mkdir -p` suggestion listed
-  above it, with `mkdir -p` explicitly marked secondary/optional — concretely
-  following spec's own AC4 wording pattern: state the `--lenient` pointer first,
-  then "... or, if you want to adopt the convention: `mkdir -p ...`" for each
-  suggestion already present in `self.suggestions`.
+  mission. Create them before continuing."` with new fixed wording — unconditional in
+  the sense of "always this text" (no branch on mode, since `format_errors()` is
+  itself only ever reached from strict mode, per above) but honest in content: it (a)
+  does not claim an unconditional requirement, and (b) names `--lenient` as a remedy
+  **before** the `mkdir -p` suggestion listed above it, with `mkdir -p` explicitly
+  marked secondary/optional — concretely following spec's own AC4 wording pattern:
+  state the `--lenient` pointer first, then "... or, if you want to adopt the
+  convention: `mkdir -p ...`" for each suggestion already present in
+  `self.suggestions`.
 - `suggest_directory_creation`'s list content and `format_warnings()`'s consumption
   of it are **untouched** — WP3 only changes the trailing prose
   `format_errors()` appends after the shared `suggestions` list, never the list
@@ -473,7 +552,12 @@ settled decision — not re-derived here)**:
 
 **Covers**: FR-004, FR-005, FR-006, FR-008 (regression guard only — `--lenient`'s
 existing downgrade-to-warning behavior is exercised by the pinned lenient test and
-must keep passing unmodified), SC-003, User Story 3 (all five Acceptance Scenarios).
+must keep passing unmodified), NFR-003 (Terminology canon compliance — the new
+`format_errors()` trailing prose and the widened `--lenient` help string use
+"Mission"/"mission" only, never "feature"/"feature*"; independently enforced by
+`tests/architectural/test_no_legacy_terminology.py`, part of the `core_misc` job that
+this diff's `governance`/`acceptance` filter membership already triggers per Gate set
+above), SC-003, User Story 3 (all five Acceptance Scenarios).
 
 **Revert test** (must fail if WP3 is reverted): a test on `format_errors()`'s output
 for a missing declared path in strict mode asserting (a) the string `"--lenient"`
@@ -539,7 +623,7 @@ check above rather than by a further meta-test.
 | WP | Revert test (fails if WP is reverted) | Location |
 |----|----------------------------------------|----------|
 | WP1 | Asserts `missing_paths`/`suggestions` contain the resolved `feature_dir`-relative path, not the bare token, for a real artifact-tagged mission fixture. | `tests/specify_cli/acceptance/` or `tests/agent/test_validators_unit.py` |
-| WP2 | Asserts `"contracts"` surfaces through exactly one of `optional_missing`/`path_violations` AND `AcceptanceSummary.ok is False` for the dual-declared fixture; plus a console-render test asserting `"Optional artifacts missing"` prints at most once. | `tests/specify_cli/acceptance/`, `tests/specify_cli/cli/commands/` |
+| WP2 | Asserts `"contracts"` surfaces through exactly one of `optional_missing`/`path_violations` AND `AcceptanceSummary.ok is False` for the dual-declared fixture; plus a console-render test asserting `"Optional artifacts missing"` prints at most once; plus a lenient-mode test on the same fixture asserting `optional_missing` is left untouched by the dedup. | `tests/specify_cli/acceptance/`, `tests/specify_cli/cli/commands/` |
 | WP3 | Asserts `format_errors()` output contains `"--lenient"` before any `mkdir -p`, no unconditional "required" claim, `--help` mentions path conventions; plus an unmodified re-run of the pinned lenient-render test as the #2330 non-regression guard. | `tests/agent/test_validators_unit.py`, `tests/specify_cli/cli/commands/` |
 | WP4 | The FR-007 fixture itself (`test_accept_contracts_path_repro.py`), verified red-on-pre-fix/green-on-post-fix by the reversibility check described above. | `tests/specify_cli/acceptance/test_accept_contracts_path_repro.py` (new) |
 
