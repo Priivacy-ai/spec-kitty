@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-24T09:15:20.678456+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "0dfb66a7226bfa9852ad80b36478311af90d2456"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-24T09:15:20.678456+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "0dfb66a7226bfa9852ad80b36478311af90d2456",
   "coordination_branch": "kitty/mission-exclude-canceled-work-packages-from-lanes-01M0S6W4",
   "created_at": "2026-08-24T06:21:09.762802+00:00",
   "flattened": false,
