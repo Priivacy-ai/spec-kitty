@@ -38,13 +38,13 @@ from typing import Any, cast
 from typing import Literal
 
 from spec_kitty_events import (
-    ArtifactIdentity,
-    ContentHashRef,
-    LocalNamespaceTuple,
-    MissionDossierArtifactIndexedPayload,
-    MissionDossierArtifactMissingPayload,
-    MissionDossierParityDriftDetectedPayload,
-    MissionDossierSnapshotComputedPayload,
+    ArtifactIdentity as ArtifactIdentity,
+    ContentHashRef as ContentHashRef,
+    LocalNamespaceTuple as LocalNamespaceTuple,
+    MissionDossierArtifactIndexedPayload as MissionDossierArtifactIndexedPayload,
+    MissionDossierArtifactMissingPayload as MissionDossierArtifactMissingPayload,
+    MissionDossierParityDriftDetectedPayload as MissionDossierParityDriftDetectedPayload,
+    MissionDossierSnapshotComputedPayload as MissionDossierSnapshotComputedPayload,
     ProvenanceRef,
 )
 
