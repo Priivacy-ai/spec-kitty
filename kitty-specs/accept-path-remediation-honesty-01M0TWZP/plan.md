@@ -262,6 +262,13 @@ assumed from the group name):
   `governance` alone even before considering `cli`.
 - `fast-tests-agent` and `integration-tests-agent` — gated on `agent == 'true'`
   (`ci-quality.yml:2328`, `:2365`).
+- `arch-adversarial` (3-shard matrix, `arch_shard_1/2/3`) — always-on regardless of
+  path-filter group: it carries no dorny filter-group `if:` gate at all
+  (`ci-quality.yml:2082-2086`), running on every push/PR via
+  `-m '<shard> and not windows_ci and (git_repo or integration or architectural) and
+  not timing'` (`ci-quality.yml:2196`). This is the job that actually runs
+  `tests/architectural/test_no_legacy_terminology.py` for NFR-003 below — see WP3 —
+  not `core_misc`.
 - `kernel-tests` and the mission-loader coverage job do **not** run for this diff
   (gated on `kernel` and `next || core_misc || platform` respectively — this diff
   matches neither); confirmed above under Coverage floors.
@@ -372,6 +379,35 @@ This changes what value lands in both `result.missing_paths` **and**
 must be corrected together for the reporting fix to reach the operator-visible text;
 correcting only `missing_paths` would leave the primary rendered sentence wrong.
 
+**New field feeding WP2's dedup (this WP's own addition — additive on top of
+`spec.md`'s Key Entities contract, which pins `missing_paths`/`warnings`/
+`suggestions` but does not forbid a further field)**: WP2's token-normalization step
+(see WP2 below) needs a `feature_dir`-relative counterpart to each `missing_paths`
+entry, and nothing available to `evaluate_path_conventions` today can derive one from
+`missing_paths` alone — `missing_paths` entries are `project_root`-relative resolved
+strings, and `_normalize_path_token` only slash-strips, it does not compute a
+relative path. Rather than have WP2 re-derive one, WP1 computes it directly, in the
+same loop iteration where `candidate`/artifact-tagging is already known (`:194-208`),
+since it is trivial there. Add a new dataclass field,
+**`missing_paths_feature_relative: list[str] = field(default_factory=list)`**
+(alongside `PathValidationResult`'s existing list fields, `:34-37`), parallel-
+populated alongside `result.missing_paths.append(resolved)`:
+- For an artifact-tagged entry (the `elif _normalize_path_token(declared[key]) in
+  artifact_tokens:` branch, `:198-200`), append `_normalize_path_token(relative_path)`
+  — the pre-resolution declared token itself, e.g. `"contracts"`. It is already
+  `feature_dir`-relative by construction: `full_path = feature_dir / candidate` is
+  built directly from it, so no further relative-path computation is needed.
+- For a build/repo-root entry (the `else:` branch, `:201-202`), append
+  `_normalize_path_token(resolved)` instead — a defined, harmless placeholder that
+  keeps the new list parallel-indexed with `missing_paths`. It can never spuriously
+  match a real `optional_missing` token in WP2's comparison, since `optional_missing`
+  entries are only ever produced for genuine mission artifacts, never build/repo-root
+  paths.
+
+`evaluate_path_conventions` already holds the full `path_result` object returned by
+`validate_mission_paths` (`summary_core.py:137-143`), not just `missing_paths` in
+isolation, so this new field is available to it at no extra plumbing cost.
+
 **Covers**: FR-001, SC-001, User Story 1 (both Acceptance Scenarios).
 
 **Revert test** (must fail if WP1 is reverted): a test asserting, for a
@@ -385,6 +421,11 @@ mission-artifact-tagged path convention (`contracts/`) missing under a real
    contain the bare token — this second assertion is the one that actually falsifies
    FR-001's defect, since `warnings`/`suggestions`, not `missing_paths`, are what
    `format_errors()`/`format_warnings()` render.
+
+`missing_paths_feature_relative` itself has no independent operator-visible behavior,
+so this revert test does not need to assert on it directly — its correctness is
+exercised by WP2's revert test below, the first consumer whose own dedup assertions
+depend on its values being right.
 
 Lives in `tests/specify_cli/acceptance/` (or `tests/agent/test_validators_unit.py`,
 matching where `validate_mission_paths` is already unit-tested) — new test, red
@@ -429,24 +470,31 @@ as specified, not re-derived)**:
   relative strings (e.g. `"contracts"`, from `_missing_artifacts`'s
   `str(p.relative_to(feature_dir))` at `acceptance/__init__.py:594`); `missing_paths`
   entries are, post-WP1, resolved strings relative to `project_root` (e.g.
-  `"kitty-specs/<slug>/contracts/"`). Rather than comparing basenames/last-path-
-  components (which cannot distinguish two future dual-declared tokens sharing a
-  final segment, e.g. a hypothetical `docs/contracts` optional artifact vs. an
-  unrelated `api/contracts` declared path — spec.md's own Key Entities wording
-  suggests exactly this comparable-token form), normalize **both sides relative to
-  `feature_dir`, slash-stripped**: for a `missing_paths` entry that WP1 resolved
-  against `feature_dir` (an artifact-tagged token), re-derive its `feature_dir`-
-  relative form (mirroring `optional_missing`'s own `str(p.relative_to(feature_dir))`
-  shape) via the module-local helper pattern already present in `validators/paths.py`
-  (`_normalize_path_token` — strip + `strip("/")`), then compare that against
-  `optional_missing`'s bare token with full-string equality. This closes the
-  basename-collision risk at no added cost, since WP1's own fix already computes a
-  feature_dir-relative candidate for every artifact-tagged path before falling back to
-  `project_root`-relative. Example: `"contracts"` (bare, `optional_missing`) vs.
-  `"kitty-specs/<slug>/contracts/"` (resolved, `missing_paths`) both normalize to
-  `"contracts"` relative to `feature_dir` for the comparison — identical result to a
-  basename match for today's single-segment fixture, but correct for a future
-  multi-segment token where basename matching would collide.
+  `"kitty-specs/<slug>/contracts/"`) — a form `_normalize_path_token`'s plain
+  slash-strip cannot turn into a `feature_dir`-relative one by itself (it has no
+  `feature_dir` prefix to strip and performs no relative-path computation). Rather
+  than comparing basenames/last-path-components (which cannot distinguish two future
+  dual-declared tokens sharing a final segment, e.g. a hypothetical `docs/contracts`
+  optional artifact vs. an unrelated `api/contracts` declared path — spec.md's own
+  Key Entities wording suggests exactly this comparable-token form), normalize
+  **both sides relative to `feature_dir`, slash-stripped**, consuming WP1's new
+  `PathValidationResult.missing_paths_feature_relative` field (see WP1 above) rather
+  than re-deriving a relative path from `missing_paths` here: build a set of
+  `_normalize_path_token(token)` over `path_result.missing_paths_feature_relative`
+  (each entry is already `feature_dir`-relative by construction — WP1 populates it
+  directly from the declared token for artifact-tagged entries — so
+  `_normalize_path_token` here only performs its ordinary slash-strip, not a
+  re-derivation), then drop from `optional_missing_to_dedup` any entry whose own
+  `_normalize_path_token(entry)` is in that set. This closes the basename-collision
+  risk at no added cost, since WP1's new field is populated in the same loop that
+  already knows artifact-tagging per path. Example: `"contracts"` (bare,
+  `optional_missing_to_dedup`) matches `path_result.missing_paths_feature_relative`'s
+  corresponding entry, also `"contracts"` (populated by WP1 from the declared token
+  `"contracts/"`) — both normalize to `"contracts"`, correctly identifying the same
+  fact as `missing_paths`'s parallel (but `project_root`-relative) entry
+  `"kitty-specs/<slug>/contracts/"`, without ever needing to parse that resolved
+  string. This is correct for a future multi-segment token too (e.g.
+  `docs/contracts`), where a basename-only match would have collided.
 - **Propagation mechanism (pinned, not left to WP2's judgment)**: because the return
   arity cannot change, and `collect_feature_summary` binds `missing_optional` once
   and reuses that list object for both `build_warnings(...)` and the
@@ -456,8 +504,9 @@ as specified, not re-derived)**:
   **before** the `build_warnings(...)` call that currently follows it, so the mutated
   list is what `build_warnings` and the later `AcceptanceSummary(...)` construction
   both see. **The mutation fires ONLY inside the `if strict_metadata:` branch** of
-  `evaluate_path_conventions` (`summary_core.py:147`) — never unconditionally before
-  that branch. This matches spec.md's own Acceptance Scenario 1 for FR-002, which is
+  `evaluate_path_conventions` (`summary_core.py:146-147`, the condition at `:146` and
+  its body at `:147`) — never unconditionally before that branch. This matches
+  spec.md's own Acceptance Scenario 1 for FR-002, which is
   scoped explicitly to "default (strict) mode": in lenient mode, `validate_mission_paths`
   is still called non-strict and `path_violations` is always `[]` (the function's
   `strict_metadata=False` branch returns `format_warnings()`'s text instead), so the
@@ -555,9 +604,17 @@ existing downgrade-to-warning behavior is exercised by the pinned lenient test a
 must keep passing unmodified), NFR-003 (Terminology canon compliance — the new
 `format_errors()` trailing prose and the widened `--lenient` help string use
 "Mission"/"mission" only, never "feature"/"feature*"; independently enforced by
-`tests/architectural/test_no_legacy_terminology.py`, part of the `core_misc` job that
-this diff's `governance`/`acceptance` filter membership already triggers per Gate set
-above), SC-003, User Story 3 (all five Acceptance Scenarios).
+`tests/architectural/test_no_legacy_terminology.py` — this test carries only
+`architectural`/`git_repo`/`docs_scoped` pytest markers, so it is invoked by path only
+inside `fast-tests-docs` (`ci-quality.yml:1886`, gated on the `docs` filter, which this
+diff does not touch) and is otherwise picked up solely by `arch-adversarial`
+(`ci-quality.yml:2082-2115`), the always-on, unconditional job (sharded by
+`arch_shard_1/2/3` markers, no dorny filter-group `if:` gate) that an in-repo comment
+(`ci-quality.yml:1928-1930`) confirms is where the `architectural`-marked shard was
+extracted to, specifically so it would NOT be re-added to `core_misc`'s
+`integration-tests-core-misc` job. So this NFR is enforced by `arch-adversarial`, not
+by `core_misc`/the `governance`/`acceptance` filter membership above), SC-003, User
+Story 3 (all five Acceptance Scenarios).
 
 **Revert test** (must fail if WP3 is reverted): a test on `format_errors()`'s output
 for a missing declared path in strict mode asserting (a) the string `"--lenient"`
@@ -599,9 +656,14 @@ requirement without requiring a reviewer to read the implementation diff first.
    `AcceptanceSummary.optional_missing` / the rendered `path_violations` — never both
    (fails pre-WP2, passes post-WP2).
 3. A `--json`-mode assertion (CLI invocation with `--json`) confirming
-   `missing_optional` and `path_violations` in the JSON payload reflect the same
+   `optional_missing` and `path_violations` in the JSON payload reflect the same
    single-severity resolution as the console/summary-object path — no format-specific
-   drift (FR-002 Edge Case / Scenario 4 of User Story 2).
+   drift (FR-002 Edge Case / Scenario 4 of User Story 2). (The JSON key is
+   `optional_missing`, confirmed at `AcceptanceSummary.to_dict()`,
+   `acceptance/__init__.py:430` — not `missing_optional`, the wording spec.md's own
+   Acceptance Scenario 4 uses; that spec.md-inherited terminology slip is out of scope
+   for this plan-phase fix (spec.md is gated PASSED) and is flagged here for a future
+   spec correction pass.)
 
 **Reversibility check** (part of WP4's own validation, not a separate step): confirm
 by inspection/local `git stash` of WP1+WP2's diff that this fixture's first two
