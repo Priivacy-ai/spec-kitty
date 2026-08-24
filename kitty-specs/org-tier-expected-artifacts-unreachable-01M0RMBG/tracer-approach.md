@@ -42,7 +42,7 @@ would read as changing test data with no visible reason yet.
   org-tier resolver in `resolver.py` checks two locations. I did not re-litigate this in the
   plan; I carried the decision forward and cited C-002 directly rather than re-arguing it from
   first principles. I did independently verify the "no sibling resolver checks two locations"
-  claim by reading `_resolve_asset` and `_resolve_mission_config` myself (both check exactly
+  claim by reading `_resolve_asset` and `resolve_mission` myself (both check exactly
   one org-tier location each, `org_root / "missions" / <name> / ...`), which confirmed rather
   than merely repeated the spec's framing.
 - **A validator gate alongside the resolver fix.** Also already decided out of scope (C-003,
