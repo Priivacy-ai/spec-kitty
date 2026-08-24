@@ -5,8 +5,14 @@ from pathlib import Path
 
 import pytest
 
+import pytest
+
 from specify_cli.context.mission_resolver import ResolvedMission
 from specify_cli.missions import operation_context
+
+# Pure-logic FS fixtures (no subprocess/git invocation): selected by the
+# fast-tests-missions CI job (`-m "fast and not windows_ci"`).
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _mission(root: Path, mission_id: str) -> ResolvedMission:

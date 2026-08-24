@@ -14,6 +14,7 @@ from typing_extensions import Annotated
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root
 from specify_cli.missions.operation_context import (
+    MissionOperationContext,
     MissionSurfaceConflictError,
     resolve_mission_operation_context,
 )
@@ -128,7 +129,7 @@ def resolve_context(
         if not raw_handle:
             raise ActionContextError("MISSING_MISSION", "--mission <slug> is required")
         try:
-            operation = resolve_mission_operation_context(
+            operation: MissionOperationContext = resolve_mission_operation_context(
                 repo_root,
                 raw_handle,
                 cwd=Path.cwd(),
