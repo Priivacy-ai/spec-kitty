@@ -176,3 +176,47 @@ Confirms `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1` is necessary-but-not-sufficient miti
 SK-72 on this command family — the command completes and the state write is durable, but the
 auto-commit half of the operation can silently no-op under the same cutover stall, requiring
 an explicit follow-up `safe-commit` every time.
+
+## F7 — SK-69 reproduced in its *absent-refs* variant; only the lane-diff-gated transitions need `--force` (verified first-hand)
+
+Recording the WP01 lane transitions after reviewer approval, `agent status emit` refused:
+
+```
+Error: WP01 cannot move to for_review: no implementation commit on lane lane-a
+(kitty/mission-org-tier-expected-artifacts-unreachable-01M0RMBG-lane-a) beyond
+fix/org-tier-expected-artifacts-3703. Commit the work in the lane worktree first,
+or pass --force if there is genuinely nothing to commit.
+```
+
+**This mission is the ORIGINAL SK-69 shape, not #3705's variant.** Both refs are simply
+absent here:
+
+```
+git rev-parse kitty/mission-org-tier-expected-artifacts-unreachable-01M0RMBG        -> fatal: Needed a single revision
+git rev-parse kitty/mission-org-tier-expected-artifacts-unreachable-01M0RMBG-lane-a -> fatal: Needed a single revision
+```
+
+`meta.json` records `topology: single_branch` and `target_branch:
+fix/org-tier-expected-artifacts-3703`, where all seven WP01 commits
+(`d817c7d02..df979f6d8`) live — the topology's normal path. So the guard compares two refs
+the mission never had.
+
+**Disposition**: followed SK-69's recorded disposition rather than re-litigating it — the
+CLI's own documented `--force --reason`, with a reason stating this mission's actual facts
+(absent refs, not same-SHA refs). This goes through the CLI, validates against the state
+machine, and lands an auditable reason in `status.events.jsonl`. It is not a hand-edit. The
+guard's *intent* — do not advance a WP that did no work — was demonstrably satisfied: the
+work is committed and an independent reviewer confirmed RED-first **empirically**, by
+reverting `src/charter/org_expected_artifacts.py:88` and observing 19 failures across all
+six files.
+
+**Corroborates and narrows SK-69**: exactly as #3705 measured, `--force` was needed ONLY for
+`in_progress→for_review` and `for_review→in_review`. The final
+`--to approved --review-result-json '{...}'` succeeded **cleanly, no force**. Two independent
+missions, two different ref topologies (absent here, same-SHA there), same narrow fix surface:
+only the lane-diff check is broken.
+
+**Side effect worth knowing**: each `status emit` auto-commits a
+`chore(spec-kitty): status transition WP01` commit. Two landed here (`e984d0c06`,
+`2dcca651a`). They are bookkeeping only — `git diff df979f6d8..HEAD -- src/ tests/` is empty,
+so the reviewer's verdict still applies to byte-identical implementation content.
