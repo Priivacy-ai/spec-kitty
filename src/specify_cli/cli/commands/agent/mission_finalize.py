@@ -1978,19 +1978,37 @@ def _preserve_or_capture_planning_commit_sha(
     historical recompute + re-capture behavior is unchanged — every
     pre-execution re-finalize keeps regenerating freely (C-005).
 
-    Preserve is the default resolution. Refuse (raise ``typer.Exit(1)`` before
-    writing any bytes) only in the one case preservation cannot be done
-    safely: execution has begun yet no on-disk ``lanes.json`` exists to read
-    the recorded SHA from — an inconsistent state finalize should never
-    reach, since bootstrapping the event log itself requires a prior
-    successful finalize run that already wrote ``lanes.json``.
+    An existing manifest is preserved when the canonical snapshot proves
+    genuine historical execution or its current projection contains canceled
+    work. The latter keeps a cancellation finalization anchored to the manifest
+    that established the package's prior planning context, even for a
+    planned-to-canceled transition. An all-planned, never-executed mission is
+    still freely recomputable and recaptures the current target tip.
+
+    Refuse (raise ``typer.Exit(1)`` before writing any bytes) only when genuine
+    execution history exists but no on-disk ``lanes.json`` can supply the
+    frozen SHA. A planned-to-canceled mission without a manifest remains
+    pre-execution and captures the current target tip.
     """
     from specify_cli.lanes.persistence import read_lanes_json
 
     existing: LanesManifest | None = read_lanes_json(planning_dir)
-    if existing is not None:
+    execution_has_begun = _execution_has_begun(
+        repo_root, mission_slug, lifecycle_lanes
+    )
+    current_lanes = (
+        lifecycle_lanes.lanes
+        if isinstance(lifecycle_lanes, _FinalizationLifecycleSnapshot)
+        else lifecycle_lanes or {}
+    )
+    has_current_cancellation = any(
+        lane == Lane.CANCELED for lane in current_lanes.values()
+    )
+    if existing is not None and (
+        execution_has_begun or has_current_cancellation
+    ):
         return cast(str | None, existing.planning_commit_sha)
-    if not _execution_has_begun(repo_root, mission_slug, lifecycle_lanes):
+    if not execution_has_begun:
         return _capture_target_branch_tip(repo_root, target_branch)
 
     error_msg = (
