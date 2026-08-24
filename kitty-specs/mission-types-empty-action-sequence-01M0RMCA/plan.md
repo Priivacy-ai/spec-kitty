@@ -198,6 +198,19 @@ shape below).
     (line 431) and `_write_layered_yaml`/`_mission_type_yaml` helpers where they fit, extending
     (not duplicating) them for a steps-only fixture (a `mission-steps/<id>/<step>/step.yaml` tree,
     which the existing helpers do not yet write).
+    - **NFR-001's own case may be org-tier or project-tier (either satisfies the red-first pin),
+      but spec.md's Acceptance Scenario 5 is a separate, mandatory, project-tier-specific
+      requirement and needs its own named case regardless of which tier NFR-001's case uses**: a
+      dedicated `test_project_tier_steps_only_projection_resolves` (or equivalently named) case
+      that points `_StubPackContext.repo_root` at a synthetic project root carrying its own
+      `.kittify/missions/mission_types/<id>.yaml` (no `action_sequence:` key) plus a sibling
+      `mission-steps/<id>/<step>/step.yaml` tree — exercising `resolve_layered_mission_types`'s
+      project layer (`pack_context.repo_root` / `.kittify/missions/mission_types/*.yaml`, per
+      `mission_type_repository.py`'s own layer-precedence docstring), not its org layer
+      (`pack_context.pack_roots`). This asserts the same non-empty, correctly-ordered
+      `action_sequence` outcome as NFR-001's case, but is traceable specifically to spec.md's
+      Acceptance Scenario 5 (line 62) rather than folded into whichever single tier NFR-001's own
+      case happens to pick.
   - `tests/runtime/test_runtime_seam.py`: extend `TestGoldenParityUnaffectedByPackContextThreading`
     (line 184) for NFR-002 — its existing `test_builtin_type_unaffected_by_real_pack_context_with_org_root`
     already resolves built-in types under `pack_context=None` vs. a real `PackContext`; confirm
@@ -328,16 +341,45 @@ This is an internal doctrine-layer signature change with new parameters that def
 - **If this mission ships correctly**: every existing caller (including the one signature-affected
   external caller, `charter/pack_manager.py:865`, which keeps passing no `pack_context` per FR-008)
   continues to behave identically to today. Only callers that *already* pass a real `pack_context`
-  through `resolve_layered_mission_types` (currently: `charter.mission_type_profiles._resolve_action_slot`,
-  the one production `src/` caller per this file's own module comment) gain the fix — previously
-  broken org/project mission types with steps-only projection start resolving correctly. No
-  existing, previously-*working* caller changes behavior (NFR-002/FR-007's golden-parity guarantee).
+  through `resolve_layered_mission_types` gain the fix — previously broken org/project mission
+  types with steps-only projection start resolving correctly. **Corrected caller count** (re-verified
+  against this checkout via `grep -rn "resolve_layered_mission_types(" src/`, including through the
+  `charter.missions` re-export alias, rather than trusted from
+  `mission_type_repository.py:22-31`'s module comment, which is scoped to a prior mission's WP04
+  historical framing and predates the later WP07 additions below — an earlier draft of this plan
+  trusted that comment uncritically, which is exactly the failure mode this mission's own "verify
+  rather than trust" standard exists to catch): there are **three** production `src/` callers, not
+  one —
+  1. `_resolve_action_slot` (`charter/mission_type_profiles.py:976`), underlying `charter activate
+     mission-type` and `agent mission create --mission-type`;
+  2. `resolve_layered_roster` (`specify_cli/cli/commands/charter/mission_type.py:87`), backing
+     `charter_mission_type_list` — the `spec-kitty charter mission-type list` CLI command — and
+     reused (via import) by `show_mission_type`
+     (`specify_cli/cli/commands/mission_type.py:1454`) to back `mission-type show`;
+  3. `_resolve_layered_roster` (`specify_cli/cli/commands/_mission_type_audit.py:170`), wired into
+     `doctor.py`'s mission-type audit CLI surface (`run_mission_type_audit`,
+     `doctor.py:581`) for its `resolved`/`activated-unresolvable` classification.
+
+  All three already thread a real `PackContext` today, so all three are affected identically by
+  this fix — this does not change C-007's file-set bound (none of these three callers need code
+  changes), but it does mean `spec-kitty charter mission-type list --json`, `mission-type show`,
+  and the audit CLI's `resolved`/`activated-unresolvable` classification all show changed,
+  *intended* output for an affected org/project mission type post-fix (a positive change, not a
+  regression). No existing, previously-*working* caller changes behavior (NFR-002/FR-007's
+  golden-parity guarantee). **Test coverage for the two additional entry points**: neither needs
+  its own dedicated golden-parity test — both `resolve_layered_roster` and
+  `_resolve_layered_roster` call `resolve_layered_mission_types` directly and do no independent
+  projection of their own, so NFR-002/SC-003's golden-parity test on `resolve_layered_mission_types`
+  itself already covers every value these two callers observe; this is stated explicitly here so
+  the reasoning is not left implied.
 - **If this mission ships wrong** (e.g., a bug in the threading, or a violation of NFR-002's
-  parity guarantee): the blast radius is still narrow because `resolve_layered_mission_types` has
-  exactly one production caller today (`_resolve_action_slot`, underlying `charter activate
-  mission-type` and `agent mission create --mission-type`). A regression would surface as either
+  parity guarantee): the blast radius is still narrow — `resolve_layered_mission_types` has three
+  production callers today (named above), not one, but all three reach the fix exclusively through
+  that one function (none re-derives projection independently), so a threading bug would affect all
+  three identically rather than three independent surfaces. A regression would surface as either
   (a) a built-in type's `action_sequence` silently changing (caught by NFR-002/FR-007's
-  golden-parity test, which is specifically designed to catch exactly this), or (b) an org/project
+  golden-parity test, which is specifically designed to catch exactly this, and which — per the
+  same-function reasoning above — covers all three callers), or (b) an org/project
   type still failing incorrectly (caught by NFR-001's red-first reproduction test, or later
   user-visible as `MissionTypeEmptyActionSequenceError` persisting — the exact symptom this
   mission exists to close, so a shipped-wrong fix would be immediately visible against the issue's
