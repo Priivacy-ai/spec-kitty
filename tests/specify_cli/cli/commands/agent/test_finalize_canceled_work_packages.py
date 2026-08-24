@@ -373,10 +373,12 @@ def test_canonical_lifecycle_reader_is_called_once(
     else:
         _set_lane(mission_dir, "WP01", Lane.PLANNED)
 
-    from specify_cli.status.store import read_events as real_reader
+    from specify_cli.status import read_events as real_reader
 
     reader = MagicMock(side_effect=real_reader)
-    with patch("specify_cli.status.store.read_events", reader):
+    with patch(
+        "specify_cli.cli.commands.agent.mission_finalize.read_events", reader
+    ):
         result = _invoke(tmp_path, mission_dir)
 
     assert result.exit_code == (1 if scenario == "stale" else 0)

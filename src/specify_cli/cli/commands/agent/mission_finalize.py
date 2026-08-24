@@ -66,7 +66,15 @@ from specify_cli.ownership.validation import (
     build_wp_manifests,
     validate_glob_matches,
 )
-from specify_cli.status import BootstrapResult, Lane, WPMetadata, _Builder
+from specify_cli.status import (
+    BootstrapResult,
+    Lane,
+    WPMetadata,
+    _Builder,
+    has_event_log,
+    read_events,
+    reduce,
+)
 from specify_cli.core.wps_manifest import (
     WpsManifest,
     check_concern_refs_coverage,
@@ -2842,8 +2850,6 @@ def _read_finalization_lifecycle_snapshot(
 ) -> _FinalizationLifecycleSnapshot:
     """Read one canonical event stream for current eligibility and provenance."""
     from specify_cli.coordination.surface_resolver import resolve_status_surface_with_anchor
-    from specify_cli.status import has_event_log, read_events, reduce
-
     read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
     if not has_event_log(read_dir):
         return _FinalizationLifecycleSnapshot(lanes={}, execution_has_begun=False)
