@@ -748,7 +748,7 @@ TASKS_ARTIFACT = "tasks.md"
 STATE_FILE = "state.json"
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
+def _check_cli_guards(step_id: str, feature_dir: Path, repo_root: Path | None = None) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_cores.evaluate_guards` over a
     :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
@@ -769,10 +769,18 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
     :class:`runtime_bridge_cores.UnregisteredMissionFamilyError`, matching
     every other genuinely-unregistered family.
 
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence` for org-tier
+    ``expected-artifacts.yaml`` resolution (#3704 WP02, FR-008); defaults to
+    ``None`` (built-in tree only — today's exact behavior for every existing
+    caller that does not yet pass a real ``repo_root``).
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
     mission_family = get_mission_type(feature_dir)
-    snapshot = _io_seam.gather_artifact_presence(feature_dir, mission_family=mission_family, step_id=step_id)
+    snapshot = _io_seam.gather_artifact_presence(
+        feature_dir, mission_family=mission_family, step_id=step_id, repo_root=repo_root
+    )
     if step_id in ("implement", "review"):
         snapshot = dataclasses.replace(snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir))
     return _cores.evaluate_guards_strict(snapshot)
@@ -1060,12 +1068,19 @@ def _check_composed_action_guard(
     *,
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_composition._check_composed_action_guard`
     (FR-012 compat surface, #2531 WP08). See the seam module's docstring for
-    the full guard-branch-family / legacy-vs-composition-only contract."""
-    return _composition._check_composed_action_guard(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id)
+    the full guard-branch-family / legacy-vs-composition-only contract.
+
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded unchanged; defaults to
+    ``None`` (built-in tree only, matching every existing caller of this
+    compat surface that does not yet pass a real ``repo_root``)."""
+    return _composition._check_composed_action_guard(
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root
+    )
 
 
 def _dispatch_via_composition(
@@ -1605,7 +1620,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
         # authority for those custom families, exactly as it already is for
         # every non-WP-iteration step of theirs.
         try:
-            guard_failures = _check_cli_guards(current_step_id, feature_dir)
+            guard_failures = _check_cli_guards(current_step_id, feature_dir, repo_root=repo_root)
         except _cores.UnregisteredMissionFamilyError:
             guard_failures = []
         if guard_failures:
@@ -1640,7 +1655,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
     # (AC-14) while restoring the correct blocked decision for the composed
     # families (WP06 wrongly routed them through this ``kind=step`` path).
     if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id) and get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV:
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+        guard_failures = _check_cli_guards(current_step_id, feature_dir, repo_root=repo_root)
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
                 current_step_id,
