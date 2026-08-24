@@ -75,6 +75,48 @@ def custom_mission_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     )
 
 
+# AC-9 (WP01, #3704 Part 1): two-family distinguishability fixture -- a
+# family that DOES ship an ``expected-artifacts.yaml`` but whose manifest
+# resolves an empty blocking set for the step under test
+# (``blocking_artifact_names == frozenset()``), contrasted against a
+# genuinely typeless family with no manifest at any tier
+# (``blocking_artifact_names is None``). Both produce an empty
+# ``required_artifacts_for`` result, but must NOT be treated identically --
+# collapsing this distinction via bare falsiness is exactly the
+# SPEC-FRESH-001 defect this mission restores.
+_QA_MISSION_TYPE = "qa"
+_QA_STEP_ID = "check"
+
+_QA_EXPECTED_ARTIFACTS_YAML = f"""\
+schema_version: "1.0"
+mission_type: "{_QA_MISSION_TYPE}"
+manifest_version: "1"
+required_always: []
+required_by_step: {{}}
+optional_always: []
+"""
+
+
+@pytest.fixture
+def qa_family_manifest_with_no_blocking_artifacts_at_step(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A family with a manifest present (built-in-tier-shaped, per this
+    story's own Independent Test framing) whose ``required_by_step`` has no
+    entry for ``_QA_STEP_ID`` -- so ``blocking_artifact_names`` resolves to
+    a real, empty ``frozenset``, not ``None``."""
+    missions_root = tmp_path / "missions-root-qa"
+    qa_dir = missions_root / _QA_MISSION_TYPE
+    qa_dir.mkdir(parents=True)
+    (qa_dir / "expected-artifacts.yaml").write_text(_QA_EXPECTED_ARTIFACTS_YAML, encoding="utf-8")
+
+    monkeypatch.setattr(
+        MissionTemplateRepository,
+        "default",
+        classmethod(lambda cls: MissionTemplateRepository(missions_root)),
+    )
+
+
 class TestCustomFamilyPresenceGateFailsClosedBothDirections:
     """AC-10: ``gather_artifact_presence`` -- the named entry point -- gates
     a custom family on its own filename, both directions."""
@@ -121,6 +163,42 @@ class TestCustomFamilyPresenceGateFailsClosedBothDirections:
         )
 
         assert snapshot.present_artifacts == frozenset()
+
+    def test_manifest_present_empty_blocking_set_evaluates_genuinely_not_raise(
+        self, tmp_path: Path, qa_family_manifest_with_no_blocking_artifacts_at_step: None
+    ) -> None:
+        """AC-9 family (a): a manifest IS present but resolves an empty
+        blocking set for this step (``blocking_artifact_names ==
+        frozenset()``) -- genuinely evaluated via ``evaluate_guards_strict``,
+        does NOT raise, returns ``[]``."""
+        feature_dir = tmp_path / "feature-qa"
+        feature_dir.mkdir()
+
+        snapshot = gather_artifact_presence(
+            feature_dir, mission_family=_QA_MISSION_TYPE, step_id=_QA_STEP_ID
+        )
+
+        assert snapshot.blocking_artifact_names == frozenset()
+        assert evaluate_guards_strict(snapshot) == []
+
+    def test_no_manifest_at_any_tier_still_raises_despite_same_empty_required_artifacts(
+        self, tmp_path: Path
+    ) -> None:
+        """AC-9 family (b): a genuinely typeless family with NO manifest at
+        any tier (``blocking_artifact_names is None``) still raises --
+        distinguishing it from family (a) above even though both would
+        report an empty ``required_artifacts_for`` result for their step.
+        This IS the whole point of the None-vs-frozenset() distinction."""
+        feature_dir = tmp_path / "feature-typeless"
+        feature_dir.mkdir()
+
+        snapshot = gather_artifact_presence(
+            feature_dir, mission_family="totally-unregistered-family", step_id="whatever"
+        )
+
+        assert snapshot.blocking_artifact_names is None
+        with pytest.raises(UnregisteredMissionFamilyError):
+            evaluate_guards_strict(snapshot)
 
 
 def test_unregistered_family_guard_dispatch_strict_raise_is_retained(
