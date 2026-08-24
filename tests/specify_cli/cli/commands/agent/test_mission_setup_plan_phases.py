@@ -42,7 +42,6 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     HostedSyncDecision,
     HostedSyncDiagnostic,
     decide_hosted_sync,
-    is_canonical_hosted_sync_decision,
 )
 from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.core.paths import load_meta_fail_closed as canonical_load_meta_fail_closed
@@ -265,14 +264,14 @@ def _affirmative_decision() -> HostedSyncDecision:
         pytest.param(lambda decision: pickle.loads(pickle.dumps(decision)), id="pickle"),
     ],
 )
-def test_hosted_effect_executor_refuses_reconstructed_affirmative_decisions(
+def test_hosted_effect_executor_accepts_value_equal_affirmative_decisions(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     reconstruct: Any,
 ) -> None:
-    """Only the exact object issued by the evidence authority may execute
-    lifecycle fan-out. Local dossier capture is unaffected by decision
-    forgery — it is never gated by the decision at all."""
+    """Authority lives in the decision's affirmative verdict, not in object
+    identity: any value-equal allowing decision gates lifecycle fan-out, and
+    local dossier capture runs regardless — it is never gated by the decision."""
     calls: list[str] = []
     monkeypatch.setattr(
         hosted_effects,
@@ -288,8 +287,6 @@ def test_hosted_effect_executor_refuses_reconstructed_affirmative_decisions(
     reconstructed = cast(HostedSyncDecision, reconstruct(canonical))
 
     assert reconstructed.allow_effects is True
-    assert reconstructed is not canonical
-    assert is_canonical_hosted_sync_decision(reconstructed) is False
 
     seam._execute_setup_plan_hosted_effects(
         reconstructed,
@@ -302,10 +299,10 @@ def test_hosted_effect_executor_refuses_reconstructed_affirmative_decisions(
         dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
     )
 
-    assert calls == ["dossier"]
+    assert calls == ["lifecycle", "dossier"]
 
 
-def test_hosted_effect_executor_accepts_exact_canonical_decision(
+def test_hosted_effect_executor_gates_fanout_on_affirmative_verdict(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
@@ -322,7 +319,6 @@ def test_hosted_effect_executor_accepts_exact_canonical_decision(
     )
     canonical = _affirmative_decision()
 
-    assert is_canonical_hosted_sync_decision(canonical) is True
     seam._execute_setup_plan_hosted_effects(
         canonical,
         lifecycle_intents=(

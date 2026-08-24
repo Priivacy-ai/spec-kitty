@@ -5,8 +5,8 @@ sink import in ``cli.commands.agent`` has an explicit owning module, and only
 ``setup_plan_hosted_effects.py`` is authorized for setup-plan. This prevents a
 differently named helper from hiding outside a filename glob. The command
 module receives inert local intents and calls one narrow executor. Within the
-boundary, every sink-owning function has a terminal exact-identity guard before
-its first sink.
+boundary, every sink-owning function has a terminal decision-verdict guard
+(``decision.allow_effects``) before its first sink.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ CALLER = AGENT_COMMANDS / "mission_setup_plan.py"
 BOUNDARY = AGENT_COMMANDS / "setup_plan_hosted_effects.py"
 BOUNDARY_MODULE = "specify_cli.cli.commands.agent.setup_plan_hosted_effects"
 EXECUTOR = "execute_setup_plan_hosted_effects"
-VALIDATOR = "is_canonical_hosted_sync_decision"
+GUARD_ATTRIBUTE = "allow_effects"
 
 HOSTED_MODULES = frozenset(
     {
@@ -102,8 +102,9 @@ SINK_OWNERS = frozenset({"_fanout_lifecycle_events", "_trigger_dossier_sync", EX
 # Dossier capture is project-isolated LOCAL capture (see
 # ``trigger_feature_dossier_sync_if_enabled``'s own contract) and is never
 # suppressed by the hosted decision, so its sink is exempt from the terminal
-# identity-guard requirement below — by sink name, not by owning function, so
-# a hostile owner cannot borrow the exemption for a genuinely hosted sink.
+# decision-verdict guard requirement below — by sink name, not by owning
+# function, so a hostile owner cannot borrow the exemption for a genuinely
+# hosted sink.
 UNGATED_HOSTED_NAMES = frozenset({"trigger_feature_dossier_sync_if_enabled"})
 PROTOCOL_METHODS = {
     "_LifecycleEventIntent": frozenset({"envelope", "log_path"}),
@@ -376,7 +377,7 @@ def _statement_shape(statements: list[ast.stmt]) -> str:
 EXPECTED_SINK_OWNER_BODIES = {
     "_fanout_lifecycle_events": _statement_shape(
         ast.parse(
-            "if not is_canonical_hosted_sync_decision(decision):\n"
+            "if not decision.allow_effects:\n"
             "    return\n"
             "for intent in lifecycle_intents:\n"
             "    fanout_lifecycle_event_hosted(\n"
@@ -483,21 +484,21 @@ def _first_executable_statement(
     return statements[0]
 
 
-def _has_terminal_identity_guard(
+def _has_terminal_decision_guard(
     function: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> bool:
+    """Require ``if not <decision>.allow_effects: return`` as statement one."""
     decision_names = {argument.arg for argument in function.args.args}
     statement = _first_executable_statement(function)
     if not isinstance(statement, ast.If) or not isinstance(statement.test, ast.UnaryOp):
         return False
-    call = statement.test.operand
+    operand = statement.test.operand
     return (
         isinstance(statement.test.op, ast.Not)
-        and isinstance(call, ast.Call)
-        and _qualified_name(call.func) == VALIDATOR
-        and len(call.args) == 1
-        and isinstance(call.args[0], ast.Name)
-        and call.args[0].id in decision_names
+        and isinstance(operand, ast.Attribute)
+        and operand.attr == GUARD_ATTRIBUTE
+        and isinstance(operand.value, ast.Name)
+        and operand.value.id in decision_names
         and len(statement.body) == 1  # golden-count: cardinality-is-contract
         and isinstance(statement.body[0], ast.Return)
         and statement.body[0].value is None
@@ -517,7 +518,7 @@ def _boundary_violations(source: str) -> list[_Edge]:
         if use.sink in UNGATED_HOSTED_NAMES:
             continue
         function = functions.get(use.function or "")
-        if function is None or not _has_terminal_identity_guard(function):
+        if function is None or not _has_terminal_decision_guard(function):
             violations.append(_Edge("unguarded-sink", use.sink, use.lineno))
     return sorted(set(violations), key=lambda item: (item.lineno, item.kind, item.value))
 
@@ -563,7 +564,7 @@ def test_command_imports_only_the_narrow_executor_from_boundary() -> None:
     assert len(executor_calls) == 1
 
 
-def test_every_physical_sink_is_locally_dominated_by_identity_guard() -> None:
+def test_every_physical_sink_is_locally_dominated_by_decision_guard() -> None:
     source = BOUNDARY.read_text(encoding="utf-8")
     uses, census_violations = _physical_sink_census(source)
     sink_owners: dict[str, set[str]] = {}
@@ -612,15 +613,15 @@ def harmless(callbacks, key):
     assert _forbidden_edges(source) == []
 
 
-def test_missing_or_late_identity_guard_fails_dominance_oracle() -> None:
+def test_missing_or_late_decision_guard_fails_dominance_oracle() -> None:
     missing = ast.parse("def execute(decision):\n    fanout_lifecycle_event_hosted({})\n").body[0]
     late = ast.parse(
-        "def execute(decision):\n    fanout_lifecycle_event_hosted({})\n    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+        "def execute(decision):\n    fanout_lifecycle_event_hosted({})\n    if not decision.allow_effects:\n        return\n"
     ).body[0]
     assert isinstance(missing, ast.FunctionDef)
     assert isinstance(late, ast.FunctionDef)
-    assert not _has_terminal_identity_guard(missing)
-    assert not _has_terminal_identity_guard(late)
+    assert not _has_terminal_decision_guard(missing)
+    assert not _has_terminal_decision_guard(late)
 
 
 @pytest.mark.parametrize(
@@ -633,30 +634,30 @@ def test_missing_or_late_identity_guard_fails_dominance_oracle() -> None:
         (
             "sink-escape",
             "\ndef hostile(decision):\n"
-            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    if not decision.allow_effects:\n        return\n"
             "    emit = fanout_lifecycle_event_hosted\n    emit({})\n",
         ),
         (
             "sink-escape",
             "\ndef hostile(decision):\n"
-            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    if not decision.allow_effects:\n        return\n"
             "    handlers = [fanout_lifecycle_event_hosted]\n    handlers[0]({})\n",
         ),
         (
             "sink-escape",
             "\nfrom functools import partial\n"
             "def hostile(decision):\n"
-            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    if not decision.allow_effects:\n        return\n"
             "    emit = partial(fanout_lifecycle_event_hosted, {})\n    emit()\n",
         ),
         (
             "sink-escape",
-            "\ndef hostile(decision):\n    if not is_canonical_hosted_sync_decision(decision):\n        return\n    return fanout_lifecycle_event_hosted\n",
+            "\ndef hostile(decision):\n    if not decision.allow_effects:\n        return\n    return fanout_lifecycle_event_hosted\n",
         ),
         (
             "dynamic-import",
             "\ndef hostile(decision, name):\n"
-            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    if not decision.allow_effects:\n        return\n"
             "    module = __import__('specify_cli.sync.events', fromlist=['*'])\n"
             "    getattr(module, name)({})\n",
         ),
@@ -664,7 +665,7 @@ def test_missing_or_late_identity_guard_fails_dominance_oracle() -> None:
             "sink-escape",
             "\nimport specify_cli.auth.transport as hostile_transport\n"
             "def hostile(decision, name):\n"
-            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    if not decision.allow_effects:\n        return\n"
             "    vars(hostile_transport).get(name)()\n",
         ),
         (

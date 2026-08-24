@@ -3,8 +3,8 @@
 Local setup-plan verification deliberately lives in :mod:`mission_setup_plan`.
 This module is the sole production owner of that command's hosted sink imports
 and calls.  Lifecycle SaaS fan-out is a genuine hosted egress effect and is
-dominated by an exact-identity check against the decision authority before its
-sink is ever selected.  Dossier capture is project-isolated LOCAL capture per
+dominated by the decision's affirmative verdict before its sink is ever
+selected.  Dossier capture is project-isolated LOCAL capture per
 :func:`trigger_feature_dossier_sync_if_enabled`'s own contract — the machine
 SaaS flag and project egress decision are enforced later by the canonical
 dispatcher and therefore cannot suppress it — so it runs unconditionally here,
@@ -18,10 +18,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Protocol
 
-from specify_cli.cli.commands.agent.setup_plan_hosted import (
-    HostedSyncDecision,
-    is_canonical_hosted_sync_decision,
-)
+from specify_cli.cli.commands.agent.setup_plan_hosted import HostedSyncDecision
 from specify_cli.status.lifecycle_events import fanout_lifecycle_event_hosted
 from specify_cli.sync.dossier_pipeline import (
     trigger_feature_dossier_sync_if_enabled,
@@ -57,11 +54,11 @@ def _fanout_lifecycle_events(
 ) -> None:
     """Adapt inert lifecycle envelopes to the hosted SaaS fan-out sink.
 
-    The terminal guard is intentionally adjacent to the physical-effect region.
-    It rejects value-equivalent reconstructions, copies, deserializations, and
-    forged decisions before the sink is ever selected.
+    The terminal guard is intentionally adjacent to the physical-effect region:
+    no sink is reachable unless :func:`decide_hosted_sync` affirmed this
+    decision.
     """
-    if not is_canonical_hosted_sync_decision(decision):
+    if not decision.allow_effects:
         return
     for intent in lifecycle_intents:
         fanout_lifecycle_event_hosted(intent.envelope, log_path=intent.log_path)

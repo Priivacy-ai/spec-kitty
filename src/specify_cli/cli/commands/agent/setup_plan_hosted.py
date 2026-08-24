@@ -11,7 +11,6 @@ closed without changing the local result.
 
 from __future__ import annotations
 
-import weakref
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -201,7 +200,7 @@ def serialize_hosted_sync_diagnostics(
     return serialized
 
 
-@dataclass(frozen=True, slots=True, weakref_slot=True)
+@dataclass(frozen=True, slots=True)
 class HostedSyncDecision:
     """Single permission shared by all setup-plan hosted effects."""
 
@@ -223,21 +222,6 @@ class HostedSyncDecision:
             "allow_effects": self.allow_effects,
             "diagnostics": serialize_hosted_sync_diagnostics(self.diagnostics),
         }
-
-
-# Identity, rather than dataclass equality or a copyable capability field,
-# proves that an affirmative decision came from ``decide_hosted_sync``.  Weak
-# references prevent the registry from extending a command decision's lifetime;
-# the callback also guards against CPython id reuse.
-_AFFIRMATIVE_DECISIONS: dict[int, weakref.ReferenceType[HostedSyncDecision]] = {}
-
-
-def is_canonical_hosted_sync_decision(decision: HostedSyncDecision) -> bool:
-    """Return whether this exact affirmative object was issued canonically."""
-    if not decision.allow_effects:
-        return False
-    reference = _AFFIRMATIVE_DECISIONS.get(id(decision))
-    return reference is not None and reference() is decision
 
 
 def acquire_session_assessment(
@@ -413,19 +397,7 @@ def decide_hosted_sync(
         and boundary_state is BoundaryState.SAFE
         and route_available is True
     )
-    decision = HostedSyncDecision(True, allow_effects, ordered_unique)
-    if not allow_effects:
-        return decision
-
-    identity = id(decision)
-
-    def _discard(reference: weakref.ReferenceType[HostedSyncDecision]) -> None:
-        if _AFFIRMATIVE_DECISIONS.get(identity) is reference:
-            _AFFIRMATIVE_DECISIONS.pop(identity, None)
-
-    reference = weakref.ref(decision, _discard)
-    _AFFIRMATIVE_DECISIONS[identity] = reference
-    return decision
+    return HostedSyncDecision(True, allow_effects, ordered_unique)
 
 
 def _unauthenticated_diagnostic(reason: str) -> HostedSyncDiagnostic:
@@ -672,6 +644,5 @@ __all__ = [
     "decide_hosted_sync",
     "evaluate_boundary",
     "evaluate_route_availability",
-    "is_canonical_hosted_sync_decision",
     "serialize_hosted_sync_diagnostics",
 ]

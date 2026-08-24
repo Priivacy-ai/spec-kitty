@@ -918,17 +918,32 @@ def test_unrequested_decision_cannot_allow_hosted_effects() -> None:
     assert str(raised.value) == "unrequested hosted sync decision cannot allow effects"
 
 
-def test_requested_decision_cannot_allow_without_canonical_evidence() -> None:
+def test_affirmative_decision_invariants_are_enforced_at_construction() -> None:
     direct = HostedSyncDecision(True, True, ())
 
     assert direct.allow_effects is True
-    assert hosted_adapter.is_canonical_hosted_sync_decision(direct) is False
+    assert decide_hosted_sync(requested=False).allow_effects is False
+    with pytest.raises(ValueError):
+        HostedSyncDecision(
+            True,
+            True,
+            (
+                HostedSyncDiagnostic(
+                    code="SAAS_SYNC_UNAUTHENTICATED",
+                    severity="warning",
+                    hosted_disposition="refused",
+                    message="Hosted sync was skipped; local setup-plan continued.",
+                ),
+            ),
+        )
 
 
-def test_affirmative_authority_is_not_a_copyable_dataclass_field() -> None:
+def test_no_identity_registry_or_authority_side_channel_exists() -> None:
     assert "_authority" not in HostedSyncDecision.__dataclass_fields__
+    assert not hasattr(hosted_adapter, "_AFFIRMATIVE_DECISIONS")
     assert not hasattr(hosted_adapter, "_DECISION_AUTHORITY")
     assert not hasattr(hosted_adapter, "_register_affirmative_decision")
+    assert not hasattr(hosted_adapter, "is_canonical_hosted_sync_decision")
 
 
 def test_wire_registry_contains_exactly_four_codes() -> None:
