@@ -117,7 +117,10 @@ def _import_aliases(nodes: list[ast.AST]) -> dict[str, str]:
     return aliases
 
 
-def _identity(expression: ast.AST, aliases: dict[str, str]) -> str | None:
+def _identity(  # noqa: C901 - closed AST expression grammar is clearer together
+    expression: ast.AST,
+    aliases: dict[str, str],
+) -> str | None:
     if isinstance(expression, ast.Name):
         return aliases.get(expression.id, expression.id)
     if isinstance(expression, ast.Attribute):
@@ -133,6 +136,10 @@ def _identity(expression: ast.AST, aliases: dict[str, str]) -> str | None:
             selected = aliases.get(f"{base_name}[{key!r}]")
             if selected:
                 return selected
+        if base_name is not None and key is None:
+            hosted_member = aliases.get(f"{base_name}[*]")
+            if hosted_member:
+                return hosted_member
         base = _identity(expression.value, aliases)
         if base and base.startswith(HOSTED_OBJECT_PREFIXES):
             return f"{base}.<dynamic>"
@@ -153,19 +160,33 @@ def _identity(expression: ast.AST, aliases: dict[str, str]) -> str | None:
         callable_identity = _identity(expression.func, aliases)
         if callable_identity == "functools.partial" and expression.args:
             return _identity(expression.args[0], aliases)
+        if callable_identity == "vars" and expression.args:
+            reflected = _identity(expression.args[0], aliases)
+            if reflected and reflected.startswith(HOSTED_OBJECT_PREFIXES):
+                return f"{reflected}.<dynamic>"
         return callable_identity
     return None
 
 
-def _bind(target: ast.AST, value: ast.AST, aliases: dict[str, str]) -> None:
+def _bind(  # noqa: C901 - closed destructuring/container grammar is one operation
+    target: ast.AST,
+    value: ast.AST,
+    aliases: dict[str, str],
+) -> None:
     if isinstance(target, ast.Name):
         if isinstance(value, (ast.List, ast.Tuple)):
+            hosted_member: str | None = None
             for index, element in enumerate(value.elts):
                 resolved_element = _identity(element, aliases)
                 if resolved_element:
                     aliases[f"{target.id}[{index!r}]"] = resolved_element
+                    if hosted_member is None and _is_sink(resolved_element):
+                        hosted_member = resolved_element
+            if hosted_member is not None:
+                aliases[f"{target.id}[*]"] = hosted_member
             return
         if isinstance(value, ast.Dict):
+            hosted_member = None
             for key_node, value_node in zip(value.keys, value.values, strict=False):
                 if key_node is None:
                     continue
@@ -176,6 +197,10 @@ def _bind(target: ast.AST, value: ast.AST, aliases: dict[str, str]) -> None:
                 resolved_value = _identity(value_node, aliases)
                 if resolved_value:
                     aliases[f"{target.id}[{key!r}]"] = resolved_value
+                    if hosted_member is None and _is_sink(resolved_value):
+                        hosted_member = resolved_value
+            if hosted_member is not None:
+                aliases[f"{target.id}[*]"] = hosted_member
             return
         resolved = _identity(value, aliases)
         if resolved:
@@ -404,6 +429,50 @@ def harmless():
     callbacks[0]()
     mapping["local"]()
     partial(local_callback)()
+"""
+    assert _hosted_effect_bypasses(source) == []
+
+
+def test_gate_rejects_dynamic_subscript_on_container_with_hosted_member() -> None:
+    source = """
+from specify_cli.auth.transport import get_client
+
+def bypass(key):
+    handlers = {"hosted": get_client}
+    handlers[key]()
+"""
+    assert _hosted_effect_bypasses(source)
+
+
+def test_gate_allows_dynamic_subscript_on_unrelated_container() -> None:
+    source = """
+def local_callback():
+    return None
+
+def harmless(key):
+    handlers = {"local": local_callback}
+    handlers[key]()
+"""
+    assert _hosted_effect_bypasses(source) == []
+
+
+def test_gate_rejects_vars_reflection_on_hosted_module() -> None:
+    source = """
+import specify_cli.auth.transport as hosted_module
+
+def bypass(key):
+    vars(hosted_module)[key]()
+"""
+    assert _hosted_effect_bypasses(source)
+
+
+def test_gate_allows_vars_reflection_on_unrelated_object() -> None:
+    source = """
+class LocalCallbacks:
+    pass
+
+def harmless(callbacks, key):
+    vars(callbacks)[key]()
 """
     assert _hosted_effect_bypasses(source) == []
 
