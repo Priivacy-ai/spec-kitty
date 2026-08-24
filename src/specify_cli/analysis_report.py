@@ -219,17 +219,20 @@ def _relativize_or_raise(path: Path, governing_root: Path) -> str:
     failed against *which* root (the two are always one of the small, known
     hash-input names -- spec.md/plan.md/tasks.md/charter.yaml/charter.md --
     so the basename alone identifies it) without disclosing the operator's
-    directory layout. Note ``exc`` (a stdlib ``ValueError`` from
-    ``Path.relative_to``) is intentionally NOT interpolated into the message:
-    its own text embeds both absolute paths."""
+    directory layout. The underlying stdlib ``ValueError`` from
+    ``Path.relative_to`` is intentionally suppressed: its own text embeds both
+    absolute paths."""
     try:
+        resolved_path = path.resolve()
+        resolved_root = governing_root.resolve()
+        resolved_path.relative_to(resolved_root)
         return str(path.relative_to(governing_root))
-    except ValueError as exc:
+    except ValueError:
         raise PathRelativizationError(
             f"Cannot record artifact {path.name!r} relative to its governing "
             f"root (root basename: {governing_root.name!r}): the artifact "
             "does not lie under that root."
-        ) from exc
+        ) from None
 
 
 def _artifact_hash_entry(path: Path, governing_root: Path) -> dict[str, str | None]:

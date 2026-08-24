@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+import traceback
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -458,6 +459,60 @@ def test_write_analysis_report_raises_on_unrelativizable_path(tmp_path):
     assert str(tmp_path) not in message
     assert "spec.md" in message
 
+    rendered_traceback = "".join(
+        traceback.format_exception(
+            exc_info.type,
+            exc_info.value,
+            exc_info.value.__traceback__,
+        )
+    )
+    assert str(feature_dir) not in rendered_traceback
+    assert str(unrelated_repo_root) not in rendered_traceback
+    assert str(tmp_path) not in rendered_traceback
+
+
+def test_write_analysis_report_rejects_symlink_escape(tmp_path):
+    """FR-007/NFR-002: resolved inputs outside the governing root fail closed."""
+    from specify_cli.analysis_report import AnalysisReportError, write_analysis_report
+
+    repo_root = tmp_path / "repo"
+    linked_feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    external_feature_dir = tmp_path / "external" / "sample-01KS"
+    _write_required_artifacts(external_feature_dir)
+    linked_feature_dir.parent.mkdir(parents=True)
+    try:
+        linked_feature_dir.symlink_to(external_feature_dir, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlinks unavailable: {exc}")
+
+    with pytest.raises(AnalysisReportError, match="spec.md"):
+        write_analysis_report(
+            feature_dir=linked_feature_dir,
+            repo_root=repo_root,
+            body="# Report\n\nPASS\n",
+        )
+
+
+def test_write_analysis_report_preserves_in_repo_symlink_identity(tmp_path):
+    """Resolved containment checks do not rewrite a valid logical artifact path."""
+    repo_root = tmp_path / "repo"
+    linked_feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    real_feature_dir = repo_root / "stored-missions" / "sample-01KS"
+    _write_required_artifacts(real_feature_dir)
+    linked_feature_dir.parent.mkdir(parents=True)
+    try:
+        linked_feature_dir.symlink_to(real_feature_dir, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlinks unavailable: {exc}")
+
+    result = write_analysis_report(
+        feature_dir=linked_feature_dir,
+        repo_root=repo_root,
+        body="# Report\n\nPASS\n",
+    )
+
+    assert result.input_artifacts["spec.md"]["path"] == "kitty-specs/sample-01KS/spec.md"
+
 
 def test_check_analysis_report_current_reports_relativization_failure_without_raising(tmp_path):
     """NFR-002: unlike ``write_analysis_report``, ``check_analysis_report_current``
@@ -482,6 +537,36 @@ def test_check_analysis_report_current_reports_relativization_failure_without_ra
     assert freshness.ok is False
     assert freshness.stale is True
     assert freshness.missing is False
+    assert freshness.reason.startswith("path_relativization_failed:")
+    assert str(tmp_path) not in freshness.reason
+
+
+def test_check_analysis_report_current_reports_symlink_escape_without_raising(tmp_path):
+    """NFR-002: freshness maps a resolved-path escape to a typed failure."""
+    from specify_cli.analysis_report import check_analysis_report_current, write_analysis_report
+
+    repo_root = tmp_path / "repo"
+    linked_feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    external_feature_dir = tmp_path / "external" / "sample-01KS"
+    _write_required_artifacts(external_feature_dir)
+    write_analysis_report(
+        feature_dir=external_feature_dir,
+        repo_root=tmp_path,
+        body="# Report\n\nPASS\n",
+    )
+    linked_feature_dir.parent.mkdir(parents=True)
+    try:
+        linked_feature_dir.symlink_to(external_feature_dir, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"directory symlinks unavailable: {exc}")
+
+    freshness = check_analysis_report_current(linked_feature_dir, repo_root)
+
+    assert freshness.ok is False
+    assert freshness.stale is True
+    assert freshness.missing is False
+    assert freshness.reason.startswith("path_relativization_failed:")
+    assert str(tmp_path) not in freshness.reason
 
 
 def test_record_analysis_refuses_dirty_worktree_before_write(tmp_path, monkeypatch):
