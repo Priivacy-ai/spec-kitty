@@ -1,4 +1,4 @@
-# Implementation Plan: Authoritative local setup-plan with safe hosted refusal
+# Implementation Plan: Authoritative local setup-plan with isolated hosted effects
 
 **Branch**: `fix/setup-plan-auth-diagnostics-nonfatal` | **Date**: 2026-08-23 | **Spec**: [spec.md](spec.md)
 **Input**: Mission specification in `kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD/spec.md`
@@ -12,18 +12,23 @@
 
 ## Summary
 
-Refactor `setup-plan` into two independent lanes with one explicit join. The local lane
-resolves the Mission, enforces the spec gate, scaffolds and verifies the plan, records
-local lifecycle history, commits local artifacts, and produces the authoritative
-result. The hosted-assessment lane obtains canonical session evidence that preserves
-assessment failure separately from a conclusive logged-out result, a no-raise structural
-boundary evaluation, and delivery-route availability.
-One immutable `HostedSyncDecision` then allows or refuses every hosted effect. Refusal
-adds structured warnings but cannot alter the local result or exit.
+Refactor `setup-plan` into a strictly ordered local-first pipeline. The command resolves
+the Mission, enforces the spec gate, scaffolds and verifies the plan, records local
+lifecycle history, commits eligible local artifacts, and freezes one authoritative
+`SetupPlanLocalOutcome`. Only then, and only when SaaS sync is requested, does it acquire
+canonical session-evaluation evidence directly from `TokenManager`, evaluate the
+structural boundary and read-only route, and issue one immutable `HostedSyncDecision`.
 
-The change must fix information loss inside `TokenManager`, not compensate in readiness;
-split lifecycle persistence from SaaS fan-out, not merely guard dossier sync; and freeze
-the existing setup-plan outcome matrix before orchestration changes.
+A dedicated `setup_plan_hosted_effects.py` module is the sole physical owner of
+setup-plan hosted sink imports. It accepts inert intents and executes them only after an
+exact-identity check of the canonical allowing decision. Refusal adds structured
+warnings but cannot alter the already-frozen local payload or exit.
+
+The change fixes information loss inside `TokenManager`, while keeping authentication
+Boolean after successful evaluation. It does not make readiness a setup-plan auth
+authority and does not introduce a tri-state authentication subsystem. It also splits
+local lifecycle persistence from SaaS fan-out, isolates physical hosted effects by
+module ownership, and freezes the existing setup-plan outcome matrix before hosted work.
 
 ## Engineering Alignment
 
@@ -48,7 +53,7 @@ Confirmed by the user on 2026-08-23:
 **Storage**: encrypted file-only session storage; local Mission Markdown/JSONL; existing
 project-scoped hosted-sync store; no schema or migration
 **Testing**: pytest, Typer `CliRunner`, real isolated encrypted storage fixtures,
-side-effect spies, architectural AST gate, and targeted regression suites
+side-effect spies, structural module-edge/dominance gate, and targeted regression suites
 **Target Platform**: Linux, macOS, Windows 10+
 **Project Type**: single Python CLI package
 **Performance Goals**: no auth network I/O; preserve the existing coherent structural
@@ -62,10 +67,10 @@ requirements, and targeted auth/status/sync/setup-plan test surfaces
 
 | Charter gate | Application | Result |
 |---|---|---|
-| Single canonical authority | `TokenManager` owns canonical session assessment; the existing readiness taxonomy contextualizes it; `run_preflight` remains the structural detector; one command adapter composes them. | Pass |
+| Single canonical authority | `TokenManager` owns session evaluation; `setup-plan` reads it directly, `run_preflight` remains the structural detector, one decision composer issues permission, and one executor module owns physical hosted sinks. | Pass |
 | Architectural alignment | Encrypted file-only auth, project-store isolation, and hosted egress refusal remain unchanged. | Pass |
 | ATDD-first | Every implementation WP begins with a failing acceptance or contract test committed before production changes. | Pass |
-| Bug-class closure | A non-vacuous architectural gate proves no setup-plan hosted sink bypasses the decision seam. | Pass |
+| Bug-class closure | A non-vacuous architectural gate enforces forbidden import/name edges outside the sole hosted-effects module and proves canonical decision validation dominates every sink inside it. | Pass |
 | Locality and proportional cleanup | Each WP owns one bounded subsystem; setup-plan god-surface cleanup is limited to extractions required by this architecture. | Pass |
 | Credentials | Diagnostics contain state and reason codes only, never session contents. | Pass |
 | Terminology | Mission terminology and explicit delivery-routing language are used throughout. | Pass |
@@ -79,54 +84,45 @@ refusal and project-store protections.
 
 ```mermaid
 flowchart TB
-    subgraph LocalLane[Local setup-plan lane]
-        Resolve[Resolve repository and Mission]
-        SpecGate[Evaluate local spec gate]
-        PlanWork[Scaffold and verify plan]
-        LocalEvents[Persist local lifecycle events]
-        LocalOutcome[Build SetupPlanLocalOutcome]
-        Resolve --> SpecGate --> PlanWork --> LocalEvents --> LocalOutcome
-    end
-
-    subgraph AssessmentLane[Hosted assessment lane]
-        Auth[Canonical SessionAssessment]
-        Boundary[No-raise BoundaryEvaluation]
-        Route[Delivery-route availability]
-        Decision[HostedSyncDecision]
-        Auth --> Decision
-        Boundary --> Decision
-        Route --> Decision
-    end
-
-    subgraph Effects[Hosted-effects executor]
-        LifecycleFanout[Lifecycle SaaS fan-out]
-        Dossier[Dossier enqueue/publication]
-        Other[Other hosted sinks]
-    end
-
-    Decision -->|allow| Effects
+    Resolve[Resolve repository and Mission] --> SpecGate[Evaluate local spec gate]
+    SpecGate --> PlanWork[Scaffold and verify plan]
+    PlanWork --> LocalEvents[Persist local lifecycle events only]
+    LocalEvents --> LocalOutcome[Freeze SetupPlanLocalOutcome and exit]
+    LocalOutcome --> Requested{SaaS sync requested?}
+    Requested -->|no| Reporter[Single result reporter]
+    Requested -->|yes| Auth[Read TokenManager session evaluation directly]
+    Auth --> Boundary[No-raise structural evaluation]
+    Boundary --> Route[Canonical read-only route evaluation]
+    Route --> Decision[Issue canonical HostedSyncDecision]
     Decision -->|refuse| Diagnostics[Ordered hosted diagnostics]
-    LocalOutcome --> Reporter[Single result reporter]
+    Decision -->|allow exact identity| Executor[setup_plan_hosted_effects.py]
+    Executor --> LifecycleFanout[Lifecycle hosted fan-out]
+    Executor --> Dossier[Dossier hosted sync]
     Diagnostics --> Reporter
-    Effects --> Reporter
+    LifecycleFanout --> Reporter
+    Dossier --> Reporter
 ```
 
 ### Architectural invariants
 
-1. `SetupPlanLocalOutcome` and its exit code are produced without depending on hosted
-   eligibility.
-2. Before `HostedEffectsExecutor` receives an allowing decision, no setup-plan path may
-   open or write an offline queue, body-upload queue, dossier publication, daemon
-   publication, dashboard synchronization, or direct hosted transport.
+1. `SetupPlanLocalOutcome` and its exit code are complete and frozen before any hosted
+   evidence is acquired.
+2. Before `execute_setup_plan_hosted_effects()` receives the exact issued allowing
+   decision, no setup-plan path may open or write an offline queue, body-upload queue,
+   dossier publication, daemon publication, dashboard synchronization, or direct hosted
+   transport.
 3. Local lifecycle persistence never imports or invokes hosted adapters.
-4. Failed assessment is fail-closed for hosted effects but nonfatal to local verification;
-   it is not persisted or exposed as a third authentication state.
+4. Session evaluation has two dimensions: evaluation completed/failed, then (only when
+   completed) authenticated/logged out. Evaluation failure is fail-closed for hosted
+   effects but is not persisted or exposed as a third authentication state.
 5. Queue scope answers where delivery can go, never whether a session is authenticated.
-6. `sync now` and other hosted-only commands retain their existing preflight behavior.
+6. Only `setup_plan_hosted_effects.py` may import or name physical setup-plan hosted
+   sinks; `mission_setup_plan.py` may call only its narrow executor with inert intents.
+7. `sync now` and other hosted-only commands retain their existing preflight behavior.
 
 ## Component Design
 
-### 1. Canonical local session assessment
+### 1. Canonical local session evaluation
 
 Add a typed assessment result in `src/specify_cli/auth/token_manager.py`:
 
@@ -138,21 +134,22 @@ class SessionAssessment:
     reason: str
 ```
 
-`TokenManager` retains a typed load/materialization outcome so an absent session and an
-unreadable session are distinguishable. When `completed=true`, `usable_session` is a
-Boolean: a readable session with a non-expired—or not-known-expired—refresh token is
-usable, and conclusive absence/expiry is not. When assessment fails, `completed=false`
-and `usable_session=None`. Storage initialization, decryption, parsing, hot-summary
-materialization, or evaluation failure therefore remains failure provenance rather than
-becoming an `UNKNOWN` authentication state. No network or refresh occurs.
+`TokenManager` retains typed evaluation evidence so an absent session and an unreadable
+session are distinguishable. This is not a three-state auth model. First,
+`completed` says whether evaluation succeeded. Only when it did, `usable_session` is the
+Boolean authentication verdict: a readable session with a non-expired—or
+not-known-expired—refresh token is authenticated, while conclusive absence/expiry is
+logged out. When evaluation fails, no authentication verdict exists. Storage
+initialization, decryption, parsing, hot-summary materialization, or evaluation failure
+therefore remains failure provenance. No network or refresh occurs.
 
 Keep `is_authenticated: bool` as the compatibility projection
-`assessment.completed and assessment.usable_session is True`.
-`readiness.auth.probe_auth_status()` projects the assessment into its existing contextual
-`AuthStatus` taxonomy: assessment failure maps to its existing `UNKNOWN` readiness value,
-a usable session maps to `AUTHENTICATED`, and only a completed no-session assessment may
-invoke Teamspace detection to choose a logged-out/not-in-Teamspace status. No new auth
-state machine or public tri-state auth contract is introduced.
+`assessment.completed and assessment.usable_session is True`. Existing readiness may
+contextualize the same evidence for its own consumers, but `setup-plan` must not route
+hosted authority through `readiness.auth.probe_auth_status()`. Its command adapter reads
+`TokenManager.session_assessment` directly, so Teamspace discovery or another readiness
+projection cannot distort session evidence. No new auth state machine or public
+tri-state auth contract is introduced.
 
 ### 2. Setup-plan hosted assessment and decision
 
@@ -167,10 +164,11 @@ converts both returned unsafe results and unexpected exceptions into
 `SAAS_SYNC_BOUNDARY_UNSAFE`. It does not change `run_preflight` or catch failures for
 hosted-only callers.
 
-The adapter consumes the existing no-raise `probe_auth_status()` projection rather than
-reading `TokenManager` or queue scope directly. It defensively converts an unexpected
-probe invocation failure to the assessment-failed diagnostic. Route evidence is always
-collected when SaaS is requested through
+The adapter consumes `TokenManager.session_assessment` directly through a narrow,
+no-raise acquisition function. It validates the returned runtime shape and converts an
+unexpected manager, property, or evaluation failure to assessment-failed evidence. It
+does not consult readiness or queue scope. Route evidence is always collected when SaaS
+is requested through
 `resolve_checkout_sync_routing_readonly(repo_root)`. Route permission is affirmative only
 when the resolver returns a value with a non-empty `project_uuid` and
 `effective_sync_enabled is True`; `None`, exceptions, consent denial, unusable project
@@ -196,17 +194,22 @@ operations for unaffected callers. Add a supported artifact-phase local-only pat
 SaaS adapters. Hosted fan-out is later submitted as an intent to the command's single
 executor.
 
-### 4. Setup-plan orchestration and reporting
+### 4. Setup-plan orchestration, hosted-effects boundary, and reporting
 
-Replace the two early exit-2 guards in `mission_setup_plan.py` with evidence collection.
-Structural collection occurs only after repository-root resolution. Local helpers return
-or contribute to one typed `SetupPlanLocalOutcome`; a single reporter attaches hosted
-diagnostics and emits JSON or human output once.
+Replace the two early exit-2 guards in `mission_setup_plan.py`. Every context-established
+success, blocked, or error path first returns or contributes to one typed
+`SetupPlanLocalOutcome`. The sole finalization seam receives that complete local value,
+then acquires hosted evidence, issues the decision, offers inert intents to the hosted
+executor, and finally reports JSON or human output once. Pre-root context/git failures
+retain their existing behavior and do not fabricate hosted evidence.
 
-All lifecycle fan-out, dossier enqueue/publication, and discovered hosted sinks must
-pass through the decision executor. Local phase JSONL, file writes, documentation
-wiring, and safe commits remain unconditional when their local workflow stage is
-eligible.
+Create `setup_plan_hosted_effects.py` as the sole physical hosted-effect boundary. It
+owns the imports and calls for lifecycle fan-out and dossier hosted sync. Its public
+executor and private sink adapter each perform a terminal exact-identity check through
+`is_canonical_hosted_sync_decision()`. `mission_setup_plan.py` imports only that executor
+and passes inert lifecycle/dossier intents. Local phase JSONL, file writes,
+documentation wiring, and safe commits remain unconditional whenever their local stage
+is eligible.
 
 ## Local Outcome Compatibility Matrix
 
@@ -294,7 +297,8 @@ src/specify_cli/
 ├── readiness/auth.py
 ├── status/lifecycle_events.py
 └── cli/commands/agent/
-    ├── setup_plan_hosted.py        # new command adapter
+    ├── setup_plan_hosted.py        # evidence, diagnostics, decision authority
+    ├── setup_plan_hosted_effects.py # sole physical hosted sink boundary
     └── mission_setup_plan.py
 
 tests/
@@ -311,18 +315,20 @@ tests/
 ```
 
 **Structure Decision**: Preserve domain ownership: auth owns session truth, sync
-preflight owns structural detection, status owns local event persistence, and the
-setup-plan adapter owns composition. The command orchestrator consumes these seams and
-does not duplicate them.
+preflight owns structural detection, status owns local event persistence,
+`setup_plan_hosted.py` owns decision composition, and `setup_plan_hosted_effects.py`
+alone owns physical setup-plan hosted sinks. The command orchestrator sequences these
+seams after freezing local truth and does not duplicate or import their effects.
 
 ## Implementation Concern Map
 
-### IC-01 — Canonical session assessment
+### IC-01 — Canonical session evaluation evidence
 
-- **Purpose**: Preserve assessment completion separately from usable-session presence at
-  the earliest authority, without creating a tri-state auth subsystem.
+- **Purpose**: Preserve evaluation success/failure separately from the Boolean
+  authenticated/logged-out verdict at the earliest authority.
 - **Relevant requirements**: FR-002–FR-006.
-- **Affected surfaces**: `auth/token_manager.py`, `readiness/auth.py`, corresponding tests.
+- **Affected surfaces**: `auth/token_manager.py`, compatibility projection in
+  `readiness/auth.py`, corresponding tests.
 - **Sequencing/depends-on**: none.
 - **Risks**: changing Boolean callers or accidentally invoking refresh/network.
 
@@ -342,14 +348,16 @@ does not duplicate them.
 - **Sequencing/depends-on**: none; may proceed in parallel with IC-01/IC-02.
 - **Risks**: duplicate events, accidental behavior changes for existing callers.
 
-### IC-04 — Setup-plan orchestration and compatibility
+### IC-04 — Local-first orchestration and isolated hosted execution
 
-- **Purpose**: Join the two lanes, guard all hosted effects, and render one result.
+- **Purpose**: Freeze the local result first, then guard all physical hosted effects
+  behind one dedicated module and render one result.
 - **Relevant requirements**: FR-001, FR-005–FR-015.
 - **Affected surfaces**: setup-plan command, runtime/read-surface/architecture tests,
   logged-out Teamspace operations documentation.
 - **Sequencing/depends-on**: IC-01, IC-02, IC-03.
-- **Risks**: missed return/raise path, unguarded hidden fan-out, changed legacy exit.
+- **Risks**: missed return/raise path, hosted assessment before freeze, forbidden sink
+  import outside the boundary, forged decision identity, changed legacy exit.
 
 ## Verification Strategy
 
@@ -359,16 +367,18 @@ does not duplicate them.
 - Table-test all decision combinations and prove structural exceptions do not escape.
 - Test local-only lifecycle persistence separately from hosted fan-out composition.
 - Cross the local-outcome compatibility matrix with hosted-readiness variants.
-- Add a non-vacuous architectural gate with a synthetic violating fixture proving that
-  a new setup-plan hosted sink outside the executor fails detection.
+- Add a non-vacuous architectural gate with synthetic forbidden import/name mutations
+  proving that any setup-plan hosted sink outside `setup_plan_hosted_effects.py` fails;
+  also prove terminal canonical-decision validation dominates sinks inside the module.
 - Run targeted auth, readiness, status, sync, setup-plan, architectural, Ruff, and mypy
   gates. Do not green-wash known P0 issue #3127.
 
 ## Rollout and Closeout
 
-1. Land auth and lifecycle foundations in independent lanes.
-2. Land hosted decision after auth evaluation is available.
-3. Integrate setup-plan only after all three foundations are approved.
+1. Land auth and lifecycle foundations in independent work packages.
+2. Land hosted decision after session evaluation evidence is available.
+3. Integrate the local-first finalization seam and the dedicated hosted-effects boundary
+   only after all three foundations are approved.
 4. Run targeted mission acceptance on the integrated branch.
 5. Record GitHub issue #3127 as fixed or deferred-with-followup at Mission acceptance.
    If unresolved, prohibit release-readiness declaration until it and mainline CI permit

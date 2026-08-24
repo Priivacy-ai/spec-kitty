@@ -17,6 +17,9 @@ subtasks:
 - T008
 phase: Phase 2 - Hosted decision
 history:
+- at: '2026-08-24T00:00:00Z'
+  actor: system
+  action: Rewritten for direct TokenManager evidence and local-first orchestration
 - at: '2026-08-23T18:07:49Z'
   actor: system
   action: Prompt created from remediated hosted-decision architecture
@@ -47,9 +50,10 @@ WP01 must be approved or done before this package is claimed.
 
 ## Objectives & Success Criteria
 
-Create one setup-plan-specific adapter that converts local auth evaluation, canonical
-structural preflight, route availability, and the SaaS-enable flag into an immutable
-`HostedSyncDecision`.
+Create one setup-plan-specific decision adapter that reads local session-evaluation
+evidence directly from `TokenManager`, combines it with canonical structural preflight,
+route availability, and the SaaS-enable flag, and issues an immutable
+`HostedSyncDecision` only after WP04 has frozen the local outcome.
 
 Completion requires:
 
@@ -59,7 +63,8 @@ Completion requires:
 - logged out, auth-assessment failure, boundary unsafe, boundary exception, and route
   unavailable refuse hosted effects with distinct stable diagnostics;
 - diagnostics are deduplicated and ordered auth → boundary → route;
-- auth/readiness acquisition failures become `SAAS_SYNC_AUTH_UNKNOWN` and never escape;
+- token-manager/session-evaluation failures become `SAAS_SYNC_AUTH_UNKNOWN` and never
+  escape;
 - structural adapter never raises to its local command caller;
 - no raw exception, credential, session, or token content appears in details.
 
@@ -69,9 +74,11 @@ Read the Mission spec FR-007/FR-008/FR-012, plan component 2 and diagnostic cont
 research decisions 3–4, data model, and result-envelope contract. Read canonical
 `src/specify_cli/sync/preflight.py` but do not edit it.
 
-This module is command-adapter logic, not a new global sync authority. It may lazily
-import preflight and WP01's typed session-assessment surface. It must not import
-queue-scope readers as authentication evidence or change hosted-only command behavior.
+This module is command-adapter logic, not a new global sync or authentication authority.
+It may lazily obtain the existing token manager and consume WP01's typed
+`session_assessment` surface. It must not route bearer authority through
+`readiness.auth.probe_auth_status()`, import queue-scope readers as authentication
+evidence, or change hosted-only command behavior.
 
 ## Branch Strategy
 
@@ -121,8 +128,8 @@ Cover:
    no warning.
 3. Logged out yields `SAAS_SYNC_UNAUTHENTICATED`.
 4. Failed auth assessment yields `SAAS_SYNC_AUTH_UNKNOWN`, never unauthenticated.
-5. Raised auth/readiness acquisition yields `SAAS_SYNC_AUTH_UNKNOWN`, never escapes, and
-   never becomes unauthenticated.
+5. Raised token-manager construction, property access, or session evaluation yields
+   `SAAS_SYNC_AUTH_UNKNOWN`, never escapes, and never becomes unauthenticated.
 6. Returned unsafe boundary yields `SAAS_SYNC_BOUNDARY_UNSAFE` and preserves sanitized
    `PreflightResult.to_dict()` evidence.
 7. Raised preflight evaluation yields `SAAS_SYNC_BOUNDARY_UNSAFE` with stable
@@ -148,10 +155,11 @@ Commit these tests red before adding the production module.
 
 **Purpose**: Create the single permission consumed by WP04.
 
-1. Accept typed session assessment, boundary evaluation, and canonical route availability
+1. Accept typed session evaluation, boundary evaluation, and canonical route availability
    as separate inputs. Do not accept an unproven default value.
-2. Provide a narrow no-raise collector around the existing readiness auth projection so
-   unexpected acquisition/evaluation failure becomes assessment-failed evidence.
+2. Provide a narrow no-raise collector around `TokenManager.session_assessment` directly,
+   validate its runtime shape, and convert unexpected construction, property, or
+   evaluation failure into assessment-failed evidence.
 3. Build stable warning objects with command severity `warning` and hosted disposition
    `refused`.
 4. Permit effects only when all required evidence is affirmative.
@@ -187,7 +195,8 @@ are objective. Do not duplicate all filesystem mismatch fixtures here.
 
 ## Risks & Mitigations
 
-- **Second auth authority**: consume WP01 session assessment only.
+- **Second auth authority**: consume WP01 session assessment directly; readiness and
+  queue routing are explicitly excluded.
 - **Global preflight weakening**: no edits outside owned files.
 - **Overbroad exception swallowing**: translate only boundary evaluation, never local
   setup-plan errors or started hosted-effect failures.
@@ -203,6 +212,7 @@ Check that the raised-preflight test would fail if the try/except were removed.
 ## Activity Log
 
 - 2026-08-23T18:07:49Z – system – Prompt created from remediated hosted-decision architecture.
+- 2026-08-24 – system – Rewritten for direct TokenManager evidence and local-first sequencing.
 
 ### Updating Status
 

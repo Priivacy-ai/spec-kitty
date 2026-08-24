@@ -1,4 +1,4 @@
-# Mission Specification: Authoritative local setup-plan with safe hosted refusal
+# Mission Specification: Authoritative local setup-plan with isolated hosted effects
 
 **Mission Branch**: `fix/setup-plan-auth-diagnostics-nonfatal`  
 **Created**: 2026-08-23  
@@ -12,24 +12,28 @@ because authentication, synchronization routing, or structural hosted-sync safet
 not ready. Those signals answer whether hosted delivery is permissible; they do not
 determine whether a local specification or plan is complete.
 
-This Mission makes the local verification result authoritative. Hosted-readiness checks
-still fail closed for hosted delivery, but they become separate, structured diagnostics
-that cannot replace or prevent the local result. The supported local session authority
-reports whether its assessment completed and, when it did, whether a usable session
-exists. A completed assessment with no usable session means logged out; an assessment
-failure is not an authentication state and must not be mislabeled as logged out. Queue
+This Mission makes the local verification result authoritative and fixes the ordering:
+eligible local verification finishes and its outcome is frozen before any hosted
+readiness assessment or hosted side effect is attempted. Hosted-readiness checks still
+fail closed for hosted delivery, but they become separate, structured diagnostics that
+cannot replace or prevent the frozen local result.
+
+Authentication remains a Boolean fact only when evaluation succeeds: a usable session
+means authenticated and no usable session means logged out. Evaluation itself can fail;
+that failure is separate operational evidence, not a third authentication state. Queue
 scope remains delivery-routing metadata and is never treated as proof of login.
 
 ```mermaid
 flowchart LR
-    Operator[Operator invokes setup-plan] --> Local[Complete local verification]
-    Operator --> Evidence[Assess hosted-delivery readiness]
-    Local --> Outcome[Authoritative local outcome]
-    Evidence --> Decision{Hosted delivery permitted?}
-    Decision -- Yes --> Hosted[Perform hosted effects]
-    Decision -- No --> Refuse[Refuse hosted effects and report diagnostics]
-    Outcome --> Report[One command result]
-    Hosted --> Report
+    Operator[Operator invokes setup-plan] --> Local[Complete eligible local verification]
+    Local --> Outcome[Freeze authoritative local outcome and exit]
+    Outcome --> Requested{Hosted sync requested?}
+    Requested -- No --> Report[Report the frozen local result]
+    Requested -- Yes --> Evidence[Assess session, structure, and route]
+    Evidence --> Decision{Canonical hosted decision allows effects?}
+    Decision -- Yes --> Boundary[Dedicated hosted-effects boundary]
+    Decision -- No --> Refuse[Refuse hosted effects and add diagnostics]
+    Boundary --> Report
     Refuse --> Report
 ```
 
@@ -62,6 +66,9 @@ same invocation under safe hosted conditions.
 3. **Given** a missing spec, template configuration error, or other local command error,
    **When** hosted readiness also has a diagnostic, **Then** the local error remains the
    primary result and controls the exit.
+4. **Given** repository and Mission context have been established, **When** any eligible
+   success, blocked, or error outcome is reached, **Then** that complete local payload
+   and exit are frozen before hosted evidence is acquired.
 
 ---
 
@@ -168,16 +175,16 @@ states in JSON and representative human-output cases.
 
 | ID | Title | User Story | Priority | Status |
 |----|-------|------------|----------|--------|
-| FR-001 | Local verification always completes | As an operator, I want eligible local verification to run regardless of hosted readiness so that planning is not blocked by an unrelated delivery condition. | High | Approved |
-| FR-002 | Canonical session assessment | As an operator, I want the supported local session authority to report both assessment completion and usable-session presence so diagnostics remain truthful. | High | Approved |
+| FR-001 | Local verification completes first | As an operator, I want eligible local verification to finish and freeze its outcome before hosted readiness is assessed so planning is not blocked or reclassified by an unrelated delivery condition. | High | Approved |
+| FR-002 | Canonical session evaluation evidence | As an operator, I want the supported local session authority to distinguish successful evaluation from evaluation failure and, only after success, report authenticated versus logged out so diagnostics remain truthful without inventing a third auth state. | High | Approved |
 | FR-003 | Authentication excludes queue scope | As a maintainer, I want queue scope excluded from authentication classification so routing metadata cannot become a second auth authority. | High | Approved |
 | FR-004 | Refresh-capable sessions remain authenticated | As a logged-in operator, I want a usable refresh token to establish local authentication even when the access token is expired. | High | Approved |
 | FR-005 | Logged-out warning is nonfatal | As a logged-out operator, I want one `SAAS_SYNC_UNAUTHENTICATED` warning while local verification continues. | High | Approved |
 | FR-006 | Assessment failure is distinct | As an operator whose session cannot be evaluated, I want `SAAS_SYNC_AUTH_UNKNOWN` as an assessment-failure diagnostic, never a false logged-out diagnosis. | High | Approved |
 | FR-007 | Structural assessment cannot preempt local work | As an operator, I want known unsafe results and unexpected assessment failures converted to hosted diagnostics while local verification continues. | High | Approved |
-| FR-008 | One hosted-delivery decision | As a maintainer, I want session assessment, structural safety, canonical read-only routing, and the SaaS flag composed once so all hosted effects share one decision. | High | Approved |
+| FR-008 | One post-verification hosted decision | As a maintainer, I want session evaluation, structural safety, canonical read-only routing, and the SaaS flag composed once after the local outcome is frozen so all hosted effects share one decision. | High | Approved |
 | FR-009 | Local lifecycle history is unconditional | As an operator, I want local phase history persisted even when hosted delivery is refused. | High | Approved |
-| FR-010 | Every hosted effect is guarded | As a security maintainer, I want all hosted enqueue, upload, publication, and delivery effects refused unless the composed decision allows them. | High | Approved |
+| FR-010 | Every hosted effect crosses one boundary | As a security maintainer, I want one dedicated executor module to own all setup-plan hosted sink imports and refuse every enqueue, upload, publication, and delivery effect unless the exact canonical decision allows it. | High | Approved |
 | FR-011 | Local result controls status and exit | As an automation caller, I want the local outcome alone to determine primary result fields and process exit. | High | Approved |
 | FR-012 | Structured diagnostics remain separate | As an automation caller, I want stable, ordered diagnostics attached to one result envelope without replacing the local outcome. | High | Approved |
 | FR-013 | Human output has warning parity | As an interactive operator, I want human output to communicate the same nonfatal conditions and still render the local result. | Medium | Approved |
@@ -192,7 +199,7 @@ states in JSON and representative human-output cases.
 | NFR-002 | Zero false auth warnings | Every supported usable-session fixture emits zero `SAAS_SYNC_UNAUTHENTICATED` warnings. | Correctness | High | Approved |
 | NFR-003 | Diagnostic deduplication | Each diagnostic code occurs at most once per invocation; ordering is authentication, structural, then routing. | Interoperability | High | Approved |
 | NFR-004 | One structured document | 100% of JSON-mode cases emit exactly one parseable JSON document. | Interoperability | High | Approved |
-| NFR-005 | Zero denied hosted calls | Every refused-decision test records zero calls to all enumerated hosted sinks while proving local lifecycle persistence occurred. | Data integrity | High | Approved |
+| NFR-005 | Zero denied hosted calls | Every refused-decision test records zero calls to all enumerated hosted sinks while proving local lifecycle persistence occurred; an architectural gate enforces that no setup-plan module outside the dedicated boundary can import or name those sinks. | Data integrity | High | Approved |
 | NFR-006 | No-raise local assessment | 100% of injected auth and structural evaluation failures return a local outcome plus a structured warning rather than an assessment-derived command exit. | Reliability | High | Approved |
 | NFR-007 | Performance compatibility | Local auth assessment performs no network I/O and coherent structural assessment stays within the existing 100 ms budget. | Performance | Medium | Approved |
 | NFR-008 | Read-surface compatibility | Targeted setup-plan read-surface, branch, metadata, template, and documentation-wiring regressions report zero new failures. | Compatibility | High | Approved |
@@ -214,15 +221,20 @@ states in JSON and representative human-output cases.
 
 ### Key Entities
 
-- **Canonical Session Assessment**: Invocation-local evidence containing whether local
-  session evaluation completed and, only when it completed, whether a usable session
-  exists. Assessment failure is an operational diagnostic, not an authentication state.
+- **Session Evaluation Evidence**: Invocation-local evidence with two separate facts:
+  whether local evaluation completed and, only if it did, the Boolean authenticated
+  verdict derived from usable-session presence. Evaluation failure is an operational
+  diagnostic, not an authentication state.
 - **Local Verification Outcome**: The authoritative result, phase-completeness data,
   local error or blocked reason, and process exit produced by setup-plan's local work.
 - **Hosted-Delivery Diagnostic**: Stable-coded warning describing why a hosted effect
   was refused; command severity and hosted disposition remain distinct.
-- **Hosted-Delivery Decision**: Invocation-local permission that may allow hosted
-  effects only when every required signal is affirmatively safe.
+- **Hosted-Delivery Decision**: Invocation-local permission issued only after the local
+  outcome is frozen. It may allow hosted effects only when every required signal is
+  affirmatively safe, and value-equivalent reconstructions do not carry authority.
+- **Hosted-Effects Boundary**: The sole setup-plan module permitted to import and invoke
+  physical hosted sinks. It revalidates the exact canonical decision immediately before
+  effects and accepts only inert local intents from the command orchestrator.
 - **Lifecycle Event Intent**: A locally persisted event envelope that may be offered to
   hosted fan-out only after the hosted-delivery decision allows it.
 

@@ -31,6 +31,9 @@ subtasks:
 - T019
 phase: Phase 3 - setup-plan integration
 history:
+- at: '2026-08-24T00:00:00Z'
+  actor: system
+  action: Rewritten for frozen-local-outcome sequencing and isolated hosted-effects module
 - at: '2026-08-23T18:07:49Z'
   actor: system
   action: Prompt replaced with two-lane orchestration and compatibility contract
@@ -38,10 +41,13 @@ agent_profile: implementer-ivan
 authoritative_surface: src/specify_cli/cli/commands/agent/
 create_intent:
 - tests/architectural/test_setup_plan_hosted_effect_gate.py
+- src/specify_cli/cli/commands/agent/setup_plan_hosted_effects.py
 execution_mode: code_change
 model: ''
 owned_files:
 - src/specify_cli/cli/commands/agent/mission_setup_plan.py
+- src/specify_cli/cli/commands/agent/setup_plan_hosted_effects.py
+- tests/fixtures/setup_plan_pre_mission_replay.py
 - tests/runtime/test_setup_plan_sync_evidence.py
 - tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py
 - tests/specify_cli/cli/commands/agent/test_setup_plan_read_surface.py
@@ -66,14 +72,17 @@ red on WP04's dependency-resolved lane base before editing `mission_setup_plan.p
 
 ## Objectives & Success Criteria
 
-Refactor the real setup-plan entry point into a local lane and a hosted-assessment lane
-joined by one explicit decision. Local verification produces the authoritative payload
-and exit. Hosted diagnostics are additive. Every hosted effect is executed only through
-an allowing decision, while local lifecycle persistence and other local work continue.
+Refactor the real setup-plan entry point into a strictly ordered pipeline. Every eligible
+local path produces and freezes the authoritative payload and exit first. Only then may
+the command acquire hosted evidence and issue a decision. Hosted diagnostics are
+additive. Every physical hosted sink lives in one dedicated executor module and executes
+only for the exact canonical allowing decision, while local lifecycle persistence and
+other local work remain independent.
 
 Completion requires:
 
 - no auth or structural early exit prevents eligible local verification;
+- no hosted assessment runs before the complete local payload and exit are frozen;
 - every baseline local outcome retains all primary fields and its exit;
 - JSON mode emits one object; human mode has equivalent warning severity;
 - real refresh-capable encrypted storage without scope produces no auth warning;
@@ -81,7 +90,8 @@ Completion requires:
 - returned and raised structural failures refuse hosted effects and preserve local work;
 - local lifecycle JSONL is written while lifecycle fan-out/dossier/queue/upload/
   daemon/dashboard/direct hosted sinks remain zero under refusal;
-- an AST architectural gate with synthetic mutation prevents future bypasses;
+- an architectural import/name and dominance gate with synthetic mutations prevents
+  direct, aliased, containerized, partial, dynamic-import, and reflective bypasses;
 - `agent mission create` and setup-plan policy are named consistently in the logged-out
   Teamspace operations document;
 - issue #3127 receives a terminal acceptance verdict and remains a release-readiness
@@ -96,9 +106,11 @@ single-authority-gate, and project-sync-store ADRs named by the plan. Treat
 `traces/design-decisions.md` as the active supersession index for append-only historical
 Decision Moments.
 
-WP01 supplies typed session assessment. WP02 supplies the no-raise decision. WP03
-supplies local-only lifecycle persistence and explicit fan-out. Consume those APIs; do
-not recreate their logic inside `mission_setup_plan.py`.
+WP01 supplies typed session-evaluation evidence. WP02 reads it directly from
+`TokenManager` and supplies the no-raise decision. WP03 supplies local-only lifecycle
+persistence and explicit fan-out. WP04 adds `setup_plan_hosted_effects.py` as the sole
+physical owner of fan-out/dossier sink imports. Consume those APIs; do not recreate their
+logic or import their sinks inside `mission_setup_plan.py`.
 
 Do not change `run_preflight`, TokenManager, lifecycle internals, sync-store layout,
 hosted-only commands, or add a strict-sync option. Do not catch local workflow failures
@@ -154,43 +166,53 @@ For pre-root project/context failures, inject fatal boundary and route spies and
 they are not called; no structural or routing warning may be fabricated. Auth diagnostics
 may attach only if already collected without disturbing the existing payload protocol.
 
-### Subtask T014 – Replace early exits with evidence collection
+### Subtask T014 – Replace early exits with post-outcome evidence collection
 
 **Purpose**: Prevent hosted readiness from controlling local execution.
 
 1. Remove/retire `_enforce_saas_sync_auth_refusal` and
    `_enforce_saas_sync_boundary_preflight` as command-exit guards.
-2. When SaaS is enabled, obtain WP01's typed session assessment through the existing
-   no-raise readiness projection without queue scope. Defensively convert an unexpected
-   acquisition/evaluation exception to `SAAS_SYNC_AUTH_UNKNOWN`.
-3. Resolve the repository root using existing local behavior.
-4. After root resolution, invoke WP02's no-raise structural assessment and always resolve
+2. Resolve repository/Mission context and complete every eligible local success,
+   blocked, or error path before hosted assessment.
+3. Materialize one immutable `SetupPlanLocalOutcome` containing the complete primary
+   payload and exit before invoking any auth, structural, or route adapter.
+4. When SaaS is enabled, obtain WP01's typed session assessment directly through WP02's
+   no-raise `TokenManager.session_assessment` adapter. Never call the readiness probe or
+   queue scope. Defensively convert unexpected failure to `SAAS_SYNC_AUTH_UNKNOWN`.
+5. After the outcome is frozen, invoke WP02's no-raise structural assessment and resolve
    route evidence through `resolve_checkout_sync_routing_readonly(repo_root)`.
-5. Treat route as available only for a non-null result with non-empty `project_uuid` and
+6. Treat route as available only for a non-null result with non-empty `project_uuid` and
    `effective_sync_enabled=true`; otherwise add `SAAS_SYNC_ROUTE_UNAVAILABLE`.
-6. Continue spec gate, plan scaffold/readiness, commit, and documentation wiring.
 7. Do not wrap local errors in the hosted assessment exception boundary.
-8. Update load-bearing command call-graph comments to match live behavior.
+8. Pre-root context/git failures retain their existing payload/exit and do not fabricate
+   hosted evidence.
+9. Update load-bearing command call-graph comments to match live behavior.
 
 ### Subtask T015 – Guard every hosted effect and preserve local intents
 
 **Purpose**: Close the lifecycle bypass and future effect class by construction.
 
 1. Change setup-plan phase emission to WP03's local-only surface and retain returned
-   envelopes as lifecycle intents.
-2. Define a narrow command-local executor that receives the immutable decision and all
-   hosted intents.
-3. When allowed, invoke explicit lifecycle fan-out and the established dossier seam.
-4. When refused, invoke neither.
-5. Audit the complete transitive setup-plan call graph for offline queue, body upload,
+   envelopes as inert lifecycle intents.
+2. Create `setup_plan_hosted_effects.py` as the sole production module permitted to
+   import or name physical setup-plan hosted sinks.
+3. Expose one narrow executor that accepts the immutable decision plus inert lifecycle
+   and dossier intents. `mission_setup_plan.py` imports only this executor.
+4. Validate the exact issued decision identity immediately before any sink is selected
+   or called; reject forged, copied, reconstructed, or deserialized equivalents.
+5. Revalidate at private sink adapters where selection would otherwise create a bypass.
+6. When allowed, invoke explicit lifecycle fan-out and the established dossier seam.
+   When refused, invoke neither.
+7. Audit the complete transitive setup-plan call graph for offline queue, body upload,
    dossier capture/publication, daemon/dashboard publication, direct SaaS, and
    read-then-act hosted operations.
-6. Route every discovered hosted-producing seam through the executor or document with
+8. Route every discovered hosted-producing seam through the executor or document with
    proof that it is local-only.
-7. Preserve local files, lifecycle JSONL, docs wiring, and safe commits.
+9. Preserve local files, lifecycle JSONL, docs wiring, and safe commits.
 
-Do not suppress failures after an allowed hosted effect has actually started; this
-Mission controls eligibility, not general transport recovery.
+An allowed hosted-effect failure must never replace the frozen local result. Preserve
+the existing sink's internal reporting and log the executor failure without inventing a
+new local exit; transport retry/recovery policy remains outside this Mission.
 
 ### Subtask T016 – Build one authoritative outcome reporter
 
@@ -198,7 +220,8 @@ Mission controls eligibility, not general transport recovery.
 
 1. Introduce an internal immutable `SetupPlanLocalOutcome` or equivalent value that
    carries primary payload and exit.
-2. Centralize JSON serialization and human rendering at one final reporting seam.
+2. Centralize hosted assessment, optional execution, JSON serialization, and human
+   rendering at one finalization seam that receives an already-frozen local outcome.
 3. Attach WP02 diagnostics as `warnings` without mutating primary fields.
 4. Thread the same reporting path through complete, scaffold, blocked, committed,
    spec-gate, missing-spec, template, and generic error emitters whenever assessment
@@ -232,21 +255,24 @@ deterministic adapter/reporter helpers required by this change.
 
 Never use the real home directory, live SaaS, or a running daemon.
 
-### Subtask T018 – Add architectural gate and policy documentation
+### Subtask T018 – Add structural boundary gate and policy documentation
 
 **Purpose**: Prevent recurrence and close FR-015 concretely.
 
 1. Create `tests/architectural/test_setup_plan_hosted_effect_gate.py`.
-2. Define the sanctioned setup-plan hosted-effects executor/call site as the explicit
-   authority.
-3. Detect direct setup-plan calls to known lifecycle fan-out, dossier, queue, upload,
-   daemon/dashboard, or hosted transport surfaces outside that authority.
-4. Add a synthetic temporary source mutation containing a forbidden call and assert the
-   scanner fails. A gate without this negative control is unacceptable.
-5. Keep any allowlist specific and shrink-only in spirit; document each authorized site.
-6. Update `docs/operations/logged-out-teamspace.md` to distinguish local commands from
+2. Define `setup_plan_hosted_effects.py` as the only physical sink boundary and
+   `execute_setup_plan_hosted_effects()` as the only orchestrator-facing effect call.
+3. Forbid sink imports, dynamic imports, and sink names in every other setup-plan module;
+   this structural edge is the primary safety rule, not an endless catalogue of call
+   expression shapes.
+4. Prove canonical decision validation dominates every physical sink inside the boundary
+   and every private adapter that can select one.
+5. Add synthetic direct, alias, nested-function, container, `partial`, dynamic import,
+   `vars(...).get`, and `operator.getitem` mutations and assert the gate rejects each.
+6. Keep any allowlist specific and shrink-only in spirit; document each authorized site.
+7. Update `docs/operations/logged-out-teamspace.md` to distinguish local commands from
    hosted-only commands and explicitly name `agent mission create` and `setup-plan`.
-7. State logged-out versus auth-assessment-failure remedies without exposing credentials,
+8. State logged-out versus auth-assessment-failure remedies without exposing credentials,
    representing assessment failure as an auth state, or instructing automation to log in
    for the user.
 
@@ -285,14 +311,15 @@ Testing is outside-in and nonfakeable:
 - lifecycle seam tests live in WP03;
 - this WP proves the real cross-layer chain and all transitive effects;
 - human/JSON parity and exactly-one-document assertions protect protocol behavior;
-- AST gate plus synthetic violation closes future bypasses.
+- module-edge/dominance gate plus hostile synthetic mutations closes future bypasses.
 
 ## Risks & Mitigations
 
 - **Multiple JSON documents**: one reporter and parser-level tests.
 - **Early local result loses warnings**: explicit spec/missing/template/generic rows.
 - **Local failure becomes success**: baseline payload and exit comparisons.
-- **Lifecycle queue bypass survives**: local-only API plus effect spies and AST gate.
+- **Lifecycle queue bypass survives**: local-only API plus effect spies and structural
+  module-edge/dominance gate.
 - **Preflight exception escapes**: real CLI exception-injection case.
 - **Scope drifts into hosted-only commands**: no ownership outside setup-plan surfaces.
 - **Documentation promises more than code**: named parity assertion and same-WP docs.
@@ -303,7 +330,9 @@ Review this as an authority and egress-boundary change:
 
 1. Trace every setup-plan return/raise path.
 2. Verify local outcomes and exits against baseline, not prose alone.
-3. Search for every hosted-producing call and confirm executor dominance.
+3. Confirm no setup-plan module outside `setup_plan_hosted_effects.py` imports or names a
+   physical sink, and confirm exact canonical-decision validation dominates all sinks
+   inside it.
 4. Confirm local lifecycle persistence remains unconditional where eligible.
 5. Inspect the real encrypted-storage tests for accidental Boolean mocks.
 6. Run the architectural gate's synthetic self-test.
@@ -313,7 +342,8 @@ Review this as an authority and egress-boundary change:
 
 ## Activity Log
 
-- 2026-08-23T18:07:49Z – system – Prompt replaced with two-lane orchestration and compatibility contract.
+- 2026-08-23T18:07:49Z – system – Prompt replaced with the then-current two-lane orchestration contract (historical; superseded below).
+- 2026-08-24 – system – Rewritten for local-first sequencing and sole-module hosted-effect ownership.
 
 ### Updating Status
 

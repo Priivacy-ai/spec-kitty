@@ -1,8 +1,8 @@
 ---
-description: "Work packages for authoritative local setup-plan and safe hosted refusal"
+description: "Work packages for local-first setup-plan and isolated hosted effects"
 ---
 
-# Work Packages: Authoritative local setup-plan with safe hosted refusal
+# Work Packages: Local-first setup-plan with isolated hosted effects
 
 **Inputs**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
 [data-model.md](data-model.md), [contract](contracts/setup-plan-result-envelope.md),
@@ -12,13 +12,14 @@ description: "Work packages for authoritative local setup-plan and safe hosted r
 
 ## Delivery Strategy
 
-Four work packages follow the actual authority boundaries. WP01 preserves canonical
-session-assessment provenance without creating a new auth state machine. WP02 composes
-session, structural, route, and enablement evidence into one hosted decision without
-altering canonical preflight. WP03 separates local lifecycle persistence from hosted
-fan-out and may proceed independently.
-WP04 integrates the three seams into setup-plan, freezes every local outcome, and adds
-the non-vacuous hosted-effect gate.
+Four work packages follow the actual authority boundaries. WP01 preserves session
+evaluation provenance while keeping authentication Boolean after successful evaluation.
+WP02 reads that evidence directly from `TokenManager` and composes session, structural,
+route, and enablement evidence into one hosted decision without altering canonical
+preflight. WP03 separates local lifecycle persistence from hosted fan-out and may
+proceed independently. WP04 makes setup-plan strictly local-first: it freezes every
+eligible local outcome, then invokes a dedicated module that alone owns physical hosted
+sinks and accepts only the exact canonical allowing decision.
 
 Every WP is ATDD-first: its first implementation commit must contain a failing test that
 is red on that WP's dependency-resolved lane base immediately before production changes
@@ -29,9 +30,9 @@ base; the original end-to-end issue may additionally be demonstrated there.
 
 ## Work Package WP01: Canonical session assessment (Priority: P0)
 
-**Goal**: Preserve assessment completion separately from usable-session presence at the
-TokenManager authority and project that evidence into the existing readiness taxonomy
-without queue-scope or network access.
+**Goal**: Preserve evaluation success/failure separately from the Boolean
+authenticated/logged-out verdict at the TokenManager authority, while retaining
+existing compatibility projections without queue-scope or network access.
 **Independent Test**: Real isolated session storage distinguishes absent from unreadable,
 recognizes an expired-access/usable-refresh session, and keeps Boolean compatibility.
 **Prompt**: [tasks/WP01-canonical-auth-evaluation.md](tasks/WP01-canonical-auth-evaluation.md)
@@ -50,7 +51,10 @@ recognizes an expired-access/usable-refresh session, and keeps Boolean compatibi
 ### Implementation Notes
 
 - Information loss is fixed where storage is first read, not reconstructed downstream.
-- `is_authenticated` remains a Boolean compatibility projection.
+- `is_authenticated` remains a Boolean compatibility projection; evaluation failure is
+  separate evidence, not an authentication state.
+- `setup-plan` consumes `TokenManager.session_assessment` directly in WP02 and never
+  treats the broader readiness taxonomy as bearer authority.
 - No queue-scope reader, refresh, HTTP client, or SaaS call participates.
 
 ### Parallel Opportunities
@@ -71,8 +75,9 @@ recognizes an expired-access/usable-refresh session, and keeps Boolean compatibi
 
 ## Work Package WP02: Hosted assessment and decision (Priority: P0)
 
-**Goal**: Add a setup-plan-specific, no-raise assessment adapter and one immutable,
-fail-closed hosted-effects decision with ordered structured diagnostics.
+**Goal**: Add a setup-plan-specific, no-raise adapter that reads canonical
+`TokenManager.session_assessment` directly and issues one immutable, fail-closed
+hosted-effects decision with ordered structured diagnostics.
 **Independent Test**: A pure decision matrix proves only completed assessment + usable
 session + safe boundary + available route allows effects, while returned and raised
 structural failures produce separate warnings.
@@ -92,8 +97,9 @@ structural failures produce separate warnings.
 ### Implementation Notes
 
 - The adapter consumes `run_preflight(..., require_auth=False)` and never modifies it.
-- Failed session assessment or unknown boundary/route evidence refuses hosted effects.
+- Failed session evaluation or unknown boundary/route evidence refuses hosted effects.
 - Diagnostic severity is warning; hosted disposition is refused.
+- Readiness and queue scope are not setup-plan authentication authorities.
 
 ### Parallel Opportunities
 
@@ -152,8 +158,9 @@ and invokes zero registered SaaS handlers; legacy composed emission still fans o
 
 ## Work Package WP04: setup-plan orchestration and compatibility (Priority: P0)
 
-**Goal**: Integrate the local and hosted lanes, guard every hosted effect, emit one
-authoritative result, and prove the complete compatibility and production-chain matrix.
+**Goal**: Complete and freeze local verification first; only afterward assess hosted
+readiness, guard every physical hosted effect inside one dedicated boundary module,
+emit one authoritative result, and prove the complete compatibility matrix.
 **Independent Test**: The real setup-plan entry point preserves every baseline local
 outcome/exit across auth and boundary variants, writes local events, and performs zero
 hosted calls whenever the decision refuses.
@@ -164,9 +171,9 @@ hosted calls whenever the decision refuses.
 
 - [x] T013 Capture baseline payloads/exits and commit the rejecting setup-plan compatibility matrix (WP04)
 
-- [x] T014 Replace early auth and boundary exits with evidence collection and one hosted decision (WP04)
+- [x] T014 Replace early auth and boundary exits with post-outcome evidence collection and one hosted decision (WP04)
 
-- [x] T015 Route local lifecycle intents and every hosted sink through the explicit executor boundary (WP04)
+- [x] T015 Isolate every physical hosted sink in the dedicated exact-identity-guarded executor module (WP04)
 
 - [x] T016 Introduce one local-outcome reporter and attach diagnostics to all eligible success, blocked, and error paths (WP04)
 
@@ -178,11 +185,17 @@ hosted calls whenever the decision refuses.
 
 ### Implementation Notes
 
-- Structural assessment begins only after repository-root resolution.
+- Every context-established local success, blocked, or error payload and exit is frozen
+  before hosted assessment begins.
+- Structural assessment begins only after repository-root resolution and after the local
+  outcome exists.
 - Pre-root failures retain their existing payload and do not fabricate structural data.
 - Local JSONL, artifact work, documentation wiring, and safe commits remain local.
+- `mission_setup_plan.py` may pass inert intents only; it may not import or name physical
+  sinks.
 - Lifecycle fan-out, dossier work, queues, daemon/dashboard publication, and any newly
-  discovered hosted sink require `allow_effects=true`.
+  discovered hosted sink must live in `setup_plan_hosted_effects.py` and require the
+  exact canonical allowing decision, not merely `allow_effects=true` on a copied value.
 
 ### Parallel Opportunities
 
@@ -196,14 +209,17 @@ hosted calls whenever the decision refuses.
 ### Risks & Mitigations
 
 - Hidden return/raise path loses warnings → matrix covers every emitter class.
-- New sink bypasses decision → AST gate has a runnable synthetic violation.
+- New sink bypasses module ownership or decision identity → structural import/name and
+  dominance gate has runnable synthetic violations, including reflective access shapes.
 - Original defect survives mocks → real encrypted-storage entry-point fixtures.
 
 ---
 
 ## Dependency & Execution Summary
 
-- **Sequence**: WP01 → WP02; WP03 runs in parallel; WP01 + WP02 + WP03 → WP04.
+- **Sequence**: WP01 → WP02; WP03 may be implemented in parallel; WP01 + WP02 + WP03 →
+  WP04. Runtime order inside WP04 is always local verification → frozen local outcome →
+  hosted assessment → optional hosted execution → reporting.
 - **Parallelization**: WP03 is an independent lane. WP01 test fixtures and WP03 tests
   are also file-disjoint.
 - **MVP Scope**: All four WPs. Each foundation is independently reviewable, but issue
@@ -238,7 +254,7 @@ hosted calls whenever the decision refuses.
 |---|---|---|---|---|
 | T001 | Rejecting assessment-provenance tests | WP01 | P0 | No |
 | T002 | TokenManager typed session assessment | WP01 | P0 | No |
-| T003 | Readiness projection | WP01 | P0 | No |
+| T003 | Compatibility readiness projection | WP01 | P0 | No |
 | T004 | Auth/readiness gates | WP01 | P0 | No |
 | T005 | Rejecting decision matrix | WP02 | P0 | No |
 | T006 | No-raise boundary adapter | WP02 | P0 | No |
@@ -249,8 +265,8 @@ hosted calls whenever the decision refuses.
 | T011 | Local-only phase emission | WP03 | P0 | No |
 | T012 | Lifecycle quality gates | WP03 | P0 | No |
 | T013 | Baseline and rejecting compatibility matrix | WP04 | P0 | Yes |
-| T014 | Evidence collection integration | WP04 | P0 | No |
-| T015 | Hosted executor boundary | WP04 | P0 | No |
+| T014 | Post-outcome evidence collection | WP04 | P0 | No |
+| T015 | Isolated hosted-effects executor boundary | WP04 | P0 | No |
 | T016 | One local-outcome reporter | WP04 | P0 | No |
 | T017 | Production-chain acceptance | WP04 | P0 | Yes |
 | T018 | Architectural gate and policy docs | WP04 | P0 | Yes |

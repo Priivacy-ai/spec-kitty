@@ -18,6 +18,9 @@ subtasks:
 - T004
 phase: Phase 1 - Session assessment authority
 history:
+- at: '2026-08-24T00:00:00Z'
+  actor: system
+  action: Clarified two-dimensional evaluation evidence without tri-state authentication
 - at: '2026-08-23T18:07:49Z'
   actor: system
   action: Prompt rewritten after post-tasks architecture review
@@ -48,11 +51,12 @@ lane commit must be a failing test commit that is red on the planning base.
 
 ## Objectives & Success Criteria
 
-Fix the information-loss defect at its source. `TokenManager` must expose a typed
-invocation-local assessment that records whether evaluation completed and, when it did,
-whether a usable session exists. A completed assessment with no usable session is logged
-out. Storage, decryption, parsing, hot-summary materialization, or evaluation failure is
-an assessment failure—not an `unknown` authentication state.
+Fix the information-loss defect at its source. `TokenManager` must expose typed,
+invocation-local evaluation evidence with two separate dimensions: whether evaluation
+completed and, only when it did, the Boolean usable-session verdict. Completed + usable
+means authenticated; completed + unusable means logged out. Storage, decryption,
+parsing, hot-summary materialization, or evaluation failure produces no auth verdict—it
+is operational failure evidence, not an `unknown` authentication state.
 
 Completion requires:
 
@@ -62,6 +66,8 @@ Completion requires:
 - `is_authenticated` remains a compatible Boolean projection;
 - readiness consumes the typed assessment and consults Teamspace detection only after a
   conclusive logged-out result;
+- setup-plan consumers read the canonical assessment directly rather than treating that
+  contextual readiness projection as bearer authority;
 - queue-scope readers and network clients are never touched;
 - no credential/session contents enter logs or diagnostics.
 
@@ -213,6 +219,7 @@ necessary, stop because repository version-bump rules expand the scope.
 ## Activity Log
 
 - 2026-08-23T18:07:49Z – system – Prompt rewritten after architectural remediation.
+- 2026-08-24 – system – Clarified evaluation provenance versus Boolean auth verdict.
 
 ### Updating Status
 
