@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: exclude-canceled-work-packages-from-lanes-01M0S6W4
 mission_id: 01M0S6W4R1SCNA8E2WPRSBCNS6
-generated_at: '2026-08-24T11:41:08.804300+00:00'
+generated_at: '2026-08-24T11:52:39.342859+00:00'
 analyzer_agent: codex
 input_artifacts:
   spec.md:
@@ -21,10 +21,10 @@ input_artifacts:
     sha256: a90fa5d9fb0187d036a248af499643921f46773f96ad8a37e660a801ee60b641
 verdict: ready
 issue_counts:
-  critical: 0
   low: 0
-  high: 0
   medium: 0
+  critical: 0
+  high: 0
   info: 0
 findings: []
 ---
