@@ -48,6 +48,7 @@ __all__ = [
     "ResolutionTier",
     "TemplateConfigurationError",
     "TemplateURNError",
+    "required_artifacts_for",
     "resolve_command",
     "resolve_configured_artifact_name",
     "resolve_configured_template",
@@ -55,15 +56,16 @@ __all__ = [
     "resolve_template",
     "resolve_template_by_urn",
 ]
-# NOTE: ``ArtifactNameConfigurationError`` and ``required_artifacts_for``
-# (FR-009) are deliberately NOT in __all__ yet. Neither has a runtime caller
-# under src/ outside this module until WP04b wires ``required_artifacts_for``
-# into the live per-type presence gate (``gather_artifact_presence``, plan.md
-# WP04b item 4) and a caller starts catching the error type -- adding either
-# to __all__ before that caller exists reds
-# ``tests/architectural/test_no_dead_symbols.py``. Both are still directly
-# importable and unit-tested (tests/specify_cli/runtime/test_configured_artifact_name.py);
-# re-add them here in WP04b alongside their first real cross-module caller.
+# NOTE: ``required_artifacts_for`` (FR-009) is back in __all__ (WP02, #3704
+# Part 2) now that ``runtime.next.runtime_bridge_io.gather_artifact_presence``
+# is its first real cross-module caller under ``src/`` -- see that
+# function's ``blocking_artifact_names`` resolution. ``ArtifactNameConfigurationError``
+# is still deliberately NOT in __all__: no caller under ``src/`` catches that
+# error type yet -- adding it before one exists would red
+# ``tests/architectural/test_no_dead_symbols.py``. It stays directly
+# importable and unit-tested
+# (tests/specify_cli/runtime/test_configured_artifact_name.py); re-add it
+# here alongside its own first real cross-module caller, whenever that lands.
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
