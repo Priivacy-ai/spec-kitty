@@ -1,22 +1,20 @@
-"""Credential parsing as an *auth signal* (WP01 / IC-01, FR-004 / FR-009).
+"""Credential parsing as a queue-scope signal (WP01 / IC-01, FR-004 / FR-009).
 
 The #3293 consent-ledger cutover narrowed
 ``specify_cli.sync.queue.read_queue_scope_from_credentials`` to a JSON-only read
 of an explicit ``queue_scope`` field. The supported on-disk credential form (a
-TOML file with ``[user]`` / ``[server]`` tables) stopped yielding a scope, so the
-FR-011 auth gate in ``mission_setup_plan._enforce_saas_sync_auth_refusal`` treated
-a genuinely-authenticated host as unauthenticated and exited 2 (regression #3425,
-research.md Decision 1 "credential half").
+TOML file with ``[user]`` / ``[server]`` tables) stopped yielding a scope, so
+the setup-plan hosted-sync path once treated a genuinely-authenticated host as
+unauthenticated (regression #3425, research.md Decision 1 "credential half").
+Setup-plan authentication now comes exclusively from the canonical
+``TokenManager.session_assessment``; this parser supplies queue identity only.
 
-These tests pin the fix as an **auth signal only**:
+These tests pin the remaining queue-scope contract:
 
-* T001 — an authenticated coherent host passes the setup-plan auth gate (no
-  ``typer.Exit(2)``).
 * T002 — the restored parser yields the canonical ``server|user|team`` piped
   scope for a TOML credentials file, still returns ``None`` for absent/garbage
   input, and preserves the explicit-JSON ``queue_scope`` path.
-* T003 — the gate consumes the value purely as a boolean; it materialises no
-  physical queue DB.
+* T003 — parsing materialises no physical queue DB and has no hosted side effect.
 * T004 — **physical-store invariance (INV-6):** restoring credential parsing does
   NOT change which physical store a live write lands in. The authoritative store
   path (``resolve_sync_target(...).queue_db_path``) is derived from the passed
@@ -163,58 +161,19 @@ def test_garbage_credentials_yield_none_not_raise(isolated_home: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T001 / T003 — the FR-011 auth gate accepts an authenticated host, no DB write
+# T003 — queue-scope parsing has no physical-store side effect
 # ---------------------------------------------------------------------------
 
 
-def test_authenticated_toml_host_passes_setup_plan_gate(
-    isolated_home: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """FR-004 / SC-002: a coherent authenticated host is NOT refused (no exit 2)."""
-    from specify_cli.cli.commands.agent.mission_setup_plan import (
-        _enforce_saas_sync_auth_refusal,
-    )
+def test_parser_materialises_no_queue_db(isolated_home: Path) -> None:
+    """T003: reading the queue-scope signal touches no physical store."""
+    from specify_cli.sync.queue import read_queue_scope_from_credentials
 
     _write_toml_credentials(isolated_home)
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-    # Must NOT raise typer.Exit(code=2): the authenticated host is accepted.
-    _enforce_saas_sync_auth_refusal(json_output=True)
-
-
-def test_gate_materialises_no_queue_db(
-    isolated_home: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """T003: the gate consumes the scope as a boolean only — no store is touched."""
-    from specify_cli.cli.commands.agent.mission_setup_plan import (
-        _enforce_saas_sync_auth_refusal,
-    )
-
-    _write_toml_credentials(isolated_home)
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-    _enforce_saas_sync_auth_refusal(json_output=True)
+    assert read_queue_scope_from_credentials() is not None
 
     created_dbs = list(isolated_home.rglob("queue*.db"))
-    assert created_dbs == [], f"gate must not materialise a queue DB, found: {created_dbs}"
-
-
-def test_unauthenticated_host_still_refused(
-    isolated_home: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Guard the negative: a genuinely-absent credential still exits 2 (no false accept)."""
-    import typer
-
-    from specify_cli.cli.commands.agent.mission_setup_plan import (
-        _enforce_saas_sync_auth_refusal,
-    )
-
-    assert not _credentials_path(isolated_home).exists()
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-    with pytest.raises(typer.Exit) as excinfo:
-        _enforce_saas_sync_auth_refusal(json_output=True)
-    assert excinfo.value.exit_code == 2
+    assert created_dbs == [], f"parser must not materialise a queue DB, found: {created_dbs}"
 
 
 # ---------------------------------------------------------------------------

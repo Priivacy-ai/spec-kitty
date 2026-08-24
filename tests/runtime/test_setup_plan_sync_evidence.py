@@ -4,20 +4,19 @@ These tests pin the contract described in
 ``kitty-specs/mvp-sync-boundary-cli-01KRVCQS/tasks/WP04-setup-plan-sync-evidence.md``
 and ``kitty-specs/mvp-cli-sync-boundary-completion-01KRX11M/tasks/WP04-setup-plan-preflight.md``:
 
-* (FR-011) When ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` and the foreground has
-  no authenticated session/credentials, ``setup-plan`` refuses loudly
-  (exit code != 0, diagnostic contains the FR-011 phrase) and writes
-  zero queue rows (scoped or legacy).
+* (FR-011) When ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` and the canonical session
+  assessment reports logged out, ``setup-plan`` preserves its authoritative
+  local result and exit, adds exactly ``SAAS_SYNC_UNAUTHENTICATED``, and invokes
+  zero hosted sinks.
 * (FR-012) Every body-upload-emitting and canonical-event-emitting
   code path in setup-plan goes through ``default_queue_db_path()``.
   No setup-plan module may call ``_legacy_queue_db_path()`` directly.
 * (Regression / authenticated) An authenticated tmp ``HOME`` running
   setup-plan produces queue rows in the active scoped DB only — the
   legacy ``~/.spec-kitty/queue.db`` stays empty (or absent).
-* (WP04 / FR-002 / FR-009) ``setup-plan`` integrates ``run_preflight``
-  after the FR-011 hosted-auth refusal: refuses with exit code 2 on
-  any daemon-owner mismatch, orphan owner record, or legacy queue
-  row in scope before any enqueue.
+* (WP04 / FR-002 / FR-009) ``setup-plan`` collects structural preflight
+  evidence after session assessment. Unsafe evidence becomes a separate
+  diagnostic and suppresses hosted effects without replacing the local result.
 
 C-008: tests patch ``pathlib.Path.home()`` (the only API that works
 cross-platform — POSIX ``HOME`` and Windows ``USERPROFILE`` both
@@ -40,6 +39,7 @@ from kernel.clock import now_utc, timedelta
 
 from specify_cli.auth.secure_storage import EncryptedFileStorage, SecureStorage
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.cli.commands.agent.setup_plan_hosted import (
     BoundaryEvaluation,
     BoundaryState,
@@ -357,41 +357,31 @@ def test_raised_structural_assessment_preserves_local_events_and_refuses_hosts(
 
 
 # ---------------------------------------------------------------------------
-# Test B — FR-011 refuse-loudly when SAAS enabled and unauthenticated
+# Test B — FR-011 logged-out refusal applies only to hosted effects
 # ---------------------------------------------------------------------------
 
 
-class TestSetupPlanRefusesWithoutAuthWhenSaasEnabled:
-    """Hosted auth refusal is a warning while local setup-plan determines exit."""
+class TestSetupPlanPreservesLocalResultWithoutAuth:
+    """Logged out suppresses hosted sinks while local setup-plan stays authoritative."""
 
-    def test_setup_plan_refuses_without_auth_when_saas_enabled(
+    def test_setup_plan_logged_out_preserves_local_result_and_refuses_hosted_effects(
         self,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
-        capsys: pytest.CaptureFixture[str],
     ) -> None:
-        home = tmp_path / "home"
-        home.mkdir()
-        monkeypatch.setenv("HOME", str(home))
+        _scope_home_classmethod(monkeypatch, tmp_path)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
         monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
-        # Ensure no credentials and no auth session anywhere under HOME.
-        spec_kitty_dir = home / ".spec-kitty"
-        assert not spec_kitty_dir.exists()
-
-        # Force the auth session lookup to return None (no session) so the
-        # refuse-loudly branch is the only possible outcome.
-        class _NoSessionTokenManager:
-            def get_current_session(self) -> None:
-                return None
+        class _LoggedOutTokenManager:
+            session_assessment = SessionAssessment(True, False, "session_absent")
 
         monkeypatch.setattr(
             "specify_cli.auth.get_token_manager",
-            lambda: _NoSessionTokenManager(),
+            lambda: _LoggedOutTokenManager(),
             raising=False,
         )
 
-        from specify_cli.cli.commands.agent.mission import setup_plan
         from specify_cli.sync.queue import (
             _legacy_queue_db_path,
             scope_db_path,
@@ -407,25 +397,20 @@ class TestSetupPlanRefusesWithoutAuthWhenSaasEnabled:
         )
         speculative_scoped = scope_db_path(speculative_scope)
 
-        with pytest.raises((typer.Exit, SystemExit)) as exc_info:
-            setup_plan(feature="any-mission", json_output=False)
-
-        # exit code must be non-zero (we picked 2 to mark "auth precondition").
-        exit_code = getattr(exc_info.value, "exit_code", None) or getattr(
-            exc_info.value, "code", None
+        feature_dir = _build_minimal_repo(tmp_path, "logged-out-local-success")
+        payload = _run_json_setup_plan(
+            monkeypatch,
+            tmp_path,
+            feature_dir,
+            hosted_effects_must_be_zero=True,
         )
-        assert exit_code is not None and exit_code != 0, (
-            f"Expected non-zero exit, got {exit_code!r}."
-        )
+        assert payload["result"] == "success"
+        assert payload["phase_complete"] is True
+        warnings = payload.get("warnings")
+        assert isinstance(warnings, list)
+        assert [item["code"] for item in warnings] == ["SAAS_SYNC_UNAUTHENTICATED"]
 
-        # The unrelated local detection error is authoritative and happens
-        # before this invocation becomes eligible for hosted assessment.
-        captured = capsys.readouterr()
-        combined = captured.out + captured.err
-        assert "Hosted sync was skipped" not in combined
-        assert "missions found" in combined
-
-        # No DB writes occurred — scoped DB never created, legacy untouched.
+        # Hosted refusal cannot create either queue store.
         assert not legacy_path.exists(), (
             f"FR-011 violation: legacy DB at {legacy_path} was created."
         )
@@ -434,7 +419,7 @@ class TestSetupPlanRefusesWithoutAuthWhenSaasEnabled:
             "was created."
         )
         # No scoped queue directory should have been created at all.
-        scoped_dir = home / ".spec-kitty" / "queues"
+        scoped_dir = tmp_path / ".spec-kitty" / "queues"
         assert not scoped_dir.exists(), (
             f"FR-011 violation: scoped queue dir at {scoped_dir} was created."
         )
@@ -455,9 +440,9 @@ class TestNoDirectLegacyDbPathCallsInSetupPlanCode:
 # WP04 (mvp-cli-sync-boundary-completion-01KRX11M) — preflight integration
 # ---------------------------------------------------------------------------
 #
-# These tests cover T019 + T020 from the WP04 spec: setup-plan must
-# refuse on owner-mismatch / orphan record / legacy rows BEFORE any
-# enqueue, and must NEVER write to the legacy queue when authenticated.
+# These tests cover T019 + T020 from the WP04 spec: setup-plan must suppress
+# hosted effects on owner-mismatch / orphan record / legacy rows, and must NEVER
+# write to the legacy queue when authenticated.
 #
 # Cross-platform isolation (C-008): we patch ``pathlib.Path.home`` and
 # the HOME / USERPROFILE env vars together. Bare ``monkeypatch.setenv``
@@ -558,7 +543,7 @@ def _patches_for_setup_plan(
 
 
 class TestSetupPlanPreflightIntegration:
-    """WP04 T019: setup-plan refuses on boundary failure before any enqueue.
+    """WP04 T019: boundary failures suppress hosted effects, not local results.
 
     ``test_setup_plan_refuses_on_daemon_owner_mismatch`` and
     ``test_setup_plan_authenticated_coherent_succeeds`` were extracted to
@@ -577,8 +562,7 @@ class TestSetupPlanPreflightIntegration:
         monkeypatch: pytest.MonkeyPatch,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """An orphan daemon owner record (dead PID) must cause refusal
-        before any enqueue."""
+        """An orphan daemon owner record must suppress every hosted sink."""
         _scope_home_classmethod(monkeypatch, tmp_path)
         monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
@@ -623,7 +607,7 @@ class TestSetupPlanPreflightIntegration:
         assert "SAAS_SYNC_BOUNDARY_UNSAFE" in warning_codes
         assert payload["result"] == "success"
 
-        # No queue writes — refusal before enqueue.
+        # No queue writes: the structural refusal applies to hosted effects.
         assert _table_row_count(expected_scoped, "body_upload_queue") == 0
         assert _table_row_count(legacy_path, "body_upload_queue") == 0
         assert _table_row_count(legacy_path, "queue") == 0
@@ -638,15 +622,13 @@ class TestSetupPlanPreflightIntegration:
         _scope_home_classmethod(monkeypatch, tmp_path)
         monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
-        # Deliberately DO NOT write credentials. Also stub auth lookup
-        # so any in-process token manager returns no session.
-        class _NoSessionTokenManager:
-            def get_current_session(self) -> None:
-                return None
+        # Deliberately expose a completed, logged-out canonical assessment.
+        class _LoggedOutTokenManager:
+            session_assessment = SessionAssessment(True, False, "session_absent")
 
         monkeypatch.setattr(
             "specify_cli.auth.get_token_manager",
-            lambda: _NoSessionTokenManager(),
+            lambda: _LoggedOutTokenManager(),
             raising=False,
         )
 
@@ -671,7 +653,7 @@ class TestSetupPlanPreflightIntegration:
 
         warning_codes = [item["code"] for item in payload["warnings"]]  # type: ignore[index]
         assert warning_codes[:2] == [
-            "SAAS_SYNC_AUTH_UNKNOWN",
+            "SAAS_SYNC_UNAUTHENTICATED",
             "SAAS_SYNC_BOUNDARY_UNSAFE",
         ]
         assert payload["result"] == "success"
