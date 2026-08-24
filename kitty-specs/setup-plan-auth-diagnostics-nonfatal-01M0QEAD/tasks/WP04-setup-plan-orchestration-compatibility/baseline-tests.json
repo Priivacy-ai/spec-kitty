@@ -1,0 +1,41 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-08-24T00:14:50Z",
+  "base_branch": "fix/setup-plan-auth-diagnostics-nonfatal",
+  "base_commit": "7a6a4919465688877f5efca0d3ba5bfe30b8a690",
+  "test_runner": "pytest",
+  "total": 307,
+  "passed": 307,
+  "failed": 0,
+  "skipped": 0,
+  "failures": [],
+  "source_identity": "MissionReviewEvidence/exact_command",
+  "evidence_kind": "post_merge_current_surface_verification",
+  "verification_command": "uv run pytest -q tests/auth/test_token_manager.py tests/readiness/test_auth_probe.py tests/status/test_lifecycle_events.py tests/specify_cli/cli/commands/agent/test_setup_plan_hosted.py tests/runtime/test_setup_plan_sync_evidence.py tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py tests/specify_cli/cli/commands/agent/test_setup_plan_read_surface.py tests/specify_cli/cli/commands/agent/test_issue_3425_setup_plan_legacy_layout_silent_capture.py tests/architectural/test_setup_plan_hosted_effect_gate.py",
+  "result_summary": "307 passed in 12.27s, 0 failed",
+  "immutable_baseline": {
+    "source_commit": "d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a",
+    "source_tree": "b0921b556c12a39032d1e44ac94a4a0e19517bd2",
+    "test_node_family": "tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py::test_real_setup_plan_matches_replayed_pre_mission_payload_and_exit",
+    "result": "12 passed; every full normalized payload and exit matched the archived pre-mission source entry point."
+  },
+  "runtime_commits": [
+    "635925301b171c8a35aed8cd125507b7e639b0e6",
+    "ad14a74274a076502a06249ea8838537c6863ead",
+    "257732344d289677f2df6083e66b9f10cecc7640"
+  ],
+  "evidence_commits": [
+    "e9bab144253bd918796112faeae506248429aded",
+    "7a6a4919465688877f5efca0d3ba5bfe30b8a690"
+  ],
+  "previous_capture": {
+    "captured_at": "2026-08-23T21:20:27Z",
+    "base_commit": "2a27d637064c1dc03ae103b46486d222fe8b7056",
+    "total": 1,
+    "passed": 0,
+    "failed": 1,
+    "skipped": 0,
+    "source_identity": "GateCoverageScopeSource/junit_xml",
+    "failure": "No JUnit XML artifact was produced; this was capture-infrastructure evidence, not a product-test failure."
+  }
+}

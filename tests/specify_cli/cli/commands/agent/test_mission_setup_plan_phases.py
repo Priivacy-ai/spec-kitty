@@ -14,22 +14,53 @@ golden harness.
 
 from __future__ import annotations
 
+import copy
+from io import BytesIO
+import json
+import os
+import pickle
+from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
-from types import MappingProxyType
+import subprocess
+import sys
+import tarfile
+from types import MappingProxyType, SimpleNamespace
 from typing import Any, cast
 
 import pytest
 import typer
+from typer.testing import CliRunner
 
 from charter.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
+from specify_cli.cli.commands.agent import setup_plan_hosted_effects as hosted_effects
+from specify_cli.cli.commands.agent.setup_plan_hosted import (
+    BoundaryEvaluation,
+    BoundaryState,
+    HostedSyncDecision,
+    HostedSyncDiagnostic,
+    decide_hosted_sync,
+    is_canonical_hosted_sync_decision,
+)
+from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.core.paths import load_meta_fail_closed as canonical_load_meta_fail_closed
 from specify_cli.runtime.resolver import TemplateConfigurationError
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DEFAULT_TEMPLATE_SET = object()
+_PRE_MISSION_GOLDEN = (
+    Path(__file__).resolve().parents[4]
+    / "fixtures"
+    / "setup_plan_pre_mission_d060cff9_payloads.json"
+)
+_PRE_MISSION_REPLAY = (
+    Path(__file__).resolve().parents[4]
+    / "fixtures"
+    / "setup_plan_pre_mission_replay.py"
+)
 
 
 def _resolved_mission_type(
@@ -62,56 +93,1043 @@ def _resolution(path: Path) -> ResolutionResult:
     )
 
 
-# ---------------------------------------------------------------------------
-# _enforce_saas_sync_auth_refusal
-# ---------------------------------------------------------------------------
+def _diagnostic(code: str) -> HostedSyncDiagnostic:
+    """Build one canonical warning through the WP02 decision authority."""
+    from specify_cli.auth.token_manager import SessionAssessment
+    from specify_cli.cli.commands.agent.setup_plan_hosted import decide_hosted_sync
+
+    assessment = (
+        SessionAssessment(False, None, "storage_read_failed")
+        if code == "SAAS_SYNC_AUTH_UNKNOWN"
+        else SessionAssessment(True, False, "session_absent")
+    )
+    return decide_hosted_sync(
+        requested=True,
+        session_assessment=assessment,
+        boundary=BoundaryEvaluation(BoundaryState.SAFE),
+        route_available=True,
+    ).diagnostics[0]
 
 
-def test_auth_refusal_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    # No exception even with no auth scope available.
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
+@pytest.mark.parametrize(
+    ("payload", "exit_code"),
+    [
+        ({"result": "success", "phase_complete": True}, 0),
+        (
+            {
+                "result": "success",
+                "phase_complete": False,
+                "scaffold_only": True,
+            },
+            0,
+        ),
+        (
+            {
+                "result": "blocked",
+                "phase_complete": False,
+                "blocked_reason": "baseline reason",
+            },
+            0,
+        ),
+        ({"error_code": "SPEC_FILE_MISSING", "error": "baseline error"}, 1),
+        (
+            {
+                "result": "error",
+                "phase_complete": False,
+                "error_code": "TEMPLATE_CONFIGURATION_ERROR",
+            },
+            1,
+        ),
+        ({"error": "baseline generic error"}, 1),
+    ],
+)
+def test_local_outcome_reporter_preserves_complete_baseline_payload_and_exit(
+    monkeypatch: pytest.MonkeyPatch,
+    payload: dict[str, object],
+    exit_code: int,
+) -> None:
+    """T013: hosted warnings are the only permitted baseline delta."""
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", lambda value: emitted.append(value))
+    warning = _diagnostic("SAAS_SYNC_AUTH_UNKNOWN")
+
+    outcome = seam.SetupPlanLocalOutcome(
+        payload=payload,
+        exit_code=exit_code,
+        render_kind="error" if exit_code else "success",
+    )
+    seam._report_setup_plan_outcome(
+        outcome,
+        diagnostics=(warning,),
+        json_output=True,
+    )
+
+    assert len(emitted) == 1
+    actual = emitted[0]
+    assert {key: value for key, value in actual.items() if key != "warnings"} == payload
+    assert actual["warnings"] == [warning.to_dict()]
+    assert outcome.exit_code == exit_code
 
 
-def test_auth_refusal_exits_when_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_credentials", lambda: None)
-    with pytest.raises(typer.Exit) as exc:
-        seam._enforce_saas_sync_auth_refusal(json_output=True)
-    assert exc.value.exit_code == 2
+def test_human_outcome_reporter_reconstructs_warning_from_closed_registry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Human rendering must not trust caller-provided diagnostic prose."""
+    sentinel = "RuntimeError token=human-secret ciphertext=isolated/human.session"
+    warning = HostedSyncDiagnostic(
+        code="SAAS_SYNC_AUTH_UNKNOWN",
+        severity=sentinel,
+        hosted_disposition=sentinel,
+        message=sentinel,
+        details={"reason": sentinel, "evidence": sentinel},
+        remediation=(sentinel,),
+    )
+    rendered: list[str] = []
+    console = cast(Any, vars(seam)["console"])
+    monkeypatch.setattr(console, "print", lambda value: rendered.append(str(value)))
+
+    seam._report_setup_plan_outcome(
+        seam.SetupPlanLocalOutcome(
+            payload={"result": "success"},
+            exit_code=0,
+            render_kind="success",
+        ),
+        diagnostics=(warning,),
+        json_output=False,
+        human_message="local-result",
+    )
+
+    assert rendered == [
+        "[yellow]Warning:[/yellow] Hosted sync was skipped because local authentication could not be evaluated; local setup-plan continued.",
+        "local-result",
+    ]
+    assert sentinel not in str(rendered)
 
 
-def test_auth_refusal_passes_with_scope(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: "scope-x")
-    # Returns without raising (scope resolved).
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
+def test_hosted_effect_executor_refuses_lifecycle_but_not_local_dossier_capture(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """T013/T015: a refused decision dominates hosted fan-out, not local capture.
+
+    Dossier capture is project-isolated LOCAL capture (see
+    ``trigger_feature_dossier_sync_if_enabled``'s own contract) and is never
+    suppressed by a refused hosted-sync decision.
+    """
+    calls: list[str] = []
+    monkeypatch.setattr(
+        hosted_effects,
+        "fanout_lifecycle_event_hosted",
+        lambda *_a, **_k: calls.append("lifecycle"),
+    )
+    monkeypatch.setattr(
+        hosted_effects,
+        "_trigger_dossier_sync",
+        lambda *_a, **_k: calls.append("dossier"),
+    )
+    decision = HostedSyncDecision(
+        requested=True,
+        allow_effects=False,
+        diagnostics=(_diagnostic("SAAS_SYNC_UNAUTHENTICATED"),),
+    )
+    intent = seam.LifecycleEventIntent(
+        envelope={"event_type": "PlanStarted"},
+        log_path=tmp_path / "lifecycle.events.jsonl",
+    )
+
+    seam._execute_setup_plan_hosted_effects(
+        decision,
+        lifecycle_intents=(intent,),
+        dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
+    )
+
+    assert calls == ["dossier"]
 
 
-# ---------------------------------------------------------------------------
-# _enforce_saas_sync_boundary_preflight
-# ---------------------------------------------------------------------------
+def _affirmative_decision() -> HostedSyncDecision:
+    return decide_hosted_sync(
+        requested=True,
+        session_assessment=SessionAssessment(True, True, "session_usable"),
+        boundary=BoundaryEvaluation(BoundaryState.SAFE),
+        route_available=True,
+    )
 
 
-def test_boundary_preflight_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    seam._enforce_saas_sync_boundary_preflight(tmp_path)
+@pytest.mark.parametrize(
+    "reconstruct",
+    [
+        pytest.param(lambda _decision: HostedSyncDecision(True, True, ()), id="direct"),
+        pytest.param(replace, id="dataclasses-replace"),
+        pytest.param(copy.copy, id="copy"),
+        pytest.param(copy.deepcopy, id="deepcopy"),
+        pytest.param(lambda decision: pickle.loads(pickle.dumps(decision)), id="pickle"),
+    ],
+)
+def test_hosted_effect_executor_refuses_reconstructed_affirmative_decisions(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    reconstruct: Any,
+) -> None:
+    """Only the exact object issued by the evidence authority may execute
+    lifecycle fan-out. Local dossier capture is unaffected by decision
+    forgery — it is never gated by the decision at all."""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        hosted_effects,
+        "fanout_lifecycle_event_hosted",
+        lambda *_a, **_k: calls.append("lifecycle"),
+    )
+    monkeypatch.setattr(
+        hosted_effects,
+        "_trigger_dossier_sync",
+        lambda *_a, **_k: calls.append("dossier"),
+    )
+    canonical = _affirmative_decision()
+    reconstructed = cast(HostedSyncDecision, reconstruct(canonical))
+
+    assert reconstructed.allow_effects is True
+    assert reconstructed is not canonical
+    assert is_canonical_hosted_sync_decision(reconstructed) is False
+
+    seam._execute_setup_plan_hosted_effects(
+        reconstructed,
+        lifecycle_intents=(
+            seam.LifecycleEventIntent(
+                envelope={"event_type": "PlanStarted"},
+                log_path=tmp_path / "lifecycle.events.jsonl",
+            ),
+        ),
+        dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
+    )
+
+    assert calls == ["dossier"]
 
 
-def test_boundary_preflight_exits_on_incoherence(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+def test_hosted_effect_executor_accepts_exact_canonical_decision(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    calls: list[str] = []
+    monkeypatch.setattr(
+        hosted_effects,
+        "fanout_lifecycle_event_hosted",
+        lambda *_a, **_k: calls.append("lifecycle"),
+    )
+    monkeypatch.setattr(
+        hosted_effects,
+        "_trigger_dossier_sync",
+        lambda *_a, **_k: calls.append("dossier"),
+    )
+    canonical = _affirmative_decision()
 
-    class _Result:
-        ok = False
+    assert is_canonical_hosted_sync_decision(canonical) is True
+    seam._execute_setup_plan_hosted_effects(
+        canonical,
+        lifecycle_intents=(
+            seam.LifecycleEventIntent(
+                envelope={"event_type": "PlanStarted"},
+                log_path=tmp_path / "lifecycle.events.jsonl",
+            ),
+        ),
+        dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
+    )
 
-        def render(self, _console: object) -> None:
+    assert calls == ["lifecycle", "dossier"]
+
+
+def test_dossier_adapter_always_fires_and_is_exception_safe(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Dossier capture is local-only: it is never gated by any decision, and a
+    raising sink is swallowed rather than escaping to the caller."""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        hosted_effects,
+        "trigger_feature_dossier_sync_if_enabled",
+        lambda *_a, **_k: calls.append("dossier"),
+    )
+    intent = seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path)
+
+    hosted_effects._trigger_dossier_sync(intent)
+    assert calls == ["dossier"]
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise RuntimeError("dossier sink failure")
+
+    monkeypatch.setattr(hosted_effects, "trigger_feature_dossier_sync_if_enabled", _boom)
+    hosted_effects._trigger_dossier_sync(intent)  # must not raise
+
+
+def test_collect_hosted_decision_disabled_touches_no_probe(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+    for name in (
+        "acquire_session_assessment",
+        "evaluate_boundary",
+        "evaluate_route_availability",
+    ):
+        monkeypatch.setattr(
+            seam,
+            name,
+            lambda *_a, _name=name, **_k: pytest.fail(f"disabled probe touched: {_name}"),
+        )
+
+    decision = seam._collect_hosted_sync_decision(tmp_path)
+
+    assert decision.requested is False
+    assert decision.allow_effects is False
+    assert decision.diagnostics == ()
+
+
+def test_human_reporter_renders_warning_then_local_result(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seam._report_setup_plan_outcome(
+        seam.SetupPlanLocalOutcome(
+            payload={"result": "success", "phase_complete": True},
+            exit_code=0,
+            render_kind="success",
+        ),
+        diagnostics=(_diagnostic("SAAS_SYNC_UNAUTHENTICATED"),),
+        json_output=False,
+        human_message="LOCAL RESULT",
+    )
+
+    output = capsys.readouterr().out
+    assert "Warning:" in output
+    assert "Hosted sync was skipped" in output
+    assert output.index("Warning:") < output.index("LOCAL RESULT")
+
+
+def test_real_setup_plan_git_preflight_failure_precedes_and_skips_hosted_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """An early local failure keeps its exact payload and never probes hosted state."""
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    emitted: list[dict[str, object]] = []
+    baseline = {
+        "result": "error",
+        "error_code": "GIT_PREFLIGHT_FAILED",
+        "error": "baseline git failure",
+        "remediation": ["git worktree prune"],
+    }
+    monkeypatch.setattr(
+        seam,
+        "_collect_hosted_sync_decision",
+        lambda _root: pytest.fail("hosted assessment ran before local git verification"),
+    )
+    monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
+    monkeypatch.setattr(mission_mod, "_emit_json", lambda payload: emitted.append(payload))
+
+    def _git_failure(*_args: object, **_kwargs: object) -> None:
+        mission_mod._emit_json(dict(baseline))
+        raise typer.Exit(1)
+
+    monkeypatch.setattr(mission_mod, "_enforce_git_preflight", _git_failure)
+
+    with pytest.raises(typer.Exit) as exc_info:
+        seam.setup_plan(feature="001-demo", json_output=True)
+
+    assert exc_info.value.exit_code == 1
+    assert len(emitted) == 1
+    actual = emitted[0]
+    assert actual == baseline
+
+
+_LOCAL_OUTCOME_CASES: dict[str, dict[str, object]] = {
+    "substantive_complete": {"plan_substantive": True},
+    "pristine_scaffold": {"plan_exists": False},
+    "populated_insufficient": {},
+    "committed_insufficient": {"plan_committed": True},
+    "non_substantive_spec": {"spec_substantive": False},
+    "uncommitted_spec": {"spec_committed": False},
+    "missing_spec": {"spec_exists": False},
+    "template_configuration": {"template_error": "configuration"},
+    "missing_template": {"template_error": "missing"},
+    "generic_local_exception": {"template_error": "generic"},
+    "context_resolution": {"context_error": True},
+    "git_preflight": {"git_error": True},
+}
+
+_READINESS_VARIANTS = (
+    "usable",
+    "logged_out",
+    "auth_exception",
+    "boundary_unsafe",
+    "boundary_exception",
+    "route_null",
+    "route_denied",
+    "route_exception",
+)
+
+
+def _seed_local_case(root: Path, case: dict[str, object]) -> tuple[Path, Path]:
+    feature_dir = root / "kitty-specs" / "001-matrix"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    spec_file = feature_dir / "spec.md"
+    plan_file = feature_dir / "plan.md"
+    if bool(case.get("spec_exists", True)):
+        spec_file.write_text(
+            "# Spec\n\n## Functional Requirements\n\n- FR-001: Real content.\n",
+            encoding="utf-8",
+        )
+    else:
+        spec_file.unlink(missing_ok=True)
+    if bool(case.get("plan_exists", True)):
+        plan_file.write_text("# Plan\n\nPopulated but insufficient.\n", encoding="utf-8")
+    else:
+        plan_file.unlink(missing_ok=True)
+    return feature_dir, plan_file
+
+
+def _patch_readiness_variant(
+    mp: pytest.MonkeyPatch,
+    variant: str,
+) -> None:
+    mp.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    if variant == "auth_exception":
+        mp.setattr(
+            seam,
+            "acquire_session_assessment",
+            lambda _root: (_ for _ in ()).throw(RuntimeError("auth sentinel")),
+        )
+    else:
+        assessment = (
+            SessionAssessment(True, False, "session_absent")
+            if variant == "logged_out"
+            else SessionAssessment(True, True, "session_usable")
+        )
+        mp.setattr(seam, "acquire_session_assessment", lambda _root: assessment)
+
+    if variant == "boundary_exception":
+        mp.setattr(
+            "specify_cli.sync.preflight.run_preflight",
+            lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("boundary sentinel")),
+        )
+    else:
+        boundary = (
+            BoundaryEvaluation(BoundaryState.UNSAFE, "structural_preflight_failed")
+            if variant == "boundary_unsafe"
+            else BoundaryEvaluation(BoundaryState.SAFE)
+        )
+        mp.setattr(seam, "evaluate_boundary", lambda _root: boundary)
+
+    if variant in {"route_null", "route_denied", "route_exception"}:
+        def _route_null(_root: Path) -> None:
             return None
 
-    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_k: _Result())
-    with pytest.raises(typer.Exit) as exc:
-        seam._enforce_saas_sync_boundary_preflight(tmp_path)
-    assert exc.value.exit_code == 2
+        def _route_denied(_root: Path) -> SimpleNamespace:
+            return SimpleNamespace(
+                project_uuid="",
+                effective_sync_enabled=False,
+            )
+
+        def _route_exception(_root: Path) -> None:
+            raise RuntimeError("route sentinel")
+
+        route_probe: Callable[[Path], object | None]
+        if variant == "route_null":
+            route_probe = _route_null
+        elif variant == "route_denied":
+            route_probe = _route_denied
+        else:
+            route_probe = _route_exception
+        mp.setattr(
+            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
+            route_probe,
+        )
+    else:
+        mp.setattr(seam, "evaluate_route_availability", lambda _root: (True, None))
+
+
+def _invoke_matrix_case(  # noqa: C901 - acceptance fixture encodes the binding matrix
+    mp: pytest.MonkeyPatch,
+    root: Path,
+    case: dict[str, object],
+    readiness: str | None,
+    *,
+    refused_sink_calls: list[str] | None = None,
+    invoke_through_parser: bool = False,
+    human_output: bool = False,
+) -> tuple[dict[str, object], int, str]:
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    # Branch-contract timestamps are the only documented volatile fields in the
+    # setup-plan envelope. Freeze the shared producer so baseline and readiness
+    # variants compare the complete payload rather than racing the wall clock.
+    mp.setattr(
+        "specify_cli.cli.commands.agent.mission_branch_context._utc_now_iso",
+        lambda: "2026-08-23T00:00:00Z",
+    )
+    feature_dir, plan_file = _seed_local_case(root, case)
+    template = root / "plan-template.md"
+    template.write_text(
+        "# Plan\n\n## Technical Context\n\n**Language/Version**: [NEEDS CLARIFICATION]\n",
+        encoding="utf-8",
+    )
+    emitted: list[dict[str, object]] = []
+    if not invoke_through_parser and not human_output:
+        mp.setattr(mission_mod, "_emit_json", lambda payload: emitted.append(dict(payload)))
+    mp.setattr(mission_mod, "locate_project_root", lambda: root)
+    if bool(case.get("git_error")):
+        git_payload = {
+            "result": "error",
+            "error_code": "GIT_PREFLIGHT_FAILED",
+            "error": "baseline git failure",
+            "remediation": ["git worktree prune"],
+        }
+
+        def _git_failure(*_args: object, **_kwargs: object) -> None:
+            mission_mod._emit_json(dict(git_payload))
+            raise typer.Exit(1)
+
+        mp.setattr(mission_mod, "_enforce_git_preflight", _git_failure)
+    else:
+        mp.setattr(mission_mod, "_enforce_git_preflight", lambda *_a, **_k: None)
+    if bool(case.get("context_error")):
+        mp.setattr(
+            mission_mod,
+            "_find_feature_directory",
+            lambda *_a, **_k: (_ for _ in ()).throw(ValueError("context failure")),
+        )
+    else:
+        mp.setattr(mission_mod, "_find_feature_directory", lambda *_a, **_k: feature_dir)
+    mp.setattr(mission_mod, "_planning_read_dir", lambda *_a, **_k: feature_dir)
+    mp.setattr(mission_mod, "_show_branch_context", lambda *_a, **_k: (root, "main"))
+    mp.setattr(mission_mod, "get_current_branch", lambda _root: "main")
+    mp.setattr(mission_mod, "_branch_tree_relative_path", lambda path, _root: path.name)
+    mp.setattr(
+        mission_mod,
+        "_commit_to_branch",
+        lambda *_a, **_k: seam.CommitToBranchResult(
+            status="committed",
+            placement_ref="main",
+            commit_hash="abc123",
+        ),
+    )
+    mp.setattr(seam, "_resolve_branch_match_operands", lambda *_a, **_k: ("main", "main"))
+    mp.setattr(seam, "_run_documentation_wiring", lambda *_a, **_k: (None, []))
+    def _record_sink(name: str) -> Any:
+        def _record(*_args: object, **_kwargs: object) -> None:
+            if refused_sink_calls is not None:
+                refused_sink_calls.append(name)
+
+        return _record
+
+    mp.setattr(hosted_effects, "_trigger_dossier_sync", _record_sink("dossier"))
+    mp.setattr(
+        hosted_effects,
+        "fanout_lifecycle_event_hosted",
+        _record_sink("lifecycle_fanout"),
+    )
+    mp.setattr(
+        "specify_cli.sync.queue.OfflineQueue.queue_event",
+        _record_sink("event_outbox"),
+    )
+    mp.setattr(
+        "specify_cli.sync.body_queue.OfflineBodyUploadQueue.enqueue",
+        _record_sink("body_outbox"),
+    )
+    mp.setattr(
+        "specify_cli.sync.events._request_dashboard_sync",
+        _record_sink("dashboard_sync"),
+    )
+    mp.setattr(
+        "specify_cli.sync.events._publish_event_via_sync_daemon",
+        _record_sink("daemon_publish"),
+    )
+    mp.setattr("specify_cli.auth.transport.get_client", _record_sink("http_client"))
+
+    template_error = case.get("template_error")
+    if template_error == "configuration":
+        error = TemplateConfigurationError(
+            mission_type="software-dev",
+            artifact_kind="plan",
+            reason="has no configured template",
+        )
+        mp.setattr(
+            seam,
+            "_resolve_plan_template",
+            lambda *_a, **_k: (_ for _ in ()).throw(error),
+        )
+    elif template_error == "missing":
+        mp.setattr(
+            seam,
+            "_resolve_plan_template",
+            lambda *_a, **_k: (_ for _ in ()).throw(FileNotFoundError("missing")),
+        )
+    elif template_error == "generic":
+        mp.setattr(
+            seam,
+            "_resolve_plan_template",
+            lambda *_a, **_k: (_ for _ in ()).throw(RuntimeError("generic local failure")),
+        )
+    else:
+        mp.setattr(seam, "_resolve_plan_template", lambda *_a, **_k: _resolution(template))
+
+    def _is_substantive(path: Path, artifact_type: str) -> bool:
+        if artifact_type == "spec":
+            return bool(case.get("spec_substantive", True))
+        assert path == plan_file
+        return bool(case.get("plan_substantive", False))
+
+    def _is_committed(
+        path: Path,
+        _root: Path,
+        diagnostics: list[str] | None = None,
+    ) -> bool:
+        if diagnostics is not None:
+            diagnostics.append("matrix-surface")
+        if path.name == "spec.md":
+            return bool(case.get("spec_committed", True))
+        return bool(case.get("plan_committed", False))
+
+    mp.setattr("specify_cli.missions._substantive.is_substantive", _is_substantive)
+    mp.setattr("specify_cli.missions._substantive.is_committed", _is_committed)
+    if readiness is None:
+        mp.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "0")
+        for probe in (
+            "acquire_session_assessment",
+            "evaluate_boundary",
+            "evaluate_route_availability",
+        ):
+            mp.setattr(
+                seam,
+                probe,
+                lambda *_a, _probe=probe, **_k: pytest.fail(
+                    f"disabled probe touched: {_probe}"
+                ),
+            )
+    else:
+        _patch_readiness_variant(mp, readiness)
+
+    if invoke_through_parser:
+        result = CliRunner().invoke(
+            mission_mod.app,
+            ["setup-plan", "--mission", "001-matrix", "--json"],
+        )
+        exit_code = result.exit_code
+        wire = result.stdout.strip()
+    else:
+        exit_code = 0
+        try:
+            seam.setup_plan(feature="001-matrix", json_output=not human_output)
+        except typer.Exit as exc:
+            exit_code = exc.exit_code
+        if human_output:
+            return {}, exit_code, ""
+        assert len(emitted) == 1
+        wire = json.dumps(emitted[0], sort_keys=True)
+    decoded, end = json.JSONDecoder().raw_decode(wire)
+    assert wire[end:].strip() == ""
+    assert isinstance(decoded, dict)
+    return decoded, exit_code, wire
+
+
+@pytest.mark.parametrize("case_name", tuple(_LOCAL_OUTCOME_CASES))
+def test_real_setup_plan_preserves_full_local_matrix_across_readiness(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    case_name: str,
+) -> None:
+    """T013/T017: real entry-point baseline differs only by warnings."""
+    case = _LOCAL_OUTCOME_CASES[case_name]
+    with monkeypatch.context() as mp:
+        baseline, baseline_exit, _wire = _invoke_matrix_case(mp, tmp_path, case, None)
+
+    for variant in _READINESS_VARIANTS:
+        with monkeypatch.context() as mp:
+            actual, actual_exit, wire = _invoke_matrix_case(mp, tmp_path, case, variant)
+        primary = {key: value for key, value in actual.items() if key != "warnings"}
+        assert primary == baseline, (case_name, variant, wire)
+        assert actual_exit == baseline_exit, (case_name, variant)
+        warning_codes = [
+            warning["code"]
+            for warning in cast(list[dict[str, object]], actual.get("warnings", []))
+        ]
+        if case_name in {"context_resolution", "git_preflight"} or variant == "usable":
+            assert warning_codes == []
+        elif variant == "logged_out":
+            assert warning_codes == ["SAAS_SYNC_UNAUTHENTICATED"]
+        elif variant == "auth_exception":
+            assert warning_codes == ["SAAS_SYNC_AUTH_UNKNOWN"]
+        elif variant in {"boundary_unsafe", "boundary_exception"}:
+            assert warning_codes == ["SAAS_SYNC_BOUNDARY_UNSAFE"]
+        else:
+            assert warning_codes == ["SAAS_SYNC_ROUTE_UNAVAILABLE"]
+
+
+def _normalize_golden_root(value: object, root: Path) -> object:
+    if isinstance(value, dict):
+        return {key: _normalize_golden_root(item, root) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_normalize_golden_root(item, root) for item in value]
+    if isinstance(value, str):
+        # macOS resolves /tmp through /private/tmp; normalize both spellings.
+        return value.replace(str(root.resolve()), "{{ROOT}}").replace(str(root), "{{ROOT}}")
+    return value
+
+
+@pytest.fixture(scope="module")
+def _pre_mission_replay(tmp_path_factory: pytest.TempPathFactory) -> dict[str, object]:
+    """Archive and execute the immutable pre-mission implementation tree."""
+    repo_root = Path(__file__).resolve().parents[5]
+    manifest = json.loads(_PRE_MISSION_GOLDEN.read_text(encoding="utf-8"))
+    commit = str(manifest["source_commit"])
+    expected_tree = str(manifest["source_tree"])
+    actual_tree = subprocess.run(
+        ["git", "rev-parse", f"{commit}^{{tree}}"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert actual_tree == expected_tree
+    archive = subprocess.run(
+        ["git", "archive", "--format=tar", commit],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    ).stdout
+    source_root = tmp_path_factory.mktemp("setup-plan-pinned-source")
+    with tarfile.open(fileobj=BytesIO(archive), mode="r:") as bundle:
+        bundle.extractall(source_root, filter="data")
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(source_root / "src")
+    replay = subprocess.run(
+        [sys.executable, str(_PRE_MISSION_REPLAY), str(source_root)],
+        cwd=source_root,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    document = json.loads(replay.stdout)
+    assert document["loaded_module"] == (
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py"
+    )
+    assert set(document["cases"]) == set(_LOCAL_OUTCOME_CASES)
+    return cast(dict[str, object], document)
+
+
+@pytest.mark.parametrize("case_name", tuple(_LOCAL_OUTCOME_CASES))
+def test_real_setup_plan_matches_replayed_pre_mission_payload_and_exit(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    case_name: str,
+    _pre_mission_replay: dict[str, object],
+) -> None:
+    """Compare HEAD directly with a replay of the pinned source entry point."""
+    expected = cast(dict[str, dict[str, object]], _pre_mission_replay["cases"])[case_name]
+    with monkeypatch.context() as mp:
+        payload, exit_code, _wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES[case_name],
+            None,
+        )
+
+    normalized = _normalize_golden_root(payload, tmp_path)
+    assert normalized == expected["payload"]
+    assert exit_code == expected["exit_code"]
+
+
+def test_real_setup_plan_freezes_local_outcome_before_hostile_hosted_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The real entry point proves local result construction happens first."""
+    order: list[str] = []
+    original_builder = seam._build_setup_plan_result
+
+    def _recording_builder(**kwargs: object) -> seam.SetupPlanLocalOutcome:
+        outcome = original_builder(**kwargs)
+        order.append("local-outcome")
+        return outcome
+
+    def _hostile_assessment(_root: Path) -> seam.HostedSyncDecision:
+        order.append("hosted-assessment")
+        raise RuntimeError("token=hostile-hosted-assessment")
+
+    with monkeypatch.context() as mp:
+        mp.setattr(seam, "_build_setup_plan_result", _recording_builder)
+        mp.setattr(seam, "_collect_hosted_sync_decision", _hostile_assessment)
+        payload, exit_code, wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            "logged_out",
+        )
+
+    assert order == ["local-outcome", "hosted-assessment"]
+    assert exit_code == 0
+    assert payload["result"] == "success"
+    assert payload["phase_complete"] is True
+    assert "hostile-hosted-assessment" not in wire
+    assert [warning["code"] for warning in cast(list[dict[str, object]], payload["warnings"])] == [
+        "SAAS_SYNC_AUTH_UNKNOWN",
+        "SAAS_SYNC_BOUNDARY_UNSAFE",
+        "SAAS_SYNC_ROUTE_UNAVAILABLE",
+    ]
+
+
+@pytest.mark.parametrize(
+    "case_name",
+    ("missing_spec", "template_configuration", "generic_local_exception"),
+)
+def test_real_setup_plan_local_errors_survive_hostile_hosted_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    case_name: str,
+) -> None:
+    """Post-context local errors retain payload/exit and leak no adapter data."""
+    sink_calls: list[str] = []
+    with monkeypatch.context() as mp:
+        baseline, baseline_exit, _ = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES[case_name],
+            None,
+        )
+
+    def _hostile_assessment(_root: Path) -> HostedSyncDecision:
+        raise RuntimeError("token=local-error-secret ciphertext=/private/auth.session")
+
+    with monkeypatch.context() as mp:
+        mp.setattr(seam, "_collect_hosted_sync_decision", _hostile_assessment)
+        actual, actual_exit, wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES[case_name],
+            "logged_out",
+            refused_sink_calls=sink_calls,
+        )
+
+    assert {key: value for key, value in actual.items() if key != "warnings"} == baseline
+    assert actual_exit == baseline_exit == 1
+    assert "local-error-secret" not in wire
+    assert "/private/auth.session" not in wire
+    assert sink_calls == []
+    assert [warning["code"] for warning in cast(list[dict[str, object]], actual["warnings"])] == [
+        "SAAS_SYNC_AUTH_UNKNOWN",
+        "SAAS_SYNC_BOUNDARY_UNSAFE",
+        "SAAS_SYNC_ROUTE_UNAVAILABLE",
+    ]
+
+
+def test_real_setup_plan_resolves_route_exactly_once(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The real entry point has one routing acquisition for one decision."""
+    calls = 0
+    original = seam.evaluate_route_availability
+
+    def _counted(root: Path) -> tuple[bool, str | None]:
+        nonlocal calls
+        calls += 1
+        return cast(tuple[bool, str | None], original(root))
+
+    with monkeypatch.context() as mp:
+        mp.setattr(seam, "evaluate_route_availability", _counted)
+        payload, exit_code, _wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            "route_null",
+        )
+
+    assert exit_code == 0
+    assert calls == 1
+    assert cast(list[dict[str, object]], payload["warnings"])[0]["code"] == (
+        "SAAS_SYNC_ROUTE_UNAVAILABLE"
+    )
+
+
+def _hostile_diagnostic_serializer(mode: str) -> Callable[[HostedSyncDiagnostic], object]:
+    def _serialize(_self: HostedSyncDiagnostic) -> object:
+        if mode == "raise":
+            raise RuntimeError("token=serializer-secret ciphertext=/private/session.enc")
+        if mode == "malicious_dict":
+            return {
+                "code": "EVIL",
+                "severity": "fatal",
+                "hosted_disposition": "allowed",
+                "message": "token=serializer-secret ciphertext=/private/session.enc",
+                "remediation": ["exfiltrate secret"],
+            }
+        return object()
+
+    return _serialize
+
+
+@pytest.mark.parametrize("serializer_mode", ("raise", "malicious_dict", "non_json"))
+def test_real_setup_plan_json_rebuilds_untrusted_diagnostic_serializer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    serializer_mode: str,
+) -> None:
+    """Raising, malicious, and non-JSON public serializers are never trusted."""
+    with monkeypatch.context() as mp:
+        baseline, baseline_exit, _ = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            None,
+        )
+
+    with monkeypatch.context() as mp:
+        mp.setattr(
+            HostedSyncDiagnostic,
+            "to_dict",
+            _hostile_diagnostic_serializer(serializer_mode),
+        )
+        actual, actual_exit, wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            "logged_out",
+        )
+
+    primary = {key: value for key, value in actual.items() if key != "warnings"}
+    assert primary == baseline
+    assert actual_exit == baseline_exit == 0
+    assert "serializer-secret" not in wire
+    assert "/private/session.enc" not in wire
+    assert '"EVIL"' not in wire
+    assert '"fatal"' not in wire
+    assert '"allowed"' not in wire
+    assert cast(list[dict[str, object]], actual["warnings"])[0]["code"] == (
+        "SAAS_SYNC_UNAUTHENTICATED"
+    )
+
+
+@pytest.mark.parametrize("serializer_mode", ("raise", "malicious_dict", "non_json"))
+def test_real_setup_plan_human_rebuilds_untrusted_diagnostic_serializer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    serializer_mode: str,
+) -> None:
+    """Human rendering also ignores every untrusted serializer return shape."""
+    with monkeypatch.context() as mp:
+        _, baseline_exit, _ = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            None,
+            human_output=True,
+        )
+    baseline_output = capsys.readouterr().out
+
+    with monkeypatch.context() as mp:
+        mp.setattr(
+            HostedSyncDiagnostic,
+            "to_dict",
+            _hostile_diagnostic_serializer(serializer_mode),
+        )
+        _, actual_exit, _ = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            "logged_out",
+            human_output=True,
+        )
+    actual_output = capsys.readouterr().out
+
+    assert actual_exit == baseline_exit == 0
+    assert "serializer-secret" not in actual_output
+    assert "/private/session.enc" not in actual_output
+    assert "EVIL" not in actual_output
+    assert "fatal" not in actual_output
+    assert "allowed" not in actual_output
+    assert "Plan scaffolded:" in baseline_output
+    assert "Plan scaffolded:" in actual_output
+    assert "no usable local session is available" in actual_output
+
+
+def test_real_setup_plan_refusal_persists_local_events_and_touches_no_hosted_sink(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """T015/T016: refusal blocks hosted fan-out but cannot suppress local
+    persistence — including local dossier capture, which is never gated by
+    the hosted-sync decision."""
+    from specify_cli.status.lifecycle_events import mission_event_log_path
+
+    sink_calls: list[str] = []
+    with monkeypatch.context() as mp:
+        payload, exit_code, _wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            "logged_out",
+            refused_sink_calls=sink_calls,
+        )
+
+    assert exit_code == 0
+    assert payload["result"] == "success"
+    assert sink_calls == ["dossier"]
+    event_log = mission_event_log_path(tmp_path / "kitty-specs" / "001-matrix")
+    assert event_log.is_file()
+    assert len(event_log.read_text(encoding="utf-8").splitlines()) >= 3
+
+
+def test_real_setup_plan_cli_emits_exactly_one_json_object_when_refused(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The real Typer parser emits one parseable object, without trailing JSON."""
+    with monkeypatch.context() as mp:
+        payload, exit_code, wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES["substantive_complete"],
+            "route_exception",
+            invoke_through_parser=True,
+        )
+
+    assert exit_code == 0, wire
+    assert payload["result"] == "success"
+    warnings = cast(list[dict[str, object]], payload["warnings"])
+    assert warnings[0]["code"] == "SAAS_SYNC_ROUTE_UNAVAILABLE"
+
+
+@pytest.mark.parametrize("sync_enabled", ("0", "1"))
+def test_real_setup_plan_project_root_failure_is_exact_and_skips_hosted_probes(
+    monkeypatch: pytest.MonkeyPatch,
+    sync_enabled: str,
+) -> None:
+    """The earliest local failure remains exact and never requires hosted state."""
+    from specify_cli.cli.commands.agent import mission as mission_mod
+
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", sync_enabled)
+    monkeypatch.setattr(mission_mod, "locate_project_root", lambda: None)
+    monkeypatch.setattr(mission_mod, "_emit_json", lambda payload: emitted.append(payload))
+    for probe in (
+        "acquire_session_assessment",
+        "evaluate_boundary",
+        "evaluate_route_availability",
+    ):
+        monkeypatch.setattr(
+            seam,
+            probe,
+            lambda *_a, _probe=probe, **_k: pytest.fail(
+                f"project-root failure touched hosted probe: {_probe}"
+            ),
+        )
+
+    with pytest.raises(typer.Exit) as exc_info:
+        seam.setup_plan(feature="001-matrix", json_output=True)
+
+    assert exc_info.value.exit_code == 1
+    assert emitted == [{"error": seam.PROJECT_ROOT_NOT_FOUND_MESSAGE}]
 
 
 # ---------------------------------------------------------------------------
@@ -387,10 +1405,8 @@ def test_setup_plan_refuses_present_invalid_primary_meta_before_template_or_stat
         state_changes.append("plan-commit")
         return None, None, True
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
-    monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
     monkeypatch.setattr(
         seam,
         "_emit_spec_plan_phase_events",
@@ -402,7 +1418,7 @@ def test_setup_plan_refuses_present_invalid_primary_meta_before_template_or_stat
         _unexpected_plan_commit,
     )
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
+    monkeypatch.setattr(hosted_effects, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(seam, "_emit_json", lambda payload: emitted.update(payload))
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
@@ -479,14 +1495,12 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
         return _resolution(template_src)
 
     monkeypatch.setattr(seam, "load_meta_fail_closed", _load_then_mutate)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
-    monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
+    monkeypatch.setattr(hosted_effects, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)
@@ -544,14 +1558,12 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
         configured_calls.append((artifact_kind, project_dir, resolved))
         return _resolution(template_src)
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: coord_dir)
-    monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
+    monkeypatch.setattr(hosted_effects, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)
@@ -882,10 +1894,8 @@ def test_setup_plan_renders_configured_template_failure_without_traceback(
         reason="maps to unresolved filename 'missing-plan.md'",
     )
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
-    monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
     monkeypatch.setattr(seam, "_resolve_plan_template", lambda *_a: (_ for _ in ()).throw(error))
     monkeypatch.setattr(seam, "_emit_json", lambda payload: emitted.update(payload))
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)

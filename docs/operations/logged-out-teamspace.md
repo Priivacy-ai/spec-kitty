@@ -2,7 +2,7 @@
 title: 'Recovery: Logged out on a connected teamspace'
 description: 'Recovery for a repository connected to a Spec Kitty teamspace when the local CLI session is logged out: the teamspace-aware recovery path sync commands surface.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-08-23'
 ---
 # Recovery: Logged out on a connected teamspace
 
@@ -78,15 +78,37 @@ non-zero code as before. The structured stderr line and exit code `4` are
 
 ## Commands that participate
 
+Hosted-only commands require a usable session and retain their normal refusal
+behavior:
+
 - `spec-kitty sync now`
 - `spec-kitty sync status --check`
 - `spec-kitty sync doctor`
 - `spec-kitty sync routes`
 - `spec-kitty sync share` / `spec-kitty sync unshare` / `spec-kitty sync opt-out --delete-private-data`
 
-The recovery surface is intentionally limited to `sync`. Other commands
-(notably `spec-kitty auth doctor` and `spec-kitty next`) keep their own
-existing flows.
+Local Mission commands are different. Their logged-out policy is explicit per
+command so the local and hosted outcomes cannot be conflated:
+
+| Command | Eligible local work while logged out | Interactive login | Authoritative local result |
+|---------|----------------------------------------|-------------------|----------------------------|
+| `spec-kitty agent mission create` | Completes eligible local artifact work | Never starts one | Local mission-creation result and exit code |
+| `spec-kitty agent mission setup-plan` | Completes eligible local verification | Never starts one | Local verification payload and exit code |
+
+For `setup-plan`, hosted delivery is skipped and reported as a nonfatal warning.
+Automation must not start an interactive login on the operator's behalf.
+
+A confirmed absent or unusable session is reported as
+`SAAS_SYNC_UNAUTHENTICATED`; the remedy is for the operator to log in before a
+later hosted action. If encrypted session storage cannot be read or evaluated,
+`setup-plan` reports `SAAS_SYNC_AUTH_UNKNOWN` instead. That diagnostic means
+assessment failed, not that the operator is logged out. Inspect or repair the
+local authentication storage before retrying hosted sync; diagnostics never
+include session contents or credentials.
+
+The interactive recovery surface is intentionally limited to hosted-only
+`sync` commands. Other commands (notably `spec-kitty auth doctor` and
+`spec-kitty next`) keep their own existing flows.
 
 ## Related
 
