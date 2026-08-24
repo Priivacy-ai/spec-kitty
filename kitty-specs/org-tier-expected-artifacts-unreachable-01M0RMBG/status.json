@@ -1,28 +1,33 @@
 {
-  "event_count": 5,
-  "last_event_id": "01M0S0AY6ZJ022K0QT22D3EZHP",
-  "materialized_at": "2026-08-24T04:26:54.559599+00:00",
+  "event_count": 6,
+  "last_event_id": "01M0S0AZ853VK4T6V6BAG407VP",
+  "materialized_at": "2026-08-24T04:26:55.621728+00:00",
   "mission_number": "",
   "mission_slug": "org-tier-expected-artifacts-unreachable-01M0RMBG",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
-    "in_review": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
     "WP01": {
       "actor": "claude",
       "force_count": 2,
-      "lane": "in_review",
-      "last_event_id": "01M0S0AY6ZJ022K0QT22D3EZHP",
-      "last_transition_at": "2026-08-24T04:26:54.559599+00:00",
+      "lane": "approved",
+      "last_event_id": "01M0S0AZ853VK4T6V6BAG407VP",
+      "last_transition_at": "2026-08-24T04:26:55.621728+00:00",
+      "review_result": {
+        "reference": "WP01 diff 5d0fdc024..df979f6d8; RED-first verified empirically by reverting src/charter/org_expected_artifacts.py:88 -> 19 failures across all six files; 162 passed post-fix; no findings at any severity",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
       "subtasks": {
         "T001": "done",
         "T002": "done",
