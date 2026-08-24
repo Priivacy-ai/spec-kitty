@@ -224,6 +224,14 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
         artifact_key="spec",
         template_file="qa-spec-template.md",
     )
+    _write_org_mission_step_yaml(
+        org_root,
+        "qa",
+        "implement",
+        artifact_key="implementation",
+        template_file="qa-implementation-template.md",
+        sequence_index=1,
+    )
     # create_mission_core's template-copy step resolves the declared
     # template_file through runtime.resolver's own 5-tier chain (C-004: out
     # of this mission's scope) -- for a scratch, org-only type, the project
@@ -232,6 +240,10 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
     overrides_dir = tmp_path / ".kittify" / "overrides" / "templates"
     overrides_dir.mkdir(parents=True, exist_ok=True)
     (overrides_dir / "qa-spec-template.md").write_text("# QA Spec\n", encoding="utf-8")
+    (overrides_dir / "qa-implementation-template.md").write_text(
+        "# QA Implementation\n",
+        encoding="utf-8",
+    )
     pack_context = PackContext(
         activated_kinds=frozenset(),
         activated_mission_types=frozenset({"qa"}),
@@ -258,7 +270,10 @@ def test_sc001_org_pack_mission_type_resolves_across_all_four_cli_surfaces(
             assert result.meta.get("mission_type") == "qa"
             bundle = resolve_mission_type_context(tmp_path, mission_type="qa")
             assert bundle.action_sequence == ["design", "implement"]
-            assert dict(bundle.template_set) == {"spec": "qa-spec-template.md"}
+            assert dict(bundle.template_set) == {
+                "spec": "qa-spec-template.md",
+                "implementation": "qa-implementation-template.md",
+            }
 
             # Surface 2: charter mission-type list (FR-006) -- real layer,
             # not "unknown".
