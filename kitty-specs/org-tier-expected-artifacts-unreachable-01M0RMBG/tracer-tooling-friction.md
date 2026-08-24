@@ -220,3 +220,36 @@ only the lane-diff check is broken.
 `chore(spec-kitty): status transition WP01` commit. Two landed here (`e984d0c06`,
 `2dcca651a`). They are bookkeeping only — `git diff df979f6d8..HEAD -- src/ tests/` is empty,
 so the reviewer's verdict still applies to byte-identical implementation content.
+
+## F8 — commitlint exposure in the PR range is SEVEN commits, not four (verified first-hand against the config)
+
+F2 predicted the `record-analysis` commit would fail commitlint. Correct, but incomplete. Read
+`commitlint.config.cjs` directly and enumerated the whole PR range (`3442ca1af..HEAD`, 45
+commits). Two distinct failure classes:
+
+**Class 1 — spec-kitty tooling defect (4 commits), the SK-64 gap:**
+`e051ba2b0`, `a5ec593ed`, `195b3b385`, `6c3a00d7a` — all `Add analysis report for mission <slug>`,
+emitted by `record-analysis`. The `ignores` regex is
+`/^(Add|Update) (meta|spec|tasks|plan) for (feature|mission) /` — "analysis report" is not in the
+alternation, so these are linted and fail `type-empty` + `subject-empty`. Confirms SK-64's
+retracted-and-replaced framing for a third and fourth time.
+
+Note the *other* tool auto-commits DO pass, exactly as SK-64 says: `f0db78a6f` (`Add meta for
+feature ...`), `53d61dfb5` (`Add tasks for feature ...`) and `9eae1fa2e` (`Add plan for mission
+...`) all match the ignore regex.
+
+**Class 2 — OUR OWN naming error (3 commits), not a tooling defect:**
+`c76ce3473`, `48e6f185d`, `c575d081a` — `reviews(spec):`, `reviews(plan):`, `reviews(tasks):`.
+The `type-enum` is `build, chore, ci, docs, feat, fix, lint, perf, plan, refactor, revert, spec,
+style, test`. **`reviews` is not in it.** `spec:` IS allowed (so the five `spec:` fix-round
+commits pass).
+
+This one is ours to own, not spec-kitty's: the review-protocol fixes the *artifact filenames*
+(`<phase>.<group>.findings.yaml`) but says nothing about the commit *type*. The phase agents
+chose `reviews(...)` freely and picked a type the repo does not allow. **Doctrine improvement
+worth carrying upstream**: the review-protocol should name a conforming commit type for the
+trail commit — `docs(reviews):` or `chore(reviews):` would pass.
+
+**Disposition**: all seven are `sk-land`'s to fold — rewording in-range is a history rewrite
+requiring force-with-lease, which that runbook owns. **The shared lint config is NOT to be
+loosened** (SK-64's stated preference, and a landing pass must not weaken a repo-wide gate).
