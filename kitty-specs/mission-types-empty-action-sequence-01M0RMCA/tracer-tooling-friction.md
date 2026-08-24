@@ -197,3 +197,19 @@ gap for the ledger: `make lint`'s own definition conflicts with this repo's own 
 run`" standing guidance, and a future agent hitting the same preflight (only `test` extra
 installed) will hit the identical bind unless the lint/typecheck targets are changed to use
 `.venv/bin/ruff`/`.venv/bin/mypy` directly, or the preflight installs the `lint` extra too.
+
+**WP01 implementation phase (2026-08-24): SK-70-family warning stream recurred on `spec-kitty
+agent tasks mark-status T001...T009 --status done`.** The command exceeded the harness's 120s
+foreground timeout and was moved to background; its captured output showed only the same
+"event journal capture failed: machine layout cutover did not publish within the bounded wait" /
+"Event routing failed" / "Event did not durably queue; dropping from publication" /
+"Explicit-context event capture failed" stream already ledgered as SK-70/SK-63-family for this
+mission's earlier phases — no success JSON printed to the captured output. Per this mission's own
+explicit instruction ("trust the tree, not the exit code or the success JSON"), checked
+`git diff` on `status.json`/`status.events.jsonl` directly rather than trusting the noisy output:
+the write DID land — `status.json`'s `WP01.subtasks` now shows all of T001-T009 as `"done"`, and
+`status.events.jsonl` gained one genuine new `annotation`-kind event (`event_id
+01M0S0C8DFQ4JMRAETF641MMBN`) carrying that exact delta. `tasks.md` and the WP01 task file itself
+show zero diff (no checkbox hand-edit occurred or was needed). No hand-edit, no workaround,
+no retry — the underlying command's own write path completed despite the loud warning stream,
+consistent with this mission's own prior finding on the `analyze`-phase hang.
