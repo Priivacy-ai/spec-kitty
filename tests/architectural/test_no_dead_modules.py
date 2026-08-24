@@ -258,6 +258,11 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # @MigrationRegistry.register; never statically imported by runtime
         # code. Same sibling shape as the two backfills above.
         "specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill",
+        # 3.2.6rc3 .worktrees/ gitignore backfill migration (#3689):
+        # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
+        # never statically imported by runtime code. Same sibling shape as the
+        # gitignore backfills above.
+        "specify_cli.upgrade.migrations.m_3_2_6rc3_worktrees_gitignore_backfill",
         "specify_cli.upgrade.migrations.m_3_2_6_gate_artifact_merge_drivers",  # auto-discovered (#2804)
         "specify_cli.upgrade.migrations.m_3_2_6_meta_traces_merge_drivers",  # auto-discovered (#2709)
         "specify_cli.upgrade.migrations.m_3_2_6_decisions_event_log_merge_driver",  # auto-discovered (#2709)

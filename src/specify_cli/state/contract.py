@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any
 
+from specify_cli.core.constants import WORKTREES_DIR
+
 _NEXT_INTERNAL_RUNTIME_OWNER = "next/_internal_runtime"
 _CHARTER_SYNTHESIS_OWNER = "charter synthesizer write pipeline"
 _CHARTER_SYNTHESIS_TRIGGER = "spec-kitty charter synthesize"
@@ -380,7 +382,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
     ),
     StateSurface(
         name="worktrees_root",
-        path_pattern=".worktrees/",
+        path_pattern=f"{WORKTREES_DIR}/",
         root=StateRoot.PROJECT,
         format=StateFormat.DIRECTORY,
         authority=AuthorityClass.LOCAL_RUNTIME,

@@ -9,10 +9,13 @@ It replaces the fragmented approach where only .codex/ was protected.
 import contextlib
 import errno
 import os
+import stat
+import subprocess
 import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.state.contract import get_runtime_gitignore_entries
 
 
@@ -24,6 +27,11 @@ class GitignorePathError(Exception):
     repo checkout) would let a caller's presence/content check, or a write,
     follow it to an arbitrary path. Fail closed instead of following it.
     """
+
+
+SPEC_KITTY_GITIGNORE_MARKER = "# Added by Spec Kitty CLI (auto-managed)"
+_WORKTREES_ENTRY = f"{WORKTREES_DIR}/"
+_WORKTREES_PROBE = f"{WORKTREES_DIR}/.spec-kitty-ignore-probe"
 
 
 # Kept as a compatibility alias for migrations that predate the manager-wide
@@ -93,6 +101,132 @@ def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig", errors: str |
         return f.read()
 
 
+def is_gitignore_path_ignored(project_path: Path, relative_path: str) -> bool | None:
+    """Return Git's effective ignore verdict for an untracked path.
+
+    ``--no-index`` keeps the check meaningful even if a path is tracked, while
+    also allowing a non-existent probe path. ``None`` means the project is not
+    a Git repository or Git could not provide a trustworthy verdict.
+    """
+    try:
+        result = subprocess.run(
+            ["git", "check-ignore", "--quiet", "--no-index", "--", relative_path],
+            cwd=project_path,
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None
+    if result.returncode == 0:
+        return True
+    if result.returncode == 1:
+        return False
+    return None
+
+
+def _has_git_control_path(project_path: Path) -> bool:
+    """Return whether this path or an ancestor has Git control metadata."""
+    return any(
+        candidate.joinpath(".git").exists()
+        or candidate.joinpath(".git").is_symlink()
+        for candidate in (project_path, *project_path.parents)
+    )
+
+
+def _git_work_tree_state(project_path: Path) -> bool | None:
+    """Return true/false for worktree/non-repo, or ``None`` on Git failure."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=project_path,
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return None if _has_git_control_path(project_path) else False
+    if result.returncode == 0 and result.stdout.strip() == b"true":
+        return True
+    return None if _has_git_control_path(project_path) else False
+
+
+def _tracked_git_paths(project_path: Path, root_path: str) -> tuple[str, ...]:
+    """Return tracked paths under a managed root, failing closed on Git errors."""
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "-z", "--cached", "--", root_path],
+            cwd=project_path,
+            capture_output=True,
+            timeout=5,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as exc:
+        raise GitignorePathError(f"Could not inspect tracked paths under {root_path}: {exc}") from exc
+    if result.returncode != 0:
+        detail = result.stderr.decode("utf-8", errors="replace").strip()
+        raise GitignorePathError(
+            f"Could not inspect tracked paths under {root_path}"
+            + (f": {detail}" if detail else "")
+        )
+    return tuple(
+        path.decode("utf-8", errors="surrogateescape")
+        for path in result.stdout.split(b"\0")
+        if path
+    )
+
+
+def is_gitignore_root_effectively_ignored(
+    project_path: Path,
+    *,
+    root_path: str,
+    equivalent_entries: frozenset[str],
+    probe_path: str,
+) -> bool:
+    """Return whether a managed root is safely ignored as a whole.
+
+    Git can adjudicate one concrete probe, but a later, narrower negation may
+    re-include another descendant while leaving that probe ignored. Require an
+    equivalent whole-root rule and reject every later negation conservatively;
+    then use Git's verdict when one is available. Reasserting the managed rule
+    at EOF is harmless and restores a whole-root guarantee.
+    """
+    root = project_path / root_path
+    if root.is_symlink():
+        raise GitignorePathError(f"Refusing symlinked managed root: {root}")
+    if root.exists() and not root.is_dir():
+        raise GitignorePathError(f"Managed root is not a directory: {root}")
+
+    work_tree_state = _git_work_tree_state(project_path)
+    if work_tree_state is None:
+        raise GitignorePathError("Git could not verify the managed root ignore state")
+    if work_tree_state:
+        tracked = _tracked_git_paths(project_path, root_path)
+        if tracked:
+            raise GitignorePathError(
+                f"Tracked paths exist under {root_path}; .gitignore cannot protect tracked files. "
+                f"Review them, then untrack with `git rm -r --cached -- {root_path}` and rerun "
+                "`spec-kitty upgrade` (or `spec-kitty init` during initialization)."
+            )
+
+    content = read_ignore_file_text(project_path / ".gitignore")
+    if not content:
+        return False
+
+    entries = tuple(entry for line in content.splitlines() if (entry := line.rstrip()) and not entry.startswith("#"))
+    positive_positions = [index for index, entry in enumerate(entries) if entry in equivalent_entries]
+    if not positive_positions:
+        return False
+    if any(entry.startswith("!") for entry in entries[positive_positions[-1] + 1 :]):
+        return False
+
+    if not work_tree_state:
+        return True
+
+    verdict = is_gitignore_path_ignored(project_path, probe_path)
+    if verdict is None:
+        raise GitignorePathError("Git could not verify the managed root ignore state")
+    return verdict
 @dataclass
 class AgentDirectory:
     """Represents a single agent's directory that needs protection."""
@@ -186,7 +320,7 @@ class GitignoreManager:
         self.marker = "# Added by Spec Kitty CLI (auto-managed)"
         self._line_ending: str = os.linesep
 
-    def ensure_entries(self, entries: list[str]) -> bool:
+    def ensure_entries(self, entries: list[str], *, force_append: bool = False) -> bool:
         """
         Core method to add entries to .gitignore.
 
@@ -195,6 +329,10 @@ class GitignoreManager:
 
         Args:
             entries: List of gitignore patterns to add
+            force_append: Append every requested entry even when the same text
+                already occurs earlier. This reasserts a managed rule after a
+                later negation without deleting or reordering user-authored
+                patterns.
 
         Returns:
             True if .gitignore was modified, False otherwise
@@ -219,7 +357,7 @@ class GitignoreManager:
         changed = False
 
         # Check if any entry needs to be added
-        if any(entry not in existing for entry in entries):
+        if force_append or any(entry not in existing for entry in entries):
             # Add marker if not present
             if self.marker not in existing:
                 if lines and lines[-1].strip():
@@ -230,7 +368,7 @@ class GitignoreManager:
 
             # Add missing entries
             for entry in entries:
-                if entry not in existing:
+                if force_append or entry not in existing:
                     lines.append(entry)
                     existing.add(entry)
                     changed = True
@@ -401,7 +539,31 @@ class GitignoreManager:
         # Add runtime files that should never be tracked
         all_directories.extend(RUNTIME_PROTECTED_ENTRIES)
 
-        return self._protect_entries(all_directories, "agent directories")
+        result = self._protect_entries(all_directories, "agent directories")
+        if not result.success:
+            return result
+
+        try:
+            if not is_gitignore_root_effectively_ignored(
+                self.project_path,
+                root_path=WORKTREES_DIR,
+                equivalent_entries=frozenset({_WORKTREES_ENTRY}),
+                probe_path=_WORKTREES_PROBE,
+            ):
+                self.ensure_entries([_WORKTREES_ENTRY], force_append=True)
+                result.modified = True
+                if _WORKTREES_ENTRY in result.entries_skipped:
+                    result.entries_skipped.remove(_WORKTREES_ENTRY)
+                if _WORKTREES_ENTRY not in result.entries_added:
+                    result.entries_added.append(_WORKTREES_ENTRY)
+        except PermissionError:
+            result.success = False
+            result.errors.append(f"Cannot update .gitignore: Permission denied. Run: chmod u+w {self.gitignore_path}")
+        except Exception as exc:
+            result.success = False
+            result.errors.append(f"Error protecting agent directories: {exc}")
+
+        return result
 
     def protect_selected_agents(self, agents: list[str]) -> ProtectionResult:
         """

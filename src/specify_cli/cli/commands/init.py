@@ -879,6 +879,28 @@ def init(  # noqa: C901
             # Ensure scripts are executable (POSIX)
             _ensure_executable_scripts(project_path, tracker)
 
+            # Protect runtime roots before publishing project identity or
+            # declaring initialization complete. A failed protection check
+            # must remain resumable: config.yaml is the idempotency boundary.
+            manager = GitignoreManager(project_path)
+            result = manager.protect_all_agents()
+            if result.modified:
+                _console.print("[cyan]Updated .gitignore to exclude AI agent directories:[/cyan]")
+                for entry in result.entries_added:
+                    _console.print(f"  • {entry}")
+                if result.entries_skipped:
+                    _console.print(f"  ({len(result.entries_skipped)} already protected)")
+            elif result.entries_skipped:
+                _console.print(
+                    f"[dim]All {len(result.entries_skipped)} agent directories already in .gitignore[/dim]"
+                )
+            for warning in result.warnings:
+                _console.print(f"[yellow]⚠️  {warning}[/yellow]")
+            for error in result.errors:
+                _console.print(f"[red]❌ {error}[/red]")
+            if not result.success:
+                raise typer.Exit(1)
+
             # T001: No git initialization. init is file-creation-only.
             # Git management is the user's responsibility. Running init inside
             # an existing repo leaves the repo untouched.
@@ -1078,28 +1100,6 @@ def init(  # noqa: C901
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Optional Enhancements", border_style="cyan", padding=(1, 2))
     _console.print()
     _console.print(enhancements_panel)
-
-    # Protect ALL agent directories in .gitignore
-    manager = GitignoreManager(project_path)
-    result = manager.protect_all_agents()  # Note: ALL agents, not just selected
-
-    # Display results to user
-    if result.modified:
-        _console.print("[cyan]Updated .gitignore to exclude AI agent directories:[/cyan]")
-        for entry in result.entries_added:
-            _console.print(f"  • {entry}")
-        if result.entries_skipped:
-            _console.print(f"  ({len(result.entries_skipped)} already protected)")
-    elif result.entries_skipped:
-        _console.print(f"[dim]All {len(result.entries_skipped)} agent directories already in .gitignore[/dim]")
-
-    # Show warnings (especially for .github/)
-    for warning in result.warnings:
-        _console.print(f"[yellow]⚠️  {warning}[/yellow]")
-
-    # Show errors if any
-    for error in result.errors:
-        _console.print(f"[red]❌ {error}[/red]")
 
     if _ensure_event_log_merge_attributes(project_path):
         _console.print("[dim]Updated .gitattributes for Spec Kitty generated artifacts[/dim]")
