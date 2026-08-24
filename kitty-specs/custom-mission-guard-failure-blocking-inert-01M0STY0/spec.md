@@ -199,8 +199,9 @@ absence never does — at each step independently.
    is genuinely reachable from this call site, not merely reachable in a unit test that calls
    the leaf function directly (see FR-004).
 **AC-9**. **Given** two families evaluated at the same step — (a) `qa` with a manifest present
-   (built-in or org tier) whose `required_by_step` for that step is empty or contains only
-   `blocking: false` entries, so `required_artifacts_for` returns `[]`; and (b) a genuinely
+   (built-in or org tier) whose `required_always` and `required_by_step` for that step are each
+   either empty or contain only `blocking: false` entries, so `required_artifacts_for` returns
+   `[]`; and (b) a genuinely
    typeless family with **no** manifest at any tier, whose `required_artifacts_for` also returns
    `[]` for the same reason — **When** `evaluate_guards_strict` evaluates both, **Then** they are
    NOT treated identically despite both having an empty `required_artifacts_for` result: (a)
@@ -375,7 +376,7 @@ optional-field idiom this dataclass already uses for `legacy_step_id` and `wp_ad
   `resolver.py:634-654`) is therefore NOT what populates this field directly:
   `gather_artifact_presence` MUST determine manifest-reachability itself, reusing the exact same
   tier-checking `config is None` / org-tier-equivalent logic FR-004/FR-005 already have to run for
-  `_presence_filenames_for` (`runtime_bridge_io.py:892-893`) — and set `blocking_artifact_names` to
+  `_presence_filenames_for` (`runtime_bridge_io.py:891-892`) — and set `blocking_artifact_names` to
   `None` only when that check finds no manifest at either tier.
 - **A real `frozenset`, including `frozenset()`** — a manifest WAS resolved at one of the two
   tiers; `required_artifacts_for(step, mission_type)`'s result (possibly empty, if the manifest
