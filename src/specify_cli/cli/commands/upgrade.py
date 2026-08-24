@@ -1430,6 +1430,16 @@ def upgrade(
         _display_no_migrations_results(
             outcome, auto_commit_paths=auto_commit_paths, left_uncommitted=left_uncommitted
         )
+        # Dry-run parity: the finalizer provisions mission_type_activations on
+        # BOTH the migration and no-migrations paths (upgrade/finalize.py — the
+        # single tail), so an up-to-date project still missing the key is seeded
+        # on a real run. The migration path previews that via
+        # _show_migration_plan_and_confirm; the up-to-date path must too, or a
+        # --dry-run silently under-reports the pending seed (no-ops for --json
+        # and outside dry-run).
+        _print_dry_run_provisioning_notice(
+            project_path, dry_run=dry_run, json_output=json_output
+        )
 
     # D-5 — the exit code is derived exactly once, here, from the finalized
     # outcome. No other site in the tail may raise typer.Exit. A successful
