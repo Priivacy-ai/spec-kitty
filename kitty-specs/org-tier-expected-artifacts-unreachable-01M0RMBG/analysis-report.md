@@ -4,12 +4,12 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: org-tier-expected-artifacts-unreachable-01M0RMBG
 mission_id: 01M0RMBGAAZBNPBMQ9VA5ZZTMD
-generated_at: '2026-08-24T03:26:58.298220+00:00'
+generated_at: '2026-08-24T03:38:10.072054+00:00'
 analyzer_agent: claude-sonnet
 input_artifacts:
   spec.md:
     path: /home/jeroennouws/dev/SK-missions/3703/kitty-specs/org-tier-expected-artifacts-unreachable-01M0RMBG/spec.md
-    sha256: 62b14590dd242a13888316323e8b7ac72fe23fda942f701a85438ff4f85520db
+    sha256: cfdd2db725f98c3f5a49b66b65970272cb37e966e350d123e37389784ade88db
   plan.md:
     path: /home/jeroennouws/dev/SK-missions/3703/kitty-specs/org-tier-expected-artifacts-unreachable-01M0RMBG/plan.md
     sha256: 97a4fbbe1d7ee92dd59b9b295a3b988df9b8770dffbccc01eba00ff6a4662b68
@@ -21,63 +21,74 @@ input_artifacts:
     sha256: a90fa5d9fb0187d036a248af499643921f46773f96ad8a37e660a801ee60b641
 verdict: ready
 issue_counts:
-  medium: 1
   low: 0
   critical: 0
+  medium: 1
   high: 0
   info: 0
 findings:
-- id: I1
+- id: I2
   severity: medium
   category: inconsistency
-  summary: spec.md:34 cites a nonexistent resolver.py function `_resolve_mission_config` (actual sibling function is `resolve_mission`, resolver.py:769); the identical error was already caught and fixed in plan.md by a prior review (PLAN-FRESH2-003) but spec.md and tracer-approach.md were never corrected.
+  summary: spec.md cites resolver.py's _resolve_asset/resolve_mission at stale line numbers (378/817) vs actual 312/769.
 ---
 
 ## Specification Analysis Report
 
 | ID | Category | Severity | Location(s) | Summary | Recommendation |
 |----|----------|----------|-------------|---------|----------------|
-| I1 | Inconsistency | MEDIUM | spec.md:34; cf. plan.md:11, tracer-approach.md:45 | spec.md's User Story 1 "Why this priority" paragraph cites `src/specify_cli/runtime/resolver.py` (`_resolve_asset` at line 378, `_resolve_mission_config` at line 817) as the sibling org-tier resolvers FR-001 must match. Verified against the actual file: no function named `_resolve_mission_config` exists anywhere in `resolver.py` (confirmed via `grep -n "_resolve_mission_config" src/specify_cli/runtime/resolver.py` -> zero matches). The function that actually occupies line 817 is `resolve_mission`, defined at line 769, whose org-tier check (`org_path = org_root / "missions" / name / filename`) sits at line 817 -- so the *substance* of the citation (this sibling resolver anchors at the `missions/` segment) is correct, only the cited function name is wrong. This exact defect was already found and fixed in `plan.md`'s Summary section by a prior plan-phase review (`kitty-specs/.../reviews/plan.fresh-2.yaml`, finding `PLAN-FRESH2-003`, severity 3, "Summary section cites a nonexistent function name, `_resolve_mission_config`, in resolver.py"), confirmed corrected in `plan.md` by the matching verify pass (`plan.verify-3.yaml`: "A full-file grep of the current plan.md for `_resolve_mission_config` returns zero matches, the Summary now cites `resolve_mission:769`"). `plan.md:11` today correctly reads "`_resolve_asset`, `resolve_mission:769`". But `spec.md:34` -- a separate core artifact, out of scope for that plan-phase review -- still carries the original, uncorrected citation verbatim, and the identical wording also survives in `tracer-approach.md:45` ("`_resolve_asset` and `_resolve_mission_config` myself (both check exactly"). | Correct `spec.md:34` to name `resolve_mission` (with a `:769`/`:817` citation for consistency with plan.md's fixed form) in place of `_resolve_mission_config`; optionally correct the same wording in `tracer-approach.md:45`. Does not block implementation -- WP01's T002 implementation steps quote the actual before/after code verbatim and never reference this function name -- but the citation should be fixed so a reader relying on spec.md's file:line citation discipline at its most load-bearing sentence (the mission's entire P1 justification) is not misled, and so this mission does not close with a previously-identified-and-partially-fixed defect still live in one of its three core artifacts. |
+| I2 | Inconsistency | MEDIUM | spec.md:34 | `spec.md`'s User Story 1 rationale cites `src/specify_cli/runtime/resolver.py`'s `_resolve_asset` "at line 378" and `resolve_mission` "at line 817". On this checkout (HEAD `ab2ff6503`), the real definitions are `_resolve_asset` at line 312 and `resolve_mission` at line 769 (verified via `grep -n "^def _resolve_asset\|^def resolve_mission\b" src/specify_cli/runtime/resolver.py`). `plan.md`'s own citation of the same function (`resolve_mission:769`, plan.md Summary line) is correct and matches the real file — confirming the drift is isolated to spec.md and was not caught by the prior fix round that corrected the separate `_resolve_mission_config` citation (commit `ab2ff6503`). This does not affect FR-001's own path-join citation (`org_expected_artifacts.py:81-82`, verified accurate) or any of the five test-file fixture-helper citations (all verified exact), so it does not block or mislead the actual implementation edits WP01 performs — it is a documentation-accuracy defect in the narrative rationale only. | Correct spec.md line 34 to cite `_resolve_asset` at line 312 and `resolve_mission` at line 769 (matching plan.md's already-correct citation), or drop the specific line numbers from the parenthetical if they are expected to drift further. |
 
 **Coverage Summary Table:**
 
 | Requirement Key | Has Task? | Task IDs | Notes |
 |-----------------|-----------|----------|-------|
-| fr-001-correct-the-org-tier-path-join | Yes | T002 | Path-join fix, `org_expected_artifacts.py:82`; verified the cited line/content match the current file exactly. |
-| fr-002-correct-the-module-function-docstring | Yes | T002 | Docstring corrections including the Contract C-4 staleness caveat sentence. |
-| fr-003-update-test_org_expected_artifacts-fixture-helper | Yes | T001, T003 | RED-first new test case (T001) + helper/hand-built-path maintenance (T003); all five cited malformed-file test methods and their line numbers verified present and accurate in the current file. |
-| fr-004-update-test_mission_type_profiles-fixture-helper | Yes | T004 | Duplicated helper correction; cited line numbers (996, 1014) verified accurate. |
-| fr-005-update-tests-dossier-fixture-helpers | Yes | T005 | Three duplicated helpers across test_manifest.py, test_rebaseline.py, test_indexer.py; all cited line numbers verified accurate, including test_indexer.py's helper correctly having no docstring. |
-| nfr-001-atdd-first | Yes | T001 (RED-first), T002 (GREEN) | RED-first mechanics independently verified against current code: case 1 (corrected anchor) is mechanically RED because the resolver still joins the old path at line 82; case 2 (old-anchor-only) is mechanically RED because the old path IS currently found. Both flip correctly once T002's one-line fix lands. |
-| nfr-002-no-new-silent-failure-mode | Yes | T002 step 4, T006 | `_read_yaml_mapping` explicitly left untouched; verified its warning-logging logic is unchanged in the current file. |
-| nfr-003-declared-order-precedence-preserved | Yes | T006 (verification via existing precedence tests) | Existing precedence test class confirmed present at spec.md's cited line (93). |
-| c-001-through-c-007 (constraints) | Yes | T006 (six-file-set, gate verification), throughout WP guidance | All seven constraints have explicit WP guardrails (no-fallback, no-validator-gate, terminology grep, baseline discipline, frozen contract doc left untouched). |
+| fr-001-correct-org-tier-path-join | Yes | T001, T002 | RED-first pin (T001) + implementation (T002) |
+| fr-002-correct-docstring | Yes | T002 | Module + function docstring correction, incl. Contract C-4 staleness caveat |
+| fr-003-update-test-org-expected-artifacts-fixture | Yes | T001, T003 | Helper fix + 5 hand-built path corrections + new regression test case |
+| fr-004-update-test-mission-type-profiles-fixture | Yes | T004 | Duplicated helper correction |
+| fr-005-update-three-dossier-fixture-helpers | Yes | T005 | manifest.py, rebaseline.py, indexer.py helpers |
+| nfr-001-atdd-first | Yes | T001 (RED), T002 (GREEN) | Commit-ordering discipline explicit in WP frontmatter and Reviewer Guidance |
+| nfr-002-no-new-silent-failure-mode | Yes | T002, T006 | `_read_yaml_mapping` left untouched; malformed-file behavior re-verified |
+| nfr-003-declared-order-precedence-preserved | Yes | T003, T006 | Existing precedence test classes kept intact and re-verified |
+| c-001-six-file-set | Yes | T006 (verification) | `git diff --stat` check enumerated in Definition of Done |
+| c-002-no-sibling-fallback | Yes | T002, T006 (reviewer check) | Explicit "do not add fallback" instruction + reviewer guidance |
+| c-003-no-validator-gate | Yes | T002 (n/a — explicitly not implemented), T006 (reviewer check) | Out-of-scope constraint verified by absence, not by a task that builds it |
+| c-004-terminology-canon | Yes | T006 (reviewer check: grep for feature*) | No practical effect noted; still checked |
+| c-005-canonical-source-verification | N/A (spec-authoring-time attestation) | — | Verified in this analyze pass via independent re-check (see below) |
+| c-006-pre-existing-failure-baseline | Yes | T006, Baseline Discipline section | #3284 cited, not duplicated, not attributed to this mission |
+| c-007-historical-contract-doc-left-stale | Yes | (deliberate non-task — explicitly out of scope) | Frozen `kitty-specs/up-org-doctrine-consumers-01M05YAB/...` doc left untouched by design |
 
-**Charter Alignment Issues:** None found. ATDD-first (C-011) discipline is correctly modeled: NFR-001 pins two RED states before the T002 implementation commit, with the FR-003/004/005 maintenance corrections explicitly and correctly excluded from RED-first as "tracking already-passing coverage through the anchor move." The `__all__` convention (C-007 of charter.md) is already satisfied by the untouched `org_expected_artifacts.py` (`__all__ = ["resolve_org_expected_artifacts"]`, verified present at line 41). The C-003 "no validator gate" and PR-shape ("one PR") binding decisions named in this dispatch's operating constraints are correctly reflected as out-of-scope/single-PR throughout spec.md, plan.md, and WP01, and are not re-flagged here. No campsite-clean commit is charter-required and plan.md's Campsite-Clean Scope section states this verdict explicitly rather than skipping the topic, per Standing Order #2's expectation that a deferral be stated, not silent.
+**Charter Alignment Issues:** None. ATDD-first (charter C-011) is explicitly honored via NFR-001 and WP01's commit-ordering discipline (T001 RED before T002 GREEN). Terminology canon (Mission vs. feature*) is explicitly checked (C-004, reviewer guidance grep). Campsite cleaning is explicitly evaluated in plan.md's "Campsite-Clean Scope" section with a stated "no commit needed" verdict, not silently skipped — satisfies Standing Order #2's requirement to make the call explicit either way. `__all__` declaration convention (charter, binding per C-007) is not contradicted by this diff (no new public symbol added to `src/charter/org_expected_artifacts.py`'s `__all__`; module already exposes exactly one public symbol per plan.md's Seam section).
 
-No conflict was found between `.kittify/charter/charter.md` and this repo's `CLAUDE.md` -- both agree that `main` is the base branch, that the charter is binding governance read first, and that direct pushes to `main`/origin are prohibited.
+**Unmapped Tasks:** None. All six subtasks (T001-T006) map to at least one FR/NFR/C requirement per the WP frontmatter's `requirement_refs` list, and each requirement above has at least one mapped task.
 
-**Unmapped Tasks:** None -- all six subtasks (T001-T006) map to at least one FR/NFR/constraint, and every FR/NFR/constraint in spec.md has at least one subtask.
+**Independent Re-verification Performed This Pass (not merely trusting the prior carrier):**
 
-**CI Gate Claims Spot-Verified Against Live Config (not merely trusted):** `.github/workflows/ci-quality.yml`'s `diff-coverage` job's `critical_paths` array contains `'src/charter/*'` and does NOT contain `src/specify_cli/dossier/*`, exactly as plan.md's Gate Set section claims. The charter package's own coverage floor is `--cov-fail-under=55` (line 2297), not 90%, exactly as claimed. The `mypy` step is literally named `"[INFO] Run mypy report (advisory)"` with `id: mypy`, confirming plan.md's "advisory, not enforced" characterization. `.github/workflows/doctrine-charter-tests.yml` exists as cited.
+- Confirmed `grep -rn "_resolve_mission_config" spec.md tracer-approach.md` returns zero matches — the prior MEDIUM finding (I1) is fixed and stays fixed.
+- Confirmed `src/charter/org_expected_artifacts.py`'s path join is still at line 82 (pre-implementation state, as expected — this mission is in analyze phase, WP01 has not yet run `spec-kitty implement`).
+- Confirmed the module docstring spans lines 1-29 exactly, matching WP01 T002's citation.
+- Confirmed all five `TestResolveOrgExpectedArtifactsMalformedFile` hand-built path citations (lines 160, 170, 188, 206, 259) are exact.
+- Confirmed all five fixture-helper def-line citations (`test_org_expected_artifacts.py:31`, `test_mission_type_profiles.py:996`, `test_manifest.py:516`, `test_rebaseline.py:494`, `test_indexer.py:714`) are exact.
+- Confirmed `manifest.py`'s `_cache` (line 190, within cited 183-190 range) and `load_manifest`'s FR-008 docstring line (219, within cited 219-223 range) are exact.
+- Confirmed `mission_type_profiles.py:1030`'s FR-008 docstring citation is exact.
+- Found the one new discrepancy above (I2): `resolver.py`'s `_resolve_asset`/`resolve_mission` line numbers in spec.md are stale.
+- Confirmed lanes.json / WP count (1, WP01, T001-T006, serial, no parallel groups beyond the single lane) matches tasks.md and the WP file exactly.
+- Confirmed the six binding decisions supplied for this pass (C-003 resolver-only scope, C-001 six-file set, one-PR shape, campsite-clean=none, WP count=1 serial, #3284/#3283 baseline citations) are all present, internally consistent, and correctly reflected across spec.md/plan.md/the WP file — none flagged as gaps per this pass's binding-decisions instruction.
 
 **Metrics:**
 
-- Total Requirements: 5 FR + 3 NFR + 7 Constraints = 15
-- Total Tasks (subtasks): 6 (T001-T006)
-- Coverage %: 100% (every FR/NFR/constraint maps to >=1 subtask)
-- Ambiguity Count: 0 (no vague adjectives without measurable criteria; no unresolved placeholders found)
-- Duplication Count: 0 (the five duplicated fixture-helper implementations are a deliberately-scoped, spec-acknowledged defect the mission itself exists to correct, not an artifact-authoring duplication)
+- Total Requirements: 15 (FR-001–005, NFR-001–003, C-001–007)
+- Total Tasks: 6 (T001–T006)
+- Coverage % (requirements with >=1 task): 100% (15/15; C-005 is a spec-authoring-time attestation, independently re-verified this pass rather than task-mapped)
+- Ambiguity Count: 0
+- Duplication Count: 0
 - Critical Issues Count: 0
-- High Issues Count: 0
-- Medium Issues Count: 1 (I1)
 
 ## Next Actions
 
-- No CRITICAL or HIGH issues exist; implementation is not blocked.
-- One MEDIUM finding (I1) exists: a stale/fabricated function-name citation in `spec.md:34` (and `tracer-approach.md:45`), already fixed in `plan.md` by a prior review round. Recommend a small, low-risk spec.md touch-up (`_resolve_mission_config` -> `resolve_mission`, cf. `resolver.py:769`) before or alongside implementation -- this is documentation-only and does not touch any of the six code/test files C-001 scopes, so it carries no file-set or RED-first implications for WP01.
-- No other cross-artifact gaps, duplications, charter conflicts, or coverage gaps were found across spec.md, plan.md, tasks.md, and WP01 in this pass.
+No CRITICAL or HIGH issues exist. One MEDIUM finding (I2, stale resolver.py line-number citation in spec.md's narrative rationale) does not block `/spec-kitty.implement` — it does not touch any file, line, or instruction WP01 actually edits. Recommended: correct spec.md line 34's `_resolve_asset`/`resolve_mission` line numbers (378→312, 817→769) at the operator's convenience, either now as a small follow-up edit or folded into a future doc-freshness pass; not required before implementation proceeds.
 
-## Offer Remediation
+## Remediation Offer
 
-Should this finding be addressed before moving on to implementation? A concrete remediation edit (spec.md line 34, and optionally tracer-approach.md line 45) can be suggested for operator approval if desired. This report does not apply any edits automatically.
+Should this MEDIUM finding (I2) be addressed before moving on to implementation? A one-line correction to spec.md:34 (updating the two line numbers) can be proposed as a concrete remediation edit if desired — not applied automatically.
