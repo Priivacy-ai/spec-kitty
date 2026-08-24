@@ -443,6 +443,60 @@ def test_governed_reopen_is_included_by_real_finalizer(tmp_path: Path) -> None:
     assert manifest.planning_artifact_wps == []
 
 
+def test_mixed_canceled_first_normal_finalize_writes_surviving_active_lane(
+    tmp_path: Path,
+) -> None:
+    """Cancellation alone must not masquerade as begun execution provenance."""
+    mission_dir = _build_mission(
+        tmp_path,
+        {
+            "WP01": _wp_document(
+                "WP01", owned_files=("src/example/other.py",)
+            ),
+            "WP02": _wp_document(
+                "WP02", owned_files=("src/example/active.py",)
+            ),
+        },
+    )
+    _cancel(mission_dir, "WP01")
+    assert not (mission_dir / "lanes.json").exists()
+
+    result = _invoke_normal(tmp_path, mission_dir)
+
+    assert result.exit_code == 0, result.stdout
+    manifest = read_lanes_json(mission_dir)
+    assert manifest is not None
+    assert manifest.lane_for_wp("WP01") is None
+    assert manifest.lane_for_wp("WP02") is not None
+    assert [wp_id for lane in manifest.lanes for wp_id in lane.wp_ids] == ["WP02"]
+
+
+@pytest.mark.parametrize(
+    ("lifecycle_lanes", "expected"),
+    [
+        ({"WP01": Lane.PLANNED}, False),
+        ({"WP01": Lane.CANCELED}, False),
+        ({"WP01": Lane.CANCELED, "WP02": Lane.PLANNED}, False),
+        ({"WP01": Lane.CANCELED, "WP02": Lane.CLAIMED}, True),
+        ({"WP01": Lane.IN_PROGRESS}, True),
+        ({"WP01": Lane.DONE}, True),
+    ],
+)
+def test_execution_begun_ignores_only_planned_and_canceled_states(
+    tmp_path: Path,
+    lifecycle_lanes: dict[str, Lane],
+    expected: bool,
+) -> None:
+    assert (
+        finalizer._execution_has_begun(
+            tmp_path,
+            "3432-canceled-finalization",
+            lifecycle_lanes,
+        )
+        is expected
+    )
+
+
 def test_no_cancellation_retains_full_finalizer_structure(tmp_path: Path) -> None:
     mission_slug = "3432-canceled-finalization"
     planning_path = f"kitty-specs/{mission_slug}/plan.md"
