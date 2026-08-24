@@ -33,3 +33,56 @@ implementers who cannot literally `git stash` each other's uncommitted work. IC-
 one coherent change; the four touched functions and their three call-site edits are inseparable
 (a partial threading leaves the defect live end-to-end, per plan.md's own IC-01 framing). One WP
 is the honest decomposition — confirmed, not just carried forward by default.
+
+## WP01 implementation phase (2026-08-24) — T004 findings (NFR-002/NFR-004 golden-parity extension)
+
+**T004 step 5 vacuity self-check, performed empirically (not just reasoned about):** temporarily
+reverted `mission_type_repository.py:559`'s `scan_mission_types_dir(base_dir,
+pack_context=pack_context)` back to `scan_mission_types_dir(base_dir)` (T003's built-in-equivalent
+layer edit only -- org/project layer edits left intact) and reran
+`tests/runtime/test_runtime_seam.py::TestGoldenParityUnaffectedByPackContextThreading` (all 5
+tests present at that point). Result: **all 5 still passed unchanged.** This is the honest, direct
+answer to WP01's own question ("confirm the extended/new `action_sequence` parity assertion...
+would actually fail in that state") — it does NOT fail. Root cause, verified rather than assumed:
+`test_builtin_type_unaffected_by_real_pack_context_with_org_root`'s own fixture's org root declares
+`mission_types/` but never writes a `mission-steps/<builtin-type>/...` override tree, so
+`MissionStepRepository.resolve_all_for_mission_type("software-dev", pack_context=<real>)` and
+`pack_context=None` resolve the byte-identical step set regardless of whether the base_dir
+threading exists — there is nothing in this specific fixture the threading could possibly perturb.
+This is a correct, expected property of an "unrelated org pack" fixture (matching the class's own
+stated purpose: prove zero perturbation), not a defect to "fix" by artificially injecting
+override content (T004 step 2 explicitly forbids conflating "unrelated pack" parity with "any pack
+whatsoever" parity). Restored the line immediately after observing this (`git diff` confirmed zero
+pending change on the file before continuing); this was never committed.
+
+Because the byte-parity assertion is therefore provably unable to prove the base_dir call site is
+even reached, T004 step 4's NFR-004 test (`test_builtin_layer_scan_receives_the_real_pack_context_once_per_type`)
+is the test that actually closes this specific vacuity gap: it asserts by identity that the call
+resolving `"software-dev"`'s step set received *this exact* real, non-`None` `pack_context`
+instance -- something only reachable once T003's threading exists at all (pre-WP01,
+`_inject_projected_fields` hardcoded `pack_context=None` unconditionally, so no call could ever
+observe a real instance there). Verified this test's own red-first shape too: with T003's fix
+present but the T004 test's spy watching the exact call, the test is a positive existence proof,
+not a byte-difference proof — the correct instrument for a "this code path is live" claim when
+the byte-difference instrument is, by design of the fixture, unable to move.
+
+**Deviation from WP01's literal spy-shape instruction, found via actual test execution (not
+assumed):** WP01 T004 step 4 specifies `instance = MissionStepRepository.default()` then
+`unittest.mock.patch.object(instance, "resolve_all_for_mission_type",
+wraps=instance.resolve_all_for_mission_type)`. Ran exactly this first. Result: `spy.call_count ==
+0` even after resolving `"software-dev"` through the full seam — not a `TypeError`, a silent
+zero. Traced why: `MissionStepRepository.default()` (`mission_step_repository.py:226-227`) is a
+plain `@classmethod` with **no** `functools.cache` — unlike `MissionTypeRepository.default()`,
+which is cached. It returns a **fresh instance** on every call. The seam's own internal
+`_inject_projected_fields` call to `MissionStepRepository.default()` therefore constructs a
+*different* object than the one the test pre-captured and patched, so the pre-captured instance's
+patched method is never invoked. Switched to the plain-function class-attribute-spy shape already
+proven correct elsewhere in this same file
+(`TestMemoizedDefaultNoHotPathIO.test_default_does_not_rewalk_mission_steps_on_repeat_calls`,
+pre-existing, not authored by this WP) -- a plain function (not a `Mock`) set as a class attribute
+correctly binds `self` via Python's normal descriptor protocol regardless of which instance
+invokes it, sidestepping the fresh-instance-per-call problem entirely. This is a different pattern
+from what WP01 specified, not a contradiction of its underlying warning (WP01's own warning
+about `Mock` not being a descriptor is exactly why a plain-function class-attribute spy is safe
+where a `Mock`-based one would not be) — recorded here in full per this mission's own
+"verify rather than trust" standard rather than silently swapping the pattern.
