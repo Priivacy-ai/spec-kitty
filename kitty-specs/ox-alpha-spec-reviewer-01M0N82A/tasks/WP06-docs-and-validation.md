@@ -221,6 +221,7 @@ Reviewer отклоняет WP, если docs обещают provider properties
 ## Activity Log
 
 - 2026-08-22T17:51:11Z – system – Prompt created.
+- 2026-08-24 – codex – T030: offline targeted gate `pytest -p no:base_url tests/specify_cli/spec_review tests/mission_runtime/test_spec_review_artifact_placement.py tests/integration/test_spec_review_integration.py tests/integration/test_spec_review_live.py -m 'not live_adapter' --cov=specify_cli.spec_review --cov=specify_cli.cli.commands.spec_review --cov-branch --cov-report=term-missing -q` → `130 passed, 1 deselected`, branch coverage новых модулей `96%`; diff-relevant Ruff → `All checks passed`; `mypy --strict --platform linux` по 11 source files → `Success`. Live model не запускался.
 
 ### Updating Status
 
