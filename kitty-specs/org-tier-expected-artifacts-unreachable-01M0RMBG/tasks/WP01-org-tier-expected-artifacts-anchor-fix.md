@@ -374,8 +374,9 @@ Gate Set For This Mission" section before treating this WP as CI-ready.
    compare against; conflating the two is what produced the no-op. The ref that is
    actually distinct from HEAD, and that CI itself will use, is `main`: this repo's
    real PRs open FROM a mission branch INTO `main` (CLAUDE.md, "All changes to
-   origin/main MUST go through pull requests"; charter.md, "Base branch here is
-   `main`"), so once this mission's PR opens, `github.base_ref` is `main` and CI's
+   origin/main MUST go through pull requests"; charter.md, "All changes must land on
+   `main` through a pull request. Direct pushes to `main` are never allowed"), so once
+   this mission's PR opens, `github.base_ref` is `main` and CI's
    `diff-coverage` job runs `--compare-branch=origin/${{ github.base_ref }}` =
    `--compare-branch=origin/main` (`.github/workflows/ci-quality.yml`, the
    "diff-coverage (critical-path, enforced)" step). `origin/main` is used above (not a
