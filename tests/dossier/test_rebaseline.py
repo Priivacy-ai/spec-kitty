@@ -492,8 +492,8 @@ def _write_org_pack_config(repo_root: Path, *, packs: list[tuple[str, Path]]) ->
 
 
 def _write_org_manifest(org_root: Path, mission_type: str, data: dict) -> None:
-    """Write ``<org_root>/<mission_type>/expected-artifacts.yaml`` (raw-root shape)."""
-    target_dir = org_root / mission_type
+    """Write ``<org_root>/missions/<mission_type>/expected-artifacts.yaml`` (raw-root shape)."""
+    target_dir = org_root / "missions" / mission_type
     target_dir.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False

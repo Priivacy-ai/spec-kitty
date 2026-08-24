@@ -714,7 +714,7 @@ class TestIndexerOrgAwareManifest:
     def _write_org_manifest(self, org_root: Path, mission_type: str, data: dict) -> None:
         from ruamel.yaml import YAML
 
-        target_dir = org_root / mission_type
+        target_dir = org_root / "missions" / mission_type
         target_dir.mkdir(parents=True, exist_ok=True)
         yaml = YAML()
         yaml.default_flow_style = False
