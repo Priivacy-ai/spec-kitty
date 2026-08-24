@@ -22,7 +22,18 @@
       "force_count": 0,
       "lane": "planned",
       "last_event_id": "01M0RWD4PMWT0WY7T9V93T44TB",
-      "last_transition_at": "2026-08-24T03:18:12.436846+00:00"
+      "last_transition_at": "2026-08-24T03:18:12.436846+00:00",
+      "subtasks": {
+        "T001": "done",
+        "T002": "done",
+        "T003": "done",
+        "T004": "done",
+        "T005": "done",
+        "T006": "done",
+        "T007": "done",
+        "T008": "done",
+        "T009": "done"
+      }
     }
   }
 }
