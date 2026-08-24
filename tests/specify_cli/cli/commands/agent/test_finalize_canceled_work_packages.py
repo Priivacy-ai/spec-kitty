@@ -33,6 +33,7 @@ def _wp_document(
     owned_files: tuple[str, ...] = (),
     authoritative_surface: str = "src/example/",
     include_ownership_fields: bool = True,
+    include_static_bootstrap_fields: bool = False,
 ) -> str:
     dependency_yaml = "[]" if not dependencies else "[" + ", ".join(dependencies) + "]"
     owned_yaml = "[]\n" if not owned_files else "\n" + "".join(f"  - {path}\n" for path in owned_files)
@@ -43,12 +44,20 @@ def _wp_document(
         if include_ownership_fields
         else ""
     )
+    static_bootstrap = (
+        "planning_base_branch: main\n"
+        "merge_target_branch: main\n"
+        f"branch_strategy: {json.dumps(finalizer._branch_strategy_text('main'))}\n"
+        if include_static_bootstrap_fields
+        else ""
+    )
     return (
         "---\n"
         f"work_package_id: {wp_id}\n"
         f"title: {wp_id} cancellation acceptance fixture\n"
         f"dependencies: {dependency_yaml}\n"
         "requirement_refs: [FR-001]\n"
+        f"{static_bootstrap}"
         f"{ownership}"
         "---\n"
         f"# {wp_id}\n"
@@ -364,10 +373,10 @@ def test_canonical_lifecycle_reader_is_called_once(
     else:
         _set_lane(mission_dir, "WP01", Lane.PLANNED)
 
-    from specify_cli.status.lane_reader import get_all_wp_lanes as real_reader
+    from specify_cli.status.store import read_events as real_reader
 
     reader = MagicMock(side_effect=real_reader)
-    with patch("specify_cli.status.lane_reader.get_all_wp_lanes", reader):
+    with patch("specify_cli.status.store.read_events", reader):
         result = _invoke(tmp_path, mission_dir)
 
     assert result.exit_code == (1 if scenario == "stale" else 0)
@@ -401,7 +410,11 @@ def test_canceled_prompt_without_ownership_is_never_fabricated_or_warned(
     mission_dir = _build_mission(
         tmp_path,
         {
-            "WP01": _wp_document("WP01", include_ownership_fields=False),
+            "WP01": _wp_document(
+                "WP01",
+                include_ownership_fields=False,
+                include_static_bootstrap_fields=True,
+            ),
             "WP02": _wp_document("WP02", owned_files=("src/example/active.py",)),
         },
     )

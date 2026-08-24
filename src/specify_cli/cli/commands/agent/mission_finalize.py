@@ -47,7 +47,7 @@ from mission_runtime import ActionContextError, MissionArtifactKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import assert_safe_path_segment
-from specify_cli.core.dependency_graph import detect_cycles, validate_dependencies
+from specify_cli.core.dependency_graph import detect_cycles
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.missions._resolve_planning_branch import PlanningBranchResolutionFailed
 from specify_cli.lanes.models import LanesManifest
@@ -992,9 +992,24 @@ def _validate_dependency_graph(wp_dependencies: dict[str, list[str]], *, json_ou
                 console.print(f"  {' → '.join(cycle)}")
         raise typer.Exit(1)
 
+    _validate_dependency_references(wp_dependencies, json_output=json_output)
+
+
+def _validate_dependency_references(
+    wp_dependencies: dict[str, list[str]], *, json_output: bool
+) -> None:
+    """Reject unknown dependency IDs without imposing raw-graph acyclicity."""
+    wp_pattern = re.compile(r"^WP\d{2}$")
     for wp_id, deps in wp_dependencies.items():
-        is_valid, errors = validate_dependencies(wp_id, deps, wp_dependencies)
-        if not is_valid:
+        errors: list[str] = []
+        for dep in deps:
+            if not wp_pattern.match(dep):
+                errors.append(
+                    f"Invalid WP ID format: {dep} (must be WP## like WP01)"
+                )
+            elif dep not in wp_dependencies:
+                errors.append(f"Dependency {dep} not found in graph")
+        if errors:
             error_msg = f"Invalid dependencies for {wp_id}: {errors}"
             if json_output:
                 _emit_json({"error": error_msg, "wp_id": wp_id, "errors": errors})
@@ -1418,12 +1433,14 @@ def _run_bootstrap_loop(
             has_requirement_refs_line=has_requirement_refs_line,
             target_branch=target_branch,
         )
-        own_changed, infer_warnings, ownership_contradiction = _apply_ownership_inference(
-            bld, wp_meta, wp_file.read_text(encoding="utf-8"), mission_slug, changed_fields
-        )
-        if ownership_contradiction is not None and (
-            eligible_wp_ids is None or wp_id in eligible_wp_ids
-        ):
+        is_eligible = eligible_wp_ids is None or wp_id in eligible_wp_ids
+        if is_eligible:
+            own_changed, infer_warnings, ownership_contradiction = _apply_ownership_inference(
+                bld, wp_meta, raw_content, mission_slug, changed_fields
+            )
+        else:
+            own_changed, infer_warnings, ownership_contradiction = False, [], None
+        if ownership_contradiction is not None:
             # FR-002: collect, don't abort mid-loop -- every offending WP in
             # this run must be named in one aggregated error.
             state.ownership_contradictions.append(ownership_contradiction)
@@ -1442,10 +1459,11 @@ def _run_bootstrap_loop(
         # observable only post-integration cannot be honestly reviewed while its
         # lane is open. Signal it at authoring time (fail-loud discipline,
         # epics #3410/#3549) — never blocks finalize, touches no terminal state.
-        for warning in detect_post_integration_acceptance(
-            wp_file.read_text(encoding="utf-8"), list(updated_meta.owned_files)
-        ):
-            state.post_integration_acceptance_warnings.append(f"{wp_id}: {warning}")
+        if is_eligible:
+            for warning in detect_post_integration_acceptance(
+                raw_content, list(updated_meta.owned_files)
+            ):
+                state.post_integration_acceptance_warnings.append(f"{wp_id}: {warning}")
 
         if frontmatter_changed:
             if not validate_only:
@@ -1848,6 +1866,19 @@ def _capture_target_branch_tip(repo_root: Path, target_branch: str) -> str | Non
     return sha or None
 
 
+@dataclass(frozen=True)
+class _FinalizationLifecycleSnapshot:
+    """One canonical event read reduced to current lanes and provenance facts."""
+
+    lanes: Mapping[str, Lane]
+    execution_has_begun: bool
+
+
+_PRE_EXECUTION_LANES = frozenset(
+    {Lane.GENESIS, Lane.UNINITIALIZED, Lane.PLANNED, Lane.CANCELED}
+)
+
+
 def _lifecycle_snapshot_has_execution_begun(
     lifecycle_lanes: Mapping[str, Lane],
 ) -> bool:
@@ -1859,7 +1890,7 @@ def _lifecycle_snapshot_has_execution_begun(
     lifecycle lane represents genuine execution or post-execution state.
     """
     return any(
-        lane not in (Lane.PLANNED, Lane.CANCELED)
+        lane not in _PRE_EXECUTION_LANES
         for lane in lifecycle_lanes.values()
     )
 
@@ -1867,7 +1898,7 @@ def _lifecycle_snapshot_has_execution_begun(
 def _execution_has_begun(
     repo_root: Path,
     mission_slug: str,
-    lifecycle_lanes: Mapping[str, Lane] | None = None,
+    lifecycle_lanes: _FinalizationLifecycleSnapshot | Mapping[str, Lane] | None = None,
 ) -> bool:
     """#3311 T014: read-only "has execution begun" signal for the finalize gate.
 
@@ -1903,6 +1934,8 @@ def _execution_has_begun(
     from specify_cli.status import StoreError, get_all_wp_lanes, has_event_log
 
     if lifecycle_lanes is not None:
+        if isinstance(lifecycle_lanes, _FinalizationLifecycleSnapshot):
+            return lifecycle_lanes.execution_has_begun
         return _lifecycle_snapshot_has_execution_begun(lifecycle_lanes)
 
     try:
@@ -1930,8 +1963,7 @@ def _preserve_or_capture_planning_commit_sha(
     mission_slug: str,
     target_branch: str,
     *,
-    lifecycle_lanes: Mapping[str, Lane] | None = None,
-    allow_missing_existing: bool = False,
+    lifecycle_lanes: _FinalizationLifecycleSnapshot | Mapping[str, Lane] | None = None,
     json_output: bool,
 ) -> str | None:
     """#3311 T015: gate the ``planning_commit_sha`` capture on execution-begun.
@@ -1954,15 +1986,15 @@ def _preserve_or_capture_planning_commit_sha(
     reach, since bootstrapping the event log itself requires a prior
     successful finalize run that already wrote ``lanes.json``.
     """
-    if not _execution_has_begun(repo_root, mission_slug, lifecycle_lanes):
-        return _capture_target_branch_tip(repo_root, target_branch)
-
     from specify_cli.lanes.persistence import read_lanes_json
 
     existing: LanesManifest | None = read_lanes_json(planning_dir)
+    if existing is not None:
+        return cast(str | None, existing.planning_commit_sha)
+    if not _execution_has_begun(repo_root, mission_slug, lifecycle_lanes):
+        return _capture_target_branch_tip(repo_root, target_branch)
+
     if existing is None:
-        if allow_missing_existing:
-            return _capture_target_branch_tip(repo_root, target_branch)
         error_msg = (
             f"Cannot re-finalize mission {mission_slug!r}: execution has begun "
             "(a WP is past 'planned') but no lanes.json exists on disk to "
@@ -1974,10 +2006,7 @@ def _preserve_or_capture_planning_commit_sha(
         else:
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1)
-    # ``planning_commit_sha`` is genuinely ``str | None`` (specify_cli/lanes/models.py);
-    # under the authoritative full-package ``mypy --strict`` invocation the type is
-    # resolved correctly through the import graph, so no suppression is needed here.
-    return cast(str | None, existing.planning_commit_sha)
+    raise AssertionError("unreachable: existing manifest handled before provenance refusal")
 
 
 def _compute_and_write_lanes(
@@ -1992,7 +2021,7 @@ def _compute_and_write_lanes(
     target_branch: str,
     *,
     all_canceled: bool = False,
-    lifecycle_lanes: Mapping[str, Lane] | None = None,
+    lifecycle_lanes: _FinalizationLifecycleSnapshot | Mapping[str, Lane] | None = None,
     json_output: bool,
 ) -> tuple[Path | None, LanesManifest | None]:
     """Phase: compute execution lanes + write lanes.json + risk report."""
@@ -2055,7 +2084,6 @@ def _compute_and_write_lanes(
         mission_slug,
         target_branch,
         lifecycle_lanes=lifecycle_lanes,
-        allow_missing_existing=all_canceled,
         json_output=json_output,
     )
     lanes_path = write_lanes_json(planning_dir, lanes_manifest)
@@ -2481,7 +2509,7 @@ def _run_commit_pipeline(
     functional_spec_requirement_ids: set[str],
     preexisting_primary_files: set[Path],
     eligible_dependencies: dict[str, list[str]],
-    lifecycle_lanes: Mapping[str, Lane],
+    lifecycle_lanes: _FinalizationLifecycleSnapshot,
     *,
     all_canceled: bool = False,
     validate_only: bool,
@@ -2796,15 +2824,31 @@ def _load_work_package_files(planning_dir: Path, *, json_output: bool) -> tuple[
 
 def _read_finalization_lifecycle_snapshot(
     repo_root: Path, mission_slug: str
-) -> dict[str, Lane]:
-    """Read the canonical event-derived lifecycle map exactly once."""
+) -> _FinalizationLifecycleSnapshot:
+    """Read one canonical event stream for current eligibility and provenance."""
     from specify_cli.coordination.surface_resolver import resolve_status_surface_with_anchor
-    from specify_cli.status.lane_reader import get_all_wp_lanes, has_event_log
+    from specify_cli.status.lane_reader import has_event_log
+    from specify_cli.status.reducer import reduce
+    from specify_cli.status.store import read_events
 
     read_dir = resolve_status_surface_with_anchor(repo_root, mission_slug).read_dir
     if not has_event_log(read_dir):
-        return {}
-    return cast(dict[str, Lane], get_all_wp_lanes(read_dir))
+        return _FinalizationLifecycleSnapshot(lanes={}, execution_has_begun=False)
+    events = read_events(read_dir)
+    reduced = reduce(events)
+    lanes = {
+        wp_id: Lane(state.get("lane", Lane.GENESIS))
+        for wp_id, state in reduced.work_packages.items()
+    }
+    execution_has_begun = any(
+        event.from_lane not in _PRE_EXECUTION_LANES
+        or event.to_lane not in _PRE_EXECUTION_LANES
+        for event in events
+    )
+    return _FinalizationLifecycleSnapshot(
+        lanes=lanes,
+        execution_has_begun=execution_has_begun,
+    )
 
 
 def _reject_stale_canceled_dependencies(
@@ -2954,7 +2998,9 @@ def finalize_tasks(
         dep_resolution = _resolve_dependencies_and_refs(
             planning_dir, wps_manifest, wp_files, expected_wp_ids, json_output=json_output
         )
-        _validate_dependency_graph(dep_resolution.wp_dependencies, json_output=json_output)
+        _validate_dependency_references(
+            dep_resolution.wp_dependencies, json_output=json_output
+        )
 
         wp_files = list(tasks_dir.glob("WP*.md"))
         wp_ids = _extract_wp_ids_from_task_files(wp_files)
@@ -2974,11 +3020,16 @@ def finalize_tasks(
         eligibility = project_finalization_eligibility(
             expected_wp_ids,
             dep_resolution.wp_dependencies,
-            lifecycle_lanes,
+            lifecycle_lanes.lanes,
         )
         _reject_stale_canceled_dependencies(
             eligibility.stale_dependencies, json_output=json_output
         )
+        eligible_dependencies = {
+            wp_id: list(prerequisites)
+            for wp_id, prerequisites in eligibility.eligible_dependencies.items()
+        }
+        _validate_dependency_graph(eligible_dependencies, json_output=json_output)
 
         # Every writer stays behind the cancellation cut-edge guard.
         target_branch_persist = TargetBranchPersistOutcome(persisted=False)
@@ -3056,10 +3107,6 @@ def finalize_tasks(
         wp_manifests = filter_by_wp_ids(
             all_wp_manifests, eligibility.eligible_wp_ids
         )
-        eligible_dependencies = {
-            wp_id: list(prerequisites)
-            for wp_id, prerequisites in eligibility.eligible_dependencies.items()
-        }
         _validate_ownership_manifests(
             wp_manifests, wp_frontmatters, repo_root, state, json_output=json_output
         )
