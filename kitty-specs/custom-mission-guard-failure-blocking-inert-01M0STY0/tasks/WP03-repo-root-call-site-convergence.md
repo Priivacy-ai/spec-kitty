@@ -12,6 +12,7 @@ branch_strategy: Planning artifacts for this mission were generated on fix/custo
 subtasks:
 - T016
 - T017
+- T017b
 - T018
 - T019
 - T020
@@ -76,7 +77,11 @@ on-disk artifact state. Assert both report the same `guard_failures` — neither
 other (FR-003's convergence requirement; the two paths currently "agree" only because both do
 nothing today, which is not the same as genuinely converging). Assert `resolve_org_roots` is
 invoked with the real, non-`None` `repo_root` the enclosing function already holds (AC-8) — not a
-default `repo_root=None` left unthreaded.
+default `repo_root=None` left unthreaded. AC-8 names two distinct call sites inside
+`_dn_dependency_gate` — the WP-iteration pre-check (~line 1608, any mission family) and the CLI
+pre-check (~line 1643, `software-dev`-family-scoped only) — and a custom-family test structurally
+can only ever reach the first; T017 covers the first, T017b covers the second with a
+`software-dev` scenario specifically.
 
 ## Requirement Refs
 
@@ -101,7 +106,30 @@ uv run pytest tests/runtime/next/test_cli_guard_family.py -v   # baseline first
 asserting `resolve_org_roots` is invoked with the real, non-`None` `repo_root` the enclosing
 function (`_dn_dependency_gate` or the composed-action dispatch path) already holds, when the
 CLI/WP-iteration dispatch path runs a custom mission family with an org-tier manifest and no
-built-in manifest. Verify RED against `fix/org-tier-expected-artifacts-3703`.
+built-in manifest. Verify RED against `fix/org-tier-expected-artifacts-3703`. **Structural note
+(TASKS-VERIFY-001, added this fix round):** because this case's mission family is, by
+construction, outside `_GUARD_TABLES`, it can only ever exercise the WP-iteration pre-check call
+site inside `_dn_dependency_gate` (`src/runtime/next/runtime_bridge.py` ~line 1608) — it can never
+reach the separate CLI pre-check call site (~line 1643), which is gated by
+`get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV` at ~line 1642 and therefore never
+fires for a custom family. AC-8 names both call sites; T017b below covers the second one.
+
+**T017b [ATDD-RED — same commit family as T016/T017, before implementation; TASKS-VERIFY-001 fix]**
+Add a second AC-8 test case, scoped to the `software-dev` family so it actually reaches the CLI
+pre-check call site T017 structurally cannot: drive `_dn_dependency_gate` (or `decide_next`) for a
+`software-dev` mission at a non-WP-iteration step (e.g. `specify`) with an org-tier
+`expected-artifacts.yaml` override for `software-dev` declaring a blocking artifact that has no
+equivalent built-in requirement, and no built-in manifest entry for that artifact. Assert
+`resolve_org_roots` (or the org-tier manifest it resolves) is consulted with the real, non-`None`
+`repo_root` specifically through the `runtime_bridge.py:1643` call site — e.g. by flipping the
+org-declared blocking artifact's on-disk presence and observing `guard_failures` change
+accordingly, or by patching `resolve_org_roots`/`resolve_org_expected_artifacts` and asserting the
+real `repo_root` value in the call arguments, the same technique T017 already uses for the
+custom-family case. This test MUST go through `_dn_dependency_gate`'s software-dev-scoped block
+(~line 1642-1643), not call `_check_cli_guards` directly (calling it directly is what
+`TestAC14SoftwareDevUnchanged` in `tests/runtime/next/test_cli_guard_family.py` already does, and
+is exactly the gap this subtask closes — direct-call tests bypass the call site AC-8 is about).
+Verify RED against `fix/org-tier-expected-artifacts-3703`.
 
 **T018** `_check_cli_guards` (`src/runtime/next/runtime_bridge.py:751`) gains
 `repo_root: Path | None = None`, forwards it to `gather_artifact_presence`.
@@ -125,7 +153,7 @@ legacy_step_id=legacy_step_id)` to also pass `repo_root=repo_root` (the function
 `repo_root` as a required keyword parameter at its own signature — this is purely about not
 dropping an already-available value at the call site).
 
-**T022** Run this WP's full regression scope; confirm T016/T017 go GREEN; confirm
+**T022** Run this WP's full regression scope; confirm T016/T017/T017b go GREEN; confirm
 `test_non_software_dev_missing_artifact_owned_by_composed_guard`
 (`tests/runtime/test_bridge_parity.py:1242`) stays GREEN — this is the regression guard pinning
 that the CLI pre-check stays scoped to the `software-dev` mission family alone (#3407 M3), which

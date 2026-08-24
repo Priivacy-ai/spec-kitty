@@ -40,10 +40,12 @@ tracker_refs: []
 
 Issue #3704 ("A custom mission family can never report a guard failure, and its `blocking:`
 manifest is never read"), Part 1 (dispatch). This mission is STACKED on
-`fix/org-tier-expected-artifacts-3703` (PR #3708, green, mergeable, unmerged) — do not diff,
-rebase, or red-verify against `main`. Full spec: `../spec.md`. Full plan: `../plan.md`. This WP
-implements plan.md's WP01 exactly as scoped there — do not re-litigate the design, only implement
-it.
+`fix/org-tier-expected-artifacts-3703` (PR #3708 — merged into `origin/main` on 2026-08-24, after
+this WP file was first authored; see `../tasks.md`'s Baseline section for the live
+merge-state/rebase-need correction) — do not diff, rebase, or red-verify against `main`;
+`planning_base_branch` stays `fix/org-tier-expected-artifacts-3703` regardless of PR #3708's
+GitHub state. Full spec: `../spec.md`. Full plan: `../plan.md`. This WP implements plan.md's WP01
+exactly as scoped there — do not re-litigate the design, only implement it.
 
 ## Goal
 

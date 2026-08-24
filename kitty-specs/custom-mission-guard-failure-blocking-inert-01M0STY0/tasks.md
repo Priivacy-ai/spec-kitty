@@ -63,14 +63,37 @@ WP.
 ## Baseline (binding — copy from plan.md's Baseline section)
 
 This mission's branch (`fix/custom-mission-guard-3704`) is checked out at the exact merge-base of
-`fix/org-tier-expected-artifacts-3703` (PR #3708, green, mergeable, unmerged) — verified live:
+`fix/org-tier-expected-artifacts-3703` (PR #3708) — verified live:
 `git merge-base fix/org-tier-expected-artifacts-3703 fix/custom-mission-guard-3704` ==
 `git rev-parse fix/org-tier-expected-artifacts-3703` (`ae3e5ad7a`) at authoring time. No
 functional commit has landed on this branch yet — only spec/plan-phase documentation commits sit
 on top. **Every WP's red-first ATDD verification and every diff computed while implementing this
 mission MUST anchor on `fix/org-tier-expected-artifacts-3703`, never `main`** — diffing against
 `main` would spuriously attribute PR #3708's ~47 commits (the org-tier path anchor) to this
-mission.
+mission. This anchor instruction is unaffected by, and does NOT change as a result of, the
+PR-state correction immediately below — `planning_base_branch` stays
+`fix/org-tier-expected-artifacts-3703` in every WP's frontmatter regardless of that branch's
+upstream PR state.
+
+**PR #3708 state correction (post-authoring, live-verified — TASKS-SEQ-001 fix).** PR #3708
+merged into `origin/main` at `2026-08-24T14:01:27Z` (merge commit `3f8716fac`), roughly 3 minutes
+after this tasks.md's authoring session's final commit — it was still open/"unmerged" at
+authoring time (hence the phrasing above described it that way), but is **no longer open**.
+Re-verified live for this fix round:
+`gh pr view 3708 --repo Priivacy-ai/spec-kitty --json state,mergedAt` → `{"state":"MERGED","mergedAt":"2026-08-24T14:01:27Z"}`.
+`git merge-base --is-ancestor ae3e5ad7a origin/main` succeeds — `ae3e5ad7a`
+(`fix/org-tier-expected-artifacts-3703`'s tip, this mission's merge-base) is an ancestor of
+`origin/main`, whose tip is literally PR #3708's own merge commit. **Pre-implementation
+rebase decision (recorded, not executed — do not run `git rebase` to enact this until an
+implementing WP actually starts):** `git merge-base HEAD origin/main` returns `ae3e5ad7a` itself
+— every commit on `fix/custom-mission-guard-3704` since the merge-base is a spec/plan/tasks
+documentation commit (no `src/` changes), and a trial `git merge-tree` of this branch's HEAD
+against `origin/main` produces zero conflict markers. A rebase onto current `origin/main` before
+WP01's first functional commit is therefore **mechanically a no-op today** (no functional code to
+replay, no conflicts) — but it is still the operator's call whether to actually perform it before
+WP01 starts, since it would shrink the eventual PR's diff against `main` down to just this
+mission's own changes instead of carrying `ae3e5ad7a..origin/main`'s history implicitly via the
+merge-base. This tasks-authoring pass records that conclusion; it does not execute the rebase.
 
 `main` (and therefore this stacked branch, since it descends from `main` via
 `fix/org-tier-expected-artifacts-3703`) carries ~23 known-red tests + 2 errors (issue #3284) and a
@@ -193,12 +216,23 @@ same-lane chain (via each WP's `Depends on WP0N` declaration below) specifically
 colliding parallel WPs.
 
 **Cross-mission check (already performed by the orchestrator before this authoring session; result
-stated here):** 19 open PRs exist on `Priivacy-ai/spec-kitty` as of 2026-08-24; **none** touch any
-of this mission's 5 blast-radius files (`src/runtime/next/runtime_bridge_cores.py`,
-`runtime_bridge_io.py`, `runtime_bridge.py`, `runtime_bridge_composition.py`,
-`src/specify_cli/runtime/resolver.py`). Write scopes are disjoint from every currently-open PR.
-PR #3708 (`fix/org-tier-expected-artifacts-3703`, this mission's own stacked parent) is among
-those 19, but its files are already in this mission's base — not a conflict source, an ancestor.
+stated here):** 19 open PRs existed on `Priivacy-ai/spec-kitty` as of the authoring session's own
+cutoff (2026-08-24, before ~14:01Z); **none** touched any of this mission's 5 blast-radius files
+(`src/runtime/next/runtime_bridge_cores.py`, `runtime_bridge_io.py`, `runtime_bridge.py`,
+`runtime_bridge_composition.py`, `src/specify_cli/runtime/resolver.py`). PR #3708
+(`fix/org-tier-expected-artifacts-3703`, this mission's own stacked parent) was among those 19 at
+that time, but its files were already in this mission's base — not a conflict source, an ancestor.
+
+**Re-run for this fix round (TASKS-SEQ-001), current as of this correction:** PR #3708 has since
+**merged** into `origin/main` (`2026-08-24T14:01:27Z`, merge commit `3f8716fac`) and PR #3707 also
+merged around the same time — both are no longer part of the open-PR set. Live re-run —
+`gh pr list --repo Priivacy-ai/spec-kitty --state open --json number` → **17 open PRs** (19 − the
+2 that merged), and `gh pr list --repo Priivacy-ai/spec-kitty --state open --json number,files`
+filtered against this mission's 5 blast-radius files returns **zero matches**. The substantive
+"write scopes disjoint from every currently-open PR" conclusion is **reconfirmed, not just
+carried forward** — none of the 17 currently-open PRs touch any of the 5 files above. See the
+Baseline section above for the live PR #3708 merge-state verification and the pre-implementation
+rebase-need conclusion (recorded, not executed).
 
 **Chokepoint.** Every WP touching `src/runtime/next/*` (WP01, WP02's functional half, WP03, WP04)
 shares the same enforced `diff-coverage` 90% CI gate — that shared gate, plus the sequential
@@ -303,9 +337,11 @@ AC-5, AC-6, C-002
 ### Included Subtasks
 
 T008 [ATDD-RED] Add org-tier test cases to `tests/specify_cli/runtime/test_configured_artifact_name.py`
-(mirroring `ManifestRegistry.load_manifest`'s FR-008/WP05 test shape)
+(mirroring `ManifestRegistry.load_manifest`'s FR-008/WP05 test shape); includes a named
+`repo_root`-supplied-but-no-org-pack fallback case (TASKS-VERIFY-003 fix)
 T009 [ATDD-RED] Add AC-4/AC-5/AC-6 org-tier + whole-file-replacement scenarios to
-`tests/runtime/next/test_pertype_presence_gate.py`
+`tests/runtime/next/test_pertype_presence_gate.py`; includes a named
+`repo_root`-supplied-but-no-org-pack fallback case (TASKS-VERIFY-003 fix)
 T010 `_load_expected_artifact_manifest` (`src/specify_cli/runtime/resolver.py:555`) gains
 `repo_root: Path | None = None`, becomes org-aware via `resolve_org_expected_artifacts` (FR-008),
 mirroring `ManifestRegistry.load_manifest`'s parameter shape (`src/specify_cli/dossier/manifest.py:193-233`)
@@ -380,7 +416,15 @@ enclosing function already holds (AC-8).
 
 T016 [ATDD-RED] Add AC-1/AC-2 test cases to `tests/runtime/next/test_cli_guard_family.py`
 T017 [ATDD-RED] Add AC-8 test case asserting `resolve_org_roots` is invoked with the real
-`repo_root`
+`repo_root` for a custom mission family, exercising the WP-iteration pre-check call site
+(`runtime_bridge.py` ~line 1608) — structurally cannot reach the CLI pre-check call site (see
+T017b)
+T017b [ATDD-RED, TASKS-VERIFY-001 fix] Add a second AC-8 test case, scoped to the `software-dev`
+family at a non-WP-iteration step (e.g. `specify`) with an org-tier manifest override, asserting
+`resolve_org_roots`/the org-tier manifest is consulted with the real `repo_root` specifically
+through the CLI pre-check call site (`runtime_bridge.py` ~line 1643, gated by
+`get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV` at ~line 1642) — the call site T017's
+custom-family scenario cannot reach
 T018 `_check_cli_guards` (`src/runtime/next/runtime_bridge.py:751`) gains
 `repo_root: Path | None = None`, forwards to `gather_artifact_presence`
 T019 `_dn_dependency_gate` (`src/runtime/next/runtime_bridge.py:1538`, `repo_root = ctx.repo_root`
@@ -555,8 +599,8 @@ final time against this WP's final commit; confirm every blast-radius file is gr
 | T005 | Add `blocking_artifact_names` dataclass field | WP01 | P1 | No |
 | T006 | Populate field with test-only stub | WP01 | P1 | No |
 | T007 | WP01 regression run + coverage budget | WP01 | P1 | No |
-| T008 | ATDD-RED: org-tier `test_configured_artifact_name.py` cases | WP02 | P1 | No |
-| T009 | ATDD-RED: AC-4/AC-5/AC-6 org-tier scenarios | WP02 | P1 | No |
+| T008 | ATDD-RED: org-tier `test_configured_artifact_name.py` cases + no-org-pack fallback (TASKS-VERIFY-003) | WP02 | P1 | No |
+| T009 | ATDD-RED: AC-4/AC-5/AC-6 org-tier scenarios + no-org-pack fallback (TASKS-VERIFY-003) | WP02 | P1 | No |
 | T010 | `_load_expected_artifact_manifest` org-aware | WP02 | P1 | No |
 | T011 | `required_artifacts_for` gains `repo_root` | WP02 | P1 | No |
 | T012 | `_presence_filenames_for` org-tier consult | WP02 | P1 | No |
@@ -564,7 +608,8 @@ final time against this WP's final commit; confirm every blast-radius file is gr
 | T014 | Campsite-clean: `__all__` + stale comment (folds WP00) | WP02 | P1 | No |
 | T015 | WP02 regression run + coverage budget | WP02 | P1 | No |
 | T016 | ATDD-RED: AC-1/AC-2 `test_cli_guard_family.py` cases | WP03 | P1 | No |
-| T017 | ATDD-RED: AC-8 `resolve_org_roots repo_root` case | WP03 | P1 | No |
+| T017 | ATDD-RED: AC-8 `resolve_org_roots repo_root` case (custom family, WP-iteration call site) | WP03 | P1 | No |
+| T017b | ATDD-RED: AC-8 `resolve_org_roots repo_root` case (software-dev family, CLI pre-check call site — TASKS-VERIFY-001) | WP03 | P1 | No |
 | T018 | `_check_cli_guards` gains `repo_root` | WP03 | P1 | No |
 | T019 | `_dn_dependency_gate` forwards `repo_root` at both call sites | WP03 | P1 | No |
 | T020 | `_check_composed_action_guard` gains `repo_root` | WP03 | P1 | No |

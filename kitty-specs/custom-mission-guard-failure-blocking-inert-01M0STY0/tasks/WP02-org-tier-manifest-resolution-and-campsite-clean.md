@@ -116,8 +116,14 @@ FR-008, FR-010, AC-4, AC-5, AC-6, C-002
 `ManifestRegistry.load_manifest`'s existing FR-008/WP05 test shape
 (`src/specify_cli/dossier/manifest.py:193-233` and its own test file for the pattern to mirror):
 exercise `_load_expected_artifact_manifest`/`required_artifacts_for` with `repo_root` pointing at
-a directory containing an org pack, asserting the org manifest is the one resolved. Verify RED
-against `fix/org-tier-expected-artifacts-3703` before writing implementation code:
+a directory containing an org pack, asserting the org manifest is the one resolved. **Also add a
+named fallback case (TASKS-VERIFY-003 fix, this fix round):** `repo_root` set to a real temp
+directory with NO `missions/<type>/expected-artifacts.yaml` under it, and a built-in manifest
+present for the family — assert `required_artifacts_for`/`_load_expected_artifact_manifest`
+resolve to the built-in manifest's artifacts, unchanged from the `repo_root=None` case (proves the
+org-tier consult's "no match" path falls through cleanly at the resolver.py layer rather than
+masking or erroring past the built-in result). Verify RED against
+`fix/org-tier-expected-artifacts-3703` before writing implementation code:
 
 ```bash
 git fetch origin fix/org-tier-expected-artifacts-3703
@@ -128,7 +134,17 @@ uv run pytest tests/specify_cli/runtime/test_configured_artifact_name.py -v   # 
 org-tier + whole-file-replacement scenarios to `tests/runtime/next/test_pertype_presence_gate.py`:
 org manifest with mixed `blocking: true`/`blocking: false` entries across two steps, a built-in
 manifest for the same family present as a control, asserting the org file wins whole-file and
-only `blocking: true` absences surface. Verify RED against `fix/org-tier-expected-artifacts-3703`.
+only `blocking: true` absences surface. **Also add a named fallback case (TASKS-VERIFY-003 fix,
+this fix round):** `repo_root` set to a real temp directory with NO
+`missions/<type>/expected-artifacts.yaml` under it, and a built-in manifest present for the
+family — assert `_presence_filenames_for`/`gather_artifact_presence`'s resulting
+`blocking_artifact_names` still reflect the built-in manifest's blocking artifacts, unchanged from
+the `repo_root=None` case. This is the specific new branch introduced by T012/T013
+(`runtime_bridge_io.py:841-891` and `:931`): `repo_root` supplied but no org pack found at it,
+proving the org-tier consult's "no match" path falls through cleanly to the built-in-tier manifest
+rather than raising or silently dropping the built-in result — distinct from the
+`repo_root=None`-never-invokes-org-tier-at-all case already covered by regression. Verify RED
+against `fix/org-tier-expected-artifacts-3703`.
 
 **T010** `_load_expected_artifact_manifest` (`src/specify_cli/runtime/resolver.py:555`) gains
 `repo_root: Path | None = None`, becomes org-aware via `resolve_org_expected_artifacts` (FR-008),
