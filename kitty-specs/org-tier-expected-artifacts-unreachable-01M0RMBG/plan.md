@@ -8,7 +8,7 @@
 
 `resolve_org_expected_artifacts` (`src/charter/org_expected_artifacts.py:82`) joins
 `org_root / mission_type / "expected-artifacts.yaml"`, but every sibling org-tier
-resolver in `src/specify_cli/runtime/resolver.py` (`_resolve_asset`, `_resolve_mission_config`)
+resolver in `src/specify_cli/runtime/resolver.py` (`_resolve_asset`, `resolve_mission:769`)
 and the built-in layout it mirrors anchor at `org_root / "missions" / mission_type / ...`.
 An org-pack author who lays out their pack the only way the codebase demonstrates gets a
 silently-ignored override. The fix is a one-line path-join correction plus a docstring
@@ -269,8 +269,10 @@ assumed.
      commits touch, including this `plan.md` and the tracer files under `kitty-specs/`; those
      touched `.md` files should still be kept markdownlint-clean as hygiene, but CI does not
      currently block merge on a markdownlint violation.
-   - **Contextive glossary freshness check** — DOES run for this diff, not skip (corrected
-     from an earlier planning-pass mislabel): its own change-detection path list
+   - **Contextive glossary freshness check** (ENFORCED, no `continue-on-error` — unlike the
+     commitlint/markdownlint mislabel pattern above, this step's `[ENFORCED]` name prefix is
+     accurate) — DOES run for this diff, not skip (corrected from an earlier planning-pass
+     mislabel): its own change-detection path list
      (`ci-quality.yml`'s Contextive step, `git diff --diff-filter=ACM ... -- 'glossary/**'
      'src/specify_cli/**' 'src/charter/**' 'src/charter/**' '.kittify/traceability/**'`)
      explicitly includes `src/charter/**`, and this mission's sole production file is
@@ -407,7 +409,12 @@ and `src/specify_cli/dossier/manifest.py` are outside C-001's six-file set, and 
 spec-level, operator-decided constraint already closed at spec phase (spec.md C-001: "any
 extension beyond these six files would need a direct, proportional connection to this
 specific defect, which none exists for" — written before this drift was independently found
-during plan review). Re-opening a spec-level, Open/High-priority decision is not this plan's
+during plan review). This finding narrows, but does not overturn, C-001's "which none exists
+for" clause: that clause predates the docstring drift being found during plan review, so the
+direct, proportional connection now demonstrably exists — but Boy Scout Rule (step 2)
+independently bars adding files to the set regardless of whether the connection test is met,
+so the practical scope decision (defer) is unchanged by this narrowing. Re-opening a
+spec-level, Open/High-priority decision is not this plan's
 call to make unilaterally by quietly growing the file set. The correct next step is a fast
 follow-up carrying the same edit shape as FR-002 (one docstring line corrected in each of the
 two caller files) — filed as a follow-on issue/mission or picked up at a ledger sweep — rather
