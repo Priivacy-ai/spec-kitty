@@ -174,7 +174,7 @@ Ground implementation in the current code, especially:
 
 **Steps**:
 
-1. Create `src/specify_cli/cli/commands/agent/finalization_eligibility.py` with frozen value objects for `FinalizationEligibility` and `StaleCanceledDependency`.
+1. Create `src/specify_cli/cli/commands/agent/finalization_eligibility.py` with `@dataclass(frozen=True, slots=True)` value objects for `FinalizationEligibility` and `StaleCanceledDependency`; do not introduce Pydantic or another model dependency.
 2. Accept explicit known work-package IDs, direct dependencies, and an already-read lifecycle map. The module must not resolve paths, read events, import CLI consoles, emit output, or call `compute_lanes`.
 3. Normalize ordering deterministically. `eligible_wp_ids` plus `canceled_wp_ids` must partition known IDs.
 4. Treat only exact current `Lane.CANCELED` as excluded. `done`, blocked, approved, and every other valid state remain eligible.
@@ -299,7 +299,7 @@ Ground implementation in the current code, especially:
 2. Generate XML coverage for the focused suite with pytest-cov over `specify_cli.cli.commands.agent.finalization_eligibility` and `specify_cli.cli.commands.agent.mission_finalize`, then run `uv run diff-cover <coverage.xml> --compare-branch=fix/exclude-canceled-work-packages-from-lanes --fail-under=90`. The changed production lines must reach at least 90%; do not substitute aggregate legacy-module coverage for changed-line coverage.
 3. Run `ruff check` on both touched source files and the focused tests. Fix causes; do not add blanket `noqa` or exclude rules.
 4. Run strict mypy on the new pure module and `mission_finalize.py`. Keep immutable mappings/types explicit enough for strict mode.
-5. Run the repository's relevant architecture and terminology gates, including the execution-lane single-seam/cycle protections if available.
+5. Run the exact architecture and terminology gates: `uv run --extra test pytest -q tests/architectural/test_lane_allocation_single_seam.py tests/architectural/test_no_legacy_terminology.py tests/contract/test_terminology_guards.py`.
 6. Run `git diff --check`, inspect changed-file ownership, and confirm no `kitty-specs/` file was edited from the implementation worktree.
 7. Check touched functions remain within the charter's complexity ceiling. Extract small helpers instead of adding nested branches to the 2,996-line command.
 8. Record the RED commit, campsite commit/baseline, production commits, exact test/lint/type/coverage commands, benchmark results, Windows collection evidence, platform scope, and remaining risks.

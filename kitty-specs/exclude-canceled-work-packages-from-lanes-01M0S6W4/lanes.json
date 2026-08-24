@@ -29,8 +29,8 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-08-24T07:24:12.795887+00:00",
+  "computed_at": "2026-08-24T07:31:25.702859+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": [],
-  "planning_commit_sha": "4b95dad9b020802eb2fb18b896ebfea9f8b48b81"
+  "planning_commit_sha": "e9bacf328d7555dc439ef994cda110857d2bf254"
 }
