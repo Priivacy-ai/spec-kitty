@@ -213,3 +213,28 @@ at the repo-root checkout instead. **Recommend**: `safe-commit` should refuse (n
 enforcement -- the current advisory-warn-then-hard-block-later shape lets a lane-branch tracer/kitty-specs
 commit land and only surfaces the problem at the next state transition, after the (wrong) commit is
 already made.
+
+2026-08-24 (WP02 F1 fix) — **The mission `.venv` lives at the checkout root
+(`3704/.venv`), not inside the lane worktree** (`3704/.worktrees/<slug>-lane-a/`). Every
+doctrine snippet and mission brief writes tool paths as relative `.venv/bin/mypy` /
+`.venv/bin/ruff` / `.venv/bin/python`, which **fail from inside a lane worktree** — the
+directory simply is not there. Agents working a WP must use the absolute path
+`/home/jeroennouws/dev/SK-missions/3704/.venv/bin/{mypy,ruff,python}`. This cost one agent a
+round of confusion and caused an earlier WP agent to borrow a `ruff` binary from an unrelated
+sibling checkout rather than conclude the path was simply wrong. Worth stating in the WP-agent
+brief: **lane worktrees do not carry the venv.**
+
+2026-08-24 (WP02 F1 fix) — `spec-kitty safe-commit` requires **positional `FILES...`** and
+warns that `--to-branch` becomes mandatory in v3.3. A bare `safe-commit -m "..."` — the shape
+most generic guidance sketches — fails with `Missing argument 'FILES...'`. Not a defect, but
+it means "use safe-commit for every commit" is under-specified guidance wherever it appears.
+(Related: the orchestrator hit the same shape when the design-phase doctrine's "run the final
+`spec-kitty spec-commit`" step turned out to need explicit `FILES...` too, with nothing
+outstanding to pass it.)
+
+2026-08-24 (WP02 F1 fix) — `safe-commit` emitted a non-fatal `ACTIVE_WP_CONTEXT_AMBIGUOUS`
+guard warning on the lane branch (WP01 `approved`, WP02 `for_review`, so no single active WP)
+and committed successfully anyway. Consistent with SK-93's lesson: the warning and the exit
+code are both weak evidence — the artifact on disk was verified instead. An earlier
+`ACTIVE_WP_CONTEXT_STALE` warning (`current_wp=WP01, canonical active_wp=WP02`) behaved the
+same way.
