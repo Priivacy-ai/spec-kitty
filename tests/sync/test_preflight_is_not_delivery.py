@@ -23,6 +23,8 @@ import pytest
 
 from specify_cli.sync.transport_attempts import DeliveryAttemptState, DeliveryOutcome
 
+pytestmark = pytest.mark.fast
+
 
 def test_preflight_accepted_is_a_distinct_outcome_from_delivered() -> None:
     """The whole point: these must not be the same value."""
