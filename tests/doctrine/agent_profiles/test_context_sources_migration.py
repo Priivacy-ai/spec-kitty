@@ -40,6 +40,12 @@ try:  # pragma: no cover - exercised via CI import
 except ImportError:  # pragma: no cover
     YAML = None  # type: ignore[assignment,misc]
 
+# Reads the real shipped ``packs/built-in/agent_profiles`` corpus via
+# ``built_in_root()`` -> corpus-marked so the fast-tests-corpus data-path
+# trigger re-runs it when the shipped profiles change; ``fast`` places it in
+# the doctrine fast shard (matching the sibling agent_profiles corpus tests).
+pytestmark = [pytest.mark.fast, pytest.mark.corpus]
+
 _FIXTURES = Path(__file__).parent / "fixtures"
 _BEFORE_EDGES = _FIXTURES / "agent_profile_edges_before_consolidation.json"
 _PRE_MIGRATION_CS = _FIXTURES / "shipped_context_sources_pre_migration.json"
