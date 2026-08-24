@@ -26,6 +26,7 @@
   "purpose_tldr": "Exclude canceled work packages from lane computation.",
   "slug": "exclude-canceled-work-packages-from-lanes-01M0S6W4",
   "source_description": "GitHub issue #3432: canceled work packages cannot satisfy lane computation",
+  "status_phase": "1",
   "target_branch": "fix/exclude-canceled-work-packages-from-lanes",
   "topology": "coord",
   "vcs": "git",
