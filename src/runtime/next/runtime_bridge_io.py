@@ -838,7 +838,9 @@ def _build_operational_context_for_decision(
 # ---------------------------------------------------------------------------
 
 
-def _presence_filenames_for(mission_family: str) -> frozenset[str]:
+def _presence_filenames_for(
+    mission_family: str, repo_root: Path | None = None
+) -> frozenset[str]:
     """Resolve the per-type presence filename set for *mission_family* (FR-011, #3597).
 
     Sources filenames from the single per-type ``expected-artifacts.yaml``
@@ -883,42 +885,73 @@ def _presence_filenames_for(mission_family: str) -> frozenset[str]:
     resolves identically (NFR-003) -- see
     ``tests/specify_cli/runtime/test_configured_artifact_name.py`` for the
     per-(family, artifact_key) byte-compat characterization.
+
+    FR-008 (WP02): when *repo_root* is given and resolves to 1+ existing
+    configured org roots, an org-pack
+    ``<org_root>/missions/<mission_family>/expected-artifacts.yaml`` takes
+    precedence over the built-in file, whole-file -- never field-merged with
+    it (same last-existing-match-wins / whole-file-replacement precedence
+    :func:`charter.org_expected_artifacts.resolve_org_expected_artifacts`
+    itself implements). *repo_root* defaults to ``None`` (today's exact
+    behavior: no org lookup, built-in tree only).
     """
     from charter.missions import MissionTemplateRepository  # noqa: PLC0415
     from doctrine.missions import ExpectedArtifactManifest  # noqa: PLC0415
     from doctrine.missions.step_projection import project_artifact_name_set  # noqa: PLC0415
 
-    config = MissionTemplateRepository.default().get_expected_artifacts(mission_family)
-    if config is None:
-        return frozenset()
-    manifest = ExpectedArtifactManifest.model_validate(config.parsed)
+    org_parsed = _resolve_org_manifest_mapping(mission_family, repo_root)
+    if org_parsed is not None:
+        manifest = ExpectedArtifactManifest.model_validate(org_parsed)
+    else:
+        config = MissionTemplateRepository.default().get_expected_artifacts(mission_family)
+        if config is None:
+            return frozenset()
+        manifest = ExpectedArtifactManifest.model_validate(config.parsed)
     name_set = project_artifact_name_set(manifest) or {}
     return frozenset(name_set.values())
 
 
-def _blocking_artifact_names_stub(mission_family: str, step_id: str) -> frozenset[str] | None:
-    """WP01's **minimal test-only stub** for ``ArtifactPresenceSnapshot.
-    blocking_artifact_names`` (FR-001/FR-002/FR-006, #3704 Part 1).
+def _resolve_org_manifest_mapping(
+    mission_family: str, repo_root: Path | None
+) -> Mapping[str, Any] | None:
+    """Return the resolved org-tier ``expected-artifacts.yaml`` mapping for
+    *mission_family*, or ``None`` when *repo_root* is ``None``, resolves no
+    existing org roots, or no org root has a matching file.
 
-    Distinguishes "no expected-artifacts manifest reachable" (``None``) from
-    "manifest present" (a real, possibly-empty ``frozenset`` of this step's
-    blocking ``path_pattern`` filenames) using the same
-    ``MissionTemplateRepository``-backed authority :func:`_presence_filenames_for`
-    already draws from -- just enough logic to drive both branches of
-    ``runtime_bridge_cores.evaluate_guards_strict``'s new dispatch-miss
-    check. **Replaced entirely by WP02's T013** (real org-tier-aware
-    resolution via ``specify_cli.runtime.resolver.required_artifacts_for``)
-    -- do not extend this stub with org-tier lookup; that is WP02's job.
+    Shared by :func:`_presence_filenames_for` and
+    :func:`_expected_artifacts_manifest_resolves` so both consult the exact
+    same org-tier precedence (FR-008) rather than each re-deriving it.
     """
-    from charter.missions import MissionTemplateRepository  # noqa: PLC0415
-    from doctrine.missions import ExpectedArtifactManifest  # noqa: PLC0415
-
-    config = MissionTemplateRepository.default().get_expected_artifacts(mission_family)
-    if config is None:
+    if repo_root is None:
         return None
-    manifest = ExpectedArtifactManifest.model_validate(config.parsed)
-    specs = [*manifest.required_always, *manifest.required_by_step.get(step_id, [])]
-    return frozenset(spec.path_pattern for spec in specs if spec.blocking)
+    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
+    from charter.org_expected_artifacts import (  # noqa: PLC0415
+        resolve_org_expected_artifacts,
+    )
+
+    org_roots = resolve_existing_org_roots(repo_root)
+    if not org_roots:
+        return None
+    return resolve_org_expected_artifacts(org_roots, mission_family)
+
+
+def _expected_artifacts_manifest_resolves(mission_family: str, repo_root: Path | None) -> bool:
+    """True when an expected-artifacts manifest resolves for *mission_family*
+    at either tier -- org first (FR-008), built-in fallback.
+
+    The single per-:func:`gather_artifact_presence`-call source for
+    ``ArtifactPresenceSnapshot.blocking_artifact_names``'s ``None`` vs. real
+    ``frozenset`` distinction (SPEC-FRESH-001) -- reuses the exact same
+    tier-checking logic :func:`_presence_filenames_for` runs internally,
+    factored out via :func:`_resolve_org_manifest_mapping` so the two
+    functions share one source of truth.
+    """
+    if _resolve_org_manifest_mapping(mission_family, repo_root) is not None:
+        return True
+
+    from charter.missions import MissionTemplateRepository  # noqa: PLC0415
+
+    return MissionTemplateRepository.default().get_expected_artifacts(mission_family) is not None
 
 
 @dataclass(frozen=True)
@@ -972,6 +1005,7 @@ def gather_artifact_presence(
     mission_family: str,
     step_id: str,
     legacy_step_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> ArtifactPresenceSnapshot:
     """Gather (never decide) the facts the two CLI-level guards read today.
 
@@ -998,12 +1032,17 @@ def gather_artifact_presence(
     with a same-named directory in practice). Flagged for WP06 to
     cross-check against each guard branch's exact predicate before this
     snapshot replaces the guards' own reads.
+
+    ``repo_root`` (WP02, FR-008) is forwarded to :func:`_presence_filenames_for`
+    and :func:`specify_cli.runtime.resolver.required_artifacts_for` for
+    org-tier manifest resolution; defaults to ``None`` (built-in tree only,
+    today's exact behavior).
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
     from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     present: set[str] = set()
-    for tag in _presence_filenames_for(mission_family):
+    for tag in _presence_filenames_for(mission_family, repo_root=repo_root):
         if (feature_dir / tag).is_file():
             present.add(tag)
 
@@ -1066,13 +1105,21 @@ def gather_artifact_presence(
         "has_generated_docs": has_generated_docs,
     }
 
+    blocking_artifact_names: frozenset[str] | None = None
+    if _expected_artifacts_manifest_resolves(mission_family, repo_root):
+        from specify_cli.runtime.resolver import required_artifacts_for  # noqa: PLC0415
+
+        blocking_artifact_names = frozenset(
+            required_artifacts_for(step_id, mission_family, repo_root=repo_root)
+        )
+
     return ArtifactPresenceSnapshot(
         present_artifacts=frozenset(present),
         status_facts=status_facts,
         mission_family=mission_family,
         step_id=step_id,
         legacy_step_id=legacy_step_id,
-        blocking_artifact_names=_blocking_artifact_names_stub(mission_family, step_id),
+        blocking_artifact_names=blocking_artifact_names,
     )
 
 
