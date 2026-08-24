@@ -123,3 +123,68 @@ delta (+4) is accounted for exactly by this WP's own new tests: T002 added 2
 post-fix — zero mission-introduced red. No test id is red at all in this scoped run, so there is
 nothing to cross-check against issue #3284's baseline breakdown here (that breakdown lives
 elsewhere in the suite, per T001's own finding).
+
+## WP01 implementation phase (2026-08-24) — T009 diff-scope + gate-set self-check
+
+**SC-006 diff-scope check** (`git diff --name-only 3442ca1afc20b1b83b27a7bc64fd7014050b12a1...HEAD`,
+merge-base with `origin/main`): every changed path is either one of C-007's three named files
+(`src/doctrine/missions/mission_type_repository.py`,
+`tests/doctrine/missions/test_mission_type_repository.py`,
+`tests/runtime/test_runtime_seam.py`) or under this mission's own
+`kitty-specs/mission-types-empty-action-sequence-01M0RMCA/**` (design-phase bookkeeping already
+committed before WP01 began, plus this WP's own tracer/status updates). No other path touched.
+
+**FR-005/C-001 line-scoped self-check**: `git diff 3442ca1afc20b1b83b27a7bc64fd7014050b12a1...HEAD
+-- src/doctrine/missions/mission_type_repository.py` — every hunk header starts at old-file line
+206 or later (`@@ -206,19 +206,33 @@` is the earliest). `MissionTypeRepository._load()`'s body
+(lines 144-176) and its call site (line 165) are entirely below/before line 206, so zero hunk
+overlaps that range. Confirmed with zero diff on `src/charter/pack_manager.py` too (`git diff
+--stat ... -- src/charter/pack_manager.py` → empty) — FR-008 satisfied, `pack_manager.py:865`'s
+call site untouched.
+
+**Gate-set self-check** (plan.md's "The gate set" section):
+- commitlint: all 9 of this WP's own commits (`ca75f7efd` through `e9bf9dfba`) are
+  `<type>(<scope>): <description>` conventional-commit-shaped (`test`/`fix`/`chore`). ✓
+- Generated doctrine schemas: no `models.py` diff (`git diff --stat ... -- src/doctrine/missions/models.py`
+  → empty). N/A, confirmed. ✓
+- Contextive glossary: N/A (`src/doctrine/**` outside its path filter, per plan.md). N/A
+- Banned-API lint (TID251): `.venv/bin/python -m ruff check src tests --select TID251` → "All
+  checks passed!". ✓
+- `patch()` target validation: both new `patch()` calls (T002's governed-entry-point test, T004's
+  spy test) reuse the exact existing, already-validated target strings
+  (`"charter.mission_type_profiles.existing_mission_types"`,
+  `"charter.pack_context.PackContext.from_config"`) — no new/invented target string. ✓
+- Bandit + pip-audit: no new dependency; no subprocess/eval/pickle pattern introduced (only
+  `pytest`/`unittest.mock` usage, all pre-existing idioms in this file). ✓
+- `uv.lock` check: `git diff --stat ... -- pyproject.toml uv.lock` → empty, both untouched. ✓
+- `clean-install-verification`: not expected to interact with this change (no packaging/install
+  surface touched). Not independently re-verified locally (CI-only gate), per plan.md.
+- Markdown lint / kernel-90% coverage: N/A (verified in plan.md, no re-derivation needed).
+- SonarCloud: does not run on PRs (verified 2026-08-22, per mission brief) — not waited on.
+- **`diff-coverage` critical-path 90% floor**, the real applicable gate: ran locally —
+  `.venv/bin/python -m pytest tests/doctrine/missions/test_mission_type_repository.py
+  tests/runtime/test_runtime_seam.py --cov=doctrine.missions.mission_type_repository
+  --cov-report=xml:<scratchpad>/coverage.xml -q -p no:cacheprovider` (74 passed), then
+  `.venv/bin/diff-cover <scratchpad>/coverage.xml
+  --compare-branch=3442ca1afc20b1b83b27a7bc64fd7014050b12a1 --fail-under=90`:
+  ```
+  src/doctrine/missions/mission_type_repository.py (100%)
+  Total:   8 lines
+  Missing: 0 lines
+  Coverage: 100%
+  ```
+  100% diff coverage on this WP's changed lines — every new/changed branch (the three
+  `pack_context is not None`-forward call sites, the keyword-default-`None` path) has a direct
+  unit-test assertion from T002/T004/T005. ✓
+
+**Local ruff/mypy** on the three touched files: `.venv/bin/python -m ruff check
+src/doctrine/missions/mission_type_repository.py tests/doctrine/missions/test_mission_type_repository.py
+tests/runtime/test_runtime_seam.py` → "All checks passed!"; `.venv/bin/python -m mypy
+src/doctrine/missions/mission_type_repository.py` → "Success: no issues found in 1 source file"
+(`ruff`/`mypy` were not present in the preflighted `.venv`'s `test` extra; installed via `uv pip
+install --python .venv/bin/python ruff mypy types-jsonschema types-psutil types-PyYAML
+types-requests` -- a direct package add to the existing venv, not `uv sync`/`uv run`, so the
+hand-built `test`-extra environment was not resynced or destroyed). No `# noqa`/`# type: ignore`
+added anywhere in this WP's diff.
+
+No unresolved ❌ in the gate-set self-check. SC-006 diff-scope check passes cleanly.

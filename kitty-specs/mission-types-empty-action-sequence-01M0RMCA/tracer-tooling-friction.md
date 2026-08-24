@@ -177,3 +177,23 @@ belongs upstream (ledger SK-32 / upstream #3398), not in a patch applied by this
 analyze phase. Reported verbatim to the design-phase orchestrator for the ledger; the analyze
 phase's own verdict (`ready`) and findings are otherwise unaffected by this tooling defect, since
 it is a metadata field on the report, not a defect in the cross-artifact analysis itself.
+
+**WP01 implementation phase (2026-08-24): `ruff`/`mypy` absent from the preflighted `.venv`, and
+`make lint`/`make typecheck` both shell out to bare `uv run`.** The orchestrator's preflight
+confirmed the `test` extra was installed (`uv sync --extra test`) and explicitly forbade any bare
+`uv run` (it re-syncs and can destroy the hand-built `.venv` — already cost mission
+`sync-sleep-count-3136` four rebuilds per `CLAUDE.md`). `ruff`/`mypy` live in the separate `lint`
+extra (`pyproject.toml`), which was not part of the preflighted `test`-only install, and the
+Makefile's own `lint`/`typecheck` targets are `uv run ruff check src/` / `uv run mypy --strict
+...` — i.e. the one command the mission's own gate list names (`make lint`) is, by its own
+implementation, exactly the forbidden invocation shape. Worked around this without touching `uv
+sync`/`uv run`: `uv pip install --python .venv/bin/python ruff mypy types-jsonschema types-psutil
+types-PyYAML types-requests` adds packages directly into the existing venv (mirrors `pip install`
+semantics targeted at an explicit interpreter) rather than reconciling the whole environment
+against the lockfile/extras, so it does not carry the same destructive-resync risk `uv
+sync`/`uv run` does. Ran `.venv/bin/python -m ruff check ...` and `.venv/bin/python -m mypy ...`
+directly afterward — both clean, zero issues, on all three touched files. Flagging this as a real
+gap for the ledger: `make lint`'s own definition conflicts with this repo's own "never a bare `uv
+run`" standing guidance, and a future agent hitting the same preflight (only `test` extra
+installed) will hit the identical bind unless the lint/typecheck targets are changed to use
+`.venv/bin/ruff`/`.venv/bin/mypy` directly, or the preflight installs the `lint` extra too.
