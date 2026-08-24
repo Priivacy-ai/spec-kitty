@@ -12,6 +12,7 @@
   "purpose_context": "This mission improves support and issue reporting by ensuring the version command presents a clean, copyable version value before any decorative output, with no large ASCII art blocking copy and paste.",
   "purpose_tldr": "Make version output easy to copy into issue reports.",
   "slug": "copyable-version-output-01KW6N9V",
+  "status_phase": "1",
   "target_branch": "feat/copyable-version-output",
   "topology": "coord"
 }
