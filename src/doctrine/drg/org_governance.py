@@ -39,7 +39,7 @@ import yaml
 from doctrine.drg.migration.extractor import _GOVERNANCE_PROFILE_SCOPE_FIELDS
 from doctrine.drg.migration.id_normalizer import artifact_to_urn
 
-__all__ = ["OrgGovernanceScopeEdge", "collect_org_governance_scope_edges"]
+__all__ = ["collect_org_governance_scope_edges"]
 
 
 class OrgGovernanceScopeEdge(NamedTuple):
