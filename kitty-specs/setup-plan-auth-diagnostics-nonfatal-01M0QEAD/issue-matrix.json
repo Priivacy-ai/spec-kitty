@@ -1,7 +1,7 @@
 {
   "rows": {
     "#2695": {
-      "evidence_ref": "Fixed by docs/operations/logged-out-teamspace.md policy parity for agent mission create/setup-plan plus real setup-plan JSON/human reporter acceptance in tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py; verified in the combined WP04 quickstart (279 passed, 1 skipped)",
+      "evidence_ref": "Fixed by docs/operations/logged-out-teamspace.md policy parity for agent mission create/setup-plan plus real setup-plan JSON/human reporter acceptance in tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py; verified by the final mission-focused gate (332 passed) at product/test ref 1ea3abee88617455776a3bd0e96b52f30737f0b6",
       "fr": null,
       "nfr": null,
       "repo": null,
@@ -25,7 +25,7 @@
       "wp": null
     },
     "#3621": {
-      "evidence_ref": "Fixed by WP01-WP04; real encrypted/unreadable storage and singleton-order proof in tests/runtime/test_setup_plan_sync_evidence.py; full real-entrypoint local-outcome/readiness matrix, git-preflight reporting, parser-level single JSON, disabled fatal probes, and zero-sink/local-persistence proof in tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py; AST dominance proof in tests/architectural/test_setup_plan_hosted_effect_gate.py; combined WP04 quickstart 279 passed, 1 skipped",
+      "evidence_ref": "Fixed by WP01-WP04 at product/test ref 1ea3abee88617455776a3bd0e96b52f30737f0b6: real encrypted/unreadable storage and singleton-order proof in tests/runtime/test_setup_plan_sync_evidence.py; full real-entrypoint local-outcome/readiness matrix, local-outcome freeze before hostile hosted assessment, git-preflight reporting, parser-level single JSON, and zero-sink/local-persistence proof in tests/specify_cli/cli/commands/agent/test_mission_setup_plan_phases.py; exact hosted-effects package allowlist, narrow executor import, local identity dominance, boundary census, and hostile alias/reflection/pre-guard mutation controls in tests/architectural/test_setup_plan_hosted_effect_gate.py. Final gates: mission-focused 332 passed; contract 297 passed, 5 skipped; architecture 1710 passed, 5 skipped, 2 xfailed, 1 warning; E2E 6 passed with harness ref 71d8202.",
       "fr": null,
       "nfr": null,
       "repo": null,

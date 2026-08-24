@@ -191,6 +191,30 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-08-24T03:20:00.592237Z",
+      "decision_id": "01M0RWGEAGAQ5FTSSCBS8ZN20W",
+      "final_answer": "No tri-state auth subsystem. Authentication evaluation has a separate completion status (completed or failed); only a completed evaluation carries a Boolean verdict (authenticated or logged_out). setup-plan freezes the authoritative local verification outcome before any hosted assessment. All hosted lifecycle and dossier side effects execute only through the sole hosted-effects boundary, which refuses unsafe effects while returning separate structured diagnostics without changing the frozen local outcome.",
+      "input_key": "final_auth_evaluation_boundary",
+      "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
+      "mission_slug": "setup-plan-auth-diagnostics-nonfatal-01M0QEAD",
+      "opened_by": "adversarial-remediation",
+      "options": [
+        "Separate evaluation status from Boolean auth verdict; freeze local outcome before hosted assessment; sole hosted-effects boundary",
+        "Retain tri-state auth subsystem",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "What is the final setup-plan authentication and hosted-effects architecture that supersedes the earlier tri-state-auth wording?",
+      "rationale": "This supersedes the earlier tri-state-auth wording while preserving its valid intent: unknown/evaluation failure must never be mislabeled as logged out, and hosted concerns cannot override local verification.",
+      "resolved_at": "2026-08-24T03:20:02.377056Z",
+      "resolved_by": "user",
+      "slot_key": "plan.architecture.final-auth-evaluation-boundary",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01M0QEAD3JBF9264167A5X5P1F",
