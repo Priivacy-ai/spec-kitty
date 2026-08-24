@@ -205,14 +205,14 @@ def _run_json_setup_plan(
             else None
         ),
     )
+    # Dossier capture is project-isolated LOCAL capture — it is never gated by
+    # the hosted-sync decision, so ``hosted_effects_must_be_zero`` (which
+    # governs only the genuinely hosted lifecycle fan-out sink above) does not
+    # suppress it; the real sink is exercised via the local body-upload queue.
     monkeypatch.setattr(
         setup_plan_hosted_effects,
-        "_trigger_dossier_sync",
-        (
-            lambda *_a, **_k: pytest.fail("dossier hosted publication was attempted")
-            if hosted_effects_must_be_zero
-            else None
-        ),
+        "trigger_feature_dossier_sync_if_enabled",
+        lambda *_a, **_k: None,
     )
     monkeypatch.setattr(
         setup_seam,

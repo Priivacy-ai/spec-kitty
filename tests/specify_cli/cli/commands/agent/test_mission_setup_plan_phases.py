@@ -206,11 +206,16 @@ def test_human_outcome_reporter_reconstructs_warning_from_closed_registry(
     assert sentinel not in str(rendered)
 
 
-def test_hosted_effect_executor_refuses_every_intent_under_one_decision(
+def test_hosted_effect_executor_refuses_lifecycle_but_not_local_dossier_capture(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """T013/T015: a refused decision dominates lifecycle and dossier effects."""
+    """T013/T015: a refused decision dominates hosted fan-out, not local capture.
+
+    Dossier capture is project-isolated LOCAL capture (see
+    ``trigger_feature_dossier_sync_if_enabled``'s own contract) and is never
+    suppressed by a refused hosted-sync decision.
+    """
     calls: list[str] = []
     monkeypatch.setattr(
         hosted_effects,
@@ -238,7 +243,7 @@ def test_hosted_effect_executor_refuses_every_intent_under_one_decision(
         dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
     )
 
-    assert calls == []
+    assert calls == ["dossier"]
 
 
 def _affirmative_decision() -> HostedSyncDecision:
@@ -265,7 +270,9 @@ def test_hosted_effect_executor_refuses_reconstructed_affirmative_decisions(
     tmp_path: Path,
     reconstruct: Any,
 ) -> None:
-    """Only the exact object issued by the evidence authority may execute."""
+    """Only the exact object issued by the evidence authority may execute
+    lifecycle fan-out. Local dossier capture is unaffected by decision
+    forgery — it is never gated by the decision at all."""
     calls: list[str] = []
     monkeypatch.setattr(
         hosted_effects,
@@ -295,7 +302,7 @@ def test_hosted_effect_executor_refuses_reconstructed_affirmative_decisions(
         dossier_intent=seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path),
     )
 
-    assert calls == []
+    assert calls == ["dossier"]
 
 
 def test_hosted_effect_executor_accepts_exact_canonical_decision(
@@ -330,11 +337,12 @@ def test_hosted_effect_executor_accepts_exact_canonical_decision(
     assert calls == ["lifecycle", "dossier"]
 
 
-def test_dossier_adapter_revalidates_exact_decision_identity(
+def test_dossier_adapter_always_fires_and_is_exception_safe(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """The private adapter cannot become an unguarded alternate sink route."""
+    """Dossier capture is local-only: it is never gated by any decision, and a
+    raising sink is swallowed rather than escaping to the caller."""
     calls: list[str] = []
     monkeypatch.setattr(
         hosted_effects,
@@ -342,13 +350,15 @@ def test_dossier_adapter_revalidates_exact_decision_identity(
         lambda *_a, **_k: calls.append("dossier"),
     )
     intent = seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path)
-    forged = HostedSyncDecision(True, True, ())
 
-    hosted_effects._trigger_dossier_sync(forged, intent)
-    assert calls == []
-
-    hosted_effects._trigger_dossier_sync(_affirmative_decision(), intent)
+    hosted_effects._trigger_dossier_sync(intent)
     assert calls == ["dossier"]
+
+    def _boom(*_a: object, **_k: object) -> None:
+        raise RuntimeError("dossier sink failure")
+
+    monkeypatch.setattr(hosted_effects, "trigger_feature_dossier_sync_if_enabled", _boom)
+    hosted_effects._trigger_dossier_sync(intent)  # must not raise
 
 
 def test_collect_hosted_decision_disabled_touches_no_probe(
@@ -1047,7 +1057,9 @@ def test_real_setup_plan_refusal_persists_local_events_and_touches_no_hosted_sin
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """T015/T016: refusal is complete and cannot suppress local persistence."""
+    """T015/T016: refusal blocks hosted fan-out but cannot suppress local
+    persistence — including local dossier capture, which is never gated by
+    the hosted-sync decision."""
     from specify_cli.status.lifecycle_events import mission_event_log_path
 
     sink_calls: list[str] = []
@@ -1062,7 +1074,7 @@ def test_real_setup_plan_refusal_persists_local_events_and_touches_no_hosted_sin
 
     assert exit_code == 0
     assert payload["result"] == "success"
-    assert sink_calls == []
+    assert sink_calls == ["dossier"]
     event_log = mission_event_log_path(tmp_path / "kitty-specs" / "001-matrix")
     assert event_log.is_file()
     assert len(event_log.read_text(encoding="utf-8").splitlines()) >= 3
@@ -1118,56 +1130,6 @@ def test_real_setup_plan_project_root_failure_is_exact_and_skips_hosted_probes(
 
     assert exc_info.value.exit_code == 1
     assert emitted == [{"error": seam.PROJECT_ROOT_NOT_FOUND_MESSAGE}]
-
-
-# ---------------------------------------------------------------------------
-# retired refusal compatibility seams
-# ---------------------------------------------------------------------------
-
-
-def test_auth_refusal_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    # No exception even with no auth scope available.
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
-
-
-def test_auth_refusal_retired_when_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_session", lambda: None)
-    monkeypatch.setattr("specify_cli.sync.queue.read_queue_scope_from_credentials", lambda: None)
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
-
-
-def test_auth_refusal_retired_without_reading_scope(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr(
-        "specify_cli.sync.queue.read_queue_scope_from_session",
-        lambda: pytest.fail("queue scope is not authentication evidence"),
-    )
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
-
-
-# ---------------------------------------------------------------------------
-# _enforce_saas_sync_boundary_preflight
-# ---------------------------------------------------------------------------
-
-
-def test_boundary_preflight_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    seam._enforce_saas_sync_boundary_preflight(tmp_path)
-
-
-def test_boundary_preflight_refusal_seam_is_retired(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-    class _Result:
-        ok = False
-
-        def render(self, _console: object) -> None:
-            return None
-
-    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_k: _Result())
-    seam._enforce_saas_sync_boundary_preflight(tmp_path)
 
 
 # ---------------------------------------------------------------------------
@@ -1443,10 +1405,8 @@ def test_setup_plan_refuses_present_invalid_primary_meta_before_template_or_stat
         state_changes.append("plan-commit")
         return None, None, True
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
-    monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
     monkeypatch.setattr(
         seam,
         "_emit_spec_plan_phase_events",
@@ -1535,10 +1495,8 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
         return _resolution(template_src)
 
     monkeypatch.setattr(seam, "load_meta_fail_closed", _load_then_mutate)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
-    monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
@@ -1600,10 +1558,8 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
         configured_calls.append((artifact_kind, project_dir, resolved))
         return _resolution(template_src)
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: coord_dir)
-    monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
@@ -1938,10 +1894,8 @@ def test_setup_plan_renders_configured_template_failure_without_traceback(
         reason="maps to unresolved filename 'missing-plan.md'",
     )
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
-    monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
+    monkeypatch.setattr(seam, "_evaluate_spec_gate", lambda *a, **k: (None, None))
     monkeypatch.setattr(seam, "_resolve_plan_template", lambda *_a: (_ for _ in ()).throw(error))
     monkeypatch.setattr(seam, "_emit_json", lambda payload: emitted.update(payload))
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)

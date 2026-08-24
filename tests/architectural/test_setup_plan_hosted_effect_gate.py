@@ -98,7 +98,13 @@ PACKAGE_HOSTED_IMPORT_ALLOWLIST: Mapping[str, frozenset[tuple[str, str]]] = {
         }
     ),
 }
-SINK_OWNERS = frozenset({"_trigger_dossier_sync", EXECUTOR})
+SINK_OWNERS = frozenset({"_fanout_lifecycle_events", "_trigger_dossier_sync", EXECUTOR})
+# Dossier capture is project-isolated LOCAL capture (see
+# ``trigger_feature_dossier_sync_if_enabled``'s own contract) and is never
+# suppressed by the hosted decision, so its sink is exempt from the terminal
+# identity-guard requirement below — by sink name, not by owning function, so
+# a hostile owner cannot borrow the exemption for a genuinely hosted sink.
+UNGATED_HOSTED_NAMES = frozenset({"trigger_feature_dossier_sync_if_enabled"})
 PROTOCOL_METHODS = {
     "_LifecycleEventIntent": frozenset({"envelope", "log_path"}),
     "_DossierSyncIntent": frozenset({"feature_dir", "mission_slug", "repo_root"}),
@@ -368,16 +374,7 @@ def _statement_shape(statements: list[ast.stmt]) -> str:
 
 
 EXPECTED_SINK_OWNER_BODIES = {
-    "_trigger_dossier_sync": _statement_shape(
-        ast.parse(
-            "if not is_canonical_hosted_sync_decision(decision):\n"
-            "    return\n"
-            "trigger_feature_dossier_sync_if_enabled(\n"
-            "    intent.feature_dir, intent.mission_slug, intent.repo_root\n"
-            ")\n"
-        ).body
-    ),
-    EXECUTOR: _statement_shape(
+    "_fanout_lifecycle_events": _statement_shape(
         ast.parse(
             "if not is_canonical_hosted_sync_decision(decision):\n"
             "    return\n"
@@ -385,8 +382,21 @@ EXPECTED_SINK_OWNER_BODIES = {
             "    fanout_lifecycle_event_hosted(\n"
             "        intent.envelope, log_path=intent.log_path\n"
             "    )\n"
+        ).body
+    ),
+    "_trigger_dossier_sync": _statement_shape(
+        ast.parse(
+            "with contextlib.suppress(Exception):\n"
+            "    trigger_feature_dossier_sync_if_enabled(\n"
+            "        intent.feature_dir, intent.mission_slug, intent.repo_root\n"
+            "    )\n"
+        ).body
+    ),
+    EXECUTOR: _statement_shape(
+        ast.parse(
+            "_fanout_lifecycle_events(decision, lifecycle_intents)\n"
             "if dossier_intent is not None:\n"
-            "    _trigger_dossier_sync(decision, dossier_intent)\n"
+            "    _trigger_dossier_sync(dossier_intent)\n"
         ).body
     ),
 }
@@ -504,6 +514,8 @@ def _boundary_violations(source: str) -> list[_Edge]:
         if use.kind != "direct-call":
             violations.append(_Edge("sink-escape", use.sink, use.lineno))
             continue
+        if use.sink in UNGATED_HOSTED_NAMES:
+            continue
         function = functions.get(use.function or "")
         if function is None or not _has_terminal_identity_guard(function):
             violations.append(_Edge("unguarded-sink", use.sink, use.lineno))
@@ -561,7 +573,7 @@ def test_every_physical_sink_is_locally_dominated_by_identity_guard() -> None:
     assert census_violations == []
     assert sink_owners == {
         "_trigger_dossier_sync": {"trigger_feature_dossier_sync_if_enabled"},
-        EXECUTOR: {"fanout_lifecycle_event_hosted"},
+        "_fanout_lifecycle_events": {"fanout_lifecycle_event_hosted"},
     }
     assert _boundary_violations(source) == []
 

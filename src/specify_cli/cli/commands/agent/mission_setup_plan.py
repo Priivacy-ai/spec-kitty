@@ -31,7 +31,6 @@ from collections.abc import Callable, Mapping
 import contextlib
 from dataclasses import dataclass
 import logging
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -70,6 +69,7 @@ from specify_cli.cli.commands.agent.setup_plan_hosted_effects import (
     execute_setup_plan_hosted_effects as _execute_setup_plan_hosted_effects,
 )
 from specify_cli.auth.token_manager import SessionAssessment
+from specify_cli.core.saas_sync_config import is_saas_sync_enabled
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
     _build_setup_plan_detection_error,
@@ -232,7 +232,7 @@ def _collect_hosted_sync_decision(repo_root: Path) -> HostedSyncDecision:
     exactly once and a hostile adapter cannot make setup-plan discard the local
     result it has already computed.
     """
-    requested = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") == "1"
+    requested = is_saas_sync_enabled()
     if not requested:
         return decide_hosted_sync(requested=False)
 
@@ -252,48 +252,6 @@ def _collect_hosted_sync_decision(repo_root: Path) -> HostedSyncDecision:
     )
 
 
-def _enforce_git_preflight_with_reporting(
-    repo_root: Path,
-    *,
-    json_output: bool,
-) -> None:
-    """Preserve the canonical local git-preflight payload and exit."""
-    from specify_cli.cli.commands.agent import mission as _mission
-
-    if not json_output:
-        try:
-            _mission._enforce_git_preflight(
-                repo_root,
-                json_output=False,
-                command_name=SETUP_PLAN_COMMAND_NAME,
-            )
-        except typer.Exit as exc:
-            _report_setup_plan_outcome(
-                SetupPlanLocalOutcome({}, exc.exit_code, "error"),
-                json_output=False,
-            )
-            raise
-        return
-
-    emitted: list[dict[str, object]] = []
-    original_emit = _mission._emit_json
-    _mission._emit_json = lambda payload: emitted.append(dict(payload))
-    try:
-        _mission._enforce_git_preflight(
-            repo_root,
-            json_output=True,
-            command_name=SETUP_PLAN_COMMAND_NAME,
-        )
-    except typer.Exit as exc:
-        if emitted:
-            _mission._emit_json = original_emit
-            _report_setup_plan_outcome(
-                SetupPlanLocalOutcome(emitted[0], exc.exit_code, "error"),
-                json_output=True,
-            )
-        raise
-    finally:
-        _mission._emit_json = original_emit
 
 
 def _finalize_setup_plan_outcome(
@@ -432,14 +390,6 @@ def _commit_to_branch(
 # ---------------------------------------------------------------------------
 
 
-def _enforce_saas_sync_auth_refusal(*, json_output: bool) -> None:
-    """Retired compatibility seam; hosted auth no longer exits local setup-plan."""
-
-
-def _enforce_saas_sync_boundary_preflight(repo_root: Path) -> None:
-    """Retired compatibility seam; boundary evidence is collected without exit."""
-
-
 def _resolve_setup_plan_feature_dir(
     repo_root: Path,
     feature: str | None,
@@ -484,39 +434,6 @@ def _resolve_setup_plan_feature_dir(
             human_message="\n".join(human_lines),
         )
         raise typer.Exit(1) from None
-
-
-def _emit_spec_missing(
-    spec_file: Path,
-    feature_dir: Path,
-    mission_slug: str,
-    *,
-    json_output: bool,
-    diagnostics: tuple[HostedSyncDiagnostic, ...] = (),
-) -> None:
-    """Emit the SPEC_FILE_MISSING payload and exit 1."""
-    payload: dict[str, object] = {
-        "error_code": "SPEC_FILE_MISSING",
-        "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
-        "mission_slug": mission_slug,
-        "feature_dir": str(feature_dir.resolve()),
-        "spec_file": str(spec_file.resolve()),
-        "remediation": [
-            f"Restore the missing spec file at {spec_file.resolve()}",
-            f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
-        ],
-    }
-    human_message = "\n".join(
-        [f"[red]Error:[/red] {payload['error']}"]
-        + [f"  - {step}" for step in cast(list[str], payload["remediation"])]
-    )
-    _report_setup_plan_outcome(
-        SetupPlanLocalOutcome(payload, 1, "error"),
-        diagnostics=diagnostics,
-        json_output=json_output,
-        human_message=human_message,
-    )
-    raise typer.Exit(1)
 
 
 def _resolve_branch_match_operands(
@@ -664,9 +581,6 @@ def _evaluate_spec_gate(
         SetupPlanLocalOutcome(rendered_payload, 0, "blocked"),
         f"[yellow]Blocked:[/yellow] {blocked_reason}",
     )
-
-
-_PRODUCTION_ENFORCE_SPEC_GATE = _enforce_spec_gate
 
 
 def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResult:
@@ -1221,9 +1135,10 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        _enforce_git_preflight_with_reporting(
+        _mission._enforce_git_preflight(
             repo_root,
             json_output=json_output,
+            command_name=SETUP_PLAN_COMMAND_NAME,
         )
 
         feature_dir = _resolve_setup_plan_feature_dir(
@@ -1276,27 +1191,7 @@ def setup_plan(
             get_current_branch=_mission.get_current_branch,
         )
 
-        if _enforce_spec_gate is _PRODUCTION_ENFORCE_SPEC_GATE:
-            gate_outcome, gate_message = _evaluate_spec_gate(
-                spec_file,
-                feature_dir,
-                mission_slug,
-                repo_root,
-                target_branch=target_branch,
-                current_branch=current_branch,
-                match_target_branch=match_target_branch,
-            )
-            if gate_outcome is not None:
-                _finalize_setup_plan_outcome(
-                    gate_outcome,
-                    repo_root=repo_root,
-                    json_output=json_output,
-                    human_message=gate_message,
-                )
-                if gate_outcome.exit_code:
-                    raise typer.Exit(gate_outcome.exit_code)
-                return
-        elif _enforce_spec_gate(
+        gate_outcome, gate_message = _evaluate_spec_gate(
             spec_file,
             feature_dir,
             mission_slug,
@@ -1304,11 +1199,16 @@ def setup_plan(
             target_branch=target_branch,
             current_branch=current_branch,
             match_target_branch=match_target_branch,
-            json_output=json_output,
-        ):
-            # Preserve the long-standing mission-module patch seam used by
-            # focused callers; the production implementation takes the frozen
-            # outcome path above.
+        )
+        if gate_outcome is not None:
+            _finalize_setup_plan_outcome(
+                gate_outcome,
+                repo_root=repo_root,
+                json_output=json_output,
+                human_message=gate_message,
+            )
+            if gate_outcome.exit_code:
+                raise typer.Exit(gate_outcome.exit_code)
             return
 
         try:

@@ -766,17 +766,6 @@ def test_local_write_failure_returns_none_without_hosted_fanout(
         adapters.reset_handlers()
 
 
-def test_lifecycle_saas_outbox_skips_when_disabled(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-        lambda: False,
-    )
-
-    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
-
-
 def test_lifecycle_repo_root_resolution_handles_supported_logs(repo: Path) -> None:
     """FR-001 adoption: ``_repo_root_for_lifecycle_log`` routes to
     ``resolve_canonical_root`` so it is CWD-invariant (D-12).
@@ -816,83 +805,6 @@ def test_lifecycle_repo_root_resolution_fails_closed_outside_git(
 
     monkeypatch.setattr(lifecycle, "resolve_canonical_root", _raise)
     assert lifecycle._repo_root_for_lifecycle_log(repo / "anywhere.jsonl") is None
-
-
-def test_lifecycle_saas_builder_skips_non_materializable_inputs(
-    repo: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    log_path = project_event_log_path(repo)
-    valid_payload = {
-        "project_uuid": "00000000-0000-0000-0000-000000000001",
-        "project_slug": "demo",
-        "actor": "test",
-    }
-
-    assert lifecycle._build_saas_lifecycle_event({}, log_path=log_path) is None
-    assert (
-        lifecycle._build_saas_lifecycle_event(
-            {"event_type": PROJECT_INITIALIZED, "payload": valid_payload},
-            log_path=log_path,
-        )
-        is None
-    )
-    assert (
-        lifecycle._build_saas_lifecycle_event(
-            {
-                "event_type": PROJECT_INITIALIZED,
-                "payload": valid_payload,
-                "aggregate_type": "Project",
-            },
-            log_path=repo / "other" / "status.events.jsonl",
-        )
-        is None
-    )
-
-    from specify_cli.identity.project import ProjectIdentity
-
-    monkeypatch.setattr(
-        # #2263 WP02: lifecycle SaaS fan-out resolves identity read-only.
-        "specify_cli.identity.project.resolve_identity",
-        lambda _repo_root: ProjectIdentity(),
-    )
-    assert (
-        lifecycle._build_saas_lifecycle_event(
-            {
-                "event_type": PROJECT_INITIALIZED,
-                "payload": valid_payload,
-                "aggregate_type": "Project",
-            },
-            log_path=log_path,
-        )
-        is None
-    )
-
-
-def test_lifecycle_saas_outbox_skips_unmaterializable_event(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    queued: list[dict[str, object]] = []
-
-    class _Queue:
-        def queue_event(self, event: dict[str, object]) -> bool:
-            queued.append(event)
-            return True
-
-    monkeypatch.setattr(
-        "specify_cli.sync.feature_flags.is_saas_sync_enabled",
-        lambda: True,
-    )
-    monkeypatch.setattr(
-        "specify_cli.sync.queue.read_queue_scope_from_session",
-        lambda: "https://example.test|user@example.test|team-a",
-    )
-    monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", _Queue)
-    monkeypatch.setattr(lifecycle, "_build_saas_lifecycle_event", lambda *_args, **_kwargs: None)
-
-    lifecycle._queue_lifecycle_event_if_enabled({"event_id": "evt-1"})
-
-    assert queued == []
 
 
 def test_lifecycle_saas_outbox_queues_when_scoped(

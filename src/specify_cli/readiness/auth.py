@@ -16,15 +16,19 @@ Contract:
 
 Resolution order:
 
-1. If canonical session assessment fails, return ``(UNKNOWN, None)`` without
-   consulting Teamspace detection.
-2. If assessment completes with a usable session,
-   return ``(AUTHENTICATED, None)``.
-3. Only after a completed no-session assessment, consult
-   ``detect_logged_out_with_connected_teamspace(repo_root)``:
+1. If a completed, usable session is reachable (canonical
+   ``TokenManager.session_assessment``), return ``(AUTHENTICATED, None)``.
+2. Otherwise — including when the assessment did not complete, or raised —
+   consult ``detect_logged_out_with_connected_teamspace(repo_root)``. A
+   failed or inconclusive assessment is not authentication and does not by
+   itself make the probe give up; it degrades to "not authenticated" the
+   same way the historical Boolean contract did, and the Teamspace detector
+   still gets to render its own verdict:
    - Returns a non-empty handle → ``(LOGGED_OUT_IN_TEAMSPACE, handle)``.
    - Returns ``None`` → ``(NOT_IN_TEAMSPACE, None)``.
-4. Any exception inside the resolution path → ``(UNKNOWN, None)``.
+3. Any exception outside that resolution (acquiring a ``TokenManager`` at
+   all, or the detector itself raising) → ``(UNKNOWN, None)`` — reserved for
+   the catastrophic failure path.
 
 Tracking issue: https://github.com/Priivacy-ai/spec-kitty/issues/1094
 """
@@ -67,15 +71,15 @@ def probe_auth_status(
 
         try:
             assessment = tm.session_assessment
-        except Exception:  # noqa: BLE001 — defensive
-            return (AuthStatus.UNKNOWN, None)
+            authenticated = assessment.completed and assessment.usable_session is True
+        except Exception:  # noqa: BLE001 — defensive; degrades to not-authenticated
+            authenticated = False
 
-        if not assessment.completed:
-            return (AuthStatus.UNKNOWN, None)
-        if assessment.usable_session is True:
+        if authenticated:
             return (AuthStatus.AUTHENTICATED, None)
 
-        # Step 3: logged-out — does the repo show a connected Teamspace?
+        # Step 2: not authenticated (or inconclusive) — does the repo show a
+        # connected Teamspace?
         from specify_cli.cli.commands._auth_recovery import (  # noqa: PLC0415 — lazy
             detect_logged_out_with_connected_teamspace,
         )

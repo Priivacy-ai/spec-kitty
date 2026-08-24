@@ -2,12 +2,18 @@
 
 Local setup-plan verification deliberately lives in :mod:`mission_setup_plan`.
 This module is the sole production owner of that command's hosted sink imports
-and calls.  A caller can supply only inert intent data; every physical sink is
-dominated by an exact-identity check against the decision authority.
+and calls.  Lifecycle SaaS fan-out is a genuine hosted egress effect and is
+dominated by an exact-identity check against the decision authority before its
+sink is ever selected.  Dossier capture is project-isolated LOCAL capture per
+:func:`trigger_feature_dossier_sync_if_enabled`'s own contract — the machine
+SaaS flag and project egress decision are enforced later by the canonical
+dispatcher and therefore cannot suppress it — so it runs unconditionally here,
+matching every sibling command that captures a mission dossier.
 """
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Protocol
@@ -45,19 +51,30 @@ class _DossierSyncIntent(Protocol):
     def repo_root(self) -> Path: ...
 
 
-def _trigger_dossier_sync(
+def _fanout_lifecycle_events(
     decision: HostedSyncDecision,
-    intent: _DossierSyncIntent,
+    lifecycle_intents: Iterable[_LifecycleEventIntent],
 ) -> None:
-    """Adapt inert setup-plan coordinates to the established hosted sink."""
+    """Adapt inert lifecycle envelopes to the hosted SaaS fan-out sink.
+
+    The terminal guard is intentionally adjacent to the physical-effect region.
+    It rejects value-equivalent reconstructions, copies, deserializations, and
+    forged decisions before the sink is ever selected.
+    """
     if not is_canonical_hosted_sync_decision(decision):
         return
+    for intent in lifecycle_intents:
+        fanout_lifecycle_event_hosted(intent.envelope, log_path=intent.log_path)
 
-    trigger_feature_dossier_sync_if_enabled(
-        intent.feature_dir,
-        intent.mission_slug,
-        intent.repo_root,
-    )
+
+def _trigger_dossier_sync(intent: _DossierSyncIntent) -> None:
+    """Trigger local-only dossier capture; never suppressed by hosted refusal."""
+    with contextlib.suppress(Exception):
+        trigger_feature_dossier_sync_if_enabled(
+            intent.feature_dir,
+            intent.mission_slug,
+            intent.repo_root,
+        )
 
 
 def execute_setup_plan_hosted_effects(
@@ -66,16 +83,11 @@ def execute_setup_plan_hosted_effects(
     lifecycle_intents: Iterable[_LifecycleEventIntent],
     dossier_intent: _DossierSyncIntent | None,
 ) -> None:
-    """Execute setup-plan hosted effects only for the exact issued decision.
+    """Execute setup-plan's hosted-adjacent effects.
 
-    The terminal guard is intentionally adjacent to the physical-effect region.
-    It rejects value-equivalent reconstructions, copies, deserializations, and
-    forged decisions before any hosted callable is selected or invoked.
+    Lifecycle fan-out is gated on the exact issued decision; dossier capture
+    is unconditional local capture and is never suppressed by it.
     """
-    if not is_canonical_hosted_sync_decision(decision):
-        return
-
-    for intent in lifecycle_intents:
-        fanout_lifecycle_event_hosted(intent.envelope, log_path=intent.log_path)
+    _fanout_lifecycle_events(decision, lifecycle_intents)
     if dossier_intent is not None:
-        _trigger_dossier_sync(decision, dossier_intent)
+        _trigger_dossier_sync(dossier_intent)

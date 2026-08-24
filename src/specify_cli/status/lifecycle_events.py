@@ -381,21 +381,6 @@ def build_saas_lifecycle_queue_event(
     }
 
 
-def _build_saas_lifecycle_event(
-    envelope: Mapping[str, Any],
-    *,
-    log_path: Path | None = None,
-) -> dict[str, Any] | None:
-    """Return a SaaS-materializable lifecycle event for the scoped outbox.
-
-    Local lifecycle JSONL intentionally keeps its local-first shape. The SaaS
-    queue, however, must carry the same canonical envelope fields as normal
-    sync events or live ingress rejects the batch.
-    """
-    fanout_lifecycle_event_hosted(envelope, log_path=log_path)
-    return None
-
-
 def fanout_lifecycle_event_hosted(
     envelope: Mapping[str, Any],
     *,
@@ -410,15 +395,6 @@ def fanout_lifecycle_event_hosted(
     from specify_cli.status.adapters import fire_lifecycle_saas_fanout
 
     fire_lifecycle_saas_fanout(envelope=envelope, log_path=log_path)
-
-
-def _queue_lifecycle_event_if_enabled(
-    envelope: Mapping[str, Any],
-    *,
-    log_path: Path | None = None,
-) -> None:
-    """Best-effort SaaS outbox fan-out for canonical lifecycle events."""
-    fanout_lifecycle_event_hosted(envelope, log_path=log_path)
 
 
 def _match_lifecycle_event(

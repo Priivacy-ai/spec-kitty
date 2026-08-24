@@ -433,7 +433,7 @@ def register_default_handlers() -> None:
     #
     #   emit_mission_created_local(feature_dir, ...)        ← status/lifecycle_events.py
     #       └── append_lifecycle_event(log_path, ...)
-    #             └── _queue_lifecycle_event_if_enabled(...)
+    #             └── fanout_lifecycle_event_hosted(...)
     #                   └── fire_lifecycle_saas_fanout(...)   ← status/adapters.py
     #                         └── _lifecycle_saas_fanout_handler()  ← this module
     #                               ├── OfflineQueue().queue_event(event)

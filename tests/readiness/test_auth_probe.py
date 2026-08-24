@@ -130,16 +130,47 @@ def test_probe_unknown_on_token_manager_import_failure(monkeypatch: pytest.Monke
     assert handle is None
 
 
-def test_probe_unknown_on_failed_session_assessment(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_probe_falls_through_to_detector_on_failed_session_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # An inconclusive assessment (e.g. a storage read failure) is not
+    # authentication. It should swallow into "not authenticated" and fall
+    # through to the detector — same as the historical Boolean contract's
+    # exception handling — rather than short-circuiting to UNKNOWN.
     _patch_token_manager(
         monkeypatch,
         _FakeTokenManager(SessionAssessment(False, None, "storage_read_failed")),
     )
-    _patch_detector(monkeypatch, "must-not-be-consulted")
+    _patch_detector(monkeypatch, "acme-team")
 
     status, handle = probe_auth_status()
 
-    assert status == AuthStatus.UNKNOWN
+    assert status == AuthStatus.LOGGED_OUT_IN_TEAMSPACE
+    assert handle == "acme-team"
+
+
+class _RaisingSessionAssessmentTokenManager:
+    @property
+    def session_assessment(self) -> SessionAssessment:
+        raise RuntimeError("synthetic session assessment failure")
+
+
+def test_probe_falls_through_to_detector_on_session_assessment_exception(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # ``session_assessment`` raises. Probe should not treat it as
+    # "authenticated"; it should swallow the exception and fall through to
+    # the detector. With the detector returning None we expect
+    # NOT_IN_TEAMSPACE (defensive fall-through), not UNKNOWN — UNKNOWN is
+    # reserved for the catastrophic failure path.
+    import specify_cli.auth as auth_pkg
+
+    monkeypatch.setattr(auth_pkg, "get_token_manager", lambda: _RaisingSessionAssessmentTokenManager())
+    _patch_detector(monkeypatch, None)
+
+    status, handle = probe_auth_status()
+
+    assert status == AuthStatus.NOT_IN_TEAMSPACE
     assert handle is None
 
 
