@@ -22,6 +22,8 @@ from specify_cli.upgrade.runner import UpgradeResult
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def test_git_status_paths_parses_modified_files(tmp_path: Path, monkeypatch) -> None:
     """Porcelain output with modified files is parsed correctly."""
     # Simulate: " M src/foo.py\0 M src/bar.py\0"
@@ -93,6 +95,34 @@ def test_git_status_paths_handles_real_git_rename(tmp_path: Path) -> None:
     assert "old.py" not in paths
 
 
+def test_prepare_copy_stages_only_destination_when_source_was_clean(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """Copy identity protects ownership without staging the unchanged source."""
+    raw = b"C  new.py\0old.py\0"
+    fake_result = MagicMock(returncode=0, stdout=raw)
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
+
+    files = autocommit.prepare_upgrade_commit_files(tmp_path, baseline_paths=set())
+
+    assert files == [Path("new.py")]
+
+
+def test_prepare_copy_excludes_destination_when_source_was_dirty(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """A copy of pre-run operator dirt remains operator-owned at its new path."""
+    raw = b"C  new.py\0old.py\0"
+    fake_result = MagicMock(returncode=0, stdout=raw)
+    monkeypatch.setattr(subprocess, "run", lambda *_a, **_kw: fake_result)
+
+    files = autocommit.prepare_upgrade_commit_files(tmp_path, baseline_paths={"old.py"})
+
+    assert files == []
+
+
 def test_git_status_paths_returns_none_on_failure(tmp_path: Path, monkeypatch) -> None:
     """Non-zero returncode → None (not empty set)."""
     fake_result = MagicMock(returncode=128, stdout=b"")
@@ -131,8 +161,9 @@ def test_eligible_rejects_empty(tmp_path: Path) -> None:
     assert autocommit.is_upgrade_commit_eligible("", tmp_path) is False
 
 
-def test_eligible_rejects_whitespace_only(tmp_path: Path) -> None:
-    assert autocommit.is_upgrade_commit_eligible("   ", tmp_path) is False
+def test_eligible_preserves_whitespace_only_filename(tmp_path: Path) -> None:
+    """Spaces are valid Git path bytes and must not alias another filename."""
+    assert autocommit.is_upgrade_commit_eligible("   ", tmp_path) is True
 
 
 # Root-level files written by the upgrade run (clean at baseline, dirty
@@ -573,16 +604,12 @@ def test_commit_skipped_when_branch_detection_fails(
     monkeypatch.setattr(
         autocommit,
         "safe_commit",
-        lambda **_kw: (_ for _ in ()).throw(
-            AssertionError("safe_commit must not run when branch detection fails")
-        ),
+        lambda **_kw: (_ for _ in ()).throw(AssertionError("safe_commit must not run when branch detection fails")),
     )
     monkeypatch.setattr(
         subprocess,
         "check_output",
-        lambda *_a, **_kw: (_ for _ in ()).throw(
-            subprocess.CalledProcessError(1, "git")
-        ),
+        lambda *_a, **_kw: (_ for _ in ()).throw(subprocess.CalledProcessError(1, "git")),
     )
 
     committed, committed_paths, warning = autocommit.commit_touched_checkout(
@@ -1329,9 +1356,7 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
             from_version="1.0.0a1",
             to_version="3.2.0a4",
             migrations_applied=["3.2.0a4_safe_globalize_commands"],
-            migration_results={
-                "3.2.0a4_safe_globalize_commands": MigrationResult(success=True)
-            },
+            migration_results={"3.2.0a4_safe_globalize_commands": MigrationResult(success=True)},
         ),
     )
     monkeypatch.setattr(
@@ -1364,9 +1389,7 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
 # ---------------------------------------------------------------------------
 
 
-def test_upgrade_worktrees_only_delegates_to_private_impl(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_upgrade_worktrees_only_delegates_to_private_impl(tmp_path: Path, monkeypatch) -> None:
     """upgrade_worktrees_only() must call _upgrade_worktrees with an empty
     migrations list, forwarding target_version, dry_run, and auto_commit.
 
@@ -1410,9 +1433,7 @@ def test_upgrade_worktrees_only_delegates_to_private_impl(
     assert calls[0]["auto_commit"] is False
 
 
-def test_upgrade_worktrees_only_passes_auto_commit(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_upgrade_worktrees_only_passes_auto_commit(tmp_path: Path, monkeypatch) -> None:
     """auto_commit=True is forwarded through the public entry point."""
     from specify_cli.upgrade.runner import MigrationRunner
 

@@ -191,10 +191,7 @@ class SafeCommitDestinationNotFound(SafeCommitError):
         destination_ref: str,
         worktree_root: Path,
     ) -> None:
-        message = (
-            f"safe_commit: destination ref {destination_ref!r} does not exist in the repo. "
-            f"Create the branch first, or check the spelling."
-        )
+        message = f"safe_commit: destination ref {destination_ref!r} does not exist in the repo. Create the branch first, or check the spelling."
         super().__init__(
             message,
             destination_ref=destination_ref,
@@ -208,10 +205,7 @@ class SafeCommitEmptyChangeset(SafeCommitError):
     error_code = "SAFE_COMMIT_EMPTY_CHANGESET"
 
     def __init__(self, *, destination_ref: str) -> None:
-        message = (
-            "safe_commit: paths is empty. Pass at least one path to commit; "
-            "an empty changeset is a programming error."
-        )
+        message = "safe_commit: paths is empty. Pass at least one path to commit; an empty changeset is a programming error."
         super().__init__(message, destination_ref=destination_ref)
 
 
@@ -226,10 +220,7 @@ class SafeCommitNotAWorktree(SafeCommitError):
         destination_ref: str,
         worktree_root: Path,
     ) -> None:
-        message = (
-            f"safe_commit: {worktree_root} is not a git worktree. "
-            f"Pass a resolved worktree path."
-        )
+        message = f"safe_commit: {worktree_root} is not a git worktree. Pass a resolved worktree path."
         super().__init__(
             message,
             destination_ref=destination_ref,
@@ -378,20 +369,13 @@ class SafeCommitBackstopError(RuntimeError):
         message_lines.append("")
         # FR-012: name the diverged worktree/ref and the behind/ahead state
         # instead of the bare "working tree is behind HEAD" guess.
-        has_phantom_deletions = any(
-            entry.status_code.startswith("D") for entry in unexpected
-        )
+        has_phantom_deletions = any(entry.status_code.startswith("D") for entry in unexpected)
         where = str(worktree_root) if worktree_root is not None else "this worktree"
         ref_label = destination_ref if destination_ref is not None else "<unknown ref>"
         head_label = head_sha[:12] if head_sha else "<unknown>"
-        message_lines.append(
-            f"Diverged worktree: {where} (checked out: {ref_label}, HEAD {head_label})."
-        )
+        message_lines.append(f"Diverged worktree: {where} (checked out: {ref_label}, HEAD {head_label}).")
         if has_phantom_deletions:
-            message_lines.append(
-                "The index/working tree is BEHIND its own HEAD (the unexpected "
-                "staged deletions are files HEAD carries but the checkout lacks)."
-            )
+            message_lines.append("The index/working tree is BEHIND its own HEAD (the unexpected staged deletions are files HEAD carries but the checkout lacks).")
             message_lines.append(
                 f"Most likely cause: the branch ref {ref_label!r} was advanced "
                 "underneath this worktree (e.g. `git update-ref` during a merge "
@@ -525,8 +509,7 @@ def assert_not_protected_branch(repo_path: Path, *, operation: str = "commit") -
         policy = ProtectionPolicy.resolve(repo_path)
         if policy.is_protected(branch):
             raise ProtectedBranchCommitError(
-                f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. "
-                "Run status commit operations from the mission lane branch/worktree."
+                f"Refusing to {operation} on protected branch '{branch}' in {repo_path}. Run status commit operations from the mission lane branch/worktree."
             )
 
 
@@ -555,7 +538,7 @@ def assert_staging_area_matches_expected(
     """
     # See prior history (mission 588) for the --no-renames rationale.
     result = subprocess.run(
-        ["git", "diff", "--cached", "--no-renames", "--name-status"],
+        ["git", "diff", "--cached", "--no-renames", "--name-status", "-z"],
         cwd=repo_path,
         capture_output=True,
         text=True,
@@ -574,14 +557,12 @@ def assert_staging_area_matches_expected(
 
     expected_set = {to_posix(p) for p in expected_paths}
     unexpected: list[UnexpectedStagedPath] = []
-    for raw_line in result.stdout.splitlines():
-        line = raw_line.strip()
-        if not line:
+    fields = result.stdout.split("\0")
+    for index in range(0, len(fields) - 1, 2):
+        status_code = fields[index]
+        staged_path = fields[index + 1]
+        if not status_code or not staged_path:
             continue
-        parts = line.split("\t", 1)
-        if len(parts) != 2:
-            continue
-        status_code, staged_path = parts
         normalized = to_posix(staged_path)
         if normalized not in expected_set:
             unexpected.append(
@@ -735,7 +716,7 @@ def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> No
         return
 
     staged_result = subprocess.run(
-        ["git", "diff", "--cached", "--name-only", "--", *normalized_files],
+        ["git", "diff", "--cached", "--no-renames", "--name-only", "-z", "--", *normalized_files],
         cwd=repo_path,
         capture_output=True,
         text=True,
@@ -745,7 +726,7 @@ def _unstage_requested_files(repo_path: Path, normalized_files: list[str]) -> No
     )
     if staged_result.returncode != 0:
         return
-    staged_requested = [line.strip() for line in staged_result.stdout.splitlines() if line.strip()]
+    staged_requested = [path for path in staged_result.stdout.split("\0") if path]
     if not staged_requested:
         return
 
@@ -783,8 +764,7 @@ def _restore_staged_patch(
     """Restore the caller's pre-existing staged requested-file state."""
     if patch is None:
         raise SafeCommitRecoveryFailed(
-            f"safe_commit: failed to restore caller staging in {repo_path}; "
-            "requested-file staged patch was not captured before index mutation.",
+            f"safe_commit: failed to restore caller staging in {repo_path}; requested-file staged patch was not captured before index mutation.",
             destination_ref=destination_ref,
             worktree_root=repo_path,
             unrecovered_paths=normalized_files,
@@ -806,8 +786,7 @@ def _restore_staged_patch(
         detail = (result.stderr or result.stdout).strip()
         suffix = f": {detail}" if detail else "."
         raise SafeCommitRecoveryFailed(
-            f"safe_commit: failed to restore caller staging in {repo_path}; "
-            f"git apply --cached rejected the requested-file patch{suffix}",
+            f"safe_commit: failed to restore caller staging in {repo_path}; git apply --cached rejected the requested-file patch{suffix}",
             destination_ref=destination_ref,
             worktree_root=repo_path,
             unrecovered_paths=normalized_files,
@@ -1113,10 +1092,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     #    its own ProtectionPolicy so the correct config is read for each root.
     _policy_repo = ProtectionPolicy.resolve(repo_root)
     _policy_wt = ProtectionPolicy.resolve(worktree_root)
-    is_protected = (
-        _policy_repo.is_protected(destination_ref)
-        or _policy_wt.is_protected(destination_ref)
-    )
+    is_protected = _policy_repo.is_protected(destination_ref) or _policy_wt.is_protected(destination_ref)
     guard_verdict: GuardVerdict = evaluate_commit_guard(
         target,
         ProtectionState(is_protected=is_protected),
@@ -1134,8 +1110,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     requested_staged_patch = _staged_patch_for_paths(worktree_root, normalized_files)
     if requested_staged_patch is None:
         raise SafeCommitRecoveryFailed(
-            f"safe_commit: refusing to mutate index in {worktree_root}; "
-            "could not capture pre-existing staged requested-file state.",
+            f"safe_commit: refusing to mutate index in {worktree_root}; could not capture pre-existing staged requested-file state.",
             destination_ref=destination_ref,
             worktree_root=worktree_root,
             unrecovered_paths=normalized_files,
@@ -1159,10 +1134,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
 
     try:
         if not _stage_requested_files(worktree_root, normalized_files):
-            raise RuntimeError(
-                f"safe_commit: failed to stage requested files in {worktree_root}: "
-                f"{normalized_files!r}"
-            )
+            raise RuntimeError(f"safe_commit: failed to stage requested files in {worktree_root}: {normalized_files!r}")
 
         try:
             assert_staging_area_matches_expected(worktree_root, normalized_files)
@@ -1209,18 +1181,12 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
                 if _staged_tree_is_empty(worktree_root):
                     # Benign no-op: staged content already matches HEAD. The
                     # commit router maps this distinct message to "unchanged".
-                    raise RuntimeError(
-                        f"safe_commit: nothing to commit for "
-                        f"destination_ref={destination_ref!r} (empty changeset)"
-                    )
+                    raise RuntimeError(f"safe_commit: nothing to commit for destination_ref={destination_ref!r} (empty changeset)")
                 # Genuine failure (rejecting pre-commit hook, lock, etc.) — carry
                 # git's own combined output so it is NOT mistaken for an empty
                 # changeset (failure-path behavior unchanged: both streams).
                 detail = f": {commit_output}" if commit_output else ""
-                raise RuntimeError(
-                    f"safe_commit: git commit failed in {worktree_root} for "
-                    f"destination_ref={destination_ref!r}{detail}"
-                )
+                raise RuntimeError(f"safe_commit: git commit failed in {worktree_root} for destination_ref={destination_ref!r}{detail}")
     finally:
         recovery_messages: list[str] = []
         orphan_stash_ref: str | None = None
@@ -1241,14 +1207,9 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
                     orphan_stash_ref = _find_stash_ref(worktree_root, stash_message) or stash_ref
                     detail = (pop_result.stderr or pop_result.stdout).strip()
                     suffix = f": {detail}" if detail else "."
-                    recovery_messages.append(
-                        f"failed to restore pre-existing unrelated staging from {stash_ref}{suffix}"
-                    )
+                    recovery_messages.append(f"failed to restore pre-existing unrelated staging from {stash_ref}{suffix}")
             else:
-                recovery_messages.append(
-                    "created safe_commit staging stash was missing before restore; "
-                    "caller staging state is unknown."
-                )
+                recovery_messages.append("created safe_commit staging stash was missing before restore; caller staging state is unknown.")
 
         if not commit_created:
             try:
@@ -1265,9 +1226,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
         if recovery_messages:
             commit_note = f" Commit {new_sha} was created before recovery failed." if commit_created else ""
             raise SafeCommitRecoveryFailed(
-                f"safe_commit: failed to restore caller staging in {worktree_root}; "
-                + " ".join(recovery_messages)
-                + commit_note,
+                f"safe_commit: failed to restore caller staging in {worktree_root}; " + " ".join(recovery_messages) + commit_note,
                 destination_ref=destination_ref,
                 worktree_root=worktree_root,
                 unrecovered_paths=unrecovered_paths,
@@ -1283,11 +1242,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
     # Emit a LocalCommit frame for any paths under kitty-specs/ (FR-010–FR-017).
     # This is fire-and-forget: failures are logged and swallowed so a notification
     # failure never aborts a successful commit.
-    mission_specs_files = [
-        str(Path(p).relative_to(worktree_root)) if Path(p).is_absolute() else str(p)
-        for p in paths
-        if KITTY_SPECS_DIR in Path(p).parts
-    ]
+    mission_specs_files = [str(Path(p).relative_to(worktree_root)) if Path(p).is_absolute() else str(p) for p in paths if KITTY_SPECS_DIR in Path(p).parts]
     if mission_specs_files:
         try:
             from specify_cli.sync.local_commit import emit_local_commit  # noqa: PLC0415
