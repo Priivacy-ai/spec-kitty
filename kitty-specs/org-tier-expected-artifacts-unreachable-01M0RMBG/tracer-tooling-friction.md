@@ -303,3 +303,35 @@ flip looks like.
 **Fix direction (unchanged from SK-50/SK-51)**: have `agent mission create` stamp the current
 `status_phase` at scaffold time, since a mission created by the current version is by definition
 already cut over; and separately, make the summary count the write it actually performed.
+
+## F10 — bare `uv sync` builds a venv that manufactures 8 phantom architectural reds (ledger SK-94)
+
+F5 recorded `ruff` missing from this checkout's `.venv` and worked around it with `uvx ruff`. The
+landing pass found the fuller, sharper version of that defect.
+
+`sk/SKILL.md`'s workspace recipe says `uv sync`. `pyproject.toml` declares exactly two extras,
+`test` and `lint`, and bare `uv sync` installs **neither's tooling** — no `ruff`, no `mypy`. Running
+`tests/architectural/` locally (which `sk-land`'s traps file explicitly instructs, because those
+gates land ~40 min late in CI) then produced:
+
+```
+8 failed, 1671 passed, 5 skipped, 2 xfailed in 716.74s
+```
+
+Failures included `test_mypy_is_available_and_its_absence_fails_rather_than_skips`
+(`No module named mypy`) and four in `test_tid251_enforcement.py`, which shell out to `ruff`.
+
+**The tests are correct.** They fail-closed on absent tooling by explicit design — the opposite of
+this repo's usual silent-success failure mode, and the right call. The defect is the recipe.
+
+After `uv sync --extra test --extra lint`: the same files return **34 passed** and the full suite
+clears. CI's three `arch-adversarial` shards were green throughout, which is what proves these were
+purely local.
+
+**Second trap, also verified**: `uv sync --extra lint` **alone** removes `pytest` (extras resolve
+per-invocation, they do not accumulate). The next pytest run dies with `No module named pytest`,
+which reads like a corrupted venv rather than a deliberate resolution.
+
+**Why this mattered here**: it produced 8 phantom reds to classify, on the very step designed to
+prevent misclassification. Had they been taken at face value this pass would have "fixed" tests that
+were never broken. Filed as ledger **SK-94** with the recipe fix.
