@@ -2,7 +2,7 @@
 
 **Mission Branch**: `fix/exclude-canceled-work-packages-from-lanes`  
 **Created**: 2026-08-24  
-**Status**: Ready for Planning  
+**Status**: Ready for Implementation
 **Audience**: Agentic framework core team  
 **Source**: [GitHub issue #3432](https://github.com/Priivacy-ai/spec-kitty/issues/3432)  
 **Input**: Canceled work packages cannot currently satisfy ownership validation or execution-lane computation, forcing operators to delete workflow-managed files. Address this before #3281 while preserving a clear scope boundary between the two lane-allocation issues.
@@ -101,7 +101,7 @@ As a mission operator, I want missions without canceled work packages to retain 
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Deterministic results | For identical mission definitions and canonical lifecycle states, 100% of repeated finalization runs must produce the same execution-lane membership, dependency edges, and stale-dependency findings. | Reliability | High | Accepted |
 | NFR-002 | Complete diagnostics | In acceptance coverage, 100% of stale active dependency findings must name both work-package IDs and include a corrective action. | Operability | High | Accepted |
-| NFR-003 | Typical-scale performance | Finalization of a mission with up to 100 work packages must complete within the repository's existing two-second CLI target on supported development hardware. | Performance | Medium | Accepted |
+| NFR-003 | Typical-scale performance | On the repository's reference performance runner (Blacksmith 4-vCPU Ubuntu 24.04, CPython 3.11), the p95 of 10 measured finalizations of the canonical 100-work-package fixture, after two discarded warm-up rounds, must be at most two seconds. | Performance | Medium | Accepted |
 | NFR-004 | Fail-closed status handling | In 100% of unreadable or corrupt status-authority cases, finalization must refuse to infer cancellation from secondary data. | Integrity | High | Accepted |
 | NFR-005 | Regression containment | Existing execution-lane, ownership, and post-collapse-cycle acceptance coverage for missions without canceled work must retain its prior outcome. | Compatibility | High | Accepted |
 
@@ -114,7 +114,7 @@ As a mission operator, I want missions without canceled work packages to retain 
 | C-003 | Audit preservation | Canceled work-package definitions and lifecycle evidence must be preserved; manual deletion is not an acceptable retirement mechanism. | Governance | High | Accepted |
 | C-004 | Existing DAG protection | Post-collapse execution-lane acyclicity delivered for #3431 remains authoritative over the surviving graph. | Dependency | High | Accepted |
 | C-005 | Separate allocator recovery | Planning-history reconciliation, incomplete-allocation recovery, workspace reuse, and approved dependency-tip propagation remain within #3281. | Scope | High | Accepted |
-| C-006 | Cross-platform behavior | Behavior and diagnostics must remain consistent on Linux, macOS, and Windows 10 or later. | Platform | Medium | Accepted |
+| C-006 | Cross-platform behavior | Functional behavior and diagnostic payloads must remain consistent on Linux, macOS, and Windows 10 or later, with at least one cancellation-policy test collected by the repository's `windows_ci` job. | Platform | Medium | Accepted |
 
 ### Key Entities
 
@@ -151,5 +151,5 @@ As a mission operator, I want missions without canceled work packages to retain 
 - **SC-002**: Canceled work packages appear in zero execution lanes and contribute zero ownership conflicts or collapse events.
 - **SC-003**: Every active-to-canceled dependency is rejected before allocation is published, with both work-package IDs and a recovery action.
 - **SC-004**: Missions without canceled work retain identical execution-lane membership, dependency edges, ownership findings, and cycle findings across the regression corpus.
-- **SC-005**: A mission with up to 100 work packages finalizes within two seconds on supported development hardware.
+- **SC-005**: On the reference performance runner, the canonical 100-work-package fixture has p95 finalization time at or below two seconds across 10 measured rounds after two warm-ups.
 - **SC-006**: A mission with only canceled work reaches a valid no-executable-work result while retaining all definitions and lifecycle history.

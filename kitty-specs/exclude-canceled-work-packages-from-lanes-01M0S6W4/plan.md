@@ -14,10 +14,10 @@ The first implementation commit must contain planning-base RED acceptance covera
 **Language/Version**: Python 3.11+
 **Primary Dependencies**: Typer, Rich, Pydantic/dataclasses, existing status surface resolver and append-only event reader; no new runtime dependency
 **Storage**: Existing `status.events.jsonl` lifecycle authority and generated `lanes.json`; no schema migration or new store
-**Testing**: pytest unit, CLI contract, integration, and regression suites; ruff and mypy on touched modules
+**Testing**: pytest unit, CLI contract, integration, and regression suites; pytest-cov plus diff-cover with a 90% changed-line floor; repository `windows_ci`; off-PR pytest-benchmark; ruff and mypy on touched modules
 **Target Platform**: Cross-platform Python CLI on Linux, macOS, and Windows 10+
 **Project Type**: Single Python CLI repository
-**Performance Goals**: Linear projection over at most 100 work packages and direct dependency edges; preserve the existing two-second finalization target
+**Performance Goals**: Linear projection over at most 100 work packages and direct dependency edges; on Blacksmith 4-vCPU Ubuntu 24.04 with CPython 3.11, p95 of 10 measured 100-WP finalizations after two warm-ups is at most two seconds
 **Constraints**: Read lifecycle authority once; fail before finalization mutation on stale edges; exclude only `canceled`; preserve event history and prompt files; deterministic diagnostics; do not change #3431 cycle semantics or #3281 allocation recovery
 **Scale/Scope**: One finalization boundary, one small pure projection seam, two finalization output paths, and focused tests
 
@@ -32,7 +32,8 @@ The first implementation commit must contain planning-base RED acceptance covera
 | Fail explicitly | Every direct eligible-to-canceled edge is sorted and reported with both work-package IDs and remove-or-repoint recovery before any finalization writer runs. | PASS |
 | ATDD-first | The first implementation commit is a planning-base RED acceptance/contract test commit. | PASS |
 | Existing authority boundaries | `compute_lanes` remains a pure allocator; #3431 post-collapse cycle detection remains unchanged; #3281 retry/history/propagation remains out of scope. | PASS |
-| Campsite discipline | Add a small pure eligibility module and make narrow orchestration edits instead of growing the 2,996-line finalizer or duplicating filters at every consumer. | PASS |
+| Campsite discipline | After the RED contract and before functional production edits, inspect the touched `mission_finalize.py` methods, perform a distinct behavior-preserving tidy-first commit where proportional, or freeze current offenders with a documented deferral; then add a small pure eligibility module and narrow orchestration edits. | PASS |
+| Coverage and platform gates | Changed production lines must meet a 90% diff-cover floor; a literal `@pytest.mark.windows_ci` cancellation test is collected by the Windows-critical job; performance uses the canonical off-PR benchmark pipeline. | PASS |
 | Terminology | The plan distinguishes lifecycle lanes from execution lanes and uses Mission/work-package terminology. | PASS |
 | Git and workflow discipline | Spec Kitty owns Mission state and workspace flow; no direct push to `main`; eventual PR targets `main`. | PASS |
 | Mission tracers | `traces/approach.md`, `traces/design-decisions.md`, and `traces/tooling-friction.md` are initialized during planning. | PASS |
@@ -58,14 +59,14 @@ flowchart TD
 
 ### Eligibility boundary
 
-After task files, the manifest, and the dependency graph have been read and structurally validated, `finalize-tasks` resolves the coordination-aware status read directory and reads current lifecycle lanes exactly once. A new pure helper receives the known work-package IDs, dependencies, and lifecycle map and returns an immutable `FinalizationEligibility` value:
+After task files, the manifest, and the dependency graph have been read and structurally validated, `finalize-tasks` resolves the coordination-aware status read directory and takes exactly one event-derived lifecycle snapshot for the command. A new pure helper receives the known work-package IDs, dependencies, and lifecycle map and returns an immutable `FinalizationEligibility` value:
 
 - sorted `eligible_wp_ids` and `canceled_wp_ids`;
 - the dependency graph projected onto eligible work packages;
 - every sorted `StaleCanceledDependency` edge from an eligible dependent to a canceled prerequisite;
 - counts needed to distinguish a valid all-canceled graph from genuinely missing lane inputs.
 
-Unknown/corrupt status authority fails through the existing status error boundary. A known work package with no lifecycle entry is treated as not canceled so the first finalization can bootstrap it. A reopened package participates because only its current lane is consulted. The pure projection does not read files or emit output.
+Unknown/corrupt status authority fails through the existing status error boundary. A known work package with no lifecycle entry is treated as not canceled so the first finalization can bootstrap it. A reopened package participates because only its current lane is consulted. The same snapshot is threaded to later lifecycle consumers, including the planning-provenance execution-begun decision; they must not re-read the event log. The pure projection does not read files or emit output.
 
 ### Mutation ordering
 
@@ -117,6 +118,7 @@ Existing raw-input validation remains in force before projection. If eligible wo
 /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260824-080044-XyYDT7/spec-kitty/tests/specify_cli/cli/commands/agent/
 ├── test_finalization_eligibility.py        # pure projection unit coverage
 ├── test_finalize_canceled_work_packages.py # CLI acceptance and JSON contract
+├── test_finalize_canceled_work_packages_performance.py # governed 100-WP benchmark
 ├── test_mission_finalize_phases.py         # filtered ownership/empty-lane phase coverage
 └── test_finalize_lane_dependency_cycle.py  # unchanged surviving-graph regression
 ```
@@ -143,19 +145,20 @@ The CLI error code is `CANCELED_WP_DEPENDENCY`. JSON output contains a determini
 ## Test Strategy
 
 1. Commit RED CLI acceptance tests first. Seed canonical `canceled` events and prove the current implementation rejects a canceled package with missing/overlapping ownership, leaves it in an execution lane, or fails the all-canceled case.
-2. Unit-test the pure projection: no canceled states, one canceled node, reopened/non-canceled state, canceled-to-canceled edges, multiple sorted eligible-to-canceled edges, and empty eligible output.
-3. Exercise the exact `finalize-tasks` command in human and JSON modes. Assert the stale-edge error names all pairs, includes recovery text, returns nonzero, and leaves target-branch metadata, matrices, frontmatter, events, `tasks.md`, `lanes.json`, Git HEAD, and working-tree state unchanged.
-4. Verify ownership filtering covers absent manifests, malformed authoritative surfaces, overlapping files, literal-path glob checks, and audit inputs on canceled packages while retaining each check for eligible packages.
-5. Verify a mixed Mission writes execution lanes containing only eligible work and excludes canceled work from collapse and risk reports.
-6. Verify all-canceled normal finalization writes a valid zero-lane manifest and validate-only reports `computed: true`, `count: 0`, with no mutation.
-7. Pin cancellation-only behavior: `done` remains eligible, reopened work participates, no-canceled fixtures retain byte-equivalent lane membership/dependencies/collapse results, and #3431 cycle failures remain deterministic on the surviving graph.
-8. Add corrupt/missing canonical-status cases that fail closed without consulting frontmatter or prior `lanes.json`.
-9. Add a 100-work-package deterministic projection/finalization fixture and assert the existing two-second target without sleep or retries.
-10. Run focused tests without retries, then ruff and mypy on touched modules and the repository terminology/architecture gates relevant to execution-lane allocation.
+2. Before functional production edits, run a distinct campsite pass over the touched finalizer methods: measure complexity/size and current findings, apply proportional behavior-preserving cleanup in a separate commit with focused green tests, or record a frozen baseline and explicit deferral when cleanup would expand the file set or Mission scope.
+3. Unit-test the pure projection: no canceled states, one canceled node, reopened/non-canceled state, canceled-to-canceled edges, multiple sorted eligible-to-canceled edges, and empty eligible output. Include a literal `@pytest.mark.windows_ci` policy/diagnostic test so `.github/workflows/ci-windows.yml` discovers the file.
+4. Exercise the exact `finalize-tasks` command in human and JSON modes. Assert the stale-edge error names all pairs, includes recovery text, returns nonzero, and leaves target-branch metadata, matrices, frontmatter, events, `tasks.md`, `lanes.json`, Git HEAD, and working-tree state unchanged.
+5. Verify ownership filtering covers absent manifests, malformed authoritative surfaces, overlapping files, literal-path glob checks, and audit inputs on canceled packages while retaining each check for eligible packages.
+6. Verify a mixed Mission writes execution lanes containing only eligible work and excludes canceled work from collapse and risk reports.
+7. Verify all-canceled normal finalization writes a valid zero-lane manifest and validate-only reports `computed: true`, `count: 0`, with no mutation.
+8. Pin cancellation-only behavior: `done` remains eligible, reopened work participates, no-canceled fixtures retain byte-equivalent lane membership/dependencies/collapse results, and #3431 cycle failures remain deterministic on the surviving graph.
+9. Add corrupt/missing canonical-status cases that fail closed without consulting frontmatter or prior `lanes.json`.
+10. Add a `pytest.mark.performance`/`pytest.mark.benchmark(group="cli")` 100-WP finalization test. Use `benchmark.pedantic` with 10 rounds, one iteration, and two warm-up rounds; assert measured p95 at or below 2.0 seconds on the reference runner. Run it through the existing off-PR performance workflow with `SPEC_KITTY_RUN_PERFORMANCE=1`.
+11. Run focused tests without retries, generate XML coverage for the touched agent-command modules, and enforce `diff-cover ... --fail-under=90` against the planning base. Then run ruff, strict mypy, and the relevant terminology/architecture gates.
 
 ## Complexity Tracking
 
-No charter violation is planned. The new pure module prevents further growth of the 2,996-line orchestration module; `mission_finalize.py` receives only narrow read/render/filter call sites. No blanket lint/type suppression or compatibility shim is permitted.
+No charter violation is planned. A distinct tidy-first checkpoint precedes functional production edits. The new pure module prevents further growth of the 2,996-line orchestration module; `mission_finalize.py` receives only narrow read/render/filter call sites. No blanket lint/type suppression or compatibility shim is permitted, and changed production lines must meet the 90% coverage floor.
 
 ## Implementation Concern Map
 
@@ -169,7 +172,7 @@ No charter violation is planned. The new pure module prevents further growth of 
 
 ### IC-02 — Canonical eligibility projection and pre-write guard
 
-- **Purpose**: Read lifecycle state once, build the immutable projection, report every stale cut edge, and reject before finalization mutation.
+- **Purpose**: Complete the tidy-first checkpoint, take one reusable lifecycle snapshot, build the immutable projection, report every stale cut edge, and reject before finalization mutation.
 - **Requirements**: FR-001, FR-004–FR-006, FR-009, NFR-001–NFR-004, C-001, C-006
 - **Affected surfaces**: `finalization_eligibility.py`, the read/order seam in `mission_finalize.py`, focused unit/CLI tests
 - **Depends on**: IC-01

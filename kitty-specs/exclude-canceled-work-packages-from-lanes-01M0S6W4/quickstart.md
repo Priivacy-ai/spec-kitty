@@ -16,15 +16,21 @@ uv run --extra test pytest -q tests/specify_cli/cli/commands/agent/test_finalize
 
 Do not use retries or mark the expected defect as `xfail`.
 
-## 2. Verify the pure projection
+## 2. Record the tidy-first campsite checkpoint
+
+After the RED commit and before functional production edits, inspect the exact `mission_finalize.py` methods that will change. Record their size/complexity and current focused-test baseline. Commit proportional behavior-preserving cleanup separately, or record a measured frozen baseline plus locality rationale when cleanup would expand Mission scope.
+
+## 3. Verify the pure projection and Windows collection
 
 ```bash
 uv run --extra test pytest -q tests/specify_cli/cli/commands/agent/test_finalization_eligibility.py
+uv run --extra test pytest --collect-only -q -m windows_ci \
+  tests/specify_cli/cli/commands/agent/test_finalization_eligibility.py
 ```
 
 Required cases: unchanged graph, canceled exclusion, reopened/done inclusion, all-canceled graph, canceled-to-canceled edge, and complete deterministic stale-edge ordering.
 
-## 3. Verify command behavior
+## 4. Verify command behavior
 
 ```bash
 uv run --extra test pytest -q \
@@ -34,7 +40,7 @@ uv run --extra test pytest -q \
 
 Check that canceled definitions remain in history, canceled ownership cannot fail or collapse eligible work, every stale edge is reported before writes, mixed Missions contain only eligible execution work, and all-canceled Missions produce a valid zero-lane result in normal and validate-only modes.
 
-## 4. Verify unaffected allocation semantics
+## 5. Verify unaffected allocation semantics
 
 ```bash
 uv run --extra test pytest -q \
@@ -47,14 +53,45 @@ uv run --extra test pytest -q \
 
 These protect #3431 post-collapse cycle behavior, no-cancellation parity, and the existing invalid-empty-input refusal.
 
-## 5. Run focused quality gates
+## 6. Run the governed performance proof
+
+The benchmark uses the repository's off-PR performance mechanism. Its reference environment is Blacksmith 4-vCPU Ubuntu 24.04 with CPython 3.11. The test records 10 rounds after two discarded warm-ups and requires p95 at or below two seconds.
+
+```bash
+SPEC_KITTY_RUN_PERFORMANCE=1 uv run python -m pytest \
+  tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages_performance.py \
+  -m performance -n0 -q
+```
+
+## 7. Enforce changed-line coverage and focused quality gates
+
+Generate focused coverage and enforce the charter's 90% new-code floor against the planning branch:
+
+```bash
+mkdir -p out/reports/coverage
+uv run --extra test pytest -q \
+  tests/specify_cli/cli/commands/agent/test_finalization_eligibility.py \
+  tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages.py \
+  tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py \
+  --cov=specify_cli.cli.commands.agent.finalization_eligibility \
+  --cov=specify_cli.cli.commands.agent.mission_finalize \
+  --cov-report=xml:out/reports/coverage/coverage-canceled-finalization.xml
+
+uv run diff-cover \
+  out/reports/coverage/coverage-canceled-finalization.xml \
+  --compare-branch=fix/exclude-canceled-work-packages-from-lanes \
+  --fail-under=90
+```
+
+Then run lint and strict typing:
 
 ```bash
 uv run --extra test ruff check \
   src/specify_cli/cli/commands/agent/finalization_eligibility.py \
   src/specify_cli/cli/commands/agent/mission_finalize.py \
   tests/specify_cli/cli/commands/agent/test_finalization_eligibility.py \
-  tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages.py
+  tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages.py \
+  tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages_performance.py
 
 uv run --extra test mypy --strict \
   src/specify_cli/cli/commands/agent/finalization_eligibility.py \
