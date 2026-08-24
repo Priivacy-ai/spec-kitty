@@ -11,7 +11,8 @@ The precedence under test (highest first), preserving the incumbent
 ``_mt_run_pre_review_gate`` order (``tasks_move_task.py`` terminal check at
 :1270 BEFORE the block at :1298):
 
-    1. terminal interruption (TIMED_OUT / CANCELLED) -> hard-stop, no transition
+    1. terminal refusal/interruption (SCOPE_OVERSIZED / TIMED_OUT / CANCELLED)
+       -> hard-stop, no transition
     2. opt-in block (block_enabled AND any NEW_FAILURES AND not force) -> hard-stop
     3. warn / pass -> transition proceeds, one warning slot per verdict
 """
@@ -52,6 +53,8 @@ def _verdict(outcome: GateOutcome, *, reason: str | None = None) -> GateVerdict:
         run_state = HeadRunState.TIMED_OUT
     elif outcome is GateOutcome.CANCELLED:
         run_state = HeadRunState.CANCELLED
+    elif outcome is GateOutcome.SCOPE_OVERSIZED:
+        run_state = HeadRunState.NOT_STARTED
     return GateVerdict(
         outcome=outcome,
         scope=_EMPTY_SCOPE,
@@ -68,15 +71,9 @@ def _verdict(outcome: GateOutcome, *, reason: str | None = None) -> GateVerdict:
 @pytest.mark.parametrize("outcome", _NON_TERMINAL)
 @pytest.mark.parametrize("block_enabled", [True, False])
 @pytest.mark.parametrize("force", [True, False])
-def test_single_non_terminal_blocks_only_on_new_failures(
-    outcome: GateOutcome, block_enabled: bool, force: bool
-) -> None:
-    result = aggregate_verdicts(
-        [_verdict(outcome)], block_enabled=block_enabled, force=force
-    )
-    should_block = (
-        outcome is GateOutcome.NEW_FAILURES and block_enabled and not force
-    )
+def test_single_non_terminal_blocks_only_on_new_failures(outcome: GateOutcome, block_enabled: bool, force: bool) -> None:
+    result = aggregate_verdicts([_verdict(outcome)], block_enabled=block_enabled, force=force)
+    should_block = outcome is GateOutcome.NEW_FAILURES and block_enabled and not force
     if should_block:
         assert result.decision is AggregateDecision.BLOCK
         assert result.should_exit is True
@@ -95,13 +92,9 @@ def test_single_non_terminal_blocks_only_on_new_failures(
 @pytest.mark.parametrize("outcome", _TERMINAL)
 @pytest.mark.parametrize("block_enabled", [True, False])
 @pytest.mark.parametrize("force", [True, False])
-def test_single_terminal_is_hard_stop_regardless_of_block_or_force(
-    outcome: GateOutcome, block_enabled: bool, force: bool
-) -> None:
+def test_single_terminal_is_hard_stop_regardless_of_block_or_force(outcome: GateOutcome, block_enabled: bool, force: bool) -> None:
     verdict = _verdict(outcome)
-    result = aggregate_verdicts(
-        [verdict], block_enabled=block_enabled, force=force
-    )
+    result = aggregate_verdicts([verdict], block_enabled=block_enabled, force=force)
     assert result.decision is AggregateDecision.TERMINAL
     assert result.should_exit is True
     assert result.transition_applied is False
@@ -110,19 +103,26 @@ def test_single_terminal_is_hard_stop_regardless_of_block_or_force(
     assert len(result.warnings) == 1
 
 
+def test_scope_oversized_is_terminal_and_never_transitions() -> None:
+    """Pre-launch refusal has the same no-transition authority as interruption."""
+    verdict = _verdict(GateOutcome.SCOPE_OVERSIZED)
+    result = aggregate_verdicts([verdict], block_enabled=False, force=True)
+
+    assert result.decision is AggregateDecision.TERMINAL
+    assert result.should_exit is True
+    assert result.transition_applied is False
+    assert result.terminal_verdict is verdict
+
+
 def test_new_failures_force_bypasses_block() -> None:
-    result = aggregate_verdicts(
-        [_verdict(GateOutcome.NEW_FAILURES)], block_enabled=True, force=True
-    )
+    result = aggregate_verdicts([_verdict(GateOutcome.NEW_FAILURES)], block_enabled=True, force=True)
     assert result.decision is AggregateDecision.WARN_PROCEED
     assert result.should_exit is False
     assert result.transition_applied is True
 
 
 def test_new_failures_without_block_enabled_only_warns() -> None:
-    result = aggregate_verdicts(
-        [_verdict(GateOutcome.NEW_FAILURES)], block_enabled=False, force=False
-    )
+    result = aggregate_verdicts([_verdict(GateOutcome.NEW_FAILURES)], block_enabled=False, force=False)
     assert result.decision is AggregateDecision.WARN_PROCEED
 
 
@@ -147,9 +147,7 @@ def test_multi_terminal_beats_block() -> None:
     """A co-firing TIMED_OUT verdict wins over a NEW_FAILURES block (terminal is tier 1)."""
     timed_out = _verdict(GateOutcome.TIMED_OUT)
     new_failures = _verdict(GateOutcome.NEW_FAILURES)
-    result = aggregate_verdicts(
-        [new_failures, timed_out], block_enabled=True, force=False
-    )
+    result = aggregate_verdicts([new_failures, timed_out], block_enabled=True, force=False)
     assert result.decision is AggregateDecision.TERMINAL
     assert result.terminal_verdict is timed_out
     assert result.transition_applied is False
@@ -166,9 +164,7 @@ def test_multi_block_survives_a_faulting_sibling() -> None:
     """
     degraded = _verdict(GateOutcome.NO_COVERAGE, reason="handler raised — unverified")
     new_failures = _verdict(GateOutcome.NEW_FAILURES)
-    result = aggregate_verdicts(
-        [degraded, new_failures], block_enabled=True, force=False
-    )
+    result = aggregate_verdicts([degraded, new_failures], block_enabled=True, force=False)
     assert result.decision is AggregateDecision.BLOCK
     assert result.should_exit is True
     assert new_failures in result.blocking_verdicts
@@ -245,9 +241,7 @@ def test_fault_injected_verdict_does_not_remove_a_block() -> None:
     """NEW_FAILURES + a fault-degraded sibling still blocks (fault never lifts the block)."""
     faulting = _fail_open_verdict(RuntimeError("boom"), handler="h_bad")
     new_failures = _verdict(GateOutcome.NEW_FAILURES)
-    result = aggregate_verdicts(
-        [faulting, new_failures], block_enabled=True, force=False
-    )
+    result = aggregate_verdicts([faulting, new_failures], block_enabled=True, force=False)
     assert result.decision is AggregateDecision.BLOCK
     assert new_failures in result.blocking_verdicts
 
@@ -265,7 +259,5 @@ def test_result_type_and_should_exit_property() -> None:
     warn = aggregate_verdicts([], block_enabled=False, force=False)
     assert isinstance(warn, AggregateVerdict)
     assert warn.should_exit is False
-    blocked = aggregate_verdicts(
-        [_verdict(GateOutcome.NEW_FAILURES)], block_enabled=True, force=False
-    )
+    blocked = aggregate_verdicts([_verdict(GateOutcome.NEW_FAILURES)], block_enabled=True, force=False)
     assert blocked.should_exit is True
