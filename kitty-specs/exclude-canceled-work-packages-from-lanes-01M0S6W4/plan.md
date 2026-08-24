@@ -12,7 +12,7 @@ The first implementation commit must contain planning-base RED acceptance covera
 ## Technical Context
 
 **Language/Version**: Python 3.11+
-**Primary Dependencies**: Typer, Rich, Pydantic/dataclasses, existing status surface resolver and append-only event reader; no new runtime dependency
+**Primary Dependencies**: Typer, Rich, Python `dataclasses`, existing status surface resolver and append-only event reader; no new runtime dependency
 **Storage**: Existing `status.events.jsonl` lifecycle authority and generated `lanes.json`; no schema migration or new store
 **Testing**: pytest unit, CLI contract, integration, and regression suites; pytest-cov plus diff-cover with a 90% changed-line floor; repository `windows_ci`; off-PR pytest-benchmark; ruff and mypy on touched modules
 **Target Platform**: Cross-platform Python CLI on Linux, macOS, and Windows 10+
@@ -154,7 +154,7 @@ The CLI error code is `CANCELED_WP_DEPENDENCY`. JSON output contains a determini
 8. Pin cancellation-only behavior: `done` remains eligible, reopened work participates, no-canceled fixtures retain byte-equivalent lane membership/dependencies/collapse results, and #3431 cycle failures remain deterministic on the surviving graph.
 9. Add corrupt/missing canonical-status cases that fail closed without consulting frontmatter or prior `lanes.json`.
 10. Add a `pytest.mark.performance`/`pytest.mark.benchmark(group="cli")` 100-WP finalization test. Use `benchmark.pedantic` with 10 rounds, one iteration, and two warm-up rounds; assert measured p95 at or below 2.0 seconds on the reference runner. Run it through the existing off-PR performance workflow with `SPEC_KITTY_RUN_PERFORMANCE=1`.
-11. Run focused tests without retries, generate XML coverage for the touched agent-command modules, and enforce `diff-cover ... --fail-under=90` against the planning base. Then run ruff, strict mypy, and the relevant terminology/architecture gates.
+11. Run focused tests without retries, generate XML coverage for the touched agent-command modules, and enforce `diff-cover ... --fail-under=90` against the planning base. Then run ruff, strict mypy, `tests/architectural/test_lane_allocation_single_seam.py`, `tests/architectural/test_no_legacy_terminology.py`, and `tests/contract/test_terminology_guards.py`.
 
 ## Complexity Tracking
 

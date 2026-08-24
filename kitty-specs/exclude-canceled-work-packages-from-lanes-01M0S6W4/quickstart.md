@@ -91,11 +91,21 @@ uv run --extra test ruff check \
   src/specify_cli/cli/commands/agent/mission_finalize.py \
   tests/specify_cli/cli/commands/agent/test_finalization_eligibility.py \
   tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages.py \
-  tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages_performance.py
+  tests/specify_cli/cli/commands/agent/test_finalize_canceled_work_packages_performance.py \
+  tests/specify_cli/cli/commands/agent/test_mission_finalize_phases.py
 
 uv run --extra test mypy --strict \
   src/specify_cli/cli/commands/agent/finalization_eligibility.py \
   src/specify_cli/cli/commands/agent/mission_finalize.py
 ```
 
-Use the repository's established architecture/terminology gates at implementation closeout. The full suite belongs at the later acceptance gate.
+Run the exact architecture and terminology gates for this surface:
+
+```bash
+uv run --extra test pytest -q \
+  tests/architectural/test_lane_allocation_single_seam.py \
+  tests/architectural/test_no_legacy_terminology.py \
+  tests/contract/test_terminology_guards.py
+```
+
+The full suite belongs at the later acceptance gate.
