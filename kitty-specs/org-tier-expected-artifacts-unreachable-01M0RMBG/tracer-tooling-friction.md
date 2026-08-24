@@ -132,3 +132,47 @@ to re-verify the original repro's exact version), but recording here that a phas
 current `main` checkout should NOT expect to hit it as long as the analyzing agent emits the
 carrier per `packs/built-in/missions/mission-steps/software-dev/analyze/prompt.md` — omitting
 the carrier, not a tooling defect, is the only way `unknown` occurs on this checkout.
+
+## F5 — `ruff` absent from this checkout's hand-built `.venv` (verified first-hand)
+
+`Makefile`'s `lint` target runs `uv run ruff check src/`, but the dispatch instructions for
+this WP explicitly ban a bare `uv run` ("destroys the hand-built `.venv`"). Checked directly:
+`.venv/bin/ruff` does not exist and `.venv/bin/python -m ruff` raises `No module named ruff`,
+even though `ruff>=0.4.0` is declared in `pyproject.toml`'s `[project.optional-dependencies]
+lint` group — this checkout's `.venv` was evidently built without the `lint` extra installed.
+Sibling checkouts on this host (e.g. `../3384/.venv/bin/ruff`) do carry it, confirming this is
+a per-checkout gap, not a repo-wide one.
+
+**Workaround adopted (does not touch this checkout's `.venv`):** `uvx ruff check ...` — `uvx`
+spins up an isolated, ephemeral tool environment distinct from `uv run`'s project-environment
+sync, so it does not resync or mutate `.venv`. Confirmed: `uvx ruff@0.4.10` failed to parse
+`ruff.toml`'s `UP045` selector (too old a pinned version for this repo's current lint config);
+plain `uvx ruff` (latest) succeeded cleanly against both the TID251 gate
+(`uvx ruff check src tests --select TID251` → "All checks passed!") and the full lint target
+scoped to the touched production file (`uvx ruff check src/charter/org_expected_artifacts.py`
+→ "All checks passed!"). Ruff is advisory-only per this WP's dispatch instructions, so this
+gap was not otherwise blocking, but a future WP that treats ruff as load-bearing on this
+checkout should either fix the `.venv`'s `lint` extra (outside this WP's six-file scope) or
+use the same `uvx ruff` substitution.
+
+## F6 — `agent tasks mark-status` succeeds but does not auto-commit under the SK-72 cutover stall (verified first-hand)
+
+`SPEC_KITTY_SYNC_MINIMAL_IMPORT=1 spec-kitty agent tasks mark-status T001 T002 T003 T004 T005
+T006 --status done --mission org-tier-expected-artifacts-unreachable-01M0RMBG` printed the
+same SK-72-family warnings as F1 plus a full `LayoutCutoverIncompleteError` traceback from
+`sync/layout_generation.py:694` (`_await_publish_or_loud`), reached via
+`sync/dossier_pipeline.py:_prepare_bodies` → `sync/body_upload.py:_enqueue_artifact` →
+`sync/body_queue.py:enqueue`. Despite the traceback, the command still printed "✓ Marked 6
+subtasks as done: T001, T002, T003, T004, T005, T006" and exited — the event-sourced status
+write itself succeeded (`status.events.jsonl` gained a real entry, `status.json` and this
+mission's dossier `snapshot-latest.json` were regenerated). What did **not** happen: this
+invocation's `--auto-commit` default did not land a commit — the three files were left
+modified-but-uncommitted in the worktree afterward (mirrors F4's "record-analysis... does NOT
+always fold that file into its own auto-commit" pattern, now observed on `mark-status` too).
+**Mitigation applied:** ran `spec-kitty safe-commit` explicitly against the three touched
+state files (`snapshot-latest.json`, `status.events.jsonl`, `status.json`) with a
+`chore(mission): ...` message rather than leaving the tree dirty or hand-editing state.
+Confirms `SPEC_KITTY_SYNC_MINIMAL_IMPORT=1` is necessary-but-not-sufficient mitigation for
+SK-72 on this command family — the command completes and the state write is durable, but the
+auto-commit half of the operation can silently no-op under the same cutover stall, requiring
+an explicit follow-up `safe-commit` every time.
