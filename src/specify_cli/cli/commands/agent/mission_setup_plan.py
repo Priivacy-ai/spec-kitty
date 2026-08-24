@@ -67,6 +67,7 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     is_canonical_hosted_sync_decision,
     serialize_hosted_sync_diagnostics,
 )
+from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
     _build_setup_plan_detection_error,
@@ -233,7 +234,11 @@ def _collect_hosted_sync_decision(repo_root: Path) -> HostedSyncDecision:
     if not requested:
         return decide_hosted_sync(requested=False)
 
-    assessment = acquire_session_assessment(repo_root)
+    try:
+        assessment = acquire_session_assessment(repo_root)
+    except Exception:  # noqa: BLE001 - one failed adapter must not erase peers
+        logger.debug("Hosted setup-plan authentication assessment failed", exc_info=True)
+        assessment = SessionAssessment(False, None, "auth_evaluation_failed")
     boundary = evaluate_boundary(repo_root)
     route_available, route_reason = evaluate_route_availability(repo_root)
     return decide_hosted_sync(
@@ -309,6 +314,42 @@ def _execute_setup_plan_hosted_effects(
             dossier_intent.mission_slug,
             dossier_intent.repo_root,
         )
+
+
+def _finalize_setup_plan_outcome(
+    outcome: SetupPlanLocalOutcome,
+    *,
+    repo_root: Path,
+    json_output: bool,
+    human_message: str | None,
+    lifecycle_intents: tuple[LifecycleEventIntent, ...] = (),
+    dossier_intent: DossierSyncIntent | None = None,
+) -> None:
+    """Report a frozen local outcome after additive hosted assessment.
+
+    This is the sole post-context finalization seam. Hosted adapters run only
+    after the complete local payload and exit code exist, and neither adapter
+    failures nor hosted-effect failures can replace that authoritative result.
+    """
+    try:
+        hosted_decision = _collect_hosted_sync_decision(repo_root)
+    except Exception:  # noqa: BLE001 - frozen local outcome is authoritative
+        logger.debug("Hosted setup-plan assessment failed closed", exc_info=True)
+        hosted_decision = decide_hosted_sync(requested=True)
+    try:
+        _execute_setup_plan_hosted_effects(
+            hosted_decision,
+            lifecycle_intents=lifecycle_intents,
+            dossier_intent=dossier_intent,
+        )
+    except Exception:  # noqa: BLE001 - hosted delivery cannot replace local result
+        logger.debug("Hosted setup-plan effects failed after local completion", exc_info=True)
+    _report_setup_plan_outcome(
+        outcome,
+        diagnostics=hosted_decision.diagnostics,
+        json_output=json_output,
+        human_message=human_message,
+    )
 
 
 # write-surface-coherence WP02 (T007): the ``artifact_type`` → canonical
@@ -548,14 +589,56 @@ def _enforce_spec_gate(
     the blocked payload as a side effect. Returns ``False`` when the spec passes.
     Raises ``typer.Exit(1)`` when the spec file is entirely missing.
     """
+    outcome, human_message = _evaluate_spec_gate(
+        spec_file,
+        feature_dir,
+        mission_slug,
+        repo_root,
+        target_branch=target_branch,
+        current_branch=current_branch,
+        match_target_branch=match_target_branch,
+    )
+    if outcome is None:
+        return False
+    _report_setup_plan_outcome(
+        outcome,
+        diagnostics=diagnostics,
+        json_output=json_output,
+        human_message=human_message,
+    )
+    if outcome.exit_code:
+        raise typer.Exit(outcome.exit_code)
+    return True
+
+
+def _evaluate_spec_gate(
+    spec_file: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    repo_root: Path,
+    *,
+    target_branch: str,
+    current_branch: str,
+    match_target_branch: str | None = None,
+) -> tuple[SetupPlanLocalOutcome | None, str | None]:
+    """Build, but do not report, the authoritative local spec-gate result."""
     if not spec_file.exists():
-        _emit_spec_missing(
-            spec_file,
-            feature_dir,
-            mission_slug,
-            json_output=json_output,
-            diagnostics=diagnostics,
+        payload: dict[str, object] = {
+            "error_code": "SPEC_FILE_MISSING",
+            "error": f"Required spec not found for mission '{mission_slug}': {spec_file.resolve()}",
+            "mission_slug": mission_slug,
+            "feature_dir": str(feature_dir.resolve()),
+            "spec_file": str(spec_file.resolve()),
+            "remediation": [
+                f"Restore the missing spec file at {spec_file.resolve()}",
+                f"Or select another mission explicitly: {SETUP_PLAN_COMMAND_NAME} --mission <mission-slug> --json",
+            ],
+        }
+        message = "\n".join(
+            [f"[red]Error:[/red] {payload['error']}"]
+            + [f"  - {step}" for step in cast(list[str], payload["remediation"])]
         )
+        return SetupPlanLocalOutcome(payload, 1, "error"), message
 
     # FR-011: single read-surface commit check. ``spec_file`` is the
     # READ-resolved surface — since gate-read-surface-completion WP02 it is
@@ -572,7 +655,7 @@ def _enforce_spec_gate(
     spec_is_committed = is_committed(spec_file, repo_root, diagnostics=_commit_diagnostics)
     spec_is_substantive = is_substantive(spec_file, "spec")
     if spec_is_committed and spec_is_substantive:
-        return False
+        return None, None
 
     blocked_reason = (
         "spec.md must be committed AND substantive before setup-plan can run. "
@@ -597,13 +680,13 @@ def _enforce_spec_gate(
         current_branch=current_branch,
         match_target_branch=match_target_branch,
     )
-    _report_setup_plan_outcome(
+    return (
         SetupPlanLocalOutcome(rendered_payload, 0, "blocked"),
-        diagnostics=diagnostics,
-        json_output=json_output,
-        human_message=f"[yellow]Blocked:[/yellow] {blocked_reason}",
+        f"[yellow]Blocked:[/yellow] {blocked_reason}",
     )
-    return True
+
+
+_PRODUCTION_ENFORCE_SPEC_GATE = _enforce_spec_gate
 
 
 def _resolve_plan_template(repo_root: Path, feature_dir: Path) -> ResolutionResult:
@@ -1151,6 +1234,9 @@ def setup_plan(
     # ``_commit_to_branch``).
     from specify_cli.cli.commands.agent import mission as _mission
 
+    repo_root: Path | None = None
+    mission_context_ready = False
+
     try:
 
         repo_root = _mission.locate_project_root()
@@ -1174,6 +1260,7 @@ def setup_plan(
         )
         mission_slug = feature_dir.name
         _, target_branch = _mission._show_branch_context(repo_root, mission_slug, json_output)
+        mission_context_ready = True
 
         # gate-read-surface-completion WP02 / FR-001 / #2107 (out-of-map edit —
         # WP01 owns ``mission.py``; rationale: re-point ``setup_plan``'s PLANNING
@@ -1216,7 +1303,27 @@ def setup_plan(
             get_current_branch=_mission.get_current_branch,
         )
 
-        if _enforce_spec_gate(
+        if _enforce_spec_gate is _PRODUCTION_ENFORCE_SPEC_GATE:
+            gate_outcome, gate_message = _evaluate_spec_gate(
+                spec_file,
+                feature_dir,
+                mission_slug,
+                repo_root,
+                target_branch=target_branch,
+                current_branch=current_branch,
+                match_target_branch=match_target_branch,
+            )
+            if gate_outcome is not None:
+                _finalize_setup_plan_outcome(
+                    gate_outcome,
+                    repo_root=repo_root,
+                    json_output=json_output,
+                    human_message=gate_message,
+                )
+                if gate_outcome.exit_code:
+                    raise typer.Exit(gate_outcome.exit_code)
+                return
+        elif _enforce_spec_gate(
             spec_file,
             feature_dir,
             mission_slug,
@@ -1226,6 +1333,9 @@ def setup_plan(
             match_target_branch=match_target_branch,
             json_output=json_output,
         ):
+            # Preserve the long-standing mission-module patch seam used by
+            # focused callers; the production implementation takes the frozen
+            # outcome path above.
             return
 
         try:
@@ -1276,27 +1386,13 @@ def setup_plan(
             plan_scaffold_only=plan_scaffold_only,
         )
 
-        # The local workflow is now complete and its payload/exit are frozen.
-        # Only now may hosted evidence be acquired.  No adapter participates in
-        # determining the primary result.
-        try:
-            hosted_decision = _collect_hosted_sync_decision(repo_root)
-        except Exception:  # noqa: BLE001 - local outcome is already authoritative
-            logger.debug("Hosted setup-plan assessment failed closed", exc_info=True)
-            hosted_decision = decide_hosted_sync(requested=True)
-        try:
-            _execute_setup_plan_hosted_effects(
-                hosted_decision,
-                lifecycle_intents=tuple(lifecycle_intents),
-                dossier_intent=DossierSyncIntent(feature_dir, mission_slug, repo_root),
-            )
-        except Exception:  # noqa: BLE001 - hosted delivery cannot replace local result
-            logger.debug("Hosted setup-plan effects failed after local completion", exc_info=True)
-        _report_setup_plan_outcome(
+        _finalize_setup_plan_outcome(
             local_outcome,
-            diagnostics=hosted_decision.diagnostics,
+            repo_root=repo_root,
             json_output=json_output,
             human_message=f"[green]✓[/green] Plan scaffolded: {plan_file}",
+            lifecycle_intents=tuple(lifecycle_intents),
+            dossier_intent=DossierSyncIntent(feature_dir, mission_slug, repo_root),
         )
 
     except typer.Exit:
@@ -1312,17 +1408,35 @@ def setup_plan(
         }
         if e.mapped_filename is not None:
             payload["mapped_filename"] = e.mapped_filename
-        _report_setup_plan_outcome(
-            SetupPlanLocalOutcome(payload, 1, "error"),
-            json_output=json_output,
-            human_message=f"[red]Error:[/red] {e}",
-        )
+        outcome = SetupPlanLocalOutcome(payload, 1, "error")
+        if mission_context_ready and repo_root is not None:
+            _finalize_setup_plan_outcome(
+                outcome,
+                repo_root=repo_root,
+                json_output=json_output,
+                human_message=f"[red]Error:[/red] {e}",
+            )
+        else:
+            _report_setup_plan_outcome(
+                outcome,
+                json_output=json_output,
+                human_message=f"[red]Error:[/red] {e}",
+            )
         raise typer.Exit(1) from None
     except Exception as e:
         payload = {"error": str(e)}
-        _report_setup_plan_outcome(
-            SetupPlanLocalOutcome(payload, 1, "error"),
-            json_output=json_output,
-            human_message=f"[red]Error:[/red] {e}",
-        )
+        outcome = SetupPlanLocalOutcome(payload, 1, "error")
+        if mission_context_ready and repo_root is not None:
+            _finalize_setup_plan_outcome(
+                outcome,
+                repo_root=repo_root,
+                json_output=json_output,
+                human_message=f"[red]Error:[/red] {e}",
+            )
+        else:
+            _report_setup_plan_outcome(
+                outcome,
+                json_output=json_output,
+                human_message=f"[red]Error:[/red] {e}",
+            )
         raise typer.Exit(1) from None

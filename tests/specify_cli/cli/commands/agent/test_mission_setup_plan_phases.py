@@ -459,8 +459,9 @@ def _patch_readiness_variant(
     mp.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     if variant == "auth_exception":
         mp.setattr(
-            "specify_cli.readiness.auth.probe_auth_status",
-            lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("auth sentinel")),
+            seam,
+            "acquire_session_assessment",
+            lambda _root: (_ for _ in ()).throw(RuntimeError("auth sentinel")),
         )
     else:
         assessment = (
@@ -711,6 +712,20 @@ def test_real_setup_plan_preserves_full_local_matrix_across_readiness(
         primary = {key: value for key, value in actual.items() if key != "warnings"}
         assert primary == baseline, (case_name, variant, wire)
         assert actual_exit == baseline_exit, (case_name, variant)
+        warning_codes = [
+            warning["code"]
+            for warning in cast(list[dict[str, object]], actual.get("warnings", []))
+        ]
+        if case_name in {"context_resolution", "git_preflight"} or variant == "usable":
+            assert warning_codes == []
+        elif variant == "logged_out":
+            assert warning_codes == ["SAAS_SYNC_UNAUTHENTICATED"]
+        elif variant == "auth_exception":
+            assert warning_codes == ["SAAS_SYNC_AUTH_UNKNOWN"]
+        elif variant in {"boundary_unsafe", "boundary_exception"}:
+            assert warning_codes == ["SAAS_SYNC_BOUNDARY_UNSAFE"]
+        else:
+            assert warning_codes == ["SAAS_SYNC_ROUTE_UNAVAILABLE"]
 
 
 def _normalize_golden_root(value: object, root: Path) -> object:
@@ -821,6 +836,50 @@ def test_real_setup_plan_freezes_local_outcome_before_hostile_hosted_assessment(
     assert payload["phase_complete"] is True
     assert "hostile-hosted-assessment" not in wire
     assert [warning["code"] for warning in cast(list[dict[str, object]], payload["warnings"])] == [
+        "SAAS_SYNC_AUTH_UNKNOWN",
+        "SAAS_SYNC_BOUNDARY_UNSAFE",
+        "SAAS_SYNC_ROUTE_UNAVAILABLE",
+    ]
+
+
+@pytest.mark.parametrize(
+    "case_name",
+    ("missing_spec", "template_configuration", "generic_local_exception"),
+)
+def test_real_setup_plan_local_errors_survive_hostile_hosted_assessment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    case_name: str,
+) -> None:
+    """Post-context local errors retain payload/exit and leak no adapter data."""
+    sink_calls: list[str] = []
+    with monkeypatch.context() as mp:
+        baseline, baseline_exit, _ = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES[case_name],
+            None,
+        )
+
+    def _hostile_assessment(_root: Path) -> HostedSyncDecision:
+        raise RuntimeError("token=local-error-secret ciphertext=/private/auth.session")
+
+    with monkeypatch.context() as mp:
+        mp.setattr(seam, "_collect_hosted_sync_decision", _hostile_assessment)
+        actual, actual_exit, wire = _invoke_matrix_case(
+            mp,
+            tmp_path,
+            _LOCAL_OUTCOME_CASES[case_name],
+            "logged_out",
+            refused_sink_calls=sink_calls,
+        )
+
+    assert {key: value for key, value in actual.items() if key != "warnings"} == baseline
+    assert actual_exit == baseline_exit == 1
+    assert "local-error-secret" not in wire
+    assert "/private/auth.session" not in wire
+    assert sink_calls == []
+    assert [warning["code"] for warning in cast(list[dict[str, object]], actual["warnings"])] == [
         "SAAS_SYNC_AUTH_UNKNOWN",
         "SAAS_SYNC_BOUNDARY_UNSAFE",
         "SAAS_SYNC_ROUTE_UNAVAILABLE",
