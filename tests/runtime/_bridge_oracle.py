@@ -339,8 +339,14 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
     real_cli = bridge_module._check_cli_guards
     real_composed = bridge_module._check_composed_action_guard
 
-    def _cli_spy(step_id: str, feature_dir: Path) -> list[str]:
-        result: list[str] = list(real_cli(step_id, feature_dir))
+    def _cli_spy(step_id: str, feature_dir: Path, repo_root: Path | None = None) -> list[str]:
+        # ``repo_root`` (#3704 WP03) is a pure pass-through here -- this is
+        # a call-through spy (never a stub); the real guard logic decides
+        # everything. Not recorded on ``GuardCall`` -- no existing consumer
+        # of this oracle asserts on it, and AC-8's repo_root-threading claim
+        # is pinned directly in tests/runtime/next/test_cli_guard_family.py
+        # instead, closer to the call sites it's about.
+        result: list[str] = list(real_cli(step_id, feature_dir, repo_root=repo_root))
         calls.append(GuardCall("cli", step_id, None, None, list(result)))
         return result
 
@@ -350,9 +356,16 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
         *,
         mission: str = "software-dev",
         legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
     ) -> list[str]:
         result: list[str] = list(
-            real_composed(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id)
+            real_composed(
+                action,
+                feature_dir,
+                mission=mission,
+                legacy_step_id=legacy_step_id,
+                repo_root=repo_root,
+            )
         )
         calls.append(GuardCall("composed", action, mission, legacy_step_id, list(result)))
         return result
