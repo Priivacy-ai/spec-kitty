@@ -38,10 +38,10 @@
       "criterion_id": "FR-004",
       "description": "Active dependencies on canceled work packages fail before publication.",
       "proof_type": "automated_test",
-      "evidence": "Human and JSON stale active dependency tests pass with pre-writer refusal spies",
+      "evidence": "53ebfc3f4; eligible-to-canceled direct-cut command tests reject before every writer",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:14:59.240978+00:00",
+      "verified_at": "2026-08-24T12:01:59.253723+00:00",
       "notes": "Pass when every active-to-canceled direct dependency rejects finalization before lane-manifest writers run."
     },
     {
