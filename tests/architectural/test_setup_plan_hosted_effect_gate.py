@@ -56,6 +56,16 @@ class _Edge:
     lineno: int
 
 
+@dataclass(frozen=True)
+class _SinkUse:
+    """One selection or escape of a physical hosted callable."""
+
+    sink: str
+    kind: str
+    function: str | None
+    lineno: int
+
+
 def _qualified_name(node: ast.AST) -> str | None:
     if isinstance(node, ast.Name):
         return node.id
@@ -71,26 +81,14 @@ def _forbidden_edges(source: str) -> list[_Edge]:
     edges: list[_Edge] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module in HOSTED_MODULES:
-            edges.extend(
-                _Edge("import", f"{node.module}.{item.name}", node.lineno)
-                for item in node.names
-                if item.name in HOSTED_NAMES or item.name == "*"
-            )
+            edges.extend(_Edge("import", f"{node.module}.{item.name}", node.lineno) for item in node.names if item.name in HOSTED_NAMES or item.name == "*")
         elif isinstance(node, ast.Import):
-            edges.extend(
-                _Edge("import", item.name, node.lineno)
-                for item in node.names
-                if item.name in HOSTED_MODULES
-            )
+            edges.extend(_Edge("import", item.name, node.lineno) for item in node.names if item.name in HOSTED_MODULES)
         elif isinstance(node, ast.Name) and node.id in HOSTED_NAMES:
             edges.append(_Edge("name", node.id, node.lineno))
         elif isinstance(node, ast.Attribute) and node.attr in HOSTED_NAMES:
             edges.append(_Edge("name", node.attr, node.lineno))
-        elif (
-            isinstance(node, ast.Constant)
-            and isinstance(node.value, str)
-            and node.value in HOSTED_MODULES
-        ):
+        elif isinstance(node, ast.Constant) and isinstance(node.value, str) and node.value in HOSTED_MODULES:
             edges.append(_Edge("dynamic-import", node.value, node.lineno))
     return sorted(set(edges), key=lambda item: (item.lineno, item.kind, item.value))
 
@@ -101,23 +99,114 @@ def _setup_plan_production_files() -> tuple[Path, ...]:
 
 def _functions(source: str) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
     tree = ast.parse(source)
-    return {
-        node.name: node
-        for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-    }
+    return {node.name: node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+
+def _parent_map(tree: ast.AST) -> dict[ast.AST, ast.AST]:
+    return {child: parent for parent in ast.walk(tree) for child in ast.iter_child_nodes(parent)}
+
+
+def _enclosing_function(
+    node: ast.AST,
+    parents: dict[ast.AST, ast.AST],
+) -> ast.FunctionDef | ast.AsyncFunctionDef | None:
+    current = parents.get(node)
+    while current is not None:
+        if isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            return current
+        current = parents.get(current)
+    return None
+
+
+def _outer_attribute(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.AST:
+    current = node
+    while isinstance(parents.get(current), ast.Attribute):
+        current = parents[current]
+    return current
+
+
+def _physical_sink_census(source: str) -> tuple[list[_SinkUse], list[_Edge]]:
+    """Census every hosted binding selection, including pre-call escapes.
+
+    This deliberately does not try to predict every eventual Python call shape.
+    Instead it follows the capability: a physical sink binding may only be
+    selected as the immediate callee.  Assignment, return, containers,
+    ``partial``, and reflection all first *load* or dynamically import that
+    capability and are rejected before alias propagation becomes relevant.
+    """
+    tree = ast.parse(source)
+    parents = _parent_map(tree)
+    sink_bindings: dict[str, str] = {}
+    module_bindings: dict[str, str] = {}
+    violations: list[_Edge] = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module in HOSTED_MODULES:
+            for item in node.names:
+                if item.name == "*":
+                    violations.append(_Edge("star-import", node.module, node.lineno))
+                elif item.name in HOSTED_NAMES:
+                    sink_bindings[item.asname or item.name] = item.name
+        elif isinstance(node, ast.Import):
+            for item in node.names:
+                if item.name in HOSTED_MODULES:
+                    # An unaliased dotted import binds its top-level package.
+                    module_bindings[item.asname or item.name.split(".", 1)[0]] = item.name
+        elif (
+            isinstance(node, ast.Call)
+            and _qualified_name(node.func) in {"__import__", "importlib.import_module"}
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value in HOSTED_MODULES
+        ):
+            violations.append(_Edge("dynamic-import", str(node.args[0].value), node.lineno))
+
+    uses: list[_SinkUse] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Name) or not isinstance(node.ctx, ast.Load):
+            continue
+        function = _enclosing_function(node, parents)
+        function_name = function.name if function is not None else None
+        parent = parents.get(node)
+
+        if node.id in sink_bindings:
+            immediate_call = isinstance(parent, ast.Call) and parent.func is node
+            uses.append(
+                _SinkUse(
+                    sink=sink_bindings[node.id],
+                    kind="direct-call" if immediate_call else "escape",
+                    function=function_name,
+                    lineno=node.lineno,
+                )
+            )
+            continue
+
+        if node.id not in module_bindings:
+            continue
+        outer = _outer_attribute(node, parents)
+        outer_parent = parents.get(outer)
+        sink = outer.attr if isinstance(outer, ast.Attribute) else module_bindings[node.id]
+        immediate_call = isinstance(outer, ast.Attribute) and sink in HOSTED_NAMES and isinstance(outer_parent, ast.Call) and outer_parent.func is outer
+        uses.append(
+            _SinkUse(
+                sink=sink,
+                kind="direct-call" if immediate_call else "escape",
+                function=function_name,
+                lineno=node.lineno,
+            )
+        )
+
+    return (
+        sorted(uses, key=lambda item: (item.lineno, item.sink, item.kind)),
+        sorted(set(violations), key=lambda item: (item.lineno, item.kind, item.value)),
+    )
 
 
 def _first_executable_statement(
     function: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> ast.stmt:
     statements = function.body
-    if (
-        statements
-        and isinstance(statements[0], ast.Expr)
-        and isinstance(statements[0].value, ast.Constant)
-        and isinstance(statements[0].value.value, str)
-    ):
+    if statements and isinstance(statements[0], ast.Expr) and isinstance(statements[0].value, ast.Constant) and isinstance(statements[0].value.value, str):
         statements = statements[1:]
     assert statements, f"{function.name} has no executable body"
     return statements[0]
@@ -143,14 +232,18 @@ def _has_terminal_identity_guard(
     )
 
 
-def _direct_sink_names(function: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
-    return {
-        name
-        for node in ast.walk(function)
-        if isinstance(node, ast.Call)
-        and (name := (_qualified_name(node.func) or "").rsplit(".", 1)[-1])
-        in HOSTED_NAMES
-    }
+def _boundary_violations(source: str) -> list[_Edge]:
+    """Return unguarded selections and all sink capability escapes."""
+    functions = _functions(source)
+    uses, violations = _physical_sink_census(source)
+    for use in uses:
+        if use.kind != "direct-call":
+            violations.append(_Edge("sink-escape", use.sink, use.lineno))
+            continue
+        function = functions.get(use.function or "")
+        if function is None or not _has_terminal_identity_guard(function):
+            violations.append(_Edge("unguarded-sink", use.sink, use.lineno))
+    return sorted(set(violations), key=lambda item: (item.lineno, item.kind, item.value))
 
 
 def test_setup_plan_physical_sinks_are_isolated_to_one_module() -> None:
@@ -168,39 +261,30 @@ def test_setup_plan_physical_sinks_are_isolated_to_one_module() -> None:
 
 def test_command_imports_only_the_narrow_executor_from_boundary() -> None:
     tree = ast.parse(CALLER.read_text(encoding="utf-8"))
-    imports = [
-        item.name
-        for node in ast.walk(tree)
-        if isinstance(node, ast.ImportFrom) and node.module == BOUNDARY_MODULE
-        for item in node.names
-    ]
+    imports = [item.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module == BOUNDARY_MODULE for item in node.names]
     assert imports == [EXECUTOR]
 
     functions = _functions(CALLER.read_text(encoding="utf-8"))
     finalizer = functions["_finalize_setup_plan_outcome"]
     executor_calls = [
-        node
-        for node in ast.walk(finalizer)
-        if isinstance(node, ast.Call)
-        and (_qualified_name(node.func) or "").rsplit(".", 1)[-1]
-        in {EXECUTOR, f"_{EXECUTOR}"}
+        node for node in ast.walk(finalizer) if isinstance(node, ast.Call) and (_qualified_name(node.func) or "").rsplit(".", 1)[-1] in {EXECUTOR, f"_{EXECUTOR}"}
     ]
     assert len(executor_calls) == 1
 
 
 def test_every_physical_sink_is_locally_dominated_by_identity_guard() -> None:
     source = BOUNDARY.read_text(encoding="utf-8")
-    functions = _functions(source)
-    sink_owners = {
-        name: sinks
-        for name, function in functions.items()
-        if (sinks := _direct_sink_names(function))
-    }
+    uses, census_violations = _physical_sink_census(source)
+    sink_owners: dict[str, set[str]] = {}
+    for use in uses:
+        if use.function is not None:
+            sink_owners.setdefault(use.function, set()).add(use.sink)
+    assert census_violations == []
     assert sink_owners == {
         "_trigger_dossier_sync": {"trigger_feature_dossier_sync_if_enabled"},
         EXECUTOR: {"fanout_lifecycle_event_hosted"},
     }
-    assert all(_has_terminal_identity_guard(functions[name]) for name in sink_owners)
+    assert _boundary_violations(source) == []
 
 
 @pytest.mark.parametrize(
@@ -238,17 +322,65 @@ def harmless(callbacks, key):
 
 
 def test_missing_or_late_identity_guard_fails_dominance_oracle() -> None:
-    missing = ast.parse(
-        "def execute(decision):\n"
-        "    fanout_lifecycle_event_hosted({})\n"
-    ).body[0]
+    missing = ast.parse("def execute(decision):\n    fanout_lifecycle_event_hosted({})\n").body[0]
     late = ast.parse(
-        "def execute(decision):\n"
-        "    fanout_lifecycle_event_hosted({})\n"
-        "    if not is_canonical_hosted_sync_decision(decision):\n"
-        "        return\n"
+        "def execute(decision):\n    fanout_lifecycle_event_hosted({})\n    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
     ).body[0]
     assert isinstance(missing, ast.FunctionDef)
     assert isinstance(late, ast.FunctionDef)
     assert not _has_terminal_identity_guard(missing)
     assert not _has_terminal_identity_guard(late)
+
+
+@pytest.mark.parametrize(
+    ("expected_kind", "mutation"),
+    [
+        (
+            "unguarded-sink",
+            "\ndef hostile(decision):\n    fanout_lifecycle_event_hosted({})\n",
+        ),
+        (
+            "sink-escape",
+            "\ndef hostile(decision):\n"
+            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    emit = fanout_lifecycle_event_hosted\n    emit({})\n",
+        ),
+        (
+            "sink-escape",
+            "\ndef hostile(decision):\n"
+            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    handlers = [fanout_lifecycle_event_hosted]\n    handlers[0]({})\n",
+        ),
+        (
+            "sink-escape",
+            "\nfrom functools import partial\n"
+            "def hostile(decision):\n"
+            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    emit = partial(fanout_lifecycle_event_hosted, {})\n    emit()\n",
+        ),
+        (
+            "sink-escape",
+            "\ndef hostile(decision):\n    if not is_canonical_hosted_sync_decision(decision):\n        return\n    return fanout_lifecycle_event_hosted\n",
+        ),
+        (
+            "dynamic-import",
+            "\ndef hostile(decision, name):\n"
+            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    module = __import__('specify_cli.sync.events', fromlist=['*'])\n"
+            "    getattr(module, name)({})\n",
+        ),
+        (
+            "sink-escape",
+            "\nimport specify_cli.auth.transport as hostile_transport\n"
+            "def hostile(decision, name):\n"
+            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    vars(hostile_transport).get(name)()\n",
+        ),
+    ],
+)
+def test_boundary_census_rejects_hostile_internal_mutations(
+    expected_kind: str,
+    mutation: str,
+) -> None:
+    source = BOUNDARY.read_text(encoding="utf-8") + mutation
+    assert expected_kind in {finding.kind for finding in _boundary_violations(source)}
