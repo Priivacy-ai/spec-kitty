@@ -45,23 +45,22 @@ policy_source:
   permissions.apply_structural_changes: <default>
   precedence: <default>
   generator: <default>
-findings_status: has_findings
-helped: []
-not_helpful:
-- id: n-004
+findings_status: no_findings
+helped:
+- id: h-001
   category: doc
-  summary: analysis-report.md present with findings
+  summary: Final analysis reported zero findings
   evidence_refs:
   - e-010
-  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
-    issues and decisions.
+  details: The final analysis-report.md verdict is pass with zero findings after the documented remediation iterations.
+not_helpful:
 - id: n-003
   category: implementation
-  summary: WP01 needed 2 implementation cycles
+  summary: WP01 needed follow-up after a documented review rejection
   evidence_refs:
+  - e-007
   - e-009
-  details: WP WP01 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
-    documented review rejection; the WP scope or contract may need refinement.
+  details: WP01 entered in_progress twice because the recorded review rejection required a remediation cycle; the rejection and rework are both present in canonical lifecycle history.
 - id: n-002
   category: process
   summary: WP01 required 1 --force override(s) during workflow

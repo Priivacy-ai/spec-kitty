@@ -2,7 +2,7 @@
 
 **Mission Branch**: `fix/exclude-canceled-work-packages-from-lanes`  
 **Created**: 2026-08-24  
-**Status**: Ready for Implementation
+**Status**: Accepted
 
 **Audience**: Agentic framework core team  
 **Source**: [GitHub issue #3432](https://github.com/Priivacy-ai/spec-kitty/issues/3432)  
