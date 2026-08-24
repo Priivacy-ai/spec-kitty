@@ -25,11 +25,12 @@ past. This is the SK-63/SK-65/SK-70 warning-signature family in SPEC-KITTY-LEDGE
 `event journal capture failed: project sync store is locked` /
 `Explicit-context event capture failed: machine layout cutover did not publish within the
 bounded wait` text, same command shape `spec-kitty plan --mission <slug> --json`), adjacent to
-issue #3283's shared-lock-timeout class. Specifically, this occurrence matches SK-63/SK-65's
-milder variant — warned but completed, JSON payload returned, `"result": "success"` — not
-SK-70's full hang (partial state written, no JSON, no exit). Not re-diagnosed further here
-since it did not block this mission's work; see the ledger entries for the tracked root cause
-and recommended fix.
+issue #3283's shared-lock-timeout class. Specifically, this occurrence matches SK-65's
+milder variant — warned, stalled, then completed, JSON payload returned, `"result": "success"`
+— not SK-70's full hang (partial state written, no JSON, no exit) nor SK-63's more severe
+non-completing sibling (prints its success JSON but then never exits or commits at all). Not
+re-diagnosed further here since it did not block this mission's work; see the ledger entries
+for the tracked root cause and recommended fix.
 
 2026-08-24 — The mission brief's blast-radius list named `doctrine/missions/step_projection.py`
 alongside the actually-edited files. Reading it in full (rather than assuming it needed an edit

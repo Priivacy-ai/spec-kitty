@@ -387,7 +387,7 @@ uv run pytest tests/specify_cli/next/test_runtime_bridge_composition.py -v
 
 **Coverage budget note**: every WP above touches `src/runtime/next/*`, which the `diff-coverage`
 job's enforced 90% diff-coverage floor covers (see "Gate set for this mission" § "Coverage-floored
-shards" below) — running the tests above is necessary but not sufficient; each WP's new/changed
+shards" above) — running the tests above is necessary but not sufficient; each WP's new/changed
 lines in those files need ≥90% coverage from that run, not just a passing exit code.
 
 ## Baseline
