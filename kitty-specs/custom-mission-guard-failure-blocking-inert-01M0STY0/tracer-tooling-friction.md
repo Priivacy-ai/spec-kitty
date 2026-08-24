@@ -93,3 +93,30 @@ here and in the tasks-authoring session's final report to the orchestrator as a 
 `finalize-tasks`'s `planning_base_branch` bootstrap needs a stacked-mission-aware mode (or an
 explicit override flag) before this class of stacked mission can trust its own frontmatter
 output.
+
+2026-08-24 (analyze phase) — `timeout 90 .venv/bin/spec-kitty agent mission record-analysis
+--mission custom-mission-guard-failure-blocking-inert-01M0STY0 --input-file - --json` hit ledger
+SK-93 (the dossier body-upload write-authority path) on the analyze phase's own persistence
+command. The command was killed by the `timeout 90` wrapper — **exit 124** — and **no `--json`
+payload was ever printed**: none of the usual `{"success": true, "result": "success", ...}` line
+reached stdout before the kill. Stderr carried the SK-93/SK-65 warning signature exactly:
+`event journal capture failed: project sync store is locked`, `Event routing failed: project sync
+store is locked`, `Event did not durably queue; dropping from publication`, and
+`Explicit-context event capture failed: machine layout cutover did not publish within the bounded
+wait`.
+
+Per SK-93's own guidance ("the only reliable check is `git status` plus the command's own printed
+result line") — the printed result line was unavailable here, since the kill happened before it
+ever printed — the persisted state was verified independently instead of trusting the hang or the
+exit code: `git log --oneline -- kitty-specs/custom-mission-guard-failure-blocking-inert-01M0STY0/analysis-report.md`
+showed a real commit (`23191cd0c`, "Add analysis report for mission
+custom-mission-guard-failure-blocking-inert-01M0STY0"), `git status --porcelain -uno` was clean,
+and the committed file's frontmatter read `verdict: ready` with `findings: []` and all
+`issue_counts` at zero — exactly matching what was intended. **Nothing was hand-edited** to work
+around the hang; the underlying write-then-commit had already landed before the sync/telemetry
+layer stalled, and only the CLI's own `--json` echo was lost with the killed process. This
+occurrence's shape (raised nothing to stdout, hung, exit 124, but real state already committed)
+most closely matches SK-93's logged shape #4 (`agent action implement WP03`: new lock warning,
+then silent hang, `EXIT: 124`) — same exit code, same "work landed before the stall" outcome —
+now also confirmed on `record-analysis` specifically, which SK-93's own log did not previously
+include as one of its four observed call sites.
