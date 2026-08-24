@@ -13,3 +13,23 @@ Re-verified every line number and code citation spec.md makes against the live c
 Traced the exact fix shape by reading `resolve_layered_mission_types`'s body line by line: it already receives `pack_context` as a required parameter (pre-existing, not something this mission adds), but its three internal `scan_mission_types_dir(...)` calls (built-in-equivalent layer, org layer, project layer) never forward it — that omission, not a missing top-level parameter, is the actual root cause once you trace one level deeper than the issue's own framing. This matters for tasks-phase decomposition: the fix is "add a parameter to three functions AND fix three call-site omissions inside a fourth (already-parameterized) function's body," not simply "add a parameter to four functions."
 
 Verified the CI gate set directly against `.github/workflows/ci-quality.yml` and its reusable sub-workflows (`module-kernel.yml`, `module-doctrine-fast.yml`) rather than accepting the mission brief's framing at face value. Found and corrected one imprecision: the brief's "mission-loader coverage floor is a REAL gate here" claim conflates the literally-named `mission-loader-coverage` CI job (scoped to `src/specify_cli/mission_loader`, unrelated to this mission) with the actually-applicable gate, `diff-coverage (critical-path, enforced)` (`ci-quality.yml:3280-3383`), whose `--include` list contains `src/doctrine/*` and therefore genuinely binds this mission's changed lines to a 90% floor. Also verified `.markdownlint-cli2.jsonc`'s `ignores` array includes `kitty-specs/**` directly (so the markdown-lint gate is provably inert for this mission's diff, not just "probably fine"), and verified the `sonarcloud` job's own `if:` condition (`ci-quality.yml:3502`) has no `pull_request` branch, confirming the memory note that Sonar does not run on PRs here. All three corrections/confirmations are recorded in `plan.md`'s "The gate set" section with their exact line-number citations.
+
+## WP01 implementation phase (2026-08-24) — T001 baseline capture
+
+Per WP01's T001, before touching any production code (and before writing any new test),
+ran exactly the WP's mandated baseline command against the unmodified base commit
+(`a2527c314`, HEAD at WP01 start):
+
+```
+$ .venv/bin/python -m pytest tests/doctrine/missions/test_mission_type_repository.py tests/runtime/test_runtime_seam.py -q -p no:cacheprovider
+......................................................................   [100%]
+70 passed in 0.72s
+```
+
+Zero red, zero errors. This matches the orchestrator's own preflight run recorded in the WP
+prompt verbatim (`70 passed in 34.13s` there vs. `70 passed in 0.72s` here — timing differs by
+run environment/warm cache, counts and outcome are identical). No red test ids to cross-check
+against `gh issue view 3284` — both target files are 100% green at this baseline, so the
+~23 known-red/2-error baseline on `main` (issue #3284) is confirmed elsewhere in the suite, not
+in these two files, and T001's cross-check step is a no-op by construction (nothing red to
+triage). Proceeding to T002 (red-first test) on this confirmed-clean baseline.
