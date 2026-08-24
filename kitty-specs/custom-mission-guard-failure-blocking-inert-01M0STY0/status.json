@@ -1,7 +1,7 @@
 {
-  "event_count": 3,
-  "last_event_id": "01M0T0YABC4RFKA0GYBM1D1HRY",
-  "materialized_at": "2026-08-24T13:56:44.013026+00:00",
+  "event_count": 4,
+  "last_event_id": "01M0T0YAGZAYAWDDNRXDBES06C",
+  "materialized_at": "2026-08-24T13:56:44.191889+00:00",
   "mission_number": "",
   "mission_slug": "custom-mission-guard-failure-blocking-inert-01M0STY0",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 3
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -37,6 +37,13 @@
       "lane": "planned",
       "last_event_id": "01M0T0YABC4RFKA0GYBM1D1HRY",
       "last_transition_at": "2026-08-24T13:56:44.013026+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M0T0YAGZAYAWDDNRXDBES06C",
+      "last_transition_at": "2026-08-24T13:56:44.191889+00:00"
     }
   }
 }
