@@ -1,0 +1,42 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: SPEC-GOV-001
+    lens: AC numbering self-consistency (mission-derived)
+    severity: 3
+    title: "Clarifications promises fresh AC-1..AC-N numbering \"see below\" but no such labels exist anywhere in the document"
+    evidence:
+      - artifact: "spec.md § Clarifications › \"AC-10 / AC-13 / AC-14 — pre-existing, external, NOT this mission's numbering\" (lines 80-84)"
+      - artifact: "spec.md § User Scenarios & Testing › Acceptance Scenarios, both stories (lines 131-146, 171-188)"
+      - artifact: "spec.md § Requirements (FR-00N/NFR-00N/C-00N tables, lines 224-349) and § Success Criteria (SC-00N, lines 391-414)"
+    claim: >
+      The Clarifications section states verbatim: "This spec's own acceptance criteria are
+      numbered fresh (AC-1 onward, see below) to avoid confusion with the pre-existing
+      AC-10/AC-13/AC-14" (line 80-81). This is a promise of a traceability scheme readable via
+      "see below." A full-document scan finds zero occurrences of a standalone AC-1, AC-2, ...
+      AC-N label anywhere in the rest of the spec (every "AC-1"-shaped substring match is only
+      the digit prefix of the pre-existing external AC-10/AC-13/AC-14 references, which the same
+      section explicitly disclaims as NOT this mission's numbering). What the document actually
+      has instead: unlabeled "Acceptance Scenarios" numbered 1/2/3 per user story (reset to 1 in
+      each story, so "Scenario 2" is ambiguous without saying which story), plus a
+      separately-prefixed SC-001..SC-007 Success Criteria series and FR-00N/NFR-00N/C-00N
+      requirement IDs. A reader who takes the Clarifications section at its word — e.g. a
+      plan/tasks-phase author trying to cite "per AC-3" when writing a WP prompt's acceptance
+      mapping, or a reviewer cross-checking FR-to-AC coverage — will search the document for an
+      AC-N label that does not exist, breaking the "see below" traceability promise made at the
+      top of the spec.
+    remediation: >
+      Pick one and make the two sections agree: (a) add real AC-N labels to the Acceptance
+      Scenarios so "1. Given... When... Then..." under User Story 1 becomes "AC-1. Given... When...
+      Then..." (continuing AC-2, AC-3 for the rest of Story 1, then AC-4 onward for Story 2, so
+      the numbering is unique across both stories rather than resetting per story) — the SC-00N
+      Success Criteria section already demonstrates the target format spec-kitty templates expect,
+      or (b) if scenario numbering per-story (not a flat AC-N series) is the intended final shape,
+      rewrite the Clarifications sentence to stop promising "AC-1 onward, see below" and instead
+      say plainly that this mission's acceptance criteria live in the unlabeled Acceptance
+      Scenarios subsections, with SC-00N carrying the only formal ID series — so no reader is sent
+      looking for labels the document never delivers.

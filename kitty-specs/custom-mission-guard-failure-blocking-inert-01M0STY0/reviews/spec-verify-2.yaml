@@ -1,0 +1,18 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      FR-006 now types blocking_artifact_names as frozenset[str] | None (verified against the
+      live legacy_step_id/wp_advance_ready X | None = None idiom in runtime_bridge_io.py's
+      ArtifactPresenceSnapshot dataclass and the mirrored _ArtifactPresenceSnapshotLike Protocol
+      in runtime_bridge_cores.py), explicitly states evaluate_guards_strict checks
+      snapshot.blocking_artifact_names is None immediately after the existing
+      _GUARD_TABLES.get/guard_table_entry is None raise idiom (confirmed at
+      runtime_bridge_cores.py:693-696), and the new AC-9 concretely asserts both directions
+      (manifest-present-nothing-blocking returns guard_failures == [] without raising; no-manifest
+      still raises UnregisteredMissionFamilyError) using the same qa family established in AC-1/AC-2
+      — leaving FR-002's three-outcome taxonomy, AC-3, and C-001 unchanged and consistent, with
+      FR-002 gaining a cross-referencing "Routing signal" paragraph rather than contradicting them.
