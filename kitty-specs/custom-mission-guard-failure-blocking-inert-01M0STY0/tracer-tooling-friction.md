@@ -120,3 +120,12 @@ most closely matches SK-93's logged shape #4 (`agent action implement WP03`: new
 then silent hang, `EXIT: 124`) — same exit code, same "work landed before the stall" outcome —
 now also confirmed on `record-analysis` specifically, which SK-93's own log did not previously
 include as one of its four observed call sites.
+
+2026-08-24 (analyze phase, fix round re-run) — `record-analysis` hit ledger SK-93 a **second**
+time on this mission, same command, same warning signature (`event journal capture failed:
+project sync store is locked`, `Event routing failed`, no `--json` payload printed), exit 124.
+This time the underlying write landed on commit `2f0bcb762` ("Add analysis report for mission
+custom-mission-guard-failure-blocking-inert-01M0STY0") — verified the same way as the first
+occurrence: `git log`/`git status --porcelain -uno` read directly rather than trusting the hang
+or exit code, confirming `verdict: ready`, `findings: []`. Nothing hand-edited; this is a
+recurrence of the pattern already fully documented above, not a new root cause.
