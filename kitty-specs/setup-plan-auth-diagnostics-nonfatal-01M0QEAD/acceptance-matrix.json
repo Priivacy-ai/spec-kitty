@@ -467,7 +467,7 @@
       "verification_command": "uv run python -c \"import json,pathlib,re; d=pathlib.Path('kitty-specs/setup-plan-auth-diagnostics-nonfatal-01M0QEAD'); row=json.loads((d/'issue-matrix.json').read_text())['rows']['#3127']; files=[d/n for n in ('spec.md','tasks.md','quickstart.md','acceptance-matrix.json','mission-review-report.md','status.json','issue-matrix.json','retrospective.yaml','dossier-review-notes.md')]; pat=re.compile(r'(?im)^[ ]*(?:[-*][ ]*)?(?:[*][*])?release[-_ ]readiness(?:[*][*])?[ ]*[:=][ ]*(?:passed|pass|ready|true|yes)(?:[ ]|$)'); claims=[f'{p.name}:{m.group(0)}' for p in files for m in pat.finditer(p.read_text(encoding='utf-8'))]; assert row['verdict']=='deferred-with-followup' and 'Follow-up: #3127' in row['evidence_ref']; assert not claims, claims\"",
       "result": "confirmed_absent",
       "evidence": "The executable scan found zero affirmative release-readiness declarations across the explicitly bounded nine-file dossier set while issue-matrix.json kept #3127 deferred-with-followup. See dossier-review-notes.md for scope and retry policy.",
-      "verified_ref": "f0d7d49c184c4eb58f656aef1ff5f2feb55c3aec",
+      "verified_ref": "b25de8736ebe3428ddedcd7661a463d4e31619b8",
       "verified_surface_kind": "primary",
       "provenance_origin": "recorded"
     }
