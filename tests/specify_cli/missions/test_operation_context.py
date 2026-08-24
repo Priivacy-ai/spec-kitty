@@ -5,8 +5,6 @@ from pathlib import Path
 
 import pytest
 
-import pytest
-
 from specify_cli.context.mission_resolver import ResolvedMission
 from specify_cli.missions import operation_context
 
