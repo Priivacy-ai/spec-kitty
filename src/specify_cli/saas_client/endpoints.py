@@ -83,3 +83,26 @@ class ProjectWriteAdmissionProofPayload(TypedDict):
     project_uuid: str
     admission_generation: int
     binding_audience: str
+
+
+class AdmissionAnswer(TypedDict, total=False):
+    """Shape of GET /api/v1/sync/repo-admission/ (TEAM-ADMIT-M2-07/08).
+
+    Two response shapes, both HTTP 200 (ADR-TEAM-REPO-ADMISSION-2026-08-24
+    §4.2):
+
+    - Admitted: ``{"admitted": true, "team": {"id", "slug", "name"},
+      "provider", "repo_slug", "checked_at"}``
+    - Not admitted: ``{"admitted": false, "reason": "no_match"}``
+
+    ``admitted``/``repo_slug`` are always present; the rest are
+    admitted-only (``team``, ``provider``, ``checked_at``) or
+    not-admitted-only (``reason``), hence ``total=False``.
+    """
+
+    admitted: bool
+    team: dict[str, str] | None
+    provider: str | None
+    repo_slug: str
+    checked_at: str | None
+    reason: str | None

@@ -22,6 +22,7 @@ import pytest
 from specify_cli.sync.git_metadata import (
     GitMetadata,
     GitMetadataResolver,
+    parse_remote_host,
     parse_repo_slug,
 )
 
@@ -42,6 +43,7 @@ class TestGitMetadata:
         assert meta.git_branch is None
         assert meta.head_commit_sha is None
         assert meta.repo_slug is None
+        assert meta.remote_host is None
 
     def test_with_values(self):
         """Fields are populated when provided."""
@@ -49,10 +51,12 @@ class TestGitMetadata:
             git_branch="main",
             head_commit_sha="abc" * 13 + "a",
             repo_slug="org/repo",
+            remote_host="github.com",
         )
         assert meta.git_branch == "main"
         assert meta.head_commit_sha == "abc" * 13 + "a"
         assert meta.repo_slug == "org/repo"
+        assert meta.remote_host == "github.com"
 
     def test_frozen(self):
         """Frozen dataclass raises on mutation."""
@@ -114,6 +118,8 @@ class TestGitMetadataResolverConstruction:
         assert resolver._cached_sha is None
         assert resolver._cache_time == 0.0
         assert resolver._repo_slug_resolved is False
+        assert resolver._remote_host_resolved is False
+        assert resolver._cached_remote_host is None
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +321,47 @@ class TestParseRepoSlug:
         assert {remote: parse_repo_slug(remote) for remote in expected} == expected
 
 
+class TestParseRemoteHost:
+    """Test parse_remote_host() for all remote URL formats.
+
+    Mirrors :class:`TestParseRepoSlug`'s matrix (same URL forms, same
+    local/file-remote rejections) since both functions parse the same
+    remote URL grammar — they differ only in which piece they extract.
+    """
+
+    def test_supported_and_rejected_remote_matrix(self):
+        """Every supported URL grammar yields its bare host; rejects match parse_repo_slug's."""
+        expected = {
+            "git@github.com:acme/spec-kitty.git": "github.com",
+            "https://github.com/acme/spec-kitty.git": "github.com",
+            "git@github.com:acme/spec-kitty": "github.com",
+            "https://github.com/acme/spec-kitty": "github.com",
+            "git@gitlab.com:org/team/repo.git": "gitlab.com",
+            "ssh://git@github.com/acme/spec-kitty.git": "github.com",
+            "ssh://git@gitlab.com/org/team/repo.git": "gitlab.com",
+            "git@bitbucket.org:acme/spec-kitty.git": "bitbucket.org",
+            "https://git.internal.co/acme/repo.git": "git.internal.co",
+            "https://github.com/acme/spec-kitty/": "github.com",
+            # Unlike parse_repo_slug (which needs >=2 path segments), a bare
+            # single-segment path still carries a resolvable host.
+            "git@github.com:repo.git": "github.com",
+            "": None,
+            "file:///nonexistent/spec-kitty": None,
+            "/nonexistent/spec-kitty": None,
+            "../spec-kitty": None,
+        }
+        assert {remote: parse_remote_host(remote) for remote in expected} == expected
+
+    def test_strips_user_info_and_keeps_bare_host(self):
+        """SSH user info (git@) and ssh:// URLs never leak into the returned host."""
+        assert parse_remote_host("git@github.com:acme/repo.git") == "github.com"
+        assert parse_remote_host("ssh://git@github.com/acme/repo.git") == "github.com"
+
+    def test_strips_port_from_url_form_remote(self):
+        """A non-default port on a URL-form remote is not part of the hostname."""
+        assert parse_remote_host("ssh://git@git.internal.co:2222/acme/repo.git") == "git.internal.co"
+
+
 class TestDeriveRepoSlug:
     """Test _derive_repo_slug_from_remote() with mocked subprocess."""
 
@@ -347,6 +394,51 @@ class TestDeriveRepoSlug:
         assert mock_run.call_args.kwargs.get("cwd") == tmp_path
 
 
+class TestResolveRemoteHost:
+    """Test _resolve_remote_host() and its shared-fetch caching with repo slug."""
+
+    @patch("specify_cli.sync.git_metadata.subprocess.run")
+    def test_derives_host_from_remote(self, mock_run, tmp_path):
+        """Host is parsed from the same origin remote URL as repo_slug."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="git@gitlab.com:org/team/repo.git\n")
+        resolver = GitMetadataResolver(repo_root=tmp_path)
+        assert resolver._resolve_remote_host() == "gitlab.com"
+
+    @patch("specify_cli.sync.git_metadata.subprocess.run")
+    def test_no_remote_returns_none(self, mock_run, tmp_path):
+        """Non-zero return code for no remote returns None, same as repo_slug."""
+        mock_run.return_value = MagicMock(returncode=128, stdout="", stderr="fatal: No such remote")
+        resolver = GitMetadataResolver(repo_root=tmp_path)
+        assert resolver._resolve_remote_host() is None
+
+    @patch("specify_cli.sync.git_metadata.subprocess.run")
+    def test_resolved_once_per_session(self, mock_run, tmp_path):
+        """Repeated calls reuse the cached value; git remote is fetched once."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="git@github.com:acme/repo.git\n")
+        resolver = GitMetadataResolver(repo_root=tmp_path)
+        first = resolver._resolve_remote_host()
+        second = resolver._resolve_remote_host()
+        assert first == second == "github.com"
+        assert mock_run.call_count == 1
+
+    @patch("specify_cli.sync.git_metadata.subprocess.run")
+    def test_shares_remote_fetch_with_repo_slug(self, mock_run, tmp_path):
+        """Resolving both repo_slug and remote_host issues only one remote call."""
+        mock_run.return_value = MagicMock(returncode=0, stdout="git@github.com:acme/repo.git\n")
+        resolver = GitMetadataResolver(repo_root=tmp_path)
+        assert resolver._resolve_repo_slug() == "acme/repo"
+        assert resolver._resolve_remote_host() == "github.com"
+        # A single `git remote get-url origin` call backs both derivations.
+        assert mock_run.call_count == 1
+
+    @patch("specify_cli.sync.git_metadata.subprocess.run")
+    def test_remote_timeout_returns_none(self, mock_run, tmp_path):
+        """A timed-out remote fetch degrades to None, same as repo_slug."""
+        mock_run.side_effect = subprocess.TimeoutExpired("git", 5)
+        resolver = GitMetadataResolver(repo_root=tmp_path)
+        assert resolver._resolve_remote_host() is None
+
+
 # ---------------------------------------------------------------------------
 # T016 – Repo slug validation and config override precedence
 # ---------------------------------------------------------------------------
@@ -377,18 +469,23 @@ class TestRepoSlugPrecedence:
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
     def test_override_takes_precedence(self, mock_run, tmp_path):
-        """Valid override is used without calling git remote."""
-        # The subprocess calls are for branch/SHA (always called)
+        """Valid slug override is used without deriving repo_slug from git remote.
+
+        remote_host has no override of its own, so it is still derived from
+        the real ``origin`` remote — this is the one remote call in the list.
+        """
         mock_run.side_effect = [
             MagicMock(returncode=0, stdout="main\n"),  # branch
             MagicMock(returncode=0, stdout="abc123\n"),  # SHA
-            # No remote call expected because override is valid
+            MagicMock(returncode=0, stdout="git@github.com:acme/repo.git\n"),  # remote (host only)
         ]
         resolver = GitMetadataResolver(repo_root=tmp_path, repo_slug_override="custom/repo")
         meta = resolver.resolve()
         assert meta.repo_slug == "custom/repo"
-        # Only 2 subprocess calls (branch + SHA), no remote call
-        assert mock_run.call_count == 2
+        assert meta.remote_host == "github.com"
+        # 3 subprocess calls: branch + SHA + remote (for host; slug override
+        # skips the slug-side remote fetch, but host resolution has none)
+        assert mock_run.call_count == 3
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
     def test_invalid_override_falls_back_to_auto(self, mock_run, tmp_path):
@@ -413,6 +510,9 @@ class TestRepoSlugPrecedence:
         resolver = GitMetadataResolver(repo_root=tmp_path)
         meta = resolver.resolve()
         assert meta.repo_slug == "auto/repo"
+        # remote_host is derived from the same remote URL, no extra call
+        assert meta.remote_host == "github.com"
+        assert mock_run.call_count == 3
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
     def test_invalid_override_logs_warning(self, mock_run, tmp_path, caplog):
@@ -478,13 +578,14 @@ class TestGracefulDegradation:
                 meta.git_branch,
                 meta.head_commit_sha,
                 meta.repo_slug,
+                meta.remote_host,
                 warning in caplog.text.lower(),
             )
 
         assert results == {
-            "missing": (None, None, None, True),
-            "timeout": (None, None, None, True),
-            "permission": (None, None, None, True),
+            "missing": (None, None, None, None, True),
+            "timeout": (None, None, None, None, True),
+            "permission": (None, None, None, None, True),
         }
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
@@ -509,6 +610,8 @@ class TestGracefulDegradation:
         assert meta.git_branch == "main"
         assert meta.head_commit_sha == "abc123"
         assert meta.repo_slug is None
+        # remote_host reuses the same failed remote fetch — also None
+        assert meta.remote_host is None
 
     @patch("specify_cli.sync.git_metadata.subprocess.run")
     def test_all_calls_fail_gracefully(self, mock_run, tmp_path):
@@ -519,8 +622,9 @@ class TestGracefulDegradation:
         assert isinstance(meta, GitMetadata)
         assert meta.git_branch is None
         assert meta.head_commit_sha is None
-        # repo_slug might be None too since remote fails
+        # repo_slug and remote_host might be None too since remote fails
         assert meta.repo_slug is None
+        assert meta.remote_host is None
 
     def test_resolve_never_raises(self, tmp_path):
         """resolve() never raises even with unexpected errors."""

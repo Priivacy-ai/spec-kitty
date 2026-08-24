@@ -190,6 +190,7 @@ ENDPOINT_CALLS: dict[str, Any] = {
     "post_widen": lambda c: c.post_widen(DECISION_ID, [1, 2]),
     "get_team_integrations": lambda c: c.get_team_integrations(TEAM_SLUG),
     "fetch_discussion": lambda c: c.fetch_discussion(DECISION_ID),
+    "check_repo_admission": lambda c: c.check_repo_admission("acme/widget", host="github.com"),
     # ``health_probe`` swallows SaasClientError by contract and returns a bool,
     # so it is exercised separately in ``test_health_probe_refuses_quietly``.
     "health_probe": lambda c: c.health_probe(),
