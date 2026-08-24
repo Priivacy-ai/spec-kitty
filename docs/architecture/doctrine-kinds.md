@@ -96,7 +96,6 @@ AgentProfileSchema:
   applies_to_languages: "<list>"
   model: "<str | null>"
   effort: "<str | null>"
-  context-sources: "<AgentContextSources | null>"
   specialization:
     AgentSpecialization:
       primary-focus: "<str>"
@@ -115,7 +114,7 @@ AgentProfileSchema:
 @endyaml
 ```
 
-The four unexpanded nested value objects (`context-sources`, `collaboration`,
+The three unexpanded nested value objects (`collaboration`,
 `specialization-context`, `self-review-protocol`) are shown as typed references rather than inlined —
 a deliberate diagram-author choice, like drawing a foreign key instead of copying the whole table.
 
@@ -312,8 +311,7 @@ technique or a rule in isolation.
 **Example.** `doctrine-daphne`
 (`packs/built-in/agent_profiles/doctrine-daphne.agent.yaml`) — the profile this very page
 was authored under. Its `roles` are `curator` and `onboarding-guide`; its `capabilities` include
-`artifact-kind-classification` and `pack-artifact-authoring`; its `context-sources` pull in the
-paradigm/directive/tactic/procedure/styleguide layers plus specific directives (`003`, `018`,
+`artifact-kind-classification` and `pack-artifact-authoring`; its `directive-references` name specific directives (`003`, `018`,
 `032`, `043`, `044`) so the agent has the right doctrine loaded before curating more of it.
 
 ### Mission step contract
