@@ -20,13 +20,13 @@ import secrets
 from kernel.clock import UTC, datetime, now_utc, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 import httpx
 
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.egress import project_egress_refusal
-from specify_cli.saas_client.endpoints import AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
+from specify_cli.saas_client.endpoints import AdmissionAnswer, AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
     SaasAuthError,
     SaasClientError,
@@ -739,4 +739,57 @@ class SaasClient:
             messages=messages,
             thread_url=data.get("thread_url") or None,
             message_count=int(data.get("message_count", len(messages))),
+        )
+
+    def check_repo_admission(self, repo_slug: str, host: str | None = None) -> AdmissionAnswer:
+        """Check which team (if any) ``repo_slug`` is admitted into.
+
+        ``GET /api/v1/sync/repo-admission/?repo_slug=<>&host=<>``
+        (TEAM-ADMIT-M2-07/08, ADR-TEAM-REPO-ADMISSION-2026-08-24 §4.2/§4.3).
+
+        This is a plain lookup, not team-scoped like the collaboration
+        endpoints above: the whole point of the call is to *discover* which
+        team (if any) admits the repo, so unlike ``_team_path()`` callers
+        there is no team slug to require up front.
+
+        ``host`` is optional but recommended — ``repo_slug`` alone cannot
+        distinguish the same ``owner/repo`` slug hosted on two different git
+        providers (e.g. github.com vs. a self-hosted GitLab); the server uses
+        it to disambiguate by provider when given.
+
+        Args:
+            repo_slug: ``owner/repo``-style slug, e.g. from
+                :func:`specify_cli.sync.git_metadata.parse_repo_slug`.
+            host: Bare git remote hostname, e.g. from
+                :func:`specify_cli.sync.git_metadata.parse_remote_host`.
+
+        Returns:
+            :class:`~specify_cli.saas_client.endpoints.AdmissionAnswer`.
+            Both response shapes are HTTP 200 — check ``admitted`` to tell
+            them apart; a not-admitted answer is a normal return value, not
+            an exception.
+
+        Raises:
+            SaasClientError: On any HTTP or network failure — distinguishable
+                from a genuine ``admitted: False`` answer, which is returned
+                rather than raised.
+            SaasAuthError: On auth failure (HTTP 401/403).
+            SaasTimeoutError: If the request exceeds the default timeout.
+        """
+        params = {"repo_slug": repo_slug}
+        if host is not None:
+            params["host"] = host
+        path = f"/api/v1/sync/repo-admission/?{urlencode(params)}"
+        resp = self._get(path)
+        data: dict[str, Any] = resp.json()
+        return cast(
+            AdmissionAnswer,
+            {
+                "admitted": bool(data.get("admitted", False)),
+                "team": data.get("team"),
+                "provider": data.get("provider"),
+                "repo_slug": str(data.get("repo_slug", repo_slug)),
+                "checked_at": data.get("checked_at"),
+                "reason": data.get("reason"),
+            },
         )

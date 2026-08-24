@@ -1,9 +1,11 @@
 """Git metadata resolution for per-event observability context.
 
 Provides:
-- GitMetadata frozen dataclass — per-event git state (branch, SHA, repo slug)
+- GitMetadata frozen dataclass — per-event git state (branch, SHA, repo slug,
+  remote host)
 - GitMetadataResolver — resolves git metadata with TTL cache
 - parse_repo_slug() — extracts owner/repo from SSH or HTTPS remote URLs
+- parse_remote_host() — extracts the bare hostname from the same remote URL
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ from urllib.parse import urlparse
 logger = logging.getLogger(__name__)
 
 
-_SCP_LIKE_REMOTE_RE = re.compile(r"^(?:[^@/]+@)?[^:/]+:(?P<path>.+)$")
+_SCP_LIKE_REMOTE_RE = re.compile(r"^(?:[^@/]+@)?(?P<host>[^:/]+):(?P<path>.+)$")
 
 
 @dataclass(frozen=True)
@@ -29,6 +31,7 @@ class GitMetadata:
     git_branch: str | None = None
     head_commit_sha: str | None = None
     repo_slug: str | None = None
+    remote_host: str | None = None
 
 
 def parse_repo_slug(url: str) -> str | None:
@@ -84,6 +87,46 @@ def parse_repo_slug(url: str) -> str | None:
     return "/".join(segments)
 
 
+def parse_remote_host(url: str) -> str | None:
+    """Parse the bare hostname from a hosted git remote URL.
+
+    Supports the same remote URL forms as :func:`parse_repo_slug` (SSH,
+    HTTPS, ``ssh://`` URLs, and SCP-like ``user@host:path`` remotes) and
+    applies the same local/file-remote rejections, so a URL is either
+    parseable by both functions or by neither. Returns the hostname with
+    no user info and no port, or ``None`` if unparseable or not a hosted
+    remote URL.
+
+    Args:
+        url: Git remote URL
+
+    Returns:
+        Bare hostname (e.g. ``github.com``), or None if unparseable or
+        not a hosted remote URL.
+    """
+    cleaned_url = url.strip()
+    if not cleaned_url:
+        return None
+
+    parsed = urlparse(cleaned_url)
+
+    # Explicitly reject local-file remotes and bare filesystem paths.
+    if parsed.scheme == "file":
+        return None
+    if cleaned_url.startswith(("/", "./", "../")):
+        return None
+
+    # URL-form remotes (https://, ssh://, git://, etc.)
+    if parsed.scheme and parsed.netloc:
+        return parsed.hostname
+
+    # SCP-like SSH form (git@host:owner/repo.git)
+    match = _SCP_LIKE_REMOTE_RE.match(cleaned_url)
+    if not match:
+        return None
+    return match.group("host")
+
+
 class GitMetadataResolver:
     """Resolves per-event git metadata with TTL cache.
 
@@ -112,6 +155,14 @@ class GitMetadataResolver:
         # Repo slug (session-level, resolved once)
         self._cached_repo_slug: str | None = None
         self._repo_slug_resolved: bool = False
+        # Remote host (session-level, resolved once; independent of the
+        # repo_slug override, since an override carries no host information).
+        # Shares the cached remote URL fetch below with repo-slug derivation
+        # so a session issues at most one `git remote get-url origin` call.
+        self._cached_remote_host: str | None = None
+        self._remote_host_resolved: bool = False
+        self._cached_remote_url: str | None = None
+        self._remote_url_fetched: bool = False
 
     def resolve(self) -> GitMetadata:
         """Return current git state. Uses TTL cache for branch/SHA.
@@ -131,13 +182,15 @@ class GitMetadataResolver:
             self._cached_sha = sha
             self._cache_time = now
 
-        # Repo slug: resolved once per session (stable)
+        # Repo slug and remote host: resolved once per session (stable)
         repo_slug = self._resolve_repo_slug()
+        remote_host = self._resolve_remote_host()
 
         return GitMetadata(
             git_branch=branch,
             head_commit_sha=sha,
             repo_slug=repo_slug,
+            remote_host=remote_host,
         )
 
     def _resolve_branch_and_sha(self) -> tuple[str | None, str | None]:
@@ -200,8 +253,18 @@ class GitMetadataResolver:
         self._cached_repo_slug = self._derive_repo_slug_from_remote()
         return self._cached_repo_slug
 
-    def _derive_repo_slug_from_remote(self) -> str | None:
-        """Extract owner/repo from git remote origin URL."""
+    def _fetch_remote_url(self) -> str | None:
+        """Fetch and cache the ``origin`` remote URL (resolved once per session).
+
+        Shared by :meth:`_derive_repo_slug_from_remote` and
+        :meth:`_resolve_remote_host` so a session issues at most one
+        ``git remote get-url origin`` subprocess call even though both the
+        slug and the host are derived from it.
+        """
+        if self._remote_url_fetched:
+            return self._cached_remote_url
+
+        self._remote_url_fetched = True
         try:
             result = subprocess.run(
                 ["git", "remote", "get-url", "origin"],
@@ -215,17 +278,37 @@ class GitMetadataResolver:
             if result.returncode != 0:
                 return None
 
-            url = result.stdout.strip()
-            return parse_repo_slug(url)
+            self._cached_remote_url = result.stdout.strip()
+            return self._cached_remote_url
         except FileNotFoundError:
-            logger.warning("git not found; cannot derive repo slug")
+            logger.warning("git not found; cannot resolve remote URL")
             return None
         except subprocess.TimeoutExpired:
             logger.warning("git remote command timed out")
             return None
         except Exception as e:
-            logger.warning("repo slug derivation failed: %s", e)
+            logger.warning("remote URL resolution failed: %s", e)
             return None
+
+    def _derive_repo_slug_from_remote(self) -> str | None:
+        """Extract owner/repo from git remote origin URL."""
+        url = self._fetch_remote_url()
+        return parse_repo_slug(url) if url else None
+
+    def _resolve_remote_host(self) -> str | None:
+        """Resolve remote host from git remote origin URL (resolved once per session).
+
+        Independent of ``repo_slug_override``: an override supplies only a
+        slug, never a host, so the host is always derived from the actual
+        ``origin`` remote regardless of whether the slug was overridden.
+        """
+        if self._remote_host_resolved:
+            return self._cached_remote_host
+
+        self._remote_host_resolved = True
+        url = self._fetch_remote_url()
+        self._cached_remote_host = parse_remote_host(url) if url else None
+        return self._cached_remote_host
 
     def _validate_repo_slug(self, slug: str) -> bool:
         """Validate repo slug has at least one / with non-empty segments.
