@@ -473,6 +473,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_collect_transition_gate_verdicts as _mt_collect_transition_gate_verdicts,
     _mt_dispatch_one_gate as _mt_dispatch_one_gate,
     _mt_dispatch_transition_gates as _mt_dispatch_transition_gates,
+    _mt_human_gate_status_observer as _mt_human_gate_status_observer,
     _mt_emit_skipped_gate as _mt_emit_skipped_gate,
     _mt_emit_transition_gate_effect as _mt_emit_transition_gate_effect,
     # WP16 (lifecycle-gate-execution-context-01KY72GQ, IC-07f): the retired

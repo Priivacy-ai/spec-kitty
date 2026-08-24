@@ -1077,6 +1077,7 @@ def _mt_pre_review_gate_with_override_scope(
     repo_root: Path,
     baseline: BaselineTestResult | None,
     progress_callback: Callable[[float], None] | None = None,
+    status_observer: pre_review_gate.GateStatusObserver | None = None,
 ) -> pre_review_gate.GateVerdict:
     """Compose a verdict for an EXPLICIT override scope (FR-004).
 
@@ -1112,6 +1113,7 @@ def _mt_pre_review_gate_with_override_scope(
         repo_root=repo_root,
         baseline=baseline,
         progress_callback=progress_callback,
+        status_observer=status_observer,
     )
 
 
@@ -1155,7 +1157,7 @@ def _mt_pre_review_gate_metadata(
 ) -> dict[str, Any]:
     """The FR-004 transition-evidence payload recorded via ``policy_metadata``."""
     scope = verdict.scope
-    return {
+    metadata: dict[str, Any] = {
         "outcome": verdict.outcome.value,
         "reason": verdict.reason,
         "new_failure_count": len(verdict.new_failures),
@@ -1170,6 +1172,25 @@ def _mt_pre_review_gate_metadata(
         "force_bypassed": force_bypassed,
         "run_state": verdict.run_state.value,
     }
+    assessment = verdict.budget_assessment
+    if assessment is not None:
+        metadata.update(
+            {
+                "budget_classification": assessment.classification.value,
+                "scope_identity": assessment.scope_identity.value,
+                "effective_budget_seconds": assessment.effective_budget_seconds,
+                "matched_budget_rule": assessment.matched_rule_id,
+                "classification_candidate": verdict.classification_candidate,
+                "observed_elapsed_seconds": verdict.observed_elapsed_seconds,
+                "classification_guidance": assessment.guidance,
+            }
+        )
+        if verdict.outcome is pre_review_gate.GateOutcome.SCOPE_OVERSIZED:
+            metadata["recovery_choices"] = [
+                "Select a bounded pre_review_test_scope",
+                "Use --skip-pre-review-gate explicitly",
+            ]
+    return metadata
 
 
 #: Pre-merge finding (#572/#1979/#2283): the opt-in block
@@ -1225,6 +1246,14 @@ def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *,
         return f"[yellow]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/yellow]"
     if outcome in (pre_review_gate.GateOutcome.TIMED_OUT, pre_review_gate.GateOutcome.CANCELLED):
         return f"[red]Pre-review regression gate: {outcome.value} — {verdict.reason or 'interrupted'}[/red]"
+    if outcome is pre_review_gate.GateOutcome.SCOPE_OVERSIZED:
+        targets = ", ".join(verdict.scope.test_targets) or "(empty)"
+        return (
+            "[red]Pre-review regression gate: scope_oversized — validation did not start; "
+            f"targets={targets}; {verdict.reason or 'scope exceeds the effective budget'}. "
+            "The work package remains in its prior lane. Recovery choices: select a bounded "
+            "pre_review_test_scope or use --skip-pre-review-gate explicitly.[/red]"
+        )
     if outcome is pre_review_gate.GateOutcome.NO_NEW_FAILURES:
         return "[dim]Pre-review regression gate: no new failures[/dim]"
     # Defensive: a future ``GateOutcome`` member must never silently render as
@@ -1366,7 +1395,12 @@ def _mt_resolve_gate_baseline(st: _MoveTaskState) -> BaselineTestResult | None:
     return BaselineTestResult.load(baseline_read_dir / "tasks" / wp_slug / "baseline-tests.json")
 
 
-def _mt_build_transition_gate_context(st: _MoveTaskState, inputs: _TransitionGateInputs) -> TransitionGateContext:
+def _mt_build_transition_gate_context(
+    st: _MoveTaskState,
+    inputs: _TransitionGateInputs,
+    *,
+    status_observer: pre_review_gate.GateStatusObserver | None = None,
+) -> TransitionGateContext:
     """Assemble the ``TransitionGateContext`` handed to every handler (data-model §8)."""
     return TransitionGateContext(
         changed_files=inputs.changed_files,
@@ -1376,6 +1410,7 @@ def _mt_build_transition_gate_context(st: _MoveTaskState, inputs: _TransitionGat
         force=st.force,
         from_lane=st.old_lane,
         to_lane=st.target_lane,
+        status_observer=status_observer,
     )
 
 
@@ -1445,6 +1480,40 @@ _PRE_REVIEW_GATE_RUNNING_NOTICE = (
 )
 
 
+def _mt_human_gate_status_observer(_tasks: Any) -> pre_review_gate.GateStatusObserver:
+    """Build the sole human renderer for engine-owned gate status events.
+
+    The callback is presentation-only: it cannot classify a scope, decide a
+    verdict, or mutate transition state. JSON callers never construct it.
+    """
+
+    def _observe(event: pre_review_gate.GateStatusEvent) -> None:
+        if isinstance(event, pre_review_gate.ScopeAssessed):
+            assessment = event.assessment
+            targets = ", ".join(assessment.scope_identity.normalized_targets) or "(empty)"
+            suffix = ""
+            if assessment.classification.value == "unknown":
+                suffix = "; no reviewed metadata matches, so validation will run under the existing timeout"
+            _tasks.console.print(
+                "[cyan]Pre-review gate scope assessment: "
+                f"{assessment.classification.value}; targets={targets}; "
+                f"effective budget={assessment.effective_budget_seconds:g}s{suffix}[/cyan]"
+            )
+            return
+
+        elapsed = event.observed_elapsed_seconds
+        if elapsed <= 0:
+            _tasks.console.print(
+                f"[cyan]Pre-review gate validation started; phase={event.phase}; elapsed={elapsed:g}s[/cyan]"
+            )
+            return
+        _tasks.console.print(
+            f"[cyan]Pre-review gate still running; phase={event.phase}; elapsed={elapsed:g}s[/cyan]"
+        )
+
+    return _observe
+
+
 def _mt_collect_transition_gate_verdicts(
     st: _MoveTaskState,
     inputs: _TransitionGateInputs,
@@ -1468,6 +1537,7 @@ def _mt_collect_transition_gate_verdicts(
     (FR-008/012), never a silent vanish.
     """
     wp = getattr(st, "wp", None)
+    status_observer = None if st.json_output else _mt_human_gate_status_observer(_tasks)
     override_targets = (
         _mt_pre_review_scope_override(wp.frontmatter, st.main_repo_root) if wp is not None else None
     )
@@ -1480,6 +1550,7 @@ def _mt_collect_transition_gate_verdicts(
                     override_targets,
                     repo_root=inputs.gate_repo_root,
                     baseline=_mt_resolve_gate_baseline(st),
+                    status_observer=status_observer,
                 ),
                 changed_files=inputs.changed_files,
             )
@@ -1491,7 +1562,7 @@ def _mt_collect_transition_gate_verdicts(
         return [_mt_empty_scope_verdict(resolution.reason)]
     if not st.json_output:
         _tasks.console.print(_PRE_REVIEW_GATE_RUNNING_NOTICE)
-    ctx = _mt_build_transition_gate_context(st, inputs)
+    ctx = _mt_build_transition_gate_context(st, inputs, status_observer=status_observer)
     return _mt_dispatch_transition_gates(list(resolution.active), ctx)
 
 
@@ -1648,7 +1719,17 @@ def _mt_emit_transition_gate_effect(
         )
         raise typer.Exit(1)
     if effect.blocked:
-        _tasks._output_error(st.json_output, _mt_pre_review_gate_block_message(effect.representative))
+        block_message = _mt_pre_review_gate_block_message(effect.representative)
+        _tasks._output_error(
+            st.json_output,
+            block_message,
+            diagnostic={
+                "result": "error",
+                "error": block_message,
+                "transition_applied": False,
+                "pre_review_gate": st.pre_review_gate_metadata,
+            },
+        )
         raise typer.Exit(1)
 
 
@@ -2365,6 +2446,7 @@ def _mt_output(st: _MoveTaskState) -> None:
     )
     result: dict[str, object] = {
         "result": "success",
+        "transition_applied": True,
         "task_id": st.task_id,
         "old_lane": st.old_lane,
         "new_lane": st.target_lane,
