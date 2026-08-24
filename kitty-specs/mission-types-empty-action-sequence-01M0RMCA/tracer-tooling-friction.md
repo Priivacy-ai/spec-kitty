@@ -213,3 +213,36 @@ the write DID land — `status.json`'s `WP01.subtasks` now shows all of T001-T00
 show zero diff (no checkbox hand-edit occurred or was needed). No hand-edit, no workaround,
 no retry — the underlying command's own write path completed despite the loud warning stream,
 consistent with this mission's own prior finding on the `analyze`-phase hang.
+
+## Landing pass (sk-land) — the baseline capture was too narrow, and CI caught what it missed
+
+**2026-08-24, PR #3707, orchestrator finding — this one is a process defect of mine, not a
+spec-kitty defect.**
+
+WP01/T001 captured a red-first baseline over exactly the two test files in `lanes.json`'s
+`write_scope`: `tests/doctrine/missions/test_mission_type_repository.py` and
+`tests/runtime/test_runtime_seam.py` — 70 passed, 0 failed. That was chosen deliberately, to make
+any subsequent red in those files unambiguously mission-introduced rather than pre-existing noise.
+It worked for what it measured, and it is still the right *sharpness* choice.
+
+But it measured the wrong *width*. The seam this mission changes,
+`_inject_projected_fields`, is consumed by `charter.mission_type_profiles`, and
+`tests/charter/test_mission_type_profiles.py` carries a whole `TestPackContextProjection` class
+exercising exactly the org-pack projection path we were fixing. It sat outside the captured
+baseline, so a genuine regression in it stayed invisible through implementation, WP reviewer
+approval, and all three R1 lens groups of the pre-merge squad — every one of which returned
+`findings: []`. **CI, not the local gate set and not the review squad, is what found it.**
+
+The regression itself was benign in the end (the fixture was inconsistent, not the source — see
+commit `9f748b42a`), but the blind spot was real and could as easily have hidden a source defect.
+
+**Lesson for the next mission**: derive the baseline set from the *consumers of the changed seam*,
+not from the WP's `write_scope`. `write_scope` bounds what you may WRITE; it says nothing about
+what your change can BREAK. A cheap mechanical proxy: for each file in `write_scope`, grep for
+importers of the symbols being changed and fold their test files into the baseline capture, even
+though — by construction — you will not be editing them.
+
+Corollary, also earned here: the pre-merge squad's `findings: []` is only as wide as the evidence
+put in front of it. Three lens groups agreeing on zero findings did not mean zero defects; it meant
+zero defects *within the diff they were shown*. A regression in an untouched file is invisible to a
+diff-scoped review by construction, which is exactly why the CI shard set is not redundant with it.
