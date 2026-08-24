@@ -82,6 +82,7 @@ uv run ruff check \
   src/specify_cli/readiness/auth.py \
   src/specify_cli/status/lifecycle_events.py \
   src/specify_cli/cli/commands/agent/setup_plan_hosted.py \
+  src/specify_cli/cli/commands/agent/setup_plan_hosted_effects.py \
   src/specify_cli/cli/commands/agent/mission_setup_plan.py
 
 uv run mypy --strict \
@@ -89,6 +90,7 @@ uv run mypy --strict \
   src/specify_cli/readiness/auth.py \
   src/specify_cli/status/lifecycle_events.py \
   src/specify_cli/cli/commands/agent/setup_plan_hosted.py \
+  src/specify_cli/cli/commands/agent/setup_plan_hosted_effects.py \
   src/specify_cli/cli/commands/agent/mission_setup_plan.py
 
 uv run pytest -q tests/architectural/test_no_legacy_terminology.py

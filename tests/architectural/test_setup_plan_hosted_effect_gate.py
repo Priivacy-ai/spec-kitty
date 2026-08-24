@@ -1,15 +1,19 @@
 """Structural boundary gate for setup-plan hosted effects.
 
-The primary proof is an import/name edge: among setup-plan production modules,
-only ``setup_plan_hosted_effects.py`` may know a physical hosted sink. The
-command module receives inert local intents and calls one narrow executor.
-Within the boundary, every sink-owning function has a terminal exact-identity
-guard before its first sink.
+The primary proof is a package-wide physical import inventory: every hosted
+sink import in ``cli.commands.agent`` has an explicit owning module, and only
+``setup_plan_hosted_effects.py`` is authorized for setup-plan. This prevents a
+differently named helper from hiding outside a filename glob. The command
+module receives inert local intents and calls one narrow executor. Within the
+boundary, every sink-owning function has a terminal exact-identity guard before
+its first sink.
 """
 
 from __future__ import annotations
 
 import ast
+from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -56,6 +60,44 @@ AUTHORIZED_HOSTED_IMPORTS = frozenset(
         ),
     }
 )
+# Physical hosted imports outside setup-plan predate this mission and remain
+# explicit exceptions. A new agent-command helper gets no authority merely by
+# choosing a filename that omits ``setup_plan``.
+PACKAGE_HOSTED_IMPORT_ALLOWLIST: Mapping[str, frozenset[tuple[str, str]]] = {
+    "setup_plan_hosted_effects.py": AUTHORIZED_HOSTED_IMPORTS,
+    "mission_finalize.py": frozenset(
+        {
+            (
+                "specify_cli.sync.dossier_pipeline",
+                "trigger_feature_dossier_sync_if_enabled",
+            )
+        }
+    ),
+    "mission_record_analysis.py": frozenset(
+        {
+            (
+                "specify_cli.sync.dossier_pipeline",
+                "trigger_feature_dossier_sync_if_enabled",
+            )
+        }
+    ),
+    "tasks_mark_status.py": frozenset(
+        {
+            (
+                "specify_cli.sync.dossier_pipeline",
+                "trigger_feature_dossier_sync_if_enabled",
+            )
+        }
+    ),
+    "workflow_executor.py": frozenset(
+        {
+            (
+                "specify_cli.sync.dossier_pipeline",
+                "trigger_feature_dossier_sync_if_enabled",
+            )
+        }
+    ),
+}
 SINK_OWNERS = frozenset({"_trigger_dossier_sync", EXECUTOR})
 PROTOCOL_METHODS = {
     "_LifecycleEventIntent": frozenset({"envelope", "log_path"}),
@@ -98,6 +140,8 @@ def _forbidden_edges(source: str) -> list[_Edge]:
             edges.extend(_Edge("import", f"{node.module}.{item.name}", node.lineno) for item in node.names if item.name in HOSTED_NAMES or item.name == "*")
         elif isinstance(node, ast.Import):
             edges.extend(_Edge("import", item.name, node.lineno) for item in node.names if item.name in HOSTED_MODULES)
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            edges.extend(_Edge("import", f"{node.module}.{item.name}", node.lineno) for item in node.names if f"{node.module}.{item.name}" in HOSTED_MODULES)
         elif isinstance(node, ast.Name) and node.id in HOSTED_NAMES:
             edges.append(_Edge("name", node.id, node.lineno))
         elif isinstance(node, ast.Attribute) and node.attr in HOSTED_NAMES:
@@ -107,8 +151,67 @@ def _forbidden_edges(source: str) -> list[_Edge]:
     return sorted(set(edges), key=lambda item: (item.lineno, item.kind, item.value))
 
 
-def _setup_plan_production_files() -> tuple[Path, ...]:
-    return tuple(sorted(AGENT_COMMANDS.glob("*setup_plan*.py")))
+def _physical_hosted_import_edges(source: str) -> list[_Edge]:
+    """Return imports that grant access to a physical hosted sink.
+
+    Importing other symbols from a mixed module such as ``sync.events`` or
+    ``lifecycle_events`` is intentionally not a finding. Importing an entire
+    hosted module, a star, an alias, or a dynamic module is never allowlisted.
+    """
+    tree = ast.parse(source)
+    edges: list[_Edge] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module in HOSTED_MODULES:
+            for item in node.names:
+                if item.name not in HOSTED_NAMES and item.name != "*":
+                    continue
+                value = f"{node.module}.{item.name}"
+                if item.asname is not None:
+                    value = f"{value} as {item.asname}"
+                edges.append(_Edge("from-import", value, node.lineno))
+        elif isinstance(node, ast.ImportFrom) and node.module is not None:
+            for item in node.names:
+                qualified = f"{node.module}.{item.name}"
+                if qualified not in HOSTED_MODULES:
+                    continue
+                value = f"{qualified}.*"
+                if item.asname is not None:
+                    value = f"{value} as {item.asname}"
+                edges.append(_Edge("module-import", value, node.lineno))
+        elif isinstance(node, ast.Import):
+            for item in node.names:
+                if item.name in HOSTED_MODULES:
+                    value = f"{item.name}.*"
+                    if item.asname is not None:
+                        value = f"{value} as {item.asname}"
+                    edges.append(_Edge("module-import", value, node.lineno))
+        elif (
+            isinstance(node, ast.Call)
+            and _qualified_name(node.func) in {"__import__", "importlib.import_module"}
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value in HOSTED_MODULES
+        ):
+            edges.append(_Edge("dynamic-import", str(node.args[0].value), node.lineno))
+    return sorted(edges, key=lambda item: (item.lineno, item.kind, item.value))
+
+
+def _agent_production_sources() -> dict[str, str]:
+    return {path.name: path.read_text(encoding="utf-8") for path in sorted(AGENT_COMMANDS.glob("*.py"))}
+
+
+def _package_hosted_import_findings(
+    sources: Mapping[str, str],
+) -> dict[str, list[_Edge]]:
+    """Compare every agent-command module with the exact import allowlist."""
+    findings: dict[str, list[_Edge]] = {}
+    for filename, source in sources.items():
+        edges = _physical_hosted_import_edges(source)
+        actual = Counter((edge.kind, edge.value) for edge in edges)
+        expected = Counter(("from-import", f"{module}.{name}") for module, name in PACKAGE_HOSTED_IMPORT_ALLOWLIST.get(filename, frozenset()))
+        if actual != expected:
+            findings[filename] = edges
+    return findings
 
 
 def _functions(source: str) -> dict[str, ast.FunctionDef | ast.AsyncFunctionDef]:
@@ -407,17 +510,32 @@ def _boundary_violations(source: str) -> list[_Edge]:
     return sorted(set(violations), key=lambda item: (item.lineno, item.kind, item.value))
 
 
-def test_setup_plan_physical_sinks_are_isolated_to_one_module() -> None:
-    files = _setup_plan_production_files()
-    assert CALLER in files and BOUNDARY in files
-    findings: dict[str, list[_Edge]] = {}
-    for path in files:
-        if path == BOUNDARY:
-            continue
-        edges = _forbidden_edges(path.read_text(encoding="utf-8"))
-        if edges:
-            findings[path.relative_to(ROOT).as_posix()] = edges
-    assert findings == {}
+def test_agent_command_hosted_sink_imports_match_exact_package_allowlist() -> None:
+    assert _package_hosted_import_findings(_agent_production_sources()) == {}
+
+
+def test_differently_named_reachable_helper_cannot_hide_hosted_sink_import() -> None:
+    sources = _agent_production_sources()
+    sources[CALLER.name] += "\nfrom specify_cli.cli.commands.agent.delivery_bridge import deliver\n"
+    sources["delivery_bridge.py"] = "from specify_cli.auth.transport import get_client\n\ndef deliver():\n    return get_client()\n"
+
+    findings = _package_hosted_import_findings(sources)
+
+    assert set(findings) == {"delivery_bridge.py"}
+    assert findings["delivery_bridge.py"] == [
+        _Edge(
+            "from-import",
+            "specify_cli.auth.transport.get_client",
+            1,
+        )
+    ]
+
+
+def test_package_import_policy_allows_unrelated_local_name_collision() -> None:
+    sources = _agent_production_sources()
+    sources["local_client_helpers.py"] = "def get_client():\n    return None\n\ndef use_local_client():\n    return get_client()\n"
+
+    assert _package_hosted_import_findings(sources) == {}
 
 
 def test_command_imports_only_the_narrow_executor_from_boundary() -> None:
