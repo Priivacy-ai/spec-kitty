@@ -7,9 +7,11 @@
   "mission_number": null,
   "mission_slug": "exclude-canceled-work-packages-from-lanes-01M0S6W4",
   "mission_type": "software-dev",
+  "pr_bound": true,
   "purpose_context": "Mission operators can retire canceled work packages without fabricating ownership or deleting governed artifacts, while active dependencies on canceled work fail explicitly before lane allocation.",
   "purpose_tldr": "Exclude canceled work packages from lane computation.",
   "slug": "exclude-canceled-work-packages-from-lanes-01M0S6W4",
+  "source_description": "GitHub issue #3432: canceled work packages cannot satisfy lane computation",
   "target_branch": "fix/exclude-canceled-work-packages-from-lanes",
   "topology": "coord"
 }
