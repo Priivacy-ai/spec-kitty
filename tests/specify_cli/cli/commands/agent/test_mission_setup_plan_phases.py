@@ -15,12 +15,16 @@ golden harness.
 from __future__ import annotations
 
 import copy
-import hashlib
+from io import BytesIO
 import json
+import os
 import pickle
 from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
+import subprocess
+import sys
+import tarfile
 from types import MappingProxyType, SimpleNamespace
 from typing import Any, cast
 
@@ -50,6 +54,11 @@ _PRE_MISSION_GOLDEN = (
     Path(__file__).resolve().parents[4]
     / "fixtures"
     / "setup_plan_pre_mission_d060cff9_payloads.json"
+)
+_PRE_MISSION_REPLAY = (
+    Path(__file__).resolve().parents[4]
+    / "fixtures"
+    / "setup_plan_pre_mission_replay.py"
 )
 
 
@@ -715,18 +724,57 @@ def _normalize_golden_root(value: object, root: Path) -> object:
     return value
 
 
+@pytest.fixture(scope="module")
+def _pre_mission_replay(tmp_path_factory: pytest.TempPathFactory) -> dict[str, object]:
+    """Archive and execute the immutable pre-mission implementation tree."""
+    repo_root = Path(__file__).resolve().parents[5]
+    manifest = json.loads(_PRE_MISSION_GOLDEN.read_text(encoding="utf-8"))
+    commit = str(manifest["source_commit"])
+    expected_tree = str(manifest["source_tree"])
+    actual_tree = subprocess.run(
+        ["git", "rev-parse", f"{commit}^{{tree}}"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert actual_tree == expected_tree
+    archive = subprocess.run(
+        ["git", "archive", "--format=tar", commit],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+    ).stdout
+    source_root = tmp_path_factory.mktemp("setup-plan-pinned-source")
+    with tarfile.open(fileobj=BytesIO(archive), mode="r:") as bundle:
+        bundle.extractall(source_root, filter="data")
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = str(source_root / "src")
+    replay = subprocess.run(
+        [sys.executable, str(_PRE_MISSION_REPLAY), str(source_root)],
+        cwd=source_root,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    document = json.loads(replay.stdout)
+    assert document["loaded_module"] == (
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py"
+    )
+    assert set(document["cases"]) == set(_LOCAL_OUTCOME_CASES)
+    return cast(dict[str, object], document)
+
+
 @pytest.mark.parametrize("case_name", tuple(_LOCAL_OUTCOME_CASES))
-def test_real_setup_plan_matches_immutable_pre_mission_payload_and_exit_golden(
+def test_real_setup_plan_matches_replayed_pre_mission_payload_and_exit(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     case_name: str,
+    _pre_mission_replay: dict[str, object],
 ) -> None:
-    """The local contract is pinned to the real pre-mission implementation."""
-    golden_document = json.loads(_PRE_MISSION_GOLDEN.read_text(encoding="utf-8"))
-    assert golden_document["source_commit"] == (
-        "d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a"
-    )
-    expected = golden_document["cases"][case_name]
+    """Compare HEAD directly with a replay of the pinned source entry point."""
+    expected = cast(dict[str, dict[str, object]], _pre_mission_replay["cases"])[case_name]
     with monkeypatch.context() as mp:
         payload, exit_code, _wire = _invoke_matrix_case(
             mp,
@@ -736,16 +784,8 @@ def test_real_setup_plan_matches_immutable_pre_mission_payload_and_exit_golden(
         )
 
     normalized = _normalize_golden_root(payload, tmp_path)
-    canonical = json.dumps(
-        normalized,
-        sort_keys=True,
-        separators=(",", ":"),
-    ).encode()
-    # This is the versioned fixture's exact byte-integrity checksum, not charter freshness.
-    assert hashlib.sha256(canonical).hexdigest() == expected["payload_sha256"]  # noqa: TID251
+    assert normalized == expected["payload"]
     assert exit_code == expected["exit_code"]
-    assert payload.get("result") == expected["result"]
-    assert payload.get("error_code") == expected["error_code"]
 
 
 def test_real_setup_plan_freezes_local_outcome_before_hostile_hosted_assessment(

@@ -1,81 +1,8 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "source_commit": "d060cff9a5c9f8cf369c8786e5bf9b4f89931d0a",
-  "source_provenance": "Parent of the first mission artifact commit 74ff71861; captured by invoking that commit's real mission_setup_plan.setup_plan entry point with the same controlled local-case seams used by the compatibility matrix.",
+  "source_tree": "b0921b556c12a39032d1e44ac94a4a0e19517bd2",
+  "source_provenance": "Parent of first mission artifact commit 74ff71861. Tests verify this commit's Git tree, archive it, import mission_setup_plan from that archive in an isolated subprocess, replay all cases, and compare full normalized payloads plus exits directly to HEAD.",
   "capture_clock": "2026-08-23T00:00:00Z",
-  "normalization": "The isolated repository root, including its resolved /private alias, is replaced by {{ROOT}} before canonical compact sorted-key JSON hashing.",
-  "cases": {
-    "committed_insufficient": {
-      "error_code": null,
-      "exit_code": 0,
-      "payload_sha256": "7d8a7fbf0d33c35238210fe6e4db9a996d1a8c1a3341a6ef00bbe87c9c3bd7c7",
-      "result": "blocked"
-    },
-    "context_resolution": {
-      "error_code": "PLAN_CONTEXT_UNRESOLVED",
-      "exit_code": 1,
-      "payload_sha256": "a087fd9ab130f150a6d7c834060974b4e2d1ff659121719c62aa60e6c6a8163f",
-      "result": null
-    },
-    "generic_local_exception": {
-      "error_code": null,
-      "exit_code": 1,
-      "payload_sha256": "8e371cc643e9c308a468a15443d8e05f0a8dd210756af875f19581d99999b7a7",
-      "result": null
-    },
-    "git_preflight": {
-      "error_code": "GIT_PREFLIGHT_FAILED",
-      "exit_code": 1,
-      "payload_sha256": "49be13be40213f3ade8c3f3c9660dabcf41b417669a9c737a4470f672a92009b",
-      "result": "error"
-    },
-    "missing_spec": {
-      "error_code": "SPEC_FILE_MISSING",
-      "exit_code": 1,
-      "payload_sha256": "f585b69dc8cf00ec483dba600a67a3720bfaca8122baacb3bf7d71e45d921ab1",
-      "result": null
-    },
-    "missing_template": {
-      "error_code": null,
-      "exit_code": 1,
-      "payload_sha256": "b42342a8d5e989a895c70d69d8d3d0435756b6387746447c1955c7196c51eb21",
-      "result": null
-    },
-    "non_substantive_spec": {
-      "error_code": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
-      "exit_code": 0,
-      "payload_sha256": "3402390e01f9152fbea1a520d3a2f510c209c804c5cfe729dded11e877853fe3",
-      "result": "blocked"
-    },
-    "populated_insufficient": {
-      "error_code": null,
-      "exit_code": 0,
-      "payload_sha256": "7d8a7fbf0d33c35238210fe6e4db9a996d1a8c1a3341a6ef00bbe87c9c3bd7c7",
-      "result": "blocked"
-    },
-    "pristine_scaffold": {
-      "error_code": null,
-      "exit_code": 0,
-      "payload_sha256": "74a3e10669b376de89882a98620d374216d69d51be0e566049eb1cc970eae0bb",
-      "result": "success"
-    },
-    "substantive_complete": {
-      "error_code": null,
-      "exit_code": 0,
-      "payload_sha256": "d3a79d91ea09ad80cc631b0f958b3a526133f88bd5f0b1a6de08cdee90915589",
-      "result": "success"
-    },
-    "template_configuration": {
-      "error_code": "TEMPLATE_CONFIGURATION_ERROR",
-      "exit_code": 1,
-      "payload_sha256": "79106fc1663a5e8ec1615b2632a49c609726d3ee6d600080fb55080050af698b",
-      "result": "error"
-    },
-    "uncommitted_spec": {
-      "error_code": "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED",
-      "exit_code": 0,
-      "payload_sha256": "88ab3b1b85d6de6348fa22d2ee468aa1e82e89091b5e70bd80a3a8e629517870",
-      "result": "blocked"
-    }
-  }
+  "normalization": "Only the isolated repository root, including its resolved /private alias, is replaced by {{ROOT}}. No payload fields are discarded."
 }

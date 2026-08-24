@@ -12,8 +12,10 @@ from types import SimpleNamespace
 from typing import Any, cast
 
 import pytest
+import httpx
 
-from specify_cli.auth.token_manager import SessionAssessment
+from specify_cli.auth.secure_storage import EncryptedFileStorage
+from specify_cli.auth.token_manager import SessionAssessment, TokenManager
 from specify_cli.cli.commands.agent import setup_plan_hosted as hosted_adapter
 from specify_cli.cli.commands.agent.setup_plan_hosted import (
     BoundaryEvaluation,
@@ -26,7 +28,7 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     evaluate_route_availability,
 )
 from specify_cli.sync.owner import UnreadableOwnerRecord
-from specify_cli.sync.preflight import PreflightResult
+from specify_cli.sync.preflight import ForegroundIdentity, PreflightResult, run_preflight
 from specify_cli.sync.routing import CheckoutSyncRouting
 
 pytestmark = pytest.mark.fast
@@ -729,24 +731,68 @@ def test_local_auth_and_coherent_boundary_meet_nfr_007_without_network(
         raise AssertionError("local hosted-readiness assessment attempted network I/O")
 
     monkeypatch.setattr(socket, "create_connection", _forbid_network)
-    manager = type(
-        "LocalTokenManager",
-        (),
-        {"session_assessment": SessionAssessment(True, True, "session_usable")},
-    )()
-    preflight = PreflightResult(ok=True, auth_required=False)
+    monkeypatch.setattr(socket.socket, "connect", _forbid_network)
+    monkeypatch.setattr(socket.socket, "connect_ex", _forbid_network)
+    monkeypatch.setattr(httpx.Client, "request", _forbid_network)
+    monkeypatch.setattr(httpx.AsyncClient, "request", _forbid_network)
+    monkeypatch.setattr(hosted_adapter, "get_token_manager", _forbid_network, raising=False)
+    auth_dir = tmp_path / "auth"
+    storage = EncryptedFileStorage(base_dir=auth_dir)
 
-    _assert_within_local_assessment_budget(
-        lambda: acquire_session_assessment(tmp_path, token_manager_factory=lambda: manager)
+    def _cold_auth_assessment() -> SessionAssessment:
+        manager = TokenManager(storage)
+        manager.load_from_storage_sync()
+        return acquire_session_assessment(
+            tmp_path,
+            token_manager_factory=lambda: manager,
+        )
+
+    foreground = ForegroundIdentity(
+        package_version="test",
+        executable_path=tmp_path / "bin" / "spec-kitty",
+        source_path=tmp_path / "src",
+        server_url=None,
+        team_or_user=None,
+        queue_db_path=tmp_path / "queue.db",
+        pid=1,
     )
-    _assert_within_local_assessment_budget(
-        lambda: evaluate_boundary(tmp_path, preflight_probe=lambda **_: preflight)
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight.classify_owner_record", lambda: None
     )
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight.list_orphan_records", lambda: []
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight._count_legacy_rows_for_scope", lambda _fg: (0, 0)
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight._project_store_layout_diagnostic", lambda _root: None
+    )
+
+    def _canonical_boundary() -> BoundaryEvaluation:
+        return evaluate_boundary(
+            tmp_path,
+            preflight_probe=lambda **_: run_preflight(
+                repo_root=tmp_path,
+                foreground=foreground,
+                require_auth=False,
+            ),
+        )
+
+    assert _cold_auth_assessment().completed is True
+    assert _canonical_boundary().state is BoundaryState.SAFE
+    _assert_within_local_assessment_budget(_cold_auth_assessment)
+    _assert_within_local_assessment_budget(_canonical_boundary)
     assert network_attempts == []
 
     # Negative control: prove the no-network sentinel is live.
     with pytest.raises(AssertionError, match="network I/O"):
         socket.create_connection(("example.invalid", 443))
+    with pytest.raises(AssertionError, match="network I/O"):
+        socket.socket().connect(("example.invalid", 443))
+    with pytest.raises(AssertionError, match="network I/O"):
+        httpx.Client().request("GET", "https://example.invalid")
 
 
 def test_nfr_007_budget_detector_rejects_a_slow_probe() -> None:
