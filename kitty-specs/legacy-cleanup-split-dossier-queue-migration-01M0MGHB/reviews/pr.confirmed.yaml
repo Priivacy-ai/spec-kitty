@@ -1,0 +1,33 @@
+schema: review-confirmed/v1
+complete: true
+phase: pr
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+diff_base: 8a03733e734f002ab97cc4ee74a006a70f683048
+evidence: [pr.boundary.findings.yaml, pr.contract.findings.yaml, pr.tests.findings.yaml, pr.merged.yaml]
+note: >-
+  Every finding below was verified first-hand by the orchestrator before being acted on, per the
+  symmetry rule (verify before ACTING on a report, not only when writing one). Verification method is
+  recorded per finding in the lens files. Nothing was refuted; nothing was dropped.
+confirmed:
+  - id: PR-TESTS-001
+    severity: 4
+    disposition: FIX-NOW (blocks merge presentation)
+  - id: PR-BOUNDARY-001
+    severity: 3
+    disposition: FIX-NOW (cheap; closes the FR-011 defect class at its third site)
+  - id: PR-CONTRACT-001
+    severity: 3
+    disposition: FIX-NOW (make the failure loud; correct the advertised contract)
+  - id: PR-CONTRACT-002
+    severity: 2
+    disposition: FIX-NOW (cheap; fixtures currently encode a non-canonical value)
+  - id: WP02-ASSERT-RAISE
+    severity: 2
+    disposition: FIX-NOW (repo convention; -O strips asserts)
+  - id: PR-BOUNDARY-002
+    severity: 2
+    disposition: DEFER to follow-up issue - trimming a public __all__ is an API change, surface is
+      currently dead, and it is not this mission's scope. Recorded, not dropped.
+  - id: PR-BOUNDARY-003
+    severity: 1
+    disposition: FIX-NOW (one-line dead-code removal, same file as other fixes)

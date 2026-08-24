@@ -1,0 +1,79 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: SPEC-VERIFY-001
+    lens: FR-004 revert-test / silent-swallow verification
+    severity: 4
+    title: FR-004's cited regression coverage mocks the emitters without autospec, so it would not catch the exact TypeError-swallowed-by-except-Exception regression the AC exists to guard against
+    evidence:
+      - artifact: "spec.md § User Story 2, Independent Test and Acceptance Scenario 1 (lines ~290-307)"
+      - artifact: "spec.md § FR-004 (line 369)"
+      - code: "tests/sync/test_dossier_pipeline.py:108-113 — `@patch(\"specify_cli.dossier.events.emit_snapshot_computed\")` / `@patch(\"specify_cli.dossier.events.emit_artifact_indexed\")` applied at the `TestSyncFeatureDossier` class level, no `autospec=True` and no `spec=...`"
+      - code: "tests/sync/test_dossier_pipeline.py:462 — `@patch(\"specify_cli.dossier.events.emit_artifact_missing\")`, same plain-Mock pattern"
+      - code: "src/specify_cli/sync/dossier_pipeline.py:101-122, 126-145 — the two call sites, each wrapped in `except Exception as e: logger.warning(...)`"
+    claim: >
+      User Story 2's Independent Test says to run "sync/dossier_pipeline.py's artifact-indexing/missing
+      path end-to-end against a real dossier fixture (existing tests/sync/test_dossier_pipeline.py
+      coverage) after the bridge is removed", and FR-004's Acceptance Scenario 1 states the AC
+      "fails (regresses) if reverting FR-004's parameter promotion causes the call to raise, because
+      that raise is caught by dossier_pipeline.py's except Exception ... which a plain 'does it crash'
+      test would not catch." Verified directly: every existing test in tests/sync/test_dossier_pipeline.py
+      that exercises `sync_feature_dossier` patches `specify_cli.dossier.events.emit_artifact_indexed`
+      / `emit_artifact_missing` / `emit_snapshot_computed` with plain `unittest.mock.patch` (no
+      `autospec=True`, no `spec=`). A plain `MagicMock` accepts arbitrary keyword arguments regardless
+      of the real function's signature — it will never raise `TypeError` for an unexpected keyword,
+      so `dossier_pipeline.py`'s `except Exception` branch is never exercised by these tests and
+      `events_emitted` never regresses even if `emit_artifact_indexed`/`emit_artifact_missing` were
+      reverted to reject `step_id=`/`required_status=`/`blocking=`. No other test file in the repo
+      calls `sync_feature_dossier` (or the pipeline's internal `_emit_artifact_events`) with the real,
+      unmocked emitter functions (grepped every test file referencing `dossier_pipeline` /
+      `sync_feature_dossier`: `test_dossier_trigger.py` mocks `sync_feature_dossier` itself at a higher
+      level; the one unmocked "real e2e" test in `test_dossier_pipeline.py`,
+      `test_real_load_manifest_schema_error_names_origin_through_sync_feature_dossier`, fails before
+      reaching the emitters via a manifest-schema error). The spec never mentions `autospec` or
+      instructs the implementer to exercise the real (unmocked) emitter through the pipeline call
+      site; nothing in FR-004/AC1/AC2 text rules out satisfying the AC with another mocked-emitter
+      test following the file's existing convention, which would be vacuous for the stated regression
+      class. This is exactly the "FR without real coverage" failure mode: an implementer who follows
+      the file's established pattern (as the Independent Test's own pointer to "existing coverage"
+      invites) produces a green, red-first-looking test that does not actually catch the defect FR-004
+      exists to prevent.
+    remediation: >
+      Add an explicit instruction to FR-004 (or a new acceptance scenario) requiring the regression
+      test to call `sync_feature_dossier` (or the internal pipeline helper) WITHOUT mocking
+      `emit_artifact_indexed`/`emit_artifact_missing` — either exercise the real functions end-to-end
+      (asserting the real `TypeError` cannot occur post-fix) or, if mocking is retained for isolation,
+      require `autospec=True` (or `spec=emit_artifact_indexed`) so an unexpected/removed keyword
+      argument still raises `TypeError` through the mock. Name this explicitly so implementation and
+      review can verify the new test would actually go red if FR-004's promotion were reverted (e.g.
+      by temporarily reverting the promotion locally and confirming the new test fails, not just that
+      it passes today).
+  - id: SPEC-VERIFY-002
+    lens: Falsifiability / evidence accuracy
+    severity: 2
+    title: FR-006's `_PAYLOAD_RULES` line-range citation ("emitter.py:827-897") overshoots the four dossier entries and includes an unrelated event type plus the dict's closing lines
+    evidence:
+      - artifact: "spec.md § FR-006 (line 371)"
+      - code: "src/specify_cli/sync/emitter.py:827 — `\"MissionDossierArtifactIndexed\": {` (first dossier entry)"
+      - code: "src/specify_cli/sync/emitter.py:875 — closing `},` of `\"MissionDossierParityDriftDetected\"` (last dossier entry)"
+      - code: "src/specify_cli/sync/emitter.py:876-893 — `\"MissionOriginBound\": {...}` (unrelated, non-dossier event type)"
+      - code: "src/specify_cli/sync/emitter.py:895-897 — dict close `}` and `VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())`"
+    claim: >
+      FR-006 cites "the four hand-maintained dossier entries in `_PAYLOAD_RULES` (`emitter.py:827-897`)".
+      Verified by reading the file directly: the four dossier entries
+      (`MissionDossierArtifactIndexed`, `MissionDossierArtifactMissing`, `MissionDossierSnapshotComputed`,
+      `MissionDossierParityDriftDetected`) actually span lines 827-875. Lines 876-893 are the
+      `MissionOriginBound` entry — a different, in-scope-for-nothing event type that must NOT be
+      touched by this mission — and lines 895-897 are the dict's closing brace and the
+      `VALID_EVENT_TYPES` assignment. FR-006's prose correctly names the four entries by type, so an
+      implementer reading carefully would still change only the right four blocks, but the line-range
+      citation itself is wrong and could mislead someone using it as a literal diff boundary (e.g. a
+      line-range-based patch tool, or a reviewer checking "was the change scoped to 827-897") into
+      including the unrelated `MissionOriginBound` entry in the diff.
+    remediation: >
+      Correct the citation to `emitter.py:827-875` (the four dossier entries only), or state the range
+      as two pieces — "827-875 (the four dossier entries); do not touch 876-893 (`MissionOriginBound`,
+      unrelated)" — so the line range cannot be read as a literal edit boundary.
