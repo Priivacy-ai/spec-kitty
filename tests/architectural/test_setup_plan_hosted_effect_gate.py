@@ -47,6 +47,29 @@ HOSTED_NAMES = frozenset(
         "get_async_client",
     }
 )
+AUTHORIZED_HOSTED_IMPORTS = frozenset(
+    {
+        ("specify_cli.status.lifecycle_events", "fanout_lifecycle_event_hosted"),
+        (
+            "specify_cli.sync.dossier_pipeline",
+            "trigger_feature_dossier_sync_if_enabled",
+        ),
+    }
+)
+REFLECTION_SELECTORS = frozenset(
+    {
+        "eval",
+        "exec",
+        "getattr",
+        "globals",
+        "import_module",
+        "locals",
+        "vars",
+        "__import__",
+        "__dict__",
+        "getitem",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -125,6 +148,64 @@ def _outer_attribute(node: ast.AST, parents: dict[ast.AST, ast.AST]) -> ast.AST:
     return current
 
 
+def _hosted_import_census(
+    tree: ast.AST,
+) -> tuple[dict[str, str], dict[str, str], list[_Edge]]:
+    """Enforce the boundary's two exact, unaliased physical imports."""
+    sink_bindings: dict[str, str] = {}
+    module_bindings: dict[str, str] = {}
+    violations: list[_Edge] = []
+    authorized_import_counts = dict.fromkeys(AUTHORIZED_HOSTED_IMPORTS, 0)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module in HOSTED_MODULES:
+            for item in node.names:
+                qualified = (node.module, item.name)
+                if qualified not in AUTHORIZED_HOSTED_IMPORTS:
+                    violations.append(
+                        _Edge(
+                            "unauthorized-hosted-import",
+                            f"{node.module}.{item.name}",
+                            node.lineno,
+                        )
+                    )
+                elif item.asname is not None:
+                    violations.append(
+                        _Edge(
+                            "aliased-hosted-import",
+                            f"{node.module}.{item.name} as {item.asname}",
+                            node.lineno,
+                        )
+                    )
+                else:
+                    authorized_import_counts[qualified] += 1
+                    sink_bindings[item.name] = item.name
+        elif isinstance(node, ast.Import):
+            for item in node.names:
+                if item.name in HOSTED_MODULES:
+                    violations.append(_Edge("hosted-module-import", item.name, node.lineno))
+                    module_bindings[item.asname or item.name.split(".", 1)[0]] = item.name
+        elif (
+            isinstance(node, ast.Call)
+            and _qualified_name(node.func) in {"__import__", "importlib.import_module"}
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+            and node.args[0].value in HOSTED_MODULES
+        ):
+            violations.append(_Edge("dynamic-import", str(node.args[0].value), node.lineno))
+
+    for qualified, count in authorized_import_counts.items():
+        if count != 1:
+            violations.append(
+                _Edge(
+                    "authorized-import-count",
+                    f"{qualified[0]}.{qualified[1]}={count}",
+                    0,
+                )
+            )
+    return sink_bindings, module_bindings, violations
+
+
 def _physical_sink_census(source: str) -> tuple[list[_SinkUse], list[_Edge]]:
     """Census every hosted binding selection, including pre-call escapes.
 
@@ -136,30 +217,7 @@ def _physical_sink_census(source: str) -> tuple[list[_SinkUse], list[_Edge]]:
     """
     tree = ast.parse(source)
     parents = _parent_map(tree)
-    sink_bindings: dict[str, str] = {}
-    module_bindings: dict[str, str] = {}
-    violations: list[_Edge] = []
-
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module in HOSTED_MODULES:
-            for item in node.names:
-                if item.name == "*":
-                    violations.append(_Edge("star-import", node.module, node.lineno))
-                elif item.name in HOSTED_NAMES:
-                    sink_bindings[item.asname or item.name] = item.name
-        elif isinstance(node, ast.Import):
-            for item in node.names:
-                if item.name in HOSTED_MODULES:
-                    # An unaliased dotted import binds its top-level package.
-                    module_bindings[item.asname or item.name.split(".", 1)[0]] = item.name
-        elif (
-            isinstance(node, ast.Call)
-            and _qualified_name(node.func) in {"__import__", "importlib.import_module"}
-            and node.args
-            and isinstance(node.args[0], ast.Constant)
-            and node.args[0].value in HOSTED_MODULES
-        ):
-            violations.append(_Edge("dynamic-import", str(node.args[0].value), node.lineno))
+    sink_bindings, module_bindings, violations = _hosted_import_census(tree)
 
     uses: list[_SinkUse] = []
     for node in ast.walk(tree):
@@ -202,6 +260,38 @@ def _physical_sink_census(source: str) -> tuple[list[_SinkUse], list[_Edge]]:
     )
 
 
+def _reflection_edges(source: str) -> list[_Edge]:
+    """Reject dynamic namespace selectors from the deliberately closed boundary."""
+    tree = ast.parse(source)
+    edges: list[_Edge] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in REFLECTION_SELECTORS:
+            edges.append(_Edge("boundary-reflection", node.id, node.lineno))
+        elif isinstance(node, ast.Attribute) and (node.attr in REFLECTION_SELECTORS or _qualified_name(node) == "sys.modules"):
+            edges.append(
+                _Edge(
+                    "boundary-reflection",
+                    _qualified_name(node) or node.attr,
+                    node.lineno,
+                )
+            )
+        elif isinstance(node, ast.ImportFrom) and node.module in {
+            "builtins",
+            "operator",
+            "importlib",
+        }:
+            edges.extend(
+                _Edge(
+                    "boundary-reflection-import",
+                    f"{node.module}.{item.name}",
+                    node.lineno,
+                )
+                for item in node.names
+                if item.name in REFLECTION_SELECTORS
+            )
+    return sorted(set(edges), key=lambda item: (item.lineno, item.kind, item.value))
+
+
 def _first_executable_statement(
     function: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> ast.stmt:
@@ -236,6 +326,7 @@ def _boundary_violations(source: str) -> list[_Edge]:
     """Return unguarded selections and all sink capability escapes."""
     functions = _functions(source)
     uses, violations = _physical_sink_census(source)
+    violations.extend(_reflection_edges(source))
     for use in uses:
         if use.kind != "direct-call":
             violations.append(_Edge("sink-escape", use.sink, use.lineno))
@@ -375,6 +466,28 @@ def test_missing_or_late_identity_guard_fails_dominance_oracle() -> None:
             "def hostile(decision, name):\n"
             "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
             "    vars(hostile_transport).get(name)()\n",
+        ),
+        (
+            "boundary-reflection",
+            "\ndef hostile(decision):\n"
+            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            '    globals()["fanout_lifecycle_event_hosted"]({})\n',
+        ),
+        (
+            "boundary-reflection",
+            "\nimport sys\n"
+            "def hostile(decision):\n"
+            "    if not is_canonical_hosted_sync_decision(decision):\n        return\n"
+            "    getattr(sys.modules[__name__], "
+            '"fanout_lifecycle_event_hosted")({})\n',
+        ),
+        (
+            "aliased-hosted-import",
+            "\nfrom specify_cli.status.lifecycle_events import fanout_lifecycle_event_hosted as emit\n",
+        ),
+        (
+            "unauthorized-hosted-import",
+            "\nfrom specify_cli.auth.transport import get_client\n",
         ),
     ],
 )
