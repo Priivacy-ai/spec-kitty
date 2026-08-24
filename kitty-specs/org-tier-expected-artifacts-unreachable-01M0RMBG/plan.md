@@ -90,7 +90,10 @@ tests/dossier/
 No other file is touched. `src/specify_cli/runtime/resolver.py` and
 `src/specify_cli/dossier/manifest.py` are read-only references (the sibling pattern FR-001
 must match, and the cache whose reflexivity is analyzed below) — neither is edited by this
-mission.
+mission. **Gap weighed, deliberately deferred:** `manifest.py` (and, likewise untouched,
+`src/charter/mission_type_profiles.py`) each carry their own docstring prose citing the
+pre-fix path — this is surfaced explicitly, not silently missed; see the Campsite-Clean
+Scope section below for the finding and the deferral rationale.
 
 **Structure Decision**: Single project, existing structure. The fix lands entirely inside the
 already-established `src/charter/` (charter package) and its `tests/charter/` /
@@ -154,9 +157,25 @@ from an already-merged mission (`up-org-doctrine-consumers-01M05YAB`) — per re
 mission-scoped historical artifacts under `kitty-specs/<merged-mission>/` are immutable
 point-in-time records, not kept in sync with later bugfixes. This mission carries that
 decision forward as-is: **that contract file is NOT part of this mission's file set and is
-not touched.** (`src/charter/org_expected_artifacts.py`'s own module docstring cites that
+not touched.** `src/charter/org_expected_artifacts.py`'s own module docstring cites that
 frozen document as its "Contract C-4" reference — the docstring correction in FR-002 fixes
-the *function's* stated on-disk path, not the frozen historical document's content.)
+the *function's* stated on-disk path, not the frozen historical document's content.
+
+**Residual ambiguity, closed inside the one file this mission already edits:** left as
+originally scoped, that leaves the module docstring's own "Contract C-4" citation pointing a
+reader at a frozen document whose embedded code sample
+(`org-tier-resolution-contract.md:86`: `"""<org_root>/<mission_type>/expected-artifacts.yaml,
+later org_roots override earlier."""`) still shows the pre-fix path, with no signal that this
+one detail is stale — the same "citation implies current path" confusion FR-002 exists to
+eliminate, one level of indirection removed. FR-002's docstring-correction scope already
+covers the module docstring (its spec.md row: "Correct the module/**function** docstring"),
+and `org_expected_artifacts.py` is already inside C-001's six-file set, so this adds no file
+to that set — FR-002 additionally adds one caveat sentence to the module docstring's Contract
+C-4 citation, e.g.: "Contract C-4's own code sample cites the pre-fix path
+(`<org_root>/<mission_type>/expected-artifacts.yaml`) — that frozen historical document is
+not kept in sync with this bugfix; see this module's `resolve_org_expected_artifacts`
+docstring for the current, correct on-disk path." This keeps the frozen doc itself untouched
+(respecting C-007) while closing the residual ambiguity.
 
 ## Upgrade/Migration Chain
 
@@ -175,15 +194,22 @@ assumed.
 **In scope — real, path-filter-triggered gates for this diff:**
 
 1. **`fast-tests-charter` + `integration-tests-charter`** (`ci-quality.yml`, gated on the
-   `charter` dorny filter: `src/charter/**` + `tests/charter/**`, which this diff hits).
+   `charter` dorny filter — six path patterns, not two: `src/charter/**`,
+   `src/specify_cli/charter_runtime/**`, `tests/charter/**`,
+   `tests/specify_cli/charter_freshness/**`, `tests/specify_cli/charter_lint/**`,
+   `tests/specify_cli/charter_preflight/**`. This diff hits the first and third of the six.
    Invocation:
    `uv run python -m pytest tests/charter tests/specify_cli/charter_freshness tests/specify_cli/charter_lint tests/specify_cli/charter_preflight -m "fast and not windows_ci and not timing" -q --tb=short --cov=charter --cov=specify_cli.charter_runtime --cov-fail-under=55 ...`
    (fast leg) plus the integration leg (`-m 'not windows_ci and (git_repo or integration)'`,
    no coverage floor). The charter package's own coverage floor here is **55%**, not 90% —
    see item 4 below for the real 90% gate that does apply.
-2. **`fast-tests-core-misc` (misc shard) + `integration-tests-core-misc` (misc shard)**
-   (`ci-quality.yml`) — the `misc` shard's `paths:` list explicitly includes `tests/dossier`
-   (verified: `.github/workflows/ci-quality.yml` matrix, `shard: misc`). Triggered by the
+2. **`fast-tests-core-misc` (`core-misc` shard) + `integration-tests-core-misc` (`misc`
+   shard)** (`ci-quality.yml`) — two different shard names for the two different jobs, both
+   of which cover `tests/dossier`: `fast-tests-core-misc`'s matrix shard is named `core-misc`
+   (catch-all `paths: ''`, with an `ignore_args` list that does NOT exclude `tests/dossier`,
+   so it is implicitly covered); `integration-tests-core-misc`'s equivalent shard is
+   literally named `misc` and lists `tests/dossier` explicitly in its `paths:` (verified:
+   `.github/workflows/ci-quality.yml` matrix definitions for both jobs). Triggered by the
    `agent_surface` dorny filter (`src/specify_cli/dossier/**` is a member) or the broad
    `core_misc`/other filters; also runs unconditionally on `push`. Invocation (fast leg):
    `uv run python -m pytest tests/dossier ... -m "fast and not windows_ci and not regression" ...`;
@@ -207,29 +233,50 @@ assumed.
 5. **`lint` job (`ci-quality.yml`)** — runs on every PR unconditionally (no path filter, only
    an `if:` gate on `pr:deferred`/`pr:skip-ci` labels), so it always fires for this PR
    regardless of file set:
-   - **`mypy --strict`** (ENFORCED) — `src/charter` is in its target list
-     (`uv run python -m mypy --strict src/specify_cli src/charter src/doctrine`). Applicable:
-     the FR-001 path-join edit must keep typing clean.
+   - **`mypy --strict`** (ADVISORY, not enforced — corrected from an earlier planning-pass
+     mislabel) — `src/charter` is in its target list
+     (`uv run python -m mypy --strict src/specify_cli src/charter src/doctrine`), but the
+     step itself is named `"[INFO] Run mypy report (advisory)"` (`id: mypy`) with
+     `continue-on-error: true`; its `has_failures` output feeds only the non-blocking
+     `lint-feedback` PR-comment job, and no downstream step fails the `lint` job on a mypy
+     failure. A mypy --strict issue in the FR-001 path-join edit would surface only as a PR
+     comment, not a red/blocking check — good typing hygiene is still worth keeping, but this
+     is not a gate the WP must pass locally to be "CI-ready."
    - **TID251 banned-API lint** (ENFORCED, `ruff check src tests --select TID251`) —
      path-independent, always runs; the six touched files use no banned API today and the fix
      adds none.
    - **`check_patch_targets.py`** (ENFORCED, `patch()` target validation) — path-independent;
      none of the six files use `unittest.mock.patch`, so this is a pass-through, not a
      meaningful check for this diff, but it still runs.
-   - **Bandit security scan** (ENFORCED) and **pip-audit CVE scan** (ENFORCED) — both scan
-     `src`/the dependency graph unconditionally; this diff adds no new dependency and no new
-     security-relevant surface (pure path-string construction), so both are pass-through.
-   - **commitlint** (ENFORCED via job outputs feeding the aggregate gate) — applies to this
-     mission's own commit messages; real obligation (see Phasing section for the RED/GREEN
-     commit shape it must accept).
-   - **markdownlint** (ENFORCED) — applies to any `.md` files this mission's commits touch,
-     including this `plan.md` and the tracer files under `kitty-specs/` (not just docs/); a
-     real, if minor, obligation.
-   - **Contextive glossary freshness check** — conditionally SKIPPED for this diff: it only
-     runs when the commit range touches `glossary/`, `src/specify_cli/`, or
-     `.kittify/traceability/` (verified in the job step's own skip-logging line); this mission
-     touches only `src/charter/` and test files, so this check will report "no changes"
-     and skip, not silently pass on unrelated grounds.
+   - **Bandit security scan** and **pip-audit CVE scan** (both genuinely ENFORCED, despite
+     each individual step also carrying `continue-on-error: true`) — both scan `src`/the
+     dependency graph unconditionally; a dedicated downstream `"[ENFORCED] Fail job if
+     security checks failed"` step checks `steps.bandit.outcome` / `steps.pip_audit.outcome`
+     and fails the `lint` job if either is not `success` — this is the one pattern in this
+     job that turns an advisory-looking step into a real gate. This diff adds no new
+     dependency and no new security-relevant surface (pure path-string construction), so both
+     are pass-through, but they are still genuinely blocking if they were to fail.
+   - **commitlint** (ADVISORY despite its own step name's "[ENFORCED]" prefix — corrected
+     from an earlier planning-pass mislabel) — `id: commitlint`, `if: always()`,
+     `continue-on-error: true`; its `has_failures` output feeds only the non-blocking
+     `lint-feedback` PR-comment job, and — unlike bandit/pip-audit above — no downstream step
+     checks `steps.commitlint.outcome` to fail the job. This mission's commits should still
+     follow conventional-commit style as hygiene, but CI does not currently block on a
+     commitlint violation.
+   - **markdownlint** (ADVISORY despite its own step name's "[ENFORCED]" prefix — same
+     mislabel pattern as commitlint) — `id: markdownlint`, `continue-on-error: true`, no
+     downstream job-failing step. Applies informationally to any `.md` files this mission's
+     commits touch, including this `plan.md` and the tracer files under `kitty-specs/`, but
+     is not a merge-blocking gate today.
+   - **Contextive glossary freshness check** — DOES run for this diff, not skip (corrected
+     from an earlier planning-pass mislabel): its own change-detection path list
+     (`ci-quality.yml`'s Contextive step, `git diff --diff-filter=ACM ... -- 'glossary/**'
+     'src/specify_cli/**' 'src/charter/**' 'src/charter/**' '.kittify/traceability/**'`)
+     explicitly includes `src/charter/**`, and this mission's sole production file is
+     `src/charter/org_expected_artifacts.py`. Expected to PASS, not skip: this mission
+     changes no glossary-relevant terminology, so `scripts/generate_contextive_glossaries.py
+     check` should find nothing stale — but the check does execute against this diff; it will
+     not report "no changes."
    - **`ruff check src tests` full report** — explicitly labeled `[INFO] ... (advisory)` in
      the workflow; **not a merge blocker** by the workflow's own annotation. Not counted as a
      required gate.
@@ -332,6 +379,37 @@ finding, not a silently-skipped topic: having read all six files, there is no ov
 function, no stale Sonar finding pointed at in the touched sections, and no dead/duplicated
 code inside the touched regions beyond the FR-003/004/005 duplication that the functional fix
 itself resolves. No file is added to the six-file set to manufacture cleanup work.
+
+**Known gap outside the six-file set — weighed explicitly, deliberately deferred (mirrors
+C-007):** the resolver's two direct production callers each carry their own docstring prose
+that also states the pre-fix, wrong path:
+
+- `_resolve_expected_artifacts_slot` (`src/charter/mission_type_profiles.py:1030`): "FR-008
+  (WP05): an org-pack ``<org_root>/<mission_type>/expected-artifacts.yaml``... takes
+  precedence over the built-in file..."
+- `ManifestRegistry.load_manifest` (`src/specify_cli/dossier/manifest.py:219-221`): "FR-008
+  (WP05): when *repo_root* is given... an org-pack
+  ``<org_root>/<mission_type>/expected-artifacts.yaml``... takes precedence over the built-in
+  file..."
+
+Once FR-001/FR-002 land, both docstrings describe the now-incorrect path — the identical
+"docstring says X, code does Y" hazard this mission exists to remove from the resolver itself,
+reappearing one hop away in its two sole callers. This is a direct, domain-matched,
+proportional connection to the stated defect under Standing Order #2 /
+`RECONCILE_CHANGE_SCOPE_TENSIONS`'s Boy Scout test — not adjacent, unrelated cleanup.
+
+**Resolution: deferred, not folded into this mission**, mirroring the C-007 treatment of the
+frozen contract doc (see Contracts section). Rationale: `src/charter/mission_type_profiles.py`
+and `src/specify_cli/dossier/manifest.py` are outside C-001's six-file set, and that set is a
+spec-level, operator-decided constraint already closed at spec phase (spec.md C-001: "any
+extension beyond these six files would need a direct, proportional connection to this
+specific defect, which none exists for" — written before this drift was independently found
+during plan review). Re-opening a spec-level, Open/High-priority decision is not this plan's
+call to make unilaterally by quietly growing the file set. The correct next step is a fast
+follow-up carrying the same edit shape as FR-002 (one docstring line corrected in each of the
+two caller files) — filed as a follow-on issue/mission or picked up explicitly at the next
+`/spec-kitty.tasks` or ledger sweep — rather than silently expanding this mission's scope past
+what the spec already fixed. **No file is added to the six-file set by this plan.**
 
 ## ATDD-First Discipline (C-011, binding)
 
