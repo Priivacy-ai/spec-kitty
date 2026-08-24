@@ -37,14 +37,14 @@
       "wp": "WP01"
     },
     "#3432": {
-      "evidence_ref": "WP01 approved after independent review; product commits 42a195e01 and 113391c55 implement lane eligibility, ae591dca4 fixes mixed first-finalize provenance, and 53ebfc3f4 excludes canceled work from ownership inference and cycle validation while preserving canonical execution-history freezes. Focused cycle-4 gate: 53 passed, 1 skipped.",
+      "evidence_ref": "f753071f8 restores authoritative planning provenance truth table; 53ebfc3f4 projects cancellation before ownership and eligible-DAG validation; 85c9df87a aligns plan/data-model/tasks/WP with canceled-only-cycle exclusion and surviving eligible-cycle enforcement.",
       "fr": null,
       "nfr": null,
       "repo": null,
       "sc": null,
       "scope": null,
       "source_file": "spec.md",
-      "title": "bug: a canceled work package cannot satisfy lane computation — every route to retiring one is refused",
+      "title": "bug: a canceled work package cannot satisfy lane computation \u2014 every route to retiring one is refused",
       "verdict": "fixed",
       "wp": "WP01"
     }
