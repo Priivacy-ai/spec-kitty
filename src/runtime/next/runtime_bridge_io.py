@@ -896,6 +896,31 @@ def _presence_filenames_for(mission_family: str) -> frozenset[str]:
     return frozenset(name_set.values())
 
 
+def _blocking_artifact_names_stub(mission_family: str, step_id: str) -> frozenset[str] | None:
+    """WP01's **minimal test-only stub** for ``ArtifactPresenceSnapshot.
+    blocking_artifact_names`` (FR-001/FR-002/FR-006, #3704 Part 1).
+
+    Distinguishes "no expected-artifacts manifest reachable" (``None``) from
+    "manifest present" (a real, possibly-empty ``frozenset`` of this step's
+    blocking ``path_pattern`` filenames) using the same
+    ``MissionTemplateRepository``-backed authority :func:`_presence_filenames_for`
+    already draws from -- just enough logic to drive both branches of
+    ``runtime_bridge_cores.evaluate_guards_strict``'s new dispatch-miss
+    check. **Replaced entirely by WP02's T013** (real org-tier-aware
+    resolution via ``specify_cli.runtime.resolver.required_artifacts_for``)
+    -- do not extend this stub with org-tier lookup; that is WP02's job.
+    """
+    from charter.missions import MissionTemplateRepository  # noqa: PLC0415
+    from doctrine.missions import ExpectedArtifactManifest  # noqa: PLC0415
+
+    config = MissionTemplateRepository.default().get_expected_artifacts(mission_family)
+    if config is None:
+        return None
+    manifest = ExpectedArtifactManifest.model_validate(config.parsed)
+    specs = [*manifest.required_always, *manifest.required_by_step.get(step_id, [])]
+    return frozenset(spec.path_pattern for spec in specs if spec.blocking)
+
+
 @dataclass(frozen=True)
 class ArtifactPresenceSnapshot:
     """FR-009 guard fact-port output (data-model.md §ArtifactPresenceSnapshot).
@@ -918,6 +943,18 @@ class ArtifactPresenceSnapshot:
     both its own WP02 compat reach AND this port's already-green
     ``tests/runtime/test_bridge_io.py`` (which does not stub
     ``_should_advance_wp_step``) stay intact.
+
+    ``blocking_artifact_names`` (WP01, FR-001/FR-002/FR-006, #3704 Part 1)
+    IS populated by :func:`gather_artifact_presence` — ``None`` when no
+    expected-artifacts manifest is reachable for ``mission_family`` at any
+    tier, or a real (possibly empty) ``frozenset`` naming the blocking
+    artifacts for ``step_id`` when a manifest was resolved. Consumed by
+    ``runtime_bridge_cores.evaluate_guards_strict`` for its dispatch-miss
+    branch. This WP populates the field via a **minimal test-only stub**
+    that only distinguishes "no manifest" from "manifest present" — WP02
+    replaces the stub with real org-tier-aware resolution; the default of
+    ``None`` keeps every existing construction call site (including test
+    fixtures) compiling unchanged.
     """
 
     present_artifacts: frozenset[str]
@@ -926,6 +963,7 @@ class ArtifactPresenceSnapshot:
     step_id: str
     legacy_step_id: str | None = None
     wp_advance_ready: bool | None = None
+    blocking_artifact_names: frozenset[str] | None = None
 
 
 def gather_artifact_presence(
@@ -1034,6 +1072,7 @@ def gather_artifact_presence(
         mission_family=mission_family,
         step_id=step_id,
         legacy_step_id=legacy_step_id,
+        blocking_artifact_names=_blocking_artifact_names_stub(mission_family, step_id),
     )
 
 
