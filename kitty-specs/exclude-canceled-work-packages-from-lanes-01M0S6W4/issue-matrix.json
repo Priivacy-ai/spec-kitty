@@ -37,7 +37,7 @@
       "wp": "WP01"
     },
     "#3432": {
-      "evidence_ref": "WP01 approved after independent cycle-2 review; product commits 42a195e01 and 113391c55 pass behavior, regression, architecture, typing, lint, coverage, Windows collection, and benchmark gates.",
+      "evidence_ref": "WP01 approved after independent review; product commits 42a195e01 and 113391c55 implement lane eligibility, and ae591dca4 fixes mixed first-finalize provenance so cancellation-only state succeeds without prior lanes.json while genuine execution remains frozen. Focused regression gate: 43 passed, 1 skipped.",
       "fr": null,
       "nfr": null,
       "repo": null,
