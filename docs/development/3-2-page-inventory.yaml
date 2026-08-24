@@ -4262,6 +4262,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/investigations/2026-08-declared-but-inert-doctrine-seams.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/investigations/2026-08-pack-level-metadata-manifest.md
   tag: current
   divio_type: none
