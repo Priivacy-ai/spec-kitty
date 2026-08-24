@@ -88,6 +88,14 @@ shape" section states this explicitly: the four touched functions are one call c
 independent architectural areas; a partial threading (e.g. fixing only
 `_inject_projected_fields`) would leave the defect live end-to-end.
 
+This seam is a chokepoint for three production `src/` callers —
+`_resolve_action_slot` (`charter/mission_type_profiles.py:976`), `resolve_layered_roster`
+(`specify_cli/cli/commands/charter/mission_type.py:87`), and `_resolve_layered_roster`
+(`specify_cli/cli/commands/_mission_type_audit.py:170`) — all of which reach
+`resolve_layered_mission_types` exclusively through this one seam; see plan.md's "Blast radius on
+downstream workspaces" section for the full list and why T004's golden-parity test transitively
+covers all three.
+
 **Full requirements source**: read `spec.md` and `plan.md` in full before starting — both are
 committed baselines and this prompt does not repeat everything in them, only the concrete
 mechanics. `spec.md`'s Clarifications section records two binding decisions you must not
@@ -214,10 +222,12 @@ baseline" section, so pre-existing red is never confused with mission-introduced
    against the unmodified base commit.
 2. Record the full pass/fail counts and any red test ids in `tracer-approach.md` or
    `tracer-design-decisions.md` (append, do not recreate).
-3. Cross-check any red test id you observe against SPEC-KITTY-LEDGER.md's #3284 entry (~23
-   known-red / 2-error baseline on `main`) — note explicitly whether it's already enumerated
-   there or is new-but-pre-existing (log against a fresh tracked issue reference if genuinely
-   new and not covered by #3284's own breakdown).
+3. Cross-check any red test id you observe against `gh issue view 3284` (and its comments, where
+   the per-test breakdown lives) — the ~23 known-red / 2-error baseline on `main` — note
+   explicitly whether it's already enumerated there or is new-but-pre-existing (log against a
+   fresh tracked issue reference if genuinely new and not covered by #3284's own breakdown).
+   SPEC-KITTY-LEDGER.md has no #3284 entry (verified: zero mentions of "3284" in the ledger) —
+   `gh issue view 3284` and its comments are the real source, not the ledger.
 
 **Files**: no code files touched — this is a read-only verification step whose output goes
 into the tracer files.
@@ -252,20 +262,37 @@ production-code change to `mission_type_repository.py`.
      'implement', 'review', 'accept']` is the issue's own repro transcript; your fixture does
      not need those exact step names, but should be similarly concrete, not a single-step
      fixture that could pass trivially).
-2. Run this new test now, against the still-unfixed production code. **It must fail**,
-   reproducing today's `None`/`[]` result — this is expected and required at this point (the
-   fix has not landed yet).
+   - **Also closes spec.md's Acceptance Scenario 2** (the governed entry point does not raise):
+     using the same org-tier steps-only fixture, additionally call the governed seam
+     `charter.mission_type_profiles.resolve_mission_type_context(repo_root, mission_type=<id>)`
+     — following the `_resolve_via_seam` pattern already in
+     `tests/runtime/test_runtime_seam.py` (patch `"charter.mission_type_profiles.existing_mission_types"`
+     to return a list including your fixture's mission type id, and patch
+     `"charter.pack_context.PackContext.from_config"` to return your fixture's `pack_context`,
+     the same two-patch shape `TestGoldenParityUnaffectedByPackContextThreading` already uses)
+     — and assert it succeeds (returns a bundle) without raising
+     `MissionTypeEmptyActionSequenceError`. Do not import the helper function itself across test
+     files; write this call locally in this file, following the pattern, per this WP's own
+     no-cross-file-helper-import convention.
+2. Run this new test now, against the still-unfixed production code. **It must fail** on both
+   assertions — the direct `resolve_layered_mission_types` assertion on `None`/`[]`, and the
+   governed-entry-point assertion (which should observe `MissionTypeEmptyActionSequenceError`
+   being raised, not absent) — reproducing today's defect at both the low-level function and the
+   governed entry point; this is expected and required at this point (the fix has not landed
+   yet).
 3. Commit this test file change as its own, separate commit — a conventional-commit-shaped
    message (commitlint is an enforced CI gate), e.g. `test(doctrine): add red-first
    steps-only-projection reproduction for #3701`. **Do not combine this commit with any
    production-code change.**
 
-**Files**: `tests/doctrine/missions/test_mission_type_repository.py` (~60–100 new lines: helper
-functions + one test class/method).
+**Files**: `tests/doctrine/missions/test_mission_type_repository.py` (~70–120 new lines: helper
+functions + one test class/method, including the governed-entry-point assertion above).
 
 **Validation**: `pytest tests/doctrine/missions/test_mission_type_repository.py -k
-<your_new_test_name>` fails with an assertion on `None`/`[]`, not an error/collection failure
-(a collection error means the fixture itself is broken, not that it's pinning the defect).
+<your_new_test_name>` fails — the `resolve_layered_mission_types` assertion on `None`/`[]`, and
+the governed-entry-point call raising `MissionTypeEmptyActionSequenceError` — not an
+error/collection failure unrelated to either (a collection error means the fixture itself is
+broken, not that it's pinning the defect).
 
 ## Subtask T003: The fix — four signature edits + three call-site edits (one coherent change)
 
@@ -339,8 +366,28 @@ receives the real `pack_context` for the first time.
 3. Follow the existing `unittest.mock.patch("charter.pack_context.PackContext.from_config", ...)`
    pattern already in this class for constructing the "real, non-`None` pack_context" — do not
    invent a new patch target string (the `patch()` target validation CI gate checks these).
+4. **NFR-004 evidence (no new filesystem walk)**: in the same test, wrap
+   `doctrine.missions.mission_step_repository.MissionStepRepository.resolve_all_for_mission_type`
+   with `unittest.mock.patch(..., wraps=MissionStepRepository.resolve_all_for_mission_type)` (a
+   call-count spy, not a value replacement) around one `resolve_layered_mission_types` /
+   `_resolve_via_seam` invocation for a single built-in type, and assert the call count is
+   exactly what it was pre-fix (one call for that type's resolution) — closing the "no new
+   filesystem walk" claim with evidence rather than architectural assertion alone.
+5. **Vacuity self-check (mirrors T005 step 2's methodology)**:
+   `test_builtin_type_unaffected_by_real_pack_context_with_org_root` — the exact test this
+   subtask extends — has a documented prior finding of being vacuous (its own sibling test's
+   docstring, `test_org_root_content_actually_resolves_through_the_seam`, records that the org
+   root previously had no YAML content and so always scanned to `[]`, meaning the test held
+   identically whether the fix under test existed or not). Before considering this subtask done,
+   temporarily revert just the built-in-equivalent layer's `pack_context` forward — the
+   `scan_mission_types_dir(base_dir, pack_context=pack_context)` edit at
+   `mission_type_repository.py:515` (revert to `scan_mission_types_dir(base_dir)`) — and confirm
+   the extended/new `action_sequence` parity assertion in
+   `test_builtin_type_unaffected_by_real_pack_context_with_org_root` would actually **fail** in
+   that state. This is a manual verification step only, matching T005's own methodology — do not
+   commit the temporary revert.
 
-**Files**: `tests/runtime/test_runtime_seam.py` (~20–40 new/modified lines).
+**Files**: `tests/runtime/test_runtime_seam.py` (~25–50 new/modified lines).
 
 **Validation**: new/extended test passes against the post-fix code; run it also against a
 temporary revert of T003's fix to confirm the test only asserts parity (should still pass
@@ -404,15 +451,16 @@ SC-004's concrete stash/rerun/stash-pop moment" section, you must literally witn
 fail without the fix and pass with it, and record both runs.
 
 **Steps**:
-1. `git stash` the production-code changes to `mission_type_repository.py` from T003 — leave
-   T002's new test in place (it should already be committed separately, so stashing only the
-   uncommitted-or-separately-committed production diff; if both are committed, use `git stash`
-   against a temporary revert of just the fix commit, or `git diff`/`git apply -R` the fix
-   commit's diff — whichever mechanism your git history shape supports; the point is: test
-   present, fix absent).
+1. By this point in the WP's own sequence, T002's test commit and T003's fix commit(s) are both
+   already committed (T002 step 3, T003 step 8) — the working tree is therefore already clean,
+   so a bare `git stash` has nothing to stash and would silently no-op. Use `git revert
+   --no-commit <fix-commit-sha>` (the exact SHA(s) of T003's fix commit(s)) to remove the fix
+   from the working tree while leaving T002's test commit's changes in place.
 2. Rerun T002's test (and T005's, if it also exercises the same code path). Confirm it/they
    **fail**, reproducing today's `None`/`[]` result.
-3. Restore the fix (`git stash pop`, or re-apply the fix commit).
+3. Restore the fix: `git revert --abort` (discards the in-progress revert, restoring the working
+   tree to the fix-applied state) — or, if the revert was already committed rather than left
+   staged, `git reset --hard <fix-commit-sha>`.
 4. Rerun the same test(s). Confirm they now **pass**.
 5. Record **both runs** — exact command, exact observed result (pass/fail, and ideally the
    specific `action_sequence` value observed in each run, e.g. `None` vs.
@@ -464,7 +512,14 @@ and self-check against the full CI gate set plan.md names, before marking this W
    `kitty-specs/mission-types-empty-action-sequence-01M0RMCA/**` directory (the one explicit
    carve-out for mission bookkeeping — spec/plan/tracer/tasks/status files). Any other path is a
    C-002/C-003/C-007 violation and must be justified or removed before this WP is marked done.
-2. Self-check against plan.md's "The gate set" section (transcribed summary — see plan.md for
+2. **FR-005/C-001 line-scoped self-check**: the file-level check in step 1 confirms
+   `mission_type_repository.py` is a touched file (it is — that's expected) but cannot by itself
+   confirm `_load()` specifically has zero diff, since the whole file is one of this WP's owned
+   files. Run `git diff <base>...HEAD -- src/doctrine/missions/mission_type_repository.py` and
+   confirm no hunk's line range overlaps `_load()`'s body (lines 157–174, call site line 165) —
+   every hunk in this file's diff must fall outside that range. If any hunk does overlap, this is
+   an FR-005/C-001 violation and must be fixed before this WP is marked done.
+3. Self-check against plan.md's "The gate set" section (transcribed summary — see plan.md for
    full detail, do not re-derive independently):
    - commitlint: every commit conventional-commit-shaped. ✓/❌
    - Generated doctrine schemas up to date: no-op here (no model change). ✓ (verify by not
@@ -487,9 +542,9 @@ and self-check against the full CI gate set plan.md names, before marking this W
    - Markdown lint, kernel-90% coverage: do not apply (verified in plan.md; no re-derivation
      needed).
    - SonarCloud does NOT run on PRs — do not wait for or promise a Sonar verdict.
-3. Run `ruff check` and `mypy` locally on the touched files (advisory in CI, but this repo's own
+4. Run `ruff check` and `mypy` locally on the touched files (advisory in CI, but this repo's own
    Code Style rule requires zero issues on new code — no `# noqa`/`# type: ignore` additions).
-4. Final sweep of `tracer-tooling-friction.md`, `tracer-approach.md`, `tracer-design-decisions.md`
+5. Final sweep of `tracer-tooling-friction.md`, `tracer-approach.md`, `tracer-design-decisions.md`
    — confirm all decisions/observations from T001–T008 are recorded (append, never recreate).
 
 **Files**: tracer files only, plus fixes to owned files if the gate self-check surfaces an
