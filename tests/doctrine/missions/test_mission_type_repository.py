@@ -610,6 +610,43 @@ class TestLayeredProjectionThreadsPackContext:
 
         assert bundle.action_sequence == list(_STEPS_ONLY_FIXTURE_STEP_IDS)
 
+    def test_project_tier_steps_only_projection_resolves(self, tmp_path: Path) -> None:
+        """WP01/T005 (Acceptance Scenario 5, spec.md line 62): a dedicated,
+        project-tier-specific case -- distinct from the org-tier cases above
+        even though structurally similar, per this WP's own instruction not
+        to silently fold Scenario 5 into T002's org-tier docstring/name.
+
+        Path conventions confirmed live against
+        ``mission_step_repository.py``'s own source before writing this
+        fixture (not assumed): the project-tier mission-*type* YAML lives at
+        ``<repo_root>/.kittify/missions/mission_types/<id>.yaml``
+        (``_PROJECT_MISSION_TYPES_RELATIVE``, this module), while the
+        project-tier *step-tree* lives at
+        ``<repo_root>/.kittify/overrides/mission-steps/<id>/<step>/step.yaml``
+        (``_project_mission_type_dir``/``_resolve_project_layer``,
+        ``mission_step_repository.py``) -- a distinct subtree
+        (``overrides/mission-steps``, not ``missions/mission_types``) from
+        the mission-type YAML's own project path, and distinct from the
+        org-tier ``<pack_root>/mission-steps/`` convention this class's
+        other tests exercise.
+        """
+        repo_root = tmp_path / "project"
+        _write_layered_yaml(
+            repo_root / ".kittify" / "missions" / "mission_types",
+            "qa.yaml",
+            _mission_type_yaml_steps_only("qa"),
+        )
+        step_root = repo_root / ".kittify" / "overrides" / "mission-steps"
+        for index, step_id in enumerate(_STEPS_ONLY_FIXTURE_STEP_IDS):
+            _write_step_with_sequence(step_root, "qa", step_id, sequence_index=index)
+
+        dirs = (tmp_path / "builtin" / "mission_types",)
+        ctx = _StubPackContext(pack_roots=(dirs[0].parent,), repo_root=repo_root)
+
+        result = resolve_layered_mission_types(dirs, ctx)
+
+        assert result["qa"].action_sequence == list(_STEPS_ONLY_FIXTURE_STEP_IDS)
+
 
 class TestLayeredMissionTypesCacheKeyAndClear:
     """FR-001/NFR-001: cache-hit/miss identity, two-project isolation, cache_clear()."""
