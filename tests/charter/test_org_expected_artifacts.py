@@ -61,6 +61,56 @@ class TestResolveOrgExpectedArtifactsEmptyCases:
         )
         assert resolve_org_expected_artifacts([org_root], "software-dev") is None
 
+    def test_file_at_corrected_missions_anchor_is_found(self, tmp_path: Path) -> None:
+        """FR-001/NFR-001 RED-first pin: a pack laid out at the corrected,
+        built-in-mirroring anchor (``<org_root>/missions/<mission_type>/``)
+        must be found. Constructed directly rather than via
+        ``_write_org_expected_artifacts`` -- that helper still writes to the
+        old, pre-fix path at this point in the sequence (T003 fixes it
+        later), so routing through it here would make this test's RED/GREEN
+        state depend on a helper change that hasn't landed yet.
+        """
+        org_root = tmp_path / "org-pack"
+        target_dir = org_root / "missions" / "software-dev"
+        target_dir.mkdir(parents=True)
+        yaml = YAML()
+        yaml.default_flow_style = False
+        with (target_dir / "expected-artifacts.yaml").open("w") as fh:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "mission_type": "software-dev",
+                    "manifest_version": "corrected-anchor",
+                },
+                fh,
+            )
+
+        result = resolve_org_expected_artifacts([org_root], "software-dev")
+
+        assert result is not None
+        assert result["manifest_version"] == "corrected-anchor"
+
+    def test_file_only_at_old_anchor_returns_none(self, tmp_path: Path) -> None:
+        """FR-003/SC-004 RED-first pin: a pack laid out ONLY at the old,
+        pre-fix anchor (``<org_root>/<mission_type>/``, no ``missions/``
+        segment) must resolve to ``None`` post-fix -- the old location has
+        zero possible existing consumers (C-002, no sibling-fallback) and is
+        not kept reachable. ``_write_org_expected_artifacts`` still writes to
+        exactly this old path today, so using it here is fine and idiomatic.
+        """
+        org_root = tmp_path / "org-pack"
+        _write_org_expected_artifacts(
+            org_root,
+            "software-dev",
+            {
+                "schema_version": "1.0",
+                "mission_type": "software-dev",
+                "manifest_version": "old-anchor-only",
+            },
+        )
+
+        assert resolve_org_expected_artifacts([org_root], "software-dev") is None
+
 
 class TestResolveOrgExpectedArtifactsSingleRoot:
     def test_single_org_root_with_file_returns_parsed_mapping(self, tmp_path: Path) -> None:
