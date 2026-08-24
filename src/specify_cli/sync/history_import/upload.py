@@ -814,7 +814,16 @@ def _preflight_classification(
             # NONTERMINAL). A non-accepted 200 with no results[] carries no
             # per-event information at all, so it stays UNKNOWN -- gracefully
             # inert, never a crash or a silently-dropped event.
-            no_results_outcome = TransportDeliveryOutcome.DELIVERED.value if response.accepted else TransportDeliveryOutcome.UNKNOWN.value
+            # #3722: PREFLIGHT_ACCEPTED, not DELIVERED. Terminal, so the
+            # re-run recovery path above is unaffected, but it does not claim
+            # the server is holding the event -- preflight is non-mutating and
+            # the upload phase has not run yet. Recording it as DELIVERED made
+            # a half-finished preflight read as a completed import.
+            no_results_outcome = (
+                TransportDeliveryOutcome.PREFLIGHT_ACCEPTED.value
+                if response.accepted
+                else TransportDeliveryOutcome.UNKNOWN.value
+            )
             return {disclosure.attempt_id: (no_results_outcome, None) for disclosure in disclosures}
         mapped: dict[str, tuple[str, str | None]] = {}
         for disclosure in disclosures:
@@ -829,7 +838,8 @@ def _preflight_classification(
             category = _canonical_preflight_error_category(result)
             outcome: tuple[str, str | None]
             if status == "success":
-                outcome = (TransportDeliveryOutcome.DELIVERED.value, None)
+                # Still a preflight verdict, not a delivery (#3722).
+                outcome = (TransportDeliveryOutcome.PREFLIGHT_ACCEPTED.value, None)
             elif status == "duplicate":
                 outcome = (TransportDeliveryOutcome.DUPLICATE.value, None)
             elif status == "pending":
@@ -953,7 +963,13 @@ def _prior_preflight_response(
         return None
     results: list[dict[str, object]] = []
     for disclosure, projection in zip(disclosures, projections, strict=True):
-        if projection.outcome is TransportDeliveryOutcome.DELIVERED:
+        if projection.outcome in (
+            TransportDeliveryOutcome.PREFLIGHT_ACCEPTED,
+            # DELIVERED remains readable so ledgers written before #3722 still
+            # replay rather than raising "nonterminal truth" on the first
+            # re-run after upgrade.
+            TransportDeliveryOutcome.DELIVERED,
+        ):
             results.append({"event_id": disclosure.native_identity, "status": "success"})
         elif projection.outcome is TransportDeliveryOutcome.DUPLICATE:
             results.append({"event_id": disclosure.native_identity, "status": "duplicate"})

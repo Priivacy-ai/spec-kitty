@@ -36,9 +36,17 @@ class DeliveryAttemptState(StrEnum):
 
 
 class DeliveryOutcome(StrEnum):
-    """Truthful terminal result classes recorded under the transport lease."""
+    """Truthful terminal result classes recorded under the transport lease.
+
+    ``PREFLIGHT_ACCEPTED`` exists so a non-mutating endpoint can reach a
+    terminal ledger state without claiming delivery. Preflight guarantees the
+    server *would* accept the batch; it guarantees nothing about the server
+    holding it. Recording that as ``DELIVERED`` made an in-progress preflight
+    phase indistinguishable from completed delivery (#3722).
+    """
 
     DELIVERED = "delivered"
+    PREFLIGHT_ACCEPTED = "preflight_accepted"
     DUPLICATE = "duplicate"
     PENDING = "pending"
     RETRYABLE_NO_EFFECT = "retryable_no_effect"
@@ -426,6 +434,10 @@ def get_delivery_terminal_result_projection(
     expected_state = {
         DeliveryOutcome.DELIVERED: DeliveryAttemptState.SUCCEEDED,
         DeliveryOutcome.DUPLICATE: DeliveryAttemptState.SUCCEEDED,
+        # Terminal, so a re-run replays the accepted verdict instead of
+        # crashing on a perpetually nonterminal attempt -- the constraint the
+        # DELIVERED shortcut was protecting -- without asserting delivery.
+        DeliveryOutcome.PREFLIGHT_ACCEPTED: DeliveryAttemptState.SUCCEEDED,
         DeliveryOutcome.REFUSED: DeliveryAttemptState.REFUSED,
         DeliveryOutcome.TERMINAL_UNKNOWN: DeliveryAttemptState.TERMINAL_UNKNOWN,
     }[outcome]
