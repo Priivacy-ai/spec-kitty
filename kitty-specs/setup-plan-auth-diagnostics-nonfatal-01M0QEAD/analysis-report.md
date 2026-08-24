@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: setup-plan-auth-diagnostics-nonfatal-01M0QEAD
 mission_id: 01M0QEAD3JBF9264167A5X5P1F
-generated_at: '2026-08-24T02:00:25.511402+00:00'
+generated_at: '2026-08-24T02:01:48.958557+00:00'
 analyzer_agent: codex
 input_artifacts:
   spec.md:
@@ -19,13 +19,13 @@ input_artifacts:
   charter:
     path: /private/var/folders/h5/zqph_vqs3_77ctcqwvr_1b6m0000gn/T/spec-kitty-20260823-154419-r1aDO4/spec-kitty/.kittify/charter/charter.yaml
     sha256: a90fa5d9fb0187d036a248af499643921f46773f96ad8a37e660a801ee60b641
-verdict: unknown
+verdict: ready
 issue_counts:
-  low:
-  critical:
-  medium:
-  info:
-  high:
+  low: 0
+  medium: 0
+  critical: 0
+  high: 0
+  info: 0
 findings: []
 ---
 
