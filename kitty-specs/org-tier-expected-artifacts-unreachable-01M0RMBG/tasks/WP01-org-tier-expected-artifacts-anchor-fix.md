@@ -356,26 +356,39 @@ Gate Set For This Mission" section before treating this WP as CI-ready.
    pytest tests/charter/test_org_expected_artifacts.py --cov=charter \
      --cov-report=xml:coverage.xml -q \
      && uv run diff-cover coverage.xml \
-       --compare-branch=fix/org-tier-expected-artifacts-3703 \
+       --compare-branch=origin/main \
        --fail-under=90 --include 'src/charter/*'
    ```
-   `--compare-branch` names this mission's `planning_base_branch` (see frontmatter) as the
-   diff base — use that ref (if this checkout has no local
-   `fix/org-tier-expected-artifacts-3703` ref reachable, fetch it first: `git fetch origin
-   fix/org-tier-expected-artifacts-3703`). Do not substitute `origin/main` here: CI's
-   `diff-coverage` job compares against `origin/${{ github.base_ref }}`, and this mission's
-   base_ref — per `meta.json`'s `target_branch` and this WP's `merge_target_branch`
-   frontmatter field — is `fix/org-tier-expected-artifacts-3703`, not `main`. The two
-   currently coincide (main has not diverged from this branch), so diffing against
-   `origin/main` happens to be harmless today, but that is incidental, not guaranteed, and
-   would silently diverge from what CI reports once main moves independently — always use
-   the mission's actual base ref above, never a hardcoded `main` fallback. With the correct
-   compare-branch, this mirrors the real CI gate
-   (`.github/workflows/ci-quality.yml`'s `diff-coverage` job, "diff-coverage (critical-path,
-   enforced)" step) which aggregates coverage XML from CI's separate fast+integration jobs
-   and compares against `origin/${{ github.base_ref }}`; the single-file `--cov-report`
-   above is the local stand-in for that aggregation, not a literal reproduction of the CI
-   step.
+   `--compare-branch` must name a ref that is genuinely distinct from HEAD, not this
+   mission's own branch name. This mission's topology is `single_branch`
+   (`meta.json`'s `"topology": "single_branch"`): `planning_base_branch`,
+   `merge_target_branch`, and `target_branch` (frontmatter above; `meta.json`) are all
+   `fix/org-tier-expected-artifacts-3703`, and during this WP's own implementation HEAD
+   *is* that branch — it is a moving pointer, not a separate snapshot. Comparing
+   `--compare-branch=fix/org-tier-expected-artifacts-3703` against HEAD while HEAD sits
+   on that same branch always yields an empty diff (verified in this checkout: `git
+   rev-parse fix/org-tier-expected-artifacts-3703 HEAD` return the identical SHA), so
+   diff-cover finds zero changed lines and trivially "passes" — a silent no-op, not a
+   real check, regardless of when in the WP it is run. `target_branch` /
+   `merge_target_branch` name where this mission's own work lands, not the diff base to
+   compare against; conflating the two is what produced the no-op. The ref that is
+   actually distinct from HEAD, and that CI itself will use, is `main`: this repo's
+   real PRs open FROM a mission branch INTO `main` (CLAUDE.md, "All changes to
+   origin/main MUST go through pull requests"; charter.md, "Base branch here is
+   `main`"), so once this mission's PR opens, `github.base_ref` is `main` and CI's
+   `diff-coverage` job runs `--compare-branch=origin/${{ github.base_ref }}` =
+   `--compare-branch=origin/main` (`.github/workflows/ci-quality.yml`, the
+   "diff-coverage (critical-path, enforced)" step). `origin/main` is used above (not a
+   bare local `main`) to match that exact CI invocation shape and plan.md's canonical
+   form (`--compare-branch=origin/<base>`); in a typical checkout of this mission
+   `origin/main` is already fetched and reachable (confirmed here:
+   `git rev-parse origin/main` resolves), so no extra fetch step is needed — if it is
+   ever missing, `git fetch origin main` populates it. With this compare-branch, the
+   local repro mirrors the real CI gate (`.github/workflows/ci-quality.yml`'s
+   `diff-coverage` job, "diff-coverage (critical-path, enforced)" step), which
+   aggregates coverage XML from CI's separate fast+integration jobs and compares
+   against `origin/${{ github.base_ref }}`; the single-file `--cov-report` above is the
+   local stand-in for that aggregation, not a literal reproduction of the CI step.
 5. Optional, not a CI-ready precondition (advisory-only gate): `mypy --strict src/charter`
    for typing hygiene.
 6. Confirm the six-file set (C-001) is exactly what changed — `git diff --stat` against the
@@ -398,7 +411,7 @@ confirms exactly six files changed.
 - [ ] No sibling-fallback to the old path exists anywhere in the diff (C-002).
 - [ ] No `pack_validator` reachability gate is added (C-003 — out of scope).
 - [ ] Full five-file target test surface (`pytest tests/charter/test_org_expected_artifacts.py tests/charter/test_mission_type_profiles.py tests/dossier/test_manifest.py tests/dossier/test_rebaseline.py tests/dossier/test_indexer.py`) is GREEN, modulo #3284's pre-existing baseline red (not attributable to this mission — C-006).
-- [ ] TID251 lint clean; Contextive glossary freshness check passes; `src/charter/*` diff-coverage locally confirmed ≥90% on changed lines via the command in T006 step 4 (`pytest tests/charter/test_org_expected_artifacts.py --cov=charter --cov-report=xml:coverage.xml -q && uv run diff-cover coverage.xml --compare-branch=fix/org-tier-expected-artifacts-3703 --fail-under=90 --include 'src/charter/*'`) — not asserted from memory.
+- [ ] TID251 lint clean; Contextive glossary freshness check passes; `src/charter/*` diff-coverage locally confirmed ≥90% on changed lines via the command in T006 step 4 (`pytest tests/charter/test_org_expected_artifacts.py --cov=charter --cov-report=xml:coverage.xml -q && uv run diff-cover coverage.xml --compare-branch=origin/main --fail-under=90 --include 'src/charter/*'`) — not asserted from memory.
 - [ ] Exactly six files changed in the whole WP diff (C-001) — no scope creep into `resolver.py`, `manifest.py`, `mission_type_profiles.py` (the two untouched callers), or the frozen contract doc under `kitty-specs/up-org-doctrine-consumers-01M05YAB/`.
 - [ ] Per-subtask completion is recorded via `spec-kitty agent tasks mark-status <Txxx> --status done` for T001–T006 (event-sourced; not a hand-ticked checkbox).
 
