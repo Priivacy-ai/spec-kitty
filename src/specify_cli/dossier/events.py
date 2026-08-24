@@ -34,7 +34,8 @@ Priivacy-ai/spec-kitty-end-to-end-testing#37.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, cast
+from typing import Literal
 
 from spec_kitty_events import (
     ArtifactIdentity,
@@ -127,10 +128,19 @@ def _build_artifact_identity(
     wp_id: str | None = None,
     run_id: str | None = None,
 ) -> ArtifactIdentity:
+    # ``ArtifactIdentity.artifact_class`` is a Literal in the canonical
+    # package; _normalize_artifact_class maps the one legacy value ("other")
+    # into the enum and passes everything else through. Callers that pass a
+    # value outside the six-class enum still fail loudly at validation time,
+    # so the cast only records what the runtime check enforces.
+    canonical_class = cast(
+        "Literal['input', 'workflow', 'output', 'evidence', 'policy', 'runtime']",
+        _normalize_artifact_class(artifact_class),
+    )
     return ArtifactIdentity(
         mission_type=mission_type,
         path=path,
-        artifact_class=_normalize_artifact_class(artifact_class),
+        artifact_class=canonical_class,
         wp_id=wp_id,
         run_id=run_id,
     )
@@ -473,9 +483,16 @@ def emit_parity_drift_detected(
             namespace=ns,
             expected_hash=baseline_parity_hash,
             actual_hash=local_parity_hash,
-            drift_kind=drift_kind or "anomaly_introduced",
+            # Canonical payload types drift_kind as a Literal of six known
+            # kinds; unknown values fail loudly at validation (caught by the
+            # except below). The cast records that contract for mypy.
+            drift_kind=cast(
+                "Literal['artifact_added', 'artifact_removed', 'artifact_mutated', "
+                "'anomaly_introduced', 'anomaly_resolved', 'manifest_version_changed']",
+                drift_kind or "anomaly_introduced",
+            ),
             detected_at=detected_at or now_utc_iso(),
-            artifact_ids_changed=artifacts_changed,
+            artifact_ids_changed=tuple(artifacts_changed) if artifacts_changed else None,
             rebuild_hint=rebuild_hint,
             context_diagnostics=diagnostics or None,
         )
