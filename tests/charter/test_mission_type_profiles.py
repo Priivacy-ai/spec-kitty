@@ -997,16 +997,16 @@ class TestOrgTierGovernanceProfileThreading:
 
 
 def _write_org_expected_artifacts(org_root: Path, mission_type: str, data: dict) -> None:
-    """Write ``<org_root>/<mission_type>/expected-artifacts.yaml``.
+    """Write ``<org_root>/missions/<mission_type>/expected-artifacts.yaml``.
 
     Raw-root shape (C-4): unlike ``_write_org_governance_profile`` (which
     joins the ``subdir="mission_types"`` segment ``resolve_org_dirs``
     produces), FR-008's helper takes raw org roots and joins
-    ``<mission_type>`` directly — see ``org_expected_artifacts.py``'s module
-    docstring for why (``mission_type`` varies per call, so it cannot be
-    baked into a fixed ``subdir`` string).
+    ``missions/<mission_type>`` directly — see ``org_expected_artifacts.py``'s
+    module docstring for why (``mission_type`` varies per call, so it cannot
+    be baked into a fixed ``subdir`` string).
     """
-    target_dir = org_root / mission_type
+    target_dir = org_root / "missions" / mission_type
     target_dir.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
     yaml.default_flow_style = False
