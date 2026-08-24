@@ -266,8 +266,9 @@ assumed.
    - **markdownlint** (ADVISORY despite its own step name's "[ENFORCED]" prefix — same
      mislabel pattern as commitlint) — `id: markdownlint`, `continue-on-error: true`, no
      downstream job-failing step. Applies informationally to any `.md` files this mission's
-     commits touch, including this `plan.md` and the tracer files under `kitty-specs/`, but
-     is not a merge-blocking gate today.
+     commits touch, including this `plan.md` and the tracer files under `kitty-specs/`; those
+     touched `.md` files should still be kept markdownlint-clean as hygiene, but CI does not
+     currently block merge on a markdownlint violation.
    - **Contextive glossary freshness check** — DOES run for this diff, not skip (corrected
      from an earlier planning-pass mislabel): its own change-detection path list
      (`ci-quality.yml`'s Contextive step, `git diff --diff-filter=ACM ... -- 'glossary/**'
@@ -387,7 +388,7 @@ that also states the pre-fix, wrong path:
 - `_resolve_expected_artifacts_slot` (`src/charter/mission_type_profiles.py:1030`): "FR-008
   (WP05): an org-pack ``<org_root>/<mission_type>/expected-artifacts.yaml``... takes
   precedence over the built-in file..."
-- `ManifestRegistry.load_manifest` (`src/specify_cli/dossier/manifest.py:219-221`): "FR-008
+- `ManifestRegistry.load_manifest` (`src/specify_cli/dossier/manifest.py:219-223`): "FR-008
   (WP05): when *repo_root* is given... an org-pack
   ``<org_root>/<mission_type>/expected-artifacts.yaml``... takes precedence over the built-in
   file..."
@@ -395,8 +396,10 @@ that also states the pre-fix, wrong path:
 Once FR-001/FR-002 land, both docstrings describe the now-incorrect path — the identical
 "docstring says X, code does Y" hazard this mission exists to remove from the resolver itself,
 reappearing one hop away in its two sole callers. This is a direct, domain-matched,
-proportional connection to the stated defect under Standing Order #2 /
-`RECONCILE_CHANGE_SCOPE_TENSIONS`'s Boy Scout test — not adjacent, unrelated cleanup.
+proportional connection to the stated defect under Locality of Change's extension test
+(`RECONCILE_CHANGE_SCOPE_TENSIONS` step 3) — not adjacent, unrelated cleanup — but Boy Scout
+Rule (step 2) forbids adding files to the set regardless, so passing the extension test alone
+does not authorize folding this in.
 
 **Resolution: deferred, not folded into this mission**, mirroring the C-007 treatment of the
 frozen contract doc (see Contracts section). Rationale: `src/charter/mission_type_profiles.py`
@@ -407,9 +410,9 @@ specific defect, which none exists for" — written before this drift was indepe
 during plan review). Re-opening a spec-level, Open/High-priority decision is not this plan's
 call to make unilaterally by quietly growing the file set. The correct next step is a fast
 follow-up carrying the same edit shape as FR-002 (one docstring line corrected in each of the
-two caller files) — filed as a follow-on issue/mission or picked up explicitly at the next
-`/spec-kitty.tasks` or ledger sweep — rather than silently expanding this mission's scope past
-what the spec already fixed. **No file is added to the six-file set by this plan.**
+two caller files) — filed as a follow-on issue/mission or picked up at a ledger sweep — rather
+than silently expanding this mission's scope past what the spec already fixed. **No file is
+added to the six-file set by this plan.**
 
 ## ATDD-First Discipline (C-011, binding)
 
@@ -525,9 +528,12 @@ Rough WP-level shape (tasks.md does the detailed breakdown next phase):
 5. **Gate verification**: run the full target surface
    (`pytest tests/charter/test_org_expected_artifacts.py tests/charter/test_mission_type_profiles.py tests/dossier/test_manifest.py tests/dossier/test_rebaseline.py tests/dossier/test_indexer.py`)
    against the baseline captured per Baseline Discipline above, confirm no new red beyond
-   #3284's pre-existing set, then confirm mypy --strict, TID251, and the diff-coverage
-   critical-path gate locally before treating the WP as CI-ready (per the named gate set
-   above).
+   #3284's pre-existing set, then confirm mypy --strict, TID251, the Contextive glossary
+   freshness check (`uv run python scripts/generate_contextive_glossaries.py check` —
+   expected pass-through, since this mission changes no glossary-relevant terminology, but
+   the check does execute against this diff and is worth confirming locally rather than
+   assumed), and the diff-coverage critical-path gate locally before treating the WP as
+   CI-ready (per the named gate set above).
 
 ## Complexity Tracking
 
