@@ -17,6 +17,11 @@ from specify_cli.context.mission_resolver import (
     resolve_mission,
 )
 from specify_cli.core.paths import locate_project_root
+from specify_cli.missions.operation_context import (
+    MissionOperationContext,
+    MissionSurfaceConflictError,
+    resolve_mission_operation_context,
+)
 from mission_runtime import (
     ACTION_NAMES,
     ActionName,
@@ -128,12 +133,25 @@ def resolve_context(
         if not raw_handle:
             raise ActionContextError("MISSING_MISSION", "--mission <slug> is required")
         # Resolve through the mission-resolver directly (not
-        # ``resolve_mission_handle``, which prints to stderr and calls
-        # ``sys.exit(2)`` on failure) so an unresolvable or ambiguous handle
+        # a resolver that prints to stderr and exits on failure) so an
+        # unresolvable or ambiguous handle
         # flows through this command's own ``ActionContextError``/``--json``
         # envelope below instead of bypassing it (FR-003/FR-004, #160).
         try:
-            mission_resolved = resolve_mission(raw_handle, repo_root)
+            operation: MissionOperationContext = resolve_mission_operation_context(
+                repo_root,
+                raw_handle,
+                cwd=Path.cwd(),
+            )
+        except MissionSurfaceConflictError as exc:
+            raise ActionContextError("MISSION_CONTEXT_CONFLICT", str(exc)) from exc
+
+        try:
+            mission_resolved = (
+                operation.identity
+                if operation.identity is not None
+                else resolve_mission(raw_handle, operation.mission_anchor_root)
+            )
         except AmbiguousHandleError as exc:
             raise ActionContextError("ambiguous_mission_handle", str(exc)) from exc
         except MissionNotFoundError as exc:
@@ -147,6 +165,7 @@ def resolve_context(
             wp_id=wp_id,
             agent=agent,
             cwd=Path.cwd(),
+            effective_root=operation.mission_anchor_root,
         )
 
         if json_output:
