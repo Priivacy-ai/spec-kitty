@@ -83,3 +83,41 @@ Per the #3085 maintainer triage comment (2026-08-02, binding maintainer requirem
 Not treated as automatically satisfied by WP4's red-first tests — the spec calls out
 the fixture as its own functional requirement so it cannot be silently dropped during
 planning/tasking.
+
+## Decision (plan phase, 2026-08-25): concrete WP1 resolved-string formatting approach
+
+The spec pins *what* WP1 must report (the resolved path, e.g.
+`kitty-specs/<slug>/contracts/`, not the bare token) but leaves the exact formatting
+mechanics to planning. Resolved during this plan phase: at
+`validate_mission_paths`'s missing-path branch (`paths.py:207`), compute the reported
+string from `full_path` (already computed at `:197`/`:200`/`:202`) rather than from
+`relative_path`, preferring `full_path.relative_to(project_root)` when it succeeds and
+falling back to `str(full_path)` on `ValueError` (cross-worktree topology safety —
+`format_errors()`/`format_warnings()` must never crash on a resolvable-but-unreported
+path). The resolved string must preserve the declared token's trailing-slash
+convention, since `suggest_directory_creation`'s `mkdir -p` vs. `touch` branch keys on
+`path_str.endswith("/")` and a bare `Path` loses that trailing slash. This keeps the
+repo-root/build-path case's reported string identical to today's (since
+`full_path.relative_to(project_root) == candidate` there), satisfying User Story 1
+Scenario 2 (repo-root reporting unchanged) as a natural consequence of the fix rather
+than a separate branch.
+
+## Decision (plan phase, 2026-08-25): concrete WP2 parameter name/signature
+
+Per spec.md's Key Entities instruction to name the new parameter so it cannot be
+mistaken for an inert pass-through: the parameter is named
+`optional_missing_to_dedup: list[str] | None = None` on `evaluate_path_conventions`.
+Both pinned tests (`test_strict_metadata_true_blocks_with_violation`,
+`test_strict_metadata_false_downgrades_to_warning`) call the function positionally
+with today's 4 args + `strict_metadata=` only, so `None` must be a true no-op default
+(no dedup attempted) to keep both green unmodified. Token comparison normalizes each
+side to its final path segment, slash-stripped (e.g. `"contracts"` from
+`optional_missing` vs. the final segment of the resolved `missing_paths` entry, also
+normalized to `"contracts"`) rather than full-string equality, since the two lists'
+entries have different qualification levels (bare vs. `feature_dir`-resolved) even
+after WP1 lands. The call site in `acceptance/__init__.py`'s `collect_feature_summary`
+passes `optional_missing_to_dedup=missing_optional` into the existing
+`evaluate_path_conventions(...)` call (`:1056`) before the `build_warnings(...)` call
+that follows it (`:1058`), so the in-place mutation is visible to both `build_warnings`
+and the later `AcceptanceSummary(optional_missing=missing_optional, ...)`
+construction without any further plumbing change.

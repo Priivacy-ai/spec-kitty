@@ -39,3 +39,32 @@ declared. Both issues' own "Scope / non-goals" sections state this identically.
 owner/dependency links before implementation." The spec makes this fixture an explicit
 deliverable (see FR for the repro fixture), not an implicit side-effect of the WP4 test
 tasks.
+
+## 2026-08-25 — plan phase: gate-set correction (diff-coverage does not enforce this diff)
+
+Reading `.github/workflows/ci-quality.yml` directly (not recalled from memory) during
+planning found that the `diff-coverage` job's *enforced* (`--fail-under=90`, blocking)
+step only checks a hardcoded `critical_paths` allowlist — `src/kernel/*`,
+`src/doctrine/*`, `src/charter/*`, `src/specify_cli/status/*`,
+`src/specify_cli/lanes/branch_naming.py`, `src/specify_cli/dashboard/handlers/*`,
+`src/specify_cli/dashboard/scanner.py`, `src/specify_cli/merge/*`,
+`src/runtime/next/*`, `src/mission_runtime/*`. None of `validators/**`,
+`acceptance/**`, or `cli/**` (this mission's blast radius) is in that list. The only
+other diff-coverage step ("full-diff, advisory") runs `diff-cover ... || true` —
+genuinely non-blocking. So `diff-coverage --fail-under=90` does **not** enforce on
+this mission's changed lines, contrary to the readiness-report framing that assumed
+it would. This does not relax the mission's actual test obligation — NFR-001 and the
+charter's "every new branch/helper needs tests in the same PR" bind independently via
+the WP4 red-first tests actually running green in `fast-tests-cli`/
+`integration-tests-cli` and `fast-tests-core-misc`/`integration-tests-core-misc` — but
+the enforcement mechanism is "the tests exist and are green," not "the diff-coverage
+tool measured 90% on these lines." Recorded here so sk-implement/sk-review does not
+mistakenly treat a diff-coverage percentage as a required, blocking signal for this
+PR. Full derivation: `plan.md`'s "Coverage floors" and "Gate set" sections.
+
+## 2026-08-25 — plan phase: markdownlint does not bind on this mission's own kitty-specs artifacts
+
+`.markdownlint-cli2.jsonc`'s `ignores` list explicitly includes `kitty-specs/**`, so
+this `plan.md` and any tracer-file appends are exempt from the markdownlint CI gate.
+Confirmed by reading the config file directly rather than assuming from the task
+framing's "may or may not count, check" prompt.
