@@ -747,7 +747,14 @@ def test_check_cli_guards_propagates_unregistered_mission_family_error(
     ``_check_cli_guards`` itself -- not merely out of an isolated,
     unwired ``evaluate_guards_strict`` call."""
 
-    def _fake_gather(feature_dir: Path, *, mission_family: str, step_id: str, legacy_step_id: str | None = None) -> Any:
+    def _fake_gather(
+        feature_dir: Path,
+        *,
+        mission_family: str,
+        step_id: str,
+        legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
+    ) -> Any:
         return ArtifactPresenceSnapshot(
             present_artifacts=frozenset(),
             status_facts={},
