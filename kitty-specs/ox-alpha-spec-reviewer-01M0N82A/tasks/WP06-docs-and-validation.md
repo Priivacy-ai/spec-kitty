@@ -225,3 +225,4 @@ Reviewer отклоняет WP, если docs обещают provider properties
 ### Updating Status
 
 `spec-kitty agent tasks move-task WP06 --to <status>`.
+- 2026-08-24T19:09:14Z – codex – shell_pid=18780 – Интегрированы approved dependency lanes WP03→WP04→WP05 в lane-f; planning/status authority сохранена из WP06 lane. Проверено на фактическом HEAD без сети/OpenCode/model call: 83 spec-review tests passed с -p no:base_url, Ruff passed, mypy --strict --platform linux passed.
