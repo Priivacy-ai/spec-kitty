@@ -365,7 +365,7 @@ At the consumer checkpoint, verify:
 
 At final review, reproduce exact CLI scenarios and focused suites, verify the ≥90% changed-line coverage report, inspect Windows-critical collection, and check the governed benchmark JSON/statistics. Inspect the working tree and event/manifest artifacts directly. Do not approve based only on pure unit tests when pre-mutation and persisted-lane behavior are claimed.
 
-This package is intentionally atomic at eight subtasks, one below the hard maximum. Splitting the acceptance contract from the finalizer would create a red-only dependency that cannot reach approval, while splitting integration would overlap the same orchestration and fixtures. Use the internal checkpoints instead of artificial work-package boundaries.
+This package is intentionally atomic at eight subtasks, within the hard maximum of ten. Splitting the acceptance contract from the finalizer would create a red-only dependency that cannot reach approval, while splitting integration would overlap the same orchestration and fixtures. Use the internal checkpoints instead of artificial work-package boundaries.
 
 ## Activity Log
 
