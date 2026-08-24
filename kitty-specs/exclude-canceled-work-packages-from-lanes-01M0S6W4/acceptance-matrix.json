@@ -88,10 +88,10 @@
       "criterion_id": "FR-009",
       "description": "Reopened work packages follow their current canonical state.",
       "proof_type": "automated_test",
-      "evidence": "Governed canceled-to-planned reopen real-finalizer test passes and persists eligible lane inclusion",
+      "evidence": "f753071f8; governed current-state reopen test and moving-tip provenance matrix preserve eligible reopening",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:15:10.063752+00:00",
+      "verified_at": "2026-08-24T12:02:15.841384+00:00",
       "notes": "Pass when a governed canceled-to-planned transition restores the package to ownership checks and lane eligibility."
     },
     {
