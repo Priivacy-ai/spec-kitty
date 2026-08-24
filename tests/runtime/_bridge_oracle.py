@@ -346,6 +346,18 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
         # of this oracle asserts on it, and AC-8's repo_root-threading claim
         # is pinned directly in tests/runtime/next/test_cli_guard_family.py
         # instead, closer to the call sites it's about.
+        #
+        # WP03-F1 (#3704 WP04 fold-in, severity 3): the default value on this
+        # parameter (and on ``_composed_spy``'s below) means this oracle
+        # cannot detect a regressed/omitted ``repo_root`` at any of the three
+        # call sites it wraps -- a caller that silently stopped threading
+        # ``repo_root`` through would still satisfy this spy's signature.
+        # That coverage lives ENTIRELY in
+        # ``TestAC8RepoRootThreadedThroughDnDependencyGate``
+        # (tests/runtime/next/test_cli_guard_family.py) -- this oracle does
+        # NOT backstop it. If that test class is ever modified or deleted,
+        # repo_root-threading regression coverage silently disappears with
+        # it; whoever touches it should know that is what they are removing.
         result: list[str] = list(real_cli(step_id, feature_dir, repo_root=repo_root))
         calls.append(GuardCall("cli", step_id, None, None, list(result)))
         return result
