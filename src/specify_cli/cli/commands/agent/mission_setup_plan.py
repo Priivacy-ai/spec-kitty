@@ -64,8 +64,10 @@ from specify_cli.cli.commands.agent.setup_plan_hosted import (
     decide_hosted_sync,
     evaluate_boundary,
     evaluate_route_availability,
-    is_canonical_hosted_sync_decision,
     serialize_hosted_sync_diagnostics,
+)
+from specify_cli.cli.commands.agent.setup_plan_hosted_effects import (
+    execute_setup_plan_hosted_effects as _execute_setup_plan_hosted_effects,
 )
 from specify_cli.auth.token_manager import SessionAssessment
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
@@ -292,28 +294,6 @@ def _enforce_git_preflight_with_reporting(
         raise
     finally:
         _mission._emit_json = original_emit
-
-
-def _execute_setup_plan_hosted_effects(
-    decision: HostedSyncDecision,
-    *,
-    lifecycle_intents: tuple[LifecycleEventIntent, ...],
-    dossier_intent: DossierSyncIntent | None,
-) -> None:
-    """Execute every setup-plan hosted effect behind one allowing decision."""
-    if not is_canonical_hosted_sync_decision(decision):
-        return
-
-    from specify_cli.status.lifecycle_events import fanout_lifecycle_event_hosted
-
-    for intent in lifecycle_intents:
-        fanout_lifecycle_event_hosted(intent.envelope, log_path=intent.log_path)
-    if dossier_intent is not None:
-        _trigger_dossier_sync(
-            dossier_intent.feature_dir,
-            dossier_intent.mission_slug,
-            dossier_intent.repo_root,
-        )
 
 
 def _finalize_setup_plan_outcome(
@@ -1090,13 +1070,6 @@ def _run_documentation_wiring(
     gap_analysis_path = _run_documentation_gap_analysis(primary_dir, mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
     generators_detected = _detect_and_configure_generators(mission_slug, repo_root, meta_file, target_branch=target_branch, json_output=json_output)
     return gap_analysis_path, generators_detected
-
-
-def _trigger_dossier_sync(feature_dir: Path, mission_slug: str, repo_root: Path) -> None:
-    """Execute the established dossier hosted effect after permission is granted."""
-    from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-
-    trigger_feature_dossier_sync_if_enabled(feature_dir, mission_slug, repo_root)
 
 
 def _build_setup_plan_result(

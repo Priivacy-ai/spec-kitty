@@ -181,6 +181,7 @@ def _run_json_setup_plan(
 ) -> dict[str, object]:
     from specify_cli.cli.commands.agent import mission as mission_mod
     from specify_cli.cli.commands.agent import mission_setup_plan as setup_seam
+    from specify_cli.cli.commands.agent import setup_plan_hosted_effects
 
     emitted: list[dict[str, object]] = []
     monkeypatch.setattr(mission_mod, "_emit_json", lambda value: emitted.append(value))
@@ -196,7 +197,8 @@ def _run_json_setup_plan(
         lambda _root: (True, None),
     )
     monkeypatch.setattr(
-        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        setup_plan_hosted_effects,
+        "fanout_lifecycle_event_hosted",
         (
             lambda *_a, **_k: pytest.fail("lifecycle hosted fan-out was attempted")
             if hosted_effects_must_be_zero
@@ -204,7 +206,7 @@ def _run_json_setup_plan(
         ),
     )
     monkeypatch.setattr(
-        setup_seam,
+        setup_plan_hosted_effects,
         "_trigger_dossier_sync",
         (
             lambda *_a, **_k: pytest.fail("dossier hosted publication was attempted")

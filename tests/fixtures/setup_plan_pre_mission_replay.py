@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import ExitStack
+import importlib
 import json
 import os
 from pathlib import Path
@@ -17,6 +18,14 @@ from specify_cli.cli.commands.agent import mission as mission_mod
 from specify_cli.cli.commands.agent import mission_branch_context
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
 from specify_cli.runtime.resolver import TemplateConfigurationError
+
+try:
+    setup_plan_hosted_effects = importlib.import_module(
+        "specify_cli.cli.commands.agent.setup_plan_hosted_effects"
+    )
+except ModuleNotFoundError:
+    # The immutable pre-mission source predates the physical-effects module.
+    setup_plan_hosted_effects = seam
 
 CASES: dict[str, dict[str, object]] = {
     "substantive_complete": {"plan_substantive": True},
@@ -134,7 +143,11 @@ def _invoke(case: dict[str, object]) -> dict[str, object]:  # noqa: C901
             (seam, "_resolve_plan_template", _resolve),
             (seam, "_emit_spec_plan_phase_events", lambda *_args, **_kwargs: None),
             (seam, "_run_documentation_wiring", lambda *_args, **_kwargs: (None, [])),
-            (seam, "_trigger_dossier_sync", lambda *_args, **_kwargs: None),
+            (
+                setup_plan_hosted_effects,
+                "_trigger_dossier_sync",
+                lambda *_args, **_kwargs: None,
+            ),
             (mission_branch_context, "_utc_now_iso", lambda: "2026-08-23T00:00:00Z"),
         )
         for target, name, replacement in replacements:

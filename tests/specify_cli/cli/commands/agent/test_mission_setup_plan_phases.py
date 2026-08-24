@@ -35,6 +35,7 @@ from typer.testing import CliRunner
 from charter.mission_type_profiles import ResolvedMissionType
 from charter.resolution import ResolutionResult, ResolutionTier
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
+from specify_cli.cli.commands.agent import setup_plan_hosted_effects as hosted_effects
 from specify_cli.cli.commands.agent.setup_plan_hosted import (
     BoundaryEvaluation,
     BoundaryState,
@@ -212,11 +213,12 @@ def test_hosted_effect_executor_refuses_every_intent_under_one_decision(
     """T013/T015: a refused decision dominates lifecycle and dossier effects."""
     calls: list[str] = []
     monkeypatch.setattr(
-        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        hosted_effects,
+        "fanout_lifecycle_event_hosted",
         lambda *_a, **_k: calls.append("lifecycle"),
     )
     monkeypatch.setattr(
-        seam,
+        hosted_effects,
         "_trigger_dossier_sync",
         lambda *_a, **_k: calls.append("dossier"),
     )
@@ -266,11 +268,12 @@ def test_hosted_effect_executor_refuses_reconstructed_affirmative_decisions(
     """Only the exact object issued by the evidence authority may execute."""
     calls: list[str] = []
     monkeypatch.setattr(
-        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        hosted_effects,
+        "fanout_lifecycle_event_hosted",
         lambda *_a, **_k: calls.append("lifecycle"),
     )
     monkeypatch.setattr(
-        seam,
+        hosted_effects,
         "_trigger_dossier_sync",
         lambda *_a, **_k: calls.append("dossier"),
     )
@@ -301,11 +304,12 @@ def test_hosted_effect_executor_accepts_exact_canonical_decision(
 ) -> None:
     calls: list[str] = []
     monkeypatch.setattr(
-        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        hosted_effects,
+        "fanout_lifecycle_event_hosted",
         lambda *_a, **_k: calls.append("lifecycle"),
     )
     monkeypatch.setattr(
-        seam,
+        hosted_effects,
         "_trigger_dossier_sync",
         lambda *_a, **_k: calls.append("dossier"),
     )
@@ -324,6 +328,27 @@ def test_hosted_effect_executor_accepts_exact_canonical_decision(
     )
 
     assert calls == ["lifecycle", "dossier"]
+
+
+def test_dossier_adapter_revalidates_exact_decision_identity(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """The private adapter cannot become an unguarded alternate sink route."""
+    calls: list[str] = []
+    monkeypatch.setattr(
+        hosted_effects,
+        "trigger_feature_dossier_sync_if_enabled",
+        lambda *_a, **_k: calls.append("dossier"),
+    )
+    intent = seam.DossierSyncIntent(tmp_path, "001-demo", tmp_path)
+    forged = HostedSyncDecision(True, True, ())
+
+    hosted_effects._trigger_dossier_sync(forged, intent)
+    assert calls == []
+
+    hosted_effects._trigger_dossier_sync(_affirmative_decision(), intent)
+    assert calls == ["dossier"]
 
 
 def test_collect_hosted_decision_disabled_touches_no_probe(
@@ -586,9 +611,10 @@ def _invoke_matrix_case(  # noqa: C901 - acceptance fixture encodes the binding 
 
         return _record
 
-    mp.setattr(seam, "_trigger_dossier_sync", _record_sink("dossier"))
+    mp.setattr(hosted_effects, "_trigger_dossier_sync", _record_sink("dossier"))
     mp.setattr(
-        "specify_cli.status.lifecycle_events.fanout_lifecycle_event_hosted",
+        hosted_effects,
+        "fanout_lifecycle_event_hosted",
         _record_sink("lifecycle_fanout"),
     )
     mp.setattr(
@@ -1432,7 +1458,7 @@ def test_setup_plan_refuses_present_invalid_primary_meta_before_template_or_stat
         _unexpected_plan_commit,
     )
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
+    monkeypatch.setattr(hosted_effects, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(seam, "_emit_json", lambda payload: emitted.update(payload))
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
@@ -1516,7 +1542,7 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
+    monkeypatch.setattr(hosted_effects, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)
@@ -1581,7 +1607,7 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
+    monkeypatch.setattr(hosted_effects, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)

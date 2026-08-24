@@ -254,13 +254,14 @@ def acquire_session_assessment(
     consumes only ``TokenManager.session_assessment`` and validates its runtime
     shape without trusting arbitrary property access.
     """
-    if token_manager_factory is None:
+    factory = token_manager_factory
+    if factory is None:
         from specify_cli.auth import get_token_manager  # noqa: PLC0415
 
-        token_manager_factory = get_token_manager
+        factory = cast(Callable[[], _TokenManagerLike], get_token_manager)
 
     try:
-        assessment = token_manager_factory().session_assessment
+        assessment = factory().session_assessment
         completed = assessment.completed
         usable_session = assessment.usable_session
         reason = assessment.reason
