@@ -23,7 +23,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
@@ -596,6 +596,22 @@ def _load_expected_artifact_manifest(
 
     from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
 
+    if TYPE_CHECKING:
+        # The `ExpectedArtifactManifest` name bound above (via the
+        # `charter.missions` runtime import, needed to call
+        # `.model_validate()`) is `follow_imports = "skip"`-erased to `Any`
+        # by [tool.mypy] (pyproject.toml) -- and it shadows the module-level
+        # TYPE_CHECKING import of the same name for the rest of this
+        # function body, so a `cast("ExpectedArtifactManifest", ...)` below
+        # would resolve against the shadowed (`Any`) name instead of the
+        # real, fully-typed class. Bind the doctrine-sourced class under a
+        # distinct name, type-checking-only (mirrors the top-of-file
+        # TYPE_CHECKING import; runtime still reaches doctrine only via the
+        # charter facade), so the cast has a real type to point at.
+        from doctrine.missions import (
+            ExpectedArtifactManifest as _TypedExpectedArtifactManifest,
+        )
+
     org_roots = _resolve_existing_org_roots_for_manifest(repo_root)
     if org_roots:
         from charter.org_expected_artifacts import (  # noqa: PLC0415
@@ -605,7 +621,19 @@ def _load_expected_artifact_manifest(
         org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)
         if org_parsed is not None:
             try:
-                return ExpectedArtifactManifest.model_validate(org_parsed)
+                # `charter.*` is intentionally `follow_imports = "skip"` in
+                # [tool.mypy] (pyproject.toml) so this module's mypy run
+                # doesn't walk unrelated pre-existing strict debt elsewhere
+                # in the charter package; that also erases the imported
+                # `ExpectedArtifactManifest`'s real (pydantic `Self`) return
+                # type down to `Any`. The cast documents the type
+                # `model_validate` actually returns at runtime (or raises
+                # `ValidationError`, handled below) -- mypy is not wrong
+                # about the code, only blind to it through this boundary.
+                return cast(
+                    "_TypedExpectedArtifactManifest",
+                    ExpectedArtifactManifest.model_validate(org_parsed),
+                )
             except ValidationError as exc:
                 # Org-tier branch: no `ConfigResult` of type `config` is in
                 # scope here, so `.origin` cannot be read off one (that would
@@ -643,7 +671,11 @@ def _resolve_existing_org_roots_for_manifest(repo_root: Path | None) -> list[Pat
         return []
     from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
 
-    return resolve_existing_org_roots(repo_root)
+    # See the cast rationale in `_load_expected_artifact_manifest` above:
+    # `charter.*` is `follow_imports = "skip"` in [tool.mypy], which erases
+    # `resolve_existing_org_roots`'s real `list[Path]` return type to `Any`
+    # at this call boundary only.
+    return cast("list[Path]", resolve_existing_org_roots(repo_root))
 
 
 def resolve_configured_artifact_name(

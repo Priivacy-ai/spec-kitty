@@ -84,7 +84,7 @@ import tempfile
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 import yaml
 from mission_runtime import CommitTarget
@@ -932,7 +932,13 @@ def _resolve_org_manifest_mapping(
     org_roots = resolve_existing_org_roots(repo_root)
     if not org_roots:
         return None
-    return resolve_org_expected_artifacts(org_roots, mission_family)
+    # `charter.*` is `follow_imports = "skip"` in [tool.mypy] (pyproject.toml)
+    # so unrelated pre-existing strict debt elsewhere in the charter package
+    # isn't walked by every importer's mypy run; that also erases
+    # `resolve_org_expected_artifacts`'s real `Mapping[str, Any] | None`
+    # return type to plain `Any` at this call boundary. The cast documents
+    # the type this function actually returns at runtime.
+    return cast("Mapping[str, Any] | None", resolve_org_expected_artifacts(org_roots, mission_family))
 
 
 def _expected_artifacts_manifest_resolves(mission_family: str, repo_root: Path | None) -> bool:
