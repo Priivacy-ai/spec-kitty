@@ -78,10 +78,10 @@
       "criterion_id": "FR-008",
       "description": "All-canceled missions finalize successfully with zero executable lanes.",
       "proof_type": "automated_test",
-      "evidence": "Normal and validate-only all-canceled tests persist/preview a valid zero-lane manifest, including a dependency cycle wholly inside canceled work",
+      "evidence": "53ebfc3f4; normal and validate-only all-canceled tests, including canceled-only cycles, produce zero lanes",
       "pass_fail": "pass",
       "verified_by": "codex-reviewer",
-      "verified_at": "2026-08-24T09:15:07.943473+00:00",
+      "verified_at": "2026-08-24T12:02:12.525621+00:00",
       "notes": "Pass when normal and validate-only finalization return a valid deterministic zero-lane result without requiring a prior manifest."
     },
     {
