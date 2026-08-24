@@ -712,6 +712,13 @@ def _scaffold_minimal_kittify_repo(repo_root: pathlib.Path) -> None:
         check=True,
         capture_output=True,
     )
+    for key, value in (("user.email", "t@e"), ("user.name", "t")):
+        subprocess.run(
+            ["git", "config", key, value],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
     subprocess.run(
         [
             "git",
