@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+batch: round3-1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: PLAN-GOV-001
+    verdict: refuted
+    reason: >-
+      The bullet's own header ("If the analysis-report.md leak is what failed (FR-007/NFR-002)")
+      unambiguously scopes the whole bullet to IC-03; the closing clause "the same RED-first
+      discipline §591 applies to IC-01" is a literally-true by-analogy reference to where §591
+      defines that discipline (IC-01), not a mislabeling of this recovery step as IC-01's own.
+  - id: PLAN-GOV-002
+    verdict: refuted
+    reason: >-
+      The bullet explicitly says "per SC-005's live-commitlint acceptance method, not a
+      unit-level string-shape assertion alone" and spec.md's SC-005 (line 162) gives the exact
+      `commitlint --from <parent-sha> --to <analysis-commit-sha>` invocation, so the claimed
+      bare-string/commit-range ambiguity is resolved by that cross-reference; the missing
+      pre-named fixture file is inherent to this contingency path only firing on this mission's
+      own not-yet-existing commit SHA, which the finding itself concedes.
+  - id: PLAN-GOV-003
+    verdict: refuted
+    reason: >-
+      Lines 136-140 are two semicolon-separated independent clauses, not one claim: "the RED-first
+      sequencing above satisfies this for the guard widening" (IC-01 only) is followed by a
+      separate justification for the five updated assertions ("judged VALID ... because the
+      product's own contract changed") that never invokes §591 or RED-first sequencing at all —
+      the alleged internal inconsistency is a misreading of that sentence structure.

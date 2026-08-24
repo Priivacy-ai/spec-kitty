@@ -1,0 +1,55 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: PLAN-ARCH-001
+    lens: NFR-002 contract-boundary precision (mission-specific)
+    severity: 3
+    title: IC-03's relativization-failure catch boundary names WHERE but not WHAT — no exception type, no committed raise-site
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map / IC-03 (lines ~529-536)"
+      - artifact: "plan.md § Quality & Tech-Debt Standing Orders — applied, item 2 (Campsite cleaning), naming `_artifact_hash_entry`, `_charter_path`, `collect_input_artifact_hashes`, `check_analysis_report_current` as the touched functions"
+      - code: "src/specify_cli/analysis_report.py:179-185 (`_artifact_hash_entry(path)` — signature takes only `path`, no governing-root parameter; cannot itself relativize without a caller-side change or a new parameter)"
+      - code: "src/specify_cli/analysis_report.py:217-226 (`collect_input_artifact_hashes` calls `_artifact_hash_entry` for the three hash inputs, then builds the `charter` entry inline via a separate code path using `_charter_path`)"
+      - code: "src/specify_cli/analysis_report.py:124 (`class AnalysisReportError(RuntimeError)`, the repo's one existing analysis-report-domain exception, raised exactly once today at line 409's `write_analysis_report` required-artifact check) — no typed exception for a relativization failure exists yet"
+      - code: "src/specify_cli/analysis_report.py:458-544 (`check_analysis_report_current`) — the call to `collect_input_artifact_hashes` at line 515 currently has NO surrounding try/except of any kind; the only existing try/except in this function (lines 472-482) is scoped narrowly to `FrontmatterManager().read()` / `FrontmatterError`"
+      - code: "src/specify_cli/cli/commands/agent/workflow.py:950-990 (`_require_current_analysis_report`) — calls `check_analysis_report_current(feature_dir, repo_root)` at line 957 with no try/except; any exception that escapes `check_analysis_report_current` propagates uncaught here, i.e. into the `implement` gate check itself, not a reported error"
+    claim: >
+      Plan.md's IC-03 risk note commits to the correct high-level invariant (the
+      relativization-failure exception must not reach `_require_current_analysis_report`)
+      but stops short of naming (a) the concrete exception type to raise/catch — it says only
+      "a typed exception" without proposing a name, and the one existing candidate
+      (`AnalysisReportError`) is not mentioned as the intended reuse; (b) which function is the
+      actual raise site — `_artifact_hash_entry` currently has no `repo_root`/governing-root
+      parameter to relativize against, so the plan implicitly requires a signature change or a
+      caller-side relativization step it never states; and (c) an explicit confirmation that
+      `write_analysis_report` (which has no non-raising contract) is deliberately left
+      un-wrapped so the same exception propagates there by design, rather than by omission. The
+      offered disjunction ("caught *inside* `check_analysis_report_current`, or inside
+      `collect_input_artifact_hashes` with `check_analysis_report_current` catching a typed
+      exception") is wide enough that an implementer without a named type could reach for a
+      broad `except Exception:` around the line-515 call to stay safe — which would silently
+      mask unrelated bugs in that call chain (the same class of silent-failure risk this
+      mission's own NFR-002 exists to close, and one the charter's own quality gates
+      discourage: narrow catches only, no empty/effect-free handlers). Because spec.md's own
+      AC5/NFR-002 test requirement (a positive assertion that `check_analysis_report_current`
+      returns `AnalysisFreshness(ok=False, ...)` and never raises for this condition) would
+      catch a genuinely miswired catch at test time, this is sized moderate rather than high —
+      it risks rework inside IC-03's WP, not a shipped regression, but the ambiguity is real and
+      lands exactly on the boundary the mission's own framing calls "the trickiest architectural
+      point in the whole mission."
+    remediation: >
+      Before/at tasks time, commit IC-03 (or the WP prompt it becomes) to a concrete shape: (1)
+      name the exception type — e.g. reuse `AnalysisReportError` (already analysis-report-domain,
+      already imported wherever `write_analysis_report`'s current raise is caught) or introduce a
+      narrowly-scoped `PathRelativizationError(AnalysisReportError)` subtype so
+      `check_analysis_report_current` can catch it specifically rather than broadly; (2) name the
+      raise site(s) explicitly — state that `_artifact_hash_entry` gains a `governing_root: Path`
+      parameter (or that relativization happens in `collect_input_artifact_hashes` after each
+      `_artifact_hash_entry`/`_charter_path` call returns), so the WP does not have to invent the
+      signature change; (3) add one sentence confirming `write_analysis_report` intentionally has
+      no try/except around its `collect_input_artifact_hashes` call (line 412) so the same
+      exception surfaces there by design — closing the "or by omission" ambiguity NFR-002's
+      Acceptance Scenario 3 (write_analysis_report raises) depends on.

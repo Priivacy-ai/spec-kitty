@@ -1,0 +1,25 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-FRESH3-001
+    status: resolved
+    reason: >-
+      Edge Cases bullet and FR-007's table row are now trimmed to short conclusions plus a
+      "Grounding Correction 3" pointer instead of re-deriving the #1823/canonical_root
+      mechanism or re-listing all five sites; GC3 alone retains the full enumeration, and all
+      five file:line refs (test_analysis_report.py:238,260 and
+      test_analysis_report_charter_yaml_staleness.py:52,94,137) were verified byte-accurate
+      against the live checkout, so no fact was lost in the trim.
+  - id: OPERATOR-PRECEDENCE-CORRECTION
+    status: resolved
+    reason: >-
+      Spec now states charter > operator standing orders > CLAUDE.md, §486 binding absolutely
+      with #3284 discharging only its own set and anything else requiring a new GitHub issue
+      per §486, the old "escalate, never file" disposition explicitly WITHDRAWN, D1 narrowed
+      (not deleted, still governs charter-silent adjacent work) with §106 legitimising
+      per-change deferral, and a non-retroactive note whose "zero pre-existing failures outside
+      #3284's set" claim checks out against spec-verify.findings.yaml and spec.merged.yaml
+      (only the already-green #1823 charter test is discussed there); the "escalat"/"never
+      file"/"silent skip" sweep found no leftover old-framing echoes outside the corrected text
+      itself.

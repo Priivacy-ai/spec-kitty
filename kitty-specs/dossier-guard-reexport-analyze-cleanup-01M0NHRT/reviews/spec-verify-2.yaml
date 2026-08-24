@@ -1,0 +1,27 @@
+schema: review-verify/v1
+phase: spec
+results:
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >
+      Grounding Correction 3, the FR-007 row, and the matching Edge Case bullet all now
+      state plainly that test_charter_hash_resolves_canonical_root_from_worktree
+      (tests/specify_cli/test_analysis_report.py:238, confirmed against the live test file)
+      DOES need its `hashes["charter"]["path"] == str(charter_file.resolve())` assertion
+      updated to a canonical_root-relative string as an explicit implementation task, while
+      correctly noting only the other two assertions in that test are unaffected.
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      A repo-wide grep for "repo-relative" / "repo_root-relative" in the current spec.md
+      returns zero hits; Key Entities, D3, and §106 all now use governing-root-relative
+      language that explicitly names repo_root (spec/plan/tasks) vs canonical_root
+      (charter), consistent with FR-007/NFR-002.
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >
+      NFR-001's inner pipe in `(/home\|/Users)` is now backslash-escaped; splitting the raw
+      table row on unescaped pipes yields exactly 6 cells (plus the two empty
+      leading/trailing tokens from the row's outer pipes), matching the table's 6-column
+      header.
+complete: true

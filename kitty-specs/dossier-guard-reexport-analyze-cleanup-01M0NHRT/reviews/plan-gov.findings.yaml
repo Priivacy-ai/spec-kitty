@@ -1,0 +1,70 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: PLAN-GOV-001
+    lens: Campsite scope
+    severity: 3
+    title: "Campsite-clean waiver cites an inaccurate line-count for check_analysis_report_current"
+    evidence:
+      - artifact: "plan.md § Quality & Tech-Debt Standing Orders — applied, item 2 (Campsite cleaning), lines 117-127"
+      - code: "src/specify_cli/analysis_report.py:458-544"
+    claim: >
+      Plan.md's "not warranted" campsite-clean judgment rests explicitly on the claim that the four
+      touched functions in analysis_report.py — `_artifact_hash_entry`, `_charter_path`,
+      `collect_input_artifact_hashes`, `check_analysis_report_current` — "are each small (5-30 lines)
+      and already focused, not in need of decomposition to make the FR-007 edit safe." Measured
+      directly against the live checkout: `check_analysis_report_current` spans lines 458-544, i.e.
+      87 lines — nearly 3x the stated upper bound, and the only one of the four functions this plan
+      names that actually needs FR-007 touch (it calls collect_input_artifact_hashes and must catch
+      the new relativization-failure path per DD-004). Manual inspection shows it is a flat sequence
+      of independent early-return guard clauses (no nesting), so it is very likely still under the
+      charter's complexity-15 ceiling and probably not a true Sonar "god-function" — but the plan's
+      own stated evidence for skipping campsite-clean is factually wrong for the one function most
+      load-bearing to this mission's FR-007 change, which undercuts the "verified against the live
+      checkout, not assumed" standard the plan repeatedly asserts for itself elsewhere (e.g.
+      tracer-approach.md step 3's line-by-line re-verification list omits this function's line range
+      entirely).
+    remediation: >
+      Correct the campsite-clean paragraph to state check_analysis_report_current's actual line
+      count (87 lines, 458-544) and its actual shape (linear guard-clause chain, not nested branching)
+      as the basis for "not needing decomposition," rather than folding it into the same "5-30 lines"
+      bucket as the other three, smaller functions. If a reviewer wants independent confirmation,
+      run `ruff check --select C901 src/specify_cli/analysis_report.py` (or the repo's mypy/ruff CI
+      step) before merge to confirm it is in fact under the complexity ceiling.
+
+  - id: PLAN-GOV-002
+    lens: "Mission-specific: Reflexivity self-application gap"
+    severity: 3
+    title: "Reflexivity section names the self-test-failure risk but specifies no recovery path"
+    evidence:
+      - artifact: "plan.md § Reflexivity, lines 474-480"
+      - artifact: "plan.md § SK-63 interaction (process note for the analyze phase, not a plan requirement), lines 465-472"
+    claim: >
+      Plan.md's Reflexivity section states that this mission's own eventual `record-analysis`
+      invocation is "the first real-world exercise of the FR-006/FR-007 fix" and that a failure there
+      would be "direct, first-party evidence the fix did not work, discovered before the PR is even
+      opened" — but it stops there. It never states what happens next if that self-test actually
+      fails: no instruction to fix-forward within the same mission before PR-prep, no statement that
+      this blocks marking the mission's own analyze phase complete, no escalation path, nothing. The
+      adjacent "SK-63 interaction" section covers only the OTHER half of what can go wrong at
+      analyze-phase time — SK-63's hang/false-success problem (verify the commit via `git log`/`git
+      ls-tree`, never trust `{"success": true}` alone) — and explicitly scopes itself to that: "it is
+      not a plan requirement to fix SK-63's other half." Neither section, nor D1's general
+      fold-in-rather-than-file-or-defer rule (spec.md, which talks about "adjacent work encountered
+      while grounding" and pre-existing test failures, not a mission's own deliverable failing its
+      own dogfood test), is drawn on to say what an implementing/analyze-phase agent should actually
+      do if the record-analysis commit fails commitlint or `analysis-report.md` still leaks an
+      absolute path after FR-006/FR-007 land. Given the charter's throughline ("never trust a green
+      check... let independent adversarial perspectives try to break the work before it lands") this
+      is exactly the scenario the plan should pre-commit a response to, and does not.
+    remediation: >
+      Add a short, explicit recovery-path statement to the Reflexivity section (or fold it into the
+      SK-63 interaction section, renaming it to cover both halves): if this mission's own
+      record-analysis commit fails commitlint, or its analysis-report.md contains an absolute
+      username-bearing path, treat FR-006/FR-007 as not-yet-done — fix forward within this same
+      mission (amend IC-03's implementation) before proceeding to PR-prep, and do not open the PR
+      with a known-failing self-test. State this as a plan-level instruction, not left to be
+      improvised by whichever agent happens to run the analyze phase.

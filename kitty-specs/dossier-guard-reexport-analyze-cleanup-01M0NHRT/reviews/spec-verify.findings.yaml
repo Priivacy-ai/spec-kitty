@@ -1,0 +1,125 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: SPEC-VERIFY-001
+    lens: silent-success
+    severity: 4
+    title: >-
+      FR-007/NFR-002's "raise, never fall back to absolute" rule contradicts
+      the existing, currently-green worktree charter-path test, and the spec
+      calls a real, already-tested condition "hypothetical"
+    evidence:
+      - artifact: "spec.md § Edge Cases (line 94)"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 3 (line 49)"
+      - artifact: "spec.md § User Story 1, Acceptance Scenario 2 (line 48, 'and the charter entry is relative to repo_root')"
+      - artifact: "spec.md § FR-007 (line 111) and NFR-002 (line 118)"
+      - code: "src/specify_cli/analysis_report.py:188-229 (_charter_path, collect_input_artifact_hashes)"
+      - code: "tests/specify_cli/test_analysis_report.py:207-238 (test_charter_hash_resolves_canonical_root_from_worktree, #1823)"
+    claim: >-
+      Edge Case 4 and AC-3 frame "an input artifact's resolved path cannot be
+      expressed relative to repo_root" as a "hypothetical checkout layout
+      ... e.g. a symlinked or foreign-root path". It is not hypothetical: it
+      is the exact, currently-shipped, currently-green behavior of
+      collect_input_artifact_hashes's charter-path resolution. Verified live:
+      `uv run --extra test pytest tests/specify_cli/test_analysis_report.py -q
+      -k charter_hash` -> "3 passed" on this checkout right now.
+      test_charter_hash_resolves_canonical_root_from_worktree constructs a
+      `main` checkout and a sibling `wt` worktree, calls
+      collect_input_artifact_hashes(feature_dir, worktree) — i.e. repo_root =
+      the worktree path — and asserts hashes["charter"]["path"] ==
+      str(charter_file.resolve()), where charter_file lives under `main`, a
+      directory that is NOT an ancestor of `worktree` at all (they are
+      siblings under tmp_path). This is deliberate, documented #1823
+      behavior: `_charter_path` resolves the CANONICAL (main-checkout)
+      charter via `resolve_canonical_repo_root`, precisely so a worktree-
+      local stale charter copy is never hashed instead. So
+      Path(charter_file).relative_to(repo_root) would raise ValueError
+      *today*, in an existing green test, for a real and intentional reason
+      — not an edge case nobody can construct.
+      This creates a load-bearing conflict FR-007/NFR-002/AC-2/AC-3 do not
+      reconcile: (a) AC-2 says the charter entry's path must be relative to
+      repo_root with no exception; (b) NFR-002 says relativization failure
+      must raise, never silently fall back to absolute; (c) but the existing
+      #1823 test's whole point is that the canonical charter is deliberately
+      OUTSIDE repo_root when called from a worktree, and the test currently
+      asserts the absolute canonical path is returned, not a raise. An
+      implementer following the spec literally must either (i) make this
+      call raise, breaking test_charter_hash_resolves_canonical_root_from_worktree
+      (an existing green test, not part of #3284's baseline, so this would
+      be a real regression the mission's own SC-checks would not catch since
+      no SC references this test), or (ii) special-case the charter path to
+      keep it absolute when canonical_root != repo_root, which directly
+      contradicts AC-2's blanket "the charter entry is relative to repo_root"
+      claim and NFR-002's "never fall back to absolute" rule, or (iii)
+      relativize the charter path against canonical_root instead of the
+      passed repo_root (plausible fix, but nowhere stated in the spec, and
+      would still leave "relative to WHICH root" undefined for the reader of
+      AC-2/NFR-001's grep pattern, since NFR-001's `/home/<user>/...` grep
+      would still pass for a canonical_root-relative charter path but the
+      literal AC-2 wording would still be violated).
+      Note production's one call site (mission_record_analysis.py) happens
+      to pre-normalize repo_root via get_main_repo_root before calling
+      write_analysis_report, so the divergent-root case may not fire through
+      that single caller today — but collect_input_artifact_hashes /
+      _charter_path is a general function this mission explicitly touches
+      (§106 charter-clause resolution names analysis_report.py in scope),
+      and its own test suite (which this mission's diff must not break)
+      already exercises and depends on the divergent-root behavior.
+    remediation: >-
+      Add a Grounding Correction (or amend Edge Case 4 / FR-007 / NFR-002)
+      that: (1) names test_charter_hash_resolves_canonical_root_from_worktree
+      explicitly and states whether it is expected to change, and to what
+      new expected assertion, as part of this mission's diff; (2) picks one
+      resolution explicitly rather than leaving it to the implementer —
+      e.g. "the charter entry is relativized against its OWN
+      canonical_root (the root _charter_path already resolves via
+      resolve_canonical_repo_root), not the passed repo_root; the three
+      spec/plan/tasks hash-input entries are relativized against repo_root"
+      — and reword AC-2/NFR-001's "relative to repo_root" language to say
+      "relative to its governing root (repo_root for spec/plan/tasks;
+      canonical_root for charter)" so the AC is no longer falsified by the
+      #1823 test's own asserted behavior; (3) drop "hypothetical" from Edge
+      Case 4's framing for the charter case specifically, since it is a
+      live, already-tested scenario, and reserve "hypothetical" language
+      only for the spec/plan/tasks paths (which genuinely have no known
+      production trigger today per the grounding done for those three).
+
+  - id: SPEC-VERIFY-002
+    lens: falsifiability
+    severity: 2
+    title: >-
+      FR-003 / User Story 2 Acceptance Scenario 5 (docstring update) has no
+      concrete, mechanically-checkable assertion, unlike every other AC in
+      the spec
+    evidence:
+      - artifact: "spec.md § FR-003 (line 107)"
+      - artifact: "spec.md § User Story 2, Acceptance Scenario 5 (line 68)"
+      - code: "tests/architectural/test_dossier_emitter_positional_guard.py:1-33 (module docstring, 'What this guard deliberately does NOT cover')"
+    claim: >-
+      Every other AC in this spec names a literal grep pattern, pytest
+      invocation, exact fixture content, or exact function/field name to
+      check against (e.g. AC-1/AC-2 of US2 name the exact planted call
+      shape and exact assertions; SC-006 names a literal grep -E pattern).
+      AC-5 of User Story 2 only says the docstring "no longer frames
+      attribute-chain and aliased-import calls as deferred/out-of-scope"
+      and "is updated to describe what the widened detector does cover and
+      its remaining true boundary" — with no literal string(s) that must be
+      absent (e.g. the existing docstring's own phrases "explicitly
+      deferred", "no aliasing/re-export exists in src/ today", "none exist
+      in src/ today") or present. This is reviewable by a human but not by
+      an automated check, and FR-003/AC-5 is the one FR in the table with
+      no corresponding Success Criterion (SC-001..SC-007) or NFR pointing
+      back to it at all — so nothing in the Success Criteria section
+      actually re-verifies FR-003 was done.
+    remediation: >-
+      Either (a) add an SC (e.g. SC-008) with a concrete check — e.g. "grep
+      -qi 'explicitly deferred\|none exist in .src/. today' tests/architectural/test_dossier_emitter_positional_guard.py
+      returns no matches after the change" — or (b) explicitly note in
+      FR-003/AC-5 that this AC is intentionally judged by reviewer read-
+      through rather than mechanical check, so implementers and reviewers
+      both know not to look for an automated gate for it.
+
+findings_count: 2

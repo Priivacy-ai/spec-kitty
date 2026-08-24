@@ -1,0 +1,10 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+note: >
+  All 3 merged round-3 findings (PLAN-GOV-001, PLAN-GOV-002, PLAN-GOV-003) were refuted in
+  reviews/plan-refute-round3.yaml, verified independently by the orchestrator against the
+  committed plan.md text (HEAD 9579f0f73) before acceptance. 0 confirmed. See
+  plan-round3.merged.yaml for the full findings and plan-refute-round3.yaml for verdicts/reasons.
+findings: []

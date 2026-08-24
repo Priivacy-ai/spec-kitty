@@ -1,0 +1,74 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: seq
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: TASKS-SEQ-001
+    lens: baseline-capture robustness (F-03 tracer finding)
+    severity: 2
+    title: WP01's baseline-capture instruction hardcodes a stale tracer entry number ("F-03")
+    evidence:
+      - artifact: "tasks/WP01-sk63-path-relativization.md § Mission-wide baseline — capture FIRST, before any commit (line 76)"
+      - code: "kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/tracer-tooling-friction.md:53 (## F-03 — `generate_tasks_md_from_manifest` has no mission-level preamble/notes field) and :94 (## F-04 — `finalize-tasks` (mutating) emitted the same SK-65 event-routing warnings as F-01)"
+    claim: >
+      WP01's prompt text says: "run this EXACT command (do not alter it) and record the pass/fail
+      result in `tracer-tooling-friction.md` (append, do not overwrite; next entry is F-03) before
+      proceeding to any implementation commit". This is factually wrong at the point WP01 actually
+      executes: tracer-tooling-friction.md already carries F-01 through F-04 (F-03 and F-04 were
+      appended during this mission's own spec/tasks-authoring pass, both dated 2026-08-22/23, i.e.
+      before any WP implementation starts), so the true next available entry is F-05, not F-03. An
+      implementer who trusts this literal number rather than re-checking the file before writing
+      would create a duplicate/colliding "## F-03" heading in a governance/traceability artifact.
+      The risk is mitigated somewhat because T001's own operative steps say "next F-0N entry"
+      generically and "follow the existing F-01/F-02 format" (an implementer opening the file to
+      append would likely see F-03/F-04 already present and self-correct), which is why this is
+      rated minor rather than moderate — but the stated number is still wrong and worth fixing
+      before an agent acts on it literally.
+    remediation: >
+      Edit tasks/WP01-sk63-path-relativization.md's "Mission-wide baseline" section to drop the
+      hardcoded number — replace "(append, do not overwrite; next entry is F-03)" with "(append,
+      do not overwrite; use the next available F-0N number — check the file's existing entries
+      first, do not assume a specific number)". Since tasks.md is regenerated from wps.yaml on
+      every finalize-tasks run and this text lives only in the WP prompt file (not tasks.md
+      itself, confirmed absent any templating field per tracer F-03's own finding), this is a
+      direct, safe edit to the WP prompt file.
+
+  - id: TASKS-SEQ-002
+    lens: baseline-capture robustness (F-03 tracer finding) / phasing (write-scope disjointness)
+    severity: 3
+    title: The shared tracer file all four WPs may write to is outside every lane's write_scope, with no serialization against genuinely concurrent execution
+    evidence:
+      - artifact: "lanes.json § lanes[*].write_scope (all four lanes); tasks/WP01-...md § Mission-wide baseline (T001); tasks/WP02-...md, WP03-...md, WP04-...md § Mission-wide baseline (\"confirm before your first commit\" fallback)"
+      - code: "src/specify_cli/lanes/models.py:81 (\"parallel_group: Lanes with the same group number can run in parallel.\"); lanes.json's four lanes all carry parallel_group: 0 and depends_on_lanes: []; src/specify_cli/policy/risk_scorer.py:102-215 (write_scope_overlap heuristic operates only over each lane's write_scope, which is the union of wps.yaml owned_files — kitty-specs/.../tracer-tooling-friction.md is not listed as an owned_file for any of WP01–WP04 in wps.yaml)"
+    claim: >
+      All four WPs have `dependencies: []` and `parallel_group: 0` — by spec-kitty's own lane
+      semantics this means they are eligible to run genuinely concurrently, each in its own
+      worktree (per CLAUDE.md's "Execution Workspace Strategy", `.worktrees/<feature>-lane-<id>`).
+      The mission's baseline-capture coordination mechanism (the F-03 tracer finding's mitigation)
+      has every WP's prompt instruct: "check tracer-tooling-friction.md for an F-0N entry... if
+      not present, run it yourself now and record the result... before proceeding." This is a
+      check-then-act race: if two or more WPs are dispatched concurrently and neither has yet
+      observed the other's entry (each reads its own worktree's copy of the file, forked from the
+      same base commit), both can independently conclude "not present," both run the baseline, and
+      both append a competing new tracer entry — producing either a duplicate/colliding F-0N
+      number or a straightforward git merge conflict on tracer-tooling-friction.md when the lanes
+      are consolidated (`spec-kitty merge`). Compounding this, `tracer-tooling-friction.md` is not
+      listed in ANY of the four lanes' `write_scope` arrays in lanes.json (each lane's write_scope
+      is derived solely from wps.yaml's `owned_files`, which lists only the WP's real deliverable
+      files) — so the lane risk-scorer's `write_scope_overlap` heuristic, whose entire job is to
+      flag exactly this kind of shared-file collision risk between concurrent lanes, has no
+      visibility into this real shared-write surface and cannot flag it.
+    remediation: >
+      Two complementary fixes: (1) Add `kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT/tracer-tooling-friction.md`
+      to every lane's `write_scope` in lanes.json (or the equivalent owned_files list in wps.yaml)
+      so the shared-write surface is at least visible to the overlap heuristic and to a reviewer
+      reading lanes.json. (2) Make the fallback write itself collision-safe instead of relying on
+      a check-then-act read: either (a) have each WP's fallback append using a WP-tagged heading
+      that cannot collide on number (e.g. "## F-0N (captured by WP0X)" using a placeholder token
+      resolved at write time, or simply appending with a fresh UTC timestamp in the heading rather
+      than a sequential number guessed in advance), or (b) require the WP that ends up performing
+      the fallback to `git pull --rebase`/re-read the file immediately before its append commit and
+      abort-and-retry if another WP's entry appeared in between. Either resolves the race without
+      reintroducing a hard `dependencies` edge that would defeat the mission's intentional
+      four-way parallelism.

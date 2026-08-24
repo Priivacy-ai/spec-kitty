@@ -1,0 +1,77 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: arch
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: SPEC-ARCH-001
+    lens: Layering / Contracts (FR-007 raise-on-unrelativizable-path)
+    severity: 4
+    title: "FR-007's 'relative to repo_root, raise if unrelativizable' contract contradicts the existing, tested canonical-root charter-hashing behavior and is silently applied to a second, non-raising caller"
+    evidence:
+      - artifact: "spec.md FR-007 (line 111), NFR-002 (line 118), Edge Cases (line 94)"
+      - code: "src/specify_cli/analysis_report.py:188-226 (_charter_path) — resolves the charter through `resolve_canonical_repo_root(repo_root)`, explicitly to get the MAIN checkout's charter 'so a worktree-local charter copy is never hashed in place of the main checkout's charter' (comment at lines 189-194), i.e. the returned path can legitimately live OUTSIDE the passed `repo_root`."
+      - code: "tests/specify_cli/test_analysis_report.py:207-238 (test_charter_hash_resolves_canonical_root_from_worktree) — an existing, currently-passing regression test (guarding bug #1823) that calls `collect_input_artifact_hashes(feature_dir, worktree)` where `repo_root=worktree` (a linked git worktree) and asserts `hashes['charter']['path'] == str(charter_file.resolve())` where `charter_file` lives under a SIBLING `main` checkout, i.e. a path that is NOT a subpath of the passed `repo_root` and therefore cannot be expressed via `Path.relative_to(repo_root)`."
+      - code: "src/specify_cli/analysis_report.py:458-544 (check_analysis_report_current) — calls `collect_input_artifact_hashes(feature_dir, repo_root)` at line 515 as part of a function whose own established contract (see the FrontmatterError catch at lines 472-482) is to NEVER raise, always returning a typed `AnalysisFreshness(ok=False, reason=...)`."
+      - code: "src/specify_cli/cli/commands/agent/workflow.py:950-961 (_require_current_analysis_report) — the sole consumer of check_analysis_report_current, branches on `.reason` to print specific, actionable recovery guidance (carrier-format vs missing vs stale) for the `/spec-kitty agent action implement` gate — a code path completely separate from `record-analysis`/mission_record_analysis.py and never mentioned by this spec."
+    claim: >
+      FR-007 and NFR-002 require `_artifact_hash_entry`/`collect_input_artifact_hashes` to record every
+      path (including the charter entry) relative to `repo_root`, and to raise/fail loudly whenever a
+      path "cannot be expressed relative to repo_root". But `_charter_path` deliberately resolves the
+      charter through `resolve_canonical_repo_root(repo_root)`, which can return the MAIN checkout root
+      even when `repo_root` is a linked worktree — exactly the scenario the existing
+      `test_charter_hash_resolves_canonical_root_from_worktree` test exercises and pins (fix for #1823).
+      A literal implementation of FR-007 (raise whenever `charter_path.relative_to(repo_root)` fails)
+      breaks that existing, intentional, currently-green test and — because `collect_input_artifact_hashes`
+      is the SAME shared helper `check_analysis_report_current` calls at analysis_report.py:515 — also
+      threatens the freshness-check's own established never-raises contract, used by a completely
+      different command (`agent action implement`'s analysis-report gate in workflow.py), which the
+      spec's User Story 1 ("Both checks are independent of #3676/#3677 and can be verified without
+      touching the dossier module at all") and its FR/AC/SC set never scope, test, or even mention. The
+      spec's stated boundary (raise "if a path cannot be relativized") is written as if `repo_root` is
+      always the correct relativization base for every entry in the returned dict, which is false for
+      the charter entry by design.
+    remediation: >
+      Add an explicit clarification (Grounding Correction or new Constraint) stating which reference
+      root each `input_artifacts` entry relativizes against: the three hash-input artifacts
+      (spec.md/plan.md/tasks.md) relativize against `repo_root` (fine, they always live under
+      `feature_dir` which is under `repo_root`), but the `charter` entry must relativize against the
+      SAME `canonical_root` that `_charter_path` already resolves via `resolve_canonical_repo_root`
+      (not the passed-in `repo_root`) — so the worktree case stays a legitimate non-error, matching
+      `test_charter_hash_resolves_canonical_root_from_worktree`'s existing expectation. Separately,
+      require the implementation to keep `check_analysis_report_current`'s non-raising contract intact
+      — either by catching the new relativization error inside `check_analysis_report_current` and
+      mapping it to a typed `AnalysisFreshness(ok=False, reason=...)`, or by adding an explicit AC/SC
+      that exercises `check_analysis_report_current`/`_require_current_analysis_report` (not just
+      `write_analysis_report`) against an unrelativizable-path fixture, so the freshness-check code path
+      is not silently left to crash the `implement` command with a raw traceback/generic error instead
+      of its existing reason-coded recovery guidance.
+
+  - id: SPEC-ARCH-002
+    lens: Close defect classes by construction (DIRECTIVE_043) — #3676 guard boundary honesty
+    severity: 3
+    title: "Edge Cases section names the alias-reassignment boundary but never names the dynamic/reflective-dispatch escape hatch (getattr, dispatch-dict) the widened guard still cannot see"
+    evidence:
+      - artifact: "spec.md Edge Cases (lines 91-93), FR-001/FR-002 (lines 105-106), User Story 2 Acceptance Scenario 5 (line 68)"
+      - code: "tests/architectural/test_dossier_emitter_positional_guard.py:92-96 (_call_target_name) — the pre-widening detector only recognizes `ast.Name` and (per the widening) `ast.Attribute` final-name / resolved-alias shapes; it has and will have no path to recognize `getattr(dossier, \"emit_artifact_indexed\")(...)`, a `**{\"emit_artifact_indexed\": fn}(...)`-style dispatch table, or any other reflective/dynamic call construction."
+    claim: >
+      The spec's Edge Cases section explicitly names two boundaries for the widened guard: nested
+      attribute-chain depth (stated as HANDLED — matched on final attribute name regardless of depth)
+      and alias-reassignment tracking (stated as explicitly OUT OF SCOPE). It does not name, anywhere,
+      the broader class of dynamic/reflective invocation (`getattr(module, "name")(...)`, a dispatch
+      dict, `functools.partial`, etc.) as a boundary at all — even though this is a real, syntactically
+      distinct escape hatch from both of the two shapes FR-001/FR-002 close, and the guard's own premise
+      (User Story 2: "the two gaps ... are actually closed, not merely written down as accepted risk")
+      is specifically about not leaving quiet escape hatches. AC5's docstring requirement ("no full
+      call-graph resolution beyond attribute-chain-final-name and single-level import-alias matching")
+      is a general catch-all that technically covers this, but per DIRECTIVE_043 a design boundary
+      should be a named, deliberate statement, not an implicit inference from a different clause — the
+      exact anti-pattern the mission itself was opened to fix (the guard's OLD docstring's "explicitly
+      deferred" framing was judged a defect, not an accepted mitigation, for the two shapes now closed).
+    remediation: >
+      Add one more bullet to the Edge Cases section explicitly naming dynamic/reflective dispatch
+      (getattr-based calls, dispatch tables/dict unpacking, `functools.partial`-wrapped emitters) as an
+      explicitly out-of-scope boundary for this widening, with the same rationale style already used for
+      alias-reassignment (syntactic AST matching only, no data-flow/runtime-reflection tracking), so the
+      widened docstring (AC5) states this boundary by name instead of leaving it to be inferred from the
+      general "no full call-graph resolution" clause.

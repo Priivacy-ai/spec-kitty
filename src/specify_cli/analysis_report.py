@@ -142,6 +142,16 @@ class AnalysisReportError(RuntimeError):
     """Raised when the analysis report cannot be written or validated."""
 
 
+class PathRelativizationError(AnalysisReportError):
+    """Raised when a hash-input artifact path cannot be relativized against its
+    governing root (FR-007/NFR-001/NFR-002; spec.md Acceptance Scenario 3).
+
+    ``write_analysis_report`` intentionally lets this propagate uncaught;
+    ``check_analysis_report_current`` catches it specifically and maps it to a
+    typed ``AnalysisFreshness(ok=False, ...)`` result instead (NFR-002's
+    never-raises contract)."""
+
+
 def _yaml() -> YAML:
     yaml = YAML()
     yaml.default_flow_style = False
@@ -193,16 +203,54 @@ def _normalize_tasks_md(text: str) -> str:
     return _PIPE_STATUS_RE.sub(r"|\1[ ]\2", normalized)
 
 
-def _artifact_hash_entry(path: Path) -> dict[str, str | None]:
+def _relativize_or_raise(path: Path, governing_root: Path) -> str:
+    """Return ``path`` as a string relative to ``governing_root`` (FR-007/NFR-001:
+    committed hash-input paths must be repo-relative, never absolute). Raises
+    ``PathRelativizationError`` when ``path`` does not lie under ``governing_root``
+    (spec.md Acceptance Scenario 3 -- e.g. a symlink escaping the governing root).
+
+    The raised message deliberately does NOT embed either absolute path: this
+    failure is exactly the case where relativizing is impossible, so the
+    message can't just relativize its way out of leaking one. This mission
+    exists to stop local paths (``/home/<user>/...``) reaching operator-visible
+    surfaces -- console/CLI error output and CI logs on a public repo are as
+    public as a committed artifact. The basename of the artifact plus the
+    basename of its governing root is enough to diagnose *which* artifact
+    failed against *which* root (the two are always one of the small, known
+    hash-input names -- spec.md/plan.md/tasks.md/charter.yaml/charter.md --
+    so the basename alone identifies it) without disclosing the operator's
+    directory layout. The underlying stdlib ``ValueError`` from
+    ``Path.relative_to`` is intentionally suppressed: its own text embeds both
+    absolute paths."""
+    try:
+        resolved_path = path.resolve()
+        resolved_root = governing_root.resolve()
+        resolved_path.relative_to(resolved_root)
+        return str(path.relative_to(governing_root))
+    except ValueError:
+        raise PathRelativizationError(
+            f"Cannot record artifact {path.name!r} relative to its governing "
+            f"root (root basename: {governing_root.name!r}): the artifact "
+            "does not lie under that root."
+        ) from None
+
+
+def _artifact_hash_entry(path: Path, governing_root: Path) -> dict[str, str | None]:
     if not path.exists():
+        # Unchanged from today: write_analysis_report requires spec.md/plan.md/
+        # tasks.md to all exist before it ever calls collect_input_artifact_hashes,
+        # so this branch never fires on the path that produces the committed
+        # artifact NFR-001 governs. check_analysis_report_current's in-memory-only
+        # use of this branch is outside this mission's NFR-001 scope.
         return {"path": str(path), "sha256": None}
+    relative_path = _relativize_or_raise(path, governing_root)
     if path.name == _TASKS_ARTIFACT:
         normalized = _normalize_tasks_md(path.read_text(encoding="utf-8"))
-        return {"path": str(path), "sha256": _sha256_text(normalized)}
-    return {"path": str(path), "sha256": _sha256_file(path)}
+        return {"path": relative_path, "sha256": _sha256_text(normalized)}
+    return {"path": relative_path, "sha256": _sha256_file(path)}
 
 
-def _charter_path(repo_root: Path) -> Path | None:
+def _charter_path(repo_root: Path) -> tuple[Path | None, Path]:
     # #1823: resolve through the canonical-root resolver so a worktree-local
     # charter copy is never hashed in place of the main checkout's charter.
     # This is a read-only hashing probe over arbitrary roots, so non-git roots
@@ -217,6 +265,11 @@ def _charter_path(repo_root: Path) -> Path | None:
     # yaml-or-md presence gate in dashboard/charter_path.py and
     # charter.context (C-003). Only when NEITHER file exists is staleness
     # input absent.
+    #
+    # FR-007: returns (charter_path, canonical_root) instead of a bare
+    # Path | None so the caller can relativize the recorded path against the
+    # SAME canonical_root this function already resolved -- never a second,
+    # potentially-duplicated resolve_canonical_repo_root call.
     canonical_root: Path
     try:
         canonical_root = resolve_canonical_repo_root(repo_root)
@@ -224,22 +277,28 @@ def _charter_path(repo_root: Path) -> Path | None:
         canonical_root = repo_root
     charter_yaml: Path = canonical_root / CHARTER_YAML
     if charter_yaml.exists():
-        return charter_yaml
+        return charter_yaml, canonical_root
     charter_md: Path = canonical_root / CHARTER_MD
     if charter_md.exists():
-        return charter_md
-    return None
+        return charter_md, canonical_root
+    return None, canonical_root
 
 
 def collect_input_artifact_hashes(feature_dir: Path, repo_root: Path) -> dict[str, dict[str, str | None]]:
     """Return current hashes for analyzer source artifacts."""
 
     inputs = {
-        name: _artifact_hash_entry(feature_dir / name)
+        name: _artifact_hash_entry(feature_dir / name, repo_root)
         for name in _hash_inputs()
     }
-    charter = _charter_path(repo_root)
-    inputs["charter"] = {"path": str(charter) if charter else None, "sha256": _sha256_file(charter) if charter else None}
+    charter_path, canonical_root = _charter_path(repo_root)
+    if charter_path is None:
+        inputs["charter"] = {"path": None, "sha256": None}
+    else:
+        inputs["charter"] = {
+            "path": _relativize_or_raise(charter_path, canonical_root),
+            "sha256": _sha256_file(charter_path),
+        }
     return inputs
 
 
@@ -529,7 +588,24 @@ def check_analysis_report_current(feature_dir: Path, repo_root: Path) -> Analysi
             mismatches={},
         )
 
-    current = collect_input_artifact_hashes(feature_dir, repo_root)
+    # NFR-002: collect_input_artifact_hashes can raise PathRelativizationError
+    # (FR-007) for an unrelativizable hash-input path. Unlike write_analysis_report
+    # (which intentionally lets this propagate), check_analysis_report_current's
+    # established contract is to NEVER raise -- every code path returns a typed
+    # AnalysisFreshness. Catch narrowly (never a broad `except Exception:`) and
+    # map to a typed ok=False result instead of letting it propagate into this
+    # function's caller, _require_current_analysis_report.
+    try:
+        current = collect_input_artifact_hashes(feature_dir, repo_root)
+    except PathRelativizationError as exc:
+        return AnalysisFreshness(
+            ok=False,
+            path=path,
+            stale=True,
+            missing=False,
+            reason=f"path_relativization_failed: {exc}",
+            mismatches={},
+        )
     mismatches: dict[str, dict[str, str | None]] = {}
     for key in (*_hash_inputs(), "charter"):
         saved_entry = saved_inputs.get(key)

@@ -1,0 +1,75 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: round3-confirmed
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+confirm_note: >
+  R6 gate rule: spec-verify-2.yaml reported all 3 round-2 findings resolved; spec-fresh-2.yaml
+  reported 3 new findings (sev5, sev4, sev2). Fresh-sweep findings bypass R3 refutation per
+  protocol and route straight to another R4 round. severity>=3 count this round = 2 (sev5 +
+  sev4), down from 3 last round (1 carried sev3 + 2 fresh sev3) - round-over-round reduction
+  satisfied, continuing (round 3 of max 5) is permitted.
+findings:
+  - id: SPEC-FRESH2-001
+    severity: 5
+    title: "Grounding Correction 3's list of tests needing an updated charter-path assertion is incomplete: 4 more assertions across 2 files use the identical absolute-path pattern and are named nowhere in the spec"
+    source: spec-fresh-2.yaml (R5b round 2 fresh sweep)
+    evidence:
+      - code: "tests/specify_cli/test_analysis_report.py:260 (test_charter_hash_falls_back_to_repo_root_outside_git) — assert hashes[\"charter\"][\"path\"] == str(charter_file)"
+      - code: "tests/specify_cli/test_analysis_report_charter_yaml_staleness.py:52,94,137 — three more assert hashes[\"charter\"][\"path\"] == str(<...>.resolve()) sites"
+      - artifact: "spec.md Grounding Correction 3, FR-007, matching Edge Case bullet — all currently cite only tests/specify_cli/test_analysis_report.py:238"
+    claim: >
+      Round 2 fixed Grounding Correction 3 to name ONE affected test assertion and explicitly
+      claimed this was traced, not incomplete ("not incidental fallout to discover later"). Four
+      more existing assertions on the exact same hashes["charter"]["path"] field, across two
+      files, use the identical absolute-path comparison pattern and will fail the same way once
+      FR-007 lands — none is named. This directly undermines the "traced, not assumed" rigor the
+      correction claims for itself.
+    remediation: >
+      Extend Grounding Correction 3 and FR-007's requirement clause to name all five now-known
+      affected assertions: tests/specify_cli/test_analysis_report.py:238 AND :260, plus
+      tests/specify_cli/test_analysis_report_charter_yaml_staleness.py:52,94,137. State the same
+      "MUST update to assert a canonical_root-relative path string; resolution behavior itself is
+      unaffected" correction for each. Verify by reading each cited line yourself in the live
+      checkout before writing the correction — do not just copy this finding's line numbers,
+      confirm them (files can drift).
+
+  - id: SPEC-FRESH2-002
+    severity: 4
+    title: "§106 still asserts 'No other file is touched' and SC-007's ruff/mypy file list omits the test file(s) FR-007/Grounding Correction 3 now explicitly requires an implementation WP to edit"
+    source: spec-fresh-2.yaml (R5b round 2 fresh sweep)
+    evidence:
+      - artifact: "spec.md § Charter-clause resolutions, §106 change-scope reconciliation (closing sentence)"
+      - artifact: "spec.md § Success Criteria, SC-007 (ruff/mypy touched-file list)"
+    claim: >
+      §106's closing sentence still says "No other file is touched," and SC-007's file list still
+      omits tests/specify_cli/test_analysis_report.py (and, once SPEC-FRESH2-001 is fixed,
+      tests/specify_cli/test_analysis_report_charter_yaml_staleness.py) — directly contradicted by
+      Grounding Correction 3 / FR-007's explicit requirement that the implementing WP edit that
+      file's test assertions. A file the spec requires editing cannot simultaneously be declared
+      untouched, and SC-007's quality gate would silently skip verifying ruff/mypy cleanliness on
+      it.
+    remediation: >
+      Add the affected test file(s) to §106's touched-file list and to SC-007's ruff/mypy file
+      list; drop or rephrase §106's "No other file is touched" sentence so it no longer
+      contradicts Grounding Correction 3 / FR-007. Coordinate this fix with SPEC-FRESH2-001's fix
+      (both touch the same "which files does this mission edit" concern) so the final file list is
+      complete and consistent everywhere it appears.
+
+  - id: SPEC-FRESH2-003
+    severity: 2
+    title: "§106's 'possibly commitlint.config.cjs' hedge is stale — Grounding Correction 4 already resolved definitively not to touch it"
+    source: spec-fresh-2.yaml (R5b round 2 fresh sweep)
+    evidence:
+      - artifact: "spec.md § Charter-clause resolutions, §106 change-scope reconciliation"
+      - artifact: "spec.md Grounding Correction 4; C-004"
+    claim: >
+      §106 still reads "and — depending on the D-3678 decision below — possibly
+      commitlint.config.cjs," but Grounding Correction 4 (later in the same document) and C-004
+      both definitively resolve that commitlint.config.cjs is NOT touched by this mission. The
+      hedge is dead language contradicting an already-settled decision elsewhere in the same doc.
+    remediation: >
+      Update §106 to state definitively that commitlint.config.cjs is not touched (matching
+      C-004/Grounding Correction 4), or replace the hedge with a forward reference to Grounding
+      Correction 4's resolved decision instead of "possibly."
+findings_count: 3

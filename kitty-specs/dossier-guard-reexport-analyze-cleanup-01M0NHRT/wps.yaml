@@ -1,0 +1,89 @@
+work_packages:
+  - id: WP01
+    title: "SK-63 path-relativization — record-analysis input-artifact paths (FR-007)"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/analysis_report.py"
+      - "tests/specify_cli/test_analysis_report.py"
+      - "tests/specify_cli/test_analysis_report_charter_yaml_staleness.py"
+    requirement_refs:
+      - FR-007
+      - NFR-001
+      - NFR-002
+      - C-001
+      - C-003
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: "tasks/WP01-sk63-path-relativization.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+
+  - id: WP02
+    title: "Widen dossier-emitter positional-call guard (FR-001–FR-004)"
+    dependencies: []
+    owned_files:
+      - "tests/architectural/test_dossier_emitter_positional_guard.py"
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-003
+      - FR-004
+      - NFR-003
+    plan_concern_refs:
+      - IC-01
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+    prompt_file: "tasks/WP02-dossier-guard-widening.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+
+  - id: WP03
+    title: "record-analysis commit-subject conventional-commit fix (FR-006)"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/cli/commands/agent/mission_record_analysis.py"
+      - "tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py"
+    requirement_refs:
+      - FR-006
+      - C-004
+    plan_concern_refs:
+      - IC-03
+    subtasks:
+      - T010
+      - T011
+      - T012
+    prompt_file: "tasks/WP03-commit-subject-fix.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
+
+  - id: WP04
+    title: "Trim dossier CLI re-export surface (FR-005)"
+    dependencies: []
+    owned_files:
+      - "src/specify_cli/dossier/__init__.py"
+    requirement_refs:
+      - FR-005
+      - NFR-004
+      - C-002
+    plan_concern_refs:
+      - IC-02
+    subtasks:
+      - T013
+      - T014
+      - T015
+    prompt_file: "tasks/WP04-dossier-reexport-trim.md"
+    agent_profile: "python-pedro"
+    role: "implementer"
+    agent: "claude"
