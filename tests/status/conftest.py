@@ -119,35 +119,6 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
         if _THIS_DIR in Path(item.fspath).parents:
             item.add_marker(pytest.mark.fast)
 
-
-@pytest.fixture(autouse=True)
-def _restore_default_saas_handlers_after_each_status_test() -> None:
-    """Register default sync handlers before and after every status test.
-
-    Fixes the order-dependent pollution where tests in
-    ``test_emit_backward_transition.py`` (and ``test_emit_fanout_after_adapter.py``)
-    call ``adapters.reset_handlers()`` in their teardown, wiping the
-    lifecycle SaaS fan-out handler that ``specify_cli.sync`` registered at
-    import time. Subsequent tests in ``test_lifecycle_events.py`` that
-    rely on the lifecycle fan-out being registered then saw an empty
-    registry. See issues Priivacy-ai/spec-kitty#1198 / #1200.
-
-    The pre-yield registration also covers a fresh xdist worker whose first
-    import used ``SPEC_KITTY_SYNC_MINIMAL_IMPORT``; without it, the first
-    fan-out test in that worker observes an empty registry. Registration is
-    idempotent (the underlying ``register_*_handler`` calls de-duplicate by
-    qualified name), so the before/after calls do not accumulate handlers.
-    """
-    try:
-        from specify_cli.sync import register_default_handlers
-    except ImportError:
-        yield
-        return
-    register_default_handlers()
-    yield
-    register_default_handlers()
-
-
 @pytest.fixture(autouse=True)
 def _disable_saas_fanout_for_local_status_tests(
     request: pytest.FixtureRequest,

@@ -228,7 +228,7 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T021 — test_sync_disabled_no_saas_events
+# T021 — no transport registered: local trail only
 # ---------------------------------------------------------------------------
 
 

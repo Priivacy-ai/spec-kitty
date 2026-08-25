@@ -168,7 +168,7 @@ def _generate_node_id() -> str:
     import socket  # noqa: PLC0415
 
     raw = f"{socket.gethostname()}:{getpass.getuser()}"
-    return hashlib.sha256(raw.encode()).hexdigest()[:12]  # noqa: TID251 - mirrors sync.clock.generate_node_id
+    return hashlib.sha256(raw.encode()).hexdigest()[:12]  # noqa: TID251 - charter freshness ban; derivation mirrors the deleted sync clock
 
 def _migrate_row(row: dict[str, Any]) -> tuple[dict[str, Any], MigrationAction]:
     """Return (possibly rewritten row, action) for one lifecycle envelope row.
