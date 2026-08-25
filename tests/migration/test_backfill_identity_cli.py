@@ -18,7 +18,7 @@ import json
 import time
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
@@ -319,7 +319,6 @@ class TestNFR001Timing:
                 meta["mission_id"] = _ULID_EXISTING
             _write_meta(d, meta)
 
-        import specify_cli.migration.backfill_identity as _bi_mod
 
         start = time.monotonic()
         results = backfill_repo(tmp_path)
