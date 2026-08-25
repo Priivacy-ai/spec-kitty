@@ -731,3 +731,47 @@ def test_bare_client_config_construction_is_unaffected_a_free_form_claim(tmp_pat
         branch="anything",
     )
     assert config.repo == "anything-i-claim"
+
+
+# --- origin_url(): the verbatim URL behind the canonical name ---------------
+
+
+def test_origin_url_returns_the_live_remote_verbatim(tmp_path, origin):
+    """E3 credential resolution derives Team Kitty's ``owner/repo`` slug and
+    host from this URL -- it must be the remote itself, never a name minted
+    from it."""
+    clone = _clone(origin, tmp_path / "work" / "some-other-dirname")
+    url = repo_identity.origin_url(str(clone))
+    assert url.endswith("acme-widgets.git")
+    assert "work" not in url  # the checkout path leaks nothing into it
+
+
+def test_origin_url_uses_the_quarantine_record_when_the_remote_is_gone(tmp_path):
+    """Same sources, same order as repo_name: the frozen quarantine record
+    is the fallback once the live remote was deliberately removed."""
+    local = tmp_path / "scratch"
+    local.mkdir()
+    _git("init", "-q", cwd=local)
+    config_path = local / ".git" / "config"
+    with config_path.open("a") as f:
+        f.write('\n[kitty "quarantine"]\n\torigin = https://example.invalid/org/acme-widgets.git\n')
+    assert (
+        repo_identity.origin_url(str(local)) == "https://example.invalid/org/acme-widgets.git"
+    )
+
+
+def test_origin_url_is_empty_when_no_source_has_one(tmp_path):
+    local = tmp_path / "scratch"
+    local.mkdir()
+    _git("init", "-q", cwd=local)
+    assert repo_identity.origin_url(str(local)) == ""
+
+
+def test_origin_url_refuses_an_ambiguous_container_like_repo_name(tmp_path, origin):
+    """The hardening around identity applies to the URL too: a
+    session-container directory must raise, not hand back whichever
+    ancestor's remote happens to be reachable."""
+    _clone(origin, tmp_path / "container" / "one")
+    _clone(origin, tmp_path / "container" / "two")
+    with pytest.raises(repo_identity.AmbiguousRepositoryIdentity):
+        repo_identity.origin_url(str(tmp_path / "container"))

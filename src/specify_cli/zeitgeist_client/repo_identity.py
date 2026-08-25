@@ -45,6 +45,7 @@ from __future__ import annotations
 import os
 import subprocess
 import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 # Repo derivation, branch lookup, and commit lookup share this — one wall-clock
@@ -463,6 +464,16 @@ def _canonical_git_dir(cwd: str) -> str:
     return real or raw
 
 
+def _origin_candidates(cwd: str, deadline: Deadline) -> Iterator[str]:
+    """The three origin-URL sources ``repo_name``/``origin_url`` consult, in
+    order: the live git probe, then ``.git/config``, then the frozen
+    quarantine record. Shared so both callers can never drift apart about
+    which sources exist or in what order they are tried."""
+    yield deadline.run(["remote", "get-url", "origin"], cwd)
+    yield _origin_from_filesystem(cwd)
+    yield _quarantine_origin_from_filesystem(cwd)
+
+
 def repo_name(cwd: str, deadline: Deadline | None = None) -> str:
     """Canonical repo name, from ``origin`` or quarantine metadata ONLY —
     never a directory name. See the module docstring for the full rationale
@@ -481,29 +492,37 @@ def repo_name(cwd: str, deadline: Deadline | None = None) -> str:
     deadline = deadline or Deadline()
     _canonical_git_dir(cwd)  # may raise AmbiguousRepositoryIdentity
 
-    url = deadline.run(["remote", "get-url", "origin"], cwd)
-    if url:
-        name = _name_from_url(url)
-        if name:
-            return name
-
-    url = _origin_from_filesystem(cwd)
-    if url:
-        name = _name_from_url(url)
-        if name:
-            return name
-
-    url = _quarantine_origin_from_filesystem(cwd)
-    if url:
-        name = _name_from_url(url)
-        if name:
-            return name
+    for url in _origin_candidates(cwd, deadline):
+        if url:
+            name = _name_from_url(url)
+            if name:
+                return name
 
     raise UnverifiedRepositoryIdentity(
         f"{cwd!r} has no `origin` remote (live or in `.git/config`) and no "
         f"[{_QUARANTINE_SECTION}] quarantine record — refusing to mint an "
         "identity from a directory name"
     )
+
+
+def origin_url(cwd: str, deadline: Deadline | None = None) -> str:
+    """The checkout's ``origin`` URL, verbatim, from the same sources and in
+    the same order :func:`repo_name` mints the canonical name from: the live
+    git probe, then ``.git/config``, then the quarantine record. ``""`` when
+    none of them has one.
+
+    Callers that need more than the bare name — E3 credential resolution
+    derives the ``owner/repo`` slug and remote host Team Kitty admits by —
+    read the URL here rather than re-shelling out to git themselves, so the
+    symlink/ambiguity hardening above applies to their input too. Raises
+    ``AmbiguousRepositoryIdentity`` under exactly the conditions
+    :func:`repo_name` does.
+    """
+    _canonical_git_dir(cwd)  # may raise AmbiguousRepositoryIdentity
+    for url in _origin_candidates(cwd, deadline or Deadline()):
+        if url:
+            return url
+    return ""
 
 
 def branch_name(cwd: str, deadline: Deadline | None = None) -> str:
