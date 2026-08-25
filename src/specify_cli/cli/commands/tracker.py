@@ -34,9 +34,6 @@ from specify_cli.identity.project import ensure_identity
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
 from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.factory import normalize_provider
-from specify_cli.saas.readiness import evaluate_readiness
-from specify_cli.saas.rollout import is_saas_sync_enabled, saas_sync_disabled_message
-from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS, TrackerEgressRefusedError
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
 
@@ -56,16 +53,6 @@ app.add_typer(sync_app, name="sync")
 # ---------------------------------------------------------------------------
 # Stable wording constants (asserted byte-for-byte by tests)
 # ---------------------------------------------------------------------------
-
-_MANUAL_MODE_MESSAGE = (
-    'Background sync is in manual mode (`[sync].background_daemon = "manual"`).\n'
-    "Run `spec-kitty sync run` to perform a one-shot remote sync."
-)
-
-_MANUAL_MODE_SYNC_RUN_MESSAGE = (
-    "Background sync is in manual mode. Running a one-shot remote sync now."
-)
-
 
 def _print_json(payload: Any) -> None:
     typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
@@ -256,29 +243,6 @@ def _check_readiness(
         _render_readiness_failure(result)
 
 
-def _check_daemon_policy(*, is_sync_run: bool = False) -> None:
-    """Pre-flight: handle manual daemon policy for sync sub-commands.
-
-    For sync pull/push/publish: prints the manual-mode message and exits 0.
-    For sync run (is_sync_run=True): prints the one-shot message and returns
-    (does NOT exit — sync run proceeds as a foreground one-shot).
-
-    **Only applies to SaaS-backed bindings.**  Callers that may hit a local
-    provider should invoke :func:`_check_sync_readiness` or manually gate on
-    :func:`_is_local_binding` before calling this helper.  The background
-    daemon belongs to the SaaS sync path; local providers use direct
-    connectors and are unaffected by the policy.
-    """
-    cfg = SyncConfig()
-    if cfg.get_background_daemon() == BackgroundDaemonPolicy.MANUAL:
-        if is_sync_run:
-            typer.echo(_MANUAL_MODE_SYNC_RUN_MESSAGE)
-            # Do NOT exit — sync run is the explicit one-shot.
-        else:
-            typer.echo(_MANUAL_MODE_MESSAGE)
-            raise typer.Exit(0)
-
-
 def _is_local_binding() -> bool:
     """Return True iff the current repo has a bound *local* tracker provider.
 
@@ -359,7 +323,6 @@ def _check_sync_readiness(*, is_sync_run: bool = False, root: Path | None = None
         raise typer.Exit(1) from exc
 
     _check_readiness(require_mission_binding=True, probe_reachability=True)
-    _check_daemon_policy(is_sync_run=is_sync_run)
 
 
 def _check_binding_readiness(*, probe_reachability: bool = False) -> None:

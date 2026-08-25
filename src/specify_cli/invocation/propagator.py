@@ -36,7 +36,6 @@ from typing import Any
 
 from kernel.clock import now_utc_iso
 from specify_cli.invocation.adapters import get_saas_client as _get_saas_client_from_seam
-from specify_cli.invocation.adapters import resolve_egress_consent
 from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
@@ -125,14 +124,8 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
     # and it is true for exactly one member. Refusing when no resolver is
     # registered costs nothing: without the sync package there is no client to
     # send through either, so step 2 already ended in a no-op.
-    consent = resolve_egress_consent(repo_root)
-    if not consent.permits_egress:
-        logger.debug(
-            "Op propagation withheld for %s: egress consent is %s",
-            repo_root,
-            consent.value,
-        )
-        return
+    # (The former egress-consent gate retired with the sync transport, issue #5;
+    # propagation now proceeds straight to the transport seam below.)
 
     # 2. Auth/client lookup. Must remain second.
     client = _get_saas_client(repo_root)

@@ -10,7 +10,7 @@ module that WP05 will supply. Until WP05 lands, attempting to use
 ``--headless`` surfaces a clear "not yet implemented" error.
 
 This module never hardcodes a SaaS URL. It resolves the login target through the
-canonical resolver :func:`specify_cli.sync.target_authority.resolve_sync_target`,
+canonical resolver :func:`specify_cli.auth.server_target.resolve_server_target`,
 which folds ``SPEC_KITTY_SAAS_URL`` (env) over ``[sync].server_url`` in
 ``config.toml`` over the documented default — the *same* precedence ``sync`` uses.
 This is deliberate (#3406, FR-005): login previously read the env-only accessor
@@ -35,7 +35,7 @@ from specify_cli.auth import (
     CallbackValidationError,
     get_token_manager,
 )
-from specify_cli.sync.target_authority import resolve_sync_target
+from specify_cli.auth.server_target import resolve_server_target
 
 if TYPE_CHECKING:
     from specify_cli.auth.session import StorageBackend, StoredSession
@@ -67,7 +67,7 @@ async def login_impl(*, headless: bool, force: bool) -> None:
     # We still refuse when NEITHER an env override nor an explicit config
     # server_url is set, rather than silently defaulting to the descriptive dev
     # URL — preserving the "choose your server" intent while honouring config.
-    target = resolve_sync_target()
+    target = resolve_server_target()
     if target.env_server_url is None and target.configured_server_url is None:
         console.print(
             "[red]X No sync server is configured. Set SPEC_KITTY_SAAS_URL, or run "

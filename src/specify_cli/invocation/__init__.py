@@ -15,12 +15,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from specify_cli.invocation.adapters import (
-    EgressConsent,
     get_saas_client,
-    register_egress_consent_resolver,
     register_saas_client_factory,
     reset_adapters,
-    resolve_egress_consent,
 )
 from specify_cli.invocation.errors import (
     AlreadyClosedError,
@@ -105,12 +102,9 @@ def __getattr__(name: str) -> Any:
 
 __all__ = [
     "AlreadyClosedError",
-    "EgressConsent",
     "get_saas_client",
-    "register_egress_consent_resolver",
     "register_saas_client_factory",
     "reset_adapters",
-    "resolve_egress_consent",
     "ContextUnavailableError",
     "EvidenceArtifact",
     "InvocationError",
