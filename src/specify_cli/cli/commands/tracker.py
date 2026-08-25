@@ -31,7 +31,9 @@ from specify_cli.tracker.config import (
     require_repo_root,
 )
 from specify_cli.identity.project import ensure_identity
+from specify_cli.core.saas_sync_config import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
+from specify_cli.tracker.saas_readiness import evaluate_readiness
 from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.factory import normalize_provider
 from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS, TrackerEgressRefusedError

@@ -89,14 +89,72 @@ from typer.testing import CliRunner
 
 from specify_cli.saas_client import client as _client_mod
 
-from tests.specify_cli.saas_client.test_client_consent_gate_3030 import (
-    RecordingHttp,
-    transmitted_text,
-    write_project_config,
-)
-
-
 pytestmark = pytest.mark.fast
+
+
+# ---------------------------------------------------------------------------
+# Recording transport + fixtures (formerly imported from
+# ``test_client_consent_gate_3030``, which retired with the per-project consent
+# gate in issue #5 — these helpers outlive it because they observe the transport,
+# not the gate)
+# ---------------------------------------------------------------------------
+
+
+class _RecordingResponse:
+    status_code = 200
+    is_success = True
+    text = "{}"
+
+    def json(self) -> dict[str, Any]:
+        return {}
+
+
+class RecordingHttp:
+    """An ``httpx.Client`` stand-in that records instead of sending."""
+
+    def __init__(self, sink: list[dict[str, Any]]) -> None:
+        self._sink = sink
+
+    def get(self, url: str, *, timeout: float | None = None) -> _RecordingResponse:
+        del timeout
+        self._sink.append({"method": "GET", "url": url, "json": None})
+        return _RecordingResponse()
+
+    def post(self, url: str, *, json: Any = None, headers: dict[str, str] | None = None, timeout: float | None = None) -> _RecordingResponse:
+        del headers, timeout
+        self._sink.append({"method": "POST", "url": url, "json": json})
+        return _RecordingResponse()
+
+
+def transmitted_text(sink: list[dict[str, Any]]) -> str:
+    """Every byte the transport was asked to send — URLs included.
+
+    Defined exactly once and imported by nothing else any more, but still the ONE
+    byte extractor every assertion below uses.
+    """
+    return json.dumps(sink, default=str, sort_keys=True)
+
+
+def write_project_config(repo_root: Path, *, sync_enabled: bool | None = None) -> None:
+    """Write a ``.kittify/config.yaml`` describing the checkout under test.
+
+    ``sync.enabled`` is recorded verbatim when given. It no longer gates anything
+    on this path — the hosted-sync consent chain retired with the sync transport —
+    but the file stays part of the arrangement because ``from_env`` reads auth
+    context relative to a real project root.
+    """
+    del sync_enabled
+    config_dir = repo_root / ".kittify"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    lines = [
+        "project:",
+        "  uuid: 2b7f6a10-3c4d-4e5f-8a9b-2b7f6a103c4d",
+        f"  slug: {repo_root.name}",
+        "  node_id: node12345678",
+        f"  repo_slug: acme-holdings/{repo_root.name}",
+        "  build_id: 8a4a7da6-a97c-4bb4-893a-b31664abfee4",
+    ]
+    (config_dir / "config.yaml").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 #: Well-formed 26-character Crockford-base32 ULIDs. Both clauses of SC-001 are
