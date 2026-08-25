@@ -77,4 +77,4 @@ def test_root_command_sorting_preserves_representative_commands() -> None:
     command = get_command(cli_app)
     visible_names = {name for name, subcommand in command.commands.items() if not subcommand.hidden}
 
-    assert {"agent", "doctor", "mission", "sync"}.issubset(visible_names)
+    assert {"agent", "doctor", "mission", "tracker"}.issubset(visible_names)
