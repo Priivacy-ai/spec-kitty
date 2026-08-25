@@ -21,10 +21,7 @@ from typing import Optional, Tuple
 import psutil
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.sync.daemon import (
-    _fetch_health_payload as _fetch_localhost_json_payload,
-    _is_process_alive as _canonical_is_process_alive,
-)
+from specify_cli.core.process_liveness import is_process_alive as _canonical_is_process_alive
 
 from .server import PortUnavailableError, find_free_port, start_dashboard
 
@@ -50,10 +47,6 @@ class DashboardStatus:
     port: int | None = None
     token: str | None = None
     pid: int | None = None
-    sync_running: bool = False
-    last_sync: str | None = None
-    consecutive_failures: int = 0
-    websocket_status: str = "Offline"
 
 
 def _parse_dashboard_file(dashboard_file: Path) -> tuple[str | None, int | None, str | None, int | None]:
@@ -125,10 +118,10 @@ def _write_dashboard_file(
 def _is_process_alive(pid: int) -> bool:
     """Check if a process with the given PID is alive.
 
-    Canonical implementation lives in ``specify_cli.sync.daemon`` (FR-015 /
-    SC-7: one liveness probe across ``sync/`` + ``dashboard/``). This wrapper
-    preserves the dashboard's existing import surface while delegating to the
-    single source of truth.
+    Canonical implementation lives in ``specify_cli.core.process_liveness``
+    (SC-7: one liveness probe across the CLI). This wrapper preserves the
+    dashboard's existing import surface while delegating to the single source
+    of truth.
 
     Args:
         pid: Process ID to check
@@ -158,15 +151,27 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
 
 
 def _fetch_dashboard_json_payload(url: str, timeout: float = 0.5) -> dict | None:
-    """Fetch and decode a JSON dashboard payload, returning None on failure.
+    """Fetch and decode a JSON payload from the loopback dashboard, or None.
 
-    Delegates the raw localhost GET + JSON decode to the canonical
-    ``specify_cli.sync.daemon._fetch_health_payload`` (FR-015 / SC-7: one
-    localhost-probe implementation across ``sync/`` + ``dashboard/``). The
+    The raw localhost GET + JSON decode lives here so ``dashboard/`` owns its
+    own probe (the sync daemon's copy is not borrowed any more). The
     dashboard-specific contract checks (``project_path``/``features``) live in
-    the callers, not in the transport helper.
+    the callers, not in this transport helper.
     """
-    return _fetch_localhost_json_payload(url, timeout=timeout)
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as response:  # nosec B310 — url is always http://127.0.0.1:<port>/...
+            if response.status != 200:
+                return None
+            payload = response.read()
+    except Exception:
+        return None
+
+    try:
+        data = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+    return data if isinstance(data, dict) else None
 
 
 def _fetch_dashboard_features_payload(port: int, timeout: float = 0.5) -> dict | None:
@@ -293,7 +298,7 @@ def _check_dashboard_health(
 
 
 def get_dashboard_status(project_dir: Path, timeout: float = 0.5) -> DashboardStatus:
-    """Return dashboard daemon health and sync metadata for a project."""
+    """Return dashboard daemon health for a project."""
     project_dir_resolved = project_dir.resolve()
     dashboard_file = project_dir_resolved / '.kittify' / '.dashboard'
     if not dashboard_file.exists():
@@ -325,30 +330,12 @@ def get_dashboard_status(project_dir: Path, timeout: float = 0.5) -> DashboardSt
     if healthy and token:
         healthy = remote_token == token
 
-    sync_data = data.get('sync')
-    sync_running = False
-    last_sync = None
-    consecutive_failures = 0
-    websocket_status = str(data.get('websocket_status') or "Offline")
-    if isinstance(sync_data, dict):
-        sync_running = bool(sync_data.get('running'))
-        raw_last_sync = sync_data.get('last_sync')
-        last_sync = str(raw_last_sync) if raw_last_sync else None
-        try:
-            consecutive_failures = int(sync_data.get('consecutive_failures') or 0)
-        except (TypeError, ValueError):
-            consecutive_failures = 0
-
     return DashboardStatus(
         healthy=healthy,
         url=url or f"http://127.0.0.1:{port}",
         port=port,
         token=token,
         pid=pid,
-        sync_running=sync_running,
-        last_sync=last_sync,
-        consecutive_failures=consecutive_failures,
-        websocket_status=websocket_status,
     )
 
 

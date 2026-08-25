@@ -280,8 +280,13 @@ test_egress_consent_boundary:
   # userinfo-confused, path-bearing, and portless URLs are rejected before I/O.
   # This is loopback control, not project-data egress, and its exact sink count
   # is independently pinned in test_egress_consent_boundary.py.
+  # 28 -> 27 (E4 re-homing, planning epic #4, issue spec-kitty#2): the dashboard's
+  # /api/sync/trigger proxy route was deleted, so dashboard/handlers/api.py holds
+  # zero transmit primitives and left the allowlist entirely (the loopback health
+  # probe it used to borrow lives in dashboard/lifecycle.py now). Shrink-only --
+  # recorded so the ceiling does not silently hold one free file.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 28
+  egress_allowlist_files: 27
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

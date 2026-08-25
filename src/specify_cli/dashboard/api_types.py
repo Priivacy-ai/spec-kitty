@@ -55,22 +55,11 @@ class ErrorResponse(TypedDict):
 # ---------------------------------------------------------------------------
 
 
-class SyncInfo(TypedDict, total=False):
-    """Nested sync block inside ``HealthResponse``."""
-
-    running: bool
-    last_sync: str | None
-    consecutive_failures: int
-    error: str  # present only on exception path
-
-
 class HealthResponse(TypedDict, total=False):
     """Response from ``GET /api/health``."""
 
     status: str
     project_path: str
-    sync: SyncInfo
-    websocket_status: str
     token: str  # conditionally present
     preflight_warning: str  # FR-006 banner; blocking reason or passed advisory
 
@@ -309,17 +298,6 @@ class DecayWatchTileResponse(TypedDict, total=False):
 
 
 # ---------------------------------------------------------------------------
-# Sync-trigger endpoint
-# ---------------------------------------------------------------------------
-
-
-class SyncTriggerSuccess(TypedDict):
-    """Successful response from ``POST /api/sync/trigger``."""
-
-    status: str  # "scheduled"
-
-
-# ---------------------------------------------------------------------------
 # Diagnostics endpoint (complex, many nested types)
 # ---------------------------------------------------------------------------
 
@@ -439,8 +417,6 @@ __all__ = [
     "MissionRecord",
     "ResearchArtifact",
     "ResearchResponse",
-    "SyncInfo",
-    "SyncTriggerSuccess",
     "WorkflowStatus",
     "WorktreeInfo",
 ]

@@ -456,12 +456,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "ResearchArtifact", "3bceb1df567e06b8b2e1923f5fab8412e4eba3fd49c3ab89d5a2187635ee4b35", source_module="specify_cli.dashboard.api_types"
         ),  # specify_cli.dashboard.api_types::ResearchArtifact
-        SymbolKey(
-            "SyncInfo", "a9b32d4636c364815cab3b0810ccdfb1e51c9c328643fdee8b867f8ae2fafaf5", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::SyncInfo
-        SymbolKey(
-            "SyncTriggerSuccess", "aced0b9a63cd5f3e7442bca40d354db1a176c41d42d6ece869c2c429ba5ad155", source_module="specify_cli.dashboard.api_types"
-        ),  # specify_cli.dashboard.api_types::SyncTriggerSuccess
+        # SyncInfo / SyncTriggerSuccess left the allowlist (E4 re-homing, planning
+        # epic #4): the sync block in HealthResponse and POST /api/sync/trigger
+        # were deleted, so both TypedDicts were deleted with their endpoints --
+        # nothing remains to allowlist.
         SymbolKey(
             "WorkflowStatus", "77fd5a6326798e778a0d9d16adc37b6d87a6c6a93923fc88feca4b74cb2a1030", source_module="specify_cli.dashboard.api_types"
         ),  # specify_cli.dashboard.api_types::WorkflowStatus
