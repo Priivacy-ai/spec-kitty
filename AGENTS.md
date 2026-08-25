@@ -196,22 +196,31 @@ New architectural designs → `architecture/` following `docs/architecture/READM
 ## Commands
 
 ```bash
-pytest tests/
+make test-fast    # fast tier of the typical blast-radius directories (target <2 min)
+make test-full    # everything, parallel + serial passes — CI's target, not PR validation
 ruff check .
-PWHEADLESS=1 pytest tests/   # headless (prevents browser windows)
 ```
 
-### Local parallel test run (default)
+Both make targets set `PWHEADLESS=1` themselves and need the synced dev environment (`make dev-setup`: the `test` extras plus `pytest-xdist`, declared in the `dev` group so a plain `uv sync` has it too).
 
-Run the suite in parallel locally — at least 2× faster on a ≥4-core machine:
+### Test policy — what you must run for a change
 
-```bash
-PWHEADLESS=1 pytest tests/ -n auto --dist loadfile -p no:cacheprovider
-# daemon/real-port tests run serially:
-PWHEADLESS=1 pytest tests/sync/test_orphan_sweep.py -n0 -q
-```
+- **`make test-fast`** is the shared baseline: the fast tier (`(fast or unit)`, with every slow tier deselected by marker) of the subsystem directories a blast radius typically covers — `tests/unit tests/status tests/cli tests/specify_cli/runtime`. Run it for every change.
+- **`make test-full`** runs everything in four passes: one `-n auto --dist loadfile` parallel pass over `tests/` with the real-port suites `--ignore`d and the parallel-unsafe `stress`/`timing` families deselected by marker, then three dedicated `-n0` serial passes — the real-port daemon suites (read from the single-source registry `tests/_real_port_suites.py`, never copied), then `-m "stress and not windows_ci"`, then `-m timing`, mirroring the `stress-tests-serial` / `timing-nfr-serial` CI jobs. CI owns this target; it is not how you validate a PR locally.
 
-Rules:
+**Computing your blast radius — run this in addition to `make test-fast`:**
+
+1. For every source module your diff touches, run its own test file(s). The test tree mirrors the source tree (`src/specify_cli/status/store.py` → `tests/status/`), and when the mirror is not obvious, find the tests that exercise the module: `grep -rl "<module_name>" tests/ --include="*.py"`.
+2. Plus the full test directory of each owning subsystem: touching `src/specify_cli/sync/**` ⇒ also run `tests/sync/`; touching `src/doctrine/**` ⇒ `tests/doctrine/`.
+3. Cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) additionally touch `tests/architectural/`.
+
+Record the exact commands and passed/failed counts under the PR's *Tests run* section. A failure you did not cause and cannot explain is not yours to chase — classify it via the baseline-red gotcha below and note it in the PR.
+
+### Why the targets look the way they do
+
+Do not hand-roll a broad pytest invocation — `make test-fast` and `make test-full`
+already encode the rules below. The rationale, so a change to either target keeps
+holding them:
 
 - **Always `--dist loadfile`, never bare `--dist load`.** `loadfile` keeps every
   test in a file on a single worker, preserving file-scoped fixture and
@@ -220,9 +229,11 @@ Rules:
 - **Per-worker HOME isolation (WP04)** means a parallel run never touches the
   real `~/.spec-kitty` — each `pytest-xdist` worker (and the serial master) gets
   its own isolated home / XDG / AppData directories.
-- **Real-port / daemon tests run serially.** OS-global resources (real ports,
-  daemons — e.g. `tests/sync/test_orphan_sweep.py`, ports 9400–9449) are not
-  protected by per-worker HOME isolation, so run them in their own `-n0` pass.
+- **Parallel-unsafe families run in their own `-n0` pass.** OS-global resources
+  (real ports, daemons — e.g. the fixed-range suites in
+  `tests/_real_port_suites.py`, ports 9400–9449) are not protected by per-worker
+  HOME isolation, and `stress` / `timing` tests are corrupted by co-scheduled
+  workers — so `make test-full` gives each family a dedicated serial pass.
 
 Full rationale, the volume env gates, and the stability ratchet:
 [docs/development/testing/testing-parallel.md](docs/development/testing/testing-parallel.md).
