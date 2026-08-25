@@ -624,8 +624,9 @@ def emit_mission_created_local(
     ``mission_type`` and ``wp_count`` are required by the canonical
     ``mission_created_payload`` schema (events 5.1.0). The payload schema now
     also declares an optional opaque ``actor`` (events 8.0.0); this local path
-    still does not set it — the sync emitter populates the wire payload's
-    ``actor`` (:func:`specify_cli.sync.emitter.EventEmitter.emit_mission_created`).
+    still does not set it — the sync transport that used to populate the wire
+    payload's ``actor`` was deleted (issue #5); the field is unset here until a
+    successor emit path (E3) sets it.
     See Priivacy-ai/spec-kitty#1199 for the full required-field surface.
 
     The payload is constructed via the canonical
