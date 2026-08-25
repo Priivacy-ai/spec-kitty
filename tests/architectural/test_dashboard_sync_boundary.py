@@ -9,17 +9,25 @@ in the tree still passed with the pre-re-homing
 ``from specify_cli.sync.daemon import _fetch_health_payload`` restored in
 ``dashboard/lifecycle.py``.
 
-Uses stdlib ``ast`` to walk ALL imports in every .py file under
+Uses stdlib ``ast`` to walk ALL static import statements in every .py file under
 src/specify_cli/dashboard/, including:
 - Module-level imports
 - Imports inside ``if TYPE_CHECKING:`` blocks
 - Lazy function-body imports
 - Relative imports (resolved against the importing module's package)
+- Package-binding forms — ``from specify_cli import sync``, ``from .. import
+  sync``, and their ``as``-aliased variants resolve to the *parent* package
+  while binding the child through the alias, so aliases on root-package targets
+  are completed onto them before matching
+
+Out of scope (not statically visible to an Import/ImportFrom AST walk):
+dynamic imports via ``importlib.import_module()`` / ``__import__()``.
 """
 
 from __future__ import annotations
 
 import ast
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -28,6 +36,25 @@ SRC = Path(__file__).resolve().parents[2] / "src"
 DASHBOARD_PATH = SRC / "specify_cli" / "dashboard"
 
 pytestmark = pytest.mark.architectural
+
+ROOT_PACKAGE = "specify_cli"
+BOUNDARY_PACKAGE = f"{ROOT_PACKAGE}.sync"
+
+
+def _alias_completions(target: str, node: ast.ImportFrom) -> Iterator[str]:
+    """Dotted names an ``ImportFrom`` may bind through a root-package alias.
+
+    ``from specify_cli import sync [as _s]`` resolves to target
+    ``specify_cli`` while binding ``specify_cli.sync`` through the alias, and
+    ``from .. import sync`` does the same via a relative edge — the shapes that
+    escaped the first cut of this gate. ``specify_cli`` is the only resolved
+    target from which an alias can compose the boundary path, so only those are
+    completed; submodule-qualified targets (``from specify_cli.sync.events
+    import X``) already carry their own violating edge.
+    """
+    if target != ROOT_PACKAGE:
+        return ()
+    return (f"{target}.{alias.name}" for alias in node.names)
 
 
 def _import_base_package(relative_path: Path) -> tuple[str, ...]:
@@ -73,7 +100,10 @@ def _collect_imports(package_path: Path, *, source_root: Path = SRC) -> list[tup
             if isinstance(node, ast.ImportFrom):
                 target = _resolve_import_target(node.module, node.level, relative_path)
                 if target:
-                    edges.append((str(relative_path), target))
+                    source = str(relative_path)
+                    edges.append((source, target))
+                    for completed in _alias_completions(target, node):
+                        edges.append((source, completed))
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     edges.append((str(relative_path), alias.name))
@@ -85,7 +115,7 @@ def _sync_import_violations(package_path: Path, *, source_root: Path = SRC) -> l
     return [
         f"  {source}: imports '{module}'"
         for source, module in _collect_imports(package_path, source_root=source_root)
-        if module == "specify_cli.sync" or module.startswith("specify_cli.sync.")
+        if module == BOUNDARY_PACKAGE or module.startswith(f"{BOUNDARY_PACKAGE}.")
     ]
 
 
@@ -95,8 +125,10 @@ class TestDashboardSyncBoundary:
     def test_dashboard_does_not_import_sync(self) -> None:
         """No dashboard module may import from specify_cli.sync (any sub-module).
 
-        Catches all import shapes (module-level, TYPE_CHECKING, lazy
-        function-body, relative). Zero exceptions are allowed.
+        Catches all static import shapes (module-level, TYPE_CHECKING, lazy
+        function-body, relative, package-binding). Zero exceptions are allowed.
+        Dynamic imports (``importlib.import_module``/``__import__``) are out of
+        scope for an AST walk.
         """
         edges = _collect_imports(DASHBOARD_PATH)
         assert edges, "dashboard import scan reached no live source edges"
@@ -114,15 +146,19 @@ class TestDashboardSyncBoundary:
         )
 
     def test_boundary_oracle_bites_on_every_import_shape(self, tmp_path: Path) -> None:
-        """The oracle flags absolute, relative, lazy, and TYPE_CHECKING edges."""
+        """The oracle flags absolute, relative, lazy, TYPE_CHECKING, and
+        package-binding edges — and stays quiet on benign root-package imports."""
         package = tmp_path / "specify_cli" / "dashboard"
         (package / "handlers").mkdir(parents=True)
         for init in (package / "__init__.py", package / "handlers" / "__init__.py"):
             init.write_text("", encoding="utf-8")
 
         lifecycle = package / "lifecycle.py"
+        # Benign shapes that must NOT bite, including package bindings whose
+        # completions stay outside specify_cli.sync (precision guard: the
+        # alias-completion rule may not flag every root-package import).
         lifecycle.write_text(
-            "from specify_cli.core.atomic import atomic_write\n",
+            "from specify_cli.core.atomic import atomic_write\nfrom specify_cli import core\nfrom . import server\n",
             encoding="utf-8",
         )
         api = package / "handlers" / "api.py"
@@ -133,9 +169,18 @@ class TestDashboardSyncBoundary:
 
         assert _sync_import_violations(package, source_root=tmp_path) == []
 
-        # The exact revert the squad demonstrated on PR [#2].
+        # The exact revert the squad demonstrated on PR [#2], plus the
+        # package-binding shapes that escaped it (controller-qa second-pass
+        # MAJOR): each resolves to a *parent* package while an alias completes
+        # the path into specify_cli.sync.
         lifecycle.write_text(
-            "from specify_cli.sync.daemon import (\n    _fetch_health_payload as _fetch_localhost_json_payload,\n)\nfrom ..sync import daemon as _sync_daemon\n",
+            "from specify_cli.sync.daemon import (\n"
+            "    _fetch_health_payload as _fetch_localhost_json_payload,\n"
+            ")\n"
+            "from ..sync import daemon as _sync_daemon\n"
+            "from specify_cli import sync\n"
+            "from specify_cli import sync as _sync_pkg\n"
+            "from .. import sync as _rel_sync\n",
             encoding="utf-8",
         )
         # Lazy and TYPE_CHECKING shapes must bite identically.
@@ -157,4 +202,18 @@ class TestDashboardSyncBoundary:
             "  specify_cli/dashboard/lifecycle.py: imports 'specify_cli.sync'",
             "  specify_cli/dashboard/handlers/api.py: imports 'specify_cli.sync.events'",
             "  specify_cli/dashboard/handlers/api.py: imports 'specify_cli.sync.daemon'",
+        }
+
+        # Package-binding shapes must bite on their own — isolated so the
+        # assertion cannot be satisfied by the sibling ``..sync`` edge above.
+        lifecycle.write_text(
+            "from specify_cli import sync\nfrom specify_cli import sync as _sync_pkg\nfrom .. import sync as _rel_sync\n",
+            encoding="utf-8",
+        )
+        api.write_text(
+            "from __future__ import annotations\nfrom typing import TYPE_CHECKING\nif TYPE_CHECKING:\n    pass\n",
+            encoding="utf-8",
+        )
+        assert set(_sync_import_violations(package, source_root=tmp_path)) == {
+            "  specify_cli/dashboard/lifecycle.py: imports 'specify_cli.sync'",
         }

@@ -38,6 +38,7 @@ Gates are ordered alphabetically within each axis group.
 - **`test_all_declarations_required.py`** — Confirms every artifact declared in doctrine packs has a matching implementation file. No orphaned declarations.
 - **`test_artifact_selection_completeness.py`** — Confirms every artifact selection the charter surface offers resolves to a real doctrine artifact. No catalog misses in the shipped selection surface.
 - **`test_charter_facades_reexport_doctrine.py`** — Confirms `charter.*` public surfaces re-export every symbol they claim. No facade drift.
+- **`test_dashboard_sync_boundary.py`** — Confirms `specify_cli.dashboard` imports nothing from `specify_cli.sync` (any static import shape); the revert detector for the E4 dashboard re-homing.
 - **`test_dossier_sync_boundary.py`** — Confirms dossier sync routes only through the declared sync boundary; no direct DB writes from outside the boundary.
 - **`test_retrospective_events_boundary.py`** — Confirms retrospective event emission is mediated; no direct event writes from the retrospective runtime.
 - **`test_safety_registry_completeness.py`** — Confirms the safety registry lists every file with a declared safety exemption; no undeclared exemptions.
