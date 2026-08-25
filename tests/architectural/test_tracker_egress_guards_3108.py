@@ -71,10 +71,11 @@ G1     ``factory.SUPPORTED_PROVIDERS`` is exactly ``("beads", "fp")``           
 G2     ``build_connector`` has exactly one call site, in ``_build_engine``          2
 G3     ``_build_engine``'s callers are exactly the three gated methods, and the     5
        gate is the first *executable* statement of each
-G4     exactly 6 enclosing functions and exactly 7 call expressions                 3
+G4     exactly 5 enclosing functions and exactly 5 call expressions                 3
 G5     every ``destination`` is a literal member, and the per-site mapping holds    3
 G6     the verdict *body* never reads the provider (expected set empty)             2
-G7     WP03's polarity map is exhaustive over ``config._EGRESS_LEGAL_VALUES``       1
+G7     the single-channel polarity table is exhaustive over every destination       1
+       and fails closed on an unmapped value
 G8     the ``_build_engine`` patch census over ``tests/`` is exact                  2
 =====  ==========================================================================  =============
 
@@ -93,16 +94,17 @@ Honest limits -- recorded, not papered over
 
 1. **Precondition 1.6(4) -- "the tracker path stays operator-invoked" -- has no executable
    guard, and none is invented here.** If any daemon, sweep, hook or ``next``-loop ever reaches
-   ``LocalTrackerService``, the attribution precondition in ``specify_cli/egress.py`` is
-   violated: a valid root for the *wrong project*, which is the cross-project substitution
-   ``#3030`` exists to close. That is prose. It is carried as a residual, and a Mission adding an
+   ``LocalTrackerService``, the operator-invocation attribution this design assumes is violated:
+   a valid root for the *wrong project*, which is the cross-project substitution ``#3030``
+   exists to close. That is prose. It is carried as a residual, and a Mission adding an
    automatic caller must re-check it by reading, because nothing here will fire.
 2. **Precondition 1.6(7) -- a third transport reusing ``HOSTED_SERVICE`` -- is not caught by G5
    and only prompted by G4**, as spelled out in (c) above. Neither guard decides polarity.
-3. **G8 pins a census, not a prohibition.** The three ``_build_engine`` patch sites in
-   ``tests/sync/tracker/test_local_service.py`` are a documented, legitimate escape hatch (that
-   file avoids a hard dependency on the ``spec_kitty_tracker`` package). G8 does not ban them --
-   it pins them exactly, so a *fourth* site anywhere under ``tests/`` reds.
+3. **G8 pins a census, not a prohibition.** It used to pin three documented ``patch.object``
+   escape-hatch sites in ``tests/sync/tracker/test_local_service.py``; issue #5 deleted that file
+   with the sync transport, so the pinned census is now EMPTY -- any ``_build_engine`` patch
+   anywhere under ``tests/`` reds. Re-adding a legitimate site means editing the census
+   deliberately, never widening the assertion to ``<=``.
 4. **Every matcher here is syntactic, so a call reached through a binding is invisible.**
    ``_fn = tracker_egress_verdict`` followed by ``_fn(root, destination=...)``, and
    ``getattr(ev, "tracker_egress_verdict")(...)``, are resolved by **no** matcher in this file
@@ -111,12 +113,12 @@ Honest limits -- recorded, not papered over
    the module-qualified form, which *is* resolved. It is recorded because a file that states
    four limits to this standard should not leave a fifth implicit. The same limit applies to G6
    (a provider read through a renamed local is undecidable here) and to G8.
-5. **The egress-consent boundary scanner cannot substitute for G2/G3.**
-   ``tests/architectural/test_egress_consent_boundary.py`` is untouched by this file and cannot
-   help: ``local_service.py`` holds **zero** HTTP sinks, so it cannot be allowlisted there (that
-   suite deletes allowlist entries which guard nothing), and that suite's own recorded limit 4
-   means a ``subprocess`` invoked via a variable command name -- precisely this Mission's local
-   gap -- was never in its view. No ``_baselines.yaml`` bump is made or needed here.
+5. **G7 is behavioural, not source-analytic** -- the one guard here that runs the real
+   :func:`tracker_egress_verdict` against synthetic project roots instead of parsing source
+   text. Issue #5 retired Channel 1 and with it the introspectable ``_JOIN`` polarity map WP03
+   was told to keep; the single remaining channel's polarity now lives inline in the verdict
+   body, so it can only be pinned from the outside, by exercising every constructible
+   channel-state at every destination.
 """
 
 from __future__ import annotations
@@ -130,7 +132,13 @@ from pathlib import Path
 import pytest
 
 from specify_cli.tracker import config as tracker_config
-from specify_cli.tracker.egress_verdict import EgressDestination, _JOIN, _LEGAL_CHANNEL2_VALUES
+from specify_cli.tracker.egress_verdict import (
+    CHANNEL2_ABSENT,
+    CHANNEL_2,
+    EgressDestination,
+    _LEGAL_CHANNEL2_VALUES,
+    tracker_egress_verdict,
+)
 
 #: Without a module-level marker this file is selected by **zero** CI gates, so every guard below
 #: would be invisible on a push to ``main`` -- a falsity guard that cannot turn the branch red is
@@ -937,40 +945,38 @@ EXPECTED_ENCLOSING_FUNCTIONS = frozenset(
         "LocalTrackerService.sync_run",
         "SaaSTrackerClient._current_tracker_egress_verdict",
         "_check_sync_readiness",
-        "_render_tracker_egress",
     }
 )
-EXPECTED_ENCLOSING_COUNT = 6
-#: Seven, not six: ``sync doctor``'s renderer calls the verdict **twice**, once per destination
-#: row. Both numbers are asserted separately and both are exact. An implementer who reads "six
-#: call sites" as "six call expressions" writes a renderer that loops over ``EgressDestination``,
-#: which G5 then rejects because the loop variable is an ``ast.Name``, not a literal member.
+EXPECTED_ENCLOSING_COUNT = 5
+#: Five, not four: ``cli/commands/tracker.py::_check_sync_readiness`` contributes its own audited
+#: call expression. Both numbers are asserted separately and both are exact. An implementer who
+#: reads "five call sites" as something derived rather than counted writes a renderer that loops
+#: over ``EgressDestination``, which G5 rejects because the loop variable is an ``ast.Name``, not
+#: a literal member.
 #:
-#: **Landing-pass audited chokepoint (2026-08-10, PR #3135, HIGH-1 / #3108 follow-up):**
-#: ``cli/commands/tracker.py::_check_sync_readiness`` is the sixth enclosing function and
-#: contributes the seventh call expression. Before this call site existed, the hosted
-#: (SaaS-backed) branch of ``_check_sync_readiness`` called
-#: ``_check_readiness(..., probe_reachability=True)`` as its first act -- which, once auth and
-#: host-config both resolve, issues a real network HEAD probe
-#: (``saas/readiness.py:_probe_reachability``) *before* ``SaaSTrackerClient._request``'s own
-#: ``tracker_egress_verdict`` gate (this file's own G3 subject) ever ran. A refusing project's
-#: hosted-egress verdict is now consulted here too, ahead of that probe, so "refusal precedes
-#: any HTTP attempt" holds at the CLI's own pre-flight and not only one layer below it. This is
-#: precisely the kind of new call site this guard exists to catch when it is *not* audited --
-#: it is audited (this comment, plus the guard's own re-pinned census), so the guard's job here
-#: is only to keep the numbers honest, not to raise an alarm.
-EXPECTED_CALL_EXPRESSION_COUNT = 7
+#: **Re-pinned at issue-5-delete-sync-transport (2026-08-25):** the sixth enclosing function,
+#: ``sync doctor``'s ``_render_tracker_egress`` renderer (which called the verdict twice, once per
+#: destination row), was deleted with the sync transport -- 6/7 -> 5/5. The remaining chokepoint
+#: note stands: before ``_check_sync_readiness``'s audited call site existed (PR #3135), the hosted
+#: branch called ``_check_readiness(..., probe_reachability=True)`` as its first act -- issuing a
+#: real network HEAD probe *before* ``SaaSTrackerClient._request``'s own verdict gate ever ran. A
+#: refusing project's hosted-egress verdict is consulted there too, ahead of that probe, so
+#: "refusal precedes any HTTP attempt" holds at the CLI's own pre-flight and not only one layer
+#: below it. This is precisely the kind of new call site this guard exists to catch when it is
+#: *not* audited -- it is audited (this comment, plus the guard's own re-pinned census), so the
+#: guard's job here is only to keep the numbers honest, not to raise an alarm.
+EXPECTED_CALL_EXPRESSION_COUNT = 5
 
-#: The load-bearing half of G5 (its set-equality clause carries almost nothing on its own, because
-#: the doctor renderer supplies both members by itself). Per site, the **sorted members actually
-#: passed** -- so the renderer's "exactly one of each" is pinned, not merely "both appear".
+#: The load-bearing half of G5. Per site, the **sorted members actually passed** -- so each
+#: transport's polarity choice is pinned, not merely "some member appears". The deleted sync-doctor
+#: renderer used to be the one site passing both members; after issue #5 the two members are split
+#: across the local trio and the hosted pair.
 EXPECTED_PER_SITE_DESTINATIONS: dict[str, tuple[str, ...]] = {
     "LocalTrackerService.sync_pull": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_push": ("LOCAL_SUBPROCESS",),
     "LocalTrackerService.sync_run": ("LOCAL_SUBPROCESS",),
     "SaaSTrackerClient._current_tracker_egress_verdict": ("HOSTED_SERVICE",),
     "_check_sync_readiness": ("HOSTED_SERVICE",),
-    "_render_tracker_egress": ("HOSTED_SERVICE", "LOCAL_SUBPROCESS"),
 }
 EXPECTED_LITERAL_MEMBERS = frozenset({"LOCAL_SUBPROCESS", "HOSTED_SERVICE"})
 
@@ -1113,17 +1119,19 @@ def _real_verdict_calls() -> CallFindings:
     return analyze_calls_in_tree(SRC_ROOT, VERDICT_FN)
 
 
-def test_g4_exactly_six_enclosing_functions_and_seven_call_expressions() -> None:
+def test_g4_exactly_five_enclosing_functions_and_five_call_expressions() -> None:
     """G4 -- **two** exact assertions, never collapsed into one and never ``<=``.
 
-    Exactly **6** enclosing functions (``sync_pull``, ``sync_push``, ``sync_run``,
-    ``SaaSTrackerClient._request``, ``_check_sync_readiness``, and ``sync doctor``'s renderer)
-    and exactly **7** call expressions (the renderer calls twice, once per destination row).
+    Exactly **5** enclosing functions (``sync_pull``, ``sync_push``, ``sync_run``,
+    ``SaaSTrackerClient._current_tracker_egress_verdict``, and ``_check_sync_readiness``)
+    and exactly **5** call expressions.
 
     Originally "exactly 5 / exactly 6" (FR-015); re-pinned to 6/7 at the 2026-08-10 landing pass
     (PR #3135, HIGH-1 / #3108 follow-up) when ``_check_sync_readiness`` gained its own audited
-    ``tracker_egress_verdict`` call site -- see :data:`EXPECTED_CALL_EXPRESSION_COUNT`'s own
-    comment for why.
+    ``tracker_egress_verdict`` call site; re-pinned again to 5/5 at issue-5-delete-sync-transport,
+    when the sixth enclosing function -- ``sync doctor``'s ``_render_tracker_egress`` renderer,
+    with its two call expressions -- was deleted with the sync transport. See
+    :data:`EXPECTED_CALL_EXPRESSION_COUNT`'s own comment for both re-pins.
 
     A rejected draft of this Mission said "exactly three" while its own requirements demanded
     three local sites, a fourth and a fifth -- arithmetically impossible, and repeated five times.
@@ -1153,7 +1161,7 @@ def test_g4_exactly_six_enclosing_functions_and_seven_call_expressions() -> None
     assert len(real.enclosing) == EXPECTED_ENCLOSING_COUNT, f"G4: expected {EXPECTED_ENCLOSING_COUNT} enclosing functions, found {len(real.enclosing)}{bundle_b}"
     assert real.call_count == EXPECTED_CALL_EXPRESSION_COUNT, (
         f"G4: expected exactly {EXPECTED_CALL_EXPRESSION_COUNT} call expressions "
-        f"(the doctor renderer contributes two, one per destination row), found {real.call_count}:\n"
+        f"(three local sites, the hosted helper, and the CLI pre-flight), found {real.call_count}:\n"
         f"{real.describe()}{bundle_b}"
     )
 
@@ -1244,15 +1252,18 @@ def test_g5_every_destination_is_a_literal_member_with_the_per_site_mapping_inta
 
     **1. The per-site mapping (load-bearing).** The hosted verdict helper always
     ``HOSTED_SERVICE`` and the adjacent physical-sink pin proves ``_request`` calls it first;
-    the three local sites always ``LOCAL_SUBPROCESS``; the doctor renderer exactly one of each.
+    the three local sites always ``LOCAL_SUBPROCESS``; the CLI pre-flight always
+    ``HOSTED_SERVICE``. (The deleted sync-doctor renderer used to pass both members from one
+    site; issue #5 retired it, and the two members are now split across the local trio and the
+    hosted pair.)
     *This is the clause whose mutant must kill.*
 
     **2. The node-shape clause.** Every ``destination`` argument is an ``ast.Attribute`` on
     ``EgressDestination``. No ``ast.Name`` (a loop variable or a config-derived local), no
     ``ast.Call`` (a derivation).
 
-    **3. The set-equality clause.** Kept, but record honestly that *it carries almost nothing on
-    its own, because the doctor renderer supplies both members by itself.*
+    **3. The set-equality clause.** Kept: both members must appear across the surviving sites,
+    so deleting either transport's only literal would red here too.
 
     Why this is P0: ``TrackerService._resolve_saas_backend_for_provider`` overrides the on-disk
     provider **in memory** and never rewrites the file, so three operator-reachable commands drive

@@ -136,7 +136,15 @@ test_no_dead_modules:
   # the wiring landed — status/zeitgeist_bridge.py resolves credentials through
   # zeitgeist_client.resolution at the fan-out seam, so the module has a live
   # src/ caller and its Cat-7 entry is burned.
-  category_7_grandfathered_orphans: 3
+  #
+  # 3 -> 5 (issue-5-delete-sync-transport, 2026-08-25): net +2. -1 for
+  # sync.admission_operations, deleted outright with the sync transport (its
+  # #3262 WP11 wiring consumer died with it -- shrink). +3 for the collateral
+  # orphans whose ONLY src/ caller was the deleted transport
+  # (core.batch_partition, dossier.drift_detector,
+  # migration.envelope_seam); each registered as TODO(triage) wire-or-prune in
+  # the allowlist entry, per FR-303.
+  category_7_grandfathered_orphans: 5
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:

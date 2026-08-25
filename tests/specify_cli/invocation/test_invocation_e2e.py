@@ -27,7 +27,7 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -252,15 +252,14 @@ def _inline_submit() -> Any:
 def test_without_a_transport_only_local_events_are_written(tmp_path: Path) -> None:
     """No transport registered: local JSONL is written, nothing reaches a client.
 
-    Verifies (AC-004):
+    Verifies (AC-004), over the wired path (executor + propagator, as
+    ``cli.commands.dispatch`` builds them):
     - the transport seam answers ``None`` (nothing registers a factory since issue
       #5 deleted the sync transport), so no envelope is built or sent
     - Local JSONL file is still written (Tier 1 trail is mandatory regardless of sync)
     """
-    # Integrated test: executor.invoke() runs with the production wiring.
-    # Verifies both properties in a single, unbroken execution path:
-    # (a) _propagate_one stops at the client lookup — no send, no error log
-    # (b) the JSONL file is written by the executor, not manually
+    from specify_cli.invocation.propagator import InvocationSaaSPropagator
+
     project = _setup_minimal_project(tmp_path)
 
     with (
@@ -277,7 +276,7 @@ def test_without_a_transport_only_local_events_are_written(tmp_path: Path) -> No
             return_value=_COMPACT_CTX,
         ),
     ):
-        executor = ProfileInvocationExecutor(project)
+        executor = ProfileInvocationExecutor(project, propagator=InvocationSaaSPropagator(project))
         payload = executor.invoke(
             "implement the feature",
             profile_hint="implementer-fixture",
@@ -837,35 +836,43 @@ def test_without_a_transport_no_propagation_errors(tmp_path: Path) -> None:
 
     Verifies NFR-007 / SC-008: local-first invariant holds even with correlation events.
     """
+    from specify_cli.invocation.propagator import InvocationSaaSPropagator
+
     project = _setup_minimal_project(tmp_path)
 
-    with patch(
-        "specify_cli.invocation.propagator._get_saas_client",
-        return_value=None,
-    ) as mock_client:
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.InvocationSaaSPropagator.submit",
+            new=_inline_submit(),
+        ),
+        patch(
+            "specify_cli.invocation.propagator._get_saas_client",
+            return_value=None,
+        ) as mock_client,
+        patch(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
-        ):
-            executor = ProfileInvocationExecutor(project)
-            payload = executor.invoke(
-                "implement with mode",
-                profile_hint="implementer-fixture",
-                mode_of_work=ModeOfWork.TASK_EXECUTION,
-            )
-            inv_id = payload.invocation_id
+        ),
+    ):
+        executor = ProfileInvocationExecutor(project, propagator=InvocationSaaSPropagator(project))
+        payload = executor.invoke(
+            "implement with mode",
+            profile_hint="implementer-fixture",
+            mode_of_work=ModeOfWork.TASK_EXECUTION,
+        )
+        inv_id = payload.invocation_id
 
-            # Complete with artifact and commit links
-            executor.complete_invocation(
-                invocation_id=inv_id,
-                outcome="done",
-                closed_by="agent",
-                artifact_refs=["src/example.py"],
-                commit_sha="cafebabe1234",
-            )
+        # Complete with artifact and commit links
+        executor.complete_invocation(
+            invocation_id=inv_id,
+            outcome="done",
+            closed_by="agent",
+            artifact_refs=["src/example.py"],
+            commit_sha="cafebabe1234",
+        )
 
-        # The seam was consulted and answered "no transport" — nothing was sent
-        mock_client.assert_called()
+        # The seam was consulted for both lifecycle events and answered "no transport"
+        assert mock_client.call_count == 2
 
     # All events written locally
     events_dir = project / EVENTS_DIR
