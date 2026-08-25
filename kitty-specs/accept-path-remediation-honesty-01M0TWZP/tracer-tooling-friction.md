@@ -208,3 +208,16 @@ under the hang-after-success entry above.
   afterward. Matches the known-live `#3283` shared-test-venv-lock friction named in this
   WP's own dispatch prompt; recorded here as first-hand confirmation of the specific
   symptom (network install on first touch, not a hang) rather than a new defect.
+- **`spec-kitty safe-commit` on this very tracer file printed a guard warning it did
+  not block on**: `[spec-kitty guard] WARNING: Protected path:
+  kitty-specs/accept-path-remediation-honesty-01M0TWZP/tracer-tooling-friction.md —
+  implementation branches must not modify kitty-specs/`, then committed anyway
+  (`Requested files committed`, exit 0). This is the exact file this WP's own dispatch
+  prompt instructs the implementer to append to during implementation — so the guard's
+  rule ("implementation branches must not modify `kitty-specs/`") and this mission's own
+  governed instruction ("append during implementation") are in direct tension for tracer
+  files specifically. Non-blocking today (a WARNING, not a hard reject), so it did not
+  stop this WP, but the mismatch is worth resolving upstream: either the guard should
+  carve out an exception for tracer files, or the mission-authoring guidance should stop
+  directing implementers to write to a path the guard considers off-limits for their
+  branch kind.
