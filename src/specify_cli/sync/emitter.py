@@ -358,6 +358,33 @@ def _is_actor_field(value: Any) -> bool:
     return isinstance(value, dict) and len(value) >= 1
 
 
+def _resolve_runtime_actor() -> str:
+    """Resolve the opaque runtime-actor identifier for mission-level moments.
+
+    Same convention as the interview/charter ``_resolve_actor`` helpers (git
+    ``user.email``, else ``"cli"``): an identifier, never free text. The
+    zeitgeist attrs codec projects it verbatim as the moment's ``actor`` key
+    (spec-kitty-events 8.0.0 made ``MissionCreatedPayload.actor`` /
+    ``MissionClosedPayload.actor`` optional so producers could start setting
+    it without breaking in-flight emissions).
+    """
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.email"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        email = result.stdout.strip()
+        if email:
+            return email
+    except Exception:  # noqa: BLE001 — git may be absent or misconfigured; fall back to "cli" identity
+        pass
+    return "cli"
+
+
 def _is_non_negative_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0
 
@@ -628,6 +655,8 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "purpose_context": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
             "mission_id": _is_nullable_string,
             "created_at": lambda v: _is_datetime_string(v),
+            # Optional opaque identifier (events 8.0.0); validated when present.
+            "actor": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
         },
     },
     "MissionClosed": {
@@ -636,6 +665,8 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "mission_number": lambda v: isinstance(v, int) and v >= 1,
             "mission_type": lambda v: isinstance(v, str) and len(v) >= 1,
+            # Optional opaque identifier (events 8.0.0); validated when present.
+            "actor": lambda v: isinstance(v, str) and len(v.strip()) >= 1,
         },
     },
     "MissionStarted": {
@@ -1366,6 +1397,7 @@ class EventEmitter:
         created_at: str | None = None,
         causation_id: str | None = None,
         mission_id: str | None = None,
+        actor: str | None = None,
     ) -> dict[str, Any] | None:
         """Emit MissionCreated event (FR-011, FR-024).
 
@@ -1377,6 +1409,12 @@ class EventEmitter:
           - ``mission_id``     — ULID primary key (equals aggregate_id when present)
           - ``mission_slug``   — human display string (never used as join key)
           - ``mission_number`` — int | None (None for pre-merge, int for post-merge)
+
+        ``actor`` (spec-kitty-events 8.0.0) is the opaque identifier of whoever
+        created the mission; it rides the zeitgeist moment projection as the
+        ``actor`` key so the moment can render WHO. An explicit value wins;
+        otherwise it resolves here (:func:`_resolve_runtime_actor`) so callers
+        need no change.
         """
         # Canonical payload construction (#2270): one CORE builder shared with
         # the local lifecycle path so the two cannot drift. The builder raises
@@ -1402,6 +1440,7 @@ class EventEmitter:
         except ValidationError as exc:
             _console.print(f"[yellow]Warning: MissionCreatedPayload validation failed: {exc}[/yellow]")
             return None
+        payload["actor"] = actor if actor else _resolve_runtime_actor()
         effective_aggregate_id = mission_slug
         if mission_id is not None:
             effective_aggregate_id = mission_id
@@ -1424,6 +1463,7 @@ class EventEmitter:
         mission_id: str | None = None,
         mission_number: int | None = None,
         mission_type: str = "software-dev",
+        actor: str | None = None,
     ) -> dict[str, Any] | None:
         """Emit MissionClosed event (FR-012, FR-024).
 
@@ -1433,6 +1473,10 @@ class EventEmitter:
         The payload follows spec-kitty-events ``MissionClosedPayload`` exactly.
         Historical close details such as ``total_wps`` and close timestamps are
         intentionally not emitted in the TeamSpace payload.
+
+        ``actor`` (spec-kitty-events 8.0.0) mirrors
+        ``emit_mission_created``'s: the opaque WHO of the close moment; an
+        explicit value wins, otherwise it resolves here.
         """
         from spec_kitty_events.lifecycle import MissionClosedPayload
 
@@ -1452,6 +1496,7 @@ class EventEmitter:
         )
         if payload is None:
             return None
+        payload["actor"] = actor if actor else _resolve_runtime_actor()
         # mission_id is the aggregate identity (FR-024).
         effective_aggregate_id = mission_slug
         if mission_id is not None:

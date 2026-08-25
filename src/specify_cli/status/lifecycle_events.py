@@ -622,9 +622,10 @@ def emit_mission_created_local(
     ``status.events.jsonl`` is created on first call.
 
     ``mission_type`` and ``wp_count`` are required by the canonical
-    ``mission_created_payload`` schema (events 5.1.0). This helper does not
-    take an actor because the payload schema declares ``additionalProperties:
-    false`` with no ``actor`` property.
+    ``mission_created_payload`` schema (events 5.1.0). The payload schema now
+    also declares an optional opaque ``actor`` (events 8.0.0); this local path
+    still does not set it — the sync emitter populates the wire payload's
+    ``actor`` (:func:`specify_cli.sync.emitter.EventEmitter.emit_mission_created`).
     See Priivacy-ai/spec-kitty#1199 for the full required-field surface.
 
     The payload is constructed via the canonical
