@@ -182,7 +182,6 @@ which belongs to a closed mission and is not edited by this change (C-010).
 from __future__ import annotations
 
 import ast
-import re
 import warnings
 from collections import Counter
 from dataclasses import dataclass, field
