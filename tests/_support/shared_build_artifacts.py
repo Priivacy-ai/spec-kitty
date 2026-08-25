@@ -148,15 +148,78 @@ def published_source_snapshot(snapshot_dir: Path) -> Path | None:
     return snapshot_dir
 
 
-def default_source_snapshot_builder(source_root: Path, outdir: Path) -> None:
-    """Clone ``source_root`` into ``outdir`` as an independent repository."""
+def _snapshot_commit_of(source_root: Path) -> str | None:
+    """Resolve the commit to pin, without trusting a resolvable live HEAD.
+
+    ``git rev-parse HEAD`` is the fast path for a healthy checkout. When it
+    fails — #80's runner state was exactly a worktree whose HEAD had been left
+    pointing at something unresolvable while discovery and everything else kept
+    working — fall back to the gitdir's own bookkeeping files, which record the
+    checked-out commit as a raw SHA: ``HEAD`` for a detached CI tree,
+    ``ORIG_HEAD`` behind it.
+    """
     result = subprocess.run(
-        ["git", "clone", "--local", "--no-hardlinks", str(source_root), str(outdir)],
+        ["git", "rev-parse", "--verify", "HEAD^{commit}"],
+        cwd=source_root,
         capture_output=True,
         text=True,
     )
-    if result.returncode != 0:
-        raise SharedBuildError(f"source snapshot clone failed: {result.stderr}")
+    if result.returncode == 0:
+        return result.stdout.strip()
+    dot_git = source_root / ".git"
+    if dot_git.is_dir():
+        gitdir = dot_git
+    elif dot_git.is_file():
+        # A linked worktree: `.git` points at the real per-worktree gitdir.
+        pointer = dot_git.read_text(encoding="utf-8").strip()
+        if not pointer.startswith("gitdir:"):
+            return None
+        raw = Path(pointer.removeprefix("gitdir:").strip())
+        gitdir = raw if raw.is_absolute() else source_root / raw
+    else:
+        return None
+    for name in ("HEAD", "ORIG_HEAD"):
+        try:
+            value = (gitdir / name).read_text(encoding="utf-8").strip()
+        except OSError:
+            continue
+        if len(value) == 40 and all(c in "0123456789abcdef" for c in value):
+            return value
+    return None
+
+
+def default_source_snapshot_builder(source_root: Path, outdir: Path) -> None:
+    """Materialise ``source_root`` @ its current commit into ``outdir``.
+
+    Deliberately built with ``init`` + ``fetch <sha>`` + detach rather than
+    ``clone``: clone resolves the source's live HEAD and so inherits whatever
+    transient state that HEAD is in (#80), while fetching the resolved commit
+    never reads it. The fetch copies objects into a fresh pack in ``outdir``,
+    so the snapshot shares nothing (not even hardlinks) with the source.
+    """
+    commit = _snapshot_commit_of(source_root)
+    if commit is None:
+        raise SharedBuildError(f"cannot pin {source_root}: HEAD does not resolve and no detached SHA found")
+    commands = (
+        ["git", "init", "-q", str(outdir)],
+        [
+            "git",
+            "-c",
+            "uploadpack.allowAnySHA1InWant=true",
+            "fetch",
+            "-q",
+            "--no-tags",
+            str(source_root),
+            commit,
+        ],
+        ["git", "checkout", "-q", "--detach", commit],
+    )
+    for index, command in enumerate(commands):
+        # ``git init`` creates outdir, so it cannot itself run inside it.
+        cwd = outdir if index else outdir.parent
+        result = subprocess.run(command, cwd=cwd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise SharedBuildError(f"source snapshot step failed ({command[:3]}): {result.stderr}")
 
 
 def ensure_run_stable_source_snapshot(
@@ -166,7 +229,7 @@ def ensure_run_stable_source_snapshot(
     build: Callable[[Path], None] | None = None,
     lock_timeout_s: float = _LOCK_TIMEOUT_S,
 ) -> Path:
-    """Return a per-run clone of ``source_root`` that outlives source churn.
+    """Return a per-run snapshot of ``source_root`` that outlives source churn.
 
     The e2e acceptance fixtures read git provenance from, and clone every test
     project out of, the checkout being tested. On CI runners that checkout is
@@ -174,18 +237,19 @@ def ensure_run_stable_source_snapshot(
     gc/repack, worktree re-pins) runs *during* the session (#80), and any git
     call that lands inside such a window fails with exit 128 — which is why
     whole tails of ``test_worktree_owned_worktrees_isolated`` were red on some
-    runner VMs and green on others regardless of diff. Cloning the checkout
+    runner VMs and green on others regardless of diff. Building the snapshot
     once, at session start, into this run's temp root decouples every later
     read and clone from that churn while pinning byte-identical committed
     content (the snapshot is never touched again by anyone).
 
     Publication follows the same protocol as :func:`ensure_shared_build_artifacts`:
-    one clone under a lock, atomic rename, later workers reuse it.
+    one build under a lock, atomic rename, later workers reuse it.
     """
     if build is None:
 
         def build(outdir: Path) -> None:
             default_source_snapshot_builder(source_root, outdir)
+
     return _publish_once(
         run_root,
         dir_name=_SOURCE_SNAPSHOT_DIR_NAME,

@@ -310,6 +310,44 @@ def test_ensure_surfaces_clone_failure_after_the_last_attempt(
     assert _git(snapshot, "rev-parse", "HEAD") != ""
 
 
+def test_builder_pins_a_linked_worktree_whose_head_dangles(tmp_path: Path) -> None:
+    """The exact production layout: a linked worktree whose gitdir HEAD broke."""
+    canon = tmp_path / "canon"
+    canon.mkdir()
+    _git(canon, "init", "-q", "-b", "main")
+    _git(canon, "config", "user.email", "wp80@example.invalid")
+    _git(canon, "config", "user.name", "WP80")
+    (canon / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    _git(canon, "add", ".")
+    _git(canon, "commit", "-qm", "only commit")
+    sha = _git(canon, "rev-parse", "HEAD")
+
+    tree = tmp_path / "tree"
+    _git(canon, "worktree", "add", "-q", "--detach", str(tree), sha)
+    assert (tree / ".git").is_file()  # linked-worktree layout, like the CI tree
+
+    gitdir = Path((tree / ".git").read_text(encoding="utf-8").strip().removeprefix("gitdir: "))
+    original_head = (gitdir / "HEAD").read_text(encoding="utf-8")
+    (gitdir / "HEAD").write_text("ref: refs/heads/sk-agent-repin-incomplete\n", encoding="utf-8")
+    (gitdir / "ORIG_HEAD").write_text(f"{sha}\n", encoding="utf-8")
+    try:
+        with pytest.raises(subprocess.CalledProcessError):
+            _git(tree, "rev-parse", "HEAD")  # the live tree is in the broken state...
+        outdir = tmp_path / "snap"
+        default_source_snapshot_builder(tree, outdir)
+        assert _git(outdir, "rev-parse", "HEAD") == sha  # ...and the builder pinned through it
+    finally:
+        (gitdir / "HEAD").write_text(original_head, encoding="utf-8")
+
+
+def test_builder_refuses_when_no_commit_can_be_pinned(tiny_source_repo: tuple[Path, str]) -> None:
+    source, _ = tiny_source_repo
+    (source / ".git" / "HEAD").write_text("ref: refs/heads/sk-agent-repin-incomplete\n", encoding="utf-8")
+
+    with pytest.raises(SharedBuildError, match="cannot pin"):
+        default_source_snapshot_builder(source, source.parent / "snap")
+
+
 def test_e2e_provenance_fixture_delegates_to_the_run_stable_snapshot() -> None:
     """Pin the wiring itself: reverting the fixture to reading the live tree must red here."""
     module = Path(__file__).resolve().parents[1] / "e2e" / "test_worktree_owned_root_concurrency.py"

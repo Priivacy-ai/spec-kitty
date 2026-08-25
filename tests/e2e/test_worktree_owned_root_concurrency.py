@@ -103,11 +103,12 @@ def immutable_spec_kitty(
     maintenance mutates the run tree's HEAD mid-session (#80): for a sustained
     window ``git rev-parse HEAD`` there fails with exit 128 while discovery and
     ``branch --show-current`` keep working, so every iteration entering the
-    window failed at the same line regardless of diff. The snapshot is cloned
-    once per run from that same commit into the run's temp root and is never
-    touched by anyone afterwards, which decouples the whole file from the
-    shared store's churn.
+    window failed at the same line regardless of diff. The snapshot is built
+    once per run from that same commit into the run's temp root — fetched by
+    resolved SHA, never reading the volatile live HEAD — and is untouched
+    afterwards, which decouples the whole file from the shared store's churn.
     """
+    global _SOURCE_ROOT
     wheel = installed_wheel_venv["wheel"].resolve()
     venv_dir = installed_wheel_venv["venv_dir"].resolve()
     script = _venv_script(venv_dir, "spec-kitty").resolve()
@@ -125,7 +126,6 @@ def immutable_spec_kitty(
         ).returncode
         == 0
     )
-    global _SOURCE_ROOT
     _SOURCE_ROOT = ensure_run_stable_source_snapshot(run_scoped_shared_root(tmp_path_factory))
     source_commit = _git(_SOURCE_ROOT, "rev-parse", "HEAD")
     # Artifact-integrity provenance, not charter-content identity.
