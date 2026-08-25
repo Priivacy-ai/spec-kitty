@@ -273,7 +273,6 @@ def backfill_identity(
     skipped = [r for r in results if r.action == "skip"]
     errored = [r for r in results if r.action == "error"]
     coerced = [r for r in results if r.number_coerced]
-    warned = [r for r in results if r.dossier_warning]
 
     if json_output:
         payload = {
@@ -284,7 +283,6 @@ def backfill_identity(
                 "skip": len(skipped),
                 "error": len(errored),
                 "number_coerced": len(coerced),
-                "dossier_warnings": len(warned),
             },
             "results": [
                 {
@@ -293,7 +291,6 @@ def backfill_identity(
                     "mission_id": r.mission_id,
                     "number_coerced": r.number_coerced,
                     "reason": r.reason,
-                    "dossier_warning": r.dossier_warning,
                 }
                 for r in results
             ],
@@ -307,8 +304,6 @@ def backfill_identity(
         console.print(f"  Skipped (already set)  : {len(skipped)}")
         console.print(f"  Errors                 : {len(errored)}")
         console.print(f"  Number coerced         : {len(coerced)}")
-        if warned:
-            console.print(f"  [yellow]Dossier warnings       : {len(warned)}[/yellow]")
 
         if errored:
             console.print("\n[red]Errors:[/red]")
