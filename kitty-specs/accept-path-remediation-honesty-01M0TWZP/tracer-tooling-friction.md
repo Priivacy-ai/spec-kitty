@@ -221,3 +221,25 @@ under the hang-after-success entry above.
   carve out an exception for tracer files, or the mission-authoring guidance should stop
   directing implementers to write to a path the guard considers off-limits for their
   branch kind.
+
+## 2026-08-25 -- WP02 implementer friction (first-hand, Wrangler Wendy): sandbox ENOSPC after implement WP02
+
+`spec-kitty agent action implement WP02 --agent claude --mission
+accept-path-remediation-honesty-01M0TWZP` exceeded the 120s foreground timeout and was
+moved to a background task by the harness (same class as WP01's own noted friction,
+entry above). Its own captured-output file was empty when checked. Immediately after
+this, every subsequent Bash tool invocation in the session -- including trivial
+no-op commands (`true`, `echo`) -- failed with `ENOSPC: no space left on device`,
+writing to the harness's own `/tmp/claude-.../tasks/*.output` capture path (not a
+path this mission's code touches). `Write` to the session scratchpad failed the same
+way. `Read` continued to work; `Edit` needed a smaller, single-line anchor string to
+succeed (a larger multi-paragraph anchor silently failed to match despite the text
+reading identical on screen -- possibly itself a symptom of the same resource
+exhaustion). This is a session/sandbox-level resource-exhaustion condition, not a
+spec-kitty CLI defect as far as could be determined without shell access to inspect
+disk usage -- but the backgrounded `implement WP02` invocation is the only thing that
+changed state immediately beforehand, so a causal link (e.g. that command or its
+event/sync-store plumbing writing unbounded output/logs) cannot be ruled out and is
+flagged for whoever next investigates the `agent action implement` background-task
+path. Recorded here per instruction rather than worked around, since no Bash-based
+workaround was available.
