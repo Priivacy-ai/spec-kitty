@@ -27,6 +27,12 @@ from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group reg
 from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
 from tests._shard_registry import all_groups, shard_for
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
+from tests._support.shared_build_artifacts import (
+    SharedBuildError,
+    default_wheel_sdist_builder,
+    ensure_shared_build_artifacts,
+    run_scoped_shared_root,
+)
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
     quarantine_opted_in,
@@ -1167,25 +1173,27 @@ def _build_tool_available() -> bool:
 
 @pytest.fixture(scope="session")
 def build_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
-    """Build wheel + sdist once per session. Shared by all packaging tests."""
+    """Build wheel + sdist once per RUN. Shared by all packaging tests *and* all xdist workers.
+
+    A session-scoped fixture runs once per worker process, so this used to
+    spawn up to N concurrent ``python -m build`` runs on an N-worker CI runner.
+    The build now happens at most once per run, published atomically into a
+    lock-guarded run-scoped directory next to the basetemp
+    (``tests/_support/shared_build_artifacts.py``); every other worker reuses
+    it after validating it is complete (#80). The builder itself lives in that
+    module too — this file's definition names are pinned by
+    ``tests/architectural/test_home_owner_behaviour.py``.
+    """
     if not _build_tool_available():
         pytest.skip("python -m build not available")
 
-    outdir = tmp_path_factory.mktemp("build")
-    result = subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
-        cwd=REPO_ROOT,
-        capture_output=True, text=True,
-    )
-    if result.returncode != 0:
-        pytest.skip(f"Build failed: {result.stderr}")
-
-    wheels = sorted(outdir.glob("spec_kitty_cli-*.whl"))
-    sdists = sorted(outdir.glob("spec_kitty_cli-*.tar.gz"))
-    if not wheels or not sdists:
-        pytest.skip("Build did not produce expected wheel/sdist artifacts")
-
-    return {"wheel": wheels[-1], "sdist": sdists[-1]}
+    try:
+        return ensure_shared_build_artifacts(
+            run_scoped_shared_root(tmp_path_factory),
+            default_wheel_sdist_builder,
+        )
+    except SharedBuildError as error:
+        pytest.skip(str(error))
 
 
 @pytest.fixture(scope="session")

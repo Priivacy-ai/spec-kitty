@@ -10,6 +10,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 import tomllib
+from collections.abc import Iterator
 from dataclasses import dataclass
 from kernel.clock import now_utc_iso
 from pathlib import Path
@@ -62,6 +63,43 @@ def _disable_saas_sync_for_e2e_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     fail before the behavior under test runs.
     """
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[None]) -> Iterator[None]:
+    """Record each phase's report on the item so teardown fixtures can read it."""
+    outcome = yield
+    report = outcome.get_result()
+    setattr(item, f"_e2e_rep_{report.when}", report)
+
+
+def _call_report_passed(item: pytest.Item) -> bool:
+    """Whether the item's call phase passed, per ``pytest_runtest_makereport``'s record."""
+    report = getattr(item, "_e2e_rep_call", None)
+    return report is not None and report.passed
+
+
+@pytest.fixture(autouse=True)
+def _release_passed_tmp_tree(request: pytest.FixtureRequest, tmp_path: Path) -> Iterator[None]:
+    """Free a passed test's tmp_path at teardown instead of session end.
+
+    Every test here materialises real git state under ``tmp_path`` — the
+    owned-worktree acceptance file alone clones this repository (~1 GB with
+    its two worktrees) once per parametrised iteration — and pytest keeps each
+    tree until the worker session ends. On a runner those retained trees alone
+    exhaust free disk partway through the file (#80): iterations pass until
+    space runs out, then every later ``git clone`` / ``git worktree add``
+    fails with exit 128, which is why the same tail of the family was red on
+    every run while passing serially on roomier disks.
+
+    Failed tests keep their tree for diagnosis — this is
+    ``tmp_path_retention_policy = failed`` behaviour scoped to this
+    subprocess-heavy directory. When the global setting lands (#63/#72), this
+    fixture is redundant and should be deleted.
+    """
+    yield
+    if _call_report_passed(request.node):
+        shutil.rmtree(tmp_path, ignore_errors=True)
 
 
 # ---------------------------------------------------------------------------
