@@ -184,7 +184,7 @@ def test_install_registers_an_atexit_reaper_for_this_run_only(
     monkeypatch.setattr(atexit, "register", _capture)
     config = _fake_config()
     install_run_basetemp(config, now=10**9)
-    assert len(handlers) == 1
+    assert len(handlers) == 1  # golden-count: cardinality-is-contract — exactly one reaper, never two
 
     # Simulate interpreter exit with residue left under the run dir.
     residue = Path(config.option.basetemp) / "popen-gw0"

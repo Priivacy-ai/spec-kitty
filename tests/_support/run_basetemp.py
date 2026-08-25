@@ -3,7 +3,7 @@
 
 **The failure this closes.** Every ``make test-full`` run of main crashed before
 a pytest summary with ``OSError: could not create numbered dir with prefix
-test_* in /tmp/pytest-of-exedev/pytest-0/popen-gw<N> after 10 tries``, on a
+test_* in <temproot>/pytest-of-exedev/pytest-0/popen-gw<N> after 10 tries``, on a
 different set of xdist workers each run (#63). pytest's default temp layout puts
 ALL runs — concurrent or sequential, healthy or killed — inside one shared
 ``pytest-of-<user>`` tree, where :func:`_pytest.pathlib.make_numbered_dir` and

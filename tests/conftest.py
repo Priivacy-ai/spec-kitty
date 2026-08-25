@@ -243,7 +243,7 @@ def pytest_configure(config: pytest.Config) -> None:
     _apply_home_env(_worker_home_base(config))
 
     # Issue #63: give this run its own private, wiped-per-run pytest temp root
-    # instead of the shared `/tmp/pytest-of-<user>` numbered tree, whose
+    # instead of the shared platform-temp `pytest-of-<user>` numbered tree, whose
     # cross-run numbering/pruning contention crashed full-suite xdist runs
     # before any summary (OSError: could not create numbered dir). Must happen
     # here in configure — the builtin tmpdir plugin snapshots the option into
