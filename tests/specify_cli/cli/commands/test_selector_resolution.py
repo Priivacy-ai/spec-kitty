@@ -482,6 +482,7 @@ def test_agent_mission_create_dual_flag_conflict_fails(tmp_path: Path) -> None:
 def test_next_step_canonical_selector_passes_mission_slug(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured: dict[str, object] = {}
 
@@ -504,10 +505,15 @@ def test_next_step_canonical_selector_passes_mission_slug(
     # ``MissionNotFoundError`` referenced by the query error path.
     fake_runtime_bridge.MissionNotFoundError = MissionNotFoundError
 
-    with (
-        patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-        patch.dict(sys.modules, {"runtime.next.runtime_bridge": fake_runtime_bridge}),
-    ):
+    # Swap the seam with ``monkeypatch.setitem``, not ``patch.dict(sys.modules,
+    # ...)``: patch.dict restores the snapshot taken at entry, so any module
+    # first-imported inside the window (here: charter_runtime.preflight.hook,
+    # lazily loaded by next_step) is evicted from sys.modules on exit while its
+    # parent package keeps the stale attribute — splitting module identity so a
+    # later ``from ...preflight import hook`` patches a different object than
+    # the one production code resolves (spec-kitty#89).
+    monkeypatch.setitem(sys.modules, "runtime.next.runtime_bridge", fake_runtime_bridge)
+    with patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path):
         next_step.__wrapped__(
             agent="codex",
             mission="077-demo-mission",
@@ -525,6 +531,7 @@ def test_next_step_canonical_selector_passes_mission_slug(
 def test_next_step_alias_selector_warns_and_passes_mission_slug(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """``--mission`` is the sole selector for ``next`` after alias removal (#1060-A).
 
@@ -554,10 +561,11 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
     # ``MissionNotFoundError`` referenced by the query error path.
     fake_runtime_bridge.MissionNotFoundError = MissionNotFoundError
 
-    with (
-        patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-        patch.dict(sys.modules, {"runtime.next.runtime_bridge": fake_runtime_bridge}),
-    ):
+    # Same seam-swap discipline as the canonical test above: single-key
+    # monkeypatch.setitem, never a snapshot-restoring patch.dict over
+    # sys.modules (spec-kitty#89).
+    monkeypatch.setitem(sys.modules, "runtime.next.runtime_bridge", fake_runtime_bridge)
+    with patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path):
         next_step.__wrapped__(
             agent="codex",
             mission="077-demo-mission",
