@@ -149,6 +149,11 @@ the cause, do not retry:
 - **Time-sensitive assertions** in a non-timing test — move the timing concern to
   a Tier-1 budget gate with a generous threshold, or remove the wall-clock
   dependency.
+- **`patch.dict(sys.modules, ...)`** — snapshot-restores the whole dict on exit,
+  evicting any module first-imported inside the patched window (spec-kitty#89/#99;
+  ratcheted by `tests/architectural/test_no_sys_modules_patch_dict.py`). Use
+  `monkeypatch.setitem(sys.modules, key, value)` per key instead — it is the only
+  accepted `sys.modules` seam.
 
 ## Test-run baseline-red gotcha
 
