@@ -111,7 +111,8 @@ def start_dashboard(
 
     Args:
         project_dir: Path to the project directory
-        port: Port number (auto-selected if None)
+        port: Port number (auto-selected if None; pass 0 for an OS-assigned
+            ephemeral port bound atomically with no separate probe step)
         background_process: If True, run as detached subprocess; if False, run in thread
         project_token: Security token for the dashboard
 
@@ -137,6 +138,11 @@ def start_dashboard(
     handler_class = _build_handler_class(project_dir_abs, project_token)
     server = create_loopback_server(port, handler_class)
 
+    # Read the actually-bound port back off the socket rather than trusting
+    # the caller-supplied value: with port=0 the OS assigns the real port at
+    # bind time, and echoing the input back would silently report "0".
+    actual_port = server.server_address[1]
+
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
-    return port, None
+    return actual_port, None

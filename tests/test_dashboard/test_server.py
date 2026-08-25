@@ -38,6 +38,7 @@ def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):
     class FakeServer:
         def __init__(self, *_args, **_kwargs):
             served["created"] = True
+            self.server_address = ("127.0.0.1", 12346)
 
         def serve_forever(self):
             served["called"] = True
@@ -58,6 +59,41 @@ def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):
     port, pid = server.start_dashboard(tmp_path, port=12346, background_process=False)
     assert port == 12346
     assert pid is None  # Changed from thread to pid (None for threaded mode)
+    assert served.get("called")
+
+
+def test_start_dashboard_foreground_reports_os_assigned_port(monkeypatch, tmp_path):
+    """port=0 must report the real OS-assigned port, not the literal 0 passed in.
+
+    Regression for issue #66's CI-runner repro: the previous implementation
+    echoed the caller-supplied `port` straight back, so a caller requesting
+    an ephemeral port via `port=0` (the only race-free way to avoid the
+    check-then-bind TOCTOU in `find_free_port()`) got told the dashboard was
+    on port 0.
+    """
+    served = {}
+
+    class FakeServer:
+        def __init__(self, *_args, **_kwargs):
+            self.server_address = ("127.0.0.1", 54321)
+
+        def serve_forever(self):
+            served["called"] = True
+
+    class FakeThread:
+        def __init__(self, target, daemon):
+            self._target = target
+            self.daemon = daemon
+
+        def start(self):
+            self._target()
+
+    monkeypatch.setattr(server, "create_loopback_server", lambda *_args, **_kwargs: FakeServer())
+    monkeypatch.setattr(server.threading, "Thread", FakeThread)
+
+    port, pid = server.start_dashboard(tmp_path, port=0, background_process=False)
+    assert port == 54321
+    assert pid is None
     assert served.get("called")
 
 

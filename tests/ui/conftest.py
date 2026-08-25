@@ -12,13 +12,14 @@ suite with additional dashboard e2e coverage.
 from __future__ import annotations
 
 import os
+import sys
 from kernel.clock import now_utc_iso
 from pathlib import Path
 
 import pytest
 import ulid
 
-from specify_cli.dashboard.server import find_free_port, start_dashboard
+from specify_cli.dashboard.server import start_dashboard
 from specify_cli.status import (
     Lane,
     StatusEvent,
@@ -60,6 +61,23 @@ def pytest_configure(config: pytest.Config) -> None:
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(Path(real_home) / ".cache" / "ms-playwright")
 
 
+def _default_playwright_browsers_path() -> Path:
+    """The platform default Playwright resolves when the env var is unset.
+
+    Mirrors ``playwright``'s own registry locations — ``~/.cache/ms-playwright``
+    on Linux, ``~/Library/Caches/ms-playwright`` on macOS,
+    ``%LOCALAPPDATA%\\ms-playwright`` on Windows. Guessing the Linux path
+    unconditionally made this check silently pass (and the node skip) on a Mac
+    where Chromium was in fact installed.
+    """
+    home = Path.home()
+    if sys.platform == "darwin":
+        return home / "Library" / "Caches" / "ms-playwright"
+    if sys.platform == "win32":
+        return home / "AppData" / "Local" / "ms-playwright"
+    return home / ".cache" / "ms-playwright"
+
+
 def _chromium_is_installed() -> bool:
     """True if a Playwright Chromium build is present on disk.
 
@@ -69,7 +87,7 @@ def _chromium_is_installed() -> bool:
     unaffected — the dedicated ``ui-e2e.yml`` job always installs Chromium first.
     """
     browsers_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or str(
-        Path.home() / ".cache" / "ms-playwright"
+        _default_playwright_browsers_path()
     )
     return any(Path(browsers_path).glob("chromium-*"))
 
@@ -228,15 +246,24 @@ def dashboard(synthetic_project_root: Path) -> dict[str, str]:
     which detaches a PID'd child process and kills siblings on the shared
     port range (xdist flake risk per FR-002).
 
+    `port=0` asks the OS for an ephemeral port at the single atomic bind
+    call inside `create_loopback_server`, rather than probing with
+    `find_free_port()` first and binding again later: under `-n auto`
+    every worker's copy of this fixture used to scan the SAME fixed range
+    starting at 9237, so two workers could both see a port as free and then
+    race to bind it, raising `OSError: Address already in use` at fixture
+    setup (issue #66 CI-runner repro: reproduced locally by running 16
+    concurrent instances of this fixture on an 8-core box). `start_dashboard`
+    reads the real bound port back off the socket, so `actual_port` is
+    always correct.
+
     No explicit teardown call is exposed by `start_dashboard` for
     `background_process=False` — the server thread is a daemon thread
-    (`server.py:150`, `daemon=True`) bound to an ephemeral `find_free_port()`
-    port, so it dies with the pytest process rather than needing an
-    early stop.
+    (`server.py:150`, `daemon=True`), so it dies with the pytest process
+    rather than needing an early stop.
     """
-    port = find_free_port()
     actual_port, _pid = start_dashboard(
-        synthetic_project_root, port=port, background_process=False
+        synthetic_project_root, port=0, background_process=False
     )
     return {
         "base_url": f"http://127.0.0.1:{actual_port}",
