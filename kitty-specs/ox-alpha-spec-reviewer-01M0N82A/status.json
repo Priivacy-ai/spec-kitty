@@ -2,9 +2,9 @@
   "event_count": 56,
   "last_event_id": "01M0X1T54FK2NQAX1SDBBX08M1",
   "materialized_at": "2026-08-25T18:09:39.471978+00:00",
-  "mission_number": "196",
+  "mission_number": "",
   "mission_slug": "ox-alpha-spec-reviewer-01M0N82A",
-  "mission_type": "software-dev",
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,195 +20,86 @@
     "WP01": {
       "actor": "merge",
       "agent": "codex",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0X1S9VKAV9E5Z1W0HS9D331",
       "last_transition_at": "2026-08-25T18:09:11.539138+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "WP01 codemap baseline independently verified; planning artifact removed from lane while retained on task branch",
-        "Review rejected: inaccurate present symbol, stale edge evidence lines, and incomplete source digest manifest",
-        "Ready for re-review cycle 2: exact _build_app symbol; 23/23 present-edge evidence re-audited; selector and commit-router sources locked; present-node source invariant mutation-tested; 30/30 node and 42/42 edge parity; offline assets; commit 82af1cf86",
-        "Cycle 2 independent review passed: all cycle-1 findings rechecked; lock, semantic JSON-HTML parity, source-lock completeness, offline/path checks and read-only mutation rejection verified."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "Cycle 2 independent review passed: all cycle-1 findings rechecked; lock, semantic JSON-HTML parity, source-lock completeness, offline/path checks and read-only mutation rejection verified.",
         "reviewer": "reviewer-renata",
         "verdict": "approved"
       },
-      "role": "implementer",
-      "shell_pid": 2552,
-      "shell_pid_created_at": "1787426618.3979187",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done"
-      }
+      "shell_pid": 5076,
+      "shell_pid_created_at": "1787425766.295901"
     },
     "WP02": {
       "actor": "merge",
       "agent": "codex",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0X1SFDGMYX0SVWEAZTGC90S",
       "last_transition_at": "2026-08-25T18:09:17.232004+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready for review: frozen contracts, canonical preflight, scanner, and privacy filter",
-        "Ревью пройдено: 43 теста, Ruff и mypy зелёные; код не менялся после прогона. Четыре неблокирующих сбоя tests/docs вне WP02."
-      ],
-      "provider": "__resolved_provider_absent__",
-      "review": null,
       "review_result": {
         "reference": "local-review:a5a458f4b",
         "reviewer": "codex",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 31760,
-      "shell_pid_created_at": "1787469781.3953464",
-      "subtasks": {
-        "T005": "done",
-        "T006": "done",
-        "T007": "done",
-        "T008": "done",
-        "T009": "done",
-        "T010": "done"
-      }
+      "shell_pid": 27164,
+      "shell_pid_created_at": "1787429180.2588391"
     },
     "WP03": {
       "actor": "merge",
       "agent": "codex",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0X1SN084ZB6MS64ASTZEN56",
       "last_transition_at": "2026-08-25T18:09:22.952816+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Проверены ADR, PRIMARY classifier без directory fallback, resolver-only storage, exclusive publication, symlink и concurrency contracts. Pre-review gate: no_new_failures; один pre-existing docs/runtime сбой вне WP03."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Проверены ADR, PRIMARY classifier без directory fallback, resolver-only storage, exclusive publication, symlink и concurrency contracts. Pre-review gate: no_new_failures; один pre-existing docs/runtime сбой вне WP03.",
         "reviewer": "codex",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 27944,
-      "shell_pid_created_at": "1787470619.9669874",
-      "subtasks": {
-        "T011": "done",
-        "T012": "done",
-        "T013": "done",
-        "T014": "done",
-        "T015": "done"
-      }
+      "shell_pid_created_at": "1787470619.9669874"
     },
     "WP04": {
       "actor": "merge",
-      "agent": "codex",
-      "agent_profile": "reviewer-renata",
-      "agent_profile_version": "1.0",
-      "assignee": "codex",
       "force_count": 1,
       "lane": "done",
       "last_event_id": "01M0X1STKM79Y1E1X767RA6NA2",
       "last_transition_at": "2026-08-25T18:09:28.692876+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Проверены pricing gate, localhost transport, отключение tools, cleanup session/process tree и taxonomy без раскрытия тела. Ruff/mypy и изолированные runner-contract tests: OK. Pre-review: docs/PlantUML baseline unverified, вне WP04.",
-        "Metadata recovery only: reopen approved WP04 to record the missing canonical agent; implementation and prior review verdict are unchanged.",
-        "Metadata recovery completed: missing canonical agent recorded; Ruslan review approval preserved; no implementation or scope change."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Metadata recovery completed: missing canonical agent recorded; Ruslan review approval preserved; no implementation or scope change.",
         "reviewer": "Ruslan",
         "verdict": "approved"
-      },
-      "role": "implementer",
-      "subtasks": {
-        "T016": "done",
-        "T017": "done",
-        "T018": "done",
-        "T019": "done",
-        "T020": "done",
-        "T021": "done"
       }
     },
     "WP05": {
       "actor": "merge",
-      "agent": "codex",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
-      "assignee": "codex",
       "force_count": 2,
       "lane": "done",
       "last_event_id": "01M0X1SZW80NCCRMN5V1V9ZJYY",
       "last_transition_at": "2026-08-25T18:09:34.088199+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Force только для pre-existing planning meta/status history в mission-lane; текущий contract закреплён на planning branch, implementation/test changes остаются task-owned.",
-        "Кроссплатформенный transport lease исправлен; штатный target 83 passed, pre-review запускается с отключением конфликтующего стороннего pytest_base_url.",
-        "Ревью пройдено. PASS: production callers, реальные service/CLI tests, fail-loud diagnostics, FR coverage, frozen surfaces, locked decisions, no shared-WP overlap, documented raises. Contract round-trip PASS по primary contracts: review-response/v1, spec-review-run/v1, transport opencode-loopback, closed status set. Проверки: 83 WP05 tests passed с -p no:base_url; ruff и mypy по WP05-коду passed; Windows transport lease 19 tests passed (POSIX-only fork test deselected), issue-586 import 2 passed. Cross-platform support fix efc89fae8 согласован как narrow compatibility correction; pricing gate remains fail-closed and external model was not called."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Ревью пройдено. PASS: production callers, реальные service/CLI tests, fail-loud diagnostics, FR coverage, frozen surfaces, locked decisions, no shared-WP overlap, documented raises. Contract round-trip PASS по primary contracts: review-response/v1, spec-review-run/v1, transport opencode-loopback, closed status set. Проверки: 83 WP05 tests passed с -p no:base_url; ruff и mypy по WP05-коду passed; Windows transport lease 19 tests passed (POSIX-only fork test deselected), issue-586 import 2 passed. Cross-platform support fix efc89fae8 согласован как narrow compatibility correction; pricing gate remains fail-closed and external model was not called.",
         "reviewer": "rusliksu",
         "verdict": "approved"
-      },
-      "role": "reviewer",
-      "shell_pid": 12636,
-      "shell_pid_created_at": "1787505249.0450766",
-      "subtasks": {
-        "T022": "done",
-        "T023": "done",
-        "T024": "done",
-        "T025": "done",
-        "T026": "done",
-        "T027": "done"
       }
     },
     "WP06": {
       "actor": "merge",
       "agent": "codex",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0X1T54FK2NQAX1SDBBX08M1",
       "last_transition_at": "2026-08-25T18:09:39.471978+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "T032 завершён: матрица из 27 критериев собрана с pending-вердиктами; NFR-007 закрыт линейным сканером и тестом 256 КиБ; offline-регрессия 130 passed, 1 skipped, 1 deselected; внешний Ox Alpha не вызывался.",
-        "Руслан явно подтвердил: ревью WP06 прошло. Принят review packet T032 с документированными остаточными gates: внешний Ox Alpha smoke не пройден, cross-platform CI остаётся отдельной проверкой."
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "Руслан явно подтвердил: ревью WP06 прошло. Принят review packet T032 с документированными остаточными gates: внешний Ox Alpha smoke не пройден, cross-platform CI остаётся отдельной проверкой.",
         "reviewer": "Ruslan",
         "verdict": "approved"
       },
-      "role": "reviewer",
       "shell_pid": 18780,
-      "shell_pid_created_at": "1787595060.9229932",
-      "subtasks": {
-        "T028": "done",
-        "T029": "done",
-        "T030": "done",
-        "T031": "done",
-        "T032": "done"
-      }
+      "shell_pid_created_at": "1787595060.9229932"
     }
   }
 }
