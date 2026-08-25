@@ -54,13 +54,12 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
 import httpx
 
-from kernel.clock import now_utc, parse_iso
+from kernel.clock import now_utc, parse_iso, timedelta
 
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.saas_client.errors import SaasAuthError
@@ -273,12 +272,19 @@ def repo_slug_and_host(origin_url: str) -> tuple[str | None, str | None]:
 def _expired(expires_at: str | None) -> bool:
     """Whether a verbatim ISO stamp has passed. Unstamped (every entry
     written before stamps existed) and unparseable entries never expire —
-    a corrupt stamp must not lock a working credential out of its store."""
+    a corrupt stamp must not lock a working credential out of its store.
+
+    A stamp without an offset is unparseable *at comparison time*, not at
+    ``fromisoformat`` time: parsing succeeds, but comparing the resulting
+    naive datetime against the aware clock raises ``TypeError`` — so
+    ``TypeError`` is caught here alongside ``ValueError``, or a naive mint
+    stamp would escape this module straight into the fire-and-forget seam.
+    """
     if not expires_at:
         return False
     try:
         return now_utc() >= parse_iso(expires_at)
-    except ValueError:
+    except (ValueError, TypeError):
         return False
 
 

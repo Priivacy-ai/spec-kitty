@@ -67,6 +67,7 @@ both round-trip compatible with every entry already on disk:
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -124,6 +125,20 @@ def _lock_path() -> Path:
     return credentials_path().with_suffix(credentials_path().suffix + _LOCK_SUFFIX)
 
 
+def _locked() -> FileLock:
+    """The store's lock, taken only after the state root exists owner-only.
+
+    Everything in this module goes through one lock, and filelock creates
+    missing parent directories *itself* on acquire — at the ambient umask
+    (0o755 measured), which would otherwise always beat any mode passed to
+    ``_write_all``'s later ``mkdir``. Creating the root here first, at
+    0o700, is what actually makes the directory holding the tokens
+    owner-only.
+    """
+    credentials_path().parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    return FileLock(str(_lock_path()))
+
+
 def _read_all() -> dict[str, dict[str, str]]:
     path = credentials_path()
     if not path.exists():
@@ -140,11 +155,21 @@ def _read_all() -> dict[str, dict[str, str]]:
 
 
 def _write_all(data: dict[str, dict[str, str]]) -> None:
+    """Atomically replace the store. Every entry this file holds is a
+    secret (relay bearer, per-actor capability JWT), so the write is
+    owner-only regardless of the process's umask — E3 turned this store
+    from opt-in into something auto-populated on every status transition,
+    so "the user happened to have a loose umask" would otherwise publish
+    every minted token to group/other. (The directory's mode is
+    :func:`_locked`'s job.)"""
     path = credentials_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
     tmp_path = path.with_suffix(path.suffix + ".tmp")
-    with tmp_path.open("wb") as fh:
+    fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as fh:
         tomli_w.dump(data, fh)
+    # os.open's mode only applies at creation: re-assert in case a looser
+    # temp file survived an earlier crash mid-write.
+    os.chmod(tmp_path, 0o600)
     tmp_path.replace(path)  # atomic on POSIX and Windows (same volume)
 
 
@@ -167,7 +192,7 @@ def store(
         raise ValueError("capability_credential must be non-empty when provided")
     if expires_at is not None and not expires_at:
         raise ValueError("expires_at must be non-empty when provided")
-    lock = FileLock(str(_lock_path()))
+    lock = _locked()
     with lock:
         data = _read_all()
         entry: dict[str, str] = {
@@ -201,7 +226,7 @@ def store_negative(*, repo: str, reason: str = "", expires_at: str | None = None
     """
     if not repo:
         raise ValueError("repo must be non-empty")
-    lock = FileLock(str(_lock_path()))
+    lock = _locked()
     with lock:
         data = _read_all()
         entry: dict[str, str] = {
@@ -216,7 +241,7 @@ def store_negative(*, repo: str, reason: str = "", expires_at: str | None = None
 
 
 def load(*, repo: str) -> StoredCredential | None:
-    lock = FileLock(str(_lock_path()))
+    lock = _locked()
     with lock:
         data = _read_all()
     entry = data.get(repo)
@@ -241,7 +266,7 @@ def load_negative(*, repo: str) -> NegativeEntry | None:
     """The stored negative answer for ``repo``, or ``None`` when there is
     none (including when the key holds a positive credential, or when
     nothing is stored at all). The caller owns the expiry decision."""
-    lock = FileLock(str(_lock_path()))
+    lock = _locked()
     with lock:
         data = _read_all()
     entry = data.get(repo)
@@ -260,7 +285,7 @@ def revoke(*, repo: str) -> None:
     error (N10: a subsequent status() must report "not checked out", never a
     stale token, regardless of whether the caller's network canary offer
     against the relay succeeded)."""
-    lock = FileLock(str(_lock_path()))
+    lock = _locked()
     with lock:
         data = _read_all()
         if repo in data:

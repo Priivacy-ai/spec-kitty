@@ -19,6 +19,8 @@ handoff).
 
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -234,3 +236,39 @@ def test_negative_reason_defaults_to_empty_when_omitted(state_root: Path):
     negative = credentials.load_negative(repo="spec-kitty")
     assert negative is not None
     assert negative.reason == ""
+
+
+# --- E3 resolution: the store is owner-only, whatever the umask -------------
+
+
+def test_store_is_owner_only_file_and_directory(state_root: Path):
+    """[controller-qa] MAJOR regression: E3 makes this store auto-populated
+    on every status transition with relay bearers and capability JWTs — it
+    must land 0o600 in a 0o700 directory even under a permissive umask,
+    not whatever ``open()`` inherits (measured 0o644/0o755 before)."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    if not hasattr(os, "getuid"):  # permission bits are a POSIX assertion
+        return
+    path = credentials.credentials_path()
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+
+
+def test_owner_only_mode_holds_across_every_write_path(state_root: Path):
+    """store_negative() and revoke() rewrite the file through the same
+    atomic replace; none of them may loosen the mode the first write set."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    credentials.store_negative(repo="other", reason="no_match")
+    credentials.store(
+        repo="spec-kitty",
+        relay_url="http://a",
+        token="tok-a2",
+        token_kind="presence",
+        expires_at="2026-08-25T12:00:00+00:00",
+    )
+    credentials.revoke(repo="other")
+    if not hasattr(os, "getuid"):
+        return
+    path = credentials.credentials_path()
+    assert path.exists()
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600

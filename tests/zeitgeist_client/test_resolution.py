@@ -22,14 +22,13 @@ from __future__ import annotations
 
 import json as json_module
 import subprocess
-from datetime import timedelta
 from pathlib import Path
 
 import httpx
 import pytest
 import respx
 
-from kernel.clock import now_utc, parse_iso
+from kernel.clock import now_utc, parse_iso, timedelta
 
 from specify_cli.saas_client.errors import SaasAuthError
 from specify_cli.zeitgeist_client import credentials, resolution
@@ -282,6 +281,17 @@ def test_missing_or_garbled_stamps_never_expire() -> None:
     assert resolution._expired("not-a-stamp") is False
 
 
+def test_naive_stamp_never_raises_and_never_expires() -> None:
+    """[controller-qa] MAJOR regression: ``expires_at`` is stored verbatim
+    from the mint, and a stamp with no UTC offset parses fine but cannot be
+    compared against the aware clock — ``aware >= naive`` raises
+    ``TypeError``, which used to escape ``_expired`` (it caught only
+    ``ValueError``) and then ``resolve_credentials`` itself, straight into
+    the fire-and-forget seam. A naive stamp is treated like any other
+    unparseable one: never expired, never raised."""
+    assert resolution._expired("2026-08-25T12:00:00") is False  # naive, in the past
+
+
 # ---------------------------------------------------------------------------
 # The resolution core: cache, mint, negative TTL, force
 # ---------------------------------------------------------------------------
@@ -332,6 +342,39 @@ class TestCacheShortCircuits:
         )
         assert len(gateway.admission_calls) == 1
         assert credentials.load_negative(repo=KEY) is not None
+
+    def test_naive_stamp_on_a_stored_credential_answers_from_cache(
+        self, state_root: Path
+    ) -> None:
+        """[controller-qa] MAJOR regression, end to end through the cache
+        path: a stored entry whose verbatim stamp has no UTC offset must
+        answer from the store — never raise out of resolution."""
+        credentials.store(
+            repo=KEY,
+            relay_url="http://naive",
+            token="tok",
+            token_kind="presence",
+            expires_at="2026-08-25T12:00:00",
+        )
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.relay_url == "http://naive"
+        # Answered from cache — no network was touched deciding it.
+        assert gateway.admission_calls == [] and gateway.mint_calls == []
+
+    def test_naive_stamp_on_a_negative_answer_stays_silent_without_raising(
+        self, state_root: Path
+    ) -> None:
+        """And on the negative path: an unparseable-at-comparison stamp must
+        not turn "stay silent" into "raise"."""
+        credentials.store_negative(repo=KEY, reason="no_match", expires_at="2026-08-25T12:00:00")
+        gateway = ScriptedGateway()
+        assert (
+            resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+            is None
+        )
+        assert gateway.admission_calls == [] and gateway.mint_calls == []
 
 
 class TestNotAdmitted:
