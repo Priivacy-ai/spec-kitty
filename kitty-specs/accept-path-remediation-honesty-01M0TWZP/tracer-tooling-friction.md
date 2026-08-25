@@ -6,8 +6,8 @@ Mission: accept-path-remediation-honesty-01M0TWZP (issues #3730, #3085)
 
 `spec-kitty agent mission create` succeeded (the scaffold — `meta.json`, `spec.md`
 placeholder, `tasks/`, `research/`, `checklists/` — completed correctly and is present
-on disk), but emitted the following during the run (CLI 3.2.6rc3, checkout
-`/home/jeroennouws/dev/SK-missions/3730`, 2026-08-24):
+on disk), but emitted the following during the run (CLI 3.2.6rc3, mission checkout,
+2026-08-24):
 
 - `project sync store is locked`
 - `Event routing failed`
@@ -19,7 +19,7 @@ scaffold artifacts themselves are intact and usable, so this did not block the m
 but the durability/event-routing chain around `mission create` is suspect and should be
 checked by whoever next touches `agent mission create`'s sync/event plumbing.
 
-## 2026-08-24 — scaffold commit message defect (ledger SK-64)
+## 2026-08-24 — scaffold commit message defect
 
 The scaffold's auto-commit (`e2ecee4ee`) reads `Add meta for feature
 accept-path-remediation-honesty-01M0TWZP` — both commitlint-invalid (no
@@ -36,18 +36,20 @@ upstream state before resuming), this was noted but not treated as blocking sinc
 orchestrator explicitly directed resumption of this scaffolded mission on this branch.
 Flagged for the operator in case of a duplicate concurrent effort.
 
-## 2026-08-25 — `finalize-tasks` (ledger SK-91 confirmed first-hand)
+## 2026-08-25 — `finalize-tasks` (lanes.json branch/surface-prediction defect confirmed first-hand)
 
 The real (non-`--validate-only`) `spec-kitty agent mission finalize-tasks --mission
 accept-path-remediation-honesty-01M0TWZP --json` run at the end of the tasks phase
 reported `"result": "success"` and did seed genesis→planned events for all four WPs
-correctly (SK-85 did **not** reproduce on this run — `status.events.jsonl` shows real
+correctly (a separately suspected lane-seeding defect did **not** reproduce on this run —
+`status.events.jsonl` shows real
 `from_lane: genesis, to_lane: planned` transitions for WP01-WP04, each with a distinct
 `event_id`/timestamp). `tasks.md`, `wps.yaml`, and all four WP files' `dependencies`
 frontmatter match exactly what the tasks-phase review squad approved (WP01→WP02→WP01,WP02→
-WP01,WP02,WP03 chain) — no SK-68 lane-graph/tasks.md contradiction observed either.
+WP01,WP02,WP03 chain) — no lane-graph/tasks.md contradiction observed either.
 
-However, `lanes.json` (written by the same command) confirms **SK-91 first-hand**:
+However, `lanes.json` (written by the same command) confirms the following defect
+first-hand:
 - `mission_branch: "kitty/mission-accept-path-remediation-honesty-01M0TWZP"` — this
   branch does not exist anywhere in this checkout (`git rev-parse --verify` fails). The
   mission's real topology is `single_branch` (per `meta.json`), working entirely on
@@ -64,8 +66,8 @@ Per instruction, **not hand-edited** — `lanes.json` is left as the tool wrote 
 field is consumed by anything this mission's own WPs read (the WP files' own
 `planning_base_branch`/`merge_target_branch` frontmatter correctly reference
 `fix/accept-path-remediation-honesty-3730`, not the phantom `kitty/mission-*` branch), so
-this did not block the phase, but it is a live, reproducible confirmation of SK-91 for the
-ledger.
+this did not block the phase, but it is a live, reproducible confirmation of the
+`lanes.json` branch/surface-prediction defect described above.
 
 Also observed: the JSON output's top-level `commit_hash`/`commit_hashes` report only the
 **last** of the commits `finalize-tasks` actually created on this run — `git log` shows
@@ -76,22 +78,26 @@ final "Add tasks for feature..." commit carrying `tasks.md`/`wps.yaml`/the WP fi
 (all seven commits are real, non-empty, and land on the correct branch), but worth noting
 for anyone reading the command's JSON output expecting a 1:1 commit-count correspondence.
 
-## 2026-08-25 — `record-analysis` (analyze phase) — no SK-06/32/43 reproduction
+## 2026-08-25 — `record-analysis` (analyze phase) — no verdict/tracking/path-leak reproduction
 
 `spec-kitty agent mission record-analysis --mission accept-path-remediation-honesty-01M0TWZP
 --input-file <temp>.md --agent claude-sonnet --json` (CLI 3.2.6rc3) persisted
 `analysis-report.md` correctly on first attempt: `verdict: ready` was written verbatim
-(matching the computed carrier — 0 high/critical findings, 3 low + 1 medium), so **SK-06**
-(silent `verdict: unknown` for a legacy/malformed carrier) did not reproduce here — the
+(matching the computed carrier — 0 high/critical findings, 3 low + 1 medium), so the
+separately suspected silent-`verdict: unknown`-for-a-legacy/malformed-carrier defect did
+not reproduce here — the
 `analysis-findings/v1` frontmatter carrier from the author was well-formed. `analysis-report.md`
 landed tracked and committed in the same run (`41cf739c9`, `docs(record-analysis): record
-analysis report for mission accept-path-remediation-honesty-01M0TWZP`) — **SK-43** (report
-left untracked/uncommitted) did not reproduce either. `grep -n "/home/" analysis-report.md`
-returned no matches — **SK-32** (host-absolute path injected into the committed artifact) did
+analysis report for mission accept-path-remediation-honesty-01M0TWZP`) — the separately
+suspected report-left-untracked-or-uncommitted defect did not reproduce either.
+`grep -n "/home/" analysis-report.md`
+returned no matches — the separately suspected host-absolute-path-injected-into-the-committed-artifact
+defect did
 not reproduce; the committed `input_artifacts` hashes use repo-relative paths only (consistent
 with `_relativize_or_raise`/FR-007 in `src/specify_cli/analysis_report.py`, which appears to
 be a landed fix for exactly this class). No hang after `"success": true` was observed
-(**SK-63** did not reproduce) and no `_charter_path` mismatch (**SK-20**) surfaced — the
+(the separately suspected hang-after-success defect did not reproduce) and no
+`_charter_path` mismatch surfaced — the
 charter hash resolved against `.kittify/charter/charter.yaml` without error. The
 project-sync-store lock warnings noted at scaffold time (2026-08-24 entry above) recurred
 here on event emission but were non-blocking, consistent with the "live, noisy,
@@ -99,7 +105,7 @@ non-blocking" characterization already on file.
 
 Separately: the subagent that ran this command stranded itself waiting on a notification for
 its own background CLI invocation after the command had already completed and committed
-(the SK-agent-harness pattern of a subagent blocking on its own background work rather than
+(the spec-kitty agent-harness pattern of a subagent blocking on its own background work rather than
 the harness's completion signal) — a dispatch-hygiene observation for the orchestrator, not
 a spec-kitty CLI defect.
 
@@ -109,14 +115,15 @@ a spec-kitty CLI defect.
 accept-path-remediation-honesty-01M0TWZP --input-file <temp-report> --agent
 claude-sonnet --json`, run from repo root on this checkout (CLI 3.2.6rc3).
 
-**Symptom-by-symptom check** (per this phase's own instruction to name which of
-SK-06/43/47/32/63/20 fired):
+**Symptom-by-symptom check** (per this phase's own instruction to check for a fixed
+set of previously-tracked defects — verdict-writing, tracking, path-leak, and hang
+behaviour among them):
 
-- **SK-06 (verdict silently written as `unknown`)**: did **not** fire. The persisted
+- **Verdict silently written as `unknown`**: did **not** fire. The persisted
   `analysis-report.md`'s `verdict:` field reads literally `ready`, computed correctly
   from the submitted carrier (0 critical/high, 1 medium, 3 low findings) — confirmed
   by reading the committed file directly, not just the command's own JSON summary.
-- **SK-43 (report left untracked/uncommitted)**: did **not** fire for the report
+- **Report left untracked/uncommitted**: did **not** fire for the report
   itself — `analysis-report.md` is tracked and committed
   (`41cf739c9 docs(record-analysis): record analysis report for mission
   accept-path-remediation-honesty-01M0TWZP`), `git diff --stat` on the file is empty.
@@ -127,25 +134,26 @@ SK-06/43/47/32/63/20 fired):
   not committed — `record-analysis`'s own auto-commit covered only
   `analysis-report.md`, not the dossier snapshot its own run also touched. This is
   the same class of imprecise side-effect commit bookkeeping already noted for
-  `finalize-tasks` (SK-91 entry above, same file, 2026-08-25) — a different command,
+  `finalize-tasks` (see the entry above, same file, 2026-08-25) — a different command,
   same pattern: the tool mutates more on disk than what its own commit captures.
   Not hand-fixed per instruction (non-remediating step; do not commit files not
   explicitly authorized) — left for whoever next touches `record-analysis`'s
   dossier-refresh side effect.
-- **SK-47**: no symptom observed matching this ledger ID in this run (not enough
+- **A further previously-tracked defect, not otherwise characterized in this
+  record**: no symptom observed matching it in this run (not enough
   independent context to confirm absence beyond "nothing matching fired here").
-- **SK-32 (host-absolute path injected into the committed artifact)**: did **not**
+- **Host-absolute path injected into the committed artifact**: did **not**
   fire — `grep -n "/home/" analysis-report.md` returns no match (exit code 1).
-- **SK-63 (hangs after printing `"success": true`, never returns/commits)**: did
+- **Hangs after printing `"success": true`, never returns or commits**: did
   **not** fire in the strict sense — the command exceeded the foreground 120s
   timeout and had to be moved to a background task, but it then completed normally
   on its own (exit code 0) with `"success": true"` as the LAST line printed before
   natural process exit, and the commit (`41cf739c9`) is real. This is **slowness**,
-  not the SK-63 hang-after-success pattern — worth distinguishing explicitly since
+  not the hang-after-success pattern — worth distinguishing explicitly since
   they'd otherwise look identical from partial output. The delay coincided with the
-  same sync-store lock contention below, so likely the same root cause as SK-63's
+  same sync-store lock contention below, so likely the same root cause as that
   reported symptom, just not severe enough to fully hang this run.
-- **SK-20**: no symptom observed matching this ledger ID in this run.
+- **`_charter_path` mismatch**: no symptom observed matching this defect in this run.
 
 **Sync-store lock warnings** (noisy, non-blocking — same class already recorded for
 `mission create` and `finalize-tasks` above): every run of this command printed
@@ -158,4 +166,4 @@ duration. Did not block the command's actual success or the report's correctness
 recorded here for the same reason as the prior two entries (durability/event-routing
 chain around agent commands is suspect and should be checked by whoever next
 touches that plumbing) and as the likely explanation for this run's slowness noted
-under SK-63 above.
+under the hang-after-success entry above.
