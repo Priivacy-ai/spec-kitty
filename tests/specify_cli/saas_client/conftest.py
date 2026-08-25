@@ -32,7 +32,6 @@ import pytest
 
 from specify_cli.saas_client import client as _client_mod
 from specify_cli.sync.consent import record_project_opt_in
-from specify_cli.sync.project_store import ProjectSyncStore
 
 #: Matches the shape ``identity/project.py`` mints, so the consent resolver's
 #: level-1 read finds a complete, understandable record rather than a fault.
@@ -72,21 +71,12 @@ def _default_saas_client_project(request: pytest.FixtureRequest, monkeypatch: py
     real_init = _client_mod.SaasClient.__init__
 
     def _seed_authority(base_url: str) -> None:
+        # Issue #3 removed the hosted transport's project→host admission
+        # binding, so only the consent decision is seeded here; no client in
+        # this package reads ``project_target_admissions`` any more.
+        del base_url
         project_uuid = "2b7f6a10-3c4d-4e5f-8a9b-2b7f6a103c4d"
         record_project_opt_in(project_uuid, actor="legacy-saas-client-fixture")
-        with ProjectSyncStore(project_uuid).unit_of_work() as unit:
-            unit.execute(
-                "INSERT INTO project_target_admissions "
-                "(project_uuid, target_identity, account_identity, private_teamspace_id, "
-                "configuration_generation, admission_state, admission_generation, binding_audience) "
-                "VALUES (?, ?, 'legacy-account', 'legacy-private-teamspace', 1, "
-                "'admitted', 'legacy-admission', 'legacy-binding') "
-                "ON CONFLICT(project_uuid) DO UPDATE SET target_identity = excluded.target_identity, "
-                "account_identity = excluded.account_identity, private_teamspace_id = excluded.private_teamspace_id, "
-                "configuration_generation = excluded.configuration_generation, admission_state = excluded.admission_state, "
-                "admission_generation = excluded.admission_generation, binding_audience = excluded.binding_audience",
-                (project_uuid, base_url.rstrip("/")),
-            )
 
     def _init_with_default_project(self, *args: Any, **kwargs: Any) -> None:
         # Injected only when the caller omitted the kwarg entirely, so a test

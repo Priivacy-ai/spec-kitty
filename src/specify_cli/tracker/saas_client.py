@@ -15,13 +15,12 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
-import hashlib
 import json as json_module
 import secrets
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
-from kernel.clock import UTC, datetime, now_utc, timedelta
+from kernel.clock import datetime, now_utc, timedelta
 from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlsplit, urlunsplit
@@ -34,26 +33,8 @@ from specify_cli.auth.errors import (
     NotAuthenticatedError,
 )
 from specify_cli.auth.session import require_private_team_id
-from specify_cli.sync.config import SyncConfig
 from specify_cli.core.contract_gate import validate_outbound_payload
-from specify_cli.identity.project import resolve_identity
-from specify_cli.sync.project_store import ProjectStoreError, ProjectSyncStore
-from specify_cli.sync.transport_attempts import (
-    DeliveryAttemptState,
-    DeliveryOutcome,
-    LogicalOperationDecision,
-    LogicalOperationDisposition,
-    LogicalOperationRepeatability,
-    LogicalOperationRequest,
-    allocate_logical_delivery_operation,
-    attach_remote_operation_id,
-    execute_remote_operation_query_under_lease,
-    mark_delivery_result_unknown,
-    mark_transport_started,
-    record_logical_operation_result,
-    restart_delivery_attempt,
-)
-from specify_cli.sync.transport_lease import TransportLeaseContext, acquire_project_transport_lease
+from specify_cli.sync.config import SyncConfig
 from specify_cli.tracker.egress_verdict import (
     EgressDestination,
     TrackerEgressVerdict,
@@ -62,6 +43,13 @@ from specify_cli.tracker.egress_verdict import (
 
 _SESSION_EXPIRED_MESSAGE = "Session expired. Run `spec-kitty auth login` to re-authenticate."
 _UNAUTHENTICATED_CATEGORY = "unauthenticated"
+
+#: Poll vocabulary for async operations, local to this module: the durable
+#: attempt ledger these states once fed belonged to the deleted sync transport.
+_OUTCOME_DELIVERED = "delivered"
+_OUTCOME_REFUSED = "refused"
+_OUTCOME_PENDING = "pending"
+_OUTCOME_UNKNOWN = "unknown"
 
 
 def _normalize_origin(url: str) -> str:
@@ -499,7 +487,7 @@ class SaaSTrackerClient:
         )
         if request_timeout <= 0:
             raise SaaSTrackerClientError(
-                "Hosted tracker operation exceeded its persisted deadline before I/O.",
+                "Hosted tracker operation exceeded its transport deadline before I/O.",
                 error_code="deadline_exceeded",
                 details={"effect_certainty": "no_effect"},
                 user_action_required=True,
@@ -546,7 +534,7 @@ class SaaSTrackerClient:
             )
             if remaining_after_refresh <= 0:
                 raise SaaSTrackerClientError(
-                    "Authentication retry exceeded the persisted operation deadline.",
+                    "Authentication retry exceeded the transport operation deadline.",
                     error_code="deadline_exceeded",
                     status_code=401,
                     details={"effect_certainty": "no_effect"},
@@ -583,7 +571,7 @@ class SaaSTrackerClient:
                 monotonic_deadline,
             ):
                 raise SaaSTrackerClientError(
-                    "Rate-limit retry would exceed the persisted operation deadline.",
+                    "Rate-limit retry would exceed the transport operation deadline.",
                     error_code="deadline_exceeded",
                     status_code=429,
                     details={"effect_certainty": "no_effect"},
@@ -597,7 +585,7 @@ class SaaSTrackerClient:
             )
             if remaining_after_sleep <= 0:
                 raise SaaSTrackerClientError(
-                    "Rate-limit backoff exhausted the persisted operation deadline.",
+                    "Rate-limit backoff exhausted the transport operation deadline.",
                     error_code="deadline_exceeded",
                     status_code=429,
                     details={"effect_certainty": "no_effect"},
@@ -654,244 +642,68 @@ class SaaSTrackerClient:
         params: dict[str, Any] | None = None,
         poll_async: bool = True,
     ) -> httpx.Response:
-        """Run one logical tracker operation across all physical retries."""
-        store, authority = self._project_transport_store()
+        """Run one logical tracker operation across all physical retries.
+
+        Consent gate → token → hosted authority, then the physical request with
+        its 401-refresh and 429-backoff retries. A write answered ``202`` polls
+        its operations endpoint to a terminal outcome before returning.
+
+        Nothing is persisted between calls. The idempotency key below is reused
+        across every physical retry of *this* invocation so the server can
+        dedupe a resend after an ambiguous failure, but an attempt lost to a
+        process death stays lost — a moment, not a record.
+        """
+        verdict = self._current_tracker_egress_verdict()
+        if verdict.refused:
+            raise TrackerEgressRefusedError(verdict.message)
+        access_token = _fetch_access_token_sync()
+        if access_token is None:
+            raise _unauthenticated_error("No valid access token. Run `spec-kitty auth login` to authenticate.")
+        authority = _hosted_authority_for_token(access_token)
+        if authority is None:
+            raise _unauthenticated_error(
+                "Token-matched account, Private Teamspace, and exactly one Collaborative Teamspace are required. Run `spec-kitty auth login` to authenticate."
+            )
+        caller_key = (headers or {}).get("Idempotency-Key")
+        if caller_key is not None and not caller_key.strip():
+            raise SaaSTrackerClientError("Idempotency-Key must be non-empty", error_code="invalid_operation_request")
         is_write = path in {
             self._BIND_ORIGIN_PATH,
             self._BIND_CONFIRM_PATH,
             self._PUSH_PATH,
             self._RUN_PATH,
         }
-        disclosed_request = httpx.Request(
-            method,
-            f"{self._base_url}{path}",
-            json=json,
-            params=params,
-        )
-        disclosed = b"\n".join((method.encode("ascii"), str(disclosed_request.url).encode("utf-8"), disclosed_request.content))
-        caller_key = (headers or {}).get("Idempotency-Key")
-        if caller_key is not None and not caller_key.strip():
-            raise SaaSTrackerClientError("Idempotency-Key must be non-empty", error_code="invalid_operation_request")
-        payload_hash = hashlib.sha256(disclosed).hexdigest()  # noqa: TID251
-        semantic_parts = [method, path, str(disclosed_request.url)]
+        # Minted keys keep the wire shape the durable allocator used
+        # (``logical-operation:write:`` + 64 hex) so the server sees one format.
+        native_identity = caller_key.strip() if caller_key is not None else f"logical-operation:write:{secrets.token_hex(32)}"
+        physical_headers = dict(headers or {})
         if is_write:
-            semantic_parts.append(f"caller-key:{caller_key}" if caller_key else f"payload:{payload_hash}")
-        request = LogicalOperationRequest(
-            write_kind=self._tracker_write_kind(path),
-            semantic_key="\x1f".join(semantic_parts),
-            # Exact native HTTP request checksum, not charter/doctrine content.
-            payload_hash=payload_hash,
-            payload_reference=json_module.dumps(
-                {
-                    "method": method,
-                    "url": str(disclosed_request.url),
-                    "body": disclosed_request.content.decode("utf-8"),
-                },
-                ensure_ascii=False,
-                separators=(",", ":"),
-                sort_keys=True,
-            ),
-            repeatability=(LogicalOperationRepeatability.IDEMPOTENT_WRITE if is_write else LogicalOperationRepeatability.REPEATABLE_READ),
-            reconciliation_policy=("native_identity_retry_then_query" if is_write else "native_identity_retry"),
-            deadline_at=(now_utc() + timedelta(seconds=min(max(self._timeout * 4, 30.0), 300.0))).isoformat(),
-            recover_with_persisted_deadline=True,
-            requested_native_identity=caller_key,
-            collaborative_teamspace_id=authority.collaborative_team_slug,
+            physical_headers.setdefault("Idempotency-Key", native_identity)
+        deadline = now_utc() + timedelta(seconds=min(max(self._timeout * 4, 30.0), 300.0))
+        monotonic_deadline = self._monotonic() + max(0.0, self._remaining_seconds(deadline))
+        response = self._physical_request_with_retry(
+            method,
+            path,
+            json=json,
+            headers=physical_headers or None,
+            params=params,
+            authority=authority,
+            deadline=deadline,
+            monotonic_deadline=monotonic_deadline,
         )
-        try:
-            decision = allocate_logical_delivery_operation(store, request)
-            if decision.disposition is LogicalOperationDisposition.TERMINAL_PRIOR:
-                return self._terminal_prior_response(decision, method=method, path=path)
-            self._require_resend_or_query(decision)
-            deadline = self._decision_deadline(decision.deadline_at)
-            monotonic_deadline = self._monotonic() + max(
-                0.0,
-                self._remaining_seconds(deadline),
-            )
-            with acquire_project_transport_lease(
-                store,
-                lock_timeout_seconds=min(5.0, max(0.0, self._remaining_seconds(deadline))),
-            ) as lease:
-                if decision.may_query and decision.remote_operation_id:
-                    return self._poll_operation_under_lease(
-                        lease,
-                        decision,
-                        authority,
-                        method=method,
-                        path=path,
-                        monotonic_deadline=monotonic_deadline,
-                    )
-                with lease.unit_of_work() as (unit, context):
-                    if decision.state is DeliveryAttemptState.RETRYABLE_NO_EFFECT:
-                        restart_delivery_attempt(unit, context, decision.attempt_id)
-                    else:
-                        mark_transport_started(unit, context, decision.attempt_id)
-
-                physical_headers = dict(headers or {})
-                if is_write:
-                    physical_headers.setdefault(
-                        "Idempotency-Key",
-                        decision.native_identity or decision.attempt_id,
-                    )
-                try:
-                    response = self._physical_request_with_retry(
-                        method,
-                        path,
-                        json=json,
-                        headers=physical_headers or None,
-                        params=params,
-                        authority=authority,
-                        deadline=deadline,
-                        monotonic_deadline=monotonic_deadline,
-                    )
-                except SaaSTrackerClientError as exc:
-                    self._park_tracker_failure_under_lease(
-                        lease,
-                        decision.attempt_id,
-                        exc,
-                        native_identity=decision.native_identity or decision.attempt_id,
-                    )
-                    raise
-
-                if response.status_code == 202 and is_write:
-                    try:
-                        operation_id = self._required_operation_id(response)
-                    except SaaSTrackerClientError:
-                        with lease.unit_of_work() as (unit, context):
-                            mark_delivery_result_unknown(
-                                unit,
-                                context,
-                                attempt_id=decision.attempt_id,
-                                reason="async response omitted durable remote correlation",
-                            )
-                        raise
-                    with lease.unit_of_work() as (unit, context):
-                        attach_remote_operation_id(
-                            unit,
-                            context,
-                            attempt_id=decision.attempt_id,
-                            remote_operation_id=operation_id,
-                        )
-                        record_logical_operation_result(
-                            unit,
-                            context,
-                            result_id=f"{decision.attempt_id}:result",
-                            attempt_id=decision.attempt_id,
-                            outcome=DeliveryOutcome.PENDING,
-                        )
-                    if not poll_async:
-                        return response
-                    return self._poll_operation_under_lease(
-                        lease,
-                        decision,
-                        authority,
-                        method=method,
-                        path=path,
-                        remote_operation_id=operation_id,
-                        monotonic_deadline=monotonic_deadline,
-                    )
-
-                response_reference = self._response_reference(response)
-                outcome = (
-                    DeliveryOutcome.DUPLICATE
-                    if is_write
-                    and self._is_exact_idempotency_replay(
-                        response,
-                        native_identity=decision.native_identity or decision.attempt_id,
-                    )
-                    else DeliveryOutcome.DELIVERED
-                )
-                with lease.unit_of_work() as (unit, context):
-                    record_logical_operation_result(
-                        unit,
-                        context,
-                        result_id=f"{decision.attempt_id}:result",
-                        attempt_id=decision.attempt_id,
-                        outcome=outcome,
-                        response_reference=response_reference,
-                    )
+        if response.status_code == 202 and is_write:
+            operation_id = self._required_operation_id(response)
+            if not poll_async:
                 return response
-        except SaaSTrackerClientError:
-            raise
-        except ProjectStoreError as exc:
-            raise SaaSTrackerClientError(
-                f"Hosted tracker operation requires recovery: {exc}",
-                error_code="recovery_required",
-                details={"category": "recovery_required"},
-                user_action_required=True,
-            ) from exc
-        except ValueError as exc:
-            raise SaaSTrackerClientError(
-                f"Hosted tracker operation request is invalid: {exc}",
-                error_code="invalid_operation_request",
-            ) from exc
-
-    @staticmethod
-    def _require_resend_or_query(decision: LogicalOperationDecision) -> None:
-        if decision.may_resend or (decision.may_query and decision.remote_operation_id):
-            return
-        raise SaaSTrackerClientError(
-            f"Hosted tracker operation requires recovery: {decision.diagnostic}",
-            error_code="recovery_required",
-            details={"attempt_id": decision.attempt_id, "state": str(decision.state)},
-            user_action_required=True,
-        )
-
-    def _project_transport_store(self) -> tuple[ProjectSyncStore, _HostedTrackerAuthority]:
-        verdict = self._current_tracker_egress_verdict()
-        if verdict.refused:
-            raise TrackerEgressRefusedError(verdict.message)
-        if self._project_root is None:
-            raise TrackerEgressRefusedError("no owning project was supplied")
-        identity = resolve_identity(self._project_root)
-        if identity.project_uuid is None:
-            raise TrackerEgressRefusedError("owning project has no canonical UUID")
-        store = ProjectSyncStore(str(identity.project_uuid))
-        try:
-            context = store.create_context()
-        except ProjectStoreError as exc:
-            raise SaaSTrackerClientError(
-                f"Project transport store is unavailable: {exc}",
-                error_code="project_not_admitted",
-                details={"category": "project_not_admitted"},
-                user_action_required=True,
-            ) from exc
-        target = context.target_audience
-        access_token = _fetch_access_token_sync()
-        if access_token is None:
-            raise _unauthenticated_error("No valid access token. Run `spec-kitty auth login` to authenticate.")
-        authenticated_authority = _hosted_authority_for_token(access_token)
-        if authenticated_authority is None:
-            raise _unauthenticated_error(
-                "Token-matched account, Private Teamspace, and exactly one Collaborative Teamspace are required. Run `spec-kitty auth login` to authenticate."
+            return self._poll_operation(
+                authority,
+                operation_id=operation_id,
+                method=method,
+                path=path,
+                deadline=deadline,
+                monotonic_deadline=monotonic_deadline,
             )
-        account_identity = authenticated_authority.account_identity
-        private_teamspace_id = authenticated_authority.private_teamspace_id
-        if (
-            context.consent_generation is None
-            or context.epoch_id is None
-            or target is None
-            or context.admission_generation is None
-            or context.binding_audience is None
-        ):
-            raise SaaSTrackerClientError(
-                "Exact hosted target authority is unavailable for this project.",
-                error_code="project_not_admitted",
-                details={"category": "project_not_admitted"},
-                user_action_required=True,
-            )
-        try:
-            admitted_origin = _normalize_origin(target.target_identity)
-        except ValueError:
-            admitted_origin = ""
-        if admitted_origin != self._base_url or account_identity != target.account_identity or private_teamspace_id != target.private_teamspace_id:
-            raise SaaSTrackerClientError(
-                "Current hosted target does not match the admitted project target.",
-                error_code="target_authority_mismatch",
-                details={"category": "target_authority_mismatch"},
-                user_action_required=True,
-            )
-        return store, authenticated_authority
+        return response
 
     def _current_tracker_egress_verdict(self) -> TrackerEgressVerdict:
         """Evaluate Channel 2 without duplicating the policy call-site seam."""
@@ -901,23 +713,6 @@ class SaaSTrackerClient:
             destination=EgressDestination.HOSTED_SERVICE,
             identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
         )
-
-    def _tracker_write_kind(self, path: str) -> str:
-        names = {
-            self._STATUS_PATH: "tracker_hosted_status",
-            self._MAPPINGS_PATH: "tracker_hosted_mappings",
-            self._PULL_PATH: "tracker_hosted_pull",
-            self._PUSH_PATH: "tracker_hosted_push",
-            self._RUN_PATH: "tracker_hosted_run",
-            self._SEARCH_ISSUES_PATH: "tracker_hosted_search",
-            self._LIST_TICKETS_PATH: "tracker_hosted_list",
-            self._BIND_ORIGIN_PATH: "tracker_hosted_bind_origin",
-            self._RESOURCES_PATH: "tracker_hosted_resources",
-            self._BIND_RESOLVE_PATH: "tracker_hosted_bind_resolve",
-            self._BIND_CONFIRM_PATH: "tracker_hosted_bind_confirm",
-            self._BIND_VALIDATE_PATH: "tracker_hosted_bind_validate",
-        }
-        return names.get(path, "tracker_hosted_operation_query")
 
     @staticmethod
     def _required_operation_id(response: httpx.Response) -> str:
@@ -937,126 +732,6 @@ class SaaSTrackerClient:
         return operation_id
 
     @staticmethod
-    def _terminal_prior_response(
-        decision: LogicalOperationDecision,
-        *,
-        method: str,
-        path: str,
-    ) -> httpx.Response:
-        if decision.outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE}:
-            if decision.terminal_response_reference is None:
-                raise SaaSTrackerClientError(
-                    "Hosted tracker terminal response requires operator recovery.",
-                    error_code="recovery_required",
-                    user_action_required=True,
-                )
-            return httpx.Response(
-                200,
-                content=decision.terminal_response_reference.encode("utf-8"),
-                headers={"Content-Type": "application/json"},
-                request=httpx.Request(method, path),
-            )
-        category = decision.terminal_refusal_category
-        if category == "project_not_admitted" and decision.terminal_refusal_reference:
-            raise SaaSTrackerClient._error_from_refusal_reference(decision.terminal_refusal_reference)
-        raise SaaSTrackerClientError(
-            f"Hosted tracker operation is terminal: {decision.diagnostic}",
-            error_code=category or "terminal_operation",
-            details={"error_category": category, "attempt_id": decision.attempt_id},
-            user_action_required=True,
-        )
-
-    @staticmethod
-    def _response_reference(response: httpx.Response) -> str:
-        return json_module.dumps(
-            response.json(),
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        )
-
-    @staticmethod
-    def _is_exact_idempotency_replay(
-        response: httpx.Response,
-        *,
-        native_identity: str,
-    ) -> bool:
-        """Require replay evidence correlated to the exact native request."""
-        headers = getattr(response, "headers", None)
-        if not isinstance(headers, (httpx.Headers, dict)):
-            return False
-        replayed = headers.get("Idempotency-Replayed")
-        if not isinstance(replayed, str) or replayed.strip().lower() != "true":
-            return False
-        try:
-            request = response.request
-        except (AttributeError, RuntimeError):
-            return False
-        request_headers = getattr(request, "headers", None)
-        return isinstance(request_headers, (httpx.Headers, dict)) and request_headers.get("Idempotency-Key") == native_identity
-
-    @staticmethod
-    def _refusal_reference(error: SaaSTrackerClientError) -> str:
-        allowed = {
-            "effect_certainty",
-            "error_category",
-            "error_code",
-            "idempotency_key",
-            "message",
-            "operation_id",
-            "retryable",
-            "retry_after_seconds",
-            "source",
-            "status",
-            "user_action_required",
-        }
-        details = {key: value for key, value in error.details.items() if key in allowed}
-        return json_module.dumps(
-            {
-                "message": str(error),
-                "error_code": error.error_code,
-                "status_code": error.status_code,
-                "details": details,
-                "user_action_required": error.user_action_required,
-            },
-            ensure_ascii=False,
-            separators=(",", ":"),
-            sort_keys=True,
-        )
-
-    @staticmethod
-    def _error_from_refusal_reference(reference: str) -> SaaSTrackerClientError:
-        try:
-            value = json_module.loads(reference)
-            if not isinstance(value, dict) or not isinstance(value.get("message"), str):
-                raise TypeError
-            details = value.get("details")
-            if not isinstance(details, dict):
-                raise TypeError
-            return SaaSTrackerClientError(
-                value["message"],
-                error_code=value.get("error_code"),
-                status_code=value.get("status_code"),
-                details=details,
-                user_action_required=bool(value.get("user_action_required")),
-            )
-        except (KeyError, TypeError, json_module.JSONDecodeError) as exc:
-            raise SaaSTrackerClientError(
-                "Hosted tracker refusal history is corrupt.",
-                error_code="recovery_required",
-                user_action_required=True,
-            ) from exc
-
-    @staticmethod
-    def _decision_deadline(value: str | None) -> datetime:
-        if value is None:
-            raise ValueError("durable operation has no deadline")
-        parsed = datetime.fromisoformat(value)
-        if parsed.tzinfo is None:
-            raise ValueError("durable operation deadline must include a timezone")
-        return parsed.astimezone(UTC)
-
-    @staticmethod
     def _remaining_seconds(deadline: datetime) -> float:
         return (deadline - now_utc()).total_seconds()
 
@@ -1065,113 +740,47 @@ class SaaSTrackerClient:
         deadline: datetime,
         monotonic_deadline: float,
     ) -> float:
-        """Return the tighter persisted-wall and injected-monotonic budget."""
+        """Return the tighter wall-clock and injected-monotonic budget."""
         return min(
             self._remaining_seconds(deadline),
             monotonic_deadline - self._monotonic(),
         )
 
-    def _park_tracker_failure_under_lease(
-        self,
-        lease: TransportLeaseContext,
-        attempt_id: str,
-        error: SaaSTrackerClientError,
-        *,
-        native_identity: str,
-    ) -> None:
-        category = error.details.get("error_category")
-        correlated = error.details.get("idempotency_key") == native_identity
-        exact_refusal = category == "project_not_admitted" and correlated and error.details.get("status") == "rejected" and error.details.get("retryable") is False
-        known_no_effect = error.details.get("effect_certainty") == "no_effect"
-        if error.status_code in {401, 429}:
-            known_no_effect = True
-        if error.status_code is not None and error.status_code >= 500:
-            known_no_effect = known_no_effect and correlated
-        with lease.unit_of_work() as (unit, context):
-            if exact_refusal:
-                record_logical_operation_result(
-                    unit,
-                    context,
-                    result_id=f"{attempt_id}:result",
-                    attempt_id=attempt_id,
-                    outcome=DeliveryOutcome.REFUSED,
-                    terminal_refusal_category="project_not_admitted",
-                    refusal_reference=self._refusal_reference(error),
-                )
-            elif known_no_effect:
-                record_logical_operation_result(
-                    unit,
-                    context,
-                    result_id=f"{attempt_id}:result",
-                    attempt_id=attempt_id,
-                    outcome=DeliveryOutcome.RETRYABLE_NO_EFFECT,
-                )
-            else:
-                mark_delivery_result_unknown(
-                    unit,
-                    context,
-                    attempt_id=attempt_id,
-                    reason="tracker request ended without a classifiable response",
-                )
-
     # ----- polling -----
 
-    def _poll_operation_under_lease(
+    def _poll_operation(
         self,
-        lease: TransportLeaseContext,
-        decision: LogicalOperationDecision,
         authority: _HostedTrackerAuthority,
         *,
+        operation_id: str,
         method: str,
         path: str,
-        remote_operation_id: str | None = None,
+        deadline: datetime,
         monotonic_deadline: float,
     ) -> httpx.Response:
-        """Poll one durable async operation under the original transport lease."""
-        operation_id = remote_operation_id or decision.remote_operation_id
-        if operation_id is None:
-            raise SaaSTrackerClientError(
-                "Async tracker recovery has no durable operation correlation.",
-                error_code="recovery_required",
-                user_action_required=True,
-            )
-        deadline = self._decision_deadline(decision.deadline_at)
+        """Poll one async operation to a terminal outcome.
+
+        The timing contract is unchanged from the leased poller it replaces:
+        base delay 1.0 s doubling per still-running poll, capped at 30 s, each
+        interval scaled by jitter in ``[0.8, 1.2)``, refusing rather than
+        sleeping past the remaining budget.
+        """
         delay = 1.0
         while True:
-
-            def _query(remote_id: str) -> httpx.Response:
-                return self._physical_request_with_retry(
-                    "GET",
-                    self._OPERATIONS_PATH.format(operation_id=remote_id),
-                    authority=authority,
-                    deadline=deadline,
-                    monotonic_deadline=monotonic_deadline,
-                    allow_error_response=True,
-                )
-
-            value = execute_remote_operation_query_under_lease(
-                lease,
-                attempt_id=decision.attempt_id,
-                result_id=f"{decision.attempt_id}:result",
-                query=_query,
-                classify=lambda response: self._classify_operation_query_response(
-                    response,
-                    expected_operation_id=operation_id,
-                ),
-                response_reference=self._operation_terminal_response_reference,
-                refusal_reference=lambda response: self._operation_refusal_reference(
-                    response,
-                    expected_operation_id=operation_id,
-                ),
+            value = self._physical_request_with_retry(
+                "GET",
+                self._OPERATIONS_PATH.format(operation_id=operation_id),
+                authority=authority,
+                deadline=deadline,
+                monotonic_deadline=monotonic_deadline,
+                allow_error_response=True,
             )
-            if not isinstance(value, httpx.Response):
-                raise SaaSTrackerClientError("Tracker operation query returned an invalid response")
             outcome, category = self._classify_operation_query_response(
                 value,
                 expected_operation_id=operation_id,
             )
-            if outcome is DeliveryOutcome.DELIVERED:
-                reference = self._operation_terminal_response_reference(value)
+            if outcome == _OUTCOME_DELIVERED:
+                reference = self._terminal_operation_result_reference(value)
                 assert reference is not None
                 return httpx.Response(
                     200,
@@ -1179,7 +788,7 @@ class SaaSTrackerClient:
                     headers={"Content-Type": "application/json"},
                     request=httpx.Request(method, f"{self._base_url}{path}"),
                 )
-            if outcome is DeliveryOutcome.REFUSED:
+            if outcome == _OUTCOME_REFUSED:
                 message, details = self._operation_failure_details(value)
                 raise SaaSTrackerClientError(
                     message,
@@ -1187,7 +796,7 @@ class SaaSTrackerClient:
                     details={**details, "error_category": category, "operation_id": operation_id},
                     user_action_required=True,
                 )
-            if outcome is DeliveryOutcome.UNKNOWN:
+            if outcome == _OUTCOME_UNKNOWN:
                 raise SaaSTrackerClientError(
                     "Hosted tracker query outcome is unknown and requires operator recovery.",
                     error_code="recovery_required",
@@ -1202,7 +811,7 @@ class SaaSTrackerClient:
             sleep_for = min(delay, 30.0) * jitter_factor
             if sleep_for >= remaining:
                 raise SaaSTrackerClientError(
-                    "Tracker operation polling exceeded its persisted deadline.",
+                    "Tracker operation polling exceeded its transport deadline.",
                     error_code="recovery_required",
                     details={"operation_id": operation_id},
                     user_action_required=True,
@@ -1215,20 +824,21 @@ class SaaSTrackerClient:
         response: object,
         *,
         expected_operation_id: str | None = None,
-    ) -> tuple[DeliveryOutcome, str | None]:
+    ) -> tuple[str, str | None]:
+        """Classify one operations-endpoint answer into the poll vocabulary."""
         if not isinstance(response, httpx.Response):
             raise SaaSTrackerClientError("Tracker operation query returned an invalid response")
         try:
             body = response.json()
         except Exception:
-            return DeliveryOutcome.UNKNOWN, None
+            return _OUTCOME_UNKNOWN, None
         if not isinstance(body, dict):
-            return DeliveryOutcome.UNKNOWN, None
+            return _OUTCOME_UNKNOWN, None
         if expected_operation_id is not None and body.get("operation_id") is not None and body.get("operation_id") != expected_operation_id:
-            return DeliveryOutcome.UNKNOWN, None
+            return _OUTCOME_UNKNOWN, None
         status = body.get("status")
         if status == "completed":
-            return DeliveryOutcome.DELIVERED, None
+            return _OUTCOME_DELIVERED, None
         if status == "failed":
             error = body.get("error")
             category = error.get("error_category") if isinstance(error, dict) else None
@@ -1238,10 +848,10 @@ class SaaSTrackerClient:
                 and isinstance(error, dict)
                 and error.get("retryable") is False
             ):
-                return DeliveryOutcome.REFUSED, "project_not_admitted"
-            return DeliveryOutcome.REFUSED, "remote_operation_failed"
+                return _OUTCOME_REFUSED, "project_not_admitted"
+            return _OUTCOME_REFUSED, "remote_operation_failed"
         if status in {"pending", "running"}:
-            return DeliveryOutcome.PENDING, None
+            return _OUTCOME_PENDING, None
         if (
             response.status_code == 400
             and body.get("error_category") == "project_not_admitted"
@@ -1249,11 +859,12 @@ class SaaSTrackerClient:
             and body.get("retryable") is False
             and body.get("operation_id") == expected_operation_id
         ):
-            return DeliveryOutcome.REFUSED, "project_not_admitted"
-        return DeliveryOutcome.UNKNOWN, None
+            return _OUTCOME_REFUSED, "project_not_admitted"
+        return _OUTCOME_UNKNOWN, None
 
     @staticmethod
-    def _operation_terminal_response_reference(response: object) -> str | None:
+    def _terminal_operation_result_reference(response: object) -> str | None:
+        """Serialized result payload of a completed operation, or ``None``."""
         if not isinstance(response, httpx.Response):
             return None
         try:
@@ -1269,34 +880,6 @@ class SaaSTrackerClient:
             separators=(",", ":"),
             sort_keys=True,
         )
-
-    @classmethod
-    def _operation_refusal_reference(
-        cls,
-        response: object,
-        *,
-        expected_operation_id: str | None = None,
-    ) -> str | None:
-        if not isinstance(response, httpx.Response):
-            return None
-        outcome, category = cls._classify_operation_query_response(
-            response,
-            expected_operation_id=expected_operation_id,
-        )
-        if outcome is not DeliveryOutcome.REFUSED or category != "project_not_admitted":
-            return None
-        message, details = cls._operation_failure_details(response)
-        error = SaaSTrackerClientError(
-            message,
-            error_code="project_not_admitted",
-            details={
-                **details,
-                "error_category": category,
-                "operation_id": expected_operation_id,
-            },
-            user_action_required=True,
-        )
-        return cls._refusal_reference(error)
 
     @staticmethod
     def _operation_failure_details(response: httpx.Response) -> tuple[str, dict[str, Any]]:

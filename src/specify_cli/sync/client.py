@@ -489,7 +489,7 @@ class WebSocketClient:
             stable_transport_id,
         )
         from specify_cli.delivery.targets import compute_target_id  # noqa: PLC0415
-        from specify_cli.saas_client.admission import (  # noqa: PLC0415
+        from specify_cli.sync.admission_contract import (  # noqa: PLC0415
             ProjectWriteAdmissionProof,
             attach_admission_proof,
         )
@@ -599,7 +599,7 @@ class WebSocketClient:
         *,
         event_id: str,
     ) -> tuple[str, str | None]:
-        from specify_cli.saas_client.admission import parse_project_not_admitted  # noqa: PLC0415
+        from specify_cli.sync.admission_contract import parse_project_not_admitted  # noqa: PLC0415
         from specify_cli.sync.transport_attempts import DeliveryOutcome  # noqa: PLC0415
 
         if not isinstance(value, Mapping) or str(value.get("event_id") or "") != event_id:
@@ -620,7 +620,7 @@ class WebSocketClient:
         *,
         expected: Mapping[str, Any],
     ) -> tuple[str, str | None]:
-        from specify_cli.saas_client.admission import parse_project_not_admitted  # noqa: PLC0415
+        from specify_cli.sync.admission_contract import parse_project_not_admitted  # noqa: PLC0415
         from specify_cli.sync.local_commit import validate_rfc3339_datetime  # noqa: PLC0415
         from specify_cli.sync.transport_attempts import DeliveryOutcome  # noqa: PLC0415
 

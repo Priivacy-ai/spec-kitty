@@ -800,8 +800,16 @@ def test_every_inert_sub_form_ships_a_positive_control(tmp_path: Path, limb_id: 
 
     **Any control returning `set()` fails the module** — an over-narrow matcher greens forever
     and still greens the day someone writes the shape for real.
+
+    ``limb_id`` is folded into the root, not just ``tmp_path``: every parametrization of
+    this test shares one 30-char-truncated node-name prefix (`_pytest.tmpdir._mk_tmp`'s
+    ``MAXVAL``), so under ``tmp_path_retention_policy = failed`` pytest's numbered-dir
+    allocator can hand two different ``limb_id``s the *same* physical directory once an
+    earlier one is rmtree'd at its own teardown. `_home_pin_scan.py::_corpus` caches by
+    root path alone, so a bare ``tmp_path`` here would let one limb's parse poison the
+    next's cache entry.
     """
-    root = tmp_path / "control_root"
+    root = tmp_path / "control_root" / limb_id
     control = _materialise(root, "test_control_module.py", _CONTROLS[limb_id])
     expected = {(control.relative_to(root).as_posix(), _lineno_of(control, SHAPE_MARKER))}
     hits = scan.inert_hits(limb_id, root)

@@ -2393,14 +2393,12 @@ __all__ = [
     "DeliveryOutcome",
     "DeliveryTerminalResultProjection",
     "DeliveryTerminalResultStatus",
-    "LogicalOperationDecision",
-    "LogicalOperationDisposition",
-    "LogicalOperationRepeatability",
-    "LogicalOperationRequest",
+    # LogicalOperation* and the allocate/attach/query/record helpers stay
+    # module internals since #3 cut saas_client and tracker/saas_client — the
+    # last src importers outside this package — free of the sync transport.
+    # Their remaining callers are this module's own tests; epic E4 issue #5
+    # deletes them with the rest of sync/.
     "RecoveryAction",
-    "allocate_logical_delivery_operation",
-    "attach_remote_operation_id",
-    "execute_remote_operation_query_under_lease",
     "mark_transport_started",
     "mark_delivery_result_unknown",
     "get_delivery_attempt_record",
@@ -2409,7 +2407,6 @@ __all__ = [
     "plan_delivery_attempt_recovery",
     "prepare_delivery_attempt",
     "record_delivery_result",
-    "record_logical_operation_result",
     "restart_delivery_attempt",
     "settle_attempts_for_opt_out",
     "settle_attempts_for_opt_out_under_lease",

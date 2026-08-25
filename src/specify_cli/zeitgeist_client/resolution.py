@@ -1,0 +1,445 @@
+"""Credential resolution for a checkout: cached relay credential, or mint
+one from Team Kitty, or a remembered no (E3 — EXPERIMENTAL-spec-kitty#9).
+
+The seam contract this serves (design page ``ephemeral-team-status.html``,
+CLI column): every status transition resolves credentials for its own
+(checkout, repo) once — from the existing ``credentials.py`` TOML store,
+keyed by the canonical repo ``repo_identity.identity()`` mints — and only
+when the store cannot answer does it talk to Team Kitty, once per token
+lifetime:
+
+1. A stored, unexpired credential answers immediately. No network.
+2. A stored, unexpired *negative* answer ("no team admits this repo")
+   answers "do nothing". No network — the MVP's "a repo no team admitted
+   produces nothing anywhere" must not cost a round trip per transition.
+3. Otherwise (miss, expired stamp, or the caller forcing after a relay
+   ``403``): ``GET /api/v1/sync/repo-admission/`` pre-flight first — M2-09's
+   separate admission lookup kept as-is; collapsing it into the mint is
+   DEFERRED.md §4 — then ``POST /api/v1/live/capability/cli/``, whose
+   ``relay_url``/``relay_token``/``capability_credential``/``expires_at``
+   answer is stored here.
+4. Not admitted (or the mint answering ``403`` — membership revoked between
+   the two calls means the same thing locally) ⇒ a short-TTL negative answer
+   is stored and nothing else happens.
+
+Every way this module can fail is environmental — no git identity, a local
+or unparseable remote, nothing configured to authenticate with, Team Kitty
+unreachable, admission denied — and every one of them resolves to
+``None`` plus a debug log, never an exception into the caller's seam: the
+caller is fire-and-forget status fan-out, and "the moment is simply lost —
+by design" includes the moments lost to an unresolvable credential. The
+one deliberate asymmetry: failures of the *network kind* (timeout, 5xx,
+unreadable body) are never cached, so a Team Kitty blip does not pin a
+false "no team" onto a repo for the negative TTL; only a genuine
+"not admitted"/"denied" answer earns a negative entry.
+
+The gateway (:class:`SaasCapabilityGateway`) is the only network code here,
+kept apart from :mod:`specify_cli.saas_client.client` on purpose: that
+client routes every call through the hosted-sync durable-operation
+machinery (consent gate, target authority, transport leases) that E4 is
+deleting, and presence broadcast must neither queue nor require hosted-sync
+consent — team admission is the gate. Its two requests mirror the two
+endpoints' real contracts (see the SaaS repo's ``cli_read_views.py`` and
+``apps/live_capability/views.mint_cli_credential``).
+
+Like the rest of this subpackage, expiry stamps are stored verbatim and
+*interpreted* here: an expired positive credential falls through to the
+mint path, an expired negative one asks Team Kitty again. An entry with no
+stamp never expires — every entry written before stamps existed keeps
+working exactly as before.
+"""
+
+from __future__ import annotations
+
+import logging
+import re
+from dataclasses import dataclass
+from pathlib import Path
+from urllib.parse import urlparse
+
+import httpx
+
+from kernel.clock import now_utc, parse_iso, timedelta
+
+from specify_cli.saas_client.auth import AuthContext, load_auth_context
+from specify_cli.saas_client.errors import SaasAuthError
+
+from . import credentials, repo_identity
+from .credentials import StoredCredential
+
+logger = logging.getLogger(__name__)
+
+#: What a CLI capability is minted *for*. ``event.publish`` is granted to
+#: the presence credential kind (design page, Zeitgeist column), so
+#: presence is the kind resolution defaults to; focus rides the same store.
+KIND_PRESENCE = "presence"
+
+#: One attempt per endpoint, bounded well under the seam's own 750 ms offer
+#: budget so a slow Team Kitty eats the budget instead of blowing it.
+DEFAULT_TIMEOUT_S = 2.0
+
+#: How long a stored "no team admits this repo" stands before the next
+#: transition asks again. Short: admission is something a team admin fixes
+#: in minutes, and the whole point of remembering the no is sparing the
+#: network per-transition, not forever.
+NEGATIVE_TTL_S = 300
+
+_TEAM_SLUG_HEADER = "X-Team-Slug"
+
+# Remote-URL grammar for the ``owner/repo`` slug + host Team Kitty admits
+# by — the same hosted forms ``sync.git_metadata`` parses (SSH, HTTPS,
+# ``ssh://``, SCP-like ``user@host:path``), rejected identically for
+# local-file remotes. Local here because importing that module would drag
+# in the whole doomed ``sync`` package; the rules are pinned by tests.
+_SCP_LIKE_REMOTE_RE = re.compile(r"^(?:[^@/]+@)?(?P<host>[^:/]+):(?P<path>.+)$")
+
+
+@dataclass(frozen=True)
+class AdmissionAnswer:
+    """The pre-flight answer, reduced to what resolution decides on."""
+
+    admitted: bool
+    team_slug: str | None = None
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
+class MintedCredential:
+    """What ``POST /api/v1/live/capability/cli/`` hands back."""
+
+    relay_url: str
+    relay_token: str
+    capability_credential: str | None
+    expires_at: str
+
+
+class GatewayError(Exception):
+    """Team Kitty could not be asked, or answered unusably: transport
+    fault, timeout, non-2xx, malformed body. Transient by definition —
+    the resolver never caches these."""
+
+
+class CapabilityDenied(GatewayError):
+    """Team Kitty refused to mint (HTTP 401/403). Carries the status so
+    the resolver can tell a genuine denial (403 — cache the no) from an
+    unusable session (401 — cache nothing)."""
+
+    def __init__(self, message: str, *, status_code: int) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class SaasCapabilityGateway:
+    """The two Team Kitty calls credential resolution needs, and nothing
+    else. Bearer-authenticated like every other CLI→SaaS call; an optional
+    team slug rides ``X-Team-Slug`` as a *selector* among the caller's own
+    memberships — it can never grant one the session lacks, but a wrong
+    selection deterministically refuses a membership the caller does have,
+    which is why :meth:`mint_capability` accepts a per-call override."""
+
+    def __init__(
+        self,
+        base_url: str,
+        token: str,
+        *,
+        team_slug: str | None = None,
+        timeout_s: float = DEFAULT_TIMEOUT_S,
+        _http: httpx.Client | None = None,
+    ) -> None:
+        self._base_url = base_url.rstrip("/")
+        self._team_slug = team_slug
+        self._timeout_s = timeout_s
+        self._http = _http or httpx.Client(
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=timeout_s,
+        )
+
+    def _headers(self, team_slug_override: str | None = None) -> dict[str, str]:
+        slug = team_slug_override or self._team_slug
+        if slug:
+            return {_TEAM_SLUG_HEADER: slug}
+        return {}
+
+    def check_repo_admission(self, *, repo_slug: str, host: str | None = None) -> AdmissionAnswer:
+        """``GET /api/v1/sync/repo-admission/?repo_slug=<>&host=<>``."""
+        params: dict[str, str] = {"repo_slug": repo_slug}
+        if host is not None:
+            params["host"] = host
+        try:
+            resp = self._http.get(
+                f"{self._base_url}/api/v1/sync/repo-admission/",
+                params=params,
+                headers=self._headers(),
+            )
+        except httpx.HTTPError as exc:
+            raise GatewayError(f"admission pre-flight failed: {exc}") from exc
+        if not resp.is_success:
+            # Includes 401/403: from here an unusable session is
+            # indistinguishable from a network fault — ask again next time,
+            # cache nothing.
+            raise GatewayError(f"admission pre-flight returned HTTP {resp.status_code}")
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            raise GatewayError(f"admission pre-flight returned an unreadable body: {exc}") from exc
+        if not isinstance(data, dict):
+            raise GatewayError("admission pre-flight returned a non-object body")
+        team = data.get("team")
+        return AdmissionAnswer(
+            admitted=bool(data.get("admitted", False)),
+            team_slug=team.get("slug") if isinstance(team, dict) else None,
+            reason=str(data["reason"]) if data.get("reason") is not None else None,
+        )
+
+    def mint_capability(
+        self,
+        *,
+        repo_slug: str,
+        kind: str = KIND_PRESENCE,
+        team_slug: str | None = None,
+    ) -> MintedCredential:
+        """``POST /api/v1/live/capability/cli/`` — the member-facing mint
+        (FIX-M2-15): relay URL, shared bearer, per-actor capability JWT and
+        the credential's own expiry, together.
+
+        ``team_slug`` overrides the gateway's static selector for this one
+        call. Resolution always passes the team slug its admission pre-flight
+        just answered with: Team Kitty honors ``X-Team-Slug`` as a hard
+        selector and then re-checks admission *team-scoped*, so a member of
+        teams A+B whose auth context selects A would deterministically 403 a
+        mint for a repo only B admits — asking the team the pre-flight proved
+        admits the repo is what makes the two calls agree."""
+        try:
+            resp = self._http.post(
+                f"{self._base_url}/api/v1/live/capability/cli/",
+                json={"repo_slug": repo_slug, "kind": kind},
+                headers=self._headers(team_slug),
+            )
+        except httpx.HTTPError as exc:
+            raise GatewayError(f"capability mint failed: {exc}") from exc
+        if resp.status_code in (401, 403):
+            raise CapabilityDenied(
+                f"capability mint denied with HTTP {resp.status_code}",
+                status_code=resp.status_code,
+            )
+        if not resp.is_success:
+            raise GatewayError(f"capability mint returned HTTP {resp.status_code}")
+        try:
+            data = resp.json()
+        except ValueError as exc:
+            raise GatewayError(f"capability mint returned an unreadable body: {exc}") from exc
+        if not isinstance(data, dict):
+            raise GatewayError("capability mint returned a non-object body")
+        relay_url = data.get("relay_url")
+        relay_token = data.get("relay_token")
+        expires_at = data.get("expires_at")
+        if not relay_url or not relay_token or not expires_at:
+            raise GatewayError("capability mint response is missing relay_url/relay_token/expires_at")
+        capability_credential = data.get("capability_credential")
+        return MintedCredential(
+            relay_url=str(relay_url),
+            relay_token=str(relay_token),
+            # Omitted (not empty) means single-credential checkout -- the
+            # same reading credentials.load applies on disk.
+            capability_credential=str(capability_credential) if capability_credential else None,
+            expires_at=str(expires_at),
+        )
+
+
+def repo_slug_and_host(origin_url: str) -> tuple[str | None, str | None]:
+    """The ``(owner/repo, host)`` pair Team Kitty admits and mints by, from
+    a checkout's origin URL — ``(None, None)`` for anything that is not a
+    hosted remote (local paths, file:// remotes, unparseable shapes): there
+    is nothing to ask Team Kitty about those, and guessing a slug from a
+    directory name would be exactly the spoofable identity
+    ``repo_identity`` refuses to mint."""
+    cleaned = origin_url.strip()
+    if not cleaned or cleaned.startswith(("/", "./", "../")):
+        return None, None
+    parsed = urlparse(cleaned)
+    host: str | None
+    path: str | None
+    if parsed.scheme == "file":
+        return None, None
+    if parsed.scheme and parsed.netloc:
+        host = parsed.hostname
+        path = parsed.path
+    else:
+        match = _SCP_LIKE_REMOTE_RE.match(cleaned)
+        if not match:
+            return None, None
+        host = match.group("host") or None
+        path = match.group("path")
+
+    normalized = (path or "").strip().lstrip("/").rstrip("/")
+    # Case-insensitive on the suffix (a remote spelled ``.GIT`` is exotic
+    # but unambiguous), unlike sync.git_metadata's case-sensitive strip --
+    # every realistic input parses identically either way.
+    if normalized.lower().endswith(".git"):
+        normalized = normalized[:-4]
+    # Full path, subgroup segments included -- a GitLab ``org/team/repo``
+    # remote admits as ``org/team/repo``, not its last two segments.
+    segments = [segment for segment in normalized.split("/") if segment]
+    if host is None or len(segments) < 2:
+        return None, None
+    slug = "/".join(segments)
+    return slug.lower(), host.lower()
+
+
+def _expired(expires_at: str | None) -> bool:
+    """Whether a verbatim ISO stamp has passed. Unstamped (every entry
+    written before stamps existed) and unparseable entries never expire —
+    a corrupt stamp must not lock a working credential out of its store.
+
+    A stamp without an offset is unparseable *at comparison time*, not at
+    ``fromisoformat`` time: parsing succeeds, but comparing the resulting
+    naive datetime against the aware clock raises ``TypeError`` — so
+    ``TypeError`` is caught here alongside ``ValueError``, or a naive mint
+    stamp would escape this module straight into the fire-and-forget seam.
+    """
+    if not expires_at:
+        return False
+    try:
+        return now_utc() >= parse_iso(expires_at)
+    except (ValueError, TypeError):
+        return False
+
+
+def _default_gateway(auth_repo_root: Path) -> SaasCapabilityGateway:
+    """Build the real gateway from the same auth sources every other
+    CLI→SaaS transport uses (env vars, then ``<root>/.kittify/saas-auth.json``).
+    Raises :class:`SaasAuthError` when nothing is configured — logged by
+    the caller."""
+    ctx: AuthContext = load_auth_context(repo_root=auth_repo_root)
+    return SaasCapabilityGateway(
+        ctx.saas_url,
+        ctx.token,
+        team_slug=ctx.team_slug,
+    )
+
+
+def _resolve(
+    *,
+    key: str,
+    repo_slug: str,
+    host: str | None,
+    gateway: SaasCapabilityGateway,
+    kind: str,
+    force: bool,
+) -> StoredCredential | None:
+    """Resolution over an already-derived identity — the git-independent
+    core, so every branch above is testable without a checkout."""
+    if not force:
+        stored = credentials.load(repo=key)
+        if stored is not None and not _expired(stored.expires_at):
+            return stored
+        negative = credentials.load_negative(repo=key)
+        if negative is not None and not _expired(negative.expires_at):
+            return None
+
+    try:
+        answer = gateway.check_repo_admission(repo_slug=repo_slug, host=host)
+    except GatewayError as exc:
+        logger.debug("zeitgeist credentials: admission pre-flight unavailable (%s)", exc)
+        return None
+    if not answer.admitted:
+        credentials.store_negative(
+            repo=key,
+            reason=answer.reason or "",
+            expires_at=(now_utc() + timedelta(seconds=NEGATIVE_TTL_S)).isoformat(),
+        )
+        return None
+
+    try:
+        # Ask the team the pre-flight just proved admits this repo — not
+        # whatever static auth context happens to select. A member of several
+        # teams whose local context names the wrong one (or none, leaving the
+        # server to fall back to a default) would otherwise 403 a mint for a
+        # repo that *is* admitted to them, and the cached negative would hide
+        # their presence for as long as the mismatch held.
+        minted = gateway.mint_capability(
+            repo_slug=repo_slug,
+            kind=kind,
+            team_slug=answer.team_slug,
+        )
+    except CapabilityDenied as exc:
+        # 403 is Team Kitty saying no (membership/admission changed under
+        # us between pre-flight and mint) — remember it briefly. 401 is an
+        # unusable session, not an answer about the repo — cache nothing.
+        if exc.status_code == 403:
+            credentials.store_negative(
+                repo=key,
+                reason="capability_denied",
+                expires_at=(now_utc() + timedelta(seconds=NEGATIVE_TTL_S)).isoformat(),
+            )
+        else:
+            logger.debug("zeitgeist credentials: mint unusable (HTTP %s)", exc.status_code)
+        return None
+    except GatewayError as exc:
+        logger.debug("zeitgeist credentials: mint unavailable (%s)", exc)
+        return None
+
+    credentials.store(
+        repo=key,
+        relay_url=minted.relay_url,
+        token=minted.relay_token,
+        token_kind=kind,
+        capability_credential=minted.capability_credential,
+        expires_at=minted.expires_at,
+    )
+    return credentials.load(repo=key)
+
+
+def resolve_credentials(
+    cwd: str | Path,
+    *,
+    kind: str = KIND_PRESENCE,
+    force: bool = False,
+    gateway: SaasCapabilityGateway | None = None,
+    auth_repo_root: str | Path | None = None,
+) -> StoredCredential | None:
+    """Credentials binding this checkout to its team's relay, or ``None``
+    when this checkout must stay silent (no resolvable identity, no hosted
+    remote, nothing configured, not admitted, Team Kitty unreachable).
+
+    Args:
+        cwd: The checkout (any directory inside it) to resolve for.
+        kind: Capability kind to mint — :data:`KIND_PRESENCE` unless a
+            caller specifically needs another grant.
+        force: Skip the cache entirely and mint afresh. The relay-``403``
+            recovery path: a caller whose stored credential just got
+            rejected re-resolves with ``force=True`` rather than waiting
+            out a stamp that is plainly wrong.
+        gateway: Override the real Team Kitty transport (tests, alternate
+            deployments). Built from the standard auth context when omitted.
+        auth_repo_root: Where the fallback ``.kittify/saas-auth.json`` is
+            read from when env vars are unset — the checkout root the
+            caller already knows. Defaults to ``cwd``.
+    """
+    cwd_str = str(cwd)
+    try:
+        # The canonical NAME is the store key; the verbatim origin URL is
+        # where Team Kitty's owner/repo slug and host come from. Both read
+        # the same sources, so they share one Git budget rather than paying
+        # identity()'s branch/commit probes this seam never uses.
+        deadline = repo_identity.Deadline()
+        key = repo_identity.repo_name(cwd_str, deadline)
+        origin = repo_identity.origin_url(cwd_str, deadline)
+    except repo_identity.RepoIdentityError as exc:
+        logger.debug("zeitgeist credentials: no canonical identity for %s (%s)", cwd_str, exc)
+        return None
+
+    slug, host = repo_slug_and_host(origin)
+    if slug is None:
+        logger.debug("zeitgeist credentials: %s has no hosted remote to ask about", cwd_str)
+        return None
+
+    resolved_gateway = gateway
+    if resolved_gateway is None:
+        try:
+            resolved_gateway = _default_gateway(Path(auth_repo_root) if auth_repo_root is not None else Path(cwd))
+        except SaasAuthError as exc:
+            logger.debug("zeitgeist credentials: nothing configured to authenticate with (%s)", exc)
+            return None
+
+    return _resolve(key=key, repo_slug=slug, host=host, gateway=resolved_gateway, kind=kind, force=force)
