@@ -1,5 +1,4 @@
 import socket
-from types import SimpleNamespace
 
 from specify_cli.dashboard import server
 
@@ -62,24 +61,26 @@ def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):
     assert served.get("called")
 
 
-def test_run_dashboard_server_bootstraps_global_sync_daemon(monkeypatch, tmp_path):
+def test_run_dashboard_server_never_touches_the_sync_daemon(monkeypatch, tmp_path):
+    """The dashboard serves local state only — it must not start or probe any daemon.
+
+    Guards the E4 re-homing (planning epic #4): run_dashboard_server used to
+    call ensure_sync_daemon_running(LOCAL_ONLY) on boot.
+    """
     calls = {}
 
-    def fake_ensure_sync_daemon_running(*, intent):
-        calls["daemon"] = True
-        calls["intent"] = intent
-        return SimpleNamespace(skipped_reason="intent_local_only")
+    def boom(*args, **kwargs):
+        raise AssertionError("dashboard boot must not touch the sync daemon")
 
     def fake_serve_loopback_server(port, handler_class, **_kwargs):
         calls["served_port"] = port
         calls["handler_class"] = handler_class
 
     monkeypatch.setattr(server, "serve_loopback_server", fake_serve_loopback_server)
-    monkeypatch.setattr("specify_cli.sync.daemon.ensure_sync_daemon_running", fake_ensure_sync_daemon_running)
+    monkeypatch.setattr("specify_cli.sync.daemon.ensure_sync_daemon_running", boom)
+    monkeypatch.setattr("specify_cli.sync.daemon.get_sync_daemon_status", boom)
 
     server.run_dashboard_server(tmp_path, 12347, None)
 
-    assert calls["daemon"] is True
-    assert calls["intent"].value == "local_only"
     assert calls["served_port"] == 12347
     assert calls["handler_class"] is not None

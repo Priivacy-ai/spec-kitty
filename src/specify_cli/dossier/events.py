@@ -40,14 +40,25 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 
 from kernel.clock import now_utc_iso
-from specify_cli.dossier.emitter_adapter import fire_dossier_event
-
-# Sync-owned types are deliberately not imported (even under TYPE_CHECKING):
-# the dossier->sync edge is inverted through emitter_adapter
-# (tests/architectural/test_dossier_sync_boundary.py), so the explicit-context
-# parameters are typed structurally.
 
 logger = logging.getLogger(__name__)
+
+
+def _undelivered(event_type: str) -> dict[str, Any] | None:
+    """Drop an otherwise-valid dossier event envelope: no transport remains.
+
+    The CLI→SaaS sync transport was deleted (Ephemeral Team Status redesign);
+    nothing consumes ``MissionDossier*`` events any more, so delivery is a
+    logged debug no-op. Payload construction above still runs the canonical
+    validators. Every emitter absorbs the retired same-UoW delivery-authority
+    keywords (``project_context``, ``project_unit``, ``project_layout``)
+    without acting on them — via ``**_delivery_authority`` on the snapshot/
+    drift emitters, via :func:`_absorb_delivery_authority_kwargs` on the two
+    artifact emitters — so callers (``sync/dossier_pipeline.py`` until its own
+    deletion) keep working.
+    """
+    logger.debug("Dossier event %s validated but not delivered: no transport", event_type)
+    return None
 
 
 # ── Canonical sub-objects (mirror `spec_kitty_events` schemas) ─────────
@@ -285,6 +296,24 @@ def _missing_namespace_log(event_type: str) -> None:
     )
 
 
+# Legacy same-UoW delivery-authority keyword arguments. The transport that
+# consumed them was deleted with the CLI→SaaS sync (Ephemeral Team Status);
+# callers — ``sync/dossier_pipeline.py`` until its own deletion — still pass
+# them on every emission, so each emitter absorbs them instead of rejecting.
+_DELIVERY_AUTHORITY_KWARGS = ("project_context", "project_unit", "project_layout")
+
+
+def _absorb_delivery_authority_kwargs(kwargs: dict[str, Any]) -> None:
+    """Pop the retired delivery-authority keywords out of ``kwargs`` in place.
+
+    Only the two artifact emitters need this: their ``**kwargs`` feed
+    :func:`_consume_legacy_values`, which rejects unknown names. The snapshot
+    and drift emitters instead absorb everything via ``**_delivery_authority``.
+    """
+    for name in _DELIVERY_AUTHORITY_KWARGS:
+        kwargs.pop(name, None)
+
+
 def _consume_legacy_values(
     args: tuple[object, ...],
     kwargs: dict[str, object],
@@ -350,9 +379,6 @@ def emit_artifact_indexed(
     indexed_at: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
     provenance: dict[str, Any] | None = None,
-    project_context: Any | None = None,
-    project_unit: Any | None = None,
-    project_layout: Any | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactIndexed`` in the namespaced envelope.
@@ -362,9 +388,10 @@ def emit_artifact_indexed(
     the server schema (``additionalProperties: False``) does not accept
     them at the top level.
 
-    Returns the enqueued event dict on success, or ``None`` if validation or
-    routing fails.
+    Returns ``None``: the envelope is validated and then dropped locally
+    (no transport remains — see :func:`_undelivered`).
     """
+    _absorb_delivery_authority_kwargs(kwargs)
     legacy = _consume_legacy_values(
         args,
         kwargs,
@@ -397,7 +424,7 @@ def emit_artifact_indexed(
         # discover them without violating ``additionalProperties: False``.
         diagnostics.setdefault("artifact_key", artifact_key)
         diagnostics.setdefault("required_status", required_status)
-        payload = MissionDossierArtifactIndexedPayload(
+        MissionDossierArtifactIndexedPayload(
             namespace=ns,
             artifact_id=identity,
             content_ref=content_ref,
@@ -410,15 +437,7 @@ def emit_artifact_indexed(
         logger.exception("Payload validation failed for MissionDossierArtifactIndexed: %s", exc)
         return None
 
-    return fire_dossier_event(
-        event_type="MissionDossierArtifactIndexed",
-        aggregate_id=f"{ns.mission_slug}:{relative_path}",
-        aggregate_type="MissionDossier",
-        payload=payload.model_dump(exclude_none=True),
-        project_context=project_context,
-        project_unit=project_unit,
-        project_layout=project_layout,
-    )
+    return _undelivered("MissionDossierArtifactIndexed")
 
 
 def emit_artifact_missing(
@@ -435,15 +454,13 @@ def emit_artifact_missing(
     last_known_content_hash_sha256: str | None = None,
     last_known_size_bytes: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: Any | None = None,
-    project_unit: Any | None = None,
-    project_layout: Any | None = None,
     **kwargs: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierArtifactMissing`` in the namespaced envelope.
 
     The event fires only when ``blocking=True`` (legacy convention).
     """
+    _absorb_delivery_authority_kwargs(kwargs)
     legacy = _consume_legacy_values(
         args,
         kwargs,
@@ -479,7 +496,7 @@ def emit_artifact_missing(
                 content_hash_sha256=last_known_content_hash_sha256,
                 size_bytes=last_known_size_bytes,
             )
-        payload = MissionDossierArtifactMissingPayload(
+        MissionDossierArtifactMissingPayload(
             namespace=ns,
             expected_identity=identity,
             manifest_step=manifest_step or "default",
@@ -492,15 +509,7 @@ def emit_artifact_missing(
         logger.exception("Payload validation failed for MissionDossierArtifactMissing: %s", exc)
         return None
 
-    return fire_dossier_event(
-        event_type="MissionDossierArtifactMissing",
-        aggregate_id=f"{ns.mission_slug}:{expected_path_pattern}",
-        aggregate_type="MissionDossier",
-        payload=payload.model_dump(exclude_none=True),
-        project_context=project_context,
-        project_unit=project_unit,
-        project_layout=project_layout,
-    )
+    return _undelivered("MissionDossierArtifactMissing")
 
 
 def emit_snapshot_computed(
@@ -520,9 +529,7 @@ def emit_snapshot_computed(
     computed_at: str | None = None,
     anomaly_count: int | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: Any | None = None,
-    project_unit: Any | None = None,
-    project_layout: Any | None = None,
+    **_delivery_authority: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierSnapshotComputed`` in the namespaced envelope.
 
@@ -550,7 +557,7 @@ def emit_snapshot_computed(
             optional_present=optional_present,
             context_diagnostics=context_diagnostics,
         )
-        payload = MissionDossierSnapshotComputedPayload(
+        MissionDossierSnapshotComputedPayload(
             namespace=ns,
             snapshot_hash=parity_hash_sha256,
             artifact_count=total_artifacts,
@@ -563,15 +570,7 @@ def emit_snapshot_computed(
         logger.exception("Payload validation failed for MissionDossierSnapshotComputed: %s", exc)
         return None
 
-    return fire_dossier_event(
-        event_type="MissionDossierSnapshotComputed",
-        aggregate_id=f"{ns.mission_slug}:{snapshot_id}",
-        aggregate_type="MissionDossier",
-        payload=payload.model_dump(exclude_none=True),
-        project_context=project_context,
-        project_unit=project_unit,
-        project_layout=project_layout,
-    )
+    return _undelivered("MissionDossierSnapshotComputed")
 
 
 def emit_parity_drift_detected(
@@ -588,9 +587,7 @@ def emit_parity_drift_detected(
     detected_at: str | None = None,
     rebuild_hint: str | None = None,
     context_diagnostics: dict[str, str] | None = None,
-    project_context: Any | None = None,
-    project_unit: Any | None = None,
-    project_layout: Any | None = None,
+    **_delivery_authority: Any,
 ) -> dict[str, Any] | None:
     """Emit ``MissionDossierParityDriftDetected`` in the namespaced envelope.
 
@@ -628,7 +625,7 @@ def emit_parity_drift_detected(
                 )
                 for path in all_missing
             ] or None
-        payload = MissionDossierParityDriftDetectedPayload(
+        MissionDossierParityDriftDetectedPayload(
             namespace=ns,
             expected_hash=baseline_parity_hash,
             actual_hash=local_parity_hash,
@@ -642,12 +639,4 @@ def emit_parity_drift_detected(
         logger.exception("Payload validation failed for MissionDossierParityDriftDetected: %s", exc)
         return None
 
-    return fire_dossier_event(
-        event_type="MissionDossierParityDriftDetected",
-        aggregate_id=f"{ns.mission_slug}:drift",
-        aggregate_type="MissionDossier",
-        payload=payload.model_dump(exclude_none=True),
-        project_context=project_context,
-        project_unit=project_unit,
-        project_layout=project_layout,
-    )
+    return _undelivered("MissionDossierParityDriftDetected")

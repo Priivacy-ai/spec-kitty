@@ -1,9 +1,14 @@
-"""Tests for namespace injection in dossier event emission."""
+"""Tests for namespace gating in dossier event emission.
+
+Delivery was removed with the sync transport, so the observable contract is
+the gate: a valid call validates and drops (returns ``None``), and a missing
+namespace refuses before validation instead of producing an envelope no
+consumer ever asked for.
+"""
 
 from __future__ import annotations
 
 import pytest
-from unittest.mock import MagicMock, patch
 
 from specify_cli.dossier.events import (
     emit_artifact_indexed,
@@ -13,6 +18,7 @@ from specify_cli.dossier.events import (
 )
 
 pytestmark = pytest.mark.fast
+
 
 def _make_namespace_dict() -> dict[str, str]:
     return {
@@ -28,32 +34,21 @@ VALID_HASH = "a" * 64
 
 
 class TestArtifactIndexedNamespace:
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_includes_namespace_when_provided(self, mock_fire: MagicMock) -> None:
-        mock_fire.return_value = {"event_type": "test"}
-
-        ns = _make_namespace_dict()
-        emit_artifact_indexed(
+    def test_accepts_namespace_and_drops(self) -> None:
+        result = emit_artifact_indexed(
             mission_slug="047-feat",
             artifact_key="input.spec",
             artifact_class="input",
             relative_path="spec.md",
             content_hash_sha256=VALID_HASH,
             size_bytes=100,
-            namespace=ns,
+            namespace=_make_namespace_dict(),
         )
+        assert result is None
 
-        call_kwargs = mock_fire.call_args
-        payload = call_kwargs.kwargs["payload"]
-        assert "namespace" in payload
-        assert payload["namespace"] == ns
-        assert len(payload["namespace"]) == 5
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_refuses_to_emit_without_namespace(self, mock_fire: MagicMock) -> None:
-        # spec-kitty-events >= 5.0.0: ``namespace`` is required by the
-        # server schema. The emitter must refuse to fire rather than
-        # produce a payload the SaaS will reject.
+    def test_refuses_to_emit_without_namespace(self) -> None:
+        # spec-kitty-events >= 5.0.0 required ``namespace``; the emitter still
+        # refuses rather than produce an envelope with no namespace.
         result = emit_artifact_indexed(
             mission_slug="047-feat",
             artifact_key="input.spec",
@@ -63,32 +58,22 @@ class TestArtifactIndexedNamespace:
             size_bytes=100,
         )
         assert result is None
-        mock_fire.assert_not_called()
 
 
 class TestArtifactMissingNamespace:
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_includes_namespace_when_provided(self, mock_fire: MagicMock) -> None:
-        mock_fire.return_value = {"event_type": "test"}
-
-        ns = _make_namespace_dict()
-        emit_artifact_missing(
+    def test_accepts_namespace_and_drops(self) -> None:
+        result = emit_artifact_missing(
             mission_slug="047-feat",
             artifact_key="input.spec",
             artifact_class="input",
             expected_path_pattern="spec.md",
             reason_code="not_found",
             blocking=True,
-            namespace=ns,
+            namespace=_make_namespace_dict(),
         )
+        assert result is None
 
-        call_kwargs = mock_fire.call_args
-        payload = call_kwargs.kwargs["payload"]
-        assert "namespace" in payload
-        assert payload["namespace"] == ns
-
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_refuses_to_emit_without_namespace(self, mock_fire: MagicMock) -> None:
+    def test_refuses_to_emit_without_namespace(self) -> None:
         result = emit_artifact_missing(
             mission_slug="047-feat",
             artifact_key="input.spec",
@@ -98,16 +83,11 @@ class TestArtifactMissingNamespace:
             blocking=True,
         )
         assert result is None
-        mock_fire.assert_not_called()
 
 
 class TestSnapshotComputedNamespace:
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_includes_namespace_when_provided(self, mock_fire: MagicMock) -> None:
-        mock_fire.return_value = {"event_type": "test"}
-
-        ns = _make_namespace_dict()
-        emit_snapshot_computed(
+    def test_accepts_namespace_and_drops(self) -> None:
+        result = emit_snapshot_computed(
             mission_slug="047-feat",
             parity_hash_sha256=VALID_HASH,
             total_artifacts=5,
@@ -118,29 +98,17 @@ class TestSnapshotComputedNamespace:
             optional_present=1,
             completeness_status="complete",
             snapshot_id="snap-001",
-            namespace=ns,
+            namespace=_make_namespace_dict(),
         )
-
-        call_kwargs = mock_fire.call_args
-        payload = call_kwargs.kwargs["payload"]
-        assert "namespace" in payload
-        assert payload["namespace"] == ns
+        assert result is None
 
 
 class TestParityDriftNamespace:
-    @patch("specify_cli.dossier.events.fire_dossier_event")
-    def test_includes_namespace_when_provided(self, mock_fire: MagicMock) -> None:
-        mock_fire.return_value = {"event_type": "test"}
-
-        ns = _make_namespace_dict()
-        emit_parity_drift_detected(
+    def test_accepts_namespace_and_drops(self) -> None:
+        result = emit_parity_drift_detected(
             mission_slug="047-feat",
             local_parity_hash=VALID_HASH,
             baseline_parity_hash="b" * 64,
-            namespace=ns,
+            namespace=_make_namespace_dict(),
         )
-
-        call_kwargs = mock_fire.call_args
-        payload = call_kwargs.kwargs["payload"]
-        assert "namespace" in payload
-        assert payload["namespace"] == ns
+        assert result is None

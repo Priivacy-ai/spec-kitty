@@ -69,9 +69,7 @@ class TestTriggerEnabled:
         """The live trigger/adapter/emitter path never reopens its active store."""
         from uuid import UUID
 
-        import specify_cli.sync as sync_package
         import specify_cli.sync.project_store as project_store_module
-        from specify_cli.dossier.emitter_adapter import register_dossier_emitter
         from specify_cli.identity.project import ProjectIdentity
         from specify_cli.sync.body_queue import OfflineBodyUploadQueue
         from specify_cli.sync.emitter import EventEmitter
@@ -113,9 +111,6 @@ class TestTriggerEnabled:
         monkeypatch.setattr(emitter, "_get_team_slug", remote_forbidden)
         monkeypatch.setattr(emitter, "_get_git_metadata", remote_forbidden)
         monkeypatch.setattr(emitter, "_route_event", remote_forbidden)
-        monkeypatch.setattr("specify_cli.sync.events.get_emitter", lambda: emitter)
-        register_dossier_emitter(sync_package._dossier_emit_via_sync)  # type: ignore[attr-defined]
-
         monkeypatch.setattr(
             "specify_cli.sync.feature_flags.is_saas_sync_enabled",
             lambda: saas_enabled,
@@ -207,15 +202,18 @@ class TestTriggerEnabled:
                 tmp_path,
             )
 
+        # Delivery was removed with the sync transport's dossier bridge (#6):
+        # no event is enqueued any more, but the body capture must still run
+        # on exactly one unit of work.
         assert result is not None
-        assert result.events_emitted >= 2
+        assert result.events_emitted == 0
         assert any(outcome.reason == "enqueued" for outcome in result.body_outcomes)
         assert store_opens == [TEST_UUID]
         assert len(sqlite_opens) == 1
         assert begin_statements == ["BEGIN IMMEDIATE"]
-        assert event_connections
+        assert not event_connections
         assert body_connections
-        assert set(event_connections + body_connections) == {event_connections[0]}
+        assert set(body_connections) == {body_connections[0]}
 
         with setup_store.unit_of_work() as unit:
             event_count = unit.execute(
@@ -226,7 +224,7 @@ class TestTriggerEnabled:
                 "SELECT COUNT(*) FROM body_upload_tasks WHERE project_uuid = ?",
                 (TEST_UUID,),
             ).fetchone()
-        assert event_count is not None and int(event_count[0]) >= 2
+        assert event_count is not None and int(event_count[0]) == 0
         assert body_count == (1,)
 
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)

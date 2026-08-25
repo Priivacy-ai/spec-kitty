@@ -287,12 +287,27 @@ test_egress_consent_boundary:
   # userinfo-confused, path-bearing, and portless URLs are rejected before I/O.
   # This is loopback control, not project-data egress, and its exact sink count
   # is independently pinned in test_egress_consent_boundary.py.
-  # 28 -> 29 (EXPERIMENTAL-spec-kitty#9, E3 ephemeral-team-status): added
-  # specify_cli/zeitgeist_client/resolution.py — the capability mint POSTs
-  # {'repo_slug', 'kind'} to Team Kitty to *receive* a relay token; credential
-  # traffic gated by team membership over Bearer auth, not per-project consent.
+  # Both sides of the #14 merge moved this counter off 28, in opposite
+  # directions, and both allowances are kept:
+  # - EXPERIMENTAL-spec-kitty#9 (E3 ephemeral-team-status) ADDED
+  #   specify_cli/zeitgeist_client/resolution.py — the capability mint POSTs
+  #   {'repo_slug', 'kind'} to Team Kitty to *receive* a relay token;
+  #   credential traffic gated by team membership over Bearer auth, not
+  #   per-project consent.
+  # - E4 re-homing (planning epic #4, issue spec-kitty#2) REMOVED
+  #   specify_cli/dashboard/handlers/api.py — its /api/sync/trigger proxy
+  #   route was deleted, so the file holds zero transmit primitives and left
+  #   the allowlist entirely (the loopback health probe it used to borrow
+  #   lives in dashboard/lifecycle.py now). Recorded so the ceiling does not
+  #   silently hold a free file.
+  # Recount at the merge (sk-impl-spec-kitty-9): the merged allowlist measures
+  # 26 entries (resolution.py in, api.py out), not the 28 the arithmetic of
+  # the two recorded bumps suggests — the number had drifted +2 ahead of the
+  # real set before either branch touched it. Corrected to the measured count
+  # per the #3167 rule above: this ratchet is shrink-only (growth fails,
+  # shrinkage merely warns), but the ceiling should not hold free files.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 29
+  egress_allowlist_files: 26
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

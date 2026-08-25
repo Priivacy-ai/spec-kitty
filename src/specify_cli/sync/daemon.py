@@ -321,9 +321,9 @@ def _write_daemon_file(path: Path, url: str, port: int, token: str | None, pid: 
 
 #: Thin re-export alias (C-002 promotion): ``is_process_alive`` now lives in
 #: ``core/process_liveness.py`` so ``core``/``lanes`` can consult it without
-#: depending on this module's socket/HTTPServer machinery. This alias exists
-#: solely because ``dashboard/lifecycle.py`` (out of scope for this change) does
-#: ``from specify_cli.sync.daemon import _is_process_alive`` — do not remove it.
+#: depending on this module's socket/HTTPServer machinery. The dashboard no
+#: longer borrows it (re-homed to core); ``sync/owner.py`` still imports the
+#: alias, so it stays until that caller moves to the canonical import too.
 _is_process_alive = is_process_alive
 
 

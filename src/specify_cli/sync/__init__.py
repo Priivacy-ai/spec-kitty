@@ -23,7 +23,6 @@ deletion).
 """
 
 import os
-from pathlib import Path
 
 from specify_cli.core.env import is_truthy
 
@@ -350,54 +349,11 @@ def register_default_handlers() -> None:
         register_saas_fanout_handler(_saas_fanout_handler)
         register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
 
-    with _contextlib.suppress(ImportError):
-        from specify_cli.invocation.adapters import EgressConsent, register_egress_consent_resolver
-
-        def _egress_consent_resolver(path: Path) -> EgressConsent:
-            """Does the PROJECT that owns *path* consent to hosted sync, and why not? (#3030 FR-025)
-
-            This slot used to answer ``routing.effective_sync_enabled`` — "is sync
-            configured for this checkout" — and returned ``None`` for a path that is
-            not a project root, which the propagator read as permission to send. Two
-            corrections, in the two halves of the answer:
-
-            **Which project is asking** comes from the checkout's resolved identity,
-            via the read-only routing resolver. That is the mission's single
-            derivation of checkout → project, and it already carries the FR-022 /
-            FR-023 hardening: an unreadable or non-mapping ``.kittify/config.yaml``
-            yields ``project_uuid=None`` instead of raising, and an unidentifiable
-            project is never consentable (NFR-001), so it denies here.
-
-            **Whether that project consents** comes from one call to
-            ``consent.resolve_project_consent`` — the same authority used by the drain
-            and emitter, walking the one declared precedence chain. Deliberately NOT
-            ``effective_sync_enabled``: that chain also honours the repo-slug-keyed
-            ``[sync.repo_defaults]`` record, which FR-019 condemns precisely because
-            it is keyed on a mutable git remote and cannot speak for a project. One
-            authority and one split mapping preserve the current main contract.
-
-            Returns an ``EgressConsent`` member, never a bare bool. The registry seam
-            maps a raise to ``UNANSWERABLE``; this resolver classifies ordinary
-            absence, refusal, grant, and non-consentable paths explicitly.
-
-            Imports at call time (not closure) so that test patches on
-            ``specify_cli.sync.routing`` / ``specify_cli.sync.consent`` are respected.
-            """
-            from specify_cli.sync.consent import ConsentLevel, resolve_project_consent
-            from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly
-
-            routing = resolve_checkout_sync_routing_readonly(path)
-            if routing is None or not routing.project_uuid:
-                return EgressConsent.NOT_CONSENTABLE
-            uuid = str(routing.project_uuid)
-            decision = resolve_project_consent(uuid, checkout_roots=[routing.repo_root])
-            if decision.granted:
-                return EgressConsent.GRANTED
-            if decision.level is ConsentLevel.ABSENT:
-                return EgressConsent.NO_RECORD
-            return EgressConsent.RECORDED_REFUSAL
-
-        register_egress_consent_resolver(_egress_consent_resolver)
+    # The egress-consent resolver used to be registered here as a side effect of
+    # importing this package. It now lives in ``specify_cli/egress_consent.py``
+    # and is wired explicitly (``ensure_default_egress_consent_resolver``,
+    # called by ``egress._egress_decision``); see that module for why the
+    # implicit wiring was removed rather than delegated to.
 
     # ------------------------------------------------------------------
     # No SaaS-client factory is registered here, and that is deliberate
@@ -455,52 +411,3 @@ def register_default_handlers() -> None:
 if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
     register_default_handlers()
 
-if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
-    with _contextlib.suppress(ImportError):
-        # Register dossier emitter (WP01 inversion). The wrapper routes
-        # through get_emitter() lazily so the late-binding behavior of the
-        # emitter singleton is preserved across resets.
-        from specify_cli.dossier.emitter_adapter import register_dossier_emitter
-
-        def _dossier_emit_via_sync(
-            *,
-            event_type: str,
-            aggregate_id: str,
-            aggregate_type: str,
-            payload: dict[str, object],
-            project_context: object,
-            project_unit: object,
-            project_layout: object,
-        ) -> dict[str, object]:
-            from specify_cli.sync.layout_generation import LayoutGenerationAuthority
-            from specify_cli.sync.project_context import (
-                ProjectSyncContext,
-                validate_project_sync_context_authority,
-            )
-            from specify_cli.sync.project_store import ProjectUnitOfWork
-            from specify_cli.sync.events import get_emitter
-
-            if not isinstance(project_context, ProjectSyncContext):
-                raise TypeError("dossier emission requires a store-minted ProjectSyncContext")
-            if not isinstance(project_unit, ProjectUnitOfWork):
-                raise TypeError("dossier emission requires the active project unit of work")
-            if not isinstance(project_layout, LayoutGenerationAuthority):
-                raise TypeError("dossier emission requires the project layout authority")
-            validate_project_sync_context_authority(project_context)
-            if project_unit.store_identity is not project_context.store_identity:
-                raise ValueError("dossier project unit does not match the explicit project context")
-            # Forward the sealed authority object to the explicit local-capture
-            # seam. That seam never falls back to cwd/cached identity or direct
-            # remote routing.
-            result = get_emitter()._emit(
-                event_type=event_type,
-                aggregate_id=aggregate_id,
-                aggregate_type=aggregate_type,
-                payload=payload,
-                project_context=project_context,
-                project_unit=project_unit,
-                project_layout=project_layout,
-            )
-            return result if result is not None else {}
-
-        register_dossier_emitter(_dossier_emit_via_sync)

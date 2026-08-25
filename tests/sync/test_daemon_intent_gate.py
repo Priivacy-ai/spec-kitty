@@ -14,7 +14,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.dashboard.handlers.api import APIHandler
 from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome, ensure_sync_daemon_running
 
@@ -173,49 +172,6 @@ class TestDaemonStartOutcome:
 
 
 # ---------------------------------------------------------------------------
-# Dashboard sync-trigger response branches (diff-cover enforced)
-# ---------------------------------------------------------------------------
-
-
-def _api_handler(path: str, *, project_token: str | None = "tok") -> APIHandler:
-    handler = APIHandler.__new__(APIHandler)
-    handler.path = path
-    handler.project_token = project_token
-    handler._send_json = MagicMock()
-    return handler
-
-
-def test_dashboard_sync_trigger_manual_mode_returns_202() -> None:
-    handler = _api_handler("/api/sync/trigger?token=tok")
-
-    with patch(
-        "specify_cli.dashboard.handlers.api.ensure_sync_daemon_running",
-        return_value=DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None),
-    ):
-        handler.handle_sync_trigger()
-
-    handler._send_json.assert_called_once_with(
-        202,
-        {"status": "skipped", "manual_mode": True, "reason": "policy_manual"},
-    )
-
-
-def test_dashboard_sync_trigger_unavailable_reason_returns_503() -> None:
-    handler = _api_handler("/api/sync/trigger?token=tok")
-
-    with patch(
-        "specify_cli.dashboard.handlers.api.ensure_sync_daemon_running",
-        return_value=DaemonStartOutcome(started=False, skipped_reason="start_failed:port busy", pid=None),
-    ):
-        handler.handle_sync_trigger()
-
-    handler._send_json.assert_called_once_with(
-        503,
-        {"error": "sync_daemon_unavailable", "reason": "start_failed:port busy"},
-    )
-
-
-# ---------------------------------------------------------------------------
 # Audit-grep guard: no unauthorized callers of ensure_sync_daemon_running()
 # ---------------------------------------------------------------------------
 
@@ -228,8 +184,9 @@ SRC_ROOT = REPO_ROOT / "src" / "specify_cli"
 # Authoritative allowlist — every file permitted to call ensure_sync_daemon_running().
 # Pre-declares tracker.py for WP05 so WP04 and WP05 can merge in either order.
 ALLOWED_CALL_SITES: set[str] = {
-    "src/specify_cli/dashboard/server.py",
-    "src/specify_cli/dashboard/handlers/api.py",
+    # The dashboard entries were removed (E4 re-homing, planning epic #4):
+    # dashboard/server.py and dashboard/handlers/api.py no longer call the
+    # daemon at all -- /api/sync/trigger and the health sync block are deleted.
     "src/specify_cli/sync/events.py",
     "src/specify_cli/sync/daemon.py",  # the definition itself
     "src/specify_cli/cli/commands/tracker.py",  # added by WP05

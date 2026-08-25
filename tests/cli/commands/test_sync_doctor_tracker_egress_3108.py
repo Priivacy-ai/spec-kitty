@@ -117,13 +117,13 @@ def doctor_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Itera
     test function, each chdir-ing explicitly via :func:`_run_doctor`.
     """
     from specify_cli.auth.manager import reset_token_manager
-    from specify_cli.sync import register_default_handlers
+    from specify_cli.egress_consent import ensure_default_egress_consent_resolver
 
     reset_token_manager()
-    # Adapter tests deliberately clear the process-global registry. Importing
-    # ``specify_cli.sync`` again does not replay its module-level registration,
-    # so establish the production resolver explicitly for every checkout.
-    register_default_handlers()
+    # Adapter tests deliberately clear the process-global registry, and the
+    # consent resolver is no longer wired by importing the sync package, so
+    # establish the production resolver explicitly for every checkout.
+    ensure_default_egress_consent_resolver()
     home = tmp_path / "home"
     home.mkdir(parents=True, exist_ok=True)
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))

@@ -28,19 +28,27 @@ consent chain. It is written down here because nothing else would catch its
 loss.**
 
 C-003: project consent is represented **once**, and this module **must never
-re-derive the checkout to project to consent chain locally**. The single
-derivation lives in ``sync/__init__.py``'s ``_egress_consent_resolver``, which
-reads the checkout's identity through
-``routing.resolve_checkout_sync_routing_readonly`` and then asks
-``sync.consent.resolve_project_consent``, whose ``granted`` verdict wraps the
-same ``consented_project_uuids`` funnel the drain (``delivery/selection.py``),
-the emitter, the daemon and ``local_commit`` all walk, over the one declared
-precedence chain (project-local, machine index, env). Re-deriving it here would
-be a second expression of one invariant, free to drift, which is the defect
-class this mission keeps re-finding.
+re-derive the checkout to project to consent chain locally** — which is why it
+holds no import of ``specify_cli.sync`` at all, not even a lazy one. The single
+derivation lives in :mod:`specify_cli.egress_consent`, which reads the
+checkout's identity through ``routing.resolve_checkout_sync_routing_readonly``
+and then asks ``sync.consent.resolve_project_consent``, whose ``granted``
+verdict wraps the same ``consented_project_uuids`` funnel the drain
+(``delivery/selection.py``), the emitter, the daemon and ``local_commit`` all
+walk, over the one declared precedence chain (project-local, machine index,
+env). Re-deriving it here would be a second expression of one invariant, free
+to drift, which is the defect class this mission keeps re-finding.
 
-The seam is registered by ``sync`` into the CORE registry slot in
-``invocation/adapters.py``, so reaching it costs one import and no new chain.
+The derivation is wired into the CORE registry slot in
+``invocation/adapters.py`` by an explicit call —
+``egress_consent.ensure_default_egress_consent_resolver()``, made by
+:func:`_egress_decision` below — never as a side effect of importing a package.
+The wiring used to ride on ``import specify_cli.sync``, which coupled this
+gate to a package init it does not otherwise need and left minimal-import
+processes answering every question with ``NO_RESOLVER``;
+``specify_cli/egress_consent.py`` records why that wiring was removed rather
+than delegated to. Reaching the answer still costs one registry dispatch and no
+new chain.
 :class:`~specify_cli.invocation.adapters.EgressConsent` already carries the
 fail-closed vocabulary this gate needs: **only** ``GRANTED`` permits egress, and
 both undetermined causes (``NO_RESOLVER``, ``UNANSWERABLE``) refuse while staying
@@ -50,9 +58,8 @@ Note the layering rule did **not** force this route.
 ``tests/architectural/test_integration_boundary.py`` forbids the CORE set
 (``core/``, ``status/``, ``readiness/``, ``invocation/``) from importing the
 INTEGRATION set with an allowlist ratcheted at zero. This module is classified
-INTEGRATION (C-005, asserted by SC-025), so it may reach ``specify_cli.sync``.
-The registry route is chosen on the single-chain ground above, not because a
-gate demanded it.
+INTEGRATION (C-005, asserted by SC-025). The registry route is chosen on the
+single-chain ground above, not because a gate demanded it.
 
 What a refusal is **not** allowed to be
 ---------------------------------------
@@ -193,6 +200,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from specify_cli.egress_consent import ensure_default_egress_consent_resolver
 
 if TYPE_CHECKING:  # pragma: no cover - typing only, never imported at runtime
     from specify_cli.invocation.adapters import EgressConsent
@@ -365,10 +374,10 @@ def _egress_decision(project_root: Path | None, identifiers: str) -> EgressDecis
     and derives every :class:`EgressDecision` field from that one member. This
     function performs **no** local consent/routing resolution and imports
     neither ``specify_cli.sync.consent`` nor ``specify_cli.sync.routing`` — the
-    single derivation and the split-mapping both live once, in the registered
-    resolver (``sync/__init__.py``'s ``_egress_consent_resolver``); see the
-    module docstring's "Why this module asks
-    ``invocation.adapters.resolve_egress_consent``" section (FR-012).
+    single derivation lives once, in :mod:`specify_cli.egress_consent`, whose
+    registrar this function calls explicitly; see the module docstring's "Why
+    this module asks ``invocation.adapters.resolve_egress_consent``" section
+    (FR-012).
 
     *project_root* / *identifiers* have the same contract as
     :func:`project_egress_refusal`, which is a thin wrapper over this function
@@ -382,23 +391,22 @@ def _egress_decision(project_root: Path | None, identifiers: str) -> EgressDecis
             generic=True,
         )
 
-    # Importing ``specify_cli.sync`` is what *registers* the resolver into the CORE
-    # slot (``sync/__init__.py::register_default_handlers``). Without it a process
-    # that never loaded the sync package would get ``NO_RESOLVER`` and refuse every
-    # send — fail-closed, but a false denial for a project that has genuinely opted
-    # in. Deliberately not suppressed into a permit: if sync cannot be imported at
-    # all there is no consent chain to consult, and that is an undetermined answer.
+    # Wiring is explicit, not an import side effect: without it a process that
+    # never wired a resolver would answer every question with ``NO_RESOLVER``
+    # and refuse every send — fail-closed, but a false denial for a project that
+    # has genuinely opted in. The ensure call re-proves that the hosted-sync
+    # consent chain loads on *every* decision (an unimportable chain must never
+    # masquerade as a concrete verdict, #3030 SC-005) while never clobbering a
+    # resolver someone registered deliberately. Deliberately not suppressed into
+    # a permit when wiring fails: if the chain cannot be loaded at all there is
+    # no authority to consult, and that is an undetermined answer.
     #
-    # This import stays **lazy and inside the function** (FR-013). A module-level
-    # form would execute ``specify_cli/sync/__init__.py`` at transport-import time
-    # and defeat the degradation structurally. Note this module is separately
-    # routed into the ``sync`` CI filter group **by WP02, which lands alongside
-    # this one** — that is job selection, not an import edge, and the two must
-    # not be "tidied" to match each other. (Stated as a forward reference rather
-    # than as present fact: nothing gates the claim, so if WP02 were dropped this
-    # comment would silently lie.)
+    # The guarded call stays **inside the function** (FR-013). A module-level
+    # wiring would run the sync package's import at transport-import time and
+    # defeat the degradation structurally: the import failure must surface
+    # *here*, where it renders the operator-facing refusal carrying its text.
     try:
-        import specify_cli.sync  # noqa: F401, PLC0415  (imported for registration)
+        ensure_default_egress_consent_resolver()
     except Exception as exc:  # noqa: BLE001 - degrades to a refusal, never a permit
         return EgressDecision(
             permits=False,

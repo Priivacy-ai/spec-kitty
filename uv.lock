@@ -2427,6 +2427,7 @@ test = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pytest-xdist" },
     { name = "types-jsonschema" },
     { name = "types-psutil" },
     { name = "types-pyyaml" },
@@ -2492,6 +2493,7 @@ provides-extras = ["test", "lint"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "types-jsonschema", specifier = ">=4.0.0" },
     { name = "types-psutil", specifier = ">=5.9.0" },
     { name = "types-pyyaml", specifier = ">=6.0" },

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 import socket
 import subprocess
 import sys
 import textwrap
 import threading
 from pathlib import Path
-from typing import Optional, Tuple
 
 from specify_cli.core.errors import StructuredError
 from specify_cli.core.loopback_http import create_loopback_server, serve_loopback_server
@@ -22,8 +20,6 @@ __all__ = [
     "start_dashboard",
     "run_dashboard_server",
 ]
-
-logger = logging.getLogger(__name__)
 
 
 class PortUnavailableError(StructuredError):
@@ -76,17 +72,11 @@ def _build_handler_class(project_dir: Path, project_token: str | None) -> type[D
 
 
 def run_dashboard_server(project_dir: Path, port: int, project_token: str | None) -> None:
-    """Run the dashboard server forever (used by detached child processes)."""
-    try:
-        from specify_cli.sync.daemon import DaemonIntent, ensure_sync_daemon_running
+    """Run the dashboard server forever (used by detached child processes).
 
-        # Dashboard reads local state from DAEMON_STATE_FILE; it does not need
-        # the sync daemon to boot just because the dashboard process started.
-        outcome = ensure_sync_daemon_running(intent=DaemonIntent.LOCAL_ONLY)
-        logger.debug("Sync daemon startup skipped: %s", outcome.skipped_reason)
-    except Exception as exc:  # pragma: no cover - defensive fallback
-        logger.warning("Global sync daemon check failed: %s", exc)
-
+    The dashboard serves local state only; it starts no daemon of its own and
+    depends on none.
+    """
     handler_class = _build_handler_class(project_dir, project_token)
     serve_loopback_server(port, handler_class)
 

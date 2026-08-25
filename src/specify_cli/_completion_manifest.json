@@ -1397,18 +1397,6 @@
    "hidden": false,
    "deprecated": false
   },
-  "team-projection": {
-   "help": "Read-only team/public mission projections with exact-commit provenance.",
-   "hidden": false,
-   "deprecated": false,
-   "commands": {
-    "publish": {
-     "help": "Build and write every team/public projection artifact for HEAD.\n\nRefuses (non-zero exit) on a dirty working tree — the manifest-mode\nguarantee is all-or-nothing (§3.4, §4 N10): zero files are written on\nrefusal.",
-     "hidden": false,
-     "deprecated": false
-    }
-   }
-  },
   "tracker": {
    "help": "Task tracker commands",
    "hidden": false,

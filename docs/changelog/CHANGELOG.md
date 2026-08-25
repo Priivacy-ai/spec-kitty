@@ -400,6 +400,21 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
   and same-name entries disambiguate on the field rather than on comment
   convention. Test infrastructure only, no `src/` change (no version bump).
 
+### 🗑️ Removed
+
+- **The D1 publish path is deleted: `spec-kitty team-projection publish`, the
+  `.kittify/derived/` team-index / team-snapshot / public-projection /
+  attestation-manifest artifacts, and the `dossier/emitter_adapter.py`
+  sync-emitter bridge (Epic E4, planning issue #6).** Consumers read the
+  tracked repository at an exact pushed commit instead of a published
+  gitignored projection, so nothing publishes one any more. The
+  `team_projection` package survives as its one ported seam,
+  `TEAM_WP_ALLOWED_FIELDS` (Team Kitty applies the same allowlist on read);
+  `dossier/events.py` emitters still validate their envelopes but drop them
+  locally — no transport consumes `MissionDossier*` events since the CLI→SaaS
+  sync transport's deletion began. Full removal of the remaining emission
+  surface lands with the `sync/dossier_pipeline.py` deletion.
+
 ### 🐛 Fixed
 
 - **`ZeitgeistClient.offer()` now posts presence/focus/session control envelopes to a real relay's `/managed/control` endpoint with the headers it actually requires, instead of a route that always rejected them (`FIX-M2-10`).** Every `offer()` call — `presence()`, `focus_start/heartbeat/pause/end()` — was POSTing its `{op, request_id, args}` envelope to `<relay_url>/events`, the baseline Beacon-shaped route (`zeitgeist/server.py`), which has no `op` dispatch of any kind and structurally cannot process it; against a real, correctly-configured relay this was a 422 on every single call, discovered by `DQA-M2-02`'s Docker-local suite. `offer()` now targets `/managed/control` (`zeitgeist/managed.py`'s real presence/focus/session op dispatcher), includes the `schema_version` field `managed_control.schema.json`'s `ControlEnvelope` requires, and sends both gates a real relay enforces on that route: `Authorization: Bearer <token>` (the outer, unconditional `AuthenticationMiddleware` gate every route but `/health` sits behind) and `X-Zeitgeist-Capability: <token>` (`managed.py`'s own capability check, verified against a separate secret). Both headers carry the same single credential `credentials.py`'s `checkout` flow already stores per repo — the same value `subscription.py`/`operability.py`'s already-landed callers already forward as the capability header — rather than introducing a second stored secret. Covered by a new protocol-faithful local double (`tests/zeitgeist_client/conftest.py`'s `ManagedControlDouble`, mirroring `managed_auth.SharedSecretCapabilityVerifier`'s real HMAC wire shape and kind-scoped capability grants) in addition to the existing recording double.
