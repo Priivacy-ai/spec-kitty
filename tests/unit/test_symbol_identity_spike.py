@@ -107,7 +107,10 @@ _ARTIFACT_KIND_TACTICS = _SRC_ROOT / "doctrine" / "tactics" / "__init__.py"
 _GATE_DECISION_BRANCH_STRATEGY = (
     _SRC_ROOT / "specify_cli" / "cli" / "commands" / "_branch_strategy_gate.py"
 )
-_GATE_DECISION_RECEIVERS = _SRC_ROOT / "specify_cli" / "delivery" / "receivers.py"
+# The original sibling fixture (``specify_cli.delivery.receivers::GateDecision``)
+# died with the sync transport (issue #5); ``retrospective.gate::GateDecision``
+# is the surviving independently-defined same-name definition.
+_GATE_DECISION_RETROSPECTIVE = _SRC_ROOT / "specify_cli" / "retrospective" / "gate.py"
 
 _RESOLUTION_RESULT_RESOLVER = _SRC_ROOT / "specify_cli" / "runtime" / "resolver.py"
 _RESOLUTION_RESULT_RUNTIME_FACADE = _SRC_ROOT / "specify_cli" / "runtime" / "__init__.py"
@@ -192,18 +195,18 @@ def test_candidate_a_is_not_bare_name_alone() -> None:
 
 def test_candidate_a_distinguishes_the_two_real_gate_decision_siblings() -> None:
     """Positive control: specify_cli.cli.commands._branch_strategy_gate::GateDecision
-    and specify_cli.delivery.receivers::GateDecision are independently-defined
-    dataclasses with different fields -- CANDIDATE A (pure body-hash, no
+    and specify_cli.retrospective.gate::GateDecision are independently-defined
+    definitions with different bodies -- CANDIDATE A (pure body-hash, no
     module component) already distinguishes them correctly."""
     branch_gate_src = _read(_GATE_DECISION_BRANCH_STRATEGY)
-    receivers_src = _read(_GATE_DECISION_RECEIVERS)
+    retrospective_src = _read(_GATE_DECISION_RETROSPECTIVE)
 
     branch_gate_id = relocation_only_identity(branch_gate_src, "GateDecision")
-    receivers_id = relocation_only_identity(receivers_src, "GateDecision")
+    retrospective_id = relocation_only_identity(retrospective_src, "GateDecision")
 
     assert branch_gate_id is not None
-    assert receivers_id is not None
-    assert branch_gate_id.as_key() != receivers_id.as_key()
+    assert retrospective_id is not None
+    assert branch_gate_id.as_key() != retrospective_id.as_key()
 
 
 def test_candidate_a_collides_on_the_real_artifact_kind_reexport_fanout() -> None:

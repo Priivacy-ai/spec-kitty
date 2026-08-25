@@ -131,7 +131,15 @@ test_no_dead_modules:
   # no src/ caller yet. Follow-up tracker ticket per FR-303:
   # EXPERIMENTAL-spec-kitty#8 (the wiring consumer); the entry burns when that
   # lands, per the stale-entry check.
-  category_7_grandfathered_orphans: 4
+  #
+  # 4 -> 6 (issue-5-delete-sync-transport, 2026-08-25): net +2. -1 for
+  # sync.admission_operations, deleted outright with the sync transport (its
+  # #3262 WP11 wiring consumer died with it -- shrink). +3 for the collateral
+  # orphans whose ONLY src/ caller was the deleted transport
+  # (core.batch_partition, dossier.drift_detector,
+  # migration.envelope_seam); each registered as TODO(triage) wire-or-prune in
+  # the allowlist entry, per FR-303.
+  category_7_grandfathered_orphans: 6
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
