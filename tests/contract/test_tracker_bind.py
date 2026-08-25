@@ -12,7 +12,7 @@ from uuid import uuid4
 
 import pytest
 
-from specify_cli.sync.project_identity import ProjectIdentity
+from specify_cli.identity.project import ProjectIdentity
 
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]

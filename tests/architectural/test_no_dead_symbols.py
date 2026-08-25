@@ -1299,6 +1299,35 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset()
 # authoritative proof for these three canonical entries. Tracker: #2531
 # (runtime-bridge-degod), #2559.
 
+# ---------- C. unwired since the sync-transport deletion (issue #5) ----------
+# Issue #5 deleted the whole sync transport (``specify_cli/sync/``,
+# ``delivery/``, ``event_journal/``, ``saas/``, ``cli/commands/sync.py``). Six
+# surviving public symbols lost their LAST cross-file ``src/`` consumer in that
+# deletion (all six were imported only by the deleted ``cli/commands/sync.py``
+# and the sync daemon surfaces), so this gate correctly flags them as
+# ``__all__``-declared-but-unimported. They are deliberate, curated public API
+# on modules that survive the deletion, so they are allowlisted-with-note here
+# rather than de-exported from ``src/`` by a test-side change; the follow-up is
+# either to wire a new runtime caller or to delete each symbol at the source.
+# Follow-up tracker: issue #5's landing fold (wire-or-prune adjudication).
+_CATEGORY_C_SYNC_TRANSPORT_COLLATERAL_UNWIRED: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.cli.commands._auth_recovery::EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE
+        SymbolKey("EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE", "a01134dfe3519f061e03d04e825b721700b84074d2685e91abfac04405337fea", source_module="specify_cli.cli.commands._auth_recovery"),
+        # specify_cli.cli.commands._auth_recovery::RecoveryOutcome
+        SymbolKey("RecoveryOutcome", "70d49fc4404bbd4b717ddf5bf2a9b6f2e5349f78cf699986811998ebad2dc026", source_module="specify_cli.cli.commands._auth_recovery"),
+        # specify_cli.cli.commands._auth_recovery::handle_unauthenticated_with_teamspace
+        SymbolKey("handle_unauthenticated_with_teamspace", "0400f101c2a5046ef8251dad413d661834a3b4351340d7b339254e0091021c51", source_module="specify_cli.cli.commands._auth_recovery"),
+        # specify_cli.core.loopback_http::build_loopback_base_url
+        SymbolKey("build_loopback_base_url", "52154df5a173c6edffb5cc8c3678f8351e198bc5edef5d591bf1f7b66cbcbc89", source_module="specify_cli.core.loopback_http"),
+        # specify_cli.core.loopback_http::build_loopback_url
+        SymbolKey("build_loopback_url", "0d5d132ca9af0978557dba418e9147e30d04134e10b1cafae488ed36ebbd82c0", source_module="specify_cli.core.loopback_http"),
+        # specify_cli.core.saas_sync_config::saas_sync_opt_in_recorded_message
+        SymbolKey("saas_sync_opt_in_recorded_message", "f6a3dbb75efdf674dcdf64e4cccb82e907a3e5e58276e832b890d2c663f0366f", source_module="specify_cli.core.saas_sync_config"),
+    }
+)
+
+
 _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset()
 
 
@@ -1730,6 +1759,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
     | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
     | _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE
+    | _CATEGORY_C_SYNC_TRANSPORT_COLLATERAL_UNWIRED
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
     | _CATEGORY_C_URN_RESOLUTION_LANE

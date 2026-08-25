@@ -18,9 +18,9 @@ from __future__ import annotations
 
 import urllib.request
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
-from typing import Mapping
+from collections.abc import Mapping
 
 
 # ---------------------------------------------------------------------------
@@ -28,7 +28,7 @@ from typing import Mapping
 # ---------------------------------------------------------------------------
 
 
-class ReadinessState(str, Enum):
+class ReadinessState(StrEnum):
     """Discrete readiness states in check order.
 
     The evaluator checks states in *declaration order* — cheapest and most
@@ -119,7 +119,7 @@ def _build_result(state: ReadinessState, **fmt_kwargs: str) -> ReadinessResult:
 #
 # Each helper catches its own exceptions and returns a signal value.  They are
 # module-level so unit tests can monkeypatch them via
-# ``monkeypatch.setattr("specify_cli.saas.readiness._probe_auth", ...)``.
+# ``monkeypatch.setattr("specify_cli.tracker.saas_readiness._probe_auth", ...)``.
 
 
 def _probe_rollout() -> bool:
@@ -136,7 +136,7 @@ def _probe_auth(repo_root: Path) -> bool:
     """Return True iff the process-wide TokenManager reports an active session.
 
     Monkeypatch target for unit tests:
-        ``specify_cli.saas.readiness._probe_auth``
+        ``specify_cli.tracker.saas_readiness._probe_auth``
 
     The ``repo_root`` parameter is accepted for API consistency and may be
     used by future callers that need per-repo credential isolation.  The
@@ -163,7 +163,7 @@ def _probe_host_config() -> str | None:
       ``[sync].server_url`` alone never opts a machine into hosted readiness.
     * **Target authority** (WP02, contract §1): when the env var *is* set, the
       URL returned is the canonical ``resolved_server_url`` from
-      :func:`~specify_cli.sync.target_authority.resolve_sync_target`, i.e. the
+      :func:`~specify_cli.auth.server_target.resolve_server_target`, i.e. the
       **same** target sync/WebSocket/tracker/queue-scope key off. So readiness
       can never green-light a different URL than sync uses, even when the env
       var overrides ``config.toml`` (SC-008).

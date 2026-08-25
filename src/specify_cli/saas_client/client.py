@@ -447,10 +447,8 @@ class SaasClient:
         it to disambiguate by provider when given.
 
         Args:
-            repo_slug: ``owner/repo``-style slug, e.g. from
-                :func:`specify_cli.sync.git_metadata.parse_repo_slug`.
-            host: Bare git remote hostname, e.g. from
-                :func:`specify_cli.sync.git_metadata.parse_remote_host`.
+            repo_slug: ``owner/repo``-style slug parsed from the git remote.
+            host: Bare git remote hostname.
 
         Returns:
             :class:`~specify_cli.saas_client.endpoints.AdmissionAnswer`.

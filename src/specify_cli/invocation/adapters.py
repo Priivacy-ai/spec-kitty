@@ -64,7 +64,7 @@ def register_saas_client_factory(
     changes nothing but the control flow taken to reach the same assignment; a
     callable with a *different* ``__qualname__`` replaces the entry just as
     completely. The invariant that does hold is the one that matters: at most one
-    factory is ever registered, so reloading ``specify_cli.sync`` cannot stack
+    factory is ever registered, so re-registering cannot stack
     several.
 
     The dead comparison itself is left in place: it is pre-existing, identical in

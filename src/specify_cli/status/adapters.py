@@ -151,12 +151,12 @@ def _handler_key(cb: Callable[..., Any]) -> str:
 def register_dossier_sync_handler(cb: DossierSyncHandler) -> None:
     """Register a dossier-sync callback (idempotent by qualified name).
 
-    Called once at sync package startup. Re-registration of a handler
-    with the same ``__qualname__`` replaces the existing entry rather
-    than appending, so that re-importing or reloading
-    ``specify_cli.sync`` (e.g. in test processes) does not produce
-    duplicate fan-out invocations. Not thread-safe by design
-    (registration runs before concurrent access begins).
+    Re-registration of a handler with the same ``__qualname__`` replaces
+    the existing entry rather than appending, so re-registering (e.g. in
+    test processes) does not produce duplicate fan-out invocations. Not
+    thread-safe by design (registration runs before concurrent access
+    begins). With no handler registered, fan-out is a no-op until E3 wires
+    the zeitgeist handler here.
     """
     key = _handler_key(cb)
     for idx, existing in enumerate(_dossier_handlers):
@@ -169,10 +169,9 @@ def register_dossier_sync_handler(cb: DossierSyncHandler) -> None:
 def register_saas_fanout_handler(cb: SaasFanOutHandler) -> None:
     """Register a SaaS fan-out callback (idempotent by qualified name).
 
-    Called once at sync package startup. Re-registration of a handler
-    with the same ``__qualname__`` replaces the existing entry rather
-    than appending, so that re-importing or reloading
-    ``specify_cli.sync`` does not produce duplicate fan-out invocations.
+    Re-registration of a handler with the same ``__qualname__`` replaces
+    the existing entry rather than appending, so re-registering does not
+    stack duplicate fan-out invocations.
     """
     key = _handler_key(cb)
     for idx, existing in enumerate(_saas_handlers):

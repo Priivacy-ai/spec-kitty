@@ -25,8 +25,9 @@ inventing a migration-only identity/clock scheme (F2.md section 3.3):
   ``sync/emitter.py``'s own live ``correlation_id = causation_id or
   event_id`` convention.
 * ``data_tier``: ``0`` -- matches the strict ``Event`` model's own default.
-* ``node_id``: the same derivation as :func:`specify_cli.sync.clock.generate_node_id` (see ``_generate_node_id``) -- the one
-  node-identity primitive already in the repo (sha256(hostname:username)).
+* ``node_id``: the sha256(hostname:username) derivation shared with the
+  deleted sync clock module (see ``_generate_node_id``) -- the one
+  node-identity primitive already in the repo.
   This is the identity of the MACHINE RUNNING THE MIGRATION, not a
   reconstruction of the original writer's identity (which was never
   recorded and cannot be recovered) -- documented approximation, not a
@@ -155,13 +156,12 @@ def _is_already_strict_shaped(row: dict[str, Any]) -> bool:
 def _generate_node_id() -> str:
     """Stable machine identifier: first 12 hex chars of SHA-256(hostname:username).
 
-    Byte-for-byte the same derivation as
-    :func:`specify_cli.sync.clock.generate_node_id` (pinned by
-    ``tests/status/test_migrate_lifecycle_envelope_node_id_parity.py``).
-    Duplicated here rather than imported because ``status/`` is a CORE package
-    and may not import ``specify_cli.sync`` (INTEGRATION) -- even lazily --
-    per tests/architectural/test_integration_boundary.py (closed allowlist)
-    and test_status_sync_boundary.py. Introduced at M2 canonical integration.
+    The same derivation the deleted ``sync.clock.generate_node_id`` used;
+    parity with that module was pinned by
+    ``tests/status/test_migrate_lifecycle_envelope_node_id_parity.py``.
+    Kept local because ``status/`` is a CORE package and must stay free of
+    INTEGRATION imports per tests/architectural/test_integration_boundary.py
+    (closed allowlist). Introduced at M2 canonical integration.
     """
     import getpass  # noqa: PLC0415
     import hashlib  # noqa: PLC0415

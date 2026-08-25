@@ -1,9 +1,9 @@
 """Project identity management for spec-kitty.
 
 Canonical home for ProjectIdentity and all related helpers.
-Moved here from specify_cli.sync.project_identity (GitHub issue #862)
-so that specify_cli.dossier can import it without depending on
-specify_cli.sync.
+Moved here from the deleted specify_cli.sync.project_identity
+(GitHub issue #862) so that specify_cli.dossier can import it without
+depending on the sync package (itself deleted in issue #5).
 
 Provides:
 - ProjectIdentity dataclass with persistence
