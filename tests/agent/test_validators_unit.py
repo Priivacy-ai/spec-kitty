@@ -382,3 +382,26 @@ def test_path_validation_result_formatters() -> None:
     assert "Suggestions" in warnings_text
     assert "Path Convention Errors" in errors_text
     assert "Research Kitty" in errors_text
+
+
+def test_format_errors_names_lenient_before_mkdir_and_drops_unconditional_claim() -> None:
+    """FR-004/FR-005/AC4 (#3730): the strict-mode failure text must not assert an
+    unconditional "required" claim that ``accept --lenient`` immediately disproves,
+    and must name ``--lenient`` as a remedy *before* any ``mkdir -p`` suggestion so
+    an operator reads the honest escape hatch first.
+    """
+    result = PathValidationResult(
+        mission_name="Software Dev Kitty",
+        required_paths={"workspace": "src/"},
+        existing_paths=[],
+        missing_paths=["src/"],
+        warnings=["Software Dev Kitty expects workspace path: src/ (not found)"],
+        suggestions=["mkdir -p src/"],
+    )
+
+    output = result.format_errors()
+
+    assert "--lenient" in output
+    assert "mkdir -p" in output
+    assert output.index("--lenient") < output.index("mkdir -p")
+    assert "are required by the active mission" not in output
