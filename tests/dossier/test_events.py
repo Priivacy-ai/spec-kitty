@@ -113,7 +113,10 @@ class TestContentHashRef:
 class TestEmitDropSemantics:
     """Valid envelopes validate and are dropped locally (no transport)."""
 
-    def test_artifact_indexed_drops_after_validation(self, namespace: LocalNamespaceTuple) -> None:
+    def test_artifact_indexed_drops_after_validation(
+        self, namespace: LocalNamespaceTuple, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.ERROR, logger="specify_cli.dossier.events")
         result = emit_artifact_indexed(
             mission_slug="042-feature",
             artifact_key="input.spec.main",
@@ -127,8 +130,12 @@ class TestEmitDropSemantics:
             namespace=namespace,
         )
         assert result is None
+        assert not [r for r in caplog.records if "Payload validation failed" in r.message]
 
-    def test_blocking_missing_drops_after_validation(self, namespace: LocalNamespaceTuple) -> None:
+    def test_blocking_missing_drops_after_validation(
+        self, namespace: LocalNamespaceTuple, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.ERROR, logger="specify_cli.dossier.events")
         result = emit_artifact_missing(
             mission_slug="042-feature",
             artifact_key="output.dossier.indexed",
@@ -141,6 +148,7 @@ class TestEmitDropSemantics:
             manifest_step="indexing",
         )
         assert result is None
+        assert not [r for r in caplog.records if "Payload validation failed" in r.message]
 
     def test_snapshot_computed_accepts_legacy_positional_order(
         self, namespace: LocalNamespaceTuple, caplog: pytest.LogCaptureFixture
@@ -163,7 +171,10 @@ class TestEmitDropSemantics:
         assert result is None
         assert not [r for r in caplog.records if "Payload validation failed" in r.message]
 
-    def test_parity_drift_drops_after_validation(self, namespace: LocalNamespaceTuple) -> None:
+    def test_parity_drift_drops_after_validation(
+        self, namespace: LocalNamespaceTuple, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        caplog.set_level(logging.ERROR, logger="specify_cli.dossier.events")
         result = emit_parity_drift_detected(
             mission_slug="042-feature",
             local_parity_hash="c" * 64,
@@ -174,6 +185,7 @@ class TestEmitDropSemantics:
             namespace=namespace,
         )
         assert result is None
+        assert not [r for r in caplog.records if "Payload validation failed" in r.message]
 
 
 class TestEmitGatingStillApplies:

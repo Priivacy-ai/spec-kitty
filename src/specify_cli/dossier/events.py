@@ -50,10 +50,12 @@ def _undelivered(event_type: str) -> dict[str, Any] | None:
     The CLI→SaaS sync transport was deleted (Ephemeral Team Status redesign);
     nothing consumes ``MissionDossier*`` events any more, so delivery is a
     logged debug no-op. Payload construction above still runs the canonical
-    validators; the legacy same-UoW delivery-authority keyword arguments are
-    still accepted (absorbed into each emitter's keyword catch-all) so
-    callers — ``sync/dossier_pipeline.py`` until its own deletion — keep
-    working.
+    validators. Every emitter absorbs the retired same-UoW delivery-authority
+    keywords (``project_context``, ``project_unit``, ``project_layout``)
+    without acting on them — via ``**_delivery_authority`` on the snapshot/
+    drift emitters, via :func:`_absorb_delivery_authority_kwargs` on the two
+    artifact emitters — so callers (``sync/dossier_pipeline.py`` until its own
+    deletion) keep working.
     """
     logger.debug("Dossier event %s validated but not delivered: no transport", event_type)
     return None
@@ -294,6 +296,24 @@ def _missing_namespace_log(event_type: str) -> None:
     )
 
 
+# Legacy same-UoW delivery-authority keyword arguments. The transport that
+# consumed them was deleted with the CLI→SaaS sync (Ephemeral Team Status);
+# callers — ``sync/dossier_pipeline.py`` until its own deletion — still pass
+# them on every emission, so each emitter absorbs them instead of rejecting.
+_DELIVERY_AUTHORITY_KWARGS = ("project_context", "project_unit", "project_layout")
+
+
+def _absorb_delivery_authority_kwargs(kwargs: dict[str, Any]) -> None:
+    """Pop the retired delivery-authority keywords out of ``kwargs`` in place.
+
+    Only the two artifact emitters need this: their ``**kwargs`` feed
+    :func:`_consume_legacy_values`, which rejects unknown names. The snapshot
+    and drift emitters instead absorb everything via ``**_delivery_authority``.
+    """
+    for name in _DELIVERY_AUTHORITY_KWARGS:
+        kwargs.pop(name, None)
+
+
 def _consume_legacy_values(
     args: tuple[object, ...],
     kwargs: dict[str, object],
@@ -371,6 +391,7 @@ def emit_artifact_indexed(
     Returns ``None``: the envelope is validated and then dropped locally
     (no transport remains — see :func:`_undelivered`).
     """
+    _absorb_delivery_authority_kwargs(kwargs)
     legacy = _consume_legacy_values(
         args,
         kwargs,
@@ -439,6 +460,7 @@ def emit_artifact_missing(
 
     The event fires only when ``blocking=True`` (legacy convention).
     """
+    _absorb_delivery_authority_kwargs(kwargs)
     legacy = _consume_legacy_values(
         args,
         kwargs,
