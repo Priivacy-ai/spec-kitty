@@ -385,6 +385,140 @@ def test_shared_package_drift_fails_when_lock_does_not_match_manifest(
     assert "spec-kitty-events uv.lock version 4.0.0 does not match release authority 4.0.1" in result.stdout
 
 
+_SANCTIONED_EVENTS_GIT_DEP = (
+    "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events"
+    "@9fe707345469aaaf5d232247724a0e6a08925645"
+)
+
+
+def test_shared_package_drift_passes_with_sanctioned_events_git_reference(tmp_path: Path) -> None:
+    """The wheel-installability exception (PROGRAM.md §2): a pinned-rev git
+    reference on spec-kitty-events, while 8.0.0 awaits an index, is not a
+    drift violation as long as the manifest's cli_range is the matching
+    empty specifier."""
+    cli = tmp_path / "pyproject.toml"
+    lockfile = tmp_path / "uv.lock"
+    write_manifest(
+        tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
+        events_range="",
+        events_version="8.0.0",
+    )
+
+    write_pyproject(
+        cli,
+        dependencies=[
+            _SANCTIONED_EVENTS_GIT_DEP,
+            "spec-kitty-tracker>=0.4,<0.5",
+        ],
+    )
+    write_lockfile(
+        lockfile,
+        versions={
+            "spec-kitty-events": "8.0.0",
+            "spec-kitty-tracker": "0.4.2",
+        },
+    )
+
+    result = run_check(
+        tmp_path,
+        "--pyproject",
+        str(cli),
+        "--lockfile",
+        str(lockfile),
+    )
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "Shared package drift check passed." in result.stdout
+
+
+def test_shared_package_drift_fails_on_unsanctioned_events_direct_reference(tmp_path: Path) -> None:
+    """Only the exact sanctioned github.com pinned-rev reference is admitted
+    — any other direct reference (foreign host, here) stays forbidden."""
+    cli = tmp_path / "pyproject.toml"
+    lockfile = tmp_path / "uv.lock"
+    write_manifest(
+        tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
+        events_range="",
+        events_version="8.0.0",
+    )
+
+    write_pyproject(
+        cli,
+        dependencies=[
+            "spec-kitty-events @ git+https://github.int.exe.xyz/spec-kitty/"
+            "EXPERIMENTAL-spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
+            "spec-kitty-tracker>=0.4,<0.5",
+        ],
+    )
+    write_lockfile(
+        lockfile,
+        versions={
+            "spec-kitty-events": "8.0.0",
+            "spec-kitty-tracker": "0.4.2",
+        },
+    )
+
+    result = run_check(
+        tmp_path,
+        "--pyproject",
+        str(cli),
+        "--lockfile",
+        str(lockfile),
+    )
+
+    assert result.returncode == 1
+    assert "spec-kitty-events: direct references are forbidden" in result.stderr
+
+
+def test_shared_package_drift_fails_when_saas_uses_events_direct_reference(tmp_path: Path) -> None:
+    """The wheel-installability exception is scoped to the CLI's own
+    constraint; a downstream consumer's exact-pin requirement still forbids
+    a direct reference."""
+    cli = tmp_path / "pyproject.toml"
+    lockfile = tmp_path / "uv.lock"
+    saas = tmp_path / "saas.toml"
+    write_manifest(
+        tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
+        events_range="",
+        events_version="8.0.0",
+    )
+
+    write_pyproject(
+        cli,
+        dependencies=[
+            _SANCTIONED_EVENTS_GIT_DEP,
+            "spec-kitty-tracker>=0.4,<0.5",
+        ],
+    )
+    write_lockfile(
+        lockfile,
+        versions={
+            "spec-kitty-events": "8.0.0",
+            "spec-kitty-tracker": "0.4.2",
+        },
+    )
+    write_pyproject(
+        saas,
+        dependencies=[
+            _SANCTIONED_EVENTS_GIT_DEP,
+            "spec-kitty-tracker==0.4.2",
+        ],
+    )
+
+    result = run_check(
+        tmp_path,
+        "--pyproject",
+        str(cli),
+        "--lockfile",
+        str(lockfile),
+        "--saas-pyproject",
+        str(saas),
+    )
+
+    assert result.returncode == 1
+    assert "spec-kitty-events: direct references are forbidden" in result.stderr
+
+
 def test_installed_version_guard_passes_when_installed_version_matches_lock() -> None:
     module = load_script_module()
 

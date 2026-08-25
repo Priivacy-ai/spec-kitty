@@ -80,11 +80,19 @@ dependencies = [
     # spec_kitty_events.strict.validate_strict_envelope. 8.0.0 adds the
     # canonical `genesis` lane contract that src/specify_cli/status/emit.py's
     # capability gate (_EVENTS_SUPPORTS_GENESIS) already degrades gracefully
-    # without. Until 8.0.0 is published to an index, it resolves from the
-    # EXPERIMENTAL events repo at a pinned rev via [tool.uv.sources] below —
-    # published metadata (this range) is unchanged by that entry, which only
-    # affects this checkout's own resolution.
-    "spec-kitty-events>=8.0.0,<9.0.0",
+    # without. No installable 8.0.0 exists on any index (Actions are off
+    # programme-wide; EXPERIMENTAL-spec-kitty-planning#31 is the standing
+    # publish decision), so until it is published this is a PEP 508 direct
+    # git reference, not a version range: PROGRAM.md §2's wheel-installability
+    # exception (spec-kitty-cli installs as a wheel into a clean environment,
+    # e.g. `uv tool install … @ git+…`) requires the pin to live in the
+    # dependency itself — [tool.uv.sources] does not travel into the wheel's
+    # Requires-Dist (controller-qa on #58). The host is always github.com,
+    # never the exe.dev github.int.exe.xyz forge proxy: laptops installing the
+    # CLI cannot resolve that proxy. A direct reference and a version range
+    # cannot coexist for one name, so there is no range here — move back to a
+    # plain compatible range the moment 8.0.0 is published.
+    "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
     "spec-kitty-tracker>=0.4,<0.5",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
@@ -147,17 +155,6 @@ spec-kitty = "specify_cli:main"
 # `2.4`. Keep this in lockstep with uv.lock's hatchling entry.
 requires = ["hatchling==1.31.0"]
 build-backend = "hatchling.build"
-
-[tool.uv.sources]
-# Interim resolution for spec-kitty-events until 8.0.0 reaches an index
-# (controller-qa fix round on #58; the standing question is
-# EXPERIMENTAL-spec-kitty-planning#31). A pinned-rev git source only changes
-# how THIS checkout resolves — published wheel metadata carries the plain
-# range above, so consumers outside the programme are unaffected. The URL is
-# the programme's forge host (github.com is not reachable from programme VMs);
-# the rev pin keeps uv.lock reproducible. Move it back to registry resolution
-# when the package is published.
-spec-kitty-events = { git = "https://github.int.exe.xyz/spec-kitty/EXPERIMENTAL-spec-kitty-events", rev = "9fe707345469aaaf5d232247724a0e6a08925645" }
 
 [tool.hatch.metadata]
 allow-direct-references = true
