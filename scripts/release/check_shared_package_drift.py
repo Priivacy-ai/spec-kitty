@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib.metadata
 import json
+import re
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
@@ -24,6 +25,25 @@ PACKAGES = (
 )
 RETIRED_PACKAGES = ("spec-kitty-runtime",)
 INSTALLED_DRIFT_REMEDIATION = "Run `uv sync --extra test --extra lint` before collecting release evidence."
+# The one sanctioned direct reference (controller-qa fix round on #58,
+# PROGRAM.md §2's wheel-installability exception): a pinned-rev git
+# dependency on spec-kitty-events, on github.com, while 8.0.0 awaits an
+# index (EXPERIMENTAL-spec-kitty-planning#31). It carries no specifier, so
+# it is only accepted where an exact pin is not required (the CLI's own
+# constraint, not a downstream consumer's exact pin).
+_SANCTIONED_EVENTS_GIT_URL = re.compile(
+    r"^git\+https://github\.com/spec-kitty/EXPERIMENTAL-spec-kitty-events@[0-9a-f]{40}$"
+)
+
+
+def _is_sanctioned_events_git_requirement(req: Requirement, *, exact_required: bool) -> bool:
+    return (
+        not exact_required
+        and req.name == "spec-kitty-events"
+        and req.url is not None
+        and bool(_SANCTIONED_EVENTS_GIT_URL.match(req.url))
+        and not req.specifier
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -87,7 +107,7 @@ def exact_pin(raw: str) -> str | None:
 def requirement_contains_version(raw: str, version: str) -> bool:
     req = parse_requirement(raw)
     if req.url:
-        return False
+        return _is_sanctioned_events_git_requirement(req, exact_required=False)
     if not req.specifier:
         return True
     return req.specifier.contains(Version(version), prereleases=True)
@@ -128,10 +148,16 @@ def extract_constraints(
         name = req.name.lower()
         if name not in canonical:
             continue
+        package = canonical[name]
         if req.url:
+            if _is_sanctioned_events_git_requirement(req, exact_required=exact_required):
+                if package in constraints:
+                    issues.append(f"{req.name}: duplicate dependency entries found")
+                else:
+                    constraints[package] = raw
+                continue
             issues.append(f"{req.name}: direct references are forbidden ({raw})")
             continue
-        package = canonical[name]
         pinned = exact_pin(raw)
         if exact_required and pinned is None:
             issues.append(f"{req.name}: dependency must be exact-pinned with == ({raw})")

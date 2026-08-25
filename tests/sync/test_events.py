@@ -785,6 +785,7 @@ class TestConvenienceFunctions:
             mission_id="01KTESTMISSIONID00000000001",
             mission_number=None,
             mission_type="software-dev",
+            actor=None,
         )
 
 

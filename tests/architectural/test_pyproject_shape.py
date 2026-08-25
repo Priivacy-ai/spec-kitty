@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import re
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,20 @@ _SHARED_PACKAGES = ("spec-kitty-events", "spec-kitty-tracker")
 _RETIRED_PACKAGE = "spec-kitty-runtime"
 _SHIPPED_TREES = ("specify_cli", "runtime")
 _DEP_NAME_TERMINATORS = "[=<>!~;@ "
+# The one sanctioned direct reference (controller-qa on #58, PROGRAM.md §2's
+# wheel-installability exception): a pinned-rev git dependency on
+# spec-kitty-events while 8.0.0 awaits an index
+# (EXPERIMENTAL-spec-kitty-planning#31). [tool.uv.sources] does not travel
+# into the wheel's Requires-Dist, so the pin must live in the dependency
+# itself; the host must always be github.com, never the exe.dev
+# github.int.exe.xyz forge proxy (laptops cannot resolve that proxy). Any
+# [tool.uv.sources] override — for spec-kitty-events or anything else — stays
+# a violation, as does any other direct reference (foreign host, branch rev,
+# short SHA, path/editable form).
+_EVENTS_SOURCE_REPO_URL = "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events"
+_SANCTIONED_EVENTS_GIT_DEP = re.compile(
+    r"^spec-kitty-events @ git\+" + re.escape(_EVENTS_SOURCE_REPO_URL) + r"@(?P<rev>[0-9a-f]{40})$"
+)
 
 
 def _load_pyproject() -> dict[str, Any]:
@@ -32,6 +47,15 @@ def _dep_name(entry: str) -> str:
     return entry.strip()
 
 
+def _is_sanctioned_events_git_dependency(entry: str) -> bool:
+    """True for exactly the sanctioned pinned-rev git dependency on events."""
+    return bool(_SANCTIONED_EVENTS_GIT_DEP.match(entry.strip()))
+
+
+def _is_direct_reference(entry: str) -> bool:
+    return " @ " in entry
+
+
 def _metadata_violations(data: dict[str, Any]) -> list[str]:
     dependencies = data.get("project", {}).get("dependencies", [])
     by_name = {_dep_name(entry): entry for entry in dependencies}
@@ -40,8 +64,12 @@ def _metadata_violations(data: dict[str, Any]) -> list[str]:
         entry = by_name.get(package)
         if entry is None:
             failures.append(f"missing consumed dependency {package}")
+        elif package == "spec-kitty-events" and _is_sanctioned_events_git_dependency(entry):
+            pass
         elif "==" in entry:
             failures.append(f"exact runtime pin for {package}: {entry}")
+        elif _is_direct_reference(entry):
+            failures.append(f"unsanctioned direct reference for {package}: {entry}")
     if _RETIRED_PACKAGE in by_name:
         failures.append(f"retired dependency present: {by_name[_RETIRED_PACKAGE]}")
 
@@ -89,6 +117,57 @@ def test_published_metadata_uses_consumable_shared_dependencies() -> None:
     local_source = copy.deepcopy(data)
     local_source.setdefault("tool", {}).setdefault("uv", {}).setdefault("sources", {})["spec-kitty-tracker"] = {"path": "../spec-kitty-tracker", "editable": True}
     assert _metadata_violations(local_source)
+
+
+def test_events_dependency_must_be_the_sanctioned_pinned_git_reference() -> None:
+    """The events dependency admits exactly one sanctioned direct reference.
+
+    The sanctioned shape (controller-qa fix round on #58, interim to
+    planning#31; PROGRAM.md §2's wheel-installability exception) is a
+    full-SHA rev pin on ``github.com``, declared directly in
+    ``dependencies`` — never in ``[tool.uv.sources]``, which does not travel
+    into the wheel's ``Requires-Dist``. Every other shape — a
+    ``[tool.uv.sources]`` override, a branch rev, a short SHA, the
+    exe.dev forge host, or an editable/path form — stays a violation.
+    """
+    data = _load_pyproject()
+    dependencies = data["project"]["dependencies"]
+    by_name = {_dep_name(entry): entry for entry in dependencies}
+    # The committed dependency must itself be the sanctioned shape.
+    assert _is_sanctioned_events_git_dependency(by_name["spec-kitty-events"])
+    assert _metadata_violations(data) == []
+
+    def _with_events_dependency(new_entry: str) -> list[str]:
+        mutated = copy.deepcopy(data)
+        mutated["project"]["dependencies"] = [
+            new_entry if _dep_name(entry) == "spec-kitty-events" else entry for entry in dependencies
+        ]
+        return _metadata_violations(mutated)
+
+    rev_match = _SANCTIONED_EVENTS_GIT_DEP.match(by_name["spec-kitty-events"])
+    assert rev_match is not None
+    rev = rev_match.group("rev")
+
+    branch_rev = f"spec-kitty-events @ git+{_EVENTS_SOURCE_REPO_URL}@main"
+    assert _with_events_dependency(branch_rev)
+
+    short_rev = f"spec-kitty-events @ git+{_EVENTS_SOURCE_REPO_URL}@{rev[:7]}"
+    assert _with_events_dependency(short_rev)
+
+    foreign_host = f"spec-kitty-events @ git+https://github.int.exe.xyz/spec-kitty/EXPERIMENTAL-spec-kitty-events@{rev}"
+    assert _with_events_dependency(foreign_host)
+
+    path_form = "spec-kitty-events @ file:///opt/checkouts/spec-kitty-events"
+    assert _with_events_dependency(path_form)
+
+    # A [tool.uv.sources] override is never sanctioned, even alongside the
+    # correct direct reference — it is committed local resolution metadata.
+    with_source_override = copy.deepcopy(data)
+    with_source_override.setdefault("tool", {}).setdefault("uv", {}).setdefault("sources", {})["spec-kitty-events"] = {
+        "git": _EVENTS_SOURCE_REPO_URL,
+        "rev": rev,
+    }
+    assert _metadata_violations(with_source_override)
 
 
 def test_wheel_contains_every_first_party_runtime_import() -> None:

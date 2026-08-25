@@ -2475,7 +2475,7 @@ requires-dist = [
     { name = "rich", specifier = ">=14.3.3" },
     { name = "ruamel-yaml", specifier = ">=0.18.0" },
     { name = "ruff", marker = "extra == 'lint'", specifier = ">=0.4.0" },
-    { name = "spec-kitty-events", specifier = ">=6.0.0,<7.0.0" },
+    { name = "spec-kitty-events", git = "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events?rev=9fe707345469aaaf5d232247724a0e6a08925645" },
     { name = "spec-kitty-tracker", specifier = ">=0.4,<0.5" },
     { name = "toml", specifier = ">=0.10.2" },
     { name = "tomli-w", specifier = ">=1.0.0" },
@@ -2503,15 +2503,11 @@ dev = [
 
 [[package]]
 name = "spec-kitty-events"
-version = "6.1.0"
-source = { registry = "https://pypi.org/simple" }
+version = "8.0.0"
+source = { git = "https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events?rev=9fe707345469aaaf5d232247724a0e6a08925645#9fe707345469aaaf5d232247724a0e6a08925645" }
 dependencies = [
     { name = "pydantic" },
     { name = "python-ulid" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/bb/7c/2461fbad81404ff23f274033cbccef6e262eee9fdcf546a2d4f77c217879/spec_kitty_events-6.1.0.tar.gz", hash = "sha256:de8d93b850c7398f0d16cd185f5d373beacf787450c5bae1ee38b8286eb46ae9", size = 255326, upload-time = "2026-06-14T08:43:20.939Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/b1/71/dffe5db90218f808465dd7819c39e7ec2b92f7f4f10f7e51c7cd37c46475/spec_kitty_events-6.1.0-py3-none-any.whl", hash = "sha256:a21d6f3a6c41e9a5f68c00ba03473be35b930e3a47ba9e9b374c5f8660e1d8c2", size = 374878, upload-time = "2026-06-14T08:43:19.589Z" },
 ]
 
 [[package]]

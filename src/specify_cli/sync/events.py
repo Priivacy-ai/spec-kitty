@@ -409,6 +409,7 @@ def emit_mission_created(
     created_at: str | None = None,
     causation_id: str | None = None,
     mission_id: str | None = None,
+    actor: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionCreated event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
@@ -424,6 +425,7 @@ def emit_mission_created(
         created_at=created_at,
         causation_id=causation_id,
         mission_id=mission_id,
+        actor=actor,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)
@@ -440,6 +442,7 @@ def emit_mission_closed(
     mission_id: str | None = None,
     mission_number: int | None = None,
     mission_type: str = "software-dev",
+    actor: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionClosed event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
@@ -452,6 +455,7 @@ def emit_mission_closed(
         mission_id=mission_id,
         mission_number=mission_number,
         mission_type=mission_type,
+        actor=actor,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)
