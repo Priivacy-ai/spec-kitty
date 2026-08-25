@@ -23,6 +23,11 @@ from pathlib import Path
 
 import pytest
 
+from tests._support.shared_build_artifacts import (
+    ensure_run_stable_source_snapshot,
+    run_scoped_shared_root,
+)
+from tests.e2e.conftest import format_subprocess_failure
 
 pytestmark = [
     pytest.mark.distribution,
@@ -65,13 +70,17 @@ class _WorktreeProject:
 
 
 def _git(cwd: Path, *args: str) -> str:
-    return subprocess.run(
+    completed = subprocess.run(
         ["git", *args],
         cwd=cwd,
-        check=True,
         capture_output=True,
         text=True,
-    ).stdout.strip()
+    )
+    if completed.returncode != 0:
+        # A bare CalledProcessError hides the one thing a red run needs: what
+        # git itself said (#80's 14 identical tracebacks carried no stderr).
+        raise RuntimeError(format_subprocess_failure(command=["git", *args], cwd=cwd, completed=completed))
+    return completed.stdout.strip()
 
 
 def _venv_script(venv_dir: Path, name: str) -> Path:
@@ -82,8 +91,23 @@ def _venv_script(venv_dir: Path, name: str) -> Path:
 
 
 @pytest.fixture(scope="session")
-def immutable_spec_kitty(installed_wheel_venv: dict[str, Path]) -> _InstalledCLI:
-    """Return provenance-pinned wheel installation, never an editable install."""
+def immutable_spec_kitty(
+    installed_wheel_venv: dict[str, Path],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> _InstalledCLI:
+    """Return provenance-pinned wheel installation, never an editable install.
+
+    Git provenance and every later project clone read a **run-stable snapshot**
+    of this checkout rather than the checkout itself. On CI runners the
+    checkout is a linked worktree over a shared canonical clone whose
+    maintenance mutates the run tree's HEAD mid-session (#80): for a sustained
+    window ``git rev-parse HEAD`` there fails with exit 128 while discovery and
+    ``branch --show-current`` keep working, so every iteration entering the
+    window failed at the same line regardless of diff. The snapshot is cloned
+    once per run from that same commit into the run's temp root and is never
+    touched by anyone afterwards, which decouples the whole file from the
+    shared store's churn.
+    """
     wheel = installed_wheel_venv["wheel"].resolve()
     venv_dir = installed_wheel_venv["venv_dir"].resolve()
     script = _venv_script(venv_dir, "spec-kitty").resolve()
@@ -101,6 +125,8 @@ def immutable_spec_kitty(installed_wheel_venv: dict[str, Path]) -> _InstalledCLI
         ).returncode
         == 0
     )
+    global _SOURCE_ROOT
+    _SOURCE_ROOT = ensure_run_stable_source_snapshot(run_scoped_shared_root(tmp_path_factory))
     source_commit = _git(_SOURCE_ROOT, "rev-parse", "HEAD")
     # Artifact-integrity provenance, not charter-content identity.
     wheel_sha256 = hashlib.sha256(wheel.read_bytes()).hexdigest()  # noqa: TID251

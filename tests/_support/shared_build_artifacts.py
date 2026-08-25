@@ -32,8 +32,10 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 from filelock import FileLock
@@ -42,9 +44,19 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 _SHARED_BUILD_DIR_NAME = "shared-build-artifacts"
 _STAGING_GLOB = _SHARED_BUILD_DIR_NAME + ".staging-*"
+
+_SOURCE_SNAPSHOT_DIR_NAME = "source-snapshot"
+_SOURCE_SNAPSHOT_STAGING_GLOB = _SOURCE_SNAPSHOT_DIR_NAME + ".staging-*"
+#: A local clone of this repository takes seconds; a few attempts ride out
+#: short collisions with whatever else touches the source's git store at
+#: session start without giving up the whole file.
+_SNAPSHOT_ATTEMPTS = 3
+_SNAPSHOT_RETRY_DELAY_S = 2.0
 #: One full ``python -m build`` takes on the order of a minute; every other
 #: worker of the run queues behind that single holder, hence the generous bound.
 _LOCK_TIMEOUT_S = 1200.0
+
+_T = TypeVar("_T")
 
 
 def default_wheel_sdist_builder(outdir: Path) -> None:
@@ -109,31 +121,130 @@ def ensure_shared_build_artifacts(
     immediately. Paths are always returned from the published location, never
     from the staging directory the caller happened to fill.
     """
-    shared_dir = run_root / _SHARED_BUILD_DIR_NAME
-    published = published_build_artifacts(shared_dir)
+    return _publish_once(
+        run_root,
+        dir_name=_SHARED_BUILD_DIR_NAME,
+        staging_glob=_STAGING_GLOB,
+        inspect=published_build_artifacts,
+        fill=build,
+        attempts=1,
+        retry_delay_s=0.0,
+        lock_timeout_s=lock_timeout_s,
+    )
+
+
+def published_source_snapshot(snapshot_dir: Path) -> Path | None:
+    """Return the snapshot if it holds a complete, resolvable git repository."""
+    if not ((snapshot_dir / ".git").exists() and (snapshot_dir / "pyproject.toml").is_file()):
+        return None
+    result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=snapshot_dir,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return snapshot_dir
+
+
+def default_source_snapshot_builder(source_root: Path, outdir: Path) -> None:
+    """Clone ``source_root`` into ``outdir`` as an independent repository."""
+    result = subprocess.run(
+        ["git", "clone", "--local", "--no-hardlinks", str(source_root), str(outdir)],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise SharedBuildError(f"source snapshot clone failed: {result.stderr}")
+
+
+def ensure_run_stable_source_snapshot(
+    run_root: Path,
+    *,
+    source_root: Path = _REPO_ROOT,
+    build: Callable[[Path], None] | None = None,
+    lock_timeout_s: float = _LOCK_TIMEOUT_S,
+) -> Path:
+    """Return a per-run clone of ``source_root`` that outlives source churn.
+
+    The e2e acceptance fixtures read git provenance from, and clone every test
+    project out of, the checkout being tested. On CI runners that checkout is
+    a linked worktree over a shared canonical clone whose maintenance (fetches,
+    gc/repack, worktree re-pins) runs *during* the session (#80), and any git
+    call that lands inside such a window fails with exit 128 — which is why
+    whole tails of ``test_worktree_owned_worktrees_isolated`` were red on some
+    runner VMs and green on others regardless of diff. Cloning the checkout
+    once, at session start, into this run's temp root decouples every later
+    read and clone from that churn while pinning byte-identical committed
+    content (the snapshot is never touched again by anyone).
+
+    Publication follows the same protocol as :func:`ensure_shared_build_artifacts`:
+    one clone under a lock, atomic rename, later workers reuse it.
+    """
+    if build is None:
+
+        def build(outdir: Path) -> None:
+            default_source_snapshot_builder(source_root, outdir)
+    return _publish_once(
+        run_root,
+        dir_name=_SOURCE_SNAPSHOT_DIR_NAME,
+        staging_glob=_SOURCE_SNAPSHOT_STAGING_GLOB,
+        inspect=published_source_snapshot,
+        fill=build,
+        attempts=_SNAPSHOT_ATTEMPTS,
+        retry_delay_s=_SNAPSHOT_RETRY_DELAY_S,
+        lock_timeout_s=lock_timeout_s,
+    )
+
+
+def _publish_once(
+    run_root: Path,
+    *,
+    dir_name: str,
+    staging_glob: str,
+    inspect: Callable[[Path], _T | None],
+    fill: Callable[[Path], None],
+    attempts: int,
+    retry_delay_s: float,
+    lock_timeout_s: float,
+) -> _T:
+    """Publish ``dir_name`` under ``run_root`` once; later claims reuse it.
+
+    ``inspect(dir)`` returns the published value or ``None`` when incomplete;
+    ``fill(outdir)`` produces it into a staging directory. A failed attempt is
+    swept and retried up to ``attempts`` times before the error propagates, so
+    a transient collision cannot fail the whole session when a retry would do.
+    """
+    shared_dir = run_root / dir_name
+    published = inspect(shared_dir)
     if published is not None:
         return published
-    with FileLock(str(run_root / (_SHARED_BUILD_DIR_NAME + ".lock")), timeout=lock_timeout_s):
-        published = published_build_artifacts(shared_dir)
+    with FileLock(str(run_root / (dir_name + ".lock")), timeout=lock_timeout_s):
+        published = inspect(shared_dir)
         if published is not None:
             return published
-        for stale in run_root.glob(_STAGING_GLOB):
+        for stale in run_root.glob(staging_glob):
             shutil.rmtree(stale, ignore_errors=True)
-        staging = run_root / f"{_SHARED_BUILD_DIR_NAME}.staging-{os.getpid()}"
-        shutil.rmtree(staging, ignore_errors=True)
-        staging.mkdir(parents=True)
-        try:
-            build(staging)
-            built = published_build_artifacts(staging)
-            if built is None:
-                raise SharedBuildError("Build did not produce expected wheel/sdist artifacts")
-            if shared_dir.exists():
-                shutil.rmtree(shared_dir)
-            os.replace(staging, shared_dir)
-        except BaseException:
+        staging = run_root / f"{dir_name}.staging-{os.getpid()}"
+        for attempt in range(attempts):
             shutil.rmtree(staging, ignore_errors=True)
-            raise
-    published_after_rename = published_build_artifacts(shared_dir)
+            staging.mkdir(parents=True)
+            try:
+                fill(staging)
+                filled = inspect(staging)
+                if filled is None:
+                    raise SharedBuildError(f"{dir_name} did not produce a publishable artifact")
+                if shared_dir.exists():
+                    shutil.rmtree(shared_dir)
+                os.replace(staging, shared_dir)
+                break
+            except Exception:
+                shutil.rmtree(staging, ignore_errors=True)
+                if attempt == attempts - 1:
+                    raise
+                time.sleep(retry_delay_s)
+    published_after_rename = inspect(shared_dir)
     if published_after_rename is None:
-        raise SharedBuildError("Published artifacts did not survive publication")
+        raise SharedBuildError(f"Published artifacts did not survive publication in {shared_dir}")
     return published_after_rename
