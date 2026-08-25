@@ -86,10 +86,11 @@ class _RecordingClient:
 
 @pytest.fixture()
 def wiring(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[_RecordingClient]:
-    """Production sync-side registration + a recording transport, on a fresh machine.
+    """Production consent registration + a recording transport, on a fresh machine.
 
-    ``register_default_handlers`` is called first and the recording factory second,
-    so the client slot is overridden while the consent slot keeps the real resolver.
+    The default egress-consent registrar runs first and the recording factory is
+    registered second, so the client slot is overridden while the consent slot
+    keeps the real resolver.
     """
     home = tmp_path / "home"
     home.mkdir()
@@ -101,9 +102,9 @@ def wiring(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[_Recordi
     reset_adapters()
     os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
     try:
-        from specify_cli.sync import register_default_handlers
+        from specify_cli.egress_consent import ensure_default_egress_consent_resolver
 
-        register_default_handlers()
+        ensure_default_egress_consent_resolver()
         client = _RecordingClient()
         register_saas_client_factory(lambda _root: client)
         yield client
@@ -119,9 +120,11 @@ def wiring(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[_Recordi
         # order: this file runs before tests/specify_cli/saas_client/ and
         # tests/sync/tracker/, and took three of their transmit pins with it.
         reset_adapters()
-        from specify_cli.sync import register_default_handlers as _restore_handlers
+        from specify_cli.egress_consent import (
+            ensure_default_egress_consent_resolver as _restore_resolver,
+        )
 
-        _restore_handlers()
+        _restore_resolver()
 
 
 def _started_record() -> OpStartedEvent:

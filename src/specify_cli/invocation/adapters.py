@@ -190,6 +190,19 @@ def register_saas_client_factory(
     _saas_client_factory = fn
 
 
+def egress_consent_resolver_registered() -> bool:
+    """Whether a resolver currently occupies the consent slot.
+
+    Lets a caller install the default resolver *without* clobbering one that is
+    already registered — the slot is process-global, and an unconditional
+    default-install would silently replace whatever a test (or a future
+    transport) put there. Re-registration through
+    :func:`register_egress_consent_resolver` stays unconditional by design;
+    only this presence question is answered here.
+    """
+    return _egress_consent_resolver is not None
+
+
 def resolve_egress_consent(path: Path) -> EgressConsent:
     """Ask the registered resolver whether *path*'s project consents to egress.
 
