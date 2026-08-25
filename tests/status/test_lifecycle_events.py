@@ -836,13 +836,16 @@ def test_validate_lifecycle_payload_rejects_unexpected_extra_fields() -> None:
         "mission_number": None,
         "target_branch": "main",
         "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
-        "actor": "spec-kitty mission create",  # extra — schema forbids it
+        # extra — schema forbids it. NOT ``actor``: events 8.0.0 declared an
+        # optional opaque ``actor`` on MissionCreated/MissionClosed, so the
+        # drift probe uses a key that is still outside the contract.
+        "emitted_by": "spec-kitty mission create",
         "created_at": "2026-05-20T00:00:00+00:00",
         "friendly_name": "Demo",
         "purpose_tldr": "tldr",
         "purpose_context": "context",
     }
-    with pytest.raises(ValueError, match="actor"):
+    with pytest.raises(ValueError, match="emitted_by"):
         lifecycle._validate_lifecycle_payload("MissionCreated", bad_payload)
 
 
@@ -940,13 +943,15 @@ def test_validate_lifecycle_payload_still_strict_for_delivery_path_types() -> No
         "mission_number": None,
         "target_branch": "main",
         "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
-        "actor": "spec-kitty mission create",  # extra — schema forbids it
+        # extra — schema forbids it (see the drift-probe note above: events
+        # 8.0.0 declared an optional ``actor``, so probe with a foreign key).
+        "emitted_by": "spec-kitty mission create",
         "created_at": "2026-05-20T00:00:00+00:00",
         "friendly_name": "Demo",
         "purpose_tldr": "tldr",
         "purpose_context": "context",
     }
-    with pytest.raises(ValueError, match="actor"):
+    with pytest.raises(ValueError, match="emitted_by"):
         lifecycle._validate_lifecycle_payload(lifecycle.MISSION_CREATED, bad_payload)
 
 

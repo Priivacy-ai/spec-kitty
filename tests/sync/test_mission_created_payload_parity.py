@@ -12,7 +12,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
+from subprocess import CompletedProcess
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -104,14 +105,18 @@ def test_emitter_payload_matches_canonical(
         _identity=mock_identity,
         _git_resolver=resolver,
     )
-    event = emitter.emit_mission_created(
-        _FACTS["mission_slug"],
-        _FACTS["mission_number"],
-        _FACTS["target_branch"],
-        _FACTS["wp_count"],
-        mission_type=_FACTS["mission_type"],
-        mission_id=_FACTS["mission_id"],
-        created_at=_FACTS["created_at"],
-    )
+    # The wire payload is the canonical builder output plus the opaque runtime
+    # ``actor`` (events 8.0.0), which the emitter resolves after the builder
+    # runs; git I/O is patched so the resolved value stays deterministic.
+    with patch("subprocess.run", return_value=CompletedProcess(args=[], returncode=0, stdout="robert@example.com\n")):
+        event = emitter.emit_mission_created(
+            _FACTS["mission_slug"],
+            _FACTS["mission_number"],
+            _FACTS["target_branch"],
+            _FACTS["wp_count"],
+            mission_type=_FACTS["mission_type"],
+            mission_id=_FACTS["mission_id"],
+            created_at=_FACTS["created_at"],
+        )
     assert event is not None
-    assert event["payload"] == _canonical()
+    assert event["payload"] == {**_canonical(), "actor": "robert@example.com"}

@@ -51,9 +51,6 @@ _TOP_LEVEL_SYMBOLS = (
     # Event-store surface
     "EventStore",
     "InMemoryEventStore",
-    # Cutover-signal surface (FR-018 verification)
-    "CUTOVER_ARTIFACT",
-    "assert_canonical_cutover_signal",
 )
 
 
@@ -142,14 +139,34 @@ def test_event_class_pydantic_shape() -> None:
     )
 
 
-def test_assert_canonical_cutover_signal_is_callable() -> None:
-    """``assert_canonical_cutover_signal`` must be callable.
+def test_validate_strict_envelope_is_callable() -> None:
+    """``strict.validate_strict_envelope`` must be callable.
 
-    Referenced as a contract artifact for FR-018 verification.
+    The envelope-level cutover gate (``CUTOVER_ARTIFACT``,
+    ``assert_canonical_cutover_signal``) was deleted in spec-kitty-events
+    8.0.0; fail-closed envelope gating was re-homed onto the strict profile
+    (upstream COMPATIBILITY.md, ``8.0.0``). CLI's FR-018-style verification
+    follows it there.
     """
-    from spec_kitty_events import assert_canonical_cutover_signal
+    from spec_kitty_events.strict import validate_strict_envelope
 
-    assert callable(assert_canonical_cutover_signal), (
-        "spec_kitty_events.assert_canonical_cutover_signal is no longer "
-        "callable. CLI's cutover verification relies on this surface."
+    assert callable(validate_strict_envelope), (
+        "spec_kitty_events.strict.validate_strict_envelope is no longer "
+        "callable. CLI's fail-closed envelope verification relies on this "
+        "surface."
+    )
+
+
+def test_forbidden_keys_walk_is_callable() -> None:
+    """``forbidden_keys.find_forbidden_keys`` must be callable.
+
+    The recursive forbidden-key walk moved with the cutover gate's removal;
+    the strict profile composes it, and audit classifiers call it directly.
+    """
+    from spec_kitty_events.forbidden_keys import find_forbidden_keys
+
+    assert callable(find_forbidden_keys), (
+        "spec_kitty_events.forbidden_keys.find_forbidden_keys is no longer "
+        "callable. CLI's fail-closed envelope verification relies on this "
+        "surface."
     )
