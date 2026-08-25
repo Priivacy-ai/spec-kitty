@@ -469,8 +469,12 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.dashboard.lifecycle::_write_dashboard_file
         SymbolKey("_write_dashboard_file", "ef82e6e8e295ed1b746ebbc8983b3fee53ab6f31b6d4bd143be6bfcc4a82017e", source_module="specify_cli.dashboard.lifecycle"),
         SymbolKey(
-            "get_dashboard_html", "99ab224c187cd9b6ac929157228cd64e5c53eca093745248f868dc8da6008cfa", source_module="specify_cli.dashboard.templates"
+            "get_dashboard_html", "41f3d112537b05d8865266e06e50b3d7301d5340c91b9e539cd1a56e801d79ad", source_module="specify_cli.dashboard.templates"
         ),  # specify_cli.dashboard.templates::get_dashboard_html
+        # ^ body_hash refreshed for #66: the mission-context injection moved
+        # into an inert <script type="application/json"> data island, so the
+        # function's body changed while its grandfathered-dead status (no src/
+        # importer; only tests exercise it) did not.
         SymbolKey(
             "GovernancePolicy", "46ddf246ad782f50222cdff721814f7880aa33c8d000a88110475e71b78a6f7c", source_module="specify_cli.doctrine.org_charter"
         ),  # specify_cli.doctrine.org_charter::GovernancePolicy
