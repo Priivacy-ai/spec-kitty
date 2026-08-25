@@ -33,7 +33,7 @@ history:
 - at: '2026-08-22T17:51:11Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
-agent_profile: curator-carla
+agent_profile: reviewer-renata
 agent: codex
 authoritative_surface: docs/guides/spec-review.md
 create_intent:
@@ -47,7 +47,7 @@ owned_files:
 - docs/changelog/CHANGELOG.md
 - tests/integration/test_spec_review_integration.py
 - tests/integration/test_spec_review_live.py
-role: curator
+role: reviewer
 tags: []
 task_type: implement
 tracker_refs: []
@@ -226,6 +226,9 @@ Reviewer отклоняет WP, если docs обещают provider properties
 - 2026-08-24 – codex – T031: relevant offline regression по CLI registration, `mission_runtime`, invocation executor, существующей команде `review` и spec-review flow → `344 passed, 6 deselected` (`1` opt-in live marker + `5` доказанно предсуществующих Windows-кейсов). Пять baseline-падений воспроизведены на неизменённой planning branch и зарегистрированы как GitHub issue `#3726`.
 - 2026-08-24 – codex – T031: полный repo suite честно не подтверждён green: Windows collection остановился на `16` environment/platform errors (`fcntl`, `resource`, `getuid/geteuid`, `SIGKILL`, отсутствующий `pytest_benchmark`, duplicate test basename). Product tests до выполнения не дошли; это ограничение текущей runtime-среды, а не успешный full-suite результат.
 - 2026-08-24 – codex – T031: final codemap refresh выполнен последовательно на source HEAD `0ea342ca53bc05b3bb67d7a28b0e9fac01033dde`; `python docs/codemap/codemap.lock` → `OK`, `30` present nodes, `0` planned nodes, `42` edges, `306` historical review files. Карта отвечает: root registry → CLI leaf → service; flow читает canonical `spec.md`, после consent может создать только append-only `reviews/spec-review-<run-id>.yaml`; покрытие — focused unit/CLI/integration/placement suites. `git diff --check` прошёл.
+- 2026-08-25 – codex – T032 reconciliation: `acceptance-matrix.json` заменён с placeholder FR-001–FR-012 на `27` pending reviewer criteria без ложного pass: FR-001–FR-014, NFR-001–NFR-008 и C-001–C-005 сопоставлены с implementation/tests/docs. Reviewer остаётся владельцем `pass_fail`, `verified_by` и итогового verdict.
+- 2026-08-25 – codex – T032 gap closure: прямой NFR-007 test на 256 KiB обнаружил квадратичный lookahead entropy scanner. Regex заменён на линейный candidate scan с отдельной alpha/digit проверкой; opt-in performance test проходит с измеряемым `service.prepare() < 2.0s`. Проверки после исправления: focused performance node `1 passed`; Ruff `All checks passed`; `mypy --strict --platform linux` → `Success`; offline reviewer suite → `130 passed, 1 skipped, 1 deselected` без сети и model call.
+- 2026-08-25 – codex – T032 review packet: изменены отдельный CLI leaf/service/runner/preflight/parser/storage bounded context, PRIMARY artifact classification/storage, operator guide/changelog, offline integration/live harness и codemap. Codemap повторно привязан к source HEAD `86fa812099df35688fe1a23fce05cb1fbc382990` и проходит lock verification (`30` present, `0` planned, `42` edges). Остаточные gates: независимый WP review; cross-platform/cloud CI; full-repo Windows suite не подтверждён из-за ранее записанных collection blockers; внешний Ox Alpha smoke не пройден (`Rate limit exceeded` дважды), валидированного model result нет. Baseline issues: `#3721`, `#3726`. Push/PR/merge/deploy не выполнялись.
 
 ### Updating Status
 
