@@ -232,6 +232,23 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _inline_submit() -> Any:
+    """A ``submit`` replacement that propagates synchronously.
+
+    ``InvocationSaaSPropagator.submit`` runs ``_propagate_one`` on a worker thread;
+    asserting anything about that work from the test thread without joining it is a
+    coin flip. Running it inline keeps the executor's real call path.
+    """
+    from specify_cli.invocation.propagator import InvocationSaaSPropagator
+
+    def _sync_submit(self: InvocationSaaSPropagator, record: object) -> None:
+        from specify_cli.invocation.propagator import _propagate_one
+
+        _propagate_one(record, self._repo_root)  # type: ignore[arg-type]
+
+    return _sync_submit
+
+
 def test_without_a_transport_only_local_events_are_written(tmp_path: Path) -> None:
     """No transport registered: local JSONL is written, nothing reaches a client.
 
@@ -246,19 +263,25 @@ def test_without_a_transport_only_local_events_are_written(tmp_path: Path) -> No
     # (b) the JSONL file is written by the executor, not manually
     project = _setup_minimal_project(tmp_path)
 
-    with patch(
-        "specify_cli.invocation.propagator._get_saas_client",
-        return_value=None,
-    ) as mock_client:
-        with patch(
+    with (
+        patch(
+            "specify_cli.invocation.propagator.InvocationSaaSPropagator.submit",
+            new=_inline_submit(),
+        ),
+        patch(
+            "specify_cli.invocation.propagator._get_saas_client",
+            return_value=None,
+        ) as mock_client,
+        patch(
             "specify_cli.invocation.executor.build_charter_context",
             return_value=_COMPACT_CTX,
-        ):
-            executor = ProfileInvocationExecutor(project)
-            payload = executor.invoke(
-                "implement the feature",
-                profile_hint="implementer-fixture",
-            )
+        ),
+    ):
+        executor = ProfileInvocationExecutor(project)
+        payload = executor.invoke(
+            "implement the feature",
+            profile_hint="implementer-fixture",
+        )
 
         # (a) The seam was consulted, answered "no transport", and nothing was sent
         mock_client.assert_called_once()
