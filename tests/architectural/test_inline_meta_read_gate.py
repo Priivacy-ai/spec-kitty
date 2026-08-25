@@ -308,13 +308,17 @@ FLOOR_MARGIN = 2
 # against the corrected 144 (``floor == live - 3``; band
 # ``live - MARGIN(4) <= floor < live`` holds: 140 <= 141 < 144), strictly
 # satisfying the anti-vacuity check (same convention as the entries above).
-# RAISED 2026-08-28 (#3712 landing / #3773): the verdict-durability fix added
-# one routed ``load_meta_fail_closed(identity.feature_dir)`` call site (the
-# committed-annotation path for stored ``LANES`` missions). Live rises
-# 142 -> 143 on this convergence base; floor raised 141 -> 142, staying within
-# the four-site margin (``139 <= 142 < 143``).
+# RAISED 2026-08-22 (post-#3659 main refresh): the consolidated landing added
+# two genuine routed sites: mission-check-prerequisites resume metadata now
+# uses ``load_meta_fail_closed``, and merge-baseline decoding now uses
+# ``decode_meta``. Live rises 144 -> 146; floor raised 141 -> 143 to preserve
+# the established 3-below-live gap (``142 <= 143 < 146``).
+# RAISED 2026-08-24 (#2938): four legacy branch-contract call sites now route
+# through ``load_meta_fail_closed``. Live rises 146 -> 150; floor raised
+# 143 -> 146, the lowest permitted value within the four-site margin
+# (``146 <= 146 < 150``).
 ROUTED_LOAD_META_FLOOR_MARGIN = 4
-ROUTED_LOAD_META_FLOOR = 142
+ROUTED_LOAD_META_FLOOR = 146
 
 
 # --------------------------------------------------------------------------- #
