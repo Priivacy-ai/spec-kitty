@@ -856,9 +856,7 @@ class TestEgressResolverWiring:
         through an import edge into the transport whose deletion is pending.
         """
         violations = [
-            name
-            for name in self._import_names(self._parse("specify_cli/egress.py"))
-            if name == "specify_cli.sync" or name.startswith("specify_cli.sync.")
+            name for name in self._import_names(self._parse("specify_cli/egress.py")) if name == "specify_cli.sync" or name.startswith("specify_cli.sync.")
         ]
         assert not violations, (
             "src/specify_cli/egress.py imports the sync package "
@@ -906,15 +904,10 @@ class TestEgressResolverWiring:
         tree = self._parse("specify_cli/egress.py")
 
         imported = [
-            alias.name
-            for node in ast.walk(tree)
-            if isinstance(node, ast.ImportFrom) and node.module == "specify_cli.egress_consent"
-            for alias in node.names
+            alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module == "specify_cli.egress_consent" for alias in node.names
         ]
         assert "ensure_default_egress_consent_resolver" in imported, (
-            "specify_cli/egress.py no longer imports "
-            "ensure_default_egress_consent_resolver; the explicit-registration "
-            "contract has been edited away."
+            "specify_cli/egress.py no longer imports ensure_default_egress_consent_resolver; the explicit-registration contract has been edited away."
         )
 
         decision = next(
