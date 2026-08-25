@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-08-25T05:55:09.924384+00:00",
+      "accepted_by": "Руслан",
+      "accepted_from_commit": "dfa9605dc7a50119db94a6b93e8b24254f97dd3a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-08-25T05:55:09.924384+00:00",
+  "accepted_by": "Руслан",
+  "accepted_from_commit": "dfa9605dc7a50119db94a6b93e8b24254f97dd3a",
   "coordination_branch": "kitty/mission-ox-alpha-spec-reviewer-01M0N82A",
   "created_at": "2026-08-22T17:25:03.095118+00:00",
   "flattened": false,
