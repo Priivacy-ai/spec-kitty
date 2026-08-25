@@ -3,9 +3,10 @@
 Stability contract: ``contracts/saas_rollout.md``.
 
 This CORE module is the single source of truth for the
-``SPEC_KITTY_ENABLE_SAAS_SYNC`` environment-variable check.  The INTEGRATION-set
-``saas.rollout`` module is a thin re-export shim that delegates here, as are the
-``tracker.feature_flags`` and ``sync.feature_flags`` shims.
+``SPEC_KITTY_ENABLE_SAAS_SYNC`` environment-variable check. The former
+re-export shims (``saas.rollout``, ``sync.feature_flags``) died with their
+packages when the sync transport was deleted (issue #5);
+``tracker.feature_flags`` re-exports from here.
 
 Imports are stdlib-only (``os``) so this module introduces no import cycle and
 is safe for CORE-set consumers (C-001).

@@ -70,15 +70,11 @@ def _get_saas_client(repo_root: Path) -> Any | None:
     Everything below this lookup in :func:`_propagate_one` is therefore inert until
     someone registers a real factory, and that is a deliberate state, not an oversight.
 
-    Two things follow, and neither is optional:
-
-    * The consent gate in :func:`_propagate_one` runs **before** this lookup and stays
-      there. It is what makes registering a transport a safe act rather than an
-      egress incident, so it must not be removed on the ground that the send is
-      currently inert.
-    * Registering a factory here opens an egress path carrying ``request_text`` — the
-      verbatim agent prompt. Wiring it to ``SyncRuntime.ws_client`` was considered
-      during #3030 and explicitly rejected.
+    Registering a factory here opens an egress path carrying ``request_text`` — the
+    verbatim agent prompt. Wiring it to ``SyncRuntime.ws_client`` was considered
+    during #3030 and explicitly rejected; whoever registers a real transport owns
+    the auth/admission gate that makes that safe. (The former egress-consent gate
+    ahead of this lookup retired with the sync transport, issue #5.)
     """
     return _get_saas_client_from_seam(repo_root)
 
@@ -94,40 +90,13 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
     Call pattern mirrors src/specify_cli/sync/emitter.py lines 993-1000.
 
     Check ordering (invariant — do not reorder):
-      1. Consent gate (anything other than GRANTED → early return)
-      2. Auth/client lookup (_get_saas_client returns None → early return)
-      3. Policy lookup (resolve_projection → project=False → early return)
-      4. Envelope build + send
-    """
-    # 1. Consent gate: LOCAL-FIRST invariant (C-002, FR-012) and the
-    # confidentiality boundary itself (#3030 FR-025). Must remain first — it is a
-    # purely local read, so nothing touches auth or the network ahead of it.
-    #
-    # This gate used to ask the adapter seam whether *sync was enabled for this
-    # checkout* and skip only on an explicit ``is False``. Two things were wrong
-    # with that, and they compounded:
-    #
-    #   (a) ``repo_root`` answers "which checkout am I in", never "may this
-    #       project's data leave". The seam now resolves the owning project's
-    #       uuid and puts it through the one consent funnel
-    #       (``sync.consent.consented_project_uuids``), the same funnel the drain
-    #       and the emitter use (C-003 — one representation of one invariant).
-    #
-    #   (b) "Could not determine" was spelled the same way as "no resolver
-    #       registered" (both ``None``) and the ``is False`` test read both as
-    #       permission. Measured with no consent record anywhere: a repo_root
-    #       that is not a project root sent one envelope with ``request_text``
-    #       — the verbatim agent prompt — and a resolver that raised sent the
-    #       same one. Neither needed a fault in the consent chain to reach it.
-    #
-    # ``EgressConsent.permits_egress`` is now the only way to spell the decision,
-    # and it is true for exactly one member. Refusing when no resolver is
-    # registered costs nothing: without the sync package there is no client to
-    # send through either, so step 2 already ended in a no-op.
-    # (The former egress-consent gate retired with the sync transport, issue #5;
-    # propagation now proceeds straight to the transport seam below.)
+      1. Auth/client lookup (_get_saas_client returns None → early return)
+      2. Policy lookup (resolve_projection → project=False → early return)
+      3. Envelope build + send
 
-    # 2. Auth/client lookup. Must remain second.
+    (The former step-1 egress-consent gate retired with the sync transport,
+    issue #5.)
+    """
     client = _get_saas_client(repo_root)
     if client is None:
         return  # No SaaS token / client not connected → no-op, no log
