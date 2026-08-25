@@ -14,7 +14,6 @@ from typing import Any
 from specify_cli.migration.backfill_identity import (
     backfill_mission,
     backfill_wp_ids,
-    trigger_feature_dossier_sync_if_enabled,
 )
 from specify_cli.status import derive_mission_lifecycle, generate_lifecycle_json
 from specify_cli.status import generate_progress_json
@@ -106,15 +105,6 @@ def _apply_identity_normalization(
     if backfill.number_coerced:
         result.actions.append("Normalized legacy mission_number type")
         refresh_derived = True
-    if not dry_run and (backfill.action == "wrote" or backfill.number_coerced):
-        try:
-            trigger_feature_dossier_sync_if_enabled(
-                feature_dir=feature_dir,
-                mission_slug=result.slug,
-                repo_root=repo_root,
-            )
-        except Exception as exc:  # noqa: BLE001 - keep normalization best-effort
-            result.warnings.append(f"dossier rehash failed: {exc}")
         from specify_cli.core.paths import load_meta_fail_closed
         meta = load_meta_fail_closed(feature_dir) or meta
 

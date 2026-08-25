@@ -2277,11 +2277,6 @@ def _run_commit_pipeline(
         json_output=json_output,
     )
 
-    with contextlib.suppress(Exception):
-        from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-
-        trigger_feature_dossier_sync_if_enabled(planning_dir, mission_slug, repo_root)
-
     commit_outcome = _commit_finalize_artifacts(
         planning_dir,
         tasks_dir,
