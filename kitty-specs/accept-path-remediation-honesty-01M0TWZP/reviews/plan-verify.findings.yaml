@@ -1,0 +1,101 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+lens_group: verify
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: PLAN-VERIFY-001
+    lens: Revert discipline / Falsifiability
+    severity: 4
+    title: "WP1 fixes the mkdir suggestion but not the actually-rendered warning/error line — the plan's own claim about what format_errors()/format_warnings() consume is factually wrong"
+    evidence:
+      - artifact: "plan.md § WP1 — resolved-path correctness (lines 305-349)"
+      - artifact: "plan.md § Baseline honesty (lines 333-336): \"This changes what value lands in result.missing_paths — which suggest_directory_creation and both format_errors()/format_warnings() already consume unmodified, so the reporting fix flows through both strict and lenient text for free once the stored string is correct.\""
+      - artifact: "spec.md § Key Entities (line 290-291, gated PASSED): \"FR-001 changes what value gets stored in missing_paths/warnings (resolved vs. bare token)\""
+      - artifact: "spec.md § Summary (lines 20-22, gated PASSED): \"...reports and builds its mkdir -p remedy from the bare declared token...\" — names both the report text and the mkdir remedy as separately broken"
+      - code: "src/specify_cli/validators/paths.py:207 — result.missing_paths.append(relative_path)"
+      - code: "src/specify_cli/validators/paths.py:208 — result.warnings.append(f\"{mission.name} expects {key} path: {relative_path} (not found)\")  # untouched by the plan; still uses the bare declared token"
+      - code: "src/specify_cli/validators/paths.py:44-59,61-78 — format_warnings()/format_errors() both render self.warnings (and self.suggestions) as their primary content lines; neither method ever reads self.missing_paths"
+      - code: "src/specify_cli/validators/paths.py:81-105 — suggest_directory_creation(result.missing_paths) is the ONLY consumer of missing_paths; grep confirms missing_paths has no other production reader (acceptance/summary_core.py:144 only checks truthiness)"
+      - code: "src/specify_cli/acceptance/summary_core.py:147-148 — evaluate_path_conventions returns path_result.format_errors() (strict) / path_result.format_warnings() (lenient), i.e. the operator-visible text is entirely warnings+suggestions, never missing_paths"
+    claim: >
+      The plan's WP1 root-cause analysis and fix direction only describe changing
+      `result.missing_paths.append(relative_path)` at paths.py:207. It never mentions
+      the sibling line 208, `result.warnings.append(f"{mission.name} expects {key}
+      path: {relative_path} (not found)")`, which is built from the same bare
+      `relative_path` token. Verified against the actual code: `format_errors()` and
+      `format_warnings()` — the two methods that produce every operator-visible string
+      (console text, `PathValidationError`'s message, and what `evaluate_path_conventions`
+      returns as `path_violations`/the lenient warning) — iterate `self.warnings` and
+      `self.suggestions`; `self.missing_paths` is never rendered directly anywhere in
+      the codebase (its only other reader is `suggest_directory_creation`, which builds
+      `self.suggestions`). So fixing only line 207 makes the `mkdir -p` suggestion
+      correct while the primary "{mission.name} expects {key} path: {relative_path}
+      (not found)" line — the actual sentence an operator reads first — keeps printing
+      the bare declared token forever. spec.md's own Key Entities section (gated PASSED,
+      binding per this plan's stated commitment not to re-litigate settled decisions)
+      explicitly names both `missing_paths` AND `warnings` as needing the fix; the
+      plan's WP1 section only implements half of that pinned contract, and its own
+      "flows through ... for free" claim about what format_errors()/format_warnings()
+      consume is directly contradicted by the code. Because WP1's described revert
+      test only asserts on `.missing_paths` and `.suggestions` (never `.warnings` or
+      the full rendered `format_errors()`/`format_warnings()` text), an implementation
+      that ships exactly what WP1 describes would pass its own revert test while
+      leaving FR-001's actual defect — the wrong path in the reported message —
+      unfixed. This gap also silently undercuts WP3 (the "honest wording" WP): even
+      after WP3's improved trailing prose, the line immediately above it would still
+      assert the wrong (bare-token) location.
+    remediation: >
+      Amend WP1's fix direction to compute the resolved, reportable string once (as
+      already planned) and use it for BOTH result.missing_paths.append(...) (line 207)
+      AND the f-string passed to result.warnings.append(...) (line 208) — e.g. by
+      building the resolved string before either append call and reusing the local
+      variable in both. Amend WP1's revert test description to additionally assert
+      that PathValidationResult.warnings (or the full format_errors()/format_warnings()
+      rendered output) contains the resolved feature_dir-relative string and does NOT
+      contain the bare token, not just .missing_paths/.suggestions — otherwise the test
+      cannot falsify the actual defect. Correct the false claim in the "Baseline
+      honesty" section (lines 333-336) that format_errors()/format_warnings() consume
+      missing_paths — they consume warnings/suggestions.
+  - id: PLAN-VERIFY-002
+    lens: Gates
+    severity: 3
+    title: "Coverage-floors' single most load-bearing citation (critical_paths array location) is stale by ~20 lines"
+    evidence:
+      - artifact: "plan.md § Coverage floors (lines 197-207): \"...the critical_paths allow-list — src/kernel/*, ... (.github/workflows/ci-quality.yml:3327-3345).\""
+      - code: ".github/workflows/ci-quality.yml:3337 — the \"diff-coverage (critical-path, enforced)\" step name (inside the cited 3327-3345 range)"
+      - code: ".github/workflows/ci-quality.yml:3349-3369 — the actual critical_paths=( ... ) array (10 entries: src/kernel/*, src/doctrine/*, src/charter/*, src/specify_cli/status/*, src/specify_cli/lanes/branch_naming.py, src/specify_cli/dashboard/handlers/*, src/specify_cli/dashboard/scanner.py, src/specify_cli/merge/*, src/runtime/next/*, src/mission_runtime/*) — outside the cited range"
+    claim: >
+      The plan cites `:3327-3345` for the contents of the enforced diff-coverage
+      job's `critical_paths` allow-list — this is the single citation the task brief
+      flagged as load-bearing for the whole coverage-floor argument. Verified directly:
+      lines 3327-3345 contain the "Download all coverage artifacts" step, a comment
+      block, and the "diff-coverage (critical-path, enforced)" step's name/preamble —
+      not the array. The actual `critical_paths=( ... )` array lives at lines
+      3349-3369, roughly 20-24 lines below the cited range. The plan's *substantive*
+      claim about the list's contents is accurate (verified independently: 10 entries,
+      none of validators/**, acceptance/**, or cli/** present, so the coverage-floor
+      conclusion itself holds) — but a reviewer following the plan's citation to
+      independently re-verify would land on the wrong block, defeating the citation's
+      purpose. The second diff-coverage citation (`:3400-3410`, the advisory `|| true`
+      step) is exact and correct by contrast.
+    remediation: >
+      Update the citation in plan.md's Coverage floors section from
+      `.github/workflows/ci-quality.yml:3327-3345` to the array's actual current
+      location (verified now at `:3349-3369`; re-verify at implementation time since
+      CI workflow line numbers drift with every edit to the file).
+  - id: PLAN-VERIFY-003
+    lens: Gates
+    severity: 1
+    title: "Off-by-one line citation for validators/** in the governance path-filter group"
+    evidence:
+      - artifact: "plan.md § Gate set (lines 226-227): \"src/specify_cli/validators/** → governance filter group (.github/workflows/ci-quality.yml:509).\""
+      - code: ".github/workflows/ci-quality.yml:509 — - 'src/specify_cli/contracts/**'  (the preceding entry in the same governance: block)"
+      - code: ".github/workflows/ci-quality.yml:510 — - 'src/specify_cli/validators/**'  (the actual entry being cited)"
+    claim: >
+      Verified the `governance:` path-filter block: `src/specify_cli/validators/**`
+      is declared at line 510, not line 509 as cited (line 509 is the adjacent
+      `src/specify_cli/contracts/**` entry). The group identification itself
+      (governance) is correct; only the line pointer is off by one.
+    remediation: "Correct the citation to :510."

@@ -1,0 +1,43 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 2
+verdicts:
+- id: PLAN-ARCH-004
+  verdict: confirmed
+  reason: Verified acceptance/__init__.py line 594 produces feature_dir-relative multi-segment tokens
+    while plan.md lines 384-395 pin basename-only (Path(...).name) comparison, a strictly looser rule
+    than spec.md's own "relative to feature_dir, slash-stripped" example (spec.md lines 338-339), creating
+    a latent false-match risk for future multi-segment dual-declared tokens even though today's single-segment
+    "contracts" fixture is unaffected (verified in python that Path('kitty-specs/<slug>/contracts/').name
+    equals 'contracts').
+- id: PLAN-ARCH-005
+  verdict: confirmed
+  reason: summary_core.py lines 109-150 (evaluate_path_conventions) show the strict/lenient branch runs
+    after the missing_paths check, plan.md's Propagation-mechanism text (lines 396-404) and docstring
+    wording (lines 380-383) never state whether the dedup mutation is gated inside the strict_metadata
+    branch or fires unconditionally, and WP2's own revert test is scoped to strict mode only, leaving
+    lenient-mode behavior on the dual-declared fixture genuinely unpinned and untested.
+- id: PLAN-VERIFY-001
+  verdict: confirmed
+  reason: Read paths.py in full - format_errors() and format_warnings() (lines 44-78) render only self.warnings
+    and self.suggestions and never self.missing_paths, while line 208's result.warnings.append(...) still
+    builds its message from the unmodified bare relative_path even after WP1's described fix to line 207's
+    missing_paths.append; plan.md's WP1 text (lines 305-336) only describes fixing the missing_paths append,
+    its Baseline-honesty claim that format_errors()/format_warnings() consume missing_paths (lines 333-336)
+    is directly contradicted by the code, and WP1's revert test (lines 340-348) asserts only on .missing_paths/.suggestions,
+    never .warnings or the rendered text, so an implementation matching WP1's description would pass its
+    own test while FR-001's actual defect (the operator-visible message) stays unfixed.
+- id: PLAN-VERIFY-002
+  verdict: confirmed
+  reason: ci-quality.yml lines 3327-3345 (plan.md's cited range) contain the Download-all-coverage-artifacts
+    step and the following step's name/preamble, not the critical_paths array, which actually begins at
+    line 3349 and runs through line 3372, roughly 20+ lines outside the cited range exactly as the finding
+    states, though the array's substantive contents (10 entries, none in validators/**, acceptance/**,
+    or cli/**) are accurately described by the plan.
+- id: PLAN-VERIFY-003
+  verdict: confirmed
+  reason: ci-quality.yml line 509 is 'src/specify_cli/contracts/**' and line 510 is 'src/specify_cli/validators/**';
+    plan.md lines 225-226 cite :509 for validators/**, an off-by-one against the actual line 510, confirmed
+    by direct read of the governance filter block.

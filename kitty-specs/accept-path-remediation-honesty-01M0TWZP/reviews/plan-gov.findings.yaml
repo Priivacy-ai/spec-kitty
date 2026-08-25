@@ -1,0 +1,62 @@
+# review-findings/v1 — canonical format for lens-session and fresh-sweep output.
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: PLAN-GOV-001
+    lens: Campsite scope (mission-derived, C-004 evidence verification)
+    severity: 3
+    title: "Campsite-clean scope's function-size evidence is wrong for 2 of 6 cited functions (both understated by roughly 2x)"
+    evidence:
+      - artifact: "plan.md § Campsite-clean scope (C-004 resolved here, not deferred again), lines 163-168"
+      - code: "src/specify_cli/acceptance/summary_core.py:110-147 (evaluate_path_conventions — def to blank line before build_warnings at :151)"
+      - code: "src/specify_cli/cli/commands/accept.py:453-483 (_print_acceptance_summary — def to blank line before _print_acceptance_result at :484)"
+    claim: >
+      Plan.md's Campsite-clean scope section states, as the size evidence backing the
+      "not warranted" C-004 conclusion: "evaluate_path_conventions (~20 lines)" and
+      "_print_acceptance_summary (~15 lines)". Measured directly against this checkout's
+      live code: evaluate_path_conventions spans lines 110-147 of summary_core.py (~38
+      lines including its docstring), and _print_acceptance_summary spans lines 453-483
+      of accept.py (~31 lines). Both are roughly double the plan's stated figure. (For
+      contrast, the other four size claims in the same list were verified accurate:
+      validate_mission_paths ~80 lines — actual 133-215, 83 lines; _missing_artifacts
+      ~10 lines — actual 585-595, 11 lines; format_errors/format_warnings ~15 lines each
+      — actual 61-76/44-58, 16/15 lines; accept() ~280 lines — actual 633-913, exactly
+      280 lines.) The reviewing lens's instruction is explicit that a wrong count/size
+      claim is a defect in the plan's supporting evidence regardless of whether the
+      C-004 "not warranted" conclusion happens to still be correct — and by inspection
+      it likely does still hold here (neither function's branching/nesting is anywhere
+      near the charter's 15 cyclomatic-complexity ceiling even at the corrected line
+      counts), but the plan states line counts as its evidence, not complexity, and two
+      of the six stated line counts do not match the code they cite.
+    remediation: >
+      Correct the two line-count figures in the Campsite-clean scope section to the
+      measured values (evaluate_path_conventions ~38 lines including docstring,
+      _print_acceptance_summary ~31 lines), or restate the evidence in terms of
+      cyclomatic complexity/branch count (which does support "not warranted" at the
+      corrected sizes) rather than an unverified line-count estimate, so the C-004
+      determination rests on evidence that matches the live code.
+
+  - id: PLAN-GOV-002
+    lens: Campsite scope (mission-derived, C-004 evidence verification)
+    severity: 1
+    title: "WP2's 'Dedup print removal' cites accept.py:474-480 for the block being deleted; the actual if-block spans 476-481"
+    evidence:
+      - artifact: "plan.md § WP2 — stop double-reporting, \"Dedup print removal\" paragraph, line 410"
+      - code: "src/specify_cli/cli/commands/accept.py:474-481 (line 474 is the preceding `_print_acceptance_warnings(summary)` call; the `if summary.optional_missing: console.print(...)` block itself is lines 476-481)"
+    claim: >
+      Plan.md says: "cli/commands/accept.py:474-480's if summary.optional_missing:
+      console.print(...) block is deleted outright." Read directly: line 474 is
+      `_print_acceptance_warnings(summary)` (the call the plan itself says renders the
+      non-duplicate warning), and the `if summary.optional_missing:` block being
+      targeted for removal actually runs 476-481 (through the trailing `console.print()`
+      call). The quoted code content in the same sentence is verbatim-correct and
+      unambiguous, so this does not put an implementer at risk of deleting the wrong
+      code, but the cited line range is off by two lines at the start and one at the
+      end.
+    remediation: >
+      Correct the citation to "accept.py:476-481" (or "accept.py:474-481" if the intent
+      is to bound the whole warnings-then-dedup-print region including the
+      `_print_acceptance_warnings` call for context).
