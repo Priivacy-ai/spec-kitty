@@ -1,0 +1,229 @@
+schema: review-findings/v1
+complete: false
+phase: plan
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: PLAN-GOV-001
+    lens: Campsite scope
+    severity: 3
+    title: "Campsite-clean waiver cites an inaccurate line-count for check_analysis_report_current"
+    evidence:
+      - artifact: "plan.md § Quality & Tech-Debt Standing Orders — applied, item 2 (Campsite cleaning), lines 117-127"
+      - code: "src/specify_cli/analysis_report.py:458-544"
+    claim: >
+      Plan.md's "not warranted" campsite-clean judgment rests explicitly on the claim that the four
+      touched functions in analysis_report.py — `_artifact_hash_entry`, `_charter_path`,
+      `collect_input_artifact_hashes`, `check_analysis_report_current` — "are each small (5-30 lines)
+      and already focused, not in need of decomposition to make the FR-007 edit safe." Measured
+      directly against the live checkout: `check_analysis_report_current` spans lines 458-544, i.e.
+      87 lines — nearly 3x the stated upper bound, and the only one of the four functions this plan
+      names that actually needs FR-007 touch (it calls collect_input_artifact_hashes and must catch
+      the new relativization-failure path per DD-004). Manual inspection shows it is a flat sequence
+      of independent early-return guard clauses (no nesting), so it is very likely still under the
+      charter's complexity-15 ceiling and probably not a true Sonar "god-function" — but the plan's
+      own stated evidence for skipping campsite-clean is factually wrong for the one function most
+      load-bearing to this mission's FR-007 change, which undercuts the "verified against the live
+      checkout, not assumed" standard the plan repeatedly asserts for itself elsewhere (e.g.
+      tracer-approach.md step 3's line-by-line re-verification list omits this function's line range
+      entirely).
+    remediation: >
+      Correct the campsite-clean paragraph to state check_analysis_report_current's actual line
+      count (87 lines, 458-544) and its actual shape (linear guard-clause chain, not nested branching)
+      as the basis for "not needing decomposition," rather than folding it into the same "5-30 lines"
+      bucket as the other three, smaller functions. If a reviewer wants independent confirmation,
+      run `ruff check --select C901 src/specify_cli/analysis_report.py` (or the repo's mypy/ruff CI
+      step) before merge to confirm it is in fact under the complexity ceiling.
+
+  - id: PLAN-GOV-002
+    lens: "Mission-specific: Reflexivity self-application gap"
+    severity: 3
+    title: "Reflexivity section names the self-test-failure risk but specifies no recovery path"
+    evidence:
+      - artifact: "plan.md § Reflexivity, lines 474-480"
+      - artifact: "plan.md § SK-63 interaction (process note for the analyze phase, not a plan requirement), lines 465-472"
+    claim: >
+      Plan.md's Reflexivity section states that this mission's own eventual `record-analysis`
+      invocation is "the first real-world exercise of the FR-006/FR-007 fix" and that a failure there
+      would be "direct, first-party evidence the fix did not work, discovered before the PR is even
+      opened" — but it stops there. It never states what happens next if that self-test actually
+      fails: no instruction to fix-forward within the same mission before PR-prep, no statement that
+      this blocks marking the mission's own analyze phase complete, no escalation path, nothing. The
+      adjacent "SK-63 interaction" section covers only the OTHER half of what can go wrong at
+      analyze-phase time — SK-63's hang/false-success problem (verify the commit via `git log`/`git
+      ls-tree`, never trust `{"success": true}` alone) — and explicitly scopes itself to that: "it is
+      not a plan requirement to fix SK-63's other half." Neither section, nor D1's general
+      fold-in-rather-than-file-or-defer rule (spec.md, which talks about "adjacent work encountered
+      while grounding" and pre-existing test failures, not a mission's own deliverable failing its
+      own dogfood test), is drawn on to say what an implementing/analyze-phase agent should actually
+      do if the record-analysis commit fails commitlint or `analysis-report.md` still leaks an
+      absolute path after FR-006/FR-007 land. Given the charter's throughline ("never trust a green
+      check... let independent adversarial perspectives try to break the work before it lands") this
+      is exactly the scenario the plan should pre-commit a response to, and does not.
+    remediation: >
+      Add a short, explicit recovery-path statement to the Reflexivity section (or fold it into the
+      SK-63 interaction section, renaming it to cover both halves): if this mission's own
+      record-analysis commit fails commitlint, or its analysis-report.md contains an absolute
+      username-bearing path, treat FR-006/FR-007 as not-yet-done — fix forward within this same
+      mission (amend IC-03's implementation) before proceeding to PR-prep, and do not open the PR
+      with a known-failing self-test. State this as a plan-level instruction, not left to be
+      improvised by whichever agent happens to run the analyze phase.
+
+  - id: PLAN-ARCH-001
+    lens: NFR-002 contract-boundary precision (mission-specific)
+    severity: 3
+    title: IC-03's relativization-failure catch boundary names WHERE but not WHAT — no exception type, no committed raise-site
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map / IC-03 (lines ~529-536)"
+      - artifact: "plan.md § Quality & Tech-Debt Standing Orders — applied, item 2 (Campsite cleaning), naming `_artifact_hash_entry`, `_charter_path`, `collect_input_artifact_hashes`, `check_analysis_report_current` as the touched functions"
+      - code: "src/specify_cli/analysis_report.py:179-185 (`_artifact_hash_entry(path)` — signature takes only `path`, no governing-root parameter; cannot itself relativize without a caller-side change or a new parameter)"
+      - code: "src/specify_cli/analysis_report.py:217-226 (`collect_input_artifact_hashes` calls `_artifact_hash_entry` for the three hash inputs, then builds the `charter` entry inline via a separate code path using `_charter_path`)"
+      - code: "src/specify_cli/analysis_report.py:124 (`class AnalysisReportError(RuntimeError)`, the repo's one existing analysis-report-domain exception, raised exactly once today at line 409's `write_analysis_report` required-artifact check) — no typed exception for a relativization failure exists yet"
+      - code: "src/specify_cli/analysis_report.py:458-544 (`check_analysis_report_current`) — the call to `collect_input_artifact_hashes` at line 515 currently has NO surrounding try/except of any kind; the only existing try/except in this function (lines 472-482) is scoped narrowly to `FrontmatterManager().read()` / `FrontmatterError`"
+      - code: "src/specify_cli/cli/commands/agent/workflow.py:950-990 (`_require_current_analysis_report`) — calls `check_analysis_report_current(feature_dir, repo_root)` at line 957 with no try/except; any exception that escapes `check_analysis_report_current` propagates uncaught here, i.e. into the `implement` gate check itself, not a reported error"
+    claim: >
+      Plan.md's IC-03 risk note commits to the correct high-level invariant (the
+      relativization-failure exception must not reach `_require_current_analysis_report`)
+      but stops short of naming (a) the concrete exception type to raise/catch — it says only
+      "a typed exception" without proposing a name, and the one existing candidate
+      (`AnalysisReportError`) is not mentioned as the intended reuse; (b) which function is the
+      actual raise site — `_artifact_hash_entry` currently has no `repo_root`/governing-root
+      parameter to relativize against, so the plan implicitly requires a signature change or a
+      caller-side relativization step it never states; and (c) an explicit confirmation that
+      `write_analysis_report` (which has no non-raising contract) is deliberately left
+      un-wrapped so the same exception propagates there by design, rather than by omission. The
+      offered disjunction ("caught *inside* `check_analysis_report_current`, or inside
+      `collect_input_artifact_hashes` with `check_analysis_report_current` catching a typed
+      exception") is wide enough that an implementer without a named type could reach for a
+      broad `except Exception:` around the line-515 call to stay safe — which would silently
+      mask unrelated bugs in that call chain (the same class of silent-failure risk this
+      mission's own NFR-002 exists to close, and one the charter's own quality gates
+      discourage: narrow catches only, no empty/effect-free handlers). Because spec.md's own
+      AC5/NFR-002 test requirement (a positive assertion that `check_analysis_report_current`
+      returns `AnalysisFreshness(ok=False, ...)` and never raises for this condition) would
+      catch a genuinely miswired catch at test time, this is sized moderate rather than high —
+      it risks rework inside IC-03's WP, not a shipped regression, but the ambiguity is real and
+      lands exactly on the boundary the mission's own framing calls "the trickiest architectural
+      point in the whole mission."
+    remediation: >
+      Before/at tasks time, commit IC-03 (or the WP prompt it becomes) to a concrete shape: (1)
+      name the exception type — e.g. reuse `AnalysisReportError` (already analysis-report-domain,
+      already imported wherever `write_analysis_report`'s current raise is caught) or introduce a
+      narrowly-scoped `PathRelativizationError(AnalysisReportError)` subtype so
+      `check_analysis_report_current` can catch it specifically rather than broadly; (2) name the
+      raise site(s) explicitly — state that `_artifact_hash_entry` gains a `governing_root: Path`
+      parameter (or that relativization happens in `collect_input_artifact_hashes` after each
+      `_artifact_hash_entry`/`_charter_path` call returns), so the WP does not have to invent the
+      signature change; (3) add one sentence confirming `write_analysis_report` intentionally has
+      no try/except around its `collect_input_artifact_hashes` call (line 412) so the same
+      exception surfaces there by design — closing the "or by omission" ambiguity NFR-002's
+      Acceptance Scenario 3 (write_analysis_report raises) depends on.
+
+  - id: PLAN-VERIFY-001
+    lens: "§591 ATDD-First commit-boundary enforceability"
+    severity: 3
+    title: "'RED on planning_base_branch' is stated twice; only one instance carries the disambiguating clause that makes it coherent for a single-branch mission"
+    evidence:
+      - artifact: "plan.md § Charter Check, ATDD-first bullet, lines 104-106"
+      - artifact: "plan.md § §591 ATDD-First sequencing, lines 368-371"
+      - artifact: "plan.md § Branch contract, lines 10-12 (planning_base_branch == current branch == merge target, all the same ref: fix/dossier-guard-reexport-analyze-cleanup-3676)"
+    claim: >
+      plan.md's Branch contract section establishes that `planning_base_branch` IS
+      `fix/dossier-guard-reexport-analyze-cleanup-3676` itself — the same branch the RED and
+      GREEN commits both land on (single_branch topology, no separate pre-mission base commit
+      distinct from this branch's own history). The Charter Check section's ATDD-first bullet
+      (lines 104-106) then instructs: "A reviewer must be able to verify RED on
+      `planning_base_branch` and GREEN on final — this is the exact, literal check the review
+      squad will run" — with no qualifying clause. Read literally and in isolation, "RED on
+      planning_base_branch" would mean checking out the tip of
+      `fix/dossier-guard-reexport-analyze-cleanup-3676` as it stood before this mission's own
+      commits (the fork point off `refactor/dossier-emitters-canonical-only-1058`) — a ref that
+      does not contain the two new RED fixtures at all (they are added by the RED-first commit
+      this same mission produces), so "running the two new tests" against it is not merely
+      ambiguous but not executable as literally worded. The §591 section 264 lines later (lines
+      368-371) restates the same phrase but this time appends the correct operational meaning:
+      "i.e. checking out the commit immediately before the GREEN implementation commit." That
+      sentence is precise and resolves the ambiguity for a reader who reaches it, but the earlier,
+      more prominent Charter-Check instance — which explicitly claims to be "the exact, literal
+      check the review squad will run" — stands unqualified. A reviewer who stops at the Charter
+      Check section (a very plausible reading order, since it appears first and self-describes as
+      authoritative) is left with an instruction that, taken at face value, does not work for a
+      mission where planning_base_branch and the WP's own commit history are the same ref, and
+      risks either (a) trying to diff against the branch's true fork point and finding the RED
+      fixtures absent, or (b) conflating "RED on planning_base_branch" with "every commit this
+      mission has made so far is RED," neither of which is what the plan intends.
+    remediation: >
+      Either (a) append the same "i.e. checking out the commit immediately before the GREEN
+      implementation commit" clause to the Charter Check bullet (lines 104-106) so both instances
+      of the phrase are self-sufficient, or (b) replace "planning_base_branch" in both places with
+      the unambiguous "the pre-GREEN-commit state" / "the commit immediately preceding the GREEN
+      implementation commit" and drop the borrowed C-011 terminology entirely for this
+      single-branch mission, since here planning_base_branch cannot mean what it means in a
+      multi-branch mission (a stable ref distinct from the WP's own commits).
+
+  - id: PLAN-VERIFY-002
+    lens: "Coverage floors"
+    severity: 3
+    title: "mission-loader-coverage's CI job DOES trigger/gate this PR (via the core_misc disjunct), contradicting plan.md's 'does not gate' / 'path filter never activates' claim"
+    evidence:
+      - artifact: "plan.md § Gate set for this mission, 'Not gating this mission' bullet, lines 307-311"
+      - artifact: "plan.md § Coverage floors, lines 315-320"
+      - code: ".github/workflows/ci-quality.yml:1437-1442 (mission-loader-coverage job: `if: always() && (needs.changes.outputs.next == 'true' || needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.platform == 'true' || github.event_name == 'push')`)"
+      - code: ".github/workflows/ci-quality.yml:353 (`core_misc` filter group includes `'tests/architectural/**'`)"
+      - code: ".github/workflows/ci-quality.yml:4275 (mission-loader-coverage is a member of `quality-gate.needs` — a blocking/required job, not merely advisory)"
+    claim: >
+      plan.md states "mission-loader-coverage ... does not gate. None of the six touched files
+      live under `src/specify_cli/mission_loader/`" and, in the Coverage floors section, "Neither
+      shard's path-filter surface (`src/kernel/`, `src/specify_cli/mission_loader/`) intersects
+      any of the six files this mission changes, so neither floor is exercised, raised, or put at
+      risk by this diff." This is true for `kernel-tests` (gated solely on the `kernel` filter
+      group, which only matches `src/kernel/**`/`tests/kernel/**` — none of the six files match,
+      confirmed). It is NOT true for `mission-loader-coverage`: that job's `if:` condition is a
+      three-way OR (`next || core_misc || platform`), and `core_misc` — one of the six touched
+      files' own filter group — is tripped by
+      `tests/architectural/test_dossier_emitter_positional_guard.py` matching `core_misc`'s
+      `tests/architectural/**` glob (ci-quality.yml:353). So `core_misc` resolves to `'true'` for
+      this diff, and mission-loader-coverage's condition is therefore true — the job WILL run on
+      this PR, and since it is a `quality-gate.needs` member, it genuinely gates the merge (it is
+      not merely informational). The plan conflates "the touched files aren't under
+      `src/specify_cli/mission_loader/`" with "the job's trigger path-filter never activates" —
+      those are different claims for this specific job because its trigger is a 3-way OR that
+      includes a group ( `core_misc`) this diff DOES belong to. The floor itself is not at risk
+      (the job will almost certainly pass, since no `mission_loader` code is touched and the
+      coverage baseline is unaffected), so the plan's ultimate risk conclusion happens to be
+      right, but the "does not gate" / "path filter never activates" framing is factually wrong
+      for this specific job and was represented as session-verified.
+    remediation: >
+      Correct the "Not gating this mission" bullet for mission-loader-coverage to: "the
+      mission-loader-coverage JOB WILL run on this PR (triggered via the `core_misc` disjunct,
+      tripped by `tests/architectural/test_dossier_emitter_positional_guard.py` matching
+      `tests/architectural/**`) and IS a required quality-gate member — but the 90% floor itself
+      is not at risk because none of the six touched files are under
+      `src/specify_cli/mission_loader/`, so the job's own coverage measurement is unaffected by
+      this diff." This keeps the correct bottom line (floor not at risk) while not misstating
+      whether the job executes/gates, so the implementing WP or reviewer isn't confused when the
+      check appears in the PR's required-checks list.
+
+  - id: PLAN-VERIFY-003
+    lens: "Gates"
+    severity: 2
+    title: "Gate set section omits the unconditional, always-run 'deferral-consistency-check' (FR-016) enforced job"
+    evidence:
+      - artifact: "plan.md § Gate set for this mission, lines 265-313 (enumerates lint-job steps + uv-lock-check as the only 'Enforced, separate jobs')"
+      - code: ".github/workflows/ci-quality.yml:602-611 (`deferral-consistency-check` job, step `[ENFORCED] FR-016 — fail on dangling deferred_to_consolidation invariants`, `if:` has no `changes`-filter gate at all — it runs on every non-deferred/non-skip-ci PR unconditionally)"
+    claim: >
+      plan.md's Gate set section states it was "verified against .github/workflows/ci-quality.yml
+      this session" and lists the lint job's enforced steps plus `uv-lock-check` as the complete
+      set of "Enforced, separate jobs." It omits `deferral-consistency-check`
+      (ci-quality.yml:602), a separate, unconditionally-run (no path filter of any kind — it fires
+      on every PR regardless of diff) `[ENFORCED]` job that scans every
+      `kitty-specs/<mission>/acceptance-matrix.json` for dangling `deferred_to_consolidation`
+      invariants and is itself a merge-blocking check. This mission has no
+      `acceptance-matrix.json` (confirmed: `find kitty-specs/dossier-guard-reexport-analyze-cleanup-01M0NHRT
+      -type f` lists none), so the gate is a trivial pass here — but the plan's "verified this
+      session" claim of completeness for "Enforced, separate jobs" is inaccurate, and the lens
+      requires stating why an omitted gate does not apply rather than silently omitting it.
+    remediation: >
+      Add one line to "Enforced, separate jobs": "`deferral-consistency-check` (FR-016,
+      unconditional on every PR) — not expected to trigger a failure; this mission's own artifact
+      set has no `acceptance-matrix.json` with a `deferred_to_consolidation` invariant to leave
+      dangling."

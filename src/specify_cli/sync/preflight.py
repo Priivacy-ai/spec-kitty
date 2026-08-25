@@ -689,7 +689,7 @@ def _project_store_layout_diagnostic(repo_root: Path) -> str | None:
 
     try:
         routing = resolve_checkout_sync_routing_readonly(repo_root)
-        if routing is None:
+        if routing is None or routing.project_uuid is None:
             return "no existing project identity resolves from this checkout; sync boundary authority is unavailable"
         store = ProjectSyncStore(routing.project_uuid)
         state = store.layout_generation().peek_state()

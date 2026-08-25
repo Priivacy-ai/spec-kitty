@@ -1,0 +1,67 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: fresh
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: PLAN-FRESH-001
+    lens: IC-03 relativization-shape precision (fresh eyes on PLAN-ARCH-001's fix)
+    severity: 2
+    title: IC-03's new "concrete shape" paragraph proposes giving `_charter_path` a `governing_root` parameter it cannot sensibly consume
+    evidence:
+      - artifact: "plan.md § Implementation Concern Map / IC-03, Risks paragraph (the sentence beginning \"raise site\")"
+      - code: "src/specify_cli/analysis_report.py:188-214 (`_charter_path(repo_root)` — its whole job is to *derive* `canonical_root` from `repo_root` via `resolve_canonical_repo_root`, then locate the charter file under it; it has no use for an externally-supplied governing root)"
+      - code: "src/specify_cli/analysis_report.py:217-226 (`collect_input_artifact_hashes` builds the `charter` entry inline — `inputs[\"charter\"] = {\"path\": str(charter) ...}` — it does not route the charter entry through `_artifact_hash_entry` at all)"
+    claim: >
+      The revision's new option-(1) shape reads: "the WP gains a `governing_root: Path` parameter on
+      `_artifact_hash_entry` (and, for the charter entry, on `_charter_path` or as a post-call step
+      keyed to `_charter_path`'s own `canonical_root`)". Giving `_artifact_hash_entry` a
+      `governing_root` parameter makes sense (it needs one to relativize `spec.md`/`plan.md`/`tasks.md`
+      paths). But `_charter_path` cannot sensibly "gain a `governing_root` parameter" the same way:
+      its entire purpose is to *compute* `canonical_root` from `repo_root` (line 205's
+      `resolve_canonical_repo_root(repo_root)` call) and return only the resolved charter `Path` — it
+      never receives a governing root as input, it derives one internally as a local variable that is
+      not currently returned. The parenthetical presents "give `_charter_path` a governing_root
+      parameter" as parallel to "give `_artifact_hash_entry` a governing_root parameter," but the two
+      functions are not parallel: one *consumes* a root to relativize a caller-supplied path, the other
+      *produces* a root nobody outside it can currently see. This is exactly the area PLAN-ARCH-001's
+      fix was meant to make WP-ready without invention; this one clause reintroduces the ambiguity it
+      was fixing (though narrower — the sentence's other branch, "a post-call step keyed to
+      `_charter_path`'s own `canonical_root`," and the paragraph's overall Option 2 (post-processing
+      inside `collect_input_artifact_hashes`), remain implementable, so an attentive WP has a working
+      fallback).
+    remediation: >
+      Replace the charter-entry clause with something the code shape actually supports, e.g.: "for the
+      charter entry, either change `_charter_path` to return `(charter_path, canonical_root)` instead
+      of bare `Path | None` so its caller can relativize, or simply call
+      `resolve_canonical_repo_root(repo_root)` a second time inside `collect_input_artifact_hashes`
+      where the charter entry is built inline (it is a pure, idempotent resolver call, so recomputing it
+      is cheap and requires no signature change to `_charter_path` itself)." Drop the "governing_root
+      parameter on `_charter_path`" framing entirely — it does not fit the function's actual role.
+
+  - id: PLAN-FRESH-002
+    lens: "Mission-specific: Reflexivity recovery-path completeness (fresh eyes on PLAN-GOV-002's fix)"
+    severity: 2
+    title: The new binding recovery path omits red-first regression coverage for whatever failure mode triggered it
+    evidence:
+      - artifact: "plan.md § Reflexivity, \"Recovery path (binding, not left to improvisation)\" paragraph"
+      - artifact: "charter.md § Quality & Tech-Debt Standing Orders, item 4 (\"Test remediation & bug-fix discipline\" — reproduce RED-FIRST through the pre-existing entry point; never retry-to-green)"
+    claim: >
+      The newly added Recovery path says: if this mission's own `record-analysis` commit fails
+      commitlint, or `analysis-report.md` still leaks an absolute path after FR-006/FR-007 land, "Fix
+      forward within this same mission (amend IC-03's implementation) before proceeding to PR-prep." It
+      stops at "amend the implementation" — it does not say the fix-forward must be preceded by a new
+      RED-first fixture reproducing the exact self-test failure (the specific input shape FR-007's
+      original test suite apparently missed, since the self-test caught something the WP-level tests
+      did not). Charter Standing Order #4 binds this repo to reproduce bugs RED-FIRST through the
+      pre-existing entry point and never retry-to-green; a mission finding its own deliverable failing
+      its own dogfood test, this late, is precisely that scenario. Because IC-03's own §591 sequencing
+      already establishes RED-first discipline as the norm for this mission, an implementer will very
+      likely apply it here too by default — which is why this is sized minor rather than moderate — but
+      the recovery-path text, which explicitly bills itself as "binding, not left to improvisation," is
+      the one place in the plan that should have said so explicitly and does not.
+    remediation: >
+      Add one sentence to the Recovery path: "The fix-forward starts with a new RED-first fixture (or an
+      extension of the existing FR-007/NFR-002 test) that reproduces the specific self-test failure
+      before the implementation is amended — the same RED-first discipline §591 applies to IC-01 applies
+      here, not a bare patch-and-rerun."

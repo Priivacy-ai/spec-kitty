@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-001
+    status: resolved
+    reason: T020 step 1/3 now patch model_dump on both the canonical class and the swapped-in mirror class (same closure, mirror patched before the module-namespace swap), so captured_payload_objects is populated regardless of which class is bound at call time and isinstance goes False (red) rather than IndexError.
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: T020's heading and body now cite "FR-001/Acceptance Scenario 1" for the isinstance claim, while unrelated general "SC-001 through SC-006" mentions (e.g. T021 step 3) remain untouched.
+  - id: TASKS-FRESH-003
+    status: resolved
+    reason: T004 step 5 now explicitly says "Do not delete _consume_legacy_values in this subtask" and only grep-verifies scheduling; the single physical deletion instruction lives solely in T005 step 7, where both call sites are actually gone.
+  - id: TASKS-FRESH-004
+    status: resolved
+    reason: Recomputing the PR Shape table's own row ranges gives 620 (sum of lows) and 750 (sum of highs), exactly matching the stated "620-750" total, and that figure is now consistently propagated across plan.md (Total estimate, PR Shape Recommendation, Dependency & Execution Summary) and tasks.md (PR Shape Recommendation, Dependency & Execution Summary).
+  - id: TASKS-FRESH-005
+    status: resolved
+    reason: WP04's Objectives & Success Criteria section now has an explicit bullet stating T020's isinstance assertion, including its mandatory revert-and-confirm-red step, is a binding proof of FR-001/Acceptance Scenario 1's runtime-identity claim.
+  - id: TASKS-FRESH-006
+    status: resolved
+    reason: WP04 frontmatter requirement_refs and tasks.md's WP04 Requirement Refs line both now add "FR-001 (secondary)" with matching rationale text, consistent with the Requirements Coverage Summary table's "FR-001 | WP01, WP04 (...)" row — both ends of the fix agree on the same secondary-ref choice.

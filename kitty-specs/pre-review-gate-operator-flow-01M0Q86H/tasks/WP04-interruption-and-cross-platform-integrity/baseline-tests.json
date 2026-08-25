@@ -1,0 +1,19 @@
+{
+  "wp_id": "WP04",
+  "captured_at": "2026-08-23T17:12:41Z",
+  "base_branch": "fix/pre-review-gate-operator-flow",
+  "base_commit": "08a6fad39ea39e4553b75d8472ffd2fe622f1bbe",
+  "test_runner": "pytest",
+  "total": 1,
+  "passed": 0,
+  "failed": 1,
+  "skipped": 0,
+  "failures": [
+    {
+      "test": "<gate-coverage-junit>",
+      "error": "no JUnit XML artifact produced by the scoped run",
+      "file": "unknown"
+    }
+  ],
+  "source_identity": "GateCoverageScopeSource/junit_xml"
+}

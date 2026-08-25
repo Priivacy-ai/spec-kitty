@@ -88,8 +88,13 @@ def test_make_mission_meta_is_byte_identical_to_direct_core_call(
     factory_repo = tmp_path / "factory"
     direct_repo.mkdir()
     factory_repo.mkdir()
-    _init_git_repo(direct_repo)
-    _init_git_repo(factory_repo)
+    # Non-protected planning branch: create_mission_core's safe_commit refuses
+    # a protected destination (FR-001 removed the swallowed-exception
+    # fallback), and the destination here is this explicit target_branch, not
+    # whatever branch happened to be checked out.
+    planning_branch = "feature/parity-mission"
+    _init_git_repo(direct_repo, branch=planning_branch)
+    _init_git_repo(factory_repo, branch=planning_branch)
     # WP04 fail-closed follow-up: create_mission_core() now hard-requires an
     # activated mission type. Provision BOTH sides explicitly (rather than
     # relying on make_mission()'s internal provisioning for factory_repo
@@ -111,7 +116,7 @@ def test_make_mission_meta_is_byte_identical_to_direct_core_call(
         friendly_name=friendly_name,
         purpose_tldr=purpose_tldr,
         purpose_context=purpose_context,
-        target_branch="main",
+        target_branch=planning_branch,
         topology=MissionTopology.SINGLE_BRANCH,
         allow_worktree_context=True,
     )
@@ -121,7 +126,7 @@ def test_make_mission_meta_is_byte_identical_to_direct_core_call(
         friendly_name=friendly_name,
         purpose_tldr=purpose_tldr,
         purpose_context=purpose_context,
-        target_branch="main",
+        target_branch=planning_branch,
         topology=MissionTopology.SINGLE_BRANCH,
         allow_worktree_context=True,
     )
@@ -138,7 +143,8 @@ def test_make_mission_applies_explicit_overrides_on_production_shaped_meta(
     """Overrides land on top of the production schema, not a forked one."""
     repo = tmp_path / "override-repo"
     repo.mkdir()
-    _init_git_repo(repo)
+    # Non-protected planning branch (see the parity test above for why).
+    _init_git_repo(repo, branch="feature/override-mission")
 
     result = make_mission(repo, "override-mission", friendly_name="Custom Override Name")
 
@@ -191,7 +197,8 @@ def test_create_mission_core_worktree_guard_bypass_is_behaviour_preserving(
     """
     repo = tmp_path / "guard-bypass-repo"
     repo.mkdir()
-    _init_git_repo(repo)
+    # Non-protected planning branch (see the parity test above for why).
+    _init_git_repo(repo, branch="feature/guard-bypass-mission")
     provision_test_charter(repo)
 
     monkeypatch.setattr(mission_creation_module, "is_worktree_context", lambda _p: True)

@@ -1,0 +1,47 @@
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+profile: debugger-debbie
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+diff_base: 8a03733e734f002ab97cc4ee74a006a70f683048
+findings:
+  - id: PR-TESTS-001
+    severity: 4
+    blocking: true
+    file: tests/sync/test_events.py
+    line: 1179
+    also: tests/sync/test_diagnose.py::TestDossierPayloadDelegation
+    title: The FR-006/FR-011 delegation tests do not prove delegation - they pass against a re-inlined check
+    detail: >-
+      7 tests (TestDossierValidateEventDelegation x4, TestDossierPayloadDelegation x3) claim in their
+      docstrings to prove delegation to spec_kitty_events.conformance.validate_event() via the sentinel.
+      The lens kept the sentinel and is_dossier_delegate routing fully intact and replaced ONLY the real
+      validate_event() call with a naive required-field-presence stub reproducing the old pre-migration
+      warning shape: all 7 still passed. The earlier per-WP revert proofs removed the sentinel BRANCH
+      (producing AttributeError/TypeError), which is a different and weaker property - they prove the
+      branch exists, not that it delegates. A future refactor could silently re-inline the old logic
+      behind the same sentinel and nothing in this diff would catch it.
+    orchestrator_verification: >-
+      CONFIRMED by inspection without mutation. test_invalid_dossier_payload_returns_false_with_real_violation
+      asserts only that stderr contains "indexed_at" and the event type - a required-field stub emitting
+      "payload missing required fields: {'indexed_at'}" satisfies both substrings.
+      test_valid_dossier_payload_passes asserts is True, true under either implementation.
+    fix_direction: >-
+      Assert canonical-only behaviour the old hand-rolled rules could not produce, routed through
+      emitter._validate_payload(...) and diagnose_events(...) themselves rather than a direct
+      validate_event() call. The mission already has an ideal discriminator: the known hash-format
+      relaxation - canonical accepts a malformed-but-non-empty hash (sha1: prefix, wrong length, non-hex)
+      that the deleted _is_canonical_snapshot_hash regex rejected.
+  - id: PR-TESTS-CLEAN-001
+    severity: 0
+    title: Revert attempts that CORRECTLY failed (evidence coverage is real)
+    detail: >-
+      test_payload_is_canonical_class_instance x2 failed when events.py was restored to the local mirror.
+      Both test_dossier_pipeline.py keyword-promotion tests failed when a kwarg was renamed.
+      TestDossierPayloadDelegation failed with AttributeError when diagnose.py alone was reverted
+      (genuine FR-011 coordination coverage). CI selection traced and confirmed for all five previously
+      unchecked test files - no invisible-coverage gap. No new patch() targets. dossier/ and sync/ are
+      not in diff-coverage critical_paths, so no coverage-floor merge risk. The
+      monkeypatch.setattr(PayloadClass, "model_dump") technique is sound - Pydantic validates at __init__,
+      so the capture is post-validation and cannot mask a coercion defect.

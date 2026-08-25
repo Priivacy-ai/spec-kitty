@@ -59,7 +59,7 @@ or short-circuited must fail loud or surface the delta at the decision point.*
 ## In Scope / Out of Scope
 
 **In scope — generalization only:**
-- A **single shared lane-topology resolver** (working name `resolve_lane_base_or_degrade` /
+- A **single shared lane-topology resolver** (working name `resolve_lane_base_or_refuse` /
   a `LaneTopologyDecision` seam) that every allocation and degrade path routes through, so a
   new flag/field/topology **cannot** bypass a route.
 - Threading the explicit `base` override into the seam as a first-class parameter (retiring the
@@ -100,7 +100,7 @@ or short-circuited must fail loud or surface the delta at the decision point.*
 | FR-001 | Single allocation seam | All lane-base/allocation decisions (fresh-create coord, fresh-create legacy, reuse, crash-recovery) resolve their parent ref through **one** shared resolver, not per-route inline logic. | High | Open |
 | FR-002 | Explicit base is first-class | The explicit `base` override is a typed parameter threaded to the seam, not smuggled through `lanes_manifest.mission_branch`; every route consults it identically. | High | Open |
 | FR-003 | Fail loud on unhonorable topology | When a route structurally cannot honor an explicit `base` (e.g. reuse/recovery early-returns, or a topology with fixed parentage), the seam refuses with an accurate, followable message — never a fabricated success line. | High | Open |
-| FR-004 | Authoritative topology predicate | Topology-availability is decided by a single authoritative predicate; surrogate proxies (e.g. `coordination_branch is None`) are removed from routing gates so no bypassing site can disagree with the authority (#3460). | High | Open |
+| FR-004 | Authoritative topology predicate | Topology-availability is decided by a single authoritative predicate (`_transaction_topology_available`), already consulted by the transactional routing gates on `main`; it is **pinned by an anti-divergence guard** so no future site can gate on a surrogate proxy (e.g. `coordination_branch is None`). NB (post-plan squad): the census found **zero** residual surrogate gates to remove — the emit-annotation path keeps its narrower check by design (#2939); closure of #3460 is "single-authority pinned by guard", not "removed gates". (#3460) | High | Open |
 | FR-005 | No-coord fallback is defined (#3536) | On `lanes`/`single-branch` topologies with a protected `target_branch`, bookkeeping/allocation routing has a real, followable destination or an accurate no-coord remedy — the coord-branch remedy is never emitted when no coord branch exists. Fix spans `commit_router` + `policy`; aligns with epic #2739. | High | Open |
 | FR-006 | Read-side degrade companion (#3462) | Ship `resolve_read_dir_or_degrade` as a companion to `resolve_write_target_or_degrade`, parameterized on fallback strategy (degrade-to-dir vs fail-closed) and caught-exception set; migrate the ~6 hand-rolled read-side sites onto it. | High | Open |
 | FR-007 | Anti-bypass guard | A structural/architectural test fails when a new allocation or degrade route is introduced that does not route through the shared seam. | High | Open |
@@ -284,3 +284,55 @@ design and the seam work may begin before M1 merges, but M8's allocation seam su
 
 - **M1 → M8 (soft dependency).** M8 generalizes the allocation seam **around** M1's `base` param — reference, do not duplicate M1's point-fix.
 - **Same-file coordination with M5.** M8 and M5 both edit `retrospective/generator.py` (different symbols/lines). Assign per-symbol ownership at plan time.
+
+---
+
+## Grounding update — landed-mission deltas (re-verified against `main`, 2026-08-22)
+
+> Added at kickoff by the M8 orchestrator. `main` == `upstream/main` (0/0). M1's point-fix
+> `4dab528545 (#3571)` and the #3618 reuse-detection follow-up are **both present on `main`**.
+> The LIGHT spec above was authored before these landed; the anchors below supersede its line
+> numbers and reshape the WP slicing. **Verify-first; do NOT rebuild what already routes correctly.**
+
+**WP2 — allocation seam is a REFACTOR, not a re-land (C-001).** `worktree_allocator.py` already
+carries: `UnhonorableBaseError` (four routes — `reuse`/`crash_recovery`/`dependency_lane`/
+`detached_base`, `:75`), `_guard_base_honorable` (single-callsite refusal guard, `:185`),
+`_resolve_lane_parent(base, coordination_branch, mission_branch)` (positive parent chooser,
+`:235`), and `base: str | None = None` on `allocate_lane_worktree` (`:250`). The
+`UnhonorableBaseError` docstring **explicitly names "Mission M8's two-route reconciliation" as
+the deferred general fix.** WP2 folds `_guard_base_honorable` + `_resolve_lane_parent` into ONE
+`resolve_lane_base_or_refuse` returning a `LaneBaseDecision` (chosen parent ref + honored flag +
+refusal reason) and routes every route (fresh coord `:403`, fresh legacy `:428`, reuse `:320`,
+crash-recovery `:368`) through it. It references M1's diff; it does not duplicate it.
+
+**WP1 — #3460 is residual-only; the headline site is intentionally NOT the target.**
+`emit_inner_state_changed_transactional` (`status_transition.py:1481`) **deliberately** keeps the
+bare `coordination_branch is None` check. Its docstring (`~:1428-1438`) records that reusing
+`_transaction_topology_available` "was tried and reverted" — the predicate's legacy-meta fallback
+arm is trivially true for coord-less 083+ missions, which would route a coord-less annotation into a
+transaction and trip the protected-branch gate (`test_flat_topology_annotation_still_lands`, #2939).
+**Do not touch that site.** The authoritative predicate `_transaction_topology_available` (`:142`)
+already gates the transactional emit/batch paths (`:1008`, `:1114`, `:1319`, `:1538`). WP1's real
+work: census the residual `coordination_branch is (not) None` sites in `mission_runtime/resolution.py`
+(`:1284`, `:1362`, `:1460`) and `mission_runtime/context.py:70`, distinguish surrogate **gates** (fix)
+from legitimate **value reads** (leave), close only the residual, and add an anti-divergence test.
+
+**WP4 — #3462 read-side companion is smaller than "6 hand-rolled sites."** The read side is already
+consolidated onto typed errors (`CoordinationBranchDeleted` / `StatusReadPathNotFound` /
+`CoordAuthorityUnavailable`) by a prior WP05/T023–T025 mission. The #1848 data-loss re-raise at
+`status/aggregate.py:351` is already implemented with an explicit ordering comment — **preserve it
+verbatim.** Remaining genuinely hand-rolled `try/except` sites to migrate onto
+`resolve_read_dir_or_degrade`: `retrospective/generator.py:264`, `core/worktree_topology.py:173`,
+`cli/commands/agent/status.py:154` & `:195`, `cli/commands/_review_cycle_reconcile_doctor.py`. The
+helper must be parameterized on strategy + caught-exception set and must NOT collapse the aggregate
+re-raise contract.
+
+**WP5 — #3536 refusal remedy site is `coordination/policy.py:225-236`** (message "Bookkeeping commits
+must target the coordination branch" + next_step "Re-run … through the coordination transaction").
+`evaluate` is deliberately ref-only / environment-free (C-GUARD-3a), so the fix must thread
+topology / coord-availability into the refusal so the remedy branches (coord-available → the coord
+transaction; no-coord lanes/single-branch → an accurate remedy, never the impossible coord-branch
+instruction). Cross-reference epic #2739 (same protected-primary seam) so the two converge.
+
+**Co-edit coordination:** `retrospective/generator.py` is also edited by the running M5
+(#2901 reader convergence) on different symbols — per-symbol ownership; whoever lands second rebases.

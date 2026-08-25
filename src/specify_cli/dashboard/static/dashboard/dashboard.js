@@ -499,7 +499,7 @@ function renderKanban(lanes, weightedPercentage) {
         <div class="status-card agents">
             <div class="status-label">Active Agents</div>
             <div class="status-value">${agents.size}</div>
-            <div class="status-detail">${agents.size > 0 ? Array.from(agents).join(', ') : 'none'}</div>
+            <div class="status-detail">${agents.size > 0 ? Array.from(agents).map(escapeHtml).join(', ') : 'none'}</div>
         </div>
     `;
 
@@ -508,8 +508,11 @@ function renderKanban(lanes, weightedPercentage) {
         const cardClass = isInReview ? 'card in-review' : 'card';
         return `
         <div class="${cardClass}" role="button">
-            <div class="card-id">${task.id}</div>
-            <div class="card-title">${task.title}</div>
+            <div class="card-header-row">
+                <div class="card-id">${escapeHtml(task.id)}</div>
+                ${profileAvatarHtml(task)}
+            </div>
+            <div class="card-title">${escapeHtml(task.title)}</div>
             <div class="card-meta">
                 ${task.agent ? `<span class="badge agent">${escapeHtml(task.agent)}</span>` : ''}
                 ${task.agent_profile ? `<span class="badge profile">${escapeHtml(task.agent_profile)}</span>` : ''}
@@ -1099,6 +1102,39 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// escapeHtml() only escapes `&`/`<`/`>` (correct for text-node content, its
+// only other use in this file); a bare `"` from an untrusted identity string
+// would still break out of a double-quoted attribute, so this adds the one
+// extra replacement needed to use escaped text safely inside `attr="..."`.
+function escapeHtmlAttr(text) {
+    return escapeHtml(text).replace(/"/g, '&quot;');
+}
+
+// Small deterministic "identicon" for the WP card's currently-assigned
+// profile (issue #647 Phase 1) — colored circle + initials derived from a
+// hash of the identity string, no image upload/storage involved. Falls back
+// through agent_profile -> role -> agent -> assignee (the identity fields
+// KanbanTaskData actually populates) and renders nothing when a WP has none
+// of them set, so legacy/unassigned cards are unaffected.
+function profileAvatarHtml(task) {
+    const identity = [task.agent_profile, task.role, task.agent, task.assignee]
+        .find(value => typeof value === 'string' && value.trim())?.trim() || '';
+    if (!identity) {
+        return '';
+    }
+    const words = identity.trim().split(/[\s_-]+/).filter(Boolean);
+    const initials = (words.length > 1 ? words.slice(0, 2).map(w => w[0]) : [identity[0], identity[1] || ''])
+        .join('')
+        .toUpperCase();
+    let hash = 0;
+    for (let i = 0; i < identity.length; i++) {
+        hash = (hash * 31 + identity.charCodeAt(i)) >>> 0;
+    }
+    const hue = hash % 360;
+    const label = escapeHtmlAttr(identity);
+    return `<div class="card-avatar" style="--avatar-hue: ${hue}" title="${label}" aria-label="${label}">${escapeHtml(initials)}</div>`;
 }
 
 function showCharter() {

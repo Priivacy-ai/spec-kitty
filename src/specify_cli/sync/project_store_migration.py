@@ -1531,7 +1531,7 @@ def _copy_project_rows(  # noqa: C901 -- closed table-family migration dispatche
                     row.row_id,
                     project,
                     cast("int", row.values["epoch_id"]),
-                    row.values["outbox_task_id"],
+                    cast("str | None", row.values["outbox_task_id"]),
                     cast("int", row.values["consent_generation"]),
                     cast("int", row.values["target_generation"]),
                     cast("str", row.values["admission_generation"]),
@@ -1567,7 +1567,7 @@ def _copy_project_rows(  # noqa: C901 -- closed table-family migration dispatche
                     cast("int", row.values["target_generation"]),
                     cast("str", row.values["admission_generation"]),
                     cast("str", row.values["outcome"]),
-                    row.values["terminal_refusal_category"],
+                    cast("str | None", row.values["terminal_refusal_category"]),
                     cast("str", row.values["recorded_at"]),
                 ),
             )

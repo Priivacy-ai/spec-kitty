@@ -41,7 +41,7 @@ import tempfile
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field as dataclass_field
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 import psutil
 
@@ -175,7 +175,7 @@ def _owner_dir() -> Path:
     rest of the daemon-owned state (logs, locks, sockets) instead of under
     the user-shared ``~/.spec-kitty`` root.
     """
-    return cast(Path, _sync_root() / "daemon")
+    return _sync_root() / "daemon"
 
 
 def owner_record_path() -> Path:

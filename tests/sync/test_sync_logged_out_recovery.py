@@ -227,11 +227,6 @@ def _mock_doctor_logged_out(monkeypatch):
         lambda: fake_queue,
     )
 
-    fake_body_queue = MagicMock()
-    monkeypatch.setattr(
-        "specify_cli.sync.body_queue.OfflineBodyUploadQueue",
-        lambda **kwargs: fake_body_queue,
-    )
     monkeypatch.setattr(
         "specify_cli.sync.diagnose.diagnose_body_queue",
         lambda q: {

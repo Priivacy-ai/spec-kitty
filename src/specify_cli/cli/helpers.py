@@ -139,9 +139,6 @@ def _should_render_banner_for_invocation(argv: list[str] | None = None) -> bool:
         return False
 
     tokens = [token.strip().lower() for token in (argv if argv is not None else sys.argv[1:]) if token.strip()]
-    if "--version" in tokens or "-v" in tokens:
-        return True
-
     command = next((token for token in tokens if not token.startswith("-")), None)
     return command == "init"
 

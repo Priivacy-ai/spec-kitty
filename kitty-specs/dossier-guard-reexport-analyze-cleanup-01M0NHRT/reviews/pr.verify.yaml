@@ -1,0 +1,34 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: pr-tests-001
+    status: resolved
+    reason: >
+      Executed: test_ci_collection_completeness passes (orphan_count 0);
+      `pytest tests/dossier/test_reexport_trim.py -m "fast"` collects and
+      passes all 33; both `unit`/`fast` are registered in pytest.ini (no
+      unknown-marker warning under -W error); and [unit, fast] is not just
+      the 13/14-sibling majority but the objectively correct choice --
+      fast-tests-core-misc's `core-misc` shard (paths: '', no ignore of
+      tests/dossier) is the job that actually owns tests/dossier under `-m
+      "fast and not windows_ci and not regression"`, and the file's content
+      (pure import/attribute checks, no git/subprocess/network) is exactly
+      that job's fast/unit tier, not git_repo/integration/architectural.
+  - id: pr-contract-001
+    status: unresolved
+    remaining_severity: 1
+    reason: >
+      The two cited entries (#3678 commit-subject, ledger SK-63 path
+      relativization) are accurate against the real diffs and match
+      surrounding format/voice, and markdownlint-cli2 on
+      docs/changelog/CHANGELOG.md is clean (0 issues) -- no MD049 regression.
+      But the fixer's "test-only, zero runtime change" rationale for omitting
+      #3676 contradicts this same CHANGELOG's own demonstrated precedent of
+      documenting test-only/guard-only changes explicitly (e.g. lines 391,
+      1613-1631, 3193, several literally saying "no runtime behavior change"
+      inside the entry rather than treating that as grounds for silence);
+      spec.md lists #3676 as an equally-scoped, FR-001/FR-002-bearing
+      tracker defect alongside #3677/#3678/SK-63, so the mission's own
+      "cite every touched issue" norm is still not fully satisfied.

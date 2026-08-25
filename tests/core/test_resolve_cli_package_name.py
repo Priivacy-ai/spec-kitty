@@ -60,7 +60,12 @@ def test_version_callback_label_uses_resolved_name(monkeypatch: pytest.MonkeyPat
     printed: list[str] = []
 
     class FakeConsole:
-        def print(self, msg: object) -> None:
+        def print(self, msg: object, **kwargs: object) -> None:
+            assert kwargs == {
+                "soft_wrap": True,
+                "highlight": False,
+                "markup": False,
+            }
             printed.append(str(msg))
 
     # The banner now flows through the DistributionProfile (the aggregated identity

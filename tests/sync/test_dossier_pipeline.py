@@ -8,8 +8,16 @@ import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from specify_cli.dossier.emitter_adapter import (
+    register_dossier_emitter,
+    reset_dossier_emitter,
+)
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
-from specify_cli.sync.dossier_pipeline import DossierSyncResult, sync_feature_dossier
+from specify_cli.sync.dossier_pipeline import (
+    DossierSyncResult,
+    _emit_artifact_events,
+    sync_feature_dossier,
+)
 from specify_cli.sync.project_store import ProjectSyncStore
 from specify_cli.sync.namespace import (
     NamespaceRef,
@@ -816,3 +824,138 @@ def test_real_load_manifest_schema_error_names_origin_through_sync_feature_dossi
     error_message = result.errors[0]
     assert distinctive_origin in error_message, error_message
     assert "required_alwyas" in error_message, error_message
+
+
+# --- FR-004 binding regression: real, unmocked emitter calls (WP01 T006) ---
+#
+# These two tests deliberately do NOT rely on the class-level
+# @patch("specify_cli.dossier.events.emit_artifact_indexed"/"emit_artifact_missing")
+# decorators used elsewhere in this file: those patch in a plain MagicMock
+# (no autospec=True / spec=), which accepts any keyword argument silently and
+# would NOT go red if T004/T005's *args/**kwargs-bridge-removal parameter
+# promotion were reverted. Instead, these call the REAL emit_artifact_indexed
+# / emit_artifact_missing end-to-end via _emit_artifact_events (the same
+# helper sync_feature_dossier uses), with only a fake dossier-emitter
+# callable registered (mirrors tests/dossier/test_emitter_adapter.py's
+# pattern) so no network/SaaS call is made. _emit_artifact_events wraps each
+# emitter call in its own `except Exception` -- reverting the kwarg promotion
+# makes dossier_pipeline.py's step_id=/required_status=/blocking= keyword
+# calls raise TypeError at the real call boundary, which that broad except
+# silently swallows as a logged warning. Only asserting on the captured
+# payload content / events_emitted count (not merely "no exception raised")
+# can observe that regression -- see plan.md's "FR-004 raise/report/refuse
+# contract" section.
+
+
+def test_emit_artifact_indexed_keyword_promotion_preserves_diagnostics(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC1: dossier_pipeline.py's ``step_id=``/``required_status=`` keyword
+    call to ``emit_artifact_indexed`` still binds to real parameters (not
+    ``**kwargs``) after the legacy bridge's removal, and the values still
+    land in the fired payload's ``context_diagnostics``/``step_id`` fields.
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    captured: list[dict] = []
+
+    def fake_emitter(**kwargs: object) -> dict:
+        captured.append(dict(kwargs))
+        return {"event_id": "e-1", **kwargs}
+
+    reset_dossier_emitter()
+    register_dossier_emitter(fake_emitter)
+    try:
+        artifact = _make_artifact("spec.md")
+        dossier = _make_dossier([artifact])
+        ns = _make_namespace()
+
+        store = ProjectSyncStore(ns.project_uuid)
+        layout = store.layout_generation()
+        with store.unit_of_work() as unit:
+            context = store.create_context()
+            events_emitted = _emit_artifact_events(
+                dossier,
+                ns,
+                "plan",
+                ns.to_dict(),
+                project_context=context,
+                project_unit=unit,
+                project_layout=layout,
+            )
+    finally:
+        reset_dossier_emitter()
+
+    assert events_emitted == 1
+    assert len(captured) == 1
+    payload = captured[0]["payload"]
+    diagnostics = payload["context_diagnostics"]
+    assert diagnostics["artifact_key"] == artifact.artifact_key
+    assert diagnostics["required_status"] == artifact.required_status
+    assert payload["step_id"] == "plan"
+
+
+def test_emit_artifact_missing_blocking_short_circuit_survives_bridge_removal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AC2: dossier_pipeline.py's ``blocking=artifact.required_status ==
+    "required"`` keyword call to ``emit_artifact_missing`` still binds to a
+    real parameter after the legacy bridge's removal -- a required (blocking)
+    missing artifact fires and is counted in ``events_emitted``; an optional
+    (non-blocking) one short-circuits (``emit_artifact_missing`` returns
+    ``None``) and is NOT counted.
+    """
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
+    captured: list[dict] = []
+
+    def fake_emitter(**kwargs: object) -> dict:
+        captured.append(dict(kwargs))
+        return {"event_id": "e-1", **kwargs}
+
+    reset_dossier_emitter()
+    register_dossier_emitter(fake_emitter)
+    try:
+        required_missing = ArtifactRef(
+            artifact_key="input.plan",
+            artifact_class="input",
+            relative_path="plan.md",
+            content_hash_sha256="",
+            size_bytes=0,
+            required_status="required",
+            is_present=False,
+            error_reason="not_found",
+        )
+        optional_missing = ArtifactRef(
+            artifact_key="input.notes",
+            artifact_class="input",
+            relative_path="notes.md",
+            content_hash_sha256="",
+            size_bytes=0,
+            required_status="optional",
+            is_present=False,
+            error_reason="not_found",
+        )
+        dossier = _make_dossier([required_missing, optional_missing])
+        ns = _make_namespace()
+
+        store = ProjectSyncStore(ns.project_uuid)
+        layout = store.layout_generation()
+        with store.unit_of_work() as unit:
+            context = store.create_context()
+            events_emitted = _emit_artifact_events(
+                dossier,
+                ns,
+                None,
+                ns.to_dict(),
+                project_context=context,
+                project_unit=unit,
+                project_layout=layout,
+            )
+    finally:
+        reset_dossier_emitter()
+
+    # Only the required (blocking=True) missing artifact fires an event;
+    # the optional (blocking=False) one short-circuits inside
+    # emit_artifact_missing and returns None, uncounted.
+    assert events_emitted == 1
+    assert len(captured) == 1
+    assert captured[0]["aggregate_id"] == f"{ns.mission_slug}:plan.md"

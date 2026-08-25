@@ -1,0 +1,39 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh-round3
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: SPEC-FRESH3-001
+    lens: document-health
+    severity: 2
+    title: "Grounding Correction 3 has grown to ~4x the length of its sibling corrections, and its core evidence (the #1823/canonical_root/worktree mechanism, and the '5 sites need updating' fact) is now restated near-verbatim in four separate places in the same document"
+    evidence:
+      - artifact: "spec.md Grounding Correction 3 (~566 words vs GC1 ~136, GC2 ~164, GC4 ~300 words)"
+      - artifact: "spec.md Edge Cases bullet 'What happens when the charter entry's resolved path lives outside repo_root...' (restates the same #1823/_charter_path/resolve_canonical_repo_root mechanism and the same 'does need updating... from absolute to canonical_root-relative' conclusion in its own words, then cross-references GC3 for the other four sites)"
+      - artifact: "spec.md FR-007 table row (restates the same five-site list and the same 'MUST be updated... canonical_root-relative path string' language a third time)"
+      - artifact: "spec.md §106 change-scope reconciliation (restates 'traced exhaustively (all five affected assertions) in Grounding Correction 3' a fourth time)"
+    claim: >
+      Round 3 extended Grounding Correction 3 from a single-assertion paragraph to a
+      566-word block (a lettered list of five test sites plus a following paragraph),
+      and updated the Edge Cases bullet and FR-007 in lockstep — but did not
+      consolidate. The same underlying fact (five existing charter-path assertions
+      need the identical canonical_root-relative correction, for the identical
+      #1823/worktree/resolve_canonical_repo_root reason) is now explained at
+      paragraph length in two different places (Grounding Correction 3 and the Edge
+      Cases bullet) and referenced/restated in two more (FR-007, §106). This is a
+      genuine readability regression: a reader has to reconcile four near-duplicate
+      statements of the same evidence to be sure they agree (they do, on inspection,
+      but that reconciliation is now real work), and it violates the document's own
+      implicit economy — every other Grounding Correction states its evidence once
+      and lets FR/AC/Edge-Case entries cross-reference it, not restate it.
+    remediation: >
+      Keep the full per-test enumeration and rationale in Grounding Correction 3
+      only. Trim the Edge Cases bullet to state the conclusion in one or two
+      sentences and a "(full enumeration and rationale: Grounding Correction 3)"
+      pointer, rather than re-deriving the #1823/resolve_canonical_repo_root
+      mechanism a second time. FR-007's table row can similarly shorten to name the
+      five sites (or just "five sites, enumerated in Grounding Correction 3") without
+      repeating the full "MUST be updated... canonical_root-relative path string"
+      sentence verbatim.
+findings_count: 1

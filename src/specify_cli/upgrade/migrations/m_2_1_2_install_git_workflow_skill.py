@@ -11,6 +11,8 @@ from __future__ import annotations
 from importlib.resources import files
 from pathlib import Path
 
+from specify_cli.runtime.generated_writer import write_generated_file
+
 from ..registry import MigrationRegistry
 from ..skill_update import SKILL_ROOTS, find_skill_files
 from .base import BaseMigration, MigrationResult
@@ -91,7 +93,7 @@ class InstallGitWorkflowSkillMigration(BaseMigration):
                     continue
                 try:
                     dest.parent.mkdir(parents=True, exist_ok=True)
-                    dest.write_text(content, encoding="utf-8")
+                    write_generated_file(dest, content)
                     changes.append(f"Installed {rel_display}")
                 except OSError as e:
                     errors.append(f"Failed to install {rel_display}: {e}")

@@ -38,6 +38,7 @@ second finalize. The re-run assertion pins that this no longer wedges.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
@@ -254,7 +255,19 @@ def _scaffold_mission(repo: Path, topology: _Topology) -> tuple[str, Path, str]:
     return mission_dirname, feature_dir, placement.ref
 
 
-def _run_finalize(repo: Path, mission_slug: str) -> Result:
+def _run_finalize(
+    repo: Path,
+    mission_slug: str,
+    *,
+    validate_only: bool = False,
+    target_branch: str | None = None,
+) -> Result:
+    args = ["finalize-tasks", "--mission", mission_slug]
+    if validate_only:
+        args.append("--validate-only")
+    if target_branch is not None:
+        args.extend(["--target-branch", target_branch])
+    args.append("--json")
     with (
         patch(
             "specify_cli.cli.commands.agent.mission.locate_project_root",
@@ -277,9 +290,31 @@ def _run_finalize(repo: Path, mission_slug: str) -> Result:
     ):
         return runner.invoke(
             app,
-            ["finalize-tasks", "--mission", mission_slug, "--json"],
+            args,
             catch_exceptions=False,
         )
+
+
+def _repo_snapshot(repo: Path) -> tuple[object, ...]:
+    """Return bytes, refs, index, HEAD, and status for mutation assertions."""
+    files: list[tuple[str, str]] = []
+    for path in sorted(repo.rglob("*")):
+        if not path.is_file() or ".git" in path.relative_to(repo).parts:
+            continue
+        # File-integrity oracle, not charter content hashing.
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251
+        files.append((path.relative_to(repo).as_posix(), digest))
+    refs = _git(repo, "show-ref").stdout
+    index_tree = _git(repo, "write-tree").stdout
+    status = _git(repo, "status", "--porcelain=v2", "--untracked-files=all").stdout
+    symbolic_head = subprocess.run(
+        ["git", "symbolic-ref", "--quiet", "HEAD"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout
+    return tuple(files), refs, index_tree, status, symbolic_head
 
 
 @pytest.fixture(autouse=True)
@@ -375,6 +410,161 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
         f"[{topology.name}] tasks commit not found on resolved placement "
         f"{placement_ref!r}:\n{log}"
     )
+
+
+def test_pr_bound_finalize_preserves_planning_branch_and_protected_merge_target(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2938: validate read-only, then finalize on planning branch, not main."""
+    repo = protected_target_repo
+    topology = _TOPOLOGIES[0]
+    assert isinstance(topology, _Topology)
+    mission_slug, feature_dir, _placement_ref = _scaffold_mission(
+        repo.repo_root, topology
+    )
+    planning_branch = "op/sc6-pr-bound-planning"
+    _git(repo.repo_root, "checkout", "-q", "-b", planning_branch)
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta.update(
+        {
+            "pr_bound": True,
+            "slug": mission_slug,
+            "friendly_name": "SC6 PR-bound planning",
+            "mission_type": "software-dev",
+            "created_at": "2026-07-26T00:00:00+00:00",
+        }
+    )
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
+    _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
+
+    monkeypatch.chdir(repo.repo_root)
+    before_validate_only = _repo_snapshot(repo.repo_root)
+    ambiguous = _run_finalize(repo.repo_root, mission_slug, validate_only=True)
+    assert ambiguous.exit_code == 1, ambiguous.output
+    assert "PR_BOUND_PLANNING_BRANCH_REQUIRED" in ambiguous.output
+    assert _repo_snapshot(repo.repo_root) == before_validate_only
+
+    validation = _run_finalize(
+        repo.repo_root,
+        mission_slug,
+        validate_only=True,
+        target_branch=planning_branch,
+    )
+    assert validation.exit_code == 0, validation.output
+    assert _repo_snapshot(repo.repo_root) == before_validate_only
+
+    protected_tip_before = _git(repo.repo_root, "rev-parse", "main").stdout.strip()
+    result = _run_finalize(
+        repo.repo_root, mission_slug, target_branch=planning_branch
+    )
+
+    assert result.exit_code == 0, result.output
+    assert _parse_json_from_output(result.output).get("result") == "success"
+    assert _git(repo.repo_root, "rev-parse", "main").stdout.strip() == protected_tip_before
+    assert "Add tasks for feature" in _git(
+        repo.repo_root, "log", "--oneline", "-10", planning_branch
+    ).stdout
+    normalized_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert normalized_meta["target_branch"] == planning_branch
+    assert normalized_meta["merge_target_branch"] == "main"
+    wp_text = (feature_dir / "tasks" / "WP01-task.md").read_text(encoding="utf-8")
+    assert f"planning_base_branch: {planning_branch}" in wp_text
+    assert "merge_target_branch: main" in wp_text
+
+    rerun = _run_finalize(repo.repo_root, mission_slug)
+    assert rerun.exit_code == 0, rerun.output
+    rerun_meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    assert rerun_meta["target_branch"] == planning_branch
+    assert rerun_meta["merge_target_branch"] == "main"
+
+
+def test_pr_bound_recovery_refuses_foreign_meta_delta_before_any_mutation(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2938: recovery must not mix its branch contract with a foreign write."""
+    repo = protected_target_repo
+    topology = _TOPOLOGIES[0]
+    assert isinstance(topology, _Topology)
+    mission_slug, feature_dir, _placement_ref = _scaffold_mission(
+        repo.repo_root, topology
+    )
+    planning_branch = "op/sc6-pr-bound-foreign-delta"
+    _git(repo.repo_root, "checkout", "-q", "-b", planning_branch)
+
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta.update(
+        {
+            "pr_bound": True,
+            "slug": mission_slug,
+            "friendly_name": "SC6 PR-bound foreign delta",
+            "mission_type": "software-dev",
+            "created_at": "2026-07-26T00:00:00+00:00",
+        }
+    )
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
+    _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
+
+    meta["vcs"] = "git"
+    meta["vcs_locked_at"] = "2026-08-22T00:00:00+00:00"
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    monkeypatch.chdir(repo.repo_root)
+    before = _repo_snapshot(repo.repo_root)
+
+    result = _run_finalize(
+        repo.repo_root, mission_slug, target_branch=planning_branch
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "foreign meta.json changes" in result.output
+    assert _repo_snapshot(repo.repo_root) == before
+
+
+def test_pr_bound_recovery_refuses_linked_worktree_metadata_write(
+    protected_target_repo: ProtectedTargetRepo,  # noqa: F811
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2938: a linked worktree cannot rewrite primary branch metadata."""
+    repo = protected_target_repo
+    topology = _TOPOLOGIES[0]
+    assert isinstance(topology, _Topology)
+    mission_slug, feature_dir, _placement_ref = _scaffold_mission(
+        repo.repo_root, topology
+    )
+    meta_path = feature_dir / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["pr_bound"] = True
+    meta_path.write_text(json.dumps(meta) + "\n", encoding="utf-8")
+    _git(repo.repo_root, "add", meta_path.relative_to(repo.repo_root).as_posix())
+    _git(repo.repo_root, "commit", "-q", "-m", "mark mission PR-bound")
+
+    planning_branch = "op/sc6-linked-recovery"
+    linked = repo.repo_root.parent / "linked-recovery"
+    _git(
+        repo.repo_root,
+        "worktree",
+        "add",
+        "-q",
+        "-b",
+        planning_branch,
+        str(linked),
+    )
+    monkeypatch.chdir(linked)
+    before = _repo_snapshot(repo.repo_root)
+
+    result = _run_finalize(
+        repo.repo_root, mission_slug, target_branch=planning_branch
+    )
+
+    assert result.exit_code == 1, result.output
+    assert "CHECKOUT_WRITE_OWNERSHIP_REFUSED" in result.output
+    assert _repo_snapshot(repo.repo_root) == before
 
 
 @pytest.mark.parametrize("topology", _TOPOLOGIES, ids=lambda t: t.name)

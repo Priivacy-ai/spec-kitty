@@ -76,6 +76,7 @@ from specify_cli.missions._read_path_resolver import (
 __all__ = [
     "CoordinationBranchDeleted",
     "ResolvedStatusSurface",
+    "StatusReadPathNotFound",
     "WorktreeRegistryUnavailable",
     "WorktreeTopology",
     "classify_worktree_topology",

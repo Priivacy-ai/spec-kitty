@@ -5,9 +5,15 @@ bespoke, single-root reader with no org-tier or project-tier mechanism of any
 kind (C-003 forbids restructuring it into a ``BaseDoctrineRepository``
 subclass or adding a new method to it). This module is the free-function,
 sibling-module seam that gives an org pack a way to override
-``<mission_type>/expected-artifacts.yaml`` without touching that class.
+``<org_root>/missions/<mission_type>/expected-artifacts.yaml`` without
+touching that class.
 
 Contract C-4 (``kitty-specs/up-org-doctrine-consumers-01M05YAB/contracts/org-tier-resolution-contract.md``):
+Contract C-4's own code sample cites the pre-fix path
+(``<org_root>/<mission_type>/expected-artifacts.yaml``) — that frozen
+historical document is not kept in sync with this bugfix; see
+:func:`resolve_org_expected_artifacts`'s docstring for the current, correct
+on-disk path.
 
 * **Precedence within ``org_roots``**: last-EXISTING-match wins (the common
   ``org_dirs``-style later-wins convention, NFR-003) — the opposite of
@@ -53,8 +59,8 @@ def resolve_org_expected_artifacts(
     Checks each *org_roots* entry (already existence-filtered by the caller,
     per this WP's Context section — this helper does not re-check
     ``org_root.exists()`` itself) for
-    ``<org_root>/<mission_type>/expected-artifacts.yaml``, in the order
-    given. The **last** entry with a parseable matching file wins (NFR-003
+    ``<org_root>/missions/<mission_type>/expected-artifacts.yaml``, in the
+    order given. The **last** entry with a parseable matching file wins (NFR-003
     declared-order precedence) — a later ``org_roots`` entry with no
     matching file does not clear an earlier match; only a later *match*
     overrides an earlier one.
@@ -79,7 +85,7 @@ def resolve_org_expected_artifacts(
     """
     result: Mapping[str, Any] | None = None
     for org_root in org_roots:
-        path = org_root / mission_type / _EXPECTED_ARTIFACTS_FILENAME
+        path = org_root / "missions" / mission_type / _EXPECTED_ARTIFACTS_FILENAME
         parsed = _read_yaml_mapping(path)
         if parsed is not None:
             result = parsed

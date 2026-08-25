@@ -192,9 +192,9 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "absorb_synthesis_manifest", "00945ab34f76cd761d46fb785c6bd556bc4804a61935760698d83877c9886693", source_module="specify_cli.doctrine.pack_manifest"
         ),
-        # specify_cli.doctrine.pack_manifest::compute_pack_manifest_hash
+        # Public deferred hash API from #3500-#3503; body changed during #3165 hardening.
         SymbolKey(
-            "compute_pack_manifest_hash", "829680a1fb5a9d2159fcfecba012118a2d8d0ea486b9fc2a94394acd9db71b3c", source_module="specify_cli.doctrine.pack_manifest"
+            "compute_pack_manifest_hash", "84e647d338a9494466004cc96eb08fc67307a5ff36f479a870f3adc936920d7b", source_module="specify_cli.doctrine.pack_manifest"
         ),
         SymbolKey(
             "counts_by_kind", "7251aec17a859f0c24347f77d55f59328003829e77f87437a2f15dedc656738d", source_module="specify_cli.doctrine.pack_manifest"
@@ -677,8 +677,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.status.lifecycle_events::PROJECT_INITIALIZED
         SymbolKey("PROJECT_INITIALIZED", "ee097bd3221c588159762747beceb7db48856f2f323d8551524f02e238770723", source_module="specify_cli.status.lifecycle_events"),
         # specify_cli.status.lifecycle_events::append_lifecycle_event
+        # WP03 compatibility refactor hash refresh; no allowlist growth.
         SymbolKey(
-            "append_lifecycle_event", "44bbd8d10caea88cf4765a3952d39b9c790cb33de16111d5110aa3fb2d574659", source_module="specify_cli.status.lifecycle_events"
+            "append_lifecycle_event", "f9dceb5b9277ba3c6bcd30def9dd6bf33cc2b031cbdbe84a9aeaddab2c4f1dcb", source_module="specify_cli.status.lifecycle_events"
         ),
         # specify_cli.status.lifecycle_events::has_lifecycle_event
         SymbolKey("has_lifecycle_event", "ded63398ebd799f9cbdb0519033bf4ed4cb4dee39e51837f7c1b1fe7d562e69d", source_module="specify_cli.status.lifecycle_events"),

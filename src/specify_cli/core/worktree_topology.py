@@ -129,7 +129,13 @@ def _planning_claim_commit(repo_root: Path, wp_path: Path, wp_id: str) -> str | 
 
 def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
     """Gather the full lane worktree topology for a feature."""
-    from mission_runtime import MissionArtifactKind, placement_seam
+    from mission_runtime import (
+        MissionArtifactKind,
+        ReadDegradeStrategy,
+        ReadDirDecision,
+        placement_seam,
+        resolve_read_dir_or_degrade,
+    )
     from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.persistence import read_lanes_json
@@ -168,10 +174,20 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
     # above); deleted coord → graceful PRIMARY fallback. The seam's fail-loud
     # NFR-002 behavior stays scoped to coord-partition WRITE/lifecycle paths, not
     # read-only handoff rendering.
-    try:
-        status_feature_dir = seam.read_dir(MissionArtifactKind.STATUS_STATE)
-    except CoordinationBranchDeleted:
-        status_feature_dir = feature_dir
+    # WP04 (#3462): route the deleted-coord degrade through the shared read-side companion.
+    # DEGRADE_TO_FEATURE_DIR returns the resolved STATUS_STATE surface when reachable, or the primary
+    # ``feature_dir`` when the declared coord branch is gone (byte-identical outcome to the prior
+    # ``except CoordinationBranchDeleted: status_feature_dir = feature_dir``; the helper additionally
+    # logs the degrade at WARNING per the contract's DEGRADE_TO_* spec).
+    status_decision: ReadDirDecision = resolve_read_dir_or_degrade(
+        main_repo_root,
+        mission_slug,
+        MissionArtifactKind.STATUS_STATE,
+        strategy=ReadDegradeStrategy.DEGRADE_TO_FEATURE_DIR,
+        caught=(CoordinationBranchDeleted,),
+        degrade_target=feature_dir,
+    )
+    status_feature_dir = status_decision.read_dir
     identity = resolve_mission_identity(feature_dir)
     lanes_manifest = read_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)

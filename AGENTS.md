@@ -11,7 +11,7 @@
 The charter is the binding governance document. It carries rules that are NOT repeated in this file, including:
 
 - **Governing principles** — single canonical authority, architectural alignment, DDD + tiered rigour, ATDD-first, terminology adherence.
-- **Quality & Tech-Debt Standing Orders** — the eight binding practices (adversarial squad cadence, campsite cleaning, mission tracer files, test-remediation/red-first discipline, architectural gate discipline, canonical sources, git/workflow discipline, mission hygiene).
+- **Quality & Tech-Debt Standing Orders** — the nine binding practices (adversarial squad cadence, campsite cleaning, mission tracer files, test-remediation/red-first discipline, architectural gate discipline, canonical sources, git/workflow discipline, mission hygiene, red-main & release discipline).
 - **Agent operating discipline and collaboration strategy** — model routing, profile-loaded delegation, draft-PR-first, the operator merges.
 - **Governance by workflow action** — which rules bind specify/plan/implement/review/merge.
 

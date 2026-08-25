@@ -1,0 +1,91 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: SPEC-GOV-001
+    lens: public-repo
+    severity: 5
+    title: "spec.md itself writes the operator's absolute, username-bearing checkout path, violating the spec's own binding C-001"
+    evidence:
+      - artifact: "spec.md § Clarifications / Decision Record, D3 (line 18) and Grounding Correction 3 (line 31)"
+    claim: >
+      D3 and Grounding Correction 3 both cite the ledger by writing the literal absolute path
+      `<workspace-root>/SPEC-KITTY-LEDGER.md` directly into spec.md. This is a real
+      OS username embedded in a document this mission commits to a PUBLIC repository.
+      Constraint C-001 (spec.md line 126) states verbatim: "No absolute filesystem path containing a
+      username may be written into any artifact this mission commits — including the spec/plan/tasks
+      artifacts themselves, not only the code fix (this instruction is binding on the mission's own
+      authored artifacts too)." The spec violates its own stated, binding constraint in the very
+      document that declares it — the exact class of defect (SK-63 / #3676-adjacent path leak) this
+      mission exists to fix in code, reproduced in the mission's own prose. `grep -n "/home/" spec.md`
+      confirms two literal hits (lines 18, 31); the third match (NFR-001, line 117) is an illustrative
+      pattern (`/home/<user>/...`) and is not itself a leak.
+    remediation: >
+      Before this spec is finalized/committed, replace both literal absolute-path citations of the
+      ledger with a path-free reference, e.g. "the workspace-root SPEC-KITTY-LEDGER.md (sibling to
+      this checkout), entry SK-63" — consistent with how the rest of the spec already refers to
+      ledger entries by ID rather than by filesystem path. Re-run `grep -n "/home/\|/Users/" spec.md`
+      before commit and confirm only the illustrative NFR-001 pattern remains.
+
+  - id: SPEC-GOV-002
+    lens: "mission-derived — #3678 fix-direction resolution correctness"
+    severity: 3
+    title: "FR-006 does not actually pin the commit-subject's type/scope pattern, despite Grounding Correction 3's rationale depending on a specific type"
+    evidence:
+      - artifact: "spec.md § FR-006 (line 110) and Grounding Correction 3 (line 31)"
+      - code: "commitlint.config.cjs:12-25 (type-enum list: build, chore, ci, docs, feat, fix, lint, perf, plan, refactor, revert, spec, style, test — no scope-enum rule)"
+    claim: >
+      Grounding Correction 3 picks a specific illustrative subject, `docs(mission): record analysis
+      report for mission <slug>`, and justifies it by appeal to "this repo's own established
+      practice" (citing the sibling `docs(review): ...` commits actually observed in this checkout's
+      git log) — an argument for the `docs` type specifically, not for "any commitlint-passing type."
+      But FR-006's actual requirement text only binds the implementer to "a subject satisfying
+      type-enum/type-case/type-empty/subject-empty" and AC-1 (User Story 1, scenario 1) only checks
+      that commitlint accepts the subject. Nothing in FR-006, its AC, or NFR-001-004 requires the
+      `type` to be `docs` or the scope to be `(mission)` — any of the 14 valid type-enum values
+      (e.g. `chore: record analysis report for mission <slug>`) with a non-empty subject would satisfy
+      FR-006 and its AC verbatim while diverging from the stated rationale and from the observed repo
+      convention Grounding Correction 3 leans on for justification. A WP reviewer at implementation
+      time has no FR/AC text to hold the implementer to `docs(mission): ...` specifically — only the
+      prose example in the Clarifications section, which the spec itself labels non-binding wording
+      ("exact wording finalized at implementation time").
+    remediation: >
+      Tighten FR-006 (or add an AC to User Story 1) to pin the *type* — e.g. "the subject's
+      conventional-commit type MUST be `docs`, consistent with this repo's other tool-authored
+      analyze/review commits (cf. `docs(review): ...`)" — while still leaving the exact free-text
+      subject wording and scope token to implementation, so a reviewer has a literal FR/AC clause to
+      check the WP against rather than only the Clarifications-section rationale.
+
+  - id: SPEC-GOV-003
+    lens: directive
+    severity: 2
+    title: "Key Entities section miscounts the post-#3677 __all__ size: 21 claimed, 20 actual"
+    evidence:
+      - artifact: "spec.md § Key Entities (line 136): \"This mission shrinks it by seven entries ... the remaining twenty-one entries ... are unchanged.\""
+      - code: "src/specify_cli/dossier/__init__.py:50-77 (__all__ list, 27 total string entries)"
+    claim: >
+      `__all__` in the live checkout currently declares 27 names (verified by direct count). Removing
+      the seven `spec_kitty_events` type re-exports (FR-005) leaves 20, not 21. This is a simple
+      arithmetic slip in a descriptive (non-normative) Key Entities note — FR-005's own list of the
+      seven names to remove and C-002's list of the four `emit_*` names to keep are both correct and
+      would produce the right implementation regardless — but a stray "21" next to a related SC-003
+      no-op-caller claim invites an implementer or reviewer to eyeball-verify against the wrong number.
+    remediation: "Change \"the remaining twenty-one entries\" to \"the remaining twenty entries\" in the Key Entities section."
+
+  - id: SPEC-GOV-004
+    lens: scope
+    severity: 1
+    title: "Mission title and opening paragraph still frame this as closing '#1058 deferrals' rather than naming it a D1 fold"
+    evidence:
+      - artifact: "spec.md line 1 (\"Close the three #1058 deferrals\") and line 6 (\"plus ledger entry SK-63's secondary ... defect — folded per operator decision D3\")"
+    claim: >
+      The title says "the three #1058 deferrals" but the mission actually closes four defects
+      (#3676, #3677, #3678, and SK-63's path-relativization half) — the title's "three" undercounts by
+      one, only the input-line's "plus ... SK-63" phrasing (and D1/D3 in the Clarifications section)
+      makes the fourth item explicit. A reader skimming only the title could reasonably conclude SK-63
+      is not in scope. This is a wording-only inconsistency; the Clarifications section and FR-007
+      correctly and unambiguously include SK-63's path fix, so no implementer following the FR table
+      would miss it.
+    remediation: "Retitle to something like \"Close #3676/#3677/#3678 plus SK-63's path-relativization half\" or \"...the four grounded defects...\" so the title matches the actually-scoped set without requiring the reader to reach the Clarifications section first."
