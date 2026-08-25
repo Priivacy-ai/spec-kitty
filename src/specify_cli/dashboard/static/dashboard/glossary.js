@@ -170,11 +170,12 @@ function render() {
         <div class="card-def">${highlight(t.definition, q)}</div>
         <div class="card-foot">
           <div class="conf-bar" title="${pct}% confidence">
-            <div class="conf-fill" style="width:${pct}%"></div>
+            <div class="conf-fill"></div>
           </div>
           <span class="conf-label">${pct}%</span>
         </div>
       `;
+      card.querySelector('.conf-fill').style.width = pct + '%';
       grid.appendChild(card);
     });
   });

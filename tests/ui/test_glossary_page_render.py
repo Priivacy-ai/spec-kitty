@@ -13,7 +13,7 @@ subresources) lives in tests/specify_cli/dashboard/test_glossary_page_csp.py;
 this module proves the extracted assets actually apply and run in a real
 Chromium against a live dashboard server:
 
-* no CSP "Refused to …" console violation on load,
+* no CSP "violates the following Content Security Policy" console violation on load,
 * glossary.css actually applied (computed body background, sticky header),
 * glossary.js actually ran (stats pills, alpha nav, term cards),
 * search + filter-tab interactivity works end-to-end.
@@ -117,7 +117,7 @@ def test_glossary_page_renders_styled_and_interactive_under_csp(page: Page, glos
     expect(page.locator(".letter-section .card")).to_have_count(len(_SEED_TERMS))
 
     # No CSP violation was reported and nothing 404'd (a blocked/missing asset
-    # shows up as a console refusal or a non-200 subresource fetch).
-    csp_violations = [m for m in console_messages if "Refused to" in m]
+    # shows up as a console CSP-violation message or a non-200 subresource fetch).
+    csp_violations = [m for m in console_messages if "violates the following Content Security Policy" in m]
     assert csp_violations == [], f"CSP violations on /glossary: {csp_violations}"
     assert failed_responses == [], f"failed subresource fetches: {failed_responses}"
