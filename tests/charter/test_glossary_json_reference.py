@@ -167,8 +167,8 @@ def test_live_payload_has_no_typed_glossary_array_and_pinned_version(
     # ``references`` is already a declared top-level key — no schema bump needed.
     assert "references" in payload
     assert "references" in CONTEXT_CONTRACT_TOP_LEVEL_KEYS
-    assert CONTEXT_SCHEMA_VERSION == "1.1.0"
-    assert payload["context_schema_version"] == "1.1.0"
+    assert CONTEXT_SCHEMA_VERSION == "1.2.0"
+    assert payload["context_schema_version"] == "1.2.0"
 
     # No undeclared top-level key escaped the ledger after the glossary fold.
     assert set(payload) <= CONTEXT_CONTRACT_TOP_LEVEL_KEYS

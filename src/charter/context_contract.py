@@ -37,7 +37,7 @@ from __future__ import annotations
 #: payload shape. Bump this whenever ``CONTEXT_CONTRACT_TOP_LEVEL_KEYS``
 #: changes. Semantic-version string (``MAJOR.MINOR.PATCH``); not tied to
 #: the package release version.
-CONTEXT_SCHEMA_VERSION = "1.1.0"
+CONTEXT_SCHEMA_VERSION = "1.2.0"
 
 #: The complete set of top-level keys the ``build_charter_context_json``
 #: payload may carry, across both bootstrap (``mode == "bootstrap"``) and
@@ -50,6 +50,13 @@ CONTEXT_SCHEMA_VERSION = "1.1.0"
 #:   ``procedures``/``references``) are populated in place by
 #:   ``charter.progressive_disclosure.build_disclosure_payload``, which
 #:   never introduces a *new* top-level key of its own.
+#:
+#: **``directives_source`` provenance (#3728, FR-007, bumped to 1.2.0).** A
+#: top-level string|null key naming which branch resolved the directive set
+#: (``GovernanceResolution.metadata["directives_source"]``, e.g.
+#: ``"catalog_fallback+project_local"``). It is *distinct* from the per-entry
+#: ``all_directives[].source`` (artifact origin ``project``/``builtin``/``org``):
+#: "which branch resolved the set" vs. "where did this one directive come from".
 #:
 #: **Deliberate ``asset`` asymmetry (#3037, #3389).** ``procedure`` is a
 #: first-class typed array here (bumped to 1.1.0), but ``asset`` is NOT:
@@ -83,6 +90,7 @@ CONTEXT_CONTRACT_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
         "toolguides",
         "procedures",
         "all_directives",
+        "directives_source",
         "references",
         "project_charter",
         "org_charter",
