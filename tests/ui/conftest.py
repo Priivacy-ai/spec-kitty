@@ -12,6 +12,7 @@ suite with additional dashboard e2e coverage.
 from __future__ import annotations
 
 import os
+import sys
 from kernel.clock import now_utc_iso
 from pathlib import Path
 
@@ -60,6 +61,23 @@ def pytest_configure(config: pytest.Config) -> None:
         os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(Path(real_home) / ".cache" / "ms-playwright")
 
 
+def _default_playwright_browsers_path() -> Path:
+    """The platform default Playwright resolves when the env var is unset.
+
+    Mirrors ``playwright``'s own registry locations — ``~/.cache/ms-playwright``
+    on Linux, ``~/Library/Caches/ms-playwright`` on macOS,
+    ``%LOCALAPPDATA%\\ms-playwright`` on Windows. Guessing the Linux path
+    unconditionally made this check silently pass (and the node skip) on a Mac
+    where Chromium was in fact installed.
+    """
+    home = Path.home()
+    if sys.platform == "darwin":
+        return home / "Library" / "Caches" / "ms-playwright"
+    if sys.platform == "win32":
+        return home / "AppData" / "Local" / "ms-playwright"
+    return home / ".cache" / "ms-playwright"
+
+
 def _chromium_is_installed() -> bool:
     """True if a Playwright Chromium build is present on disk.
 
@@ -69,7 +87,7 @@ def _chromium_is_installed() -> bool:
     unaffected — the dedicated ``ui-e2e.yml`` job always installs Chromium first.
     """
     browsers_path = os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or str(
-        Path.home() / ".cache" / "ms-playwright"
+        _default_playwright_browsers_path()
     )
     return any(Path(browsers_path).glob("chromium-*"))
 
