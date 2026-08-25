@@ -493,9 +493,6 @@ class TestFinalizeLeavesNoPrimaryResidue:
         # `from specify_cli.core.saas_sync_config import is_saas_sync_enabled`
         # imports (readiness coordinator, mission_type) must also see it disabled,
         # or environment-dependent writes leak into the porcelain assertions.
-        monkeypatch.setattr(
-            saas_sync_config_module, "is_saas_sync_enabled", lambda *a, **k: False
-        )
 
     def test_finalize_leaves_porcelain_free_of_stager_residue(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

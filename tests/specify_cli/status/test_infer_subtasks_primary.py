@@ -354,7 +354,6 @@ def test_mark_status_writes_completion_to_coord_status_partition(tmp_path: Path)
             return_value=(repo, "main"),
         ),
         patch.object(tasks_module, "_emit_sparse_session_warning"),
-        patch.object(tasks_module, "emit_history_added"),
     ):
         result = runner.invoke(
             tasks_module.app,

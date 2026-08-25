@@ -101,7 +101,7 @@
        "deprecated": false
       },
       "setup-plan": {
-       "help": "Scaffold implementation plan template in the project root checkout.\n\nThis command is designed for AI agents to call programmatically.\nCreates plan.md and commits to target branch.\n\nExamples:\n    spec-kitty agent mission setup-plan --json\n    spec-kitty agent mission setup-plan --mission 020-my-feature --json\n\n------------------------------------------------------------------\nWP04 / FR-011 + FR-012 audit (2026-05-17)\n------------------------------------------------------------------\nThis command's full call graph was audited to confirm every body\nupload / queue write goes through ``default_queue_db_path()`` and\nthat no setup-plan path opens the legacy home-scoped queue database\ndirectly. The audit covered:\n\n  * ``trigger_feature_dossier_sync_if_enabled()`` (this function\n    constructs ``OfflineBodyUploadQueue()`` which delegates to\n    ``default_queue_db_path()`` — FR-012 lock).\n  * ``OfflineBodyUploadQueue.__init__`` (``sync.body_queue``) —\n    falls back to ``default_queue_db_path()`` when ``db_path`` is\n    ``None``.\n  * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /\n    ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local\n    lifecycle JSONL only, no queue DB.\n  * ``commit_for_mission()`` / underlying safe-commit — local git only, no queue DB.\n\nNo direct ``_legacy_queue_db_path()`` call sites exist in the\nsetup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly\nguard (now in :func:`_enforce_saas_sync_auth_refusal`) is the\nload-bearing gate that ensures we never silently fall back to the\nlegacy queue when SaaS sync is enabled but the foreground is\nunauthenticated.\n\n------------------------------------------------------------------\nWP04 (mission ``mvp-cli-sync-boundary-completion-01KRX11M``)\nboundary preflight integration — 2026-05-18\n------------------------------------------------------------------\nImmediately after the FR-011 hosted-auth refusal above (and only\nwhen ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, matching the existing FR-011\ngate), setup-plan invokes\n:func:`specify_cli.sync.preflight.run_preflight` with\n``require_auth=True`` to enforce FR-002 / FR-009 (now in\n:func:`_enforce_saas_sync_boundary_preflight`). The boundary preflight\nrefuses (``typer.Exit(2)``) on:\n\n  * any of the six canonical daemon-owner / foreground mismatch\n    fields (D-3 canon);\n  * any orphan daemon owner record on disk;\n  * any legacy queue rows belonging to the active scope; or\n  * missing hosted auth when SaaS sync is required.\n\nThe preflight is read-only — no DB writes, no SaaS round-trip — so\nplacing it AFTER the FR-011 auth guard and BEFORE any\n``emit_artifact_phase`` / ``trigger_feature_dossier_sync`` /\n``emit_wp_created`` call ensures every SaaS-producing code path\ndownstream of this function has passed the gate. The same gate is\napplied in ``sync now`` (WP03); the two surfaces share\n:func:`specify_cli.sync.preflight.build_boundary_failure_set` as\ntheir single source of truth.\n\nCross-reference: WP04 of mission\n``mvp-sync-boundary-cli-01KRVCQS``; regression tests in\n``tests/runtime/test_setup_plan_sync_evidence.py``.\n------------------------------------------------------------------",
+       "help": "Scaffold implementation plan template in the project root checkout.\n\nThis command is designed for AI agents to call programmatically.\nCreates plan.md and commits to target branch.\n\nExamples:\n    spec-kitty agent mission setup-plan --json\n    spec-kitty agent mission setup-plan --mission 020-my-feature --json\n\n------------------------------------------------------------------\nThe SaaS-sync boundary gates this command used to enforce (FR-011 auth\nrefusal, boundary preflight, dossier push) were removed with the sync\ntransport (issue #5); only local planning artifacts are produced here.\n------------------------------------------------------------------",
        "hidden": false,
        "deprecated": false
       },
@@ -395,7 +395,7 @@
      "deprecated": false
     },
     "doctor": {
-     "help": "Diagnose CLI auth and sync-daemon state. Default invocation is read-only.",
+     "help": "Diagnose CLI auth state. Default invocation is read-only.",
      "hidden": false,
      "deprecated": false
     }
@@ -668,16 +668,6 @@
      "hidden": false,
      "deprecated": false
     },
-    "orphan-daemons": {
-     "help": "List orphan daemon owner records and emit retirement hints.\n\nImplements FR-010 of the identity-boundary mission: an orphan\ndaemon owner record is one whose recorded PID is dead OR whose\nrecorded executable path no longer exists on disk. Each orphan\nis printed with a copy-pasteable retirement command that removes\nthe on-disk ``owner.json`` so the next ``sync status --check``\nreturns clean.\n\nExit codes:\n  0  No orphan records.\n  1  At least one orphan record found.\n\nExamples:\n    spec-kitty doctor orphan-daemons\n    spec-kitty doctor orphan-daemons --json",
-     "hidden": false,
-     "deprecated": false
-    },
-    "restart-daemon": {
-     "help": "Stop the registered sync daemon and respawn it at the foreground.\n\nComposes the existing daemon stop + launch primitives so the operator\nhas a one-shot remedy when the foreground process and the registered\ndaemon disagree on any of the six canonical D-3 fields (version,\nexecutable, source, server URL, team/user, or queue DB path).\n\nExit codes:\n  0  Daemon restarted (or stale owner record cleaned and respawned).\n  1  No registered daemon — run ``spec-kitty sync now`` to launch one.\n  2  Daemon stop succeeded but respawn failed; system is stopped.\n  3  Daemon stop failed (unresponsive); owner record left intact.\n\nExamples:\n    spec-kitty doctor restart-daemon\n    spec-kitty doctor restart-daemon --json",
-     "hidden": false,
-     "deprecated": false
-    },
     "mission-state": {
      "help": "Audit, repair, or TeamSpace-validate mission-state shapes.",
      "hidden": false,
@@ -869,8 +859,7 @@
   "issue-search": {
    "help": "Search tracker issues via the hosted read path",
    "hidden": false,
-   "deprecated": false,
-   "saas_gated": true
+   "deprecated": false
   },
   "lint": {
    "help": "Run ruff and mypy on a file and report errors.\n\nThis command is designed to be used as a post-edit hook for AI agents,\nproviding immediate feedback on linting and type-checking violations.\nWhen invoked without a path (the wired hook form), the target file is read\nfrom the harness JSON payload on stdin.",
@@ -1275,123 +1264,6 @@
    "hidden": false,
    "deprecated": false
   },
-  "sync": {
-   "help": "Synchronization commands",
-   "hidden": false,
-   "deprecated": false,
-   "commands": {
-    "routes": {
-     "help": "Show where the current checkout sends data and which teams it is shared with.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "share": {
-     "help": "Share the current repository from Private Teamspace into a team.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "unshare": {
-     "help": "Stop sharing the current repository from this developer to one team.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "opt-out": {
-     "help": "Disable SaaS sync for this checkout and purge its pending uploads.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "opt-in": {
-     "help": "Enable SaaS sync for this checkout.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "import-history": {
-     "help": "Materialize existing local mission/WP history into the SaaS projection (#2262).\n\nA first sync registers a remote project/build but leaves it with zero\nmaterialized missions — the SaaS materializer deliberately refuses to\nfabricate a WorkPackage from a status event with no prior create. This\ncommand emits the missing ``MissionCreated → WPCreated[] → WPStatusChanged[]``\nstream (INV-3) so historical work populates the projection.\n\nThis is an explicit three-step flow using the same ``--mission`` selector:\n(1) ``--dry-run`` previews the synthesized cohort with zero staging/egress;\n(2) ``--confirm-history`` stages and confirms those exact local bytes, prints\na history action ID, and performs zero egress; (3) ``--apply\n--history-action-id <ID>`` preflights and uploads only that confirmed cohort.\nSkipping Step 2 or changing the cohort/authority fails closed.\n\nImport is once-and-frozen: each event carries a deterministic id, so\nre-running after the on-disk facts change (e.g. after fixing a malformed WP\nthe dry-run flagged as skipped) re-sends the same id and the server drops the\nupdated payload as a duplicate rather than overwriting. Resolve any skipped\nor incomplete missions the dry-run reports before the first ``--apply``.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "workspace": {
-     "help": "Synchronize workspace with upstream changes.\n\nUpdates the current workspace with changes from its base branch or parent.\nThis is equivalent to `git rebase <base-branch>`.\n\nSync may FAIL on conflicts (must resolve before continuing).\n\nExamples:\n    # Sync current workspace\n    spec-kitty sync workspace\n\n    # Sync with verbose output\n    spec-kitty sync workspace --verbose\n\n    # Attempt recovery from broken state\n    spec-kitty sync workspace --repair",
-     "hidden": false,
-     "deprecated": false
-    },
-    "server": {
-     "help": "Show or set sync server URL.\n\nExamples:\n    spec-kitty sync server\n    spec-kitty sync server https://spec-kitty-dev.fly.dev\n    spec-kitty sync server http://localhost:8000",
-     "hidden": false,
-     "deprecated": false
-    },
-    "now": {
-     "help": "Trigger immediate sync of all queued events.\n\nDrains the offline queue completely, uploading events to the server\nin batches of 1000 until the queue is empty or all remaining events\nhave exceeded their retry limit.\n\nExamples:\n    spec-kitty sync now\n    spec-kitty sync now --report failures.json\n    spec-kitty sync now --no-strict",
-     "hidden": false,
-     "deprecated": false
-    },
-    "gc": {
-     "help": "Purge event payloads delivered to all known targets (explicit, destructive).\n\nDeletes journal payload rows only for events with a terminal-success\ndelivery to **every** registered target; payloads still owed to any known\ntarget are kept so the durable, re-drainable copy is never lost (FR-005).\nThe delivery ledger is never touched, so delivery history survives (FR-010).\nRuns only on this explicit invocation — never from ``sync now``.\n\nExamples:\n    spec-kitty sync gc",
-     "hidden": false,
-     "deprecated": false
-    },
-    "archive": {
-     "help": "Archive retained event payloads (explicit, non-destructive).\n\nStamps the journal's archive marker so events move off the live retained\nsurface without deleting bytes. Idempotent and never touches the delivery\nledger (FR-010). Runs only on this explicit invocation.\n\nExamples:\n    spec-kitty sync archive",
-     "hidden": false,
-     "deprecated": false
-    },
-    "purge": {
-     "help": "Remove a project's retained event data from every store that holds it (FR-016/FR-017).\n\n**Dry-run by default.** Reports per-store, per-delivery-state counts and changes\nnothing; what it predicts is exactly what ``--apply`` then deletes. Deletion is\nonly ever the operator's explicit act (C-002) — nothing here runs unattended.\n\nFour stores hold a project's data and all four are covered: the event journal,\nthe delivery ledger (removed, not retained — an orphan ledger row can quote the\nproject it belonged to), the body-upload queue (verbatim ``spec.md`` /\n``plan.md`` text, not envelopes), and this checkout's queued local-commit frames\n(whose ``changed_files`` are mission slugs).\n\nEvery count in the differential is measured by re-reading the stores rather than\nby adding up what the purge reports deleting, and the report names the\npopulations a targeted purge cannot reach instead of quietly leaving them out.\n\n``--all`` is bounded to the active project's routed store and this checkout's\nlocal-commit frames. Another project store or checkout is neither listed nor\ntouched.\n\nExamples:\n    spec-kitty sync purge --project acme-migration\n    spec-kitty sync purge --project acme-migration --apply --report purge.json\n    spec-kitty sync purge --all\n    spec-kitty sync purge --all --apply --confirm \"purge all events\"",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-preview": {
-     "help": "Inventory immutable legacy sources, including committed WAL content.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-migrate": {
-     "help": "Copy, verify, atomically cut over, and resume one migration.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-status": {
-     "help": "Show durable migration phase without opening legacy sources.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-quarantine": {
-     "help": "Inspect permanently non-deliverable migration quarantine records.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "project-store-history": {
-     "help": "Preview, explicitly confirm, or disclose migrated sealed history.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "migrate": {
-     "help": "Refuse the retired shared-store migration and point to copy-only cutover.",
-     "hidden": false,
-     "deprecated": false
-    },
-    "mode": {
-     "help": "Show or set the event-sync retention x delivery mode.\n\nWith no argument, prints the current mode. Mode semantics (which receiver,\nwhether the journal retains) are owned by the policy layer; the CLI only\nroutes the operator token through it (FR-006).\n\nExamples:\n    spec-kitty sync mode\n    spec-kitty sync mode LOCAL_RETENTION\n    spec-kitty sync mode EXTERNAL_RECEIVER --endpoint https://receiver.example/events",
-     "hidden": false,
-     "deprecated": false
-    },
-    "status": {
-     "help": "Show sync queue status, connection state, and auth info.\n\nDisplays:\n- Offline queue size\n- Connection / emitter status\n- Last sync timestamp\n- Auth status\n- Server URL configuration\n\nUse --check to test actual connectivity (adds 3s timeout if server unreachable).\n\nExamples:\n    # Show status (fast)\n    spec-kitty sync status\n\n    # Test connection to server\n    spec-kitty sync status --check",
-     "hidden": false,
-     "deprecated": false
-    },
-    "diagnose": {
-     "help": "Validate queued events locally against the event schema.\n\nReads all pending events from the offline queue and validates each one\nagainst the Pydantic Event model and per-event-type payload rules.\n\nValid events are reported as passing; malformed events show specific\nfield errors grouped by error category.\n\nExamples:\n    spec-kitty sync diagnose\n    spec-kitty sync diagnose --json",
-     "hidden": false,
-     "deprecated": false
-    },
-    "doctor": {
-     "help": "Diagnose sync health: queue, auth, and server connectivity.\n\nRuns a comprehensive check of offline queue state, authentication\nvalidity, and server reachability, printing actionable remediation\nsteps for any issues found.\n\nExamples:\n    spec-kitty sync doctor",
-     "hidden": false,
-     "deprecated": false
-    }
-   }
-  },
   "tasks": {
    "help": "Finalize tasks metadata after task generation.",
    "hidden": false,
@@ -1476,8 +1348,7 @@
       }
      }
     }
-   },
-   "saas_gated": true
+   }
   },
   "upgrade": {
    "help": "Upgrade a Spec Kitty project to the current version.\n\nDetects the project's current version and applies all necessary migrations\nto bring it up to date with the installed CLI version.\n\n**New flags (WP09)**:\n  ``--cli``     Emit CLI upgrade guidance only.  No project detection;\n                succeeds outside any project (FR-014).\n  ``--project`` Run project migrations only; suppresses CLI nag.\n                Errors outside a project.\n  ``--yes``/``-y``  Non-interactive confirmation (alias for ``--force``).\n                    Does NOT bypass schema-incompatibility blocks (CHK037/A-006).\n  ``--no-nag``  Suppress upgrade-nag banner even when a CLI update exists.\n\nMutual exclusion: ``--cli`` and ``--project`` together exit 2.\n\n**Exit codes** (R-08):\n  0  Success / ALLOW / ALLOW_WITH_NAG / any ``--dry-run``\n  2  ``--cli --project`` flag conflict\n  4  Project migration required (BLOCK_PROJECT_MIGRATION)\n  5  Project is too new for this CLI (BLOCK_CLI_UPGRADE) — not bypassable\n  6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)\n  1  General error\n\nSee also: ``docs/guides/install-and-upgrade.md``\n\nExamples:\n    spec-kitty upgrade              # Upgrade to current version\n    spec-kitty upgrade --dry-run    # Preview changes\n    spec-kitty upgrade --target 0.6.5  # Upgrade to specific version\n    spec-kitty upgrade --cli        # Show CLI upgrade hint, no project needed\n    spec-kitty upgrade --project    # Project migrations only\n    spec-kitty upgrade --yes        # Non-interactive (same as --force)\n    spec-kitty upgrade --dry-run --json  # Machine-readable plan",

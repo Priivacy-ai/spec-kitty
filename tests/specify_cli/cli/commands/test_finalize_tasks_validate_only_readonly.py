@@ -177,9 +177,6 @@ def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
     # `from specify_cli.core.saas_sync_config import is_saas_sync_enabled` imports
     # see it disabled too — environment-dependent writes would otherwise leak into
     # the byte-identical porcelain assertions.
-    monkeypatch.setattr(
-        saas_sync_config_module, "is_saas_sync_enabled", lambda *a, **k: False
-    )
 
 
 class TestValidateOnlyIsReadOnly:

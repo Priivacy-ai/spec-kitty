@@ -135,16 +135,6 @@ def _run_finalize_with_override(
             "specify_cli.cli.commands.agent.mission.run_git_preflight",
             return_value=type("P", (), {"passed": True})(),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-            return_value=type(
-                "E", (), {"generate_causation_id": lambda self: "test-id"}
-            )(),
-        ),
     ):
         return runner.invoke(
             app,
@@ -762,16 +752,6 @@ def _run_finalize_no_override(repo: Path, *, mission_slug: str) -> Result:
             "specify_cli.cli.commands.agent.mission.run_git_preflight",
             return_value=type("P", (), {"passed": True})(),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-            return_value=type(
-                "E", (), {"generate_causation_id": lambda self: "test-id"}
-            )(),
-        ),
     ):
         return runner.invoke(
             app,
@@ -983,7 +963,7 @@ def test_downstream_failure_after_mixed_delta_exclusion_still_reverts_target_bra
     ``_run_commit_pipeline`` flipped ``meta_commit_progress.committed = True``
     UNCONDITIONALLY right after ``_commit_finalize_artifacts`` returned,
     regardless of that exclusion. When a later step
-    (``_emit_saas_wp_created``) then raises, ``finalize_tasks``'s ``except``
+    (the post-commit success report) then raises, ``finalize_tasks``'s ``except``
     handler's revert guard (``not meta_commit_progress.committed``) was
     fooled into skipping the revert -- leaving the --target-branch write
     dangling, uncommitted, forever. This asserts the override IS reverted:
@@ -1006,7 +986,7 @@ def test_downstream_failure_after_mixed_delta_exclusion_still_reverts_target_bra
     meta_with_foreign_edit_only = meta_path.read_text(encoding="utf-8")
 
     with patch(
-        "specify_cli.cli.commands.agent.mission_finalize._emit_saas_wp_created",
+        "specify_cli.cli.commands.agent.mission_finalize._emit_success_report",
         side_effect=RuntimeError("SK3466-REV2-001 test: simulated downstream failure"),
     ):
         result = _run_finalize_with_override(
