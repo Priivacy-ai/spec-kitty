@@ -72,12 +72,16 @@ dependencies = [
     # src/runtime/next/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
-    # spec-kitty-events 6.0.0 adds the canonical `genesis` lane (major bump per
-    # the events lane-vocabulary contract). The CLI emits `from_lane="genesis"`
-    # seeds, so it requires the genesis-aware contract. The capability gate in
-    # src/specify_cli/status/emit.py (_EVENTS_SUPPORTS_GENESIS) still degrades
-    # gracefully if an older events package is somehow present at runtime.
-    "spec-kitty-events>=6.0.0,<7.0.0",
+    # spec-kitty-events 8.0.0 deletes the offline sync/legacy/cutover surfaces
+    # and moves the volatile mission/WP families' support rows to volatile
+    # durability; the zeitgeist_attrs codecs (to_/from_zeitgeist_attrs) are the
+    # canonical projection for ephemeral team-status moments. The envelope-level
+    # cutover gate is gone from validate_event; fail-closed gating lives in
+    # spec_kitty_events.strict.validate_strict_envelope. 8.0.0 adds the
+    # canonical `genesis` lane contract that src/specify_cli/status/emit.py's
+    # capability gate (_EVENTS_SUPPORTS_GENESIS) already degrades gracefully
+    # without.
+    "spec-kitty-events>=8.0.0,<9.0.0",
     "spec-kitty-tracker>=0.4,<0.5",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
