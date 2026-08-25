@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -713,7 +714,7 @@ class TestMapOperations:
         assert len(mappings) == 1
         assert mappings[0]["wp_id"] == "WP01"
 
-    def test_map_add_calls_upsert(self, repo: Path, cred_path: Path) -> None:
+    def test_map_add_calls_upsert(self, repo: Path, cred_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         svc = _make_service(repo, cred_path=cred_path)
         svc.bind(
             provider="beads",
@@ -732,20 +733,21 @@ class TestMapOperations:
         fake_models = MagicMock()
         fake_models.ExternalRef = mock_external_ref_cls
 
-        import sys
-
+        # setitem per key rather than a whole-dict sys.modules mock: teardown restores
+        # exactly these keys, so modules first-imported in the window survive exit (#89/#99).
+        monkeypatch.setitem(sys.modules, "spec_kitty_tracker", MagicMock())
+        monkeypatch.setitem(sys.modules, "spec_kitty_tracker.models", fake_models)
         with patch.object(svc, "_load_runtime", return_value=(
             config,
             {"command": "beads"},
             mock_store,
         )):
-            with patch.dict(sys.modules, {"spec_kitty_tracker": MagicMock(), "spec_kitty_tracker.models": fake_models}):
-                svc.map_add(
-                    wp_id="WP01",
-                    external_id="BEAD-1",
-                    external_key="K1",
-                    external_url=None,
-                )
+            svc.map_add(
+                wp_id="WP01",
+                external_id="BEAD-1",
+                external_key="K1",
+                external_url=None,
+            )
 
         mock_external_ref_cls.assert_called_once_with(
             system="beads",
