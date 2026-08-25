@@ -14,9 +14,8 @@
   "accepted_by": "Руслан",
   "accepted_from_commit": "dfa9605dc7a50119db94a6b93e8b24254f97dd3a",
   "baseline_merge_commit": "851c165d3e04af8824b8fd26988562cb869fa736",
-  "coordination_branch": "kitty/mission-ox-alpha-spec-reviewer-01M0N82A",
   "created_at": "2026-08-22T17:25:03.095118+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Ревьюер спецификаций Ox Alpha",
   "mission_id": "01M0N82AFKD0H5RCGXVV6B0YSC",
   "mission_number": null,
@@ -28,7 +27,6 @@
   "slug": "ox-alpha-spec-reviewer-01M0N82A",
   "status_phase": "1",
   "target_branch": "codex/ox-alpha-spec-reviewer",
-  "topology": "coord",
   "vcs": "git",
   "vcs_locked_at": "2026-08-22T18:28:47.813858+00:00"
 }
