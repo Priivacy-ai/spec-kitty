@@ -47,7 +47,11 @@ _setup_state: dict[str, str] | None = None
 
 def _chain_state() -> dict[str, str]:
     """Snapshot every ambient value the victim's resolution chain reads."""
-    state: dict[str, str] = {"cwd": os.getcwd()}
+    try:
+        cwd = os.getcwd()
+    except OSError:  # noqa: BLE001 — a polluter can delete cwd (tmp_path teardown); diagnose, don't crash the worker
+        cwd = "<vanished>"
+    state: dict[str, str] = {"cwd": cwd}
     for var in (
         "SPEC_KITTY_PACKS_ROOT",
         "SPEC_KITTY_TEMPLATE_ROOT",
