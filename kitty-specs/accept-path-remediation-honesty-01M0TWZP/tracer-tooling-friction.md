@@ -167,3 +167,44 @@ recorded here for the same reason as the prior two entries (durability/event-rou
 chain around agent commands is suspect and should be checked by whoever next
 touches that plumbing) and as the likely explanation for this run's slowness noted
 under the hang-after-success entry above.
+
+## 2026-08-25 — WP01 implementer friction (first-hand, Wrangler Wendy)
+
+- **`spec-kitty agent action implement WP01 --agent claude` required an explicit
+  `--mission` flag despite `spec-kitty next --agent claude --mission <slug>` already
+  resolving and reporting the mission unambiguously immediately before it in the same
+  session.** Without it the command fails fast with `Error: --mission <slug> is
+  required` — a small papercut, not a defect, but the two commands in the documented
+  canonical loop don't share context, so the operator/agent must repeat the mission
+  slug on every `agent action` invocation even mid-session.
+- **`agent action implement WP01 --agent claude --mission <slug>` exceeded the 120s
+  foreground timeout and was silently moved to a background task by the harness.**
+  Unlike the `record-analysis` slowness noted above (2026-08-24 entry), this command's
+  background output file was **empty on completion** — no captured stdout at all,
+  despite the run visibly succeeding (worktree `.worktrees/<mission>-lane-a` created,
+  WP01 frontmatter gained `base_branch`/`base_commit`, and `status.events.jsonl` grew
+  two real transitions, `planned`→`claimed`→`in_progress`, plus a profile-resolution
+  annotation event). The only way to confirm the command's actual effect was to read
+  `lanes.json`, the WP frontmatter diff, and the event log directly — the command's own
+  output channel gave zero signal either way. This is a diagnostic gap: a command that
+  silently succeeds past its foreground timeout should still leave a real transcript in
+  its backgrounded output file.
+- **The venv is not present inside the WP's own worktree** (`.worktrees/<mission>-lane-a/.venv`
+  does not exist — only the mission checkout root has `.venv/`). Running tests against
+  code edited inside the worktree therefore requires `PYTHONPATH=<worktree>/src`
+  prepended ahead of the root `.venv/bin/python`, confirmed by checking
+  `import specify_cli; specify_cli.__file__` resolves to the worktree copy before
+  trusting any test result — otherwise the root venv's editable install (pointed at the
+  mission checkout's own `src/`, not the worktree's) silently tests the WRONG copy of
+  the code with zero error. Matches the documented CLAUDE.md guidance
+  (`PYTHONPATH=<worktree>/src`) but is easy to miss if you don't already know to look
+  for it, and a wrong-copy false-green here would be maximally deceptive (tests appear
+  to pass, but never touched the actual edit).
+- **First test run under `tests/conftest.py`'s session-scoped `test_venv` autouse
+  fixture triggered a real network `pip install` of the full dependency set** (~1
+  minute, dozens of packages) building a *separate*, isolated CLI-execution test venv —
+  distinct from and not destructive to the hand-built root `.venv`. Confirmed
+  non-destructive: `.venv/bin/ruff`/`mypy`/`pytest` all still resolved correctly
+  afterward. Matches the known-live `#3283` shared-test-venv-lock friction named in this
+  WP's own dispatch prompt; recorded here as first-hand confirmation of the specific
+  symptom (network install on first touch, not a hang) rather than a new defect.
