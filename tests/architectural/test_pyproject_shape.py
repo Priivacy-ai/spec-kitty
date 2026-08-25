@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import re
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,14 @@ _SHARED_PACKAGES = ("spec-kitty-events", "spec-kitty-tracker")
 _RETIRED_PACKAGE = "spec-kitty-runtime"
 _SHIPPED_TREES = ("specify_cli", "runtime")
 _DEP_NAME_TERMINATORS = "[=<>!~;@ "
+# The one sanctioned [tool.uv.sources] override (controller-qa on #58): a
+# pinned-rev git source of the EXPERIMENTAL events repo while 8.0.0 awaits an
+# index (EXPERIMENTAL-spec-kitty-planning#31). Pinned-rev keeps uv.lock
+# reproducible; the git host is the programme's forge. Everything else — path,
+# editable, branch revs, other hosts, any tracker/runtime source — stays a
+# violation.
+_EVENTS_SOURCE_REPO_URL = "https://github.int.exe.xyz/spec-kitty/EXPERIMENTAL-spec-kitty-events"
+_FULL_SHA_REV = re.compile(r"^[0-9a-f]{40}$")
 
 
 def _load_pyproject() -> dict[str, Any]:
@@ -30,6 +39,15 @@ def _dep_name(entry: str) -> str:
         if char in _DEP_NAME_TERMINATORS:
             return entry[:index].strip()
     return entry.strip()
+
+
+def _is_sanctioned_events_git_pin(source: Any) -> bool:
+    """True for exactly the sanctioned pinned-rev git source of the events repo."""
+    if not isinstance(source, dict):
+        return False
+    if set(source) - {"git", "rev"}:
+        return False
+    return source.get("git") == _EVENTS_SOURCE_REPO_URL and isinstance(source.get("rev"), str) and bool(_FULL_SHA_REV.match(source["rev"]))
 
 
 def _metadata_violations(data: dict[str, Any]) -> list[str]:
@@ -47,8 +65,11 @@ def _metadata_violations(data: dict[str, Any]) -> list[str]:
 
     sources = data.get("tool", {}).get("uv", {}).get("sources", {})
     for package in (*_SHARED_PACKAGES, _RETIRED_PACKAGE):
-        if package in sources:
-            failures.append(f"committed local source for {package}: {sources[package]!r}")
+        if package not in sources:
+            continue
+        if package == "spec-kitty-events" and _is_sanctioned_events_git_pin(sources[package]):
+            continue
+        failures.append(f"committed local source for {package}: {sources[package]!r}")
     return failures
 
 
@@ -89,6 +110,40 @@ def test_published_metadata_uses_consumable_shared_dependencies() -> None:
     local_source = copy.deepcopy(data)
     local_source.setdefault("tool", {}).setdefault("uv", {}).setdefault("sources", {})["spec-kitty-tracker"] = {"path": "../spec-kitty-tracker", "editable": True}
     assert _metadata_violations(local_source)
+
+
+def test_events_git_source_must_be_the_sanctioned_pinned_rev() -> None:
+    """[tool.uv.sources] admits exactly the pinned-rev git source of the events repo.
+
+    The sanctioned shape (controller-qa on #58, interim to planning#31) is a
+    full-SHA rev pin on the programme's forge URL, with no extra keys. Every
+    other override — branch rev, foreign host, editable/path forms, extra
+    keys, or any source for spec-kitty-tracker — stays a violation.
+    """
+    data = _load_pyproject()
+    sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+    # The committed source must itself be the sanctioned shape.
+    assert _is_sanctioned_events_git_pin(sources.get("spec-kitty-events"))
+    assert _metadata_violations(data) == []
+
+    def _with_events_source(source: dict[str, Any]) -> list[str]:
+        mutated = copy.deepcopy(data)
+        mutated.setdefault("tool", {}).setdefault("uv", {}).setdefault("sources", {})["spec-kitty-events"] = source
+        return _metadata_violations(mutated)
+
+    branch_rev = dict(sources["spec-kitty-events"], rev="main")
+    assert _with_events_source(branch_rev)
+
+    short_rev = dict(sources["spec-kitty-events"], rev="9fe7073")
+    assert _with_events_source(short_rev)
+
+    foreign_host = dict(sources["spec-kitty-events"], git="https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events.git")
+    assert _with_events_source(foreign_host)
+
+    editable_extra = dict(sources["spec-kitty-events"], editable=True)
+    assert _with_events_source(editable_extra)
+
+    assert _with_events_source({"path": "../spec-kitty-events"})
 
 
 def test_wheel_contains_every_first_party_runtime_import() -> None:
