@@ -38,7 +38,7 @@ from pathlib import Path
 from typing import TypeVar
 
 import pytest
-from filelock import FileLock
+from filelock import FileLock, Timeout as FileLockTimeout
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -284,30 +284,36 @@ def _publish_once(
     published = inspect(shared_dir)
     if published is not None:
         return published
-    with FileLock(str(run_root / (dir_name + ".lock")), timeout=lock_timeout_s):
-        published = inspect(shared_dir)
-        if published is not None:
-            return published
-        for stale in run_root.glob(staging_glob):
-            shutil.rmtree(stale, ignore_errors=True)
-        staging = run_root / f"{dir_name}.staging-{os.getpid()}"
-        for attempt in range(attempts):
-            shutil.rmtree(staging, ignore_errors=True)
-            staging.mkdir(parents=True)
-            try:
-                fill(staging)
-                filled = inspect(staging)
-                if filled is None:
-                    raise SharedBuildError(f"{dir_name} did not produce a publishable artifact")
-                if shared_dir.exists():
-                    shutil.rmtree(shared_dir)
-                os.replace(staging, shared_dir)
-                break
-            except Exception:
+    try:
+        with FileLock(str(run_root / (dir_name + ".lock")), timeout=lock_timeout_s):
+            published = inspect(shared_dir)
+            if published is not None:
+                return published
+            for stale in run_root.glob(staging_glob):
+                shutil.rmtree(stale, ignore_errors=True)
+            staging = run_root / f"{dir_name}.staging-{os.getpid()}"
+            for attempt in range(attempts):
                 shutil.rmtree(staging, ignore_errors=True)
-                if attempt == attempts - 1:
-                    raise
-                time.sleep(retry_delay_s)
+                staging.mkdir(parents=True)
+                try:
+                    fill(staging)
+                    filled = inspect(staging)
+                    if filled is None:
+                        raise SharedBuildError(f"{dir_name} did not produce a publishable artifact")
+                    if shared_dir.exists():
+                        shutil.rmtree(shared_dir)
+                    os.replace(staging, shared_dir)
+                    break
+                except Exception:
+                    shutil.rmtree(staging, ignore_errors=True)
+                    if attempt == attempts - 1:
+                        raise
+                    time.sleep(retry_delay_s)
+    except FileLockTimeout as error:
+        # Queueing behind another worker's build is expected; a timed-out wait
+        # must flow down the same path as any other build failure (skip), not
+        # escape as a collection ERROR.
+        raise SharedBuildError(f"timed out after {lock_timeout_s}s waiting for the {dir_name} lock") from error
     published_after_rename = inspect(shared_dir)
     if published_after_rename is None:
         raise SharedBuildError(f"Published artifacts did not survive publication in {shared_dir}")

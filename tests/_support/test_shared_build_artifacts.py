@@ -10,6 +10,7 @@ protocol directly with a fake builder, which keeps them off the real
 from __future__ import annotations
 
 import ast
+import filelock
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -346,6 +347,24 @@ def test_builder_refuses_when_no_commit_can_be_pinned(tiny_source_repo: tuple[Pa
 
     with pytest.raises(SharedBuildError, match="cannot pin"):
         default_source_snapshot_builder(source, source.parent / "snap")
+
+
+def test_a_lock_timeout_surfaces_as_a_build_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A timed-out wait must skip like any other build failure, not ERROR (#101 audit)."""
+
+    class _AlwaysTimesOut:
+        def __init__(self, lock_file: str, timeout: float) -> None:
+            assert lock_file.endswith(".lock")
+
+        def __enter__(self) -> object:
+            raise filelock.Timeout("")
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+    monkeypatch.setattr("tests._support.shared_build_artifacts.FileLock", _AlwaysTimesOut)
+    with pytest.raises(SharedBuildError, match="timed out"):
+        ensure_shared_build_artifacts(tmp_path, _write_artifacts)
 
 
 def test_e2e_provenance_fixture_delegates_to_the_run_stable_snapshot() -> None:
