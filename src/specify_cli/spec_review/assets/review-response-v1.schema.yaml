@@ -1,0 +1,21 @@
+schema: review-response/v1
+type: object
+required:
+  - schema
+  - findings
+properties:
+  schema:
+    const: review-response/v1
+  findings:
+    type: array
+    maxItems: 100
+    items:
+      type: object
+      required:
+        - identifier
+        - lens
+        - severity
+        - title
+        - evidence
+        - claim
+        - remediation

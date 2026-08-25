@@ -1,43 +1,348 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Caller-owned Mission lifecycle code map</title></head>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ox Alpha spec reviewer — WP01 code map</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --bg: #0b1020;
+      --panel: #151d33;
+      --panel-2: #1d2742;
+      --text: #f4f7ff;
+      --muted: #aeb9d6;
+      --line: #405079;
+      --present: #45d19a;
+      --planned: #f3b35c;
+      --gap: #ff7b86;
+      --link: #86b7ff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+    main { width: min(1500px, 96vw); margin: 0 auto; padding: 2rem 0 4rem; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { margin-bottom: .4rem; }
+    h2 { margin-top: 2.4rem; border-bottom: 1px solid var(--line); padding-bottom: .5rem; }
+    code { color: #d9e5ff; overflow-wrap: anywhere; }
+    .meta, .legend, .answers, .overview { display: grid; gap: .8rem; }
+    .meta { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin: 1.2rem 0; }
+    .meta > div, .answers > article, .overview > div {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: .7rem;
+      padding: .9rem;
+    }
+    .legend { grid-template-columns: repeat(auto-fit, minmax(220px, max-content)); }
+    .badge { display: inline-block; border-radius: 999px; padding: .15rem .55rem; font-weight: 700; }
+    .badge.present { color: #062719; background: var(--present); }
+    .badge.planned { color: #322006; background: var(--planned); }
+    .badge.gap { color: #34070b; background: var(--gap); }
+    .overview { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); align-items: stretch; }
+    .overview .present { border-top: 4px solid var(--present); }
+    .overview .planned { border-top: 4px solid var(--planned); }
+    .arrow { color: var(--muted); text-align: center; font-size: 1.5rem; align-self: center; }
+    .nodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 1rem; }
+    .node {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-left-width: 6px;
+      border-radius: .65rem;
+      padding: 1rem;
+    }
+    .node.present { border-left-color: var(--present); }
+    .node.planned { border-left-color: var(--planned); background: var(--panel-2); }
+    .node h3 { margin: 0 0 .45rem; font-size: 1.05rem; }
+    .node p { margin: .35rem 0; }
+    .node ul { margin: .35rem 0 .35rem 1.2rem; padding: 0; }
+    .label { color: var(--muted); font-weight: 700; }
+    .coverage-gap { color: var(--gap); font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; background: var(--panel); }
+    th, td { border: 1px solid var(--line); padding: .55rem; vertical-align: top; text-align: left; }
+    th { position: sticky; top: 0; background: #202b49; }
+    tr.planned td { background: #2a2532; }
+    .scroll { overflow-x: auto; }
+    .answers { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .small { color: var(--muted); font-size: .9rem; }
+    @media print {
+      :root { color-scheme: light; --bg: #fff; --panel: #fff; --panel-2: #fff; --text: #111; --muted: #444; --line: #aaa; }
+      th { position: static; }
+    }
+  </style>
+</head>
 <body>
-<h1>Caller-owned Mission lifecycle root</h1>
-<table>
-<thead><tr><th>Node</th><th>Path</th><th>Role</th></tr></thead>
-<tbody>
-<tr data-node="mission-operation-context"><td>mission-operation-context</td><td>src/specify_cli/missions/operation_context.py</td><td>Resolves one immutable Mission identity plus repository and Mission anchor roots.</td></tr>
-<tr data-node="lifecycle-cli-boundaries"><td>lifecycle-cli-boundaries</td><td>src/specify_cli/cli/commands</td><td>Creates one operation context for status, setup, tasks, next, workflow, and accept commands.</td></tr>
-<tr data-node="placement-and-commit"><td>placement-and-commit</td><td>src/specify_cli/coordination/commit_router.py</td><td>Keeps Git topology on the repository root while routing Mission artifacts through the Mission anchor.</td></tr>
-<tr data-node="status-transaction-dual-root"><td>status-transaction-dual-root</td><td>src/mission_runtime/write_target_degrade.py; src/specify_cli/status/models.py; src/specify_cli/status/bootstrap.py; src/specify_cli/status/work_package_lifecycle.py; src/specify_cli/coordination/status_transition.py; src/specify_cli/coordination/transaction.py</td><td>Carries the Mission anchor through status reads, write-target resolution, and bookkeeping commits while retaining the repository root for Git policy.</td></tr>
-<tr data-node="coordination-confined-writer"><td>coordination-confined-writer</td><td>src/specify_cli/coordination/atomic_write.py; src/specify_cli/coordination/windows_confined_fs.py</td><td>Persists and rolls back coordination artifacts through POSIX fd-relative or Win32 handle-confined atomic write and unlink boundaries.</td></tr>
-<tr data-node="tasks-operation-boundary"><td>tasks-operation-boundary</td><td>src/specify_cli/agent_tasks_ports.py; src/specify_cli/cli/commands/agent/tasks_shared.py; src/specify_cli/cli/commands/agent/tasks_move_task.py; src/specify_cli/cli/commands/agent/tasks_mark_status.py; src/specify_cli/cli/commands/agent/tasks_finalize_validation.py; src/specify_cli/cli/commands/agent/tasks_parsing_validation.py; src/specify_cli/status/emit.py</td><td>Resolves task operations once and carries both repository and Mission anchor roots through task reads, status transitions, and coordination commits.</td></tr>
-<tr data-node="status-and-acceptance"><td>status-and-acceptance</td><td>src/specify_cli/status/aggregate.py; src/specify_cli/acceptance</td><td>Reads status and acceptance evidence from the selected Mission anchor without changing managed-worktree behavior.</td></tr>
-<tr data-node="caller-owned-integration-tests"><td>caller-owned-integration-tests</td><td>tests/integration/test_caller_owned_worktree_lifecycle.py</td><td>Covers conflict safety, two linked worktrees, lifecycle commands, indexing cost, and primary-checkout immutability.</td></tr>
-<tr data-node="operation-root-guard"><td>operation-root-guard</td><td>tests/architectural/test_mission_operation_root_boundary.py; tests/architectural/fixtures/mission_root_authority_allowlist.tsv</td><td>Scans every production source and prevents lifecycle consumers from introducing a second Mission-root authority outside a shrink-only reviewed allowlist.</td></tr>
-<tr data-node="coordination-confined-writer-tests"><td>coordination-confined-writer-tests</td><td>tests/coordination/test_atomic_write_windows.py; tests/integration/test_tool_artifact_owner.py; tests/merge/test_bookkeeping_projection_seam.py</td><td>Covers Windows confined writes and unlinks plus transaction rollback and owner projection semantics.</td></tr>
-</tbody>
-</table>
-<h2>Edges</h2>
-<ul>
-<li>lifecycle-cli-boundaries calls mission-operation-context</li>
-<li>mission-operation-context supplies roots placement-and-commit</li>
-<li>mission-operation-context supplies roots status-transaction-dual-root</li>
-<li>lifecycle-cli-boundaries calls status-transaction-dual-root</li>
-<li>lifecycle-cli-boundaries calls tasks-operation-boundary</li>
-<li>mission-operation-context supplies roots tasks-operation-boundary</li>
-<li>tasks-operation-boundary routes transitions status-transaction-dual-root</li>
-<li>status-transaction-dual-root routes commits placement-and-commit</li>
-<li>status-transaction-dual-root persists artifacts coordination-confined-writer</li>
-<li>mission-operation-context supplies anchor status-and-acceptance</li>
-<li>caller-owned-integration-tests covers lifecycle-cli-boundaries</li>
-<li>caller-owned-integration-tests covers status-transaction-dual-root</li>
-<li>caller-owned-integration-tests covers tasks-operation-boundary</li>
-<li>operation-root-guard guards lifecycle-cli-boundaries</li>
-<li>operation-root-guard guards placement-and-commit</li>
-<li>operation-root-guard guards status-transaction-dual-root</li>
-<li>operation-root-guard guards tasks-operation-boundary</li>
-<li>coordination-confined-writer-tests covers coordination-confined-writer</li>
-</ul>
+<main>
+  <h1>Ox Alpha spec reviewer — architecture baseline</h1>
+  <p class="small">Mission <code>ox-alpha-spec-reviewer-01M0N82A</code> · schema <code>codemap/v1</code> · source HEAD <code>86fa812099df35688fe1a23fce05cb1fbc382990</code> · refreshed 2026-08-24T21:08:24Z</p>
+
+  <section class="meta" aria-label="Baseline summary">
+    <div><strong>30</strong><br>present nodes</div>
+    <div><strong>0</strong><br>planned nodes</div>
+    <div><strong>42</strong><br>typed edges</div>
+    <div><strong>306</strong><br>historical <code>reviews/</code> files</div>
+    <div><strong>0</strong><br>existing <code>spec-review-*.yaml</code> files</div>
+  </section>
+
+  <section aria-labelledby="legend-title">
+    <h2 id="legend-title">Legend and load-bearing boundaries</h2>
+    <div class="legend">
+      <div><span class="badge present">present</span> verified symbol or repository artifact</div>
+      <div><span class="badge planned">planned</span> Mission plan authority, not shipped code</div>
+      <div><span class="badge gap">gap</span> missing direct executable coverage, never an invented edge</div>
+    </div>
+    <ul>
+      <li><code>spec-kitty review</code> remains a top-level leaf bound directly to <code>review_mission</code>.</li>
+      <li><code>ProfileInvocationExecutor.invoke()</code> is synchronous governance plumbing and explicitly does not spawn an LLM.</li>
+      <li>Artifact placement belongs to <code>mission_runtime</code>: kind → classifier/partition → placement resolver → filesystem surface.</li>
+      <li><code>kitty-specs/*/reviews/*</code> is historical convention. It is not a current runtime placement authority.</li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="overview-title">
+    <h2 id="overview-title">Component overview</h2>
+    <div class="overview" role="img" aria-label="Existing root registration preserves review and fast paths while the spec-review leaf calls a new service which calls preflight, runner, parser and storage, and storage uses mission runtime placement.">
+      <div class="present"><strong>Root registry</strong><br><code>P02</code><br>review · dispatch · safe-commit · spec-commit<br>next/doctor fast paths</div>
+      <div class="present"><strong>Existing review</strong><br><code>P05</code><br>mission gates → report writer</div>
+      <div class="present"><strong>New spec-review leaf</strong><br><code>P21</code><br>thin operator adapter</div>
+      <div class="present"><strong>Use-case service</strong><br><code>P28</code><br>preflight → consent → runner → parser</div>
+      <div class="present"><strong>Append-only storage</strong><br><code>P29</code><br>new run artifact only</div>
+      <div class="present"><strong>Placement authority</strong><br><code>P12–P19</code><br>PRIMARY filesystem surface</div>
+    </div>
+  </section>
+
+  <section aria-labelledby="present-title">
+    <h2 id="present-title">Present nodes</h2>
+    <div class="nodes">
+      <article class="node present" id="P01-root-cli-app">
+        <h3>P01-root-cli-app · Root Typer application</h3>
+        <p><code>src/specify_cli/__init__.py :: _build_app → register_commands</code></p>
+        <p><span class="label">Called by:</span> installed <code>spec-kitty</code> and <code>python -m specify_cli</code>.</p>
+        <p><span class="label">Effects:</span> constructs the root app and delegates command attachment.</p>
+        <p><span class="label">Coverage:</span> <code>tests/architectural/test_safety_registry_completeness.py</code>.</p>
+      </article>
+      <article class="node present" id="P02-root-command-registry">
+        <h3>P02-root-command-registry · Root command registration</h3>
+        <p><code>src/specify_cli/cli/commands/__init__.py :: register_commands</code></p>
+        <p><span class="label">Called by:</span> P01.</p>
+        <p><span class="label">Effects:</span> registers the four audited leaves; preserves <code>next</code> and <code>doctor restart-daemon</code> early-import paths.</p>
+        <p><span class="label">Coverage:</span> safety registry and doctor fast-path suites.</p>
+      </article>
+      <article class="node present" id="P03-next-fast-path">
+        <h3>P03-next-fast-path · next import fast path</h3>
+        <p><code>src/specify_cli/cli/commands/__init__.py :: _is_next_fast_path</code></p>
+        <p><span class="label">Called by:</span> P02.</p>
+        <p><span class="label">Effects:</span> registers only <code>next</code>, then returns.</p>
+        <p class="coverage-gap">Coverage gap: no direct WP01 source test; WP05 must prove the new stack is not eagerly imported.</p>
+      </article>
+      <article class="node present" id="P04-doctor-restart-fast-path">
+        <h3>P04-doctor-restart-fast-path · doctor restart-daemon fast path</h3>
+        <p><code>src/specify_cli/cli/commands/__init__.py :: _is_doctor_restart_daemon_fast_path</code></p>
+        <p><span class="label">Called by:</span> P02.</p>
+        <p><span class="label">Effects:</span> registers only the doctor group for the direct restart path.</p>
+        <p><span class="label">Coverage:</span> <code>test_doctor_restart_daemon.py</code>.</p>
+      </article>
+      <article class="node present" id="P05-review-command">
+        <h3>P05-review-command · Existing post-merge mission review</h3>
+        <p><code>src/specify_cli/cli/commands/review/__init__.py :: review_mission</code></p>
+        <p><span class="label">Called by:</span> P02 direct leaf registration.</p>
+        <p><span class="label">Effects:</span> gate execution, issue-matrix read, report write, failure exit.</p>
+        <p><span class="label">Coverage:</span> <code>test_review.py</code>, <code>test_review_git_baseline.py</code>.</p>
+      </article>
+      <article class="node present" id="P06-mission-handle-resolution">
+        <h3>P06-mission-handle-resolution · Mission selector resolution</h3>
+        <p><code>src/specify_cli/cli/selector_resolution.py :: resolve_mission_handle</code></p>
+        <p><span class="label">Called by:</span> P05.</p>
+        <p><span class="label">Effects:</span> canonical <code>mission_slug</code> and <code>feature_dir</code>; fail-closed ambiguity.</p>
+        <p><span class="label">Coverage:</span> existing review command suites.</p>
+      </article>
+      <article class="node present" id="P07-review-report-writer">
+        <h3>P07-review-report-writer · Mission review report writer</h3>
+        <p><code>src/specify_cli/cli/commands/review/_report.py :: write_review_report</code></p>
+        <p><span class="label">Called by:</span> P05.</p>
+        <p><span class="label">Effects:</span> writes <code>mission-review-report.md</code>, prints verdict, exits 1 on hard failure.</p>
+        <p><span class="label">Coverage:</span> existing review command suites.</p>
+      </article>
+      <article class="node present" id="P08-dispatch-command">
+        <h3>P08-dispatch-command · Governed Op dispatch</h3>
+        <p><code>src/specify_cli/cli/commands/dispatch.py :: dispatch</code></p>
+        <p><span class="label">Called by:</span> P02 direct leaf registration.</p>
+        <p><span class="label">Effects:</span> builds P09, opens an Op, renders the synchronous payload.</p>
+        <p><span class="label">Coverage:</span> <code>tests/specify_cli/invocation/cli/test_dispatch.py</code>.</p>
+      </article>
+      <article class="node present" id="P09-invocation-executor">
+        <h3>P09-invocation-executor · Profile invocation executor</h3>
+        <p><code>src/specify_cli/invocation/executor.py :: ProfileInvocationExecutor.invoke</code></p>
+        <p><span class="label">Called by:</span> P08 and profile-governed adapters.</p>
+        <p><span class="label">Effects:</span> resolves profile/action, builds governance, writes Op metadata, returns synchronously. <strong>No LLM call.</strong></p>
+        <p><span class="label">Coverage:</span> <code>tests/specify_cli/invocation/test_executor.py</code>.</p>
+      </article>
+      <article class="node present" id="P10-safe-commit-command">
+        <h3>P10-safe-commit-command · Safe commit command</h3>
+        <p><code>src/specify_cli/cli/commands/safe_commit_cmd.py :: safe_commit_command</code></p>
+        <p><span class="label">Called by:</span> P02 direct leaf registration.</p>
+        <p><span class="label">Effects:</span> normalizes exact requested paths and commits them through one target.</p>
+        <p><span class="label">Coverage:</span> <code>test_safe_commit_cli.py</code>.</p>
+      </article>
+      <article class="node present" id="P11-spec-commit-command">
+        <h3>P11-spec-commit-command · Mission artifact commit command</h3>
+        <p><code>src/specify_cli/cli/commands/spec_commit_cmd.py :: spec_commit_command</code></p>
+        <p><span class="label">Called by:</span> P02 direct leaf registration.</p>
+        <p><span class="label">Effects:</span> derives the Mission and delegates to the canonical commit router.</p>
+        <p><span class="label">Coverage:</span> <code>test_spec_commit_cmd.py</code>.</p>
+      </article>
+      <article class="node present" id="P12-mission-artifact-kind">
+        <h3>P12-mission-artifact-kind · Artifact-kind vocabulary</h3>
+        <p><code>src/mission_runtime/artifacts.py :: MissionArtifactKind</code></p>
+        <p><span class="label">Called by:</span> classifier and placement resolvers.</p>
+        <p><span class="label">Effects:</span> supplies the exhaustive PRIMARY/topology-routed partition input.</p>
+        <p><span class="label">Coverage:</span> partition mapping and placement seam tests.</p>
+      </article>
+      <article class="node present" id="P13-mission-file-classifier">
+        <h3>P13-mission-file-classifier · File → artifact-kind classifier</h3>
+        <p><code>src/mission_runtime/artifacts.py :: kind_for_mission_file</code></p>
+        <p><span class="label">Called by:</span> path-bearing write adapters.</p>
+        <p><span class="label">Effects:</span> POSIX-normalizes paths and returns one kind or <code>None</code>; <code>reviews/*</code> is currently unclassified.</p>
+        <p><span class="label">Coverage:</span> <code>test_artifact_partition_mapping.py</code>.</p>
+      </article>
+      <article class="node present" id="P14-topology-resolver">
+        <h3>P14-topology-resolver · Stored topology resolver</h3>
+        <p><code>src/mission_runtime/resolution.py :: resolve_topology → _resolve_topology</code></p>
+        <p><span class="label">Called by:</span> P15 and P17.</p>
+        <p><span class="label">Effects:</span> pure stored-topology read; legacy/bootstrap classification only on missing metadata.</p>
+        <p><span class="label">Coverage:</span> placement and surface translation suites.</p>
+      </article>
+      <article class="node present" id="P15-placement-write-resolver">
+        <h3>P15-placement-write-resolver · Commit-target projection</h3>
+        <p><code>src/mission_runtime/resolution.py :: resolve_placement_only</code></p>
+        <p><span class="label">Called by:</span> P16 and mission commit routers.</p>
+        <p><span class="label">Effects:</span> PRIMARY kind → target branch; topology kind → canonical destination ref.</p>
+        <p><span class="label">Coverage:</span> <code>test_placement_seam.py</code>.</p>
+      </article>
+      <article class="node present" id="P16-placement-seam">
+        <h3>P16-placement-seam · Single kind-aware placement authority</h3>
+        <p><code>src/mission_runtime/resolution.py :: PlacementSeam / placement_seam</code></p>
+        <p><span class="label">Called by:</span> artifact readers and writers.</p>
+        <p><span class="label">Effects:</span> asserts partition totality; delegates write and read projections without re-derivation.</p>
+        <p><span class="label">Coverage:</span> <code>test_placement_seam.py</code>.</p>
+      </article>
+      <article class="node present" id="P17-artifact-surface-resolver">
+        <h3>P17-artifact-surface-resolver · Filesystem surface resolver</h3>
+        <p><code>src/mission_runtime/resolution.py :: resolve_artifact_surface</code></p>
+        <p><span class="label">Called by:</span> P16, P19 and planned storage P29.</p>
+        <p><span class="label">Effects:</span> resolves and stamps PRIMARY/COORD filesystem surface; fails loudly on unsafe deleted-coord states.</p>
+        <p><span class="label">Coverage:</span> <code>test_surface_translation_seam.py</code>.</p>
+      </article>
+      <article class="node present" id="P18-surface-translator">
+        <h3>P18-surface-translator · Surface → path translation</h3>
+        <p><code>src/mission_runtime/resolution.py :: translate_surface</code></p>
+        <p><span class="label">Called by:</span> P17.</p>
+        <p><span class="label">Effects:</span> total enum mapping; refuses missing physical locations.</p>
+        <p><span class="label">Coverage:</span> <code>test_surface_translation_seam.py</code>.</p>
+      </article>
+      <article class="node present" id="P19-coord-read-projection">
+        <h3>P19-coord-read-projection · Optional coordination read</h3>
+        <p><code>src/mission_runtime/resolution.py :: coord_read_dir_for</code></p>
+        <p><span class="label">Called by:</span> P05 for <code>ISSUE_MATRIX</code>.</p>
+        <p><span class="label">Effects:</span> narrows a COORD stamp to a path; tolerated absence becomes <code>None</code>.</p>
+        <p><span class="label">Coverage:</span> partial through the affirmative resolver suite.</p>
+      </article>
+      <article class="node present" id="P20-historical-review-convention">
+        <h3>P20-historical-review-convention · Historical reviews family</h3>
+        <p><code>kitty-specs/*/reviews/*</code> · 306 files</p>
+        <p><span class="label">Called by:</span> historical planning/adversarial workflows, not the runtime classifier.</p>
+        <p><span class="label">Effects:</span> heterogeneous review trail only; no placement decision.</p>
+        <p><span class="label">Coverage:</span> P30 classifies only canonical <code>spec-review-*.yaml</code>; negative tables prove historical names stay unclassified.</p>
+      </article>
+    </div>
+  </section>
+
+  <section aria-labelledby="implemented-title">
+    <h2 id="implemented-title">Implemented spec-review nodes</h2>
+    <div class="nodes">
+      <article class="node present" id="P21-spec-review-command"><h3>P21-spec-review-command · Manual CLI leaf</h3><p><code>src/specify_cli/cli/commands/spec_review.py</code></p><p><span class="label">Caller:</span> P02. <span class="label">Effects:</span> disclosure/consent UX → P28, with existing review untouched.</p><p><span class="label">Tests:</span> <code>tests/specify_cli/spec_review/test_cli_preview.py</code> and integration suite.</p><p><span class="label">Trace:</span> FR-001, FR-003, FR-009, FR-010, FR-012, C-004 · IC-05/06.</p></article>
+      <article class="node present" id="P22-spec-review-package"><h3>P22-spec-review-package · Bounded context exports</h3><p><code>src/specify_cli/spec_review/__init__.py</code></p><p><span class="label">Caller:</span> P21 and focused tests. <span class="label">Effects:</span> stable provider-neutral domain boundary without fast-path transport imports.</p><p><span class="label">Tests:</span> <code>test_service.py</code> plus CLI import compatibility.</p><p><span class="label">Trace:</span> C-002, NFR-006/008 · IC-03/05.</p></article>
+      <article class="node present" id="P23-spec-review-models"><h3>P23-spec-review-models · Typed contracts</h3><p><code>src/specify_cli/spec_review/models.py</code></p><p><span class="label">Callers:</span> P24, P25, P27, P28, P29. <span class="label">Effects:</span> separate untrusted findings from host-owned run provenance.</p><p><span class="label">Tests:</span> models/parser/service/storage suites.</p><p><span class="label">Trace:</span> FR-002/007/010, NFR-001/004 · IC-02.</p></article>
+      <article class="node present" id="P24-spec-review-preflight"><h3>P24-spec-review-preflight · Privacy and input boundary</h3><p><code>src/specify_cli/spec_review/preflight.py</code></p><p><span class="label">Caller:</span> P28. <span class="label">Effects:</span> canonical <code>spec.md</code>, containment/size/sensitive-marker checks, disclosure digest, zero runner calls before consent.</p><p><span class="label">Tests:</span> <code>test_preflight.py</code>, CLI acceptance and the opt-in 256 KiB performance budget.</p><p><span class="label">Trace:</span> FR-001–004/011, NFR-001/002/007, C-005 · IC-01.</p></article>
+      <article class="node present" id="P25-spec-review-prompt"><h3>P25-spec-review-prompt · Immutable bounded prompt</h3><p><code>src/specify_cli/spec_review/prompt.py</code></p><p><span class="label">Caller:</span> P28 after consent recheck. <span class="label">Effects:</span> combine verified buffer, rubric and response contract for stdin.</p><p><span class="label">Tests:</span> <code>test_prompt.py</code>.</p><p><span class="label">Trace:</span> FR-002/003/004/007, NFR-001 · IC-01/02.</p></article>
+      <article class="node present" id="P26-spec-review-runner"><h3>P26-spec-review-runner · OpenCode process adapter</h3><p><code>src/specify_cli/spec_review/runner.py</code></p><p><span class="label">Caller:</span> P28 after consent. <span class="label">Effects:</span> argv/no-shell process, stdin prompt, bounded streams, timeout tree cleanup; no auth reads.</p><p><span class="label">Tests:</span> <code>test_runner.py</code>; no network in normal tests.</p><p><span class="label">Trace:</span> FR-005/006/010, NFR-001/003/005/006, C-001–003 · IC-03.</p></article>
+      <article class="node present" id="P27-spec-review-parser"><h3>P27-spec-review-parser · Untrusted response parser</h3><p><code>src/specify_cli/spec_review/parser.py</code></p><p><span class="label">Caller:</span> P28 after P26. <span class="label">Effects:</span> strict framing/schema/range/limit validation and echo protection.</p><p><span class="label">Tests:</span> <code>test_parser.py</code>.</p><p><span class="label">Trace:</span> FR-007/010, NFR-001/004 · IC-02.</p></article>
+      <article class="node present" id="P28-spec-review-service"><h3>P28-spec-review-service · Advisory use case</h3><p><code>src/specify_cli/spec_review/service.py</code></p><p><span class="label">Caller:</span> P21. <span class="label">Effects:</span> sequences P24–P29, builds trusted provenance, returns stable diagnostics, never changes Mission/WP lifecycle.</p><p><span class="label">Tests:</span> <code>test_service.py</code> and command suite.</p><p><span class="label">Trace:</span> FR-001/003/007–010/012, SC-001/004 · IC-05.</p></article>
+      <article class="node present" id="P29-spec-review-storage"><h3>P29-spec-review-storage · Append-only writer</h3><p><code>src/specify_cli/spec_review/storage.py</code></p><p><span class="label">Caller:</span> P28 after an external start. <span class="label">Effects:</span> P30 + P17 placement, exclusive atomic create, containment/reparse checks, no overwrite.</p><p><span class="label">Tests:</span> <code>test_storage.py</code> and topology placement suite.</p><p><span class="label">Trace:</span> FR-008/009/012, SC-003/005 · IC-04.</p></article>
+      <article class="node present" id="P30-spec-review-artifact-kind"><h3>P30-spec-review-artifact-kind · PRIMARY placement kind</h3><p><code>src/mission_runtime/artifacts.py :: MissionArtifactKind.SPEC_REVIEW</code></p><p><span class="label">Callers:</span> P29 and P13. <span class="label">Effects:</span> classify only direct <code>reviews/spec-review-*.yaml</code> as PRIMARY; preserve all historical names as unclassified.</p><p><span class="label">Tests:</span> <code>test_spec_review_artifact_placement.py</code>.</p><p><span class="label">Trace:</span> FR-008/009, C-002 · IC-04.</p></article>
+    </div>
+  </section>
+
+  <section aria-labelledby="edges-title">
+    <h2 id="edges-title">Edges</h2>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>ID</th><th>From</th><th>Relation</th><th>To</th><th>Status</th><th>Evidence / authority</th></tr></thead>
+        <tbody>
+          <tr id="E01"><td>E01</td><td>P01-root-cli-app</td><td>calls</td><td>P02-root-command-registry</td><td>present</td><td><code>src/specify_cli/__init__.py:182</code></td></tr>
+          <tr id="E02"><td>E02</td><td>P02-root-command-registry</td><td>guards</td><td>P03-next-fast-path</td><td>present</td><td><code>commands/__init__.py:178-183</code></td></tr>
+          <tr id="E03"><td>E03</td><td>P02-root-command-registry</td><td>guards</td><td>P04-doctor-restart-fast-path</td><td>present</td><td><code>commands/__init__.py:185-191</code></td></tr>
+          <tr id="E04"><td>E04</td><td>P02-root-command-registry</td><td>registers_leaf</td><td>P05-review-command</td><td>present</td><td><code>commands/__init__.py:301</code></td></tr>
+          <tr id="E05"><td>E05</td><td>P02-root-command-registry</td><td>registers_leaf</td><td>P08-dispatch-command</td><td>present</td><td><code>commands/__init__.py:316</code></td></tr>
+          <tr id="E06"><td>E06</td><td>P02-root-command-registry</td><td>registers_leaf</td><td>P10-safe-commit-command</td><td>present</td><td><code>commands/__init__.py:302</code></td></tr>
+          <tr id="E07"><td>E07</td><td>P02-root-command-registry</td><td>registers_leaf</td><td>P11-spec-commit-command</td><td>present</td><td><code>commands/__init__.py:303</code></td></tr>
+          <tr id="E08"><td>E08</td><td>P05-review-command</td><td>calls</td><td>P06-mission-handle-resolution</td><td>present</td><td><code>review/__init__.py:425-428</code></td></tr>
+          <tr id="E09"><td>E09</td><td>P05-review-command</td><td>reads_issue_matrix_through</td><td>P19-coord-read-projection</td><td>present</td><td><code>review/__init__.py:462-467</code></td></tr>
+          <tr id="E10"><td>E10</td><td>P05-review-command</td><td>calls</td><td>P07-review-report-writer</td><td>present</td><td><code>review/__init__.py:479-488</code></td></tr>
+          <tr id="E11"><td>E11</td><td>P07-review-report-writer</td><td>does_not_write</td><td>P20-historical-review-convention</td><td>present</td><td><code>_report.py:177-178</code> writes outside <code>reviews/</code></td></tr>
+          <tr id="E12"><td>E12</td><td>P08-dispatch-command</td><td>constructs_and_invokes</td><td>P09-invocation-executor</td><td>present</td><td><code>dispatch.py:178-189,240-248</code></td></tr>
+          <tr id="E13"><td>E13</td><td>P09-invocation-executor</td><td>must_not_call</td><td>P26-spec-review-runner</td><td>present_guard</td><td>executor source and regression tests</td></tr>
+          <tr id="E14"><td>E14</td><td>P10-safe-commit-command</td><td>derives_kind_through</td><td>P13-mission-file-classifier</td><td>present</td><td><code>safe_commit_cmd.py:256-274,412-420</code></td></tr>
+          <tr id="E15"><td>E15</td><td>P11-spec-commit-command</td><td>delegates_via_commit_router</td><td>P15-placement-write-resolver</td><td>present</td><td><code>spec_commit_cmd.py:155-167</code>; <code>commit_router.py:216-235</code></td></tr>
+          <tr id="E16"><td>E16</td><td>P13-mission-file-classifier</td><td>returns</td><td>P12-mission-artifact-kind</td><td>present</td><td><code>artifacts.py:393-457</code></td></tr>
+          <tr id="E17"><td>E17</td><td>P16-placement-seam</td><td>write_projection</td><td>P15-placement-write-resolver</td><td>present</td><td><code>resolution.py:1709-1716</code></td></tr>
+          <tr id="E18"><td>E18</td><td>P16-placement-seam</td><td>read_projection</td><td>P17-artifact-surface-resolver</td><td>present</td><td><code>resolution.py:1718-1768</code></td></tr>
+          <tr id="E19"><td>E19</td><td>P15-placement-write-resolver</td><td>reads_topology_through</td><td>P14-topology-resolver</td><td>present</td><td><code>resolution.py:1644-1649</code></td></tr>
+          <tr id="E20"><td>E20</td><td>P15-placement-write-resolver</td><td>routes_by_partition</td><td>P12-mission-artifact-kind</td><td>present</td><td><code>resolution.py:1658-1670</code></td></tr>
+          <tr id="E21"><td>E21</td><td>P17-artifact-surface-resolver</td><td>reads_declared_surface_through</td><td>P14-topology-resolver</td><td>present</td><td><code>resolution.py:1881-1886,1912-1914,2084-2090</code></td></tr>
+          <tr id="E22"><td>E22</td><td>P17-artifact-surface-resolver</td><td>translates_with</td><td>P18-surface-translator</td><td>present</td><td><code>resolution.py:2109-2115</code></td></tr>
+          <tr id="E23"><td>E23</td><td>P19-coord-read-projection</td><td>narrows</td><td>P17-artifact-surface-resolver</td><td>present</td><td><code>resolution.py:2159-2168</code></td></tr>
+          <tr id="E24"><td>E24</td><td>P13-mission-file-classifier</td><td>preserves_unclassified</td><td>P20-historical-review-convention</td><td>present_guard</td><td><code>artifacts.py</code> negative filename table</td></tr>
+          <tr id="E25"><td>E25</td><td>P02-root-command-registry</td><td>registers_leaf</td><td>P21-spec-review-command</td><td>present</td><td><code>commands/__init__.py</code> and CLI tests</td></tr>
+          <tr id="E26"><td>E26</td><td>P21-spec-review-command</td><td>imports_public_use_case</td><td>P22-spec-review-package</td><td>present</td><td><code>spec_review.py</code></td></tr>
+          <tr id="E27"><td>E27</td><td>P21-spec-review-command</td><td>calls</td><td>P28-spec-review-service</td><td>present</td><td><code>spec_review.py</code></td></tr>
+          <tr id="E28"><td>E28</td><td>P28-spec-review-service</td><td>runs_before_consent</td><td>P24-spec-review-preflight</td><td>present</td><td><code>service.py</code> and tests</td></tr>
+          <tr id="E29"><td>E29</td><td>P28-spec-review-service</td><td>builds_after_consent_recheck</td><td>P25-spec-review-prompt</td><td>present</td><td><code>service.py</code> and tests</td></tr>
+          <tr id="E30"><td>E30</td><td>P28-spec-review-service</td><td>calls_after_consent</td><td>P26-spec-review-runner</td><td>present</td><td><code>service.py</code> and tests</td></tr>
+          <tr id="E31"><td>E31</td><td>P28-spec-review-service</td><td>validates_bounded_output_with</td><td>P27-spec-review-parser</td><td>present</td><td><code>service.py</code> and parser tests</td></tr>
+          <tr id="E32"><td>E32</td><td>P28-spec-review-service</td><td>persists_after_external_start</td><td>P29-spec-review-storage</td><td>present</td><td><code>service.py</code> and tests</td></tr>
+          <tr id="E33"><td>E33</td><td>P24-spec-review-preflight</td><td>produces_disclosure_model</td><td>P23-spec-review-models</td><td>present</td><td><code>preflight.py</code></td></tr>
+          <tr id="E34"><td>E34</td><td>P25-spec-review-prompt</td><td>consumes_manifest_and_contract</td><td>P23-spec-review-models</td><td>present</td><td><code>prompt.py</code></td></tr>
+          <tr id="E35"><td>E35</td><td>P27-spec-review-parser</td><td>returns_validated_findings</td><td>P23-spec-review-models</td><td>present</td><td><code>parser.py</code></td></tr>
+          <tr id="E36"><td>E36</td><td>P28-spec-review-service</td><td>builds_host_owned_run</td><td>P23-spec-review-models</td><td>present</td><td><code>service.py</code></td></tr>
+          <tr id="E37"><td>E37</td><td>P29-spec-review-storage</td><td>serializes_trusted_run</td><td>P23-spec-review-models</td><td>present</td><td><code>storage.py</code></td></tr>
+          <tr id="E38"><td>E38</td><td>P29-spec-review-storage</td><td>requests_kind</td><td>P30-spec-review-artifact-kind</td><td>present</td><td><code>storage.py</code></td></tr>
+          <tr id="E39"><td>E39</td><td>P29-spec-review-storage</td><td>resolves_filesystem_surface_through</td><td>P17-artifact-surface-resolver</td><td>present</td><td><code>storage.py</code></td></tr>
+          <tr id="E40"><td>E40</td><td>P30-spec-review-artifact-kind</td><td>extends_enum_and_primary_partition</td><td>P12-mission-artifact-kind</td><td>present</td><td><code>artifacts.py</code></td></tr>
+          <tr id="E41"><td>E41</td><td>P13-mission-file-classifier</td><td>classifies_filename_only</td><td>P30-spec-review-artifact-kind</td><td>present</td><td><code>artifacts.py</code></td></tr>
+          <tr id="E42"><td>E42</td><td>P30-spec-review-artifact-kind</td><td>must_not_reclassify</td><td>P20-historical-review-convention</td><td>present_guard</td><td>negative topology tests</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="answers-title">
+    <h2 id="answers-title">Three required answers for <code>spec_review</code></h2>
+    <div class="answers">
+      <article><h3>Who calls it?</h3><p>The root registry calls the thin P21 CLI leaf. P21 calls P28. P28 alone sequences preflight, prompt, runner, parser and storage. P29 alone enters the mission-runtime placement boundary.</p></article>
+      <article><h3>What does it touch?</h3><p>It reads only the selected canonical <code>spec.md</code>. After an actual external start, it may exclusively create one <code>reviews/spec-review-&lt;run-id&gt;.yaml</code>. It does not change Mission/WP lifecycle, existing <code>review</code>, ProfileInvocationExecutor or credential storage.</p></article>
+      <article><h3>Which tests cover it?</h3><p><code>tests/specify_cli/spec_review/</code> covers each module; integration and mission-runtime suites cover command-to-artifact flow and PRIMARY placement. Live model execution remains opt-in and is not part of normal CI.</p></article>
+    </div>
+  </section>
+
+  <footer>
+    <h2>Offline and authority note</h2>
+    <p>This document contains inline CSS only: no scripts, fonts, images, CDN links or remote assets. <code>codemap.json</code> is the machine-readable graph; <code>codemap.lock</code> verifies its sources, graph/HTML parity and SHA-256 digests.</p>
+  </footer>
+</main>
 </body>
 </html>

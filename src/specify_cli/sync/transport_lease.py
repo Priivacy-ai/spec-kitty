@@ -7,8 +7,9 @@ eligibility check, transport start, and result recording across processes.
 
 from __future__ import annotations
 
-import fcntl
+import errno
 import os
+import sys
 import time
 import uuid
 from collections.abc import Iterator
@@ -16,6 +17,15 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
+from typing import TYPE_CHECKING, BinaryIO
+
+if TYPE_CHECKING:
+    import fcntl
+
+if sys.platform == "win32":  # pragma: no cover - platform-specific
+    import msvcrt
+else:
+    import fcntl  # noqa: F401 - POSIX-only lock backend
 
 from specify_cli.sync.feature_flags import is_saas_sync_enabled
 from specify_cli.sync.project_context import (
@@ -44,6 +54,44 @@ class _LiveLeaseRegistration:
 
 _LIVE_LEASES: dict[str, _LiveLeaseRegistration] = {}
 _LIVE_LEASES_LOCK = Lock()
+
+
+def _is_lock_contention(exc: OSError) -> bool:
+    """Return whether an OS lock error means another process owns the lease."""
+    if isinstance(exc, BlockingIOError):
+        return True
+    if sys.platform == "win32":  # pragma: no cover - platform-specific
+        return getattr(exc, "winerror", None) in {33, 36} or exc.errno in {
+            errno.EACCES,
+            errno.EDEADLK,
+        }
+    return exc.errno in {errno.EACCES, errno.EAGAIN}
+
+
+def _lock_handle(handle: BinaryIO) -> None:
+    """Acquire one byte of the lease file with the native OS primitive."""
+    if sys.platform == "win32":  # pragma: no cover - platform-specific
+        # ``msvcrt.locking`` requires a byte at the current offset.  Keep the
+        # append-mode file at one byte so repeated acquisitions do not grow it.
+        binary_handle = handle
+        binary_handle.seek(0)
+        if not binary_handle.read(1):
+            binary_handle.seek(0, os.SEEK_END)
+            binary_handle.write(b"\0")
+            binary_handle.flush()
+        binary_handle.seek(0)
+        msvcrt.locking(binary_handle.fileno(), msvcrt.LK_NBLCK, 1)
+        return
+    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def _unlock_handle(handle: BinaryIO) -> None:
+    """Release the native OS lock held by ``handle``."""
+    if sys.platform == "win32":  # pragma: no cover - platform-specific
+        handle.seek(0)
+        msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+        return
+    fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,9 +137,11 @@ def acquire_project_transport_lease(
         deadline = time.monotonic() + lock_timeout_seconds
         while True:
             try:
-                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                _lock_handle(handle)
                 break
-            except BlockingIOError as exc:
+            except OSError as exc:
+                if not _is_lock_contention(exc):
+                    raise
                 if time.monotonic() >= deadline:
                     raise ProjectStoreLockedError("project transport lease is locked") from exc
                 time.sleep(min(0.01, max(0.0, deadline - time.monotonic())))
@@ -104,7 +154,7 @@ def acquire_project_transport_lease(
             yield TransportLeaseContext(store=store, lease_identity=identity, lock_path=path)
         finally:
             _unregister_live_lease(identity)
-            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+            _unlock_handle(handle)
 
 
 def transport_lease_is_live(lease_identity: str | None) -> bool:

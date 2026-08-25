@@ -225,6 +225,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import regen as regen_module
     from . import research as research_module
     from . import review as review_module
+    from . import spec_review as spec_review_module
     from . import safe_commit_cmd as safe_commit_module
     from . import spec_commit_cmd as spec_commit_module
     from . import session_start as session_start_module
@@ -299,6 +300,7 @@ def register_commands(app: typer.Typer) -> None:
     )
     app.command()(research_module.research)
     app.command(name="review")(review_module.review_mission)
+    app.command(name="spec-review")(spec_review_module.spec_review)
     app.command(name="safe-commit")(safe_commit_module.safe_commit_command)
     app.command(name="spec-commit")(spec_commit_module.spec_commit_command)
     app.command(name="session-start", help="Emit spec-kitty orientation for the Claude Code SessionStart hook.")(session_start_module.session_start)

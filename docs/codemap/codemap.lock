@@ -1,4 +1,228 @@
-version=1
-algorithm=sha256
-codemap.json=b4b019f28f50077664c51720a8111d92b20d4215786241b3c7193609d91cd685
-codemap.html=820de488418fd1be7473466ca2cd07433caa97ba8969619b93480b6127318e05
+#!/usr/bin/env python3
+"""codemap-lock/v1 metadata and read-only verifier for WP01.
+
+Run from any checkout location with:
+
+    python docs/codemap/codemap.lock
+
+The verifier writes nothing. Text digests normalize CRLF/CR to LF before
+SHA-256 so the same tracked content verifies on Windows, Linux, and macOS.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+from pathlib import Path, PureWindowsPath
+import subprocess
+
+
+LOCK = {
+    "schema_version": "codemap-lock/v1",
+    "codemap_schema_version": "codemap/v1",
+    "mission": "ox-alpha-spec-reviewer-01M0N82A",
+    "source_head": "86fa812099df35688fe1a23fce05cb1fbc382990",
+    "generated_at_utc": "2026-08-24T21:08:24Z",
+    "generator": "wp06-manual-codemap-refresh/v1",
+    "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
+    "source_inputs": {
+        ".kittify/charter/charter.md": "b2b5046860df95ed513f80cbcf8352fa59e096ec7ec0c9ff88c8c9a391cfa195",
+        "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md": "6d8842753a17606122d017d926527c088c090b25624b115ae335729d51a7d7da",
+        "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/spec.md": "2d14fd19af11ea17f19b4d602fa745cd8474f16ece36a071ad227df26af49166",
+        "src/mission_runtime/artifacts.py": "79791ec039b2e3e0f0b5828821bd92595c8fefa22ba120c0e04066c46ff5640d",
+        "src/mission_runtime/resolution.py": "f9b0fab244521c0c4532545576cf61a6df6108cc0c7b0d8020d9ac53d94e890e",
+        "src/specify_cli/__init__.py": "9569d61f43b671dc4e75a007a4962b3a99abf3a5ae032455f39628c02eb2d599",
+        "src/specify_cli/cli/commands/__init__.py": "bc97784092c17db083f5948147f6ad8ddc30724bd6cd9a6f729e0ca057c531cd",
+        "src/specify_cli/cli/commands/dispatch.py": "7a5decd2bc8daa0914cbc42e781a4cfb3cfb65109e8216a9bd9ca34dcc4ff3b3",
+        "src/specify_cli/cli/commands/review/__init__.py": "11a4056bcb5713d4668bd69f4717a3eab87210ba3f8e93fe07141baa258798b6",
+        "src/specify_cli/cli/commands/review/_report.py": "f36dc9d2b3c4f3f189614b59e14418cbfdffe0059b20a5f430be8fdd5a5a5f9d",
+        "src/specify_cli/cli/commands/safe_commit_cmd.py": "d6f30f3cfcbefa098036b18c3d48adc9097c7d538f90ae311b03adbc0863793c",
+        "src/specify_cli/cli/commands/spec_commit_cmd.py": "0a645b15dffcd1d5f4ad3e2a4ded289afbe48095956594d59218b12808086c42",
+        "src/specify_cli/cli/commands/spec_review.py": "3c0b8dbf94d425d716323400c2e2ade008960525e8bb711d7b732b381d108333",
+        "src/specify_cli/cli/selector_resolution.py": "de15f507bb6f4b8a3babcb84157ba1a34b58d219bbb0625e0e604b7812145a0b",
+        "src/specify_cli/coordination/commit_router.py": "82ce892e848738864c14f74a2ad8b326e0eafc3167ffc1372c6e7e638bcb8238",
+        "src/specify_cli/invocation/executor.py": "5d14a765c80740c3c1b655fd47e40c3e94742103b745008a51ebdb5c1399fb31",
+        "src/specify_cli/spec_review/__init__.py": "217e8e3661c493ffd0449067e1dd665c1362fe0bfd375ad537e20edb71695751",
+        "src/specify_cli/spec_review/models.py": "c1d19aacabafb8c2eab85757dfa099972be1762bddba8cb2e3feb05ce3768108",
+        "src/specify_cli/spec_review/parser.py": "f24c78fc7cc9ac26e132b6f15da9760bef5cb2ee7da8e7ed9e5d83d357e34fe9",
+        "src/specify_cli/spec_review/preflight.py": "d5379434057a64aff2414d29f3b10f2866831befa50d4b3f17e4ee8d2f323219",
+        "src/specify_cli/spec_review/prompt.py": "0dc173c7bc9c421142b5d3f68625759f605cc731122ed2074651ef41d8e6174d",
+        "src/specify_cli/spec_review/runner.py": "5a37986b81d19d2fd92f29801adcea1c5b6a5142c0725d4142954d5f7569789e",
+        "src/specify_cli/spec_review/service.py": "27dddb1444a97393deb8912aa9d5cfd1191050985cb6bb06cd3136adb6ccdd57",
+        "src/specify_cli/spec_review/storage.py": "a71edeebba02ce346412b39df632821beb350a2f272d0d0c93b8e96d5eb61479",
+        "tests/architectural/test_safety_registry_completeness.py": "08cf5f5d4606f2694a8ecabbd3abeed52470b4ca7de9d380be7a7252ee397ed0",
+        "tests/integration/test_spec_review_integration.py": "2aac8f6c47f69c00b4a0f57489e1eb4c6e51834fe6053f9e28e22037eae06573",
+        "tests/integration/test_spec_review_live.py": "7d6f9c87bbf1a73117819fa05beaaba8cd6c855c9f651a3ea999461779fdf94a",
+        "tests/integration/test_surface_translation_seam.py": "b3e44a9daf9fbbdc1e1c144f0abd5000a9234239304d4c5c1c6ce34b59b48b16",
+        "tests/mission_runtime/test_artifact_partition_mapping.py": "ff41d527552a22464a20cddada88944b64ccbb1b6b6addca680fee1d41f13c1d",
+        "tests/mission_runtime/test_placement_seam.py": "adb7a36ec5c3ab57c1991fafe1e396a7bf00f4e4c8cec14734746a7747cf50d6",
+        "tests/mission_runtime/test_spec_review_artifact_placement.py": "b5c04dd1cee0b298ab7d438586ee56d35fea4a21eafc54b1c002e6b8dd9375ed",
+        "tests/specify_cli/cli/commands/test_doctor_restart_daemon.py": "41701da3e418865aa51010ea8dde6330c005ab955322b9ce3ea9ca3f874ff7c9",
+        "tests/specify_cli/cli/commands/test_review.py": "92810d4f712c127da67b3790db9963b65ca228d5afdfd53258a69eba95e51e03",
+        "tests/specify_cli/cli/commands/test_review_git_baseline.py": "dca4328f7935d6b7fbf102c999205b83995ca35e974677b55fafbd7700dc2228",
+        "tests/specify_cli/cli/commands/test_safe_commit_cli.py": "605f4f5fc72045d9ca0291ae7067e3fdc42d62cfcb32dc53cf43549faad5d63f",
+        "tests/specify_cli/cli/commands/test_spec_commit_cmd.py": "0807dfcd483533699e2901c2add19ecdc785fbbce32c1418db99550392d254ac",
+        "tests/specify_cli/invocation/cli/test_dispatch.py": "2fdc09b1d72f182e2bed7f7a3611cc1565a8061cefa10f5e5f7ee1c9b6fe6f0b",
+        "tests/specify_cli/invocation/test_executor.py": "339add2556d7abfb4f255f209710ea52c569ee675db7544b0310c2fb12e6e522",
+        "tests/specify_cli/spec_review/test_cli_preview.py": "b644a67e506ab0fbd675f817517e093750208d7803f5c65314cfacd22eeff20c",
+        "tests/specify_cli/spec_review/test_models.py": "58c8a33bcf534965b46ea2419887ec14d7640543e2824ad5bdb872d5de3cfabe",
+        "tests/specify_cli/spec_review/test_parser.py": "3ccaeeda51602a8700aca2614d93c3e31c806aae44b790ebceff24066b8f692d",
+        "tests/specify_cli/spec_review/test_preflight.py": "110f804e687d29772392494058099e0916f2cf05969630021d97521480705fff",
+        "tests/specify_cli/spec_review/test_prompt.py": "bf99265ac3830b74d76100e13c940d538c66aeb0a1cd28edccaee24e4e0e9e19",
+        "tests/specify_cli/spec_review/test_runner.py": "185d48e13f775a2d5cdf4664e2f9fb908c5153c27e9b1d8a5640ee242c5a40a8",
+        "tests/specify_cli/spec_review/test_service.py": "072e3e933fcaf62dcc2aa710aa4bbe89dc9d416ac637c0b04f2ea38bb00a3f6a",
+        "tests/specify_cli/spec_review/test_storage.py": "87bd3506419c54897390d402c327fb841a6e14960a56c7d8d690df1c76b7122d",
+    },
+    "glob_inputs": {
+        "kitty-specs/*/reviews/*": {
+            "entries": 306,
+            "sha256": "8c3175ac566306707ef5013c00d5da33aa2ace2087a251a98de388a2367f189d",
+            "algorithm": "SHA-256 of LF-joined '<LF-normalized-file-sha256>  <POSIX-path>\\n' records sorted by path",
+        }
+    },
+    "artifacts": {
+        "docs/codemap/codemap.json": "a65e84abeb7f795f80275e149b569dad69c051f2c8a816df35a7e26c76440f94",
+        "docs/codemap/codemap.html": "4978dd43bd43532dbe9736b38dd67f9aa0009852db989c665d2949839dbf2f8f",
+    },
+    "verification_command": "python docs/codemap/codemap.lock",
+}
+
+
+def _normalized_bytes(path: Path) -> bytes:
+    text = path.read_text(encoding="utf-8")
+    return text.replace("\r\n", "\n").replace("\r", "\n").encode("utf-8")
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(_normalized_bytes(path)).hexdigest()
+
+
+def _historical_review_manifest(repo_root: Path) -> tuple[int, str]:
+    paths = sorted(
+        (path for path in repo_root.glob("kitty-specs/*/reviews/*") if path.is_file()),
+        key=lambda path: path.relative_to(repo_root).as_posix(),
+    )
+    records = "".join(
+        f"{_sha256(path)}  {path.relative_to(repo_root).as_posix()}\n"
+        for path in paths
+    ).encode("utf-8")
+    return len(paths), hashlib.sha256(records).hexdigest()
+
+
+def _assert_graph_contract(data: dict[str, object], html: str) -> None:
+    nodes = data["nodes"]
+    edges = data["edges"]
+    assert isinstance(nodes, list)
+    assert isinstance(edges, list)
+    node_ids = [node["id"] for node in nodes]
+    edge_ids = [edge["id"] for edge in edges]
+    assert node_ids == sorted(node_ids), "nodes are not deterministically ordered"
+    assert edge_ids == sorted(edge_ids), "edges are not deterministically ordered"
+    assert len(node_ids) == len(set(node_ids)), "duplicate node id"
+    assert len(edge_ids) == len(set(edge_ids)), "duplicate edge id"
+    assert all(edge["from"] in node_ids and edge["to"] in node_ids for edge in edges)
+
+    present = [node for node in nodes if node["status"] == "present"]
+    planned = [node for node in nodes if node["status"] == "planned"]
+    summary = data["summary"]
+    assert isinstance(summary, dict)
+    assert summary["present_nodes"] == len(present) == 30
+    assert summary["planned_nodes"] == len(planned) == 0
+    assert summary["edges"] == len(edges) == 42
+
+    for node in present:
+        assert node["path"] and node["callers"] and node["effects"]
+        assert node["coverage"]["classification"] in {"covered", "partial", "gap"}
+        node_path = node["path"]
+        if node_path in LOCK["glob_inputs"]:
+            continue
+        assert "*" not in node_path, f"unlocked present-node glob: {node_path}"
+        assert node_path in LOCK["source_inputs"], (
+            f"present-node source missing from lock manifest: {node_path}"
+        )
+    for node in planned:
+        assert node["path"] and node["callers"] and node["effects"]
+        assert node["coverage"]["tests"]
+        assert node["requirements"] and node["concerns"] and node["authority"]
+
+    for path in [node["path"] for node in nodes]:
+        assert "\\" not in path, f"non-POSIX node path: {path}"
+        assert not Path(path).is_absolute(), f"absolute node path: {path}"
+
+    for sample in data["path_policy"]["normalization_samples"]:
+        assert PureWindowsPath(sample["input"]).as_posix() == sample["normalized"]
+
+    for identifier in node_ids + edge_ids:
+        assert html.count(f'id="{identifier}"') == 1, f"HTML parity failed: {identifier}"
+    lowered = html.lower()
+    assert "http://" not in lowered and "https://" not in lowered
+    assert "<script" not in lowered and "src=" not in lowered
+
+
+def verify() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    source_head = LOCK["source_head"]
+    commit_check = subprocess.run(
+        ["git", "cat-file", "-e", f"{source_head}^{{commit}}"],
+        cwd=repo_root,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    assert commit_check.returncode == 0, f"source HEAD is unavailable: {source_head}"
+
+    source_inputs = LOCK["source_inputs"]
+    assert list(source_inputs) == sorted(source_inputs), "lock source inputs are not sorted"
+    for relative, expected in source_inputs.items():
+        assert "\\" not in relative and not Path(relative).is_absolute()
+        actual = _sha256(repo_root / relative)
+        assert actual == expected, f"source digest mismatch: {relative}"
+
+    source_diff = subprocess.run(
+        ["git", "diff", "--quiet", source_head, "--", *source_inputs],
+        cwd=repo_root,
+        check=False,
+    )
+    assert source_diff.returncode == 0, "source inputs differ from the pinned source HEAD"
+
+    glob_lock = LOCK["glob_inputs"]["kitty-specs/*/reviews/*"]
+    review_count, review_digest = _historical_review_manifest(repo_root)
+    assert review_count == glob_lock["entries"], "historical review count drift"
+    assert review_digest == glob_lock["sha256"], "historical review manifest drift"
+
+    for relative, expected in LOCK["artifacts"].items():
+        actual = _sha256(repo_root / relative)
+        assert actual == expected, f"artifact digest mismatch: {relative}"
+
+    json_path = repo_root / "docs/codemap/codemap.json"
+    html_path = repo_root / "docs/codemap/codemap.html"
+    data = json.loads(json_path.read_text(encoding="utf-8"))
+    html = html_path.read_text(encoding="utf-8")
+    assert data["schema_version"] == LOCK["codemap_schema_version"]
+    assert data["source_head"] == source_head
+    assert data["generated_at_utc"] == LOCK["generated_at_utc"]
+    assert data["generator"] == LOCK["generator"]
+
+    json_sources = {
+        entry["path"]: entry["sha256"]
+        for entry in data["source_inputs"]
+        if entry.get("kind") != "glob_manifest"
+    }
+    assert json_sources == source_inputs, "JSON and lock source manifests differ"
+    json_glob = next(
+        entry for entry in data["source_inputs"] if entry.get("kind") == "glob_manifest"
+    )
+    assert json_glob["entries"] == glob_lock["entries"]
+    assert json_glob["sha256"] == glob_lock["sha256"]
+    _assert_graph_contract(data, html)
+
+    print(
+        "codemap verification: OK; "
+        f"source_head={source_head}; "
+        f"nodes={len(data['nodes'])}; edges={len(data['edges'])}; "
+        f"historical_reviews={review_count}"
+    )
+
+
+if __name__ == "__main__":
+    verify()

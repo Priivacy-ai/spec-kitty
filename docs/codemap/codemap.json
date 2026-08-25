@@ -1,83 +1,808 @@
 {
-  "version": 1,
-  "scope": "caller-owned Mission lifecycle root",
+  "schema_version": "codemap/v1",
+  "mission": "ox-alpha-spec-reviewer-01M0N82A",
+  "generated_at_utc": "2026-08-24T21:08:24Z",
+  "source_head": "86fa812099df35688fe1a23fce05cb1fbc382990",
+  "generator": "wp06-manual-codemap-refresh/v1",
+  "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
+  "audience": "Spec Kitty core maintainers and WP implementers",
+  "ordering": {
+    "nodes": "id ascending",
+    "edges": "id ascending",
+    "source_inputs": "path ascending using ordinal POSIX comparison"
+  },
+  "path_policy": {
+    "stored_form": "repository-relative POSIX paths",
+    "forbidden": [
+      "absolute paths",
+      "worktree prefixes",
+      "user-global paths",
+      "credential or auth paths"
+    ],
+    "normalization_samples": [
+      {
+        "input": "src\\specify_cli\\spec_review\\service.py",
+        "normalized": "src/specify_cli/spec_review/service.py"
+      },
+      {
+        "input": "tests\\mission_runtime\\test_spec_review_artifact_placement.py",
+        "normalized": "tests/mission_runtime/test_spec_review_artifact_placement.py"
+      }
+    ]
+  },
+  "summary": {
+    "present_nodes": 30,
+    "planned_nodes": 0,
+    "edges": 42,
+    "historical_review_files": 306,
+    "historical_spec_review_files": 0
+  },
+  "architecture_invariants": [
+    {
+      "id": "INV-REVIEW-LEAF",
+      "statement": "The existing spec-kitty review surface remains a top-level leaf command bound directly to review_mission.",
+      "evidence": "src/specify_cli/cli/commands/__init__.py:301"
+    },
+    {
+      "id": "INV-EXECUTOR-NO-LLM",
+      "statement": "ProfileInvocationExecutor.invoke synchronously resolves governance and writes invocation metadata; it does not spawn an LLM call.",
+      "evidence": "src/specify_cli/invocation/executor.py:263-299"
+    },
+    {
+      "id": "INV-PLACEMENT-AUTHORITY",
+      "statement": "Mission artifact placement belongs to mission_runtime through MissionArtifactKind, the single file classifier, PlacementSeam, and the topology-aware surface resolver.",
+      "evidence": "src/mission_runtime/artifacts.py:63-107,393-457; src/mission_runtime/resolution.py:1513-1768,2019-2206"
+    },
+    {
+      "id": "INV-HISTORICAL-REVIEWS",
+      "statement": "kitty-specs/*/reviews/* is a historical repository convention, not a currently classified MissionArtifactKind; no spec-review-*.yaml file exists at this baseline.",
+      "evidence": "aggregate inventory of kitty-specs/*/reviews/* at source_head"
+    }
+  ],
+  "historical_review_inventory": {
+    "scope": "kitty-specs/*/reviews/*",
+    "authority": "historical convention only",
+    "file_count": 306,
+    "extensions": {
+      ".md": 19,
+      ".yaml": 287
+    },
+    "filename_patterns": {
+      "*.findings.yaml": 84,
+      "*.merged.yaml": 27,
+      "*.confirmed.yaml": 25,
+      "spec-review-*.yaml": 0
+    },
+    "dominant_schemas": {
+      "review-findings/v1": 169,
+      "review-verify/v1": 55,
+      "review-refute/v1": 27
+    },
+    "runtime_classification": "reviews/spec-review-*.yaml is classified as SPEC_REVIEW on PRIMARY; historical review names remain unclassified",
+    "inventory_sha256": "8c3175ac566306707ef5013c00d5da33aa2ace2087a251a98de388a2367f189d"
+  },
+  "source_inputs": [
+    {
+      "path": ".kittify/charter/charter.md",
+      "sha256": "b2b5046860df95ed513f80cbcf8352fa59e096ec7ec0c9ff88c8c9a391cfa195"
+    },
+    {
+      "path": "kitty-specs/*/reviews/*",
+      "kind": "glob_manifest",
+      "entries": 306,
+      "sha256": "8c3175ac566306707ef5013c00d5da33aa2ace2087a251a98de388a2367f189d",
+      "algorithm": "SHA-256 of LF-joined '<LF-normalized-file-sha256>  <POSIX-path>\\n' records sorted by path"
+    },
+    {
+      "path": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md",
+      "sha256": "6d8842753a17606122d017d926527c088c090b25624b115ae335729d51a7d7da"
+    },
+    {
+      "path": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/spec.md",
+      "sha256": "2d14fd19af11ea17f19b4d602fa745cd8474f16ece36a071ad227df26af49166"
+    },
+    {
+      "path": "src/mission_runtime/artifacts.py",
+      "sha256": "79791ec039b2e3e0f0b5828821bd92595c8fefa22ba120c0e04066c46ff5640d"
+    },
+    {
+      "path": "src/mission_runtime/resolution.py",
+      "sha256": "f9b0fab244521c0c4532545576cf61a6df6108cc0c7b0d8020d9ac53d94e890e"
+    },
+    {
+      "path": "src/specify_cli/__init__.py",
+      "sha256": "9569d61f43b671dc4e75a007a4962b3a99abf3a5ae032455f39628c02eb2d599"
+    },
+    {
+      "path": "src/specify_cli/cli/commands/__init__.py",
+      "sha256": "bc97784092c17db083f5948147f6ad8ddc30724bd6cd9a6f729e0ca057c531cd"
+    },
+    {
+      "path": "src/specify_cli/cli/commands/dispatch.py",
+      "sha256": "7a5decd2bc8daa0914cbc42e781a4cfb3cfb65109e8216a9bd9ca34dcc4ff3b3"
+    },
+    {
+      "path": "src/specify_cli/cli/commands/review/__init__.py",
+      "sha256": "11a4056bcb5713d4668bd69f4717a3eab87210ba3f8e93fe07141baa258798b6"
+    },
+    {
+      "path": "src/specify_cli/cli/commands/review/_report.py",
+      "sha256": "f36dc9d2b3c4f3f189614b59e14418cbfdffe0059b20a5f430be8fdd5a5a5f9d"
+    },
+    {
+      "path": "src/specify_cli/cli/commands/safe_commit_cmd.py",
+      "sha256": "d6f30f3cfcbefa098036b18c3d48adc9097c7d538f90ae311b03adbc0863793c"
+    },
+    {
+      "path": "src/specify_cli/cli/commands/spec_commit_cmd.py",
+      "sha256": "0a645b15dffcd1d5f4ad3e2a4ded289afbe48095956594d59218b12808086c42"
+    },
+    {
+      "path": "src/specify_cli/cli/commands/spec_review.py",
+      "sha256": "3c0b8dbf94d425d716323400c2e2ade008960525e8bb711d7b732b381d108333"
+    },
+    {
+      "path": "src/specify_cli/cli/selector_resolution.py",
+      "sha256": "de15f507bb6f4b8a3babcb84157ba1a34b58d219bbb0625e0e604b7812145a0b"
+    },
+    {
+      "path": "src/specify_cli/coordination/commit_router.py",
+      "sha256": "82ce892e848738864c14f74a2ad8b326e0eafc3167ffc1372c6e7e638bcb8238"
+    },
+    {
+      "path": "src/specify_cli/invocation/executor.py",
+      "sha256": "5d14a765c80740c3c1b655fd47e40c3e94742103b745008a51ebdb5c1399fb31"
+    },
+    {
+      "path": "src/specify_cli/spec_review/__init__.py",
+      "sha256": "217e8e3661c493ffd0449067e1dd665c1362fe0bfd375ad537e20edb71695751"
+    },
+    {
+      "path": "src/specify_cli/spec_review/models.py",
+      "sha256": "c1d19aacabafb8c2eab85757dfa099972be1762bddba8cb2e3feb05ce3768108"
+    },
+    {
+      "path": "src/specify_cli/spec_review/parser.py",
+      "sha256": "f24c78fc7cc9ac26e132b6f15da9760bef5cb2ee7da8e7ed9e5d83d357e34fe9"
+    },
+    {
+      "path": "src/specify_cli/spec_review/preflight.py",
+      "sha256": "d5379434057a64aff2414d29f3b10f2866831befa50d4b3f17e4ee8d2f323219"
+    },
+    {
+      "path": "src/specify_cli/spec_review/prompt.py",
+      "sha256": "0dc173c7bc9c421142b5d3f68625759f605cc731122ed2074651ef41d8e6174d"
+    },
+    {
+      "path": "src/specify_cli/spec_review/runner.py",
+      "sha256": "5a37986b81d19d2fd92f29801adcea1c5b6a5142c0725d4142954d5f7569789e"
+    },
+    {
+      "path": "src/specify_cli/spec_review/service.py",
+      "sha256": "27dddb1444a97393deb8912aa9d5cfd1191050985cb6bb06cd3136adb6ccdd57"
+    },
+    {
+      "path": "src/specify_cli/spec_review/storage.py",
+      "sha256": "a71edeebba02ce346412b39df632821beb350a2f272d0d0c93b8e96d5eb61479"
+    },
+    {
+      "path": "tests/architectural/test_safety_registry_completeness.py",
+      "sha256": "08cf5f5d4606f2694a8ecabbd3abeed52470b4ca7de9d380be7a7252ee397ed0"
+    },
+    {
+      "path": "tests/integration/test_spec_review_integration.py",
+      "sha256": "2aac8f6c47f69c00b4a0f57489e1eb4c6e51834fe6053f9e28e22037eae06573"
+    },
+    {
+      "path": "tests/integration/test_spec_review_live.py",
+      "sha256": "7d6f9c87bbf1a73117819fa05beaaba8cd6c855c9f651a3ea999461779fdf94a"
+    },
+    {
+      "path": "tests/integration/test_surface_translation_seam.py",
+      "sha256": "b3e44a9daf9fbbdc1e1c144f0abd5000a9234239304d4c5c1c6ce34b59b48b16"
+    },
+    {
+      "path": "tests/mission_runtime/test_artifact_partition_mapping.py",
+      "sha256": "ff41d527552a22464a20cddada88944b64ccbb1b6b6addca680fee1d41f13c1d"
+    },
+    {
+      "path": "tests/mission_runtime/test_placement_seam.py",
+      "sha256": "adb7a36ec5c3ab57c1991fafe1e396a7bf00f4e4c8cec14734746a7747cf50d6"
+    },
+    {
+      "path": "tests/mission_runtime/test_spec_review_artifact_placement.py",
+      "sha256": "b5c04dd1cee0b298ab7d438586ee56d35fea4a21eafc54b1c002e6b8dd9375ed"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_doctor_restart_daemon.py",
+      "sha256": "41701da3e418865aa51010ea8dde6330c005ab955322b9ce3ea9ca3f874ff7c9"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_review.py",
+      "sha256": "92810d4f712c127da67b3790db9963b65ca228d5afdfd53258a69eba95e51e03"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_review_git_baseline.py",
+      "sha256": "dca4328f7935d6b7fbf102c999205b83995ca35e974677b55fafbd7700dc2228"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_safe_commit_cli.py",
+      "sha256": "605f4f5fc72045d9ca0291ae7067e3fdc42d62cfcb32dc53cf43549faad5d63f"
+    },
+    {
+      "path": "tests/specify_cli/cli/commands/test_spec_commit_cmd.py",
+      "sha256": "0807dfcd483533699e2901c2add19ecdc785fbbce32c1418db99550392d254ac"
+    },
+    {
+      "path": "tests/specify_cli/invocation/cli/test_dispatch.py",
+      "sha256": "2fdc09b1d72f182e2bed7f7a3611cc1565a8061cefa10f5e5f7ee1c9b6fe6f0b"
+    },
+    {
+      "path": "tests/specify_cli/invocation/test_executor.py",
+      "sha256": "339add2556d7abfb4f255f209710ea52c569ee675db7544b0310c2fb12e6e522"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_cli_preview.py",
+      "sha256": "b644a67e506ab0fbd675f817517e093750208d7803f5c65314cfacd22eeff20c"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_models.py",
+      "sha256": "58c8a33bcf534965b46ea2419887ec14d7640543e2824ad5bdb872d5de3cfabe"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_parser.py",
+      "sha256": "3ccaeeda51602a8700aca2614d93c3e31c806aae44b790ebceff24066b8f692d"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_preflight.py",
+      "sha256": "110f804e687d29772392494058099e0916f2cf05969630021d97521480705fff"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_prompt.py",
+      "sha256": "bf99265ac3830b74d76100e13c940d538c66aeb0a1cd28edccaee24e4e0e9e19"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_runner.py",
+      "sha256": "185d48e13f775a2d5cdf4664e2f9fb908c5153c27e9b1d8a5640ee242c5a40a8"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_service.py",
+      "sha256": "072e3e933fcaf62dcc2aa710aa4bbe89dc9d416ac637c0b04f2ea38bb00a3f6a"
+    },
+    {
+      "path": "tests/specify_cli/spec_review/test_storage.py",
+      "sha256": "87bd3506419c54897390d402c327fb841a6e14960a56c7d8d690df1c76b7122d"
+    }
+  ],
   "nodes": [
     {
-      "id": "mission-operation-context",
-      "path": "src/specify_cli/missions/operation_context.py",
-      "role": "Resolves one immutable Mission identity plus repository and Mission anchor roots."
+      "id": "P01-root-cli-app",
+      "status": "present",
+      "kind": "entrypoint",
+      "label": "Root Typer application",
+      "path": "src/specify_cli/__init__.py",
+      "symbol": "_build_app -> register_commands",
+      "callers": ["python -m specify_cli and installed spec-kitty entrypoint"],
+      "effects": ["constructs the root Typer app", "delegates command attachment to register_commands"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/architectural/test_safety_registry_completeness.py"],
+        "note": "The test walks the real registered command tree."
+      }
     },
     {
-      "id": "lifecycle-cli-boundaries",
-      "path": "src/specify_cli/cli/commands",
-      "role": "Creates one operation context for status, setup, tasks, next, workflow, and accept commands."
+      "id": "P02-root-command-registry",
+      "status": "present",
+      "kind": "command_registry",
+      "label": "Root command registration",
+      "path": "src/specify_cli/cli/commands/__init__.py",
+      "symbol": "register_commands",
+      "callers": ["P01-root-cli-app"],
+      "effects": ["registers review, dispatch, safe-commit and spec-commit as top-level leaves", "short-circuits normal imports for next and doctor restart-daemon fast paths"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/architectural/test_safety_registry_completeness.py", "tests/specify_cli/cli/commands/test_doctor_restart_daemon.py"],
+        "note": "Registration safety and the doctor fast path are executable contracts."
+      }
     },
     {
-      "id": "placement-and-commit",
-      "path": "src/specify_cli/coordination/commit_router.py",
-      "role": "Keeps Git topology on the repository root while routing Mission artifacts through the Mission anchor."
+      "id": "P03-next-fast-path",
+      "status": "present",
+      "kind": "startup_fast_path",
+      "label": "next import fast path",
+      "path": "src/specify_cli/cli/commands/__init__.py",
+      "symbol": "_is_next_fast_path",
+      "callers": ["P02-root-command-registry"],
+      "effects": ["registers only next and returns before unrelated command imports"],
+      "coverage": {
+        "classification": "gap",
+        "tests": [],
+        "note": "The registry test avoids this branch; WP05 must add explicit non-import regression coverage for spec_review."
+      }
     },
     {
-      "id": "status-transaction-dual-root",
-      "path": "src/mission_runtime/write_target_degrade.py; src/specify_cli/status/models.py; src/specify_cli/status/bootstrap.py; src/specify_cli/status/work_package_lifecycle.py; src/specify_cli/coordination/status_transition.py; src/specify_cli/coordination/transaction.py",
-      "role": "Carries the Mission anchor through status reads, write-target resolution, and bookkeeping commits while retaining the repository root for Git policy."
+      "id": "P04-doctor-restart-fast-path",
+      "status": "present",
+      "kind": "startup_fast_path",
+      "label": "doctor restart-daemon import fast path",
+      "path": "src/specify_cli/cli/commands/__init__.py",
+      "symbol": "_is_doctor_restart_daemon_fast_path",
+      "callers": ["P02-root-command-registry"],
+      "effects": ["imports and registers only the doctor group for restart-daemon invocations"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/cli/commands/test_doctor_restart_daemon.py"],
+        "note": "test_restart_daemon_uses_cli_registration_fast_path pins the early return."
+      }
     },
     {
-      "id": "coordination-confined-writer",
-      "path": "src/specify_cli/coordination/atomic_write.py; src/specify_cli/coordination/windows_confined_fs.py",
-      "role": "Persists and rolls back coordination artifacts through POSIX fd-relative or Win32 handle-confined atomic write and unlink boundaries."
+      "id": "P05-review-command",
+      "status": "present",
+      "kind": "cli_leaf",
+      "label": "Existing post-merge mission review",
+      "path": "src/specify_cli/cli/commands/review/__init__.py",
+      "symbol": "review_mission",
+      "callers": ["P02-root-command-registry via app.command(name='review')"],
+      "effects": ["runs lane, dead-code, BLE001 and issue-matrix gates", "writes mission-review-report.md through write_review_report", "may exit non-zero on a failing verdict"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/cli/commands/test_review.py", "tests/specify_cli/cli/commands/test_review_git_baseline.py"],
+        "note": "Tests cover mission resolution, report creation, modes and failure exits."
+      }
     },
     {
-      "id": "tasks-operation-boundary",
-      "path": "src/specify_cli/agent_tasks_ports.py; src/specify_cli/cli/commands/agent/tasks_shared.py; src/specify_cli/cli/commands/agent/tasks_move_task.py; src/specify_cli/cli/commands/agent/tasks_mark_status.py; src/specify_cli/cli/commands/agent/tasks_finalize_validation.py; src/specify_cli/cli/commands/agent/tasks_parsing_validation.py; src/specify_cli/status/emit.py",
-      "role": "Resolves task operations once and carries both repository and Mission anchor roots through task reads, status transitions, and coordination commits."
+      "id": "P06-mission-handle-resolution",
+      "status": "present",
+      "kind": "resolver",
+      "label": "Mission selector resolution",
+      "path": "src/specify_cli/cli/selector_resolution.py",
+      "symbol": "resolve_mission_handle",
+      "callers": ["P05-review-command"],
+      "effects": ["returns the canonical mission_slug and feature_dir", "fails closed on an unresolved or ambiguous selector"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/cli/commands/test_review.py", "tests/specify_cli/cli/commands/test_review_git_baseline.py"],
+        "note": "review tests monkeypatch and assert this exact boundary."
+      }
     },
     {
-      "id": "status-and-acceptance",
-      "path": "src/specify_cli/status/aggregate.py; src/specify_cli/acceptance",
-      "role": "Reads status and acceptance evidence from the selected Mission anchor without changing managed-worktree behavior."
+      "id": "P07-review-report-writer",
+      "status": "present",
+      "kind": "filesystem_writer",
+      "label": "Mission review report writer",
+      "path": "src/specify_cli/cli/commands/review/_report.py",
+      "symbol": "write_review_report",
+      "callers": ["P05-review-command"],
+      "effects": ["writes kitty-specs/<mission>/mission-review-report.md", "prints the verdict", "raises typer.Exit(1) for hard failures"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/cli/commands/test_review.py", "tests/specify_cli/cli/commands/test_review_git_baseline.py"],
+        "note": "Report frontmatter and hard-failure behavior are asserted."
+      }
     },
     {
-      "id": "caller-owned-integration-tests",
-      "path": "tests/integration/test_caller_owned_worktree_lifecycle.py",
-      "role": "Covers conflict safety, two linked worktrees, lifecycle commands, indexing cost, and primary-checkout immutability."
+      "id": "P08-dispatch-command",
+      "status": "present",
+      "kind": "cli_leaf",
+      "label": "Governed Op dispatch",
+      "path": "src/specify_cli/cli/commands/dispatch.py",
+      "symbol": "dispatch",
+      "callers": ["P02-root-command-registry via app.command(name='dispatch')"],
+      "effects": ["builds ProfileInvocationExecutor", "opens a governed Op and renders its payload"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/invocation/cli/test_dispatch.py"],
+        "note": "The test suite pins standalone registration and Op creation."
+      }
     },
     {
-      "id": "operation-root-guard",
-      "path": "tests/architectural/test_mission_operation_root_boundary.py; tests/architectural/fixtures/mission_root_authority_allowlist.tsv",
-      "role": "Scans every production source and prevents lifecycle consumers from introducing a second Mission-root authority outside a shrink-only reviewed allowlist."
+      "id": "P09-invocation-executor",
+      "status": "present",
+      "kind": "governance_service",
+      "label": "Profile invocation executor",
+      "path": "src/specify_cli/invocation/executor.py",
+      "symbol": "ProfileInvocationExecutor.invoke",
+      "callers": ["P08-dispatch-command and other profile-governed invocation adapters"],
+      "effects": ["resolves a profile and action", "builds governance context", "writes OpStartedEvent metadata", "returns InvocationPayload synchronously", "does not spawn an LLM call"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/invocation/test_executor.py"],
+        "note": "Tests cover synchronous payload creation and durable metadata; the no-LLM statement is an explicit source contract."
+      }
     },
     {
-      "id": "coordination-confined-writer-tests",
-      "path": "tests/coordination/test_atomic_write_windows.py; tests/integration/test_tool_artifact_owner.py; tests/merge/test_bookkeeping_projection_seam.py",
-      "role": "Covers Windows confined writes and unlinks plus transaction rollback and owner projection semantics."
+      "id": "P10-safe-commit-command",
+      "status": "present",
+      "kind": "cli_leaf",
+      "label": "Safe commit command",
+      "path": "src/specify_cli/cli/commands/safe_commit_cmd.py",
+      "symbol": "safe_commit_command",
+      "callers": ["P02-root-command-registry via app.command(name='safe-commit')"],
+      "effects": ["normalizes and expands requested paths", "resolves a single CommitTarget", "commits only requested changed files through safe_commit"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/cli/commands/test_safe_commit_cli.py"],
+        "note": "CLI tests cover path expansion and target-branch behavior."
+      }
+    },
+    {
+      "id": "P11-spec-commit-command",
+      "status": "present",
+      "kind": "cli_leaf",
+      "label": "Mission artifact commit command",
+      "path": "src/specify_cli/cli/commands/spec_commit_cmd.py",
+      "symbol": "spec_commit_command",
+      "callers": ["P02-root-command-registry via app.command(name='spec-commit')"],
+      "effects": ["derives the mission selector", "routes mission artifact files through commit_for_mission", "does not define artifact placement independently"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/cli/commands/test_spec_commit_cmd.py"],
+        "note": "Tests pin CLI routing and errors."
+      }
+    },
+    {
+      "id": "P12-mission-artifact-kind",
+      "status": "present",
+      "kind": "domain_vocabulary",
+      "label": "Mission artifact kind vocabulary",
+      "path": "src/mission_runtime/artifacts.py",
+      "symbol": "MissionArtifactKind",
+      "callers": ["P13-mission-file-classifier", "P15-placement-write-resolver", "P16-placement-seam", "P17-artifact-surface-resolver"],
+      "effects": ["defines the exhaustive placement categories", "feeds disjoint PRIMARY and topology-routed partitions"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/mission_runtime/test_artifact_partition_mapping.py", "tests/mission_runtime/test_placement_seam.py"],
+        "note": "Partition completeness and seam construction are guarded."
+      }
+    },
+    {
+      "id": "P13-mission-file-classifier",
+      "status": "present",
+      "kind": "classifier",
+      "label": "Mission file to artifact-kind classifier",
+      "path": "src/mission_runtime/artifacts.py",
+      "symbol": "kind_for_mission_file -> _artifact_kind_for_path",
+      "callers": ["safe-commit and other path-bearing write adapters"],
+      "effects": ["normalizes paths to POSIX form", "returns a recognized MissionArtifactKind or None", "currently leaves reviews/* unclassified"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/mission_runtime/test_artifact_partition_mapping.py"],
+        "note": "Existing basename and nested-path classifications are asserted; spec-review names are a planned gap."
+      }
+    },
+    {
+      "id": "P14-topology-resolver",
+      "status": "present",
+      "kind": "topology_resolver",
+      "label": "Stored mission topology resolver",
+      "path": "src/mission_runtime/resolution.py",
+      "symbol": "resolve_topology -> _resolve_topology",
+      "callers": ["P15-placement-write-resolver", "P17-artifact-surface-resolver via declared_read_surface"],
+      "effects": ["reads stored topology from PRIMARY meta without mutation", "uses classify_topology only for legacy or bootstrap degradation"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/mission_runtime/test_placement_seam.py", "tests/integration/test_surface_translation_seam.py"],
+        "note": "Topology cells are exercised through both write and filesystem projections."
+      }
+    },
+    {
+      "id": "P15-placement-write-resolver",
+      "status": "present",
+      "kind": "placement_resolver",
+      "label": "Artifact commit-target projection",
+      "path": "src/mission_runtime/resolution.py",
+      "symbol": "resolve_placement_only",
+      "callers": ["P16-placement-seam.write_target and mission commit routers"],
+      "effects": ["routes PRIMARY kinds to target_branch", "routes topology-owned kinds to the canonical destination ref", "fails closed on ambiguous selectors"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/mission_runtime/test_placement_seam.py"],
+        "note": "Partition-correct write targets and required kind arguments are asserted."
+      }
+    },
+    {
+      "id": "P16-placement-seam",
+      "status": "present",
+      "kind": "authority_seam",
+      "label": "Single mission placement authority",
+      "path": "src/mission_runtime/resolution.py",
+      "symbol": "PlacementSeam and placement_seam",
+      "callers": ["mission artifact readers and writers that need one kind-aware authority"],
+      "effects": ["asserts partition totality", "projects write_target to resolve_placement_only", "projects read_dir to resolve_artifact_surface"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/mission_runtime/test_placement_seam.py"],
+        "note": "The test suite pins delegation and forbids inline topology equality."
+      }
+    },
+    {
+      "id": "P17-artifact-surface-resolver",
+      "status": "present",
+      "kind": "filesystem_resolver",
+      "label": "Artifact filesystem surface resolver",
+      "path": "src/mission_runtime/resolution.py",
+      "symbol": "resolve_artifact_surface",
+      "callers": ["P16-placement-seam.read_dir", "P19-coord-read-projection", "future P29-spec-review-storage"],
+      "effects": ["canonicalizes the mission home", "classifies PRIMARY versus COORD using stored topology and CoordState", "returns a stamped filesystem path", "fails loudly for deleted coordination state where required"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/integration/test_surface_translation_seam.py"],
+        "note": "Materialized, empty, unmaterialized, deleted and flat cells are tested."
+      }
+    },
+    {
+      "id": "P18-surface-translator",
+      "status": "present",
+      "kind": "filesystem_translation",
+      "label": "TopologySurface to filesystem path translation",
+      "path": "src/mission_runtime/resolution.py",
+      "symbol": "translate_surface",
+      "callers": ["P17-artifact-surface-resolver"],
+      "effects": ["maps every TopologySurface member to a supplied physical location", "raises instead of fabricating a missing location"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/integration/test_surface_translation_seam.py"],
+        "note": "Totality and missing-location refusal are executable."
+      }
+    },
+    {
+      "id": "P19-coord-read-projection",
+      "status": "present",
+      "kind": "read_projection",
+      "label": "Optional coordination read projection",
+      "path": "src/mission_runtime/resolution.py",
+      "symbol": "coord_read_dir_for",
+      "callers": ["P05-review-command for ISSUE_MATRIX"],
+      "effects": ["projects COORD-stamped reads to a Path", "returns None for non-COORD or tolerated post-merge absence"],
+      "coverage": {
+        "classification": "partial",
+        "tests": ["tests/integration/test_surface_translation_seam.py"],
+        "note": "The underlying affirmative resolver is covered; this narrowing wrapper is not a direct WP01 test target."
+      }
+    },
+    {
+      "id": "P20-historical-review-convention",
+      "status": "present",
+      "kind": "repository_artifact_family",
+      "label": "Historical reviews directory convention",
+      "path": "kitty-specs/*/reviews/*",
+      "symbol": "306 repository files at source_head",
+      "callers": ["planning and adversarial review workflows; no canonical runtime classifier caller"],
+      "effects": ["stores heterogeneous historical review-findings, verification, merged, confirmed and prose records", "does not currently determine PRIMARY or COORD placement"],
+      "coverage": {
+        "classification": "gap",
+        "tests": [],
+        "note": "No existing runtime classification contract covers reviews/*; the planned filename-only classifier must not absorb these files."
+      }
+    },
+    {
+      "id": "P21-spec-review-command",
+      "status": "present",
+      "kind": "cli_leaf",
+      "label": "Manual external spec-review command",
+      "path": "src/specify_cli/cli/commands/spec_review.py",
+      "symbol": "spec_review command adapter",
+      "callers": ["P02-root-command-registry as a top-level leaf"],
+      "effects": ["resolve the selected mission", "render disclosure and consent UX", "delegate the use case to P28-spec-review-service", "preserve existing review command semantics"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_cli_preview.py", "tests/integration/test_spec_review_integration.py"],
+        "note": "CLI preview, leaf compatibility and fast-path import behavior are executable contracts."
+      },
+      "requirements": ["FR-001", "FR-003", "FR-009", "FR-010", "FR-012", "C-004"],
+      "concerns": ["IC-05", "IC-06"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P22-spec-review-package",
+      "status": "present",
+      "kind": "package_boundary",
+      "label": "Provider-neutral spec_review bounded context",
+      "path": "src/specify_cli/spec_review/__init__.py",
+      "symbol": "package exports",
+      "callers": ["P21-spec-review-command and focused tests"],
+      "effects": ["expose stable domain entry points without importing the OpenCode transport into unrelated command fast paths"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_service.py"],
+        "note": "Package import behavior is part of WP05 compatibility coverage."
+      },
+      "requirements": ["C-002", "NFR-006", "NFR-008"],
+      "concerns": ["IC-03", "IC-05"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P23-spec-review-models",
+      "status": "present",
+      "kind": "domain_model",
+      "label": "Disclosure, response and run models",
+      "path": "src/specify_cli/spec_review/models.py",
+      "symbol": "typed review models",
+      "callers": ["P24-spec-review-preflight", "P25-spec-review-prompt", "P27-spec-review-parser", "P28-spec-review-service", "P29-spec-review-storage"],
+      "effects": ["define trusted host-owned provenance separately from untrusted model findings", "bound statuses, findings and summaries"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_models.py", "tests/specify_cli/spec_review/test_parser.py", "tests/specify_cli/spec_review/test_service.py", "tests/specify_cli/spec_review/test_storage.py"],
+        "note": "Schemas, models and round-trip behavior have direct tests."
+      },
+      "requirements": ["FR-002", "FR-007", "FR-010", "NFR-001", "NFR-004"],
+      "concerns": ["IC-02"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P24-spec-review-preflight",
+      "status": "present",
+      "kind": "privacy_boundary",
+      "label": "Canonical input and privacy preflight",
+      "path": "src/specify_cli/spec_review/preflight.py",
+      "symbol": "preflight and immutable input snapshot",
+      "callers": ["P28-spec-review-service"],
+      "effects": ["resolve only canonical spec.md", "reject containment, size and sensitive-marker violations", "produce disclosure digests without exposing matched values", "prevent runner invocation before consent"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_preflight.py", "tests/specify_cli/spec_review/test_cli_preview.py", "tests/integration/test_spec_review_integration.py"],
+        "note": "Boundary, TOCTOU, zero-runner-call and the 256 KiB performance budget have direct tests."
+      },
+      "requirements": ["FR-001", "FR-002", "FR-003", "FR-004", "FR-011", "NFR-001", "NFR-002", "NFR-007", "C-005"],
+      "concerns": ["IC-01"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P25-spec-review-prompt",
+      "status": "present",
+      "kind": "prompt_builder",
+      "label": "Bounded immutable review prompt",
+      "path": "src/specify_cli/spec_review/prompt.py",
+      "symbol": "prompt composition",
+      "callers": ["P28-spec-review-service after P24 consent recheck"],
+      "effects": ["combine the verified spec buffer, versioned rubric and response contract", "produce the stdin payload and consent-bound digests"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_prompt.py"],
+        "note": "WP02 owns deterministic composition tests."
+      },
+      "requirements": ["FR-002", "FR-003", "FR-004", "FR-007", "NFR-001"],
+      "concerns": ["IC-01", "IC-02"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P26-spec-review-runner",
+      "status": "present",
+      "kind": "external_process_adapter",
+      "label": "OpenCode subprocess runner",
+      "path": "src/specify_cli/spec_review/runner.py",
+      "symbol": "typed runner protocol and OpenCode adapter",
+      "callers": ["P28-spec-review-service only after consent"],
+      "effects": ["spawn OpenCode with argv and shell disabled", "send prompt only through stdin", "bound raw streams in memory", "terminate the process tree on timeout", "never read auth storage"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_runner.py"],
+        "note": "WP04 owns contract tests; live model smoke is explicitly outside WP01 and normal CI."
+      },
+      "requirements": ["FR-005", "FR-006", "FR-010", "NFR-001", "NFR-003", "NFR-005", "NFR-006", "C-001", "C-002", "C-003"],
+      "concerns": ["IC-03"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P27-spec-review-parser",
+      "status": "present",
+      "kind": "untrusted_input_parser",
+      "label": "Strict review-response parser",
+      "path": "src/specify_cli/spec_review/parser.py",
+      "symbol": "review-response/v1 parser",
+      "callers": ["P28-spec-review-service after P26 returns bounded output"],
+      "effects": ["reject framing, schema, severity, range, count and size violations", "return validated findings only", "block exact long input spans from persisted model text"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_parser.py"],
+        "note": "WP02 owns invalid-output and privacy-teeth cases."
+      },
+      "requirements": ["FR-007", "FR-010", "NFR-001", "NFR-004"],
+      "concerns": ["IC-02"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P28-spec-review-service",
+      "status": "present",
+      "kind": "use_case_service",
+      "label": "Advisory spec-review orchestration",
+      "path": "src/specify_cli/spec_review/service.py",
+      "symbol": "manual review use case",
+      "callers": ["P21-spec-review-command"],
+      "effects": ["sequence preflight, consent, prompt, runner, parser and storage", "build host-owned run provenance", "leave Mission and WP lifecycle unchanged", "return stable advisory diagnostics"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_service.py", "tests/specify_cli/spec_review/test_cli_preview.py", "tests/integration/test_spec_review_integration.py"],
+        "note": "Orchestration, no-run-before-consent and non-mutation behavior have direct tests."
+      },
+      "requirements": ["FR-001", "FR-003", "FR-007", "FR-008", "FR-009", "FR-010", "FR-012", "SC-001", "SC-004"],
+      "concerns": ["IC-05"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P29-spec-review-storage",
+      "status": "present",
+      "kind": "filesystem_writer",
+      "label": "Append-only review artifact storage",
+      "path": "src/specify_cli/spec_review/storage.py",
+      "symbol": "exclusive spec-review-run writer",
+      "callers": ["P28-spec-review-service after an external start"],
+      "effects": ["request P30-spec-review-artifact-kind through P17-artifact-surface-resolver", "write reviews/spec-review-<run-id>.yaml atomically and exclusively", "repeat containment and reparse or symlink checks", "never overwrite historical review files"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/specify_cli/spec_review/test_storage.py", "tests/mission_runtime/test_spec_review_artifact_placement.py"],
+        "note": "WP03 owns topology, concurrent create and path attack tests."
+      },
+      "requirements": ["FR-008", "FR-009", "FR-012", "SC-003", "SC-005"],
+      "concerns": ["IC-04"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
+    },
+    {
+      "id": "P30-spec-review-artifact-kind",
+      "status": "present",
+      "kind": "domain_vocabulary_extension",
+      "label": "SPEC_REVIEW PRIMARY artifact kind",
+      "path": "src/mission_runtime/artifacts.py",
+      "symbol": "MissionArtifactKind.SPEC_REVIEW and filename-only classifier",
+      "callers": ["P29-spec-review-storage", "P13-mission-file-classifier for direct child reviews/spec-review-*.yaml"],
+      "effects": ["classify only direct reviews/spec-review-*.yaml files", "place the kind in the PRIMARY partition", "leave historical review names unclassified"],
+      "coverage": {
+        "classification": "covered",
+        "tests": ["tests/mission_runtime/test_spec_review_artifact_placement.py"],
+        "note": "WP03 owns positive and negative filename tables across the topology matrix."
+      },
+      "requirements": ["FR-008", "FR-009", "C-002"],
+      "concerns": ["IC-04"],
+      "authority": "kitty-specs/ox-alpha-spec-reviewer-01M0N82A/plan.md"
     }
   ],
   "edges": [
-    {"from": "lifecycle-cli-boundaries", "to": "mission-operation-context", "kind": "calls"},
-    {"from": "mission-operation-context", "to": "placement-and-commit", "kind": "supplies roots"},
-    {"from": "mission-operation-context", "to": "status-transaction-dual-root", "kind": "supplies roots"},
-    {"from": "lifecycle-cli-boundaries", "to": "status-transaction-dual-root", "kind": "calls"},
-    {"from": "lifecycle-cli-boundaries", "to": "tasks-operation-boundary", "kind": "calls"},
-    {"from": "mission-operation-context", "to": "tasks-operation-boundary", "kind": "supplies roots"},
-    {"from": "tasks-operation-boundary", "to": "status-transaction-dual-root", "kind": "routes transitions"},
-    {"from": "status-transaction-dual-root", "to": "placement-and-commit", "kind": "routes commits"},
-    {"from": "status-transaction-dual-root", "to": "coordination-confined-writer", "kind": "persists artifacts"},
-    {"from": "mission-operation-context", "to": "status-and-acceptance", "kind": "supplies anchor"},
-    {"from": "caller-owned-integration-tests", "to": "lifecycle-cli-boundaries", "kind": "covers"},
-    {"from": "caller-owned-integration-tests", "to": "status-transaction-dual-root", "kind": "covers"},
-    {"from": "caller-owned-integration-tests", "to": "tasks-operation-boundary", "kind": "covers"},
-    {"from": "operation-root-guard", "to": "lifecycle-cli-boundaries", "kind": "guards"},
-    {"from": "operation-root-guard", "to": "placement-and-commit", "kind": "guards"},
-    {"from": "operation-root-guard", "to": "status-transaction-dual-root", "kind": "guards"},
-    {"from": "operation-root-guard", "to": "tasks-operation-boundary", "kind": "guards"},
-    {"from": "coordination-confined-writer-tests", "to": "coordination-confined-writer", "kind": "covers"}
+    {"id": "E01", "from": "P01-root-cli-app", "to": "P02-root-command-registry", "relation": "calls", "status": "present", "evidence": "src/specify_cli/__init__.py:182"},
+    {"id": "E02", "from": "P02-root-command-registry", "to": "P03-next-fast-path", "relation": "guards", "status": "present", "evidence": "src/specify_cli/cli/commands/__init__.py:178-183"},
+    {"id": "E03", "from": "P02-root-command-registry", "to": "P04-doctor-restart-fast-path", "relation": "guards", "status": "present", "evidence": "src/specify_cli/cli/commands/__init__.py:185-191"},
+    {"id": "E04", "from": "P02-root-command-registry", "to": "P05-review-command", "relation": "registers_leaf", "status": "present", "evidence": "src/specify_cli/cli/commands/__init__.py:301"},
+    {"id": "E05", "from": "P02-root-command-registry", "to": "P08-dispatch-command", "relation": "registers_leaf", "status": "present", "evidence": "src/specify_cli/cli/commands/__init__.py:316"},
+    {"id": "E06", "from": "P02-root-command-registry", "to": "P10-safe-commit-command", "relation": "registers_leaf", "status": "present", "evidence": "src/specify_cli/cli/commands/__init__.py:302"},
+    {"id": "E07", "from": "P02-root-command-registry", "to": "P11-spec-commit-command", "relation": "registers_leaf", "status": "present", "evidence": "src/specify_cli/cli/commands/__init__.py:303"},
+    {"id": "E08", "from": "P05-review-command", "to": "P06-mission-handle-resolution", "relation": "calls", "status": "present", "evidence": "src/specify_cli/cli/commands/review/__init__.py:425-428"},
+    {"id": "E09", "from": "P05-review-command", "to": "P19-coord-read-projection", "relation": "reads_issue_matrix_through", "status": "present", "evidence": "src/specify_cli/cli/commands/review/__init__.py:462-467"},
+    {"id": "E10", "from": "P05-review-command", "to": "P07-review-report-writer", "relation": "calls", "status": "present", "evidence": "src/specify_cli/cli/commands/review/__init__.py:479-488"},
+    {"id": "E11", "from": "P07-review-report-writer", "to": "P20-historical-review-convention", "relation": "does_not_write", "status": "present", "evidence": "src/specify_cli/cli/commands/review/_report.py:177-178 writes mission-review-report.md outside reviews/"},
+    {"id": "E12", "from": "P08-dispatch-command", "to": "P09-invocation-executor", "relation": "constructs_and_invokes", "status": "present", "evidence": "src/specify_cli/cli/commands/dispatch.py:178-189,240-248"},
+    {"id": "E13", "from": "P09-invocation-executor", "to": "P26-spec-review-runner", "relation": "must_not_call", "status": "present_guard", "evidence": "src/specify_cli/invocation/executor.py and tests/specify_cli/invocation/test_executor.py"},
+    {"id": "E14", "from": "P10-safe-commit-command", "to": "P13-mission-file-classifier", "relation": "derives_kind_through", "status": "present", "evidence": "src/specify_cli/cli/commands/safe_commit_cmd.py:256-274,412-420"},
+    {"id": "E15", "from": "P11-spec-commit-command", "to": "P15-placement-write-resolver", "relation": "delegates_via_commit_router", "status": "present", "evidence": "src/specify_cli/cli/commands/spec_commit_cmd.py:155-167; src/specify_cli/coordination/commit_router.py:216-235"},
+    {"id": "E16", "from": "P13-mission-file-classifier", "to": "P12-mission-artifact-kind", "relation": "returns", "status": "present", "evidence": "src/mission_runtime/artifacts.py:393-457"},
+    {"id": "E17", "from": "P16-placement-seam", "to": "P15-placement-write-resolver", "relation": "write_projection", "status": "present", "evidence": "src/mission_runtime/resolution.py:1709-1716"},
+    {"id": "E18", "from": "P16-placement-seam", "to": "P17-artifact-surface-resolver", "relation": "read_projection", "status": "present", "evidence": "src/mission_runtime/resolution.py:1718-1768"},
+    {"id": "E19", "from": "P15-placement-write-resolver", "to": "P14-topology-resolver", "relation": "reads_topology_through", "status": "present", "evidence": "src/mission_runtime/resolution.py:1644-1649"},
+    {"id": "E20", "from": "P15-placement-write-resolver", "to": "P12-mission-artifact-kind", "relation": "routes_by_partition", "status": "present", "evidence": "src/mission_runtime/resolution.py:1658-1670"},
+    {"id": "E21", "from": "P17-artifact-surface-resolver", "to": "P14-topology-resolver", "relation": "reads_declared_surface_through", "status": "present", "evidence": "src/mission_runtime/resolution.py:1881-1886,1912-1914,2084-2090"},
+    {"id": "E22", "from": "P17-artifact-surface-resolver", "to": "P18-surface-translator", "relation": "translates_with", "status": "present", "evidence": "src/mission_runtime/resolution.py:2109-2115"},
+    {"id": "E23", "from": "P19-coord-read-projection", "to": "P17-artifact-surface-resolver", "relation": "narrows", "status": "present", "evidence": "src/mission_runtime/resolution.py:2159-2168"},
+    {"id": "E24", "from": "P13-mission-file-classifier", "to": "P20-historical-review-convention", "relation": "preserves_unclassified", "status": "present_guard", "evidence": "src/mission_runtime/artifacts.py and tests/mission_runtime/test_spec_review_artifact_placement.py"},
+    {"id": "E25", "from": "P02-root-command-registry", "to": "P21-spec-review-command", "relation": "registers_leaf", "status": "present", "evidence": "src/specify_cli/cli/commands/__init__.py and tests/specify_cli/spec_review/test_cli_preview.py"},
+    {"id": "E26", "from": "P21-spec-review-command", "to": "P22-spec-review-package", "relation": "imports_public_use_case", "status": "present", "evidence": "src/specify_cli/cli/commands/spec_review.py"},
+    {"id": "E27", "from": "P21-spec-review-command", "to": "P28-spec-review-service", "relation": "calls", "status": "present", "evidence": "src/specify_cli/cli/commands/spec_review.py"},
+    {"id": "E28", "from": "P28-spec-review-service", "to": "P24-spec-review-preflight", "relation": "runs_before_consent", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_service.py"},
+    {"id": "E29", "from": "P28-spec-review-service", "to": "P25-spec-review-prompt", "relation": "builds_after_consent_recheck", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_service.py"},
+    {"id": "E30", "from": "P28-spec-review-service", "to": "P26-spec-review-runner", "relation": "calls_after_consent", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_service.py"},
+    {"id": "E31", "from": "P28-spec-review-service", "to": "P27-spec-review-parser", "relation": "validates_bounded_output_with", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_parser.py"},
+    {"id": "E32", "from": "P28-spec-review-service", "to": "P29-spec-review-storage", "relation": "persists_after_external_start", "status": "present", "evidence": "src/specify_cli/spec_review/service.py and test_service.py"},
+    {"id": "E33", "from": "P24-spec-review-preflight", "to": "P23-spec-review-models", "relation": "produces_disclosure_model", "status": "present", "evidence": "src/specify_cli/spec_review/preflight.py"},
+    {"id": "E34", "from": "P25-spec-review-prompt", "to": "P23-spec-review-models", "relation": "consumes_manifest_and_contract", "status": "present", "evidence": "src/specify_cli/spec_review/prompt.py"},
+    {"id": "E35", "from": "P27-spec-review-parser", "to": "P23-spec-review-models", "relation": "returns_validated_findings", "status": "present", "evidence": "src/specify_cli/spec_review/parser.py"},
+    {"id": "E36", "from": "P28-spec-review-service", "to": "P23-spec-review-models", "relation": "builds_host_owned_run", "status": "present", "evidence": "src/specify_cli/spec_review/service.py"},
+    {"id": "E37", "from": "P29-spec-review-storage", "to": "P23-spec-review-models", "relation": "serializes_trusted_run", "status": "present", "evidence": "src/specify_cli/spec_review/storage.py"},
+    {"id": "E38", "from": "P29-spec-review-storage", "to": "P30-spec-review-artifact-kind", "relation": "requests_kind", "status": "present", "evidence": "src/specify_cli/spec_review/storage.py"},
+    {"id": "E39", "from": "P29-spec-review-storage", "to": "P17-artifact-surface-resolver", "relation": "resolves_filesystem_surface_through", "status": "present", "evidence": "src/specify_cli/spec_review/storage.py"},
+    {"id": "E40", "from": "P30-spec-review-artifact-kind", "to": "P12-mission-artifact-kind", "relation": "extends_enum_and_primary_partition", "status": "present", "evidence": "src/mission_runtime/artifacts.py"},
+    {"id": "E41", "from": "P13-mission-file-classifier", "to": "P30-spec-review-artifact-kind", "relation": "classifies_filename_only", "status": "present", "evidence": "src/mission_runtime/artifacts.py"},
+    {"id": "E42", "from": "P30-spec-review-artifact-kind", "to": "P20-historical-review-convention", "relation": "must_not_reclassify", "status": "present_guard", "evidence": "tests/mission_runtime/test_spec_review_artifact_placement.py"}
   ],
-  "flow": [
-    "CLI command receives a Mission selector in any same-repository linked worktree.",
-    "MissionOperationContext resolves repository_root, mission_anchor_root, and immutable identity once.",
-    "Lifecycle and task readers and writers retain repository_root for Git topology and use mission_anchor_root for Mission artifacts.",
-    "The coordination transaction persists generated artifacts through the confined atomic writer and restores them through the same boundary.",
-    "Conflicting identities fail before writes; managed worktrees retain their existing placement behavior."
-  ]
+  "planned_module_questions": {
+    "who_calls": "The root registry calls the thin CLI adapter; the adapter calls spec_review.service; service alone sequences preflight, prompt, runner, parser and storage; storage alone calls the mission_runtime placement seam.",
+    "what_it_touches": "Only the selected canonical spec.md is read; only a new append-only reviews/spec-review-<run-id>.yaml may be written after an external start; Mission lifecycle, existing review, ProfileInvocationExecutor and credential storage remain untouched.",
+    "which_tests_cover": "Planned command, preflight, prompt, runner, parser, service, storage and topology suites are listed on P21-P30; P03 is an explicit current fast-path coverage gap that WP05 must close."
+  }
 }

@@ -72,6 +72,9 @@ class MissionArtifactKind(enum.Enum):
     ISSUE_MATRIX = "issue_matrix"
     STATUS_STATE = "status_state"
     ANALYSIS_REPORT = "analysis_report"
+    # Advisory reviews are durable planning evidence. Unlike per-WP review
+    # cycles, they belong to the PRIMARY mission surface in every topology.
+    SPEC_REVIEW = "spec_review"
     # Planning SOURCE docs (/spec-kitty.specify + /spec-kitty.plan outputs).
     # write-surface-coherence WP01-04: these are PRIMARY-partition kinds (members
     # of ``_PRIMARY_ARTIFACT_KINDS``). They live with their mission on the primary
@@ -171,6 +174,7 @@ _PRIMARY_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # is KEPT (it is the file→kind map, not a residue-only list — deleting it would make
         # ``kind_for_mission_file("analysis-report.md") → None`` and mis-route it).
         MissionArtifactKind.ANALYSIS_REPORT,
+        MissionArtifactKind.SPEC_REVIEW,
     }
 )
 
@@ -275,6 +279,10 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
 # ``test_review_cycle_pattern_classifies_non_numeric_suffix`` for the explicit
 # boundary this choice draws.
 _REVIEW_CYCLE_FILENAME_GLOB = "review-cycle-*.md"
+
+# Advisory spec-review evidence is filename-anchored. Do not add ``reviews`` to
+# ``_COORD_RESIDUE_DIRS``: historical findings and nested content stay unknown.
+_SPEC_REVIEW_FILENAME_GLOB = "spec-review-*.yaml"
 
 
 def artifact_home_for(
@@ -453,5 +461,12 @@ def _artifact_kind_for_path(
         mission_rel_parts[-1], _REVIEW_CYCLE_FILENAME_GLOB
     ):
         return MissionArtifactKind.REVIEW_CYCLE
+
+    if (
+        len(mission_rel_parts) == 2
+        and mission_rel_parts[0] == "reviews"
+        and fnmatch.fnmatch(mission_rel_parts[1], _SPEC_REVIEW_FILENAME_GLOB)
+    ):
+        return MissionArtifactKind.SPEC_REVIEW
 
     return _COORD_RESIDUE_DIRS.get(mission_rel_parts[0])
