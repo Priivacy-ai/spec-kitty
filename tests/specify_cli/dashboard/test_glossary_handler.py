@@ -631,7 +631,11 @@ class TestGlossaryPage:
         assert b"<!DOCTYPE html>" in body or b"<html" in body
         text = body.decode("utf-8")
         assert 'id="validation-banner"' in text
-        assert "fetch('/api/glossary-health')" in text
+        # The glossary JS (which performs the /api/glossary-health fetch) is
+        # served same-origin from static/dashboard/glossary.js — the dashboard
+        # CSP (style-src/script-src 'self') blocks an inline block (#71).
+        assert '<script src="/static/dashboard/glossary.js"></script>' in text
+        assert '<link rel="stylesheet" href="/static/dashboard/glossary.css">' in text
         assert '<label for="search" class="sr-only">Search glossary terms</label>' in text
 
     def test_glossary_page_uses_cached_bytes(self, tmp_path):
@@ -662,7 +666,10 @@ class TestGlossaryPage:
         assert 'href="/" title="Dashboard Overview"' in body
         assert 'class="sidebar-item active" href="/glossary"' in body
         assert 'id="validation-banner"' in body
-        assert "fetch('/api/glossary-health')" in body
+        # Styles/behaviour are same-origin assets now (#71) — see
+        # test_glossary_page_returns_200_with_html above.
+        assert '<script src="/static/dashboard/glossary.js"></script>' in body
+        assert '<link rel="stylesheet" href="/static/dashboard/glossary.css">' in body
         assert '<label for="search" class="sr-only">Search glossary terms</label>' in body
         assert "prefers-color-scheme: dark" not in body
 
