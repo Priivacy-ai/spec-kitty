@@ -6,15 +6,16 @@ installed CLI in the agent's PATH may be the previous release without
 WP06's fixes (an upgrade race that would make subprocess-based tests
 flake).
 
-The contract has three observable invariants:
+The contract has observable invariants:
 
 1. The JSON success path of ``agent mission create`` calls
    ``mark_invocation_succeeded()`` AFTER the final JSON write.
-2. The two ``Not authenticated, skipping sync`` callsites in
-   ``sync/background.py`` are gated by ``report_once("sync.unauthenticated")``
-   so a second call does not log.
-3. Final-sync shutdown diagnostics are structured, non-fatal, and routed
-   to stderr without corrupting successful stdout surfaces.
+2. Repeated diagnostics within one invocation are gated by
+   ``report_once(...)`` so a second call does not log.
+
+(Invariant 3 of the original set — structured non-fatal final-sync shutdown
+diagnostics — died with the sync transport's ``BackgroundSyncService``, issue
+#5.)
 
 We verify each of these in the smallest in-process way that proves the
 operator-visible contract holds, without depending on the installed
@@ -24,13 +25,8 @@ binary version or the network.
 from __future__ import annotations
 
 import logging
-import json
 import re
-from contextlib import contextmanager
-from pathlib import Path
 from collections.abc import Iterator
-from typing import Any
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -40,7 +36,6 @@ from specify_cli.diagnostics import (
     report_once,
     reset_for_invocation,
 )
-from specify_cli.sync.diagnostics import reset_emitted_codes
 
 
 pytestmark = [pytest.mark.e2e]
@@ -49,55 +44,11 @@ ANSI_RED_RE = re.compile(r"\x1b\[(?:1;)?31m|\[red\]|\[bold red\]", re.IGNORECASE
 NOT_AUTH_RE = re.compile(r"Not authenticated, skipping sync")
 
 
-@contextmanager
-def _queued_background_service(tmp_path: Path) -> Iterator[Any]:
-    """Per-project-store ``BackgroundSyncService`` with one queued event.
-
-    Mirrors ``tests/sync/test_final_sync_diagnostics.py::_queued_service`` (the
-    canonical migrated pattern) rather than the retired file-backed
-    ``OfflineQueue(db_path=...)`` constructor. The ``unit_of_work`` is kept open
-    for the caller's ``with`` block because ``BackgroundSyncService.stop()``
-    reads ``queue.size()`` to decide whether a final sync is needed — closing
-    the unit early would make that read silently report zero.
-    """
-    from uuid import uuid4
-
-    from specify_cli.sync.background import BackgroundSyncService
-    from specify_cli.sync.layout_generation import LayoutMode
-    from specify_cli.sync.project_store import ProjectSyncStore
-    from specify_cli.sync.queue import OfflineQueue
-
-    project_uuid = str(uuid4())
-    with patch.dict("os.environ", {"SPEC_KITTY_HOME": str(tmp_path / "runtime")}):
-        store = ProjectSyncStore(project_uuid)
-        authority = store.layout_generation()
-        if authority.read_state().mode is LayoutMode.LEGACY:
-            authority.begin_cutover("mission-create-clean-output-test")
-            authority.publish_project_only(
-                "mission-create-clean-output-test", verify_exact=lambda: True
-            )
-        with store.unit_of_work() as unit:
-            queue = OfflineQueue(unit, authority)
-            queue.queue_event(
-                {
-                    "event_id": "EVT000000000000000000000001",
-                    "event_type": "WPStatusChanged",
-                    "project_uuid": project_uuid,
-                    "payload": {"wp_id": "WP05", "from_lane": "doing", "to_lane": "for_review"},
-                }
-            )
-            cfg = MagicMock()
-            cfg.get_server_url.return_value = "https://test.example.com"
-            yield BackgroundSyncService(queue=queue, config=cfg, sync_interval_seconds=300)
-
-
 @pytest.fixture(autouse=True)
 def _isolate_diagnostic_state() -> Iterator[None]:
     reset_for_invocation()
-    reset_emitted_codes()
     yield
     reset_for_invocation()
-    reset_emitted_codes()
 
 
 def test_create_mission_calls_mark_invocation_succeeded_after_json_write() -> None:
@@ -145,15 +96,15 @@ def test_create_mission_calls_mark_invocation_succeeded_after_json_write() -> No
 def test_not_authenticated_warning_is_deduplicated_in_process(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Direct exercise of the gated callsites.
+    """Direct exercise of the ``report_once`` gate.
 
-    We import the ``logger`` used by ``sync/background.py`` and simulate
-    two consecutive auth-miss paths via ``report_once`` exactly as the
-    production code does. After WP06, only the first should log.
+    The former callersites lived in ``sync/background.py`` (deleted with the
+    transport, issue #5); the surviving contract is the gate itself — two
+    consecutive reports with the same cause key log only the first.
     """
-    sync_logger = logging.getLogger("specify_cli.sync.background")
+    sync_logger = logging.getLogger("specify_cli.diagnostics.contract-pin")
 
-    with caplog.at_level(logging.WARNING, logger="specify_cli.sync.background"):
+    with caplog.at_level(logging.WARNING, logger="specify_cli.diagnostics.contract-pin"):
         # First auth miss — should log once.
         if report_once("sync.unauthenticated"):
             sync_logger.warning("Not authenticated, skipping sync")
@@ -166,38 +117,6 @@ def test_not_authenticated_warning_is_deduplicated_in_process(
     ]
     assert len(not_auth_messages) <= 1, (
         f"Expected ≤1 'Not authenticated' diagnostic; got {len(not_auth_messages)}."
-    )
-
-
-def test_final_sync_shutdown_diagnostic_preserves_clean_success_output(
-    tmp_path: Path,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    """Final sync failures after local success are clean stderr diagnostics."""
-    with _queued_background_service(tmp_path) as service:
-        print(json.dumps({"result": "success", "mission_slug": "demo"}))
-        mark_invocation_succeeded()
-
-        with (
-            patch("specify_cli.sync.batch.time.sleep"),
-            patch.object(service, "_perform_sync", side_effect=RuntimeError("network down")),
-        ):
-            service.stop()
-
-    captured = capsys.readouterr()
-    assert json.loads(captured.out) == {"result": "success", "mission_slug": "demo"}
-    assert "sync_diagnostic" not in captured.out
-
-    assert "sync_diagnostic" in captured.err
-    assert captured.err.count("sync_diagnostic severity=warning") <= 1
-    assert "severity=warning" in captured.err
-    assert "diagnostic_code=sync.server_auth_failure" in captured.err
-    assert "fatal=false" in captured.err
-    assert "sync_phase=final_sync" in captured.err
-    assert "network down" in captured.err
-    assert "Connection failed" not in captured.err
-    assert not ANSI_RED_RE.search(captured.err), (
-        "Non-fatal final-sync diagnostics must not paint successful commands red."
     )
 
 

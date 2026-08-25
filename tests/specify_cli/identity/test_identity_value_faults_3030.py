@@ -284,59 +284,11 @@ class TestEveryRecordedFieldIsTextOrAbsent:
             assert value is None or isinstance(value, str), f"{attr} is {type(value)}"
 
 
-class TestThePolicyGateAnswersInsteadOfCrashing:
-    """The measured harm: a broken value took out any command consulting the gate.
-
-    Both entry points are exercised because FR-024 measured the crash from both.
-    A per-test ``SPEC_KITTY_HOME`` is mandatory: consent state is machine-global and
-    a shared home lets one case's state answer another's question.
-    """
-
-    @pytest.fixture(autouse=True)
-    def _isolated_home(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
-        os.makedirs(tmp_path / "home", exist_ok=True)
-
-    @pytest.mark.parametrize(
-        ("case", "body"),
-        [
-            ("uuid-conflict-marker", _project("uuid", '"<<<<<<< HEAD"')),
-            ("uuid-integer", _project("uuid", "42")),
-            ("repo_slug-integer", _project("repo_slug", "42")),
-            ("repo_slug-mapping", _project("repo_slug", "{a: b}")),
-            ("fr023-top-level-list", "- a\n- list\n"),
-        ],
-    )
-    def test_both_routing_entry_points_answer(
-        self, tmp_path: Path, case: str, body: str
-    ) -> None:
-        from specify_cli.sync.routing import (
-            is_sync_enabled_for_checkout,
-            resolve_checkout_sync_routing,
-        )
-
-        path = _config(tmp_path, case, body)
-        root = path.parent.parent
-        (root / ".git").mkdir()
-
-        assert is_sync_enabled_for_checkout(root) is False, (
-            "a broken config denies; it does not crash and it does not grant"
-        )
-        routing = resolve_checkout_sync_routing(root)
-        assert routing is not None and routing.effective_sync_enabled is False
-
-    def test_a_valid_config_still_resolves_through_the_gate(self, tmp_path: Path) -> None:
-        """Positive control for this class: the gate must still reach identity."""
-        from specify_cli.sync.routing import resolve_checkout_sync_routing
-
-        path = _config(tmp_path, "valid-gate", VALID)
-        root = path.parent.parent
-        (root / ".git").mkdir()
-
-        routing = resolve_checkout_sync_routing(root)
-
-        assert routing is not None
-        assert routing.project_uuid == _UUID, "identity is still read on the happy path"
+# ``TestThePolicyGateAnswersInsteadOfCrashing`` retired with its subject: its two
+# entry points (``sync.routing.is_sync_enabled_for_checkout`` /
+# ``resolve_checkout_sync_routing``) were the hosted-sync consent gate, deleted with
+# the sync transport in issue #5. The parse-level fault classes above survive — a
+# broken value still yields a typed-or-None identity rather than a crash.
 
 
 class TestWritingOverAnUnusableIdentityRecord:

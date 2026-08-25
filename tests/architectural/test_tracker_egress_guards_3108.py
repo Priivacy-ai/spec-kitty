@@ -1557,64 +1557,143 @@ def test_g6_verdict_body_never_reads_the_provider() -> None:
 # ===========================================================================
 
 
-@dataclass
-class PolarityFindings:
-    """What G7's analyzer found. ``input_count`` is the number of (value, destination) cells checked."""
+@dataclass(frozen=True)
+class _ProjectRootCase:
+    """One channel-state scenario G7 exercises, and the polarity the design mandates.
 
-    input_count: int
-    uncovered: set[tuple[str, str]]
-    legal_values: frozenset[str]
-
-
-def analyze_polarity_exhaustiveness(legal_values: frozenset[str], join_keys: set[tuple[str, EgressDestination]]) -> PolarityFindings:
-    """Every legal Channel-2 value must have a mapped outcome at **every** destination.
-
-    Written as a pure function over its two inputs so the mutant run can pass a *third* legal value
-    without touching ``tracker/config.py`` -- no source edit, no ``sys.path`` manipulation.
+    ``label`` names the state; ``config_text`` is the ``.kittify/config.yaml`` body to commit
+    (``None`` = no config file at all); ``refused`` / ``channel_state`` are what
+    :func:`tracker_egress_verdict` must return at ``LOCAL_SUBPROCESS``.
     """
-    destinations = tuple(EgressDestination)
-    uncovered = {(value, dest.name) for value in legal_values for dest in destinations if (value, dest) not in join_keys}
-    return PolarityFindings(input_count=len(legal_values) * len(destinations), uncovered=uncovered, legal_values=legal_values)
+
+    label: str
+    config_text: str | None
+    refused: bool
+    channel_state: str
 
 
-def test_g7_polarity_map_is_exhaustive_over_the_legal_channel2_values() -> None:
-    """G7 (routed from WP02's review; **not** one of FR-015's six) -- WP03's polarity mapping is
-    exhaustive over ``tracker/config.py``'s ``_EGRESS_LEGAL_VALUES``.
+#: Every constructible Channel-2 state at ``LOCAL_SUBPROCESS``, with the mandated outcome.
+#: ``absent`` refuses with the grant remedy; ``permitted`` grants; ``refused`` refuses; an
+#: illegal value (the "third legal value landed at one site" mutant shape) is a FAULT and
+#: refuses -- fail-closed by the deliberate fallthrough in ``_resolve_channel2``.
+_LOCAL_SUBPROCESS_CASES: tuple[_ProjectRootCase, ...] = (
+    _ProjectRootCase("no config file", None, True, CHANNEL2_ABSENT),
+    _ProjectRootCase("tracker block without an egress key", "tracker:\n  provider: beads\n  workspace: w\n", True, CHANNEL2_ABSENT),
+    _ProjectRootCase("egress permitted", "tracker:\n  provider: beads\n  workspace: w\n  egress: permitted\n", False, "permitted"),
+    _ProjectRootCase("egress refused", "tracker:\n  provider: beads\n  workspace: w\n  egress: refused\n", True, "refused"),
+    _ProjectRootCase(
+        "egress holds a value no module calls legal",
+        "tracker:\n  provider: beads\n  workspace: w\n  egress: deferred\n",
+        True,
+        "fault",
+    ),
+)
 
-    The exported ``EGRESS_REFUSED`` / ``EGRESS_PERMITTED`` constants close duplicate **spelling**
-    -- ``egress_verdict`` and ``TrackerProjectConfig.egress_fault`` cannot disagree about how a
-    legal value is written. **They do not close arity.** If a *third* legal value is added to
-    ``_EGRESS_LEGAL_VALUES``, ``egress_fault`` immediately reports "not a fault" for it while
-    ``_JOIN`` has no branch for it -- a fault that no longer refuses at the reporting surface even
-    though the verdict still refuses it. That is a two-site change, and the raw-value mandate rules
-    out making it a ``mypy`` exhaustiveness error, so it can only be made to fail loudly here.
-    WP03 was told to keep its mapping introspectable for exactly this guard.
+#: The single-channel polarity table G7 pins for the hosted destination, spelled out rather than
+#: derived: ``HOSTED_SERVICE`` never consults the local key, so every local case is a grant there --
+#: including the refusing ones. A destination added to the enum is picked up by the loop below and
+#: must be given an explicit row in this test or the guard reds on the unexpected answer:
+#: exhaustiveness by construction.
+_EXPECTED_HOSTED_SERVICE_REFUSED = False
+
+
+def _commit_project_root(tmp_path_factory: pytest.TempPathFactory, case: _ProjectRootCase) -> Path:
+    """Materialise one synthetic project root for *case* (no source tree is touched)."""
+    root = tmp_path_factory.mktemp(f"g7-{case.label[:24]}")
+    if case.config_text is not None:
+        kittify = root / ".kittify"
+        kittify.mkdir()
+        (kittify / "config.yaml").write_text(case.config_text, encoding="utf-8")
+    return root
+
+
+def test_g7_single_channel_polarity_table_is_exhaustive_and_fails_closed(tmp_path_factory: pytest.TempPathFactory) -> None:
+    """G7 (routed from WP02's review; **not** one of FR-015's six) -- the ONE remaining channel's
+    polarity table is exhaustive over every destination and fails closed on an unmapped value.
+
+    Issue #5 retired Channel 1 and, with it, the introspectable ``_JOIN`` map this guard used to
+    walk; the surviving channel's polarity now lives inline in the verdict body, so it is pinned
+    behaviourally here: every constructible channel-state is exercised at every destination, and
+    each cell's enforced answer is compared against the table this test spells out.
+
+    The exported ``EGRESS_REFUSED`` / ``EGRESS_PERMITTED`` constants still close duplicate
+    **spelling** -- ``egress_verdict`` and ``TrackerProjectConfig.egress_fault`` cannot disagree
+    about how a legal value is written. And the arity hazard the old guard closed survives in a
+    new form: if a *third* legal value ever lands in ``config._EGRESS_LEGAL_VALUES``, the verdict
+    must still refuse it (fail-closed), not silently permit an unrecognised spelling.
     """
     legal = tracker_config._EGRESS_LEGAL_VALUES
-    join_keys = set(_JOIN.keys())
-    real = analyze_polarity_exhaustiveness(legal, join_keys)
-    _announce(
-        "G7",
-        real.input_count,
-        note="input count is (legal value x destination) cells checked",
-        legal_values=sorted(legal),
-        destinations=[d.name for d in EgressDestination],
-        join_cells=len(join_keys),
-    )
     assert legal == _LEGAL_CHANNEL2_VALUES, (
         f"G7: egress_verdict._LEGAL_CHANNEL2_VALUES {sorted(_LEGAL_CHANNEL2_VALUES)} has drifted from "
         f"config._EGRESS_LEGAL_VALUES {sorted(legal)} -- the two-site change was made at one site."
     )
-    assert not real.uncovered, (
-        f"G7: WP03's polarity map is not exhaustive over the legal Channel-2 values.\n"
-        f"  unmapped cells: {sorted(real.uncovered)}\n"
-        f"A legal-elsewhere-but-unmapped-here value makes `egress_fault` report 'not a fault' while "
-        f"_JOIN has no branch for it. Update `_LEGAL_CHANNEL2_VALUES` and `_JOIN` in the same change."
-    )
 
-    mutant = analyze_polarity_exhaustiveness(legal | {"deferred"}, join_keys)
-    assert mutant.uncovered, "G7 MUTANT SURVIVED: a third legal value left the polarity map with no unmapped cell"
-    print(f"[G7] KILLED-PIN COUNT: 1/1  (mutant third legal value 'deferred' left {sorted(mutant.uncovered)} unmapped)")
+    cells_checked = 0
+    for dest in EgressDestination:
+        for case in _LOCAL_SUBPROCESS_CASES:
+            root = _commit_project_root(tmp_path_factory, case)
+            verdict = tracker_egress_verdict(root, destination=dest, identifiers="issue fields as argv")
+            cells_checked += 1
+            if dest is EgressDestination.HOSTED_SERVICE:
+                assert verdict.refused == _EXPECTED_HOSTED_SERVICE_REFUSED, (
+                    f"G7: HOSTED_SERVICE x {case.label!r} returned refused={verdict.refused}; the hosted "
+                    f"destination never consults the local tracker.egress key, so every cell must grant."
+                )
+                assert verdict.refusing_channels == frozenset(), (
+                    f"G7: HOSTED_SERVICE x {case.label!r} named refusing channels {sorted(verdict.refusing_channels)} "
+                    f"-- no local channel may refuse a hosted request."
+                )
+                continue
+            assert verdict.refused == case.refused, (
+                f"G7: LOCAL_SUBPROCESS x {case.label!r} returned refused={verdict.refused}, expected "
+                f"{case.refused} (message: {verdict.message!r}). Polarity follows the destination: only "
+                f"'{tracker_config.EGRESS_PERMITTED}' grants locally; absence, refusal and faults all refuse."
+            )
+            assert verdict.channel2_state == case.channel_state, (
+                f"G7: LOCAL_SUBPROCESS x {case.label!r} reported channel state {verdict.channel2_state!r}, "
+                f"expected {case.channel_state!r}."
+            )
+            if verdict.refused:
+                assert verdict.refusing_channels == frozenset({CHANNEL_2}), (
+                    f"G7: LOCAL_SUBPROCESS x {case.label!r} refused via {sorted(verdict.refusing_channels)}; "
+                    f"only {CHANNEL_2!r} remains after issue #5 retired Channel 1."
+                )
+
+    # The absent-key refusal carries the committed-grant remedy -- the one remedy the local
+    # channel owns -- while a permitting verdict renders none.
+    absent_with_config = next(c for c in _LOCAL_SUBPROCESS_CASES if c.channel_state == CHANNEL2_ABSENT and c.config_text is not None)
+    permitting_case = next(c for c in _LOCAL_SUBPROCESS_CASES if not c.refused)
+    permitting = tracker_egress_verdict(
+        _commit_project_root(tmp_path_factory, permitting_case),
+        destination=EgressDestination.LOCAL_SUBPROCESS,
+        identifiers="issue fields",
+    )
+    assert permitting.remedies == (), f"G7: a permitting verdict rendered remedies: {permitting.remedies}"
+    refusing = tracker_egress_verdict(
+        _commit_project_root(tmp_path_factory, absent_with_config),
+        destination=EgressDestination.LOCAL_SUBPROCESS,
+        identifiers="issue fields",
+    )
+    assert refusing.remedies and any(tracker_config.EGRESS_PERMITTED in remedy for remedy in refusing.remedies), (
+        f"G7: the absent-key refusal must render the committed-grant remedy, got {refusing.remedies}"
+    )
+    cells_checked += 2
+
+    # Mutant: a project config holding a value NO module calls legal must refuse (fail-closed),
+    # quoting the offending value verbatim, never falling through to a grant. This is the
+    # behavioural successor of the old "third legal value left the map with no cell" kill.
+    fault_case = next(c for c in _LOCAL_SUBPROCESS_CASES if c.label.startswith("egress holds"))
+    fault_verdict = tracker_egress_verdict(
+        _commit_project_root(tmp_path_factory, fault_case),
+        destination=EgressDestination.LOCAL_SUBPROCESS,
+        identifiers="issue fields",
+    )
+    assert fault_verdict.refused and "deferred" in fault_verdict.message, (
+        f"G7 MUTANT SURVIVED: an unmapped egress value was not quoted verbatim into a refusal "
+        f"(refused={fault_verdict.refused}, message={fault_verdict.message!r})"
+    )
+    print(f"[G7] KILLED-PIN COUNT: 1/1  (unmapped value 'deferred' refused verbatim: {fault_verdict.message!r})")
+    print(f"[G7] positive control: {cells_checked} (state x destination) cells match the pinned single-channel table")
 
 
 # ===========================================================================
@@ -1622,15 +1701,13 @@ def test_g7_polarity_map_is_exhaustive_over_the_legal_channel2_values() -> None:
 # ===========================================================================
 
 #: Exact census, pinned by ``<relpath>::<qualname>`` -- **never by line number**, which benign
-#: edits move. Measured: exactly three, all in the one file whose docstring documents the escape
-#: hatch ("we mock `_build_engine` to avoid needing the spec_kitty_tracker package").
-EXPECTED_BUILD_ENGINE_PATCH_SITES = frozenset(
-    {
-        "sync/tracker/test_local_service.py::TestSyncOperations.test_sync_pull_delegates_to_connector",
-        "sync/tracker/test_local_service.py::TestSyncOperations.test_sync_push_delegates_to_connector",
-        "sync/tracker/test_local_service.py::TestSyncOperations.test_sync_run_delegates_to_connector",
-    }
-)
+#: edits move. Measured at issue-5-delete-sync-transport: EMPTY. The three documented
+#: escape-hatch sites lived in ``tests/sync/tracker/test_local_service.py`` ("we mock
+#: ``_build_engine`` to avoid needing the ``spec_kitty_tracker`` package"), and that file was
+#: deleted with the sync transport -- so today any ``_build_engine`` patch anywhere under
+#: ``tests/`` reds. Re-introducing a legitimate site means adding it here deliberately,
+#: never widening the assertion to ``<=``.
+EXPECTED_BUILD_ENGINE_PATCH_SITES: frozenset[str] = frozenset()
 
 
 def _is_patch_call(node: ast.Call) -> bool:
@@ -1791,17 +1868,14 @@ class TestSomethingNew:
 def test_g8_build_engine_patch_census_over_all_tests_is_exact() -> None:
     """G8 (routed from WP04's review MEDIUM-2 and WP01's F7 residual; **not** one of FR-015's six).
 
-    **What this closes.** WP01's SC-020 pin scans ``tests/**/*_3108*.py``. That glob **excludes**
+    **What this closes.** WP01's SC-020 pin scans ``tests/**/*_3108*.py``. That glob excluded
     ``tests/sync/tracker/test_local_service.py`` -- the very file whose
     ``patch.object(svc, "_build_engine", ...)`` measured *"bind count 0 with 519 tests green"*, and
-    which SC-020's own docstring cites as its motivating evidence. Patching out ``_build_engine`` is
-    the second of the four measured mechanisms that produce a green suite with no gate. WP01's file
-    cannot be edited by this work package, so the coverage is completed here instead.
-
-    **This is a census, not a prohibition.** Those three sites are a documented, legitimate escape
-    hatch (that file avoids a hard dependency on ``spec_kitty_tracker``); banning them would red on
-    correct committed code. G8 pins them **exactly**, so a *fourth* site anywhere under ``tests/``
-    reds -- exact membership, never ``<=``.
+    which SC-020's own docstring cited as its motivating evidence. Patching out ``_build_engine``
+    is the second of the four measured mechanisms that produce a green suite with no gate. Issue #5
+    deleted that file with the sync transport, so its three documented sites are gone; the census
+    this guard pins is now empty, which converts the old escape hatch into a prohibition: any
+    ``patch.object(svc, "_build_engine", ...)`` under ``tests/`` reds here.
 
     **Pinned by qualname, never by line number** -- a line-number ratchet moves on benign edits and
     teaches the next reader to re-baseline it without thinking.

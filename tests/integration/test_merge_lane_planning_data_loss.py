@@ -152,10 +152,7 @@ class TestMergeIncludesPlanningLane:
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
             patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
-            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-            patch("specify_cli.merge.executor.emit_mission_closed"),
-            patch("specify_cli.merge.executor._emit_merge_diff_summary"),
-            # WP10 (#2057): branch preflight + target asserts moved to seams;
+                        # WP10 (#2057): branch preflight + target asserts moved to seams;
             # appended last to keep positional mock indices stable.
             patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
             patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
@@ -345,9 +342,6 @@ def _real_merge_external_mocks(repo_root: Path):
         patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
         patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.merge.executor.run_check"),
         # Preflight / gates / policy / sparse-checkout — out of scope for
@@ -416,9 +410,6 @@ def _real_invariant_external_mocks(repo_root: Path):
         patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
         patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.merge.executor.run_check"),
         patch("specify_cli.merge.executor.require_no_sparse_checkout"),
@@ -794,9 +785,6 @@ def _real_persistence_external_mocks(repo_root: Path):
     """
     patches = [
         patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.merge.executor.run_check"),
         patch("specify_cli.merge.executor.require_no_sparse_checkout"),
@@ -840,9 +828,6 @@ def _real_bookkeeping_commit_external_mocks(repo_root: Path):
     untracked paths the invariant would otherwise flag.
     """
     patches = [
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.merge.executor.run_check"),
         patch("specify_cli.merge.executor.require_no_sparse_checkout"),

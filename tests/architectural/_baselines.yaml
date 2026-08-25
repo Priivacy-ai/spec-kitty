@@ -320,7 +320,17 @@ test_egress_consent_boundary:
   # per the #3167 rule above: this ratchet is shrink-only (growth fails,
   # shrinkage merely warns), but the ceiling should not hold free files.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 26
+  #
+  # 26 -> 14 (issue-5-delete-sync-transport, 2026-08-25): the sync transport's
+  # deletion removed twelve sink-bearing files outright — delivery/receivers.py,
+  # delivery/dispatcher.py, sync/body_transport.py, sync/runtime.py, sync/events.py,
+  # invocation/propagator.py's E6 row was RE-ANCHORED (not removed) on its
+  # surviving auth seam; sync/sharing_client.py, sync/history_import/upload.py,
+  # sync/client.py, cli/commands/sync.py, and the three loopback rows
+  # (sync/daemon.py, sync/daemon_protocol.py, sync/orphan_sweep.py). saas/readiness.py
+  # re-homed verbatim to tracker/saas_readiness.py (same E18 reason, new address).
+  # Recorded so the ceiling does not silently hold free files.
+  egress_allowlist_files: 14
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
