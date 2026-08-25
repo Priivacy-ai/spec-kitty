@@ -124,7 +124,14 @@ test_no_dead_modules:
   #     wired into live_frame.py's identity-field parsing.
   # All four now have live src/ callers and are no longer orphans; none remain open. Shrink --
   # fully reverses the M2-canonical-integration deferral bump above.
-  category_7_grandfathered_orphans: 3
+  #
+  # 3 -> 4 (EXPERIMENTAL-spec-kitty#9, E3 credential resolution, 2026-08-25):
+  # zeitgeist_client.resolution is the seam library the #8 zeitgeist handler will
+  # call at fan-out — written library-first with its contract pinned by tests,
+  # no src/ caller yet. Follow-up tracker ticket per FR-303:
+  # EXPERIMENTAL-spec-kitty#8 (the wiring consumer); the entry burns when that
+  # lands, per the stale-entry check.
+  category_7_grandfathered_orphans: 4
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
@@ -280,8 +287,12 @@ test_egress_consent_boundary:
   # userinfo-confused, path-bearing, and portless URLs are rejected before I/O.
   # This is loopback control, not project-data egress, and its exact sink count
   # is independently pinned in test_egress_consent_boundary.py.
+  # 28 -> 29 (EXPERIMENTAL-spec-kitty#9, E3 ephemeral-team-status): added
+  # specify_cli/zeitgeist_client/resolution.py — the capability mint POSTs
+  # {'repo_slug', 'kind'} to Team Kitty to *receive* a relay token; credential
+  # traffic gated by team membership over Bearer auth, not per-project consent.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 28
+  egress_allowlist_files: 29
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

@@ -76,14 +76,18 @@ class ScriptedGateway(SaasCapabilityGateway):
         mint: object = None,
     ) -> None:
         self.admission_script = admission if admission is not None else {"admitted": True}
-        self.mint_script = mint if mint is not None else MintedCredential(
-            relay_url="http://relay",
-            relay_token="bearer",
-            capability_credential="jwt",
-            expires_at=_iso_in(3600),
+        self.mint_script = (
+            mint
+            if mint is not None
+            else MintedCredential(
+                relay_url="http://relay",
+                relay_token="bearer",
+                capability_credential="jwt",
+                expires_at=_iso_in(3600),
+            )
         )
         self.admission_calls: list[dict[str, str | None]] = []
-        self.mint_calls: list[dict[str, str]] = []
+        self.mint_calls: list[dict[str, str | None]] = []
 
     def check_repo_admission(self, *, repo_slug: str, host: str | None = None) -> resolution.AdmissionAnswer:
         self.admission_calls.append({"repo_slug": repo_slug, "host": host})
@@ -96,8 +100,14 @@ class ScriptedGateway(SaasCapabilityGateway):
             reason=(outcome or {}).get("reason"),  # type: ignore[union-attr]
         )
 
-    def mint_capability(self, *, repo_slug: str, kind: str = KIND_PRESENCE) -> MintedCredential:
-        self.mint_calls.append({"repo_slug": repo_slug, "kind": kind})
+    def mint_capability(
+        self,
+        *,
+        repo_slug: str,
+        kind: str = KIND_PRESENCE,
+        team_slug: str | None = None,
+    ) -> MintedCredential:
+        self.mint_calls.append({"repo_slug": repo_slug, "kind": kind, "team_slug": team_slug})
         outcome = self.mint_script
         if isinstance(outcome, Exception):
             raise outcome
@@ -135,7 +145,7 @@ def test_hosted_remote_urls_parse_to_slug_and_host(origin: str, expected: tuple[
         "./sibling-repo",
         "../elsewhere/repo.git",
         "file:///srv/git/widget.git",  # file scheme
-        "/tmp/gh/acme/widget.git",  # local-path origin of a test clone
+        "/home/dev/clones/widget.git",  # local-path origin of a test clone
         "git@github.com:single-segment",  # no owner segment
     ],
 )
@@ -229,6 +239,29 @@ class TestCapabilityMint:
         assert minted.capability_credential == MINT_BODY["capability_credential"]
         assert minted.expires_at == MINT_BODY["expires_at"]
 
+    def test_per_call_team_slug_overrides_the_static_selector(self) -> None:
+        """The mint is asked of the team the pre-flight proved admits the
+        repo, not whichever membership the local auth context happens to
+        name — Team Kitty treats ``X-Team-Slug`` as a hard selector, so a
+        member of teams A+B whose context selects A would deterministically
+        403 a mint for a repo only B admits."""
+        with respx.mock:
+            route = respx.post(MINT).respond(201, json=MINT_BODY)
+            _gateway(team_slug="team-a").mint_capability(repo_slug="acme/widget", team_slug="team-b")
+        assert route.calls[0].request.headers["X-Team-Slug"] == "team-b"
+
+    def test_no_override_falls_back_to_the_static_selector(self) -> None:
+        with respx.mock:
+            route = respx.post(MINT).respond(201, json=MINT_BODY)
+            _gateway(team_slug="team-a").mint_capability(repo_slug="acme/widget")
+        assert route.calls[0].request.headers["X-Team-Slug"] == "team-a"
+
+    def test_neither_override_nor_static_sends_no_team_header(self) -> None:
+        with respx.mock:
+            route = respx.post(MINT).respond(201, json=MINT_BODY)
+            _gateway().mint_capability(repo_slug="acme/widget")
+        assert "X-Team-Slug" not in route.calls[0].request.headers
+
     def test_denial_carries_the_status_code(self) -> None:
         with respx.mock:
             respx.post(MINT).respond(403, json={"detail": "Capability denied.", "code": "repository_not_admitted"})
@@ -303,9 +336,7 @@ HOST = "github.com"
 
 
 class TestCacheShortCircuits:
-    def test_unexpired_positive_answers_without_touching_the_network(
-        self, state_root: Path
-    ) -> None:
+    def test_unexpired_positive_answers_without_touching_the_network(self, state_root: Path) -> None:
         credentials.store(
             repo=KEY,
             relay_url="http://cached",
@@ -324,10 +355,7 @@ class TestCacheShortCircuits:
         per transition."""
         credentials.store_negative(repo=KEY, reason="no_match", expires_at=_iso_in(300))
         gateway = ScriptedGateway()
-        assert (
-            resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
-            is None
-        )
+        assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False) is None
         assert gateway.admission_calls == [] and gateway.mint_calls == []
 
     def test_force_skips_both_cached_answers_and_remints(self, state_root: Path) -> None:
@@ -336,16 +364,11 @@ class TestCacheShortCircuits:
         credentials.store(repo=KEY, relay_url="http://stale", token="tok", token_kind="presence", expires_at=_iso_in(3600))
         credentials.store_negative(repo="other", reason="no_match", expires_at=_iso_in(300))
         gateway = ScriptedGateway(admission={"admitted": False, "reason": "no_match"})
-        assert (
-            resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=True)
-            is None
-        )
+        assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=True) is None
         assert len(gateway.admission_calls) == 1
         assert credentials.load_negative(repo=KEY) is not None
 
-    def test_naive_stamp_on_a_stored_credential_answers_from_cache(
-        self, state_root: Path
-    ) -> None:
+    def test_naive_stamp_on_a_stored_credential_answers_from_cache(self, state_root: Path) -> None:
         """[controller-qa] MAJOR regression, end to end through the cache
         path: a stored entry whose verbatim stamp has no UTC offset must
         answer from the store — never raise out of resolution."""
@@ -363,27 +386,19 @@ class TestCacheShortCircuits:
         # Answered from cache — no network was touched deciding it.
         assert gateway.admission_calls == [] and gateway.mint_calls == []
 
-    def test_naive_stamp_on_a_negative_answer_stays_silent_without_raising(
-        self, state_root: Path
-    ) -> None:
+    def test_naive_stamp_on_a_negative_answer_stays_silent_without_raising(self, state_root: Path) -> None:
         """And on the negative path: an unparseable-at-comparison stamp must
         not turn "stay silent" into "raise"."""
         credentials.store_negative(repo=KEY, reason="no_match", expires_at="2026-08-25T12:00:00")
         gateway = ScriptedGateway()
-        assert (
-            resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
-            is None
-        )
+        assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False) is None
         assert gateway.admission_calls == [] and gateway.mint_calls == []
 
 
 class TestNotAdmitted:
     def test_admission_miss_stores_a_short_ttl_negative(self, state_root: Path) -> None:
         gateway = ScriptedGateway(admission={"admitted": False, "reason": "no_match"})
-        assert (
-            resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
-            is None
-        )
+        assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False) is None
         negative = credentials.load_negative(repo=KEY)
         assert negative is not None
         assert negative.reason == "no_match"
@@ -405,7 +420,7 @@ class TestMintPaths:
         gateway = ScriptedGateway()
         stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
         assert gateway.admission_calls == [{"repo_slug": SLUG, "host": HOST}]
-        assert gateway.mint_calls == [{"repo_slug": SLUG, "kind": "presence"}]
+        assert gateway.mint_calls == [{"repo_slug": SLUG, "kind": "presence", "team_slug": None}]
         assert stored is not None
         assert stored.relay_url == "http://relay"
         assert stored.token_kind == "presence"
@@ -414,14 +429,25 @@ class TestMintPaths:
         assert credentials.load(repo=KEY) == stored
         assert credentials.load_negative(repo=KEY) is None
 
+    def test_mint_is_asked_of_the_team_admission_named(self, state_root: Path) -> None:
+        """[squad] MAJOR regression: a member of teams A+B whose local auth
+        context selects A, for a repo only B admits. The pre-flight answers
+        ``admitted=true`` *naming B* — that slug is the disambiguating datum,
+        and the mint must carry it as its ``X-Team-Slug``, or Team Kitty
+        re-checks admission against A and deterministically 403s an admitted
+        member into a cached negative."""
+        gateway = ScriptedGateway(admission={"admitted": True, "team_slug": "team-b"})
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert gateway.mint_calls == [{"repo_slug": SLUG, "kind": "presence", "team_slug": "team-b"}]
+        assert stored is not None
+        # And the positive answer is cached, not a 5-minute silence.
+        assert credentials.load(repo=KEY) == stored
+
     def test_mint_403_becomes_a_negative_answer(self, state_root: Path) -> None:
         """Membership revoked between pre-flight and mint: Team Kitty said
         no about THIS repo, so remember the no briefly."""
         gateway = ScriptedGateway(mint=CapabilityDenied("denied", status_code=403))
-        assert (
-            resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
-            is None
-        )
+        assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False) is None
         negative = credentials.load_negative(repo=KEY)
         assert negative is not None
         assert negative.reason == "capability_denied"
@@ -430,10 +456,7 @@ class TestMintPaths:
         """An unusable session says nothing about the repo -- next call must
         ask again, not inherit a false 'not admitted'."""
         gateway = ScriptedGateway(mint=CapabilityDenied("unauthorized", status_code=401))
-        assert (
-            resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
-            is None
-        )
+        assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False) is None
         assert credentials.load(repo=KEY) is None
         assert credentials.load_negative(repo=KEY) is None
 
@@ -448,10 +471,7 @@ class TestMintPaths:
         """A Team Kitty blip must not pin a false 'no team' onto an admitted
         repo for the whole negative TTL."""
         gateway = ScriptedGateway(admission=failure)
-        assert (
-            resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
-            is None
-        )
+        assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False) is None
         assert credentials.load(repo=KEY) is None
         assert credentials.load_negative(repo=KEY) is None
 
@@ -499,9 +519,7 @@ def clone(tmp_path: Path) -> Path:
 
 
 class TestResolveCredentialsEndToEnd:
-    def test_identity_and_slug_are_derived_from_the_checkout_itself(
-        self, state_root: Path, clone: Path
-    ) -> None:
+    def test_identity_and_slug_are_derived_from_the_checkout_itself(self, state_root: Path, clone: Path) -> None:
         gateway = ScriptedGateway()
         stored = resolution.resolve_credentials(clone, gateway=gateway)  # type: ignore[arg-type]
         assert stored is not None
@@ -518,18 +536,14 @@ class TestResolveCredentialsEndToEnd:
         assert cached is not None
         assert second.admission_calls == [] and second.mint_calls == []
 
-    def test_directory_with_no_git_identity_stays_silent(
-        self, state_root: Path, tmp_path: Path
-    ) -> None:
+    def test_directory_with_no_git_identity_stays_silent(self, state_root: Path, tmp_path: Path) -> None:
         plain = tmp_path / "not-a-repo"
         plain.mkdir()
         gateway = ScriptedGateway()
         assert resolution.resolve_credentials(plain, gateway=gateway) is None  # type: ignore[arg-type]
         assert gateway.admission_calls == []
 
-    def test_local_path_origin_has_nothing_to_ask_about(
-        self, state_root: Path, tmp_path: Path
-    ) -> None:
+    def test_local_path_origin_has_nothing_to_ask_about(self, state_root: Path, tmp_path: Path) -> None:
         bare = tmp_path / "server" / "acme" / "widget.git"
         bare.mkdir(parents=True)
         subprocess.run(["git", "init", "--bare", "-q"], cwd=bare, check=True, capture_output=True)
@@ -558,9 +572,7 @@ class TestDefaultGatewayConstruction:
         with pytest.raises(SaasAuthError):
             resolution._default_gateway(empty_root)
 
-    def test_unconfigured_checkout_resolves_quietly_to_none(
-        self, state_root: Path, monkeypatch: pytest.MonkeyPatch, clone: Path
-    ) -> None:
+    def test_unconfigured_checkout_resolves_quietly_to_none(self, state_root: Path, monkeypatch: pytest.MonkeyPatch, clone: Path) -> None:
         """The full quiet path: a real checkout, nothing configured -- the
         seam must see None, never an exception."""
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)

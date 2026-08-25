@@ -636,6 +636,21 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="Fetches doctrine content inbound; the request carries no project data.",
     ),
+    # -- Credential traffic, not project egress (E3, EXPERIMENTAL-spec-kitty#9) --
+    "specify_cli/zeitgeist_client/resolution.py": Allowance(
+        kind=AllowanceKind.NOT_PROJECT_DATA,
+        inventory_id="E3-#9",
+        note=(
+            "The capability mint: POST /api/v1/live/capability/cli/ with "
+            "{'repo_slug', 'kind'} and nothing else — a credential exchange that "
+            "*receives* the relay token, in the same class as the auth flows above. "
+            "No journal row, no envelope, no project_uuid: repo_slug is the hosted "
+            "owner/repo key the admission GET one call earlier already carries, and "
+            "the gate here is team membership over Bearer auth (SaasCapabilityGateway), "
+            "not FR-019's per-project consent — presence broadcast must neither queue "
+            "nor consult hosted-sync consent (design page ephemeral-team-status)."
+        ),
+    ),
     "specify_cli/dashboard/handlers/api.py": Allowance(
         kind=AllowanceKind.LOOPBACK_CONTROL,
         inventory_id="E18",

@@ -132,8 +132,10 @@ class CapabilityDenied(GatewayError):
 class SaasCapabilityGateway:
     """The two Team Kitty calls credential resolution needs, and nothing
     else. Bearer-authenticated like every other CLI→SaaS call; an optional
-    team slug rides ``X-Team-Slug`` as a selector among the caller's own
-    memberships (it can never grant one the session lacks)."""
+    team slug rides ``X-Team-Slug`` as a *selector* among the caller's own
+    memberships — it can never grant one the session lacks, but a wrong
+    selection deterministically refuses a membership the caller does have,
+    which is why :meth:`mint_capability` accepts a per-call override."""
 
     def __init__(
         self,
@@ -152,9 +154,10 @@ class SaasCapabilityGateway:
             timeout=timeout_s,
         )
 
-    def _headers(self) -> dict[str, str]:
-        if self._team_slug:
-            return {_TEAM_SLUG_HEADER: self._team_slug}
+    def _headers(self, team_slug_override: str | None = None) -> dict[str, str]:
+        slug = team_slug_override or self._team_slug
+        if slug:
+            return {_TEAM_SLUG_HEADER: slug}
         return {}
 
     def check_repo_admission(self, *, repo_slug: str, host: str | None = None) -> AdmissionAnswer:
@@ -188,15 +191,29 @@ class SaasCapabilityGateway:
             reason=str(data["reason"]) if data.get("reason") is not None else None,
         )
 
-    def mint_capability(self, *, repo_slug: str, kind: str = KIND_PRESENCE) -> MintedCredential:
+    def mint_capability(
+        self,
+        *,
+        repo_slug: str,
+        kind: str = KIND_PRESENCE,
+        team_slug: str | None = None,
+    ) -> MintedCredential:
         """``POST /api/v1/live/capability/cli/`` — the member-facing mint
         (FIX-M2-15): relay URL, shared bearer, per-actor capability JWT and
-        the credential's own expiry, together."""
+        the credential's own expiry, together.
+
+        ``team_slug`` overrides the gateway's static selector for this one
+        call. Resolution always passes the team slug its admission pre-flight
+        just answered with: Team Kitty honors ``X-Team-Slug`` as a hard
+        selector and then re-checks admission *team-scoped*, so a member of
+        teams A+B whose auth context selects A would deterministically 403 a
+        mint for a repo only B admits — asking the team the pre-flight proved
+        admits the repo is what makes the two calls agree."""
         try:
             resp = self._http.post(
                 f"{self._base_url}/api/v1/live/capability/cli/",
                 json={"repo_slug": repo_slug, "kind": kind},
-                headers=self._headers(),
+                headers=self._headers(team_slug),
             )
         except httpx.HTTPError as exc:
             raise GatewayError(f"capability mint failed: {exc}") from exc
@@ -334,7 +351,17 @@ def _resolve(
         return None
 
     try:
-        minted = gateway.mint_capability(repo_slug=repo_slug, kind=kind)
+        # Ask the team the pre-flight just proved admits this repo — not
+        # whatever static auth context happens to select. A member of several
+        # teams whose local context names the wrong one (or none, leaving the
+        # server to fall back to a default) would otherwise 403 a mint for a
+        # repo that *is* admitted to them, and the cached negative would hide
+        # their presence for as long as the mismatch held.
+        minted = gateway.mint_capability(
+            repo_slug=repo_slug,
+            kind=kind,
+            team_slug=answer.team_slug,
+        )
     except CapabilityDenied as exc:
         # 403 is Team Kitty saying no (membership/admission changed under
         # us between pre-flight and mint) — remember it briefly. 401 is an
@@ -410,9 +437,7 @@ def resolve_credentials(
     resolved_gateway = gateway
     if resolved_gateway is None:
         try:
-            resolved_gateway = _default_gateway(
-                Path(auth_repo_root) if auth_repo_root is not None else Path(cwd)
-            )
+            resolved_gateway = _default_gateway(Path(auth_repo_root) if auth_repo_root is not None else Path(cwd))
         except SaasAuthError as exc:
             logger.debug("zeitgeist credentials: nothing configured to authenticate with (%s)", exc)
             return None
