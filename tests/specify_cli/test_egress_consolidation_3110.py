@@ -530,6 +530,30 @@ def test_sc025_the_shared_module_is_classified_as_integration() -> None:
     )
 
 
+def test_the_default_resolver_module_is_classified_as_integration_too() -> None:
+    """The consent authority behind this module is INTEGRATION, like this one.
+
+    ``specify_cli.egress_consent`` holds the single checkout → project → consent
+    derivation (moved out of ``sync/__init__.py``, which registered it as an
+    import side effect). It lazily imports ``specify_cli.sync.routing`` /
+    ``.consent``; if a CORE module imported *it* directly — rather than asking
+    the ``invocation.adapters`` registry — that would be an INTEGRATION import
+    through a side door. Same anti-vacuity ground as SC-025 above: a plain
+    module never surfaces in the unclaimed-src-dir worklist, so a missing
+    classification line is silent permissiveness, not a red build.
+    """
+    from tests.architectural.test_integration_boundary import INTEGRATION_PREFIXES
+    from specify_cli import egress_consent
+
+    assert egress_consent.__name__ == "specify_cli.egress_consent"
+    assert egress_consent.__name__ in INTEGRATION_PREFIXES, (
+        f"{egress_consent.__name__!r} is not in the integration-boundary gate's "
+        f"INTEGRATION_PREFIXES ({INTEGRATION_PREFIXES!r}). It holds the hosted-sync "
+        "consent derivation and lazily imports specify_cli.sync submodules, so "
+        "leaving it unclassified lets CORE bypass the adapter registry — silently."
+    )
+
+
 # ---------------------------------------------------------------------------
 # NFR-004 — every refusal branch is operator-actionable, pinned PER BRANCH
 # ---------------------------------------------------------------------------
@@ -692,7 +716,12 @@ def test_fr012_rationale_and_tracker_precondition_live_in_the_consolidated_modul
         "that: there is no validation anywhere on the path and the string is "
         "interpolated raw into the URL (SC-022)."
     )
-    assert "egress_consent.py" not in doc, (
+    assert "tracker/egress_consent.py" not in doc, (
         "the consolidated module's docstring points at a file this mission deletes "
         "— a verbatim relocation shipped a dangling pointer into the new module"
     )
+    # ``specify_cli/egress_consent.py`` is a DIFFERENT file: the live home of the
+    # default consent resolver (moved out of sync/__init__.py's import side
+    # effect). Only the deleted tracker module's path dangles; naming the live
+    # one from this docstring is a pointer that resolves, so the guard above
+    # keys on the deleted module's path, not on the shared basename.

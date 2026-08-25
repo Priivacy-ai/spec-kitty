@@ -812,6 +812,172 @@ class TestEgressConsentBoundary:
             pytest.fail(_worklist_failure_text(_KNOWN_UNGATED))
 
 
+class TestEgressResolverWiring:
+    """The consent answer must be reachable without dragging the sync package in.
+
+    ``egress.py`` once registered the default consent resolver as a side effect
+    of ``import specify_cli.sync`` — a lazy import inside its decision function
+    existed *only* to trip the sync package's module tail. That made the gate's
+    correctness depend on an unrelated import order, left
+    ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` processes answering every question with
+    ``NO_RESOLVER``, and would have broken silently the day the sync package's
+    import-time block moved (it is scheduled for deletion wholesale). The
+    derivation now lives in ``specify_cli/egress_consent.py`` behind an explicit
+    registrar. These four pins hold that shape; they live here rather than in
+    ``tests/sync/tracker`` (where the predecessor pin, T005's no-local-import
+    guard, sits) because that subtree goes away with the sync package itself,
+    and a gate scheduled to die with the code it guards guards nothing.
+    """
+
+    @staticmethod
+    def _parse(relpath: str) -> ast.Module:
+        source = (_SRC / relpath).read_text(encoding="utf-8")
+        return ast.parse(source)
+
+    @staticmethod
+    def _import_names(tree: ast.AST) -> list[str]:
+        """Every dotted module name an ``import`` / ``from`` in *tree* names."""
+        names: list[str] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                names.append(node.module)
+            elif isinstance(node, ast.Import):
+                names.extend(alias.name for alias in node.names)
+        return names
+
+    def test_egress_policy_module_holds_no_sync_import_edge(self) -> None:
+        """``specify_cli/egress.py`` may not import ``specify_cli.sync`` at all.
+
+        Stronger than the predecessor pin (T005 barred only the ``consent``/
+        ``routing`` submodules): the *package* import was the load-bearing one —
+        it fired the registration side effect — so barring just the submodules
+        would still allow the coupling back in under another name. Consent
+        reaches this module through the ``invocation.adapters`` registry, never
+        through an import edge into the transport whose deletion is pending.
+        """
+        violations = [
+            name
+            for name in self._import_names(self._parse("specify_cli/egress.py"))
+            if name == "specify_cli.sync" or name.startswith("specify_cli.sync.")
+        ]
+        assert not violations, (
+            "src/specify_cli/egress.py imports the sync package "
+            f"({sorted(set(violations))}). The egress gate answers through the "
+            "invocation/adapters registry; registering or resolving the consent "
+            "chain here re-couples the policy presentation to the hosted-sync "
+            "transport and reinstates the import-order dependency removed with "
+            "the import-side-effect registration."
+        )
+
+    def test_the_default_resolver_registers_from_exactly_one_site(self) -> None:
+        """One definition, one registration site — the old path must stay dead.
+
+        A second ``register_egress_consent_resolver`` caller would reintroduce
+        the implicit wiring this class exists to keep deleted: whichever site a
+        reader finds first becomes the one they trust, and C-003's single-chain
+        guarantee erodes into "single wherever you looked". The registrar in
+        ``specify_cli/egress_consent.py`` is that one site.
+        """
+        sites: list[str] = []
+        for path in sorted(_SRC.rglob("*.py")):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                func = node.func
+                called = getattr(func, "attr", None) or getattr(func, "id", None)
+                if called == "register_egress_consent_resolver":
+                    sites.append(path.relative_to(_SRC).as_posix())
+        assert sites == ["specify_cli/egress_consent.py"], (
+            f"register_egress_consent_resolver is called from {sites}; the default "
+            "resolver must be registered from specify_cli/egress_consent.py alone. "
+            "A second site is a second wiring of the one consent chain (C-003)."
+        )
+
+    def test_registration_is_explicit_at_the_point_of_decision(self) -> None:
+        """``egress._egress_decision`` calls the named registrar itself.
+
+        "Explicit" is a property of the call graph, not of the prose: if nothing
+        forces the decision path to wire the registry before asking it, a
+        refactor that moves the call somewhere quieter (or drops it) degrades
+        every answer to ``NO_RESOLVER`` with no red build. This pins both halves
+        — the named import and the call inside the deciding function.
+        """
+        tree = self._parse("specify_cli/egress.py")
+
+        imported = [
+            alias.name
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ImportFrom) and node.module == "specify_cli.egress_consent"
+            for alias in node.names
+        ]
+        assert "ensure_default_egress_consent_resolver" in imported, (
+            "specify_cli/egress.py no longer imports "
+            "ensure_default_egress_consent_resolver; the explicit-registration "
+            "contract has been edited away."
+        )
+
+        decision = next(
+            (n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_egress_decision"),
+            None,
+        )
+        assert decision is not None, "_egress_decision vanished from egress.py"
+        calls_registrar = any(
+            isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "ensure_default_egress_consent_resolver"
+            for node in ast.walk(decision)
+        )
+        assert calls_registrar, (
+            "_egress_decision does not call ensure_default_egress_consent_resolver; "
+            "a process reaching the decision without some other module having wired "
+            "the registry would refuse every opted-in send as NO_RESOLVER."
+        )
+
+    def test_the_resolver_module_defers_its_sync_import(self) -> None:
+        """Importing the authority registers nothing and drags nothing in.
+
+        ``egress.py`` imports ``specify_cli.egress_consent`` at module level, so
+        any module-level import of the sync package there would put the sync
+        package back on the policy module's static import graph through the side
+        door — and break the blocked-sync subprocess probe in
+        ``test_egress_single_authority.py``. The chain is imported when the
+        registrar runs, never when the module loads.
+        """
+        tree = self._parse("specify_cli/egress_consent.py")
+
+        module_level: list[str] = []
+
+        class _ModuleLevelImports(ast.NodeVisitor):
+            """Collect imports lexically outside any function body."""
+
+            def __init__(self) -> None:
+                self.depth = 0
+
+            def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+                self.depth += 1
+                self.generic_visit(node)
+                self.depth -= 1
+
+            visit_AsyncFunctionDef = visit_FunctionDef
+
+            def visit_Import(self, node: ast.Import) -> None:
+                if self.depth == 0:
+                    module_level.extend(alias.name for alias in node.names)
+                self.generic_visit(node)
+
+            def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+                if self.depth == 0 and node.module:
+                    module_level.append(node.module)
+                self.generic_visit(node)
+
+        _ModuleLevelImports().visit(tree)
+        offenders = [name for name in module_level if name == "specify_cli.sync" or name.startswith("specify_cli.sync.")]
+        assert not offenders, (
+            f"specify_cli/egress_consent.py imports the sync package at module level ({offenders}); "
+            "the hosted-sync chain must be imported only when the registrar runs, so "
+            "loading the authority stays free of the transport."
+        )
+
+
 class TestAllowlistIntegrity:
     """Meta-tests: the allowlist must not rot into a second RETIRED_DRAIN_NAMES."""
 

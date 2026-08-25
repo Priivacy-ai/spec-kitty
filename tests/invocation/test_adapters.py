@@ -342,18 +342,22 @@ def test_propagator_safe_degrades_when_seam_unregistered(tmp_path: Path) -> None
 
 @pytest.fixture()  # type: ignore[untyped-decorator]
 def _registered_sync_handlers() -> Iterator[None]:
-    """Reset adapters, register the real sync factories, then clean up.
+    """Reset adapters, register the real consent resolver, then clean up.
 
-    Uses SPEC_KITTY_SYNC_MINIMAL_IMPORT=1 to prevent module-level
-    auto-registration; we call register_default_handlers explicitly so the
-    registry is always in a known state when the test runs.
+    The default egress-consent resolver is registered explicitly (it left
+    ``sync.__init__``'s import-time block — see
+    ``specify_cli/egress_consent.py``), so this fixture calls the registrar by
+    name and the registry is always in a known state when a test runs.
+    ``SPEC_KITTY_SYNC_MINIMAL_IMPORT=1`` keeps the sync package's *other*
+    import-time registrations out of the way; the explicit registrar does not
+    depend on that flag either way.
     """
     reset_adapters()
     os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
     try:
-        from specify_cli.sync import register_default_handlers
+        from specify_cli.egress_consent import ensure_default_egress_consent_resolver
 
-        register_default_handlers()
+        ensure_default_egress_consent_resolver()
         yield
     finally:
         os.environ.pop("SPEC_KITTY_SYNC_MINIMAL_IMPORT", None)
@@ -363,7 +367,7 @@ def _registered_sync_handlers() -> Iterator[None]:
 def test_sync_registers_no_saas_client_factory(
     _registered_sync_handlers: None,
 ) -> None:
-    """The sync package registers a consent resolver and **no** client factory (FR-032).
+    """No client factory is registered, even with the consent resolver live (FR-032).
 
     Replaces three cases that pinned the behaviour of a factory since deleted
     (``..._returns_none_when_not_authenticated``,
