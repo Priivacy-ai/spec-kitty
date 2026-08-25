@@ -69,7 +69,7 @@ def test_scoped_ble001_with_generic_reason_fails(tmp_path: Path) -> None:
 
 def test_ble001_outside_scoped_auth_storage_paths_is_ignored(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
-    path = repo_root / "src/specify_cli/cli/commands/sync.py"
+    path = repo_root / "src/specify_cli/cli/commands/tracker.py"
     line = "except Exception:  # noqa: BLE001"
 
     finding = audit_auth_storage_ble001_line(path, 4, line, repo_root=repo_root)
@@ -96,7 +96,7 @@ def test_collect_auth_storage_ble001_findings_reports_file_line_and_text(
         encoding="utf-8",
     )
 
-    out_of_scope = repo_root / "src/specify_cli/cli/commands/sync.py"
+    out_of_scope = repo_root / "src/specify_cli/cli/commands/tracker.py"
     out_of_scope.parent.mkdir(parents=True)
     out_of_scope.write_text("except Exception:  # noqa: BLE001\n", encoding="utf-8")
 

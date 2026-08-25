@@ -101,12 +101,8 @@ def test_normalize_repo_repairs_legacy_mission_and_is_idempotent(tmp_path: Path)
     _write_meta(feature_dir, mission_id=None, mission_number="041")
     _write_task(feature_dir, lane="for_review")
 
-    with patch(
-        "specify_cli.migration.normalize_mission_lifecycle.trigger_feature_dossier_sync_if_enabled",
-        return_value=None,
-    ):
-        first = normalize_repo(tmp_path, dry_run=False)
-        second = normalize_repo(tmp_path, dry_run=True)
+    first = normalize_repo(tmp_path, dry_run=False)
+    second = normalize_repo(tmp_path, dry_run=True)
 
     assert first[0].status == "normalized"
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
@@ -153,11 +149,7 @@ def test_normalize_repo_detects_already_current_repo_as_skipped(tmp_path: Path) 
     generate_progress_json(feature_dir, derived_dir)
     generate_lifecycle_json(feature_dir, derived_dir)
 
-    with patch(
-        "specify_cli.migration.normalize_mission_lifecycle.trigger_feature_dossier_sync_if_enabled",
-        return_value=None,
-    ):
-        results = normalize_repo(tmp_path, dry_run=True)
+    results = normalize_repo(tmp_path, dry_run=True)
 
     assert results[0].status == "skipped"
     assert results[0].lifecycle_state == "recently_completed"

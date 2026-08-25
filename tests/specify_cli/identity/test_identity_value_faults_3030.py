@@ -52,7 +52,6 @@ Two decisions this file pins, both deliberate:
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from uuid import UUID
 

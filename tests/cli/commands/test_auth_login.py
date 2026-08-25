@@ -197,14 +197,19 @@ class TestAuthLoginConfigErrors:
         assert "SPEC_KITTY_SAAS_URL" in result.stdout
         assert "spec-kitty sync server" in result.stdout
 
-    def test_missing_env_uses_configured_sync_server_url(self, monkeypatch):
+    def test_missing_env_uses_configured_sync_server_url(self, monkeypatch, tmp_path):
         # #3406 FR-005: the actual bug. When the env var is unset but the user
-        # already set a server via `spec-kitty sync server`, login must use that
-        # configured server_url (the same target sync uses) instead of erroring.
-        from specify_cli.sync.config import SyncConfig
-
+        # already set a server via `[sync].server_url` in the runtime root's
+        # config.toml (the former `spec-kitty sync server <url>` writer died
+        # with the sync transport, issue #5), login must use that configured
+        # server_url (the same target sync used) instead of erroring.
+        runtime_root = tmp_path / "runtime-root"
+        runtime_root.mkdir(parents=True)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
         monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-        SyncConfig().set_server_url("https://configured.example")
+        (runtime_root / "config.toml").write_text(
+            '[sync]\nserver_url = "https://configured.example"\n', encoding="utf-8"
+        )
 
         async def _noop(*_args, **_kwargs):
             return None
