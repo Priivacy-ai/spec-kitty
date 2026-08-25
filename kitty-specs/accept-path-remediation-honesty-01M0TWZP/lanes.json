@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "mission_slug": "accept-path-remediation-honesty-01M0TWZP",
+  "mission_id": "01M0TWZPN58FPFQATN13SREQHM",
+  "mission_branch": "kitty/mission-accept-path-remediation-honesty-01M0TWZP",
+  "target_branch": "fix/accept-path-remediation-honesty-3730",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/acceptance/summary_core.py",
+        "src/specify_cli/cli/commands/accept.py",
+        "src/specify_cli/validators/paths.py",
+        "tests/agent/test_validators_unit.py",
+        "tests/specify_cli/acceptance/**",
+        "tests/specify_cli/acceptance/test_accept_contracts_path_repro.py",
+        "tests/specify_cli/cli/commands/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-08-25T01:18:17.139336+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "720f4d44b384ddbc82c0abb8c3585704762525b7",
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP02",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/specify_cli/acceptance/**' vs 'tests/specify_cli/acceptance/**'; WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/validators/paths.py' vs 'src/specify_cli/validators/paths.py', 'tests/agent/test_validators_unit.py' vs 'tests/agent/test_validators_unit.py'; WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP01",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'tests/specify_cli/acceptance/**' vs 'tests/specify_cli/acceptance/test_accept_contracts_path_repro.py'; WP04 depends on WP01"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 3
+    }
+  }
+}
