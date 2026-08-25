@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 
 import requests
 
-from specify_cli.saas_client.admission import ProjectWriteAdmissionProof
+from specify_cli.sync.admission_contract import ProjectWriteAdmissionProof
 from specify_cli.sync.body_transport import (
     DEFAULT_TIMEOUT_SECONDS,
     _build_request_body,

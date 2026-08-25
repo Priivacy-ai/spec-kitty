@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.saas_client.admission import AdmissionResponse
+from specify_cli.sync.admission_contract import AdmissionResponse
 from specify_cli.sync.admission_operations import (
     AdmissionAction,
     AdmissionOperationConflictError,

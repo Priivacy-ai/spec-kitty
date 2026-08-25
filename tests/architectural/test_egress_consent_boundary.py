@@ -1608,16 +1608,16 @@ _PROJECT_SYNC_SENDER_MATRIX = (
     _ProjectSyncSender(
         "tracker hosted channel",
         _SymbolRef("specify_cli/tracker/saas_client.py", "SaaSTrackerClient._physical_request_with_retry"),
-        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
-        _ResultState.DURABLE,
+        None,
+        _ResultState.MISSING,
         "WP07",
         channel_2_narrowing_only=True,
     ),
     _ProjectSyncSender(
         "generic SaaS client",
-        _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._send_generic_operation"),
-        _SymbolRef("specify_cli/sync/transport_attempts.py", "_record_delivery_result"),
-        _ResultState.DURABLE,
+        _SymbolRef("specify_cli/saas_client/client.py", "SaasClient._exchange"),
+        None,
+        _ResultState.MISSING,
         "WP07",
     ),
 )
@@ -1778,7 +1778,7 @@ _WP09_MATRIX_FAMILIES = frozenset(
 _WP09_SINK_CLASSIFICATIONS = (
     _wp09_sink("specify_cli/delivery/receivers.py", "_HttpReceiver._attempt_batch_send", "direct_dispatcher", "final_exit_sync", "history_import"),
     _wp09_sink("specify_cli/delivery/receivers.py", "default_http_poster", "direct_dispatcher", "final_exit_sync", "history_import"),
-    _wp09_sink("specify_cli/saas_client/client.py", "SaasClient._send_generic_operation", "generic_saas"),
+    _wp09_sink("specify_cli/saas_client/client.py", "SaasClient._exchange", "generic_saas"),
     _wp09_sink("specify_cli/sync/body_transport.py", "_send_content_request", "body_drain"),
     _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._flush_pending_project_events", "emitter_websocket"),
     _wp09_sink("specify_cli/sync/client.py", "WebSocketClient._send_wire", "emitter_websocket", "daemon_publish", "reconnect_local_commit"),
@@ -2129,7 +2129,7 @@ _KNOWN_PROJECT_SINK_COUNTS: Counter[str] = Counter(
     for line in """
 specify_cli/delivery/receivers.py::_HttpReceiver._attempt_batch_send::transport-call::self._poster
 specify_cli/delivery/receivers.py::default_http_poster::http-verb::requests.post
-specify_cli/saas_client/client.py::SaasClient._send_generic_operation::http-verb::self._http.post
+specify_cli/saas_client/client.py::SaasClient._exchange::http-verb::self._http.post
 specify_cli/sync/body_transport.py::_send_content_request::http-verb::requests.post
 specify_cli/sync/body_transport.py::_send_content_request::transport-call::request_with_stdlib_fallback_sync
 specify_cli/sync/body_transport.py::_send_content_request::transport-call::request_with_stdlib_fallback_sync
@@ -2846,7 +2846,7 @@ def test_wp09_every_discovered_sink_symbol_is_classified_into_the_matrix() -> No
 
 _T034_DURABLE_ADAPTER_SINK_COUNTS: Counter[str] = Counter(
     {
-        "specify_cli/saas_client/client.py::SaasClient._send_generic_operation::http-verb::self._http.post": 1,
+        "specify_cli/saas_client/client.py::SaasClient._exchange::http-verb::self._http.post": 1,
         "specify_cli/tracker/saas_client.py::SaaSTrackerClient._physical_request_with_retry::transport-call::self._request": 3,
         "specify_cli/tracker/saas_client.py::SaaSTrackerClient._request_with_retry::transport-call::self._physical_request_with_retry": 1,
     }

@@ -5,7 +5,7 @@ Project A is admitted at generation ``g``. A real CLI write is durably prepared
 server's admission authority then advances to ``g+1`` **while that write is in
 flight**, and the stale-``g`` write is released. The server double answers the
 canonical correlated ``project_not_admitted`` refusal (status ``rejected``,
-``retryable: false`` — the exact shape ``saas_client.admission.
+``retryable: false`` — the exact shape ``sync.admission_contract.
 parse_project_not_admitted`` validates).
 
 Asserted, all on the client (core owns client parking; SaaS owns server
@@ -41,7 +41,7 @@ from specify_cli.delivery.receivers import DeliveryResult, OutboundEvent, map_ba
 from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
-from specify_cli.saas_client.admission import parse_project_not_admitted
+from specify_cli.sync.admission_contract import parse_project_not_admitted
 from specify_cli.sync import transport_attempts
 from specify_cli.sync.consent import record_project_opt_in
 from specify_cli.sync.layout_generation import LayoutMode

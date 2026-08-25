@@ -67,7 +67,7 @@ from specify_cli.event_journal.journal import EventJournal
 from specify_cli.event_journal.models import Event
 from specify_cli.sync.project_context import ProjectSyncContext
 from specify_cli.sync.project_store import ProjectSyncStore
-from specify_cli.saas_client.admission import (
+from specify_cli.sync.admission_contract import (
     ProjectWriteAdmissionProof,
     attach_admission_proof,
 )

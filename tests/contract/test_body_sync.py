@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.saas_client.admission import ProjectWriteAdmissionProof
+from specify_cli.sync.admission_contract import ProjectWriteAdmissionProof
 from specify_cli.sync.body_queue import BodyUploadTask
 from specify_cli.sync.body_transport import _build_request_body
 

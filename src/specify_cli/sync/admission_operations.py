@@ -10,7 +10,7 @@ from enum import StrEnum
 from typing import Literal, Protocol
 
 from specify_cli.delivery.targets import ProjectDeliveryTargetRegistry
-from specify_cli.saas_client.admission import (
+from specify_cli.sync.admission_contract import (
     AdmissionRequest,
     AdmissionResponse,
     AdmissionTransportUncertain,
