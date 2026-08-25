@@ -196,10 +196,25 @@ New architectural designs → `architecture/` following `docs/architecture/READM
 ## Commands
 
 ```bash
-pytest tests/
+make test-fast    # fast tier of the typical blast-radius directories (target <2 min)
+make test-full    # everything, parallel + serial passes — CI's target, not PR validation
 ruff check .
-PWHEADLESS=1 pytest tests/   # headless (prevents browser windows)
 ```
+
+Both make targets set `PWHEADLESS=1` themselves and need the synced dev environment (`make dev-setup`: the `test` extras plus `pytest-xdist`, declared in the `dev` group so a plain `uv sync` has it too).
+
+### Test policy — what you must run for a change
+
+- **`make test-fast`** is the shared baseline: the fast tier (`(fast or unit)`, with every slow tier deselected by marker) of the subsystem directories a blast radius typically covers — `tests/unit tests/status tests/cli tests/specify_cli/runtime`. Run it for every change.
+- **`make test-full`** runs everything: one `-n auto --dist loadfile` pass over `tests/` with the real-port suites ignored, then those suites in their own `-n0` serial pass (the suite list is read from the single-source registry `tests/_real_port_suites.py`, never copied). CI owns this target; it is not how you validate a PR locally.
+
+**Computing your blast radius — run this in addition to `make test-fast`:**
+
+1. For every source module your diff touches, run its own test file(s). The test tree mirrors the source tree (`src/specify_cli/status/store.py` → `tests/status/`), and when the mirror is not obvious, find the tests that exercise the module: `grep -rl "<module_name>" tests/ --include="*.py"`.
+2. Plus the full test directory of each owning subsystem: touching `src/specify_cli/sync/**` ⇒ also run `tests/sync/`; touching `src/doctrine/**` ⇒ `tests/doctrine/`.
+3. Cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) additionally touch `tests/architectural/`.
+
+Record the exact commands and passed/failed counts under the PR's *Tests run* section. A failure you did not cause and cannot explain is not yours to chase — classify it via the baseline-red gotcha below and note it in the PR.
 
 ### Local parallel test run (default)
 
