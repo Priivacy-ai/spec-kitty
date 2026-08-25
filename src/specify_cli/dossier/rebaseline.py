@@ -48,7 +48,10 @@ every other caller of ``Indexer`` (``reconcile.py``, ``sync/dossier_pipeline.py`
 both already thread ``repo_root``).
 
 **T001 worktree investigation (outcome (a) — worktrees never carry dossier
-snapshots).** Evidence trail. ``Indexer.__init__``'s docstring frames
+snapshots). Historical evidence trail, recorded before the sync transport was
+deleted (issue #5): every ``sync/dossier_pipeline.py`` site it names is gone,
+the conclusion (worktrees never carry snapshots) still describes this module's
+guarantee.** Evidence trail. ``Indexer.__init__``'s docstring frames
 ``repo_root`` as the value threaded into
 ``manifest_registry.load_manifest(mission_type, repo_root=...)``
 (``indexer.py:89-102``); the sole write site for a recorded snapshot is

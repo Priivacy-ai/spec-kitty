@@ -14,7 +14,6 @@ from __future__ import annotations
 import importlib
 import json
 import sys
-import types
 from pathlib import Path
 from unittest.mock import patch
 
@@ -27,7 +26,6 @@ from specify_cli.status.models import (
     ReviewApproval,
     StatusEvent,
     StatusSnapshot,
-    TransitionRequest,
 )
 from specify_cli.status.reducer import materialize_to_json, reduce
 from specify_cli.status.transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES

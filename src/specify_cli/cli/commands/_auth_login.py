@@ -70,9 +70,8 @@ async def login_impl(*, headless: bool, force: bool) -> None:
     target = resolve_server_target()
     if target.env_server_url is None and target.configured_server_url is None:
         console.print(
-            "[red]X No sync server is configured. Set SPEC_KITTY_SAAS_URL, or run "
-            "`spec-kitty sync server <url>` (e.g. https://app.spec-kitty.ai), then "
-            "try again.[/red]"
+            "[red]X No hosted server is configured. Set SPEC_KITTY_SAAS_URL (or set "
+            "[sync].server_url in your config.toml), then try again.[/red]"
         )
         raise typer.Exit(1)
     saas_url = target.resolved_server_url
