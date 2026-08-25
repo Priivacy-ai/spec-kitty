@@ -636,15 +636,14 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="Fetches doctrine content inbound; the request carries no project data.",
     ),
-    "specify_cli/dashboard/handlers/api.py": Allowance(
-        kind=AllowanceKind.LOOPBACK_CONTROL,
-        inventory_id="E18",
-        note="127.0.0.1 daemon endpoint read by the local dashboard.",
-    ),
+    # specify_cli/dashboard/handlers/api.py RETIRED (E4 re-homing, planning epic #4):
+    # its only transmit primitive was the /api/sync/trigger proxy urlopen; the
+    # route was deleted rather than gated, so the file holds no sink and is off
+    # the allowlist entirely.
     "specify_cli/dashboard/lifecycle.py": Allowance(
         kind=AllowanceKind.LOOPBACK_CONTROL,
         inventory_id="E18",
-        note="Localhost dashboard shutdown/control endpoints.",
+        note="Localhost dashboard health probe and shutdown/control endpoints.",
     ),
     "specify_cli/sync/daemon.py": Allowance(
         kind=AllowanceKind.LOOPBACK_CONTROL,

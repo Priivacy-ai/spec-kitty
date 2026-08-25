@@ -303,20 +303,9 @@ class _StubRequestHandler:
         return json.loads(self._body.decode("utf-8"))
 
 
-def _invoke_handle_health(project_dir: Path, monkeypatch: pytest.MonkeyPatch) -> dict:
+def _invoke_handle_health(project_dir: Path) -> dict:
     """Invoke ``APIHandler.handle_health`` against a stub request handler."""
     from specify_cli.dashboard.handlers.api import APIHandler
-
-    # ``get_sync_daemon_status`` performs IPC; stub it out for a clean payload.
-    import specify_cli.dashboard.handlers.api as api_mod
-
-    class _StubStatus:
-        sync_running = False
-        last_sync = None
-        consecutive_failures = 0
-        websocket_status = "Offline"
-
-    monkeypatch.setattr(api_mod, "get_sync_daemon_status", lambda timeout=0.2: _StubStatus())
 
     handler = _StubRequestHandler(project_dir)
     APIHandler.handle_health(handler)  # type: ignore[arg-type]
@@ -324,23 +313,17 @@ def _invoke_handle_health(project_dir: Path, monkeypatch: pytest.MonkeyPatch) ->
     return handler.response_payload
 
 
-def test_api_health_omits_preflight_warning_when_absent(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_api_health_omits_preflight_warning_when_absent(tmp_path: Path) -> None:
     """No persisted warning ⇒ ``preflight_warning`` is not present in the payload."""
     clear_preflight_warning(tmp_path)
-    payload = _invoke_handle_health(tmp_path, monkeypatch)
+    payload = _invoke_handle_health(tmp_path)
     assert "preflight_warning" not in payload
 
 
-def test_api_health_populates_preflight_warning_when_present(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_api_health_populates_preflight_warning_when_present(tmp_path: Path) -> None:
     """Persisted warning ⇒ exposed verbatim in ``/api/health`` response."""
     reason = "uncommitted generated artifacts; commit or stash and retry"
     write_preflight_warning(tmp_path, reason)
 
-    payload = _invoke_handle_health(tmp_path, monkeypatch)
+    payload = _invoke_handle_health(tmp_path)
     assert payload["preflight_warning"] == reason

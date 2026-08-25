@@ -24,10 +24,6 @@ class DashboardRouter(APIHandler, FeatureHandler, GlossaryHandler, LintTileHandl
             self.handle_shutdown()
             return
 
-        if path == '/api/sync/trigger':
-            self.handle_sync_trigger()
-            return
-
         self.send_response(404)
         self.end_headers()
 
@@ -45,10 +41,6 @@ class DashboardRouter(APIHandler, FeatureHandler, GlossaryHandler, LintTileHandl
 
         if path == '/api/shutdown':
             self.handle_shutdown()
-            return
-
-        if path == '/api/sync/trigger':
-            self.handle_sync_trigger()
             return
 
         if path == '/api/features':
