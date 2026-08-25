@@ -12,10 +12,14 @@ and the WP01 golden harness; these add the focused branch coverage.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+import subprocess
 
 import pytest
+from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent import mission as mission_mod
 from specify_cli.cli.commands.agent import mission_branch_context as seam
 from specify_cli.core import git_ops as core_git_ops
 
@@ -228,3 +232,51 @@ def test_get_current_branch_falls_back_to_primary(monkeypatch: pytest.MonkeyPatc
         "specify_cli.core.git_ops.resolve_primary_branch", lambda _root: "main"
     )
     assert seam._get_current_branch(tmp_path) == "main"
+
+
+def test_branch_context_reports_invoking_linked_worktree_branch(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """#2938/#3124: branch context belongs to the invoking checkout."""
+    primary = tmp_path / "primary"
+    primary.mkdir()
+    subprocess.run(["git", "init", "-q", "-b", "main"], cwd=primary, check=True)
+    subprocess.run(
+        [
+            "git",
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=t@example.invalid",
+            "commit",
+            "--allow-empty",
+            "-qm",
+            "seed",
+        ],
+        cwd=primary,
+        check=True,
+    )
+    linked = tmp_path / "linked"
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", "op/invoking", str(linked)],
+        cwd=primary,
+        check=True,
+    )
+    monkeypatch.chdir(linked)
+    monkeypatch.setattr(mission_mod, "locate_project_root", lambda: primary)
+    monkeypatch.setattr(mission_mod, "is_git_repo", lambda _root: True)
+    monkeypatch.setattr(
+        mission_mod,
+        "_resolve_primary_branch_for_recommendation",
+        lambda _root, _current: "main",
+    )
+
+    result = CliRunner().invoke(mission_mod.app, ["branch-context", "--json"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(
+        result.output[result.output.find("{") : result.output.rfind("}") + 1]
+    )
+    assert payload["repo_root"] == str(primary.resolve())
+    assert payload["current_branch"] == "op/invoking"
+    assert payload["target_branch"] == "op/invoking"
