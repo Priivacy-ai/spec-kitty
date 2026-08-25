@@ -292,7 +292,6 @@ def _run_setup_plan(repo: Path, mission_handle: str) -> dict[str, object]:
             ),
             patch.object(mission_module, "get_current_branch", return_value="main"),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,
@@ -444,7 +443,6 @@ def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, 
             ),
             patch.object(mission_module, "get_current_branch", return_value="main"),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,

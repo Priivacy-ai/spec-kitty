@@ -5,7 +5,6 @@ both branches and that all 0.1x guard mechanisms work correctly.
 
 Test categories:
   T082 - Backport readiness: no hard dependencies on 2.x-only modules
-  T083 - SaaS fan-out as no-op on 0.1x
   T084 - Phase cap enforcement on 0.1x branches
   T085 - Reducer determinism: identical input -> identical output
 """
@@ -17,7 +16,7 @@ import json
 import sys
 import types
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -186,112 +185,6 @@ class TestBackportReadiness:
                 current_indent = len(line) - len(line.lstrip()) if line.strip() else 0
                 if current_indent == 0 and "from specify_cli.sync" in stripped and not stripped.startswith("#"):
                     pytest.fail(f"Top-level sync import in {py_file.name}:{line_no}: {stripped}")
-
-
-# =====================================================================
-# T083 - SaaS Fan-Out as No-Op on 0.1x
-# =====================================================================
-
-
-class TestSaasFanOutNoOp:
-    """Verify that _saas_fan_out handles missing sync/events gracefully."""
-
-    def _make_test_event(self) -> StatusEvent:
-        return _make_event(
-            event_id="01HXYZ00000000000000SAASNO",
-            wp_id="WP01",
-            from_lane=Lane.PLANNED,
-            to_lane=Lane.CLAIMED,
-        )
-
-    def test_import_error_is_silent_noop(self):
-        """When sync.events is not importable, _saas_fan_out does nothing."""
-        from specify_cli.status.emit import _saas_fan_out
-
-        event = self._make_test_event()
-
-        # Block the sync module
-        saved = sys.modules.get("specify_cli.sync.events")
-        sys.modules["specify_cli.sync.events"] = None  # type: ignore[assignment]
-
-        try:
-            # Must not raise
-            _saas_fan_out(event, "034-parity-test", None)
-        finally:
-            if saved is not None:
-                sys.modules["specify_cli.sync.events"] = saved
-            else:
-                sys.modules.pop("specify_cli.sync.events", None)
-
-    def test_runtime_error_is_caught(self):
-        """When sync.events raises at runtime, _saas_fan_out catches it."""
-        from specify_cli.status.emit import _saas_fan_out
-
-        event = self._make_test_event()
-
-        mock_emit = MagicMock(side_effect=RuntimeError("network timeout"))
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed",
-            mock_emit,
-        ):
-            # Must not raise
-            _saas_fan_out(event, "034-parity-test", None)
-
-    def test_attribute_error_is_caught(self):
-        """When sync.events has wrong API, _saas_fan_out catches it."""
-        from specify_cli.status.emit import _saas_fan_out
-
-        event = self._make_test_event()
-
-        # Create a fake module without the expected function
-        fake_module = types.ModuleType("specify_cli.sync.events")
-        saved = sys.modules.get("specify_cli.sync.events")
-        sys.modules["specify_cli.sync.events"] = fake_module
-
-        try:
-            # Must not raise (AttributeError caught by except Exception)
-            _saas_fan_out(event, "034-parity-test", None)
-        finally:
-            if saved is not None:
-                sys.modules["specify_cli.sync.events"] = saved
-            else:
-                sys.modules.pop("specify_cli.sync.events", None)
-
-    def test_full_emit_succeeds_without_sync(self, tmp_path: Path):
-        """Full emit_status_transition works when sync/ is unavailable."""
-        from specify_cli.status.emit import emit_status_transition
-
-        feature_dir = tmp_path / "kitty-specs" / "034-parity-test"
-        feature_dir.mkdir(parents=True)
-
-        saved = sys.modules.get("specify_cli.sync.events")
-        sys.modules["specify_cli.sync.events"] = None  # type: ignore[assignment]
-
-        try:
-            # Seed the WP out of genesis into planned (as finalize-tasks does)
-            # before exercising the lane lifecycle.
-            emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-parity-test",
-                wp_id="WP01",
-                to_lane="planned",
-                actor="parity-agent",
-                force=True,
-                reason="seed",
-            ))
-            event = emit_status_transition(TransitionRequest(
-                feature_dir=feature_dir,
-                mission_slug="034-parity-test",
-                wp_id="WP01",
-                to_lane="claimed",
-                actor="parity-agent",
-            ))
-            assert event.to_lane == Lane.CLAIMED
-        finally:
-            if saved is not None:
-                sys.modules["specify_cli.sync.events"] = saved
-            else:
-                sys.modules.pop("specify_cli.sync.events", None)
 
 
 # =====================================================================

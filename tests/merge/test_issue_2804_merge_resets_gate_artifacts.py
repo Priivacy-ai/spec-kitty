@@ -403,11 +403,6 @@ def _merge_external_mocks() -> ExitStack:
         "record_done": patch(
             "specify_cli.merge.executor._record_merged_wps_done_for_merge"
         ),
-        "dossier": patch(
-            "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"
-        ),
-        "mission_closed": patch("specify_cli.merge.executor.emit_mission_closed"),
-        "diff_summary": patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
         "remote": patch("specify_cli.merge.executor.has_remote", return_value=False),

@@ -471,20 +471,24 @@ def _subprocess_env(tmp_path: Path) -> dict[str, str]:
     return env
 
 
-_SAAS_HANDLER_COUNT_SCRIPT = (
-    "import specify_cli.sync  # noqa: F401 -- triggers the module-level gate at :455\n"
-    "from specify_cli.status import adapters\n"
-    "print(len(adapters._saas_handlers))\n"
+_SEEDED_ENV_PROBE_SCRIPT = (
+    "import os\n"
+    "import specify_cli  # noqa: F401 -- the seed must be in os.environ BEFORE this runs\n"
+    "print(os.environ.get('SPEC_KITTY_SYNC_MINIMAL_IMPORT', ''))\n"
 )
 
 
 @pytest.mark.integration
-def test_sync_minimal_import_set_only_in_kitty_env_gates_import_time_registration(
+def test_sync_minimal_import_set_only_in_kitty_env_reaches_os_environ_before_import(
     tmp_path: Path,
 ) -> None:
-    """C-LDR-2: SPEC_KITTY_SYNC_MINIMAL_IMPORT set ONLY in .kitty.env reaches
-    ``sync/__init__.py:455``'s import-time conditional -- proving the loader's
-    seed lands in ``os.environ`` BEFORE ``import specify_cli`` (:36) runs.
+    """C-LDR-2: SPEC_KITTY_SYNC_MINIMAL_IMPORT set ONLY in .kitty.env is visible in
+    ``os.environ`` as soon as ``import specify_cli`` has run -- proving the loader's
+    seed lands BEFORE any import-time consumer could read it.
+
+    The consumer this used to observe was ``sync/__init__.py``'s import-time
+    registration gate, which retired with the sync transport (issue #5). What is
+    left to pin — and what the loader actually owns — is the ordering itself.
     """
     repo = tmp_path / "repo"
     (repo / ".kittify").mkdir(parents=True)
@@ -495,7 +499,7 @@ def test_sync_minimal_import_set_only_in_kitty_env_gates_import_time_registratio
     assert "SPEC_KITTY_SYNC_MINIMAL_IMPORT" not in env, "must come from the file, not the real env"
 
     result = subprocess.run(
-        [sys.executable, "-c", _SAAS_HANDLER_COUNT_SCRIPT],
+        [sys.executable, "-c", _SEEDED_ENV_PROBE_SCRIPT],
         cwd=repo,
         env=env,
         text=True,
@@ -504,22 +508,22 @@ def test_sync_minimal_import_set_only_in_kitty_env_gates_import_time_registratio
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() == "0", (
-        f"expected register_default_handlers() to be SKIPPED (0 handlers) "
-        f"when SPEC_KITTY_SYNC_MINIMAL_IMPORT=1 comes from .kitty.env; "
+    assert result.stdout.strip() == "1", (
+        f"expected SPEC_KITTY_SYNC_MINIMAL_IMPORT from .kitty.env to be seeded into "
+        f"os.environ before `import specify_cli`; "
         f"got stdout={result.stdout!r} stderr={result.stderr}"
     )
 
 
 @pytest.mark.integration
-def test_control_without_kitty_env_registers_handlers_at_import_time(tmp_path: Path) -> None:
-    """Control for the test above: absent the file, the default handlers DO register."""
+def test_control_without_kitty_env_seeds_nothing(tmp_path: Path) -> None:
+    """Control for the test above: absent the file, nothing is seeded."""
     repo = tmp_path / "repo"
     (repo / ".kittify").mkdir(parents=True)
     env = _subprocess_env(tmp_path)
 
     result = subprocess.run(
-        [sys.executable, "-c", _SAAS_HANDLER_COUNT_SCRIPT],
+        [sys.executable, "-c", _SEEDED_ENV_PROBE_SCRIPT],
         cwd=repo,
         env=env,
         text=True,
@@ -528,8 +532,8 @@ def test_control_without_kitty_env_registers_handlers_at_import_time(tmp_path: P
     )
 
     assert result.returncode == 0, result.stderr
-    assert result.stdout.strip() != "0", (
-        "control run (no .kitty.env) must register at least one default handler; "
+    assert result.stdout.strip() == "", (
+        "control run (no .kitty.env) must not seed SPEC_KITTY_SYNC_MINIMAL_IMPORT; "
         f"stdout={result.stdout!r} stderr={result.stderr}"
     )
 

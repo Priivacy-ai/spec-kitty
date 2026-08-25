@@ -159,16 +159,6 @@ def _run_finalize(repo: Path, mission_slug: str, *extra_args: str) -> Result:
             "specify_cli.cli.commands.agent.mission.run_git_preflight",
             return_value=type("P", (), {"passed": True})(),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-            return_value=type(
-                "E", (), {"generate_causation_id": lambda self: "test-id"}
-            )(),
-        ),
     ):
         return runner.invoke(
             app,
@@ -179,15 +169,16 @@ def _run_finalize(repo: Path, mission_slug: str, *extra_args: str) -> Result:
 
 @pytest.fixture(autouse=True)
 def _disable_saas_fanout(monkeypatch: pytest.MonkeyPatch) -> None:
+    import specify_cli.core.saas_sync_config as saas_sync_config_module
     import specify_cli.status.emit as emit_module
-    import specify_cli.sync.feature_flags as feature_flags_module
 
     monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
-    # Disable SaaS sync at the source module so late imports inside the dossier
-    # pipeline see it disabled too — environment-dependent dossier writes would
-    # otherwise leak into the byte-identical porcelain assertions.
+    # Disable hosted sync at its canonical source module so late
+    # `from specify_cli.core.saas_sync_config import is_saas_sync_enabled` imports
+    # see it disabled too — environment-dependent writes would otherwise leak into
+    # the byte-identical porcelain assertions.
     monkeypatch.setattr(
-        feature_flags_module, "is_saas_sync_enabled", lambda *a, **k: False
+        saas_sync_config_module, "is_saas_sync_enabled", lambda *a, **k: False
     )
 
 

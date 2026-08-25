@@ -11,7 +11,9 @@ coordinating, so a concurrent locked writer could silently clobber an
 unlocked writer's just-appended line.
 
 Test IDs below map to F2.md section 4's negative/fault/race/compatibility
-matrix: K1, K2, C1, CO1-CO4, FT1, FT2, CL2, WAL1.
+matrix: K1, K2, C1, CO1-CO4, FT1, FT2, WAL1. (CL2 pinned the local projection
+against the persisted host LamportClock; that clock died with the sync
+transport in issue #5, so the independence property it guarded holds vacuously.)
 """
 
 from __future__ import annotations
@@ -381,46 +383,6 @@ def test_ft1_rehomed_lifecycle_row_stays_non_lane(feature_dir: Path) -> None:
     # WP01's lane is driven only by the StatusEvent transition, never by
     # the co-resident lifecycle row.
     assert snapshot.work_packages["WP01"]["lane"] == "claimed"
-
-
-# ---------------------------------------------------------------------------
-# CL2 -- local projection is independent of the host LamportClock
-# ---------------------------------------------------------------------------
-
-
-def test_cl2_local_projection_independent_of_lamport_clock(
-    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    _seed_planned(feature_dir, "WP01", slug=_MISSION_SLUG)
-    emit_status_transition(TransitionRequest(
-        feature_dir=feature_dir, mission_slug=_MISSION_SLUG, wp_id="WP01",
-        to_lane="claimed", actor="implementer",
-    ))
-
-    home_a = tmp_path / "home_a"
-    home_b = tmp_path / "home_b"
-    home_a.mkdir()
-    home_b.mkdir()
-
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home_a))
-    from specify_cli.sync.clock import LamportClock
-
-    clock_a = LamportClock.load()
-    clock_a.tick()
-    clock_a.tick()
-    clock_a.save()
-    snapshot_a = materialize(feature_dir)
-
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(home_b))
-    clock_b = LamportClock.load()
-    for _ in range(50):
-        clock_b.tick()
-    clock_b.save()
-    snapshot_b = materialize(feature_dir)
-
-    from specify_cli.status.reducer import materialize_to_json
-
-    assert materialize_to_json(snapshot_a) == materialize_to_json(snapshot_b)
 
 
 # ---------------------------------------------------------------------------

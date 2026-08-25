@@ -3,25 +3,35 @@
 Covers:
   T025 - All 7 canonical lanes pass through fan-out without collapse
   T026 - Invalid lane handling via TransitionError
+
+The fan-out seam is the status/adapters handler registry; the former sync
+receiver (``sync.events.emit_wp_status_changed``) died with the sync transport
+(issue #5), so these tests register a capturing handler instead.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.status import adapters
 from specify_cli.status.emit import (
     TransitionError,
     _saas_fan_out,
     emit_status_transition,
 )
 from specify_cli.status.models import Lane, StatusEvent, TransitionRequest
-from specify_cli.status.transitions import CANONICAL_LANES
 
 pytestmark = pytest.mark.fast
 # ── Fixtures ──────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _clean_registry():
+    adapters.reset_handlers()
+    yield
+    adapters.reset_handlers()
 
 
 @pytest.fixture
@@ -69,18 +79,18 @@ class TestCanonicalFanOut:
         ],
     )
     def test_fan_out_passes_canonical_lanes_directly(self, from_lane: Lane, to_lane: Lane) -> None:
-        """Each canonical lane value is passed directly to emit_wp_status_changed."""
-        from specify_cli.sync.events import WPStatusChangeMetadata
+        """Each canonical lane value is passed directly to the fan-out handler."""
+        from specify_cli.status.wp_status_metadata import WPStatusChangeMetadata
 
         event = self._make_event(from_lane=from_lane, to_lane=to_lane)
-        mock_emit = MagicMock()
-        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
-            _saas_fan_out(event, "039-test-feature", None)
+        captured: list[dict] = []
+        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        _saas_fan_out(event, "039-test-feature", None)
 
+        assert len(captured) == 1, "fan-out handler must be invoked exactly once"
         # ``occurred_at`` is the canonical local lane-transition time threaded
         # through _saas_fan_out (mission cli-saas-fanout-preserves-local-at-01KRNS87).
-        call_kwargs = mock_emit.call_args.kwargs
-        assert call_kwargs == {
+        assert captured[0] == {
             "wp_id": "WP01",
             "from_lane": str(from_lane),
             "to_lane": str(to_lane),
@@ -103,22 +113,10 @@ class TestCanonicalFanOut:
     def test_planned_to_claimed_now_emits(self) -> None:
         """planned->claimed is no longer a no-op (was collapsed to planned->planned)."""
         event = self._make_event(from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED)
-        mock_emit = MagicMock()
-        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
-            _saas_fan_out(event, "039-test-feature", None)
-        mock_emit.assert_called_once()
-
-    def test_all_canonical_lanes_accepted_by_validators(self) -> None:
-        """All 7 canonical lanes are valid values for from_lane/to_lane validators."""
-        from specify_cli.sync.emitter import _PAYLOAD_RULES
-
-        rules = _PAYLOAD_RULES["WPStatusChanged"]
-        from_validator = rules["validators"]["from_lane"]
-        to_validator = rules["validators"]["to_lane"]
-
-        for lane in CANONICAL_LANES:
-            assert from_validator(lane), f"from_lane validator rejected '{lane}'"
-            assert to_validator(lane), f"to_lane validator rejected '{lane}'"
+        captured: list[dict] = []
+        adapters.register_saas_fanout_handler(lambda **kwargs: captured.append(dict(kwargs)))
+        _saas_fan_out(event, "039-test-feature", None)
+        assert len(captured) == 1
 
 
 # ── T026: Invalid lane handling via TransitionError ───────────

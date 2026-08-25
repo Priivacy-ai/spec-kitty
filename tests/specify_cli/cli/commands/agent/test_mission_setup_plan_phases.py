@@ -62,57 +62,9 @@ def _resolution(path: Path) -> ResolutionResult:
     )
 
 
-# ---------------------------------------------------------------------------
-# _enforce_saas_sync_auth_refusal
-# ---------------------------------------------------------------------------
-
-
-def test_auth_refusal_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    # No exception even with no auth scope available.
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
-
-
-def test_auth_refusal_exits_when_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue_scope.read_queue_scope_from_session", lambda: None)
-    monkeypatch.setattr("specify_cli.sync.queue_scope.read_queue_scope_from_credentials", lambda: None)
-    with pytest.raises(typer.Exit) as exc:
-        seam._enforce_saas_sync_auth_refusal(json_output=True)
-    assert exc.value.exit_code == 2
-
-
-def test_auth_refusal_passes_with_scope(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    monkeypatch.setattr("specify_cli.sync.queue_scope.read_queue_scope_from_session", lambda: "scope-x")
-    # Returns without raising (scope resolved).
-    seam._enforce_saas_sync_auth_refusal(json_output=True)
-
-
-# ---------------------------------------------------------------------------
-# _enforce_saas_sync_boundary_preflight
-# ---------------------------------------------------------------------------
-
-
-def test_boundary_preflight_noop_when_sync_disabled(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
-    seam._enforce_saas_sync_boundary_preflight(tmp_path)
-
-
-def test_boundary_preflight_exits_on_incoherence(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-
-    class _Result:
-        ok = False
-
-        def render(self, _console: object) -> None:
-            return None
-
-    monkeypatch.setattr("specify_cli.sync.preflight.run_preflight", lambda **_k: _Result())
-    with pytest.raises(typer.Exit) as exc:
-        seam._enforce_saas_sync_boundary_preflight(tmp_path)
-    assert exc.value.exit_code == 2
-
+# The ``_enforce_saas_sync_auth_refusal`` / ``_enforce_saas_sync_boundary_preflight``
+# gate sections retired with the hosted-sync transport they guarded (issue #5): both
+# seam helpers and their sync-package primitives are gone.
 
 # ---------------------------------------------------------------------------
 # _resolve_setup_plan_feature_dir
@@ -385,8 +337,6 @@ def test_setup_plan_refuses_present_invalid_primary_meta_before_template_or_stat
         state_changes.append("plan-commit")
         return None, None, True
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
     monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
     monkeypatch.setattr(
@@ -400,7 +350,6 @@ def test_setup_plan_refuses_present_invalid_primary_meta_before_template_or_stat
         _unexpected_plan_commit,
     )
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(seam, "_emit_json", lambda payload: emitted.update(payload))
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
@@ -477,14 +426,11 @@ def test_setup_plan_uses_single_loaded_meta_snapshot_when_file_changes_after_rea
         return _resolution(template_src)
 
     monkeypatch.setattr(seam, "load_meta_fail_closed", _load_then_mutate)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
     monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)
@@ -542,14 +488,11 @@ def test_setup_plan_resolves_template_context_from_primary_planning_surface(
         configured_calls.append((artifact_kind, project_dir, resolved))
         return _resolution(template_src)
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: coord_dir)
     monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
     monkeypatch.setattr(seam, "_emit_spec_plan_phase_events", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_commit_plan_if_substantive", lambda *a, **k: (None, None, True))
     monkeypatch.setattr(seam, "_run_documentation_wiring", lambda *a, **k: (None, []))
-    monkeypatch.setattr(seam, "_trigger_dossier_sync", lambda *a, **k: None)
     monkeypatch.setattr(seam, "_emit_setup_plan_result", lambda **_k: None)
     monkeypatch.setattr(mission_mod, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(mission_mod, "_enforce_git_preflight", lambda *a, **k: None)
@@ -880,8 +823,6 @@ def test_setup_plan_renders_configured_template_failure_without_traceback(
         reason="maps to unresolved filename 'missing-plan.md'",
     )
 
-    monkeypatch.setattr(seam, "_enforce_saas_sync_auth_refusal", lambda **_k: None)
-    monkeypatch.setattr(seam, "_enforce_saas_sync_boundary_preflight", lambda _root: None)
     monkeypatch.setattr(seam, "_resolve_setup_plan_feature_dir", lambda *a, **k: feature_dir)
     monkeypatch.setattr(seam, "_enforce_spec_gate", lambda *a, **k: False)
     monkeypatch.setattr(seam, "_resolve_plan_template", lambda *_a: (_ for _ in ()).throw(error))
