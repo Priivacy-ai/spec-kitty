@@ -58,15 +58,24 @@ def _alias_completions(target: str, node: ast.ImportFrom) -> Iterator[str]:
 
 
 def _import_base_package(relative_path: Path) -> tuple[str, ...]:
-    """Dotted package an import statement in *relative_path* resolves against.
+    """Dotted module an import statement in *relative_path* resolves against.
 
-    ``dashboard/lifecycle.py`` → ``("specify_cli", "dashboard")``;
-    ``dashboard/__init__.py`` → ``("specify_cli",)`` (a package's own
-    ``__init__`` resolves level-1 relatives against its parent).
+    Uniform rule: drop only the file component. A package's own
+    ``__init__.py`` has the package's dotted name as its module name, so its
+    level-1 relatives resolve against the package *itself* — ``from . import x``
+    in ``dashboard/__init__.py`` binds ``specify_cli.dashboard.x``, exactly as
+    for a regular module's parent-package resolution:
+
+    - ``dashboard/lifecycle.py`` → ``("specify_cli", "dashboard")``
+    - ``dashboard/__init__.py`` → ``("specify_cli", "dashboard")``
+    - ``dashboard/handlers/__init__.py`` → ``("specify_cli", "dashboard",
+      "handlers")``
+
+    (An earlier special case stripped one extra part under ``__init__`` files,
+    which mis-resolved every relative edge inside them and let two violating
+    shapes escape — see ``test_boundary_oracle_bites_on_every_import_shape``.)
     """
     parts = relative_path.with_suffix("").parts
-    if parts[-1] == "__init__":
-        return parts[:-2]
     return parts[:-1]
 
 
@@ -217,3 +226,20 @@ class TestDashboardSyncBoundary:
         assert set(_sync_import_violations(package, source_root=tmp_path)) == {
             "  specify_cli/dashboard/lifecycle.py: imports 'specify_cli.sync'",
         }
+
+        # Relative edges inside the package's own ``__init__.py`` must bite in
+        # isolation too (squad third-pass MAJOR): a package's relatives resolve
+        # against the package itself, and the mis-resolved base produced edge
+        # target bare 'sync' for the level-2 from-import and *no edge at all*
+        # for the level-2 package binding — both escaped every guard. Sibling
+        # modules are reset to benign stubs and each attack line stands alone,
+        # so neither shape can ride on another source's edge.
+        lifecycle.write_text("", encoding="utf-8")
+        (package / "__init__.py").write_text("from ..sync import daemon as _d\n", encoding="utf-8")
+        assert _sync_import_violations(package, source_root=tmp_path) == [
+            "  specify_cli/dashboard/__init__.py: imports 'specify_cli.sync'",
+        ]
+        (package / "__init__.py").write_text("from .. import sync as _rel_init_sync\n", encoding="utf-8")
+        assert _sync_import_violations(package, source_root=tmp_path) == [
+            "  specify_cli/dashboard/__init__.py: imports 'specify_cli.sync'",
+        ]
