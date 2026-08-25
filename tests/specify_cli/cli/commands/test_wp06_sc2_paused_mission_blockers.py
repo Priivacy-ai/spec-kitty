@@ -485,7 +485,6 @@ class TestFinalizeLeavesNoPrimaryResidue:
 
     @pytest.fixture(autouse=True)
     def _disable_saas_fanout(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        import specify_cli.core.saas_sync_config as saas_sync_config_module
         import specify_cli.status.emit as emit_module
 
         monkeypatch.setattr(emit_module, "_saas_fan_out", lambda *a, **k: None)
