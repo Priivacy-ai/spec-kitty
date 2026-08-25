@@ -80,6 +80,27 @@ not reuse stale state. The regression guard
 Because the real `~/.spec-kitty` is never bound, you do not need to back it up or
 worry about a parallel run truncating your real `queue.db`.
 
+## Per-run pytest temp root (#63)
+
+Every pytest invocation also gets its **own private basetemp** instead of the
+shared `/tmp/pytest-of-<user>` numbered tree: `<temproot>/spec-kitty-pytest-tmp/run-<pid>`
+(`temproot` honors `PYTEST_DEBUG_TEMPROOT`, then `TMPDIR`). pytest's default tree
+makes every run — concurrent, sequential, or SIGKILL'd — scan, lock, and prune
+siblings of each other's directories, and that cross-run contention crashed
+full-suite xdist runs before any summary (`OSError: could not create numbered
+dir … after 10 tries`, #63).
+
+`tests/conftest.py` wires this in `pytest_configure` via
+`tests/_support/run_basetemp.py`; xdist workers nest under the controller's
+choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
+
+- An explicit `--basetemp` still wins untouched — whoever passes one owns its
+  lifecycle.
+- A healthy run leaves nothing behind: the run dir is removed at interpreter
+  exit, and crash leftovers older than 24 h are swept at startup. Unlike
+  pytest's default 3-session retention, `tmp_path` contents are therefore NOT
+  available for post-mortem inspection after the run ends.
+
 ## The serial daemon pass
 
 Per-worker HOME isolation protects per-user state, but it does **not** protect

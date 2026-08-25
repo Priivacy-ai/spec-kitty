@@ -32,6 +32,7 @@ from tests._support.quarantine import (
     quarantine_opted_in,
     quarantine_skip_mark,
 )
+from tests._support.run_basetemp import install_run_basetemp
 from tests._support.wall_clock_assertions import (
     find_wall_clock_assertion_violations_cached,
     find_test_python_paths,
@@ -240,6 +241,15 @@ def pytest_configure(config: pytest.Config) -> None:
     # developer's real ``~/.spec-kitty``. The autouse fixture below re-applies
     # the same mapping per test for call-time reads.
     _apply_home_env(_worker_home_base(config))
+
+    # Issue #63: give this run its own private, wiped-per-run pytest temp root
+    # instead of the shared `/tmp/pytest-of-<user>` numbered tree, whose
+    # cross-run numbering/pruning contention crashed full-suite xdist runs
+    # before any summary (OSError: could not create numbered dir). Must happen
+    # here in configure — the builtin tmpdir plugin snapshots the option into
+    # its TempPathFactory now, and xdist nests every worker's popen-gwN under
+    # the controller's value. Controller-gated; an explicit --basetemp wins.
+    install_run_basetemp(config, now_epoch())
 
     try:
         prepare_mutants_environment_from_cwd()
