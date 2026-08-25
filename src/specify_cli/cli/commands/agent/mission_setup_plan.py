@@ -30,7 +30,6 @@ from __future__ import annotations
 import contextlib
 from dataclasses import dataclass
 import logging
-import os
 from pathlib import Path
 import shutil
 import subprocess

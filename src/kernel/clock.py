@@ -7,12 +7,12 @@ repo-wide gate (``tests/architectural/test_clock_import_ban.py`` +
 everywhere else, including through this module's own re-exported types
 (re-exporting a type never creates a sanctioned ``.now()`` path).
 
-**Distinct from the Lamport logical clock** in
-``specify_cli.sync.clock`` -- that module tracks a causal ordering counter
-for event synchronization, not the current civil time. The two concepts
-must never be conflated: this module owns *wall-clock* time (what a
-developer means by "the current timestamp"); ``sync.clock`` owns a
-monotonically-increasing logical counter unrelated to the wall clock.
+**Distinct from a Lamport logical clock** -- such a counter tracks causal
+ordering for event synchronization, not the current civil time. The two
+concepts must never be conflated: this module owns *wall-clock* time (what
+a developer means by "the current timestamp"); a logical clock owns a
+monotonically-increasing counter unrelated to the wall clock. (The sync
+package that hosted one was removed in issue #5.)
 
 **Distinct from duration clocks** (``time.monotonic()`` / ``time.perf_counter()``)
 used for elapsed-time measurement -- those are out of scope for this door

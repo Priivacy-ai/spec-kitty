@@ -67,7 +67,7 @@ capability, not a message convention.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
+from specify_cli.core.constants import WORKTREES_DIR
 import contextlib
 import logging
 import subprocess
@@ -80,7 +80,6 @@ from typing import Any
 from mission_runtime import CommitTarget
 from kernel.paths import to_posix
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
-from kernel.clock import now_utc_iso
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from kernel.git_topology import (
     GitTopologyError,

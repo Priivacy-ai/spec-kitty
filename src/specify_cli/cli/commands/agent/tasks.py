@@ -29,10 +29,8 @@ from specify_cli.core.constants import (
 # through ``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)``, and
 # the relocated ``_ft_apply_writes`` (tasks_finalize.py) no longer proxies
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
-import contextlib
 import logging
 import subprocess
-import traceback
 from pathlib import Path
 
 import typer

@@ -64,7 +64,7 @@ class RecoveryOutcome(StrEnum):
 
 
 def detect_logged_out_with_connected_teamspace(
-    repo_root: Path | None = None,
+    repo_root: Path | None = None,  # noqa: ARG001 - kept for signature stability; readiness/auth.py threads it
 ) -> str | None:
     """Return a teamspace handle if logged-out on a connected repo, else None.
 

@@ -238,9 +238,9 @@ class ManifestRegistry:
         contract C-4) takes precedence over the built-in file, whole-file —
         never field-merged with it. *repo_root* is optional and defaults to
         ``None`` (today's exact behavior: no org lookup, built-in tree only)
-        so the sole production caller,
-        ``specify_cli.sync.namespace.resolve_manifest_version`` — which has
-        no ``repo_root`` in scope — is unaffected by this signature change.
+        so a caller without a ``repo_root`` in scope is unaffected by
+        this signature change. (The former sole production caller lived in
+        the deleted sync namespace module, issue #5.)
 
         Args:
             mission_type: Mission type (e.g., 'software-dev', 'research')

@@ -113,7 +113,7 @@ def _resolve_output_policy_for_tracker() -> str:
        deriving the policy from ``sys.argv`` via the coordinator's helper.
 
     Lazy-imports the coordinator to avoid an import cycle with
-    ``specify_cli.saas.readiness``.
+    ``specify_cli.tracker.saas_readiness``.
     """
     import click  # noqa: PLC0415 — keep coordinator import-time cheap
     from specify_cli.readiness.coordinator import (  # noqa: PLC0415
@@ -261,7 +261,7 @@ def _is_local_binding() -> bool:
     return False
 
 
-def _check_sync_readiness(*, is_sync_run: bool = False, root: Path | None = None) -> None:
+def _check_sync_readiness(*, root: Path | None = None) -> None:
     """Provider-aware readiness gate for sync subcommands.
 
     Local providers (beads, fp) reach the sync command without going through
@@ -271,16 +271,13 @@ def _check_sync_readiness(*, is_sync_run: bool = False, root: Path | None = None
     no-op — the rollout gate is already enforced by :func:`tracker_callback`
     and the binding itself is the proof that setup is complete.
 
-    **This no longer means "without going through the SaaS surface at all"
-    (#3108).** ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run``
-    each consult ``tracker_egress_verdict`` as the first executable statement
-    of their body, and that verdict's Channel 1 reaches the same hosted-sync
-    consent chain (``specify_cli.sync.consent`` / ``specify_cli.sync.routing``)
-    used elsewhere -- independently of whatever this helper decides. So "no
-    auth token, no reachability probe, no background daemon" still holds
-    (nothing here calls the SaaS HTTP client), but a local binding is no
-    longer entirely insulated from hosted-sync consent state: it is consulted
-    as one half of a two-channel join, not skipped.
+    ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run`` each
+    consult ``tracker_egress_verdict`` as the first executable statement of
+    their body (local subprocess spawns gate on the committed
+    ``tracker.egress`` key; hosted sends ride the authenticated session).
+    "No auth token, no reachability probe" still holds — nothing here calls
+    the SaaS HTTP client. (The former hosted-sync consent channel retired
+    with the sync transport, issue #5.)
 
     **HIGH-1 fix (2026-08-10):** for a SaaS-backed binding, the hosted egress
     verdict is now consulted *here*, before ``_check_readiness`` is ever
@@ -1211,7 +1208,7 @@ def sync_run_command(
     For local providers: runs pull then push using direct connectors.
     """
     root = require_repo_root()
-    _check_sync_readiness(is_sync_run=True, root=root)
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
         payload = _service(root=root).sync_run(limit=limit)

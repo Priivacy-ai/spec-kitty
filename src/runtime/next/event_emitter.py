@@ -46,7 +46,7 @@ class RuntimeEventEmitter:
         feature_dir: Path,
         mission_slug: str,
         mission_type: str,
-    ) -> "RuntimeEventEmitter":
+    ) -> RuntimeEventEmitter:
         try:
             mission_id = resolve_mission_identity(feature_dir).mission_id
         except Exception:
@@ -60,26 +60,29 @@ class RuntimeEventEmitter:
     def seed_from_snapshot(self, snapshot: Any) -> None:
         """No-op: retained so the bridge's seed call site survives unchanged."""
 
-    def emit_mission_run_started(self, payload: Any) -> None:
+    # The unused ``payload`` arguments are the point: they keep the bridge's
+    # call contract byte-identical for the E3 handler that will register here.
+    def emit_mission_run_started(self, payload: Any) -> None:  # noqa: ARG002 - no-op sink keeps the E3 handler's parameter contract visible
+        del payload
         logger.debug("Mission run started (emission retired): %s", self._mission_slug)
 
-    def emit_next_step_issued(self, payload: Any) -> None:
+    def emit_next_step_issued(self, payload: Any) -> None:  # noqa: ARG002 - see class comment
         pass
 
-    def emit_next_step_auto_completed(self, payload: Any) -> None:
+    def emit_next_step_auto_completed(self, payload: Any) -> None:  # noqa: ARG002 - see class comment
         pass
 
-    def emit_decision_input_requested(self, payload: Any) -> None:
+    def emit_decision_input_requested(self, payload: Any) -> None:  # noqa: ARG002 - see class comment
         pass
 
-    def emit_decision_input_answered(self, payload: Any) -> None:
+    def emit_decision_input_answered(self, payload: Any) -> None:  # noqa: ARG002 - see class comment
         pass
 
-    def emit_mission_run_completed(self, payload: Any) -> None:
+    def emit_mission_run_completed(self, payload: Any) -> None:  # noqa: ARG002 - see class comment
         pass
 
-    def emit_significance_evaluated(self, payload: Any) -> None:
+    def emit_significance_evaluated(self, payload: Any) -> None:  # noqa: ARG002 - see class comment
         pass
 
-    def emit_decision_timeout_expired(self, payload: Any) -> None:
+    def emit_decision_timeout_expired(self, payload: Any) -> None:  # noqa: ARG002 - see class comment
         pass

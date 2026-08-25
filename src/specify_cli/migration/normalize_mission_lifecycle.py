@@ -85,7 +85,6 @@ def _load_meta_for_normalization(
 
 def _apply_identity_normalization(
     feature_dir: Path,
-    repo_root: Path,
     meta: dict[str, Any],
     result: NormalizeMissionLifecycleResult,
     *,
@@ -211,7 +210,6 @@ def normalize_repo(
 
         identity_result = _apply_identity_normalization(
             feature_dir,
-            repo_root,
             meta,
             result,
             dry_run=dry_run,

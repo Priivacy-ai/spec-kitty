@@ -70,8 +70,8 @@ def _activation_keys() -> tuple[str, ...]:
 def __getattr__(name: str) -> object:
     """PEP 562 lazy module attribute: resolve ``_ACTIVATION_KEYS`` on access.
 
-    Mirrors the codebase's established lazy-module-attribute idiom (e.g.
-    ``specify_cli.sync.__getattr__``) so ``from charter.charter_yaml_io
+    Mirrors the codebase's established lazy-module-attribute idiom so
+    ``from charter.charter_yaml_io
     import _ACTIVATION_KEYS`` and ``charter_yaml_io._ACTIVATION_KEYS`` both
     keep working for existing callers/tests without a module-level import
     that would reintroduce the cycle :func:`_activation_keys` avoids.

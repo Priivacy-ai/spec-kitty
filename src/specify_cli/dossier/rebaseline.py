@@ -216,7 +216,7 @@ SNAPSHOT_FILENAME = "snapshot-latest.json"
 _CANONICAL_PREFIX = "sha256:"
 
 #: Fallback mission type when a mission's ``meta.json`` is typeless/absent —
-#: matches :func:`specify_cli.sync.dossier_pipeline.sync_feature_dossier`.
+#: the same default the deleted sync dossier pipeline used.
 _DEFAULT_MISSION_TYPE = "software-dev"
 
 

@@ -1,7 +1,7 @@
 """Platform-aware runtime state path resolution for spec-kitty.
 
 This module is a leaf — it must not import from specify_cli.auth,
-specify_cli.tracker, specify_cli.sync, or any kernel subpackage.
+specify_cli.tracker, or any kernel subpackage.
 """
 from __future__ import annotations
 
