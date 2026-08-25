@@ -243,3 +243,22 @@ event/sync-store plumbing writing unbounded output/logs) cannot be ruled out and
 flagged for whoever next investigates the `agent action implement` background-task
 path. Recorded here per instruction rather than worked around, since no Bash-based
 workaround was available.
+
+## 2026-08-25 -- WP03 implementer friction (first-hand, Wrangler Wendy): safe-commit guard warns ACTIVE_WP_CONTEXT_AMBIGUOUS on a WP still marked `planned`
+
+Both `spec-kitty safe-commit` invocations for WP03's two subtask commits (T012 tests,
+then T010/T011 source) printed a non-blocking guard warning:
+`[spec-kitty guard] WARNING: ACTIVE_WP_CONTEXT_AMBIGUOUS: Cannot prove active WP for
+branch kitty/mission-accept-path-remediation-honesty-01M0TWZP-lane-a; lane_id=lane-a;
+active candidates: none; lane states: WP01=approved, WP02=approved, WP03=planned,
+WP04=planned`, then committed anyway (`Requested files committed`, exit 0). This
+mission's dispatch instructions explicitly forbid running `spec-kitty agent action
+implement` on this WP (it has repeatedly backgrounded past timeout and stranded prior
+sessions -- see the WP02 entry above), so WP03's lane status was never transitioned out
+of `planned` before this implementer began editing files directly. The guard appears to
+expect the `implement` verb to have run first to establish "active WP" context for
+`safe-commit`'s own bookkeeping; skipping it per this mission's own operating
+instructions produces a WARNING every commit, not a hard block. Recorded as new
+friction distinct from the already-noted kitty-specs protected-path warning (WP01/WP02
+entries above) and the implement-backgrounding friction itself -- this is the
+*downstream* effect on `safe-commit` of deliberately avoiding the backgrounding verb.
