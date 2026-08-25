@@ -22,9 +22,10 @@ It pins, independently of the implementation source:
   16 de-godding names from #2059 + ``contracts`` from #2441);
 * each subcommand's option flags + arity (flag/value/multi);
 * each subcommand's ``--help`` body (whitespace-normalized snapshot);
-* the documented exit-code contracts, including the three load-bearing names
-  (``skills``, ``restart-daemon``, ``sparse-checkout``) that ``compat`` safety
-  predicates and ``__init__`` argv fast-paths key on (I-7).
+* the documented exit-code contracts, including the load-bearing names
+  (``skills``, ``sparse-checkout``) that ``compat`` safety predicates key on.
+  (The daemon commands the argv fast-path keyed on died with the sync
+  transport, issue #5.)
 
 The help snapshots are captured through :func:`force_wide_help_console`, which
 pins Typer's Rich help console to a fixed wide, colourless size so no line ever
@@ -78,8 +79,6 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "contracts",
         "invocation-pairing",
         "ops",
-        "orphan-daemons",
-        "restart-daemon",
         "mission-state",
         "doctrine",
         "coordination",
@@ -112,8 +111,6 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     "contracts": {"--json": "flag"},
     "invocation-pairing": {"--json": "flag"},
     "ops": {"--json": "flag", "--close-stale": "flag", "--threshold": "value"},
-    "orphan-daemons": {"--json": "flag"},
-    "restart-daemon": {"--json": "flag"},
     "mission-state": {
         "--audit": "flag",
         "--fix": "flag",
@@ -346,44 +343,6 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '--json Machine-readable JSON output',
         '--close-stale Close open Ops older than --threshold as abandoned (closed_by=doctor_sweep)',
         '--threshold FLOAT Staleness threshold in hours (default 24; 0 closes all). Requires --close-stale.',
-        '--help -h Show this message and exit.',
-    ],
-    'orphan-daemons': [
-        'Usage: doctor orphan-daemons [OPTIONS]',
-        'List orphan daemon owner records and emit retirement hints.',
-        'Implements FR-010 of the identity-boundary mission: an orphan',
-        'daemon owner record is one whose recorded PID is dead OR whose',
-        'recorded executable path no longer exists on disk. Each orphan',
-        'is printed with a copy-pasteable retirement command that removes',
-        'the on-disk ``owner.json`` so the next ``sync status --check``',
-        'returns clean.',
-        'Exit codes:',
-        '0 No orphan records.',
-        '1 At least one orphan record found.',
-        'Examples:',
-        'spec-kitty doctor orphan-daemons',
-        'spec-kitty doctor orphan-daemons --json',
-        'Options',
-        '--json Machine-readable JSON output',
-        '--help -h Show this message and exit.',
-    ],
-    'restart-daemon': [
-        'Usage: doctor restart-daemon [OPTIONS]',
-        'Stop the registered sync daemon and respawn it at the foreground.',
-        'Composes the existing daemon stop + launch primitives so the operator',
-        'has a one-shot remedy when the foreground process and the registered',
-        'daemon disagree on any of the six canonical D-3 fields (version,',
-        'executable, source, server URL, team/user, or queue DB path).',
-        'Exit codes:',
-        '0 Daemon restarted (or stale owner record cleaned and respawned).',
-        '1 No registered daemon — run ``spec-kitty sync now`` to launch one.',
-        '2 Daemon stop succeeded but respawn failed; system is stopped.',
-        '3 Daemon stop failed (unresponsive); owner record left intact.',
-        'Examples:',
-        'spec-kitty doctor restart-daemon',
-        'spec-kitty doctor restart-daemon --json',
-        'Options',
-        '--json Emit a single JSON object instead of human-readable text.',
         '--help -h Show this message and exit.',
     ],
     'mission-state': [
@@ -758,39 +717,3 @@ def test_init_skills_fast_path_predicate_keys_on_a_live_name() -> None:
     # skills-specific predicate (proves the predicate keys on the name).
     other = next(name for name in sorted(live) if name != "skills")
     assert _is_doctor_skills_invocation(["spec-kitty", "doctor", other]) is False
-
-
-def test_restart_daemon_fast_path_predicates_key_on_a_live_name() -> None:
-    """The three ``restart-daemon`` argv fast-path predicates (two in
-    ``__init__`` + one in ``cli.commands``) must recognise the LIVE
-    ``restart-daemon`` subcommand name.
-
-    Teeth: rename ``restart-daemon`` in ``doctor.py`` + FROZEN_SUBCOMMANDS but
-    leave the ``["doctor", "restart-daemon"]`` literals in the predicates
-    untouched and they stop matching the live name → fails.
-    """
-    from specify_cli import (
-        _is_doctor_restart_daemon_invocation,
-        _is_doctor_restart_daemon_process_fast_path,
-    )
-    from specify_cli.cli.commands import _is_doctor_restart_daemon_fast_path
-
-    live = _live_doctor_subcommand_names()
-    assert "restart-daemon" in live, (
-        "golden contract guarantees a 'restart-daemon' subcommand"
-    )
-
-    # Build argv from the LIVE name, not a copied literal.
-    argv = ["spec-kitty", "doctor", "restart-daemon"]
-    argv_json = ["spec-kitty", "doctor", "restart-daemon", "--json"]
-    assert _is_doctor_restart_daemon_invocation(argv) is True
-    assert _is_doctor_restart_daemon_process_fast_path(argv_json) is True
-    assert _is_doctor_restart_daemon_fast_path(argv_json) is True
-
-    # Negative control: another live subcommand must NOT trip the
-    # restart-daemon-specific predicates (proves they key on the name).
-    other = next(name for name in sorted(live) if name != "restart-daemon")
-    other_argv = ["spec-kitty", "doctor", other]
-    assert _is_doctor_restart_daemon_invocation(other_argv) is False
-    assert _is_doctor_restart_daemon_process_fast_path(other_argv) is False
-    assert _is_doctor_restart_daemon_fast_path(other_argv) is False

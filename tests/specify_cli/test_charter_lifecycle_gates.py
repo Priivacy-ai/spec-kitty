@@ -124,13 +124,6 @@ def _finalize_tasks_context(
             return_value=(0, "", ""),
         ),
         patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
             "charter.invocation_context.ProjectContext.from_repo",
             return_value=mock_proj_ctx,
         ),

@@ -35,10 +35,6 @@ def _bypass_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
     result = CharterPreflightResult(passed=True, checks=[])
-    monkeypatch.setattr(
-        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-        lambda *_args, **_kwargs: result,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -246,10 +242,6 @@ class TestImplementBaseFlagIntegration:
             patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
             patch("specify_cli.cli.commands.implement.require_lanes_json") as mock_lanes,
             patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta"),
-            patch(
-                "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
-                lambda *_args, **_kwargs: None,
-            ),
             patch("specify_cli.cli.commands.implement.create_lane_workspace",
                   return_value=fake_result) as mock_create,
             patch("specify_cli.cli.commands.implement._get_wp_lane_from_event_log",
