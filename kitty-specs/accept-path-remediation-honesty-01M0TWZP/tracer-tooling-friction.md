@@ -262,3 +262,39 @@ instructions produces a WARNING every commit, not a hard block. Recorded as new
 friction distinct from the already-noted kitty-specs protected-path warning (WP01/WP02
 entries above) and the implement-backgrounding friction itself -- this is the
 *downstream* effect on `safe-commit` of deliberately avoiding the backgrounding verb.
+
+## 2026-08-25 -- WP04 implementer friction (first-hand, Wrangler Wendy): baseline pass-count off by one before this WP's own additions
+
+This WP's dispatch prompt cited an orchestrator-captured cumulative baseline of 190
+passed (post-WP03) across the committed accountability surface (`tests/specify_cli/
+acceptance/`, `tests/specify_cli/cli/commands/test_accept_warnings_render.py`,
+`tests/agent/test_validators_unit.py`, `tests/characterization/test_trio_json_envelope.py`).
+Measured first-hand, with this WP's own new file temporarily removed from the working
+tree to isolate the pre-existing count: 189 passed, not 190 -- a one-test discrepancy
+present before this WP touched anything (confirmed via `git status --porcelain`
+showing zero modifications to any pre-existing file at measurement time). Not chased
+further (out of this WP's scope to bisect which prior WP's own count was off by one,
+and the mission's Definition of Done only requires the surface stay green and the
+count reach `>= 180`, which it does: 192 without the architectural suite, 202 with
+it). Recorded so a reviewer reconciling the mission's cumulative pass-count narrative
+against a fresh count is not surprised by the one-off delta.
+
+## 2026-08-25 -- WP04 implementer friction (first-hand, Wrangler Wendy): `spec-kitty agent tasks mark-status` hangs with zero output
+
+`spec-kitty agent tasks mark-status T013 --status done --mission
+accept-path-remediation-honesty-01M0TWZP` produced NO output at all and hung past a
+2-minute foreground timeout. Two further attempts also hung with zero output: a single
+task with a 100s `timeout`, and all three tasks (`T013 T014 T015`) together with
+`--no-auto-commit --json` and a 60s `timeout` -- ruling out both the auto-commit git
+step and JSON-vs-text rendering as the cause. `mark-status --help` itself returns
+instantly, so the binary and argument parsing are fine; the hang is inside the command
+body before any output is flushed. Not an ENOSPC condition -- `df -h /tmp` showed 4.6G
+free and `/home` showed 534G free at the time, and no orphaned `spec-kitty` process was
+left behind after the `timeout` kills. Per this mission's own operating instruction not
+to retry failing commands in a loop, this was not retried a fourth time. Consequence:
+T013-T015 status was NOT recorded via the event-sourced `mark-status` command as the WP
+file's Definition of Done specifies; the actual deliverable (the fixture file, red-first
+verification, and gates) is complete and reported directly in this WP's hand-off
+instead. Flagged for whoever next touches the `agent tasks mark-status` command path --
+this is a distinct symptom from the already-noted `agent action implement`
+backgrounding-past-timeout friction (this one never even starts producing output).
