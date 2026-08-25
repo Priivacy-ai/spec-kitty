@@ -27,11 +27,13 @@ from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group reg
 from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
 from tests._shard_registry import all_groups, shard_for
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
-from tests._support.shared_build_artifacts import (
-    SharedBuildError,
-    default_wheel_sdist_builder,
-    ensure_shared_build_artifacts,
-    run_scoped_shared_root,
+
+# TODO(triage): #90 — temporary diagnostics, remove with the issue's fix round.
+# Re-exported so pytest discovers the hook on this conftest; the definition
+# lives in the probe module to keep this file's frozen definition list
+# (tests/architectural/test_home_owner_behaviour.py) unchanged.
+from tests._support.issue90_victim_probe import (  # noqa: F401 — hook re-export
+    pytest_runtest_makereport,
 )
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
@@ -39,6 +41,12 @@ from tests._support.quarantine import (
     quarantine_skip_mark,
 )
 from tests._support.run_basetemp import install_run_basetemp
+from tests._support.shared_build_artifacts import (
+    SharedBuildError,
+    default_wheel_sdist_builder,
+    ensure_shared_build_artifacts,
+    run_scoped_shared_root,
+)
 from tests._support.wall_clock_assertions import (
     find_wall_clock_assertion_violations_cached,
     find_test_python_paths,
