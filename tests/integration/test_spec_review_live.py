@@ -82,4 +82,3 @@ def test_live_review_uses_only_built_in_synthetic_spec(
     assert outcome.artifact is not None
     assert outcome.artifact.path.is_file()
     assert spec.read_bytes() == before
-
