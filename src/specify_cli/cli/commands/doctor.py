@@ -157,12 +157,6 @@ from ._sparse_checkout_doctor import run_sparse_checkout  # noqa: E402
 # repo_root (patchable seam) and delegates to ``run_workspaces``.
 from ._workspace_husk_doctor import run_workspaces  # noqa: E402
 
-# WP10 (#2059): the daemon cluster (I) — orphan-daemons + restart-daemon — was
-# extracted to a standalone ``_daemon_doctor``. The @app.command shells delegate
-# to the entrypoints; the ``restart-daemon`` name is byte-preserved (I-7: the
-# ``__init__`` argv fast-path keys on it).
-from ._daemon_doctor import run_orphan_daemons, run_restart_daemon  # noqa: E402
-
 # WP05 (runtime-state-birth-cutover-all-paths-01KYH654, FR-007): the on-demand
 # cut-over audit was extracted to a standalone ``_cutover_doctor`` from the
 # start (a new subcommand, not a de-godding extraction). The ``cutover``
@@ -1039,63 +1033,6 @@ def ops(
     )
     console.print()
     raise typer.Exit(1)
-
-
-@app.command(name="orphan-daemons")
-def orphan_daemons(
-    json_output: Annotated[
-        bool,
-        typer.Option("--json", help="Machine-readable JSON output"),
-    ] = False,
-) -> None:
-    """List orphan daemon owner records and emit retirement hints.
-
-    Implements FR-010 of the identity-boundary mission: an orphan
-    daemon owner record is one whose recorded PID is dead OR whose
-    recorded executable path no longer exists on disk. Each orphan
-    is printed with a copy-pasteable retirement command that removes
-    the on-disk ``owner.json`` so the next ``sync status --check``
-    returns clean.
-
-    Exit codes:
-      0  No orphan records.
-      1  At least one orphan record found.
-
-    Examples:
-        spec-kitty doctor orphan-daemons
-        spec-kitty doctor orphan-daemons --json
-    """
-    run_orphan_daemons(json_output)
-
-
-@app.command(name="restart-daemon")
-def restart_daemon_cmd(
-    json_output: Annotated[
-        bool,
-        typer.Option(
-            "--json",
-            help="Emit a single JSON object instead of human-readable text.",
-        ),
-    ] = False,
-) -> None:
-    """Stop the registered sync daemon and respawn it at the foreground.
-
-    Composes the existing daemon stop + launch primitives so the operator
-    has a one-shot remedy when the foreground process and the registered
-    daemon disagree on any of the six canonical D-3 fields (version,
-    executable, source, server URL, team/user, or queue DB path).
-
-    Exit codes:
-      0  Daemon restarted (or stale owner record cleaned and respawned).
-      1  No registered daemon — run ``spec-kitty sync now`` to launch one.
-      2  Daemon stop succeeded but respawn failed; system is stopped.
-      3  Daemon stop failed (unresponsive); owner record left intact.
-
-    Examples:
-        spec-kitty doctor restart-daemon
-        spec-kitty doctor restart-daemon --json
-    """
-    run_restart_daemon(json_output)
 
 
 @app.command(name="mission-state")

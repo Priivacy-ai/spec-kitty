@@ -313,8 +313,7 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
     This is the durable completion record the review gate re-sources from
     (``tasks_shared._check_unchecked_subtasks``, T016) — it replaces the
     ``tasks.md`` checkbox byte as the canonical subtask-completion authority.
-    Grouped by owning WP (reusing the ``resolved_tasks_by_wp`` pattern
-    ``_ms_emit_history`` already uses) so a batch mark of several task ids
+    Grouped by owning WP so a batch mark of several task ids
     emits ONE delta per WP, never one event per task id (FR-003 "single or
     batch"). A resolved task id with no identifiable owning WP is a hard error:
     success without a canonical event would violate the sole-authority contract.
@@ -351,55 +350,6 @@ def _ms_emit_subtask_state(st: _MarkStatusState) -> None:
             actor="user",
             mission_slug=st.mission_slug,
             repo_root=st.main_repo_root,
-        )
-
-
-def _ms_emit_history(st: _MarkStatusState) -> None:
-    """Emit HistoryAdded events for the updated subtasks (T014)."""
-    from specify_cli.cli.commands.agent import tasks as _tasks
-    try:
-        if st.updated_tasks:
-            resolved_tasks_by_wp: dict[str, list[str]] = {}
-            unresolved_tasks: list[str] = []
-            tasks_content = st.tasks_md.read_text(encoding="utf-8")
-            for task_id in st.updated_tasks:
-                history_wp_id = _resolve_history_wp_id(
-                    tasks_content, task_id
-                ) or owning_wp_from_authored_roster(st.feature_dir, task_id)
-                if history_wp_id is None:
-                    unresolved_tasks.append(task_id)
-                else:
-                    resolved_tasks_by_wp.setdefault(history_wp_id, []).append(task_id)
-
-            for history_wp_id, task_ids_for_wp in resolved_tasks_by_wp.items():
-                task_list_str = ", ".join(task_ids_for_wp)
-                _tasks.emit_history_added(
-                    wp_id=history_wp_id,
-                    entry_type="note",
-                    entry_content=f"Subtask(s) {task_list_str} marked as {st.status}",
-                    author="user",
-                )
-            if unresolved_tasks and not st.json_output:
-                _tasks.console.print(
-                    "[yellow]Warning:[/yellow] Could not resolve owning WP for HistoryAdded event: "
-                    + ", ".join(unresolved_tasks)
-                )
-    except Exception as e:
-        if not st.json_output:
-            _tasks.console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
-
-
-def _ms_dossier_sync(st: _MarkStatusState) -> None:
-    """Fire-and-forget dossier sync (best-effort)."""
-    with contextlib.suppress(Exception):
-        from specify_cli.sync.dossier_pipeline import (
-            trigger_feature_dossier_sync_if_enabled,
-        )
-
-        trigger_feature_dossier_sync_if_enabled(
-            st.feature_dir,
-            st.mission_slug,
-            st.repo_root,
         )
 
 
@@ -451,19 +401,10 @@ def _do_mark_status(
         ports = ports or _default_mark_status_ports()
         _ms_resolve_read_dir(st, ports)
         _ms_apply_updates(st, ports)
-        _ms_emit_history(st)
-        _ms_dossier_sync(st)
         _ms_output(st)
     except typer.Exit:
         raise
     except Exception as e:
-        # Emit ErrorLogged event (T016).
-        with contextlib.suppress(Exception):
-            _tasks.emit_error_logged(
-                error_type="runtime",
-                error_message=str(e),
-                stack_trace=traceback.format_exc(),
-            )
         _tasks._output_error(json_output, str(e))
         raise typer.Exit(1) from None
 

@@ -14,8 +14,8 @@ assertion (``_assert_no_write_in_validate_only``) reinforces the guard.
 
 One-way leaf (INV-8): imports lower layers + sibling Seam B/C/D leaves only at
 module scope. The cross-cutting symbols the finalize tests patch on the
-``mission`` module (``locate_project_root`` / ``is_saas_sync_enabled`` /
-``_find_feature_directory`` / ``run_command`` / ``get_emitter``) are resolved
+``mission`` module (``locate_project_root`` /
+``_find_feature_directory`` / ``run_command``) are resolved
 THROUGH the ``mission`` module at call time so the historical
 ``mission.<name>`` patch seams keep working without an import cycle. The
 command is defined here as a plain callable; ``mission`` registers it on its
@@ -430,34 +430,6 @@ def _resolve_repo_root(json_output: bool) -> Path:
             console.print(f"[red]Error:[/red] {PROJECT_ROOT_NOT_FOUND}")
         raise typer.Exit(1)
     return repo_root
-
-
-def _run_saas_boundary_preflight(repo_root: Path, *, json_output: bool, validate_only: bool) -> None:
-    """Phase: FR-002 / FR-009 enqueue-side boundary preflight.
-
-    Gated by ``is_saas_sync_enabled`` (routed through ``mission``) so offline /
-    CI invocations are unaffected. ``require_auth=False`` — only refuses on
-    boundary incoherence.
-    """
-    from specify_cli.cli.commands.agent import mission as _mission
-
-    if not (_mission.is_saas_sync_enabled() and not validate_only):
-        return
-    from specify_cli.sync.preflight import run_preflight
-
-    ft_preflight = run_preflight(repo_root=repo_root, require_auth=False)
-    if ft_preflight.ok:
-        return
-    console.print("[red]Refusing `spec-kitty agent mission finalize-tasks`.[/red]")
-    ft_preflight.render(console)
-    if json_output:
-        _emit_json(
-            {
-                "error": "Boundary preflight refused finalize-tasks (FR-002 / FR-009).",
-                "preflight": ft_preflight.to_dict(),
-            }
-        )
-    raise typer.Exit(2)
 
 
 def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: bool) -> str:
@@ -2092,32 +2064,6 @@ def _commit_finalize_artifacts(
     return outcome
 
 
-def _emit_saas_wp_created(
-    work_packages: list[dict[str, object]], mission_slug: str, *, json_output: bool
-) -> None:
-    """Phase: emit WPCreated events to SaaS (non-blocking).
-
-    Routes ``get_emitter`` + ``emit_wp_created`` through the ``mission`` module
-    to preserve the ``mission.get_emitter`` / ``mission.emit_wp_created`` seams.
-    """
-    from specify_cli.cli.commands.agent import mission as _mission
-
-    causation_id = _mission.get_emitter().generate_causation_id()
-    for wp in work_packages:
-        try:
-            _mission.emit_wp_created(
-                wp_id=str(wp["id"]),
-                title=str(wp["title"]),
-                dependencies=list(cast(list[str], wp["dependencies"])),
-                mission_slug=mission_slug,
-                causation_id=causation_id,
-                actor="spec-kitty agent mission finalize-tasks",
-            )
-        except Exception as exc:  # noqa: BLE001 — non-blocking SaaS emission
-            if not json_output:
-                console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")
-
-
 def _emit_success_report(
     tasks_dir: Path,
     state: _BootstrapState,
@@ -2381,8 +2327,6 @@ def _run_commit_pipeline(
             "alongside it) and remains an uncommitted working-tree change."
         )
 
-    _emit_saas_wp_created(state.work_packages, mission_slug, json_output=json_output)
-
     if json_output:
         _emit_success_report(
             tasks_dir,
@@ -2405,7 +2349,7 @@ class _MetaBranchOverrideProgress:
     via a return value) so its state survives even when a LATER, unrelated
     phase raises AFTER the meta.json write has already been folded into the
     finalize commit. A return value alone cannot do this: if
-    ``_emit_saas_wp_created`` or ``_emit_success_report`` raised after
+    ``_emit_success_report`` raised after
     ``_commit_finalize_artifacts`` had already committed successfully, but
     before ``_run_commit_pipeline`` returned, the caller would never observe
     an "already committed" return and would incorrectly revert meta.json —
@@ -2586,7 +2530,6 @@ def finalize_tasks(
     meta_original_text: str | None = None
     try:
         repo_root = _resolve_repo_root(json_output)
-        _run_saas_boundary_preflight(repo_root, json_output=json_output, validate_only=validate_only)
         mission_slug = _resolve_mission_slug(repo_root, feature, json_output=json_output)
 
         from mission_runtime import placement_seam
