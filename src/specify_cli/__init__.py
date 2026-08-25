@@ -117,9 +117,6 @@ def main_callback(
     """Main callback for root CLI setup."""
     import sys
 
-    if _is_doctor_restart_daemon_invocation(sys.argv):
-        return
-
     next_fast_path = _is_next_invocation(sys.argv)
     if not next_fast_path:
         root_callback(ctx)
@@ -301,43 +298,6 @@ def ensure_executable_scripts(project_path: Path, tracker: "StepTracker | None" 
     _report_chmod_results(tracker, updated, failures)
 
 
-def _is_doctor_restart_daemon_invocation(argv: list[str]) -> bool:
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            continue
-        command_parts.append(arg)
-        if len(command_parts) == 2:
-            return command_parts == ["doctor", "restart-daemon"]
-    return False
-
-
-def _is_doctor_restart_daemon_process_fast_path(argv: list[str]) -> bool:
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            if arg != "--json":
-                return False
-            continue
-        command_parts.append(arg)
-    return command_parts == ["doctor", "restart-daemon"]
-
-
-def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
-    os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
-    from specify_cli.sync.restart import render_restart_result, restart_daemon
-
-    result = restart_daemon(Path.cwd())
-    sys.stdout.write(render_restart_result(result, json_output="--json" in argv) + "\n")
-    sys.stdout.flush()
-    sys.stderr.flush()
-    os._exit(result.exit_code)
-
-
 _JSON_VALUE_OPTIONS = {
     "--agent",
     "--answer",
@@ -413,9 +373,6 @@ def main() -> None:
         sys.stdout.flush()
         sys.stderr.flush()
         raise SystemExit(completion_exit)
-
-    if _is_doctor_restart_daemon_process_fast_path(sys.argv):
-        _run_doctor_restart_daemon_process_fast_path(sys.argv)
 
     # Check for spec-kitty-events library availability (required for 2.x branch)
     from specify_cli.events.adapter import EventAdapter
