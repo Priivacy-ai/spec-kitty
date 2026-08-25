@@ -69,14 +69,19 @@ class PathValidationResult:
         for warning in self.warnings:
             lines.append(f"  - {warning}")
 
+        lines.append("")
+        lines.append(
+            "Run `accept --lenient` to treat these as warnings instead of blocking "
+            "errors for this mission run - or, if you want to adopt the convention, "
+            "see the commands below:"
+        )
+
         if self.suggestions:
             lines.append("")
             lines.append("Required Actions:")
             for suggestion in self.suggestions:
                 lines.append(f"  - {suggestion}")
 
-        lines.append("")
-        lines.append("These directories are required by the active mission. Create them before continuing.")
         return "\n".join(lines)
 
 

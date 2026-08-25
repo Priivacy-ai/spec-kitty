@@ -633,7 +633,11 @@ def accept(
     actor: str | None = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: list[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON instead of formatted text"),
-    lenient: bool = typer.Option(False, "--lenient", help="Skip strict metadata validation"),
+    lenient: bool = typer.Option(
+        False,
+        "--lenient",
+        help="Skip strict metadata validation and downgrade missing path-convention checks to warnings",
+    ),
     no_commit: bool = typer.Option(False, "--no-commit", help="Report acceptance readiness without writing metadata or status changes"),
     diagnose: bool = typer.Option(False, "--diagnose", help="Diagnose acceptance blockers without writing metadata or matrix artifacts"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
