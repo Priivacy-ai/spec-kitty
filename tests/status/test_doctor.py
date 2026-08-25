@@ -676,12 +676,13 @@ class TestCheckOrphanWorkspaces:
 class TestCheckDrift:
     """Tests for drift detection delegation."""
 
-    def test_no_validation_engine_returns_empty(self, tmp_path: Path):
+    def test_no_validation_engine_returns_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         """When validation engine is not available -> empty findings, no crash."""
         # The default state is that specify_cli.status.validate doesn't exist.
-        # We patch the import to raise ImportError.
-        with patch.dict("sys.modules", {"specify_cli.status.validate": None}):
-            findings = check_drift(tmp_path)
+        # We patch the import to raise ImportError.  A None sys.modules entry forces
+        # ImportError on import; single-key setitem keeps teardown eviction-free (#89/#99).
+        monkeypatch.setitem(sys.modules, "specify_cli.status.validate", None)
+        findings = check_drift(tmp_path)
         assert findings == []
 
     def test_import_error_graceful(self, tmp_path: Path):
@@ -708,20 +709,22 @@ class TestCheckSparseCheckout:
         with patch("builtins.__import__", side_effect=fake_import):
             assert check_sparse_checkout(tmp_path) == []
 
-    def test_scan_failure_returns_empty(self, tmp_path: Path):
+    def test_scan_failure_returns_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         fake_module = SimpleNamespace(scan_repo=lambda _repo_root: (_ for _ in ()).throw(RuntimeError("boom")))
 
-        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
-            assert check_sparse_checkout(tmp_path) == []
+        # setitem rather than a whole-dict sys.modules mock: teardown restores exactly
+        # this one key, so modules first-imported in the window are not evicted (#89/#99).
+        monkeypatch.setitem(sys.modules, "specify_cli.git.sparse_checkout", fake_module)
+        assert check_sparse_checkout(tmp_path) == []
 
-    def test_inactive_repo_returns_empty(self, tmp_path: Path):
+    def test_inactive_repo_returns_empty(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         fake_report = SimpleNamespace(any_active=False, any_blocking=False)
         fake_module = SimpleNamespace(scan_repo=lambda _repo_root: fake_report)
 
-        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
-            assert check_sparse_checkout(tmp_path) == []
+        monkeypatch.setitem(sys.modules, "specify_cli.git.sparse_checkout", fake_module)
+        assert check_sparse_checkout(tmp_path) == []
 
-    def test_active_primary_and_worktree_emit_finding(self, tmp_path: Path):
+    def test_active_primary_and_worktree_emit_finding(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
         primary_pattern = tmp_path / ".git" / "info" / "sparse-checkout"
         primary = SimpleNamespace(
             is_active=True,
@@ -742,8 +745,8 @@ class TestCheckSparseCheckout:
         )
         fake_module = SimpleNamespace(scan_repo=lambda _repo_root: fake_report)
 
-        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
-            findings = check_sparse_checkout(tmp_path)
+        monkeypatch.setitem(sys.modules, "specify_cli.git.sparse_checkout", fake_module)
+        findings = check_sparse_checkout(tmp_path)
 
         assert len(findings) == 1
         finding = findings[0]
