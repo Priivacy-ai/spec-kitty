@@ -1,12 +1,22 @@
-"""Team/public projection package (D1-T1).
+"""The team-projection package's surviving seam: the per-WP team-field allowlist.
 
-Read-only, deterministic team-index / per-mission-snapshot / explicit-public
-variants, serialized deterministically with exact-commit provenance and an
-attestation manifest. See ``m1-contract-drafts/D1.md`` for the full contract.
-
-This package introduces no server, no transport, no rendering, and no
-provider call — see ``write.py`` for the sole file-writing entry point and
-``provenance.py``/``attestation.py`` for the producer-only attestation story.
+The D1 publish pipeline (``team-index.json``, per-mission
+``team-snapshot.json``, opt-in public variants, attestation manifest) and the
+``spec-kitty team-projection publish`` command were deleted: consumers read the
+tracked repository directly at an exact pushed commit instead of a published
+gitignored projection. What remains — and what Team Kitty ports when rendering
+WP detail from committed state — is :data:`.mission_view.TEAM_WP_ALLOWED_FIELDS`
+and its closed-allowlist semantics.
 """
 
 from __future__ import annotations
+
+from .mission_view import (
+    TEAM_WP_ALLOWED_FIELDS,
+    UnknownWPStateFieldError,
+)
+
+__all__ = [
+    "TEAM_WP_ALLOWED_FIELDS",
+    "UnknownWPStateFieldError",
+]

@@ -6,7 +6,6 @@ import asyncio
 import gzip
 import hashlib
 import json
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 from uuid import UUID
@@ -23,12 +22,6 @@ from specify_cli.delivery.receivers import (
 )
 from specify_cli.delivery.targets import compute_target_id
 from specify_cli.migration.envelope_seam import build_teamspace_envelope
-from specify_cli.dossier.emitter_adapter import (
-    fire_dossier_event,
-    register_dossier_emitter,
-    reset_dossier_emitter,
-)
-from specify_cli.dossier.events import emit_snapshot_computed
 from specify_cli.dossier.models import ArtifactRef
 from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 from specify_cli.sync.body_upload import prepare_body_uploads
@@ -38,7 +31,6 @@ from specify_cli.sync.consent import (
     record_project_opt_out,
 )
 from specify_cli.sync.client import WebSocketClient
-from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.history_disclosure import (
     HistoryDisclosureCapability,
     confirm_history_disclosure,
@@ -206,13 +198,6 @@ def _admitted_history(
         context=context,
     )
     return store, context, capability
-
-
-@pytest.fixture(autouse=True)
-def _reset_adapter() -> Iterator[None]:
-    reset_dossier_emitter()
-    yield
-    reset_dossier_emitter()
 
 
 def test_history_preflight_and_upload_each_use_exact_project_attempts(
@@ -991,160 +976,6 @@ def test_history_delivery_classification_requires_typed_effect_certainty(
     classified = _delivery_classification([result], disclosures)
 
     assert classified == {disclosures[0].attempt_id: (durable_outcome, None)}
-
-
-def test_dossier_adapter_requires_and_preserves_store_minted_context(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    envelopes = [_envelope("old-1")]
-    store, _context, _capability = _admitted_history(tmp_path, monkeypatch, envelopes)
-    seen: list[ProjectSyncContext] = []
-
-    def emitter(**kwargs: Any) -> dict[str, Any]:
-        seen.append(kwargs.pop("project_context"))
-        return dict(kwargs)
-
-    register_dossier_emitter(emitter)
-    payload = {"namespace": {"project_uuid": PROJECT}}
-
-    assert (
-        fire_dossier_event(
-            event_type="MissionDossierSnapshotComputed",
-            aggregate_id="mission:snapshot",
-            aggregate_type="MissionDossier",
-            payload=payload,
-        )
-        is None
-    )
-    layout = store.layout_generation()
-    with store.unit_of_work() as unit:
-        context = store.create_context()
-        result = fire_dossier_event(
-            event_type="MissionDossierSnapshotComputed",
-            aggregate_id="mission:snapshot",
-            aggregate_type="MissionDossier",
-            payload=payload,
-            project_context=context,
-            project_unit=unit,
-            project_layout=layout,
-        )
-
-    assert result is not None
-    assert seen == [context]
-
-
-def test_dossier_explicit_context_captures_locally_without_ambient_or_remote_authority(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
-    store = ProjectSyncStore(PROJECT)
-    layout = store.layout_generation()
-    layout.begin_cutover("t033-dossier-capture")
-    layout.publish_project_only(
-        "t033-dossier-capture",
-        verify_exact=lambda: True,
-    )
-    emitter = EventEmitter(queue=object())  # type: ignore[arg-type]
-
-    def ambient_forbidden(*args: Any, **kwargs: Any) -> Any:
-        del args, kwargs
-        raise AssertionError("explicit dossier capture consulted ambient/remote authority")
-
-    monkeypatch.setattr(emitter, "_get_identity", ambient_forbidden)
-    monkeypatch.setattr(emitter, "_get_team_slug", ambient_forbidden)
-    monkeypatch.setattr(emitter, "_get_git_metadata", ambient_forbidden)
-    monkeypatch.setattr(emitter, "_route_event", ambient_forbidden)
-    register_dossier_emitter(emitter._emit)
-
-    with store.unit_of_work() as unit:
-        context = store.create_context()
-        result = emit_snapshot_computed(
-            mission_slug="private-engagement",
-            parity_hash_sha256="a" * 64,
-            total_artifacts=1,
-            required_artifacts=1,
-            required_present=1,
-            required_missing=0,
-            optional_artifacts=0,
-            optional_present=0,
-            completeness_status="complete",
-            snapshot_id="snapshot-1",
-            namespace={
-                "project_uuid": PROJECT,
-                "mission_slug": "private-engagement",
-                "target_branch": "develop",
-                "mission_type": "software-dev",
-                "manifest_version": "1",
-            },
-            project_context=context,
-            project_unit=unit,
-            project_layout=layout,
-        )
-
-    assert result is not None
-    assert result["project_uuid"] == PROJECT
-    with store.unit_of_work() as unit:
-        journal_rows = unit.execute(
-            "SELECT project_uuid, payload_json FROM journal_entries WHERE project_uuid = ?",
-            (PROJECT,),
-        ).fetchall()
-        outbox_count = unit.execute(
-            "SELECT COUNT(*) FROM outbox_tasks WHERE project_uuid = ?",
-            (PROJECT,),
-        ).fetchone()
-    assert len(journal_rows) == 1
-    assert str(journal_rows[0][0]) == PROJECT
-    assert "private-engagement" in str(journal_rows[0][1])
-    assert outbox_count == (1,)
-
-
-def test_dossier_rejects_mismatched_unit_before_store_creation_or_write(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
-    expected_store = ProjectSyncStore(PROJECT)
-    wrong_store = ProjectSyncStore(OTHER)
-    expected_layout = expected_store.layout_generation()
-    emitter = EventEmitter(queue=object())  # type: ignore[arg-type]
-
-    def forbidden(*args: Any, **kwargs: Any) -> Any:
-        del args, kwargs
-        raise AssertionError("mismatched authority reached store creation or remote routing")
-
-    monkeypatch.setattr(emitter, "_route_event", forbidden)
-    register_dossier_emitter(emitter._emit)
-    with expected_store.unit_of_work():
-        expected_context = expected_store.create_context()
-
-    # From this point the rejection must use only the supplied capabilities. A
-    # path/UUID-derived store reopen would run this sentinel before it could
-    # discover that the active unit belongs to another aggregate.
-    monkeypatch.setattr(ProjectSyncStore, "__init__", forbidden)
-    with wrong_store.unit_of_work() as wrong_unit:
-        result = fire_dossier_event(
-            event_type="MissionDossierSnapshotComputed",
-            aggregate_id="mission:snapshot",
-            aggregate_type="MissionDossier",
-            payload={"namespace": {"project_uuid": PROJECT}},
-            project_context=expected_context,
-            project_unit=wrong_unit,
-            project_layout=expected_layout,
-        )
-
-    assert result is None
-    with expected_store.unit_of_work() as expected_unit:
-        assert expected_unit.execute(
-            "SELECT COUNT(*) FROM journal_entries WHERE project_uuid = ?",
-            (PROJECT,),
-        ).fetchone() == (0,)
-    with wrong_store.unit_of_work() as wrong_unit:
-        assert wrong_unit.execute(
-            "SELECT COUNT(*) FROM journal_entries WHERE project_uuid = ?",
-            (OTHER,),
-        ).fetchone() == (0,)
 
 
 def test_body_capture_rejects_same_uuid_layout_from_another_runtime_root(

@@ -6,20 +6,14 @@ retired concat/bare-hex form onto WP01's canonical
 
 - the producer (``compute_parity_hash_from_dossier`` and ``compute_snapshot``)
   now yields the canonical ``sha256:``-prefixed value;
-- the emitted ``MissionDossierSnapshotComputed`` event carries that value under
-  the UNCHANGED ``snapshot_hash`` field with an otherwise unchanged envelope;
-- the emit-side validator accepts the canonical form (and the bare-hex form,
-  transitional for not-yet-rebaselined drift baselines) while still rejecting
-  genuinely malformed values.
+- the sync-emitter-side validator accepts the canonical form (and the bare-hex
+  form, transitional for not-yet-rebaselined drift baselines) while still
+  rejecting genuinely malformed values.
 
 See: kitty-specs/dossier-parity-reconciler-01KXYXVP/spec.md (FR-003, FR-008).
 """
 
 from __future__ import annotations
-
-from collections.abc import Iterator
-from dataclasses import dataclass
-from pathlib import Path
 
 import pytest
 
@@ -28,46 +22,10 @@ from specify_cli.dossier import (
     compute_parity_hash_from_dossier,
     compute_snapshot,
 )
-from specify_cli.dossier.emitter_adapter import (
-    register_dossier_emitter,
-    reset_dossier_emitter,
-)
-from specify_cli.dossier.events import emit_snapshot_computed
 from specify_cli.dossier.models import ArtifactRef, MissionDossier
 from specify_cli.sync.emitter import _PAYLOAD_RULES, _is_canonical_snapshot_hash
-from specify_cli.sync.layout_generation import LayoutGenerationAuthority
-from specify_cli.sync.project_context import ProjectSyncContext
-from specify_cli.sync.project_store import ProjectSyncStore, ProjectUnitOfWork
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
-
-
-NAMESPACE_DICT = {
-    "project_uuid": "11111111-2222-4333-8444-555555555555",
-    "mission_slug": "042-feat",
-    "target_branch": "main",
-    "mission_type": "software-dev",
-    "manifest_version": "1",
-}
-
-
-@dataclass(frozen=True)
-class _Authority:
-    context: ProjectSyncContext
-    unit: ProjectUnitOfWork
-    layout: LayoutGenerationAuthority
-
-
-@pytest.fixture
-def project_authority(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> Iterator[_Authority]:
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
-    store = ProjectSyncStore(NAMESPACE_DICT["project_uuid"])
-    layout = store.layout_generation()
-    with store.unit_of_work() as unit:
-        yield _Authority(store.create_context(), unit, layout)
 
 
 def _artifact(key: str, path: str, content_hash: str, *, present: bool = True) -> ArtifactRef:
@@ -95,13 +53,6 @@ def _dossier(artifacts: list[ArtifactRef]) -> MissionDossier:
         manifest={"test": "manifest"},
         latest_snapshot=None,
     )
-
-
-@pytest.fixture(autouse=True)
-def _isolate_registration():
-    reset_dossier_emitter()
-    yield
-    reset_dossier_emitter()
 
 
 class TestProducerCanonicalMigration:
@@ -141,51 +92,6 @@ class TestProducerCanonicalMigration:
         snapshot = compute_snapshot(dossier)
         assert snapshot.parity_hash_sha256.startswith("sha256:")
         assert snapshot.parity_hash_sha256 == compute_dossier_snapshot_hash([("spec.md", "a" * 64)])
-
-
-class TestEmitCarriesCanonicalUnderUnchangedField:
-    """T008/T009: emit carries canonical value under unchanged snapshot_hash."""
-
-    def test_emitted_snapshot_hash_is_canonical_and_field_unchanged(
-        self,
-        project_authority: _Authority,
-    ) -> None:
-        captured: list[dict] = []
-
-        def fake_emitter(**kwargs: object) -> dict:
-            captured.append(dict(kwargs))
-            return {"event_id": "e-1"}
-
-        register_dossier_emitter(fake_emitter)
-
-        dossier = _dossier([_artifact("spec", "spec.md", "a" * 64)])
-        snapshot = compute_snapshot(dossier)
-        emit_snapshot_computed(
-            mission_slug="042-feat",
-            parity_hash_sha256=snapshot.parity_hash_sha256,
-            total_artifacts=snapshot.total_artifacts,
-            required_artifacts=snapshot.required_artifacts,
-            required_present=snapshot.required_present,
-            required_missing=snapshot.required_missing,
-            optional_artifacts=snapshot.optional_artifacts,
-            optional_present=snapshot.optional_present,
-            completeness_status=snapshot.completeness_status,
-            snapshot_id=snapshot.snapshot_id,
-            namespace=NAMESPACE_DICT,
-            project_context=project_authority.context,
-            project_unit=project_authority.unit,
-            project_layout=project_authority.layout,
-        )
-
-        assert len(captured) == 1  # golden-count: cardinality-is-contract
-        payload = captured[0]["payload"]
-        # Field name is UNCHANGED and value is the canonical sha256: form.
-        assert "snapshot_hash" in payload
-        assert payload["snapshot_hash"].startswith("sha256:")
-        assert payload["snapshot_hash"] == snapshot.parity_hash_sha256
-        # Envelope shape is unchanged (only the hash value format moved).
-        for key in ("namespace", "artifact_count", "anomaly_count", "computed_at"):
-            assert key in payload
 
 
 class TestCanonicalSnapshotHashValidator:
