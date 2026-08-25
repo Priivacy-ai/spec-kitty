@@ -1,0 +1,30 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH-002
+    status: resolved
+    reason: >-
+      Under the binding ruling (path (b) only), WP01 (T003), WP02 (T009), and WP04
+      (Assertion 3) each carry a ">>> DEVIATION FROM plan.md (TASKS-FRESH-002) <<<" note
+      that quotes the specific plan.md text verbatim (WP1's Case A revert-test line 752,
+      WP2's revert-test row line 753, WP4's Assertions item 3 lines 723-726), states exactly
+      what the WP file does differently, and gives the concrete rationale (e.g. WP04's note
+      explains the literal JSON-vs-object comparison is structurally non-falsifiable because
+      to_dict() reads the same attributes the object-level check already reads) — fully
+      self-contained for a reviewer diffing plan.md against the WP files without opening
+      plan.md separately, and plan.md itself remains untouched as required.
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >-
+      WP02's T009 Test (d) now explicitly requires the monkeypatched SimpleNamespace to set
+      missing_paths=["placeholder"] and format_errors=lambda: "placeholder" alongside
+      missing_paths_feature_relative, matching the live evaluate_path_conventions guard
+      sequence read directly from summary_core.py:144-148 (the "if not path_result.missing_paths"
+      and "if strict_metadata: ... format_errors()" guards that gate the dedup code path); and
+      (d-ii)'s two-entry construction (["contracts","build-secrets"] asserted down to
+      ["build-secrets"]) requires the dedup to actually mutate the list, which rules out both
+      an early-return no-op (would leave both entries) and a filter-omitted implementation
+      (would remove both) — only a correct, filter-present implementation that reaches the
+      dedup code produces the asserted result, so the test genuinely distinguishes "filter
+      correctly excluded it" from "the function never got there."

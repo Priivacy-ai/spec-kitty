@@ -1,0 +1,323 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: confirmed
+mission: accept-path-remediation-honesty-01M0TWZP
+note: '8 of 8 merged findings confirmed (tasks-refute-1.yaml). All 8 R1 findings survived refutation --
+  none refuted. Highest severity: TASKS-VERIFY-001 (sev 4).'
+findings:
+- id: TASKS-DECOMP-001
+  lens: WP concreteness — implementable without re-deriving the plan
+  severity: 3
+  title: WP03/T010's literal "replace the two trailing lines" steps produce text that fails its own T012
+    ordering assertion; the actual required fix (move the --lenient pointer before the "Required Actions:"
+    block) is never stated
+  evidence:
+  - artifact: tasks/WP03-honest-remediation-text.md § Subtask T010, Steps 1-3
+  - artifact: 'tasks/WP03-honest-remediation-text.md § Subtask T010, Step 4 (the hedge: "if the existing
+      suggestions section ... would violate the ordering requirement, restructure ...")'
+  - artifact: tasks/WP03-honest-remediation-text.md § Subtask T012, item 1 (the "--lenient before mkdir
+      -p" string-order assertion)
+  - code: 'src/specify_cli/validators/paths.py:61-78 (format_errors(): suggestions/"Required Actions:"
+      block is appended to `lines` BEFORE the final trailing line WP3 edits)'
+  claim: 'T010 Steps 1-3 instruct the implementer to locate and "replace" only the final two lines of
+    `format_errors()` (the "These directories are required..." sentence) in place, keeping everything
+    else — including the "Required Actions:" section, which already contains the real `mkdir -p <path>`
+    suggestion lines — exactly where it is today, i.e. rendered BEFORE the trailing line. Reproduced this
+    exact scenario locally: building a `PathValidationResult`-shaped output with today''s `format_errors()`
+    structure and only swapping the trailing sentence for T010''s own example wording ("Run `accept --lenient`
+    ... — or, if you want to adopt the convention, create them: `mkdir -p <path>`") yields a joined string
+    where `"mkdir -p"` (from the pre-existing "Required Actions:" bullet) appears at index 128 and `"--lenient"`
+    appears at index 178 — i.e. `mkdir -p` occurs FIRST. This directly fails T012''s own required assertion
+    (`output.index("--lenient") < output.index("mkdir -p")`, per spec.md AC4 / SC-003). T010''s Step 4
+    explicitly anticipates this exact failure mode ("if the existing suggestions section ... would violate
+    the ordering requirement, restructure ... e.g. move it to appear before the ''Required Actions:''
+    section") but only as a conditional escape hatch discovered by running T012''s test — it never states
+    the concrete required edit (move the new --lenient-pointer sentence to render immediately after the
+    per-path warning lines and BEFORE "Required Actions:"; keep the "Required Actions:" / `mkdir -p` block,
+    marked as secondary, after it). An implementer who does exactly what Steps 1-3 say produces a wrong
+    implementation on the first pass and must redesign `format_errors()`''s section order mid-WP — exactly
+    the "ambiguity/gap likely to cause rework inside one work package" this lens flags. (plan.md''s own
+    WP3 section carries the identical unresolved hedge; the tasks-phase artifact was the place to close
+    it and did not.)'
+  remediation: 'Rewrite T010''s Steps to state the concrete restructuring directly: move the new --lenient-pointer
+    sentence to be appended to `lines` immediately after the per-path warning loop and BEFORE the `if
+    self.suggestions:` / "Required Actions:" block is appended; keep "Required Actions:" and its `mkdir
+    -p`/`touch` suggestion lines rendered after it, with the --lenient sentence''s own wording marking
+    those suggestions as the secondary/optional path (e.g. "Run `accept --lenient` to treat these as warnings
+    instead — or, if you want to adopt the convention, see the commands below:" followed by the existing
+    "Required Actions:" section). State this as the required section order in T010''s Steps, not as a
+    conditional fallback in Step 4, and drop the "verify ... before finalizing" hedge since the concrete
+    order removes the ambiguity T012 was written to catch after the fact.'
+- id: TASKS-DECOMP-002
+  lens: WP concreteness / architecture-scout (recurring boundary leak risk)
+  severity: 3
+  title: WP02/T006 hand-duplicates WP01's artifact_tokens defensive-recipe instead of consuming a shared
+    helper WP01 could export, creating a second, independently-maintained copy of the "what counts as
+    an artifact token" rule
+  evidence:
+  - artifact: tasks/WP02-stop-double-reporting.md § Context ("evaluate_path_conventions recomputes the
+      same artifact_tokens set validate_mission_paths computes internally")
+  - artifact: tasks/WP02-stop-double-reporting.md § Subtask T006, Step 1, first bullet ("Recompute artifact_tokens
+      using the identical defensive recipe validate_mission_paths uses internally")
+  - code: src/specify_cli/validators/paths.py:183-192 (artifact_tokens computed inline inside validate_mission_paths,
+      not exposed as a separate importable function)
+  - code: src/specify_cli/acceptance/summary_core.py:110-148 (evaluate_path_conventions, the second call
+      site that would recompute the same recipe)
+  claim: '`validate_mission_paths` computes `artifact_tokens` inline (`paths.py:183-192`, confirmed on
+    this checkout) via a defensive `getattr(mission.config, "artifacts", None)` / `getattr(artifacts,
+    "required"/"optional", ()) or ()` recipe. WP02''s T006 instructs `evaluate_path_conventions` (`summary_core.py`,
+    a different module WP01 does not own) to "recompute the identical defensive recipe" verbatim rather
+    than call a shared function. This is a real, verifiable second copy of the same business rule ("what
+    tokens count as a mission artifact, defensively against a partial mock"), not a hypothetical — after
+    WP02 lands there are two independent inline copies of this getattr/default chain in two different
+    files. Per the charter''s Governing Principles ("Single canonical authority... reconcile (extend/reference)
+    existing doctrine rather than add a second authority") and Standing Order 6 ("chase unification, not
+    parity with a dead quirk"), this is exactly the whack-a-field pattern this lens group is tuned to
+    catch: if the defensive recipe''s behavior needs to change later (e.g. a bug in how a partial `MissionConfig`
+    mock is handled), a maintainer fixing `validate_mission_paths`''s copy has no structural signal that
+    `evaluate_path_conventions`''s copy also needs the same fix — they will silently drift. Nothing in
+    plan.md''s WP2 section argues for duplication over extraction on its merits (e.g. avoiding new coupling,
+    keeping `summary_core.py`''s pure-transform boundary); it only describes the duplicate mechanism as
+    "the identical defensive recipe... at no added cost beyond one extra artifact_tokens recomputation"
+    — i.e. an unexamined default, not a considered rejection of sharing.'
+  remediation: 'Add a subtask to WP01 (which already owns `validators/paths.py` and already touches this
+    exact code, `paths.py:183-192`, for T001/T002) to extract the `artifact_tokens` computation into a
+    small, exported, pure helper — e.g. `def artifact_tokens_for_mission(mission: Mission) -> set[str]`
+    — and have `validate_mission_paths` call it instead of inlining. Update WP02''s T006 to import and
+    call that helper from `summary_core.py` instead of reimplementing the getattr/default chain. This
+    does not change the mission''s WP boundaries, dependency order, or file ownership (WP01 already owns
+    the source function; WP02 already depends on WP01 and already imports from `validators/paths.py` indirectly
+    via `PathValidationResult`) — it only changes where one already-planned computation lives, closing
+    the drift risk at zero additional WP-shape cost.'
+- id: TASKS-DECOMP-003
+  lens: WP concreteness — descriptions concrete enough to implement without re-deriving the plan
+  severity: 2
+  title: WP02/T009's own instructions leave it undecided whether WP02 must itself write the `--json`-consistency
+    test for FR-002 Scenario 4, even though plan.md's Test Strategy table already assigns that test to
+    WP04 alone
+  evidence:
+  - artifact: tasks/WP02-stop-double-reporting.md § Subtask T009, Step 1, last bullet ("this may be a
+      separate test or an additional assertion in the same one; either is acceptable as long as it's covered
+      here or explicitly deferred to WP4's fixture (confirm which, and note it in this WP's implementation
+      notes if deferred)")
+  - artifact: plan.md § Test strategy per Acceptance Scenario, row "US2 | 4 ... | WP2 + WP4 | WP4 fixture
+      assertion 3"
+  - artifact: tasks/WP04-red-first-tests.md § Subtask T014, Assertion 3 (the `--json` CLI invocation/consistency
+      check, explicitly assigned to WP04)
+  claim: plan.md's Test Strategy table's own "Test" column for US2/Scenario 4 names only "WP4 fixture
+    assertion 3" as the concrete test — and WP04's T014 Assertion 3 does implement exactly that check
+    end-to-end via a real `--json` CLI invocation. Despite this already-settled assignment, WP02's T009
+    Step 1 still frames the `--json` assertion as optional-but-undecided ("this may be... or explicitly
+    deferred... confirm which"), pushing a scope decision onto the WP02 implementer that the plan had
+    already made. This does not risk a coverage gap (WP04 covers it regardless), but it does risk wasted
+    implementer effort second-guessing whether to duplicate the JSON check inside WP02, and it is exactly
+    the kind of ambiguity the tasks phase exists to remove before an implementer starts.
+  remediation: Simplify WP02/T009 Step 1's last bullet to state definitively that the `--json`-consistency
+    assertion is WP04's responsibility (per plan.md's Test Strategy table) and that WP02's own test (a)
+    only needs the object-level (`AcceptanceSummary`) dedup + `.ok` assertions — drop the "confirm which
+    / note if deferred" hedge entirely.
+- id: TASKS-SEQ-001
+  lens: Deliberate write-scope overlap validity
+  severity: 2
+  title: Test-directory owned_files overlaps across WP01/WP02/WP04 are real but undisclosed in any WP's
+    Risks section
+  evidence:
+  - artifact: wps.yaml WP01 entry (owned_files) and WP02 entry (owned_files)
+  - artifact: 'wps.yaml WP04 entry (owned_files: tests/specify_cli/acceptance/test_accept_contracts_path_repro.py)'
+  - artifact: tasks/WP01-resolved-path-correctness.md, Risks section ('owned_files overlap with WP03')
+  - artifact: tasks/WP02-stop-double-reporting.md, Risks section ('owned_files overlap with WP03')
+  - artifact: tasks/WP03-honest-remediation-text.md, Risks section ('owned_files overlap with WP01/WP02')
+  claim: 'wps.yaml declares `tests/specify_cli/acceptance/**` as owned_files for BOTH WP01 and WP02, and
+    WP04''s single owned file (`tests/specify_cli/acceptance/test_accept_contracts_path_repro.py`) also
+    falls inside that same glob — a three-way overlap. Separately, `tests/specify_cli/cli/commands/**`
+    is owned by both WP02 and WP03. Neither overlap is mentioned anywhere: WP01''s Risks section names
+    only the `validators/paths.py` overlap with WP03; WP02''s names only the `accept.py` overlap with
+    WP03; WP03''s names only the two src-file overlaps with WP01/WP02 (`validators/paths.py`, `accept.py`)
+    but not the `tests/agent/test_validators_unit.py` overlap with WP01 or the `tests/specify_cli/cli/commands/**`
+    overlap with WP02. The dependency chain (WP01->WP02->WP03->WP04, verified acyclic and matching each
+    WP file''s own frontmatter `dependencies:`) does make all of these safe in practice — no two WPs sharing
+    an owned path are ever concurrent under the runtime''s approved/done dependency gate — so this is
+    not a functional collision risk. But the mission-derived review instruction asks to verify the "deliberate
+    overlap, because the chain is linear" claim is actually true and complete; the Risk sections'' own
+    accounting of which paths are shared is incomplete, so a reviewer relying on those sections alone
+    for the full picture of write-scope overlap would miss two of the four actual overlaps.
+
+    '
+  remediation: 'Add the missing overlaps to each WP''s Risks section (or add one consolidated note to
+    wps.yaml/plan.md listing all owned_files overlaps across WP01-WP04 in one place): WP01<->WP02 on `tests/specify_cli/acceptance/**`,
+    WP01<->WP04 and WP02<->WP04 on the same glob (WP04''s new file falls inside it), and WP02<->WP03 on
+    `tests/specify_cli/cli/commands/**` in addition to the already-disclosed `accept.py`/`validators/paths.py`
+    src-file overlaps.
+
+    '
+- id: TASKS-VERIFY-001
+  lens: WP04 fixture is the maintainer-binding deliverable, not folded into 'add tests'
+  severity: 4
+  title: WP04's Assertion 3 (--json internal consistency) cannot fail even if WP02's dedup fix is reverted
+    — not independently falsifiable
+  evidence:
+  - artifact: 'tasks/WP04-red-first-tests.md § Subtask T014, Assertion 3: ''assert `optional_missing`
+      and `path_violations` in the JSON reflect the identical single-severity resolution as Assertion
+      2''s summary-object check (same fact appears in exactly the same one of the two fields, matching
+      what the object-level check found)'''
+  - artifact: tasks/WP04-red-first-tests.md § Subtask T015 (reversibility check) only enumerates Assertion
+      1 (pre-WP1 red) and Assertion 2 (pre-WP2 red); Assertion 3 is never mentioned in the reversibility
+      check at all
+  - artifact: plan.md § 'Test strategy per Acceptance Scenario' table, row 'US2 | 4 (--json internal consistency)
+      | WP2 + WP4 | WP4 fixture assertion 3' — attributes this as WP2-fix coverage
+  - code: src/specify_cli/cli/commands/accept.py:796 — `print(json.dumps(_with_advisories(summary.to_dict(),
+      [provenance_note]), indent=2))`
+  - code: 'src/specify_cli/acceptance/__init__.py:430,432 — `AcceptanceSummary.to_dict()` returns `"optional_missing":
+      self.optional_missing, ... "path_violations": self.path_violations` — i.e. the JSON payload is a
+      direct read of the same object attributes the console/summary-object path (Assertion 2) already
+      reads. There is no separate JSON-specific computation anywhere in the codebase for these two fields.'
+  claim: 'Given the JSON payload is literally `summary.to_dict()` reading the same `optional_missing`/`path_violations`
+    attributes Assertion 2 already checks, a WP02 revert makes "contracts" appear in BOTH fields identically
+    in the console/object path AND the JSON path — the two stay "consistent" (both wrong the same way)
+    whether or not the dedup fix is present. Assertion 3, as specified ("JSON matches the object-level
+    check"), is therefore structurally guaranteed to pass regardless of WP02''s correctness — it can only
+    ever fail if `to_dict()` itself diverges from the object''s own attributes, which is a bug class unrelated
+    to FR-002/WP02. WP04''s own T015 implicitly confirms this: it defines concrete red-before/green-after
+    evidence for Assertions 1 and 2 but never claims (or attempts) the same for Assertion 3. This means
+    User Story 2 / Acceptance Scenario 4 ("`--json` internal consistency" — FR-002''s Edge Case) has no
+    genuine red-first test anywhere in WP01-WP04, violating NFR-001''s "every FR above (001-007) has at
+    least one test that demonstrably fails against the pre-fix code" for this specific scenario, even
+    though the test-strategy table claims it is covered.
+
+    '
+  remediation: 'Rewrite WP04 T014''s Assertion 3 to independently assert the "exactly one of optional_missing/path_violations"
+    property directly on the parsed `--json` payload (mirroring Assertion 2''s check, applied to the JSON
+    dict''s own `optional_missing`/ `path_violations` keys) instead of comparing JSON output to the object-level
+    result. Then update T015''s reversibility check to include Assertion 3''s own pre-WP2 red state (it
+    will flip red->green in lockstep with Assertion 2, since both now read the same underlying fields,
+    but at least the test can genuinely fail for the FR-002 defect rather than being structurally incapable
+    of failing). Update plan.md''s test-strategy table row for US2/Scenario 4 accordingly if the assertion''s
+    mechanics change.
+
+    '
+- id: TASKS-VERIFY-002
+  lens: missing_paths_feature_relative propagation correctness
+  severity: 3
+  title: WP02's T009 leaves the real-vs-mocked fixture choice ambiguous, which determines whether WP01's
+    population logic is ever exercised before WP04
+  evidence:
+  - artifact: 'tasks/WP01-resolved-path-correctness.md § Subtask T003 and T004 — neither asserts on `PathValidationResult.missing_paths_feature_relative`
+      directly; plan.md''s WP1 section states explicitly this is deferred: ''this revert test does not
+      need to assert on it directly — its correctness is exercised by WP2''s revert test below'''
+  - artifact: 'tasks/WP02-stop-double-reporting.md § Subtask T009, step 1: ''on a `software-dev`-shaped
+      fixture (or via the real `collect_feature_summary` entry point) with `contracts/` missing...'' —
+      presents a hand-built/mocked fixture and the real entry point as interchangeable options'
+  - code: 'tests/specify_cli/acceptance/test_acceptance_cores.py:235-260 — the existing sibling class
+      `TestEvaluatePathConventions` (which T009''s own phrasing ''software-dev-shaped fixture'' echoes)
+      exclusively uses `SimpleNamespace`/`monkeypatch.setattr(...validate_mission_paths, lambda *_a, **_k:
+      SimpleNamespace(missing_paths=[...], format_errors=...))` mocks — none of which would carry a `missing_paths_feature_relative`
+      attribute unless the test author manually adds it by hand'
+  - artifact: 'tasks/WP04-red-first-tests.md § Objective / Context: FR-007 explicitly forbids a hand-built
+      `PathValidationResult`/`AcceptanceSummary` stand-in, so WP04''s Assertion 2 is the one guaranteed
+      real-entry-point exercise of WP01''s artifact-tagged-branch population logic — but WP04''s fixture
+      only covers the artifact-tagged branch (the `contracts/` case); no WP anywhere asserts on `missing_paths_feature_relative`''s
+      populated value for the build/repo-root (`else:`) or absolute-path (`if candidate.is_absolute():`)
+      branches'
+  claim: 'If a WP02 implementer follows the existing test-file convention T009''s own wording points to
+    (''software-dev-shaped fixture'', matching `TestEvaluatePathConventions`''s established SimpleNamespace-mock
+    style) rather than the real `collect_feature_summary` entry point, T009 would hand-construct `path_result.missing_paths_feature_relative`
+    directly to make the dedup fire — testing only WP02''s consumption/filtering logic, not WP01''s actual
+    per-branch population code. Combined with WP01''s own tests deliberately not asserting on the field
+    (by design, deferred to WP02), a real population bug in WP01''s artifact-tagged branch could then
+    slip past both WP01''s and WP02''s tests undetected, with WP04''s mandatory-real-entry-point fixture
+    as the *only* backstop — and even that backstop only covers the artifact-tagged branch. A population
+    bug specific to the build/repo-root or absolute-path branches'' placeholder values is never asserted
+    on anywhere in WP01-WP04 (though such a bug is low-*consequence* today because WP02''s `artifact_tokens`
+    membership filter structurally excludes those placeholders from the comparison regardless of their
+    value — see TASKS-VERIFY-004 for the related gap in testing that exclusion itself).
+
+    '
+  remediation: 'Tighten tasks/WP02-stop-double-reporting.md T009 step 1 to require the real `collect_feature_summary`
+    (or `accept` CLI) entry point for at least the primary dedup test — drop the "software-dev-shaped
+    fixture" mocked alternative as an equally valid option, or explicitly note that if a mocked fixture
+    is used instead, WP01''s T003/T004 must add a direct assertion on `missing_paths_feature_relative`''s
+    value for the branch(es) that mocked test would otherwise bypass. Independently, add one explicit
+    assertion in WP01''s T003 (artifact-tagged) and T004 (build/repo-root) on `missing_paths_feature_relative`''s
+    populated content for their respective branch — cheap given the fixtures already exist — closing the
+    gap regardless of how WP02 chooses to build its fixture.
+
+    '
+- id: TASKS-VERIFY-003
+  lens: Baseline captured before the first change so pre-existing reds are not attributed to this mission
+  severity: 3
+  title: No WP's Definition of Done re-runs the full 180-test baseline surface plan.md commits to — only
+    the 3 named pinned node IDs
+  evidence:
+  - artifact: 'plan.md § ''Baseline honesty'': ''tests/specify_cli/acceptance/, tests/specify_cli/cli/commands/test_accept_warnings_render.py,
+      tests/agent/test_validators_unit.py, tests/characterization/test_trio_json_envelope.py -> 180 passed,
+      0 failed on this checkout at mission start... any red discovered later belongs to this mission'''
+  - artifact: tasks/WP01-resolved-path-correctness.md § Definition of Done — 'The three SC-005 pinned
+      tests ... remain green, unmodified (NFR-002)' is the only baseline-adjacent check listed; no mention
+      of the full 4-directory/file baseline surface
+  - artifact: tasks/WP02-stop-double-reporting.md § Definition of Done — same pattern, only the 3 pinned
+      tests named
+  - artifact: tasks/WP03-honest-remediation-text.md § Definition of Done — same pattern
+  - artifact: tasks/WP04-red-first-tests.md § Definition of Done — 'The three SC-005 pinned tests remain
+      green, unmodified (NFR-002) — this WP adds a new test file and does not touch any existing test'
+      — again only the 3 pinned tests, and even this WP (the mission's final one) never requires re-running
+      the full declared baseline surface
+  - code: 'verified directly: `.venv/bin/python -m pytest tests/specify_cli/acceptance/ tests/specify_cli/cli/commands/test_accept_warnings_render.py
+      tests/agent/test_validators_unit.py tests/characterization/test_trio_json_envelope.py -q` -> 180
+      passed in 23.07s on this checkout, confirming plan.md''s baseline claim is accurate as of tasks-phase
+      review (no finding on the baseline number itself)'
+  claim: 'plan.md''s own baseline-honesty commitment is to the FULL 180-test surface across four directories/files,
+    not merely the 3 named SC-005 pins ("any red discovered later belongs to this mission" implies the
+    whole surface is the accountability boundary). Yet every WP''s Definition of Done narrows the re-verification
+    gate to only the 3 pinned node IDs. Since the full baseline command completes in ~23s (confirmed above)
+    and this mission''s own plan.md already scoped exactly these 4 test locations as "the" affected surface
+    (not the ~17,000-test full suite the charter otherwise discourages running per-WP), there is no cost
+    reason for the narrower gate. As specified, a WP could introduce a regression in one of the other
+    177 baseline tests within `tests/specify_cli/acceptance/` or `tests/agent/test_validators_unit.py`
+    (both of which WP01-WP04 directly edit) and no WP-level Definition of Done would catch it before the
+    mission reaches integration/review — deferring detection later than the WP boundary where charter
+    Standing Order 4''s "reproduce RED-FIRST... require live evidence" bites hardest.
+
+    '
+  remediation: 'Add one line to each WP''s Definition of Done (at minimum WP04''s, as the mission''s final
+    gate before FR-007''s fixture is complete) requiring a full re-run of the exact baseline command named
+    in plan.md''s Baseline honesty section (`tests/specify_cli/acceptance/ tests/specify_cli/cli/commands/test_accept_warnings_render.py
+    tests/agent/test_validators_unit.py tests/characterization/test_trio_json_envelope.py`) and confirming
+    0 failed (with the passed count now >= 180, accounting for WP04''s new test file), not merely the
+    3 named pinned node IDs.
+
+    '
+- id: TASKS-VERIFY-004
+  lens: missing_paths_feature_relative propagation correctness
+  severity: 2
+  title: WP02's artifact_tokens membership-filter (the defense against a future basename/token collision)
+    has no dedicated collision-scenario test anywhere in WP01-WP04
+  evidence:
+  - artifact: tasks/WP02-stop-double-reporting.md § Context / T006 — 'Rather than comparing basenames/last-path-components
+      (which cannot distinguish two future dual-declared tokens sharing a final segment, e.g. a hypothetical
+      `docs/contracts` optional artifact vs. an unrelated `api/contracts` declared path)... Structurally
+      exclude the placeholder entries first' — describes the membership-filter's defensive purpose in
+      detail
+  - artifact: 'tasks/WP02-stop-double-reporting.md § Risks — ''Basename-only collision risk avoided by
+      design: ... do not simplify to a basename comparison for expedience'' — flags the risk as real but
+      names no test that would catch a regression to the simpler (wrong) comparison'
+  - artifact: tasks/WP02-stop-double-reporting.md § Subtask T009 — all three revert tests use the single
+      `contracts/` dual-declared fixture only; none constructs a synthetic mission with two distinct tokens
+      sharing a final path segment
+  claim: 'In the only fixture ever tested (`contracts/`, dual-declared, no other missing path in scope),
+    a naive basename/full-list comparison (skipping the `artifact_tokens` membership filter entirely)
+    would produce the identical pass/fail result as the correct, membership-filtered implementation —
+    because there is no second, colliding token present to distinguish the two approaches. This means
+    a future refactor that quietly simplifies WP02''s exclusion logic to "just compare `missing_paths_feature_relative`
+    entries against `optional_missing` directly" (dropping the `artifact_tokens` recomputation) would
+    pass every test named in WP01-WP04 while silently reintroducing the exact collision risk the Risks
+    section calls out as something to actively resist.
+
+    '
+  remediation: 'Add one additional unit test in WP02 (alongside T006''s or T009''s existing fixtures)
+    using a synthetic `MissionConfig` that declares an artifact token and a distinct, non-artifact declared
+    path sharing a final path segment (e.g. artifact `docs/contracts` vs. build path `api/contracts`),
+    asserting the dedup does NOT cross-match them — directly exercising the `artifact_tokens` membership
+    filter''s stated defensive purpose rather than leaving it correct-by-inspection-only.
+
+    '

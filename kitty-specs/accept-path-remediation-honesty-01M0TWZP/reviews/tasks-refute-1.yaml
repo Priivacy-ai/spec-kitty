@@ -1,0 +1,29 @@
+schema: review-refute/v1
+complete: true
+phase: tasks
+batch: 1
+verdicts:
+  - id: TASKS-DECOMP-001
+    verdict: confirmed
+    reason: Reproduced locally — applying only T010 Steps 1-3 (replace the trailing two lines, leaving the existing "Required Actions:"/mkdir-p block untouched above it) yields joined output where "mkdir -p" (index 133 in my repro) precedes "--lenient" (index 188), failing T012's own `index("--lenient") < index("mkdir -p")` assertion; Step 4 only offers this as a conditional fallback discovered by running the test, not a stated required edit.
+  - id: TASKS-DECOMP-002
+    verdict: confirmed
+    reason: paths.py:183-192 computes artifact_tokens inline with no exported helper, and WP02's T006/Context text verbatim instructs `evaluate_path_conventions` to "recompute the identical defensive recipe" rather than import a shared function, creating a real second copy of the same rule with no stated rationale for duplication over extraction.
+  - id: TASKS-DECOMP-003
+    verdict: confirmed
+    reason: plan.md's Test Strategy table (line 766) already assigns US2/Scenario 4 to "WP4 fixture assertion 3" alone, yet WP02's T009 step 1 and Definition of Done both still hedge with "confirm which / note if deferred," reintroducing a scope decision the plan had already settled.
+  - id: TASKS-SEQ-001
+    verdict: confirmed
+    reason: wps.yaml confirms tests/specify_cli/acceptance/** is owned by WP01, WP02, and (by glob containment) WP04's new file, and tests/specify_cli/cli/commands/** is owned by both WP02 and WP03 — but each WP's Risks section names only its src-file overlaps (validators/paths.py, accept.py), omitting these test-glob overlaps.
+  - id: TASKS-VERIFY-001
+    verdict: confirmed
+    reason: Confirmed accept.py:796 prints `summary.to_dict()` and __init__.py:430/432 show `optional_missing`/`path_violations` in to_dict() are direct reads of the same attributes Assertion 2 checks, with no JSON-specific computation; a WP02 revert makes both paths wrong identically, so Assertion 3 as specified (JSON matches object-level check) cannot fail from a WP02 regression, and T015's reversibility check indeed omits Assertion 3 entirely.
+  - id: TASKS-VERIFY-002
+    verdict: confirmed
+    reason: Confirmed tests/specify_cli/acceptance/test_acceptance_cores.py's TestEvaluatePathConventions class exclusively uses SimpleNamespace/monkeypatch mocks of validate_mission_paths; WP02's T009 step 1 offers this "software-dev-shaped fixture" as an equally valid alternative to the real entry point, and WP04's fixture (the only mandatory real-entry-point exercise) covers only the artifact-tagged branch, leaving the build/repo-root and absolute-path branches' population logic untested anywhere in WP01-WP04.
+  - id: TASKS-VERIFY-003
+    verdict: confirmed
+    reason: Ran the exact baseline command myself — 180 passed in 21s, matching plan.md's Baseline honesty commitment — and confirmed all four WPs' Definition of Done sections require only the 3 named SC-005 pinned tests, never a re-run of the full declared 180-test baseline surface.
+  - id: TASKS-VERIFY-004
+    verdict: confirmed
+    reason: WP02's T009 Test (a)/(b)/(c) all use the single dual-declared "contracts/" fixture; no subtask constructs a second, distinct artifact token sharing a final path segment with a non-artifact declared path, so the artifact_tokens membership filter's stated defensive purpose (avoiding basename-only collisions) is asserted nowhere.
