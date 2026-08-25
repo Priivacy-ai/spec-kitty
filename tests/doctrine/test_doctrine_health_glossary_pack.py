@@ -325,7 +325,18 @@ class TestDoctorDoctrineGlossaryPackJson:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.timing
 class TestDoctorDoctrinePerformance:
+    """NFR-005 wall-clock gate (T026).
+
+    ``@pytest.mark.timing`` per the flakiness policy's Tier-1 disposition
+    (docs/development/testing/testing-flakiness.md): do not wall-clock in the
+    parallel shard. The 2 s budget is generous for a warm, unloaded run but a
+    16-worker xdist shard routinely pushed it over with no code regression
+    (red on main @15db6ebd9, spec-kitty#81), so the gate runs in the dedicated
+    serial ``-m timing`` pass instead.
+    """
+
     def test_doctor_doctrine_json_completes_under_two_seconds(
         self, bare_repo_root: Path
     ) -> None:
