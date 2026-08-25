@@ -317,7 +317,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # (issue-5-delete-sync-transport): the auth-doctor daemon section died with
         # the sync transport; the dataclass is gone from _auth_doctor.
         SymbolKey(
-            "DoctorReport", "3083b579d7782d2eaf3940307c5813b06ee421abfbe971d9f50355a7bd19158b", source_module="specify_cli.cli.commands._auth_doctor"
+            "DoctorReport", "f67b56299c5fe794033b42a7c5390519ce0f197bb7976a0aaa9b668d2993221a", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
         SymbolKey(
             "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
@@ -334,15 +334,15 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
         # instead of datetime.now(UTC), per the clock single-door migration)
         SymbolKey(
-            "assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "e051060c599e629ffa35ef3762389ec265873962c55c57cec3cb4611e860a19f", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
         SymbolKey(
-            "render_report", "719c4b8b25a0a7b9e613e559e60abacbdef6ad4ab04788e9b956b7d788ad13fb", source_module="specify_cli.cli.commands._auth_doctor"
+            "render_report", "5d7c9ef447c1b6bd181b91df73b6d5487371dfde2e82f9c531b9941e0226d0b8", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::render_report
         # specify_cli.cli.commands._auth_doctor::render_report_json
-        SymbolKey("render_report_json", "909a351e28d3aa72e41d2986c624b5ac2eb10476fa7010667fb4d1a76993cf8e", source_module="specify_cli.cli.commands._auth_doctor"),
+        SymbolKey("render_report_json", "93cff87dc4744c952bb1198e4dfbcdec80aaad7ea9607a572c7287722cd8ac63", source_module="specify_cli.cli.commands._auth_doctor"),
         # specify_cli.cli.commands._branch_strategy_gate::GateDecision
         SymbolKey(
             "GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899", source_module="specify_cli.cli.commands._branch_strategy_gate"
@@ -731,7 +731,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.tracker.origin::search_origin_candidates
         SymbolKey("search_origin_candidates", "5901b7aef2a3cf420da33994b0db298b2b96d9bf23b9da263eba3c1003305069", source_module="specify_cli.tracker.origin"),
         # specify_cli.tracker.origin::start_mission_from_ticket
-        SymbolKey("start_mission_from_ticket", "16f1e4cf5ba62e5e10c1d4622b62549922f9b149432897f11696e00e7e8cac8a", source_module="specify_cli.tracker.origin"),
+        SymbolKey("start_mission_from_ticket", "4ce21a98763e91956fb8666c6479e7e86f70f8870f5ea3a0d4b1227f8870071f", source_module="specify_cli.tracker.origin"),
         # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID
         SymbolKey(
             "MIGRATION_ID",

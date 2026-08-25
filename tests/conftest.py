@@ -61,9 +61,10 @@ from tests.utils import REPO_ROOT, run, write_wp
 #
 # Two layers are required:
 #   1. ``pytest_configure`` sets the HOME/XDG env vars *before collection* so
-#      that modules which bind a home-derived path at import time (e.g.
-#      ``specify_cli.sync.daemon.SPEC_KITTY_DIR = Path.home() / ".spec-kitty"``
-#      at module top level, ``daemon.py:94``) resolve into the isolated home.
+#      that modules which bind a home-derived path at import time resolve into
+#      the isolated home. (The sync daemon was the motivating case; it died
+#      with the sync transport, issue #5, but the isolation stays load-bearing
+#      for every other home-derived binding.)
 #   2. An autouse, function-scoped fixture re-asserts the ``Path.home``
 #      monkeypatch + env for every test, keyed by worker id, so call-time
 #      ``Path.home()`` reads are isolated too. Never session-only: a single
