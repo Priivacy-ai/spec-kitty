@@ -55,6 +55,34 @@ class DeliveryOutcome(StrEnum):
     TERMINAL_UNKNOWN = "terminal_unknown"
 
 
+# Terminality is a property of the outcome, and before #3722 it was spelled out
+# separately in four places: the durable-result whitelist, the outcome->state
+# write path, the settle-conflict classifier, and the projection's expected-state
+# map. Adding PREFLIGHT_ACCEPTED to one of the four left the write path falling
+# through to UNKNOWN, so a second --apply saw a nonterminal attempt and refused
+# the entire cohort. One name, read by all four.
+_TERMINAL_DELIVERY_OUTCOMES = frozenset(
+    {
+        DeliveryOutcome.DELIVERED,
+        DeliveryOutcome.DUPLICATE,
+        DeliveryOutcome.PREFLIGHT_ACCEPTED,
+        DeliveryOutcome.REFUSED,
+        DeliveryOutcome.TERMINAL_UNKNOWN,
+    }
+)
+
+# The subset that settles an attempt as SUCCEEDED. PREFLIGHT_ACCEPTED is here
+# because the preflight phase is over for that attempt, not because anything was
+# delivered.
+_SUCCEEDED_DELIVERY_OUTCOMES = frozenset(
+    {
+        DeliveryOutcome.DELIVERED,
+        DeliveryOutcome.DUPLICATE,
+        DeliveryOutcome.PREFLIGHT_ACCEPTED,
+    }
+)
+
+
 class RecoveryAction(StrEnum):
     """Adapter-neutral recovery action for one durable attempt."""
 
@@ -477,12 +505,7 @@ def _validated_terminal_projection_results(
         _validate_result_category(outcome=outcome, terminal_refusal_category=category)
         if result_epoch_id != epoch_id or result_target_generation != target_generation or str(result_row[2]) != admission_generation:
             raise ProjectStoreError("delivery terminal result authority no longer matches the live transport lease")
-        if outcome in {
-            DeliveryOutcome.DELIVERED,
-            DeliveryOutcome.DUPLICATE,
-            DeliveryOutcome.REFUSED,
-            DeliveryOutcome.TERMINAL_UNKNOWN,
-        }:
+        if outcome in _TERMINAL_DELIVERY_OUTCOMES:
             terminal_results.append((outcome, category))
     return terminal_results
 
@@ -690,7 +713,7 @@ def _record_delivery_result(
 ) -> None:
     _validate_context_for_unit(unit, context, require_lease=True)
     _validate_result_category(outcome=outcome, terminal_refusal_category=terminal_refusal_category)
-    if outcome in {DeliveryOutcome.DELIVERED, DeliveryOutcome.DUPLICATE}:
+    if outcome in _SUCCEEDED_DELIVERY_OUTCOMES:
         terminal_state = DeliveryAttemptState.SUCCEEDED
     elif outcome is DeliveryOutcome.REFUSED:
         terminal_state = DeliveryAttemptState.REFUSED
@@ -2303,12 +2326,7 @@ def _assert_result_upsert_allowed(
     existing_category = str(existing_result[5]) if existing_result[5] is not None else None  # type: ignore[index]
     if existing_outcome is outcome and existing_category == terminal_refusal_category:
         return
-    terminal = {
-        DeliveryOutcome.DELIVERED,
-        DeliveryOutcome.DUPLICATE,
-        DeliveryOutcome.REFUSED,
-        DeliveryOutcome.TERMINAL_UNKNOWN,
-    }
+    terminal = _TERMINAL_DELIVERY_OUTCOMES
     recoverable = {
         DeliveryOutcome.PENDING,
         DeliveryOutcome.RETRYABLE_NO_EFFECT,

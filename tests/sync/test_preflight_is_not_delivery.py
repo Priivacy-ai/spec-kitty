@@ -38,15 +38,46 @@ def test_preflight_accepted_is_terminal() -> None:
     If this outcome is not terminal, a re-run raises recovering a nonterminal
     attempt -- which is exactly the crash the original code avoided by lying.
     """
-    from specify_cli.sync.transport_attempts import _LOGICAL_OPERATION_TERMINAL_STATES
+    from specify_cli.sync.transport_attempts import (
+        _LOGICAL_OPERATION_TERMINAL_STATES,
+        _SUCCEEDED_DELIVERY_OUTCOMES,
+        _TERMINAL_DELIVERY_OUTCOMES,
+    )
 
-    # The outcome->state map is the authority; assert through it rather than
-    # restating the mapping here, so a change to the map fails this test.
-    from specify_cli.sync import transport_attempts as ta
-
-    source = ta.__file__
-    assert source  # module is importable
+    assert DeliveryOutcome.PREFLIGHT_ACCEPTED in _TERMINAL_DELIVERY_OUTCOMES
+    assert DeliveryOutcome.PREFLIGHT_ACCEPTED in _SUCCEEDED_DELIVERY_OUTCOMES
     assert DeliveryAttemptState.SUCCEEDED in _LOGICAL_OPERATION_TERMINAL_STATES
+
+
+def test_every_terminal_outcome_settles_to_a_terminal_state() -> None:
+    """The invariant that four hand-maintained copies of this set kept losing.
+
+    The first cut of #3722 added PREFLIGHT_ACCEPTED to the projection's
+    expected-state map only. The write path's own list did not have it, so the
+    attempt was stored ``UNKNOWN`` -- nonterminal -- and the next ``--apply``
+    refused the whole cohort with "mixed or nonterminal". Every terminal
+    outcome must land on a terminal state, whichever site is asked.
+    """
+    from specify_cli.sync.transport_attempts import (
+        _LOGICAL_OPERATION_TERMINAL_STATES,
+        _SUCCEEDED_DELIVERY_OUTCOMES,
+        _TERMINAL_DELIVERY_OUTCOMES,
+    )
+
+    settled = {
+        DeliveryOutcome.REFUSED: DeliveryAttemptState.REFUSED,
+        DeliveryOutcome.TERMINAL_UNKNOWN: DeliveryAttemptState.TERMINAL_UNKNOWN,
+    } | {outcome: DeliveryAttemptState.SUCCEEDED for outcome in _SUCCEEDED_DELIVERY_OUTCOMES}
+
+    assert set(settled) == set(_TERMINAL_DELIVERY_OUTCOMES), (
+        "a terminal outcome exists that no site maps to a state (#3722)"
+    )
+    for outcome, state in settled.items():
+        assert state in _LOGICAL_OPERATION_TERMINAL_STATES, (
+            f"{outcome} is terminal but settles to nonterminal {state}"
+        )
+
+    assert _SUCCEEDED_DELIVERY_OUTCOMES <= _TERMINAL_DELIVERY_OUTCOMES
 
 
 def test_classification_of_an_accepted_preflight_is_not_delivered() -> None:
