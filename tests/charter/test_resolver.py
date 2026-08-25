@@ -267,7 +267,24 @@ doctrine:
 
 def test_resolve_governance_uses_registry_local_directives_and_template_fallback(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    """Additive contract (C-001, #3728): a project-local directive is unioned
+    onto the resolved base set, not substituted for it.
+
+    Deliberate contract change from the pre-#3728 replace semantic (was
+    ``result.directives == ["LOCAL_ONLY"]`` / ``"catalog_fallback"``). The
+    catalog is monkeypatched to a known set so the union is deterministic.
+    """
+    monkeypatch.setattr(
+        "charter.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
     _write_charter_files(
         tmp_path,
         governance="doctrine: {}\n",
@@ -285,15 +302,19 @@ directives:
     )
 
     assert result.tools == ["git", "python"]
-    assert result.directives == ["LOCAL_ONLY"]
+    assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010", "LOCAL_ONLY"]
     assert result.template_set == "fallback-pack"
     assert result.metadata == {
         "tools_source": "registry_only",
-        "directives_source": "catalog_fallback",
+        "directives_source": "catalog_fallback+project_local",
         "template_set_source": "fallback",
     }
     assert any("runtime tool registry fallback" in line for line in result.diagnostics)
     assert any("fallback-pack" in line for line in result.diagnostics)
+    assert any(
+        "project-local directive" in line and "LOCAL_ONLY" in line
+        for line in result.diagnostics
+    ), result.diagnostics
 
 
 def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
@@ -315,6 +336,161 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
 
     assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010"]
     assert result.metadata["directives_source"] == "catalog_fallback"
+
+
+def test_bare_project_fallback_emits_catalog_default_diagnostic(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-005: the catalog-default fallback (branch 3a) is no longer silent —
+    a diagnostic names the fallback and its size."""
+    _write_charter_files(tmp_path, governance="doctrine: {}\n")
+    monkeypatch.setattr(
+        "charter.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
+
+    assert result.metadata["directives_source"] == "catalog_fallback"
+    assert any(
+        "built-in catalog default" in line and "2 directives" in line
+        for line in result.diagnostics
+    ), result.diagnostics
+
+
+def test_explicit_selection_and_local_declaration_union(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """INV-3 / D2: an explicit charter selection remains authoritative (never
+    narrowed) while a coexisting local declaration is additively merged with a
+    diagnostic — never silently dropped."""
+    monkeypatch.setattr(
+        "charter.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_A", "DIRECTIVE_C"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+    _write_charter_files(
+        tmp_path,
+        governance="""
+doctrine:
+  selected_directives: [DIRECTIVE_A]
+""",
+        directives="""
+directives:
+  - id: DIRECTIVE_C
+    title: Local rule
+""",
+    )
+
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
+
+    assert result.directives == ["DIRECTIVE_A", "DIRECTIVE_C"]
+    assert result.metadata["directives_source"] == "charter+project_local"
+    # Selected id is never narrowed away (INV-3).
+    assert "DIRECTIVE_A" in result.directives
+    assert any(
+        "project-local directive" in line and "charter" in line
+        for line in result.diagnostics
+    ), result.diagnostics
+
+
+def test_local_declaration_matching_catalog_id_dedups_in_base_position(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """INV-5: a local id equal to a catalog id appears once, in base position."""
+    monkeypatch.setattr(
+        "charter.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+    _write_charter_files(
+        tmp_path,
+        governance="doctrine: {}\n",
+        directives="""
+directives:
+  - id: DIRECTIVE_003
+    title: Duplicate of a catalog id
+""",
+    )
+
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
+
+    assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010"]
+    assert result.directives.count("DIRECTIVE_003") == 1
+    assert result.metadata["directives_source"] == "catalog_fallback+project_local"
+    # #3728 review-fix: the merge diagnostic must be truthful in the zero-net-add
+    # case — it names the already-present id instead of claiming a merge.
+    assert any(
+        "already present" in line and "none added" in line
+        for line in result.diagnostics
+    ), result.diagnostics
+
+
+def test_activation_base_and_local_declaration_union(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """C-001 / #3728: a base sourced from ``activated_directives`` (a non-empty
+    activation set, with no explicit ``selected_directives``) is additively
+    unioned with a NEW project-local declaration, yielding
+    ``sorted(activated) + [new_local]`` and source ``activation+project_local``.
+    """
+    monkeypatch.setattr(
+        "charter.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_003", "DIRECTIVE_010"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+    # Pre-provision config.yaml so the helper leaves it untouched: the base must
+    # come from a non-empty ``activated_directives`` set (the legacy config-embedded
+    # activation path — no ``charter:`` pointer in this fixture).
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        "mission_type_activations:\n"
+        "  - software-dev\n"
+        "activated_directives:\n"
+        "  - DIRECTIVE_010\n"
+        "  - DIRECTIVE_003\n",
+        encoding="utf-8",
+    )
+    _write_charter_files(
+        tmp_path,
+        governance="doctrine: {}\n",
+        directives="""
+directives:
+  - id: LOCAL_NEW
+    title: New local rule
+""",
+    )
+
+    result = resolve_project_governance(tmp_path, tool_registry={"git"})
+
+    assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010", "LOCAL_NEW"]
+    assert result.metadata["directives_source"] == "activation+project_local"
+    assert any(
+        "project-local directive" in line and "LOCAL_NEW" in line
+        for line in result.diagnostics
+    ), result.diagnostics
 
 
 def test_resolve_governance_for_profile_merges_profile_directives_first() -> None:
