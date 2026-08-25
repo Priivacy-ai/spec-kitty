@@ -1,0 +1,90 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: merged
+mission: accept-path-remediation-honesty-01M0TWZP
+note: >
+  R2 mechanical merge of analyze-gov.findings.yaml (1 finding), analyze-arch.findings.yaml
+  (0 findings), analyze-verify.findings.yaml (1 finding). No duplicates found across groups
+  (distinct topics: carrier provenance completeness vs. subtask-ID-order/C-011). No findings
+  dropped, none reworded; ids and severities kept as filed by each lens group.
+findings:
+  - id: ANALYZE-GOV-001
+    lens_group: gov
+    lens: verdict-rule-correctness / silent-success-check
+    severity: 3
+    title: "analysis-report.md's YAML carrier under-declares its own input_artifacts against the report's stated Scope and its findings' actual evidence sources"
+    evidence:
+      - artifact: "analysis-report.md frontmatter, `input_artifacts:` block (lines 9-21) — lists only spec.md, plan.md, tasks.md, and `charter` (pointing to `.kittify/charter/charter.yaml`), each with a sha256 hash"
+      - artifact: "analysis-report.md § 'Specification Analysis Report', 'Scope' line (line 51) — states the report's actual scope as 'spec.md, plan.md, tasks.md, tasks/WP01-04*.md, wps.yaml, charter.md, mission tracer files.'"
+      - artifact: "analysis-report.md findings table — A1 cites `tracer-design-decisions.md` and `tasks/WP02-stop-double-reporting.md`; A2 cites `tasks/WP04-red-first-tests.md`; A3 cites `tasks/WP01-resolved-path-correctness.md` and `tasks/WP02-stop-double-reporting.md`; A4 cites `wps.yaml` and `tasks/WP04-red-first-tests.md` frontmatter — none of these five files (the four `tasks/WP0N*.md` files, `wps.yaml`, and the tracer files) appear in the hashed `input_artifacts:` block"
+    claim: >
+      The analysis-findings-style YAML carrier exists specifically as a machine-readable
+      provenance/audit trail. In this report the carrier's input_artifacts list is materially
+      narrower than both (a) the report's own prose "Scope" line, and (b) the actual evidence
+      base every one of its four findings draws on. Three out of four findings (A1, A2, A4) are
+      grounded in files that carry no hash in the carrier at all. Separately, the prose Scope
+      line names charter.md while the carrier hashes charter.yaml — a naming mismatch between
+      the two halves of the same artifact for the file the carrier is supposed to pin. On a
+      mission whose entire subject is honest, non-vacuous reporting, the report's own
+      self-declared provenance record should not itself be incomplete relative to what it
+      actually analyzed.
+    remediation: >
+      Add sha256-hashed entries to input_artifacts for every file the findings table actually
+      cites as evidence — at minimum tasks/WP01-resolved-path-correctness.md,
+      tasks/WP02-stop-double-reporting.md, tasks/WP04-red-first-tests.md, wps.yaml, and
+      tracer-design-decisions.md (and tracer-approach.md / tracer-tooling-friction.md if the
+      "mission tracer files" Scope line is meant to cover all three) — or narrow the prose
+      Scope line to match what the carrier actually pins. Also either add a charter.md entry
+      alongside charter.yaml or clarify in prose that charter.yaml is treated as the canonical
+      machine-compiled source of charter.md's content for hashing purposes. NOTE for the fixer:
+      `input_artifacts` in the persisted analysis-report.md is computed and written by
+      `spec-kitty agent mission record-analysis` itself (see
+      `src/specify_cli/analysis_report.py::collect_input_artifact_hashes`, fixed to
+      spec.md/plan.md/tasks.md/charter) — it is NOT authored free-text, so this may not be
+      directly editable in the persisted artifact without re-running record-analysis with a
+      correspondingly-scoped report; verify feasibility before attempting a hand-edit of the
+      committed file, and prefer the "narrow the prose Scope line" remediation if the carrier
+      block itself cannot be widened through the normal authoring path.
+  - id: ANALYZE-VERIFY-001
+    lens_group: verify
+    lens: "Independent re-run of detection passes (charter alignment) / Falsifiability of the report's own claims"
+    severity: 3
+    title: "WP01/WP02/WP03 number and head their implementation subtasks before their own red-first test subtasks, contradicting charter C-011's commit-ordering rule and the activated acceptance-test-first tactic; analysis-report.md's Charter Alignment check does not surface this"
+    evidence:
+      - artifact: "tasks/WP01-resolved-path-correctness.md § frontmatter `subtasks:` (T001, T002, T003, T004, T016) and § Subtask T003, step 4"
+        note: "T003 (the red-first revert test) is listed and headed AFTER T001/T002 (the code fix), yet T003 step 4 reads verbatim: \"Run the test against the current (pre-T001/T002) code first to confirm it is genuinely red ... then implement T001/T002 and re-run to confirm green.\" That instruction is only literally executable if T003's test is authored and run before T001/T002 are applied — the opposite of the listed/headed order."
+      - artifact: "tasks/WP02-stop-double-reporting.md § frontmatter `subtasks:` (T005, T006, T007, T008, T009) and § Subtask T009, step 5"
+        note: "Same pattern: run-against-pre-T005-T008 instruction, with T009 (tests) listed/headed after T005-T008 (implementation)."
+      - artifact: "tasks/WP03-honest-remediation-text.md § frontmatter `subtasks:` (T010, T011, T012) and § Subtask T012, step 4"
+        note: "Same pattern again: run-against-pre-T010/T011 instruction, with T012 (tests) listed/headed after T010/T011 (implementation)."
+      - artifact: ".kittify/charter/charter.md § \"ATDD-First Discipline (binding per C-011)\""
+        note: "\"The WP cannot start coding until at least one failing-first ATDD test exists that pins the user-observable behaviour the WP delivers. The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commits.\""
+      - artifact: "packs/built-in/tactics/testing/acceptance-test-first.tactic.yaml § \"Define acceptance behavior first\""
+        note: "\"Capture the intended user-visible outcome as an executable acceptance test before implementation starts.\""
+      - artifact: "analysis-report.md § \"Charter Alignment Issues\""
+        note: "States Standing Order #4 (red-first/ATDD) is satisfied \"thoroughly\" without checking or mentioning this subtask-numbering-vs-commit-ordering contradiction present identically in all three implementation WPs."
+    claim: >
+      All three implementation-bearing WPs (WP01, WP02, WP03) list their code-change subtasks
+      numerically and structurally BEFORE their own red-first test subtasks, in both the YAML
+      frontmatter subtasks: array and the prose "Subtask T00N" heading order — yet each test
+      subtask's own instructions require running the test against pre-implementation code to
+      observe genuine red, which is only literally possible if the test subtask is actually
+      authored and executed BEFORE the earlier-numbered implementation subtasks. This recurs
+      identically across all three WPs (a systemic pattern, not a one-off typo). The eventual
+      code/test coverage is unaffected either way since the charter's actual verifiable gate
+      (red on planning_base_branch, green on the WP's final commit) is satisfiable regardless
+      of intra-WP subtask execution order — but analysis-report.md's Charter Alignment section
+      asserts ATDD compliance "thoroughly" without the check appearing to have been performed
+      at the level of "does subtask ID order model correct ATDD commit order," which is the
+      literal text of C-011 it cites.
+    remediation: >
+      Add one explicit "Execution order" callout to each of WP01/WP02/WP03 (or a single shared
+      note in tasks.md's preamble) stating that, notwithstanding the numeric subtask IDs, the
+      red-first test subtask must be authored and confirmed genuinely red BEFORE the
+      corresponding implementation subtasks are committed, to satisfy charter C-011 — or
+      renumber the subtask IDs so the listed order already matches the required commit order.
+      Separately, analysis-report.md's Charter Alignment section should either explicitly state
+      it checked subtask-ID-order against C-011's commit-ordering clause (and found it
+      satisfiable via the planning-base-branch gate despite the numbering), or note this as an
+      open, low-cost clarification alongside its existing A1 tracer-correction suggestion.

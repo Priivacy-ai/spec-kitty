@@ -1,0 +1,17 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: confirmed
+mission: accept-path-remediation-honesty-01M0TWZP
+note: >
+  0 of 2 merged findings confirmed (analyze-refute-1.yaml). ANALYZE-GOV-001 refuted:
+  input_artifacts in the persisted analysis-report.md is a fixed, tool-computed staleness-gate
+  field (src/specify_cli/analysis_report.py::collect_input_artifact_hashes), not an
+  author-editable evidentiary bibliography, so its narrower scope than the findings' evidence
+  base is not a defect; the charter.md/charter.yaml naming gap is cosmetic. ANALYZE-VERIFY-001
+  refuted: WP01 T003, WP02 T009, and WP03 T012 each already state explicitly, twice
+  (subtask step text + Definition of Done), that the test must run against pre-implementation
+  code first — the subtask-ID/heading order is a narrative reference index, not a commit-order
+  claim, so no actual contradiction with charter C-011 exists for analysis-report.md's Charter
+  Alignment section to have missed. No R4 fix round required — confirmed set is empty.
+findings: []

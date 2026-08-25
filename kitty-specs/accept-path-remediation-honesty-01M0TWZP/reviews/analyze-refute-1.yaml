@@ -1,0 +1,27 @@
+schema: review-refute/v1
+complete: true
+phase: analyze
+batch: 1
+verdicts:
+  - id: ANALYZE-GOV-001
+    verdict: refuted
+    reason: >-
+      src/specify_cli/analysis_report.py confirms input_artifacts is entirely tool-computed
+      by collect_input_artifact_hashes/write_analysis_report, fixed to spec.md/plan.md/tasks.md
+      plus charter and used solely as a staleness gate (check_analysis_report_current diffs
+      exactly those four keys) — not an evidentiary bibliography of files an analyzer read —
+      so calling it "under-declared" mischaracterizes a narrow, purpose-built, non-author-editable
+      field as a defect, and the residual charter.md-vs-charter.yaml prose/hash naming gap is
+      cosmetic (charter.yaml is correctly the canonical hashed source per _charter_path's
+      yaml-preferred lookup), not a material honesty problem.
+  - id: ANALYZE-VERIFY-001
+    verdict: refuted
+    reason: >-
+      Live text of WP01 T003 step 4, WP02 T009 step 5, and WP03 T012 step 4 each explicitly and
+      unambiguously instruct running the test against pre-implementation code first to confirm
+      red before implementing the earlier-numbered subtasks, and each WP's own Definition of Done
+      redundantly restates "red against pre-T0xx code and green after" — so the required C-011
+      commit order is already stated clearly, twice, inside each WP's own artifact; the
+      subtask-ID/heading order is a narrative reference index (describe the fix, then its proof),
+      not a commit-order claim, so there is no actual contradiction with C-011 for
+      analysis-report.md's Charter Alignment section to have missed.

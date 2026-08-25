@@ -1,0 +1,61 @@
+schema: review-findings/v1
+complete: true
+phase: analyze
+lens_group: verify
+mission: accept-path-remediation-honesty-01M0TWZP
+findings:
+  - id: ANALYZE-VERIFY-001
+    lens: "Independent re-run of detection passes (charter alignment) / Falsifiability of the report's own claims"
+    severity: 3
+    title: "WP01/WP02/WP03 number and head their implementation subtasks before their own red-first test subtasks, contradicting charter C-011's commit-ordering rule and the activated acceptance-test-first tactic; analysis-report.md's Charter Alignment check does not surface this"
+    evidence:
+      - artifact: "tasks/WP01-resolved-path-correctness.md § frontmatter `subtasks:` (T001, T002, T003, T004, T016) and § Subtask T003, step 4"
+        note: "T003 (the red-first revert test) is listed and headed AFTER T001/T002 (the code fix), yet T003 step 4 reads verbatim: \"Run the test against the current (pre-T001/T002) code first to confirm it is genuinely red ... then implement T001/T002 and re-run to confirm green.\" That instruction is only literally executable if T003's test is authored and run before T001/T002 are applied — the opposite of the listed/headed order."
+      - artifact: "tasks/WP02-stop-double-reporting.md § frontmatter `subtasks:` (T005, T006, T007, T008, T009) and § Subtask T009, step 5"
+        note: "Same pattern: \"Run all four tests ... against the current (pre-T005-T008) code first to confirm genuinely red ... then implement T005-T008 and re-run to confirm green,\" with T009 (tests) listed/headed after T005-T008 (implementation)."
+      - artifact: "tasks/WP03-honest-remediation-text.md § frontmatter `subtasks:` (T010, T011, T012) and § Subtask T012, step 4"
+        note: "Same pattern again: \"Run the two new tests against pre-T010/T011 code first to confirm genuinely red, then implement T010/T011 and re-run to confirm green,\" with T012 (tests) listed/headed after T010/T011 (implementation)."
+      - artifact: ".kittify/charter/charter.md § \"ATDD-First Discipline (binding per C-011)\""
+        note: "\"The WP cannot start coding until at least one failing-first ATDD test exists that pins the user-observable behaviour the WP delivers. The ATDD test is committed as a separate commit (often the first commit of the lane) BEFORE any implementation commits.\""
+      - artifact: "packs/built-in/tactics/testing/acceptance-test-first.tactic.yaml § \"Define acceptance behavior first\""
+        note: "\"Capture the intended user-visible outcome as an executable acceptance test before implementation starts.\" This tactic is directly cited by the charter's Governing Principles (ATDD-first) and by `acceptance-test-first` in spec.md/plan.md's own ATDD framing."
+      - artifact: "analysis-report.md § \"Charter Alignment Issues\""
+        note: "States Standing Order #4 (red-first/ATDD) is satisfied \"thoroughly\" by NFR-001 and the per-WP revert tests, without checking or mentioning this subtask-numbering-vs-commit-ordering contradiction present identically in all three implementation WPs."
+    claim: >
+      All three implementation-bearing WPs (WP01, WP02, WP03) list their code-change subtasks
+      (T001/T002; T005-T008; T010/T011) numerically and structurally BEFORE their own red-first
+      test subtasks (T003/T004; T009; T012), in both the YAML frontmatter `subtasks:` array and
+      the prose "Subtask T00N" heading order. Yet every one of those test subtasks' own written
+      instructions requires running the test "against the current (pre-T0xx) code" to observe a
+      genuine red state — an action that is only literally possible if the test-writing subtask
+      is actually authored and executed BEFORE the earlier-numbered implementation subtasks are
+      applied, directly contradicting the order in which the WP file itself lists and presents
+      them. This is a real, structural ambiguity against the charter's binding C-011 ("cannot
+      start coding until ... a failing-first ATDD test exists ... committed as a separate commit
+      ... BEFORE any implementation commits") and the activated `acceptance-test-first` tactic
+      ("before implementation starts"). It recurs identically across all three implementation WPs
+      (not a one-off typo), which is exactly the kind of systemic pattern this mission's own
+      review history (e.g. TASKS-FRESH-002/TASKS-FRESH2-001/TASKS-FRESH3-001) was built to catch
+      for other subtask-construction issues, but none of the prior review rounds (spec/plan/tasks,
+      through tasks-verify-4.yaml's `complete: true`) raised this specific ordering question, and
+      analysis-report.md's Charter Alignment section asserts ATDD compliance without addressing
+      it — the "None found" / "satisfies this thoroughly" framing there is not falsified by this
+      (the eventual code and test coverage are unaffected either way, since the charter's actual
+      verifiable gate — red on `planning_base_branch`, green on the WP's final commit — is
+      satisfiable regardless of intra-WP subtask execution order), but the check itself does not
+      appear to have been performed at the level of "does subtask ID order model correct ATDD
+      commit order," which is the literal text of C-011 the charter cites.
+    remediation: >
+      Add one explicit "Execution order" callout to each of WP01/WP02/WP03 (or a single shared
+      note in tasks.md's preamble) stating that, notwithstanding the numeric subtask IDs, the
+      red-first test subtask (T003/T009/T012 respectively) must be authored and confirmed
+      genuinely red BEFORE the corresponding implementation subtasks (T001/T002; T005-T008;
+      T010/T011) are committed, to satisfy charter C-011's "test committed before any
+      implementation commits" rule — or renumber the subtask IDs so the listed order already
+      matches the required commit order. Separately, analysis-report.md's Charter Alignment
+      section should either explicitly state it checked subtask-ID-order against C-011's
+      commit-ordering clause (and found it satisfiable via the planning-base-branch gate despite
+      the numbering), or note this as an open, low-cost clarification alongside its existing A1
+      tracer-correction suggestion — rather than asserting NFR-001/ATDD is satisfied "thoroughly"
+      without addressing the one concrete ordering contradiction present in the WP files
+      themselves.
