@@ -20,6 +20,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import signal
 import os
+import socket
 from urllib.request import urlopen
 from urllib.error import URLError
 import json
@@ -83,6 +84,24 @@ def wait_for_port_state(port: int, *, occupied: bool, timeout: float = 2.0, inte
             return True
         time.sleep(interval)
     return port_has_listener(port) is occupied
+
+
+_reserved_test_ports: set[int] = set()
+
+
+def reserve_free_port() -> int:
+    """Reserve an OS-assigned free loopback port and remember it for cleanup.
+
+    Hard-coded ports went red on hosts where a platform service already owns
+    the port (issue #39: exe.dev VMs run one on 127.0.0.1:9999). With a
+    reserved port the CLI starts the dashboard where the test expects it, so
+    "CLI status matches actual dashboard state" is exercised deterministically.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = int(sock.getsockname()[1])
+    _reserved_test_ports.add(port)
+    return port
 
 
 def wait_for_dashboard_state(
@@ -162,11 +181,8 @@ class TestDashboardCLIStatusReporting:
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=tmpdir, capture_output=True)
 
-            # Use a unique port for this test
-            test_port = 9999
-
-            # Clean up any existing dashboard on this port
-            kill_dashboard_process(test_port)
+            # Reserve a genuinely free loopback port for this test
+            test_port = reserve_free_port()
 
             # Run dashboard command
             result = run_dashboard_cli(
@@ -249,8 +265,7 @@ class TestDashboardCLIStatusReporting:
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=tmpdir, capture_output=True)
 
-            test_port = 9998
-            kill_dashboard_process(test_port)
+            test_port = reserve_free_port()
 
             # Run dashboard
             result = run_dashboard_cli(
@@ -292,8 +307,7 @@ class TestDashboardProcessLifecycle:
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=tmpdir, capture_output=True)
 
-            test_port = 9997
-            kill_dashboard_process(test_port)
+            test_port = reserve_free_port()
 
             # Start dashboard
             run_dashboard_cli(
@@ -330,8 +344,7 @@ class TestDashboardProcessLifecycle:
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=tmpdir, capture_output=True)
 
-            test_port = 9996
-            kill_dashboard_process(test_port)
+            test_port = reserve_free_port()
 
             # Start dashboard
             run_dashboard_cli(
@@ -417,8 +430,7 @@ class TestDashboardAPIVerification:
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=tmpdir, capture_output=True)
 
-            test_port = 9995
-            kill_dashboard_process(test_port)
+            test_port = reserve_free_port()
 
             # Start dashboard
             run_dashboard_cli(
@@ -456,8 +468,7 @@ class TestDashboardAPIVerification:
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=tmpdir, capture_output=True)
 
-            test_port = 9994
-            kill_dashboard_process(test_port)
+            test_port = reserve_free_port()
 
             run_dashboard_cli(
                 "dashboard",
@@ -504,8 +515,7 @@ class TestDashboardRaceConditions:
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=tmpdir, capture_output=True)
 
-            test_port = 9993
-            kill_dashboard_process(test_port)
+            test_port = reserve_free_port()
 
             # Run dashboard
             result = run_dashboard_cli(
@@ -551,8 +561,7 @@ class TestDashboardCleanup:
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Test"], cwd=tmpdir, capture_output=True)
 
-            test_port = 9992
-            kill_dashboard_process(test_port)
+            test_port = reserve_free_port()
 
             # Start dashboard
             run_dashboard_cli(
@@ -609,11 +618,10 @@ def cleanup_test_dashboards():
     """Cleanup any test dashboard processes after each test."""
     yield
 
-    # Cleanup only the specific test ports actually used in tests
-    # This is MUCH faster than iterating 763 ports
-    test_ports = [9992, 9993, 9994, 9995, 9996, 9997, 9998, 9999]
-    for port in test_ports:
+    # Cleanup only the ports this worker actually reserved.
+    for port in sorted(_reserved_test_ports):
         kill_dashboard_process(port)
+    _reserved_test_ports.clear()
 
 
 def test_dashboard_with_symlinked_kitty_specs():
@@ -663,7 +671,7 @@ def test_dashboard_with_symlinked_kitty_specs():
 
         try:
             # Run dashboard command
-            test_port = 9998
+            test_port = reserve_free_port()
             result = run_dashboard_cli(
                 "dashboard",
                 "--port",
