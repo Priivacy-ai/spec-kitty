@@ -148,6 +148,70 @@ class TestDossierPipelineHelpers:
 
         assert events == 0
 
+    def test_emit_artifact_events_absorbs_legacy_delivery_authority_kwargs(
+        self, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Real emitters accept the retired delivery-authority kwargs (#6).
+
+        ``dossier/events.py`` no longer takes ``project_context`` /
+        ``project_unit`` / ``project_layout`` explicitly — the transport that
+        consumed them was deleted with the CLI→SaaS sync — but this pipeline
+        still passes them on every run until it is deleted too. The emitters
+        absorb them, so emission must reach the payload validators and then
+        drop locally with no warning logged; a TypeError on those kwargs used
+        to fire 'Event emission failed' once per artifact instead.
+        """
+        import logging
+
+        from specify_cli.dossier import events as dossier_events
+        from specify_cli.sync import dossier_pipeline as mod
+
+        indexed_calls: list[dict[str, object]] = []
+        missing_calls: list[dict[str, object]] = []
+        real_indexed = dossier_events.emit_artifact_indexed
+        real_missing = dossier_events.emit_artifact_missing
+
+        def spy_indexed(**kwargs: object) -> dict[str, object] | None:
+            indexed_calls.append(dict(kwargs))
+            return real_indexed(**kwargs)
+
+        def spy_missing(**kwargs: object) -> dict[str, object] | None:
+            missing_calls.append(dict(kwargs))
+            return real_missing(**kwargs)
+
+        monkeypatch.setattr(dossier_events, "emit_artifact_indexed", spy_indexed)
+        monkeypatch.setattr(dossier_events, "emit_artifact_missing", spy_missing)
+
+        dossier = self._dossier(
+            [
+                self._artifact("spec.md"),
+                self._artifact("plan.md", is_present=False),
+            ]
+        )
+        ns = self._namespace()
+
+        with caplog.at_level(logging.WARNING):
+            events = mod._emit_artifact_events(
+                dossier,
+                ns,
+                None,
+                ns.to_dict(),
+                project_context=object(),
+                project_unit=object(),
+                project_layout=object(),
+            )
+
+        # Both envelopes validate and are then dropped locally (no transport
+        # remains), so the helper counts zero emissions — the regression this
+        # pins is the absence of the per-artifact 'Event emission failed'
+        # warning, i.e. the retired kwargs never reach the TypeError path.
+        assert len(indexed_calls) == 1
+        assert len(missing_calls) == 1
+        assert {"project_context", "project_unit", "project_layout"} <= set(indexed_calls[0])
+        assert {"project_context", "project_unit", "project_layout"} <= set(missing_calls[0])
+        assert events == 0
+        assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
     def test_emit_snapshot_success_returns_snapshot_and_event(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
     ) -> None:
