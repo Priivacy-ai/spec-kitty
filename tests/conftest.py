@@ -29,6 +29,7 @@ from tests._shard_registry import all_groups, shard_for
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
 from tests._support.shared_build_artifacts import (
     SharedBuildError,
+    default_wheel_sdist_builder,
     ensure_shared_build_artifacts,
     run_scoped_shared_root,
 )
@@ -1167,23 +1168,18 @@ def build_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
     The build now happens at most once per run, published atomically into a
     lock-guarded run-scoped directory next to the basetemp
     (``tests/_support/shared_build_artifacts.py``); every other worker reuses
-    it after validating it is complete (#80).
+    it after validating it is complete (#80). The builder itself lives in that
+    module too — this file's definition names are pinned by
+    ``tests/architectural/test_home_owner_behaviour.py``.
     """
     if not _build_tool_available():
         pytest.skip("python -m build not available")
 
-    def _build(outdir: Path) -> None:
-        result = subprocess.run(
-            [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
-            cwd=REPO_ROOT,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            raise SharedBuildError(f"Build failed: {result.stderr}")
-
     try:
-        return ensure_shared_build_artifacts(run_scoped_shared_root(tmp_path_factory), _build)
+        return ensure_shared_build_artifacts(
+            run_scoped_shared_root(tmp_path_factory),
+            default_wheel_sdist_builder,
+        )
     except SharedBuildError as error:
         pytest.skip(str(error))
 

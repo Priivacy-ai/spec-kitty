@@ -30,17 +30,39 @@ from __future__ import annotations
 
 import os
 import shutil
+import subprocess
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 from filelock import FileLock
 
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 _SHARED_BUILD_DIR_NAME = "shared-build-artifacts"
 _STAGING_GLOB = _SHARED_BUILD_DIR_NAME + ".staging-*"
 #: One full ``python -m build`` takes on the order of a minute; every other
 #: worker of the run queues behind that single holder, hence the generous bound.
 _LOCK_TIMEOUT_S = 1200.0
+
+
+def default_wheel_sdist_builder(outdir: Path) -> None:
+    """Build this repository's wheel + sdist into ``outdir`` (#80's real builder).
+
+    Lives beside the sharing protocol so the session ``build_artifacts``
+    fixture in ``tests/conftest.py`` stays a thin shell with no nested
+    definitions (the conftest definition-order guard pins that file's
+    definition names).
+    """
+    result = subprocess.run(
+        [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise SharedBuildError(f"Build failed: {result.stderr}")
 
 
 class SharedBuildError(RuntimeError):

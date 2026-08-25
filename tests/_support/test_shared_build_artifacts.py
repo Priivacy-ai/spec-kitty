@@ -3,7 +3,8 @@
 The protocol lives in :mod:`tests._support.shared_build_artifacts` so the
 session ``build_artifacts`` fixture stays a thin shell; these tests drive that
 protocol directly with a fake builder, which keeps them off the real
-``python -m build`` entirely.
+``python -m build`` entirely. Marked like the other ``tests/_support`` suite
+(``unit`` + ``fast``) so the fast-tier shard selects it.
 """
 
 from __future__ import annotations
@@ -16,10 +17,13 @@ import pytest
 
 from tests._support.shared_build_artifacts import (
     SharedBuildError,
+    default_wheel_sdist_builder,
     ensure_shared_build_artifacts,
     published_build_artifacts,
     run_scoped_shared_root,
 )
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _WHEEL_NAME = "spec_kitty_cli-3.2.0rc39-py3-none-any.whl"
 _SDIST_NAME = "spec_kitty_cli-3.2.0rc39.tar.gz"
@@ -134,5 +138,29 @@ def test_conftest_build_artifacts_fixture_delegates_to_the_shared_protocol() -> 
     """Pin the wiring itself: reverting the fixture to a private build must red here."""
     conftest = Path(__file__).resolve().parents[1] / "conftest.py"
     tree = ast.parse(conftest.read_text(encoding="utf-8"))
-    called = {node.func.id for node in ast.walk(tree) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
-    assert {"ensure_shared_build_artifacts", "run_scoped_shared_root"} <= called
+    fixture = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "build_artifacts"
+    )
+    referenced = {node.id for node in ast.walk(fixture) if isinstance(node, ast.Name)}
+    assert {"ensure_shared_build_artifacts", "run_scoped_shared_root", "default_wheel_sdist_builder"} <= referenced
+
+
+def test_default_builder_reports_stderr_and_cwd(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: dict[str, object] = {}
+
+    class _FakeCompleted:
+        returncode = 1
+        stderr = "boom"
+
+    def _fake_run(command, **kwargs: object) -> _FakeCompleted:
+        seen["command"] = command
+        seen.update(kwargs)
+        return _FakeCompleted()
+
+    monkeypatch.setattr("tests._support.shared_build_artifacts.subprocess.run", _fake_run)
+    with pytest.raises(SharedBuildError, match="boom"):
+        default_wheel_sdist_builder(Path("unused-outdir"))
+    assert "--wheel" in str(seen["command"]) and "--sdist" in str(seen["command"])
+    assert seen["cwd"] == Path(__file__).resolve().parents[2]
