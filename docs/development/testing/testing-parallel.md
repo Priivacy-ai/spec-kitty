@@ -80,15 +80,20 @@ not reuse stale state. The regression guard
 Because the real `~/.spec-kitty` is never bound, you do not need to back it up or
 worry about a parallel run truncating your real `queue.db`.
 
-## Per-run pytest temp root (#63)
+## Per-run pytest temp root
 
 Every pytest invocation also gets its **own private basetemp** instead of the
 shared `/tmp/pytest-of-<user>` numbered tree: `<temproot>/spec-kitty-pytest-tmp/run-<pid>`
-(`temproot` honors `PYTEST_DEBUG_TEMPROOT`, then `TMPDIR`). pytest's default tree
-makes every run — concurrent, sequential, or SIGKILL'd — scan, lock, and prune
-siblings of each other's directories, and that cross-run contention crashed
-full-suite xdist runs before any summary (`OSError: could not create numbered
-dir … after 10 tries`, #63).
+(`temproot` honors `PYTEST_DEBUG_TEMPROOT`, then `TMPDIR`). This is a
+housekeeping fix, not a #63 fix: pytest's default tree only ever shrinks
+through its own locked, timeout-gated pruning, so a long-lived box accumulates
+stale `pytest-<N>` roots (some with live `.lock` files) that nobody notices
+until someone clears them by hand. A controller-qa audit falsified the
+original claim that this also fixed #63's `OSError: could not create numbered
+dir … after 10 tries` crash — that crash names a *worker* basetemp, which
+takes a code path with no locking or pruning to race in the first place;
+#63's actual driver is `tmp_path_retention_policy` (see below), and it remains
+open pending a full-suite run that reports a summary.
 
 `tests/conftest.py` wires this in `pytest_configure` via
 `tests/_support/run_basetemp.py`; xdist workers nest under the controller's
@@ -100,6 +105,27 @@ choice as usual (`…/run-<pid>/popen-gwN`). Consequences worth knowing:
   exit, and crash leftovers older than 24 h are swept at startup. Unlike
   pytest's default 3-session retention, `tmp_path` contents are therefore NOT
   available for post-mortem inspection after the run ends.
+
+## `tmp_path` retention policy
+
+`pytest.ini` sets `tmp_path_retention_policy = failed`: a passing test's
+`tmp_path` is removed in the `tmp_path` fixture's own teardown, right after
+that test runs, instead of staying alive for the whole session (pytest's
+`all` default). Across the ~40k tests `make test-full` collects, retaining
+every one's `tmp_path` for the full session is enough on its own to exhaust a
+runner's temp filesystem — the diagnosed driver behind #63's pre-summary
+crashes. Unlike the *session-end* basetemp wipe (which pytest only does when
+`--basetemp` was never given explicitly), this per-test teardown removal is
+unconditional — it fires exactly the same whether the run's basetemp came
+from `--basetemp`, from this repo's per-run private root above, or from
+neither, which is why it still drains the pressure under this repo's scheme
+even though a basetemp is effectively always "given" here.
+
+The *other* retention knob, `tmp_path_retention_count` ("how many past
+sessions' worth of numbered `tmp_path` dirs to keep"), is a no-op in this
+repo: it only ever applies to the code path that prunes pytest's own
+default numbered basetemp tree, which never runs once a basetemp is given —
+so it is not a lever worth reaching for here.
 
 ## The serial daemon pass
 

@@ -1,24 +1,38 @@
-"""Per-run pytest temp root (#63) — keep every pytest run out of the shared
-``pytest-of-<user>`` numbered-dir tree.
+"""Per-run pytest temp root — retire the shared ``pytest-of-<user>`` numbered-dir
+tree's unbounded growth and stale-lock debt.
 
-**The failure this closes.** Every ``make test-full`` run of main crashed before
-a pytest summary with ``OSError: could not create numbered dir with prefix
-test_* in <temproot>/pytest-of-exedev/pytest-0/popen-gw<N> after 10 tries``, on a
-different set of xdist workers each run (#63). pytest's default temp layout puts
-ALL runs — concurrent or sequential, healthy or killed — inside one shared
-``pytest-of-<user>`` tree, where :func:`_pytest.pathlib.make_numbered_dir` and
-its cleanup wrapper scan sibling dirs, take symlink locks with a 3-day timeout,
-and prune old roots while other processes may still be creating numbered dirs in
-the same parents. Ten blind ``mkdir`` retries against that shared state fail
-whenever another run's prune/lock/delete races the retry loop (or the tree has
-accumulated stale locks from a SIGKILL'd run), and the OSError escapes fixture
-setup as a pre-summary crash: zero pass/fail data from the whole run.
+**What this is NOT: a fix for #63's crash mechanism.** An earlier version of
+this module claimed the ``OSError: could not create numbered dir with prefix
+test_* ... after 10 tries`` crash in #63 (a different xdist worker each run) was
+cross-run contention in :func:`_pytest.pathlib.make_numbered_dir` and its
+cleanup wrapper (sibling scans, symlink locks, old-root pruning). A
+controller-qa audit on this fix falsified that: every #63 crash names a
+*worker* basetemp (``pytest-0/popen-gw<N>``) — an already-resolved
+``_given_basetemp`` — and ``TempPathFactory.getbasetemp`` takes the
+given-basetemp branch there (plain ``rm_rf`` + ``mkdir``), never the
+numbered-dir path with its locks and pruning. Exactly one process ever writes
+that directory, so there is no sibling to race. ``_pytest/pathlib.py``'s
+numbered-dir ``mkdir`` also swallows *any* ``Exception``, so the "after 10
+tries" message fires identically for ENOSPC / EDQUOT / inode exhaustion as it
+would for a real collision — the message names no cause. CI reproduced the
+crash on a head that already carried this fix, confirming it does not touch
+the real driver: ``pytest.ini`` set no ``tmp_path_retention_policy``, so
+pytest's ``all`` default keeps *every* test's ``tmp_path`` — pass or fail —
+alive for the whole session, and across the ~40k tests of ``make test-full``
+that is enough to exhaust the runner's temp filesystem. The fix for that is
+``tmp_path_retention_policy = failed`` in ``pytest.ini``, not this module.
 
-**The fix.** Give each pytest invocation its own private, uniquely-named
-basetemp under ``<temproot>/spec-kitty-pytest-tmp/run-<pid>``:
+**What this is.** A genuinely private, self-reaping basetemp per invocation,
+worth keeping on its own terms regardless of #63: pytest's default puts every
+run — concurrent, sequential, or SIGKILL'd — into one shared
+``pytest-of-<user>`` tree that only ever shrinks through its own locked,
+timeout-gated pruning; on a long-lived box that accumulates stale
+``pytest-<N>`` roots, some with live ``.lock`` files, that nobody notices until
+someone clears them by hand. Giving each invocation its own
+``<temproot>/spec-kitty-pytest-tmp/run-<pid>`` instead:
 
 * **Private per run** — nothing else ever creates, scans, locks, or prunes
-  siblings inside that tree, so the numbered-dir retry loop races nobody.
+  siblings inside that tree.
 * **Wiped per run** — an explicit ``--basetemp`` is removed and recreated by
   pytest itself at first use (``TempPathFactory.getbasetemp``), so no state ever
   crosses runs even when a PID is recycled.

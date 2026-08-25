@@ -242,13 +242,15 @@ def pytest_configure(config: pytest.Config) -> None:
     # the same mapping per test for call-time reads.
     _apply_home_env(_worker_home_base(config))
 
-    # Issue #63: give this run its own private, wiped-per-run pytest temp root
-    # instead of the shared platform-temp `pytest-of-<user>` numbered tree, whose
-    # cross-run numbering/pruning contention crashed full-suite xdist runs
-    # before any summary (OSError: could not create numbered dir). Must happen
-    # here in configure — the builtin tmpdir plugin snapshots the option into
-    # its TempPathFactory now, and xdist nests every worker's popen-gwN under
-    # the controller's value. Controller-gated; an explicit --basetemp wins.
+    # Give this run its own private, wiped-per-run pytest temp root instead of
+    # the shared platform-temp `pytest-of-<user>` numbered tree, which never
+    # shrinks except through its own locked, timeout-gated pruning and
+    # accumulates stale roots on a long-lived box. See run_basetemp.py's
+    # module docstring for why this does NOT fix #63's crash mechanism (that
+    # is `tmp_path_retention_policy` in pytest.ini). Must happen here in
+    # configure — the builtin tmpdir plugin snapshots the option into its
+    # TempPathFactory now, and xdist nests every worker's popen-gwN under the
+    # controller's value. Controller-gated; an explicit --basetemp wins.
     install_run_basetemp(config, now_epoch())
 
     try:
