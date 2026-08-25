@@ -230,7 +230,6 @@ def register_commands(app: typer.Typer) -> None:
     from . import session_start as session_start_module
     from . import session_stop as session_stop_module
     from . import sync as sync_module
-    from . import team_projection as team_projection_module
     from . import upgrade as upgrade_module
     from . import validate_encoding as validate_encoding_module
     from . import validate_tasks as validate_tasks_module
@@ -306,11 +305,6 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="session-start", help="Emit spec-kitty orientation for the Claude Code SessionStart hook.")(session_start_module.session_start)
     app.command(name="session-stop", help="Emit the open-Ops reminder for the Claude Code Stop hook.")(session_stop_module.session_stop)
     app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
-    app.add_typer(
-        team_projection_module.app,
-        name="team-projection",
-        help="Read-only team/public mission projections with exact-commit provenance.",
-    )
     if tracker_module is not None:
         app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
         app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)

@@ -109,8 +109,6 @@ _SRC_ROOT = _REPO_ROOT / "src"
 
 _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
     {
-        # specify_cli.cli.commands.team_projection::publish -- M2 canonical integration 2026-08-22: D1-T1 `spec-kitty team-projection publish` Typer command body; registered by add_typer, not imported by name. TODO(triage): wire or drop from __all__ (follow-up bead).
-        SymbolKey("publish", "d12cf55043a9a3d8004d4e40955110df1015bfe3006aa1d8a291ece568baa8f8", source_module="specify_cli.cli.commands.team_projection"),
         # specify_cli.dashboard.csp::DASHBOARD_CSP -- M2 canonical integration 2026-08-22: D2-T1 dashboard CSP policy constant.
         # WIRE-M2-02 (2026-08-22): send_csp_header() (below) is now wired into all 35 send_response()
         # sites across handlers/{base,api,features,glossary,lint,static}.py, so the module itself is no

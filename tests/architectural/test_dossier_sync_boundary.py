@@ -9,10 +9,9 @@ src/specify_cli/dossier/, including:
 - Imports inside ``if TYPE_CHECKING:`` blocks
 - Lazy function-body imports
 
-After P1.2 the dossier package emits events via
-``specify_cli.dossier.emitter_adapter.fire_dossier_event``. The sync
-package registers an emitter callable at startup; dossier never imports
-sync directly.
+After the D1 emitter-adapter deletion (#6) the dossier package has no
+event transport at all — no adapter indirection, and therefore still
+never a direct ``specify_cli.sync`` import.
 """
 
 from __future__ import annotations
@@ -77,8 +76,8 @@ class TestDossierSyncBoundary:
             "specify_cli.dossier must not import specify_cli.sync.\n"
             "Violations found (including lazy and TYPE_CHECKING imports):\n"
             + "\n".join(violations)
-            + "\n\nFix: route through specify_cli.dossier.emitter_adapter "
-            "(or import from specify_cli.identity.project for ProjectIdentity)."
+            + "\n\nFix: keep the dossier package transport-free; project "
+            "identity comes from specify_cli.identity.project."
         )
 
     def test_import_scanner_has_two_sided_fault_bite(self, tmp_path: Path) -> None:

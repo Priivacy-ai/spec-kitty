@@ -270,22 +270,6 @@ _RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     # (``primary_candidate``) share the ``_coord_mid8`` qualname; the distinct
     # ``token_substring`` per entry is the disambiguator (no ``occurrence``
     # ordinal needed).
-    # ----- M2 canonical integration: D1-T1 team projection primary-checkout fallback -----
-    ContentDescriptor(
-        rel_path="specify_cli/team_projection/team_index.py",
-        qualname="resolve_feature_dir_for_mission_slug",
-        token_substring="return project_dir / / mission_slug",
-        occurrence=None,
-        rationale=(
-            "TBYD — D1-T1 `spec-kitty team-projection publish` reads the primary "
-            "checkout only (the publish command refuses a dirty tree and runs in the "
-            "primary clone; coordination worktrees are outside the projection's read "
-            "scope). The slug is assert_safe_path_segment-guarded and the scanner "
-            "registry is consulted first; this join is the miss fallback. Registered "
-            "at M2 canonical integration; follow-up: route through "
-            "candidate_feature_dir_for_mission."
-        ),
-    ),
     ContentDescriptor(
         rel_path="specify_cli/coordination/surface_resolver.py",
         qualname="_coord_mid8",
