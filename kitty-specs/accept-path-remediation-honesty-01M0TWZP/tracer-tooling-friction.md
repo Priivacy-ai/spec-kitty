@@ -75,3 +75,30 @@ final "Add tasks for feature..." commit carrying `tasks.md`/`wps.yaml`/the WP fi
 `lanes.json`), not the single commit the summary implies. Not itself a correctness defect
 (all seven commits are real, non-empty, and land on the correct branch), but worth noting
 for anyone reading the command's JSON output expecting a 1:1 commit-count correspondence.
+
+## 2026-08-25 — `record-analysis` (analyze phase) — no SK-06/32/43 reproduction
+
+`spec-kitty agent mission record-analysis --mission accept-path-remediation-honesty-01M0TWZP
+--input-file <temp>.md --agent claude-sonnet --json` (CLI 3.2.6rc3) persisted
+`analysis-report.md` correctly on first attempt: `verdict: ready` was written verbatim
+(matching the computed carrier — 0 high/critical findings, 3 low + 1 medium), so **SK-06**
+(silent `verdict: unknown` for a legacy/malformed carrier) did not reproduce here — the
+`analysis-findings/v1` frontmatter carrier from the author was well-formed. `analysis-report.md`
+landed tracked and committed in the same run (`41cf739c9`, `docs(record-analysis): record
+analysis report for mission accept-path-remediation-honesty-01M0TWZP`) — **SK-43** (report
+left untracked/uncommitted) did not reproduce either. `grep -n "/home/" analysis-report.md`
+returned no matches — **SK-32** (host-absolute path injected into the committed artifact) did
+not reproduce; the committed `input_artifacts` hashes use repo-relative paths only (consistent
+with `_relativize_or_raise`/FR-007 in `src/specify_cli/analysis_report.py`, which appears to
+be a landed fix for exactly this class). No hang after `"success": true` was observed
+(**SK-63** did not reproduce) and no `_charter_path` mismatch (**SK-20**) surfaced — the
+charter hash resolved against `.kittify/charter/charter.yaml` without error. The
+project-sync-store lock warnings noted at scaffold time (2026-08-24 entry above) recurred
+here on event emission but were non-blocking, consistent with the "live, noisy,
+non-blocking" characterization already on file.
+
+Separately: the subagent that ran this command stranded itself waiting on a notification for
+its own background CLI invocation after the command had already completed and committed
+(the SK-agent-harness pattern of a subagent blocking on its own background work rather than
+the harness's completion signal) — a dispatch-hygiene observation for the orchestrator, not
+a spec-kitty CLI defect.
