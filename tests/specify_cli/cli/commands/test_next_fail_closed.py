@@ -43,6 +43,14 @@ def _bypass_preflight_and_context(monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.core.context_validation import CurrentContext, ExecutionContext
 
     ok = CharterPreflightResult(passed=True, checks=[])
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort",
+        lambda *_a, **_kw: ok,
+    )
+    monkeypatch.setattr(
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard",
+        lambda *_a, **_kw: ok,
+    )
     # Make require_main_repo think we are in the main repo.
     _fake_ctx = CurrentContext(
         location=ExecutionContext.MAIN_REPO,
