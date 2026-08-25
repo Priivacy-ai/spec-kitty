@@ -107,11 +107,7 @@ def test_apply_repairs_legacy_repo_and_reports_changes(tmp_path: Path) -> None:
     _write_task(feature_dir)
 
     migration = NormalizeMissionLifecycleMigration()
-    with patch(
-        "specify_cli.migration.normalize_mission_lifecycle.trigger_feature_dossier_sync_if_enabled",
-        return_value=None,
-    ):
-        result = migration.apply(tmp_path, dry_run=False)
+    result = migration.apply(tmp_path, dry_run=False)
 
     assert result.success is True
     assert any("046-upgrade-apply" in change for change in result.changes_made)
