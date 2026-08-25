@@ -21,9 +21,7 @@ pytestmark = pytest.mark.fast
 
 def _load_ui_conftest():
     """Import ``tests/ui/conftest.py`` as a plain module (no package __init__)."""
-    spec = importlib.util.spec_from_file_location(
-        "_ui_conftest_under_test", Path(__file__).parent / "conftest.py"
-    )
+    spec = importlib.util.spec_from_file_location("_ui_conftest_under_test", Path(__file__).parent / "conftest.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -38,15 +36,13 @@ def _load_ui_conftest():
         ("win32", ("AppData", "Local", "ms-playwright")),
     ],
 )
-def test_default_browsers_path_follows_playwright_per_platform(
-    platform: str, expected_tail: tuple[str, ...]
-) -> None:
+def test_default_browsers_path_follows_playwright_per_platform(platform: str, expected_tail: tuple[str, ...]) -> None:
     conftest = _load_ui_conftest()
     with mock.patch.object(sys, "platform", platform):
         resolved = conftest._default_playwright_browsers_path()
 
     assert resolved.is_absolute()
-    assert resolved.parts[-len(expected_tail):] == expected_tail
+    assert resolved.parts[-len(expected_tail) :] == expected_tail
 
 
 def test_chromium_check_prefers_env_var_over_platform_default(tmp_path: Path) -> None:
@@ -58,9 +54,7 @@ def test_chromium_check_prefers_env_var_over_platform_default(tmp_path: Path) ->
         assert conftest._chromium_is_installed() is True
 
 
-def test_chromium_check_false_when_default_cache_has_no_chromium(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_chromium_check_false_when_default_cache_has_no_chromium(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     conftest = _load_ui_conftest()
     empty_cache = tmp_path / "ms-playwright"
     empty_cache.mkdir()

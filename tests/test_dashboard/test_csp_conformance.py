@@ -34,9 +34,7 @@ pytestmark = [pytest.mark.integration]
 _INLINE_HANDLER_RE = re.compile(r"\son[a-z]+\s*=")
 # An executable script is any <script> without a src and without a
 # non-executing type (JSON data islands are inert and CSP-safe).
-_EXECUTABLE_INLINE_SCRIPT_RE = re.compile(
-    r"<script(?![^>]*\bsrc=)(?![^>]*type=\"application/json\")[^>]*>", re.IGNORECASE
-)
+_EXECUTABLE_INLINE_SCRIPT_RE = re.compile(r"<script(?![^>]*\bsrc=)(?![^>]*type=\"application/json\")[^>]*>", re.IGNORECASE)
 _REMOTE_ASSET_RE = re.compile(r"<(?:script|link)[^>]+(?:src|href)=\"https?://", re.IGNORECASE)
 
 
@@ -51,9 +49,7 @@ def test_shell_has_no_inline_event_handlers() -> None:
 
     offenders = _INLINE_HANDLER_RE.findall(html)
     assert not offenders, (
-        "index.html carries inline event handlers "
-        f"{offenders} — the dashboard CSP blocks them, so the control is dead; "
-        "attach the listener in dashboard.js instead"
+        f"index.html carries inline event handlers {offenders} — the dashboard CSP blocks them, so the control is dead; attach the listener in dashboard.js instead"
     )
 
 
@@ -64,7 +60,7 @@ def test_shell_has_no_executable_inline_script_blocks() -> None:
     assert not offenders, (
         "index.html carries executable inline <script> blocks {offenders} — "
         "the dashboard CSP blocks them; move the code into dashboard.js (or a "
-        "type=\"application/json\" data island for data)"
+        'type="application/json" data island for data)'
     )
 
 
@@ -73,9 +69,7 @@ def test_shell_loads_no_remote_scripts_or_styles() -> None:
 
     offenders = _REMOTE_ASSET_RE.findall(html)
     assert not offenders, (
-        f"index.html references remote assets {offenders} — the dashboard CSP "
-        "(`script-src 'self'`) blocks them; vendor the asset under "
-        "static/dashboard/ instead"
+        f"index.html references remote assets {offenders} — the dashboard CSP (`script-src 'self'`) blocks them; vendor the asset under static/dashboard/ instead"
     )
 
 
@@ -97,7 +91,7 @@ def test_shell_still_wires_marked_and_behaviors_from_self() -> None:
 def test_offender_patterns_detect_real_violations(pattern: re.Pattern[str], description: str) -> None:
     """Non-vacuity: each guard regex must flag a known-bad snippet."""
     samples = {
-        "inline event handler": '<button onclick="switchPage(\'kanban\')">go</button>',
+        "inline event handler": "<button onclick=\"switchPage('kanban')\">go</button>",
         "executable inline script": "<script>switchPage('kanban');</script>",
         "remote asset reference": '<script src="https://cdn.example.com/x.js"></script>',
     }
