@@ -80,9 +80,7 @@ def _no_source() -> Generator[None, None, None]:
 
 
 class TestSourceBranch:
-    def test_source_detected_when_package_file_under_cwd_and_pyproject_exists(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_source_detected_when_package_file_under_cwd_and_pyproject_exists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """If specify_cli.__file__ is under cwd and pyproject.toml exists → SOURCE."""
         pkg_dir = tmp_path / "src" / "specify_cli"
         pkg_dir.mkdir(parents=True)
