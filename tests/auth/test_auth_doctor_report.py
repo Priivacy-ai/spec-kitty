@@ -3,6 +3,8 @@
 Covers the contract surface in ``contracts/auth-doctor.md``:
 section rendering, finding triggers, exit-code policy, the legacy
 session string, the NFR-006 wall-clock ceiling, and JSON schema shape.
+The daemon/orphan sections were removed together with the sync transport
+(issue #5); the surviving report has 5 sections and schema_version 3.
 
 Also covers the ``--server`` flag (WP04 / T019):
 - ServerSessionStatus dataclass construction
@@ -11,7 +13,7 @@ Also covers the ``--server`` flag (WP04 / T019):
 - doctor_impl server=True renders active/re-authenticate output
 
 All tests use ``monkeypatch`` to inject deterministic state for
-``assemble_report``'s upstream dependencies — no SaaS, no real daemon.
+``assemble_report``'s upstream dependencies — no SaaS, no network.
 """
 
 from __future__ import annotations
@@ -38,15 +40,9 @@ from specify_cli.cli.commands._auth_doctor import (
     render_report,
     render_report_json,
 )
+from specify_cli.core.file_lock import LockRecord
 
 pytestmark = pytest.mark.fast
-from specify_cli.core.file_lock import LockRecord
-from specify_cli.sync.classification import (
-    CleanupClass,
-    DaemonIdentityRecord,
-    IdentitySource,
-)
-from specify_cli.sync.daemon import SyncDaemonStatus
 
 
 # ---------------------------------------------------------------------------
@@ -100,43 +96,12 @@ class _FakeTokenManager:
         return self._session
 
 
-def _make_identity_record(port: int) -> DaemonIdentityRecord:
-    """Return a minimal DaemonIdentityRecord for a given port (safe_auto class)."""
-    return DaemonIdentityRecord(
-        daemon_family="sync",
-        pid=12345,
-        port=port,
-        protocol_version=1,
-        package_version="3.2.0a4",
-        singleton_scope_id=None,
-        daemon_root=None,
-        queue_db_path=None,
-        auth_scope=None,
-        server_url=None,
-        owner_present=False,
-        identity_source=IdentitySource.health_self_report,
-        executable_summary=None,
-        spawn_shape_ok=True,
-        self_report_matches_listener=True,
-        is_recorded_singleton=False,
-        cleanup_class=CleanupClass.SAFE_AUTO,
-        skip_reason=None,
-    )
-
-
 def _patch_state(
     monkeypatch: pytest.MonkeyPatch,
     *,
     session: StoredSession | None,
     lock_record: LockRecord | None = None,
-    daemon_status: SyncDaemonStatus | None = None,
-    daemon_state_exists: bool = False,
-    # WP05 repoint: _auth_doctor now calls enumerate_identity_records (not
-    # enumerate_orphans); accept DaemonIdentityRecord instances here. The
-    # OrphanDaemon-based tests below are converted to use _make_identity_record.
-    orphans: list[DaemonIdentityRecord] | None = None,
     auth_root: Path | None = None,
-    rollout_enabled: bool = False,
 ) -> None:
     """Wire ``_auth_doctor``'s upstream calls to deterministic fakes."""
     monkeypatch.setattr(
@@ -148,33 +113,6 @@ def _patch_state(
     if auth_root is None:
         auth_root = Path("/nonexistent/spec-kitty-doctor-test/auth/refresh.lock")
     monkeypatch.setattr(_auth_doctor, "_refresh_lock_path", lambda: auth_root)
-
-    class _FakeStateFile:
-        def __init__(self, exists: bool) -> None:
-            self._exists = exists
-
-        def exists(self) -> bool:
-            return self._exists
-
-    monkeypatch.setattr(
-        _auth_doctor, "DAEMON_STATE_FILE", _FakeStateFile(daemon_state_exists)
-    )
-    if daemon_status is None:
-        daemon_status = SyncDaemonStatus(healthy=False)
-    monkeypatch.setattr(
-        _auth_doctor, "get_sync_daemon_status", lambda: daemon_status
-    )
-    # WP05 repoint: enumerate_orphans removed from _auth_doctor; mock the new
-    # enumerate_identity_records symbol that assemble_report() now calls.
-    monkeypatch.setattr(
-        _auth_doctor, "enumerate_identity_records", lambda: list(orphans or [])
-    )
-    # Disable rollout-enabled finding F-005 unless the test asks for it.
-    import sys
-
-    fake_rollout_module = type(sys)("specify_cli.saas.rollout")
-    fake_rollout_module.is_saas_sync_enabled = lambda: rollout_enabled  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "specify_cli.saas.rollout", fake_rollout_module)
 
 
 def _capture_render(report: DoctorReport) -> str:
@@ -191,7 +129,7 @@ def _capture_render(report: DoctorReport) -> str:
 
 
 def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Healthy state ⇒ all 7 sections render; findings empty; exit 0."""
+    """Healthy state ⇒ all 5 sections render; findings empty; exit 0."""
     session = _make_session(
         refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
@@ -210,8 +148,6 @@ def test_renders_authenticated_no_findings(monkeypatch: pytest.MonkeyPatch) -> N
         "Tokens",
         "Storage",
         "Refresh Lock",
-        "Daemon",
-        "Orphans",
         "Findings",
     ):
         assert section in rendered, f"section {section!r} missing from rendered output"
@@ -233,38 +169,10 @@ def test_renders_unauthenticated(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "F-001" in rendered
 
 
-def test_renders_orphan_finding(monkeypatch: pytest.MonkeyPatch) -> None:
-    """One orphan present ⇒ F-002 warn; exit 0 (warn is not critical)."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
-    # WP05 repoint: _auth_doctor.assemble_report() now receives DaemonIdentityRecord
-    # objects from enumerate_identity_records; OrphanDaemon is no longer consumed here.
-    orphan_record = _make_identity_record(9401)
-    _patch_state(monkeypatch, session=session, orphans=[orphan_record])
-
-    report = assemble_report()
-
-    assert any(f.id == "F-002" and f.severity == "warn" for f in report.findings)
-    assert all(f.severity != "critical" for f in report.findings)
-    assert compute_exit_code(report.findings) == 0
-
-    rendered = _capture_render(report)
-    assert "F-002" in rendered
-    assert "9401" in rendered
-
-
 def test_renders_stuck_lock_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """Lock record 120 s old ⇒ F-003 critical; exit 1."""
     session = _make_session(
         refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
-    lock = LockRecord(
-        schema_version=1,
-        pid=99999,
-        started_at=now_utc() - timedelta(seconds=120),
-        host="localhost",
-        version="3.2.0a5",
     )
     # Force the holder_host to match local socket so F-007 doesn't fire.
     import socket
@@ -300,26 +208,15 @@ def test_renders_legacy_session(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Healthy state + simulated 50-port scan ⇒ wall-clock < 3 s.
+    """Healthy state ⇒ ``assemble_report`` wall-clock < 3 s (NFR-006).
 
-    NFR-006 verifies ``assemble_report`` returns within 3 seconds. Real
-    ``enumerate_identity_records`` is fast (50 ms TCP connect-check pre-filter)
-    but for this unit test we patch it with a tiny synthetic delay so
-    we exercise the *whole* pipeline rather than the network layer.
+    The default path reads only local files, so the whole pipeline runs
+    well inside the ceiling without any simulated scan delay.
     """
     session = _make_session(
         refresh_token_expires_at=now_utc() + timedelta(days=30)
     )
-
-    # WP05 repoint: assemble_report() calls enumerate_identity_records now;
-    # patch the new symbol to simulate the worst-case 50-port scan delay.
-    def fake_enumerate() -> list[DaemonIdentityRecord]:
-        # Simulate the worst-case 50-port scan completing very quickly.
-        time.sleep(0.05)
-        return []
-
     _patch_state(monkeypatch, session=session)
-    monkeypatch.setattr(_auth_doctor, "enumerate_identity_records", fake_enumerate)
 
     started = time.monotonic()
     report = assemble_report()
@@ -354,84 +251,6 @@ def test_renders_held_fresh_lock(monkeypatch: pytest.MonkeyPatch) -> None:
     assert all(f.id != "F-003" for f in report.findings)
 
 
-def test_renders_active_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Healthy daemon ⇒ section prints PID/Port/Package/Protocol."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
-    daemon_status = SyncDaemonStatus(
-        healthy=True,
-        url="http://127.0.0.1:9400",
-        port=9400,
-        token="tok",
-        pid=12345,
-        package_version="3.2.0a5",
-        protocol_version=1,
-    )
-    _patch_state(
-        monkeypatch,
-        session=session,
-        daemon_status=daemon_status,
-        daemon_state_exists=True,
-    )
-
-    report = assemble_report()
-    rendered = _capture_render(report)
-
-    assert "Active:" in rendered
-    assert "9400" in rendered
-    assert "12345" in rendered
-    assert report.daemon is not None
-    assert report.daemon.active is True
-
-
-def test_renders_recorded_unhealthy_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Daemon state file exists but health probe fails ⇒ "recorded but not healthy"."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
-    daemon_status = SyncDaemonStatus(
-        healthy=False, port=9400, pid=12345
-    )
-    _patch_state(
-        monkeypatch,
-        session=session,
-        daemon_status=daemon_status,
-        daemon_state_exists=True,
-    )
-
-    report = assemble_report()
-    rendered = _capture_render(report)
-
-    assert "recorded but not healthy" in rendered
-    assert "12345" in rendered
-
-
-def test_unhealthy_daemon_finding_points_to_reset(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Rollout-enabled unhealthy singleton should tell users to run ``--reset``."""
-    session = _make_session(
-        refresh_token_expires_at=now_utc() + timedelta(days=30)
-    )
-    daemon_status = SyncDaemonStatus(
-        healthy=False, port=9402, pid=12835
-    )
-    _patch_state(
-        monkeypatch,
-        session=session,
-        daemon_status=daemon_status,
-        daemon_state_exists=True,
-        rollout_enabled=True,
-    )
-
-    report = assemble_report()
-
-    finding = next(f for f in report.findings if f.id == "F-005")
-    assert "not healthy" in finding.summary
-    assert finding.remediation_command == "spec-kitty auth doctor --reset"
-
-
 def test_nfs_holder_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     """F-007 fires when the lock holder host differs from the local hostname."""
     session = _make_session(
@@ -461,22 +280,21 @@ def test_json_output_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     report = assemble_report()
     payload = json.loads(render_report_json(report))
 
-    # Top-level keys.
+    # Top-level keys. v3 dropped the retired `daemon` / `orphans` sections.
     for key in (
         "schema_version",
         "generated_at",
         "auth_root",
         "session",
         "refresh_lock",
-        "daemon",
-        "orphans",
         "findings",
     ):
         assert key in payload
+    assert "daemon" not in payload
+    assert "orphans" not in payload
 
-    # WP05 repoint: schema_version was bumped to 2 when orphans[] changed from
-    # OrphanDaemon dicts to full DaemonIdentityRecord.to_dict() entries (FR-004).
-    assert payload["schema_version"] == 2
+    # v3: sync-daemon diagnostics removed from the payload (issue #5).
+    assert payload["schema_version"] == 3
     # ISO-8601 datetime
     parse_iso(payload["generated_at"])
     # auth_root is a string path
@@ -740,7 +558,6 @@ def test_doctor_impl_server_false_no_outbound_call(
 
     exit_code = doctor_impl(
         json_output=True,
-        reset=False,
         unstick_lock=False,
         stuck_threshold=60.0,
         server=False,
@@ -778,7 +595,6 @@ def test_doctor_impl_server_true_renders_active(
 
     exit_code = doctor_impl(
         json_output=False,
-        reset=False,
         unstick_lock=False,
         stuck_threshold=60.0,
         server=True,
@@ -817,7 +633,6 @@ def test_doctor_impl_server_true_renders_unknown_session_id(
 
     exit_code = doctor_impl(
         json_output=False,
-        reset=False,
         unstick_lock=False,
         stuck_threshold=60.0,
         server=True,
@@ -856,7 +671,6 @@ def test_doctor_impl_server_true_renders_reauthenticate(
 
     exit_code = doctor_impl(
         json_output=False,
-        reset=False,
         unstick_lock=False,
         stuck_threshold=60.0,
         server=True,
@@ -889,7 +703,6 @@ def test_doctor_impl_server_true_json_includes_server_session(
 
     exit_code = doctor_impl(
         json_output=True,
-        reset=False,
         unstick_lock=False,
         stuck_threshold=60.0,
         server=True,

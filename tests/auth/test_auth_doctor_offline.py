@@ -11,7 +11,7 @@ Two invariants per ``contracts/auth-doctor.md`` and the WP06 charter:
    ``force_release``, no ``storage.delete``.
 
 Both invariants are verified against ``doctor_impl(json_output=True,
-reset=False, unstick_lock=False)`` (the default, read-only path).
+unstick_lock=False)`` (the default, read-only path).
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ import pytest
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import doctor_impl
-from specify_cli.sync.daemon import SyncDaemonStatus
 
 
 pytestmark = [pytest.mark.integration]
@@ -87,22 +86,6 @@ def _patch_doctor_state(
     )
     monkeypatch.setattr(_auth_doctor, "_refresh_lock_path", lambda: lock_path)
 
-    class _FakeStateFile:
-        def exists(self) -> bool:
-            return False
-
-    monkeypatch.setattr(_auth_doctor, "DAEMON_STATE_FILE", _FakeStateFile())
-    monkeypatch.setattr(
-        _auth_doctor, "get_sync_daemon_status", lambda: SyncDaemonStatus(healthy=False)
-    )
-    # Empty orphan list — no need to scan ports for this offline test.
-    monkeypatch.setattr(_auth_doctor, "enumerate_identity_records", lambda: [])
-    import sys
-
-    fake_rollout = type(sys)("specify_cli.saas.rollout")
-    fake_rollout.is_saas_sync_enabled = lambda: False  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "specify_cli.saas.rollout", fake_rollout)
-
 
 # ---------------------------------------------------------------------------
 # C-007: no outbound HTTP
@@ -115,10 +98,8 @@ def test_no_outbound_http(
     """Default ``auth doctor`` makes ZERO non-127.0.0.1 outbound calls.
 
     Patches ``httpx.AsyncClient`` and ``urllib.request.urlopen`` to fail
-    the test on any non-localhost call. Local 127.0.0.1 probes (orphan
-    health check, daemon status) are explicitly allowed by C-007 and
-    deliberately disabled by the fixtures above (``enumerate_identity_records``
-    returns ``[]``; daemon state file does not exist).
+    the test on any non-localhost call. The default path reads only local
+    files, so we expect no network activity at all in this fixture.
     """
     lock_path = tmp_path / "auth" / "refresh.lock"
     _patch_doctor_state(monkeypatch, lock_path=lock_path)
@@ -130,9 +111,9 @@ def test_no_outbound_http(
             raise AssertionError(
                 f"urllib.request.urlopen called against non-local URL: {target!r}"
             )
-        # We don't expect any local calls to fire either in this fixture
-        # (orphan list is empty, daemon state is missing) but keep the
-        # local branch a no-op so this test stays robust to future edits.
+        # We don't expect any local calls to fire either in this fixture;
+        # keep the local branch a no-op so this test stays robust to future
+        # edits.
         raise RuntimeError("local urlopen unreachable in this fixture")
 
     class _FailingHTTPXClient:
@@ -154,7 +135,6 @@ def test_no_outbound_http(
     # Default invocation, JSON output to avoid Rich noise.
     exit_code = doctor_impl(
         json_output=True,
-        reset=False,
         unstick_lock=False,
         stuck_threshold=60.0,
     )
@@ -173,9 +153,9 @@ def test_no_state_mutation_default(
 ) -> None:
     """After a default invocation: no files removed, no processes terminated.
 
-    Patches ``Path.unlink`` and the WP01 / WP05 mutating primitives to
-    fail-the-test if invoked. ``_storage.delete`` is also wrapped so any
-    call would raise.
+    Patches ``Path.unlink`` and the WP01 mutating primitive
+    (``force_release``) to fail-the-test if invoked. ``_storage.delete``
+    is also wrapped so any call would raise.
     """
     lock_path = tmp_path / "auth" / "refresh.lock"
     _patch_doctor_state(monkeypatch, lock_path=lock_path)
@@ -189,11 +169,6 @@ def test_no_state_mutation_default(
     def _fail_force_release(*args, **kwargs):  # type: ignore[no-untyped-def]
         raise AssertionError(
             "force_release called on default doctor path — FR-015 violation"
-        )
-
-    def _fail_reset_orphans(*args: object, **kwargs: object) -> None:
-        raise AssertionError(
-            "reset_orphans called on default doctor path — FR-015 violation"
         )
 
     # psutil terminate/kill on the default path would be FR-015 violations.
@@ -216,7 +191,6 @@ def test_no_state_mutation_default(
             )
 
     monkeypatch.setattr(_auth_doctor, "force_release", _fail_force_release)
-    monkeypatch.setattr(_auth_doctor, "reset_orphans", _fail_reset_orphans)
     monkeypatch.setattr(psutil, "Process", _FailingProcess)
     # Patch Path.unlink at the class level so any descendant call fails.
     monkeypatch.setattr(Path, "unlink", _fail_unlink)
@@ -227,7 +201,6 @@ def test_no_state_mutation_default(
 
     exit_code = doctor_impl(
         json_output=True,
-        reset=False,
         unstick_lock=False,
         stuck_threshold=60.0,
     )

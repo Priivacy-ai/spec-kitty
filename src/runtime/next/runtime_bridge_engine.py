@@ -77,7 +77,7 @@ if TYPE_CHECKING:
     from runtime.next._internal_runtime import MissionRunRef, NextDecision
     from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
     from runtime.next.decision import Decision
-    from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+    from runtime.next.event_emitter import RuntimeEventEmitter
 
 # ---------------------------------------------------------------------------
 # T011 — grep-complete engine/planner private-access wrappers
@@ -136,7 +136,7 @@ def _mark_step_completed(
     run_dir: Path,
     snapshot: MissionRunSnapshot,
     agent: str,
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> tuple[MissionRunSnapshot, bool]:
     """Mark the issued step completed (success path only); emit + persist.
 
@@ -180,7 +180,7 @@ def _emit_step_issued(
     snapshot: MissionRunSnapshot,
     step_id: str,
     agent: str,
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> None:
     actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm", provider=None, model=None, tool=None)
     payload = NextStepIssuedPayload(run_id=snapshot.run_id, step_id=step_id, agent_id=agent, actor=actor)
@@ -195,7 +195,7 @@ def _emit_decision_required(
     decision_id: str,
     agent: str,
     pending_decisions: dict[str, Any],
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> dict[str, Any]:
     """Persist + emit a decision-input-request; only on first occurrence (no dupes on re-poll)."""
     if decision_id in pending_decisions:
@@ -234,7 +234,7 @@ def _emit_terminal(
     mission_slug: str,
     repo_root: Path,
     feature_dir: Path,
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> None:
     """Run the retrospective gate (if configured) and emit ``MissionRunCompleted``.
 
@@ -289,7 +289,7 @@ def _apply_decision_effects(
     repo_root: Path,
     feature_dir: Path,
     did_complete_step: bool,
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> MissionRunSnapshot:
     """Dispatch the 3 ``next_step``-mirroring branches, then fold the result
     (``issued_step_id`` / ``pending_decisions``) back into the snapshot."""
@@ -320,7 +320,7 @@ def advance_run_state_after_composition(
     timestamp: str,
     progress: dict[str, int | float] | None,
     origin: dict[str, Any],
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> Decision:
     """Advance run state after a successful composed action and return a Decision.
 
@@ -329,7 +329,7 @@ def advance_run_state_after_composition(
     FR-002 / phase6-composition-stabilization-01KQ2JAS) — reuses the same
     engine primitives ``runtime_next_step`` uses internally (``_read_snapshot``,
     ``_append_event``, ``_load_frozen_template``, ``plan_next``,
-    ``_write_snapshot``) plus the same ``SyncRuntimeEventEmitter``, without
+    ``_write_snapshot``) plus the same ``RuntimeEventEmitter``, without
     re-entering the legacy DAG dispatch. Returns the same ``Decision`` shape
     ``runtime_next_step(...)`` would have produced for the same advance
     (FR-005); only the dispatch path differs.

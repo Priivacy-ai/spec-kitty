@@ -41,15 +41,6 @@ from specify_cli.task_utils import (
 logger = logging.getLogger(__name__)
 
 
-def _safe_emit_error_logged(message: str) -> None:
-    try:
-        from specify_cli.sync.events import emit_error_logged
-
-        emit_error_logged(error_type="runtime", error_message=message)
-    except Exception as exc:  # noqa: BLE001 — non-blocking: never fail the command on emission errors
-        logger.debug("emit_error_logged failed for %r: %s", message, exc)
-
-
 def _stranded_verdict_provenance_note(feature_dir: Path) -> str | None:
     """Non-blocking SC-008 diagnostic: a WP with a terminal review-cycle ``.md``
     verdict but no event-log ``review_result`` slot.
@@ -676,7 +667,6 @@ def accept(
     # and calls sys.exit(2) on failure; no try/except needed.
     raw_handle = mission
     if raw_handle is None:
-        _safe_emit_error_logged("No mission handle provided")
         if json_output:
             print(json.dumps({"error": "--mission <slug> is required"}))
         else:
@@ -730,7 +720,6 @@ def accept(
         # with the `spec-kitty upgrade` instruction and write NOTHING — never fall
         # through to a vacuous all-done summary that auto-commits an unmigrated
         # mission.
-        _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))
         else:
@@ -739,7 +728,6 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
     except AcceptanceError as exc:
-        _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))
         else:
@@ -756,7 +744,6 @@ def accept(
         # every OTHER accept mode that hits the same load path, without
         # weakening gates_core.py's / post_consolidation.py's own loud-crash
         # contract on malformed input (they still let it propagate).
-        _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))
         else:
@@ -797,7 +784,6 @@ def accept(
         else:
             _print_acceptance_summary(summary)
         if not allow_fail:
-            _safe_emit_error_logged("Outstanding acceptance issues detected")
             if not json_output:
                 console.print(
                     "\n[red]Outstanding acceptance issues detected. Resolve them before merging or rerun with --allow-fail for a checklist-only report.[/red]"
@@ -842,7 +828,6 @@ def accept(
             tracker.complete("commit", detail)
     except AcceptanceError as exc:
         _accept_exc = exc
-        _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))
         else:
@@ -863,7 +848,6 @@ def accept(
                 _stamp_birth_cutover_for_accept(repo_root, mission_slug)
             except MissingMissionIdError as stamp_exc:
                 _stamp_exc = stamp_exc
-                _safe_emit_error_logged(f"birth-cutover stamp fail-closed: {stamp_exc}")
         if commit_required:
             # The acceptance commit (inside perform_acceptance) only captures
             # meta.json. Derived artifacts materialized during readiness checks
@@ -875,7 +859,6 @@ def accept(
                 _commit_residual_acceptance_artifacts(repo_root, mission_slug)
             except Exception as residue_exc:
                 _residue_exc = residue_exc
-                _safe_emit_error_logged(f"Residual artifact commit failed: {residue_exc}")
     if _accept_exc is not None:
         raise typer.Exit(1)
     if _stamp_exc is not None:

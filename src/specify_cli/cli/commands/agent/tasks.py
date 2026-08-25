@@ -773,8 +773,6 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     _do_mark_status as _do_mark_status,
     _ms_apply_updates as _ms_apply_updates,
     _ms_commit as _ms_commit,
-    _ms_dossier_sync as _ms_dossier_sync,
-    _ms_emit_history as _ms_emit_history,
     _ms_emit_subtask_state as _ms_emit_subtask_state,
     _ms_output as _ms_output,
     _ms_report_none_resolved as _ms_report_none_resolved,
