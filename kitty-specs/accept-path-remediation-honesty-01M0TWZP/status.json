@@ -1,7 +1,7 @@
 {
-  "event_count": 1,
-  "last_event_id": "01M0V7XYF6BD36WCGZJYC1SK5A",
-  "materialized_at": "2026-08-25T01:18:06.310865+00:00",
+  "event_count": 2,
+  "last_event_id": "01M0V7Y8DJWW569ZEV5DER1SEE",
+  "materialized_at": "2026-08-25T01:18:16.498437+00:00",
   "mission_number": "",
   "mission_slug": "accept-path-remediation-honesty-01M0TWZP",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 1
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -23,6 +23,13 @@
       "lane": "planned",
       "last_event_id": "01M0V7XYF6BD36WCGZJYC1SK5A",
       "last_transition_at": "2026-08-25T01:18:06.310865+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01M0V7Y8DJWW569ZEV5DER1SEE",
+      "last_transition_at": "2026-08-25T01:18:16.498437+00:00"
     }
   }
 }
