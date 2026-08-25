@@ -803,6 +803,11 @@ class TestMissionCreatePropagatesEmptyActionSequenceError:
                     "Confirms create_mission_core propagates FR-004's exception "
                     "type end to end, not a re-wrapped generic error."
                 ),
+                # This test asserts exception-type propagation, not worktree
+                # policy — allow_worktree_context=True keeps it from tripping
+                # the unrelated is_worktree_context guard when the ambient cwd
+                # happens to be a linked worktree (e.g. the CI runner's tree).
+                allow_worktree_context=True,
             )
 
         err = exc_info.value
