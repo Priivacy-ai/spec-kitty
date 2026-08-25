@@ -465,10 +465,22 @@ def _canonical_git_dir(cwd: str) -> str:
 
 
 def _origin_candidates(cwd: str, deadline: Deadline) -> Iterator[str]:
-    """The three origin-URL sources ``repo_name``/``origin_url`` consult, in
-    order: the live git probe, then ``.git/config``, then the frozen
+    """The four origin-URL sources ``repo_name``/``origin_url`` consult, in
+    order: the checkout's own configured ``remote.origin.url``, the
+    transport view of that same remote, ``.git/config``, and the frozen
     quarantine record. Shared so both callers can never drift apart about
-    which sources exist or in what order they are tried."""
+    which sources exist or in what order they are tried.
+
+    The configured URL is read through ``git config --get`` rather than
+    ``git remote get-url`` on purpose: the latter reports where a fetch
+    would actually go, which is not where the checkout says it came from
+    once a global ``url.<base>.insteadOf`` rewrite stands in between (a
+    corporate mirror, an integration proxy). Team Kitty admits presence by
+    the forge host the checkout itself names — a machine-local transport
+    rewrite must never re-home that identity to a forge it has never heard
+    of. The transport view stays second as a fallback for remotes whose URL
+    only resolves at transport time."""
+    yield deadline.run(["config", "--get", "remote.origin.url"], cwd)
     yield deadline.run(["remote", "get-url", "origin"], cwd)
     yield _origin_from_filesystem(cwd)
     yield _quarantine_origin_from_filesystem(cwd)

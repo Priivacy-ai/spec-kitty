@@ -29,9 +29,33 @@ import threading
 import time
 from collections.abc import Generator
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import pytest
+
+
+@pytest.fixture()
+def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
+    """A synthetic global git config that rewrites ``https://github.com/``
+    onto a proxy host, inherited by every child ``git`` through
+    ``GIT_CONFIG_GLOBAL`` (which is not one of ``Deadline``'s stripped
+    discovery vars, so the real machine config is never touched).
+
+    This is the shape every exe.dev VM — and many corporate laptops — carry
+    for real, and it is exactly what made identity resolution report the
+    proxy instead of the checkout's own origin (#81): Team Kitty admits by
+    the forge host the checkout names, so a machine-local transport rewrite
+    must never stand in for it. Installing it unconditionally makes the
+    host assertions below deterministic on machines with no rewrite of
+    their own.
+
+    Returns the proxy host the rewrite installs, to assert against."""
+    proxy_host = "github.int.example.invalid"
+    config_path = tmp_path / "global-gitconfig"
+    config_path.write_text(f'[url "https://{proxy_host}/"]\n\tinsteadOf = https://github.com/\n')
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config_path))
+    return proxy_host
 
 
 @dataclass

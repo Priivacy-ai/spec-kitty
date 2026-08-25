@@ -519,14 +519,18 @@ def clone(tmp_path: Path) -> Path:
 
 
 class TestResolveCredentialsEndToEnd:
-    def test_identity_and_slug_are_derived_from_the_checkout_itself(self, state_root: Path, clone: Path) -> None:
+    def test_identity_and_slug_are_derived_from_the_checkout_itself(self, state_root: Path, clone: Path, instead_of_rewrite: str) -> None:
         gateway = ScriptedGateway()
         stored = resolution.resolve_credentials(clone, gateway=gateway)  # type: ignore[arg-type]
         assert stored is not None
         # Store key: the canonical repo NAME repo_identity mints ...
         assert credentials.load(repo="widget") == stored
         # ... while Team Kitty is asked about the owner/repo slug + host.
+        # The fixture rewrites github.com onto a machine-local transport
+        # proxy; the checkout's own origin must win (#81) — a proxy host
+        # here was Team Kitty being asked to admit a forge it never knew.
         assert gateway.admission_calls == [{"repo_slug": "acme/widget", "host": "github.com"}]
+        assert instead_of_rewrite not in str(gateway.admission_calls)
 
     def test_second_call_never_leaves_the_machine(self, state_root: Path, clone: Path) -> None:
         first = ScriptedGateway()

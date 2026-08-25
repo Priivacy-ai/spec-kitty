@@ -586,8 +586,9 @@ def test_filesystem_fallback_finds_origin_with_git_wedged(wedged_clone):
 
 
 def test_aggregate_deadline_shared_across_repo_branch_and_commit(wedged_clone):
-    """The one wedged live-git probe (`remote get-url origin`) spends the
-    whole budget; branch/commit lookups must not each get a fresh one."""
+    """The one wedged live-git probe (`config --get remote.origin.url`, the
+    first origin candidate) spends the whole budget; branch/commit lookups
+    must not each get a fresh one."""
     start = time.monotonic()
     result = repo_identity.identity(str(wedged_clone))
     elapsed = time.monotonic() - start
@@ -744,6 +745,26 @@ def test_origin_url_returns_the_live_remote_verbatim(tmp_path, origin):
     url = repo_identity.origin_url(str(clone))
     assert url.endswith("acme-widgets.git")
     assert "work" not in url  # the checkout path leaks nothing into it
+
+
+def test_origin_url_ignores_a_global_insteadof_transport_rewrite(tmp_path, origin, instead_of_rewrite):
+    """``git remote get-url`` reports where a fetch would go — through any
+    global ``url.<base>.insteadOf`` rewrite — not where the checkout says it
+    came from. The identity must report the latter: on a proxy-rewriting
+    machine the rewritten host leaking into ``origin_url`` had Team Kitty
+    being asked to admit a forge it has never heard of (#81)."""
+    clone = _clone(origin, tmp_path / "work" / "some-other-dirname")
+    _git("remote", "set-url", "origin", "https://github.com/acme/acme-widgets.git", cwd=clone)
+    assert repo_identity.origin_url(str(clone)) == "https://github.com/acme/acme-widgets.git"
+
+
+def test_repo_name_is_unchanged_by_a_global_insteadof_transport_rewrite(tmp_path, origin, instead_of_rewrite):
+    """Name and URL share one candidate chain on purpose (repo_name and
+    origin_url must never drift): under the same rewrite both still agree
+    about which repository this is."""
+    clone = _clone(origin, tmp_path / "work" / "some-other-dirname")
+    _git("remote", "set-url", "origin", "https://github.com/acme/acme-widgets.git", cwd=clone)
+    assert repo_identity.repo_name(str(clone)) == "acme-widgets"
 
 
 def test_origin_url_uses_the_quarantine_record_when_the_remote_is_gone(tmp_path):
