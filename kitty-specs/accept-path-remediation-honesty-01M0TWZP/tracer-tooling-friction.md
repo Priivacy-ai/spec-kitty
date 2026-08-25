@@ -102,3 +102,60 @@ its own background CLI invocation after the command had already completed and co
 (the SK-agent-harness pattern of a subagent blocking on its own background work rather than
 the harness's completion signal) — a dispatch-hygiene observation for the orchestrator, not
 a spec-kitty CLI defect.
+
+## 2026-08-25 — `record-analysis` (analyze phase, first-hand)
+
+`.venv/bin/spec-kitty agent mission record-analysis --mission
+accept-path-remediation-honesty-01M0TWZP --input-file <temp-report> --agent
+claude-sonnet --json`, run from repo root on this checkout (CLI 3.2.6rc3).
+
+**Symptom-by-symptom check** (per this phase's own instruction to name which of
+SK-06/43/47/32/63/20 fired):
+
+- **SK-06 (verdict silently written as `unknown`)**: did **not** fire. The persisted
+  `analysis-report.md`'s `verdict:` field reads literally `ready`, computed correctly
+  from the submitted carrier (0 critical/high, 1 medium, 3 low findings) — confirmed
+  by reading the committed file directly, not just the command's own JSON summary.
+- **SK-43 (report left untracked/uncommitted)**: did **not** fire for the report
+  itself — `analysis-report.md` is tracked and committed
+  (`41cf739c9 docs(record-analysis): record analysis report for mission
+  accept-path-remediation-honesty-01M0TWZP`), `git diff --stat` on the file is empty.
+  **However, a related side-effect artifact WAS left dirty by this same command
+  run**: `.kittify/dossiers/accept-path-remediation-honesty-01M0TWZP/snapshot-latest.json`
+  was regenerated (a fresh `snapshot_id`, `total_artifacts` growing from 4 to 57,
+  a new `parity_hash_sha256`) but `git status --porcelain` shows it as modified,
+  not committed — `record-analysis`'s own auto-commit covered only
+  `analysis-report.md`, not the dossier snapshot its own run also touched. This is
+  the same class of imprecise side-effect commit bookkeeping already noted for
+  `finalize-tasks` (SK-91 entry above, same file, 2026-08-25) — a different command,
+  same pattern: the tool mutates more on disk than what its own commit captures.
+  Not hand-fixed per instruction (non-remediating step; do not commit files not
+  explicitly authorized) — left for whoever next touches `record-analysis`'s
+  dossier-refresh side effect.
+- **SK-47**: no symptom observed matching this ledger ID in this run (not enough
+  independent context to confirm absence beyond "nothing matching fired here").
+- **SK-32 (host-absolute path injected into the committed artifact)**: did **not**
+  fire — `grep -n "/home/" analysis-report.md` returns no match (exit code 1).
+- **SK-63 (hangs after printing `"success": true`, never returns/commits)**: did
+  **not** fire in the strict sense — the command exceeded the foreground 120s
+  timeout and had to be moved to a background task, but it then completed normally
+  on its own (exit code 0) with `"success": true"` as the LAST line printed before
+  natural process exit, and the commit (`41cf739c9`) is real. This is **slowness**,
+  not the SK-63 hang-after-success pattern — worth distinguishing explicitly since
+  they'd otherwise look identical from partial output. The delay coincided with the
+  same sync-store lock contention below, so likely the same root cause as SK-63's
+  reported symptom, just not severe enough to fully hang this run.
+- **SK-20**: no symptom observed matching this ledger ID in this run.
+
+**Sync-store lock warnings** (noisy, non-blocking — same class already recorded for
+`mission create` and `finalize-tasks` above): every run of this command printed
+`Warning: event journal capture failed: project sync store is locked`,
+`Warning: Event routing failed: project sync store is locked`,
+`Warning: Event did not durably queue; dropping from publication`, and
+`Warning: Explicit-context event capture failed: machine layout cutover did not
+publish within the bounded wait ...` — repeated multiple times over the run's
+duration. Did not block the command's actual success or the report's correctness;
+recorded here for the same reason as the prior two entries (durability/event-routing
+chain around agent commands is suspect and should be checked by whoever next
+touches that plumbing) and as the likely explanation for this run's slowness noted
+under SK-63 above.
