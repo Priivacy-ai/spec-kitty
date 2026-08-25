@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from kernel.clock import now_utc_iso
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
