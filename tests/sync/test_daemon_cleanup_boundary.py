@@ -12,8 +12,9 @@ Boundary port coverage (T034):
 - Sync range [9400, 9450): first=9400, last=9449, just-outside=9399/9450
 - Dashboard range [9237, 9337): first=9237, last=9336, just-outside=9236/9337
 
-DaemonIntent.LOCAL_ONLY assertion (T035): dashboard startup passes LOCAL_ONLY
-to ensure_sync_daemon_running and the early-return is hit without starting sync.
+DaemonIntent assertion (T035, as of issue #2): dashboard startup never touches
+ensure_sync_daemon_running at all — it serves local state only; the sync-side
+LOCAL_ONLY early-return is exercised by its own unit pins below.
 
 All tests use real TCP listeners (no mocking of the HTTP layer) and run
 serially with ``-n0``.  Every spawned resource is torn down in fixture
@@ -716,41 +717,36 @@ class TestBoundaryPorts:
 
 
 # ---------------------------------------------------------------------------
-# T035 – Dashboard intent: DaemonIntent.LOCAL_ONLY unchanged (AS-7, C-003)
+# T035 – Dashboard intent: dashboard boot never touches the sync daemon
+# (supersedes AS-7/C-003's LOCAL_ONLY bootstrap — spec-kitty issue #2)
 # ---------------------------------------------------------------------------
 
 
 class TestDashboardIntentLocalOnly:
-    """AS-7 / C-003 — dashboard startup passes DaemonIntent.LOCAL_ONLY; early-return is hit."""
+    """AS-7 / C-003 as superseded by issue #2 — the dashboard starts no daemon.
 
-    def test_run_dashboard_server_passes_local_only(self, tmp_path: Path) -> None:
-        """``run_dashboard_server`` calls ``ensure_sync_daemon_running`` with LOCAL_ONLY.
+    The E4 re-homing deleted ``run_dashboard_server``'s
+    ``ensure_sync_daemon_running(DaemonIntent.LOCAL_ONLY)`` bootstrap (it was a
+    provable no-op: LOCAL_ONLY returned before the lock/reaper path). The pins
+    below keep the boundary honest from both sides: boot must not touch the
+    sync daemon, and the LOCAL_ONLY early-return still works for callers that
+    do pass it.
+    """
 
-        We patch ``ensure_sync_daemon_running`` at the canonical module to capture
-        its ``intent`` kwarg.  The function is imported inside ``run_dashboard_server``
-        via a local ``from specify_cli.sync.daemon import ...`` so we must patch the
-        source location (``specify_cli.sync.daemon.ensure_sync_daemon_running``).
-        The early-return for LOCAL_ONLY means no sync daemon is ever started.
+    def test_run_dashboard_server_never_touches_sync_daemon(self, tmp_path: Path) -> None:
+        """``run_dashboard_server`` must not call ``ensure_sync_daemon_running``.
+
+        We patch ``ensure_sync_daemon_running`` to explode on any call. It is
+        imported inside ``run_dashboard_server`` via a local
+        ``from specify_cli.sync.daemon import ...``, so we must patch the source
+        location (``specify_cli.sync.daemon.ensure_sync_daemon_running``).
         """
-        from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome
-
-        captured_intent: list[DaemonIntent] = []
-
-        def _mock_ensure(*, intent: DaemonIntent, **_kwargs: Any) -> DaemonStartOutcome:
-            captured_intent.append(intent)
-            # Simulate the LOCAL_ONLY early-return: skipped_reason set, started=False.
-            return DaemonStartOutcome(
-                started=False,
-                skipped_reason="intent_local_only",
-                pid=None,
-            )
-
-        # Patch at the canonical source so the local import inside
-        # run_dashboard_server picks it up.
         with patch(
             "specify_cli.sync.daemon.ensure_sync_daemon_running",
-            side_effect=_mock_ensure,
-        ):
+            side_effect=AssertionError(
+                "dashboard boot must not touch ensure_sync_daemon_running (issue #2)"
+            ),
+        ) as mock_ensure:
             from specify_cli.dashboard import server as dashboard_server
 
             # Stop before the blocking ``serve_loopback_server`` call.
@@ -761,13 +757,7 @@ class TestDashboardIntentLocalOnly:
                     project_token=None,
                 )
 
-        assert len(captured_intent) == 1, (
-            f"ensure_sync_daemon_running should be called exactly once; got {captured_intent}"
-        )
-        assert captured_intent[0] == DaemonIntent.LOCAL_ONLY, (
-            f"C-003 VIOLATION: dashboard passed intent={captured_intent[0]!r} "
-            "instead of DaemonIntent.LOCAL_ONLY"
-        )
+        mock_ensure.assert_not_called()
 
     def test_local_only_skip_reason_is_intent_local_only(self) -> None:
         """``_daemon_start_skip_reason`` returns 'intent_local_only' for LOCAL_ONLY intent.
