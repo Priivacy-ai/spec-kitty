@@ -49,18 +49,15 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ---
 
-## ⚠️ CRITICAL: Git Workflow — No Direct Pushes to origin/main
+## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges
 
-**All changes to origin/main MUST go through pull requests. Direct pushes are prohibited.**
+This repo is part of the `EXPERIMENTAL-spec-kitty-*` programme. **`main` IS the integration branch**: every PR targets `main`, nothing deploys on merge, and nothing on GitHub enforces anything — no branch protection, no required reviews (the leftover `.github/workflows/` YAML is pre-programme and inert). The binding process is the programme constitution — [`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) §5–§9:
 
-- `spec-kitty merge` merges to **local main** only. It does NOT push to origin/main.
-- After `spec-kitty merge`, if the user explicitly asks to share or publish: create a PR branch (`git checkout -b pr/<slug>`) and open a pull request (`gh pr create`). Do NOT do this automatically — wait for explicit user instruction.
-- Never run `git push origin main` or equivalent. Use a PR branch and `gh pr create`.
-- Distinguish **local main** (your checkout) vs **origin/main** (the remote); qualify which branch you mean (see the `primary`/`merge` footgun note under Terminology Canon).
+- **Never push to `main`.** One issue → one branch (`issue-<n>-<slug>`, cut from `main`) → one PR targeting `main` (§5). Implementers never merge; the merge agent does (§9).
+- `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
+- On exe.dev VMs `gh issue` / `gh pr` fail behind the integration proxy — use `gh api repos/<owner>/<repo>/...` (see `bin/GH-API.md` in the planning repo).
 
-**Why:** The workflow is predicated on pull requests for review, CI gating, and audit trail. Direct pushes to origin/main bypass all of these.
-
-**Recovery:** If you accidentally push to origin/main, do NOT force-push (branch protection blocks it). Instead: create a `revert/<slug>` branch from origin/main, commit a revert, open a PR to merge it, then open the real mission PR.
+**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and run `tests/architectural/` in full. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that.
 
 ---
 
@@ -289,20 +286,7 @@ Treat these as code-shaping constraints, not post-hoc cleanup:
 
 ## PyPI Release
 
-**CRITICAL: NEVER create releases without explicit user instruction. NEVER release manually — use the GitHub release process.**
-
-Only act on: "cut a release", "release v0.X.Y", "push to PyPI", or similar explicit instructions.
-
-```bash
-# 1. Bump version in pyproject.toml + add CHANGELOG.md entry
-# 2. Tag and push:
-git tag -a vX.Y.Z -m "Release vX.Y.Z - Brief description"
-git push origin vX.Y.Z
-# 3. Monitor: gh run list --workflow=release.yml --limit=1 && gh run watch <run_id>
-# 4. Verify: gh release view vX.Y.Z
-```
-
-Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
+No releases happen inside this programme: the GitHub Actions release workflow this section described is not wired to this repo, and tagging would require pushing to `main` (prohibited above). If the Human-in-Control explicitly requests a release, treat that as its own decision. Historical mechanics: [CONTRIBUTING.md](CONTRIBUTING.md#release-process).
 
 ---
 
@@ -535,15 +519,9 @@ edges:
 
 ---
 
-## Branch Protection and CI
+## Branches and CI
 
-`main` has a **Protect Main Branch** CI workflow that enforces the no-direct-push policy. A "Protect Main Branch" failure on CI means code bypassed the PR workflow and must be addressed by revert + re-submit.
-
-- `spec-kitty merge` merges lane branches into **local main** only — do NOT use `spec-kitty merge --push` or `git push origin main`.
-- After `spec-kitty merge` completes locally, create a PR branch: `git checkout -b pr/<slug> && git push origin pr/<slug>` and open a PR with `gh pr create`.
-- The only CI result relevant to code health is **CI Quality**. The protect-main failure indicates a workflow violation.
-
-**Recovery if origin/main is accidentally pushed:** Do NOT force-push (branch protection blocks it). Create a `revert/<slug>` branch from origin/main, commit a single revert, open a PR to merge it, then open the real PR from the mission branch.
+Nothing on GitHub enforces the workflow in this programme's repos — no branch protection, no required reviews, and no deploy wired to a merge (the leftover `.github/workflows/` YAML is pre-programme and inert); [`PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) §5–§9 does (see *Git Workflow* above). `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via an `issue-<n>-<slug>` branch and a PR targeting `main`, and let the merge agent merge.
 
 ---
 
@@ -552,9 +530,9 @@ edges:
 When work touches `/spec-kitty-saas`, use two explicit Docker modes:
 
 - **`dev-live`** (implementation/debug loops): `make docker-app-up-live`, `make docker-app-down-live`
-- **`prod-like`** (pre-merge/pre-deploy gate): `make docker-app-up`, `make docker-auth-check` (required before Fly promotion), `make docker-app-down`
+- **`prod-like`** (pre-merge gate): `make docker-app-up`, `make docker-auth-check` (required before merge), `make docker-app-down`
 
-Default to `dev-live` while editing Python, templates, or assets. Always run and pass `prod-like` auth preflight before merge or Fly promotion. If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
+Default to `dev-live` while editing Python, templates, or assets. Always run and pass `prod-like` auth preflight before merge. If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
 
 Runbook: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS repo.
 

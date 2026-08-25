@@ -1,4 +1,4 @@
-"""Timing contract of ``_poll_operation_under_lease`` — deterministic, seam-based.
+"""Timing contract of ``_poll_operation`` — deterministic, seam-based.
 
 Reinstates the coverage the retired ``TestPolling`` interval/timeout tests
 carried, WITHOUT their failure mode: those tests patched the stdlib
@@ -16,7 +16,7 @@ Pinned contract (`saas_client.py` poll tail):
   derived from ``_randbelow(4000) / 10000 + 0.8``;
 * when the next sleep would meet or exceed the remaining transport budget the
   loop refuses with ``recovery_required`` instead of sleeping past the
-  persisted deadline.
+  transport deadline.
 """
 
 from __future__ import annotations
@@ -25,21 +25,19 @@ from typing import Any
 
 import httpx
 import pytest
+from kernel.clock import now_utc, timedelta
 
 from specify_cli.tracker import saas_client as saas_client_module
 from specify_cli.tracker.saas_client import SaaSTrackerClientError
 
+
+def _deadline() -> Any:
+    return now_utc() + timedelta(seconds=3600)
+
+
 pytestmark = [pytest.mark.fast]
 
 _OPERATION_ID = "op-poll-timing"
-
-
-class _Decision:
-    """The minimal ``LogicalOperationDecision`` surface the poll loop reads."""
-
-    attempt_id = "attempt-poll-timing"
-    remote_operation_id = _OPERATION_ID
-    deadline_at = "2026-08-13T00:05:00+00:00"
 
 
 def _running_response() -> httpx.Response:
@@ -75,11 +73,11 @@ def _poll(monkeypatch: pytest.MonkeyPatch, *, running_polls: int, remaining_seco
 
     responses = [_running_response() for _ in range(running_polls)] + [_completed_response()]
 
-    def _fake_execute(lease: Any, **kwargs: Any) -> httpx.Response:
-        del lease, kwargs
+    def _fake_query(*args: Any, **kwargs: Any) -> httpx.Response:
+        del args, kwargs
         return responses.pop(0)
 
-    monkeypatch.setattr(saas_client_module, "execute_remote_operation_query_under_lease", _fake_execute)
+    monkeypatch.setattr(type(client), "_physical_request_with_retry", _fake_query)
     monkeypatch.setattr(
         type(client),
         "_remaining_transport_seconds",
@@ -87,12 +85,12 @@ def _poll(monkeypatch: pytest.MonkeyPatch, *, running_polls: int, remaining_seco
     )
 
     try:
-        value = client._poll_operation_under_lease(
-            lease=None,  # unused: the query executor is stubbed above
-            decision=_Decision(),
+        value = client._poll_operation(
             authority=None,
+            operation_id=_OPERATION_ID,
             method="POST",
             path="/api/v1/tracker/bind/",
+            deadline=_deadline(),
             monotonic_deadline=0.0,
         )
     except SaaSTrackerClientError as exc:
@@ -137,21 +135,21 @@ def test_jitter_scales_the_interval_within_its_documented_band(
         client._randbelow = lambda _n: randbelow_value
         responses = [_running_response(), _completed_response()]
         monkeypatch.setattr(
-            saas_client_module,
-            "execute_remote_operation_query_under_lease",
-            lambda lease, **kwargs: responses.pop(0),
+            type(client),
+            "_physical_request_with_retry",
+            lambda *args, **kwargs: responses.pop(0),
         )
         monkeypatch.setattr(
             type(client),
             "_remaining_transport_seconds",
             lambda self, deadline, monotonic_deadline: 3600.0,
         )
-        client._poll_operation_under_lease(
-            lease=None,
-            decision=_Decision(),
+        client._poll_operation(
             authority=None,
+            operation_id=_OPERATION_ID,
             method="POST",
             path="/api/v1/tracker/bind/",
+            deadline=_deadline(),
             monotonic_deadline=0.0,
         )
         return sleeps

@@ -32,6 +32,7 @@ from specify_cli.saas_client import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
+
 def test_public_api_imports() -> None:
     """All public names are importable from the package root."""
     assert SaasClient is not None
@@ -123,9 +124,7 @@ def test_load_auth_context_raises_when_no_url(monkeypatch: pytest.MonkeyPatch) -
         load_auth_context()
 
 
-def test_load_auth_context_env_token_file_url(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_load_auth_context_env_token_file_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """D-5: token from env + URL from file is a valid mixed-source resolution.
 
     The file-read block runs whenever either the token or the URL is still
@@ -136,17 +135,13 @@ def test_load_auth_context_env_token_file_url(
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
-    (auth_dir / "saas-auth.json").write_text(
-        json.dumps({"saas_url": "https://file-url.example"})
-    )
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"saas_url": "https://file-url.example"}))
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.token == "env-token"
     assert ctx.saas_url == "https://file-url.example"
 
 
-def test_load_auth_context_raises_when_file_has_no_url(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_load_auth_context_raises_when_file_has_no_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """D-5 file branch: file token present but no saas_url key → fail closed."""
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
@@ -157,39 +152,29 @@ def test_load_auth_context_raises_when_file_has_no_url(
         load_auth_context(repo_root=tmp_path)
 
 
-def test_load_auth_context_raises_when_file_has_empty_url(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_load_auth_context_raises_when_file_has_empty_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """D-5 file branch: empty-string saas_url in file → fail closed (strip normalises it)."""
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
-    (auth_dir / "saas-auth.json").write_text(
-        json.dumps({"token": "file-token", "saas_url": ""})
-    )
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": ""}))
     with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
         load_auth_context(repo_root=tmp_path)
 
 
-def test_load_auth_context_from_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_load_auth_context_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
-    (auth_dir / "saas-auth.json").write_text(
-        json.dumps({"token": "file-token", "saas_url": "https://file-url.example"})
-    )
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token", "saas_url": "https://file-url.example"}))
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.token == "file-token"
     assert ctx.saas_url == "https://file-url.example"
 
 
-def test_load_auth_context_raises_when_no_token(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_load_auth_context_raises_when_no_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     with pytest.raises(SaasAuthError, match="SPEC_KITTY_SAAS_TOKEN"):
@@ -228,12 +213,14 @@ def test_get_audience_default_accepts_bare_list() -> None:
 
 
 def test_post_widen_returns_widen_response() -> None:
-    client = _make_client({
-        "decision_id": "dec-1",
-        "widened_at": "2026-04-23T10:00:00Z",
-        "slack_thread_url": "https://slack.com/x",
-        "invited_count": 2,
-    })
+    client = _make_client(
+        {
+            "decision_id": "dec-1",
+            "widened_at": "2026-04-23T10:00:00Z",
+            "slack_thread_url": "https://slack.com/x",
+            "invited_count": 2,
+        }
+    )
     result = client.post_widen("dec-1", [1, 2])
     assert result["decision_id"] == "dec-1"
     assert result["invited_count"] == 2
@@ -259,13 +246,15 @@ def test_health_probe_returns_false_on_error() -> None:
 
 
 def test_fetch_discussion_returns_discussion_data() -> None:
-    client = _make_client({
-        "decision_id": "dec-1",
-        "participants": ["Alice", "Bob"],
-        "messages": [{"author": "Alice", "text": "Hello", "timestamp": None}],
-        "thread_url": "https://slack.com/y",
-        "message_count": 1,
-    })
+    client = _make_client(
+        {
+            "decision_id": "dec-1",
+            "participants": ["Alice", "Bob"],
+            "messages": [{"author": "Alice", "text": "Hello", "timestamp": None}],
+            "thread_url": "https://slack.com/y",
+            "message_count": 1,
+        }
+    )
     result = client.fetch_discussion("dec-1")
     assert result["decision_id"] == "dec-1"
     assert result["participants"] == ["Alice", "Bob"]
@@ -312,6 +301,79 @@ def test_404_maps_to_saas_not_found_error() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Consent-refusal exchange paths (issue #3 fix round: these are the surviving
+# refusal branches in ``SaasClient._exchange`` — token-authority absent,
+# server-side project_not_admitted, and the refusal reference/message
+# rendering they share)
+# ---------------------------------------------------------------------------
+
+
+def test_absent_token_authority_refuses_before_any_transport(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A token matching no authenticated authority refuses without sending."""
+    from specify_cli.saas_client import client as client_module
+    from specify_cli.saas_client.errors import SaasConsentError
+
+    monkeypatch.setattr(client_module, "_authenticated_authority_for_token", lambda _token: None)
+    mock_http = MagicMock(spec=httpx.Client)
+    client = SaasClient("http://test", "tok", _http=mock_http)
+    with pytest.raises(SaasConsentError, match="target_authority_mismatch"):
+        client.check_repo_admission("owner/repo")
+    mock_http.get.assert_not_called()
+
+
+def test_project_not_admitted_body_maps_to_consent_error() -> None:
+    """A non-2xx body carrying ``error_category=project_not_admitted`` is a consent refusal."""
+    from specify_cli.saas_client.errors import SaasConsentError
+
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 403
+    mock_resp.is_success = False
+    mock_resp.json.return_value = {
+        "error_category": "project_not_admitted",
+        "idempotency_key": "logical-operation:write:abc",
+        "message": "this repo is not admitted to any team",
+        "status": "rejected",
+        "retryable": False,
+    }
+    mock_http = MagicMock(spec=httpx.Client)
+    mock_http.get.return_value = mock_resp
+    client = SaasClient("http://test", "tok", _http=mock_http)
+    with pytest.raises(SaasConsentError, match="this repo is not admitted to any team"):
+        client.check_repo_admission("owner/repo")
+
+
+def test_generic_refusal_reference_pins_status_and_envelope_and_message_falls_back() -> None:
+    """The refusal reference keeps only its closed key set; bad references fall back."""
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 403
+    mock_resp.json.return_value = {
+        "error_category": "project_not_admitted",
+        "message": "admission refused by hosted target",
+        "not_part_of_the_envelope": "dropped",
+        "retryable": False,
+        "status": "rejected",
+    }
+
+    reference = SaasClient._generic_refusal_reference(mock_resp)
+
+    assert json.loads(reference) == {
+        "envelope": {
+            "error_category": "project_not_admitted",
+            "message": "admission refused by hosted target",
+            "retryable": False,
+            "status": "rejected",
+        },
+        "http_status": 403,
+    }
+    assert SaasClient._generic_refusal_message(reference) == "admission refused by hosted target"
+    fallback = "project_not_admitted: hosted target refused this project"
+    assert SaasClient._generic_refusal_message(None) == fallback
+    assert SaasClient._generic_refusal_message("not-json") == fallback
+    assert SaasClient._generic_refusal_message('{"no_envelope": true}') == fallback
+    assert SaasClient._generic_refusal_message('{"envelope": {"message": ""}}') == fallback
+
+
+# ---------------------------------------------------------------------------
 # respx integration tests — WP10 (T050)
 # ---------------------------------------------------------------------------
 
@@ -329,9 +391,7 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M1/audience-default").respond(
-                200, json={"members": [{"user_id": 1, "display_name": "Alice"}]}
-            )
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M1/audience-default").respond(200, json={"members": [{"user_id": 1, "display_name": "Alice"}]})
             client = self._client(httpx.Client())
             result = client.get_audience_default("M1")
         assert result == [{"user_id": 1, "display_name": "Alice"}]
@@ -341,9 +401,7 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M2/audience-default").respond(
-                200, json=["Carol", "Dana"]
-            )
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M2/audience-default").respond(200, json=["Carol", "Dana"])
             client = self._client(httpx.Client())
             result = client.get_audience_default("M2")
         assert result == [{"display_name": "Carol"}, {"display_name": "Dana"}]
@@ -405,9 +463,7 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/api/v1/health").mock(
-                side_effect=httpx.TimeoutException("timed out")
-            )
+            respx.get(f"{self.BASE}/api/v1/health").mock(side_effect=httpx.TimeoutException("timed out"))
             client = self._client(httpx.Client())
             assert client.health_probe() is False
 
@@ -416,9 +472,7 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/a/my-team/collaboration/integrations/").respond(
-                200, json={"integrations": ["slack", "github"]}
-            )
+            respx.get(f"{self.BASE}/a/my-team/collaboration/integrations/").respond(200, json={"integrations": ["slack", "github"]})
             client = self._client(httpx.Client())
             result = client.get_team_integrations("my-team")
         assert "slack" in result
@@ -429,9 +483,7 @@ class TestRespxIntegration:
         import respx
 
         with respx.mock:
-            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M3/audience-default").respond(
-                401, text="Unauthorized"
-            )
+            respx.get(f"{self.BASE}/a/my-team/collaboration/missions/M3/audience-default").respond(401, text="Unauthorized")
             client = self._client(httpx.Client())
             with pytest.raises(SaasAuthError) as exc_info:
                 client.get_audience_default("M3")

@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any, cast
 import requests
 
 from specify_cli.auth.http import request_with_stdlib_fallback_sync
-from specify_cli.saas_client.admission import (
+from specify_cli.sync.admission_contract import (
     ProjectWriteAdmissionProof,
     attach_admission_proof,
 )

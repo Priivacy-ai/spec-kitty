@@ -39,11 +39,6 @@ class ResultExpectation(StrEnum):
     OPT_OUT_TERMINAL_UNKNOWN = "opt_out_terminal_unknown"
 
 
-class HostedReferenceExpectation(StrEnum):
-    ABSENT = "absent"
-    REQUIRED = "required"
-
-
 TRANSPORT_FAMILIES: tuple[str, ...] = (
     "direct_dispatcher",
     "emitter_websocket",
@@ -53,33 +48,14 @@ TRANSPORT_FAMILIES: tuple[str, ...] = (
     "final_exit_sync",
     "reconnect_local_commit",
     "history_import",
-    "tracker_hosted",
-    "generic_saas",
 )
 
-# These loopback responses mirror the exact reviewed SaaS endpoint behavior at
-# this immutable paired revision.  The cited endpoint tests were also executed
-# directly against that revision with an isolated Django test database.  WP11,
-# rather than this Core-only matrix, owns the live cross-repository deployment
-# witness.
-PAIRED_SAAS_REPLAY_SHA = "c3f39217aedea94a20802f9e9f2dbdeeecec3077"
-PAIRED_SAAS_REPLAY_TREE = "e7f740319b8032a3b7991f590d289096eecdf5b9"
-PAIRED_SAAS_SOURCE_BLOBS: tuple[tuple[str, str], ...] = (
-    ("apps/connectors/runtime_push.py", "6473848a8137025e8bc66b0d6f62f5abe47f786b"),
-    ("apps/connectors/tests/test_runtime_push.py", "15a0d9ee50c3405b11f1ca2e13dcb7be08664bce"),
-    ("apps/collaboration/views.py", "b63eeee02999727fc1031d22d32ea2e127814eb3"),
-    ("apps/collaboration/tests/test_widen_endpoint.py", "46c085b8c8eed5df3c5f1b5ca1b6fb2e98bd97be"),
-)
-PAIRED_SAAS_REPLAY_EVIDENCE: tuple[tuple[str, str], ...] = (
-    (
-        "tracker_hosted",
-        "apps/connectors/tests/test_runtime_push.py::TrackerPushContractTests::test_duplicate_replay_returns_original_result",
-    ),
-    (
-        "generic_saas",
-        "apps/collaboration/tests/test_widen_endpoint.py::test_widen_view_200_idempotent_repeat",
-    ),
-)
+# Issue #3 removed the hosted clients' durable transport, so the WP09 matrix
+# rows for the ``tracker_hosted`` and ``generic_saas`` families — including the
+# paired-SaaS c3 replay snapshot that pinned their duplicate-response contract
+# against persisted attempts — are deleted with the machinery they pinned.  The
+# two clients themselves stay under test in tests/specify_cli/saas_client/ and
+# tests/sync/tracker/.
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,18 +117,6 @@ PRODUCTION_ADAPTER_CONTRACTS: tuple[ProductionAdapterContract, ...] = (
         "specify_cli.delivery.receivers._HttpReceiver._attempt_batch_send",
         "specify_cli.sync.history_import.upload.upload_envelopes",
     ),
-    ProductionAdapterContract(
-        "tracker_hosted",
-        "specify_cli.tracker.saas_client.SaaSTrackerClient.push",
-        "specify_cli.tracker.saas_client.SaaSTrackerClient._physical_request_with_retry",
-        "specify_cli.tracker.saas_client.SaaSTrackerClient.push",
-    ),
-    ProductionAdapterContract(
-        "generic_saas",
-        "specify_cli.saas_client.client.SaasClient.post_widen",
-        "httpx.Client.post",
-        "specify_cli.saas_client.client.SaasClient.post_widen",
-    ),
 )
 
 
@@ -174,7 +138,6 @@ class ProductionAdapterEvidence:
     expected_attempt_present: bool
     result_expectation: ResultExpectation
     expected_result_outcome: str | None
-    hosted_reference_expectation: HostedReferenceExpectation
 
 
 @dataclass(frozen=True, slots=True)
@@ -347,20 +310,6 @@ def canonical_transport_payload(evidence: ProductionAdapterEvidence) -> dict[str
         return _strict_json_object(evidence.request_bytes, _LOCAL_COMMIT_WIRE_KEYS)
     if family == "body_drain":
         return _strict_json_object(evidence.request_bytes, _BODY_WIRE_KEYS)
-    if family == "generic_saas":
-        return _strict_json_object(
-            evidence.request_bytes,
-            frozenset({"json", "method", "native_identity", "url"}),
-        )
-    if family == "tracker_hosted":
-        request = _strict_json_object(
-            evidence.request_bytes,
-            frozenset({"headers", "json", "method", "path"}),
-        )
-        headers = request["headers"]
-        if not isinstance(headers, dict) or frozenset(headers) != {"Idempotency-Key"}:
-            raise AssertionError("tracker physical request omitted exact native header")
-        return request
     raise AssertionError(f"unclassified production adapter family: {family}")
 
 
@@ -496,103 +445,7 @@ def _history_expectation(
     return payload, payload_hash, reference, attempt_id
 
 
-def _hosted_terminal_response(evidence: ProductionAdapterEvidence) -> dict[str, Any]:
-    if evidence.family == "generic_saas":
-        return {
-            "decision_id": "decision-wp09",
-            "widened_at": "2026-08-11T20:00:00Z",
-            "widened_by": 1,
-            "invited_user_ids": [1],
-            "idempotent": evidence.requested_outcome == "duplicate",
-            "participation_row_ids": ["participation-wp09"],
-            "audit_snapshot_id": "snapshot-wp09",
-            "slack_thread_status": None,
-        }
-    return {
-        "status": "ok",
-        "summary": {"total": 1, "succeeded": 1, "failed": 0},
-        "items": [
-            {
-                "ref": {
-                    "system": "github",
-                    "workspace": "",
-                    "id": evidence.seed_identity.native_identity,
-                },
-                "action": "update",
-                "outcome": "ok",
-            }
-        ],
-        "identity_path": {"kind": "user_link"},
-    }
-
-
-def paired_saas_contract_snapshot() -> dict[str, Any]:
-    """Closed c3 endpoint evidence whose literal digest is reviewed in Core."""
-    seed = BarrierIdentity("tracker_hosted", "{project_uuid}", "{attempt_id}", "{caller_item_id}")
-    tracker = ProductionAdapterEvidence(
-        family="tracker_hosted",
-        entrypoint="",
-        physical_sink="",
-        seed_identity=seed,
-        actual_identity=seed,
-        request_bytes=b"",
-        delegation_bytes=b"",
-        succeeded=True,
-        requested_outcome="duplicate",
-        expected_attempt_present=True,
-        result_expectation=ResultExpectation.COMPLETED,
-        expected_result_outcome="duplicate",
-        hosted_reference_expectation=HostedReferenceExpectation.REQUIRED,
-    )
-    generic_seed = BarrierIdentity("generic_saas", "{project_uuid}", "{attempt_id}", "{native_identity}")
-    generic = ProductionAdapterEvidence(
-        family="generic_saas",
-        entrypoint="",
-        physical_sink="",
-        seed_identity=generic_seed,
-        actual_identity=generic_seed,
-        request_bytes=b"",
-        delegation_bytes=b"",
-        succeeded=True,
-        requested_outcome="duplicate",
-        expected_attempt_present=True,
-        result_expectation=ResultExpectation.COMPLETED,
-        expected_result_outcome="duplicate",
-        hosted_reference_expectation=HostedReferenceExpectation.REQUIRED,
-    )
-    return {
-        "commit": PAIRED_SAAS_REPLAY_SHA,
-        "tree": PAIRED_SAAS_REPLAY_TREE,
-        "source_blobs": dict(PAIRED_SAAS_SOURCE_BLOBS),
-        "generic_saas": {
-            "method": "POST",
-            "url": "https://app.spec-kitty.ai/a/teamspace-1/collaboration/decision-points/decision-wp09/widen",
-            "request": {"invited_user_ids": [1]},
-            "duplicate_response": _hosted_terminal_response(generic),
-            "replay_header": {"Idempotency-Replayed": "true"},
-        },
-        "tracker_hosted": {
-            "method": "POST",
-            "url": "https://app.spec-kitty.ai/api/v1/tracker/push/",
-            "request": {
-                "provider": "github",
-                "project_slug": "project-wp09",
-                "items": [{"id": "{caller_item_id}"}],
-            },
-            "duplicate_response": _hosted_terminal_response(tracker),
-            "replay_header": {"Idempotency-Replayed": "true"},
-        },
-    }
-
-
-PAIRED_SAAS_CONTRACT_DIGEST = "ed34b5a65e0969f9039de1e5547ada73db039bfde2f71a1c6a04430ac7b29762"
-
-
-def paired_saas_contract_digest() -> str:
-    return _raw_sha256(_canonical_json(paired_saas_contract_snapshot()).encode("utf-8"))
-
-
-def _independent_expectation(  # noqa: C901 - ten closed transport contracts are intentionally explicit.
+def _independent_expectation(  # noqa: C901 - eight closed transport contracts are intentionally explicit.
     evidence: ProductionAdapterEvidence,
 ) -> tuple[dict[str, Any], str, str, str, str]:
     identity = evidence.actual_identity
@@ -673,48 +526,8 @@ def _independent_expectation(  # noqa: C901 - ten closed transport contracts are
     elif family == "history_import":
         native_identity = identity.native_identity
         payload, payload_hash, reference, attempt_id = _history_expectation(evidence, target_id=target_id)
-    elif family == "generic_saas":
-        payload = {
-            "method": "POST",
-            "url": "https://app.spec-kitty.ai/a/teamspace-1/collaboration/decision-points/decision-wp09/widen",
-            "json": {"invited_user_ids": [1]},
-            "native_identity": identity.native_identity,
-        }
-        reference = _canonical_json({"method": payload["method"], "url": payload["url"], "json": payload["json"]})
-        payload_hash = _raw_sha256(reference.encode("utf-8"))
-        semantic_key = f"POST:{payload['url']}:payload:{payload_hash}"
-        attempt_id = "logical-operation:write:" + _stable_id(
-            identity.project_uuid,
-            "generic_saas_post",
-            semantic_key,
-            "idempotent_write",
-        )
-        native_identity = attempt_id
-    else:
-        tracker_body = {
-            "provider": "github",
-            "project_slug": "project-wp09",
-            "items": [{"id": evidence.seed_identity.native_identity}],
-        }
-        tracker_url = "https://app.spec-kitty.ai/api/v1/tracker/push/"
-        tracker_path = "/api/v1/tracker/push/"
-        body = json.dumps(tracker_body, separators=(",", ":"))
-        payload = {
-            "headers": {"Idempotency-Key": identity.native_identity},
-            "json": tracker_body,
-            "method": "POST",
-            "path": tracker_path,
-        }
-        reference = _canonical_json({"method": "POST", "url": tracker_url, "body": body})
-        payload_hash = _raw_sha256(f"POST\n{tracker_url}\n{body}".encode())
-        semantic_key = "\x1f".join(("POST", tracker_path, tracker_url, f"payload:{payload_hash}"))
-        attempt_id = "logical-operation:write:" + _stable_id(
-            identity.project_uuid,
-            "tracker_hosted_push",
-            semantic_key,
-            "idempotent_write",
-        )
-        native_identity = attempt_id
+    else:  # pragma: no cover - TRANSPORT_FAMILIES is the closed census above.
+        raise AssertionError(f"unclassified production adapter family: {family}")
     return payload, payload_hash, reference, attempt_id, native_identity
 
 
@@ -741,8 +554,6 @@ def assert_transport_evidence_values(  # noqa: C901 - exact closed result/refere
         "final_exit_sync": "event",
         "reconnect_local_commit": "local_commit",
         "history_import": "history_upload",
-        "tracker_hosted": "tracker_hosted_push",
-        "generic_saas": "generic_saas_post",
     }[evidence.family]
     expected_epoch = 2 if evidence.family == "history_import" else 1
     exact_metadata = {
@@ -809,15 +620,6 @@ def assert_transport_evidence_values(  # noqa: C901 - exact closed result/refere
             f"target={attempt.result_target_generation!r}/4, "
             f"admission={attempt.result_admission_generation!r}/'1'"
         )
-    terminal_reference = attempt.metadata.get("terminal_response_reference")
-    if evidence.hosted_reference_expectation is HostedReferenceExpectation.REQUIRED:
-        if evidence.family not in {"generic_saas", "tracker_hosted"}:
-            raise AssertionError("non-hosted scenario requested a hosted terminal reference")
-        expected_terminal = _canonical_json(_hosted_terminal_response(evidence))
-        if terminal_reference != expected_terminal:
-            raise AssertionError("hosted terminal response differs from pinned c3 value contract")
-    elif terminal_reference is not None:
-        raise AssertionError("non-hosted or non-success result invented a terminal response reference")
     return payload, attempt
 
 
@@ -842,7 +644,6 @@ def evidence_from_barrier(
     outcome: str = "delivered",
     result_expectation: ResultExpectation,
     expected_result_outcome: str | None,
-    hosted_reference_expectation: HostedReferenceExpectation = HostedReferenceExpectation.ABSENT,
 ) -> ProductionAdapterEvidence:
     """Rehydrate subprocess evidence only after production identity binding."""
     request_bytes = barrier.captured_bytes()
@@ -862,7 +663,6 @@ def evidence_from_barrier(
         expected_attempt_present=True,
         result_expectation=result_expectation,
         expected_result_outcome=expected_result_outcome,
-        hosted_reference_expectation=hosted_reference_expectation,
     )
 
 
@@ -1238,11 +1038,12 @@ def _phase_barrier_context(  # noqa: C901 - phase hooks patch every live alias t
         yield
         return
 
+    # Issue #3 removed the hosted clients' durable aliases, so the WP06
+    # transition is paused on ``transport_attempts`` alone; every surviving
+    # sender family records its attempt there.
     from unittest.mock import patch
 
-    from specify_cli.saas_client import client as generic_module
     from specify_cli.sync import transport_attempts
-    from specify_cli.tracker import saas_client as tracker_module
 
     def _hook_identity(args: tuple[Any, ...], kwargs: dict[str, Any]) -> BarrierIdentity:
         from specify_cli.sync.transport_attempts import (
@@ -1296,40 +1097,14 @@ def _phase_barrier_context(  # noqa: C901 - phase hooks patch every live alias t
                 return original_mark(*args, **kwargs)
 
             stack.enter_context(patch.object(transport_attempts, "mark_transport_started", _mark))
-            stack.enter_context(patch.object(generic_module, "mark_transport_started", _mark))
-            stack.enter_context(patch.object(tracker_module, "mark_transport_started", _mark))
         elif barrier.phase is BarrierPhase.RESPONSE_RECEIVED_BEFORE_RESULT:
             original_result = transport_attempts.record_delivery_result
-            original_generic_result = generic_module.record_logical_operation_result
-            original_tracker_result = tracker_module.record_logical_operation_result
 
             def _result(*args: Any, **kwargs: Any) -> Any:
                 _pause(_hook_identity(args, kwargs))
                 return original_result(*args, **kwargs)
 
-            def _generic_result(*args: Any, **kwargs: Any) -> Any:
-                _pause(_hook_identity(args, kwargs))
-                return original_generic_result(*args, **kwargs)
-
-            def _tracker_result(*args: Any, **kwargs: Any) -> Any:
-                _pause(_hook_identity(args, kwargs))
-                return original_tracker_result(*args, **kwargs)
-
             stack.enter_context(patch.object(transport_attempts, "record_delivery_result", _result))
-            stack.enter_context(
-                patch.object(
-                    generic_module,
-                    "record_logical_operation_result",
-                    _generic_result,
-                )
-            )
-            stack.enter_context(
-                patch.object(
-                    tracker_module,
-                    "record_logical_operation_result",
-                    _tracker_result,
-                )
-            )
         yield
 
 
@@ -1763,237 +1538,6 @@ def _invoke_history(
     return bool(report.success + report.duplicate)
 
 
-def _invoke_generic_saas(
-    repo_root: Path,
-    identity: BarrierIdentity,
-    outcome: str,
-    probe: _PhysicalProbe,
-    hosted_replay_mutation: str | None,
-) -> bool:
-    from unittest.mock import patch
-
-    import httpx
-
-    from specify_cli.saas_client import client as module
-    from specify_cli.saas_client.client import SaasClient
-
-    class _Http:
-        def get(self, url: str, *, timeout: float) -> httpx.Response:
-            del timeout
-            return httpx.Response(
-                200,
-                json={"integrations": ["github"]},
-                request=httpx.Request("GET", url),
-            )
-
-        def post(
-            self,
-            url: str,
-            *,
-            json: object,
-            headers: dict[str, str],
-            timeout: float,
-        ) -> httpx.Response:
-            import json as json_module
-
-            del timeout
-            native = headers["Idempotency-Key"]
-            probe.hit(
-                json_module.dumps(
-                    {
-                        "method": "POST",
-                        "url": url,
-                        "json": json,
-                        "native_identity": native,
-                    },
-                    sort_keys=True,
-                    separators=(",", ":"),
-                ).encode("utf-8"),
-                project_uuid=identity.project_uuid,
-                native_identity=native,
-            )
-            if outcome == "timeout":
-                raise httpx.ReadTimeout(
-                    "generic SaaS loopback timed out",
-                    request=httpx.Request("POST", url),
-                )
-            if outcome == "refused":
-                return httpx.Response(
-                    403,
-                    json={
-                        "error_category": "project_not_admitted",
-                        "idempotency_key": native,
-                        "status": "rejected",
-                        "retryable": False,
-                    },
-                    request=httpx.Request("POST", url),
-                )
-            replay_headers = {"Idempotency-Replayed": "true"} if outcome == "duplicate" and hosted_replay_mutation != "missing_header" else None
-            request_native = "wrong-native-identity" if hosted_replay_mutation == "wrong_key" else native
-            return httpx.Response(
-                200,
-                json={
-                    "decision_id": "decision-wp09",
-                    "widened_at": "2026-08-11T20:00:00Z",
-                    "widened_by": 1,
-                    "invited_user_ids": [1],
-                    "idempotent": outcome == "duplicate",
-                    "participation_row_ids": ["participation-wp09"],
-                    "audit_snapshot_id": "snapshot-wp09",
-                    "slack_thread_status": None,
-                },
-                headers=replay_headers,
-                request=httpx.Request(
-                    "POST",
-                    url,
-                    headers={"Idempotency-Key": request_native},
-                ),
-            )
-
-    client = SaasClient(
-        "https://app.spec-kitty.ai",
-        "token",
-        team_slug="teamspace-1",
-        project_root=repo_root,
-        _http=cast("Any", _Http()),
-    )
-    with (
-        patch.object(
-            module,
-            "_authenticated_authority_for_token",
-            lambda _token: ("account-1", "teamspace-1", "teamspace-1"),
-        ),
-    ):
-        try:
-            client.post_widen(
-                "decision-wp09",
-                [1],
-                team_slug="teamspace-1",
-            )
-        except PhysicalSinkPoison:
-            raise
-        except Exception:
-            return False
-    return True
-
-
-def _invoke_tracker(
-    repo_root: Path,
-    identity: BarrierIdentity,
-    outcome: str,
-    probe: _PhysicalProbe,
-    hosted_replay_mutation: str | None,
-) -> bool:
-    from types import SimpleNamespace
-    from unittest.mock import patch
-
-    import httpx
-
-    from specify_cli.tracker import saas_client as module
-    from specify_cli.tracker.saas_client import (
-        SaaSTrackerClient,
-        SaaSTrackerClientError,
-    )
-
-    def _observed_request(
-        active: SaaSTrackerClient,
-        method: str,
-        path: str,
-        **kwargs: Any,
-    ) -> httpx.Response:
-        del active
-        headers = dict(kwargs.get("headers") or {})
-        native = headers.get("Idempotency-Key", "")
-        request_bytes = json.dumps(
-            {
-                "headers": {"Idempotency-Key": native},
-                "json": kwargs.get("json"),
-                "method": method,
-                "path": path,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        ).encode("utf-8")
-        probe.hit(
-            request_bytes,
-            project_uuid=identity.project_uuid,
-            native_identity=native,
-        )
-        if outcome == "timeout":
-            raise SaaSTrackerClientError(
-                "tracker loopback timed out",
-                details={"effect_certainty": "unknown"},
-            )
-        if outcome == "refused":
-            raise SaaSTrackerClientError(
-                "project not admitted",
-                error_code="project_not_admitted",
-                status_code=403,
-                details={
-                    "error_category": "project_not_admitted",
-                    "idempotency_key": native,
-                    "status": "rejected",
-                    "retryable": False,
-                },
-                user_action_required=True,
-            )
-        replay_headers = {"Idempotency-Replayed": "true"} if outcome == "duplicate" and hosted_replay_mutation != "missing_header" else None
-        request_native = "wrong-native-identity" if hosted_replay_mutation == "wrong_key" else native
-        return httpx.Response(
-            200,
-            json={
-                "status": "ok",
-                "summary": {"total": 1, "succeeded": 1, "failed": 0},
-                "items": [
-                    {
-                        "ref": {"system": "github", "workspace": "", "id": identity.native_identity},
-                        "action": "update",
-                        "outcome": "ok",
-                    }
-                ],
-                "identity_path": {"kind": "user_link"},
-            },
-            headers=replay_headers,
-            request=httpx.Request(
-                "POST",
-                "https://app.spec-kitty.ai/api/v1/tracker/push/",
-                headers={"Idempotency-Key": request_native},
-            ),
-        )
-
-    config = SimpleNamespace(resolve_runtime_target=lambda: SimpleNamespace(resolved_server_url="https://app.spec-kitty.ai"))
-    client = SaaSTrackerClient(
-        sync_config=cast("Any", config),
-        project_root=repo_root,
-    )
-    client._sleep = lambda _delay: None
-    authority = module._HostedTrackerAuthority(
-        account_identity="account-1",
-        private_teamspace_id="teamspace-1",
-        collaborative_team_slug="teamspace-1",
-    )
-    with (
-        patch.object(module, "_fetch_access_token_sync", lambda: "token"),
-        patch.object(module, "_hosted_authority_for_token", lambda _token: authority),
-        patch.object(
-            SaaSTrackerClient,
-            "_physical_request_with_retry",
-            _observed_request,
-        ),
-    ):
-        try:
-            client.push(
-                "github",
-                "project-wp09",
-                [{"id": identity.native_identity}],
-            )
-        except PhysicalSinkPoison:
-            raise
-        except Exception:
-            return False
-    return True
-
-
 def _invoke_daemon(
     repo_root: Path,
     identity: BarrierIdentity,
@@ -2203,30 +1747,13 @@ def _invoke_relay(
 def _public_call_result_contract(
     family: str,
     outcome: str,
-    hosted_replay_mutation: str | None,
-) -> tuple[ResultExpectation, str | None, HostedReferenceExpectation]:
+) -> tuple[ResultExpectation, str | None]:
     """Declare result presence from the public scenario, never observed storage."""
     if outcome == "timeout":
         if family in {"direct_dispatcher", "final_exit_sync", "history_import"}:
-            return (
-                ResultExpectation.ORDINARY_UNKNOWN,
-                "unknown",
-                HostedReferenceExpectation.ABSENT,
-            )
-        return (
-            ResultExpectation.ABSENT,
-            None,
-            HostedReferenceExpectation.ABSENT,
-        )
-    expected_outcome = outcome
-    if outcome == "duplicate" and hosted_replay_mutation is not None:
-        expected_outcome = "delivered"
-    hosted_reference = (
-        HostedReferenceExpectation.REQUIRED
-        if family in {"generic_saas", "tracker_hosted"} and expected_outcome in {"delivered", "duplicate"}
-        else HostedReferenceExpectation.ABSENT
-    )
-    return ResultExpectation.COMPLETED, expected_outcome, hosted_reference
+            return (ResultExpectation.ORDINARY_UNKNOWN, "unknown")
+        return (ResultExpectation.ABSENT, None)
+    return ResultExpectation.COMPLETED, outcome
 
 
 def invoke_production_adapter(  # noqa: C901 - explicit dispatch is executable census evidence.
@@ -2238,7 +1765,6 @@ def invoke_production_adapter(  # noqa: C901 - explicit dispatch is executable c
     barrier: ProcessTransportBarrier | None = None,
     ensure_authority: bool = True,
     expected_sink_calls: int = 1,
-    hosted_replay_mutation: str | None = None,
     poison_relay_delegation: bool = False,
     expected_actual_identity: BarrierIdentity | None = None,
 ) -> ProductionAdapterEvidence:
@@ -2277,22 +1803,6 @@ def invoke_production_adapter(  # noqa: C901 - explicit dispatch is executable c
                 probe,
                 recovery_without_authority=not ensure_authority,
             )
-        elif identity.family == "tracker_hosted":
-            succeeded = _invoke_tracker(
-                repo_root,
-                identity,
-                outcome,
-                probe,
-                hosted_replay_mutation,
-            )
-        elif identity.family == "generic_saas":
-            succeeded = _invoke_generic_saas(
-                repo_root,
-                identity,
-                outcome,
-                probe,
-                hosted_replay_mutation,
-            )
         else:  # pragma: no cover - _contract validates the closed census first.
             raise AssertionError(identity.family)
     if probe.delegation_poisoned:
@@ -2307,7 +1817,7 @@ def invoke_production_adapter(  # noqa: C901 - explicit dispatch is executable c
         raise AssertionError("event relay must issue one local delegation POST")
     if probe.actual_identity is None:
         raise AssertionError("adapter returned without binding a production attempt identity")
-    result_expectation, expected_result_outcome, hosted_reference_expectation = _public_call_result_contract(identity.family, outcome, hosted_replay_mutation)
+    result_expectation, expected_result_outcome = _public_call_result_contract(identity.family, outcome)
     return ProductionAdapterEvidence(
         family=contract.family,
         entrypoint=contract.entrypoint,
@@ -2321,7 +1831,6 @@ def invoke_production_adapter(  # noqa: C901 - explicit dispatch is executable c
         expected_attempt_present=True,
         result_expectation=result_expectation,
         expected_result_outcome=expected_result_outcome,
-        hosted_reference_expectation=hosted_reference_expectation,
     )
 
 
@@ -2373,20 +1882,13 @@ def recover_production_adapter(
         expected_attempt_present=True,
         result_expectation=ResultExpectation.OPT_OUT_TERMINAL_UNKNOWN,
         expected_result_outcome="terminal_unknown",
-        hosted_reference_expectation=HostedReferenceExpectation.ABSENT,
     )
 
 
 __all__ = [
-    "PAIRED_SAAS_CONTRACT_DIGEST",
-    "PAIRED_SAAS_REPLAY_EVIDENCE",
-    "PAIRED_SAAS_REPLAY_SHA",
-    "PAIRED_SAAS_REPLAY_TREE",
-    "PAIRED_SAAS_SOURCE_BLOBS",
     "PRODUCTION_ADAPTER_CONTRACTS",
     "BarrierIdentity",
     "BarrierPhase",
-    "HostedReferenceExpectation",
     "PhysicalSinkPoison",
     "PersistedAttemptEvidence",
     "ProcessTransportBarrier",
@@ -2399,7 +1901,6 @@ __all__ = [
     "canonical_transport_payload",
     "evidence_from_barrier",
     "invoke_production_adapter",
-    "paired_saas_contract_digest",
     "read_persisted_attempt",
     "recover_production_adapter",
 ]

@@ -491,6 +491,17 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   rendering-time identity sanitization. Real src/ caller landed; no
         #   longer an orphan. Shrink 4 -> 3.
         # All four M2-canonical-integration entries are closed; none remain open.
+        #
+        # E3 #9 credential resolution (2026-08-25): zeitgeist_client.resolution
+        # is the seam library the #8 zeitgeist handler calls at fan-out -- it is
+        # written library-first with its contract pinned by respx/store tests
+        # (tests/zeitgeist_client/test_resolution.py), and its only intended
+        # src/ caller does not exist yet. Same reviewed-candidate class as the
+        # four M2 entries above; registered so the fact is visible, not hidden.
+        # TODO(triage): remove this entry when EXPERIMENTAL-spec-kitty#8 wires
+        # resolve_credentials() into the transition fan-out -- the stale-entry
+        # check below reds if the wiring lands without burning the entry.
+        "specify_cli.zeitgeist_client.resolution",
     }
 )
 

@@ -19,6 +19,8 @@ handoff).
 
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -147,3 +149,126 @@ def test_n11_a_failed_refresh_never_deletes_the_previously_stored_token(state_ro
     still_there = credentials.load(repo="spec-kitty")
     assert still_there is not None
     assert still_there.token == "tok-a"
+
+
+# --- E3 resolution: the optional expires_at stamp ---------------------------
+
+
+def test_store_without_expiry_round_trips_expires_at_as_none(state_root: Path):
+    """Every entry written before E3 (and every manual checkout) has no
+    expiry stamp; load() reports None, never KeyError or ""."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    loaded = credentials.load(repo="spec-kitty")
+    assert loaded is not None
+    assert loaded.expires_at is None
+
+
+def test_expires_at_round_trips_verbatim(state_root: Path):
+    """The stamp is stored and read back byte-for-byte -- interpreting it
+    is the caller's policy, never the store's."""
+    credentials.store(
+        repo="spec-kitty",
+        relay_url="http://a",
+        token="tok-a",
+        token_kind="presence",
+        expires_at="2026-08-25T12:00:00+00:00",
+    )
+    loaded = credentials.load(repo="spec-kitty")
+    assert loaded is not None
+    assert loaded.expires_at == "2026-08-25T12:00:00+00:00"
+
+
+def test_empty_expires_at_is_rejected(state_root: Path):
+    with pytest.raises(ValueError):
+        credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="presence", expires_at="")
+
+
+# --- E3 resolution: negative answers ---------------------------------------
+
+
+def test_negative_entry_is_stored_and_read_back(state_root: Path):
+    credentials.store_negative(repo="spec-kitty", reason="no_match", expires_at="2026-08-25T13:00:00+00:00")
+    negative = credentials.load_negative(repo="spec-kitty")
+    assert negative is not None
+    assert negative.reason == "no_match"
+    assert negative.expires_at == "2026-08-25T13:00:00+00:00"
+    assert negative.stored_at  # non-empty ISO stamp
+
+
+def test_negative_entry_reads_back_as_none_through_load(state_root: Path):
+    """A negative answer must look like plain "not checked out" to every
+    existing load() caller -- no relay_url/token keys, no special case."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    credentials.revoke(repo="spec-kitty")
+    credentials.store_negative(repo="spec-kitty", reason="no_match")
+    assert credentials.load(repo="spec-kitty") is None
+    other = credentials.load(repo="unrelated-repo")
+    assert other is None
+
+
+def test_load_negative_returns_none_for_positive_entry_or_missing_repo(state_root: Path):
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    assert credentials.load_negative(repo="spec-kitty") is None
+    assert credentials.load_negative(repo="never-stored") is None
+
+
+def test_storing_negative_replaces_a_positive_credential(state_root: Path):
+    """A mint denial after a stored credential means that credential can no
+    longer be valid -- the negative answer replaces it rather than sitting
+    beside it."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="presence")
+    credentials.store_negative(repo="spec-kitty", reason="capability_denied")
+    assert credentials.load(repo="spec-kitty") is None
+    negative = credentials.load_negative(repo="spec-kitty")
+    assert negative is not None
+    assert negative.reason == "capability_denied"
+
+
+def test_storing_positive_replaces_a_negative_answer(state_root: Path):
+    credentials.store_negative(repo="spec-kitty", reason="no_match")
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="presence")
+    assert credentials.load(repo="spec-kitty") is not None
+    assert credentials.load_negative(repo="spec-kitty") is None
+
+
+def test_negative_reason_defaults_to_empty_when_omitted(state_root: Path):
+    credentials.store_negative(repo="spec-kitty")
+    negative = credentials.load_negative(repo="spec-kitty")
+    assert negative is not None
+    assert negative.reason == ""
+
+
+# --- E3 resolution: the store is owner-only, whatever the umask -------------
+
+
+def test_store_is_owner_only_file_and_directory(state_root: Path):
+    """[controller-qa] MAJOR regression: E3 makes this store auto-populated
+    on every status transition with relay bearers and capability JWTs — it
+    must land 0o600 in a 0o700 directory even under a permissive umask,
+    not whatever ``open()`` inherits (measured 0o644/0o755 before)."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    if not hasattr(os, "getuid"):  # permission bits are a POSIX assertion
+        return
+    path = credentials.credentials_path()
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert stat.S_IMODE(path.parent.stat().st_mode) == 0o700
+
+
+def test_owner_only_mode_holds_across_every_write_path(state_root: Path):
+    """store_negative() and revoke() rewrite the file through the same
+    atomic replace; none of them may loosen the mode the first write set."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    credentials.store_negative(repo="other", reason="no_match")
+    credentials.store(
+        repo="spec-kitty",
+        relay_url="http://a",
+        token="tok-a2",
+        token_kind="presence",
+        expires_at="2026-08-25T12:00:00+00:00",
+    )
+    credentials.revoke(repo="other")
+    if not hasattr(os, "getuid"):
+        return
+    path = credentials.credentials_path()
+    assert path.exists()
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600

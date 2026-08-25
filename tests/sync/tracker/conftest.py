@@ -33,7 +33,6 @@ import pytest
 
 from specify_cli.tracker import saas_client as _saas_mod
 from specify_cli.sync.consent import record_project_opt_in
-from specify_cli.sync.project_store import ProjectSyncStore
 
 
 class _LegacyAuthClientShim:
@@ -195,19 +194,6 @@ def _patch_saas_token_bridges(monkeypatch, request):
         if kwargs.get("project_root") == consenting_root.get("path"):
             project_uuid = "6f1c2f2e-59a1-4a1f-9a2e-0f1c2f2e59a1"
             record_project_opt_in(project_uuid, actor="legacy-tracker-client-fixture")
-            with ProjectSyncStore(project_uuid).unit_of_work() as unit:
-                unit.execute(
-                    "INSERT INTO project_target_admissions "
-                    "(project_uuid, target_identity, account_identity, private_teamspace_id, "
-                    "configuration_generation, admission_state, admission_generation, binding_audience) "
-                    "VALUES (?, ?, 'legacy-account', 'legacy-private-teamspace', 1, "
-                    "'admitted', 'legacy-admission', 'legacy-binding') "
-                    "ON CONFLICT(project_uuid) DO UPDATE SET target_identity = excluded.target_identity, "
-                    "account_identity = excluded.account_identity, private_teamspace_id = excluded.private_teamspace_id, "
-                    "configuration_generation = excluded.configuration_generation, admission_state = excluded.admission_state, "
-                    "admission_generation = excluded.admission_generation, binding_audience = excluded.binding_audience",
-                    (project_uuid, self._base_url.rstrip("/")),
-                )
         # Legacy tests inspect ``client._credential_store``; preserve that.
         self._credential_store = credential_store if credential_store is not None else fake_store
 

@@ -31,7 +31,6 @@ from specify_cli.sync.transport_lease import acquire_project_transport_lease
 from tests.support.sync_transport_barriers import (
     BarrierIdentity,
     BarrierPhase,
-    HostedReferenceExpectation,
     ProcessTransportBarrier,
     ResultExpectation,
     TRANSPORT_FAMILIES,
@@ -435,11 +434,6 @@ def test_hard_kill_recovery_window_preserves_identity_and_project_b(
             barrier,
             result_expectation=(ResultExpectation.COMPLETED if phase is BarrierPhase.RESULT_COMMITTED else ResultExpectation.ABSENT),
             expected_result_outcome=(DeliveryOutcome.DELIVERED.value if phase is BarrierPhase.RESULT_COMMITTED else None),
-            hosted_reference_expectation=(
-                HostedReferenceExpectation.REQUIRED
-                if phase is BarrierPhase.RESULT_COMMITTED and family in {"tracker_hosted", "generic_saas"}
-                else HostedReferenceExpectation.ABSENT
-            ),
         )
         assert_exact_transport_evidence(evidence)
         if phase is BarrierPhase.RESULT_COMMITTED:
@@ -547,7 +541,6 @@ def test_kill_then_public_opt_out_then_late_recovery_is_terminal_noop(
             outcome="timeout",
             result_expectation=ResultExpectation.OPT_OUT_TERMINAL_UNKNOWN,
             expected_result_outcome=DeliveryOutcome.TERMINAL_UNKNOWN.value,
-            hosted_reference_expectation=HostedReferenceExpectation.ABSENT,
         )
     )
 
