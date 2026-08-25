@@ -25,7 +25,7 @@ from specify_cli.coordination import register_lane_sparse_checkout
 from specify_cli.core.errors import StructuredError
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
-from specify_cli.lanes.merge import _ensure_merge_driver_git_config
+from specify_cli.lanes.merge import _ensure_merge_driver_git_config, _make_merge_env
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.mission_metadata import load_meta
 
@@ -353,6 +353,12 @@ def _merge_recorded_planning_commit(
     # squash-merge path). Mirrors ``auto_rebase.attempt_auto_rebase``'s
     # identical self-heal call.
     _ensure_merge_driver_git_config(repo_root)
+    # Issue #87: the registered drivers invoke bare ``spec-kitty ...`` (e.g.
+    # ``merge-driver-event-log``), so the merge subprocess must resolve that
+    # name to the RUNNING CLI, not to whatever the ambient PATH happens to
+    # carry — an agent harness / CI wrapper may not have this CLI on PATH at
+    # all. Route through the pipeline's single env authority (AC-F1).
+    env = _make_merge_env()
     merge = subprocess.run(
         [
             "git", "merge", "--no-edit",
@@ -362,6 +368,7 @@ def _merge_recorded_planning_commit(
         cwd=str(worktree_path),
         capture_output=True,
         text=True,
+        env=env,
     )
     if merge.returncode != 0:
         subprocess.run(
@@ -369,6 +376,7 @@ def _merge_recorded_planning_commit(
             cwd=str(worktree_path),
             capture_output=True,
             text=True,
+            env=env,
         )
         raise PlanningCommitMergeConflictError(lane_id, planning_commit_sha)
 
@@ -479,6 +487,11 @@ def _merge_dependency_lane_tips(
     # divergent ``kitty-specs/**`` bookkeeping file reconciles via its driver
     # instead of producing a plain-3-way-merge conflict.
     _ensure_merge_driver_git_config(repo_root)
+    # Issue #87: same rationale as ``_merge_recorded_planning_commit`` — the
+    # drivers fire inside this merge and resolve ``spec-kitty`` by name, so
+    # route the env through the pipeline's single authority (AC-F1) instead
+    # of inheriting whatever PATH the caller happens to have.
+    env = _make_merge_env()
     # Snapshot the lane ref before the loop so a later-dep conflict can roll
     # the worktree back to its exact pre-merge HEAD (#1915 atomicity).
     pre_loop_ref = _current_head(worktree_path)
@@ -514,6 +527,7 @@ def _merge_dependency_lane_tips(
             cwd=str(worktree_path),
             capture_output=True,
             text=True,
+            env=env,
         )
         if merge.returncode != 0:
             # Fail closed AND atomic (#1915): abort the half-merge, then reset
@@ -525,6 +539,7 @@ def _merge_dependency_lane_tips(
                 cwd=str(worktree_path),
                 capture_output=True,
                 text=True,
+                env=env,
             )
             if pre_loop_ref is not None:
                 subprocess.run(

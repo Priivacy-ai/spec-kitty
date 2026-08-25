@@ -32,6 +32,7 @@ pytestmark = [pytest.mark.architectural]
 
 SRC_ROOT = Path(specify_cli.__file__).resolve().parent
 LANES_MERGE = SRC_ROOT / "lanes" / "merge.py"
+WORKTREE_ALLOCATOR = SRC_ROOT / "lanes" / "worktree_allocator.py"
 REF_ADVANCE_RELPATH = Path("git") / "ref_advance.py"
 
 
@@ -145,6 +146,48 @@ def test_make_merge_env_matches_historical_inline_construction() -> None:
         str(Path(sys.executable).parent) + os.pathsep + expected.get("PATH", "")
     )
     assert _make_merge_env() == expected
+
+
+def _argv_includes_git_merge(node: ast.Call) -> bool:
+    """True when the call's first positional arg is a list literal whose
+    elements include the bare ``"merge"`` argv constant (a git-merge run)."""
+    if not node.args:
+        return False
+    argv = node.args[0]
+    if not isinstance(argv, ast.List):
+        return False
+    return any(
+        isinstance(elt, ast.Constant) and elt.value == "merge" for elt in argv.elts
+    )
+
+
+def test_worktree_allocator_git_merges_route_env_through_helper() -> None:
+    """#87: every ``git merge`` subprocess call in ``lanes/worktree_allocator.py``
+    carries an explicit ``env=`` keyword sourced from ``_make_merge_env``.
+
+    The drivers registered by ``_ensure_merge_driver_git_config`` invoke bare
+    ``spec-kitty ...``, so a merge run without that env resolves ``spec-kitty``
+    through the ambient PATH and fails whenever the CLI is not on it (invoked
+    by absolute path, through a wrapper, or from a harness with a stripped
+    PATH) — a merge that would have succeeded reports a conflict instead.
+    """
+    tree = ast.parse(
+        WORKTREE_ALLOCATOR.read_text(encoding="utf-8"),
+        filename=str(WORKTREE_ALLOCATOR),
+    )
+    missing_env = [
+        node.lineno
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and _is_subprocess_run_call(node)
+        and _argv_includes_git_merge(node)
+        and not any(kw.arg == "env" for kw in node.keywords)
+    ]
+    assert not missing_env, (
+        "git merge subprocess.run call(s) in lanes/worktree_allocator.py "
+        "without an env= keyword (must route through _make_merge_env so the "
+        f"registered merge drivers resolve the running CLI, #87): {missing_env}"
+    )
 
 
 # ---------------------------------------------------------------------------
