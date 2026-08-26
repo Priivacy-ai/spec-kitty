@@ -98,6 +98,33 @@ def test_session_roundtrip_json_without_refresh_expiry() -> None:
     assert restored.refresh_token_expires_at is None
 
 
+# ---------------------------------------------------------------------------
+# issuer_url (#176) — where the session was minted
+# ---------------------------------------------------------------------------
+
+
+def test_issuer_url_defaults_to_none_for_legacy_sessions() -> None:
+    """Sessions written before #176 carry no issuer; nothing can be claimed."""
+    s = _make_session(refresh_token_expires_at=None)
+    assert s.issuer_url is None
+    legacy_dict = s.to_dict()
+    assert legacy_dict["issuer_url"] is None
+    del legacy_dict["issuer_url"]  # a genuinely pre-#176 payload
+    restored = StoredSession.from_dict(legacy_dict)
+    assert restored.issuer_url is None
+
+
+def test_issuer_url_roundtrips_through_dict_and_json() -> None:
+    s = _make_session(refresh_token_expires_at=None)
+    s.issuer_url = "https://team.spec-kitty.ai"
+    for restored in (
+        StoredSession.from_dict(s.to_dict()),
+        StoredSession.from_json(s.to_json()),
+    ):
+        assert restored.issuer_url == "https://team.spec-kitty.ai"
+        assert restored == s
+
+
 def test_access_token_expired_no_buffer() -> None:
     past = _now() - timedelta(seconds=1)
     s = _make_session(refresh_token_expires_at=None, access_exp=past)

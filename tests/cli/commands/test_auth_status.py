@@ -33,12 +33,20 @@ from rich.console import Console
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
+from specify_cli.auth.server_target import (
+    DEFAULT_SERVER_URL,
+    OverrideMode,
+    ResolvedServerTarget,
+)
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands._auth_status import (
     _print_token_expiry,
     format_auth_method,
     format_duration,
+    format_saas_mismatch_warning,
+    format_saas_provenance,
     format_storage_backend,
+    saas_source_name,
 )
 from specify_cli.cli.commands.auth import app
 
@@ -76,6 +84,7 @@ def _make_session(
     auth_method: str = "authorization_code",
     teams: list[Team] | None = None,
     default_team_id: str = "tm_acme",
+    issuer_url: str | None = None,
 ) -> StoredSession:
     """Build a StoredSession with controllable remaining-time offsets.
 
@@ -122,6 +131,7 @@ def _make_session(
         storage_backend=storage_backend,  # type: ignore[arg-type]
         last_used_at=now,
         auth_method=auth_method,  # type: ignore[arg-type]
+        issuer_url=issuer_url,
     )
 
 
@@ -421,3 +431,208 @@ class TestAuthStatusCommand:
         assert result.exit_code == 0, result.stdout
         assert "server-managed" in result.stdout
         assert "legacy session" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# SaaS endpoint line (#176) — pure formatters
+# ---------------------------------------------------------------------------
+
+
+def _target(
+    *,
+    env_server_url: str | None,
+    configured_server_url: str | None,
+) -> ResolvedServerTarget:
+    resolved = env_server_url or configured_server_url or DEFAULT_SERVER_URL
+    return ResolvedServerTarget(
+        configured_server_url=configured_server_url,
+        env_server_url=env_server_url,
+        override_mode=OverrideMode.NONE,
+        resolved_server_url=resolved,
+    )
+
+
+def _flat(text: str) -> str:
+    """Collapse whitespace so assertions survive rich's line wrapping."""
+    return " ".join(text.split())
+
+
+class TestSaasSourceName:
+    """Provenance naming mirrors resolve_server_target's precedence."""
+
+    def test_env_wins(self):
+        target = _target(env_server_url="https://env.test", configured_server_url="https://config.test")
+        assert saas_source_name(target) == "SPEC_KITTY_SAAS_URL"
+
+    def test_config_when_no_env(self):
+        target = _target(env_server_url=None, configured_server_url="https://config.test")
+        assert saas_source_name(target) == "config.toml [sync].server_url"
+
+    def test_default_when_neither(self):
+        target = _target(env_server_url=None, configured_server_url=None)
+        assert saas_source_name(target) == "the default endpoint"
+
+
+class TestFormatSaasProvenance:
+    """The dim suffix shown next to the ``SaaS:`` line."""
+
+    def test_from_env_var(self):
+        target = _target(env_server_url="https://saas.test", configured_server_url=None)
+        assert format_saas_provenance(target) == "(from SPEC_KITTY_SAAS_URL)"
+
+    def test_from_config_toml(self):
+        target = _target(env_server_url=None, configured_server_url="https://config.test")
+        assert format_saas_provenance(target) == "(from config.toml [sync].server_url)"
+
+    def test_default(self):
+        target = _target(env_server_url=None, configured_server_url=None)
+        assert format_saas_provenance(target) == "(default)"
+
+
+class TestFormatSaasMismatchWarning:
+    """The stale-session warning fires only when issuer and config disagree."""
+
+    def test_none_for_legacy_session_without_issuer(self):
+        warning = format_saas_mismatch_warning(
+            None,
+            source_name="SPEC_KITTY_SAAS_URL",
+            resolved_server_url="https://saas.test",
+        )
+        assert warning is None
+
+    def test_none_when_issuer_matches(self):
+        warning = format_saas_mismatch_warning(
+            "https://saas.test",
+            source_name="SPEC_KITTY_SAAS_URL",
+            resolved_server_url="https://saas.test",
+        )
+        assert warning is None
+
+    def test_trailing_slash_is_not_a_mismatch(self):
+        warning = format_saas_mismatch_warning(
+            "https://saas.test/",
+            source_name="SPEC_KITTY_SAAS_URL",
+            resolved_server_url="https://saas.test",
+        )
+        assert warning is None
+
+    def test_message_names_both_endpoints_and_the_fix(self):
+        warning = format_saas_mismatch_warning(
+            "https://sk-teamkitty.exe.xyz",
+            source_name="SPEC_KITTY_SAAS_URL",
+            resolved_server_url="https://team.spec-kitty.ai",
+        )
+        assert warning is not None
+        assert warning == (
+            "Session is for https://sk-teamkitty.exe.xyz; "
+            "SPEC_KITTY_SAAS_URL now points at https://team.spec-kitty.ai "
+            "— run spec-kitty auth login --force"
+        )
+
+
+# ---------------------------------------------------------------------------
+# SaaS endpoint line (#176) — CliRunner E2E
+# ---------------------------------------------------------------------------
+
+
+class TestAuthStatusSaasLine:
+    """The authenticated block opens with the SaaS endpoint and its origin."""
+
+    def test_status_prints_endpoint_with_env_provenance(self):
+        session = _make_session(issuer_url="https://saas.test")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        # Same value `auth login` prints (the fixture sets it to https://saas.test).
+        assert "https://saas.test" in flat
+        assert "(from SPEC_KITTY_SAAS_URL)" in flat
+
+    def test_status_prints_endpoint_before_identity(self):
+        """The SaaS line is the first line of the block after the banner."""
+        session = _make_session()
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        saas_at = result.stdout.index("SaaS:")
+        user_at = result.stdout.index("User:")
+        assert saas_at < user_at
+
+    def test_status_prints_default_provenance_when_unconfigured(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ):
+        """No env var and no config.toml -> the documented default + ``(default)``."""
+        session = _make_session(issuer_url="https://saas.test")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+            monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert DEFAULT_SERVER_URL in _flat(result.stdout)
+        assert "(default)" in _flat(result.stdout)
+
+    def test_mismatch_warning_fires_when_issuer_differs(self):
+        """Hostname moved: stored session is for the old host, env points elsewhere."""
+        session = _make_session(issuer_url="https://sk-teamkitty.exe.xyz")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        assert (
+            "Session is for https://sk-teamkitty.exe.xyz; "
+            "SPEC_KITTY_SAAS_URL now points at https://saas.test" in flat
+        )
+        assert "run spec-kitty auth login --force" in flat
+
+    def test_no_mismatch_warning_when_issuer_matches(self):
+        # A trailing slash on the stored issuer must not count as a mismatch.
+        session = _make_session(issuer_url="https://saas.test/")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Session is for" not in _flat(result.stdout)
+
+    def test_no_mismatch_warning_for_legacy_session(self):
+        """Pre-#176 sessions carry no issuer; nothing can be compared."""
+        session = _make_session(issuer_url=None)
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "Session is for" not in _flat(result.stdout)
+        assert "https://saas.test" in _flat(result.stdout)  # endpoint still shown

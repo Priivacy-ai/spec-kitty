@@ -4,7 +4,10 @@ Prints the authenticated user's email on stdout and exits 0.
 Prints nothing and exits 1 if not authenticated or session is expired.
 
 Designed for machine consumption — canary preflight scripts read the first
-non-empty output line as the identity token.
+non-empty output line as the identity token. The ``SaaS:`` endpoint line
+(#176) is therefore printed *after* the email so that contract holds; humans
+get it in the same shape :func:`specify_cli.cli.commands._auth_status.status_impl`
+prints it.
 """
 
 from __future__ import annotations
@@ -12,6 +15,7 @@ from __future__ import annotations
 import typer
 
 from specify_cli.auth import get_token_manager
+from specify_cli.cli.commands._auth_status import _print_saas_target
 
 
 def whoami_impl() -> None:
@@ -22,7 +26,11 @@ def whoami_impl() -> None:
     if session is None or session.is_refresh_token_expired():
         raise typer.Exit(1)
 
+    # Bare print on purpose: the first non-empty line must stay a plain,
+    # unstyled identity token even under FORCE_COLOR (rich would highlight
+    # the email). The SaaS lines below go through the shared console.
     print(session.email)
+    _print_saas_target(session)
 
 
 __all__ = ["whoami_impl"]
