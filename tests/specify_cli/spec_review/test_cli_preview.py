@@ -16,6 +16,9 @@ from specify_cli.spec_review.models import ReviewStatus, ReviewSummary
 from specify_cli.spec_review.service import SpecReviewOutcome, prepare_default_disclosure
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def _setup_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[typer.Typer, Path]:
     mission = tmp_path / "kitty-specs" / "demo"
     mission.mkdir(parents=True)

@@ -8,6 +8,9 @@ from specify_cli.spec_review.models import ReviewStatus
 from specify_cli.spec_review.parser import InvalidReviewResponse, MAX_RESPONSE_BYTES, parse_review_response_bytes
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def _payload(**overrides: object) -> bytes:
     finding: dict[str, object] = {
         "id": "F-1",

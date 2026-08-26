@@ -25,6 +25,9 @@ from specify_cli.spec_review.runner import (
 )
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def _completed(payload: bytes, code: int = 0) -> subprocess.CompletedProcess[bytes]:
     return subprocess.CompletedProcess(["opencode"], code, stdout=payload, stderr=b"ignored")
 
@@ -274,7 +277,7 @@ def test_headless_server_uses_numeric_loopback_argv_and_never_captures_streams()
     assert calls[0][1]["stderr"] is subprocess.DEVNULL
 
 
-@pytest.mark.parametrize("base_url", ["https://127.0.0.1:4096", "http://localhost:4096", "http://127.0.0.1"])
-def test_loopback_http_client_refuses_non_explicit_loopback_urls(base_url: str) -> None:
+@pytest.mark.parametrize("candidate_url", ["https://127.0.0.1:4096", "http://localhost:4096", "http://127.0.0.1"])
+def test_loopback_http_client_refuses_non_explicit_loopback_urls(candidate_url: str) -> None:
     with pytest.raises(ValueError):
-        OpenCodeLoopbackClient(base_url, request=lambda *args: HttpResponse(200, b"{}"))
+        OpenCodeLoopbackClient(candidate_url, request=lambda *args: HttpResponse(200, b"{}"))

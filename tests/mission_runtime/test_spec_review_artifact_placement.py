@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
+
 import mission_runtime.artifacts as artifacts_mod
 from mission_runtime import CommitTarget, MissionArtifactKind, TopologySurface, artifact_home_for
+
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_spec_review_yaml_is_primary_and_filename_anchored() -> None:

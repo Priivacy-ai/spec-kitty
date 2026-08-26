@@ -15,6 +15,9 @@ from specify_cli.spec_review.models import ReviewStatus, SpecReviewRun
 from specify_cli.spec_review.storage import SpecReviewWriteError, store_spec_review
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def _run(run_id: str = "run-contract") -> SpecReviewRun:
     return SpecReviewRun(
         run_id=run_id,

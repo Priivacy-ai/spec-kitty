@@ -22,6 +22,9 @@ from specify_cli.spec_review.preflight import (
 )
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def _context(tmp_path: Path, contents: bytes = b"# Synthetic mission\n") -> MissionSpecContext:
     mission_dir = tmp_path / "missions" / "synthetic"
     mission_dir.mkdir(parents=True)

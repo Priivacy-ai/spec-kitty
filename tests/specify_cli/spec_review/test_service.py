@@ -29,6 +29,9 @@ from specify_cli.spec_review.service import SpecReviewService
 from specify_cli.spec_review.storage import SpecReviewWriteError, StoredSpecReview
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 class _PaidRunner:
     def __init__(self) -> None:
         self.calls: list[str] = []

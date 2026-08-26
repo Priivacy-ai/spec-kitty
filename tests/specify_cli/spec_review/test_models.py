@@ -19,6 +19,9 @@ from specify_cli.spec_review.models import (
 )
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def _finding(identifier: str = "F-1", severity: int = 3) -> SpecReviewFinding:
     return SpecReviewFinding(
         identifier=identifier,

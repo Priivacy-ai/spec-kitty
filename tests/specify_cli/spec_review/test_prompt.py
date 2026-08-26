@@ -7,6 +7,9 @@ from specify_cli.spec_review.preflight import ReviewPromptTemplate, ReviewRespon
 from specify_cli.spec_review.prompt import OutputPrivacyViolation, build_prompt, validate_finding_privacy
 
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+
 def test_prompt_uses_only_immutable_inputs_without_local_context() -> None:
     sentinel = "S" * 32
     snapshot = SpecSnapshot(payload=f"# Synthetic\n{sentinel}\n".encode(), text=f"# Synthetic\n{sentinel}\n", line_count=2, scanner_version="heuristic-v1")
