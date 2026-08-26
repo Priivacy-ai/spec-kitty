@@ -113,6 +113,15 @@ class MomentSettings:
     records where the effective mode came from — ``"default"``, the winning
     config file's path, or that path marked invalid when the stored value was
     unreadable — so ``status`` can say *why* rather than just *what*.
+
+    ``invalid_filters`` names which of ``repos``/``missions``/``teammates``/
+    ``kinds`` were PRESENT in the deciding config but not a list — the shape
+    :func:`_string_list` quietly empties to the same tuple an unset key
+    produces. That collapse is the bug this field exists to prevent: an unset
+    filter means "no restriction" (intentional), but a malformed one means
+    the developer asked for a restriction and typo'd it, so it must never
+    read as "no restriction" too — :func:`frame_predicate` and
+    :func:`allows_repo` fail that dimension closed (admit nothing) instead.
     """
 
     agents: MomentsMode = DEFAULT_AGENTS_MODE
@@ -122,10 +131,14 @@ class MomentSettings:
     kinds: tuple[str, ...] = ()
     rate_per_minute: int = DEFAULT_RATE_PER_MINUTE
     agents_source: str = "default"
+    invalid_filters: frozenset[str] = frozenset()
 
     def as_dict(self) -> dict[str, Any]:
-        """JSON-safe projection (StrEnum members serialise as their values)."""
-        return asdict(self)
+        """JSON-safe projection (StrEnum members serialise as their values;
+        ``invalid_filters`` as a sorted list — a frozenset is not JSON-safe)."""
+        payload = asdict(self)
+        payload["invalid_filters"] = sorted(self.invalid_filters)
+        return payload
 
 
 def global_config_path(*, home: Path | None = None) -> Path:
@@ -195,6 +208,19 @@ def _string_list(raw: Any) -> tuple[str, ...]:
     return tuple(seen)
 
 
+#: The four allowlist keys a config's ``[moments]`` table may set.
+_FILTER_KEYS = ("repos", "missions", "teammates", "kinds")
+
+
+def _malformed_filter_keys(merged: Mapping[str, Any]) -> frozenset[str]:
+    """Which of :data:`_FILTER_KEYS` are PRESENT in ``merged`` but not a
+    list/tuple — the shape :func:`_string_list` quietly empties to "unset".
+    A key that is simply absent is not malformed; a key that is present with
+    the wrong shape (a typo'd bare string in place of a one-item list) is,
+    and must fail its dimension closed rather than silently disappear."""
+    return frozenset(key for key in _FILTER_KEYS if key in merged and not isinstance(merged[key], (list, tuple)))
+
+
 def _coerce_rate(raw: Any) -> int:
     """A stored ``rate_per_minute`` as a usable cap. Absent/negative/non-int
     falls back to the default; zero is honoured literally (surface no
@@ -224,6 +250,7 @@ def load_settings(
     repo_section = _read_section(repo_config_path(project_root)) if project_root is not None else {}
 
     merged: dict[str, Any] = {**global_section, **repo_section}
+    invalid_filters = _malformed_filter_keys(merged)
     if "agents" not in merged:
         # Neither file says anything: the documented default, honestly labelled.
         return MomentSettings(
@@ -232,6 +259,7 @@ def load_settings(
             teammates=_string_list(merged.get("teammates")),
             kinds=_string_list(merged.get("kinds")),
             rate_per_minute=_coerce_rate(merged.get("rate_per_minute")),
+            invalid_filters=invalid_filters,
         )
     # ``repo_section`` is empty whenever ``project_root`` is None, so an
     # agent key found there guarantees the repo path below is real.
@@ -245,6 +273,7 @@ def load_settings(
         kinds=_string_list(merged.get("kinds")),
         rate_per_minute=_coerce_rate(merged.get("rate_per_minute")),
         agents_source=agents_source,
+        invalid_filters=invalid_filters,
     )
 
 
@@ -374,16 +403,27 @@ def frame_predicate(
 
     An event that names no mission fails ``mine`` (quiet by default); the
     same moment passes ``team`` subject to the filters alone.
+
+    A ``kinds``/``teammates``/``missions`` value present in config but not a
+    list (e.g. a typo'd bare string, see ``settings.invalid_filters``) fails
+    ITS dimension closed: every event is refused, never admitted, so a
+    malformed allowlist narrows the stream to nothing instead of silently
+    reading as "no restriction" and widening it (EXPERIMENTAL-spec-kitty#190
+    squad follow-up, PR #201). ``repos`` is not one of these — it gates
+    subscriptions, not frames — and is checked by :func:`allows_repo` instead.
     """
     kinds = frozenset(settings.kinds)
     teammates = frozenset(settings.teammates)
     configured_missions = frozenset(settings.missions)
     my_missions = configured_missions | frozenset(local_missions)
+    predicate_relevant_invalid = settings.invalid_filters & {"kinds", "teammates", "missions"}
 
     def predicate(live_frame: Any) -> bool:
         if getattr(live_frame, "frame_type", None) != "event":
             return True
         if settings.agents is MomentsMode.OFF:
+            return False
+        if predicate_relevant_invalid:
             return False
         payload = getattr(live_frame, "payload", None)
         if not isinstance(payload, Mapping):
@@ -411,7 +451,13 @@ def allows_repo(settings: MomentSettings, store_key: str) -> bool:
     (``host/owner/repo``) may be surfaced at all. An unset ``repos`` filter
     allows every repo this developer holds a credential for; a set one is an
     exact-match allowlist — the store key is the only repo identity a moment
-    surface has, since one subscription is bound to exactly one credential."""
+    surface has, since one subscription is bound to exactly one credential.
+
+    A ``repos`` value present in config but not a list fails closed here —
+    every repo is refused, never every repo admitted — matching
+    :func:`frame_predicate`'s treatment of the other three filters."""
+    if "repos" in settings.invalid_filters:
+        return False
     return not settings.repos or store_key in settings.repos
 
 

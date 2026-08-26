@@ -78,6 +78,26 @@ def test_status_names_the_global_file_that_decided(kittify_home: Path) -> None:
     assert str(kittify_home / "config.toml") in result.stdout
 
 
+def test_status_reports_a_malformed_filter_as_invalid_not_as_no_filter(kittify_home: Path) -> None:
+    """#201 squad follow-up: a typo'd `teammates` value must not read as
+    "(no filter)" — that phrasing is what a developer expects for an unset
+    filter (no restriction), not for one that failed closed to nothing."""
+    (kittify_home / "config.toml").write_text('[moments]\nagents = "team"\nteammates = "lynn"\n')
+    result = runner.invoke(moments_app, ["status"])
+    assert result.exit_code == 0
+    assert "teammates: " in result.stdout
+    assert "invalid" in result.stdout
+    assert "no filter" not in result.stdout.split("teammates:")[1].split("\n")[0]
+
+
+def test_status_json_reports_invalid_filters_as_a_sorted_list(kittify_home: Path) -> None:
+    (kittify_home / "config.toml").write_text('[moments]\nagents = "team"\nteammates = "lynn"\n')
+    result = runner.invoke(moments_app, ["status", "--json"])
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout)
+    assert payload["invalid_filters"] == ["teammates"]
+
+
 def test_status_reports_a_repo_override_over_the_global_value(kittify_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Both files present: repo wins AND status says so — "quiet in THIS
     checkout only" must be visible as exactly that."""

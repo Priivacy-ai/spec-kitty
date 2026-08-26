@@ -88,8 +88,11 @@ def status(as_json: bool = _JSON_OPTION) -> None:
         return
     console.print(f"[bold]{settings.agents.value}[/bold]  source={settings.agents_source}")
     for name in ("repos", "missions", "teammates", "kinds"):
-        values = getattr(settings, name)
-        rendered = ", ".join(values) if values else "(no filter)"
+        if name in settings.invalid_filters:
+            rendered = "[red]invalid value in config — failing closed (blocks everything on this filter)[/red]"
+        else:
+            values = getattr(settings, name)
+            rendered = ", ".join(values) if values else "(no filter)"
         console.print(f"  {name}: {rendered}")
     console.print(f"  rate_per_minute: {settings.rate_per_minute}")
     if settings.agents is moments.MomentsMode.OFF:

@@ -162,6 +162,31 @@ class TestLoadSettings:
         settings = moments.load_settings(home=moments_config.parent)
         assert settings.repos == ("github.com/acme/w",)
         assert settings.missions == ()
+        # the well-formed `repos` list is not "invalid"; the bare-string
+        # `missions` typo is — that distinction is what fails it closed
+        # instead of letting it read as "no restriction" (PR #201 follow-up).
+        assert settings.invalid_filters == frozenset({"missions"})
+
+    def test_malformed_teammates_fails_closed_not_open(self, moments_config: Path) -> None:
+        """The exact squad repro (#201): `agents = "team"` plus a bare-string
+        `teammates` must never coerce to "no restriction" — it must narrow to
+        nothing, so another actor's moment is refused, not widened in."""
+        moments_config.write_text('[moments]\nagents = "team"\nteammates = "lynn"\n')
+        settings = moments.load_settings(home=moments_config.parent)
+        assert settings.agents is moments.MomentsMode.TEAM
+        assert settings.teammates == ()
+        assert settings.invalid_filters == frozenset({"teammates"})
+
+    @pytest.mark.parametrize("key", ["repos", "missions", "teammates", "kinds"])
+    def test_only_present_and_malformed_keys_are_flagged(self, moments_config: Path, key: str) -> None:
+        moments_config.write_text(f'[moments]\n{key} = "typo"\n')
+        settings = moments.load_settings(home=moments_config.parent)
+        assert settings.invalid_filters == frozenset({key})
+
+    def test_absent_keys_are_never_flagged_invalid(self, moments_config: Path) -> None:
+        moments_config.write_text('[moments]\nagents = "team"\n')
+        settings = moments.load_settings(home=moments_config.parent)
+        assert settings.invalid_filters == frozenset()
 
 
 class TestWriteAgentsMode:
@@ -320,6 +345,23 @@ class TestFramePredicate:
         assert predicate(_event_frame(kind="MissionCreated", user="lynn", mission="x")) is False
         assert predicate(_event_frame(kind="WPStatusChanged", user="elio", mission="x")) is False
 
+    @pytest.mark.parametrize("invalid_key", ["kinds", "teammates", "missions"])
+    def test_malformed_filter_fails_closed_not_open(self, invalid_key: str) -> None:
+        """#201 squad follow-up: a malformed teammates/kinds/missions value
+        must refuse every event, never admit one that an unset filter (empty
+        tuple) would also admit — the typo can never widen agent context."""
+        predicate = moments.frame_predicate(_settings(agents=moments.MomentsMode.TEAM, invalid_filters=frozenset({invalid_key})))
+        # team mode with no OTHER restriction would normally admit this
+        # frame outright; the malformed dimension must refuse it instead.
+        assert predicate(_event_frame(kind="WPStatusChanged", user="someone-else", mission="x")) is False
+
+    def test_malformed_repos_does_not_leak_into_the_frame_predicate(self) -> None:
+        """`repos` gates subscriptions (:func:`moments.allows_repo`), not
+        frames — a malformed `repos` value must not spuriously silence an
+        otherwise-unfiltered predicate."""
+        predicate = moments.frame_predicate(_settings(agents=moments.MomentsMode.TEAM, invalid_filters=frozenset({"repos"})))
+        assert predicate(_event_frame()) is True
+
 
 # --- repo admission ----------------------------------------------------------
 
@@ -333,6 +375,14 @@ class TestAllowsRepo:
         assert moments.allows_repo(settings, "github.com/acme/widget") is True
         assert moments.allows_repo(settings, "github.com/acme/other") is False
         assert moments.allows_repo(settings, "acme/widget") is False
+
+    def test_malformed_repos_fails_closed_not_open(self) -> None:
+        """A typo'd `repos` value (settings.repos == () same as unset) must
+        refuse every repo, never admit every repo the way an unset filter
+        would (#201 squad follow-up)."""
+        settings = _settings(invalid_filters=frozenset({"repos"}))
+        assert settings.repos == ()
+        assert moments.allows_repo(settings, "github.com/acme/widget") is False
 
 
 # --- the rate cap ------------------------------------------------------------
