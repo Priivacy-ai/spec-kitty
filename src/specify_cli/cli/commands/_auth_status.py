@@ -12,6 +12,7 @@ Output layout (spec 080 §2.4, FR-015):
   warning when the stored session was minted against a *different*
   endpoint (#176 — after a hostname move this is the line that explains
   why every call suddenly 401s)
+- SaaS endpoint the stored session was minted against, when known
 - email / name / user_id
 - Team list with the default team marked
 - Access token remaining time (human-readable)
@@ -72,16 +73,12 @@ def status_impl() -> None:
 
     if session is None:
         console.print("[red]X Not authenticated[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to authenticate."
-        )
+        console.print("  Run [bold]spec-kitty auth login[/bold] to authenticate.")
         return
 
     if session.is_refresh_token_expired():
         console.print("[red]X Session expired (refresh token expired)[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to re-authenticate."
-        )
+        console.print("  Run [bold]spec-kitty auth login[/bold] to re-authenticate.")
         return
 
     console.print("[green]+ Authenticated[/green]")
@@ -124,20 +121,17 @@ def _print_saas_target(session: StoredSession) -> None:
     except ConfigurationError:
         # escape(): the remedy names `[sync].server_url` — unescaped, Rich
         # markup parses "[sync]" as a style tag and silently drops it (#182).
-        remedy = escape(
-            f"— set {SAAS_URL_ENV_VAR} (or [sync].server_url in config.toml)"
-        )
+        remedy = escape(f"— set {SAAS_URL_ENV_VAR} (or [sync].server_url in config.toml)")
         console.print(f"  SaaS:           not configured [dim]{remedy}[/dim]")
+        _print_session_issuer(session.issuer_url)
         return
     # escape(): both the resolved URL and the provenance suffix can contain
     # `[sync]`/`[/]`-shaped substrings (a config.toml server_url is
     # attacker- or fat-finger-controlled) — unescaped, Rich markup either
     # drops the bracketed text or raises MarkupError out of console.print,
     # which would violate this module's own never-fail invariant (#182).
-    console.print(
-        f"  SaaS:           {escape(target.resolved_server_url)} "
-        f"[dim]{escape(format_saas_provenance(target))}[/dim]"
-    )
+    console.print(f"  SaaS:           {escape(target.resolved_server_url)} [dim]{escape(format_saas_provenance(target))}[/dim]")
+    _print_session_issuer(session.issuer_url)
     warning = format_saas_mismatch_warning(
         session.issuer_url,
         source_name=saas_source_name(target),
@@ -145,6 +139,13 @@ def _print_saas_target(session: StoredSession) -> None:
     )
     if warning is not None:
         console.print(f"  [yellow]{escape(warning)}[/yellow]")
+
+
+def _print_session_issuer(issuer_url: str | None) -> None:
+    """Print where the stored session was minted, when the session knows it."""
+    if issuer_url is None:
+        return
+    console.print(f"  Session SaaS:   {escape(_normalize_endpoint(issuer_url))} [dim](authenticated session)[/dim]")
 
 
 def _print_identity(session: StoredSession) -> None:
@@ -187,14 +188,9 @@ def _print_token_expiry(session: StoredSession) -> None:
     console.print(f"  Access token:   {format_duration(access_remaining)}")
 
     if session.refresh_token_expires_at is None:
-        console.print(
-            "  Refresh token:  [dim]server-managed "
-            "(legacy session - re-login to populate refresh expiry)[/dim]"
-        )
+        console.print("  Refresh token:  [dim]server-managed (legacy session - re-login to populate refresh expiry)[/dim]")
     else:
-        refresh_remaining = (
-            session.refresh_token_expires_at - now
-        ).total_seconds()
+        refresh_remaining = (session.refresh_token_expires_at - now).total_seconds()
         console.print(f"  Refresh token:  {format_duration(refresh_remaining)}")
 
 
@@ -294,15 +290,9 @@ def format_saas_mismatch_warning(
     """
     if session_issuer_url is None:
         return None
-    if _normalize_endpoint(session_issuer_url) == _normalize_endpoint(
-        resolved_server_url
-    ):
+    if _normalize_endpoint(session_issuer_url) == _normalize_endpoint(resolved_server_url):
         return None
-    return (
-        f"Session is for {_normalize_endpoint(session_issuer_url)}; "
-        f"{source_name} now points at {resolved_server_url} "
-        f"— run spec-kitty auth login --force"
-    )
+    return f"Session is for {_normalize_endpoint(session_issuer_url)}; {source_name} now points at {resolved_server_url} — run spec-kitty auth login --force"
 
 
 def _normalize_endpoint(url: str) -> str:
