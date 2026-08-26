@@ -56,14 +56,15 @@ Bug is LIVE on main. Root cause and fix direction are in `research.md` (WP01) an
 - Add a **pointer-charter fixture**: `config.yaml` with `charter: .kittify/charter/charter.yaml` + a `charter.yaml` that lacks `mission_type_activations`.
 - Drive the pre-existing public entry point — the `upgrade` CLI via `_run_upgrade([...])` (CliRunner), mirroring `test_upgrade_heals_stranded_project_and_unblocks_mission_creation`.
 - Assert: `PackContext.from_config(project).activated_mission_types` is non-empty AND the key landed in `charter.yaml`, not `config.yaml`; `existing_mission_types(project) != []`.
-- Add a second case: `charter.yaml` with an **authored empty** `mission_type_activations: []` → upgrade is a no-op (preserved, not overwritten).
+- Add a second case: `charter.yaml` with an **authored empty** `mission_type_activations: []` → upgrade is a no-op (preserved, not overwritten) **AND** the dry-run / `--json pending_provisioning` preview reports **not pending** for that authored-empty pointer project (this is the surface the T003 predicate hazard would silently regress — assert it here).
 - Confirm these are RED on current code before touching source.
 
 ### T002 — Route through the pointer-aware writer
 - In `src/specify_cli/cli/commands/upgrade.py`, change `_provision_missing_mission_type_activations` to seed through `charter.compiler.provision_mission_type_activations` (which delegates to `charter.pack_manager.resolve_activation_write_target` → `charter.yaml` for pointer projects, `config.yaml` for legacy). **Do not** modify `resolve_activation_write_target` or `provision_default_mission_type_activations` (C-004; fresh-init blast radius).
 
 ### T003 — Fix the pending predicate + dangling-pointer contract
-- Rewrite `_mission_type_activation_provisioning_pending` to inspect the resolved write target (or `PackContext.from_config(...).activated_mission_types`) so the dry-run / `--json pending_provisioning` preview is truthful for pointer projects.
+- Rewrite `_mission_type_activation_provisioning_pending` to inspect the resolved write target (`resolve_activation_write_target`) and key on **KEY-PRESENCE** of `mission_type_activations` in that target — exactly as the current predicate does for `config.yaml` (`return "mission_type_activations" not in data`).
+- **Do NOT** key the predicate on `PackContext.from_config(...).activated_mission_types` non-emptiness: that returns an empty set for an authored-empty `mission_type_activations: []`, which would falsely report `pending=True` in dry-run while the real run correctly no-ops — breaking authored-empty preview parity (C-WP01 / the T001 authored-empty dry-run assertion).
 - The resolver **raises** `CharterPackConfigError` on a dangling/unreadable `charter:` pointer. Keep a **defined, non-crashing** dry-run contract: catch it and report a stable preview state (not an unhandled raise, not a silent False that hides a broken pointer).
 
 ### T004 — Preserve semantics + docstring + lint

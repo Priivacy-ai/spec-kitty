@@ -50,6 +50,7 @@ On a merge stale-lane halt, `_stale_remediation` (planning-lane branch) returns 
 
 ### T006 — Fix the remediation text
 - Edit `_stale_remediation` (planning-lane branch, `src/specify_cli/lanes/stale_check.py`) so the emitted remediation, after the `git merge`, names `spec-kitty agent status materialize --mission <id> && git add <status.json>` as the resolution for the `status.json` conflict.
+- `_stale_remediation(lane, lane_branch, mission_branch)` carries **no mission id/slug** in scope. Decide deliberately: either emit a literal `<id>` placeholder in the guidance text, or thread the slug from the same-file caller `check_lane_staleness` (both in-map). Do NOT parse the id out of the branch name.
 - Keep it text-only (minimal fix). Introduce NO `status.json` merge driver and NO `.gitattributes` change.
 
 ### T007 — Lockstep assertions + guards

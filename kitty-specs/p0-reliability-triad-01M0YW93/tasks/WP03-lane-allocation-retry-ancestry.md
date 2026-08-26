@@ -86,8 +86,17 @@ Three coupled defects on the lane-allocation path (#3281):
 - `tests/integration/test_wp_integrity_p0_repro.py`: end-to-end retry-then-claim ancestry assertion as backup (do not overload it as the sole proof; it currently hosts a #3371 lanes.json test).
 - ruff + mypy clean; every touched function complexity ≤15; FR-005+FR-007 in the same lane.
 
+## Campsite / complexity discipline (post-tasks Sonar census — all in owned files)
+
+- **`transition` (`orchestrator_api/commands.py:1294`) is at complexity 14** — one branch from the C901 ceiling. Before adding the ancestry gate there: peel the near-identical policy-parse blocks (`:1331-1336` / `:1339-1344`, also in `start_implementation:1050-1054`) into a `_parse_policy_or_fail(cmd, policy)` helper. Then add the gate via the **shared predicate helper** with an early-return for non-claim lanes, so the `transition` call site gains 0–1 branches and stays ≤15.
+- **Shared ancestry predicate, not three inline gates**: T012's three call sites (`workflow.py` CLI seam, `start_implementation`, `transition`) must call ONE predicate helper (natural home: `implement_support.py`, owned) — this is both the whack-a-field guard and what keeps all three enclosing functions ≤15.
+- **Extract the T009 stale self-heal** (`_merge_recorded_planning_commit` + `_merge_dependency_lane_tips` with main-repo context) into a dedicated helper so `ensure_workspace_materialized` (currently 7) stays flat and T008/T013 get a directly-testable unit.
+- **T010 removal** goes in as a `_remove_lane_worktree(...)` sibling helper in `worktree_allocator.py` (matching the module's `_create_lane_worktree`/`_recover_lane_worktree` shape), NOT a 15th inline `subprocess.run`.
+- Do NOT broadly refactor the 14 sibling `subprocess.run` blocks — out of scope.
+
 ## Definition of Done
 - All RED tests (T008, T010, T013) fail before, pass after.
+- `transition` and every touched function stay ≤15 (verify with `ruff check`).
 - #1832/#1833 invariant test updated with rationale (not silently inverted).
 - Ancestry check is post-materialize and enforced on BOTH claim paths (or orchestrator_api parity tracked with rationale).
 - No approved same-mission dependency deadlocks (explicit regression test).
