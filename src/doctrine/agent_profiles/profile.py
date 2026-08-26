@@ -175,19 +175,6 @@ class SpecializationContext(BaseModel):
     complexity_preference: list[str] = Field(default_factory=list, alias="complexity-preference")
 
 
-class ContextSources(BaseModel):
-    """Doctrine context sources this agent loads."""
-
-    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
-
-    doctrine_layers: list[str] = Field(default_factory=list, alias="doctrine-layers")
-    directives: list[str] = Field(default_factory=list)
-    tactics: list[str] = Field(default_factory=list)
-    toolguides: list[str] = Field(default_factory=list)
-    styleguides: list[str] = Field(default_factory=list)
-    additional: list[str] = Field(default_factory=list)
-
-
 class ModeDefault(BaseModel):
     """Available reasoning mode with description."""
 
@@ -242,19 +229,25 @@ class AgentProfile(BaseModel):
     """
     Rich agent behavioral identity.
 
-    Defines WHO an agent IS through 6-section structure:
-    1. Context Sources - doctrine layers/directives
-    2. Purpose - mandate (what it does/doesn't do)
-    3. Specialization - focus, awareness, boundaries
-    4. Collaboration Contract - handoffs, outputs, verbs
-    5. Mode Defaults - available reasoning modes
-    6. Initialization Declaration - startup acknowledgment
+    Defines WHO an agent IS through a section structure:
+    1. Purpose - mandate (what it does/doesn't do)
+    2. Specialization - focus, awareness, boundaries
+    3. Collaboration Contract - handoffs, outputs, verbs
+    4. Mode Defaults - available reasoning modes
+    5. Initialization Declaration - startup acknowledgment
+    6. Doctrine references - ``*-references`` (directive/tactic/toolguide/
+       styleguide), the canonical DRG-provisioned context surface
+
+    (The retired ``context-sources.*`` bare-string surface was removed in
+    mission ``doctrine-drg-silent-drop-boundary-01M0PE7E``; authored references
+    live solely on the top-level ``*-references`` fields.)
     """
 
-    # FR-004: an authored key this model does not declare is a load error. The
-    # sibling ``ContextSources`` already forbids extras; ``AgentProfile`` itself
-    # did not, so a mistyped or retired top-level key was dropped in silence and
-    # the profile loaded looking complete.
+    # FR-004: an authored key this model does not declare is a load error, so a
+    # mistyped or retired top-level key (e.g. the retired ``context-sources``
+    # surface removed in mission doctrine-drg-silent-drop-boundary-01M0PE7E) is
+    # rejected loudly at load rather than dropped in silence while the profile
+    # loads looking complete.
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     # Frontmatter fields
@@ -273,8 +266,7 @@ class AgentProfile(BaseModel):
     preferred_model: str | None = Field(default=None, alias="model")
     effort: str | None = Field(default=None, alias="effort")
 
-    # 6 sections
-    context_sources: ContextSources = Field(default_factory=ContextSources, alias="context-sources")
+    # Sections
     purpose: str
     specialization: Specialization
     collaboration: CollaborationContract = Field(default_factory=CollaborationContract)

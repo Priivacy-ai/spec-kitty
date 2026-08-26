@@ -532,7 +532,9 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     ``frontend-freddy``, ``python-pedro``, ``java-jenny``,
 #:     ``architect-alphonso``). Every new edge is an inline-``references``
 #:     ``requires`` edge minted from each profile's own
-#:     ``context-sources.directives`` (all 7 add ``"051"``) and/or
+#:     ``directive-references`` (all 7 add ``"051"``; formerly authored on the
+#:     retired ``context-sources.directives`` surface, consolidated in entry
+#:     (21)) and/or
 #:     ``tactic-references`` (``reviewer-renata`` and 5 implementation/support
 #:     profiles add ``supply-chain-install-safety`` and/or
 #:     ``dependency-hygiene``, per-profile applicability) -- no new node, no
@@ -615,6 +617,51 @@ DOCTRINE_ROOT: Path = _REPO_ROOT / "src" / "doctrine"
 #:     drift entry (19) itself flagged as out of its own scope to reconcile.
 #:     The ``scope`` 165 -> 204 move is the complete, attributable claim this
 #:     entry makes.
+#: (21) Mission ``doctrine-drg-silent-drop-boundary-01M0PE7E`` (WP02, #3629 p1):
+#:     the retired ``context-sources.*`` bare-string profile surface was removed
+#:     from the model + schema, and ``extract_artifact_edges`` now projects
+#:     ``agent_profile`` edges from the canonical top-level ``*-references``
+#:     surface: ``directive-references -> requires`` (replacing the retired
+#:     ``context-sources.directives`` loop), ``tactic-references -> requires``
+#:     (unchanged), and the newly-added ``toolguide-references`` /
+#:     ``styleguide-references -> suggests`` projections. The ATTRIBUTABLE golden
+#:     delta, measured as the per-``agent_profile:*`` edge-set diff of a fresh
+#:     regeneration against the pre-consolidation committed graph, is exactly
+#:     THREE new edges, ZERO new nodes, and ZERO overlay change:
+#:       * ``agent_profile:python-pedro --requires--> directive:DIRECTIVE_034``.
+#:         pedro authors ``034`` in ``directive-references`` (the retired
+#:         ``context-sources.directives`` list omitted it -- the sole shipped
+#:         divergence), so the canonical projection now mints it. ``034`` was
+#:         ALREADY an overlay ``suggests`` target for pedro, so it becomes a
+#:         ``requires``+``suggests`` DIAMOND -- consistent with pedro's existing
+#:         ``030``/``041`` diamonds -- and ``progressive_disclosure`` delivers it
+#:         EAGER (requires precedence). This is the DELIBERATE, ledgered pedro/034
+#:         decision (post-plan squad F4/F5): full uniform canonical projection
+#:         with the overlay left intact -- NOT a pedro-specific extractor
+#:         exclusion (a special-case hack) and NOT an overlay edit; the delivered
+#:         artefact set is unchanged (``034`` was already action-scoped-delivered
+#:         at implement/review), only the profile-channel edge relation on ``034``
+#:         is now ``requires`` rather than a ``when``-conditioned ``suggests``.
+#:       * ``agent_profile:diagram-daisy --suggests--> toolguide:mermaid-
+#:         diagramming`` and ``--suggests--> toolguide:plantuml-diagramming``.
+#:         diagram-daisy is the only shipped profile authoring
+#:         ``toolguide-references``; the new ``toolguide-references -> suggests``
+#:         projection mints them. Both toolguides were ALREADY profile-reachable
+#:         via ``daisy --requires--> USE_C4_MODEL_TECHNIQUES --suggests-->`` (the
+#:         family-C overlay, entry (11)), so ``_PROFILE_RESCUES`` /
+#:         ``_PROFILE_UNREACHABLE`` in ``tests/doctrine/drg/test_reachability.py``
+#:         are UNCHANGED (measured) -- the direct edges add a second path to
+#:         already-reachable nodes. No shipped profile authors
+#:         ``styleguide-references``, so that projection is exercised only by the
+#:         divergent fixture in
+#:         ``tests/doctrine/agent_profiles/test_context_sources_migration.py``.
+#:     Relation histogram: ``requires`` +1, ``suggests`` +2, ``scope``
+#:     UNCHANGED. ``HAND_AUTHORED_NODES``/``HAND_AUTHORED_EDGES`` UNCHANGED (no
+#:     overlay content touched). No new node -> no new orphan; ``mermaid``/
+#:     ``plantuml`` gain a pure inbound edge but are not members of this module's
+#:     frozen orphan sets (they are reachability-set members only). The C-006
+#:     golden-diff -- "the per-``agent_profile:*`` edge-set diff is empty except
+#:     this ledgered delta" -- is pinned by ``test_context_sources_migration.py``.
 #: Node count DERIVED from the ``packs/built-in`` inventory (#3234), not frozen: a
 #: fresh ``generate_graph`` (pure, no overlay) must produce exactly one node per
 #: shipped source file across the file-backed kinds, plus the structurally-derived

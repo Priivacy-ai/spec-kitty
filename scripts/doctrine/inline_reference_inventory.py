@@ -18,12 +18,16 @@ relationship, and conflating them is what made the earlier reading hazardous:
 
 * ``MIGRATE`` — denotes an artefact→artefact relationship that the extractor turns
   into a DRG edge. These move to the authored-edge tier.
-* ``GOVERNANCE`` — ``directive-references`` / ``context-sources.*`` on agent
-  profiles. These produce **zero** DRG edges but seed the charter governance
-  closure (``src/charter/resolver.py`` reads ``profile.directive_references`` as the
-  transitive-resolution seed set). Deleting them empties profile-routed prompts
-  while every graph-shaped assertion stays green. They are NOT relationship
-  residue and must not be swept into the migration.
+* ``GOVERNANCE`` — ``directive-references`` on agent profiles (the retired
+  ``context-sources.*`` surface was removed in mission
+  doctrine-drg-silent-drop-boundary-01M0PE7E). These seed the charter governance
+  closure (``src/charter/resolver.py`` reads ``profile.directive_references`` as
+  the transitive-resolution seed set), so they are classified GOVERNANCE for
+  bulk-edit *disposition* — a rename mission must never blindly sweep a governed
+  directive code. (Since that same mission, ``directive-references`` ALSO mints a
+  DRG ``requires`` edge at the extractor — it is now dual-purpose; the GOVERNANCE
+  label here is about rename-safety, not about minting zero edges.) They are NOT
+  relationship residue and must not be swept into the migration.
 * ``RAW_MATERIAL`` — path strings pointing at non-artefact files (READMEs, ADRs,
   templates). ``_resolve_path_ref`` fails closed on them by design, they produce no
   edge, and the doctrine README sanctions carrying them. They stay.
@@ -163,19 +167,6 @@ def _collect_profile_fields(inv: Inventory, rel: str, data: dict[str, Any]) -> N
             inv.add(Entry(rel, field_name, GOVERNANCE, str(code)))
 
 
-def _collect_context_sources(inv: Inventory, rel: str, data: dict[str, Any]) -> None:
-    """``context-sources.directives`` mints edges; every sibling key does not."""
-    context_sources = data.get("context-sources")
-    if not isinstance(context_sources, dict):
-        return
-    for key, values in context_sources.items():
-        if not isinstance(values, list):
-            continue
-        disposition = MIGRATE if key == "directives" else GOVERNANCE
-        for raw in values:
-            inv.add(Entry(rel, f"context-sources.{key}", disposition, str(raw)))
-
-
 def collect(root: Path = _DOCTRINE_ROOT) -> Inventory:
     """Walk the doctrine tree and classify every inline relationship entry."""
     inv = Inventory()
@@ -190,7 +181,6 @@ def collect(root: Path = _DOCTRINE_ROOT) -> Inventory:
         _collect_reference_lists(inv, rel, data)
         _collect_bare_id_lists(inv, rel, data)
         _collect_profile_fields(inv, rel, data)
-        _collect_context_sources(inv, rel, data)
     return inv
 
 

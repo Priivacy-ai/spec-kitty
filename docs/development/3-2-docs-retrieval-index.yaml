@@ -5366,7 +5366,8 @@ pages:
     divio_type: "none"
     abstract: "Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release."
     anchors:
-    - {slug: "unreleased-3-2-6rc3", text: "[Unreleased] - 3.2.6rc3", level: 2}
+    - {slug: "unreleased-3-2-6rc4", text: "[Unreleased] - 3.2.6rc4", level: 2}
+    - {slug: "breaking", text: "💥 Breaking", level: 3}
     - {slug: "added", text: "✨ Added", level: 3}
     - {slug: "fixed", text: "🐛 Fixed", level: 3}
     - {slug: "changed", text: "♻️ Changed", level: 3}
@@ -12399,6 +12400,22 @@ pages:
     - {slug: "recommended-tracker-actions", text: "Recommended tracker actions", level: 2}
     - {slug: "sequencing", text: "Sequencing", level: 2}
     - {slug: "open-questions-for-the-operator", text: "Open questions for the operator", level: 2}
+  - path: "docs/plans/investigations/2026-08-declared-but-inert-doctrine-seams.md"
+    title: "Research: the declared-but-inert doctrine/DRG seam family (#3608, #3530, #3629)"
+    divio_type: "none"
+    abstract: "Research brief for the declared-but-inert doctrine/DRG seam family: the shared declaration-vs-consumption root cause and per-issue accuracy verdicts (#3608, #3530, #3629)."
+    anchors:
+    - {slug: "shared-root-cause", text: "Shared root cause", level: 2}
+    - {slug: "mechanism-taxonomy", text: "Mechanism taxonomy", level: 3}
+    - {slug: "relationship-map", text: "Relationship map", level: 3}
+    - {slug: "family-provenance-already-recognized-in-the-tickets", text: "Family/provenance already recognized in the tickets", level: 3}
+    - {slug: "per-issue-accuracy-verdicts", text: "Per-issue accuracy verdicts", level: 2}
+    - {slug: "3608-drg-node-kinds-hand-copy-drift-still-valid-numbers-shifted", text: "#3608 — `_DRG_NODE_KINDS` hand-copy drift — **STILL VALID (numbers shifted)**", level: 3}
+    - {slug: "3530-org-tier-doctrine-loads-but-reaches-no-consumer-tracking-largely-resolved-verify-and-close-candidate", text: "#3530 — org-tier doctrine loads but reaches no consumer (tracking) — **LARGELY RESOLVED; verify-and-close candidate**", level: 3}
+    - {slug: "3514-test-allowlist-shrink-only-documented-but-absent-still-valid-p0", text: "#3514 — `test_allowlist_shrink_only` documented but absent — **STILL VALID (P0)**", level: 3}
+    - {slug: "3511-pack-metadata-integration-cutover-still-valid-all-seams-inert", text: "#3511 — pack-metadata integration cutover — **STILL VALID (all seams inert)**", level: 3}
+    - {slug: "3629-m2-drg-projection-follow-ups-still-valid-all-three-parts", text: "#3629 — M2 DRG-projection follow-ups — **STILL VALID (all three parts)**", level: 3}
+    - {slug: "suggested-disposition", text: "Suggested disposition", level: 2}
   - path: "docs/plans/investigations/2026-08-pack-level-metadata-manifest.md"
     title: "Pack-level metadata manifest: constituent parts + lineage"
     divio_type: "none"

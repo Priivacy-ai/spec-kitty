@@ -102,6 +102,8 @@ from doctrine.drg.org_pack_config import (
 from doctrine.drg.org_pack_loader import (
     OrgDRGFragment,
     OrgPackMissingError,
+    OrgPackParseError,
+    OrgPackSchemaError,
     load_org_pack,
 )
 from doctrine.drg.query import ResolvedContext, resolve_context
@@ -138,6 +140,8 @@ __all__ = [
     "OrgDRGFragment",
     "OrgPackEnvVarUnsetError",
     "OrgPackMissingError",
+    "OrgPackParseError",
+    "OrgPackSchemaError",
     "OrgPackSubdirEscapeError",
     "Relation",
     "ResolvedContext",
@@ -149,6 +153,7 @@ __all__ = [
     "load_graph",
     "load_graph_or_dir",
     "load_org_drg",
+    "load_org_pack",
     "merge_layers",
     "merge_three_layers",
     "model_to_graph_dict",
