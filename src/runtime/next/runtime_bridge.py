@@ -783,7 +783,7 @@ TASKS_ARTIFACT = "tasks.md"
 STATE_FILE = "state.json"
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
+def _check_cli_guards(step_id: str, feature_dir: Path, *, mission_family: str | None = None) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_cores.evaluate_guards` over a
     :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
@@ -792,11 +792,13 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
     unmoved :func:`_should_advance_wp_step` I/O read — and its own WP02
     compat reach — stay exactly where they were.
 
-    Resolves the mission's actual family instead of assuming ``software-dev``.
+    ``mission_family`` is supplied by runtime paths that already resolved the
+    primary-anchored mission type. Direct callers may omit it to preserve the
+    legacy feature-dir lookup behavior.
 
     Returns list of failure descriptions; empty list means all guards pass.
     """
-    mission_family = get_mission_type(feature_dir)
+    mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
     snapshot = _io_seam.gather_artifact_presence(
         feature_dir, mission_family=mission_family, step_id=step_id
     )
@@ -1643,7 +1645,7 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
             )
         # All WPs done for this step — check guards before advancing.
         try:
-            guard_failures = _check_cli_guards(current_step_id, feature_dir)
+            guard_failures = _check_cli_guards(current_step_id, feature_dir, mission_family=mission_type)
         except _cores.UnregisteredMissionFamilyError:
             guard_failures = []
         if guard_failures:
@@ -1666,9 +1668,9 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
         ctx.result == "success"
         and current_step_id
         and not _is_wp_iteration_step(current_step_id)
-        and get_mission_type(feature_dir) == MISSION_TYPE_SOFTWARE_DEV
+        and mission_type == MISSION_TYPE_SOFTWARE_DEV
     ):
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+        guard_failures = _check_cli_guards(current_step_id, feature_dir, mission_family=mission_type)
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
                 current_step_id,

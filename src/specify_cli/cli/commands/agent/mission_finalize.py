@@ -1596,6 +1596,56 @@ def _raise_stale_canceled_dependencies_if_any(
     raise typer.Exit(1) from None
 
 
+def _lane_computation_empty_input_error(
+    wp_manifests: dict[str, OwnershipManifest],
+    wp_dependencies: dict[str, list[str]],
+    wp_frontmatters: dict[str, WPMetadata],
+    *,
+    all_canceled: bool,
+) -> str | None:
+    """Return an error for live code-change WPs with missing lane inputs."""
+    if all_canceled or (wp_manifests and wp_dependencies):
+        return None
+    code_change_wp_ids = sorted(
+        wp_id
+        for wp_id, fm in wp_frontmatters.items()
+        if (fm.execution_mode or "code_change") == "code_change"
+        and (fm.lane if fm.lane is not None else Lane.PLANNED) is not Lane.CANCELED
+    )
+    if not code_change_wp_ids:
+        return None
+    missing = []
+    if not wp_manifests:
+        missing.append("ownership manifests")
+    if not wp_dependencies:
+        missing.append("WP dependencies")
+    return (
+        "Lane computation aborted: missing "
+        + " and ".join(missing)
+        + ". finalize-tasks cannot write lanes.json without complete tasks and ownership metadata."
+    )
+
+
+def _raise_lane_computation_empty_input_if_needed(
+    wp_manifests: dict[str, OwnershipManifest],
+    wp_dependencies: dict[str, list[str]],
+    wp_frontmatters: dict[str, WPMetadata],
+    *,
+    all_canceled: bool,
+    json_output: bool,
+) -> None:
+    error_msg = _lane_computation_empty_input_error(
+        wp_manifests, wp_dependencies, wp_frontmatters, all_canceled=all_canceled
+    )
+    if error_msg is None:
+        return
+    if json_output:
+        _emit_json({"error": error_msg, "error_code": LANE_COMPUTATION_ABORTED_EMPTY_INPUTS})
+    else:
+        console.print(f"[red]Error:[/red] {error_msg}")
+    raise typer.Exit(1) from None
+
+
 def _record_ownership_glob_diagnostics(
     glob_result: GlobValidationResult,
     state: _BootstrapState,
@@ -1641,6 +1691,13 @@ def _emit_validate_only_report(
     }
 
     lanes_stats: dict[str, object] = {"computed": False}
+    _raise_lane_computation_empty_input_if_needed(
+        wp_manifests,
+        wp_dependencies,
+        state.inmemory_frontmatter,
+        all_canceled=all_canceled,
+        json_output=json_output,
+    )
     if (wp_manifests and wp_dependencies) or all_canceled:
         from specify_cli.lanes.compute import compute_lanes as _compute_lanes_validate
 
@@ -1910,22 +1967,13 @@ def _compute_and_write_lanes(
     json_output: bool,
 ) -> tuple[Path | None, LanesManifest | None]:
     """Phase: compute execution lanes + write lanes.json + risk report."""
-    if not (wp_manifests and wp_dependencies) and not all_canceled:
-        missing = []
-        if not wp_manifests:
-            missing.append("ownership manifests")
-        if not wp_dependencies:
-            missing.append("WP dependencies")
-        error_msg = (
-            "Lane computation aborted: missing "
-            + " and ".join(missing)
-            + ". finalize-tasks cannot write lanes.json without complete tasks and ownership metadata."
-        )
-        if json_output:
-            _emit_json({"error": error_msg, "error_code": LANE_COMPUTATION_ABORTED_EMPTY_INPUTS})
-        else:
-            console.print(f"[red]Error:[/red] {error_msg}")
-        raise typer.Exit(1) from None
+    _raise_lane_computation_empty_input_if_needed(
+        wp_manifests,
+        wp_dependencies,
+        wp_frontmatters,
+        all_canceled=all_canceled,
+        json_output=json_output,
+    )
     from specify_cli.lanes.compute import compute_lanes
     from specify_cli.lanes.persistence import write_lanes_json
 

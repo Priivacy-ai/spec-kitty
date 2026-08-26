@@ -180,7 +180,9 @@ def test_stale_canceled_dependencies_fail_loud_json(monkeypatch: pytest.MonkeyPa
     ]
 
 
-def test_compute_and_write_lanes_empty_inputs_fail_loud(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+def test_compute_and_write_lanes_empty_code_change_inputs_fail_loud(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     emitted: list[dict[str, object]] = []
     monkeypatch.setattr(seam, "_emit_json", emitted.append)
 
@@ -191,9 +193,72 @@ def test_compute_and_write_lanes_empty_inputs_fail_loud(monkeypatch: pytest.Monk
             "001-mission",
             {},
             {},
-            {},
+            {"WP01": WPMetadata(work_package_id="WP01", title="A", execution_mode="code_change")},
             {},
             None,
+            "main",
+            json_output=True,
+        )
+
+    assert emitted[0]["error_code"] == seam.LANE_COMPUTATION_ABORTED_EMPTY_INPUTS
+
+
+def test_compute_and_write_lanes_empty_planning_artifact_inputs_are_laneless(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr(seam, "_preserve_or_capture_planning_commit_sha", lambda *args, **kwargs: None)
+    monkeypatch.setattr(seam, "_report_parallelization_risk", lambda *args, **kwargs: None)
+
+    lanes_path, lanes_manifest = seam._compute_and_write_lanes(
+        tmp_path,
+        tmp_path,
+        "001-mission",
+        {},
+        {},
+        {
+            "WP01": WPMetadata(
+                work_package_id="WP01",
+                title="A",
+                execution_mode="planning_artifact",
+                owned_files=[],
+            )
+        },
+        {},
+        None,
+        "main",
+        json_output=True,
+    )
+
+    assert lanes_path == tmp_path / "lanes.json"
+    assert lanes_manifest is not None
+    assert lanes_manifest.lanes == []
+
+
+def test_validate_only_previews_empty_code_change_input_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+    monkeypatch.setattr(
+        seam,
+        "_bootstrap_canonical_state_via_mission",
+        lambda *args, **kwargs: seam.BootstrapResult(0, 0, 0),
+    )
+    state = seam._BootstrapState(
+        inmemory_frontmatter={
+            "WP01": WPMetadata(work_package_id="WP01", title="A", execution_mode="code_change")
+        }
+    )
+
+    with pytest.raises(typer.Exit):
+        seam._emit_validate_only_report(
+            tmp_path,
+            "001-mission",
+            None,
+            state,
+            {},
+            {},
+            {},
             "main",
             json_output=True,
         )

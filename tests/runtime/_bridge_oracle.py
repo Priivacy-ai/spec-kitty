@@ -339,8 +339,10 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
     real_cli = bridge_module._check_cli_guards
     real_composed = bridge_module._check_composed_action_guard
 
-    def _cli_spy(step_id: str, feature_dir: Path) -> list[str]:
-        result: list[str] = list(real_cli(step_id, feature_dir))
+    def _cli_spy(
+        step_id: str, feature_dir: Path, *, mission_family: str | None = None
+    ) -> list[str]:
+        result: list[str] = list(real_cli(step_id, feature_dir, mission_family=mission_family))
         calls.append(GuardCall("cli", step_id, None, None, list(result)))
         return result
 
