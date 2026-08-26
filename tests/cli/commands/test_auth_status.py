@@ -600,6 +600,33 @@ class TestAuthStatusSaasLine:
         # silently drops it from the remedy.
         assert "[sync].server_url" in flat
 
+    def test_status_reports_not_configured_when_config_server_url_is_blank(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ):
+        """#182 squad MAJOR: a blank ``[sync].server_url`` must render exactly
+        like an absent one — never as a configured (but empty) endpoint."""
+        (tmp_path / "config.toml").write_text(
+            '[sync]\nserver_url = "  "\n', encoding="utf-8"
+        )
+        session = _make_session(issuer_url="https://saas.test")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+            monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        assert "not configured" in flat
+        assert "SPEC_KITTY_SAAS_URL" in flat
+        assert "[sync].server_url" in flat
+        # The blank value must never be rendered as a configured provenance.
+        assert "(from config.toml [sync].server_url)" not in flat
+
     def test_mismatch_warning_fires_when_issuer_differs(self):
         """Hostname moved: stored session is for the old host, env points elsewhere."""
         session = _make_session(issuer_url="https://sk-teamkitty.exe.xyz")
