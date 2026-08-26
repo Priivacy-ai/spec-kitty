@@ -627,6 +627,58 @@ class TestAuthStatusSaasLine:
         # The blank value must never be rendered as a configured provenance.
         assert "(from config.toml [sync].server_url)" not in flat
 
+    def test_status_shows_config_toml_provenance_when_server_url_configured(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ):
+        """#182 squad pass-2 MAJOR: a genuinely-configured ``[sync].server_url``
+        must render its URL and provenance literally, not have the Rich
+        markup parser eat the ``[sync]``/`` [/]`` bracket text (regressed by
+        the pass-1 reset onto ``main``, which dropped the ``escape()`` calls
+        the pre-reset head had)."""
+        (tmp_path / "config.toml").write_text(
+            '[sync]\nserver_url = "https://team.spec-kitty.ai"\n', encoding="utf-8"
+        )
+        session = _make_session(issuer_url="https://team.spec-kitty.ai")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+            monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        assert "https://team.spec-kitty.ai" in flat
+        assert "(from config.toml [sync].server_url)" in flat
+
+    def test_status_does_not_crash_when_server_url_contains_bracket_syntax(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ):
+        """#182 squad pass-2 MAJOR: a configured ``server_url`` containing a
+        closing-tag-like substring (``[/]``) must not raise
+        ``rich.markup.MarkupError`` out of ``console.print`` — this module's
+        docstring (FR-015) promises ``auth status`` never fails a shell."""
+        (tmp_path / "config.toml").write_text(
+            '[sync]\nserver_url = "https://x.test[/]"\n', encoding="utf-8"
+        )
+        session = _make_session(issuer_url="https://x.test[/]")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+            monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        assert "https://x.test[/]" in flat
+
     def test_mismatch_warning_fires_when_issuer_differs(self):
         """Hostname moved: stored session is for the old host, env points elsewhere."""
         session = _make_session(issuer_url="https://sk-teamkitty.exe.xyz")
