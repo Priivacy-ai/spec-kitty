@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 import sys
 
+import click
 import pytest
 import typer
 from typer.testing import CliRunner
@@ -148,15 +149,16 @@ def test_next_fast_path_does_not_import_spec_review_runner(monkeypatch: pytest.M
 
 
 def test_existing_review_remains_a_leaf_with_its_public_options(
-    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from specify_cli import _build_app
 
-    monkeypatch.chdir(tmp_path)
-    result = CliRunner().invoke(_build_app(), ["review", "--help"])
+    monkeypatch.setattr(sys, "argv", ["spec-kitty"])
+    root = typer.main.get_command(_build_app())
+    assert isinstance(root, click.Group)
 
-    assert result.exit_code == 0, result.output
-    assert "--mission" in result.output
-    assert "--mode" in result.output
-    assert "--check-residual" in result.output
+    review = root.get_command(click.Context(root), "review")
+    assert isinstance(review, click.Command)
+    assert not isinstance(review, click.Group)
+    public_options = {option for parameter in review.params for option in parameter.opts}
+    assert {"--mission", "--mode", "--check-residual"} <= public_options
