@@ -366,7 +366,10 @@ def test_load_reads_a_bare_name_as_nothing_stored(state_root: Path):
 def test_revoke_of_a_bare_name_is_a_noop_never_an_error(state_root: Path):
     """N10: revoke must never fail to wipe. Under a bare name there is
     nothing servable left to wipe, so the no-op already leaves the store in
-    exactly the state N10 demands ("not checked out" thereafter)."""
+    exactly the state N10 demands ("not checked out" thereafter). ``load()``
+    would read a bare name as ``None`` either way (deleted or merely
+    unservable), so the real proof that this is a no-op — not a delete —
+    is the raw TOML: the legacy entry must still be on disk afterwards."""
     credentials.revoke(repo=LEGACY_NAME)  # no entry at all
     assert credentials.load(repo=LEGACY_NAME) is None
 
@@ -375,6 +378,11 @@ def test_revoke_of_a_bare_name_is_a_noop_never_an_error(state_root: Path):
     path.write_text(f'["{LEGACY_NAME}"]\ntoken_kind = "not_admitted"\n')
     credentials.revoke(repo=LEGACY_NAME)  # legacy entry present on disk
     assert credentials.load(repo=LEGACY_NAME) is None
+
+    import tomllib
+
+    raw = tomllib.loads(path.read_text())
+    assert LEGACY_NAME in raw  # untouched: revoke() is a no-op, not a delete
 
 
 def test_any_successful_write_prunes_bare_name_entries_on_disk(state_root: Path):
