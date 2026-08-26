@@ -290,7 +290,9 @@ def collect_report(
     from nothing. Passing a live ``client`` runs exactly ONE
     :data:`PROBE_OP` offer as the offer/drop/latency probe — never more
     than one network attempt, matching ``offer()``'s own drop-no-retry
-    contract."""
+    contract. ``repo`` is the credential-store key the caller resolved (the
+    CLI derives it from the checkout, #137); it is echoed in the report,
+    never re-derived here."""
     offer_sig: OfferSignal | None = None
     drop_sig: DropSignal | None = None
     lease = LeaseSignal(active=False, ttl_s=transport.FOCUS_TTL_S, remaining_s=None)
@@ -369,7 +371,8 @@ class RotationDrillResult:
 def rotation_drill(repo: str) -> RotationDrillResult:
     """"Auth expiry" drill: reads ``repo``'s stored ``token_issued_at`` —
     never the token value itself — and reports whether it has crossed
-    :data:`ROTATION_WINDOW_S`."""
+    :data:`ROTATION_WINDOW_S`. ``repo`` is the credential-store key the
+    caller resolved (the CLI derives it from the checkout, #137)."""
     stored = credentials.load(repo=repo)
     if stored is None:
         return RotationDrillResult(

@@ -40,8 +40,9 @@ SERVER_NAME = "spec-kitty-zeitgeist"
 
 _INSTRUCTIONS = (
     "Read-only, bounded access to one Team Kitty repo's live Zeitgeist "
-    "presence/focus stream. Both tools take only `repo` (the team context "
-    "already checked out via `spec-kitty zeitgeist checkout`) plus a bounded "
+    "presence/focus stream. Both tools take only `repo` — the credential-"
+    "store key, host/owner/repo (e.g. github.com/acme/widget), under which "
+    "`spec-kitty zeitgeist checkout` stored the team context — plus a bounded "
     "wait; neither accepts a relay URL or credential, and neither writes "
     "anything to disk. `timeout_s` is always clamped to a 90s honest "
     "reported-live ceiling."

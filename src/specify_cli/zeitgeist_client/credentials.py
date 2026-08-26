@@ -7,13 +7,20 @@ co-owner of an unrelated file format). TOML, ``filelock``-guarded (decision
 4: the existing declared-but-unused dependency, ``pyproject.toml:85``,
 rather than tracker's hand-rolled ``fcntl``/``msvcrt``).
 
-Keyed by canonical ``repo`` (from ``repo_identity.identity()``, Z6-C), so two
-projects on one machine hold independent tokens (N-row precedent: two repos,
-two entries). This module's own ``store()``/``load()``/``revoke()`` still
-take ``repo`` as a plain caller-supplied string — a general storage primitive
-independent of how the caller derived it; the not-yet-implemented CLI
-adapter (see ``docs/plans/zeitgeist-client-wp01-remaining.md``) is expected
-to pass ``repo_identity.identity(cwd).repo`` rather than a literal.
+Keyed by the hosted identity :func:`resolution.store_key` derives from the
+checkout's origin remote — ``host/owner/repo``, e.g. ``github.com/acme/widget``
+(spec-kitty#129/#132) — so two projects, or two differently-hosted repos
+sharing a name, hold independent tokens. The key is still a plain
+caller-supplied string to this module: storage stays independent of how the
+caller derived it. But a key with no ``/`` — the pre-#132 bare-NAME shape —
+is refused on every door: ``store()``/``store_negative()`` raise,
+``load()``/``load_negative()`` read as "nothing stored", and ``revoke()`` is
+a no-op, while every successful write prunes bare-name entries already on
+disk (spec-kitty#137: #132 deliberately abandoned those entries rather than
+migrate them, so a live-shaped bearer left under an old name must never again
+answer a lookup, and should not outlive the next legitimate write). Callers
+derive the key with :func:`resolution.store_key_for_checkout` (from cwd) or
+:func:`resolution.parse_store_key` (from user input).
 
 This module owns only the *storage* primitive. The network canary-offer
 probe (``spec-kitty zeitgeist checkout <relay-url>``, "refresh re-derives",
@@ -93,6 +100,15 @@ from kernel.paths import get_runtime_state_root
 
 CREDENTIALS_FILENAME = "zeitgeist-credentials"
 _LOCK_SUFFIX = ".lock"
+
+
+def _is_legacy_name_key(repo: str) -> bool:
+    """Whether ``repo`` is a pre-#132 bare-NAME store key, which this module
+    no longer serves. Since #132 every writer keys by
+    :func:`resolution.store_key`'s ``host/owner/repo``, and no such key can
+    lack the ``/`` — even a degenerate empty-host key is ``/owner/repo`` —
+    so "no slash" identifies exactly the abandoned shape."""
+    return "/" not in repo
 
 # E3 resolution: the token_kind a negative (no-admitted-team) answer is
 # stored under. A negative entry carries no relay_url/token at all, so
@@ -185,7 +201,14 @@ def _write_all(data: dict[str, dict[str, str]]) -> None:
     from opt-in into something auto-populated on every status transition,
     so "the user happened to have a loose umask" would otherwise publish
     every minted token to group/other. (The directory's mode is
-    :func:`_locked`'s job.)"""
+    :func:`_locked`'s job.)
+
+    Every write also prunes pre-#132 bare-name entries (spec-kitty#137):
+    they can no longer be written, and none can be read back, but dropping
+    them here means a live-shaped bearer left under an abandoned name does
+    not outlive the next legitimate write."""
+    for stale in [key for key in data if _is_legacy_name_key(key)]:
+        del data[stale]
     path = credentials_path()
     tmp_path = path.with_suffix(path.suffix + ".tmp")
     fd = os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -222,6 +245,10 @@ def store(
         raise ValueError("host must be non-empty when provided")
     if repo_slug is not None and not repo_slug:
         raise ValueError("repo_slug must be non-empty when provided")
+    if _is_legacy_name_key(repo):
+        raise ValueError(
+            "repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name"
+        )
     lock = _locked()
     with lock:
         data = _read_all()
@@ -260,6 +287,10 @@ def store_negative(*, repo: str, reason: str = "", expires_at: str | None = None
     """
     if not repo:
         raise ValueError("repo must be non-empty")
+    if _is_legacy_name_key(repo):
+        raise ValueError(
+            "repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name"
+        )
     lock = _locked()
     with lock:
         data = _read_all()
@@ -275,6 +306,8 @@ def store_negative(*, repo: str, reason: str = "", expires_at: str | None = None
 
 
 def load(*, repo: str) -> StoredCredential | None:
+    if _is_legacy_name_key(repo):
+        return None
     lock = _locked()
     with lock:
         data = _read_all()
@@ -301,7 +334,10 @@ def load(*, repo: str) -> StoredCredential | None:
 def load_negative(*, repo: str) -> NegativeEntry | None:
     """The stored negative answer for ``repo``, or ``None`` when there is
     none (including when the key holds a positive credential, or when
-    nothing is stored at all). The caller owns the expiry decision."""
+    nothing is stored at all). The caller owns the expiry decision. A bare
+    pre-#132 name reads as "nothing stored", like :func:`load`."""
+    if _is_legacy_name_key(repo):
+        return None
     lock = _locked()
     with lock:
         data = _read_all()
@@ -320,7 +356,11 @@ def revoke(*, repo: str) -> None:
     — revoking an already-revoked/never-checked-out repo is a no-op, not an
     error (N10: a subsequent status() must report "not checked out", never a
     stale token, regardless of whether the caller's network canary offer
-    against the relay succeeded)."""
+    against the relay succeeded). A bare pre-#132 name is the same no-op:
+    nothing servable lives under such a key any more, so there is nothing
+    to wipe."""
+    if _is_legacy_name_key(repo):
+        return
     lock = _locked()
     with lock:
         data = _read_all()
