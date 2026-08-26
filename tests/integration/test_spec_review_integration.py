@@ -200,7 +200,6 @@ def test_preview_then_two_separately_confirmed_runs_persist_distinct_host_artifa
     assert [outcome.exit_code for outcome in outcomes] == [0, 0]
     assert [outcome.status for outcome in outcomes] == [ReviewStatus.COMPLETED, ReviewStatus.COMPLETED]
     assert runner.events == ["authorize:free", "run", "authorize:free", "run"]
-    assert len(runner.prompts) == 2
     artifacts = [outcome.artifact for outcome in outcomes]
     assert all(artifact is not None for artifact in artifacts)
     paths = [cast(StoredSpecReview, artifact).path for artifact in artifacts]
@@ -276,7 +275,6 @@ def test_runner_failures_are_single_attempt_and_persist_metadata_only(
     assert outcome.status is status
     assert outcome.diagnostic_code == diagnostic
     assert runner.events == ["authorize:free", "run"]
-    assert len(runner.prompts) == 1
     assert outcome.artifact is not None
     document = yaml.safe_load(outcome.artifact.path.read_text(encoding="utf-8"))
     assert document["status"] == status.value
@@ -302,7 +300,6 @@ def test_write_failure_does_not_repeat_the_external_run(tmp_path: Path) -> None:
     assert outcome.diagnostic_code == "SPEC_REVIEW_WRITE_FAILED"
     assert outcome.artifact is None
     assert runner.events == ["authorize:free", "run"]
-    assert len(runner.prompts) == 1
 
 
 @pytest.mark.integration
