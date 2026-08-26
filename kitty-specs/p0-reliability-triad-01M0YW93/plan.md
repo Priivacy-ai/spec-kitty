@@ -62,16 +62,18 @@ WP02 (#3579) — merge stale-lane recovery
   src/specify_cli/lanes/stale_check.py           # _stale_remediation (planning-lane branch)
   src/specify_cli/lanes/merge.py                 # (only if the "incorporate + rematerialize" variant is chosen)
   tests/lanes/test_stale_check.py
+  tests/lanes/test_merge.py                       # LOCKSTEP: asserts the remediation substring via consolidate_lane_into_mission (post-plan squad)
 
 WP03 (#3281) — lane allocation retry + ancestry gate
-  src/specify_cli/lanes/worktree_allocator.py    # atomic fresh-path allocation
-  src/specify_cli/cli/commands/agent/workflow_executor.py  # ensure_workspace_materialized re-entry; ancestry gate
-  src/specify_cli/cli/commands/agent/workflow.py           # _create_workspace wiring
+  src/specify_cli/lanes/worktree_allocator.py    # atomic fresh-path allocation (targeted `git worktree remove` on planning-merge raise — NOT heavy rollback; helpers already abort+clean)
+  src/specify_cli/cli/commands/agent/workflow_executor.py  # exists-branch idempotent self-heal re-entry; POST-materialize ancestry check
+  src/specify_cli/cli/commands/agent/workflow.py           # claim ordering: status-lane gate (:1263, fail-fast) → materialize/self-heal (:1297) → POST-materialize ancestry → claim
   src/specify_cli/lanes/implement_support.py     # create_lane_workspace
-  (mirror-check: src/specify_cli/orchestrator_api/commands.py)
-  tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py
-  tests/lanes/test_worktree_allocator_atomicity.py
-  tests/integration/test_wp_integrity_p0_repro.py
+  src/specify_cli/orchestrator_api/commands.py   # EXPLICIT ancestry-parity task (both claim paths cross the ancestry seam — not a mirror-check)
+  tests/specify_cli/cli/commands/agent/test_implement_single_resolution.py   # reconcile #1832/#1833 invariant with rationale (C-006)
+  tests/lanes/test_worktree_allocator_atomicity.py                            # + fresh-path planning-commit atomicity (FR-006)
+  tests/specify_cli/cli/commands/agent/ (focused unit for the ancestry refusal at the post-materialize seam — FR-007)
+  tests/integration/test_wp_integrity_p0_repro.py                             # end-to-end retry-then-claim (backup, not primary FR-007 proof)
 ```
 
 **Structure Decision**: Single project. WP02 and WP03 both live under `src/specify_cli/lanes/` but touch **different files with no cross-import** (verified in investigation) — package adjacency only, not a file-overlap hazard. WP01 is fully disjoint (upgrade/charter). No two WPs share an owned file.
@@ -100,9 +102,18 @@ No cross-WP dependencies. All three run concurrently.
 
 ### Coordination Points
 
-- **Owned-file overlap**: none — enforced by the disjoint owned-file sets above (C-001).
+- **Owned-file overlap**: none at the source level — enforced by the disjoint owned-file sets above (C-001). The only cross-WP file is the shared test `tests/lanes/test_merge.py` (WP02 lockstep, post-plan squad).
 - **Soft review coupling**: WP02 and WP03 both concern `status.json` merge behavior; the reviewer confirms WP02's remediation choice does not change what WP03's dependency-tip merge observes.
-- **Integration verification**: `tests/integration/test_wp_integrity_p0_repro.py` hosts the end-to-end #3281 retry-then-claim ancestry assertion; the other two verify through their unit/CLI entry points.
+- **Integration verification**: FR-007's primary proof is a focused unit test at the post-materialize ancestry seam; `tests/integration/test_wp_integrity_p0_repro.py` is end-to-end backup (today it is a #3371 lanes.json test — do not overload it as the sole proof).
+
+### Post-plan squad — accepted design corrections (see research.md for full dispositions)
+
+- **WP03 ancestry seam (C-005, HIGH)**: the ancestry check runs POST-materialize (after self-heal), keyed on the merged tip, at a seam BOTH the CLI and `orchestrator_api` claim paths cross — never at the pre-materialize status-lane gate (which would deadlock approved same-mission dependencies). FR-005 + FR-007 land together.
+- **WP03 invariant reconciliation (C-006)**: exists-branch re-entry uses a dedicated idempotent self-heal; the #1832/#1833 single-resolution test is updated with rationale, not silently inverted.
+- **WP03 exists-branch decision tree**: ancestry-correct → no-op resume (Acceptance Scenario 4); stale → self-heal (needs main-repo context, not worktree cwd).
+- **WP02 remedy dependency (#3531)**: reviewer confirms `status materialize` holds for the same-schema conflict WP02 targets; cross-schema all-zeros (#3531) is out of scope, flagged.
+- **WP01 predicate contract (C-004)**: dry-run predicate keeps a defined non-crashing contract on a dangling `charter:` pointer; stale docstring updated for the intentional init/upgrade divergence.
+- **Deferred (tracking candidate)**: #3579 + #3281 share a "lane-reconciliation" root; unified seam deferred to protect release blast-radius — surface to operator, do not auto-file.
 
 ## Supply-Chain Security (Planning)
 

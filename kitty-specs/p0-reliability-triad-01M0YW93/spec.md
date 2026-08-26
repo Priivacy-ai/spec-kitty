@@ -44,7 +44,7 @@ An operator running `spec-kitty merge` hits a stale planning-lane halt whose onl
 **Acceptance Scenarios**:
 
 1. **Given** a stale planning lane with a `status.json` conflict, **When** the merge halt emits remediation, **Then** the remediation names `spec-kitty agent status materialize --mission <id>` (regenerate from the event log) followed by `git add`, giving a reachable resolution.
-2. **Given** the same halt, **When** the operator follows the remediation, **Then** no step requires hand-editing a tool-generated file and no `status.json` merge driver is introduced.
+2. **Given** the same halt, **When** the remediation is inspected, **Then** it names only tool commands (no hand-edit of a tool-generated file) and introduces no `status.json` merge driver. (The minimal fix is the remediation text; end-to-end merge completion is Out of Scope — see SC-002.)
 
 ---
 
@@ -82,7 +82,7 @@ An operator re-runs `spec-kitty implement WP##` after a recorded-planning-commit
 | FR-004 | No hand-edit / no new driver | As an operator, I want the remediation to require no hand-edit of a generated file and introduce no `status.json` merge driver, so recovery stays within the tool's contract. (Source: #3579) | High | Open |
 | FR-005 | Retry re-enters idempotent self-heal | As an operator retrying `implement` after a planning-commit merge conflict, I want allocation to re-enter the idempotent self-heal (re-run planning-commit + dependency-tip merges) instead of short-circuiting on `workspace.exists`. (Source: #3281) | High | Open |
 | FR-006 | Atomic fresh-path allocation | As an operator, I want a failed planning-commit merge during fresh allocation to leave no registered worktree, so a retry starts clean. (Source: #3281) | High | Open |
-| FR-007 | Ancestry-aware claim gate | As an operator, I want the claim/dependency gate to assert the recorded planning SHA and every approved dependency lane tip are git ancestors of the workspace HEAD before `claimed`, so a WP is never claimed against a lane missing its dependencies. (Source: #3281) | High | Open |
+| FR-007 | Ancestry-aware claim gate (post-materialize, both paths) | As an operator, I want a **post-materialize** ancestry check — evaluated after self-heal (FR-005) has re-run the planning-commit and dependency-tip merges, keyed on the *merged* tip — to refuse `claimed` only when self-heal cannot make the recorded planning SHA and every approved dependency tip ancestors of workspace HEAD, so a WP is never claimed against a lane missing its dependencies **without** deadlocking a legitimately-approved same-mission dependency. The check must live at a seam both the CLI and `orchestrator_api` claim paths cross. FR-005 and FR-007 land together. (Source: #3281) | High | Open |
 
 ### Non-Functional Requirements
 
@@ -97,9 +97,11 @@ An operator re-runs `spec-kitty implement WP##` after a recorded-planning-commit
 | ID | Title | Constraint | Category | Priority | Status |
 |----|-------|------------|----------|----------|--------|
 | C-001 | Disjoint ownership across WPs | The three WPs must touch disjoint files (ownership no-overlap). WP02/#3579 and WP03/#3281 both sit in `src/specify_cli/lanes/` but in different files with no cross-import; a reviewer confirms no cross-effect on `status.json` merge behavior. | Technical | High | Open |
-| C-002 | No `status.json` merge driver | #3579 must NOT register a `status.json` merge driver — it is in `_NON_DIVERGENT_CANONICAL_ARTIFACTS` and would fail the T013 completeness guard. `status.json` is a derived projection, rematerialized not reconciled. | Technical | High | Open |
-| C-003 | Coordinate #3281; scope-fence it | #3281 is assigned to robertDouglass — coordinate, do not reassign. It shares the lane-compute boundary with #3432 (#3432 owns compute, #3281 owns allocator + claim gate). Scope-fence to the allocator retry invariant + ancestry gate; do not absorb adjacent runtime-selection / evidence-commit symptoms. | Technical | High | Open |
-| C-004 | Do not touch shared activation resolver | #3282 must not modify the shared `charter.pack_manager.resolve_activation_write_target` (consumed by interview/generate/org_charter). Scope the fix to the upgrade helper, routing through the existing pointer-aware writer. | Technical | High | Open |
+| C-002 | No `status.json` merge driver | #3579 must NOT register a `status.json` merge driver — `status.json` is in `_NON_DIVERGENT_CANONICAL_ARTIFACTS` (defined in `tests/architectural/test_merge_reconciliation_class_guard.py`, not `merge.py`) and a driver would fail the T013 completeness guard. `status.json` is a derived projection, rematerialized not reconciled. | Technical | High | Open |
+| C-003 | Coordinate #3281; scope-fence it | #3281 is assigned to robertDouglass — coordinate, do not reassign. It shares the lane-compute boundary with #3432 (closed; #3432 owns compute, #3281 owns allocator + claim gate) and reshapes the same fresh-path allocation surface as #2570 friction #1 (allocator serialization) — coordinate, do not fold. Scope-fence to the allocator retry invariant + ancestry gate; do not absorb adjacent runtime-selection / evidence-commit symptoms. | Technical | High | Open |
+| C-004 | Do not touch shared activation resolver | #3282 must not modify the shared `charter.pack_manager.resolve_activation_write_target` (consumed by interview/generate/org_charter). Scope the fix to the upgrade helper, routing through the existing pointer-aware writer; the predicate must keep a defined, non-crashing dry-run contract when the resolver raises `CharterPackConfigError` on a dangling pointer. | Technical | High | Open |
+| C-005 | Ancestry check is post-materialize, both-paths | The FR-007 ancestry assertion must run AFTER `_ensure_workspace_materialized`/self-heal (never at the pre-materialize status-lane gate, which stays as fail-fast), and must sit at a seam both the CLI (`workflow_executor`) and `orchestrator_api` claim paths cross, so the invariant is not CLI-only. Coupled to self-heal: on failure, route back into self-heal; hard-refuse only if ancestry still cannot be established. | Technical | High | Open |
+| C-006 | Reconcile the #1832/#1833 single-resolution invariant | WP03's exists-branch re-entry must invoke a dedicated idempotent self-heal, NOT break the landed invariant that `_create`/re-resolution does not run when the workspace exists (`test_implement_single_resolution.py`, #1832/#1833). Update that invariant test's semantics with an explicit rationale rather than silently inverting it. | Technical | High | Open |
 
 ### Key Entities
 
@@ -112,7 +114,7 @@ An operator re-runs `spec-kitty implement WP##` after a recorded-planning-commit
 ### Measurable Outcomes
 
 - **SC-001**: After `spec-kitty upgrade` on a pointer-based charter project, mission creation and `setup-plan` succeed (effective activation registry non-empty) — from 0% today to 100% of pointer-charter projects. (#3282)
-- **SC-002**: On a merge stale-lane halt with a `status.json` conflict, the operator can reach a completed merge using only tool commands named in the remediation, with zero hand-edits of tool-generated files. (#3579)
+- **SC-002**: On a merge stale-lane halt with a `status.json` conflict, the emitted remediation names a reachable tool remedy (`spec-kitty agent status materialize`) and no raw-`git`-only dead end — verified by asserting the remediation text through `_stale_remediation`, with zero hand-edits of tool-generated files instructed. (End-to-end merge completion is Out of Scope.) (#3579)
 - **SC-003**: After a planning-commit merge conflict during lane allocation, re-running `implement` yields a workspace containing all approved dependency-lane code (dependency propagation not skipped), and a WP cannot be claimed against a lane missing its dependencies' tips. (#3281)
 - **SC-004**: Each of the three defects has a regression test that is RED on pre-fix code and GREEN after, verified through the pre-existing public entry point. (NFR-001)
 
