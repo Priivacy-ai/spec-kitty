@@ -1,9 +1,10 @@
 """Fan-out adapter registry for status events.
 
 Provides a decoupled callback boundary so that status/emit.py does not
-need to depend on the sync package. The sync package registers its
-handlers at startup; sync -> status.adapters is the clean dependency
-direction.
+need to depend on any transport. Handlers are registered into the slots
+below by whichever subsystem owns a transport; the default wiring (this
+module's import tail) installs the Zeitgeist moment handler (#8), which
+replaced the deleted sync package's own registrations.
 
 All fire_* functions are non-raising: exceptions from individual
 handlers are caught and logged, never re-raised to the caller. An empty
@@ -19,6 +20,16 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+# The E3 Zeitgeist moment handler (#8): the default occupant of the three
+# fan-out slots since the sync transport (which registered its own handlers)
+# was deleted. Module-level import so registration below is a plain function
+# call, never an import side effect hidden in another package's init.
+from .zeitgeist_bridge import (
+    lifecycle_moment_handler,
+    resolved_binding_moment_handler,
+    saas_moment_handler,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +80,7 @@ _inflight_fanout_handlers: set[str] = set()
 _inflight_lock = threading.Lock()
 
 
-def _run_fanout_handler_bounded(
-    handler: Callable[..., None], kwargs: dict[str, Any], *, label: str
-) -> None:
+def _run_fanout_handler_bounded(handler: Callable[..., None], kwargs: dict[str, Any], *, label: str) -> None:
     """Run one fan-out handler with a wall-time bound.
 
     Raises ``TimeoutError`` if the handler outlives the configured timeout, or
@@ -112,6 +121,7 @@ def _run_fanout_handler_bounded(
         raise TimeoutError(f"{label} handler exceeded {timeout_s:.1f}s")
     if error:
         raise error[0]
+
 
 # Callback signature: (feature_dir, mission_slug, repo_root) -> None
 DossierSyncHandler = Callable[[Path, str, Path], None]
@@ -208,8 +218,32 @@ def register_resolved_binding_fanout_handler(cb: ResolvedBindingFanOutHandler) -
     _resolved_binding_handlers.append(cb)
 
 
+def ensure_zeitgeist_moment_handlers() -> None:
+    """Register the Zeitgeist moment handlers into all three fan-out slots.
+
+    Idempotent: the ``register_*`` functions de-duplicate by qualified name,
+    so calling this repeatedly is safe. This replaces the sync package's
+    import-time ``register_default_handlers`` as the default wiring of these
+    slots (E3, EXPERIMENTAL-spec-kitty#8) — and, per the egress-consent
+    precedent, it lives where the answer is needed rather than in some other
+    package's init. Called once at this module's import; tests that wipe the
+    registry via :func:`reset_handlers` call it again to restore production
+    wiring.
+    """
+    register_saas_fanout_handler(saas_moment_handler)
+    register_lifecycle_saas_fanout_handler(lifecycle_moment_handler)
+    register_resolved_binding_fanout_handler(resolved_binding_moment_handler)
+
+
 def reset_handlers() -> None:
-    """Clear all registered handlers (test-only utility)."""
+    """Clear all registered handlers (test-only utility).
+
+    Clears the Zeitgeist moment handlers too; a test that wipes the registry
+    and wants the production wiring back calls
+    :func:`ensure_zeitgeist_moment_handlers` (the status conftest does exactly
+    that around every test, so one test's wipe cannot silence another's
+    fan-out).
+    """
     _dossier_handlers.clear()
     _saas_handlers.clear()
     _lifecycle_saas_handlers.clear()
@@ -285,16 +319,14 @@ def fire_saas_fanout(**kwargs: Any) -> None:
             _run_fanout_handler_bounded(handler, kwargs, label="SaaS fan-out")
         except _FanoutHandlerBusyError:
             logger.warning(
-                "SaaS fan-out handler still in flight from a prior transition; "
-                "skipped to avoid overlap (wp_id=%s from=%s to=%s)",
+                "SaaS fan-out handler still in flight from a prior transition; skipped to avoid overlap (wp_id=%s from=%s to=%s)",
                 kwargs.get("wp_id"),
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
             )
         except TimeoutError:
             logger.warning(
-                "SaaS fan-out handler timed out; canonical status log unaffected "
-                "(wp_id=%s from=%s to=%s force=%s)",
+                "SaaS fan-out handler timed out; canonical status log unaffected (wp_id=%s from=%s to=%s force=%s)",
                 kwargs.get("wp_id"),
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
@@ -302,8 +334,7 @@ def fire_saas_fanout(**kwargs: Any) -> None:
             )
         except Exception:
             logger.warning(
-                "SaaS fan-out handler failed; canonical status log unaffected "
-                "(wp_id=%s from=%s to=%s force=%s)",
+                "SaaS fan-out handler failed; canonical status log unaffected (wp_id=%s from=%s to=%s force=%s)",
                 kwargs.get("wp_id"),
                 kwargs.get("from_lane"),
                 kwargs.get("to_lane"),
@@ -332,20 +363,17 @@ def fire_resolved_binding_fanout(**kwargs: Any) -> None:
             _run_fanout_handler_bounded(handler, kwargs, label="Resolved-binding fan-out")
         except _FanoutHandlerBusyError:
             logger.warning(
-                "Resolved-binding fan-out handler still in flight from a prior "
-                "emit; skipped to avoid overlap (wp_id=%s)",
+                "Resolved-binding fan-out handler still in flight from a prior emit; skipped to avoid overlap (wp_id=%s)",
                 kwargs.get("wp_id"),
             )
         except TimeoutError:
             logger.warning(
-                "Resolved-binding fan-out handler timed out; canonical status log "
-                "unaffected (wp_id=%s)",
+                "Resolved-binding fan-out handler timed out; canonical status log unaffected (wp_id=%s)",
                 kwargs.get("wp_id"),
             )
         except Exception:
             logger.warning(
-                "Resolved-binding fan-out handler failed; canonical status log "
-                "unaffected (wp_id=%s)",
+                "Resolved-binding fan-out handler failed; canonical status log unaffected (wp_id=%s)",
                 kwargs.get("wp_id"),
                 exc_info=True,
             )
@@ -358,8 +386,7 @@ def fire_lifecycle_saas_fanout(**kwargs: Any) -> None:
             _run_fanout_handler_bounded(handler, kwargs, label="Lifecycle SaaS fan-out")
         except _FanoutHandlerBusyError:
             logger.warning(
-                "Lifecycle SaaS fan-out handler still in flight from a prior "
-                "transition; skipped to avoid overlap",
+                "Lifecycle SaaS fan-out handler still in flight from a prior transition; skipped to avoid overlap",
             )
         except TimeoutError:
             logger.warning(
@@ -370,3 +397,11 @@ def fire_lifecycle_saas_fanout(**kwargs: Any) -> None:
                 "Lifecycle SaaS fan-out handler failed; canonical lifecycle log unaffected",
                 exc_info=True,
             )
+
+
+# Default wiring: every process that imports this seam carries the Zeitgeist
+# moment handler, exactly as it used to carry the sync package's handlers via
+# that package's import tail. Nothing else registers at import time; a caller
+# needing an empty registry (tests) calls reset_handlers() and restores with
+# ensure_zeitgeist_moment_handlers().
+ensure_zeitgeist_moment_handlers()

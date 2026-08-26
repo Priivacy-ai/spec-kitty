@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.status import adapters
 from specify_cli.status.models import (
     DoneEvidence,
     Lane,
@@ -68,10 +69,7 @@ def seed_wp_to_planned(
     existing_wp_files = [
         candidate
         for candidate in tasks_dir.glob("*.md")
-        if candidate.stem == wp_id
-        or candidate.stem.startswith(f"{wp_id}-")
-        or candidate.stem.startswith(f"{wp_id}_")
-        or candidate.stem.startswith(f"{wp_id}.")
+        if candidate.stem == wp_id or candidate.stem.startswith(f"{wp_id}-") or candidate.stem.startswith(f"{wp_id}_") or candidate.stem.startswith(f"{wp_id}.")
     ]
     if not existing_wp_files:
         wp_file.write_text(
@@ -140,12 +138,21 @@ def _restore_default_saas_handlers_after_each_status_test() -> None:
     """
     try:
         from specify_cli.sync import register_default_handlers
+
+        register_default_handlers()
     except ImportError:
-        yield
-        return
-    register_default_handlers()
+        # E4 deleted the sync package; its handlers are gone with it and only
+        # the Zeitgeist wiring below needs restoring.
+        pass
+    adapters.ensure_zeitgeist_moment_handlers()
     yield
-    register_default_handlers()
+    try:
+        from specify_cli.sync import register_default_handlers
+
+        register_default_handlers()
+    except ImportError:
+        pass
+    adapters.ensure_zeitgeist_moment_handlers()
 
 
 @pytest.fixture(autouse=True)
@@ -160,7 +167,12 @@ def _disable_saas_fanout_for_local_status_tests(
     JSONL/materialization semantics and should not start auth, tracker, or
     dashboard-daemon flows.
     """
-    if Path(str(request.node.fspath)).name == "test_emit_fanout_after_adapter.py":
+    if Path(str(request.node.fspath)).name in (
+        "test_emit_fanout_after_adapter.py",
+        # The Zeitgeist handler tests drive the real emit -> adapters fan-out;
+        # only the network is faked there.
+        "test_zeitgeist_moment_handler.py",
+    ):
         return
 
     import specify_cli.status.emit as emit_module

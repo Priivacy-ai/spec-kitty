@@ -131,7 +131,12 @@ test_no_dead_modules:
   # no src/ caller yet. Follow-up tracker ticket per FR-303:
   # EXPERIMENTAL-spec-kitty#8 (the wiring consumer); the entry burns when that
   # lands, per the stale-entry check.
-  category_7_grandfathered_orphans: 4
+  #
+  # 4 -> 3 (EXPERIMENTAL-spec-kitty#8, E3 zeitgeist moment handler, 2026-08-25):
+  # the wiring landed — status/zeitgeist_bridge.py resolves credentials through
+  # zeitgeist_client.resolution at the fan-out seam, so the module has a live
+  # src/ caller and its Cat-7 entry is burned.
+  category_7_grandfathered_orphans: 3
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
