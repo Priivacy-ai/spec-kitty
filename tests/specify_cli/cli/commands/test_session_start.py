@@ -126,13 +126,15 @@ class TestSessionStartOutsideProject:
 
 
 class TestFindProjectRoot:
-    """Traversal seam coverage — every walk stays inside this test's own tree (#130).
+    """Traversal seam coverage — every walk stays inside this test's own tree (#130, #139).
 
-    An unbounded upward walk reads whatever sits above ``tmp_path`` (``/tmp``,
-    ``/``), which sibling tests can pollute with a stray ``.kittify/``
-    mid-run; these tests therefore pin the logic through the explicit
-    ``start``/``stop`` parameters instead of ambient cwd. Production callers
-    keep the unbounded default.
+    Nothing above ``tmp_path`` (``/tmp``, ``/``) is under test control:
+    sibling tests can pollute a shared ancestor with a stray ``.kittify/``
+    mid-run. Walks are therefore pinned either through the explicit
+    ``start``/``stop`` parameters, or — for the two nodes exercising the
+    production no-arg default — because their ``.kittify/`` marker sits
+    *below* ``tmp_path``, terminating the ascent before any shared territory
+    is read.
     """
 
     def test_finds_kittify_at_start(self, spec_project: Path) -> None:
@@ -150,11 +152,23 @@ class TestFindProjectRoot:
         monkeypatch.chdir(spec_project)
         assert _find_project_root() == spec_project
 
-    def test_walks_up_from_nested_subdir(self, spec_project: Path) -> None:
+    def test_walks_up_from_nested_subdir(self, spec_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """No-arg call from a nested cwd ascends to the project root (production shape).
+
+        The only node that exercises the unbounded default boundary — *stop*
+        left at ``None``, exactly as the production callers
+        (``session_start``/``session_stop``) invoke the walk. A regression
+        that leaks *start* into the default boundary makes every such walk
+        answer ``None`` on the first probe, silently disabling both hook
+        commands from any subdirectory while the outer
+        ``except Exception: pass`` keeps exit 0 (#139). Hermetic anyway:
+        ``.kittify/`` sits *below* ``tmp_path``, so the walk terminates
+        before any shared ancestor is read.
+        """
         nested = spec_project / "a" / "b" / "c"
         nested.mkdir(parents=True)
-        root = _find_project_root(nested, stop=spec_project.parent)
-        assert root == spec_project
+        monkeypatch.chdir(nested)
+        assert _find_project_root() == spec_project
 
     def test_finds_kittify_exactly_at_stop_boundary(self, spec_project: Path) -> None:
         """The stop boundary itself is still examined before the walk ends."""

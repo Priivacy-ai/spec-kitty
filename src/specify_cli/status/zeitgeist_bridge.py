@@ -27,10 +27,11 @@ Three slots, one broadcast core:
   relay carries binding changes with no further seam work.
 
 Who is on a mission-level moment: the relay attests the actor from the
-capability credential (the frame's ``actor.user``), so ``MissionCreated``
-broadcasts fine even though local producers do not yet set the payload's
-optional ``actor`` field — the CLI-claimed mission-level WHO arrives when a
-producer sets it, never fabricated here.
+capability credential (the frame's ``actor.user``), and the payload's own
+optional ``actor`` rides alongside as an attr when the producer set one —
+``emit_mission_created_local`` resolves git ``user.email`` → ``"cli"`` at
+emit time (#75), so ``MissionCreated`` carries its WHO. This bridge never
+fabricates an actor either way.
 
 Every failure is environmental and every one of them resolves to a logged drop:
 the moment is simply lost — by design (design page, "How long anything lives").

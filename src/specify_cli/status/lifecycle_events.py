@@ -600,6 +600,34 @@ def emit_project_initialized(
     )
 
 
+def _resolve_local_actor() -> str:
+    """Resolve the opaque actor identifier for locally emitted mission moments.
+
+    Same convention as the interview/charter ``_resolve_actor`` helpers and the
+    sync emitter's ``_resolve_runtime_actor`` (git ``user.email``, else
+    ``"cli"``): an identifier, never free text. The zeitgeist attrs codec
+    projects it verbatim as the moment's ``actor`` key, so this — not the relay
+    credential — is the WHO a mission-level moment renders with once set.
+    Never raises: an unresolvable identity degrades to ``"cli"``, matching the
+    emit path's never-raises contract.
+    """
+    import subprocess
+
+    try:
+        result = subprocess.run(
+            ["git", "config", "user.email"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        email = result.stdout.strip()
+        if email:
+            return email
+    except Exception:  # noqa: BLE001 — git may be absent or misconfigured; fall back to "cli" identity
+        pass
+    return "cli"
+
+
 def emit_mission_created_local(
     feature_dir: Path,
     *,
@@ -615,6 +643,7 @@ def emit_mission_created_local(
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
     created_at: str | None = None,
+    actor: str | None = None,
 ) -> dict[str, Any] | None:
     """Record a local ``MissionCreated`` event for *feature_dir*.
 
@@ -622,16 +651,17 @@ def emit_mission_created_local(
     ``status.events.jsonl`` is created on first call.
 
     ``mission_type`` and ``wp_count`` are required by the canonical
-    ``mission_created_payload`` schema (events 5.1.0). The payload schema now
-    also declares an optional opaque ``actor`` (events 8.0.0); this local path
-    still does not set it — the sync transport that used to populate the wire
-    payload's ``actor`` was deleted (issue #5); the field is unset here until a
-    successor emit path (E3) sets it.
+    ``mission_created_payload`` schema (events 5.1.0). The payload schema also
+    declares an optional opaque ``actor`` (events 8.0.0): when *actor* is left
+    ``None`` it is resolved at emit time (git ``user.email``, else ``"cli"``,
+    via :func:`_resolve_local_actor`), so mission-level moments carry WHO from
+    the only emit path that remains after the sync transport was deleted
+    (issue #5). Pass an explicit *actor* to pin the identity instead.
     See Priivacy-ai/spec-kitty#1199 for the full required-field surface.
 
     The payload is constructed via the canonical
     :func:`specify_cli.core.mission_payload.build_mission_created_payload`
-    (#2270), shared with the sync emitter so the local + wire paths cannot
+    (#2270), shared with the wire emitter so the local + wire paths cannot
     drift. Producer-time validation still rejects extras / missing required
     fields (issues Priivacy-ai/spec-kitty#1198 / #1200).
     """
@@ -650,6 +680,7 @@ def emit_mission_created_local(
         purpose_tldr=purpose_tldr,
         purpose_context=purpose_context,
         created_at=created_at,
+        actor=actor if actor else _resolve_local_actor(),
     )
 
     return append_lifecycle_event(

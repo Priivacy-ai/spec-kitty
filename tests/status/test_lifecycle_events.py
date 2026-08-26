@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -156,7 +157,11 @@ def test_mission_created_dedupe_on_mission_slug(feature_dir: Path) -> None:
 def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> None:
     """The MissionCreated payload must include all fields required by the
     canonical events 5.1.0 schema (``mission_type`` and ``wp_count`` are
-    required; ``actor`` is forbidden). See issues #1190 and #1199."""
+    required). See issues #1190 and #1199.
+
+    ``actor`` was payload-forbidden under #1190; spec-kitty-events 8.0.0 added
+    it back as an optional WHO field and #75 makes the local emitter resolve
+    it, so its presence is now asserted here rather than its absence."""
     envelope = emit_mission_created_local(
         feature_dir,
         mission_slug="demo-mission",
@@ -171,8 +176,6 @@ def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> 
     )
     assert envelope is not None
     payload = envelope["payload"]
-    # Forbidden: ``actor`` belongs on the envelope, not the payload (#1190).
-    assert "actor" not in payload, f"MissionCreated payload must not contain 'actor'; got {payload!r}. See Priivacy-ai/spec-kitty#1190."
     # Required by the canonical schema (#1199).
     assert payload["mission_type"] == "software-dev"
     assert payload["wp_count"] == 0
@@ -181,6 +184,85 @@ def test_mission_created_payload_contains_required_fields(feature_dir: Path) -> 
     assert payload["mission_id"] == "01J6XW9KQT7M0YB3N4R5CQZ2EX"
     assert payload["target_branch"] == "main"
     assert payload["friendly_name"] == "Demo Mission"
+    # WHO is set by default (#75): an opaque identifier, never empty.
+    assert isinstance(payload["actor"], str) and payload["actor"].strip()
+
+
+# ---------------------------------------------------------------------------
+# MissionCreated actor resolution (#75)
+# ---------------------------------------------------------------------------
+
+
+def _fake_git_config(monkeypatch: pytest.MonkeyPatch, *, stdout: str, error: bool = False):
+    """Intercept ``git config`` probes; every other command runs for real."""
+
+    real_run = subprocess.run
+    calls: list[list[str]] = []
+
+    def _run(cmd: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        if cmd[:3] != ["git", "config", "user.email"]:
+            return real_run(cmd, **kwargs)
+        calls.append(list(cmd))
+        if error:
+            raise FileNotFoundError("git binary missing")
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout=stdout, stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _run)
+    return calls
+
+
+def test_mission_created_local_resolves_actor_from_git_email(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = _fake_git_config(monkeypatch, stdout="robert@example.com\n")
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "robert@example.com"
+    assert calls and calls[0][:3] == ["git", "config", "user.email"]
+
+
+@pytest.mark.parametrize("error", [False, True], ids=["unconfigured", "git-absent"])
+def test_mission_created_local_actor_falls_back_to_cli(feature_dir: Path, monkeypatch: pytest.MonkeyPatch, error: bool) -> None:
+    _fake_git_config(monkeypatch, stdout="", error=error)
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "cli"
+
+
+def test_mission_created_local_explicit_actor_wins_without_identity_probe(feature_dir: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A pinned actor bypasses resolution entirely (other git use is fine —
+    the write lock legitimately shells out to git around the append)."""
+    calls = _fake_git_config(monkeypatch, stdout="", error=True)
+
+    envelope = emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id="01ULID",
+        mission_number=None,
+        mission_type="software-dev",
+        target_branch="main",
+        actor="agent:sk-impl-spec-kitty-75",
+    )
+
+    assert envelope is not None
+    assert envelope["payload"]["actor"] == "agent:sk-impl-spec-kitty-75"
+    assert calls == []
 
 
 # ---------------------------------------------------------------------------
