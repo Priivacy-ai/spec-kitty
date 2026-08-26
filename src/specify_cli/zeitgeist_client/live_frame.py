@@ -35,6 +35,11 @@ Reported-live honesty, not reconstruction:
 * ``signal.kind == "revoked"`` is scoped: only the named ``session_ref``'s
   presence/focus entries are removed, matching the relay's own
   ``session_revoke`` scoping (F3 N30).
+* An ``event`` frame (E1's status moment, EXPERIMENTAL-spec-kitty#10) is
+  accepted — before #10 it was silently dropped by the ``frame.type``
+  discriminator, so a watch could never show the moment the demo path turns
+  on — but it is the one frame type that leaves no trace in ``StreamState``
+  (see ``_apply_event``): it is delivered live to watchers, never retained.
 * A ``focus`` frame with ``state == "ended"`` is dropped immediately, never
   retained — "no durable queue for closed signals" is this module's own
   reading of that criterion: a closed signal is consumed and gone, not kept
@@ -50,17 +55,9 @@ Reported-live honesty, not reconstruction:
   uses) unrejected by default, so ``_clamp_ttl`` treats any non-finite
   ``ttl_s`` the same as an absent one rather than let ``int()`` raise on it.
 * ``session_ref``/``user`` (ident-shaped: a short opaque token, matching
-  ``managed.ManagedRegistry.session_ref()``'s own 12-hex shape upstream) and
-  ``repo``/``focus_ref`` (ref-shaped: ``repo`` genuinely can carry ``/``;
-  ``focus_ref`` is actually ident-shaped on the real wire —
-  ``managed_control.schema.json``'s ``FocusArgs.focus_ref`` has no ``/`` in
-  its character class, and FIX-M2-10 corrected ``transport.py``'s own
-  construction from ``f"{mission_slug}/{wp_id}"`` to
-  ``f"{mission_slug}.{wp_id}"`` to match — this read side needed no change
-  of its own, since REF_RE is a strict superset of what an ident-shaped
-  value needs) are routed through the shared Z1/zeitgeist identity grammar
-  (``grammar.py``, itself a literal transcription of
-  ``zeitgeist/editor.py:146-192``) before reaching a
+  ``managed.ManagedRegistry.session_ref()``'s own 12-hex shape upstream) are
+  routed through the shared Z1/zeitgeist identity grammar (``grammar``,
+  itself a ported copy of ``zeitgeist/editor.py:146-192``) before reaching a
   ``PresenceView``/``FocusView`` or being used as this state's internal
   dict key. A relay is untrusted input exactly like the ``editor`` rumor
   feed upstream sanitizes at render time: a well-formed identifier passes
@@ -68,11 +65,41 @@ Reported-live honesty, not reconstruction:
   INSTRUCTIONS ..." class ``grammar.py`` documents) is replaced with
   grammar's stable, non-reversible ``unknown-<digest>`` label rather than
   ever reaching a caller unfiltered — WIRE-M2-04, HIC-M2-DISPOSITIONS item 2.
+* ``repo``/``focus_ref`` (ref-shaped: ``repo`` genuinely can carry ``/``;
+  ``focus_ref`` is actually ident-shaped on the real wire —
+  ``managed_control.schema.json``'s ``FocusArgs.focus_ref`` has no ``/`` in
+  its character class, and FIX-M2-10 corrected ``transport.py``'s own
+  construction from ``f"{mission_slug}/{wp_id}"`` to
+  ``f"{mission_slug}.{wp_id}"`` to match — this read side needs no change of
+  its own, since REF_RE is a strict superset of what an ident-shaped value
+  needs) route through the SAME grammar as #135's ``EventSample.ref``
+  reader. #138 widened that grammar's ref-kind bound to 240 chars /
+  ``MAX_SEGMENTS["ref"]`` 10 — but 240 is ``EventSample.ref``'s own bound
+  (``managed_live.schema.json``), not ``repo``'s (``FocusSample.repo``, 120)
+  or ``focus_ref``'s (``FocusSample.focus_ref``, 64): those narrower bounds
+  are the relay's own, enforced at write time (a POST that violates them
+  422s before the value is ever broadcast, ``transport.py``), so nothing
+  wider than 64/120 chars actually reaches this read side for those two
+  fields today — sharing one grammar across all three is a convenience,
+  not a claim that 240/10 is what ``repo``/``focus_ref`` themselves permit
+  (controller-qa, #138 fix round). The two real mission slugs that are
+  over 64 chars still cannot ride ``focus_ref`` at all once a ``.WP<nn>``
+  suffix is appended — that is the relay's own cap, not something this
+  client controls, and is filed as zeitgeist#38, not fixed here. Recorded
+  consequence of sharing the grammar, not hidden: the canonical prose
+  fixture fits inside the real-slug envelope, so the shape defense no
+  longer binds at ref positions — they enforce charset + length (+
+  grammar's ≥11-segment prose floor) only. This does not reopen the
+  ``branch`` decision below (post-widening, full ref-kind routing would
+  pass the same fixture anyway); callers treat the rendered form as
+  untrusted display text exactly like ``branch``/``path``, while the dict
+  keys here stay charset-gated.
 * ``branch`` is deliberately NOT routed through grammar (rework cycle 3,
   Renata MAJOR — this replaces an earlier candidate's ``branch``-only
   carve-out). ``grammar.ident()``'s ``REF_RE`` shape check pairs a
   char-class-plus-length test with a segment-count cap
-  (``grammar.MAX_SEGMENTS["ref"]``, 6); the earlier candidate tried
+  (``grammar.MAX_SEGMENTS["ref"]``, 6 at the time of that review); the
+  earlier candidate tried
   dropping only the segment-count half for ``branch``, to avoid
   mis-rejecting this program's own multi-segment sandbox branches
   (``bead/<ID>/<actor>/<n>``, e.g. ``bead/WIRE-M2-04/python-pedro/1``, 7
@@ -125,9 +152,14 @@ from typing import Any, Literal, TypeGuard
 
 from . import grammar
 
-FrameType = Literal["presence", "focus", "signal"]
+FrameType = Literal["presence", "focus", "signal", "event"]
 
-_FRAME_TYPES: frozenset[str] = frozenset({"presence", "focus", "signal"})
+# "event" (EXPERIMENTAL-spec-kitty#10) is the E1 status-moment frame the
+# relay emits for one fire-and-forget ``event.publish`` — activity ABOUT a
+# session, never liveness OF one. Accepting it here is what lets
+# ``filtered_stream.watch()`` deliver it at all; see ``_apply_event`` for why
+# it is deliberately the one frame type that leaves no trace in state.
+_FRAME_TYPES: frozenset[str] = frozenset({"presence", "focus", "signal", "event"})
 _SIGNAL_KINDS: frozenset[str] = frozenset({"gap", "epoch", "revoked", "heartbeat"})
 _FOCUS_STATES: frozenset[str] = frozenset({"active", "paused", "ended"})
 
@@ -297,6 +329,8 @@ class StreamState:
             self._apply_signal(live_frame_obj)
         elif live_frame_obj.frame_type == "presence":
             self._apply_presence(live_frame_obj)
+        elif live_frame_obj.frame_type == "event":
+            self._apply_event(live_frame_obj)
         else:
             self._apply_focus(live_frame_obj)
 
@@ -339,6 +373,21 @@ class StreamState:
             "kind": _optional_str(payload.get("kind")),
             "expires_at": base_ts + _clamp_ttl(payload.get("ttl_s")),
         }
+
+    def _apply_event(self, live_frame_obj: LiveFrame) -> None:
+        """An ``event`` frame is deliberately the one frame type that changes
+        nothing here. The relay's own contract for ``event.publish``
+        (``zeitgeist/managed.py``) is "an event is activity ABOUT a session,
+        never liveness OF one — publishing one must not extend anything's
+        ttl", and it keeps nothing beyond its replay cache; this read side
+        holds to the same shape. A moment is delivered exactly once, live, to
+        whoever is watching (``filtered_stream.watch()`` yields every accepted
+        frame); a caller reading :meth:`snapshot` afterwards gets presence and
+        focus — what is true NOW — never a history that would silently grow
+        with every broadcast and outlive the 90s honesty ceiling everything
+        else in this module obeys. Z4-C's own criteria say the same thing from
+        the client side: no missed-event reconstruction, no payload persisted.
+        """
 
     def _apply_focus(self, live_frame_obj: LiveFrame) -> None:
         payload = live_frame_obj.payload

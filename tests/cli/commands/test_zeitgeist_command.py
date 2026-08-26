@@ -184,3 +184,53 @@ def test_watch_not_checked_out_exits_nonzero(monkeypatch: pytest.MonkeyPatch) ->
 # (pytest.ini deliberately keeps `.` off pythonpath, so fixtures are not
 # shared across top-level test directories; see test_filtered_stream.py's
 # own local-helper-duplication precedent for the same constraint).
+
+
+# --- #10: the human-readable watch branch renders events through the frame ---
+
+
+def test_watch_human_branch_frames_event_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """An event's attrs are another client's prose: the terminal rendering goes
+    through subscription.render_event's nonce-framed untrusted block, never
+    printed as this tool's own trusted output."""
+    import re
+
+    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500):
+        yield {
+            "schema_version": "1.0.0",
+            "epoch": "epoch-1",
+            "seq": 4,
+            "emitted_at": 1.0,
+            "frame_type": "event",
+            "payload": {
+                "observed_at": 1.0,
+                "kind": "mission.status.changed",
+                "actor": {"session_ref": "c" * 12},
+                "attrs": {"to_lane": "for_review"},
+            },
+        }
+
+    monkeypatch.setattr(subscription, "watch", _fake_watch)
+    result = runner.invoke(app, ["watch", "spec-kitty"])
+    assert result.exit_code == 0
+    assert "[zeitgeist moment " in result.stdout
+    assert re.search(r"\[end of zeitgeist moment [0-9a-f]{8}\]", result.stdout)
+    assert "to_lane=for_review" in result.stdout  # readable, but inside the block
+
+
+def test_watch_json_keeps_the_raw_payload_for_event_frames(monkeypatch: pytest.MonkeyPatch) -> None:
+    """--json is the data channel: lossless frames for scripts, exactly as for
+    presence/focus. Framing is a property of the renderer, not of the data."""
+    import json as json_module
+
+    payload = {"observed_at": 1.0, "kind": "mission.status.changed", "attrs": {"to_lane": "for_review"}}
+
+    def _fake_watch(repo: str, *, timeout_s: float = 5.0, max_frames: int = 500):
+        yield {"schema_version": "1.0.0", "epoch": "e", "seq": 4, "emitted_at": 1.0, "frame_type": "event", "payload": payload}
+
+    monkeypatch.setattr(subscription, "watch", _fake_watch)
+    result = runner.invoke(app, ["watch", "spec-kitty", "--json"])
+    assert result.exit_code == 0
+    line = json_module.loads(result.stdout.strip())
+    assert line["frame_type"] == "event"
+    assert line["payload"]["attrs"] == {"to_lane": "for_review"}

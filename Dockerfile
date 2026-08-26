@@ -5,8 +5,34 @@
 # authorizes network for `docker build` (base-image pulls) and for
 # pip/uv/npm dependency installs from PyPI/registries. The one hard
 # prohibition carried forward unconditionally is: never git push/fetch/pull
-# any checked-out repo. Build with:
-#   docker build -t dkr-m1-02-spec-kitty:contract .
+# any checked-out repo. pyproject.toml additionally pins spec-kitty-events
+# as a git+https://github.com direct reference (PROGRAM.md §2 wheel-install
+# exception), so the builder fetches one dependency repo over git — that
+# fetch is authorized by spec-kitty#144, still never touches a checked-out
+# repo, and needs GitHub credentials supplied as a BuildKit secret (#144):
+#
+#   docker build --secret id=netrc,src=$HOME/.netrc \
+#     -t dkr-m1-02-spec-kitty:contract .
+#
+# $HOME/.netrc must carry a github.com entry, e.g.
+#   machine github.com login x-access-token password <token>
+# The EXPERIMENTAL repos are private, so an anonymous fetch fails; the
+# secret is mounted into the builder's RUN only (never baked into any
+# layer) and requires BuildKit (default since docker 23).
+#
+# exe.dev fleet hosts carry no GitHub token at all — they reach the private
+# EXPERIMENTAL repos only through the github.int.exe.xyz integration proxy,
+# which authenticates by VM identity and needs a URL rewrite, not a netrc.
+# A second, optional secret ("gitconfig") supplies that rewrite; BuildKit
+# skips an unsupplied secret mount, so laptops keep passing only netrc:
+#
+#   docker build --secret id=gitconfig,src=/path/to/gitconfig \
+#     -t dkr-m1-02-spec-kitty:contract .
+#
+# where the file reads:
+#   [url "https://github.int.exe.xyz/"]
+#       insteadOf = https://github.com/
+# `planning/infra/setup-sk-base.sh` passes this secret on fleet builds.
 #
 # Base pin: python:3.12-slim-bookworm, pinned by pullable registry manifest
 # digest (RepoDigest) per docs/bootstrap/DKR-M1-01-DIGEST-CORRECTION.json,
@@ -25,6 +51,12 @@ FROM python:3.12-slim-bookworm@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9
 WORKDIR /app
 RUN pip install --no-cache-dir uv==0.5.13
 
+# uv resolves the git-pinned spec-kitty-events direct reference with the git
+# CLI; python:3.12-slim ships without it (#144).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY pyproject.toml uv.lock README.md LICENSE ./
 COPY src/ ./src/
 # hatchling force-includes packs/built-in into the wheel (public product
@@ -33,14 +65,24 @@ COPY src/ ./src/
 # NOT copied into the build context, so it can never end up in this image.
 COPY packs/built-in/ ./packs/built-in/
 
-RUN uv sync --frozen --all-extras
+# The netrc secret authenticates git's fetch of the private EXPERIMENTAL repos
+# pinned above (laptops); the optional gitconfig secret rewrites the fetch
+# through the exe.dev fleet proxy instead (sk-base and friends). Either or
+# both may be supplied; both are mounted read-only for this RUN only and are
+# absent from every layer.
+RUN --mount=type=secret,id=netrc,target=/root/.netrc \
+    --mount=type=secret,id=gitconfig,target=/root/.gitconfig \
+    uv sync --frozen --all-extras
 
 # --- Runtime image ----------------------------------------------------------
 FROM python:3.12-slim-bookworm@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9f8772da879e4590c18c2e3 AS runtime
 
 # No Docker socket, no host home, no canonical/control-state mount, no SSH
-# agent, no provider credentials, no external endpoint are declared anywhere
-# in this Dockerfile — the image talks to nothing outside its own filesystem.
+# agent, no external endpoint are declared anywhere in this image, and it
+# talks to nothing outside its own filesystem. The one build-time exception
+# is the builder's netrc/gitconfig secrets above: they exist only inside that
+# single RUN and are never copied into this stage — no credential reaches
+# the runtime.
 WORKDIR /app
 COPY --from=builder /app /app
 ENV PATH="/app/.venv/bin:$PATH" \

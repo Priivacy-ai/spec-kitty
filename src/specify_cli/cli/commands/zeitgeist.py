@@ -79,7 +79,7 @@ from specify_cli.zeitgeist_client import credentials, operability, outbox_approv
 
 app = typer.Typer(
     name="zeitgeist",
-    help="Read-only access to one team's live Zeitgeist presence/focus stream, plus a local human-gated prose approval surface.",
+    help="Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events, plus a local human-gated prose approval surface.",
 )
 
 _REPO_ARGUMENT = typer.Argument(
@@ -202,6 +202,16 @@ def watch(
                 # multi-line pretty form status() uses — a stream of frames
                 # must stay line-delimited for a caller piping this output.
                 console.emit_json(frame, indent=None)
+            elif frame["frame_type"] == "event":
+                # An event's attrs are another client's free prose (#10): the
+                # human-readable branch renders it through the same shared,
+                # nonce-framed untrusted-content block the MCP adapter uses —
+                # never as this tool's own trusted output. Printed with rich
+                # markup DISABLED: the block's own [markers] are literal text,
+                # and so is whatever prose a teammate broadcast — letting the
+                # console interpret bracketed tags would both strip the frame
+                # and hand hostile bytes a markup interpreter.
+                console.print(subscription.render_event(frame), markup=False, highlight=False)
             else:
                 console.print(f"[bold]{frame['frame_type']}[/bold]  seq={frame['seq']}  {frame['payload']}")
     except subscription.NotCheckedOut as exc:

@@ -405,3 +405,37 @@ def test_any_successful_write_prunes_bare_name_entries_on_disk(state_root: Path)
     assert LEGACY_NAME not in raw
     assert raw[HOSTED_KEY]["token"] == "live-bearer"  # untouched by the sweep
     assert credentials.load(repo=HOSTED_KEY).token == "live-bearer"  # type: ignore[union-attr]
+
+
+# --- #10: the admitting team rides the credential ---------------------------
+
+
+def test_store_without_team_round_trips_team_as_none(state_root: Path):
+    """Entries written before #10 (and every manual checkout) have no
+    recorded team; load() reports None, never KeyError."""
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    loaded = credentials.load(repo="github.com/acme/spec-kitty")
+    assert loaded is not None
+    assert loaded.team is None
+
+
+def test_team_round_trips_verbatim(state_root: Path):
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team", team="demo")
+    loaded = credentials.load(repo="github.com/acme/spec-kitty")
+    assert loaded is not None
+    assert loaded.team == "demo"
+
+
+def test_empty_team_is_rejected_when_provided(state_root: Path):
+    with pytest.raises(ValueError):
+        credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team", team="")
+
+
+def test_stored_toml_omits_team_key_entirely_when_unset(state_root: Path):
+    """Same backward-compat proof as every optional aspect before it."""
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    import tomllib
+
+    with credentials.credentials_path().open("rb") as fh:
+        raw = tomllib.load(fh)
+    assert "team" not in raw["github.com/acme/spec-kitty"]
