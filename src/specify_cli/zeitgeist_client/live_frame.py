@@ -67,30 +67,34 @@ Reported-live honesty, not reconstruction:
   ever reaching a caller unfiltered — WIRE-M2-04, HIC-M2-DISPOSITIONS item 2.
 * ``repo``/``focus_ref`` (ref-shaped: ``repo`` genuinely can carry ``/``;
   ``focus_ref`` is actually ident-shaped on the real wire —
-  ``managed_control.schema.json``'s ``FocusArgs.focus_ref`` has no ``/`` in
-  its character class, and FIX-M2-10 corrected ``transport.py``'s own
-  construction from ``f"{mission_slug}/{wp_id}"`` to
-  ``f"{mission_slug}.{wp_id}"`` to match — this read side needs no change of
-  its own, since REF_RE is a strict superset of what an ident-shaped value
-  needs) route through the SAME grammar as #135's ``EventSample.ref``
-  reader. #138 widened that grammar's ref-kind bound to 240 chars /
-  ``MAX_SEGMENTS["ref"]`` 10 — but 240 is ``EventSample.ref``'s own bound
-  (``managed_live.schema.json``), not ``repo``'s (``FocusSample.repo``, 120)
-  or ``focus_ref``'s (``FocusSample.focus_ref``, 64): those narrower bounds
-  are the relay's own, enforced at write time (a POST that violates them
-  422s before the value is ever broadcast, ``transport.py``), so nothing
-  wider than 64/120 chars actually reaches this read side for those two
-  fields today — sharing one grammar across all three is a convenience,
-  not a claim that 240/10 is what ``repo``/``focus_ref`` themselves permit
-  (controller-qa, #138 fix round). The two real mission slugs that are
-  over 64 chars still cannot ride ``focus_ref`` at all once a ``.WP<nn>``
-  suffix is appended — that is the relay's own cap, not something this
-  client controls, and is filed as zeitgeist#38, not fixed here. Recorded
-  consequence of sharing the grammar, not hidden: the canonical prose
-  fixture fits inside the real-slug envelope, so the shape defense no
-  longer binds at ref positions — they enforce charset + length (+
-  grammar's ≥11-segment prose floor) only. This does not reopen the
-  ``branch`` decision below (post-widening, full ref-kind routing would
+  ``managed_control.schema.json``'s ``FocusArgs.focus_ref`` shares the ident
+  CHARACTER class (no ``/``) with ``session_ref``/``user`` above, and
+  FIX-M2-10 corrected ``transport.py``'s own construction from
+  ``f"{mission_slug}/{wp_id}"`` to ``f"{mission_slug}.{wp_id}"`` to match —
+  this read side needs no change of its own, since REF_RE is a strict
+  superset of what an ident-shaped value needs) route through the SAME
+  grammar as #135's ``EventSample.ref`` reader. #138 widened that grammar's
+  ref-kind bound to 240 chars / ``MAX_SEGMENTS["ref"]`` 10 — 240 was
+  ``EventSample.ref``'s own bound (``managed_live.schema.json``) from the
+  start; ``repo``'s own bound is narrower (``FocusSample.repo``, 120,
+  enforced at write time — a POST that violates it 422s before the value is
+  ever broadcast, ``transport.py``), so sharing one grammar across all
+  three is still a convenience for ``repo``, not a claim that 240/10 is
+  what ``repo`` itself permits (controller-qa, #138 fix round). ``focus_ref``
+  no longer has this gap: at #138 time its own bound
+  (``FocusSample.focus_ref``/``FocusArgs.focus_ref``) was still the
+  narrower ident one (64), so the two real mission slugs over 64 chars
+  could not ride ``focus_ref`` at all once a ``.WP<nn>`` suffix was
+  appended — filed as zeitgeist#38. zeitgeist#38 (relay #39) has since
+  landed and widened both schemas' ``focus_ref`` to the same
+  ``{0,239}``/``maxLength`` 240 envelope as ``EventSample.ref``, so the
+  shared grammar's bound is no longer wider than ``focus_ref``'s own real
+  bound — only ``repo`` still has the gap described above. Recorded
+  consequence of sharing the grammar (now only for ``repo``), not hidden:
+  the canonical prose fixture fits inside the real-slug envelope, so the
+  shape defense no longer binds at ref positions — they enforce charset +
+  length (+ grammar's ≥11-segment prose floor) only. This does not reopen
+  the ``branch`` decision below (post-widening, full ref-kind routing would
   pass the same fixture anyway); callers treat the rendered form as
   untrusted display text exactly like ``branch``/``path``, while the dict
   keys here stay charset-gated.

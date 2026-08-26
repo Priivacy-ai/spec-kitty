@@ -199,6 +199,31 @@ class TestParseStoreKey:
         with pytest.raises(resolution.StoreKeyError):
             resolution.parse_store_key(value)
 
+    @pytest.mark.parametrize("value", ["https://github.com/acme/widget", "ssh://git@github.com/acme/widget"])
+    def test_a_pasted_url_with_a_scheme_is_rejected_not_misparsed(self, value: str) -> None:
+        """A prior version silently swallowed the scheme into the host
+        segment (``https://github.com/acme/widget`` -> the wrong key
+        ``https:/github.com/acme/widget``) instead of rejecting it."""
+        with pytest.raises(resolution.StoreKeyError):
+            resolution.parse_store_key(value)
+
+    def test_a_git_suffixed_owner_only_path_is_rejected_not_emptied(self) -> None:
+        """Stripping a trailing ``.git`` off ``github.com/acme/.git`` would
+        otherwise leave an empty last segment -- a key `store_key` never
+        writes, so it must be rejected rather than silently accepted."""
+        with pytest.raises(resolution.StoreKeyError):
+            resolution.parse_store_key("github.com/acme/.git")
+
+    def test_a_pasted_url_with_an_embedded_token_never_echoes_it(self) -> None:
+        """spec-kitty#150 MAJOR: a pasted clone URL with an embedded PAT --
+        ``https://x-access-token:<PAT>@host/owner/repo``, exactly what
+        `gh`/GitHub-App clones write into ``.git/config`` -- must not have
+        the token show up in the refusal message."""
+        token = "ghp_SECRETTOKEN123"  # noqa: S105 - test fixture, not a real credential
+        with pytest.raises(resolution.StoreKeyError) as exc_info:
+            resolution.parse_store_key(f"https://x-access-token:{token}@github.com/acme/widget")
+        assert token not in str(exc_info.value)
+
 
 class TestStoreKeyForCheckout:
     """The read-only half of :func:`resolve_credentials`' identity

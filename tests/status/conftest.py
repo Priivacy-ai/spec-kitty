@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
+from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
 from specify_cli.status import adapters
 from specify_cli.status.models import (
     DoneEvidence,
@@ -21,6 +23,60 @@ from specify_cli.status.store import append_event
 from specify_cli.status.wp_state import wp_state_for
 
 _THIS_DIR = Path(__file__).parent
+
+
+# ---------------------------------------------------------------------------
+# Hermetic canonical-root resolution (#142)
+# ---------------------------------------------------------------------------
+
+
+def pin_canonical_root_inside_sandbox(root: Path) -> bool:
+    """Make *root* itself the git root so root resolution stops inside it.
+
+    Lifecycle and status writers resolve their lock root by walking up from a
+    log path to the nearest ``.git`` (``resolve_canonical_root``) and then
+    ``mkdir`` ``<root>/.git/spec-kitty-locks/``. Mission fixtures in this
+    package build feature directories under plain ``tmp_path`` without a
+    repo, so when an ancestor of basetemp is itself a git checkout, the lock
+    lands in *that* checkout -- and if it is read-only,
+    :func:`append_lifecycle_event` swallows the resulting ``PermissionError``
+    as a best-effort ``OSError`` and persists nothing, silently failing every
+    event-recording assertion (130 nodes red in the #142 repro).
+
+    Returns ``True`` when pinning happened: *root* had no ``.git`` of its own
+    and resolution escaped above it. Hosts without an ambient ancestor repo
+    (the common case -- basetemp lives under ``/tmp``) are untouched.
+    """
+    try:
+        resolved = resolve_canonical_root(root)
+    except WorkspaceRootNotFound:
+        return False
+    if resolved == root or (root / ".git").exists():
+        return False
+    completed = subprocess.run(
+        ["git", "init", "-q", "-b", "main"],
+        cwd=root,
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        # No usable git binary: a bare marker directory is still enough for
+        # resolve_canonical_root's rule 1 (a .git directory ends the walk).
+        (root / ".git").mkdir(exist_ok=True)
+    return True
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_canonical_root(tmp_path: Path) -> None:
+    """Keep canonical-root resolution inside this test's sandbox (#142).
+
+    Runs before the mission fixtures so every feature directory built under
+    ``tmp_path`` resolves to a lock root inside the sandbox instead of into
+    whatever git checkout happens to sit above basetemp. See
+    :func:`pin_canonical_root_inside_sandbox` for the failure mode.
+    """
+    pin_canonical_root_inside_sandbox(tmp_path)
+
 
 # ---------------------------------------------------------------------------
 # T027 — shared seed helper + fixture (replaces ~12 per-file _seed_planned copies)
@@ -116,6 +172,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if _THIS_DIR in Path(item.fspath).parents:
             item.add_marker(pytest.mark.fast)
+
 
 @pytest.fixture(autouse=True)
 def _restore_zeitgeist_moment_handlers_around_every_status_test() -> None:

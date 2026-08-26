@@ -843,3 +843,69 @@ def test_transactional_emit_fail_closed_surface_refusal_stays_structured(
         emit_status_transition_transactional(
             _canonical_slug_request(repo), sync_dossier=False
         )
+
+
+# ---------------------------------------------------------------------------
+# #154 regression: the coordination-topology probe must not demand mission
+# metadata a meta-less mission never had. ``resolve_transaction_mid8`` returns
+# "" for exactly those missions — its documented bare-slug surface ("there is
+# no coord target to mis-route") — so probing branch existence by COMPOSING a
+# ``CoordinationWorkspace`` handle from that empty mid8 raised
+# CoordinationWorkspaceIdentityUnresolved out of every transactional read and
+# write whenever the feature dir sat inside a git work tree (e.g. any ambient
+# ancestor checkout above basetemp on the host running the suite), instead of
+# reporting "no coordination topology available".
+# ---------------------------------------------------------------------------
+
+
+def _meta_less_legacy_repo(tmp_path: Path) -> Path:
+    """A real repo whose only mission dir carries no meta.json (legacy slug)."""
+    r = tmp_path / "meta-less-repo"
+    r.mkdir()
+    _git(r, "init", "-q", "-b", "main")
+    _git(r, "config", "user.email", "t@example.invalid")
+    _git(r, "config", "user.name", "Test")
+    _git(r, "config", "commit.gpgsign", "false")
+    (r / "kitty-specs" / "099-lifecycle-test").mkdir(parents=True)
+    return r
+
+
+def test_topology_probe_reports_unavailable_for_meta_less_mission(
+    tmp_path: Path,
+) -> None:
+    """Empty mid8 ⇒ topology NOT available; never a malformed-ref composition."""
+    from specify_cli.coordination.status_transition import (
+        _identity_for_request,
+        _transaction_topology_available,
+    )
+
+    repo = _meta_less_legacy_repo(tmp_path)
+    identity = _identity_for_request(
+        TransitionRequest(
+            feature_dir=repo / "kitty-specs" / "099-lifecycle-test",
+            mission_slug="099-lifecycle-test",
+            wp_id="WP01",
+            to_lane=Lane.PLANNED,
+            actor="topology-probe",
+            repo_root=repo,
+        )
+    )
+
+    assert identity.mid8 == ""
+    assert _transaction_topology_available(identity, "099-lifecycle-test") is False
+
+
+def test_meta_less_mission_read_does_not_raise_identity_unresolved(
+    tmp_path: Path,
+) -> None:
+    """An unseeded WP in a meta-less mission inside a real repo reads GENESIS."""
+    repo = _meta_less_legacy_repo(tmp_path)
+
+    _state = read_current_wp_state_transactional(
+        feature_dir=repo / "kitty-specs" / "099-lifecycle-test",
+        mission_slug="099-lifecycle-test",
+        wp_id="WP01",
+        repo_root=repo,
+    )
+
+    assert _state.lane == Lane.GENESIS
