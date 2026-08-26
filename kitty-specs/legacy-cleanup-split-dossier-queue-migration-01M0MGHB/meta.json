@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-08-22T10:33:50.203787+00:00",
+  "flattened": false,
+  "friendly_name": "Legacy cleanup: split dossier queue migration from live emitter APIs",
+  "mission_id": "01M0MGHBVSHYM701TJHXEWG3PY",
+  "mission_number": null,
+  "mission_slug": "legacy-cleanup-split-dossier-queue-migration-01M0MGHB",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Legacy cleanup: split dossier queue migration from live emitter APIs on refactor/dossier-emitters-canonical-only-1058 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Legacy cleanup: split dossier queue migration from live emitter APIs",
+  "slug": "legacy-cleanup-split-dossier-queue-migration-01M0MGHB",
+  "target_branch": "refactor/dossier-emitters-canonical-only-1058",
+  "topology": "single_branch"
+}

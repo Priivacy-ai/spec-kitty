@@ -31,6 +31,7 @@ from specify_cli.task_utils import (
     split_frontmatter,
 )
 from specify_cli.task_utils.support import TaskCliError
+from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
 
 # WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
@@ -83,20 +84,59 @@ ACCEPTANCE_PROVENANCE_FIELDS: tuple[str, ...] = (
     "vcs_locked_at",
 )
 
-SPEC_FILE = "spec.md"
-PLAN_FILE = "plan.md"
-TASKS_FILE = "tasks.md"
+# FR-009/FR-010 (#3599): the accept triple is sourced from the per-type
+# expected-artifacts.yaml path_pattern authority, not hardcoded literals --
+# byte-compatible with the prior "spec.md"/"plan.md"/"tasks.md" literals for
+# software-dev (NFR-003). See
+# tests/specify_cli/runtime/test_configured_artifact_name.py.
+#
+# #3622: resolved lazily (call-time, not import-time) so a malformed built-in
+# expected-artifacts.yaml raises at point-of-use rather than on
+# `import specify_cli.acceptance`. ``SPEC_FILE``/``PLAN_FILE``/``TASKS_FILE``/
+# ``PRIMARY_ARTIFACT_FILES`` stay readable as module attributes (module
+# __getattr__ below) for the existing ``from specify_cli.acceptance import
+# SPEC_FILE`` style API; in-module call sites use the ``_spec_file()`` etc.
+# functions directly since bare-name global lookups don't route through
+# module __getattr__.
 QUICKSTART_FILE = "quickstart.md"
 DATA_MODEL_FILE = "data-model.md"
 RESEARCH_FILE = "research.md"
-PRIMARY_ARTIFACT_FILES = (
-    SPEC_FILE,
-    PLAN_FILE,
-    QUICKSTART_FILE,
-    TASKS_FILE,
-    RESEARCH_FILE,
-    DATA_MODEL_FILE,
-)
+
+
+def _spec_file() -> str:
+    return resolve_configured_artifact_name("input.spec.main")
+
+
+def _plan_file() -> str:
+    return resolve_configured_artifact_name("output.plan.main")
+
+
+def _tasks_file() -> str:
+    return resolve_configured_artifact_name("output.tasks.list")
+
+
+def _primary_artifact_files() -> tuple[str, str, str, str, str, str]:
+    return (
+        _spec_file(),
+        _plan_file(),
+        QUICKSTART_FILE,
+        _tasks_file(),
+        RESEARCH_FILE,
+        DATA_MODEL_FILE,
+    )
+
+
+def __getattr__(name: str) -> str | tuple[str, str, str, str, str, str]:
+    if name == "SPEC_FILE":
+        return _spec_file()
+    if name == "PLAN_FILE":
+        return _plan_file()
+    if name == "TASKS_FILE":
+        return _tasks_file()
+    if name == "PRIMARY_ARTIFACT_FILES":
+        return _primary_artifact_files()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 _DECISION_ID_MARKER = "decision_id:"
 _ACCEPTED_READY_LANES = frozenset({"approved", "done"})
@@ -540,7 +580,7 @@ def _iter_clarification_decision_ids(text: str) -> Iterable[str]:
 
 
 def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
-    required = [feature_dir / SPEC_FILE, feature_dir / PLAN_FILE, feature_dir / TASKS_FILE]
+    required = [feature_dir / _spec_file(), feature_dir / _plan_file(), feature_dir / _tasks_file()]
     optional = [
         feature_dir / QUICKSTART_FILE,
         feature_dir / DATA_MODEL_FILE,
@@ -574,7 +614,7 @@ def _gather_primary_encoding_candidates(feature_dir: Path) -> list[Path]:
     """Every artifact ``normalize_feature_encoding`` scans: the
     ``PRIMARY_ARTIFACT_FILES`` planning docs plus the ``tasks/``, ``research/``
     and ``checklists/`` markdown subtrees (all PRIMARY-partition kinds)."""
-    candidates: list[Path] = [feature_dir / artifact_name for artifact_name in PRIMARY_ARTIFACT_FILES]
+    candidates: list[Path] = [feature_dir / artifact_name for artifact_name in _primary_artifact_files()]
     result = [p for p in candidates if p.exists()]
     for subdir in (feature_dir / "tasks", feature_dir / "research", feature_dir / "checklists"):
         if subdir.exists():
@@ -731,9 +771,9 @@ def _accept_planning_artifact_kinds() -> dict[str, Any]:
     from mission_runtime import MissionArtifactKind
 
     return {
-        SPEC_FILE: MissionArtifactKind.SPEC,
-        PLAN_FILE: MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
-        TASKS_FILE: MissionArtifactKind.TASKS_INDEX,
+        _spec_file(): MissionArtifactKind.SPEC,
+        _plan_file(): MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
+        _tasks_file(): MissionArtifactKind.TASKS_INDEX,
         RESEARCH_FILE: MissionArtifactKind.RESEARCH,
         DATA_MODEL_FILE: MissionArtifactKind.DATA_MODEL,
         QUICKSTART_FILE: MissionArtifactKind.CHECKLIST,
@@ -781,7 +821,7 @@ def _planning_read_dir(repo_root: Path, feature: str) -> Path:
     # mypy config the cross-module ``PlacementSeam.read_dir`` return is seen as
     # ``Any``; the annotation re-narrows it (the method IS typed ``-> Path``) so the
     # chokepoint return is not an ``Any`` leak — matching ``mission.py::_planning_read_dir``.
-    read_dir: Path = placement_seam(repo_root, feature).read_dir(kinds[SPEC_FILE])
+    read_dir: Path = placement_seam(repo_root, feature).read_dir(kinds[_spec_file()])
     return read_dir
 
 
@@ -992,13 +1032,13 @@ def collect_feature_summary(
     # is split per-partition WITHOUT renaming it (additive: a new planning_read_dir).
     planning_read_dir = _planning_read_dir(repo_root, primary_slug)
 
-    unchecked_tasks = _find_unchecked_tasks(planning_read_dir / TASKS_FILE)
+    unchecked_tasks = _find_unchecked_tasks(planning_read_dir / _tasks_file())
     needs_clarification = _check_needs_clarification(
         [
             planning_read_dir / "spec.md",
             planning_read_dir / "plan.md",
             planning_read_dir / "quickstart.md",
-            planning_read_dir / TASKS_FILE,
+            planning_read_dir / _tasks_file(),
             planning_read_dir / "research.md",
             planning_read_dir / "data-model.md",
         ]

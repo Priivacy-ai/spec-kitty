@@ -1,0 +1,53 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: gov
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: SPEC-GOV-001
+    lens: Scope-correction fidelity
+    severity: 1
+    title: "FR-006's cited emitter.py:827-897 range overstates the touched region by including the unrelated MissionOriginBound rule"
+    evidence:
+      - artifact: "spec.md § FR-006 (Requirements table)"
+      - code: "src/specify_cli/sync/emitter.py:827-876 (the four dossier _PAYLOAD_RULES entries), src/specify_cli/sync/emitter.py:877-897 (MissionOriginBound entry + dict close + VALID_EVENT_TYPES assignment)"
+    claim: >
+      FR-006 cites "_PAYLOAD_RULES (`emitter.py:827-897`)" as the location of "the four
+      hand-maintained dossier entries." Verified by reading the file directly: the four
+      dossier entries (MissionDossierArtifactIndexed, MissionDossierArtifactMissing,
+      MissionDossierSnapshotComputed, MissionDossierParityDriftDetected) actually span
+      lines 827-876. Lines 877-896 are the unrelated "MissionOriginBound" entry, and line
+      897 is the `VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())` assignment outside
+      the dict literal entirely. The cited range is 21 lines wider than the actual dossier
+      entries and includes a sibling event type's validation rules. The FR's prose is
+      otherwise unambiguous (it names the four dossier entries by type-string), so this
+      does not change what an implementer would build, but it fails the mission's own
+      stated verification bar ("every claim below was independently re-verified... not
+      merely copied") for this one citation.
+    remediation: >
+      Correct FR-006's citation to "emitter.py:827-876" (the four dossier entries only),
+      or drop the numeric range and rely on the type-string enumeration already in the FR
+      text, so the citation does not imply MissionOriginBound (877-897) is part of the
+      edit surface.
+
+  - id: SPEC-GOV-002
+    lens: Scope-correction fidelity
+    severity: 1
+    title: "FR-007 cites emitter.py:2510-2512 for the unknown-event-type rejection check; the actual `if` line is 2514"
+    evidence:
+      - artifact: "spec.md § FR-007 (Requirements table)"
+      - code: "src/specify_cli/sync/emitter.py:2512-2515"
+    claim: >
+      FR-007 cites "`_validate_event`'s unknown-event-type rejection path
+      (`emitter.py:2510-2512`)". Verified by reading the file: line 2512 is the comment
+      `# 3. Validate event_type is one of the 8 known types`, line 2513 assigns
+      `event_type = event["event_type"]`, and the actual rejection check
+      `if event_type not in VALID_EVENT_TYPES:` is on line 2514 (with the warning print
+      and `return False` on line 2515). The cited range does not include the line that
+      performs the check it is citing. This does not change FR-007's substance (the
+      requirement — keep the four dossier keys in `_PAYLOAD_RULES`/`VALID_EVENT_TYPES` so
+      this path stays unaffected — is independently correct and verified), only the
+      precision of its evidence pointer.
+    remediation: >
+      Correct the citation to "emitter.py:2513-2515" (or "2514" for the `if` line alone)
+      so the file:line pointer lands on the actual rejection check.

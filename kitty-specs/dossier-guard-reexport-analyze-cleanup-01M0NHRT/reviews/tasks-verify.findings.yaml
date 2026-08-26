@@ -1,0 +1,110 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: verify
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: TASKS-VERIFY-001
+    lens: "Catalog verify — per-AC test strategy concrete / revert discipline"
+    severity: 3
+    title: WP03's RED-first fixture (T010) is not required to assert against the actually-constructed `message=` string, weaker than plan.md's own binding revert-discipline wording, risking a vacuous proxy test
+    evidence:
+      - artifact: "tasks/WP03-commit-subject-fix.md § Subtask T010 (Steps)"
+        note: >
+          "add a fixture (unit-level string-shape proxy AND/OR a real `commitlint` invocation ...)
+          that exercises the CURRENT non-conforming subject shape
+          `f\"Add analysis report for mission {slug}\"` against commitlint's rules" — this literally
+          describes reproducing a copied/hardcoded literal string, not calling into
+          `mission_record_analysis.py`'s real code path.
+      - artifact: "plan.md § Revert discipline"
+        note: >
+          "a unit test asserting the constructed `message=` string matches the
+          `docs(<scope>): <subject>` shape is the fast/local proxy" — plan.md (binding) explicitly
+          requires the local proxy to assert against the string the code actually *constructs*,
+          not a value the test independently reproduces.
+      - code: "src/specify_cli/cli/commands/agent/mission_record_analysis.py:365"
+        note: >
+          "message=f\"Add analysis report for mission {_analysis_mission_slug}\"" — this is an
+          inline f-string with no extracted helper function; there is nothing a test can import to
+          get the constructed string without either (a) mocking `commit_for_mission` and capturing
+          its `message=` kwarg via a real CLI invocation, or (b) refactoring the string into a
+          testable helper. WP03 instructs neither.
+      - code: "tests/specify_cli/cli/commands/review/test_issue_matrix_finalize_lint.py:134-136"
+        note: >
+          Established codebase pattern for exactly this situation: MagicMock patches
+          `specify_cli.coordination.commit_router.commit_for_mission` and later inspects the call
+          args passed to it (including `message=`). WP03 does not point to this pattern.
+      - code: "tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py"
+        note: >
+          The existing, most-directly-relevant test module for this command has zero tests
+          touching `commit_for_mission` or `message=` today — confirmed via grep — so there is no
+          nearby precedent an implementer would organically find without being pointed at it.
+    claim: >
+      As literally worded, T010 permits an implementer to satisfy the mechanical RED-then-GREEN
+      commit-boundary check (T009-equivalent for WP01/WP02; here T010→T011) by writing a test that
+      hardcodes a copy of today's known-bad subject string and runs it through commitlint — a test
+      that is RED before the fix and, once the test's own hardcoded string is edited to the new
+      shape, trivially GREEN after — without ever calling into
+      `mission_record_analysis.py`'s real `message=` construction. Such a test would pass C-011's
+      letter (own commit, RED before GREEN) while providing none of plan.md's own required
+      revert-discipline value: reverting `mission_record_analysis.py`'s fix would NOT make this
+      test fail, since the test's hardcoded literal is disconnected from the code path it is meant
+      to guard. plan.md's Revert-discipline section is explicit that the unit-level proxy must
+      assert against "the constructed `message=` string" (i.e., the real code's output), and T010
+      does not carry that requirement forward — it only asks the fixture to "exercise... the
+      CURRENT... subject shape," which a hardcoded literal satisfies just as well as a
+      code-driven capture would.
+    remediation: >
+      Tighten T010's Steps to require the fixture to capture the real, live `message=` value
+      `mission_record_analysis.py` constructs — e.g. mock
+      `specify_cli.coordination.commit_router.commit_for_mission` (following the
+      `test_issue_matrix_finalize_lint.py:134-136` pattern already in this codebase) inside a real
+      CLI invocation of `record-analysis` (as `test_record_analysis_command_persists_report`
+      already does for other assertions), capture the `message=` kwarg from the mock's call args,
+      and run *that* captured string through commitlint / the shape assertion — not a
+      separately-typed literal. Name the target test module explicitly
+      (`tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py`, the closest existing
+      module for this command) to remove the "choose the most appropriate file" ambiguity as a
+      side effect.
+
+  - id: TASKS-VERIFY-002
+    lens: "Catalog verify — per-AC test strategy concrete (§591 ATDD-First, C-011)"
+    severity: 2
+    title: WP01 T003's validation describes an intermediate "half-GREEN" state for what is instructed to be a single combined NFR-002 test function, which pytest cannot literally report
+    evidence:
+      - artifact: "tasks/WP01-sk63-path-relativization.md § Subtask T002, step 3"
+        note: >
+          "Add a new test constructing an unrelativizable-path condition (per NFR-002) that
+          asserts BOTH (a) `write_analysis_report` raises/surfaces an explicit error ... AND
+          (b) `check_analysis_report_current` returns `AnalysisFreshness(ok=False, reason=...)` —
+          never raises ..." — singular "a new test" containing both assertions.
+      - artifact: "tasks/WP01-sk63-path-relativization.md § Subtask T003, Validation"
+        note: >
+          "the write-half of the NFR-002 test (`write_analysis_report` raises/surfaces an explicit
+          error) now passes GREEN. `check_analysis_report_current`'s half is still RED until T004."
+    claim: >
+      T002 instructs ONE test function asserting both halves of NFR-002. If T003 lands alone
+      (`_charter_path`/`_artifact_hash_entry` changed, but `check_analysis_report_current` still
+      has no try/except until T004), running that single test function would not show a "half
+      passing" result in pytest — it would still be reported as a whole failing/erroring test,
+      because the second assertion block (calling `check_analysis_report_current` and expecting a
+      typed non-raising result) would hit the same now-uncaught exception the write half raises,
+      and pytest reports the entire test function as one FAILED/ERROR outcome, not a partial pass.
+      T003's Validation section states this "half now passes GREEN" as if it is independently
+      observable, which it is not for a single test function as T002 specifies it. An implementer
+      following T003's validation literally, running the suite after T003 alone and seeing the
+      whole NFR-002 test still reported red, could reasonably conclude something is broken in
+      their T003 implementation when in fact T004 is simply still outstanding — a source of
+      avoidable confusion/rework within the WP, though it does not affect the WP's real,
+      mechanically-checkable RED-first commit boundary (T002 is still committed whole, before any
+      implementation commit).
+    remediation: >
+      Either (a) reword T003's Validation to state plainly that the full NFR-002 test remains RED
+      (as a whole) until T004 lands, and that "the write-half... now passes GREEN" refers only to
+      manually re-running the `write_analysis_report` assertion in isolation (e.g. via
+      `pytest.raises` scoped separately, or a REPL check) rather than the committed test's overall
+      pytest result; or (b), preferably, split the NFR-002 test into two test functions —
+      one exercising `write_analysis_report`'s raise behavior, one exercising
+      `check_analysis_report_current`'s non-raising behavior — so T003 and T004 each have their
+      own independently-green test, matching the WP's own step-by-step GREEN framing and removing
+      the ambiguity entirely.

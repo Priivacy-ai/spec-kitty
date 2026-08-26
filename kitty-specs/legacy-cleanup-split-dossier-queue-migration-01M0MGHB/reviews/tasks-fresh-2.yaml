@@ -1,0 +1,30 @@
+schema: review-findings/v1
+complete: true
+phase: tasks
+lens_group: fresh
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: TASKS-FRESH2-001
+    lens: decomposition
+    severity: 2
+    title: "T004's 'Parallel?' rationale still says T004 deletes _consume_legacy_values, contradicting T004 step 5 as rewritten by this round's TASKS-FRESH-003 fix"
+    evidence:
+      - artifact: "tasks/WP01-canonical-type-adoption-and-legacy-bridge-removal.md § Subtask T004, step 5 (lines 275-282)"
+      - artifact: "tasks/WP01-canonical-type-adoption-and-legacy-bridge-removal.md § Subtask T004, 'Parallel?' line (lines 283-284)"
+    claim: >
+      This round's fix (commit 3ad4bfa5d) rewrote T004 step 5 to explicitly say
+      "Do **not** delete `_consume_legacy_values` in this subtask ... the physical
+      deletion is correctly left to T005 step 7" — correctly closing the prior
+      TASKS-FRESH-003 finding. But the "Parallel?" line immediately below step 5,
+      which was not touched by this round's edit, still reads: "No — T005 must land
+      in the same commit (both edit the shared `_consume_legacy_values` helper this
+      subtask deletes)." That parenthetical directly contradicts the just-rewritten
+      step 5: it asserts T004 itself deletes the helper, which is now explicitly false.
+      An implementer or reviewer skimming only the "Parallel?"/rationale lines (a
+      common skim pattern, since Steps is the longest section) would come away with
+      the reverted, broken understanding that TASKS-FRESH-003 was raised to fix.
+    remediation: >
+      Reword the "Parallel?" line for T004 to match step 5's corrected story, e.g.:
+      "No — T005 must land in the same commit; T005 step 7 deletes the shared
+      `_consume_legacy_values` helper only after both this subtask's and T005's call
+      sites are gone." Do not leave language implying T004 performs the deletion.

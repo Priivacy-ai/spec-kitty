@@ -1402,28 +1402,33 @@ def _resolve_execution_lane(resolved_workspace: Any, lanes_feature_dir: Path, wp
     return lanes_manifest, lane
 
 
-def _resolve_active_lanes_manifest(repo_root: Path, base: str | None, resolved_workspace: Any, lanes_manifest: Any) -> Any:
-    """Apply ``--base`` (#1684): validate the ref and patch the manifest's
-    ``mission_branch`` so the allocator branches from the explicit base
-    instead of auto-detecting. ``--base`` selects only the ROOT the lane
-    branches from; the allocator still merges approved ``depends_on_lanes``
-    tips on top, so cross-lane code propagation is preserved regardless of
-    the chosen root. Returns *lanes_manifest* unchanged when ``--base`` does
-    not apply."""
+def _resolve_active_lanes_manifest(repo_root: Path, base: str | None, resolved_workspace: Any, lanes_manifest: Any) -> tuple[str | None, Any]:
+    """Validate ``--base`` (#1684) and resolve the effective base to thread
+    through ``create_lane_workspace``.
+
+    #3571 (P0): this NO LONGER smuggles the override through
+    ``lanes_manifest.mission_branch`` (the coord-topology allocation path
+    never read that field, silently discarding ``--base`` and printing a
+    fabricated success line). ``base`` is now threaded as an explicit
+    parameter all the way to the topology-aware allocator instead; this
+    function's job is reduced to validating the ref and applying the
+    planning-lane "ignored" warning (FR-007) — ``lanes_manifest`` is always
+    returned UNCHANGED.
+
+    Returns ``(effective_base, lanes_manifest)``. ``effective_base`` is
+    ``None`` when ``--base`` was not supplied OR the resolved workspace is a
+    repository-root planning lane (FR-007 — ``--base`` has no effect there).
+    The success line has moved to the CLI layer, AFTER allocation actually
+    succeeds (FR-005) — see the ``implement()`` call site."""
     from specify_cli.lanes.compute import is_planning_lane
 
     if base is None:
-        return lanes_manifest
+        return None, lanes_manifest
     if is_planning_lane(resolved_workspace):
         console.print("[yellow]Warning:[/yellow] --base is ignored for repository-root planning work")
-        return lanes_manifest
+        return None, lanes_manifest
     _validate_base_ref(repo_root, base)
-    # Shallow-patch the manifest's mission_branch so
-    # allocate_lane_worktree branches from the explicit ref.
-    from dataclasses import replace as _dc_replace
-
-    console.print(f"[cyan]→ Using explicit base ref: {base}[/cyan]")
-    return _dc_replace(lanes_manifest, mission_branch=base)
+    return base, lanes_manifest
 
 
 def _emit_blocked_on_alloc_failure(
@@ -1888,10 +1893,13 @@ def implement(
         # `spec-kitty implement` writes 0 runtime bytes to the WP file.
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
-        # When --base is provided, validate the ref and build a patched
-        # LanesManifest that uses it as the mission_branch so the worktree
-        # allocator branches from the explicit base instead of auto-detecting.
-        active_lanes_manifest = _resolve_active_lanes_manifest(repo_root, base, resolved_workspace, lanes_manifest)
+        # #3571: when --base is provided, validate the ref (planning-lane
+        # "ignored" warning applied here, FR-007) and thread the EFFECTIVE
+        # base as an explicit parameter into create_lane_workspace, which
+        # forwards it to the topology-aware allocator (never smuggled
+        # through lanes_manifest.mission_branch — the coord path never read
+        # that field).
+        effective_base, active_lanes_manifest = _resolve_active_lanes_manifest(repo_root, base, resolved_workspace, lanes_manifest)
 
         result = create_lane_workspace(
             repo_root=repo_root,
@@ -1902,6 +1910,7 @@ def implement(
             lanes_manifest=active_lanes_manifest,
             declared_deps=declared_deps,
             vcs_backend_value=vcs_backend.value,
+            base=effective_base,
         )
         workspace_path = result.workspace_path
         branch_name = result.branch_name
@@ -1917,6 +1926,19 @@ def implement(
         )
 
         _report_workspace_created(tracker, result, workspace_path, repo_root)
+
+        # #3571 (FR-005): the success line prints ONLY here — AFTER
+        # create_lane_workspace has actually returned successfully — so it
+        # can never fabricate success. Guarded so it fires only when a base
+        # was supplied AND actually applies (not on a repository-root
+        # planning lane, where --base is a no-op warned about above); it is
+        # therefore unreachable on base=None, on the planning-lane branch,
+        # on the orchestrator-api path (a different call site entirely), and
+        # on any fail-loud raise (control never reaches this line).
+        from specify_cli.lanes.compute import is_planning_lane
+
+        if effective_base is not None and not is_planning_lane(resolved_workspace):
+            console.print(f"[cyan]→ Using explicit base ref: {effective_base}[/cyan]")
     except typer.Exit:
         console.print(tracker.render())
         raise

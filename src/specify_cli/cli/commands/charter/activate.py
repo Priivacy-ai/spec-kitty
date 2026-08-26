@@ -26,7 +26,6 @@ from __future__ import annotations
 import contextlib
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from pathlib import Path
-from typing import cast
 
 import typer
 from rich.console import Console
@@ -109,21 +108,12 @@ def _source_urn(
     except MissionTypeNotAnArtifactKind:
         return None
     try:
-        # ``resolve_artifact_urn`` is declared ``-> str`` in charter/kind_vocabulary.py,
-        # but the project's mypy config sets ``follow_imports = "skip"`` for the
-        # ``charter.*`` module pattern (pyproject.toml), so mypy treats the imported
-        # symbol's return as ``Any`` here rather than reading its real signature.
-        # The cast is an honest re-statement of the already-declared type, not a
-        # suppression of a real type error.
-        return cast(
-            str,
-            resolve_artifact_urn(
-                kind_enum,
-                artifact_id,
-                doctrine_root=resolve_doctrine_root(),
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-            ),
+        return resolve_artifact_urn(
+            kind_enum,
+            artifact_id,
+            doctrine_root=resolve_doctrine_root(),
+            org_roots=org_roots,
+            layer_roots=layer_roots,
         )
     except UnknownArtifactIdError:
         return None
@@ -151,17 +141,11 @@ def _drg_id_to_config_id(
     only pack ``layer_roots["org"]`` could ever carry).
     """
     try:
-        # See the matching comment on ``_source_urn`` above: ``resolve_config_id``
-        # is declared ``-> str``, but the ``charter.*`` mypy import-skip override
-        # erases that at this call site; the cast restates the real signature.
-        return cast(
-            str,
-            resolve_config_id(
-                f"{kind_value}:{drg_id}",
-                doctrine_root=doctrine_root,
-                org_roots=org_roots,
-                layer_roots=layer_roots,
-            ),
+        return resolve_config_id(
+            f"{kind_value}:{drg_id}",
+            doctrine_root=doctrine_root,
+            org_roots=org_roots,
+            layer_roots=layer_roots,
         )
     except (UnknownArtifactIdError, ValueError):
         return drg_id

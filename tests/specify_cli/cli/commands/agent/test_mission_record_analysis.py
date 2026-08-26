@@ -12,6 +12,8 @@ harness; these add the missing focused branch coverage.
 from __future__ import annotations
 
 from pathlib import Path
+import re
+from unittest.mock import patch
 
 import pytest
 import typer
@@ -234,3 +236,138 @@ def test_command_unexpected_exception_human(
     result = _RUNNER.invoke(mission_app, ["record-analysis"], catch_exceptions=False)
     assert result.exit_code == 1
     assert "kaboom" in result.stdout
+
+
+# ---------------------------------------------------------------------------
+# record_analysis command — commit-subject conventional-commit shape (#3678)
+# ---------------------------------------------------------------------------
+#
+# commitlint.config.cjs's `type-enum`/`type-case`/`type-empty`/`subject-empty`
+# rules reject the pre-fix subject `f"Add analysis report for mission {slug}"`
+# outright (no recognized `type(scope):` prefix at all). Per spec.md's
+# Grounding Correction 4 / ledger SK-64, the fix direction is: give the
+# `commit_for_mission(...)` call a REAL conventional-commit subject
+# (`docs(<scope>): <subject>`) -- commitlint.config.cjs (C-004) is untouched.
+#
+# This test captures the REAL `message=` kwarg `commit_for_mission` receives
+# (mocked at its canonical import path -- the same
+# `specify_cli.coordination.commit_router.commit_for_mission` patch target
+# used by `test_record_analysis_coord_worktree.py`'s materialise-then-retry
+# test) via a real end-to-end CLI invocation of `record-analysis` -- never a
+# second, independently-typed literal -- so it fails if
+# `mission_record_analysis.py`'s construction is reverted (non-vacuous).
+#
+# The regex below is a unit-level, offline proxy for commitlint's four active
+# rules (a member of `type-enum`'s allowlist, `type-case: lower-case`,
+# `type-empty`/`subject-empty`: never). The authoritative evidence -- the
+# real `npx --yes @commitlint/cli@19.8.1 --config commitlint.config.cjs`
+# invocation -- was run directly against both the pre-fix and post-fix
+# subject strings during this WP (see the WP completion report); it is not
+# re-encoded as a pytest function here because it needs real subprocess/
+# network access, which the `unit`/`fast` markers on this module (pytest.ini:
+# "no subprocess ... no network") explicitly exclude, and this file may not
+# gain a second module per WP03's own task scope.
+
+_COMMITLINT_TYPE_ENUM = {
+    "build",
+    "chore",
+    "ci",
+    "docs",
+    "feat",
+    "fix",
+    "lint",
+    "perf",
+    "plan",
+    "refactor",
+    "revert",
+    "spec",
+    "style",
+    "test",
+}
+
+# Mirrors the `type(scope): subject` shape commitlint's `type-enum`/
+# `type-case`/`type-empty`/`subject-empty` rules require -- see
+# `commitlint.config.cjs`.
+_CONVENTIONAL_COMMIT_RE = re.compile(r"^(?P<type>[a-z]+)\((?P<scope>[^)]+)\):\s+(?P<subject>\S.*)$")
+
+
+def _make_primary_feature_dir(feature_dir: Path) -> None:
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+
+
+_CARRIER_READY = (
+    "---\n"
+    "schema: analysis-findings/v1\n"
+    "findings: []\n"
+    "counts: {critical: 0, high: 0, medium: 0, low: 0, info: 0}\n"
+    "---\n\n"
+    "# Specification Analysis Report\n\nNo blocking findings.\n"
+)
+
+
+def test_record_analysis_commit_subject_is_conventional_commit_shaped(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """#3678 / FR-006: the real captured `message=` kwarg must be a
+    ``docs(<scope>): <subject>`` conventional-commit subject.
+
+    RED-first: against the pre-fix
+    ``f"Add analysis report for mission {slug}"`` construction, the captured
+    message has no ``type(scope):`` prefix at all, so
+    ``_CONVENTIONAL_COMMIT_RE`` does not match and this test fails -- the
+    same failure mode commitlint's ``type-empty``/``subject-empty`` rules
+    report (confirmed via a live ``commitlint`` run during this WP). GREEN
+    after the fix: the captured message matches, with ``type`` pinned to the
+    literal ``docs``.
+    """
+    from specify_cli.analysis_report import ANALYSIS_REPORT_FILENAME
+    from specify_cli.coordination.commit_router import CommitRouterResult
+
+    slug = "sample-01KS"
+    repo_root = tmp_path
+    primary_feature_dir = repo_root / "kitty-specs" / slug
+    _make_primary_feature_dir(primary_feature_dir)
+
+    input_file = tmp_path.parent / f"{tmp_path.name}-analysis-subject.md"
+    input_file.write_text(_CARRIER_READY, encoding="utf-8")
+
+    monkeypatch.setattr(seam, "locate_project_root", lambda: repo_root)
+    monkeypatch.setattr(seam, "get_main_repo_root", lambda _path: repo_root)
+    monkeypatch.setattr(seam, "_find_feature_directory", lambda *_a, **_k: primary_feature_dir)
+
+    emitted: dict[str, object] = {}
+    monkeypatch.setattr(seam, "_emit_json", lambda payload: emitted.update(payload))
+
+    captured_calls: list[dict[str, object]] = []
+
+    def _fake_commit_for_mission(**kwargs: object) -> CommitRouterResult:
+        captured_calls.append(kwargs)
+        return CommitRouterResult(status="committed", placement_ref="main", commit_hash="abc1234")
+
+    with patch(
+        "specify_cli.coordination.commit_router.commit_for_mission",
+        side_effect=_fake_commit_for_mission,
+    ):
+        result = _RUNNER.invoke(
+            mission_app,
+            ["record-analysis", "--mission", slug, "--input-file", str(input_file), "--json"],
+            catch_exceptions=False,
+        )
+
+    assert result.exit_code == 0, emitted
+    assert emitted.get("success") is True
+    assert (primary_feature_dir / ANALYSIS_REPORT_FILENAME).exists()
+    assert len(captured_calls) == 1, "commit_for_mission was not called exactly once"
+
+    message = captured_calls[0]["message"]
+    assert isinstance(message, str)
+
+    match = _CONVENTIONAL_COMMIT_RE.match(message)
+    assert match is not None, f"not a conventional-commit subject: {message!r}"
+    assert match.group("type") == "docs", message
+    assert match.group("type") in _COMMITLINT_TYPE_ENUM, message
+    assert match.group("subject").strip() != ""
+    assert slug in message

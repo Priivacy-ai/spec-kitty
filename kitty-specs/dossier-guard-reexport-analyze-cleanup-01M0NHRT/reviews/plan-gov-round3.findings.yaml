@@ -1,0 +1,99 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: gov
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: PLAN-GOV-001
+    lens: Reflexivity recovery-path split correctness
+    severity: 3
+    title: FR-007 recovery-path branch mislabels its own RED-first discipline as belonging to IC-01, not IC-03
+    evidence:
+      - artifact: "plan.md § Reflexivity, 'Recovery path' bullet 1 (FR-007/NFR-002 leak branch), around line 527"
+      - artifact: "plan.md § §591 ATDD-First sequencing (C-011, binding), lines 378-397 — this section's content is entirely about IC-01's two guard fixtures"
+    claim: >
+      The just-split FR-007/NFR-002 recovery-path bullet reads: "confirm it is RED against the
+      currently-landed IC-03 implementation, then amend that implementation until it is GREEN — the
+      same RED-first discipline §591 applies to IC-01." Every noun phrase in this sentence up to that
+      point is about IC-03 (the record-analysis path-relativization fix): "IC-03 implementation,"
+      "that implementation." The closing clause then names IC-01 — a completely unrelated concern
+      (the dossier-emitter positional-call guard). This is either a copy-paste artifact from the prior
+      draft or a genuine mix-up; either way it is exactly the kind of cross-IC conflation the round-2
+      re-authoring (PLAN-FRESH2-003) was meant to eliminate from this section, and it survives into
+      the current re-authored text. A reader has to guess whether the sentence means "apply the same
+      discipline §591 establishes for IC-01" (i.e., a by-analogy reference) or is mistakenly saying
+      this recovery step IS part of IC-01.
+    remediation: >
+      Rewrite the closing clause to unambiguously reference IC-03, e.g.: "— the same RED-first
+      discipline §591 establishes for IC-01 applies here, to this IC-03 fix." Or drop the IC-01
+      reference entirely and simply state "— apply the same RED-first discipline as §591 (RED-first
+      commit before the GREEN implementation commit)."
+
+  - id: PLAN-GOV-002
+    lens: Reflexivity recovery-path split correctness (FR-006 branch vs SC-005 acceptance method)
+    severity: 3
+    title: FR-006 recovery-path RED-first fixture instruction claims to follow SC-005's method but does not specify SC-005's actual commit-range mechanism
+    evidence:
+      - artifact: "plan.md § Reflexivity, 'Recovery path' bullet 2 (FR-006 branch), lines 528-533"
+      - artifact: "spec.md SC-005, line 162: 'commitlint --from <parent-sha> --to <analysis-commit-sha> reports 0 problems'"
+      - artifact: "plan.md § Test strategy per FR/AC, FR-006 row, line 457, which does state the --from/--to form explicitly"
+    claim: >
+      The FR-006 recovery-path branch instructs: "Add a RED-first fixture that runs the repo's real
+      `commitlint` invocation against the actual failing subject string (per SC-005's live-commitlint
+      acceptance method, not a unit-level string-shape assertion alone)." SC-005's actual acceptance
+      method is a git-commit-range invocation (`commitlint --from <parent-sha> --to
+      <analysis-commit-sha>`), which requires two real commits in a git history to lint against — a
+      materially different, more expensive fixture than linting a bare subject string in isolation
+      (e.g. via commitlint's stdin/message-only mode). The Reflexivity FR-006 branch's phrase "against
+      the actual failing subject string" reads as the latter (string-only) shape, yet the branch
+      simultaneously claims to be following "SC-005's live-commitlint acceptance method" (the
+      commit-range shape) — the plan's own Test-strategy table (line 457) uses the explicit
+      `--from <parent-sha> --to <analysis-commit-sha>` phrasing for this exact same FR, but the
+      Reflexivity branch drops that phrasing. An implementer could reasonably build either fixture
+      shape from this text, and only the commit-range shape is actually faithful to SC-005 as spec.md
+      defines it — a stdin/string-only fixture would pass or fail independently of git commit context
+      and would not be the "live commitlint run" against the real commit that SC-005 and the Test
+      Strategy table both describe.
+    remediation: >
+      Make the FR-006 recovery-path branch explicitly name the same mechanism as the Test Strategy
+      table and SC-005: "Add a RED-first fixture that constructs the two relevant commits (parent +
+      the failing-subject `record-analysis` commit) and runs `commitlint --from <parent-sha> --to
+      <failing-commit-sha>` against them, matching SC-005's and the Test Strategy table's FR-006
+      acceptance method exactly (not a bare-string/stdin lint) — confirm 0-problems is NOT what it
+      reports pre-fix (RED), then amend `mission_record_analysis.py`'s `message=` construction until
+      it reports 0 problems (GREEN)."
+
+  - id: PLAN-GOV-003
+    lens: Directive (charter RED-first / ATDD-first standing order, C-011)
+    severity: 3
+    title: IC-03/FR-007's new NFR-002 test has no explicit RED-first commit-sequencing instruction, unlike IC-01's dedicated §591 section, despite plan.md's own Standing-Order-4 text implying one exists
+    evidence:
+      - artifact: "plan.md § Quality & Tech-Debt Standing Orders — applied, item 4 ('Test remediation & bug-fix discipline'), lines 136-140: 'the RED-first sequencing above satisfies this for the guard widening; the five updated charter-path assertions are judged VALID ... and are being changed because the product's own contract changed (FR-007)'"
+      - artifact: "plan.md § §591 ATDD-First sequencing (C-011, binding), lines 378-397 — scoped entirely to IC-01's two new guard fixtures, with an explicit two-commit RED-then-GREEN order and reviewer-verification framing"
+      - artifact: "plan.md § Test strategy per FR/AC, FR-007 row, line 458 — describes WHAT the new NFR-002 test asserts, not WHEN (commit order) it must be written relative to the implementation"
+      - artifact: "plan.md § Revert discipline, lines 468-471 — frames the five updated assertions and the NFR-002 test in terms of what fails on revert, not in terms of RED-first commit ordering"
+    claim: >
+      Charter C-011 (ATDD-First Discipline, binding) requires every implementation WP to have "at
+      least one failing-first ATDD test ... committed as a separate commit ... BEFORE any
+      implementation commits," with the reviewer verifying RED-on-base/GREEN-on-final. IC-01 operates
+      this literally: its own dedicated "§591 ATDD-First sequencing" subsection prescribes a two-commit
+      order (RED-first fixture commit, then GREEN implementation commit) and states the exact
+      before/after checkout verification a reviewer must run. IC-03/FR-007 introduces genuinely new
+      user-observable behavior too — the NFR-002 test that "constructs an unrelativizable-path
+      condition" and asserts raise/non-raise behavior is a new test, not merely an updated assertion —
+      yet plan.md has no equivalent dedicated sequencing subsection for it: the closest text ("Test
+      strategy per FR/AC" and "Revert discipline") describes what the test checks, not when in commit
+      order it must land relative to the FR-007 implementation. Worse, plan.md's own Standing-Order-4
+      paragraph asserts "the RED-first sequencing above satisfies this ... [for] the five updated
+      charter-path assertions," but the only "sequencing... above" in the document (§591) is scoped
+      explicitly and exclusively to IC-01 in every sentence of that section — it never mentions FR-007,
+      `analysis_report.py`, or the charter-path assertions. This is an internal inconsistency: the plan
+      claims an RED-first sequencing procedure already covers IC-03's test-remediation work when the
+      procedure it points to does not.
+    remediation: >
+      Either (a) add an explicit RED-first commit-sequencing subsection for IC-03/FR-007 paralleling
+      §591's structure — a numbered RED-first-commit-then-GREEN-implementation-commit sequence for the
+      new NFR-002 test and the five updated assertions, with the same before/after
+      checkout-and-re-run reviewer-verification framing — or (b) if the intent was genuinely to rely on
+      §591 by cross-reference, correct the Standing-Order-4 sentence so it does not claim §591 already
+      covers FR-007's assertions when §591's own text is scoped to IC-01 only.

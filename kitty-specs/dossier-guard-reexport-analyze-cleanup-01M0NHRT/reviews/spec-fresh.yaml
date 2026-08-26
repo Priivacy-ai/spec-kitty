@@ -1,0 +1,65 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: fresh
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: SPEC-FRESH-001
+    lens: conceptual-alignment
+    severity: 3
+    title: "Three narrative sections still call the whole input_artifacts path set \"repo-relative\", contradicting the new governing-root split"
+    evidence:
+      - artifact: "spec.md § Key Entities, line 139"
+      - artifact: "spec.md § Clarifications / Decision Record, D3, line 18"
+      - artifact: "spec.md § Charter-clause resolutions, §106 change-scope reconciliation, line 23"
+      - code: "src/specify_cli/analysis_report.py:203-213 (_charter_path resolves canonical_root separately from repo_root)"
+    claim: >
+      Grounding Correction 3 (added in this fix round) and its downstream FR-007, NFR-002,
+      User Story 1 AC-2/AC-3/AC-5, and the Edge Cases section now correctly distinguish two
+      governing roots for `input_artifacts` paths: `repo_root` for spec.md/plan.md/tasks.md,
+      and `canonical_root` for the `charter` entry specifically. That split was NOT
+      back-filled into three other places that describe the exact same fix in uniform
+      "repo-relative" terms: (1) Key Entities' description of
+      `AnalysisReportResult.input_artifacts` still says "This mission changes the semantics
+      of the path value from an absolute filesystem path to a repo_root-relative path
+      string" with no carve-out for the charter entry; (2) D3 still calls the SK-63 fold
+      "the repo-relative input-artifact-path fix"; (3) §106 change-scope reconciliation
+      still describes analysis_report.py's touch as "repo-relative path recording". A reader
+      who consults only Key Entities (a natural first stop for "what does this field mean")
+      would conclude every path, including charter's, is repo_root-relative — directly
+      contradicting FR-007/NFR-002 and the test this mission must not break
+      (`test_charter_hash_resolves_canonical_root_from_worktree`). This is the same
+      conceptual-alignment gap the fix round closed in the FR/AC/Edge-Case sections but left
+      open in the surrounding narrative sections describing the identical behavior.
+    remediation: >
+      Update all three sites to use "governing-root-relative" (or explicitly name both
+      roots, as FR-007 does) instead of the uniform "repo-relative"/"repo_root-relative"
+      wording: Key Entities line 139, D3 line 18, and §106 line 23.
+
+  - id: SPEC-FRESH-002
+    lens: markdown-hygiene
+    severity: 3
+    title: "NFR-001's grep-pattern example contains an unescaped table-cell pipe that GFM parses as an extra column, silently dropping the row's Status value"
+    evidence:
+      - artifact: "spec.md § Non-Functional Requirements, NFR-001 row, line 121"
+    claim: >
+      NFR-001's Requirement cell contains the inline code span
+      `` `grep -E '"path":\s*"(/home|/Users)/'` `` — the `|` inside `(/home|/Users)` is a
+      literal, unescaped pipe. GFM table-row splitting operates on the raw line before
+      inline (code-span) parsing runs, so it does not exempt pipes inside backticks; only
+      `\|` is recognized as an escaped, non-delimiting pipe. Splitting the raw row on every
+      unescaped `|` yields 7 content cells against the table's 6-column header
+      (ID/Title/Requirement/Category/Priority/Status): ID, Title,
+      `...measurable via \`grep -E '"path":\s*"(/home`, `` Users)/'` returning zero
+      matches. ``, Security, High, Open. Per the GFM tables spec, a row with more cells
+      than the header keeps only the first N (here 6) and discards the rest — so the
+      rendered row would show Category = the garbled `Users)/'\` returning zero matches.`
+      fragment, Priority = Security, Status = High, and the actual Status value ("Open") is
+      silently dropped from the rendered table. This corrupts the one row whose entire
+      purpose is documenting the exact grep check for the security-relevant no-path-leak
+      requirement.
+    remediation: >
+      Escape the inner pipe (`(/home\|/Users)`) or avoid the alternation syntax in the
+      table cell entirely — e.g. split into two separate patterns joined by prose ("matching
+      `/home/` or `/Users/`"), or move the grep example to a fenced code block below the
+      table instead of inline in the cell.

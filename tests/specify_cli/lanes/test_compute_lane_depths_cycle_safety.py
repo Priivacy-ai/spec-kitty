@@ -14,7 +14,7 @@ import pytest
 
 from specify_cli.lanes.compute import LaneComputationError, _compute_lane_depths, compute_lanes
 from specify_cli.lanes.models import ExecutionLane
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 
 pytestmark = [pytest.mark.fast]
@@ -92,12 +92,12 @@ def test_compute_lanes_cycle_fails_loud_before_depth_assignment():
     graph = {"WP01": ["WP02"], "WP02": ["WP01"]}
     manifests = {
         "WP01": OwnershipManifest(
-            execution_mode=ExecutionMode.CODE_CHANGE,
+            execution_mode=WorkProductKind.CODE_CHANGE,
             owned_files=("src/a/**",),
             authoritative_surface="src/a/",
         ),
         "WP02": OwnershipManifest(
-            execution_mode=ExecutionMode.CODE_CHANGE,
+            execution_mode=WorkProductKind.CODE_CHANGE,
             owned_files=("src/b/**",),
             authoritative_surface="src/b/",
         ),

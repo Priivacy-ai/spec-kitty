@@ -8,7 +8,6 @@ command ``create()`` is a thin wrapper around this function.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import contextlib
 import logging
 import re
 import shutil
@@ -41,6 +40,11 @@ from specify_cli.core.mission_payload import (
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from kernel.clock import now_utc_iso
 from specify_cli.git import safe_commit
+from specify_cli.git.commit_helpers import (
+    ProtectedBranchRefused,
+    SafeCommitDestinationNotFound,
+    SafeCommitHeadMismatch,
+)
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
@@ -57,6 +61,11 @@ _META_KEY_CREATED_AT = "created_at"
 # The glob lets the failure-atomic rollback diff pre- vs post-create refs so it
 # deletes exactly the orphan branch an aborted create left behind.
 _COORDINATION_BRANCH_GLOB = "kitty/mission-*"
+_BOOTSTRAP_META_COMMIT_SKIPS = (
+    ProtectedBranchRefused,
+    SafeCommitDestinationNotFound,
+    SafeCommitHeadMismatch,
+)
 
 
 class MissionCreationError(RuntimeError):
@@ -185,8 +194,13 @@ def _commit_feature_file(
     """Commit a single planning artifact to its seam-resolved primary home.
 
     This is a slim, typer-free version of the ``_commit_to_branch`` helper
-    in the CLI module.  It raises on hard failures and silently succeeds
-    when there is nothing to commit.
+    in the CLI module. It delegates straight to ``safe_commit`` with no
+    try/except of its own, so it raises on BOTH a hard git failure and an
+    empty changeset (``safe_commit`` itself raises ``RuntimeError`` when
+    there is nothing to commit -- it does NOT silently no-op). Callers that
+    know their changeset is always non-empty (e.g. the FR-001 ``meta.json``
+    commit call sites, where the file genuinely differs from HEAD at create
+    time) can safely treat any raise here as a hard failure.
 
     coord-primary-partition-lock WP02 (T007 / C-001 / C-006): the commit
     destination is derived from ``placement_seam(...).write_target(SPEC)``,
@@ -212,13 +226,7 @@ def _commit_feature_file(
     # commit; this caller does not duplicate that decision (T010).
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
     effective_worktree = worktree_root or repo_root
-    seam_target = (
-        create_time_target
-        if create_time_target is not None
-        else placement_seam(repo_root, mission_slug).write_target(
-            MissionArtifactKind.SPEC
-        )
-    )
+    seam_target = create_time_target if create_time_target is not None else placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC)
     safe_commit(
         repo_root=repo_root,
         worktree_root=effective_worktree,
@@ -501,10 +509,7 @@ def _create_mission_core_impl(
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
     effective_root = (
-        ownership_claim.claimed_checkout
-        if ownership_claim is not None
-        and ownership_claim.validation_result is OwnershipValidationResult.OWNED
-        else resolved_root
+        ownership_claim.claimed_checkout if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else resolved_root
     )
 
     if not is_git_repo(resolved_root):
@@ -518,20 +523,13 @@ def _create_mission_core_impl(
     # 3. Resolve planning branch
     # ------------------------------------------------------------------
     planning_branch = target_branch if target_branch else current_branch
-    create_time_target = (
-        resolve_create_time_write_target(planning_branch)
-        if ownership_claim is not None
-        and ownership_claim.validation_result is OwnershipValidationResult.OWNED
-        else None
-    )
+    create_time_target = resolve_create_time_write_target(planning_branch)
     if not normalized_friendly_name:
         normalized_friendly_name = default_mission_display_name(mission_slug)
 
     normalized_purpose_tldr = " ".join((purpose_tldr or "").split()) if purpose_tldr is not None else normalized_friendly_name
     normalized_purpose_context = (
-        " ".join((purpose_context or "").split())
-        if purpose_context is not None
-        else default_mission_purpose_context(normalized_friendly_name, planning_branch)
+        " ".join((purpose_context or "").split()) if purpose_context is not None else default_mission_purpose_context(normalized_friendly_name, planning_branch)
     )
     purpose_errors = validate_purpose_summary(normalized_purpose_tldr, normalized_purpose_context)
     if purpose_errors:
@@ -711,7 +709,16 @@ def _create_mission_core_impl(
     from specify_cli.mission_metadata import set_documentation_state, write_meta
 
     write_meta(feature_dir, meta)
-    with contextlib.suppress(Exception):
+    # FR-001 (#3673): do NOT suppress -- a hard git failure here must raise
+    # so ``create_mission_core``'s existing rollback
+    # (``_restore_git_state_after_failed_create``) fires. ``_commit_feature_file``
+    # does NOT no-op on an empty changeset -- it calls ``safe_commit`` directly,
+    # which itself RAISES on an empty changeset (see its docstring). That path
+    # is safe here because ``meta.json`` genuinely differs from HEAD at create
+    # time, so the commit is non-empty on the real paths. NFR-001: re-raise
+    # with step context so the error names the failing step, not just the raw
+    # underlying git error text.
+    try:
         _commit_feature_file(
             meta_file,
             mission_slug_formatted,
@@ -720,6 +727,15 @@ def _create_mission_core_impl(
             worktree_root=effective_root,
             create_time_target=create_time_target,
         )
+    except _BOOTSTRAP_META_COMMIT_SKIPS as exc:
+        logger.info(
+            "Skipping bootstrap meta.json commit for %s on planning branch %s: %s",
+            mission_slug_formatted,
+            planning_branch,
+            exc,
+        )
+    except Exception as exc:
+        raise RuntimeError(f"meta.json commit failed: {exc}") from exc
 
     # ------------------------------------------------------------------
     # 7. Documentation state (if applicable)
@@ -736,7 +752,12 @@ def _create_mission_core_impl(
                 "coverage_percentage": 0.0,
             }
             set_documentation_state(feature_dir, doc_state)
-        with contextlib.suppress(Exception):
+        # FR-001 (#3673): identical fix, second call site -- not partial to
+        # the primary mission-type branch (Acceptance Scenario 4). NFR-001:
+        # re-raise with step context (see the primary call site above for the
+        # full rationale on why the empty-changeset path is not a concern
+        # here).
+        try:
             _commit_feature_file(
                 meta_file,
                 mission_slug_formatted,
@@ -745,6 +766,15 @@ def _create_mission_core_impl(
                 worktree_root=effective_root,
                 create_time_target=create_time_target,
             )
+        except _BOOTSTRAP_META_COMMIT_SKIPS as exc:
+            logger.info(
+                "Skipping bootstrap documentation meta.json commit for %s on planning branch %s: %s",
+                mission_slug_formatted,
+                planning_branch,
+                exc,
+            )
+        except Exception as exc:
+            raise RuntimeError(f"meta.json commit failed: {exc}") from exc
 
     # ------------------------------------------------------------------
     # 8. Event emission
@@ -799,9 +829,7 @@ def _create_mission_core_impl(
             event_type=SPECIFY_STARTED,
             mission_slug=mission_slug_formatted,
             actor="spec-kitty mission create",
-            artifact_path=str(spec_file.relative_to(effective_root))
-            if spec_file.is_relative_to(effective_root)
-            else "spec.md",
+            artifact_path=str(spec_file.relative_to(effective_root)) if spec_file.is_relative_to(effective_root) else "spec.md",
         )
     except Exception as _phase_evt_exc:  # noqa: BLE001
         logger.debug(
@@ -825,12 +853,10 @@ def _create_mission_core_impl(
     origin_binding_succeeded = False
     origin_binding_error: str | None = None
 
-    origin_binding_attempted, origin_binding_succeeded, origin_binding_error, meta = (
-        _consume_pending_origin_if_present(
-            repo_root=resolved_root,
-            feature_dir=feature_dir,
-            meta=meta,
-        )
+    origin_binding_attempted, origin_binding_succeeded, origin_binding_error, meta = _consume_pending_origin_if_present(
+        repo_root=resolved_root,
+        feature_dir=feature_dir,
+        meta=meta,
     )
 
     # ------------------------------------------------------------------
@@ -852,10 +878,7 @@ def _create_mission_core_impl(
         coordination_branch=coordination_branch_value,
         coordination_branch_created=coordination_branch_created_flag,
         owned_checkout=(
-            ownership_claim.claimed_checkout
-            if ownership_claim is not None
-            and ownership_claim.validation_result is OwnershipValidationResult.OWNED
-            else None
+            ownership_claim.claimed_checkout if ownership_claim is not None and ownership_claim.validation_result is OwnershipValidationResult.OWNED else None
         ),
         canonical_repo_root=resolved_root,
     )
@@ -882,7 +905,5 @@ def _consume_pending_origin_if_present(
     # so the return of consume_pending_origin is seen as Any here; the
     # explicit annotation re-introduces the correct return type so the caller
     # does not propagate Any (no blanket suppression needed).
-    result: tuple[bool, bool, str | None, dict[str, Any]] = consume_pending_origin(
-        repo_root, feature_dir, meta
-    )
+    result: tuple[bool, bool, str | None, dict[str, Any]] = consume_pending_origin(repo_root, feature_dir, meta)
     return result

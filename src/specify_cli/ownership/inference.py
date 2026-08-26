@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 __all__ = [
     "infer_execution_mode",
@@ -58,7 +58,7 @@ _PATH_PATTERN = re.compile(
 )
 
 
-def infer_execution_mode(wp_content: str, wp_files: list[str]) -> ExecutionMode:
+def infer_execution_mode(wp_content: str, wp_files: list[str]) -> WorkProductKind:
     """Infer whether a WP is a code_change or planning_artifact.
 
     Heuristic (in order of precedence):
@@ -72,15 +72,15 @@ def infer_execution_mode(wp_content: str, wp_files: list[str]) -> ExecutionMode:
         wp_files: Optional list of file paths explicitly listed as WP deliverables.
 
     Returns:
-        Inferred ExecutionMode.
+        Inferred WorkProductKind.
     """
     planning_score, code_score = score_execution_mode_signals(wp_content, wp_files)
 
     if planning_score > 0 and code_score == 0:
-        return ExecutionMode.PLANNING_ARTIFACT
+        return WorkProductKind.PLANNING_ARTIFACT
 
     # Default: code_change
-    return ExecutionMode.CODE_CHANGE
+    return WorkProductKind.CODE_CHANGE
 
 
 def score_execution_mode_signals(wp_content: str, wp_files: list[str]) -> tuple[int, int]:
@@ -123,18 +123,12 @@ def _acceptance_criteria_scope(wp_body: str) -> str:
 
 def detect_post_integration_acceptance(wp_content: str, wp_files: list[str]) -> list[str]:
     """Warn when a code WP's acceptance criteria are post-integration only."""
-    if infer_execution_mode(wp_content, wp_files) is not ExecutionMode.CODE_CHANGE:
+    if infer_execution_mode(wp_content, wp_files) is not WorkProductKind.CODE_CHANGE:
         return []
     scope = _acceptance_criteria_scope(wp_content)
     if not scope:
         return []
-    matched = sorted(
-        {
-            match.group(0).strip().lower()
-            for pattern in _POST_INTEGRATION_MARKERS
-            for match in pattern.finditer(scope)
-        }
-    )
+    matched = sorted({match.group(0).strip().lower() for pattern in _POST_INTEGRATION_MARKERS for match in pattern.finditer(scope)})
     if not matched:
         return []
     phrases = ", ".join(f"'{phrase}'" for phrase in matched)
@@ -163,7 +157,7 @@ def infer_owned_files(wp_content: str, mission_slug: str) -> tuple[list[str], li
     """
     execution_mode = infer_execution_mode(wp_content, [])
 
-    if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+    if execution_mode == WorkProductKind.PLANNING_ARTIFACT:
         return [f"kitty-specs/{mission_slug}/**"], []
 
     # Extract path tokens mentioned in the WP

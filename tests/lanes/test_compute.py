@@ -10,14 +10,14 @@ from specify_cli.lanes.compute import (
     find_overlap_pairs,
     infer_surfaces,
 )
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 pytestmark = pytest.mark.fast
 
 
 def _manifest(owned_files: list[str], mode: str = "code_change") -> OwnershipManifest:
     return OwnershipManifest(
-        execution_mode=ExecutionMode(mode),
+        execution_mode=WorkProductKind(mode),
         owned_files=tuple(owned_files),
         authoritative_surface=owned_files[0] if owned_files else "",
     )

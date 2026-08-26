@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.lanes.compute import PLANNING_LANE_ID, compute_lanes
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 
 pytestmark = [pytest.mark.fast]
@@ -27,7 +27,7 @@ pytestmark = [pytest.mark.fast]
 
 def _code(wp_id: str, owned: tuple[str, ...] = ()) -> OwnershipManifest:
     return OwnershipManifest(
-        execution_mode=ExecutionMode.CODE_CHANGE,
+        execution_mode=WorkProductKind.CODE_CHANGE,
         owned_files=owned or (f"src/{wp_id.lower()}.py",),
         authoritative_surface=f"src/{wp_id.lower()}/",
     )
@@ -35,7 +35,7 @@ def _code(wp_id: str, owned: tuple[str, ...] = ()) -> OwnershipManifest:
 
 def _plan(wp_id: str) -> OwnershipManifest:
     return OwnershipManifest(
-        execution_mode=ExecutionMode.PLANNING_ARTIFACT,
+        execution_mode=WorkProductKind.PLANNING_ARTIFACT,
         owned_files=(f"kitty-specs/feature/research/{wp_id.lower()}.md",),
         authoritative_surface="kitty-specs/feature/research/",
     )

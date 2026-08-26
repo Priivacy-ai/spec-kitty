@@ -1,0 +1,80 @@
+schema: review-refute/v1
+complete: true
+phase: spec
+batch: 1
+verdicts:
+  - id: SPEC-GOV-001
+    verdict: confirmed
+    reason: >-
+      grep -n "/home/" spec.md shows the literal username-bearing path
+      <workspace-root>/SPEC-KITTY-LEDGER.md written verbatim at
+      lines 18 and 31, directly contradicting C-001 (line 126) which explicitly binds
+      "the spec/plan/tasks artifacts themselves"; the only other hit (line 117, NFR-001)
+      is a `/home/<user>/...` pattern with no real username, as the finding says.
+  - id: SPEC-GOV-002
+    verdict: confirmed
+    reason: >-
+      FR-006 (line 110) and AC-1 (line 47) only require satisfying commitlint's generic
+      type-enum/type-case/type-empty/subject-empty rules and never say type MUST be
+      docs, while commitlint.config.cjs's type-enum lists 14 valid types (build, chore,
+      ci, docs, feat, fix, lint, perf, plan, refactor, revert, spec, style, test) any of
+      which would satisfy the FR/AC verbatim even though Grounding Correction 3's
+      rationale (line 31) is specifically about the docs type and repo convention.
+  - id: SPEC-GOV-003
+    verdict: confirmed
+    reason: >-
+      Direct count of __all__ in src/specify_cli/dossier/__init__.py (lines 50-78)
+      yields exactly 27 entries; removing the seven spec_kitty_events type re-exports
+      per FR-005 leaves 20, but the Key Entities section (line 136) says "the remaining
+      twenty-one entries" — a genuine off-by-one in the descriptive prose.
+  - id: SPEC-GOV-004
+    verdict: confirmed
+    reason: >-
+      spec.md line 1's title says "Close the three #1058 deferrals" while the very next
+      line (line 6) lists four in-scope defects (#3676, #3677, #3678, plus SK-63's
+      path-relativization half folded per D3) — the title undercounts the disclosed
+      scope by one, even though the discrepancy is immediately clarified in the opening
+      paragraph and is low severity/wording-only as the finding itself states.
+  - id: SPEC-ARCH-001
+    verdict: confirmed
+    reason: >-
+      Live-verified: `_charter_path` (analysis_report.py:188-215) resolves the charter
+      via resolve_canonical_repo_root(repo_root), whose own comment says this is so a
+      worktree-local charter is never hashed in place of the main checkout's — meaning
+      the returned charter path can legitimately sit outside repo_root; the currently
+      green test_charter_hash_resolves_canonical_root_from_worktree (verified live via
+      `uv run --extra test pytest tests/specify_cli/test_analysis_report.py -q -k
+      charter_hash` -> "3 passed") asserts exactly this cross-root behavior, yet spec.md's
+      own AC-2 (line 48) explicitly requires "the charter entry is relative to repo_root"
+      and FR-007/NFR-002/Edge-Case-4 give no carve-out or "governing root" concept
+      anywhere in the document (grep for canonical_root/governing root/worktree in
+      spec.md returns nothing) — a literal FR-007 implementation would break this live
+      test; separately check_analysis_report_current (analysis_report.py:458-538) calls
+      collect_input_artifact_hashes at line 515 inside a function whose every branch
+      returns a typed AnalysisFreshness and never raises, and is the sole dependency of
+      _require_current_analysis_report (workflow.py:950-961) gating `agent action
+      implement`, a caller spec.md never names.
+  - id: SPEC-VERIFY-001
+    verdict: confirmed
+    reason: >-
+      Same underlying defect as SPEC-ARCH-001 per the merge file's duplicate_of_group
+      grouping; identical verdict and reasoning apply — see SPEC-ARCH-001.
+  - id: SPEC-ARCH-002
+    verdict: confirmed
+    reason: >-
+      spec.md's Edge Cases section (lines 91-93) names exactly two guard boundaries
+      (nested attribute-chain depth, handled; alias-reassignment, explicitly
+      out-of-scope) but never names dynamic/reflective dispatch as a boundary, even
+      though _call_target_name (tests/architectural/test_dossier_emitter_positional_guard.py:92-96)
+      only ever recognizes ast.Name or (post-widening) ast.Attribute callees and has no
+      path to recognize a getattr(...)(...) or dispatch-dict call — AC5's general "no
+      full call-graph resolution" clause (line 68) technically implies this but never
+      names it the way the other two boundaries are named, matching the finding's claim.
+  - id: SPEC-VERIFY-002
+    verdict: confirmed
+    reason: >-
+      FR-003 (line 107) and User Story 2 AC-5 (line 68) only require the docstring to
+      no longer "frame" the two gaps as deferred, with no literal string/grep assertion
+      given, and none of SC-001 through SC-007 (lines 144-150) references FR-003, the
+      docstring, or AC-5 at all — every other AC in the spec ties to a concrete SC or
+      literal check, this one does not.

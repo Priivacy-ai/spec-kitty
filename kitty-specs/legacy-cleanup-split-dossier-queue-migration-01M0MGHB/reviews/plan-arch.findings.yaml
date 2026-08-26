@@ -1,0 +1,156 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+lens_group: arch
+mission: legacy-cleanup-split-dossier-queue-migration-01M0MGHB
+findings:
+  - id: PLAN-ARCH-001
+    lens: FR-006/FR-007 sentinel mechanism soundness
+    severity: 5
+    title: "Sentinel design breaks src/specify_cli/sync/diagnose.py, an unaccounted-for consumer of _PAYLOAD_RULES that expects the old dict shape"
+    evidence:
+      - artifact: "plan.md § FR-006/FR-007 sentinel shape (concrete design), lines 290-376"
+      - artifact: "plan.md § Scale/Scope (Technical Context), lines 65-73 — touched/read-only file inventory omits sync/diagnose.py"
+      - artifact: "plan.md § Seam Identification, lines 183-209 — claims 'this mission tightens an existing one' with no new/other seam, but does not enumerate sync/diagnose.py as an in-seam consumer"
+      - code: "src/specify_cli/sync/diagnose.py:51 — `from .emitter import _PAYLOAD_RULES, VALID_AGGREGATE_TYPES`"
+      - code: "src/specify_cli/sync/diagnose.py:215 — `if event_type in _PAYLOAD_RULES: _validate_payload(event_type, event_data.get(\"payload\", {}), errors)` (no try/except around this call)"
+      - code: "src/specify_cli/sync/diagnose.py:301-314 — `rules = _PAYLOAD_RULES.get(event_type); ... required: set[str] = rules.get(\"required\", set()); ... validators: dict[str, Any] = rules.get(\"validators\", {})` — assumes dict shape, not wrapped in try/except"
+    claim: >
+      The plan's FR-006/FR-007 design (module-level `_DOSSIER_VALIDATE_EVENT_DELEGATE
+      = object()` sentinel as the value for the four dossier `_PAYLOAD_RULES` keys) was
+      verified only against `sync/emitter.py`'s own `_validate_payload` method. A
+      second, independent consumer of the same module-level `_PAYLOAD_RULES` dict —
+      `src/specify_cli/sync/diagnose.py`, imported directly at line 51 and used by its
+      own `_validate_payload` free function (distinct from, but shape-compatible with,
+      the emitter's method today) — calls `rules.get("required", set())` and
+      `rules.get("validators", {})` on whatever `_PAYLOAD_RULES.get(event_type)`
+      returns, with no shape check and no surrounding try/except. Once the four
+      dossier keys point at the plan's `object()` sentinel, any dossier event
+      encountered by `diagnose_events()` (the entry point for the production
+      `spec-kitty sync diagnose` CLI command, which inspects arbitrary events already
+      sitting in the local offline queue) raises an uncaught `AttributeError:
+      'object' object has no attribute 'get'` inside `_validate_event()` → propagates
+      out of `diagnose_events()`'s list comprehension, crashing the command outright
+      for any project with a dossier event in its local queue — which is the normal
+      case for any active mission using dossier tracking, since dossier events are
+      queued through the same emitter-owned offline-queue path as every other event
+      type (see `emitter.py`'s own comments on `self.queue.queue_event(event)` running
+      "for every emitted event"). This is worse than the "silent success" failure mode
+      the charter and spec.md's own Clarifications repeatedly flag as this repo's
+      dominant defect class — it is a hard crash of a documented maintainer command,
+      not a silent drop. Neither the plan's Scale/Scope inventory, Seam Identification
+      section, PR Shape diff estimate, Phasing, nor Red-First/ATDD Test Mapping table
+      mentions `sync/diagnose.py` at all. The mission's own test scope (NFR-003:
+      `tests/dossier/`, `tests/sync/test_events_namespace.py`,
+      `tests/sync/test_dossier_pipeline.py`, `tests/architectural/`) does not include
+      `tests/sync/test_diagnose.py`, and no existing test in that file (or anywhere
+      else) exercises `diagnose_events()`/`diagnose.py::_validate_payload` against a
+      dossier event type (grepped: zero hits), so this regression would not be caught
+      even by the plan's own full pre-merge `pytest tests/` run unless a new test is
+      added specifically for it.
+    remediation: >
+      Add `sync/diagnose.py` to the plan's touched-file inventory (Scale/Scope, Seam
+      Identification, PR Shape) as a file requiring a coordinated change, not merely
+      read-only evidence. Concretely: expose a small public predicate alongside the
+      sentinel in `emitter.py` (e.g. `def is_dossier_delegate(rules: object) -> bool:
+      return rules is _DOSSIER_VALIDATE_EVENT_DELEGATE`) that both
+      `emitter.py::_validate_payload` and `diagnose.py::_validate_payload` import and
+      call before doing `rules["required"]`/`rules.get(...)` — in `diagnose.py`, either
+      delegate to `spec_kitty_events.conformance.validate_event()` the same way
+      `_validate_dossier_payload` does, or explicitly skip the dict-shaped
+      required/validators check for dossier event types with a documented rationale.
+      Add a regression test (e.g. in `tests/sync/test_diagnose.py`) that runs
+      `diagnose_events()`/`diagnose.py`'s internal `_validate_payload` against a
+      dossier-typed event dict (valid and invalid payload) to close the coverage gap
+      the plan's current NFR-003 scope leaves open.
+
+  - id: PLAN-ARCH-002
+    lens: FR-006/FR-007 sentinel mechanism soundness
+    severity: 4
+    title: "Sentinel design breaks tests/dossier/test_snapshot_emit.py, a test within the plan's own stated NFR-003 scope, unmentioned in Phasing/PR Shape/Red-First mapping"
+    evidence:
+      - artifact: "plan.md § FR-006/FR-007 sentinel shape, lines 290-376"
+      - artifact: "plan.md § PR Shape / estimated diff table, lines 616-627 — enumerates test files touched; tests/dossier/test_snapshot_emit.py is absent"
+      - artifact: "plan.md § Red-First / ATDD Test Mapping, FR-006 row, lines 736 — names only a new hand-constructed-invalid-payload test, not this pre-existing test that will break"
+      - artifact: "spec.md § NFR-003 — 'Per-WP validation targets tests/dossier/ ...' (test_snapshot_emit.py is physically inside tests/dossier/)"
+      - code: "tests/dossier/test_snapshot_emit.py:219-226 — `snap_validators = _PAYLOAD_RULES[\"MissionDossierSnapshotComputed\"][\"validators\"]; assert snap_validators[\"snapshot_hash\"] is _is_canonical_snapshot_hash` and the equivalent for `MissionDossierParityDriftDetected`"
+    claim: >
+      `tests/dossier/test_snapshot_emit.py::test_emit_rule_wires_canonical_validator_for_hash_fields`
+      directly subscripts `_PAYLOAD_RULES["MissionDossierSnapshotComputed"]["validators"]`
+      and `_PAYLOAD_RULES["MissionDossierParityDriftDetected"]["validators"]`, asserting
+      the wired-up validator callable is `_is_canonical_snapshot_hash`. Once FR-006
+      replaces those two dict entries with the sentinel object, this line raises
+      `TypeError: 'object' object is not subscriptable` at collection/run time — the
+      test becomes actively broken, not merely stale. This file is physically inside
+      `tests/dossier/`, which NFR-003 and this plan's own "Testing" section name as
+      in-scope for this mission's targeted validation, yet it appears nowhere in the
+      plan's PR Shape diff-size table (which lists only `tests/dossier/test_events.py`
+      as a touched dossier test file), nowhere in Phasing (which frames FR-009/FR-010
+      as "the last phase" closing out `test_events.py` only), and nowhere in the
+      Red-First/ATDD Test Mapping's FR-006 row. An implementer following the plan as
+      written would only discover this test needs deletion/rewrite by running the
+      suite and hitting an unplanned red, not from the plan's own design.
+    remediation: >
+      Add `tests/dossier/test_snapshot_emit.py` to the plan's touched-test-file
+      inventory (PR Shape table, Phasing Phase 3, Red-First/ATDD Test Mapping FR-006
+      row). State explicitly that
+      `test_emit_rule_wires_canonical_validator_for_hash_fields` must be deleted or
+      rewritten to assert against the new delegation behavior (e.g. assert that an
+      invalid `snapshot_hash`/`expected_hash`/`actual_hash` value now surfaces via
+      `_validate_dossier_payload`'s `ConformanceResult` translation instead of
+      asserting a specific validator callable is wired into a per-field dict that no
+      longer exists for these two event types).
+
+  - id: PLAN-ARCH-003
+    lens: Contracts
+    severity: 2
+    title: "Sentinel value contradicts the existing _PAYLOAD_RULES type annotation, unaddressed by the plan's 'concrete design'"
+    evidence:
+      - artifact: "plan.md § FR-006/FR-007 sentinel shape (concrete design), lines 300-327"
+      - code: "src/specify_cli/sync/emitter.py:523 — `_PAYLOAD_RULES: dict[str, dict[str, Any]] = {`"
+    claim: >
+      `_PAYLOAD_RULES` carries an explicit module-level type annotation,
+      `dict[str, dict[str, Any]]`. The plan's sentinel design assigns the four dossier
+      keys an `object()` value, which is not a `dict[str, Any]` and therefore violates
+      the declared annotation. `mypy --strict` is CI-advisory only (confirmed by the
+      plan itself), so this would not fail CI, but `CLAUDE.md`'s own Code Style
+      section states new code "MUST pass ruff and mypy with zero issues and zero
+      warnings" as a repo contribution bar independent of what CI enforces, and the
+      plan's "concrete design" claims to leave nothing to planning-time ambiguity yet
+      never mentions updating this annotation.
+    remediation: >
+      Add one line to the FR-006/FR-007 sentinel shape section specifying the updated
+      annotation, e.g. `_PAYLOAD_RULES: dict[str, dict[str, Any] | object] = {`  (or a
+      narrower `Literal`/sentinel-aware type alias), so implementation does not leave
+      a type-checker regression for a later pass to discover.
+
+  - id: PLAN-ARCH-004
+    lens: Blast radius
+    severity: 3
+    title: "Plan's Scale/Scope and Seam Identification sections under-enumerate the true blast radius by omitting all real consumers of _PAYLOAD_RULES outside emitter.py"
+    evidence:
+      - artifact: "plan.md § Technical Context / Scale/Scope, lines 65-73"
+      - artifact: "plan.md § Seam Identification, lines 183-209"
+      - code: "src/specify_cli/sync/diagnose.py:51,215,301-314 (see PLAN-ARCH-001)"
+      - code: "tests/dossier/test_snapshot_emit.py:219-226 (see PLAN-ARCH-002)"
+    claim: >
+      This is the structural root cause behind PLAN-ARCH-001 and PLAN-ARCH-002: the
+      plan verified the sentinel mechanism only against `_validate_payload` inside
+      `EventEmitter` (the one call site named in spec.md's Key Entities section) and
+      did not grep the repository for every consumer of the module-level
+      `_PAYLOAD_RULES` symbol before declaring the design "concrete" and complete. A
+      repo-wide grep for `_PAYLOAD_RULES` surfaces two additional shape-sensitive
+      consumers outside `emitter.py` (`sync/diagnose.py` in `src/`, and
+      `tests/dossier/test_snapshot_emit.py` in the mission's own declared test scope)
+      that the plan's touched-file inventory never names. The charter's Standing
+      Order #9 / red-main discipline and the mission-derived lens both specifically
+      ask for this class of check; the plan's own "Why the local mirror survived"
+      section demonstrates the right instinct (tracing exactly how a symbol is
+      consumed) but that rigor was not applied to `_PAYLOAD_RULES` itself.
+    remediation: >
+      Before implementation begins, run `grep -rn "_PAYLOAD_RULES" src/ tests/` (as
+      this review did) and fold every hit into the plan's Scale/Scope, Seam
+      Identification, and PR Shape sections — classifying each as read-only-safe
+      (uses only `.keys()`), needs-code-change (`diagnose.py`), or needs-test-rewrite
+      (`test_snapshot_emit.py`) before Phase 3 (FR-006/FR-007) is considered ready to
+      implement.

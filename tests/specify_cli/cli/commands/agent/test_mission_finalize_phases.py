@@ -26,7 +26,7 @@ import pytest
 import typer
 
 from specify_cli.cli.commands.agent import mission_finalize as seam
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 from specify_cli.status import Lane, WPMetadata
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -125,9 +125,7 @@ def test_raise_ownership_contradictions_reports_all_json(monkeypatch: pytest.Mon
     )
 
     with pytest.raises(typer.Exit):
-        seam._raise_ownership_contradictions_if_any(
-            state, ["WP01", "WP03"], json_output=True
-        )
+        seam._raise_ownership_contradictions_if_any(state, ["WP01", "WP03"], json_output=True)
 
     assert emitted[0]["error_code"] == seam.OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES
     assert emitted[0]["ownership_contradiction_wp_ids"] == ["WP01", "WP03"]
@@ -135,9 +133,9 @@ def test_raise_ownership_contradictions_reports_all_json(monkeypatch: pytest.Mon
 
 def test_project_lane_inputs_excludes_canceled_wps() -> None:
     manifests = {
-        "WP01": OwnershipManifest(ExecutionMode.CODE_CHANGE, ("src/a.py",), "src/"),
-        "WP02": OwnershipManifest(ExecutionMode.CODE_CHANGE, ("src/b.py",), "src/"),
-        "WP03": OwnershipManifest(ExecutionMode.CODE_CHANGE, ("src/c.py",), "src/"),
+        "WP01": OwnershipManifest(WorkProductKind.CODE_CHANGE, ("src/a.py",), "src/"),
+        "WP02": OwnershipManifest(WorkProductKind.CODE_CHANGE, ("src/b.py",), "src/"),
+        "WP03": OwnershipManifest(WorkProductKind.CODE_CHANGE, ("src/c.py",), "src/"),
     }
     frontmatters = {
         "WP01": WPMetadata(work_package_id="WP01", title="A", lane=Lane.PLANNED),
@@ -180,9 +178,7 @@ def test_stale_canceled_dependencies_fail_loud_json(monkeypatch: pytest.MonkeyPa
     ]
 
 
-def test_compute_and_write_lanes_empty_code_change_inputs_fail_loud(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_compute_and_write_lanes_empty_code_change_inputs_fail_loud(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     emitted: list[dict[str, object]] = []
     monkeypatch.setattr(seam, "_emit_json", emitted.append)
 
@@ -203,9 +199,7 @@ def test_compute_and_write_lanes_empty_code_change_inputs_fail_loud(
     assert emitted[0]["error_code"] == seam.LANE_COMPUTATION_ABORTED_EMPTY_INPUTS
 
 
-def test_compute_and_write_lanes_empty_planning_artifact_inputs_are_laneless(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_compute_and_write_lanes_empty_planning_artifact_inputs_are_laneless(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(seam, "_preserve_or_capture_planning_commit_sha", lambda *args, **kwargs: None)
     monkeypatch.setattr(seam, "_report_parallelization_risk", lambda *args, **kwargs: None)
 
@@ -234,9 +228,7 @@ def test_compute_and_write_lanes_empty_planning_artifact_inputs_are_laneless(
     assert lanes_manifest.lanes == []
 
 
-def test_validate_only_previews_empty_code_change_input_failure(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_validate_only_previews_empty_code_change_input_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     emitted: list[dict[str, object]] = []
     monkeypatch.setattr(seam, "_emit_json", emitted.append)
     monkeypatch.setattr(
@@ -244,11 +236,7 @@ def test_validate_only_previews_empty_code_change_input_failure(
         "_bootstrap_canonical_state_via_mission",
         lambda *args, **kwargs: seam.BootstrapResult(0, 0, 0),
     )
-    state = seam._BootstrapState(
-        inmemory_frontmatter={
-            "WP01": WPMetadata(work_package_id="WP01", title="A", execution_mode="code_change")
-        }
-    )
+    state = seam._BootstrapState(inmemory_frontmatter={"WP01": WPMetadata(work_package_id="WP01", title="A", execution_mode="code_change")})
 
     with pytest.raises(typer.Exit):
         seam._emit_validate_only_report(
@@ -508,9 +496,7 @@ def test_requirement_mapping_passes_when_spec_content_defaults_empty() -> None:
     )
 
 
-def test_requirement_mapping_bare_prose_detection_is_fail_loud(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_requirement_mapping_bare_prose_detection_is_fail_loud(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     """WP06 (#3396) IC-04 fault injection: a detector exception becomes an
     explicit, non-empty failure (NFR-002) -- never a swallowed "0 uncounted"
     result -- even though every WP mapping bucket is otherwise clean."""
@@ -543,9 +529,7 @@ def test_requirement_mapping_bare_prose_detection_is_fail_loud(
 def test_read_spec_requirement_ids_also_returns_raw_spec_content(tmp_path: Path) -> None:
     planning_dir = tmp_path
     (planning_dir / "spec.md").write_text(_BARE_PROSE_REPRO_SPEC, encoding="utf-8")
-    all_ids, functional_ids, _warnings, spec_content = seam._read_spec_requirement_ids(
-        planning_dir, json_output=True
-    )
+    all_ids, functional_ids, _warnings, spec_content = seam._read_spec_requirement_ids(planning_dir, json_output=True)
     assert all_ids == {"NFR-001"}
     assert functional_ids == set()
     assert spec_content == _BARE_PROSE_REPRO_SPEC

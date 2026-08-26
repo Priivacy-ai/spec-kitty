@@ -1,0 +1,67 @@
+# review-findings/v1
+schema: review-findings/v1
+complete: true
+phase: pr
+lens_group: tests
+mission: dossier-guard-reexport-analyze-cleanup-01M0NHRT
+findings:
+  - id: pr-tests-001
+    lens: tests
+    severity: 4
+    title: New tests/dossier/test_reexport_trim.py is collected by zero CI job on a push to main (issue #3241 class)
+    evidence:
+      - code: "tests/dossier/test_reexport_trim.py:1"
+      - code: ".github/workflows/ci-quality.yml:1997"
+      - code: "tests/architectural/test_ci_collection_completeness.py:352"
+    claim: >
+      The new WP04 regression file carries no pytestmark at all (every sibling
+      file in tests/dossier/ carries `pytestmark = [pytest.mark.unit,
+      pytest.mark.fast]` or similar). Verified empirically: `pytest
+      tests/dossier/test_reexport_trim.py -m "fast"` and `-m "git_repo or
+      integration or architectural"` both deselect all 33 tests
+      (0 collected either way). `tests/dossier` is only reachable through two
+      CI jobs: fast-tests-core-misc's core-misc shard (filters `-m "fast and
+      not windows_ci and not regression"`) and integration-tests-core-misc's
+      misc shard (filters `-m "... (git_repo or integration or
+      architectural) ..."`) — neither marker set matches, so both jobs skip
+      every test in the file despite the directory being in their path lists.
+      Running the repo's own completeness oracle
+      (tests/architectural/test_ci_collection_completeness.py::test_every_test_node_is_collected_on_a_push_to_main)
+      on the consolidated tree FAILS with exactly this file: "33 of 40386
+      collected test NODES (1 files) run in NO job on a push to 'main'". This
+      is not hypothetical — it is a currently-red, mission-introduced failure
+      of an existing architectural gate, and it means the very regression
+      protection WP04 was written to add (guard against re-introducing the
+      seven trimmed re-exports, guard against over-trimming an emit_*
+      re-export) never actually runs in CI. The 33 assertions are logically
+      sound (independently verified red-first below) but functionally inert.
+    remediation: >
+      Add `pytestmark = [pytest.mark.unit, pytest.mark.fast]` to
+      tests/dossier/test_reexport_trim.py, matching every other file in that
+      directory, then re-run
+      tests/architectural/test_ci_collection_completeness.py to confirm
+      orphan_count returns to 0.
+
+  - id: pr-tests-002
+    lens: tests
+    severity: 1
+    title: Non-blocking note — commitlint compliance evidence is asserted only via an offline regex proxy, not the real commitlint binary, inside the pinned test
+    evidence:
+      - code: "tests/specify_cli/cli/commands/agent/test_mission_record_analysis.py:330"
+    claim: >
+      The module comment states the authoritative commitlint invocation was
+      run manually during the WP and is not re-encoded as a pytest function
+      (correctly, since it needs subprocess/network access excluded by the
+      unit/fast markers this module uses). This is a reasonable, explicitly
+      justified tradeoff and not a defect — noted only because the lens
+      brief asked whether the real captured message is checked (it is,
+      confirmed by revert-and-see) versus commitlint itself (it is not,
+      by design, with the reasoning documented in-file).
+    remediation: >
+      None required. Optional: a follow-up could add a quarantined/opt-in
+      subprocess test that runs real commitlint against a captured message,
+      if the maintainers want CI-native evidence beyond the WP report.
+
+findings_summary:
+  total: 2
+  by_severity: { "4": 1, "1": 1 }

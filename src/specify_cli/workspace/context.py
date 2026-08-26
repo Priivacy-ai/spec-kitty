@@ -27,7 +27,7 @@ from kernel.git_topology import GitTopologyError, git_toplevel
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
-from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.models import WorkProductKind
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 # Deep import: status.emit imports this module during status/__init__ execution,
 # so the status facade is not yet initialized here — importing from it would cycle.
@@ -621,7 +621,7 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
         planning_score, code_score = score_execution_mode_signals(raw_content, list(metadata.owned_files))
         try:
             inferred_mode = infer_execution_mode(raw_content, list(metadata.owned_files))
-            execution_mode = ExecutionMode(inferred_mode)
+            execution_mode = WorkProductKind(inferred_mode)
         except Exception as exc:  # pragma: no cover - defensive; covered by tests via monkeypatch
             raise ValueError(
                 "Could not classify execution_mode for legacy work package "
@@ -644,7 +644,7 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
             )
     else:
         try:
-            execution_mode = ExecutionMode(raw_mode)
+            execution_mode = WorkProductKind(raw_mode)
         except ValueError as exc:
             raise ValueError(f"Invalid execution_mode {raw_mode!r} for {metadata.work_package_id} in mission {mission_slug}.") from exc
         normalized_meta = normalized_meta.update(execution_mode=str(execution_mode))
@@ -795,9 +795,9 @@ def _resolve_workspace_for_wp_impl(
     early-return arms is gated identically without duplicating the check.
     """
     normalized_wp = get_normalized_wp(repo_root, mission_slug, wp_id)
-    execution_mode = ExecutionMode(normalized_wp.metadata.execution_mode or ExecutionMode.CODE_CHANGE)
+    execution_mode = WorkProductKind(normalized_wp.metadata.execution_mode or WorkProductKind.CODE_CHANGE)
 
-    if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+    if execution_mode == WorkProductKind.PLANNING_ARTIFACT:
         # planning_artifact WPs are first-class lane-owned entities assigned to
         # "lane-planning".  That lane resolves to the main repository checkout.
         # We still call create_planning_workspace() for the path, but we now

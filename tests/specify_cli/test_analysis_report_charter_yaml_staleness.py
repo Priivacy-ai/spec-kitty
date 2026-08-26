@@ -49,7 +49,9 @@ def test_analysis_report_staleness_hashes_charter_yaml_when_md_absent(tmp_path):
     # Test 1: collect_input_artifact_hashes must hash charter.yaml, not charter.md
     hashes = collect_input_artifact_hashes(feature_dir, repo_root)
     assert "charter" in hashes
-    assert hashes["charter"]["path"] == str(charter_yaml_path.resolve())
+    # FR-007/NFR-001: repo-relative path (canonical_root falls back to repo_root
+    # outside git), never absolute.
+    assert hashes["charter"]["path"] == str(charter_yaml_path.relative_to(repo_root))
     assert hashes["charter"]["sha256"] is not None, "charter.yaml must be hashed"
 
     # Test 2: write_analysis_report must succeed (staleness input is valid)
@@ -91,7 +93,9 @@ def test_analysis_report_staleness_no_regression_both_files_present(tmp_path):
 
     # Test: staleness must hash charter.yaml, not charter.md
     hashes = collect_input_artifact_hashes(feature_dir, repo_root)
-    assert hashes["charter"]["path"] == str(charter_yaml_path.resolve())
+    # FR-007/NFR-001: repo-relative path (canonical_root falls back to repo_root
+    # outside git), never absolute.
+    assert hashes["charter"]["path"] == str(charter_yaml_path.relative_to(repo_root))
     # Should hash charter.yaml, not the legacy charter.md
     charter_yaml_hash = hashes["charter"]["sha256"]
     assert charter_yaml_hash is not None
@@ -134,7 +138,9 @@ def test_analysis_report_staleness_hashes_charter_md_when_yaml_absent(tmp_path):
 
     hashes = collect_input_artifact_hashes(feature_dir, repo_root)
     assert "charter" in hashes
-    assert hashes["charter"]["path"] == str(charter_md_path.resolve())
+    # FR-007/NFR-001: repo-relative path (canonical_root falls back to repo_root
+    # outside git), never absolute.
+    assert hashes["charter"]["path"] == str(charter_md_path.relative_to(repo_root))
     assert hashes["charter"]["sha256"] is not None, "charter.md must be hashed when charter.yaml is absent"
 
     result = write_analysis_report(

@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "mission_slug": "legacy-cleanup-split-dossier-queue-migration-01M0MGHB",
+  "mission_id": "01M0MGHBVSHYM701TJHXEWG3PY",
+  "mission_branch": "kitty/mission-legacy-cleanup-split-dossier-queue-migration-01M0MGHB",
+  "target_branch": "refactor/dossier-emitters-canonical-only-1058",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/dossier/events.py",
+        "tests/sync/test_dossier_pipeline.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/diagnose.py",
+        "src/specify_cli/sync/emitter.py",
+        "tests/dossier/test_snapshot_emit.py",
+        "tests/sync/test_diagnose.py",
+        "tests/sync/test_events.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/architectural/test_dossier_emitter_positional_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/dossier/test_events.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-08-22T12:41:37.954312+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "planning_commit_sha": "be560464bab3f2b636e0224fcee57a6d8a827291"
+}

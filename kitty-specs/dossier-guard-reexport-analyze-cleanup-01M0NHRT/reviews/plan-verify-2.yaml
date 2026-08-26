@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-FRESH-001
+    status: resolved
+    reason: >-
+      plan.md now states _charter_path (verified at src/specify_cli/analysis_report.py:188-214)
+      derives canonical_root internally via resolve_canonical_repo_root(repo_root) and returns
+      only a bare Path, has no use for an externally-supplied governing_root, and offers the two
+      code-shape-accurate options (return (charter_path, canonical_root), or recompute
+      resolve_canonical_repo_root a second time inline in collect_input_artifact_hashes,
+      confirmed at lines 217-226) instead of the withdrawn "governing_root parameter on
+      _charter_path" framing.
+  - id: PLAN-FRESH-002
+    status: resolved
+    reason: >-
+      The Recovery path paragraph now adds "The fix-forward starts with a new RED-first fixture
+      (or an extension of the existing FR-007/NFR-002 test) that reproduces the specific self-test
+      failure before the implementation is amended," explicitly requiring RED-first reproduction
+      before the amend step, matching charter Standing Order #4 (.kittify/charter/charter.md:70-73)
+      verbatim in substance.

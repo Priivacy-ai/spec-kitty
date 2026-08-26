@@ -1,0 +1,35 @@
+# review-verify/v1
+schema: review-verify/v1
+complete: true
+phase: pr
+results:
+  - id: pr-fresh-001
+    status: resolved
+    reason: >-
+      Live-triggered _relativize_or_raise directly (independent of the fixer's harness):
+      str(PathRelativizationError) is "Cannot record artifact 'spec.md' relative to its
+      governing root (root basename: 'unrelated-root'): the artifact does not lie under
+      that root." with no absolute path and no interpolated ValueError text; reproduced
+      red (reverted the raise to the old f-string, test failed showing the leaked
+      absolute path) then green (restored) independently via file-level revert, not the
+      fixer's stash. A rendered traceback (traceback.print_exc) does still show the
+      chained ValueError's absolute paths via "The above exception was the direct cause
+      of...", but that is never realized in any actual output path: the sole live
+      propagation site (write_analysis_report -> mission_record_analysis.py's
+      except Exception handler) prints str(e) only and re-raises typer.Exit(1) from
+      None, severing the chain before any traceback render; check_analysis_report_current
+      catches PathRelativizationError narrowly and always converts it to a plain string
+      before it can escape further, per its documented never-raise contract. No other
+      call site exists. Diagnosability holds: basename "spec.md" plus governing-root
+      basename identifies which artifact failed against which root from the small known
+      hash-input vocabulary.
+  - id: pr-contract-001
+    status: resolved
+    reason: >-
+      CHANGELOG.md has a new entry under Fixed (adjacent to the #3677/#3678/SK-63
+      block) citing #3676, describing the widened guard's attribute-chain and
+      aliased-import detection accurately against
+      tests/architectural/test_dossier_emitter_positional_guard.py's actual
+      _call_target_name/_build_import_alias_map implementation, using the repo's own
+      "test-only, no runtime behavior change" framing as content rather than grounds
+      for omission, matching the surrounding Before/After format and voice.

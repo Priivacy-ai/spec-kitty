@@ -456,20 +456,27 @@ def _load_merged_drg(
 
     Falls back to ``request.drg_snapshot`` if no project graph file exists.
     """
+    # Bind the snapshot to an explicitly-typed local. The ``charter.*`` mypy
+    # override sets ``follow_imports = "skip"``, so when this module is checked
+    # in isolation ``SynthesisRequest`` resolves to ``Any`` and a bare
+    # ``return request.drg_snapshot`` reads as a ``no-any-return``. The
+    # annotation keeps the two fallbacks strictly typed under both whole-package
+    # and per-file checking, and de-duplicates the three snapshot reads below.
+    snapshot: Mapping[str, Any] = request.drg_snapshot
     project_graph_dir = repo_root / _KITTIFY_DIRNAME / "doctrine"
     if not project_graph_dir.exists():
-        return request.drg_snapshot
+        return snapshot
 
     try:
         project_graph_model = load_graph_or_dir(project_graph_dir)
     except Exception:  # noqa: BLE001
-        return request.drg_snapshot
+        return snapshot
     project_graph = project_graph_model.model_dump(mode="json")
 
     # Merge: combine nodes from both graphs (project overlay + built-in snapshot)
-    built_in_nodes = list(request.drg_snapshot.get("nodes", []))
+    built_in_nodes = list(snapshot.get("nodes", []))
     project_nodes = list(project_graph.get("nodes", []))
-    built_in_edges = list(request.drg_snapshot.get("edges", []))
+    built_in_edges = list(snapshot.get("edges", []))
     project_edges = list(project_graph.get("edges", []))
 
     return {

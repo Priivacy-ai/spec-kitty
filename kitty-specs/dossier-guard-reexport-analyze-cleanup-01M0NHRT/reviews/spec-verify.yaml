@@ -1,0 +1,31 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: "grep -n \"/home/\\|/Users/\" spec.md now returns only NFR-001's illustrative <user>-placeholder pattern; the two prior literal-path citations at old lines 18/31 are gone, replaced with the path-free \"workspace-root SPEC-KITTY-LEDGER.md, sibling to this checkout\" phrasing (line 18)."
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: "FR-006 now states \"type MUST be docs\" explicitly (spec.md:114), not merely a generic valid-type requirement, matching Grounding Correction 4's docs(review) precedent."
+  - id: SPEC-GOV-003
+    status: resolved
+    reason: "Counted __all__ in src/specify_cli/dossier/__init__.py directly: 27 entries today; Key Entities (spec.md:140) now says \"the remaining twenty entries ... 27 entries in __all__ today, minus the 7 removed type names, leaves 20\" — arithmetic matches the live checkout."
+  - id: SPEC-GOV-004
+    status: resolved
+    reason: "Title (spec.md:1) now reads \"Close four defects — dossier guard widening, CLI re-export trim, analyze commitlint cleanup, and SK-63 path-relativization\", correctly naming the actually-scoped four-defect set instead of the old three-deferral framing."
+  - id: SPEC-ARCH-001
+    status: unresolved
+    remaining_severity: 3
+    reason: "The canonical_root-vs-repo_root split and check_analysis_report_current's non-raising contract are now correctly stated, but FR-007 (spec.md:115) explicitly names collect_input_artifact_hashes as the function that must record the charter path relative to canonical_root, which directly contradicts Grounding Correction 3 / the matching Edge Case's claim that test_charter_hash_resolves_canonical_root_from_worktree \"is not expected to change its assertion\" — that test (tests/specify_cli/test_analysis_report.py:238) asserts hashes[\"charter\"][\"path\"] == str(charter_file.resolve()), an absolute path, directly against collect_input_artifact_hashes's return value, which will in fact need updating once the charter entry is relativized."
+  - id: SPEC-VERIFY-001
+    status: unresolved
+    remaining_severity: 3
+    reason: "Duplicate of SPEC-ARCH-001 per the confirmed-findings note (same underlying defect, resolved by the same fix); the residual test-assertion contradiction documented under SPEC-ARCH-001 applies equally here."
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: "Edge Cases (spec.md:95) now adds a bullet explicitly naming dynamic/reflective dispatch (getattr(module, ...), a dispatch-dict table, functools.partial-wrapped emitters) as an out-of-scope boundary, matching the alias-reassignment bullet's style."
+  - id: SPEC-VERIFY-002
+    status: resolved
+    reason: "SC-008 (spec.md:155) adds a concrete grep check for the phrases 'explicitly deferred' and 'none exist in ``src/`` today', both verified present verbatim in the current pre-widening docstring of tests/architectural/test_dossier_emitter_positional_guard.py, so the check will correctly detect their removal post-implementation."
+findings_count: 8

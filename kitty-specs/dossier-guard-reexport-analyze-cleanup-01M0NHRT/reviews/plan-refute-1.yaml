@@ -1,0 +1,51 @@
+schema: review-refute/v1
+complete: true
+phase: plan
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: >
+      Verified against analysis_report.py — check_analysis_report_current spans lines 458-544
+      (87 lines, confirmed by grep and end-of-file position), yet plan.md line 119-120 literally
+      groups it into the "each small (5–30 lines)" bucket alongside the other three named
+      functions, which is factually wrong for that one function.
+  - id: PLAN-VERIFY-001
+    verdict: confirmed
+    reason: >
+      Confirmed both citations verbatim — plan.md:104-106 states "RED on planning_base_branch"
+      with no disambiguating clause while plan.md:368-371 restates the same phrase with "i.e.
+      checking out the commit immediately before the GREEN implementation commit"; the
+      Branch-contract (lines 10-12) and the charter's own canonical glossary definition of
+      planning_base_branch (a stable branch ref, not a commit) confirm the earlier instance is
+      genuinely ambiguous for this single-branch mission.
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: >
+      Confirmed plan.md's Reflexivity section (lines 474-480) and SK-63 interaction section
+      (465-472) verbatim, and grepped both plan.md and spec.md for any recovery-path language
+      ("fix forward", "PR-prep", "dogfood", "self-test") — none exists anywhere in either
+      artifact, so the gap the finding identifies is real.
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: >
+      Every code citation checked out exactly (_artifact_hash_entry:179 takes only `path`,
+      collect_input_artifact_hashes:217-226, AnalysisReportError:124, check_analysis_report_current's
+      call to collect_input_artifact_hashes at line 515, workflow.py's uncaught call at line 957),
+      and neither plan.md's IC-03 risk note nor spec.md's FR-007/NFR-002 names a concrete exception
+      type — both say only "a typed exception," confirming the ambiguity claimed.
+  - id: PLAN-VERIFY-002
+    verdict: confirmed
+    reason: >
+      Confirmed ci-quality.yml:1437-1442's three-way OR condition, that line 353's
+      'tests/architectural/**' sits in the core_misc filter group (started line 322) which this
+      mission's touched test file matches, and that mission-loader-coverage is a quality-gate.needs
+      member (line 4275) — plan.md's "does not gate" / "path filter never activates" framing for
+      this job is factually incorrect even though the coverage floor itself is not at risk.
+  - id: PLAN-VERIFY-003
+    verdict: confirmed
+    reason: >
+      Confirmed deferral-consistency-check (ci-quality.yml:602-611) has no changes-filter gate,
+      runs unconditionally, and is a quality-gate.needs member (line 4252); grepped plan.md's
+      entire Gate set section (265-313) for "deferral" — no match, confirming the omission, and
+      confirmed no acceptance-matrix.json exists under this mission's directory.

@@ -1,0 +1,22 @@
+schema: review-verify/v1
+complete: true
+phase: plan
+results:
+  - id: PLAN-ARCH-001
+    status: resolved
+    reason: plan.md now adds sync/diagnose.py to Scale/Scope and the PR-Shape/consumer-inventory table as needs-code-change, and specifies a concrete fix (exported is_dossier_delegate predicate, diagnose.py::_validate_payload early-return delegating to validate_event() and folding ConformanceResult violations into its errors list) plus a new tests/sync/test_diagnose.py regression test, both verified live against the current diagnose.py (which still has the unguarded rules.get(...) call at line 301 this fix targets) and the existing test_diagnose.py file (which the plan correctly notes has zero dossier-type coverage today).
+  - id: PLAN-ARCH-002
+    status: resolved
+    reason: plan.md explicitly adds tests/dossier/test_snapshot_emit.py to the touched-test inventory and Red-First/ATDD FR-006 row, and specifies the required rewrite (replace the _PAYLOAD_RULES[...]["validators"] subscript assertions with a malformed-hash-value assertion routed through _validate_dossier_payload's ConformanceResult translation) — verified live that the named test at lines 220-227 still performs the exact subscript the plan says will break, confirming the fix targets the real current code.
+  - id: PLAN-ARCH-003
+    status: resolved
+    reason: plan.md's sentinel-shape section now states the corrected annotation explicitly (dict[str, dict[str, Any] | object]) with rationale for rejecting a narrower Literal/type-alias, and cites the current annotation by symbol rather than a brittle line number; verified live that _PAYLOAD_RULES is still annotated dict[str, dict[str, Any]] at emitter.py:523, so the remediation targets the real gap.
+  - id: PLAN-ARCH-004
+    status: resolved
+    reason: plan.md adds a full "_PAYLOAD_RULES consumer inventory" table classifying every grep hit (emitter.py, diagnose.py, test_snapshot_emit.py, test_diagnose.py, test_handoff_fixtures.py, test_actor_boundary_normalize.py, test_sync_lane_mapping.py, test_identity_contract_matrix.py) as needs-code-change / needs-test-rewrite / read-only-safe / not-a-real-consumer; independently re-running grep -rn "_PAYLOAD_RULES" src/ tests/ against the live repo produces exactly the same set of hits with no consumer left unclassified, so the blast-radius gap is closed with substance, not just acknowledged.
+  - id: PLAN-VERIFY-001
+    status: resolved
+    reason: the Gate Set table row and the Technical Context "Testing" paragraph were both corrected to name the real jobs (integration-tests-core-misc's misc shard for tests/dossier and tests/architectural, the separate always-on arch-adversarial job, and fast-tests-sync/integration-tests-sync/integration-tests-sync-real-port for tests/sync) and state plainly that none of them carry --cov-fail-under; verified live against .github/workflows/ci-quality.yml that this routing and the absence of a coverage floor on those four jobs (grep for cov-fail-under only hits lines 1456/2309/2356, none of which are these jobs) is accurate, replacing rather than merely restating the original wrong "fast-doctrine"/"slow" claim.
+  - id: PLAN-VERIFY-002
+    status: resolved
+    reason: plan.md's FR-004 Test bar now states a binding two-part contract — (a) at least one new test must call the real, unmocked emit_artifact_indexed/emit_artifact_missing end-to-end and assert on context_diagnostics/step_id (AC1) and the events_emitted count (AC2), with autospec-only mocking demoted to an optional supplementary check that must itself assert a try/except-surviving observable — closing the vacuous-test risk the finding raised; verified live that the existing @patch decorators in tests/sync/test_dossier_pipeline.py (lines 110, 462) are indeed plain MagicMock with no autospec/spec, and that events.py's diagnostics.setdefault(...) (line ~395-396) and blocking short-circuit (line ~455-457) are real function-body logic a bare mock would bypass, matching the plan's own rationale.

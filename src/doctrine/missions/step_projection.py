@@ -33,12 +33,17 @@ scalar surface.
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from .models import MissionStep, MissionStepTemplateRef, validate_action_sequence
+
+if TYPE_CHECKING:
+    from .expected_artifact_manifest import ExpectedArtifactManifest
 
 __all__ = [
     "iter_template_refs",
     "project_action_sequence",
+    "project_artifact_name_set",
     "project_template_set",
 ]
 # ``iter_template_refs`` is the single shared traversal of ``MissionStep.template``:
@@ -119,6 +124,19 @@ def project_template_set(steps: Iterable[MissionStep]) -> dict[str, str] | None:
     for _step, template_ref in iter_template_refs(steps):
         template_set[template_ref.artifact_key] = template_ref.template_file
     return template_set or None
+
+
+def project_artifact_name_set(manifest: ExpectedArtifactManifest) -> dict[str, str] | None:
+    """Project the ``artifact_key -> path_pattern`` mapping from a manifest."""
+    name_set: dict[str, str] = {}
+    for spec in manifest.required_always:
+        name_set[spec.artifact_key] = spec.path_pattern
+    for specs in manifest.required_by_step.values():
+        for spec in specs:
+            name_set[spec.artifact_key] = spec.path_pattern
+    for spec in manifest.optional_always:
+        name_set[spec.artifact_key] = spec.path_pattern
+    return name_set or None
 
 
 def iter_template_refs(

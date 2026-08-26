@@ -1,0 +1,49 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-ARCH-001
+    status: resolved
+    reason: >
+      FR-005 now correctly states mypy is advisory-only (continue-on-error: true,
+      ci-quality.yml:902-908, verified line-for-line) and names a genuinely enforced
+      replacement mechanism — a regression test on inspect.signature's VAR_KEYWORD
+      absence mirroring SC-002, running inside the enforced tests/sync/ pytest job
+      (ci-quality.yml:1132-1134, no continue-on-error) — so the claim is corrected
+      rather than merely reworded.
+  - id: SPEC-FRESH-001
+    status: resolved
+    reason: >
+      FR-006 now specifies the validate_event import as a local import inside
+      _validate_payload's dossier-delegation branch, matching the file's real
+      lazy-import convention, and explicitly notes there is no module-scope Event
+      import to sit "alongside" — verified against emitter.py (Event as EventModel
+      is local at line 2477; only normalize_event_id is module-scope at line 63).
+  - id: SPEC-FRESH-002
+    status: resolved
+    reason: >
+      The reconciliation note now offers only the sentinel-inside-_PAYLOAD_RULES
+      option (option B removed) and explicitly states VALID_EVENT_TYPES stays
+      frozenset(_PAYLOAD_RULES.keys()) unchanged, matching emitter.py:897 verbatim
+      and remaining consistent with SC-005/FR-007.
+  - id: SPEC-FRESH-003
+    status: resolved
+    reason: >
+      Citations corrected to dossier_pipeline.py:101-114 (emit_artifact_indexed call)
+      and 126-137 (emit_artifact_missing call) in both the Clarifications section and
+      FR-004's rationale; both ranges verified byte-for-byte against the live file
+      (101/126 are the call opens, 114/137 are the matching closing parens).
+  - id: SPEC-FRESH-004
+    status: resolved
+    reason: >
+      Both occurrences (User Story 1 Independent Test and SC-005) now read
+      EventEmitter, matching the real class name at emitter.py:945; zero remaining
+      hits for SpecKittyEventEmitter anywhere in the spec or repo.
+  - id: SPEC-FRESH-005
+    status: resolved
+    reason: >
+      FR-004 now names "Acceptance Scenarios 1 and 2" explicitly, clarifies scenario
+      1 covers emit_artifact_indexed and scenario 2 covers emit_artifact_missing, and
+      adds a generic catch-all sentence extending the non-mock/autospec bar to any
+      test proving FR-004; verified against User Story 2's actual AC1/AC2 text, which
+      does split exactly along that indexed/missing line.

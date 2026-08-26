@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.lanes.compute import LaneComputationError, compute_lanes
-from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.models import WorkProductKind, OwnershipManifest
 
 
 pytestmark = pytest.mark.fast
@@ -25,7 +25,7 @@ pytestmark = pytest.mark.fast
 
 def _manifest(owned_files: list[str], mode: str = "code_change") -> OwnershipManifest:
     return OwnershipManifest(
-        execution_mode=ExecutionMode(mode),
+        execution_mode=WorkProductKind(mode),
         owned_files=tuple(owned_files),
         authoritative_surface=owned_files[0] if owned_files else "",
     )

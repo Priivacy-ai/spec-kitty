@@ -362,7 +362,16 @@ def record_analysis(
                 repo_root=repo_root,
                 mission_slug=_analysis_mission_slug,
                 files=(result.path,),
-                message=f"Add analysis report for mission {_analysis_mission_slug}",
+                # #3678 (FR-006): conventional-commit-compliant subject —
+                # commitlint.config.cjs's `type-enum`/`type-case` rules require a
+                # recognized `type(scope): subject` prefix; the prior
+                # "Add analysis report for mission {slug}" shape had none and
+                # failed `type-empty`/`subject-empty` outright. `type` is pinned
+                # to `docs` per this repo's own convention for tool-authored
+                # analyze/review commits (spec.md Grounding Correction 4 /
+                # ledger SK-64's option (1): fix the emitted subject, not
+                # commitlint.config.cjs's ignore regex — C-004).
+                message=f"docs(record-analysis): record analysis report for mission {_analysis_mission_slug}",
                 policy=_analysis_policy,
                 # ANALYSIS_REPORT is a PRIMARY kind (FR-003, coord-commit-integrity):
                 # the report lands on the primary ``target_branch`` under every

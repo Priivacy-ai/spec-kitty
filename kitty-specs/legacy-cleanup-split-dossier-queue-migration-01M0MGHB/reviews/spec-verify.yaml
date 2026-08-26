@@ -1,0 +1,23 @@
+schema: review-verify/v1
+complete: true
+phase: spec
+results:
+  - id: SPEC-GOV-001
+    status: resolved
+    reason: FR-006 now cites emitter.py:827-876; verified against src/ that the four dossier _PAYLOAD_RULES entries span exactly 827-876 (876 is the entry-closing "},", 877 starts the unrelated MissionOriginBound entry), so the range no longer overstates the touched region.
+  - id: SPEC-GOV-002
+    status: resolved
+    reason: FR-007 now cites emitter.py:2513-2516 (event_type assignment through the unknown-event-type return False); verified against src/ that this exact 4-line span is the real "if event_type not in VALID_EVENT_TYPES" rejection block, replacing the stale 2510-2512 range.
+  - id: SPEC-ARCH-001
+    status: unresolved
+    remaining_severity: 3
+    reason: FR-005's added text claims "the repo's mypy zero-issues gate catches an unexpected-keyword call statically" but .github/workflows/ci-quality.yml:902-908 runs mypy as a step explicitly named "[INFO] Run mypy report (advisory)" with continue-on-error true and no exit-1 gate on mypy_has_failures (unlike the enforced bandit/pip-audit security gate), so a future re-introduced keyword is not actually blocked before it can reach dossier_pipeline.py's silent except-Exception swallow — the named mechanism does not exist as an enforced gate.
+  - id: SPEC-ARCH-002
+    status: resolved
+    reason: Key Entities now states the concrete FR-006/FR-007 shape tension explicitly and makes it a binding requirement that _validate_payload gain an explicit early-return dossier branch ahead of the generic rules["required"]/rules["validators"] access, deferring only the literal sentinel-vs-frozenset shape choice to plan.md — this is a real constraint, not a restatement of the gap.
+  - id: SPEC-ARCH-003
+    status: resolved
+    reason: FR-006 now states the exact "from spec_kitty_events.conformance import validate_event" import, which was confirmed importable against the installed package (python -c "from spec_kitty_events.conformance import validate_event" succeeds), closing the bare-attribute-chain AttributeError risk; the "alongside the existing... import" framing is imprecise (that Event import is function-local, not module-scope) but does not change what the implementer must write.
+  - id: SPEC-VERIFY-001
+    status: resolved
+    reason: FR-004 now explicitly requires the regression test to call sync_feature_dossier without a plain (non-autospec) Mock on the emitters, or to use autospec=True/spec=emit_artifact_indexed, and requires confirming the test goes red on a local revert of FR-004's promotion — directly closing the vacuous-mock gap the finding identified.

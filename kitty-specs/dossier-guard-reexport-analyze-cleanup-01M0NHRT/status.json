@@ -1,0 +1,113 @@
+{
+  "event_count": 24,
+  "last_event_id": "01M0P2KA4MZJ51VCZFTH8AKVA4",
+  "materialized_at": "2026-08-23T01:08:42.772412+00:00",
+  "mission_number": "",
+  "mission_slug": "dossier-guard-reexport-analyze-cleanup-01M0NHRT",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M0P0TH5MDJ5539FP3F3HH6T0",
+      "last_transition_at": "2026-08-23T00:37:42.196440+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "lane-a a9bbaafb2; RED reproduced at e99dd1b69 in throwaway worktree (7 failed, 22 passed), GREEN 29/29 after; fresh report grepped, zero /home or /Users matches in all four input_artifacts paths",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 855986,
+      "shell_pid_created_at": "1787444113.44",
+      "subtasks": {
+        "T005": "done"
+      }
+    },
+    "WP02": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M0P0KNWJSD53MKVWBTYVCMCZ",
+      "last_transition_at": "2026-08-23T00:33:57.650433+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "lane-b deeb6a42d; red-green reproduced in independent detached worktrees; both positive controls RED at bdff234e3, GREEN at deeb6a42d",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 860201,
+      "shell_pid_created_at": "1787444137.02"
+    },
+    "WP03": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M0P0YVB8DH4HME19HP92AR1A",
+      "last_transition_at": "2026-08-23T00:40:03.688227+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "lane-c 1d4c30474; RED 1-failed/15-passed at a56dbbb9d, GREEN 16/16 after; fix-line reverted in green tree to confirm the new test fails for the right reason; live commitlint 19.8.1 run: old subject 2 problems, new subject 0 via type-enum",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 862915,
+      "shell_pid_created_at": "1787444155.13",
+      "subtasks": {
+        "T010": "done",
+        "T011": "done",
+        "T012": "done"
+      }
+    },
+    "WP04": {
+      "actor": "claude",
+      "agent": "claude",
+      "agent_profile": "__resolved_profile_absent__",
+      "agent_profile_version": "__resolved_profile_version_absent__",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01M0P2KA4MZJ51VCZFTH8AKVA4",
+      "last_transition_at": "2026-08-23T01:08:42.772412+00:00",
+      "model": "__resolved_model_absent__",
+      "provider": "__resolved_provider_absent__",
+      "review_result": {
+        "reference": "lane-d e2d3f5fd4; rejected first pass on missing ATDD, reworked; fresh reviewer re-added ArtifactIdentity in throwaway and confirmed 3 tests go red, proving the guard detects re-introduction; 485 passed",
+        "reviewer": "reviewer-renata",
+        "verdict": "approved"
+      },
+      "role": "implementer",
+      "shell_pid": 868822,
+      "shell_pid_created_at": "1787444197.13",
+      "subtasks": {
+        "T013": "done",
+        "T014": "done"
+      }
+    }
+  }
+}

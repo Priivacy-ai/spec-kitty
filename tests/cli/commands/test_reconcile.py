@@ -124,6 +124,64 @@ class TestLibraryApi:
         assert bool(result) is False
         assert result.error
 
+    def test_reconcile_reports_error_on_malformed_manifest(self, tmp_path, monkeypatch):
+        """WP01 (FR-016, AS5): a malformed manifest is a structured ERROR, not a crash.
+
+        Exercises reconcile.py's own pre-existing `except Exception` at
+        cli/commands/reconcile.py:151-160 ("fail-closed: any rebuild failure is
+        an ERROR") — no new exception handling is added to reconcile.py itself
+        (tracer-design-decisions.md Decision 3). Routes the T002 typo'd fixture
+        through the real `ManifestRegistry.load_manifest()` (by monkeypatching
+        `_doctrine_repository`, the same seam T002 uses) for the seeded
+        mission's own mission type, so this test genuinely exercises
+        `load_manifest()`'s own exception handling, not a bypass of it: pre-T006
+        the typo is silently swallowed (manifest=None, PARITY); post-T006 the
+        raised `ValidationError` propagates through `Indexer.index_feature()`
+        (Decision 3: the indexer adds no catch of its own) up to this
+        pre-existing reconcile.py wrapper.
+        """
+        import ruamel.yaml
+
+        import specify_cli.dossier.manifest as manifest_module
+        from doctrine.missions.repository import ConfigResult
+        from specify_cli.cli.commands.reconcile import (
+            _DEFAULT_MISSION_TYPE,
+            reconcile_mission_dossier,
+        )
+        from specify_cli.dossier.manifest import ManifestRegistry
+
+        feature_dir = tmp_path / "demo-mission-01KKKK"
+        slug = _seed_mission(feature_dir)
+        _patch_feature_dir(monkeypatch, feature_dir)
+        ManifestRegistry.clear_cache()
+
+        fixture_path = Path(__file__).parent.parent.parent / "dossier" / "fixtures" / "expected_artifacts_typo.yaml"
+        content = fixture_path.read_text(encoding="utf-8")
+        yaml = ruamel.yaml.YAML(typ="safe")
+        parsed = yaml.load(content)
+
+        class _FakeRepository:
+            def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+                return ConfigResult(content=content, origin="test-fixture", parsed=parsed)
+
+        monkeypatch.setattr(manifest_module, "_doctrine_repository", lambda: _FakeRepository())
+
+        result = reconcile_mission_dossier(slug, repo_root=tmp_path, mission_type=_DEFAULT_MISSION_TYPE)
+
+        assert result.is_error
+        assert bool(result) is False
+        assert "validation error" in result.error.lower()
+        # Adversarial-review MAJOR fix (#3542 x domain-exception rework): the
+        # error surfaced here comes from `ManifestRegistry.load_manifest`
+        # raising `ManifestSchemaError` (not a raw `pydantic.ValidationError`)
+        # through `Indexer.index_feature`, caught by reconcile.py's
+        # pre-existing generic `except Exception as exc: ... f"...: {exc}"`.
+        # `ManifestSchemaError.__str__` names the manifest's origin
+        # ("test-fixture", per the fake repository above) alongside the
+        # validation detail, so an operator debugging this failure can find
+        # *which* file was schema-invalid, not just that some key was wrong.
+        assert "test-fixture" in result.error
+
 
 # ── T015/T016: CLI exit codes + named divergence ─────────────────────────────
 

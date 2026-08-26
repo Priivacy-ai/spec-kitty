@@ -13,6 +13,10 @@ Subcommands:
 - ``spec-kitty migrate rewrite-opposed-by`` — Rewrite a downstream/org pack's
   legacy ``opposed_by`` entries into ``in_tension_with``/``rejects`` DRG
   edges. Implements FR-015.
+- ``spec-kitty migrate backfill-mission-type`` — Mint a profile-resolving
+  ``mission_type`` into any legacy ``meta.json`` whose only type signal is
+  the deprecated ``mission`` field. Idempotent; never overwrites an existing
+  ``mission_type``. Implements FR-006, FR-007, FR-008.
 
 Usage examples::
 
@@ -23,6 +27,7 @@ Usage examples::
     spec-kitty migrate charter-encoding --yes --json
     spec-kitty migrate backfill-provenance --dry-run --json
     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
+    spec-kitty migrate backfill-mission-type --dry-run --json
 """
 
 from __future__ import annotations
@@ -69,6 +74,47 @@ _LABEL_FLIPPED = "Flipped"
 _LABEL_WOULD_SEED = "Would seed (verify pending)"
 _LABEL_SKIPPED = "Skipped (already migrated)"
 _LABEL_FAILED = "Failed"
+
+#: Header for the FR-010 boundary consumer of WP05's process-level capture-failure
+#: flag (``specify_cli.sync.emitter.captured_failures``). Surfaced at the cutover
+#: epilogue when the emitter swallowed an unrecoverable capture failure during the
+#: run — observable (report + non-zero), non-fatal to the command's own success
+#: computation (it never crashes the command or rewrites the cutover verdict).
+_CAPTURE_FAILURE_HEADER = "Unrecoverable capture failure(s) recorded during this run:"
+
+#: WP02 (rc3 mission-type backfill, campsite M1 — S1192 fold): the "could not
+#: locate project root" message was previously re-spelled at 5 call sites
+#: across this module. Every ``locate_project_root() is None`` guard (existing
+#: and this WP's new ``backfill-mission-type`` command) now shares this one
+#: constant.
+_NO_PROJECT_ROOT = (
+    "Could not locate project root. No .kittify/ directory found in any parent directory."
+)
+
+#: WP02 (campsite M2): ``backfill-mission-type`` reuses the hoisted
+#: ``_DRY_RUN_FLAG``/``_MISSION_FLAG``/``_MISSION_METAVAR``/``_JSON_FLAG``
+#: option strings above rather than re-spelling them. ``_DRY_RUN_HELP`` above
+#: is worded for the runtime-state cutover ("seed"/"flip") and does not
+#: describe writing a ``mission_type`` key, so this is the one new
+#: command-specific help constant the fold allows; ``_MISSION_HELP`` /
+#: ``_JSON_HELP`` are reused as-is.
+_MISSION_TYPE_DRY_RUN_HELP = (
+    "Report what would change without writing any files. "
+    "The JSON shape is identical to a live run."
+)
+_MISSION_TYPE_SUMMARY_TITLE = "backfill-mission-type summary"
+#: ``backfill_mission_type_repo`` scopes ``--mission`` by directory-name slug only
+#: (``kitty-specs/<slug>``), so this command must NOT reuse ``_MISSION_HELP`` /
+#: ``_MISSION_METAVAR`` ("HANDLE"), which advertise mid8 / mission_id selector
+#: resolution the backend does not honour (a mid8 would raise MissionNotFoundError).
+_MISSION_TYPE_MISSION_HELP = "Scope to a single mission slug (e.g. 083-foo). Omit to process all missions."
+_MISSION_TYPE_MISSION_METAVAR = "SLUG"
+_MISSION_TYPE_JSON_HELP = "Emit the per-mission backfill result list as structured JSON."
+_MISSION_TYPE_MANUAL_DIAGNOSTIC = (
+    "Fix: assign a mission type whose governance profile resolves at some layer "
+    "(built-in / org / project), or author/activate that type. Not necessarily a typo."
+)
+
 
 @app.callback(invoke_without_command=True)
 def migrate(  # noqa: C901
@@ -256,7 +302,7 @@ def backfill_identity(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     results = backfill_repo(repo_root, dry_run=dry_run, mission_slug=mission)
@@ -366,7 +412,7 @@ def backfill_topology(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     results = backfill_topology_repo(repo_root, dry_run=dry_run, mission_slug=mission)
@@ -418,6 +464,87 @@ def backfill_topology(
             console.print("\n[green]Done.[/green] All missions already have a ``topology``.")
 
     if errored:
+        raise typer.Exit(1)
+
+
+@app.command(name="backfill-mission-type")
+def backfill_mission_type_cmd(
+    json_output: Annotated[bool, typer.Option(_JSON_FLAG, help=_MISSION_TYPE_JSON_HELP)] = False,
+    dry_run: Annotated[
+        bool, typer.Option(_DRY_RUN_FLAG, help=_MISSION_TYPE_DRY_RUN_HELP)
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            _MISSION_FLAG,
+            help=_MISSION_TYPE_MISSION_HELP,
+            metavar=_MISSION_TYPE_MISSION_METAVAR,
+        ),
+    ] = None,
+) -> None:
+    """Mint a profile-resolving ``mission_type`` into legacy ``meta.json`` (rc3 M0).
+
+    Legacy missions store their type only in the deprecated ``mission`` field.
+    This command writes a canonical ``mission_type`` for every candidate whose
+    legacy value resolves a governance profile at *any* layer (built-in / org
+    / project) — activation-independent, per the M3 tolerance authority.  A
+    mission that already has a ``mission_type`` key is always skipped and
+    left byte-for-byte unchanged.
+
+    This command is **idempotent** — running it twice reports ``wrote=0`` on
+    the second pass.
+
+    A candidate whose legacy value resolves **no** governance profile is
+    never written; it is reported ``needs_manual_resolution`` instead. This
+    does **not** by itself fail the command — see the exit codes below — but
+    a distinct, actionable diagnostic is printed naming the affected
+    mission(s): the fix is to assign a valid mission type whose governance
+    profile resolves at some layer, or to author/activate that type. It is
+    not necessarily a typo.
+
+    Exit codes:
+
+    - ``0`` — ``--dry-run`` (always, regardless of findings), or a live run
+      with zero ``error`` results (``needs_manual_resolution`` alone does not
+      fail the command)
+    - ``1`` — a live run with one or more ``error`` results (corrupt /
+      unreadable ``meta.json``), or ``--mission`` naming a slug that has no
+      matching directory under ``kitty-specs/``
+
+    Examples:
+
+        spec-kitty migrate backfill-mission-type --dry-run --json
+
+        spec-kitty migrate backfill-mission-type --mission 083-foo-bar
+
+        spec-kitty migrate backfill-mission-type
+    """
+    from specify_cli.migration.backfill_mission_type import backfill_mission_type_repo
+    from specify_cli.mission import MissionNotFoundError
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    try:
+        results = backfill_mission_type_repo(repo_root, dry_run=dry_run, mission_slug=mission)
+    except MissionNotFoundError as exc:
+        # FR-008/AC-9: a structured, non-zero-exit error — never the sibling
+        # backfills' silent warn-and-return-empty path.
+        _error(str(exc))
+        raise typer.Exit(1) from exc
+
+    if json_output:
+        print(json.dumps(_mission_type_payload(results, dry_run=dry_run), indent=2))
+    else:
+        _print_mission_type_summary(results, dry_run=dry_run)
+
+    # FR-007/AC-8: a live run fails iff error > 0. --dry-run always exits 0
+    # (even over an error mission — the run made no changes to judge).
+    # needs_manual_resolution alone never fails the command.
+    errored = [r for r in results if r.action == "error"]
+    if not dry_run and errored:
         raise typer.Exit(1)
 
 
@@ -660,7 +787,7 @@ def normalize_lifecycle(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     results = normalize_repo(repo_root, dry_run=dry_run, mission_slug=mission)
@@ -849,7 +976,7 @@ def backfill_runtime_state_cmd(
     )
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     if mission is not None:
@@ -907,7 +1034,7 @@ def rebaseline_dossier_hashes(
 
     repo_root = locate_project_root()
     if repo_root is None:
-        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        _error(_NO_PROJECT_ROOT)
         raise typer.Exit(1)
 
     outcomes = rebaseline_recorded_snapshots(repo_root, dry_run=dry_run)
@@ -1075,6 +1202,79 @@ def _normalize_lifecycle_payload(results: list[Any], *, dry_run: bool) -> dict[s
             for r in results
         ],
     }
+
+
+def _mission_type_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any]:
+    """Build the stable ``--json`` payload for ``backfill-mission-type`` (AC-7).
+
+    Key set is identical between ``--dry-run`` and a live run — only count
+    and per-mission values differ.
+    """
+    wrote = [r for r in results if r.action == "wrote"]
+    skipped = [r for r in results if r.action == "skip"]
+    needs_manual = [r for r in results if r.action == "needs_manual_resolution"]
+    errored = [r for r in results if r.action == "error"]
+    return {
+        "dry_run": dry_run,
+        "summary": {
+            "total": len(results),
+            "wrote": len(wrote),
+            "skip": len(skipped),
+            "needs_manual_resolution": len(needs_manual),
+            "error": len(errored),
+        },
+        "results": [
+            {
+                "slug": r.slug,
+                "action": r.action,
+                "mission_type": r.mission_type,
+                "legacy_value": r.legacy_value,
+                "reason": r.reason,
+                "dossier_warning": r.dossier_warning,
+            }
+            for r in results
+        ],
+    }
+
+
+def _print_mission_type_summary(results: list[Any], *, dry_run: bool) -> None:
+    """Render the rich summary for ``backfill-mission-type``.
+
+    Lists ``error`` slugs+reasons. When ``needs_manual_resolution > 0``,
+    prints the actionable FR-007 diagnostic naming the affected slugs.
+    """
+    wrote = [r for r in results if r.action == "wrote"]
+    skipped = [r for r in results if r.action == "skip"]
+    needs_manual = [r for r in results if r.action == "needs_manual_resolution"]
+    errored = [r for r in results if r.action == "error"]
+
+    prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+    console.print(f"\n{prefix}[bold]{_MISSION_TYPE_SUMMARY_TITLE}[/bold]")
+    console.print(f"  Total missions scanned  : {len(results)}")
+    console.print(f"  Written (mission_type)  : {len(wrote)}")
+    console.print(f"  Skipped (already set)   : {len(skipped)}")
+    console.print(f"  Needs manual resolution : {len(needs_manual)}")
+    console.print(f"  Errors                  : {len(errored)}")
+
+    if errored:
+        console.print("\n[red]Errors:[/red]")
+        for r in errored:
+            console.print(f"  [red]{r.slug}:[/red] {r.reason}")
+
+    if needs_manual:
+        console.print("\n[yellow]Needs manual resolution:[/yellow]")
+        for r in needs_manual:
+            console.print(f"  [yellow]{r.slug}:[/yellow] {r.reason}")
+        console.print(f"[dim]{_MISSION_TYPE_MANUAL_DIAGNOSTIC}[/dim]")
+
+    if dry_run:
+        console.print("\n[dim]Dry run — no files were modified.[/dim]")
+    elif wrote:
+        console.print(
+            f"\n[green]Done.[/green] {len(wrote)} mission(s) received a ``mission_type``."
+        )
+    else:
+        console.print("\n[green]Done.[/green] All missions already have a ``mission_type``.")
 
 
 def _print_normalize_lifecycle_summary(results: list[Any], *, dry_run: bool) -> None:

@@ -13,11 +13,16 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kernel.clock import now_utc_iso
-from specify_cli.ownership.models import ExecutionMode
+from specify_cli.ownership.models import WorkProductKind
 from specify_cli.lanes.lane_env import lane_test_env
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.lanes.branch_naming import worktree_dir_name as _worktree_dir_name
-from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
+from specify_cli.lanes._git import branch_exists
+from specify_cli.lanes.worktree_allocator import (
+    _read_coordination_branch,
+    allocate_lane_worktree,
+    predict_lane_worktree,
+)
 from specify_cli.workspace.context import ResolvedWorkspace
 from specify_cli.workspace.context import WorkspaceContext, save_context
 
@@ -54,6 +59,7 @@ def create_lane_workspace(
     lanes_manifest: LanesManifest | None,
     declared_deps: list[str],
     vcs_backend_value: str,
+    base: str | None = None,
 ) -> LaneWorkspaceResult:
     """Create or reuse the execution workspace for the given WP.
 
@@ -69,11 +75,13 @@ def create_lane_workspace(
         lanes_manifest: The computed lanes manifest for code_change WPs.
         declared_deps: Declared dependencies for this WP.
         vcs_backend_value: VCS backend value string (e.g., "git").
+        base: Explicit ``--base`` ref, threaded into allocation and recorded
+            as the honored base for fresh lane provenance.
 
     Returns:
         LaneWorkspaceResult with workspace info.
     """
-    if resolved_workspace.execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+    if resolved_workspace.execution_mode == WorkProductKind.PLANNING_ARTIFACT:
         return LaneWorkspaceResult(
             workspace_path=resolved_workspace.worktree_path,
             branch_name=resolved_workspace.branch_name,
@@ -89,11 +97,31 @@ def create_lane_workspace(
     if lanes_manifest is None:
         raise ValueError(f"{wp_id} requires lanes.json workspace allocation metadata")
 
+    lane = lanes_manifest.lane_for_wp(wp_id)
+    lane_id = lane.lane_id if lane else "unknown"
+
+    # #3571 follow-up: capture reuse STRUCTURALLY, BEFORE allocation. A lane
+    # whose worktree already exists on disk (2nd+ WP in the lane / resume) — or
+    # whose branch exists while the worktree was lost (crash-recovery re-attach)
+    # — is a genuine reuse; a lane the allocator creates fresh from ``base`` is
+    # not. This mirrors the allocator's own fresh-vs-reuse fork and is immune to
+    # base divergence. The prior ``_has_commits_beyond_base(honored_base)``
+    # content probe misfired here: on a fresh lane rooted on a divergent
+    # ``--base``, the recorded planning-commit / dependency-tip merges land as
+    # "commits beyond base", which read as reuse — skipping the ``base_commit``
+    # provenance write below and defeating ``for_review_gate``'s recorded-
+    # honored-base lookup on exactly the divergent-``--base`` lane it exists for.
+    predicted_path, predicted_branch = predict_lane_worktree(
+        repo_root, mission_slug, lane_id
+    )
+    is_reuse = predicted_path.exists() or branch_exists(repo_root, predicted_branch)
+
     workspace_path, branch_name = allocate_lane_worktree(
         repo_root=repo_root,
         mission_slug=mission_slug,
         wp_id=wp_id,
         lanes_manifest=lanes_manifest,
+        base=base,
     )
 
     # Install pre-commit ownership guard.
@@ -101,20 +129,29 @@ def create_lane_workspace(
 
     install_commit_guard(workspace_path, repo_root)
 
-    lane = lanes_manifest.lane_for_wp(wp_id)
-    lane_id = lane.lane_id if lane else "unknown"
-
-    # Detect reuse: if the worktree has a .git file it was pre-existing
-    # and allocate_lane_worktree just validated it was clean.
-    git_marker = workspace_path / ".git"
-    is_reuse = git_marker.exists() and _has_commits_beyond_base(
-        workspace_path,
-        lanes_manifest.mission_branch,
+    # FR-011 / C-001: record the ACTUAL honored parent, not always
+    # ``mission_branch``. ``base`` when supplied (the allocator parented the
+    # lane on it, D1); otherwise the SAME topology parent
+    # ``allocate_lane_worktree`` itself just used to create the lane
+    # (``coordination_branch`` for coord topology, ``mission_branch`` for
+    # legacy — mirrors ``_read_coordination_branch``, the private helper the
+    # allocator reads internally, so this can never diverge from what was
+    # actually created). No-regression pin: a default no-``--base`` coord
+    # lane still records ``coordination_branch`` exactly as before.
+    coordination_branch = _read_coordination_branch(repo_root, mission_slug)
+    honored_base = (
+        base
+        if base is not None
+        else (
+            coordination_branch
+            if coordination_branch is not None
+            else lanes_manifest.mission_branch
+        )
     )
 
     from specify_cli.workspace.context import load_context
 
-    base_branch = lanes_manifest.mission_branch
+    base_branch = honored_base
 
     if is_reuse:
         # Reuse — refresh context to reflect the new active WP.
@@ -191,15 +228,3 @@ def _rev_parse(repo_root: Path, ref: str) -> str:
         check=False,
     )
     return result.stdout.strip() if result.returncode == 0 else "unknown"
-
-
-def _has_commits_beyond_base(worktree_path: Path, base_branch: str) -> bool:
-    """Check if the worktree branch has any commits beyond the base."""
-    result = subprocess.run(
-        ["git", "log", f"{base_branch}..HEAD", "--oneline", "-1"],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    return bool(result.stdout.strip())
