@@ -143,7 +143,11 @@ def _require_positive_max_frames(max_frames: int) -> int:
 def resolve_stream(repo: str) -> filtered_stream.FilteredStream:
     """Build exactly one ``FilteredStream`` for ``repo``'s already-stored
     credential. Raises :class:`NotCheckedOut` rather than constructing a
-    stream against nothing."""
+    stream against nothing. ``repo`` is the credential-store key — since
+    spec-kitty#132 the ``host/owner/repo`` shape
+    :func:`resolution.store_key` writes (the CLI derives it from the
+    checkout, #137), never a bare repo name: those keys hold nothing
+    readable any more."""
     stored = credentials.load(repo=repo)
     if stored is None:
         raise NotCheckedOut(repo)

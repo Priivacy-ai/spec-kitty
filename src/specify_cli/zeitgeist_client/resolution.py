@@ -315,6 +315,80 @@ def store_key(*, host: str | None, repo_slug: str) -> str:
     return f"{host or ''}/{repo_slug}"
 
 
+class StoreKeyError(ValueError):
+    """A caller-supplied store key is not a usable ``host/owner/repo`` key —
+    above all a bare NAME, the pre-#132 shape this store deliberately no
+    longer serves (spec-kitty#137)."""
+
+
+def _redact_userinfo(value: str) -> str:
+    """Drop anything before the last ``@`` before a caller-supplied value
+    is echoed back in an error message. No key :func:`store_key` writes
+    ever contains ``@``, so a legitimate key is untouched; a pasted clone
+    URL's userinfo (``https://x-access-token:<PAT>@host/owner/repo`` — what
+    `gh`/GitHub-App clones write into ``.git/config``, and the most likely
+    thing to be pasted here) is exactly what this strips before it can
+    reach stdout."""
+    return value.rsplit("@", 1)[-1] if "@" in value else value
+
+
+def parse_store_key(value: str) -> str:
+    """Canonicalize a caller-supplied credential-store key to the exact
+    lowercase form :func:`store_key` writes: ``host/owner/repo``, case
+    folded like :func:`repo_slug_and_host` folds a parsed origin, an
+    optional trailing ``.git`` stripped for a caller pasting one straight
+    off a remote URL.
+
+    Raises :class:`StoreKeyError` for anything else — most importantly a
+    bare NAME, which after #132 can only ever match an abandoned pre-#132
+    entry (a live-shaped bearer nothing prunes or expiry-checks), never a
+    real checkout's credential; or a pasted URL's ``scheme://`` prefix,
+    which would otherwise silently mis-parse into the host segment (e.g.
+    ``https://github.com/acme/widget`` → ``https:/github.com/acme/widget``)
+    instead of being rejected. The rejection message never echoes the raw
+    ``value`` verbatim (:func:`_redact_userinfo`) — a rejected value is, by
+    definition, exactly the shape a pasted credential-bearing clone URL
+    takes, and the refusal must not be the thing that leaks the credential
+    (spec-kitty#150 MAJOR)."""
+    cleaned = value.strip()
+    displayed = _redact_userinfo(cleaned)
+    error = StoreKeyError(
+        f"{displayed!r} is not a Zeitgeist credential-store key: pass host/owner/repo "
+        "(e.g. github.com/acme/widget), or run from inside the checkout with no key at all"
+    )
+    if urlparse(cleaned).scheme:
+        raise error
+    segments = [segment.lower() for segment in cleaned.split("/") if segment]
+    if len(segments) < 3:
+        raise error
+    slug_segments = segments[1:]
+    if slug_segments[-1].endswith(".git"):
+        slug_segments[-1] = slug_segments[-1][: -len(".git")]
+        if not slug_segments[-1]:
+            raise error
+    return store_key(host=segments[0], repo_slug="/".join(slug_segments))
+
+
+def store_key_for_checkout(cwd: str | Path) -> str | None:
+    """The store key of the checkout at ``cwd`` — the same
+    ``(host, owner/repo)`` derivation :func:`resolve_credentials` performs
+    on its origin remote (:func:`repo_identity.origin_url`, so the same
+    symlink/ambiguity hardening applies), without resolution's network half.
+
+    ``None`` when there is no resolvable hosted identity: not a git
+    checkout, ambiguous identity, no origin remote, or a local-only remote.
+    Read-only by design — the subscription/operability commands that call
+    this must never mint or write the store as a side effect of looking."""
+    try:
+        origin = repo_identity.origin_url(str(cwd), repo_identity.Deadline())
+    except repo_identity.RepoIdentityError:
+        return None
+    slug, host = repo_slug_and_host(origin)
+    if slug is None or host is None:
+        return None
+    return store_key(host=host, repo_slug=slug)
+
+
 def _expired(expires_at: str | None) -> bool:
     """Whether a verbatim ISO stamp has passed. Unstamped (every entry
     written before stamps existed) and unparseable entries never expire —

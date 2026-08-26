@@ -38,7 +38,7 @@ def _presence(session_ref: str = "a" * 12) -> dict[str, object]:
     return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": now_epoch(), "ttl_s": 30}}
 
 
-def _checkout(double_url: str, *, repo: str = "spec-kitty", credential: str = "team-a-cred") -> None:
+def _checkout(double_url: str, *, repo: str = "github.com/acme/spec-kitty", credential: str = "team-a-cred") -> None:
     credentials.store(repo=repo, relay_url=double_url, token=credential, token_kind="shared_team")
 
 
@@ -70,10 +70,10 @@ async def test_status_tool_reports_the_bounded_snapshot(state_root: Path, manage
 
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:
-        result = await client.call_tool("zeitgeist_status", {"repo": "spec-kitty", "timeout_s": 2.0})
+        result = await client.call_tool("zeitgeist_status", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     assert not result.isError
     assert result.structuredContent is not None
-    assert result.structuredContent["repo"] == "spec-kitty"
+    assert result.structuredContent["repo"] == "github.com/acme/spec-kitty"
     assert len(result.structuredContent["presence"]) == 1
     assert result.structuredContent["presence"][0]["session_ref"] == "a" * 12
 
@@ -85,9 +85,9 @@ async def test_watch_tool_reports_bounded_frames(state_root: Path, managed_strea
 
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:
-        result = await client.call_tool("zeitgeist_watch", {"repo": "spec-kitty", "timeout_s": 2.0})
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     assert not result.isError
-    assert result.structuredContent["repo"] == "spec-kitty"
+    assert result.structuredContent["repo"] == "github.com/acme/spec-kitty"
     frames = result.structuredContent["frames"]
     assert len(frames) == 1
     assert frames[0]["frame_type"] == "presence"
@@ -117,7 +117,7 @@ async def test_watch_tool_honors_max_frames(state_root: Path, managed_stream_dou
 
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:
-        result = await client.call_tool("zeitgeist_watch", {"repo": "spec-kitty", "timeout_s": 2.0, "max_frames": 2})
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0, "max_frames": 2})
     assert len(result.structuredContent["frames"]) == 2
 
 
@@ -149,7 +149,7 @@ async def test_watch_tool_delivers_event_attrs_only_inside_the_frame(state_root:
 
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:
-        result = await client.call_tool("zeitgeist_watch", {"repo": "spec-kitty", "timeout_s": 2.0})
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     assert not result.isError
     structured = result.structuredContent
     assert structured is not None
@@ -175,7 +175,7 @@ async def test_watch_tool_leaves_presence_frames_untouched(state_root: Path, man
 
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:
-        result = await client.call_tool("zeitgeist_watch", {"repo": "spec-kitty", "timeout_s": 2.0})
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     structured = result.structuredContent
     assert structured is not None and structured["frames"][0]["frame_type"] == "presence"
     assert "untrusted_text" not in structured["frames"][0]

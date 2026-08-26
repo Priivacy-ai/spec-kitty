@@ -175,6 +175,78 @@ class TestStoreKey:
         assert resolution.store_key(host=None, repo_slug="acme/widget") == "/acme/widget"
 
 
+class TestParseStoreKey:
+    """spec-kitty#137: the CLI accepts a caller-supplied ``host/owner/repo``
+    key and never a bare NAME — after #132 nothing is stored under a bare
+    name, so accepting one could only ever serve an abandoned pre-#132
+    bearer."""
+
+    def test_host_owner_repo_passes_through(self) -> None:
+        assert resolution.parse_store_key("github.com/acme/widget") == "github.com/acme/widget"
+
+    def test_subgrouped_slug_keeps_every_segment_after_the_host(self) -> None:
+        assert resolution.parse_store_key("gitlab.com/org/team/repo") == "gitlab.com/org/team/repo"
+
+    def test_is_case_folded_like_a_parsed_origin(self) -> None:
+        assert resolution.parse_store_key("GitHub.com/Acme/Widget") == "github.com/acme/widget"
+
+    @pytest.mark.parametrize("value", ["github.com/acme/widget.git", "  github.com/acme/widget  ", "github.com/acme/widget/"])
+    def test_pasted_from_a_remote_url_shapes_are_normalized(self, value: str) -> None:
+        assert resolution.parse_store_key(value) == "github.com/acme/widget"
+
+    @pytest.mark.parametrize("value", ["widget", "acme/widget", "", "/acme/widget"])
+    def test_bare_and_degenerate_keys_are_rejected(self, value: str) -> None:
+        with pytest.raises(resolution.StoreKeyError):
+            resolution.parse_store_key(value)
+
+    @pytest.mark.parametrize("value", ["https://github.com/acme/widget", "ssh://git@github.com/acme/widget"])
+    def test_a_pasted_url_with_a_scheme_is_rejected_not_misparsed(self, value: str) -> None:
+        """A prior version silently swallowed the scheme into the host
+        segment (``https://github.com/acme/widget`` -> the wrong key
+        ``https:/github.com/acme/widget``) instead of rejecting it."""
+        with pytest.raises(resolution.StoreKeyError):
+            resolution.parse_store_key(value)
+
+    def test_a_git_suffixed_owner_only_path_is_rejected_not_emptied(self) -> None:
+        """Stripping a trailing ``.git`` off ``github.com/acme/.git`` would
+        otherwise leave an empty last segment -- a key `store_key` never
+        writes, so it must be rejected rather than silently accepted."""
+        with pytest.raises(resolution.StoreKeyError):
+            resolution.parse_store_key("github.com/acme/.git")
+
+    def test_a_pasted_url_with_an_embedded_token_never_echoes_it(self) -> None:
+        """spec-kitty#150 MAJOR: a pasted clone URL with an embedded PAT --
+        ``https://x-access-token:<PAT>@host/owner/repo``, exactly what
+        `gh`/GitHub-App clones write into ``.git/config`` -- must not have
+        the token show up in the refusal message."""
+        token = "ghp_SECRETTOKEN123"  # noqa: S105 - test fixture, not a real credential
+        with pytest.raises(resolution.StoreKeyError) as exc_info:
+            resolution.parse_store_key(f"https://x-access-token:{token}@github.com/acme/widget")
+        assert token not in str(exc_info.value)
+
+
+class TestStoreKeyForCheckout:
+    """The read-only half of :func:`resolve_credentials`' identity
+    derivation: the key the subscription/operability commands read under,
+    derived from cwd exactly as the bridge derives its credential."""
+
+    def test_hosted_checkout_yields_its_store_key(self, clone: Path) -> None:
+        assert resolution.store_key_for_checkout(clone) == "github.com/acme/widget"
+
+    def test_directory_with_no_git_identity_has_no_key(self, tmp_path: Path) -> None:
+        plain = tmp_path / "not-a-repo"
+        plain.mkdir()
+        assert resolution.store_key_for_checkout(plain) is None
+
+    def test_local_only_origin_has_no_key(self, tmp_path: Path) -> None:
+        bare = tmp_path / "server" / "acme" / "widget.git"
+        bare.mkdir(parents=True)
+        subprocess.run(["git", "init", "--bare", "-q"], cwd=bare, check=True, capture_output=True)
+        dest = tmp_path / "local-only"
+        subprocess.run(["git", "clone", "-q", str(bare), str(dest)], check=True, capture_output=True)
+        assert resolution.store_key_for_checkout(dest) is None
+
+
 # ---------------------------------------------------------------------------
 # SaasCapabilityGateway against the endpoints' real wire shapes (respx)
 # ---------------------------------------------------------------------------
@@ -349,7 +421,9 @@ def test_naive_stamp_never_raises_and_never_expires() -> None:
 # ---------------------------------------------------------------------------
 
 
-KEY = "widget"
+# The store key is the hosted identity since #132 — a bare NAME key would be
+# refused by credentials.store itself (spec-kitty#137).
+KEY = "github.com/acme/widget"
 SLUG = "acme/widget"
 HOST = "github.com"
 
@@ -381,7 +455,7 @@ class TestCacheShortCircuits:
         """The relay-403 recovery path: even a perfectly fresh credential is
         discarded when the caller says the relay just refused it."""
         credentials.store(repo=KEY, relay_url="http://stale", token="tok", token_kind="presence", expires_at=_iso_in(3600))
-        credentials.store_negative(repo="other", reason="no_match", expires_at=_iso_in(300))
+        credentials.store_negative(repo="gitlab.com/other/repo", reason="no_match", expires_at=_iso_in(300))
         gateway = ScriptedGateway(admission={"admitted": False, "reason": "no_match"})
         assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=True) is None
         assert len(gateway.admission_calls) == 1
