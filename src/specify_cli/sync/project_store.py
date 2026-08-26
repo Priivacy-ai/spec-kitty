@@ -627,6 +627,16 @@ class ProjectSyncStore:
             # changed from inside a transaction. The WAL switch itself is
             # done through _ensure_wal_journal_mode, not a bare PRAGMA: it
             # needs a lock class busy_timeout does not cover (see there).
+            #
+            # NOTE (#3625): busy_timeout bounds the wait on the in-daemon
+            # write-lock contention that shows up as "project sync store is
+            # locked" on large stores. Narrowing the lock *window* itself
+            # (the work held between BEGIN IMMEDIATE and commit, which scales
+            # with body-drain size) would change body-drain transaction scope
+            # and is deferred until a tens-of-MB repro can validate it does
+            # not regress atomicity or WAL-checkpoint behavior. The bounded
+            # wait guaranteed here is locked in by
+            # tests/sync/test_project_store_transactions.py.
             connection.execute(f"PRAGMA busy_timeout = {int(lock_timeout_seconds * 1000)}")
             _ensure_wal_journal_mode(connection, lock_timeout_seconds)
             connection.execute("PRAGMA foreign_keys = ON")
