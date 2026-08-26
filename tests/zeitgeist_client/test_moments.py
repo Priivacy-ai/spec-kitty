@@ -21,6 +21,8 @@ import pytest
 
 from specify_cli.zeitgeist_client import moments
 
+pytestmark = pytest.mark.fast
+
 
 @pytest.fixture()
 def moments_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
