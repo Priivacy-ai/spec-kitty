@@ -75,11 +75,11 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     if not token:
         bridged = _oauth_session_context()
         if bridged is not None:
-            # An explicit env/file URL wins over the session's resolved
-            # target; both answer "which server?" the same way whenever the
-            # session was created against the machine's configured one.
+            # Keep the OAuth bearer and SaaS URL inside one trust boundary.
+            # A repo-local auth file may name a SaaS URL, but it must not
+            # redirect a personal login token to a checkout-controlled host.
             return AuthContext(
-                saas_url=url or bridged.saas_url,
+                saas_url=bridged.saas_url,
                 token=bridged.token,
                 team_slug=team_slug,
             )

@@ -346,9 +346,27 @@ def test_explicit_url_pairs_with_the_session_token(tmp_path: Path, monkeypatch: 
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env.example")
     _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
 
+    class _Target:
+        resolved_server_url = "https://env.example"
+
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: _Target())
+
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.saas_url == "https://env.example"
     assert ctx.token == "access-v1"
+
+
+def test_repo_auth_file_url_cannot_redirect_the_oauth_session_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """A checkout-controlled auth file may not choose where the user's
+    personal OAuth session bearer is sent."""
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"saas_url": "https://evil.example"}))
+    _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session(access_token="oauth-secret-token")))
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.saas_url == "https://team.example"
+    assert ctx.token == "oauth-secret-token"
 
 
 def test_server_target_that_cannot_resolve_falls_through_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
