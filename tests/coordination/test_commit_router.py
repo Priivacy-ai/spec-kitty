@@ -152,6 +152,45 @@ def test_unprotected_direct_commit(tmp_path: Path) -> None:
     assert len(materialise_calls) == 0
 
 
+def test_protected_primary_refusal_names_real_start_branch_command(tmp_path: Path) -> None:
+    """Protected primary placement refuses with a copy-pasteable remediation."""
+    policy = _make_policy(protected=True)
+    primary_target = _make_primary_target()
+    mission_slug = "001-my-mission"
+    artifact = tmp_path / "spec.md"
+    artifact.write_text("# Spec\n", encoding="utf-8")
+
+    with (
+        _patch_topology(coord=True),
+        _patch_primary_target(),
+        patch(
+            "specify_cli.coordination.commit_router.resolve_placement_only",
+            return_value=primary_target,
+        ),
+        patch(
+            "specify_cli.coordination.commit_router.safe_commit",
+            return_value=_FakeCommitResult(),
+        ) as safe_commit,
+    ):
+        from specify_cli.coordination.commit_router import commit_for_mission
+
+        result = commit_for_mission(
+            repo_root=tmp_path,
+            mission_slug=mission_slug,
+            files=(artifact,),
+            message="Add spec",
+            policy=policy,
+            kind=MissionArtifactKind.SPEC,
+        )
+
+    assert result.status == "no_op_wrong_surface"
+    assert result.placement_ref == _PRIMARY_BRANCH
+    assert result.diagnostic is not None
+    assert "spec-kitty agent mission create <mission_slug> --start-branch <feature-branch>" in result.diagnostic
+    assert "spec-kitty mission create --start-branch" not in result.diagnostic
+    safe_commit.assert_not_called()
+
+
 def test_protected_coord_placement_materialises(tmp_path: Path) -> None:
     """Coordination kind under coord topology → materialiser called; artifact on coord branch.
 
