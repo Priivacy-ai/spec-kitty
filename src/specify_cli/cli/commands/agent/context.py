@@ -11,7 +11,11 @@ from rich.console import Console
 from specify_cli.cli.console import console
 from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_mission_handle
+from specify_cli.context.mission_resolver import (
+    AmbiguousHandleError,
+    MissionNotFoundError,
+    resolve_mission,
+)
 from specify_cli.core.paths import locate_project_root
 from mission_runtime import (
     ACTION_NAMES,
@@ -123,7 +127,17 @@ def resolve_context(
         raw_handle = mission.strip() if mission else None
         if not raw_handle:
             raise ActionContextError("MISSING_MISSION", "--mission <slug> is required")
-        mission_resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
+        # Resolve through the mission-resolver directly (not
+        # ``resolve_mission_handle``, which prints to stderr and calls
+        # ``sys.exit(2)`` on failure) so an unresolvable or ambiguous handle
+        # flows through this command's own ``ActionContextError``/``--json``
+        # envelope below instead of bypassing it (FR-003/FR-004, #160).
+        try:
+            mission_resolved = resolve_mission(raw_handle, repo_root)
+        except AmbiguousHandleError as exc:
+            raise ActionContextError("ambiguous_mission_handle", str(exc)) from exc
+        except MissionNotFoundError as exc:
+            raise ActionContextError("mission_not_found", str(exc)) from exc
         mission_slug = mission_resolved.mission_slug
 
         context = resolve_action_context(

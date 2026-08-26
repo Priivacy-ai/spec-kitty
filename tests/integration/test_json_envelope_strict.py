@@ -91,19 +91,11 @@ _COVERED_COMMANDS: list[tuple[str, Any, list[str], bool]] = [
     # path. With no mission in the temp dir it returns a MISSING_MISSION /
     # MISSION_NOT_FOUND error envelope — still strict JSON, still on stdout.
     # Typer collapses single-command apps so we omit the "resolve" prefix.
-    #
-    # Quarantined (Tier 3 environmental, tracking issue #160): every
-    # `agent_context_resolve-*` param failed under `-n auto` and passed alone
-    # on three same-day runs (2026-08-26: @19d2b47d, @102a6404, @b83169a7 —
-    # each listed in bin/ci-post.sh's own flakes section). Mechanism not yet
-    # root-caused; held out of blocking runs so it cannot red an unrelated PR.
-    pytest.param(
+    (
         "agent_context_resolve",
         context_app,
         ["--action", "specify", "--mission", "nonexistent-mission", "--json"],
         False,
-        id="agent_context_resolve",
-        marks=pytest.mark.quarantine,
     ),
 ]
 

@@ -2854,16 +2854,15 @@ jobs:
           SPEC_KITTY_RUN_QUARANTINE: "1"
           PWHEADLESS: "1"
         run: |
-          # Quarantine is reserved for irreducible Tier-3 environmental flakes.
-          # The manifest deliberately uses an in-workflow bash array: the
-          # workflow is the execution owner, and the architectural guard below
-          # verifies the array is a complete mirror of direct markers in
-          # tests/. This job never scans the unrelated whole tree.
-          # First entry (2026-08-26): agent_context_resolve -n auto divergence,
-          # three same-day occurrences — tracking issue #160.
-          QUARANTINE_PATHS=(
-            tests/integration/test_json_envelope_strict.py
-          )
+          # Empty by adjudication: quarantine is reserved for irreducible Tier-3
+          # environmental flakes, and the sanitation census found none. Keep the
+          # manifest deliberately uses an in-workflow bash array: the workflow is
+          # the execution owner, and the architectural guard below verifies the
+          # array is a complete mirror of direct markers in tests/. This job
+          # never scans the unrelated whole tree.
+          # The architectural guard discovers direct quarantine markers across
+          # tests/ and requires this owner manifest to match exactly.
+          QUARANTINE_PATHS=()
           if [ "${#QUARANTINE_PATHS[@]}" -eq 0 ]; then
             echo "::notice::No tests are currently quarantined (owner manifest is empty)."
             exit 0
