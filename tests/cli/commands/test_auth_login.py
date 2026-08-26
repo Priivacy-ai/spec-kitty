@@ -230,6 +230,23 @@ class TestAuthLoginConfigErrors:
         # Login resolved the configured server_url and handed it to the flow.
         assert mock_browser.call_args.args[1] == "https://configured.example"
 
+    def test_blank_configured_server_url_still_refuses(self, monkeypatch, tmp_path):
+        # #182 squad MAJOR: `server_url = ""` names no endpoint, so login must
+        # refuse exactly as it does when `[sync].server_url` is absent — not
+        # treat the blank string as a configured (but empty) endpoint.
+        runtime_root = tmp_path / "runtime-root"
+        runtime_root.mkdir(parents=True)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+        (runtime_root / "config.toml").write_text(
+            '[sync]\nserver_url = ""\n', encoding="utf-8"
+        )
+
+        result = runner.invoke(app, ["login"])
+
+        assert result.exit_code != 0
+        assert "No hosted server is configured" in result.stdout
+
 
 # ---------------------------------------------------------------------------
 # Already-authenticated / --force behavior

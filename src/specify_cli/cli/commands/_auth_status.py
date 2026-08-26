@@ -129,9 +129,14 @@ def _print_saas_target(session: StoredSession) -> None:
         )
         console.print(f"  SaaS:           not configured [dim]{remedy}[/dim]")
         return
+    # escape(): both the resolved URL and the provenance suffix can contain
+    # `[sync]`/`[/]`-shaped substrings (a config.toml server_url is
+    # attacker- or fat-finger-controlled) — unescaped, Rich markup either
+    # drops the bracketed text or raises MarkupError out of console.print,
+    # which would violate this module's own never-fail invariant (#182).
     console.print(
-        f"  SaaS:           {target.resolved_server_url} "
-        f"[dim]{format_saas_provenance(target)}[/dim]"
+        f"  SaaS:           {escape(target.resolved_server_url)} "
+        f"[dim]{escape(format_saas_provenance(target))}[/dim]"
     )
     warning = format_saas_mismatch_warning(
         session.issuer_url,
@@ -139,7 +144,7 @@ def _print_saas_target(session: StoredSession) -> None:
         resolved_server_url=target.resolved_server_url,
     )
     if warning is not None:
-        console.print(f"  [yellow]{warning}[/yellow]")
+        console.print(f"  [yellow]{escape(warning)}[/yellow]")
 
 
 def _print_identity(session: StoredSession) -> None:
