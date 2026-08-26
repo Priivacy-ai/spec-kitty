@@ -77,6 +77,10 @@ class OfferRecorder:
     configs: list[Any] = field(default_factory=list)
     clients_built: int = 0
 
+    def summaries(self) -> list[tuple[str, str]]:
+        """(op, kind) per offer — the whole "one offer, the right one" contract."""
+        return [(op, args["kind"]) for op, args in self.offers]
+
     def install(self, monkeypatch: pytest.MonkeyPatch) -> OfferRecorder:
         recorder = self
 
@@ -169,10 +173,9 @@ def test_one_offer_per_registered_transition(monkeypatch: pytest.MonkeyPatch, re
 
     _fire_transition()
 
-    assert len(recorder.offers) == 1
-    op, args = recorder.offers[0]
-    assert op == "event.publish"
-    assert args["kind"] == "WPStatusChanged"
+    # Exactly one offer, and it is the right one: op + kind named, not counted.
+    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
+    _op, args = recorder.offers[0]
     assert args["ref"] == "demo-mission"
     attrs = args["attrs"]
     assert attrs["event_id"] == _EVENT_ID
@@ -310,11 +313,13 @@ def test_non_sent_outcome_is_dropped_and_logged_once(
     _fire_transition()
     _fire_transition()
 
-    # One attempt per moment, each logged once, neither retried nor queued.
-    assert len(recorder.offers) == 2
-    drops = [m for m in caplog.messages if outcome in m]
-    assert len(drops) == 2
-    assert all("no retry by design" in m for m in drops)
+    # One attempt per moment, neither retried nor queued; every drop names the
+    # outcome and the no-retry contract, content-exact.
+    assert recorder.summaries() == [("event.publish", "WPStatusChanged")] * 2
+    expected_drop = (
+        f"Zeitgeist moment WPStatusChanged dropped ({outcome}) after 10 ms; no retry by design"
+    )
+    assert [m for m in caplog.messages if "dropped" in m] == [expected_drop, expected_drop]
 
 
 def test_budget_drop_does_not_block_canonical_persistence(
@@ -339,7 +344,7 @@ def test_budget_drop_does_not_block_canonical_persistence(
     )
 
     assert event.to_lane is Lane.CLAIMED
-    assert len(recorder.offers) == 1
+    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
 
 
 # ---------------------------------------------------------------------------
@@ -387,10 +392,8 @@ def test_lane_transition_via_emit_status_transition_offers_once(
         )
     )
 
-    assert len(recorder.offers) == 1
-    op, args = recorder.offers[0]
-    assert op == "event.publish"
-    assert args["kind"] == "WPStatusChanged"
+    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
+    _op, args = recorder.offers[0]
     assert args["attrs"]["actor"] == "robert"
 
 
@@ -415,9 +418,8 @@ def test_mission_creation_via_local_emitter_offers_once(
         purpose_context="context",
     )
 
-    assert len(recorder.offers) == 1
+    assert recorder.summaries() == [("event.publish", "MissionCreated")]
     _op, args = recorder.offers[0]
-    assert args["kind"] == "MissionCreated"
     assert args["ref"] == "demo-mission"
     assert "friendly_name" not in args["attrs"]  # prose stays local
     assert args["attrs"]["mission_type"] == "software-dev"
