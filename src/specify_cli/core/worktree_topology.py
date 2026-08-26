@@ -178,7 +178,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
         main_repo_root,
         mission_slug,
         MissionArtifactKind.STATUS_STATE,
-        strategy=ReadDegradeStrategy.PRIMARY_FALLBACK,
+        strategy=ReadDegradeStrategy.DEGRADE_TO_FEATURE_DIR,
         caught=(CoordinationBranchDeleted,),
         degrade_target=feature_dir,
     )

@@ -123,18 +123,12 @@ def _acceptance_criteria_scope(wp_body: str) -> str:
 
 def detect_post_integration_acceptance(wp_content: str, wp_files: list[str]) -> list[str]:
     """Warn when a code WP's acceptance criteria are post-integration only."""
-    if infer_execution_mode(wp_content, wp_files) is not ExecutionMode.CODE_CHANGE:
+    if infer_execution_mode(wp_content, wp_files) is not WorkProductKind.CODE_CHANGE:
         return []
     scope = _acceptance_criteria_scope(wp_content)
     if not scope:
         return []
-    matched = sorted(
-        {
-            match.group(0).strip().lower()
-            for pattern in _POST_INTEGRATION_MARKERS
-            for match in pattern.finditer(scope)
-        }
-    )
+    matched = sorted({match.group(0).strip().lower() for pattern in _POST_INTEGRATION_MARKERS for match in pattern.finditer(scope)})
     if not matched:
         return []
     phrases = ", ".join(f"'{phrase}'" for phrase in matched)
