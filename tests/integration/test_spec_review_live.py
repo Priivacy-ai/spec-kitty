@@ -33,7 +33,6 @@ def _unused_loopback_port() -> int:
         return int(listener.getsockname()[1])
 
 
-@pytest.mark.live_adapter
 @pytest.mark.integration
 def test_live_review_uses_only_built_in_synthetic_spec(
     tmp_path: Path,

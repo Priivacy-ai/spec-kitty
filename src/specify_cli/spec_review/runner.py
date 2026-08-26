@@ -225,7 +225,11 @@ def _http_request(method: str, url: str, body: bytes, limit: int, timeout_second
         headers={"Content-Type": "application/json"},
         method=method,
     )
-    with urlopen(request, timeout=timeout_seconds) as response:  # noqa: S310 -- URL is constructor-validated loopback.
+    # OpenCodeLoopbackClient accepts only an explicit http://127.0.0.1:<port>
+    # authority before this transport can be reached.  The project-data consent
+    # seam is confirm_and_load_spec in service.py and is pinned by the egress
+    # boundary allowlist.
+    with urlopen(request, timeout=timeout_seconds) as response:  # nosec B310  # noqa: S310
         return HttpResponse(response.status, response.read(limit + 1))
 
 

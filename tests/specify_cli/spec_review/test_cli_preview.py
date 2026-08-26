@@ -147,9 +147,13 @@ def test_next_fast_path_does_not_import_spec_review_runner(monkeypatch: pytest.M
     assert "specify_cli.spec_review.runner" not in sys.modules
 
 
-def test_existing_review_remains_a_leaf_with_its_public_options() -> None:
+def test_existing_review_remains_a_leaf_with_its_public_options(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from specify_cli import _build_app
 
+    monkeypatch.chdir(tmp_path)
     result = CliRunner().invoke(_build_app(), ["review", "--help"])
 
     assert result.exit_code == 0, result.output

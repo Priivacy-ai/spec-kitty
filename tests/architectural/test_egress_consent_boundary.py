@@ -674,6 +674,18 @@ _EGRESS_ALLOWLIST: dict[str, Allowance] = {
         inventory_id="E18",
         note="127.0.0.1 in the reserved daemon port range; orphan classification.",
     ),
+    "specify_cli/spec_review/runner.py": Allowance(
+        kind=AllowanceKind.SEAM,
+        inventory_id="ox-alpha-spec-reviewer-FR-003",
+        note=(
+            "The transport is fixed to an explicit http://127.0.0.1:<port> OpenCode "
+            "server. SpecReviewService calls confirm_and_load_spec with the exact "
+            "previewed manifest digest before it builds the prompt or invokes this "
+            "runner; a missing or mismatched consent digest stops before this sink."
+        ),
+        seam_symbol="confirm_and_load_spec",
+        seam_module="specify_cli/spec_review/service.py",
+    ),
 }
 
 #: Ratcheted in ``_baselines.yaml`` as

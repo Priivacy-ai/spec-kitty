@@ -266,8 +266,13 @@ test_egress_consent_boundary:
   # not-project-data sender: its JFrog AQL POST contains only the
   # operator-configured repository/path/name needed for an inbound fetch. Reset
   # the ceiling to the exact new live count rather than spending hidden room.
-  # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 27
+  # 27 -> 28 (ox-alpha-spec-reviewer FR-003): spec_review/runner.py sends the
+  # already consented prompt only to an exact numeric-loopback OpenCode server.
+  # The caller's confirm_and_load_spec seam requires the previewed manifest
+  # digest before prompt construction or runner invocation; mismatch fails
+  # before the sink. Growth here means a new file transmits: argue it in the
+  # diff.
+  egress_allowlist_files: 28
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the

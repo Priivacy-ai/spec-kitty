@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Protocol
 
 from kernel.clock import datetime, now_utc
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind, placement_seam
 
 from .models import DiagnosticCode, DisclosureManifest, ReviewResponse, ReviewStatus, ReviewSummary, SpecReviewRun
 from .parser import InvalidReviewResponse, parse_review_response_bytes
@@ -264,5 +264,5 @@ def _mission_spec_context(repo_root: Path, mission_slug: str) -> MissionSpecCont
     """Resolve the spec input through the canonical topology-aware read path."""
     return MissionSpecContext.create(
         repo_root=repo_root,
-        mission_dir=candidate_feature_dir_for_mission(repo_root, mission_slug),
+        mission_dir=placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.SPEC),
     )

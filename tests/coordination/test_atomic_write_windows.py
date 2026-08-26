@@ -13,10 +13,13 @@ from specify_cli.coordination import atomic_write as aw
 from specify_cli.coordination import windows_confined_fs as wfs
 
 
-pytestmark = pytest.mark.skipif(
-    os.name != "nt",
-    reason="Windows confined-writer contract",
-)
+pytestmark = [
+    pytest.mark.windows_ci,
+    pytest.mark.skipif(
+        os.name != "nt",
+        reason="Windows confined-writer contract",
+    ),
+]
 
 
 def test_windows_confined_writer_pins_directories_against_rename(
