@@ -133,6 +133,12 @@ class StoredSession:
 
     generation: int | None = None  # Tranche 2 token-family generation counter; None for pre-Tranche-2 sessions
 
+    # Base URL of the SaaS this session was minted against, recorded at login
+    # so ``auth status`` can flag a session that predates a server move.
+    # ``None`` for sessions written before the field existed (no mismatch can
+    # be claimed without knowing where the tokens came from).
+    issuer_url: str | None = None
+
     def __post_init__(self) -> None:
         """Keep persisted auth timestamps comparable with UTC ``now`` values."""
         self.issued_at = _coerce_utc(self.issued_at)
@@ -189,6 +195,7 @@ class StoredSession:
             "last_used_at": self.last_used_at.isoformat(),
             "auth_method": self.auth_method,
             "generation": self.generation,
+            "issuer_url": self.issuer_url,
         }
 
     @classmethod
@@ -215,6 +222,7 @@ class StoredSession:
             last_used_at=parse_iso(data["last_used_at"]),
             auth_method=data["auth_method"],
             generation=data.get("generation"),
+            issuer_url=data.get("issuer_url"),
         )
 
     def to_json(self) -> str:

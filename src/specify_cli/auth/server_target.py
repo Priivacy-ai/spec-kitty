@@ -29,8 +29,9 @@ _LOG = logging.getLogger(__name__)
 DEFAULT_SERVER_URL = "https://spec-kitty-dev.fly.dev"
 
 #: Mirrors ``specify_cli.auth.config._ENV_VAR``; named here so the split-brain
-#: message and env read share one literal (Sonar S1192).
-SAAS_URL_ENV_VAR = "SPEC_KITTY_SAAS_URL"
+#: message and env read share one literal (Sonar S1192). Explicitly typed:
+#: consumers under ``follow_imports = "skip"`` would otherwise see ``Any``.
+SAAS_URL_ENV_VAR: str = "SPEC_KITTY_SAAS_URL"
 
 _SPLIT_BRAIN_MESSAGE = (
     "Server target split-brain detected before any network call: config.toml "
