@@ -8,7 +8,6 @@ command ``create()`` is a thin wrapper around this function.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import contextlib
 import logging
 import re
 import shutil

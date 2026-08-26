@@ -39,7 +39,6 @@ from specify_cli.migration.mission_state import (
     CheckoutDisagreement,
     FailClosedRefusal,
     MissionStateWriteRefused,
-    _rule_normalize_lanes,
     _rule_strip_legacy_keys,
     audit_invocation_disagreement,
     enforce_primary_write_ownership,

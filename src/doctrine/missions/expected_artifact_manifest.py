@@ -86,7 +86,7 @@ class ExpectedArtifactManifest(BaseModel):
     )
 
     @classmethod
-    def from_yaml_file(cls, path: Path) -> "ExpectedArtifactManifest":
+    def from_yaml_file(cls, path: Path) -> ExpectedArtifactManifest:
         """Load manifest from a YAML file."""
         import ruamel.yaml
 
