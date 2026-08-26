@@ -4955,16 +4955,17 @@ _Payload-free self-report of this client's liveness/connection/subscription/outb
 ## spec-kitty zeitgeist operability drill-rollback
 
 ```
- Usage: spec-kitty zeitgeist operability drill-rollback [OPTIONS] REPO
+ Usage: spec-kitty zeitgeist operability drill-rollback [OPTIONS] [REPO]
 
  Local "rollback" drill: proves ``outbox_approval.revoke()`` fails closed on a
  never-approved item — never touches the controlling terminal, never requires a
  human.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
-│                      under (the one explicit team context).                  │
-│                      [required]                                              │
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit plain JSON instead of a human-readable summary.       │
@@ -4975,15 +4976,16 @@ _Payload-free self-report of this client's liveness/connection/subscription/outb
 ## spec-kitty zeitgeist operability drill-rotation
 
 ```
- Usage: spec-kitty zeitgeist operability drill-rotation [OPTIONS] REPO
+ Usage: spec-kitty zeitgeist operability drill-rotation [OPTIONS] [REPO]
 
  Local "auth expiry" drill for ``repo``'s stored checkout — reads only the
  stored ``token_issued_at`` timestamp, never the token value.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
-│                      under (the one explicit team context).                  │
-│                      [required]                                              │
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit plain JSON instead of a human-readable summary.       │
@@ -5008,16 +5010,17 @@ _Payload-free self-report of this client's liveness/connection/subscription/outb
 ## spec-kitty zeitgeist operability report
 
 ```
- Usage: spec-kitty zeitgeist operability report [OPTIONS] REPO
+ Usage: spec-kitty zeitgeist operability report [OPTIONS] [REPO]
 
  One payload-free snapshot of ``repo``'s operability signals. Runs a single
  canary offer probe only if ``repo`` already has a stored checkout — otherwise
  reports honestly stale/inactive rather than fabricating a live reading.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
-│                      under (the one explicit team context).                  │
-│                      [required]                                              │
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json            Emit plain JSON instead of a human-readable summary.       │
@@ -5154,14 +5157,15 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ## spec-kitty zeitgeist status
 
 ```
- Usage: spec-kitty zeitgeist status [OPTIONS] REPO
+ Usage: spec-kitty zeitgeist status [OPTIONS] [REPO]
 
  One bounded snapshot of ``repo``'s live presence/focus state.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
-│                      under (the one explicit team context).                  │
-│                      [required]                                              │
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --timeout          FLOAT RANGE [x>=0.001]  Seconds to listen before          │
@@ -5177,15 +5181,16 @@ _Inspect/approve/reject/revoke locally queued Zeitgeist prose. Every decision re
 ## spec-kitty zeitgeist watch
 
 ```
- Usage: spec-kitty zeitgeist watch [OPTIONS] REPO
+ Usage: spec-kitty zeitgeist watch [OPTIONS] [REPO]
 
  Print each live presence/focus frame for ``repo`` as it arrives, bounded by
  ``--timeout`` idleness and ``--max-frames`` count.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    repo      TEXT  Canonical repo key this checkout's credential is stored │
-│                      under (the one explicit team context).                  │
-│                      [required]                                              │
+│   repo      [REPO]  Credential-store key this checkout's credential is       │
+│                     stored under, as host/owner/repo (e.g.                   │
+│                     github.com/acme/widget). Omit to derive it from the      │
+│                     current checkout's origin remote.                        │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --timeout             FLOAT RANGE [x>=0.001]  Idle seconds before the watch  │

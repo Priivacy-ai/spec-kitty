@@ -108,6 +108,12 @@ from kernel.paths import get_runtime_state_root
 CREDENTIALS_FILENAME = "zeitgeist-credentials"
 _LOCK_SUFFIX = ".lock"
 
+# E3 resolution: the token_kind a negative (no-admitted-team) answer is
+# stored under. A negative entry carries no relay_url/token at all, so
+# load() reports it as None and only load_negative() ever hands it back.
+# noqa S105: a TOML discriminator literal, not a credential.
+NEGATIVE_TOKEN_KIND = "not_admitted"  # noqa: S105
+
 
 def _is_legacy_name_key(repo: str) -> bool:
     """Whether ``repo`` is a pre-#132 bare-NAME store key, which this module
@@ -116,12 +122,6 @@ def _is_legacy_name_key(repo: str) -> bool:
     lack the ``/`` — even a degenerate empty-host key is ``/owner/repo`` —
     so "no slash" identifies exactly the abandoned shape."""
     return "/" not in repo
-
-# E3 resolution: the token_kind a negative (no-admitted-team) answer is
-# stored under. A negative entry carries no relay_url/token at all, so
-# load() reports it as None and only load_negative() ever hands it back.
-# noqa S105: a TOML discriminator literal, not a credential.
-NEGATIVE_TOKEN_KIND = "not_admitted"  # noqa: S105
 
 
 @dataclass(frozen=True)
