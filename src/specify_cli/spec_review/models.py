@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 from hashlib import sha256  # noqa: TID251 - exact byte-level disclosure integrity is not charter content
 import json
 import re
 from typing import Final
+
+from kernel.clock import datetime
 
 
 REVIEW_RESPONSE_SCHEMA: Final = "review-response/v1"

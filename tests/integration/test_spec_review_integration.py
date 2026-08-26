@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import replace
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from hashlib import sha256  # noqa: TID251 - exact spec-byte integrity, not charter freshness
 from pathlib import Path
 import subprocess
@@ -17,7 +17,7 @@ from typer.testing import CliRunner
 import yaml
 
 from mission_runtime import CommitTarget, TopologySurface
-from mission_runtime.resolution import ResolvedSurface
+from mission_runtime import ResolvedSurface
 from specify_cli.context.mission_resolver import ResolvedMission
 from specify_cli.spec_review import runner as runner_module
 from specify_cli.spec_review import storage as storage_module

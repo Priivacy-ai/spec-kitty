@@ -1,7 +1,7 @@
 """Contract tests for the host-owned spec review domain models."""
 
 from dataclasses import fields, replace
-from datetime import UTC, datetime
+from kernel.clock import UTC, datetime
 from pathlib import Path
 
 import pytest

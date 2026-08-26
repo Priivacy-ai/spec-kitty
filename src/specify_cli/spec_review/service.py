@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
+
+from kernel.clock import datetime, now_utc
+from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 
 from .models import DiagnosticCode, DisclosureManifest, ReviewResponse, ReviewStatus, ReviewSummary, SpecReviewRun
 from .parser import InvalidReviewResponse, parse_review_response_bytes
@@ -93,10 +95,7 @@ def prepare_default_disclosure(
 ) -> DisclosureManifest:
     """Create a metadata-only preview without pricing, prompt construction, or model use."""
     rubric, response_schema, prompt_template = load_default_review_materials()
-    context = MissionSpecContext.create(
-        repo_root=repo_root,
-        mission_dir=repo_root / "kitty-specs" / mission_slug,
-    )
+    context = _mission_spec_context(repo_root, mission_slug)
     manifest: DisclosureManifest = build_disclosure(
         context=context,
         transport=LOOPBACK_TRANSPORT,
@@ -159,7 +158,7 @@ class SpecReviewService:
             response_schema=disclosure.response_schema,
             prompt_template=disclosure.prompt_template,
         )
-        started_at = datetime.now(UTC)
+        started_at = now_utc()
         try:
             response = self._runner.run(
                 permit=permit,
@@ -186,7 +185,7 @@ class SpecReviewService:
             )
         except LoopbackTransportError:
             return self._store_failure(disclosure.manifest, started_at, ReviewStatus.PROVIDER_ERROR, DiagnosticCode.PROVIDER_ERROR, 4)
-        now = datetime.now(UTC)
+        now = now_utc()
         run = SpecReviewRun.from_response(
             run_id=new_spec_review_run_id(now),
             mission=self._mission_slug,
@@ -222,7 +221,7 @@ class SpecReviewService:
         exit_code: int,
     ) -> SpecReviewOutcome:
         """Persist the metadata-only result of a runner failure without a retry."""
-        completed_at = datetime.now(UTC)
+        completed_at = now_utc()
         run = SpecReviewRun.from_failure(
             run_id=new_spec_review_run_id(completed_at),
             mission=self._mission_slug,
@@ -250,10 +249,7 @@ class SpecReviewService:
         )
 
     def _disclosure(self) -> PreflightDisclosure:
-        context = MissionSpecContext.create(
-            repo_root=self._repo_root,
-            mission_dir=self._repo_root / "kitty-specs" / self._mission_slug,
-        )
+        context = _mission_spec_context(self._repo_root, self._mission_slug)
         return build_disclosure(
             context=context,
             transport=LOOPBACK_TRANSPORT,
@@ -262,3 +258,11 @@ class SpecReviewService:
             response_schema=self._response_schema,
             prompt_template=self._prompt_template,
         )
+
+
+def _mission_spec_context(repo_root: Path, mission_slug: str) -> MissionSpecContext:
+    """Resolve the spec input through the canonical topology-aware read path."""
+    return MissionSpecContext.create(
+        repo_root=repo_root,
+        mission_dir=candidate_feature_dir_for_mission(repo_root, mission_slug),
+    )

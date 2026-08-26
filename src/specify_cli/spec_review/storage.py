@@ -4,15 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, replace
-from datetime import UTC, datetime
 import os
 from pathlib import Path
 import secrets
 
 import yaml
 
-from mission_runtime import CommitTarget, MissionArtifactKind
-from mission_runtime.resolution import placement_seam, resolve_artifact_surface
+from kernel.clock import UTC, datetime, now_utc
+from mission_runtime import CommitTarget, MissionArtifactKind, placement_seam, resolve_artifact_surface
 
 from specify_cli.spec_review.models import SpecReviewRun
 
@@ -40,7 +39,7 @@ class StoredSpecReview:
 
 def new_spec_review_run_id(now: datetime | None = None) -> str:
     """Create an ASCII ID with a sortable UTC timestamp and nonce."""
-    timestamp = (now or datetime.now(UTC)).astimezone(UTC)
+    timestamp = (now or now_utc()).astimezone(UTC)
     return f"run-{timestamp.strftime('%Y%m%dT%H%M%S%fZ')}-{secrets.token_hex(6)}"
 
 
