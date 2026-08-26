@@ -1,9 +1,9 @@
 {
   "schema_version": "codemap/v1",
   "mission": "ox-alpha-spec-reviewer-01M0N82A",
-  "generated_at_utc": "2026-08-26T10:50:52Z",
-  "source_head": "b8123c5a5fd74643d4a7637c576036fb555f6de7",
-  "generator": "best-step-architecture-boundary-refresh/v1",
+  "generated_at_utc": "2026-08-26T11:41:51Z",
+  "source_head": "b482d3141be86eec35116ce4205e8b0d4066c24f",
+  "generator": "best-step-golden-count-refresh/v1",
   "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
   "audience": "Spec Kitty core maintainers and WP implementers",
   "ordering": {
@@ -191,7 +191,7 @@
     },
     {
       "path": "tests/integration/test_spec_review_integration.py",
-      "sha256": "4f90f9a75625e18ebc286003c95c9e315cc0b054eab97711c36953f6bbd3a0da"
+      "sha256": "a3c8a612b82856e6a95f8b0d3432d767516cb60dac1b1c19da24f92dbc963d04"
     },
     {
       "path": "tests/integration/test_spec_review_live.py",

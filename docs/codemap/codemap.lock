@@ -21,9 +21,9 @@ LOCK = {
     "schema_version": "codemap-lock/v1",
     "codemap_schema_version": "codemap/v1",
     "mission": "ox-alpha-spec-reviewer-01M0N82A",
-    "source_head": "b8123c5a5fd74643d4a7637c576036fb555f6de7",
-    "generated_at_utc": "2026-08-26T10:50:52Z",
-    "generator": "best-step-architecture-boundary-refresh/v1",
+    "source_head": "b482d3141be86eec35116ce4205e8b0d4066c24f",
+    "generated_at_utc": "2026-08-26T11:41:51Z",
+    "generator": "best-step-golden-count-refresh/v1",
     "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
     "source_inputs": {
         ".kittify/charter/charter.md": "0f1da4f62acf43829bc87076ee732092ba303a126007939a2dfbf799d3ca3c36",
@@ -51,7 +51,7 @@ LOCK = {
         "src/specify_cli/spec_review/service.py": "6c19eff5234799f514bdfe702946dbc872e283a2e866ad76aacb9dd6aff657d3",
         "src/specify_cli/spec_review/storage.py": "d7fb9d9ac49fbd730b2b5228948639811bdb28f53e05e7e7c2d808dc4f79a6fe",
         "tests/architectural/test_safety_registry_completeness.py": "08cf5f5d4606f2694a8ecabbd3abeed52470b4ca7de9d380be7a7252ee397ed0",
-        "tests/integration/test_spec_review_integration.py": "4f90f9a75625e18ebc286003c95c9e315cc0b054eab97711c36953f6bbd3a0da",
+        "tests/integration/test_spec_review_integration.py": "a3c8a612b82856e6a95f8b0d3432d767516cb60dac1b1c19da24f92dbc963d04",
         "tests/integration/test_spec_review_live.py": "ac328a6817a3915b230500da6dea5e558daa7e471d48ba0dd48792037321efc3",
         "tests/integration/test_surface_translation_seam.py": "b3e44a9daf9fbbdc1e1c144f0abd5000a9234239304d4c5c1c6ce34b59b48b16",
         "tests/mission_runtime/test_artifact_partition_mapping.py": "ff41d527552a22464a20cddada88944b64ccbb1b6b6addca680fee1d41f13c1d",
@@ -81,8 +81,8 @@ LOCK = {
         }
     },
     "artifacts": {
-        "docs/codemap/codemap.json": "9466eb45cf78124f08f54d14409fb837bc6a9b5fe23070d7d4c5e0d0d98bce84",
-        "docs/codemap/codemap.html": "ecb0d366f19ee61f00214235a178ac4d1d402c42b3860aa5ba553aac37414cc4",
+        "docs/codemap/codemap.json": "fc35155ad12064eaec2fe43b90936361e0f893ebed969d913db777651e9b7e16",
+        "docs/codemap/codemap.html": "14a5e4bfeea65e3897c4bc2e79bc232428742dd21c2394e53ee4f4f53280e554",
     },
     "verification_command": "python docs/codemap/codemap.lock",
 }
