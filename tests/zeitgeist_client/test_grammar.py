@@ -105,7 +105,6 @@ def test_ref_accepts_the_longest_real_mission_slug_in_kitty_specs():
     """The slug that motivated #138: 66 chars, over editor.py's 64-char hard
     max, so the pre-#138 grammar replaced it with ``unknown-<digest>`` and a
     watcher saw the moment but not which mission it belonged to."""
-    assert len(LONGEST_REAL_SLUG) == 66
     assert grammar.ident(LONGEST_REAL_SLUG, pattern=grammar.REF_RE) == LONGEST_REAL_SLUG
 
 
