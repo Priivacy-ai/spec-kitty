@@ -1,9 +1,9 @@
 {
   "schema_version": "codemap/v1",
   "mission": "ox-alpha-spec-reviewer-01M0N82A",
-  "generated_at_utc": "2026-08-26T12:00:56Z",
-  "source_head": "f219b90a95f6832b2e4c60532308f2c01168e97b",
-  "generator": "best-step-ci-routing-refresh/v1",
+  "generated_at_utc": "2026-08-26T12:56:07Z",
+  "source_head": "1092f0d0a5e75fc4d531d2e043e329379bec8b9d",
+  "generator": "best-step-ci-boundary-refresh/v1",
   "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
   "audience": "Spec Kitty core maintainers and WP implementers",
   "ordering": {
@@ -82,6 +82,10 @@
     "inventory_sha256": "34f15f34a14ccdf3c2b324ffb1c09b34331d0e5dbfbdfd98a2f935b39eac9d0f"
   },
   "source_inputs": [
+    {
+      "path": ".github/workflows/ci-windows.yml",
+      "sha256": "fff34cb95f87f6e28307c6dfd6cf8a25c3f23fcbb9e2590f60d61110b6635a27"
+    },
     {
       "path": ".kittify/charter/charter.md",
       "sha256": "0f1da4f62acf43829bc87076ee732092ba303a126007939a2dfbf799d3ca3c36"
@@ -175,19 +179,31 @@
     },
     {
       "path": "src/specify_cli/spec_review/runner.py",
-      "sha256": "5a37986b81d19d2fd92f29801adcea1c5b6a5142c0725d4142954d5f7569789e"
+      "sha256": "c7c9c66a3a463aae25ab84578e0109879041cbe5fd9302f6c26d37782496d46e"
     },
     {
       "path": "src/specify_cli/spec_review/service.py",
-      "sha256": "6c19eff5234799f514bdfe702946dbc872e283a2e866ad76aacb9dd6aff657d3"
+      "sha256": "821e5bdedeb42af6637805441202b7deb97ec7518743e02871aa07f060e38509"
     },
     {
       "path": "src/specify_cli/spec_review/storage.py",
       "sha256": "d7fb9d9ac49fbd730b2b5228948639811bdb28f53e05e7e7c2d808dc4f79a6fe"
     },
     {
+      "path": "tests/architectural/_baselines.yaml",
+      "sha256": "0772ecd1fa8eba28a9ae15abc4ae48d317cb8fc4cc28a96e76119fbc0a490d72"
+    },
+    {
+      "path": "tests/architectural/test_egress_consent_boundary.py",
+      "sha256": "32e67aec16e881ab9c5c9877f2b90c28ddc833c2895e1a985f9eed110e22006c"
+    },
+    {
       "path": "tests/architectural/test_safety_registry_completeness.py",
       "sha256": "08cf5f5d4606f2694a8ecabbd3abeed52470b4ca7de9d380be7a7252ee397ed0"
+    },
+    {
+      "path": "tests/coordination/test_atomic_write_windows.py",
+      "sha256": "88dc4e1944ae4ec5dd09bb7667e162fd47b9db77fdd8cedee36f5784dc2cd449"
     },
     {
       "path": "tests/integration/test_spec_review_integration.py",
@@ -195,7 +211,7 @@
     },
     {
       "path": "tests/integration/test_spec_review_live.py",
-      "sha256": "ac328a6817a3915b230500da6dea5e558daa7e471d48ba0dd48792037321efc3"
+      "sha256": "324d3e417c356e14b08846eef0f9e1da7c5e541deb4ac54f69e2e87e9a9ed659"
     },
     {
       "path": "tests/integration/test_surface_translation_seam.py",
@@ -243,7 +259,7 @@
     },
     {
       "path": "tests/specify_cli/spec_review/test_cli_preview.py",
-      "sha256": "3ad0f0eea3de929062ef996cefbb12020f54f2b10ce4587418ae20e5619508cb"
+      "sha256": "f1d22b1b80a220a76fc9e824a9a3ee4bbbc4bd0de41eac5ca774487e89b65593"
     },
     {
       "path": "tests/specify_cli/spec_review/test_models.py",
@@ -676,8 +692,8 @@
       "effects": ["spawn OpenCode with argv and shell disabled", "send prompt only through stdin", "bound raw streams in memory", "terminate the process tree on timeout", "never read auth storage"],
       "coverage": {
         "classification": "covered",
-        "tests": ["tests/specify_cli/spec_review/test_runner.py"],
-        "note": "WP04 owns contract tests; live model smoke is explicitly outside WP01 and normal CI."
+        "tests": ["tests/specify_cli/spec_review/test_runner.py", "tests/architectural/test_egress_consent_boundary.py"],
+        "note": "Contract tests cover the transport; the architectural gate pins its network seam behind the service consent boundary. Live model smoke remains opt-in and outside normal CI."
       },
       "requirements": ["FR-005", "FR-006", "FR-010", "NFR-001", "NFR-003", "NFR-005", "NFR-006", "C-001", "C-002", "C-003"],
       "concerns": ["IC-03"],
