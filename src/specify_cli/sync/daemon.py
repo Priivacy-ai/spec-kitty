@@ -924,22 +924,117 @@ def daemon_scope_marker() -> str:
 DAEMON_EXEC_ARG_PREFIX = "--spec-kitty-daemon-exec="
 
 
-def _spawn_interpreter_identity() -> str:
+def _spawn_interpreter_identity(executable: str | None = None) -> str:
     """Return the canonical (symlink-resolved) interpreter spawning daemons.
 
     Mirrors ``owner._canonical_executable_path(sys.executable)`` without
     importing ``owner`` (which imports this module). Resolve failures fall
-    back to the raw ``sys.executable`` string.
+    back to the raw executable string. *executable* defaults to
+    ``sys.executable`` but callers pass the interpreter actually resolved for
+    the spawn (see :func:`_resolve_daemon_interpreter`) so the reaper marker
+    reflects the child that was launched, not merely ``sys.executable``.
     """
+    target = sys.executable if executable is None else executable
     try:
-        return str(Path(sys.executable).resolve())
+        return str(Path(target).resolve())
     except (OSError, RuntimeError):
-        return str(sys.executable)
+        return str(target)
 
 
-def daemon_exec_marker() -> str:
+def daemon_exec_marker(executable: str | None = None) -> str:
     """Return the argv exec-identity element for daemons spawned by this process."""
-    return DAEMON_EXEC_ARG_PREFIX + _spawn_interpreter_identity()
+    return DAEMON_EXEC_ARG_PREFIX + _spawn_interpreter_identity(executable)
+
+
+# Probe used to decide whether a candidate interpreter can import ``specify_cli``.
+# Shared by the probe helper and its tests so the assertion tracks the real check.
+_IMPORT_PROBE = "import specify_cli"
+_IMPORT_PROBE_TIMEOUT_SECONDS = 10.0
+
+
+class DaemonSpawnError(RuntimeError):
+    """No ``specify_cli``-capable interpreter could be resolved for the daemon spawn.
+
+    Raised instead of launching a child that would die immediately with
+    ``ModuleNotFoundError: No module named 'specify_cli'`` (#3624). The message
+    is actionable so the failure surfaces at the call site rather than as an
+    opaque ``<string>`` line-3 traceback in ``~/.spec-kitty/sync-daemon.log``.
+    """
+
+
+def _interpreter_can_import_specify_cli(
+    executable: str, env: dict[str, str] | None = None
+) -> bool:
+    """Return True if *executable* can import ``specify_cli`` in a fresh child.
+
+    Runs ``<executable> -c "import specify_cli"`` with *env* (defaulting to the
+    current process environment). Any launch failure, non-zero exit, or timeout
+    counts as "cannot import" so the caller self-heals or fails loud rather than
+    trusting a doomed interpreter. An empty *executable* (frozen/embedded build)
+    is treated as incapable without probing.
+    """
+    if not executable:
+        return False
+    try:
+        result = subprocess.run(
+            [executable, "-c", _IMPORT_PROBE],
+            capture_output=True,
+            timeout=_IMPORT_PROBE_TIMEOUT_SECONDS,
+            check=False,
+            env=os.environ.copy() if env is None else env,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    return result.returncode == 0
+
+
+def _specify_cli_pythonpath_entry() -> str | None:
+    """Return the dir that makes any interpreter able to import ``specify_cli``.
+
+    This process imports ``specify_cli`` by construction (it is executing this
+    module), so the parent of the running package directory, placed on
+    ``PYTHONPATH``, makes a child interpreter capable regardless of its own
+    site-packages. Returns None when the package has no real on-disk directory
+    (namespace/zip install) and no self-heal is possible.
+    """
+    module = importlib.import_module("specify_cli")
+    module_file = getattr(module, "__file__", None)
+    if not module_file:
+        return None
+    parent = Path(module_file).resolve().parent.parent
+    return str(parent) if parent.is_dir() else None
+
+
+def _resolve_daemon_interpreter(
+    base_env: dict[str, str],
+) -> tuple[str, dict[str, str]]:
+    """Resolve a ``specify_cli``-capable interpreter and its spawn environment.
+
+    ``sys.executable`` is whatever launched this process and is NOT guaranteed
+    to import ``specify_cli``: framework-Python re-exec, pyenv shims, or a
+    Homebrew ``python3`` first on PATH can all leave it incapable, spawning a
+    daemon child that dies with ``ModuleNotFoundError`` (#3624).
+
+    Strategy: probe ``sys.executable``; if capable, use it unchanged. Otherwise
+    self-heal by prepending the running package's path to ``PYTHONPATH`` and
+    re-probe. If still incapable, raise :class:`DaemonSpawnError` rather than
+    spawn a doomed child.
+    """
+    executable = sys.executable
+    if _interpreter_can_import_specify_cli(executable, base_env):
+        return executable, base_env
+    entry = _specify_cli_pythonpath_entry()
+    if entry is not None:
+        existing = base_env.get("PYTHONPATH", "")
+        combined = entry if not existing else os.pathsep.join([entry, existing])
+        healed_env = {**base_env, "PYTHONPATH": combined}
+        if _interpreter_can_import_specify_cli(executable, healed_env):
+            return executable, healed_env
+    raise DaemonSpawnError(
+        f"Cannot spawn sync daemon: interpreter {executable!r} cannot import "
+        "specify_cli and no capable import path was found. Restart the daemon "
+        "via `spec-kitty` or `spec-kitty doctor restart-daemon`."
+    )
 
 
 def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
@@ -1305,6 +1400,12 @@ def _reuse_or_cleanup_existing_daemon() -> tuple[str, int, bool] | None:
 
 
 def _spawn_sync_daemon_process(port: int, token: str) -> subprocess.Popen[str]:
+    # Resolve a specify_cli-capable interpreter (and any self-heal env) BEFORE
+    # opening the log file or spawning, so an unrecoverable interpreter raises
+    # DaemonSpawnError here instead of producing a <string> line-3
+    # ModuleNotFoundError child that scribbles into the daemon log (#3624).
+    base_env = {**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()}
+    executable, spawn_env = _resolve_daemon_interpreter(base_env)
     _daemon_log_file().parent.mkdir(parents=True, exist_ok=True)
     log_fh = open(_daemon_log_file(), "a")  # noqa: SIM115
     proc = subprocess.Popen(
@@ -1313,20 +1414,21 @@ def _spawn_sync_daemon_process(port: int, token: str) -> subprocess.Popen[str]:
         # canonical reaper attribute this daemon to THIS daemon state root
         # and to THIS spawn interpreter (the exec marker is the only identity
         # that survives the macOS framework re-exec, which rewrites exe()
-        # and argv[0] to the Python.app stub).
+        # and argv[0] to the Python.app stub). The marker is built from the
+        # RESOLVED executable so it stays accurate under PYTHONPATH self-heal.
         [
-            sys.executable,
+            executable,
             "-c",
             _background_script(port, token),
             daemon_scope_marker(),
-            daemon_exec_marker(),
+            daemon_exec_marker(executable),
         ],
         stdout=log_fh,
         stderr=log_fh,
         stdin=subprocess.DEVNULL,
         start_new_session=True,
         text=True,
-        env={**os.environ, "SPEC_KITTY_CLI_VERSION": _get_package_version()},
+        env=spawn_env,
     )
     log_fh.close()
     return proc

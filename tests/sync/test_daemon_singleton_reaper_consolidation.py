@@ -192,6 +192,11 @@ def test_spawned_daemon_cmdline_carries_scope_marker(
             captured["args"] = list(args)
 
     monkeypatch.setattr("specify_cli.sync.daemon.subprocess.Popen", _FakePopen)
+    # #3624: the spawn probes interpreter capability first; stub it so the argv
+    # assertion below exercises the marker wiring, not a real subprocess probe.
+    monkeypatch.setattr(
+        daemon_module, "_interpreter_can_import_specify_cli", lambda *a, **k: True
+    )
     monkeypatch.setattr(daemon_module, "DAEMON_LOG_FILE", tmp_path / "daemon.log")
 
     proc = daemon_module._spawn_sync_daemon_process(9410, "tok")
@@ -224,6 +229,11 @@ def test_spawned_daemon_cmdline_carries_exec_identity_marker(
             captured["args"] = list(args)
 
     monkeypatch.setattr("specify_cli.sync.daemon.subprocess.Popen", _FakePopen)
+    # #3624: stub the pre-spawn interpreter-capability probe so the resolved
+    # interpreter is sys.executable and the marker equals daemon_exec_marker().
+    monkeypatch.setattr(
+        daemon_module, "_interpreter_can_import_specify_cli", lambda *a, **k: True
+    )
     monkeypatch.setattr(daemon_module, "DAEMON_LOG_FILE", tmp_path / "daemon.log")
 
     daemon_module._spawn_sync_daemon_process(9413, "tok")
