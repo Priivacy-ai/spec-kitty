@@ -2,9 +2,9 @@
   "event_count": 21,
   "last_event_id": "01M0Z7JMH87TG1MMT0ZCPPZ3Y5",
   "materialized_at": "2026-08-26T14:28:53.416093+00:00",
-  "mission_number": "197",
+  "mission_number": "",
   "mission_slug": "p0-reliability-triad-01M0YW93",
-  "mission_type": "software-dev",
+  "mission_type": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -20,87 +20,47 @@
     "WP01": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0Z7JHZE7MB6M3GM9B3SYZSZ",
       "last_transition_at": "2026-08-26T14:28:50.798203+00:00",
-      "model": "__resolved_model_absent__",
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP01:20260826",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 1305209,
-      "shell_pid_created_at": "1787749481.87",
-      "subtasks": {
-        "T001": "done",
-        "T002": "done",
-        "T003": "done",
-        "T004": "done"
-      }
+      "shell_pid": 1278866,
+      "shell_pid_created_at": "1787748060.67"
     },
     "WP02": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0Z7JK900Z7M86P5GSAGX73A",
       "last_transition_at": "2026-08-26T14:28:52.128671+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready for review"
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP02:20260826",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 1350846,
-      "shell_pid_created_at": "1787751032.56",
-      "subtasks": {
-        "T005": "done",
-        "T006": "done",
-        "T007": "done"
-      }
+      "shell_pid": 1322974,
+      "shell_pid_created_at": "1787750214.73"
     },
     "WP03": {
       "actor": "merge",
       "agent": "claude",
-      "agent_profile": "__resolved_profile_absent__",
-      "agent_profile_version": "__resolved_profile_version_absent__",
       "force_count": 0,
       "lane": "done",
       "last_event_id": "01M0Z7JMH87TG1MMT0ZCPPZ3Y5",
       "last_transition_at": "2026-08-26T14:28:53.416093+00:00",
-      "model": "__resolved_model_absent__",
-      "notes": [
-        "Ready for review"
-      ],
-      "provider": "__resolved_provider_absent__",
       "review_result": {
         "reference": "auto-approval:WP03:20260826",
         "reviewer": "Stijn Dejongh",
         "verdict": "approved"
       },
-      "role": "reviewer",
-      "shell_pid": 1443595,
-      "shell_pid_created_at": "1787754042.03",
-      "subtasks": {
-        "T008": "done",
-        "T009": "done",
-        "T010": "done",
-        "T011": "done",
-        "T012": "done",
-        "T013": "done"
-      }
+      "shell_pid": 1358513,
+      "shell_pid_created_at": "1787751239.41"
     }
   }
 }
