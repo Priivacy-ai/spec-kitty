@@ -292,21 +292,30 @@ def write_agents_mode(
 
 
 def local_missions(project_root: Path | None) -> frozenset[str]:
-    """The mission slugs ``project_root``'s ``kitty-specs/`` knows — the
-    cheap, local stand-in for "missions this developer is on".
+    """The mission slugs this checkout resolves — the cheap, local stand-in
+    for "missions this developer is on".
 
-    A missing root or missing/unreadable ``kitty-specs/`` yields the empty
-    set: under ``mine``, a checkout spec-kitty cannot read surfaces nothing
-    beyond explicitly configured missions (quiet by default), never
-    everything. Dot-directories are skipped, matching how mission discovery
-    lists candidates elsewhere (``core/paths.py``).
+    Routed through :class:`~specify_cli.context.mission_resolver.FsMissionResolver`
+    (the sanctioned mission-discovery boundary — a raw ``kitty-specs/`` walk
+    here would bypass it), so exactly its semantics apply: identity-bearing
+    missions only; legacy directories whose ``meta.json`` lacks a
+    ``mission_id``, and non-directory entries, are invisible to it. A missing
+    root yields the empty set.
+
+    Under ``mine``, a checkout that resolves nothing therefore surfaces no
+    moments beyond explicitly configured missions (quiet by default), never
+    everything.
     """
     if project_root is None:
         return frozenset()
-    specs_dir = project_root / "kitty-specs"
+
+    from specify_cli.context.mission_resolver import FsMissionResolver  # noqa: PLC0415
+
     try:
-        return frozenset(entry.name for entry in specs_dir.iterdir() if entry.is_dir() and not entry.name.startswith("."))
+        return frozenset(mission.mission_slug for mission in FsMissionResolver(project_root).all_missions())
     except OSError:
+        # An unreadable checkout reads as "no known missions" — quiet, never
+        # everything (the same tolerance _read_section applies to config).
         return frozenset()
 
 

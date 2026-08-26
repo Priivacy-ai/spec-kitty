@@ -655,7 +655,9 @@ def test_frame_filter_receives_each_parsed_live_frame(managed_stream_double) -> 
     managed_stream_double.close_stream()
     _drain(stream.watch(idle_timeout_s=2.0), 1)
 
-    assert len(seen) == 1
+    # Exactly one predicate call, for exactly the one delivered frame —
+    # asserted by content, not by a len()==n golden count.
+    assert [f.frame_type for f in seen] == ["event"]
     assert isinstance(seen[0], filtered_stream.LiveFrame)
     assert seen[0].frame_type == "event"
     assert seen[0].payload["kind"] == "mission.status.changed"

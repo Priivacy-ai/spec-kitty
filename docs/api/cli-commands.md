@@ -3525,6 +3525,72 @@ _Inspect mission types for this project._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty moments
+
+_Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo._
+
+```
+ Usage: spec-kitty moments [OPTIONS] COMMAND [ARGS]...
+
+ Control which Zeitgeist status moments reach agent context (off / mine /
+ team), per developer and per repo.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ off     Switch moments to agents OFF: nothing surfaces, and                  │
+│         `spec-kitty zeitgeist mcp-serve` exits 0 with one line.              │
+│ on      Switch moments back ON at the documented default (`mine`: only       │
+│         missions this checkout is on).                                       │
+│ status  Show the effective mode, which file decided it, and the active       │
+│         filters.                                                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments off
+
+```
+ Usage: spec-kitty moments off [OPTIONS]
+
+ Switch moments to agents OFF: nothing surfaces, and `spec-kitty zeitgeist
+ mcp-serve` exits 0 with one line.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
+│                   instead of the global ~/.kittify config.                   │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments on
+
+```
+ Usage: spec-kitty moments on [OPTIONS]
+
+ Switch moments back ON at the documented default (`mine`: only missions this
+ checkout is on).
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
+│                   instead of the global ~/.kittify config.                   │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty moments status
+
+```
+ Usage: spec-kitty moments status [OPTIONS]
+
+ Show the effective mode, which file decided it, and the active filters.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty next
 
 ```

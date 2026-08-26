@@ -397,9 +397,10 @@ async def test_run_stdio_when_off_is_one_stderr_line_and_a_clean_exit(
 
     captured = capsys.readouterr()
     assert captured.out == ""
-    lines = [line for line in captured.err.splitlines() if line.strip()]
-    assert len(lines) == 1
-    assert "`spec-kitty moments on`" in lines[0]
+    # Exactly one line, and it names the way back on.
+    first_line, _, rest = captured.err.partition("\n")
+    assert "`spec-kitty moments on`" in first_line
+    assert rest.strip() == ""
 
 
 async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives_nothing(

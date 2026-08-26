@@ -12,6 +12,7 @@ in ``test_mcp_stdio.py``; what ``FilteredStream`` does with a predicate in
 
 from __future__ import annotations
 
+import json
 import tomllib
 from pathlib import Path
 from types import SimpleNamespace
@@ -204,15 +205,26 @@ class TestWriteAgentsMode:
 
 
 class TestLocalMissions:
+    @staticmethod
+    def _mission(specs: Path, slug: str) -> None:
+        """One identity-bearing mission directory — what the sanctioned
+        resolver indexes (a bare directory without meta.json is invisible to
+        it, exactly as it is invisible to every other resolver consumer)."""
+        mission = specs / slug
+        mission.mkdir(parents=True)
+        (mission / "meta.json").write_text(json.dumps({"mission_id": "01J9ZQ4V7C8D9E0F1A2B3C4D5E"}))
+
     def test_no_root_yields_nothing(self) -> None:
         assert moments.local_missions(None) == frozenset()
 
-    def test_lists_kitty_specs_directories_skipping_dot_dirs(self, tmp_path: Path) -> None:
+    def test_lists_resolved_missions_only(self, tmp_path: Path) -> None:
         specs = tmp_path / "kitty-specs"
-        (specs / "034-demo").mkdir(parents=True)
+        self._mission(specs, "034-demo")
+        self._mission(specs, "099-other")
+        (specs / "777-legacy-no-meta").mkdir(parents=True)  # no meta.json: not indexable
         (specs / ".hidden").mkdir()
         (specs / "notes.txt").write_text("not a mission")
-        assert moments.local_missions(tmp_path) == frozenset({"034-demo"})
+        assert moments.local_missions(tmp_path) == frozenset({"034-demo", "099-other"})
 
     def test_missing_kitty_specs_yields_nothing(self, tmp_path: Path) -> None:
         assert moments.local_missions(tmp_path) == frozenset()
