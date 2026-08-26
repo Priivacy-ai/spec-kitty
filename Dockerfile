@@ -20,6 +20,20 @@
 # secret is mounted into the builder's RUN only (never baked into any
 # layer) and requires BuildKit (default since docker 23).
 #
+# exe.dev fleet hosts carry no GitHub token at all — they reach the private
+# EXPERIMENTAL repos only through the github.int.exe.xyz integration proxy,
+# which authenticates by VM identity and needs a URL rewrite, not a netrc.
+# A second, optional secret ("gitconfig") supplies that rewrite; BuildKit
+# skips an unsupplied secret mount, so laptops keep passing only netrc:
+#
+#   docker build --secret id=gitconfig,src=/path/to/gitconfig \
+#     -t dkr-m1-02-spec-kitty:contract .
+#
+# where the file reads:
+#   [url "https://github.int.exe.xyz/"]
+#       insteadOf = https://github.com/
+# `planning/infra/setup-sk-base.sh` passes this secret on fleet builds.
+#
 # Base pin: python:3.12-slim-bookworm, pinned by pullable registry manifest
 # digest (RepoDigest) per docs/bootstrap/DKR-M1-01-DIGEST-CORRECTION.json,
 # which supersedes the CONFIG .Id originally recorded in
@@ -52,8 +66,12 @@ COPY src/ ./src/
 COPY packs/built-in/ ./packs/built-in/
 
 # The netrc secret authenticates git's fetch of the private EXPERIMENTAL repos
-# pinned above; mounted read-only for this RUN only, absent from every layer.
+# pinned above (laptops); the optional gitconfig secret rewrites the fetch
+# through the exe.dev fleet proxy instead (sk-base and friends). Either or
+# both may be supplied; both are mounted read-only for this RUN only and are
+# absent from every layer.
 RUN --mount=type=secret,id=netrc,target=/root/.netrc \
+    --mount=type=secret,id=gitconfig,target=/root/.gitconfig \
     uv sync --frozen --all-extras
 
 # --- Runtime image ----------------------------------------------------------
@@ -62,8 +80,9 @@ FROM python:3.12-slim-bookworm@sha256:46cb7cc2877e60fbd5e21a9ae6115c30ace7a077b9
 # No Docker socket, no host home, no canonical/control-state mount, no SSH
 # agent, no external endpoint are declared anywhere in this image, and it
 # talks to nothing outside its own filesystem. The one build-time exception
-# is the builder's netrc secret above: it exists only inside that single RUN
-# and is never copied into this stage — no credential reaches the runtime.
+# is the builder's netrc/gitconfig secrets above: they exist only inside that
+# single RUN and are never copied into this stage — no credential reaches
+# the runtime.
 WORKDIR /app
 COPY --from=builder /app /app
 ENV PATH="/app/.venv/bin:$PATH" \
