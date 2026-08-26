@@ -2461,14 +2461,9 @@ __all__ = [
     # selection/audit seams) under public names for the import-history
     # pipeline. Any new cross-module consumer must go through that seam, not
     # import these internals directly.
-    "CheckoutDisagreement",
-    "FailClosedRefusal",
     "MissionStateDryRunError",
     "MissionStateRepairError",
-    "MissionStateWriteRefused",
     "TeamspaceDryRunReport",
-    "audit_invocation_disagreement",
-    "enforce_primary_write_ownership",
     "rebuild_mission_event_log",
     "repair_duplicate_key_artifacts",
     "repair_repo",
