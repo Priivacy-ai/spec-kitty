@@ -1,9 +1,9 @@
 {
   "schema_version": "codemap/v1",
   "mission": "ox-alpha-spec-reviewer-01M0N82A",
-  "generated_at_utc": "2026-08-25T18:19:51Z",
-  "source_head": "d969d973a2026738a0748d33164d67996d96c765",
-  "generator": "wp06-manual-codemap-refresh/v1",
+  "generated_at_utc": "2026-08-26T10:50:52Z",
+  "source_head": "b8123c5a5fd74643d4a7637c576036fb555f6de7",
+  "generator": "best-step-architecture-boundary-refresh/v1",
   "digest_mode": "sha256(text normalized to UTF-8 with LF line endings)",
   "audience": "Spec Kitty core maintainers and WP implementers",
   "ordering": {
@@ -159,7 +159,7 @@
     },
     {
       "path": "src/specify_cli/spec_review/models.py",
-      "sha256": "c1d19aacabafb8c2eab85757dfa099972be1762bddba8cb2e3feb05ce3768108"
+      "sha256": "60c68c522bc0dec8be3dffa6e875f8e2298996380b63a50bac0328a5c3dcd7e5"
     },
     {
       "path": "src/specify_cli/spec_review/parser.py",
@@ -179,11 +179,11 @@
     },
     {
       "path": "src/specify_cli/spec_review/service.py",
-      "sha256": "27dddb1444a97393deb8912aa9d5cfd1191050985cb6bb06cd3136adb6ccdd57"
+      "sha256": "6c19eff5234799f514bdfe702946dbc872e283a2e866ad76aacb9dd6aff657d3"
     },
     {
       "path": "src/specify_cli/spec_review/storage.py",
-      "sha256": "a71edeebba02ce346412b39df632821beb350a2f272d0d0c93b8e96d5eb61479"
+      "sha256": "d7fb9d9ac49fbd730b2b5228948639811bdb28f53e05e7e7c2d808dc4f79a6fe"
     },
     {
       "path": "tests/architectural/test_safety_registry_completeness.py",
@@ -191,11 +191,11 @@
     },
     {
       "path": "tests/integration/test_spec_review_integration.py",
-      "sha256": "2aac8f6c47f69c00b4a0f57489e1eb4c6e51834fe6053f9e28e22037eae06573"
+      "sha256": "4f90f9a75625e18ebc286003c95c9e315cc0b054eab97711c36953f6bbd3a0da"
     },
     {
       "path": "tests/integration/test_spec_review_live.py",
-      "sha256": "7d6f9c87bbf1a73117819fa05beaaba8cd6c855c9f651a3ea999461779fdf94a"
+      "sha256": "ac328a6817a3915b230500da6dea5e558daa7e471d48ba0dd48792037321efc3"
     },
     {
       "path": "tests/integration/test_surface_translation_seam.py",
@@ -247,7 +247,7 @@
     },
     {
       "path": "tests/specify_cli/spec_review/test_models.py",
-      "sha256": "58c8a33bcf534965b46ea2419887ec14d7640543e2824ad5bdb872d5de3cfabe"
+      "sha256": "583c2536c862af06ed794ec3d8bcafc48ba1746e8d567103657b9fd400d8153c"
     },
     {
       "path": "tests/specify_cli/spec_review/test_parser.py",
@@ -271,7 +271,7 @@
     },
     {
       "path": "tests/specify_cli/spec_review/test_storage.py",
-      "sha256": "87bd3506419c54897390d402c327fb841a6e14960a56c7d8d690df1c76b7122d"
+      "sha256": "bd563f8367eea2a5a5a8721ca93e80792039b894ff9f5caf3417588543b48195"
     }
   ],
   "nodes": [
@@ -709,7 +709,7 @@
       "path": "src/specify_cli/spec_review/service.py",
       "symbol": "manual review use case",
       "callers": ["P21-spec-review-command"],
-      "effects": ["sequence preflight, consent, prompt, runner, parser and storage", "build host-owned run provenance", "leave Mission and WP lifecycle unchanged", "return stable advisory diagnostics"],
+      "effects": ["resolve the Mission input through the canonical topology-aware read path", "sequence preflight, consent, prompt, runner, parser and storage", "build host-owned run provenance", "leave Mission and WP lifecycle unchanged", "return stable advisory diagnostics"],
       "coverage": {
         "classification": "covered",
         "tests": ["tests/specify_cli/spec_review/test_service.py", "tests/specify_cli/spec_review/test_cli_preview.py", "tests/integration/test_spec_review_integration.py"],
