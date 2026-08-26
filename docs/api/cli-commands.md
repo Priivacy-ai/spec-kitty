@@ -4213,6 +4213,21 @@ _Cross-mission retrospective summary._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty routes
+
+_Show which team admits this checkout and which relay carries its moments._
+
+```
+ Usage: spec-kitty routes [OPTIONS]
+
+ Show which team admits this checkout and which relay carries its moments.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit plain JSON instead of a human-readable summary.       │
+│ --help  -h        Show this message and exit.                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty safe-commit
 
 ```
@@ -4864,12 +4879,13 @@ _Manage mission workflow definitions_
 
 ## spec-kitty zeitgeist
 
-_Read-only access to one team's live Zeitgeist presence/focus stream._
+_Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events._
 
 ```
  Usage: spec-kitty zeitgeist [OPTIONS] COMMAND [ARGS]...
 
- Read-only access to one team's live Zeitgeist presence/focus stream.
+ Read-only access to one team's live Zeitgeist presence/focus stream and
+ status-moment events.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help  -h        Show this message and exit.                                │

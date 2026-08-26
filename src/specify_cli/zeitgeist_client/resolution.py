@@ -417,6 +417,11 @@ def _resolve(
         expires_at=minted.expires_at,
         host=host,
         repo_slug=repo_slug,
+        # #10: remember WHO admitted this repo — the pre-flight above is the
+        # one place the slug is ever in hand, and `spec-kitty routes` reads it
+        # back so a member can see which team binds this checkout without
+        # asking Team Kitty again.
+        team=answer.team_slug,
     )
     return credentials.load(repo=key)
 

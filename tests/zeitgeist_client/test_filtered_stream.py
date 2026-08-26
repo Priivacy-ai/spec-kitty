@@ -577,3 +577,38 @@ def test_raw_request_with_authorization_but_no_capability_header_is_401_by_the_d
         urllib.request.urlopen(req, timeout=5)
     assert exc_info.value.code == 401
     assert managed_stream_auth_double.denied_statuses == [401]
+
+
+# --- #10: `event` frames ride the same stream -------------------------------
+
+
+def _event(session_ref: str = "c" * 12, attrs: dict[str, object] | None = None) -> dict[str, object]:
+    event: dict[str, object] = {
+        "observed_at": now_epoch(),
+        "kind": "mission.status.changed",
+        "actor": {"session_ref": session_ref},
+    }
+    if attrs is not None:
+        event["attrs"] = attrs
+    return {"type": "event", "event": event}
+
+
+def test_watch_yields_event_frames_and_state_stays_clean(managed_stream_double) -> None:
+    """Before #10 the relay's status-moment frame was dropped unread by the
+    client's own type discriminator — a watch could never show the moment the
+    demo path turns on. It must be delivered, and (matching the relay's own
+    retention posture) it must leave no presence/focus trace behind."""
+    stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
+    managed_stream_double.push_frame(_frame(seq=2, frame=_event(attrs={"to_lane": "for_review"})))
+    managed_stream_double.close_stream()
+
+    frames = _drain(stream.watch(idle_timeout_s=2.0), 2)
+    assert [f.frame_type for f in frames if f is not None] == ["presence", "event"]  # type: ignore[attr-defined]
+    event = frames[1]
+    assert event is not None and getattr(event, "payload", {}).get("kind") == "mission.status.changed"
+
+    snap = stream.check()
+    assert [pr.session_ref for pr in snap.presence] == ["a" * 12]  # the broadcast touched nothing else
+    assert snap.focus == ()
+    assert snap.reset_count == 0

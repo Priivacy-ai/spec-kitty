@@ -1239,6 +1239,11 @@
    "hidden": false,
    "deprecated": false
   },
+  "routes": {
+   "help": "Show which team admits this checkout and which relay carries its moments.",
+   "hidden": false,
+   "deprecated": false
+  },
   "safe-commit": {
    "help": "Commit only the requested files via Spec Kitty's safe-commit path.",
    "hidden": false,
@@ -1393,7 +1398,7 @@
    }
   },
   "zeitgeist": {
-   "help": "Read-only access to one team's live Zeitgeist presence/focus stream.",
+   "help": "Read-only access to one team's live Zeitgeist presence/focus stream and status-moment events.",
    "hidden": false,
    "deprecated": false,
    "commands": {
