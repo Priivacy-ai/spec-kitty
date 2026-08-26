@@ -141,8 +141,8 @@ def _restore_default_saas_handlers_after_each_status_test() -> None:
 
         register_default_handlers()
     except ImportError:
-        # E4 deleted the sync package; its handlers are gone with it and only
-        # the Zeitgeist wiring below needs restoring.
+        # Once #5/#114 deletes the sync package its handlers are gone with it;
+        # only the Zeitgeist wiring below then needs restoring.
         pass
     adapters.ensure_zeitgeist_moment_handlers()
     yield

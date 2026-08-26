@@ -2,9 +2,11 @@
 
 Provides a decoupled callback boundary so that status/emit.py does not
 need to depend on any transport. Handlers are registered into the slots
-below by whichever subsystem owns a transport; the default wiring (this
-module's import tail) installs the Zeitgeist moment handler (#8), which
-replaced the deleted sync package's own registrations.
+below by whichever subsystem owns a transport. The default wiring (this
+module's import tail) installs the Zeitgeist moment handler (#8); until
+#5/#114 deletes the sync package, that package's handlers coexist in the
+same registries, and this tail honours the same
+SPEC_KITTY_SYNC_MINIMAL_IMPORT gate sync's registration does.
 
 All fire_* functions are non-raising: exceptions from individual
 handlers are caught and logged, never re-raised to the caller. An empty
@@ -20,6 +22,8 @@ import threading
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from specify_cli.core.env import is_truthy
 
 # The E3 Zeitgeist moment handler (#8): the default occupant of the three
 # fan-out slots since the sync transport (which registered its own handlers)
@@ -222,11 +226,11 @@ def ensure_zeitgeist_moment_handlers() -> None:
     """Register the Zeitgeist moment handlers into all three fan-out slots.
 
     Idempotent: the ``register_*`` functions de-duplicate by qualified name,
-    so calling this repeatedly is safe. This replaces the sync package's
-    import-time ``register_default_handlers`` as the default wiring of these
-    slots (E3, EXPERIMENTAL-spec-kitty#8) — and, per the egress-consent
+    so calling this repeatedly is safe. This is the E3 (#8) default wiring of
+    these slots — alongside ``sync``'s own handlers until #5/#114 deletes that
+    package, sole default occupant afterwards — and, per the egress-consent
     precedent, it lives where the answer is needed rather than in some other
-    package's init. Called once at this module's import; tests that wipe the
+    package's init. The import tail calls it once; tests that wipe the
     registry via :func:`reset_handlers` call it again to restore production
     wiring.
     """
@@ -400,8 +404,11 @@ def fire_lifecycle_saas_fanout(**kwargs: Any) -> None:
 
 
 # Default wiring: every process that imports this seam carries the Zeitgeist
-# moment handler, exactly as it used to carry the sync package's handlers via
-# that package's import tail. Nothing else registers at import time; a caller
-# needing an empty registry (tests) calls reset_handlers() and restores with
-# ensure_zeitgeist_moment_handlers().
-ensure_zeitgeist_moment_handlers()
+# moment handler, under the same gate the sync package's own import tail obeys —
+# SPEC_KITTY_SYNC_MINIMAL_IMPORT means "register no transport at import time"
+# (the doctor restart-daemon fast path sets it), and this tail is bound by it.
+# Until #5/#114 deletes the sync package, both wirings coexist; afterwards this
+# is the only default registration. A caller needing an empty registry (tests)
+# calls reset_handlers() and restores with ensure_zeitgeist_moment_handlers().
+if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
+    ensure_zeitgeist_moment_handlers()

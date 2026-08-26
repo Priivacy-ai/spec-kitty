@@ -14,8 +14,10 @@ Three slots, one broadcast core:
 
 * ``fire_saas_fanout`` (WP lane transitions) → ``WPStatusChanged``;
 * ``fire_lifecycle_saas_fanout`` (mission lifecycle log) → the volatile subset
-  of that log's event types — today ``MissionCreated``, with the same code
-  path carrying ``MissionClosed``/``PhaseEntered`` when a producer emits them;
+  of that log's event types. Today that is exactly ``MissionCreated``: no
+  local producer emits ``MissionClosed`` or ``PhaseEntered`` (their only
+  producers live in the doomed sync package), and this bridge adds none — the
+  same code path carries them the moment a producer exists.
 * ``fire_resolved_binding_fanout`` → nothing yet: ``WPResolvedBindingChanged``
   is not part of the volatile vocabulary
   (:data:`spec_kitty_events.zeitgeist_attrs.VOLATILE_EVENT_TYPES`), and
@@ -23,6 +25,12 @@ Three slots, one broadcast core:
   cannot live ("The vocabulary … lives only in spec-kitty-events"). The slot
   is wired anyway, so the moment spec-kitty-events ships a codec for it the
   relay carries binding changes with no further seam work.
+
+Who is on a mission-level moment: the relay attests the actor from the
+capability credential (the frame's ``actor.user``), so ``MissionCreated``
+broadcasts fine even though local producers do not yet set the payload's
+optional ``actor`` field — the CLI-claimed mission-level WHO arrives when a
+producer sets it, never fabricated here.
 
 Every failure is environmental and every one of them resolves to a logged drop:
 the moment is simply lost — by design (design page, "How long anything lives").
@@ -112,6 +120,7 @@ def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
     """
     metadata = kwargs.get("metadata")
     mission_slug = kwargs.get("mission_slug")
+    evidence = _normalise_evidence(getattr(metadata, "evidence", None))
 
     # Validated through the model's own schema (like the lifecycle path below):
     # a transition whose fan-out kwargs cannot form a payload is a dropped
@@ -128,7 +137,7 @@ def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
                 "reason": getattr(metadata, "reason", None),
                 "execution_mode": getattr(metadata, "execution_mode", None),
                 "review_ref": getattr(metadata, "review_ref", None),
-                "evidence": getattr(metadata, "evidence", None),
+                "evidence": evidence,
             }
         )
     except ValidationError as exc:
@@ -196,6 +205,30 @@ def _broadcast_lifecycle_envelope(kwargs: Mapping[str, Any]) -> None:
     _broadcast_moment(payload, envelope, cwd=log_path.parent if isinstance(log_path, Path) else Path.cwd())
 
 
+def _normalise_evidence(evidence: Any) -> Any:
+    """Make a local done-evidence bundle validate against the canonical model.
+
+    The local journal treats ``repos`` as optional and omits empty
+    (``DoneEvidence.to_dict``), while ``spec_kitty_events.DoneEvidence``
+    requires at least one entry — and its transition validator requires
+    evidence to be *present* for approved/done lanes, so a review-only done
+    transition would otherwise die in payload validation and never reach the
+    relay. When repos are missing, fill them with this checkout's identity the
+    way ``sync/emitter.py``'s emitter always has (its own fallback is the
+    literal "local"/"unknown" triple when git cannot answer). Nothing here
+    reaches the wire: evidence is in ``UNBROADCAST_FIELDS``, so attrs never
+    carry it; this exists purely so review-only done moments broadcast.
+    """
+    if not isinstance(evidence, Mapping) or not evidence:
+        return evidence
+    if evidence.get("repos"):
+        return evidence
+    return {
+        **evidence,
+        "repos": [{"repo": "local", "branch": "unknown", "commit": "unknown"}],
+    }
+
+
 def _broadcast_moment(payload: BaseModel, envelope: Event, *, cwd: Path) -> None:
     """Project one volatile payload onto bounded attrs and offer it exactly once.
 
@@ -219,7 +252,10 @@ def _broadcast_moment(payload: BaseModel, envelope: Event, *, cwd: Path) -> None
         logger.debug("Zeitgeist moment %s not broadcast: no relay credentials", event_type)
         return
 
-    offer_args: dict[str, Any] = {"kind": event_type, "attrs": attrs}
+    # EventArgs requires session_id on every event frame (the relay derives the
+    # actor's opaque session_ref from it); kind/attrs are required too, ref is
+    # optional and omitted when the family declares no aggregate field.
+    offer_args: dict[str, Any] = {"session_id": _SESSION_ID, "kind": event_type, "attrs": attrs}
     if ref:
         offer_args["ref"] = ref
     _offer_and_log(credential, event_type, offer_args)

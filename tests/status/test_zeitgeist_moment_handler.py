@@ -19,8 +19,12 @@ network itself faked.
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import re
+import subprocess
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -135,6 +139,108 @@ def test_session_id_matches_the_relay_schema_pattern() -> None:
     # managed_control.schema.json EventArgs.session_id:
     # [A-Za-z0-9][A-Za-z0-9._:-]{0,127}
     assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", bridge._SESSION_ID)
+
+
+# ---------------------------------------------------------------------------
+# The wire contract: what the real client would put on the socket
+# ---------------------------------------------------------------------------
+
+# Pinned from EXPERIMENTAL-zeitgeist's managed_control.schema.json
+# $defs/EventArgs: required [session_id, kind, attrs], additionalProperties
+# false, the patterns and bounds below. If zeitgeist widens or narrows this,
+# this pin is what forces a deliberate re-check.
+_EVENT_ARGS_REQUIRED = {"session_id", "kind", "attrs"}
+_EVENT_ARGS_ALLOWED = {"session_id", "kind", "ref", "attrs"}
+
+
+def _assert_event_args(args: dict[str, Any]) -> None:
+    assert set(args) <= _EVENT_ARGS_ALLOWED, f"keys outside EventArgs: {sorted(args)}"
+    assert set(args) >= _EVENT_ARGS_REQUIRED, f"missing required: {sorted(_EVENT_ARGS_REQUIRED - set(args))}"
+    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", args["session_id"])
+    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}", args["kind"])
+    assert len(args.get("ref", "").encode()) <= 240
+    assert len(args["attrs"]) <= 16
+    for key, value in args["attrs"].items():
+        assert len(key.encode()) <= 64, key
+        assert len(value.encode()) <= 240, key
+
+
+def test_wire_envelope_satisfies_the_relay_schema(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """Drive the REAL ZeitgeistClient with a stubbed HTTP layer and validate the
+    outgoing envelope against the relay's own EventArgs contract.
+
+    The faked-client tests above prove orchestration; this one proves the wire.
+    It fails if offer_args ever omits session_id again (the relay answers 422 to
+    an envelope missing it — every moment silently rejected).
+    """
+    captured: dict[str, Any] = {}
+
+    class _FakeResponse:
+        status = 202
+
+        def __enter__(self) -> _FakeResponse:
+            return self
+
+        def __exit__(self, *_args: object) -> bool:
+            return False
+
+        def read(self) -> bytes:
+            return b"{}"
+
+    def fake_open_bounded(req: Any, timeout: float) -> _FakeResponse:
+        captured["request"] = req
+        return _FakeResponse()
+
+    monkeypatch.setattr(transport_module.budget, "open_bounded", fake_open_bounded)
+
+    _fire_transition()
+
+    req = captured["request"]
+    body = json.loads(req.data.decode())
+    assert body["op"] == "event.publish"
+    assert body["schema_version"] == "1.0.0"
+    _assert_event_args(body["args"])
+    args = body["args"]
+    assert args["kind"] == "WPStatusChanged"
+    assert args["ref"] == "demo-mission"
+    assert args["attrs"]["wp_id"] == "WP01"
+    # Both credential gates get their own header, per FIX-M2-15 precedence.
+    assert req.get_header("Authorization") == "Bearer relay-token"
+    assert req.get_header("X-zeitgeist-capability") == "capability-jwt"
+
+
+def test_import_tail_honours_the_minimal_import_gate() -> None:
+    """SPEC_KITTY_SYNC_MINIMAL_IMPORT means 'register no transport at import' —
+    the Zeitgeist tail is bound by the same gate the sync package obeys."""
+    script = "from specify_cli.status import adapters\nprint(len([h for h in adapters._saas_handlers if h.__module__.endswith('zeitgeist_bridge')]))\n"
+    gated_env = dict(os.environ)
+    gated_env["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
+    ungated_env = {k: v for k, v in os.environ.items() if k != "SPEC_KITTY_SYNC_MINIMAL_IMPORT"}
+
+    gated = subprocess.run([sys.executable, "-c", script], env=gated_env, text=True, capture_output=True, timeout=120)
+    ungated = subprocess.run([sys.executable, "-c", script], env=ungated_env, text=True, capture_output=True, timeout=120)
+
+    assert gated.returncode == 0, gated.stderr
+    assert gated.stdout.strip() == "0"
+    assert ungated.returncode == 0, ungated.stderr
+    assert ungated.stdout.strip() == "1"
+
+
+def test_review_only_done_transition_still_broadcasts(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """A done moment whose evidence carries no repos must not die in payload
+    validation: local journals treat repos as optional, the canonical model
+    requires one — normalised exactly as the sync emitter always did."""
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition(
+        to_lane="done",
+        metadata=_transition_metadata(evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}}),
+    )
+
+    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
+    _op, args = recorder.offers[0]
+    assert args["attrs"]["to_lane"] == "done"
+    assert "evidence" not in args["attrs"]  # unbroadcast, whatever its shape
 
 
 # ---------------------------------------------------------------------------
@@ -316,9 +422,7 @@ def test_non_sent_outcome_is_dropped_and_logged_once(
     # One attempt per moment, neither retried nor queued; every drop names the
     # outcome and the no-retry contract, content-exact.
     assert recorder.summaries() == [("event.publish", "WPStatusChanged")] * 2
-    expected_drop = (
-        f"Zeitgeist moment WPStatusChanged dropped ({outcome}) after 10 ms; no retry by design"
-    )
+    expected_drop = f"Zeitgeist moment WPStatusChanged dropped ({outcome}) after 10 ms; no retry by design"
     assert [m for m in caplog.messages if "dropped" in m] == [expected_drop, expected_drop]
 
 
