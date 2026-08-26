@@ -156,6 +156,25 @@ def test_non_hosted_remotes_have_nothing_to_ask_about(origin: str) -> None:
     assert resolution.repo_slug_and_host(origin) == (None, None)
 
 
+class TestStoreKey:
+    """spec-kitty#129: the credential store is keyed by the full
+    ``(host, owner/repo)`` identity, not the bare repo NAME."""
+
+    def test_key_is_host_then_slug(self) -> None:
+        assert resolution.store_key(host="github.com", repo_slug="acme/widget") == "github.com/acme/widget"
+
+    def test_same_name_under_different_owners_yields_distinct_keys(self) -> None:
+        assert resolution.store_key(host="github.com", repo_slug="acme/widget") != resolution.store_key(host="github.com", repo_slug="evil/widget")
+
+    def test_same_slug_on_different_hosts_yields_distinct_keys(self) -> None:
+        assert resolution.store_key(host="github.com", repo_slug="acme/widget") != resolution.store_key(host="gitlab.com", repo_slug="acme/widget")
+
+    def test_unknown_host_still_keys_uniquely_by_slug(self) -> None:
+        # No hosted grammar produces an empty host, so "" cannot collide
+        # with a real host segment.
+        assert resolution.store_key(host=None, repo_slug="acme/widget") == "/acme/widget"
+
+
 # ---------------------------------------------------------------------------
 # SaasCapabilityGateway against the endpoints' real wire shapes (respx)
 # ---------------------------------------------------------------------------
@@ -583,16 +602,13 @@ def _parse(stamp: str):
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
-def clone(tmp_path: Path) -> Path:
-    """A checkout whose origin claims to be github.com/acme/widget."""
-    bare = tmp_path / "gh" / "acme" / "widget.git"
+def _checkout_with_origin(bare: Path, dest: Path, origin: str) -> Path:
+    """A minimal checkout whose origin claims ``origin``."""
     bare.mkdir(parents=True)
     subprocess.run(["git", "init", "--bare", "-q"], cwd=bare, check=True, capture_output=True)
-    dest = tmp_path / "work" / "widget"
-    dest.parent.mkdir(parents=True)
+    dest.parent.mkdir(parents=True, exist_ok=True)
     subprocess.run(["git", "clone", "-q", str(bare), str(dest)], check=True, capture_output=True)
-    subprocess.run(["git", "remote", "set-url", "origin", "https://github.com/acme/widget.git"], cwd=dest, check=True, capture_output=True)
+    subprocess.run(["git", "remote", "set-url", "origin", origin], cwd=dest, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.email", "t@example.com"], cwd=dest, check=True, capture_output=True)
     subprocess.run(["git", "config", "user.name", "t"], cwd=dest, check=True, capture_output=True)
     (dest / "f.txt").write_text("x")
@@ -601,13 +617,23 @@ def clone(tmp_path: Path) -> Path:
     return dest
 
 
+@pytest.fixture()
+def clone(tmp_path: Path) -> Path:
+    """A checkout whose origin claims to be github.com/acme/widget."""
+    return _checkout_with_origin(
+        tmp_path / "gh" / "acme" / "widget.git",
+        tmp_path / "work" / "acme" / "widget",
+        "https://github.com/acme/widget.git",
+    )
+
+
 class TestResolveCredentialsEndToEnd:
     def test_identity_and_slug_are_derived_from_the_checkout_itself(self, state_root: Path, clone: Path, instead_of_rewrite: str) -> None:
         gateway = ScriptedGateway()
         stored = resolution.resolve_credentials(clone, gateway=gateway)  # type: ignore[arg-type]
         assert stored is not None
-        # Store key: the canonical repo NAME repo_identity mints ...
-        assert credentials.load(repo="widget") == stored
+        # Store key: the (host, owner/repo) identity Team Kitty admits by ...
+        assert credentials.load(repo="github.com/acme/widget") == stored
         # ... while Team Kitty is asked about the owner/repo slug + host.
         # The fixture rewrites github.com onto a machine-local transport
         # proxy; the checkout's own origin must win (#81) — a proxy host
@@ -641,6 +667,90 @@ class TestResolveCredentialsEndToEnd:
         assert gateway.admission_calls == []
 
 
+ACME_KEY = "github.com/acme/widget"
+EVIL_KEY = "github.com/evil/widget"
+
+
+class TestTwoCheckoutProbe:
+    """spec-kitty#129's acceptance probe: ``acme/widget`` and ``evil/widget``
+    are two same-named checkouts that differ in owner. Under the bare-name
+    store key they shared ONE entry — the second checkout could be served
+    (or overwrite) the first's cached credential, each resolution evicted
+    the other's token back onto the network, and one checkout's "not
+    admitted" negative silenced the other for the whole TTL."""
+
+    @pytest.fixture()
+    def two_clones(self, tmp_path: Path) -> tuple[Path, Path]:
+        acme = _checkout_with_origin(
+            tmp_path / "gh-acme" / "widget.git",
+            tmp_path / "work" / "acme" / "widget",
+            "https://github.com/acme/widget.git",
+        )
+        evil = _checkout_with_origin(
+            tmp_path / "gh-evil" / "widget.git",
+            tmp_path / "work" / "evil" / "widget",
+            "https://github.com/evil/widget.git",
+        )
+        return acme, evil
+
+    def test_each_checkout_mints_and_stores_under_its_own_key(self, state_root: Path, two_clones: tuple[Path, Path]) -> None:
+        acme, evil = two_clones
+        acme_gateway = ScriptedGateway()
+        evil_gateway = ScriptedGateway()
+        first = resolution.resolve_credentials(acme, gateway=acme_gateway)  # type: ignore[arg-type]
+        second = resolution.resolve_credentials(evil, gateway=evil_gateway)  # type: ignore[arg-type]
+        assert first is not None and second is not None
+        # Distinct keys: neither entry is reachable under the other's.
+        assert credentials.load(repo=ACME_KEY) == first
+        assert credentials.load(repo=EVIL_KEY) == second
+        assert credentials.load(repo="widget") is None
+        # And each mint was asked about its own owner/repo slug.
+        assert [call["repo_slug"] for call in acme_gateway.mint_calls] == ["acme/widget"]
+        assert [call["repo_slug"] for call in evil_gateway.mint_calls] == ["evil/widget"]
+
+    def test_second_checkout_mints_its_own_not_the_first_cached_one(self, state_root: Path, two_clones: tuple[Path, Path]) -> None:
+        acme, evil = two_clones
+        assert resolution.resolve_credentials(acme, gateway=ScriptedGateway()) is not None  # type: ignore[arg-type]
+        evil_gateway = ScriptedGateway(
+            mint=MintedCredential(
+                relay_url="http://evil-relay",
+                relay_token="evil-bearer",
+                capability_credential="evil-jwt",
+                expires_at=_iso_in(3600),
+            )
+        )
+        stored = resolution.resolve_credentials(evil, gateway=evil_gateway)  # type: ignore[arg-type]
+        assert stored is not None
+        # Minted its own credential for its own slug -- not a re-serve of the
+        # entry acme's resolution had already cached under the shared name.
+        assert stored.relay_url == "http://evil-relay"
+        assert [call["repo_slug"] for call in evil_gateway.mint_calls] == ["evil/widget"]
+        assert credentials.load(repo=EVIL_KEY) == stored
+
+    def test_one_checkouts_cached_answer_survives_the_other_resolving(self, state_root: Path, two_clones: tuple[Path, Path]) -> None:
+        """Under the shared key each checkout's mint evicted the other's,
+        forcing both onto the network on every transition; distinct keys
+        keep both caches warm."""
+        acme, evil = two_clones
+        assert resolution.resolve_credentials(acme, gateway=ScriptedGateway()) is not None  # type: ignore[arg-type]
+        assert resolution.resolve_credentials(evil, gateway=ScriptedGateway()) is not None  # type: ignore[arg-type]
+        fresh_gateway = ScriptedGateway()
+        cached = resolution.resolve_credentials(acme, gateway=fresh_gateway)  # type: ignore[arg-type]
+        assert cached is not None
+        assert fresh_gateway.admission_calls == [] and fresh_gateway.mint_calls == []
+
+    def test_not_admitted_for_one_does_not_silence_the_other(self, state_root: Path, two_clones: tuple[Path, Path]) -> None:
+        acme, evil = two_clones
+        evil_gateway = ScriptedGateway(admission={"admitted": False, "reason": "no_match"})
+        assert resolution.resolve_credentials(evil, gateway=evil_gateway) is None  # type: ignore[arg-type]
+        assert credentials.load_negative(repo=EVIL_KEY) is not None
+        acme_gateway = ScriptedGateway()
+        stored = resolution.resolve_credentials(acme, gateway=acme_gateway)  # type: ignore[arg-type]
+        # Admitted all along -- evil's negative must not answer for it.
+        assert stored is not None
+        assert len(acme_gateway.mint_calls) == 1
+
+
 class TestDefaultGatewayConstruction:
     def test_env_config_builds_the_real_gateway(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "http://saas.test")
@@ -666,4 +776,4 @@ class TestDefaultGatewayConstruction:
         monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
         monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
         assert resolution.resolve_credentials(clone, auth_repo_root=clone) is None
-        assert credentials.load(repo="widget") is None
+        assert credentials.load(repo="github.com/acme/widget") is None

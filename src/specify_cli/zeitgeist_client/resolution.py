@@ -4,9 +4,9 @@ one from Team Kitty, or a remembered no (E3 — EXPERIMENTAL-spec-kitty#9).
 The seam contract this serves (design page ``ephemeral-team-status.html``,
 CLI column): every status transition resolves credentials for its own
 (checkout, repo) once — from the existing ``credentials.py`` TOML store,
-keyed by the canonical repo ``repo_identity.identity()`` mints — and only
-when the store cannot answer does it talk to Team Kitty, once per token
-lifetime:
+keyed by the ``(host, owner/repo)`` identity Team Kitty admits by
+(:func:`store_key`) — and only when the store cannot answer does it talk
+to Team Kitty, once per token lifetime:
 
 1. A stored, unexpired credential answers immediately. No network.
 2. A stored, unexpired *negative* answer ("no team admits this repo")
@@ -48,13 +48,18 @@ mint path, an expired negative one asks Team Kitty again. An entry with no
 stamp never expires — every entry written before stamps existed keeps
 working exactly as before.
 
-The store key is the bare repo NAME, not the full ``(host, owner/repo)``
-identity — two differently-hosted repos can share one name, so a cache hit
-is revalidated against the current ``(host, repo_slug)`` before being
-trusted (:func:`_same_scope`); a scope mismatch is treated as a cache miss
-and resolution falls through to a fresh admission check. An entry with no
-recorded scope (minted before this check existed, or via the manual
-``zeitgeist checkout`` path) is trusted as before.
+The store key is the full ``(host, owner/repo)`` identity Team Kitty admits
+by (:func:`store_key`) — not the bare repo NAME, which two differently-
+hosted repos can share (spec-kitty#129): under a shared name a hostile
+same-name checkout could read another repo's cached credential, one
+checkout's "not admitted" negative silenced the other for the whole
+negative TTL, and each resolution overwrote the other's cached token,
+forcing both back onto the network every transition. A cache hit is also
+revalidated against the current ``(host, repo_slug)`` before being trusted
+(:func:`_same_scope`) — defense in depth for an entry whose recorded scope
+disagrees with the key it sits under; an entry with no recorded scope
+(minted before scopes existed, or via the manual ``zeitgeist checkout``
+path) is trusted as before.
 """
 
 from __future__ import annotations
@@ -294,6 +299,22 @@ def repo_slug_and_host(origin_url: str) -> tuple[str | None, str | None]:
     return slug.lower(), host.lower()
 
 
+def store_key(*, host: str | None, repo_slug: str) -> str:
+    """The credential-store key for one hosted identity: ``host/owner/repo``.
+
+    The bare repo NAME two differently-hosted checkouts can share was
+    spec-kitty#129's defect: one entry per name meant a same-named checkout
+    could be served (or overwrite) another repo's cached answer, and a
+    "not admitted" negative for one silenced the other for the whole
+    negative TTL. Keying by the pair Team Kitty admits and mints by makes
+    every identity its own entry; :func:`_same_scope` stays as the
+    revalidation of what is recorded *inside* an entry. ``host`` cannot
+    contain ``/`` (neither URL grammar produces one), so the first segment
+    is always the host and no two identities share a key.
+    """
+    return f"{host or ''}/{repo_slug}"
+
+
 def _expired(expires_at: str | None) -> bool:
     """Whether a verbatim ISO stamp has passed. Unstamped (every entry
     written before stamps existed) and unparseable entries never expire —
@@ -403,13 +424,15 @@ def _resolve(
 def _same_scope(stored: StoredCredential, *, repo_slug: str, host: str | None) -> bool:
     """Whether a cached credential was minted for the identity we hold now.
 
-    The store key is the bare repo NAME (``repo_identity.repo_name``), which
-    two differently-hosted repos can share — a same-name hostile checkout
-    would otherwise get served a cached credential minted for someone
-    else's admitted repo. An entry with no recorded scope (minted before
-    this check existed, or via the manual ``zeitgeist checkout`` path) is
-    trusted as before: the same backward-compatible reading ``expires_at``
-    already gets when it is absent.
+    The store key already separates identities (:func:`store_key`), so an
+    entry reached under this checkout's key was written for it — this check
+    is defense in depth for an entry whose recorded ``(host, repo_slug)``
+    disagrees with the key it sits under (a manual writer, a future caller
+    that keys differently): such an entry is a cache miss, not a hit. An
+    entry with no recorded scope (minted before scopes existed, or via the
+    manual ``zeitgeist checkout`` path) is trusted as before: the same
+    backward-compatible reading ``expires_at`` already gets when it is
+    absent.
     """
     if stored.repo_slug is None and stored.host is None:
         return True
@@ -444,12 +467,11 @@ def resolve_credentials(
     """
     cwd_str = str(cwd)
     try:
-        # The canonical NAME is the store key; the verbatim origin URL is
-        # where Team Kitty's owner/repo slug and host come from. Both read
-        # the same sources, so they share one Git budget rather than paying
-        # identity()'s branch/commit probes this seam never uses.
+        # One Git read: the verbatim origin URL is where both the store
+        # key's (host, owner/repo) scope and Team Kitty's admission question
+        # come from. It used to also feed repo_name()'s bare-name key
+        # (spec-kitty#129) — a name two differently-hosted repos share.
         deadline = repo_identity.Deadline()
-        key = repo_identity.repo_name(cwd_str, deadline)
         origin = repo_identity.origin_url(cwd_str, deadline)
     except repo_identity.RepoIdentityError as exc:
         logger.debug("zeitgeist credentials: no canonical identity for %s (%s)", cwd_str, exc)
@@ -468,4 +490,11 @@ def resolve_credentials(
             logger.debug("zeitgeist credentials: nothing configured to authenticate with (%s)", exc)
             return None
 
-    return _resolve(key=key, repo_slug=slug, host=host, gateway=resolved_gateway, kind=kind, force=force)
+    return _resolve(
+        key=store_key(host=host, repo_slug=slug),
+        repo_slug=slug,
+        host=host,
+        gateway=resolved_gateway,
+        kind=kind,
+        force=force,
+    )
