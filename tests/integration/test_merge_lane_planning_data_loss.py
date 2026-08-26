@@ -152,7 +152,7 @@ class TestMergeIncludesPlanningLane:
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
             patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
-                        # WP10 (#2057): branch preflight + target asserts moved to seams;
+            # WP10 (#2057): branch preflight + target asserts moved to seams;
             # appended last to keep positional mock indices stable.
             patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
             patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
@@ -365,14 +365,14 @@ def _real_merge_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[10].return_value = gate_eval
+        ms[7].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[11].return_value = policy
+        ms[8].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[6].return_value = stale_report
-        ms[7].return_value = stale_report
+        ms[3].return_value = stale_report
+        ms[4].return_value = stale_report
         yield {
             "mark_done": ms[0],
             "assert_done": ms[1],
@@ -427,14 +427,14 @@ def _real_invariant_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[10].return_value = gate_eval
+        ms[7].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[11].return_value = policy
+        ms[8].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[6].return_value = stale_report
-        ms[7].return_value = stale_report
+        ms[3].return_value = stale_report
+        ms[4].return_value = stale_report
         yield {
             "mark_done": ms[0],
             "assert_done": ms[1],
@@ -801,14 +801,14 @@ def _real_persistence_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[8].return_value = gate_eval
+        ms[5].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[9].return_value = policy
+        ms[6].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[4].return_value = stale_report
-        ms[5].return_value = stale_report
+        ms[1].return_value = stale_report
+        ms[2].return_value = stale_report
         yield {"safe_commit": ms[0]}
 
 
@@ -846,14 +846,14 @@ def _real_bookkeeping_commit_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[7].return_value = gate_eval
+        ms[4].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[8].return_value = policy
+        ms[5].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[3].return_value = stale_report
-        ms[4].return_value = stale_report
+        ms[0].return_value = stale_report
+        ms[1].return_value = stale_report
         yield {}
 
 

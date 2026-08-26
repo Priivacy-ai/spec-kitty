@@ -31,7 +31,6 @@ on:
       # an edit to any of them must re-run the architectural guard suite,
       # which asserts the parsed gate model over all four workflow files.
       - '.github/workflows/ci-windows.yml'
-      - '.github/workflows/drift-detector.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
@@ -76,7 +75,6 @@ on:
       - '.github/workflows/ci-quality.yml'
       # Suite-running workflows routed to the architectural guards (FR-012).
       - '.github/workflows/ci-windows.yml'
-      - '.github/workflows/drift-detector.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
@@ -293,7 +291,6 @@ jobs:
               # The other suite-running workflows route to the architectural
               # guard shard via this group (FR-012 two-layer, second layer).
               - '.github/workflows/ci-windows.yml'
-              - '.github/workflows/drift-detector.yml'
               - '.github/workflows/release.yml'
               - 'src/kernel/**'
               - 'src/doctrine/**'
@@ -1840,9 +1837,9 @@ jobs:
               tests/regressions
               tests/research
               tests/retrospective
-              tests/saas
               tests/stress
               tests/tasks
+              tests/tracker
               tests/unit
               tests/zeitgeist_client
               tests/team_projection
@@ -2063,20 +2060,10 @@ jobs:
   # wired into CI until now). Selecting ``-m timing`` over ``tests/`` picks up
   # every such carrier by construction, so this fix cannot silently orphan an
   # existing timing-marked test the same way it rescues the WP-prompt ones
-  # (Issue #2034 anti-pattern). ``--ignore`` excludes
-  # ``test_doctor_restart_daemon_timing.py``: that file's tests stay the sole
-  # responsibility of ``restart-daemon-nfr-timing`` below (the historical job
-  # id is retained for aggregation compatibility; it uses the controlled Linux
-  # runner and is cli-gated by design) — ignoring it here prevents a double-run.
+  # (Issue #2034 anti-pattern).
   #
   # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group ``if:``
-  # gate, no ``needs`` edge — mirrors the arch-adversarial pole above, NOT the
-  # ``restart-daemon-nfr-timing`` job below. That job gates on
-  # ``needs.changes.outputs.cli`` (the ``cli`` filter covers only
-  # ``src/specify_cli/cli/**``), but the code under test here
-  # (``src/runtime/next/prompt_builder.py``) is NOT under that path — gating
-  # this job the same way would silently skip the NFR on the very
-  # prompt-builder PRs it exists to guard (defeats SC-003). Emits no
+  # gate, no ``needs`` edge — mirrors the arch-adversarial pole above. Emits no
   # coverage XML (a pure timing gate), so it is absent from any
   # ``--cov``-consumer's ``needs:`` by construction — it IS added to
   # ``quality-gate.needs`` below so a red timing gate still blocks merge.
@@ -2095,7 +2082,6 @@ jobs:
         run: |
           uv run python -m pytest \
             tests/ \
-            --ignore=tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py \
             -m timing \
             -n0 \
             -q --tb=short
@@ -2130,9 +2116,8 @@ jobs:
   # runner-OS luck.
   #
   # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group
-  # ``if:`` gate, no ``needs`` edge -- mirrors ``timing-nfr-serial`` above,
-  # not the OS-matrixed ``restart-daemon-nfr-timing`` job below. Emits no
-  # coverage XML (a pure NFR gate), so it is absent from any
+  # ``if:`` gate, no ``needs`` edge -- mirrors ``timing-nfr-serial`` above.
+  # Emits no coverage XML (a pure NFR gate), so it is absent from any
   # ``--cov``-consumer's ``needs:`` by construction -- it IS added to
   # ``quality-gate.needs`` below so a red stress gate still blocks merge.
   # ---------------------------------------------------------------------------
@@ -2833,44 +2818,11 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # restart-daemon-nfr-timing: historical job id retained for quality-gate
-  # compatibility. PR #3285 retires issue #1153 / NFR-002's portable <=10s
-  # shared-runner performance claim. The controlled Linux runner now enforces
-  # the replacement functional contract: stop the old daemon, spawn a distinct
-  # pid, and observe a healthy control plane within bounded operation timeouts.
-  # Hosted macOS is excluded because its OS-global port/bootstrap environment
-  # repeatedly fails before the command under test; macOS performance evidence
-  # requires a controlled developer/canary harness rather than shared-runner CI.
-  # ---------------------------------------------------------------------------
-  restart-daemon-nfr-timing:
-    name: doctor restart-daemon functional health
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    needs: [changes]
-    if: >-
-      ${{ always()
-      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cli == 'true' || github.event_name == 'push')
-      && !contains(github.event.pull_request.labels.*.name, 'pr:deferred')
-      && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-      - name: Run restart-daemon functional health gate
-        env:
-          SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
-        run: |
-          python -m pytest \
-            tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py::test_doctor_restart_daemon_restarts_and_becomes_healthy \
-            -q \
-            --tb=short
-
+  # restart-daemon-nfr-timing (removed, issue #5): its subject
+  # (`_daemon_doctor.py`'s doctor restart-daemon functional health gate) and
+  # the sync daemon it observed were deleted with the sync transport, and
+  # `test_doctor_restart_daemon_timing.py` went with them. No replacement
+  # gate exists -- there is no daemon left to restart.
   # ---------------------------------------------------------------------------
   # quarantine-visibility: validates the explicit owner manifest and runs only
   # its listed `-m quarantine` tests (SPEC_KITTY_RUN_QUARANTINE=1), so irreducible
@@ -4029,7 +3981,6 @@ jobs:
       - timing-nfr-serial
       - stress-tests-serial
       - e2e-cross-cutting
-      - restart-daemon-nfr-timing
       - regression-tests
       - build-wheel
       - clean-install-verification
@@ -4114,7 +4065,6 @@ jobs:
               "integration-tests-agent": ["agent"],
               "integration-tests-core-misc": ["core_misc", "execution_context", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
               "e2e-cross-cutting": ["e2e", "core_misc", "execution_context"],
-              "restart-daemon-nfr-timing": ["cli"],
               "consumer-compatibility": ["release"],
           }
 

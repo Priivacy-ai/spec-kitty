@@ -104,6 +104,8 @@ def _apply_identity_normalization(
     if backfill.number_coerced:
         result.actions.append("Normalized legacy mission_number type")
         refresh_derived = True
+
+    if not dry_run and (backfill.action == "wrote" or backfill.number_coerced):
         from specify_cli.core.paths import load_meta_fail_closed
         meta = load_meta_fail_closed(feature_dir) or meta
 
