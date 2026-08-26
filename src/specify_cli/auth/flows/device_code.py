@@ -311,6 +311,7 @@ class DeviceCodeFlow:
             storage_backend=self._storage_backend,
             last_used_at=now,
             auth_method="device_code",
+            issuer_url=self._saas_base_url,
         )
 
     @staticmethod
