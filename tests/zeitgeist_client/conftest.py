@@ -75,6 +75,14 @@ class TeamKittyDouble:
     response_status: int = 200
     response_body: dict[str, Any] = field(default_factory=dict)
     response_delay_s: float = 0.0
+    # Extra headers sent on every response (#180's throttle tests use this for
+    # `Retry-After`). Empty by default — the pre-existing responses are byte-
+    # identical to what the double always sent.
+    response_headers: dict[str, str] = field(default_factory=dict)
+    # Statuses served in order, one per request, until the list is empty;
+    # afterwards (and when never set) every response uses ``response_status``.
+    # Lets one double answer "429 then 200" for the retry-once contract.
+    status_sequence: list[int] = field(default_factory=list)
 
     _server: http.server.ThreadingHTTPServer | None = None
     _thread: threading.Thread | None = None
@@ -105,6 +113,8 @@ class TeamKittyDouble:
         status: int | None = None,
         body: dict[str, Any] | None = None,
         delay_s: float | None = None,
+        headers: dict[str, str] | None = None,
+        status_sequence: list[int] | None = None,
     ) -> None:
         if status is not None:
             self.response_status = status
@@ -112,6 +122,10 @@ class TeamKittyDouble:
             self.response_body = body
         if delay_s is not None:
             self.response_delay_s = delay_s
+        if headers is not None:
+            self.response_headers = headers
+        if status_sequence is not None:
+            self.status_sequence = list(status_sequence)
 
     def _make_handler(self) -> type[http.server.BaseHTTPRequestHandler]:
         double = self
@@ -131,14 +145,21 @@ class TeamKittyDouble:
                     except json.JSONDecodeError:
                         parsed = None
                 with double._lock:
+                    status = (
+                        double.status_sequence.pop(0)
+                        if double.status_sequence
+                        else double.response_status
+                    )
                     double.requests.append(
                         RecordedRequest(self.command, self.path, dict(self.headers), parsed)
                     )
                 if double.response_delay_s:
                     time.sleep(double.response_delay_s)
                 payload = json.dumps(double.response_body).encode("utf-8")
-                self.send_response(double.response_status)
+                self.send_response(status)
                 self.send_header("Content-Type", "application/json")
+                for key, value in double.response_headers.items():
+                    self.send_header(key, value)
                 self.send_header("Content-Length", str(len(payload)))
                 self.end_headers()
                 with contextlib.suppress(BrokenPipeError, ConnectionResetError):

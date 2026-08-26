@@ -131,6 +131,11 @@ _DROPPED_OUTCOMES: frozenset[transport.OfferOutcome] = frozenset(
         transport.OfferOutcome.DROPPED_BUDGET,
         transport.OfferOutcome.DROPPED_UNREACHABLE,
         transport.OfferOutcome.REFUSED_LOCAL,
+        # #180: still 429 after the one honoured Retry-After — the frame is
+        # gone (loudly, via THROTTLE_NOTICE on stderr, but gone), which is
+        # exactly what this signal reports. A bare REJECTED stays out: that
+        # is the relay's answer about the frame, not a lost frame.
+        transport.OfferOutcome.THROTTLED,
     }
 )
 

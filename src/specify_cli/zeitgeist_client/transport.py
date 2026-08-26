@@ -4,13 +4,27 @@
 750ms/drop-no-retry, forbidden-field zero-attempt" exactly: (1) build the
 request_id; (2) ``sanitizer.assert_clean(args)`` — any forbidden key raises
 before any network attempt, yielding ``REFUSED_LOCAL``, ``elapsed_s=0.0``;
-(3) exactly one HTTP POST, to ``<relay_url>/managed/control`` (F3's real
+(3) one HTTP POST, to ``<relay_url>/managed/control`` (F3's real
 presence/focus/session op dispatcher — ``zeitgeist/managed.py`` — never the
 baseline ``/events`` Beacon route, which has no ``op`` dispatch at all and
 structurally cannot process a ``ControlEnvelope``), under a 750ms TOTAL
 wall-clock deadline (``budget.run_with_deadline``); (4) whatever happens —
 2xx, non-2xx, timeout, connection refused — ``offer()`` returns; it never
 retries and never queues.
+
+EXCEPTION to (4)'s "never retries" (#180): a ``429`` from the relay is not an
+ordinary rejection — zeitgeist's managed-control rate limiter answers a
+throttled credential with ``429`` + ``Retry-After: <s>`` + a JSON detail
+(zeitgeist#44). ``offer()`` honours that header EXACTLY ONCE for the current
+frame: it waits ``min(Retry-After, MAX_RETRY_AFTER_S)`` (bounded at 2 s so the
+worst case — 750 ms attempt + 2 s pause + 750 ms attempt ≈ 3.5 s — still lands
+inside budget.HOOK_BUDGET_S's 4 s hook kill), makes its ONE remaining attempt,
+and is done: no further retry, no queue, no persistence of any kind (the frame
+is volatile by design; HIC-EPHEMERAL-TEAM-STATUS keeps nothing). A still-throttled
+second answer yields :attr:`OfferOutcome.THROTTLED` plus the one-line stderr
+notice :data:`THROTTLE_NOTICE` — the signal a bare ``REJECTED`` never gave —
+so end to end a throttled moment is lost loudly, not silently. Every other
+status keeps the original contract untouched (one attempt, classify, return).
 
 FIX-M2-10: two gates a real relay enforces on this route, both of which
 ``offer()`` must satisfy — confirmed against the live ``zeitgeist`` source
@@ -120,7 +134,9 @@ from __future__ import annotations
 
 import json
 import socket
+import sys
 import threading
+import time
 import urllib.error
 import urllib.request
 import uuid
@@ -150,6 +166,23 @@ _MANAGED_CONTROL_PATH = "/managed/control"
 # lockstep with a real, coordinated envelope-shape change on zeitgeist's
 # side.
 _SCHEMA_VERSION = "1.0.0"
+
+# #180: the one throttle backoff honour, bounded so the worst case (750ms
+# attempt + pause + 750ms attempt ≈ 3.5s) stays inside budget.HOOK_BUDGET_S's
+# 4s hook kill. A relay Retry-After above this bound is clamped to it, never
+# honoured in full — nothing here may wait out a long rate-limit window.
+MAX_RETRY_AFTER_S = 2.0
+
+# The status zeitgeist's managed-control rate limiter answers with
+# (`429` + `Retry-After: <s>` + JSON detail, zeitgeist#44). The registry-
+# capacity 429 further down that handler carries no Retry-After; it gets the
+# same one-retry treatment with a zero-length pause, which is the honest
+# reading of an absent header, not a special case.
+_THROTTLED_STATUS = 429
+
+# The one-line stderr notice emitted when a frame is dropped still-throttled
+# after its single honoured backoff (#180: "lost silently" → lost loudly).
+THROTTLE_NOTICE = "relay throttled; moment dropped"
 
 _FocusPauseReason = Literal["user", "dnd"]
 _FocusEndReason = Literal["user", "timeout"]
@@ -220,7 +253,8 @@ class ClientConfig:
 
 class OfferOutcome(StrEnum):
     SENT = "sent"  # relay accepted (2xx)
-    REJECTED = "rejected"  # relay returned 4xx/5xx
+    REJECTED = "rejected"  # relay returned a non-throttle 4xx/5xx
+    THROTTLED = "throttled"  # still 429 after the one honoured Retry-After (#180)
     DROPPED_BUDGET = "dropped_budget"  # 750ms elapsed before a response
     DROPPED_UNREACHABLE = "dropped_unreachable"  # connect/DNS failure
     REFUSED_LOCAL = "refused_local"  # sanitizer rejected before any socket call
@@ -240,6 +274,33 @@ def _classify_network_error(exc: BaseException) -> OfferOutcome:
     if isinstance(reason, (socket.timeout, TimeoutError)):
         return OfferOutcome.DROPPED_BUDGET
     return OfferOutcome.DROPPED_UNREACHABLE
+
+
+def _retry_after_s(headers: Mapping[str, str]) -> float:
+    """The bounded pause a ``Retry-After`` header asks for, or ``0.0``.
+
+    Only the delay-seconds form is parsed — that is what zeitgeist#44 sends
+    (``str(retry_after)``); the RFC's HTTP-date alternative is not, and an
+    absent, non-numeric, or negative value means "no wait", which is also
+    exactly how a 429 without the header (the registry-capacity one) reads.
+    Clamping to :data:`MAX_RETRY_AFTER_S` happens here so every caller gets
+    the bound, not just the ones that remember it.
+    """
+    raw = headers.get("Retry-After") if headers else None
+    if raw is None:
+        return 0.0
+    try:
+        return max(0.0, min(float(raw), MAX_RETRY_AFTER_S))
+    except ValueError:
+        return 0.0
+
+
+def _pause(seconds: float) -> None:
+    """The throttle backoff sleep. Module-level so tests can stub it instead
+    of waiting out real pauses (the unstubbed behaviour is exercised once,
+    in ``test_transport.py``'s own backoff-sleeps test)."""
+    if seconds > 0:
+        time.sleep(seconds)
 
 
 class ZeitgeistClient:
@@ -291,36 +352,53 @@ class ZeitgeistClient:
         }
         url = self._config.relay_url.rstrip("/") + _MANAGED_CONTROL_PATH
 
-        def _post() -> tuple[int, bytes]:
+        def _post() -> tuple[int, dict[str, str]]:
             req = urllib.request.Request(url, data=body, headers=headers, method="POST")
             try:
                 with budget.open_bounded(req, timeout=budget.OFFER_BUDGET_S) as resp:
-                    return resp.status, resp.read()
+                    # The body is read to drain the connection and then
+                    # discarded — only the status and (for the throttle
+                    # path) the headers carry a decision. The detail JSON a
+                    # 429 carries is deliberately not kept: nothing here
+                    # persists (#180).
+                    return resp.status, {str(k): str(v) for k, v in resp.headers.items()}
             except urllib.error.HTTPError as exc:
-                return exc.code, exc.read()
+                return exc.code, {str(k): str(v) for k, v in (exc.headers or {}).items()}
 
-        deadline_outcome = budget.run_with_deadline(_post, deadline_s=budget.OFFER_BUDGET_S)
+        def _attempt() -> tuple[OfferOutcome | None, int, dict[str, str], float]:
+            """One bounded POST: ``(budget/network drop, status, headers, elapsed)``
+            — ``drop`` is ``None`` when an HTTP answer came back in budget."""
+            outcome = budget.run_with_deadline(_post, deadline_s=budget.OFFER_BUDGET_S)
+            if not outcome.completed:
+                return OfferOutcome.DROPPED_BUDGET, 0, {}, outcome.elapsed_s
+            if outcome.error is not None:
+                return _classify_network_error(outcome.error), 0, {}, outcome.elapsed_s
+            assert outcome.result is not None  # completed without error ⇒ a result
+            status, response_headers = outcome.result
+            return None, status, response_headers, outcome.elapsed_s
 
-        if not deadline_outcome.completed:
+        drop, status, response_headers, elapsed_s = _attempt()
+        if drop is None and status == _THROTTLED_STATUS:
+            # The one throttle honour (#180): wait out the bounded Retry-After,
+            # spend the frame's single remaining attempt, and stop — queueing
+            # or re-offering later would keep what the design says nothing keeps.
+            pause_s = _retry_after_s(response_headers)
+            _pause(pause_s)
+            elapsed_s += pause_s
+            drop, status, _, retry_elapsed_s = _attempt()
+            elapsed_s += retry_elapsed_s
+
+        if drop is not None:
+            return OfferResult(outcome=drop, request_id=request_id, elapsed_s=elapsed_s)
+        if status == _THROTTLED_STATUS:
+            print(THROTTLE_NOTICE, file=sys.stderr)
             return OfferResult(
-                outcome=OfferOutcome.DROPPED_BUDGET,
-                request_id=request_id,
-                elapsed_s=deadline_outcome.elapsed_s,
+                outcome=OfferOutcome.THROTTLED, request_id=request_id, elapsed_s=elapsed_s
             )
-        if deadline_outcome.error is not None:
-            return OfferResult(
-                outcome=_classify_network_error(deadline_outcome.error),
-                request_id=request_id,
-                elapsed_s=deadline_outcome.elapsed_s,
-            )
-
-        status, _body = deadline_outcome.result  # type: ignore[misc]
         result_outcome = (
             OfferOutcome.SENT if 200 <= status < 300 else OfferOutcome.REJECTED
         )
-        return OfferResult(
-            outcome=result_outcome, request_id=request_id, elapsed_s=deadline_outcome.elapsed_s
-        )
+        return OfferResult(outcome=result_outcome, request_id=request_id, elapsed_s=elapsed_s)
 
     # -- current-focus lifecycle (opt-in) ------------------------------
 
