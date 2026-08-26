@@ -32,6 +32,17 @@ inside the real slug envelope, so no shape rule can both admit every real
 slug and reject it — ref-kind fields enforce charset + length (+ a
 ≥11-segment prose floor) only, while every ident-kind field (actor
 ``user``, ``session_ref``) keeps the full shape defense below.
+
+A second deliberate divergence from the upstream twin (#170): the ``ident``
+quantifier here is TIGHTER than zeitgeist/editor.py:146's. Upstream still
+declares ``{0,63}`` against its own 32-char hard max (enforced by a separate
+length check) — the same pattern/maxLength self-contradiction zeitgeist#41
+fixed in the relay's schemas, where a consumer deriving the bound from the
+pattern alone read 64 and shipped a value the relay then rejected as
+``bound``. The quantifier here declares the bound the module enforces
+(``_MAX_LENGTH["ident"]``, 32); the character class is unchanged and
+``ident()``'s accept set is exactly what it was — a 33..64-char ident failed
+the length check before this change and fails the pattern after it.
 """
 
 from __future__ import annotations
@@ -42,7 +53,13 @@ import re
 # fullmatch, not match/search: "$" also matches before a trailing newline, so
 # a caller who used match/search could accept a value with a trailing "\n".
 # Callers of `ident()` below use `.fullmatch()`.
-IDENT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}")
+#
+# {0,31}, not upstream editor.py:146's {0,63} (#170): the enforced ceiling is
+# _MAX_LENGTH["ident"] below (editor.py:181's 32, checked separately), so the
+# quantifier now declares the bound the module actually enforces instead of
+# advertising 64. Deliberate divergence from the twin, mirroring zeitgeist#41's
+# schema fix upstream — see the module docstring.
+IDENT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,31}")
 # {0,239}, not the upstream twin's {0,119} (zeitgeist/editor.py:147):
 # managed_live.schema.json EventSample.ref declares "maxLength": 240 and this
 # program's own mission slugs ride that field — see the module docstring's
@@ -63,8 +80,9 @@ REF_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+/-]{0,239}")
 # round; the one 9-segment slug plus a wp_id was the sole miss at 9).
 MAX_SEGMENTS = {"ident": 4, "ref": 10}
 
-# Per-kind total-length caps: "ref" is the same schema maxLength REF_RE's
-# quantifier encodes above; "ident" keeps editor.py:181's 32.
+# Per-kind total-length caps — each is the ceiling its pattern's quantifier
+# encodes above ("ref": managed_live.schema.json EventSample.ref maxLength
+# 240; "ident": editor.py:181's 32, tightened onto IDENT_RE in #170).
 _MAX_LENGTH = {"ident": 32, "ref": 240}
 
 _SEGMENT_SPLIT_RE = re.compile(r"[-._@+/]")
