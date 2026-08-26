@@ -11,7 +11,7 @@ second writer:
 * ``status``— say which mode is effective, WHICH file decided it, and what
   else filters the stream.
 
-The write target defaults to the developer-global ``~/.kittify/config.toml``
+The write target defaults to the developer-global home ``.kittify/config.toml``
 because this is a per-developer preference; ``--repo`` writes the per-repo
 ``<root>/.kittify/config.toml`` override instead for "quiet in THIS checkout
 only". Precedence (repo beats global beats default) lives in
@@ -38,7 +38,7 @@ _JSON_OPTION = typer.Option(False, "--json", help="Emit plain JSON instead of a 
 _REPO_SCOPE_OPTION = typer.Option(
     False,
     "--repo",
-    help="Write the per-repo override (<repo>/.kittify/config.toml) instead of the global ~/.kittify config.",
+    help="Write the per-repo override (<repo>/.kittify/config.toml) instead of the global home .kittify config.",
 )
 
 
