@@ -837,3 +837,100 @@ def test_oversized_classifier_requires_wholesale_transient_rejection() -> None:
     assert sync_module._batch_is_oversized(content_rejection) is False
     assert sync_module._batch_is_oversized(partial_413) is False
     assert sync_module._batch_is_oversized(generic_transient) is False
+
+
+def _share_routing_stub() -> object:
+    return type(
+        "Routing",
+        (),
+        {
+            "repo_root": None,
+            "repo_slug": "acme/spec-kitty",
+            "project_uuid": "11111111-1111-1111-1111-111111111111",
+            "project_slug": "spec-kitty-local",
+            "build_id": "build-123",
+            "effective_sync_enabled": True,
+        },
+    )()
+
+
+def test_share_command_reports_actionable_message_on_double_404(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3699: when materialization is not yet visible server-side, the retry
+    still 404s. That recoverable race must surface as an actionable line and a
+    clean ``typer.Exit(1)`` — never the raw ``RepositorySharingClientError``
+    traceback the operator saw on first-run share."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing_stub(),
+    )
+
+    from specify_cli.sync.sharing_client import RepositorySharingClientError
+
+    calls = {"count": 0}
+
+    def _always_404(**_kwargs: object) -> dict[str, object]:
+        calls["count"] += 1
+        raise RepositorySharingClientError("Unknown private source project.", status_code=404)
+
+    with patch.object(sync_module, "_materialize_private_source_project") as mock_materialize:
+        monkeypatch.setattr(
+            "specify_cli.sync.sharing_client.request_repository_share_sync",
+            _always_404,
+        )
+        result = runner.invoke(sync_module.app, ["share", "product-team"])
+
+    assert result.exit_code == 1, result.stdout
+    # Graceful, chosen exit — not an uncaught client error bubbling as a traceback.
+    assert not isinstance(result.exception, RepositorySharingClientError)
+    assert isinstance(result.exception, SystemExit)
+    assert "Traceback" not in result.stdout
+    # First call 404 → materialize → retry also 404.
+    assert calls["count"] == 2
+    mock_materialize.assert_called_once_with()
+    # The actionable, self-heal-aware line the fix prints.
+    assert "again in a moment" in result.stdout
+    assert "spec-kitty sync share product-team" in result.stdout
+
+
+def test_share_error_path_stops_runtime_teardown(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3699: the ``Task was destroyed but it is pending!`` symptom is the
+    WebSocket disconnect being skipped when a traceback aborts orderly
+    teardown. The ``finally`` must drive ``SyncRuntime.stop`` (which awaits the
+    disconnect) on the error path too, not only on success."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing_stub(),
+    )
+
+    from specify_cli.sync.sharing_client import RepositorySharingClientError
+
+    def _always_404(**_kwargs: object) -> dict[str, object]:
+        raise RepositorySharingClientError("Unknown private source project.", status_code=404)
+
+    stop_calls = {"count": 0}
+    fake_runtime = SimpleNamespace(stop=lambda: stop_calls.__setitem__("count", stop_calls["count"] + 1))
+    monkeypatch.setattr("specify_cli.sync.runtime.get_runtime", lambda: fake_runtime)
+
+    with patch.object(sync_module, "_materialize_private_source_project"):
+        monkeypatch.setattr(
+            "specify_cli.sync.sharing_client.request_repository_share_sync",
+            _always_404,
+        )
+        result = runner.invoke(sync_module.app, ["share", "product-team"])
+
+    # Error path still exits 1 ...
+    assert result.exit_code == 1, result.stdout
+    # ... and deterministic teardown (which awaits the disconnect) still ran.
+    assert stop_calls["count"] == 1
