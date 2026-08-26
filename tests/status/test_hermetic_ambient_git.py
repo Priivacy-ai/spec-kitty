@@ -41,9 +41,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 #: A compact status-transition node whose assertions depend on lifecycle
 #: persistence -- one of the nodes the #142 repro turned red. If it moves,
 #: point this at another append-dependent node in this package.
-_REPRESENTATIVE_NODE = (
-    "tests/status/test_emit.py::TestEmitStatusTransition::test_happy_path_planned_to_claimed"
-)
+_REPRESENTATIVE_NODE = "tests/status/test_emit.py::TestEmitStatusTransition::test_happy_path_planned_to_claimed"
 
 
 def _git_init(path: Path) -> None:
@@ -134,7 +132,5 @@ def test_suite_records_events_under_read_only_ancestor_git(tmp_path: Path) -> No
             check=False,
         )
     assert completed.returncode == 0, (
-        "representative node failed under a read-only ancestor .git; "
-        "the conftest hermetic fixture did not neutralize the ambient repo:\n"
-        f"{completed.stdout}"
+        f"representative node failed under a read-only ancestor .git; the conftest hermetic fixture did not neutralize the ambient repo:\n{completed.stdout}"
     )

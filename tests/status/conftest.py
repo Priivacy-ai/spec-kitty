@@ -173,6 +173,7 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
         if _THIS_DIR in Path(item.fspath).parents:
             item.add_marker(pytest.mark.fast)
 
+
 @pytest.fixture(autouse=True)
 def _restore_zeitgeist_moment_handlers_around_every_status_test() -> None:
     """Re-register the Zeitgeist moment handlers around every status test.
