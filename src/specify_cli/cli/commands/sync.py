@@ -1109,40 +1109,64 @@ def share(
         console.print("[red]Error:[/red] Current checkout has no project UUID. Run `spec-kitty init` first.")
         raise typer.Exit(1)
 
+    # The 404 self-heal (#3564) materializes this checkout in Private Teamspace
+    # and retries. The retry can still 404 for a few seconds until the newly
+    # emitted BuildRegistered is visible server-side (#3699); that recoverable
+    # race must reach the operator as an actionable line, not a raw traceback.
+    # The outer ``finally`` runs deterministic teardown on every exit path so a
+    # clean ``typer.Exit`` — not an aborted stack unwind — drives the WebSocket
+    # disconnect, removing the "Task was destroyed but it is pending!" symptom.
     try:
-        response = request_repository_share(
-            source_project_uuid=routing.project_uuid,
-            destination_team_slug=team_slug,
-        )
-    except RepositorySharingClientError as exc:
-        if exc.status_code == 404:
-            if not routing.effective_sync_enabled:
-                console.print("[red]Error:[/red] This checkout is opted out of SaaS sync. Run `spec-kitty sync opt-in` first.")
-                raise typer.Exit(1) from None
-            try:
-                _materialize_private_source_project()
-            except Exception as materialize_error:
-                console.print(f"[red]Error:[/red] Could not materialize this checkout in Private Teamspace: {materialize_error}")
-                raise typer.Exit(1) from materialize_error
+        try:
             response = request_repository_share(
                 source_project_uuid=routing.project_uuid,
                 destination_team_slug=team_slug,
             )
+        except RepositorySharingClientError as exc:
+            if exc.status_code == 404:
+                if not routing.effective_sync_enabled:
+                    console.print("[red]Error:[/red] This checkout is opted out of SaaS sync. Run `spec-kitty sync opt-in` first.")
+                    raise typer.Exit(1) from None
+                try:
+                    _materialize_private_source_project()
+                except Exception as materialize_error:
+                    console.print(f"[red]Error:[/red] Could not materialize this checkout in Private Teamspace: {materialize_error}")
+                    raise typer.Exit(1) from materialize_error
+                try:
+                    response = request_repository_share(
+                        source_project_uuid=routing.project_uuid,
+                        destination_team_slug=team_slug,
+                    )
+                except RepositorySharingClientError as retry_exc:
+                    console.print(
+                        "[yellow]Registering this project in Private Teamspace.[/yellow] "
+                        f"Run [bold]spec-kitty sync share {team_slug}[/bold] again in a moment."
+                    )
+                    raise typer.Exit(1) from retry_exc
+            else:
+                console.print(f"[red]Error:[/red] {exc}")
+                raise typer.Exit(1) from exc
+
+        share_data = response.get("share") or {}
+        share_state = share_data.get("state", "unknown")
+        if share_state == "shared":
+            console.print(f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] to [cyan]{team_slug}[/cyan].")
         else:
-            console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1) from exc
+            console.print(f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan].")
 
-    share_data = response.get("share") or {}
-    share_state = share_data.get("state", "unknown")
-    if share_state == "shared":
-        console.print(f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] to [cyan]{team_slug}[/cyan].")
-    else:
-        console.print(f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan].")
+        if response.get("auto_approved"):
+            console.print("[dim]Team policy auto-approved the repository share.[/dim]")
+        elif share_state == "pending_approval":
+            console.print("[dim]Waiting for a team admin to approve the repository.[/dim]")
+    finally:
+        from specify_cli.sync.runtime import get_runtime
 
-    if response.get("auto_approved"):
-        console.print("[dim]Team policy auto-approved the repository share.[/dim]")
-    elif share_state == "pending_approval":
-        console.print("[dim]Waiting for a team admin to approve the repository.[/dim]")
+        # Idempotent (no-op when nothing started); awaits the WebSocket
+        # disconnect synchronously via ``SyncRuntime.stop`` so teardown never
+        # races the interpreter exit. Suppress teardown errors so they can't
+        # mask the command's own exit status.
+        with contextlib.suppress(Exception):
+            get_runtime().stop()
 
 
 @app.command()
