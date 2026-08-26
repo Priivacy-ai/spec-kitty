@@ -114,11 +114,15 @@ def _print_teams(session: StoredSession) -> None:
         is_default = team.id == session.default_team_id
         marker_parts: list[str] = []
         if team.is_private_teamspace:
-            marker_parts.append("private")
+            # The server refuses the Private Teamspace as a share destination,
+            # so surface it as not shareable next to the slug (#3731).
+            marker_parts.append("private, not shareable")
         if is_default:
             marker_parts.append("default")
         marker = f" [dim]({', '.join(marker_parts)})[/dim]" if marker_parts else ""
-        console.print(f"    - {team.name} ({team.role}){marker}")
+        console.print(
+            f"    - {team.name} [dim]slug: {team.slug}[/dim] ({team.role}){marker}"
+        )
 
 
 def _print_token_expiry(session: StoredSession) -> None:
