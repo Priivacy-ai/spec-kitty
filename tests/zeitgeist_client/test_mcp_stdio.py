@@ -15,6 +15,7 @@ empty/administered result, and (#10) that an ``event`` frame's free-text
 
 from __future__ import annotations
 
+import json
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -370,12 +371,16 @@ def _status_moment(seq: int, *, kind: str = "WPStatusChanged", user: str = "lynn
 
 
 def _local_checkout_missions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *slugs: str) -> None:
-    """Pin ``mine``'s basis: a synthetic checkout whose kitty-specs knows
-    exactly ``slugs`` — never whatever checkout the pytest process runs in."""
+    """Pin ``mine``'s basis: a synthetic checkout whose kitty-specs resolves
+    exactly ``slugs`` — never whatever checkout the pytest process runs in.
+    Each directory carries an identity-bearing meta.json because the
+    sanctioned resolver indexes only those."""
     specs = tmp_path / "synthetic-checkout" / "kitty-specs"
     specs.mkdir(parents=True)
-    for slug in slugs:
-        (specs / slug).mkdir()
+    for index, slug in enumerate(slugs):
+        mission = specs / slug
+        mission.mkdir()
+        (mission / "meta.json").write_text(json.dumps({"mission_id": f"01J9ZQ4V7C8D9E0F1A2B3C4D5{index:X}"}))
     monkeypatch.setattr(moments, "locate_repo_root", lambda cwd=None: specs.parent)
 
 
