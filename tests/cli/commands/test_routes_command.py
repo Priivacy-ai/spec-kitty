@@ -140,7 +140,7 @@ def test_fresh_checkout_mints_and_names_the_team_and_relay(state_root: Path, aut
     assert "team: demo · relay: http://relay" in result.stdout
     # Team Kitty was asked about the slug/host the checkout itself names.
     assert gateway.admission_calls == [{"repo_slug": "acme/widget", "host": "github.com"}]
-    stored = credentials.load(repo="widget")
+    stored = credentials.load(repo="github.com/acme/widget")
     assert stored is not None
     assert stored.team == "demo"
     assert stored.relay_url == "http://relay"
@@ -148,7 +148,7 @@ def test_fresh_checkout_mints_and_names_the_team_and_relay(state_root: Path, aut
 
 def test_cached_credential_answers_offline_without_asking_team_kitty(state_root: Path, auth_env: None, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     credentials.store(
-        repo="widget",
+        repo="github.com/acme/widget",
         relay_url="http://relay",
         token="bearer",
         token_kind="presence",
@@ -178,12 +178,12 @@ def test_not_admitted_prints_the_verdict_and_no_relay(state_root: Path, auth_env
     assert result.exit_code == 0
     assert "not admitted to any team — no relay" in result.stdout
     assert "no team admits acme/widget" in result.stdout
-    negative = credentials.load_negative(repo="widget")
+    negative = credentials.load_negative(repo="github.com/acme/widget")
     assert negative is not None  # remembered, exactly as a transition would
 
 
 def test_cached_negative_answers_offline(state_root: Path, auth_env: None, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    credentials.store_negative(repo="widget", reason="stale-reason")
+    credentials.store_negative(repo="github.com/acme/widget", reason="stale-reason")
     gateway = ScriptedGateway(admission=AssertionError("must not be called"), mint=AssertionError("must not be called"))
     _script_gateway(monkeypatch, gateway)
 
@@ -202,7 +202,7 @@ def test_unreachable_team_kitty_is_not_dressed_up_as_not_admitted(state_root: Pa
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 1
     assert "gave no answer" in result.stdout
-    assert credentials.load_negative(repo="widget") is None  # transient: cached nothing
+    assert credentials.load_negative(repo="github.com/acme/widget") is None  # transient: cached nothing
 
 
 def test_unauthenticated_checkout_exits_nonzero_with_a_login_hint(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:

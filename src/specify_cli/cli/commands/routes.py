@@ -57,20 +57,25 @@ def _fail(message: str) -> None:
     raise typer.Exit(1)
 
 
-def _resolve_checkout() -> tuple[str, str | None, str | None]:
+def _resolve_checkout() -> tuple[str, str, str | None]:
     """``(store_key, owner/repo slug, host)`` for this checkout, failing
-    loudly on each way a checkout can have nothing to ask any team about."""
+    loudly on each way a checkout can have nothing to ask any team about.
+
+    The store key must match ``resolution.resolve_credentials``'s own —
+    ``resolution.store_key(host, repo_slug)`` since spec-kitty#129, not the
+    bare repo name — or this command's own negative-cache lookup below reads
+    a different entry than the one resolution just wrote."""
     cwd = os.getcwd()
     try:
         deadline = repo_identity.Deadline()
-        key = repo_identity.repo_name(cwd, deadline)
+        name = repo_identity.repo_name(cwd, deadline)
         origin = repo_identity.origin_url(cwd, deadline)
     except repo_identity.RepoIdentityError as exc:
         _fail(f"could not identify this checkout ({exc}); run this from inside a Spec Kitty mission repository.")
     slug, host = resolution.repo_slug_and_host(origin)
     if slug is None:
-        _fail(f"{key!r} has no hosted forge remote, so no team can admit it and there is no relay to show. Nothing about this checkout is broadcast.")
-    return key, slug, host
+        _fail(f"{name!r} has no hosted forge remote, so no team can admit it and there is no relay to show. Nothing about this checkout is broadcast.")
+    return resolution.store_key(host=host, repo_slug=slug), slug, host
 
 
 def _gateway_for(cwd: Path) -> resolution.SaasCapabilityGateway:
