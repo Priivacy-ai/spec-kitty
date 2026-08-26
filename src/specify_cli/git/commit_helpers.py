@@ -287,10 +287,26 @@ class ProtectedBranchRefused(SafeCommitError):
         message = (
             f"safe_commit: refusing to commit to protected branch "
             f"{destination_ref!r} in {worktree_root}. "
-            f"Start a non-protected feature branch and commit there "
-            f"('spec-kitty mission create --start-branch <feature-branch>', or "
-            f"check out an existing feature branch). Planning artifacts must land "
-            f"on a feature branch, or land via the mission lane worktree."
+            f"This mission's target_branch is protected. "
+            # #255 fix-round-2 (squad pass 2 MAJOR): safe_commit has no
+            # MissionArtifactKind to branch on (it is deliberately
+            # mission-agnostic -- see core/mission_creation.py and
+            # git/bookkeeping_commit.py callers), so unlike
+            # coordination/commit_router.py's stage-aware message this one
+            # states the decision rule instead of a single command: the
+            # `finalize-tasks --target-branch` escape hatch only persists
+            # once `tasks/` exists (mission_finalize.py's
+            # `_revert_unpersisted_target_branch_override` reverts it
+            # otherwise), so a mission without `tasks/` yet must start over
+            # on a feature branch instead of trying to retarget itself.
+            f"If this mission already has a tasks/ directory, persist a "
+            f"non-protected feature branch onto it with: 'spec-kitty agent "
+            f"mission finalize-tasks --mission <mission_slug> --target-branch "
+            f"<feature-branch>'. Otherwise (no tasks/ yet), start a mission on "
+            f"a feature branch instead: 'spec-kitty agent mission create "
+            f"<mission_slug> --start-branch <feature-branch>'. "
+            f"Planning artifacts must land on a feature branch, or land via the "
+            f"mission lane worktree."
         )
         super().__init__(
             message,

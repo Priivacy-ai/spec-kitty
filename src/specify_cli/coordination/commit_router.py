@@ -89,6 +89,23 @@ _ANALYSIS_REPORT_FILENAME: Final = "analysis-report.md"
 _STATUS_NO_OP_WRONG_SURFACE: Final = "no_op_wrong_surface"
 _STATUS_ERROR: Final = "error"
 
+# #255 fix-round-2 (squad pass 2 MAJOR): the planning SOURCE-doc kinds a
+# mission produces BEFORE ``/spec-kitty.tasks`` has run (mirrors the "Planning
+# SOURCE docs" grouping in ``mission_runtime.artifacts``). The protected-branch
+# refusal below needs to know this membership because the FR-012
+# `finalize-tasks --target-branch` escape hatch only persists once
+# ``tasks/`` exists -- recommending it for one of these kinds writes the
+# override and then silently reverts it (mission_finalize.py's
+# ``_revert_unpersisted_target_branch_override``).
+_PRE_TASKS_ARTIFACT_KINDS: Final[frozenset[MissionArtifactKind]] = frozenset(
+    {
+        MissionArtifactKind.SPEC,
+        MissionArtifactKind.DATA_MODEL,
+        MissionArtifactKind.RESEARCH,
+        MissionArtifactKind.CHECKLIST,
+    }
+)
+
 
 @dataclass(frozen=True)
 class CommitRouterResult:
@@ -251,21 +268,54 @@ def _commit_partition_group(
     )
 
     if not use_coord and policy.is_protected(placement.ref):
-        # Primary placement on a protected ref — refused (FR-008 / G-4). A
-        # planning artifact resolves to the primary ``target_branch``; when that
-        # ref is protected the commit is refused with guidance to start a feature
-        # branch. The planning→coord transit is GONE (FR-003 / C-005 /
-        # write-surface-coherence WP03 T015), so the remedy is a feature branch,
-        # NOT the coordination worktree: the deadlock is removed by the
-        # feature-branch invariant (research D-3), not by transiting coord.
+        # Primary placement on a protected ref — refused (FR-008 / G-4). This
+        # mission already exists (mission_slug names it), so the remedy is
+        # NOT unconditionally "create a mission" -- `agent mission create`
+        # mints a fresh ULID per call and would leave a second, empty mission
+        # next to this one (test_mission_create_idempotent_second_run). For a
+        # mission that already has a ``tasks/`` directory, the fix is to
+        # persist a non-protected target_branch onto the existing mission via
+        # the FR-012 `finalize-tasks --target-branch` escape hatch, before the
+        # next commit attempt re-resolves the same protected ref
+        # (get_feature_target_branch, core/paths.py, reads THIS mission's
+        # persisted meta.json only).
+        #
+        # squad pass 2 (#255 fix-round-2): that escape hatch only persists
+        # durably once ``_commit_finalize_artifacts`` actually commits --
+        # every earlier `typer.Exit` (including the missing-``tasks/`` gate)
+        # calls `_revert_unpersisted_target_branch_override`, so recommending
+        # it for a PRE-TASKS kind writes the override, reports success, then
+        # reverts it, leaving the operator no better off. At that stage the
+        # only artifact at risk is a regenerable spec/plan document, so the
+        # working remedy is to abandon the stuck attempt and start a mission
+        # on the right branch, not retarget it.
+        #
+        # The planning→coord transit is GONE (FR-003 / C-005 /
+        # write-surface-coherence WP03 T015), so either remedy is a feature
+        # branch, NOT the coordination worktree: the deadlock is removed by
+        # the feature-branch invariant (research D-3), not by transiting coord.
+        if kind in _PRE_TASKS_ARTIFACT_KINDS:
+            remedy = (
+                f"No tasks have been generated for this mission yet, so the "
+                f"finalize-tasks --target-branch override has nothing durable "
+                f"to attach to and would silently revert. Start a mission on "
+                f"a feature branch instead: 'spec-kitty agent mission create "
+                f"{mission_slug} --start-branch <feature-branch>'."
+            )
+        else:
+            remedy = (
+                f"Check out or create a non-protected feature branch, then "
+                f"persist it onto this mission with: 'spec-kitty agent mission "
+                f"finalize-tasks --mission {mission_slug} --target-branch "
+                f"<feature-branch>'."
+            )
         return CommitRouterResult(
             status=_STATUS_NO_OP_WRONG_SURFACE,
             placement_ref=placement.ref,
             diagnostic=(
                 f"Refusing to commit planning artifacts to the protected branch "
-                f"'{placement.ref}'. Start a non-protected feature branch and "
-                f"commit there: 'spec-kitty mission create --start-branch "
-                f"<feature-branch>' (or check out an existing feature branch). "
+                f"'{placement.ref}'. This mission's target_branch is protected. "
+                f"{remedy} "
                 f"Planning artifacts must land on a feature branch."
             ),
         )
