@@ -152,8 +152,15 @@ def test_unprotected_direct_commit(tmp_path: Path) -> None:
     assert len(materialise_calls) == 0
 
 
-def test_protected_primary_refusal_names_real_start_branch_command(tmp_path: Path) -> None:
-    """Protected primary placement refuses with a copy-pasteable remediation."""
+def test_protected_primary_refusal_names_real_finalize_tasks_command(tmp_path: Path) -> None:
+    """Protected primary placement refuses with a copy-pasteable remediation.
+
+    The mission named by ``mission_slug`` already exists (this is the
+    ``commit_for_mission`` path), so the remedy must be the FR-012
+    ``finalize-tasks --target-branch`` escape hatch that persists onto the
+    EXISTING mission's meta.json -- not ``agent mission create``, which mints
+    a fresh ULID per call and would leave a second, empty mission behind.
+    """
     policy = _make_policy(protected=True)
     primary_target = _make_primary_target()
     mission_slug = "001-my-mission"
@@ -186,8 +193,12 @@ def test_protected_primary_refusal_names_real_start_branch_command(tmp_path: Pat
     assert result.status == "no_op_wrong_surface"
     assert result.placement_ref == _PRIMARY_BRANCH
     assert result.diagnostic is not None
-    assert "spec-kitty agent mission create <mission_slug> --start-branch <feature-branch>" in result.diagnostic
+    assert (
+        f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --target-branch <feature-branch>"
+        in result.diagnostic
+    )
     assert "spec-kitty mission create --start-branch" not in result.diagnostic
+    assert "agent mission create" not in result.diagnostic
     safe_commit.assert_not_called()
 
 

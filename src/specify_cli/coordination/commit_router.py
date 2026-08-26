@@ -251,22 +251,30 @@ def _commit_partition_group(
     )
 
     if not use_coord and policy.is_protected(placement.ref):
-        # Primary placement on a protected ref — refused (FR-008 / G-4). A
-        # planning artifact resolves to the primary ``target_branch``; when that
-        # ref is protected the commit is refused with guidance to start a feature
-        # branch. The planning→coord transit is GONE (FR-003 / C-005 /
-        # write-surface-coherence WP03 T015), so the remedy is a feature branch,
-        # NOT the coordination worktree: the deadlock is removed by the
-        # feature-branch invariant (research D-3), not by transiting coord.
+        # Primary placement on a protected ref — refused (FR-008 / G-4). This
+        # mission already exists (mission_slug names it), so the remedy is
+        # NOT "create a mission" -- `agent mission create` mints a fresh ULID
+        # per call and would leave a second, empty mission next to this one
+        # (test_mission_create_idempotent_second_run). `target_branch` is
+        # resolved from THIS mission's persisted meta.json only
+        # (get_feature_target_branch, core/paths.py), so the fix is to
+        # persist a non-protected target_branch onto the existing mission via
+        # the FR-012 escape hatch, before the next commit attempt re-resolves
+        # the same protected ref. The planning→coord transit is GONE (FR-003
+        # / C-005 / write-surface-coherence WP03 T015), so the remedy is a
+        # feature branch, NOT the coordination worktree: the deadlock is
+        # removed by the feature-branch invariant (research D-3), not by
+        # transiting coord.
         return CommitRouterResult(
             status=_STATUS_NO_OP_WRONG_SURFACE,
             placement_ref=placement.ref,
             diagnostic=(
                 f"Refusing to commit planning artifacts to the protected branch "
-                f"'{placement.ref}'. Start a non-protected feature branch and "
-                f"commit there: 'spec-kitty agent mission create <mission_slug> "
-                f"--start-branch <feature-branch>' (or check out an existing "
-                f"feature branch). "
+                f"'{placement.ref}'. This mission's target_branch is protected. "
+                f"Check out or create a non-protected feature branch, then "
+                f"persist it onto this mission with: 'spec-kitty agent mission "
+                f"finalize-tasks --mission {mission_slug} --target-branch "
+                f"<feature-branch>'. "
                 f"Planning artifacts must land on a feature branch."
             ),
         )

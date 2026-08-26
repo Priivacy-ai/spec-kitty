@@ -287,9 +287,10 @@ class ProtectedBranchRefused(SafeCommitError):
         message = (
             f"safe_commit: refusing to commit to protected branch "
             f"{destination_ref!r} in {worktree_root}. "
-            f"Start a non-protected feature branch and commit there "
-            f"('spec-kitty agent mission create <mission_slug> --start-branch "
-            f"<feature-branch>', or check out an existing feature branch). "
+            f"This mission's target_branch is protected. Check out or create a "
+            f"non-protected feature branch, then persist it onto the mission "
+            f"with: 'spec-kitty agent mission finalize-tasks --mission "
+            f"<mission_slug> --target-branch <feature-branch>'. "
             f"Planning artifacts must land on a feature branch, or land via the "
             f"mission lane worktree."
         )
