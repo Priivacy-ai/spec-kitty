@@ -24,7 +24,7 @@ from charter.context import build_charter_context_json
 from charter.context_contract import CONTEXT_CONTRACT_TOP_LEVEL_KEYS
 from tests.charter.test_resolver import _write_charter_files
 
-pytestmark = pytest.mark.regression
+pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
 _CATALOG = SimpleNamespace(
     paradigms=frozenset(),
