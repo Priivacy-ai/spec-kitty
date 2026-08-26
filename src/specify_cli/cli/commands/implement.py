@@ -223,6 +223,8 @@ def _json_safe_output(func: Callable[..., Any]) -> Callable[..., Any]:
 def detect_feature_context(
     mission_flag: str | None = None,
     repo_root: Path | None = None,
+    *,
+    json_mode: bool = False,
 ) -> tuple[str | None, str]:
     """Require an explicit mission slug and return ``(mission_number, slug)``.
 
@@ -239,7 +241,7 @@ def detect_feature_context(
 
     if repo_root is not None:
         # Use canonical resolver — handles ambiguity, mid8, full ULID, etc.
-        resolved = resolve_mission_handle(raw_handle, repo_root)
+        resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_mode)
         slug = resolved.mission_slug
     else:
         # Bare-slug fallback for callers without a repo_root (e.g., unit tests).
@@ -387,9 +389,7 @@ def _print_planning_artifact_commit_instructions(
     raise typer.Exit(1)
 
 
-def _load_primary_anchored_mission_meta(
-    repo_root: Path | None, mission_slug: str
-) -> dict[str, Any] | None:
+def _load_primary_anchored_mission_meta(repo_root: Path | None, mission_slug: str) -> dict[str, Any] | None:
     """FR-003 cascade layer 1: read the PRIMARY-checkout ``meta.json``.
 
     ``coordination_branch`` / ``mission_id`` / ``mid8`` live ONLY in the
@@ -445,9 +445,7 @@ def _load_fallback_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
         return None
 
 
-def _extract_mission_identifiers_from_meta(
-    mission_meta: dict[str, Any] | None, mission_slug: str
-) -> tuple[str | None, str | None, str | None]:
+def _extract_mission_identifiers_from_meta(mission_meta: dict[str, Any] | None, mission_slug: str) -> tuple[str | None, str | None, str | None]:
     """Pull ``(coord_branch, mission_id, mid8)`` out of a resolved meta dict.
 
     mid8 precedence: the stored ``meta["mid8"]`` value wins; otherwise the
@@ -535,15 +533,9 @@ def _resolve_bookkeeping_transaction_identifiers(
     if mission_meta is None:
         mission_meta = _load_fallback_mission_meta(feature_dir)
 
-    coord_branch, mission_id, mid8 = _extract_mission_identifiers_from_meta(
-        mission_meta, mission_slug
-    )
-    effective_mission_id, effective_mid8 = _compute_effective_bookkeeping_ids(
-        mission_slug, mission_id, mid8, coord_branch
-    )
-    return _BookkeepingTransactionIdentifiers(
-        coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
-    )
+    coord_branch, mission_id, mid8 = _extract_mission_identifiers_from_meta(mission_meta, mission_slug)
+    effective_mission_id, effective_mid8 = _compute_effective_bookkeeping_ids(mission_slug, mission_id, mid8, coord_branch)
+    return _BookkeepingTransactionIdentifiers(coord_branch, mission_id, mid8, effective_mission_id, effective_mid8)
 
 
 def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
@@ -843,9 +835,7 @@ def _run_planning_artifact_commit(
     from specify_cli.coordination.transaction import BookkeepingTransaction
 
     if enforce_partition:
-        _guard_planning_commit_partition(
-            files, destination_is_coord=not commit_to_primary_target
-        )
+        _guard_planning_commit_partition(files, destination_is_coord=not commit_to_primary_target)
 
     with BookkeepingTransaction.acquire(
         repo_root=repo_root,
@@ -1268,7 +1258,14 @@ def _run_recover_mode(
 # ---------------------------------------------------------------------------
 
 
-def _detect_wp_context(mission: str, wp_id: str, repo_root: Path, auto_commit: bool | None) -> tuple[bool | None, str, Path, Path, Any]:
+def _detect_wp_context(
+    mission: str,
+    wp_id: str,
+    repo_root: Path,
+    auto_commit: bool | None,
+    *,
+    json_mode: bool = False,
+) -> tuple[bool | None, str, Path, Path, Any]:
     """Resolve ``(auto_commit, mission_slug, feature_dir, wp_file,
     declared_deps)`` for the ``detect`` step. Exceptions propagate to the
     caller's tracker-aware ``except`` clause unchanged."""
@@ -1277,7 +1274,7 @@ def _detect_wp_context(mission: str, wp_id: str, repo_root: Path, auto_commit: b
 
     if auto_commit is None:
         auto_commit = get_auto_commit_default(repo_root)
-    _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
+    _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root, json_mode=json_mode)
     # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: route through the
     # kind-aware placement seam instead of the kind-blind
     # ``resolve_feature_dir_for_mission`` (which could return the
@@ -1508,11 +1505,7 @@ def _commit_wp_claim_status(
     # kind classifier) drops those files on coord topology only; on a
     # flat/legacy mission they ARE canonical on PRIMARY and stay in the bundle.
     if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
-        status_paths = [
-            path.resolve()
-            for path in _collect_status_artifacts(feature_dir)
-            if not is_status_state_path(path)
-        ]
+        status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir) if not is_status_state_path(path)]
     else:
         status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir)]
     files_to_commit = [wp_file.resolve(), *status_paths]
@@ -1784,7 +1777,7 @@ def implement(
         from specify_cli.charter_runtime.preflight.hook import run_preflight_or_abort
 
         run_preflight_or_abort(repo_root, consumer="implement")
-        auto_commit, mission_slug, feature_dir, wp_file, declared_deps = _detect_wp_context(mission, wp_id, repo_root, auto_commit)
+        auto_commit, mission_slug, feature_dir, wp_file, declared_deps = _detect_wp_context(mission, wp_id, repo_root, auto_commit, json_mode=json_output)
         tracker.complete("detect", f"Feature: {mission_slug}")
     except (TaskCliError, FileNotFoundError, FrontmatterError, ValidationError, typer.Exit) as exc:
         tracker.error("detect", str(exc))
@@ -1967,4 +1960,4 @@ def implement(
     _print_workspace_ready_banner(result, workspace_path)
 
 
-__all__ = ["_ensure_vcs_in_meta", "detect_feature_context", "find_wp_file", "implement"]
+__all__ = ["_ensure_vcs_in_meta", "find_wp_file", "implement"]

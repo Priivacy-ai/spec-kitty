@@ -379,8 +379,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # `if meta is None` check to avoid masking a missing-meta failure)
         # specify_cli.cli.commands.implement::_ensure_vcs_in_meta
         SymbolKey("_ensure_vcs_in_meta", "4f9c0969a2a5519b1366171eb7ad78b578b40eeae7788578ffc6ca23e645472e", source_module="specify_cli.cli.commands.implement"),
-        # specify_cli.cli.commands.implement::detect_feature_context
-        SymbolKey("detect_feature_context", "03ce3f732e5db8d5a02fbfdcae55ae3acdaf00bdbbd3370b400b37e57fb66b81", source_module="specify_cli.cli.commands.implement"),
         SymbolKey(
             "find_wp_file", "d320a28d54f0ac514cfe9f87a85a5aad28916e7ce651934b3336f33ad6dc5283", source_module="specify_cli.cli.commands.implement"
         ),  # specify_cli.cli.commands.implement::find_wp_file
@@ -1266,8 +1264,6 @@ _CATEGORY_B_T001_UNBLINDED: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset()
 
 
-
-
 # sync-daemon-orphan-cleanup-01KWC2A3 (#2261): the ``ResetResult`` per-entry
 # dataclasses were the structured-reporting surface for the orphan sweep. The
 # sweep module (``specify_cli.sync.orphan_sweep``) was deleted with the sync
@@ -1927,10 +1923,7 @@ def test_every_content_tier_source_module_is_live_and_declares_symbol() -> None:
         if not any(loc.module_path == source_module for loc in locations):
             violations.append(f"{source_module}::{bare_name}")
 
-    assert not violations, (
-        "content-tier `source_module` names a module that does not declare "
-        "the symbol in the live corpus (FR-007): " + ", ".join(violations)
-    )
+    assert not violations, "content-tier `source_module` names a module that does not declare the symbol in the live corpus (FR-007): " + ", ".join(violations)
 
 
 def _is_asset_blob(path: Path) -> bool:
