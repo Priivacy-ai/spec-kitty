@@ -55,17 +55,9 @@ Reported-live honesty, not reconstruction:
   uses) unrejected by default, so ``_clamp_ttl`` treats any non-finite
   ``ttl_s`` the same as an absent one rather than let ``int()`` raise on it.
 * ``session_ref``/``user`` (ident-shaped: a short opaque token, matching
-  ``managed.ManagedRegistry.session_ref()``'s own 12-hex shape upstream) and
-  ``repo``/``focus_ref`` (ref-shaped: ``repo`` genuinely can carry ``/``;
-  ``focus_ref`` is actually ident-shaped on the real wire —
-  ``managed_control.schema.json``'s ``FocusArgs.focus_ref`` has no ``/`` in
-  its character class, and FIX-M2-10 corrected ``transport.py``'s own
-  construction from ``f"{mission_slug}/{wp_id}"`` to
-  ``f"{mission_slug}.{wp_id}"`` to match — this read side needed no change
-  of its own, since REF_RE is a strict superset of what an ident-shaped
-  value needs) are routed through the shared Z1/zeitgeist identity grammar
-  (``grammar.py``, itself a literal transcription of
-  ``zeitgeist/editor.py:146-192``) before reaching a
+  ``managed.ManagedRegistry.session_ref()``'s own 12-hex shape upstream) are
+  routed through the shared Z1/zeitgeist identity grammar (``grammar``,
+  itself a ported copy of ``zeitgeist/editor.py:146-192``) before reaching a
   ``PresenceView``/``FocusView`` or being used as this state's internal
   dict key. A relay is untrusted input exactly like the ``editor`` rumor
   feed upstream sanitizes at render time: a well-formed identifier passes
@@ -73,11 +65,31 @@ Reported-live honesty, not reconstruction:
   INSTRUCTIONS ..." class ``grammar.py`` documents) is replaced with
   grammar's stable, non-reversible ``unknown-<digest>`` label rather than
   ever reaching a caller unfiltered — WIRE-M2-04, HIC-M2-DISPOSITIONS item 2.
+* ``repo``/``focus_ref`` (ref-shaped: ``repo`` genuinely can carry ``/``;
+  ``focus_ref`` is actually ident-shaped on the real wire —
+  ``managed_control.schema.json``'s ``FocusArgs.focus_ref`` has no ``/`` in
+  its character class, and FIX-M2-10 corrected ``transport.py``'s own
+  construction from ``f"{mission_slug}/{wp_id}"`` to
+  ``f"{mission_slug}.{wp_id}"`` to match — this read side needs no change of
+  its own, since REF_RE is a strict superset of what an ident-shaped value
+  needs) route through the SAME grammar, whose ref-kind bound #138 widened
+  to the relay's own (``managed_live.schema.json`` ``EventSample.ref``:
+  240 chars; ``MAX_SEGMENTS["ref"]`` measured at 9) because this program's
+  real mission slugs ride these fields and 48 of kitty-specs/' 395 were
+  being rendered as ``unknown-<digest>``. Recorded consequence, not hidden:
+  the canonical prose fixture fits inside that real-slug envelope, so the
+  shape defense no longer binds at ref positions — they enforce charset +
+  length (+ grammar's ≥10-segment prose floor) only. This does not reopen
+  the ``branch`` decision below (post-widening, full ref-kind routing would
+  pass the same fixture anyway); callers treat the rendered form as
+  untrusted display text exactly like ``branch``/``path``, while the dict
+  keys here stay charset-gated.
 * ``branch`` is deliberately NOT routed through grammar (rework cycle 3,
   Renata MAJOR — this replaces an earlier candidate's ``branch``-only
   carve-out). ``grammar.ident()``'s ``REF_RE`` shape check pairs a
   char-class-plus-length test with a segment-count cap
-  (``grammar.MAX_SEGMENTS["ref"]``, 6); the earlier candidate tried
+  (``grammar.MAX_SEGMENTS["ref"]``, 6 at the time of that review); the
+  earlier candidate tried
   dropping only the segment-count half for ``branch``, to avoid
   mis-rejecting this program's own multi-segment sandbox branches
   (``bead/<ID>/<actor>/<n>``, e.g. ``bead/WIRE-M2-04/python-pedro/1``, 7
