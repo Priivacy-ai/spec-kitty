@@ -761,36 +761,6 @@ class TestVersionPinWiredIntoCallback:
 
         mock_pin.assert_not_called()
 
-    def test_main_callback_skips_runtime_bootstrap_for_restart_daemon(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """restart-daemon is machine-global and must not pay project bootstrap cost."""
-        ensure_runtime_mock = MagicMock()
-        ensure_skills_mock = MagicMock()
-        ensure_commands_mock = MagicMock()
-        root_callback_mock = MagicMock()
-
-        monkeypatch.setattr(
-            sys,
-            "argv",
-            ["spec-kitty", "doctor", "restart-daemon", "--json"],
-        )
-
-        with (
-            patch("specify_cli.runtime.bootstrap.ensure_runtime", ensure_runtime_mock),
-            patch("specify_cli.runtime.agent_skills.ensure_global_agent_skills", ensure_skills_mock),
-            patch("specify_cli.runtime.agent_commands.ensure_global_agent_commands", ensure_commands_mock),
-            patch("specify_cli.root_callback", root_callback_mock),
-        ):
-            from specify_cli import main_callback
-
-            main_callback(MagicMock(), version=False)
-
-        root_callback_mock.assert_not_called()
-        ensure_runtime_mock.assert_not_called()
-        ensure_skills_mock.assert_not_called()
-        ensure_commands_mock.assert_not_called()
-
     def test_main_callback_skips_runtime_bootstrap_for_next(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -829,27 +799,18 @@ class TestVersionPinWiredIntoCallback:
         check_pin_mock.assert_called_once_with(project_root)
         check_schema_mock.assert_called_once_with(project_root, invoked_subcommand="next")
 
-    def test_restart_daemon_process_fast_path_allows_only_json(self) -> None:
-        """Process fast path bypasses Typer only for the machine-output form."""
-        from specify_cli import _is_doctor_restart_daemon_process_fast_path
-
-        assert _is_doctor_restart_daemon_process_fast_path(
-            ["spec-kitty", "doctor", "restart-daemon", "--json"]
-        )
-        assert not _is_doctor_restart_daemon_process_fast_path(
-            ["spec-kitty", "doctor", "restart-daemon", "--bad"]
-        )
-        assert not _is_doctor_restart_daemon_process_fast_path(
-            ["spec-kitty", "doctor", "restart-daemon", "--help"]
-        )
-
     def test_library_import_does_not_eagerly_load_cli_command_graph(self) -> None:
-        """Library imports should not pay full CLI command registration cost."""
+        """Library imports should not pay full CLI command registration cost.
+
+        (The original probe imported ``specify_cli.sync.daemon``, which died
+        with the sync transport, issue #5; a surviving CORE leaf module pins
+        the same lazy-import discipline.)
+        """
         script = """
 import json
 import sys
 
-import specify_cli.sync.daemon  # noqa: F401
+import specify_cli.status.store  # noqa: F401
 
 print(json.dumps({
     "commands_loaded": "specify_cli.cli.commands" in sys.modules,
@@ -873,38 +834,4 @@ print(json.dumps({
         assert payload == {
             "commands_loaded": False,
             "init_loaded": False,
-        }
-
-    def test_restart_daemon_minimal_sync_import_skips_status_and_dossier(self) -> None:
-        """Restart-daemon fast path should avoid sync package fan-out imports."""
-        script = """
-import json
-import os
-import sys
-
-os.environ["SPEC_KITTY_SYNC_MINIMAL_IMPORT"] = "1"
-import specify_cli.sync.daemon  # noqa: F401
-
-print(json.dumps({
-    "status_loaded": "specify_cli.status" in sys.modules,
-    "dossier_loaded": "specify_cli.dossier" in sys.modules,
-}))
-"""
-        result = subprocess.run(
-            [sys.executable, "-c", script],
-            cwd=str(Path(__file__).resolve().parents[2]),
-            env={
-                **os.environ,
-                "PYTHONPATH": str(Path(__file__).resolve().parents[2] / "src"),
-            },
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
-        assert result.returncode == 0, result.stderr
-        payload = json.loads(result.stdout)
-        assert payload == {
-            "status_loaded": False,
-            "dossier_loaded": False,
         }

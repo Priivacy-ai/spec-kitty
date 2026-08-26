@@ -64,7 +64,7 @@ class RecoveryOutcome(StrEnum):
 
 
 def detect_logged_out_with_connected_teamspace(
-    repo_root: Path | None = None,
+    repo_root: Path | None = None,  # noqa: ARG001 - kept for signature stability; readiness/auth.py threads it
 ) -> str | None:
     """Return a teamspace handle if logged-out on a connected repo, else None.
 
@@ -73,10 +73,11 @@ def detect_logged_out_with_connected_teamspace(
     Resolution order:
       1. If TokenManager reports an authenticated session, return ``None``
          (caller has no recovery work to do).
-      2. ``resolve_checkout_sync_routing_readonly().repo_slug`` if non-empty.
-      3. ``resolve_checkout_sync_routing_readonly().project_slug`` if non-empty.
-      4. Stored session's first private-teamspace ``team.name`` if non-empty.
-      5. ``None``.
+      2. Stored session's first private-teamspace ``team.name`` if non-empty.
+      3. ``None``.
+
+    (The former sync-routing-derived handle detectors were removed with the
+    sync transport, issue #5.)
     """
     # 1) Skip if a valid session exists.
     try:
@@ -96,23 +97,8 @@ def detect_logged_out_with_connected_teamspace(
         # If we cannot tell, fall through and try the detectors.
         pass
 
-    # 2/3) Routing-derived handle.
-    try:
-        from specify_cli.sync.routing import resolve_checkout_sync_routing_readonly  # lazy
-
-        routing = resolve_checkout_sync_routing_readonly(start=repo_root)
-    except Exception:  # pragma: no cover - defensive
-        routing = None
-
-    if routing is not None:
-        repo_slug = getattr(routing, "repo_slug", None)
-        if isinstance(repo_slug, str) and repo_slug.strip():
-            return repo_slug.strip()
-        project_slug = getattr(routing, "project_slug", None)
-        if isinstance(project_slug, str) and project_slug.strip():
-            return project_slug.strip()
-
-    # 4) Stored-session private team name.
+    # 4) Stored-session private team name. (The former routing-derived
+    # handle detectors died with the sync transport, issue #5.)
     try:
         session = tm.get_current_session()
     except Exception:  # pragma: no cover - defensive

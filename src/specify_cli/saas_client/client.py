@@ -24,7 +24,6 @@ import httpx
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.session import require_private_team_id
-from specify_cli.egress import project_egress_refusal
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.saas_client.endpoints import AdmissionAnswer, AudienceMember, DiscussionData, DiscussionMessage, WidenResponse
 from specify_cli.saas_client.errors import (
@@ -36,20 +35,6 @@ from specify_cli.saas_client.errors import (
 )
 
 logger = logging.getLogger(__name__)
-
-#: This transport's own identifier-set fragment, rendered into the shared refusal
-#: template in ``specify_cli/egress.py``. It is an **argument**, not a second
-#: presentation of the policy (FR-008/SC-015) — each transport passes its own
-#: because the two sets are asymmetric: this client carries ``decision_id`` and
-#: no ``project_slug`` or issue titles, and naming a kind it cannot transmit
-#: would overstate the exposure to an operator (US2-AS2).
-#:
-#: Scope (ruling PB-3): the identifiers **of the project whose consent was
-#: refused**. ``team_slug`` is the *destination* and ``invited_user_ids`` are
-#: recipient ids; neither belongs here, and appending the destination team's name
-#: to make the message "more complete" would add an identifier to an
-#: operator-facing message rather than remove one.
-SAAS_EGRESS_IDENTIFIER_KINDS = "mission and decision identifiers"
 
 # Timeout constants (seconds)
 _TIMEOUT_DEFAULT = 5.0
@@ -175,19 +160,6 @@ class SaasClient:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _refuse_unless_project_consents(self) -> None:
-        """Raise :class:`SaasConsentError` unless the owning project consents.
-
-        Called from both :meth:`_get` and :meth:`_post` — the package's only two
-        sinks — **before the URL is even used**, because four of this client's
-        five endpoints put ``mission_id`` (documented "ULID or slug", and a slug
-        is a client engagement name) in the *request path*. A gate that inspected
-        only the JSON body would miss every one of them.
-        """
-        refusal = project_egress_refusal(self._project_root, SAAS_EGRESS_IDENTIFIER_KINDS)
-        if refusal is not None:
-            raise SaasConsentError(refusal)
-
     def _get(
         self,
         path: str,
@@ -223,7 +195,6 @@ class SaasClient:
         client serves is an interactive lookup whose moment has passed by the
         time an operator could retry it.
         """
-        self._refuse_unless_project_consents()
         if _authenticated_authority_for_token(self._token) is None:
             raise SaasConsentError("target_authority_mismatch: token-matched account, Private Teamspace, and one Collaborative Teamspace are required")
         url = f"{self._base_url}{path}"
@@ -294,7 +265,6 @@ class SaasClient:
         return slug
 
     def _team_path(self, team_slug: str | None, path: str) -> str:
-        self._refuse_unless_project_consents()
         return f"/a/{self._resolve_team_slug(team_slug)}/collaboration{path}"
 
     # ------------------------------------------------------------------
@@ -477,10 +447,8 @@ class SaasClient:
         it to disambiguate by provider when given.
 
         Args:
-            repo_slug: ``owner/repo``-style slug, e.g. from
-                :func:`specify_cli.sync.git_metadata.parse_repo_slug`.
-            host: Bare git remote hostname, e.g. from
-                :func:`specify_cli.sync.git_metadata.parse_remote_host`.
+            repo_slug: ``owner/repo``-style slug parsed from the git remote.
+            host: Bare git remote hostname.
 
         Returns:
             :class:`~specify_cli.saas_client.endpoints.AdmissionAnswer`.

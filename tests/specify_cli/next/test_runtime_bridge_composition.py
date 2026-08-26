@@ -57,7 +57,7 @@ def _local_only_sync_emitter(monkeypatch: pytest.MonkeyPatch) -> None:
             return None
 
     monkeypatch.setattr(
-        runtime_bridge.SyncRuntimeEventEmitter,
+        runtime_bridge.RuntimeEventEmitter,
         "for_feature",
         staticmethod(lambda **_: LocalOnlyEmitter()),
     )

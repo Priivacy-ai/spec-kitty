@@ -129,13 +129,11 @@ from specify_cli.merge.done_bookkeeping import (
     _resolve_merge_actor,
 )
 # WP10 (#2057): the lane-based merge executor (the global-lock wrapper + the
-# decomposed CC-102 locked driver + the diff-summary helper) lives in the merge
-# seam's ``executor`` module. Re-imported here (and re-exported via __all__) so
-# the command body + the test/integration-imported _run_lane_based_merge[_locked]
-# / _emit_merge_diff_summary keep importing from the shim (FR-006). One-way
-# import: ``executor`` never imports this shim.
+# decomposed CC-102 locked driver) lives in the merge seam's ``executor``
+# module. Re-imported here (and re-exported via __all__) so the command body +
+# the test/integration-imported _run_lane_based_merge[_locked] keep importing
+# from the shim (FR-006). One-way import: ``executor`` never imports this shim.
 from specify_cli.merge.executor import (
-    _emit_merge_diff_summary,
     _run_lane_based_merge,
     _run_lane_based_merge_locked,
 )
@@ -609,7 +607,6 @@ __all__ = [
     "_clear_merge_state_for_mission",
     "_run_lane_based_merge",
     "_run_lane_based_merge_locked",
-    "_emit_merge_diff_summary",
     "_classify_porcelain_lines",
     "_lane_already_integrated",
     "_raw_porcelain_status",

@@ -281,14 +281,10 @@ def test_seam_parity_specify_interview_get_mission_id_resolves_primary(
     assert specify_get_mission_id(ctx.repo, ctx.slug) == ctx.mission_id
 
 
-def test_seam_parity_sync_events_resolve_mission_id_for_slug_resolves_primary(
-    flat_topology_mission: FlatTopologyContext,
-) -> None:
-    """``sync.events._resolve_mission_id_for_slug`` (PRIMARY_METADATA)."""
-    from specify_cli.sync.events import _resolve_mission_id_for_slug
-
-    ctx = flat_topology_mission
-    assert _resolve_mission_id_for_slug(ctx.repo, ctx.slug) == ctx.mission_id
+# ``test_seam_parity_sync_events_resolve_mission_id_for_slug_resolves_primary``
+# retired with its module: ``sync.events._resolve_mission_id_for_slug`` died with
+# the sync transport (issue #5). The surviving PRIMARY_METADATA readers stay pinned
+# by the two ``_get_mission_id`` tests above.
 
 
 def test_seam_parity_doctrine_synthesizer_feature_dir_resolves_primary_on_flat_topology(

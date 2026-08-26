@@ -1,20 +1,20 @@
 """Implementation of ``spec-kitty auth doctor`` (WP06).
 
-This module is the user-facing diagnostic surface for the
-``cli-session-survival-daemon-singleton`` mission. It assembles a structured
-:class:`DoctorReport` from local-only state — encrypted session, refresh-lock
-record, daemon state file, and (optionally) 127.0.0.1 health probes for
-orphan-daemon detection — and renders it via Rich or as a versioned JSON
-payload.
+This module is the user-facing diagnostic surface for local CLI auth state.
+It assembles a structured :class:`DoctorReport` from local-only state —
+encrypted session and refresh-lock record — and renders it via Rich or as a
+versioned JSON payload. The sync-daemon diagnostics (daemon summary, orphan
+sweep, ``--reset``) were removed together with the sync transport (issue #5);
+the surviving scope is auth session health, drift detection, refresh-lock
+summary, and the opt-in server session check.
 
 Default invocation contract (FR-015, C-007):
 
-- Reads only local files and 127.0.0.1 ports. NEVER makes outbound network
-  calls. NEVER writes, deletes, terminates, or mutates anything.
-- Two opt-in repair flags (``--reset`` and ``--unstick-lock``) are independent
-  (C-008) and run the underlying repair primitives (``sweep_orphans`` from
-  WP05 and ``force_release`` from WP01) only when the corresponding
-  finding is present.
+- Reads only local files. NEVER makes outbound network calls. NEVER writes,
+  deletes, or mutates anything.
+- One opt-in repair flag (``--unstick-lock``, C-008) runs the underlying
+  repair primitive (``force_release``) only when the corresponding finding
+  is present.
 
 The ``--server`` flag (FR-011 through FR-015, FR-017) is an explicit opt-in
 network path. It refreshes the access token if needed, then calls
@@ -23,11 +23,11 @@ network path. It refreshes the access token if needed, then calls
 Public API (consumed by ``cli.commands.auth.doctor`` and tests):
 
 - :class:`Finding`, :class:`SessionSummary`, :class:`LockSummary`,
-  :class:`DaemonSummary`, :class:`DoctorReport` — frozen dataclasses
-  mirroring ``data-model.md`` §"DoctorReport".
+  :class:`DoctorReport` — frozen dataclasses mirroring ``data-model.md``
+  §"DoctorReport" (minus the removed daemon sections).
 - :class:`ServerSessionStatus` — frozen dataclass for the opt-in server check.
 - :func:`assemble_report` — pure data gather; no rendering, no mutation.
-- :func:`render_report` — Rich rendering of the 7 sections.
+- :func:`render_report` — Rich rendering of the 5 sections.
 - :func:`render_report_json` — ``--json`` payload (datetime → ISO-8601,
   Path → str).
 - :func:`compute_exit_code` — 0 / 1 / 2 policy from findings list.
@@ -43,11 +43,10 @@ import json
 import socket
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from rich.console import Console
 from specify_cli.cli.console import console
-from rich.table import Table
 
 from kernel.clock import datetime, now_utc
 
@@ -62,21 +61,8 @@ from specify_cli.core.file_lock import (
     force_release,
     read_lock_record,
 )
-from specify_cli.sync import daemon as _daemon
-from specify_cli.sync.daemon import (
-    SyncDaemonStatus,
-    get_sync_daemon_status,
-    stop_sync_daemon,
-)
-from specify_cli.sync.classification import DaemonIdentityRecord
-from specify_cli.sync.orphan_sweep import (
-    ResetResult,
-    enumerate_identity_records,
-    reset_orphans,
-)
 
 __all__ = [
-    "DaemonSummary",
     "DoctorReport",
     "Finding",
     "LockSummary",
@@ -91,9 +77,9 @@ __all__ = [
 
 
 # Schema version for the JSON payload. Bump on breaking schema changes.
-# v2: orphans[] entries are full DaemonIdentityRecord dicts (FR-004);
-#     --reset --json adds reset_result with swept/skipped/failed (FR-005).
-_SCHEMA_VERSION: int = 2
+# v3: sync-daemon diagnostics removed — `daemon` and `orphans` keys dropped
+#     (and `--reset` with them) along with the sync transport (issue #5).
+_SCHEMA_VERSION: int = 3
 
 # Severity literal used by :class:`Finding`.
 Severity = Literal["info", "warn", "critical"]
@@ -148,17 +134,6 @@ class LockSummary:
 
 
 @dataclass(frozen=True)
-class DaemonSummary:
-    """Local-state snapshot of the user-scoped sync daemon."""
-
-    active: bool
-    pid: int | None
-    port: int | None
-    package_version: str | None
-    protocol_version: int | None
-
-
-@dataclass(frozen=True)
 class DoctorReport:
     """Structured diagnostic report (versioned, JSON-serialisable)."""
 
@@ -167,8 +142,6 @@ class DoctorReport:
     auth_root: Path
     session: SessionSummary | None
     refresh_lock: LockSummary
-    daemon: DaemonSummary | None
-    orphans: list[DaemonIdentityRecord] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
 
 
@@ -272,64 +245,10 @@ def _read_lock_summary(stuck_threshold_s: float) -> LockSummary:
     )
 
 
-def __getattr__(name: str) -> Path:
-    """Expose ``DAEMON_STATE_FILE`` as a lazy module attribute.
-
-    The path is owned and lazily resolved by :mod:`specify_cli.sync.daemon`
-    (#2171). Re-export it here so callers and tests read the current value via
-    ``_auth_doctor.DAEMON_STATE_FILE`` instead of an import-time-frozen binding.
-    """
-    if name == "DAEMON_STATE_FILE":
-        return _daemon.DAEMON_STATE_FILE
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
-
-def _daemon_state_file() -> Path:
-    """Return a pinned ``DAEMON_STATE_FILE`` override, else the canonical lazy
-    daemon state path. Tests isolate via ``monkeypatch.setattr(_auth_doctor,
-    "DAEMON_STATE_FILE", ...)``; that override is honored verbatim."""
-    override = globals().get("DAEMON_STATE_FILE")
-    if override is not None:
-        return cast("Path", override)
-    return _daemon.DAEMON_STATE_FILE
-
-
-def _read_daemon_summary() -> DaemonSummary | None:
-    """Return :class:`DaemonSummary` when a daemon state file exists.
-
-    Calls ``get_sync_daemon_status`` which probes 127.0.0.1 — that is a
-    *local* probe and explicitly allowed by C-007. When no state file is
-    present we return ``None`` (no daemon expected).
-    """
-    if not _daemon_state_file().exists():
-        return None
-
-    status: SyncDaemonStatus = get_sync_daemon_status()
-    # Even when not healthy, surface the recorded PID/port so the report
-    # can communicate "daemon recorded but unreachable".
-    return DaemonSummary(
-        active=status.healthy,
-        pid=status.pid,
-        port=status.port,
-        package_version=status.package_version,
-        protocol_version=status.protocol_version,
-    )
-
-
 def _read_auth_root() -> Path:
     """Return the auth-store directory (parent of the refresh lock)."""
     parent: Path = _refresh_lock_path().parent
     return parent
-
-
-def _installed_package_version() -> str | None:
-    """Return the installed package version for the daemon-mismatch check."""
-    try:
-        from importlib.metadata import version
-
-        return version("spec-kitty-cli")
-    except Exception:  # noqa: BLE001 - package metadata lookup failure only suppresses optional version detail
-        return None
 
 
 # ---------------------------------------------------------------------------
@@ -341,12 +260,13 @@ def _compute_findings(
     *,
     session: SessionSummary | None,
     refresh_lock: LockSummary,
-    daemon: DaemonSummary | None,
-    orphans: list[DaemonIdentityRecord],
 ) -> list[Finding]:
     """Compute :class:`Finding` list from the read-only state snapshots.
 
     Order is stable so JSON consumers and humans see the same sequence.
+    Finding IDs are stable across schema versions: the retired daemon checks
+    (F-002/F-004/F-005) keep their historical IDs unused rather than having
+    the surviving findings renumbered underneath consumers.
     """
     findings: list[Finding] = []
 
@@ -361,19 +281,6 @@ def _compute_findings(
                 remediation_description=(
                     "Authenticate with the SaaS to establish a session."
                 ),
-            )
-        )
-
-    # F-002 — orphans present.
-    if orphans:
-        ports = ", ".join(str(o.port) for o in orphans)
-        findings.append(
-            Finding(
-                id="F-002",
-                severity="warn",
-                summary=f"{len(orphans)} orphan daemon(s) detected on port(s) {ports}",
-                remediation_command="spec-kitty auth doctor --reset",
-                remediation_description="Sweep orphan daemons in the reserved port range.",
             )
         )
 
@@ -392,55 +299,6 @@ def _compute_findings(
                     "Force-release the refresh lock when its age exceeds the "
                     "stuck threshold."
                 ),
-            )
-        )
-
-    # F-004 — daemon active but version mismatch.
-    if daemon is not None and daemon.active and daemon.package_version is not None:
-        installed = _installed_package_version()
-        if installed is not None and installed != daemon.package_version:
-            findings.append(
-                Finding(
-                    id="F-004",
-                    severity="warn",
-                    summary=(
-                        f"Daemon version mismatch (running={daemon.package_version}, "
-                        f"installed={installed})"
-                    ),
-                    remediation_command="spec-kitty sync restart",
-                    remediation_description="Restart the sync daemon to adopt the new package version.",
-                )
-            )
-
-    # F-005 — daemon expected but not running (informational).
-    # We surface this only when rollout is enabled. The rollout module imports
-    # are deferred so a missing/disabled SaaS surface never breaks the doctor
-    # report.
-    rollout_enabled = False
-    try:
-        from specify_cli.saas.rollout import is_saas_sync_enabled
-
-        rollout_enabled = bool(is_saas_sync_enabled())
-    except Exception:  # noqa: BLE001 - rollout probe failure downgrades optional daemon advisory
-        rollout_enabled = False
-    if rollout_enabled and daemon is None:
-        findings.append(
-            Finding(
-                id="F-005",
-                severity="info",
-                summary="Daemon not running; next CLI command will start it.",
-                remediation_command=None,
-                remediation_description=None,
-            )
-        )
-    elif rollout_enabled and daemon is not None and not daemon.active:
-        findings.append(
-            Finding(
-                id="F-005",
-                severity="info",
-                summary="Recorded daemon is not healthy; reset it or let the next remote command restart it.",
-                remediation_command="spec-kitty auth doctor --reset",
-                remediation_description="Clear unhealthy daemon metadata and stop any recorded daemon process.",
             )
         )
 
@@ -581,21 +439,17 @@ async def _check_server_session() -> ServerSessionStatus:
 def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
     """Gather local-only state into a :class:`DoctorReport`. No mutation.
 
-    All inputs are local files or 127.0.0.1 probes (allowed by C-007). The
-    function never writes, deletes, terminates, or touches refresh-lock
-    files — those mutations are the responsibility of :func:`doctor_impl`
-    when the user opts in via ``--reset`` / ``--unstick-lock``.
+    All inputs are local files (allowed by C-007). The function never
+    writes, deletes, or touches refresh-lock files — that mutation is the
+    responsibility of :func:`doctor_impl` when the user opts in via
+    ``--unstick-lock``.
     """
     session_summary, _raw_session = _read_session_summary()
     refresh_lock = _read_lock_summary(stuck_threshold_s)
-    daemon = _read_daemon_summary()
-    orphans = enumerate_identity_records()
 
     findings = _compute_findings(
         session=session_summary,
         refresh_lock=refresh_lock,
-        daemon=daemon,
-        orphans=orphans,
     )
 
     return DoctorReport(
@@ -604,17 +458,29 @@ def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
         auth_root=_read_auth_root(),
         session=session_summary,
         refresh_lock=refresh_lock,
-        daemon=daemon,
-        orphans=orphans,
         findings=findings,
     )
 
 
-def render_report(report: DoctorReport, console: Console, *, show_server_hint: bool = True) -> None:  # noqa: C901, PLR0912
-    """Render a :class:`DoctorReport` as the 7-section Rich layout."""
-    # The 7-section layout intentionally stays linear so reviewers can map each
-    # block to the contract without bouncing through helper indirection.
-    # Section 1 — Identity.
+def render_report(report: DoctorReport, console: Console, *, show_server_hint: bool = True) -> None:
+    """Render a :class:`DoctorReport` as the 5-section Rich layout."""
+    _render_identity_section(report, console)
+    _render_token_section(report, console)
+    _render_storage_section(report, console)
+    _render_lock_section(report.refresh_lock, console)
+    _render_findings_section(report, console)
+
+    # Always present in offline mode — encourage server-aware check.
+    if show_server_hint:
+        console.print()
+        console.print(
+            "[dim]Run [bold]spec-kitty auth doctor --server[/bold] "
+            "to verify server session status.[/dim]"
+        )
+
+
+def _render_identity_section(report: DoctorReport, console: Console) -> None:
+    """Section 1 — Identity."""
     console.print("[bold]Identity[/bold]")
     if report.session is None:
         console.print("  [red]X Not authenticated[/red]")
@@ -624,7 +490,9 @@ def render_report(report: DoctorReport, console: Console, *, show_server_hint: b
         console.print(f"  Session ID:     {report.session.session_id}")
     console.print()
 
-    # Section 2 — Tokens.
+
+def _render_token_section(report: DoctorReport, console: Console) -> None:
+    """Section 2 — Tokens."""
     console.print("[bold]Tokens[/bold]")
     if report.session is None:
         console.print("  (no session)")
@@ -642,7 +510,9 @@ def render_report(report: DoctorReport, console: Console, *, show_server_hint: b
             )
     console.print()
 
-    # Section 3 — Storage.
+
+def _render_storage_section(report: DoctorReport, console: Console) -> None:
+    """Section 3 — Storage."""
     console.print("[bold]Storage[/bold]")
     if report.session is None or report.session.storage_backend is None:
         console.print("  (no session)")
@@ -657,9 +527,10 @@ def render_report(report: DoctorReport, console: Console, *, show_server_hint: b
             )
     console.print()
 
-    # Section 4 — Refresh Lock.
+
+def _render_lock_section(lock: LockSummary, console: Console) -> None:
+    """Section 4 — Refresh Lock."""
     console.print("[bold]Refresh Lock[/bold]")
-    lock = report.refresh_lock
     if not lock.held:
         console.print("  unheld")
     else:
@@ -679,47 +550,9 @@ def render_report(report: DoctorReport, console: Console, *, show_server_hint: b
             )
     console.print()
 
-    # Section 5 — Daemon.
-    console.print("[bold]Daemon[/bold]")
-    if report.daemon is None:
-        console.print("  not running")
-    elif report.daemon.active:
-        console.print("  Active:         yes")
-        console.print(f"  PID:            {report.daemon.pid}")
-        console.print(f"  Port:           {report.daemon.port}")
-        console.print(f"  Package:        {report.daemon.package_version}")
-        console.print(f"  Protocol:       {report.daemon.protocol_version}")
-    else:
-        console.print("  recorded but not healthy")
-        if report.daemon.pid is not None:
-            console.print(f"  Recorded PID:   {report.daemon.pid}")
-        if report.daemon.port is not None:
-            console.print(f"  Recorded port:  {report.daemon.port}")
-    console.print()
 
-    # Section 6 — Orphans.
-    console.print("[bold]Orphans[/bold]")
-    if not report.orphans:
-        console.print("  (none)")
-    else:
-        table = Table(show_header=True, header_style="bold")
-        table.add_column("PID")
-        table.add_column("Port")
-        table.add_column("Package version")
-        table.add_column("Class")
-        table.add_column("Reason")
-        for orphan in report.orphans:
-            table.add_row(
-                str(orphan.pid) if orphan.pid is not None else UNKNOWN_DISPLAY,
-                str(orphan.port),
-                orphan.package_version or UNKNOWN_DISPLAY,
-                orphan.cleanup_class.value,
-                orphan.skip_reason.value if orphan.skip_reason is not None else "",
-            )
-        console.print(table)
-    console.print()
-
-    # Section 7 — Findings & Remediation.
+def _render_findings_section(report: DoctorReport, console: Console) -> None:
+    """Section 5 — Findings & Remediation."""
     console.print("[bold]Findings[/bold]")
     if not report.findings:
         console.print("  No problems detected.")
@@ -743,14 +576,6 @@ def render_report(report: DoctorReport, console: Console, *, show_server_hint: b
                 )
                 console.print(f"      Run: {finding.remediation_command}{description}")
 
-    # Always present in offline mode — encourage server-aware check.
-    if show_server_hint:
-        console.print()
-        console.print(
-            "[dim]Run [bold]spec-kitty auth doctor --server[/bold] "
-            "to verify server session status.[/dim]"
-        )
-
 
 def render_report_json(report: DoctorReport) -> str:
     """Serialise a :class:`DoctorReport` as a JSON string.
@@ -769,10 +594,6 @@ def render_report_json(report: DoctorReport) -> str:
             else dataclasses.asdict(report.session)
         ),
         "refresh_lock": _lock_summary_to_dict(report.refresh_lock),
-        "daemon": (
-            None if report.daemon is None else dataclasses.asdict(report.daemon)
-        ),
-        "orphans": [o.to_dict() for o in report.orphans],
         "findings": [_finding_to_dict(f) for f in report.findings],
     }
     return json.dumps(payload, indent=2, sort_keys=True)
@@ -813,106 +634,9 @@ def _finding_to_dict(finding: Finding) -> dict[str, Any]:
 UNKNOWN_DISPLAY = "(unknown)"
 
 
-def _reset_result_to_dict(result: ResetResult) -> dict[str, Any]:
-    """Serialise a :class:`ResetResult` to the ``reset_result`` shape per the contract.
-
-    Matches ``contracts/auth-doctor-json.md`` §``--reset --json`` (FR-005).
-    """
-    return {
-        "swept": [
-            {
-                "pid": e.pid,
-                "port": e.port,
-                "package_version": e.package_version,
-                "protocol_version": e.protocol_version,
-                "cleanup_path": e.cleanup_path,
-                "reason": e.reason,
-            }
-            for e in result.swept
-        ],
-        "skipped": [
-            {
-                "pid": e.pid,
-                "port": e.port,
-                "cleanup_class": e.cleanup_class,
-                "skip_reason": e.skip_reason,
-            }
-            for e in result.skipped
-        ],
-        "failed": [
-            {
-                "pid": e.pid,
-                "port": e.port,
-                "failure_reason": e.failure_reason,
-            }
-            for e in result.failed
-        ],
-    }
-
-
 # ---------------------------------------------------------------------------
 # Repair helpers (extracted to keep doctor_impl within C901 complexity budget)
 # ---------------------------------------------------------------------------
-
-
-def _run_orphan_reset(
-    report: DoctorReport,
-    *,
-    force: bool,
-    stuck_threshold: float,
-    messages: list[str],
-) -> tuple[ResetResult | None, DoctorReport]:
-    """Run orphan sweep when F-002 is present; return (reset_result, refreshed_report).
-
-    ``reset_result`` is ``None`` when no F-002 finding was active.
-    """
-    if not any(f.id == "F-002" for f in report.findings):
-        return None, report
-
-    result = reset_orphans(list(report.orphans), include_operator_required=force)
-    messages.append(
-        f"--reset: {len(result.swept)} orphan(s) swept, "
-        f"{len(result.skipped)} skipped, "
-        f"{len(result.failed)} failed."
-    )
-    if result.skipped and not force:
-        n_op = len(result.skipped)
-        messages.append(
-            f"  Hint: run with --force to clean {n_op} operator_required daemon(s)."
-        )
-    return result, assemble_report(stuck_threshold_s=stuck_threshold)
-
-
-def _run_reset(
-    report: DoctorReport,
-    *,
-    force: bool,
-    stuck_threshold: float,
-    messages: list[str],
-) -> tuple[ResetResult | None, DoctorReport]:
-    """Orchestrate the ``--reset`` phase.
-
-    Sweeps orphans (respecting ``--force``) and stops an unhealthy daemon.
-    Returns the accumulated (reset_result, refreshed_report).
-    """
-    repaired = False
-
-    reset_result, report = _run_orphan_reset(
-        report, force=force, stuck_threshold=stuck_threshold, messages=messages
-    )
-    if reset_result is not None:
-        repaired = True
-
-    if report.daemon is not None and not report.daemon.active:
-        _stopped, message = stop_sync_daemon()
-        messages.append(f"--reset: {message}")
-        repaired = True
-        report = assemble_report(stuck_threshold_s=stuck_threshold)
-
-    if not repaired:
-        messages.append("--reset: no orphans detected; no-op.")
-
-    return reset_result, report
 
 
 def _run_unstick_lock(
@@ -962,8 +686,6 @@ def _render_server_status(status: ServerSessionStatus) -> None:
 def doctor_impl(
     *,
     json_output: bool,
-    reset: bool,
-    force: bool = False,
     unstick_lock: bool,
     stuck_threshold: float,
     server: bool = False,
@@ -972,15 +694,10 @@ def doctor_impl(
 
     Default invocation (no flags) is read-only: gather state, render, exit.
 
-    ``--reset`` and ``--unstick-lock`` are independent (C-008) and run the
-    underlying repair primitive only when the corresponding finding is
-    present. After any repair we re-run :func:`assemble_report` so the
-    rendered output reflects the post-repair state.
-
-    ``--force`` gates ``operator_required`` daemon kills behind explicit
-    consent (D-02). Without ``--force`` those daemons appear in ``skipped[]``
-    and a one-step remediation hint is printed (FR-009). ``--force`` is a
-    no-op without ``--reset``.
+    ``--unstick-lock`` runs the underlying repair primitive only when the
+    corresponding finding is present. After any repair we re-run
+    :func:`assemble_report` so the rendered output reflects the post-repair
+    state.
 
     ``--server`` is an explicit opt-in that refreshes the access token and
     calls ``GET /api/v1/session-status``. The default path (server=False)
@@ -988,12 +705,6 @@ def doctor_impl(
     """
     report = assemble_report(stuck_threshold_s=stuck_threshold)
     repair_messages: list[str] = []
-    reset_result: ResetResult | None = None
-
-    if reset:
-        reset_result, report = _run_reset(
-            report, force=force, stuck_threshold=stuck_threshold, messages=repair_messages
-        )
 
     if unstick_lock:
         report = _run_unstick_lock(
@@ -1006,10 +717,7 @@ def doctor_impl(
 
     if json_output:
         # JSON consumers read the post-repair report state directly.
-        # reset_result is added at the top level when --reset was used (FR-005).
         payload = json.loads(render_report_json(report))
-        if reset_result is not None:
-            payload["reset_result"] = _reset_result_to_dict(reset_result)
         if server_status is not None:
             payload["server_session"] = {
                 "active": server_status.active,

@@ -31,7 +31,6 @@ on:
       # an edit to any of them must re-run the architectural guard suite,
       # which asserts the parsed gate model over all four workflow files.
       - '.github/workflows/ci-windows.yml'
-      - '.github/workflows/drift-detector.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
@@ -76,7 +75,6 @@ on:
       - '.github/workflows/ci-quality.yml'
       # Suite-running workflows routed to the architectural guards (FR-012).
       - '.github/workflows/ci-windows.yml'
-      - '.github/workflows/drift-detector.yml'
       - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
@@ -188,7 +186,6 @@ jobs:
       # change the expression collapses to the path-filter value because
       # ``inputs.run_all`` is null/false there. Every output uses this exact
       # shape — no variants (mission ci-suite-map-bind, Decision 7b).
-      sync: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.sync }}
       merge: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.merge }}
       missions: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.missions }}
       post_merge: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.post_merge }}
@@ -232,36 +229,6 @@ jobs:
         id: filter
         with:
           filters: |
-            sync:
-              - 'src/specify_cli/sync/**'
-              - 'src/specify_cli/core/loopback_http.py'
-              # CI ROUTING ONLY — not an import-edge claim. specify_cli.egress
-              # is the shared refusal-presentation module owned by neither
-              # transport; it must still import nothing from specify_cli.sync
-              # (mission egress-refusal-consolidation-3110, F2/FR-013). This
-              # entry PAIRS with the core_misc entry below: with core_misc
-              # alone, one group goes true, `unmatched` stays false, the
-              # run_all fallthrough does not fire, and fast-tests-sync (gated
-              # on `sync` alone) does not run — so tests/sync/tracker/ runs
-              # NOWHERE (the core-misc shard carries --ignore=tests/sync).
-              # Do not remove either entry without the other.
-              - 'src/specify_cli/egress.py'
-              # agent_surface also globs src/specify_cli/tracker/** but selects
-              # only fast-tests-core-misc, so a tracker-confined PR ran neither
-              # of SC-021's behavioural ratchets — which live in
-              # tests/sync/tracker/ and are collected by fast-tests-sync alone.
-              # Routed here so the guarantee does not expire the moment
-              # egress.py leaves the diff (FU-1).
-              # COST, named because T013 has no success criterion and this
-              # comment is the only place a future reader learns it: joining
-              # `sync` also fires integration-tests-sync-real-port and the
-              # serial daemon family on every PR touching tracker/**. That is a
-              # whole directory, touched far more often than the single refusal
-              # module above, so the recurring CI-minutes cost is materially
-              # larger here than the one named for egress.py. Accepted: the
-              # alternative is a ratchet that never runs on the file it guards.
-              - 'src/specify_cli/tracker/**'
-              - 'tests/sync/**'
             merge:
               - 'src/specify_cli/merge/**'
               - 'tests/merge/**'
@@ -324,24 +291,17 @@ jobs:
               # The other suite-running workflows route to the architectural
               # guard shard via this group (FR-012 two-layer, second layer).
               - '.github/workflows/ci-windows.yml'
-              - '.github/workflows/drift-detector.yml'
               - '.github/workflows/release.yml'
               - 'src/kernel/**'
               - 'src/doctrine/**'
-              # PAIRED with the 'src/specify_cli/egress.py' entry in the `sync`
-              # group above — see the rationale there. core_misc WITHOUT sync
-              # is a silent coverage loss, not a cost saving; it is worse than
-              # adding neither. Dual membership has in-repo precedent:
-              # core/loopback_http.py is claimed by `sync` (:203) and by
-              # 'src/specify_cli/core/**' in this group. Nothing enforces
-              # src-glob exclusivity.
-              - 'src/specify_cli/egress.py'
+              # Issue-5-delete-sync-transport: this group used to also carry a
+              # PAIRED 'src/specify_cli/egress.py' entry (and the deleted
+              # delivery/, event_journal/ and saas/ trees); both sides of the
+              # pair were deleted with the sync transport, so only the surviving
+              # core/coordination globs remain.
               - 'src/specify_cli/core/**'
               - 'src/specify_cli/coordination/**'
-              - 'src/specify_cli/delivery/**'
-              - 'src/specify_cli/event_journal/**'
               - 'src/specify_cli/doctrine_synthesizer/**'
-              - 'src/specify_cli/saas/**'
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
               # The SonarCloud CI review tool + version extractor and their
@@ -353,8 +313,6 @@ jobs:
               - 'tests/architectural/**'
               - 'tests/specify_cli/tool_surface/**'
               - 'tests/kernel/**'
-              - 'tests/delivery/**'
-              - 'tests/event_journal/**'
               - 'tests/doctrine/**'
               - 'tests/doctrine_synthesizer/**'
               - 'tests/policy/**'
@@ -566,7 +524,6 @@ jobs:
           # src hole (aggregate-squad debbie). The architectural invariant pins
           # this union to the parsed src-backed filter groups.
           for group_hit in \
-            "${{ steps.filter.outputs.sync }}" \
             "${{ steps.filter.outputs.merge }}" \
             "${{ steps.filter.outputs.missions }}" \
             "${{ steps.filter.outputs.post_merge }}" \
@@ -1115,102 +1072,6 @@ jobs:
       && (needs.changes.outputs.doctrine == 'true' || github.event_name == 'push')
     uses: ./.github/workflows/module-doctrine-fast.yml
 
-  # ---------------------------------------------------------------------------
-  # Tier 0 fast-tests: no inter-module dependencies
-  # ---------------------------------------------------------------------------
-  fast-tests-sync:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    needs: [changes]
-    if: >-
-      always()
-      && (needs.changes.outputs.sync == 'true' || github.event_name == 'push')
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-      - run: uv sync --frozen --all-extras
-      - run: mkdir -p out/reports/coverage
-      # C-SERIAL: the whole real-port ``find_free_port_in_range`` daemon
-      # family (tests/_real_port_suites.FIXED_RANGE_SUITES) is excluded from
-      # this parallel pool — HOME isolation does not protect OS-global port
-      # binds (9400-9449). test_orphan_sweep.py's own serial pass now runs as
-      # its own concurrent job (``fast-tests-sync-orphan-sweep``, mission
-      # ci-test-topology-performance-01KXBJRT WP06 T016/FR-004) instead of a
-      # second step here, so it stops sitting on this job's critical path.
-      # Closes #2590 (mission ci-test-topology-performance-01KXBJRT WP03/WP06):
-      # the other 3 family members were previously excluded from this
-      # selection ONLY by their module-level `pytest.mark.integration` marker
-      # not matching `-m "fast and not windows_ci"` — a marker-only guarantee,
-      # not a structural one. These explicit --ignore= entries make the
-      # exclusion structural (defense-in-depth; no selection change today,
-      # since the marker mismatch already excluded them).
-      - name: "Run fast tests — sync (parallel, real-port suites excluded)"
-        run: |
-          uv run python -m pytest tests/sync/ -m "fast and not windows_ci" -q --tb=short \
-            --ignore=tests/sync/test_orphan_sweep.py \
-            --ignore=tests/sync/test_daemon_orphan_classification.py \
-            --ignore=tests/sync/test_daemon_cleanup_boundary.py \
-            --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
-            --ignore=tests/sync/test_legacy_daemon_retirement_r2t1.py \
-            --timeout=240 --timeout-method=signal \
-            -n auto --dist loadfile \
-            --durations=50 \
-            --cov=src/specify_cli/sync \
-            --cov-report=xml:out/reports/coverage/coverage-fast-sync.xml
-      - name: "Upload fast-sync coverage"
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fast-test-sync-reports
-          path: out/reports/
-
-  # ---------------------------------------------------------------------------
-  # fast-tests-sync-orphan-sweep: the daemon/real-port orphan-sweep suite,
-  # extracted into its own concurrent job (mission
-  # ci-test-topology-performance-01KXBJRT WP06 T016/FR-004). It used to be
-  # step 2 of ``fast-tests-sync`` (serial, running AFTER that job's parallel
-  # step completed), sitting on that job's critical path even though it never
-  # touches the parallel worker pool. Same trigger condition as
-  # ``fast-tests-sync`` (``needs: [changes]``, gated on the ``sync`` filter
-  # group) so it runs CONCURRENTLY with it instead of after it.
-  # test_orphan_sweep.py binds the reserved daemon port range (9400-9449);
-  # OS-global port binds are not protected by per-worker HOME isolation, so
-  # this MUST stay serial (-n0) — still serial, just not blocking a sibling
-  # job's own completion.
-  # ---------------------------------------------------------------------------
-  fast-tests-sync-orphan-sweep:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    needs: [changes]
-    if: >-
-      always()
-      && (needs.changes.outputs.sync == 'true' || github.event_name == 'push')
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-      - run: uv sync --frozen --all-extras
-      - run: mkdir -p out/reports/coverage
-      - name: "Run fast tests — sync orphan-sweep (serial, real ports)"
-        run: |
-          # WP12 --timeout exemption: real-port daemon suite running -n0 (serial,
-          # OS-global port binds 9400-9449, not HOME-isolated). pytest-timeout's
-          # signal method (SIGALRM) is unsafe to raise mid-teardown of a live socket/
-          # daemon process, so no --timeout here.
-          uv run python -m pytest tests/sync/test_orphan_sweep.py -q --tb=short \
-            -m "not windows_ci" \
-            -n0 \
-            --cov=src/specify_cli/sync \
-            --cov-report=xml:out/reports/coverage/coverage-fast-sync-orphan-sweep.xml \
-            || test $? -eq 5
-      - name: "Upload fast-sync-orphan-sweep coverage"
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: fast-test-sync-orphan-sweep-reports
-          path: out/reports/
-
   fast-tests-merge:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes]
@@ -1322,14 +1183,14 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # Tier 1 fast-tests: depends on sync
+  # Tier 1 fast-tests
   # ---------------------------------------------------------------------------
   fast-tests-status:
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    needs: [changes, fast-tests-sync]
+    needs: [changes]
     if: >-
       always()
-      && (needs.changes.outputs.status == 'true' || needs.changes.outputs.sync == 'true' || github.event_name == 'push')
+      && (needs.changes.outputs.status == 'true' || github.event_name == 'push')
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
@@ -1353,7 +1214,7 @@ jobs:
       # shard *slower*, not faster. Inverting to `fast and not (git_repo or
       # integration)` drops exactly those 85 (2536 -> 2451 locally) so the fast
       # shard is genuinely fast; the dropped 85 are still covered by the
-      # integration-tests-status job (trigger widened to status OR sync below).
+      # integration-tests-status job (same trigger scope as this job).
       # NOT flipped to -n auto here on purpose — the reset_handlers adapter
       # registry tests need a loadfile audit first (see T022 guidance).
       # NEEDS CI CONFIRMATION: collection-count gate verified locally only.
@@ -1689,7 +1550,6 @@ jobs:
               --ignore=tests/specify_cli/status
               --ignore=tests/specify_cli
               --ignore=tests/docs
-              --ignore=tests/sync
               --ignore=tests/merge
               --ignore=tests/missions
               --ignore=tests/post_merge
@@ -1977,9 +1837,9 @@ jobs:
               tests/regressions
               tests/research
               tests/retrospective
-              tests/saas
               tests/stress
               tests/tasks
+              tests/tracker
               tests/unit
               tests/zeitgeist_client
               tests/team_projection
@@ -2200,20 +2060,10 @@ jobs:
   # wired into CI until now). Selecting ``-m timing`` over ``tests/`` picks up
   # every such carrier by construction, so this fix cannot silently orphan an
   # existing timing-marked test the same way it rescues the WP-prompt ones
-  # (Issue #2034 anti-pattern). ``--ignore`` excludes
-  # ``test_doctor_restart_daemon_timing.py``: that file's tests stay the sole
-  # responsibility of ``restart-daemon-nfr-timing`` below (the historical job
-  # id is retained for aggregation compatibility; it uses the controlled Linux
-  # runner and is cli-gated by design) — ignoring it here prevents a double-run.
+  # (Issue #2034 anti-pattern).
   #
   # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group ``if:``
-  # gate, no ``needs`` edge — mirrors the arch-adversarial pole above, NOT the
-  # ``restart-daemon-nfr-timing`` job below. That job gates on
-  # ``needs.changes.outputs.cli`` (the ``cli`` filter covers only
-  # ``src/specify_cli/cli/**``), but the code under test here
-  # (``src/runtime/next/prompt_builder.py``) is NOT under that path — gating
-  # this job the same way would silently skip the NFR on the very
-  # prompt-builder PRs it exists to guard (defeats SC-003). Emits no
+  # gate, no ``needs`` edge — mirrors the arch-adversarial pole above. Emits no
   # coverage XML (a pure timing gate), so it is absent from any
   # ``--cov``-consumer's ``needs:`` by construction — it IS added to
   # ``quality-gate.needs`` below so a red timing gate still blocks merge.
@@ -2232,7 +2082,6 @@ jobs:
         run: |
           uv run python -m pytest \
             tests/ \
-            --ignore=tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py \
             -m timing \
             -n0 \
             -q --tb=short
@@ -2267,9 +2116,8 @@ jobs:
   # runner-OS luck.
   #
   # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group
-  # ``if:`` gate, no ``needs`` edge -- mirrors ``timing-nfr-serial`` above,
-  # not the OS-matrixed ``restart-daemon-nfr-timing`` job below. Emits no
-  # coverage XML (a pure NFR gate), so it is absent from any
+  # ``if:`` gate, no ``needs`` edge -- mirrors ``timing-nfr-serial`` above.
+  # Emits no coverage XML (a pure NFR gate), so it is absent from any
   # ``--cov``-consumer's ``needs:`` by construction -- it IS added to
   # ``quality-gate.needs`` below so a red stress gate still blocks merge.
   # ---------------------------------------------------------------------------
@@ -2454,92 +2302,6 @@ jobs:
           name: integration-test-charter-reports
           path: out/reports/
 
-  # ---------------------------------------------------------------------------
-  # integration-tests-sync: split real-port-first (mission
-  # ci-test-topology-performance-01KXBJRT WP06 T019/FR-006). This is the one
-  # job in the sweep that touches tests/sync/, so it must exclude the whole
-  # FIXED_RANGE_SUITES family (tests/_real_port_suites.py, WP03) BEFORE adding
-  # -n auto — naively parallelizing the whole tree would reintroduce the exact
-  # OS-global port-bind hazard GC-3/WP03 exists to prevent. The 3
-  # integration-tier family members run in the dedicated
-  # integration-tests-sync-real-port job below instead (test_orphan_sweep.py
-  # is unit-tier, not integration-tier, and has zero tests under this job's
-  # marker expression — its serial pass lives in fast-tests-sync-orphan-sweep
-  # and is listed here only for symmetry/defense-in-depth with the registry).
-  # ---------------------------------------------------------------------------
-  integration-tests-sync:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    needs: [changes, fast-tests-sync]
-    if: >-
-      always()
-      && (needs.changes.outputs.sync == 'true' || github.event_name == 'push')
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-      - run: uv sync --frozen --all-extras
-      - run: mkdir -p out/reports/coverage
-      - name: "Run integration tests — sync (parallel, real-port suites excluded)"
-        run: |
-          uv run python -m pytest tests/sync/ \
-            --ignore=tests/sync/test_orphan_sweep.py \
-            --ignore=tests/sync/test_daemon_orphan_classification.py \
-            --ignore=tests/sync/test_daemon_cleanup_boundary.py \
-            --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
-            --ignore=tests/sync/test_legacy_daemon_retirement_r2t1.py \
-            -m 'not windows_ci and (git_repo or integration)' \
-            -q --tb=short \
-            -n auto --dist loadfile -p no:cacheprovider \
-            --cov=src/specify_cli/sync \
-            --cov-report=xml:out/reports/coverage/coverage-integration-sync.xml
-      - name: "Upload integration-sync coverage"
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: integration-test-sync-reports
-          path: out/reports/
-
-  # ---------------------------------------------------------------------------
-  # integration-tests-sync-real-port: dedicated serial (-n0) home for the
-  # integration-tier FIXED_RANGE_SUITES members (mission
-  # ci-test-topology-performance-01KXBJRT WP06 T019/FR-006, mirroring T016's
-  # fast-tests-sync-orphan-sweep pattern). Same trigger condition as
-  # integration-tests-sync so it runs concurrently with it, not after it.
-  # ---------------------------------------------------------------------------
-  integration-tests-sync-real-port:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    needs: [changes, fast-tests-sync]
-    if: >-
-      always()
-      && (needs.changes.outputs.sync == 'true' || github.event_name == 'push')
-    steps:
-      - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8.1.0
-        with:
-          python-version: '3.12'
-      - run: uv sync --frozen --all-extras
-      - run: mkdir -p out/reports/coverage
-      - name: "Run integration tests — sync real-port (serial, fixed daemon range)"
-        run: |
-          uv run python -m pytest \
-            tests/sync/test_daemon_orphan_classification.py \
-            tests/sync/test_daemon_cleanup_boundary.py \
-            tests/sync/test_issue_1071_singleton_reconfirmation.py \
-            tests/sync/test_legacy_daemon_retirement_r2t1.py \
-            -m 'not windows_ci and (git_repo or integration)' \
-            -q --tb=short \
-            -n0 \
-            --cov=src/specify_cli/sync \
-            --cov-report=xml:out/reports/coverage/coverage-integration-sync-real-port.xml \
-            || test $? -eq 5
-      - name: "Upload integration-sync-real-port coverage"
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: integration-test-sync-real-port-reports
-          path: out/reports/
-
   integration-tests-merge:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs: [changes, fast-tests-merge]
@@ -2664,8 +2426,8 @@ jobs:
           name: integration-test-release-reports
           path: out/reports/
 
-  # PENDING-CI (T022): trigger widened to (status OR sync) to match the
-  # fast-tests-status scope (which already triggers on status OR sync). This
+  # PENDING-CI (T022): trigger follows the fast-tests-status scope. (The
+  # former `OR sync` disjunct died with the sync transport, issue #5.) This
   # ensures the 85 fast+git_repo/integration tests dropped from the inverted
   # fast shard are always run here. NEEDS CI CONFIRMATION.
   # See mission test-suite-acceleration.
@@ -2674,7 +2436,7 @@ jobs:
     needs: [changes, fast-tests-status]
     if: >-
       always()
-      && (needs.changes.outputs.status == 'true' || needs.changes.outputs.sync == 'true' || github.event_name == 'push')
+      && (needs.changes.outputs.status == 'true' || github.event_name == 'push')
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
@@ -2699,9 +2461,8 @@ jobs:
           # double-run AND cover the arch-marked coordination boundary tests this
           # job's git_repo/integration marker drops (mission ci-topology-shrink
           # NFR-003 / SC-004). --cov=specify_cli.coordination (dotted module
-          # form since #2975) is retained so a sync/status change still
-          # reports coordination coverage from the
-          # union with specify-cli-rest.
+          # form since #2975) is retained so a coordination change still
+          # reports coordination coverage from the union with specify-cli-rest.
           uv run python -m pytest \
             -v \
             tests/status/ tests/specify_cli/status/ \
@@ -2957,21 +2718,13 @@ jobs:
       - run: uv sync --frozen --all-extras
       - name: "Run unit/contract residual (full-tree marker selection)"
         run: |
-          # This is a WHOLE-TREE `-n auto` run, so it must structurally --ignore
-          # the fixed-range real-port family (ports 9400-9449). test_orphan_sweep
-          # is `unit`-marked (the other 3 members are `integration`, already
-          # excluded by `not integration`), so without this it would be scattered
-          # onto the -n auto pool AND double-run vs its own serial job. The
-          # marker negation alone does not cover it; the ignore is the structural
-          # guard (mirrors slow-tests). See tests/_real_port_suites.py.
+          # This is a WHOLE-TREE `-n auto` run. It used to structurally
+          # --ignore the fixed-range real-port daemon family (ports 9400-9449,
+          # tests/_real_port_suites.py); that family and its registry died with
+          # the sync transport (issue #5), so no ignore list is owed here.
           uv run python -m pytest tests/ \
             -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or regression or timing or stress or docs_scoped or corpus or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
             -q --tb=short \
-            --ignore=tests/sync/test_orphan_sweep.py \
-            --ignore=tests/sync/test_daemon_orphan_classification.py \
-            --ignore=tests/sync/test_daemon_cleanup_boundary.py \
-            --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
-            --ignore=tests/sync/test_legacy_daemon_retirement_r2t1.py \
             -n auto --dist loadfile \
             --durations=25
 
@@ -2979,8 +2732,6 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs:
       - fast-tests-doctrine
-      - fast-tests-sync
-      - fast-tests-sync-orphan-sweep
       - fast-tests-merge
       - fast-tests-missions
       - fast-tests-post-merge
@@ -3025,13 +2776,9 @@ jobs:
       # future re-widening of the path list silently reintroducing an
       # unguarded selection). Collection-equivalence verified locally against
       # the pre-narrowing `tests/` selection (identical 44-test set).
-      # The narrowed path list includes `tests/sync` (it hosts 2 real @slow
-      # tests) — adding `-n auto` here would structurally sweep the whole
-      # FIXED_RANGE_SUITES real-port family (tests/_real_port_suites.py, WP03)
-      # into the parallel pool even though none of them carry the `slow`
-      # marker (a marker-only exclusion GC-3/GC-4 treat as insufficient, per
-      # #2590's own lesson) — these --ignore= entries make the exclusion
-      # structural, mirroring fast-tests-sync/integration-tests-sync.
+      # (The narrowed path list used to include `tests/sync`; that tree and the
+      # --ignore= entries mirroring fast-tests-sync/integration-tests-sync were
+      # deleted with the sync transport, issue #5.)
       - name: "[ENFORCED] Run slow tests with coverage"
         run: |
           uv run python -m pytest \
@@ -3050,17 +2797,11 @@ jobs:
             tests/specify_cli/migration \
             tests/specify_cli/next \
             tests/stress \
-            tests/sync \
             tests/upgrade \
             -v \
             -m "slow and not windows_ci" \
             --ignore=tests/e2e \
             --ignore=tests/cross_cutting \
-            --ignore=tests/sync/test_orphan_sweep.py \
-            --ignore=tests/sync/test_daemon_orphan_classification.py \
-            --ignore=tests/sync/test_daemon_cleanup_boundary.py \
-            --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
-            --ignore=tests/sync/test_legacy_daemon_retirement_r2t1.py \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=specify_cli --cov=charter --cov=doctrine \
@@ -3077,44 +2818,11 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # restart-daemon-nfr-timing: historical job id retained for quality-gate
-  # compatibility. PR #3285 retires issue #1153 / NFR-002's portable <=10s
-  # shared-runner performance claim. The controlled Linux runner now enforces
-  # the replacement functional contract: stop the old daemon, spawn a distinct
-  # pid, and observe a healthy control plane within bounded operation timeouts.
-  # Hosted macOS is excluded because its OS-global port/bootstrap environment
-  # repeatedly fails before the command under test; macOS performance evidence
-  # requires a controlled developer/canary harness rather than shared-runner CI.
-  # ---------------------------------------------------------------------------
-  restart-daemon-nfr-timing:
-    name: doctor restart-daemon functional health
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    needs: [changes]
-    if: >-
-      ${{ always()
-      && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.cli == 'true' || github.event_name == 'push')
-      && !contains(github.event.pull_request.labels.*.name, 'pr:deferred')
-      && !contains(github.event.pull_request.labels.*.name, 'pr:skip-ci') }}
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-      - name: Install test dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-      - name: Run restart-daemon functional health gate
-        env:
-          SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
-        run: |
-          python -m pytest \
-            tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py::test_doctor_restart_daemon_restarts_and_becomes_healthy \
-            -q \
-            --tb=short
-
+  # restart-daemon-nfr-timing (removed, issue #5): its subject
+  # (`_daemon_doctor.py`'s doctor restart-daemon functional health gate) and
+  # the sync daemon it observed were deleted with the sync transport, and
+  # `test_doctor_restart_daemon_timing.py` went with them. No replacement
+  # gate exists -- there is no daemon left to restart.
   # ---------------------------------------------------------------------------
   # quarantine-visibility: validates the explicit owner manifest and runs only
   # its listed `-m quarantine` tests (SPEC_KITTY_RUN_QUARANTINE=1), so irreducible
@@ -3313,7 +3021,6 @@ jobs:
       - kernel-tests
       - fast-tests-charter
       - integration-tests-doctrine
-      - integration-tests-sync
       - integration-tests-merge
       - integration-tests-missions
       - integration-tests-post-merge
@@ -3440,7 +3147,6 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     needs:
       - fast-tests-doctrine
-      - fast-tests-sync
       - fast-tests-merge
       - fast-tests-missions
       - fast-tests-post-merge
@@ -3478,11 +3184,6 @@ jobs:
       # gate, #3008) — a sonarcloud coverage-consumer per the C-005 invariant;
       # its coverage XML would otherwise be silently dropped from the aggregator.
       - fast-tests-corpus
-      - fast-tests-sync
-      # fast-tests-sync-orphan-sweep emits --cov=src/specify_cli/sync (extracted
-      # from fast-tests-sync's own serial step, WP06 T016) — a sonarcloud
-      # coverage-consumer sibling of fast-tests-sync (C-005).
-      - fast-tests-sync-orphan-sweep
       - fast-tests-merge
       - fast-tests-missions
       - fast-tests-post-merge
@@ -3499,11 +3200,6 @@ jobs:
       - fast-tests-agent
       - integration-tests-doctrine
       - integration-tests-charter
-      - integration-tests-sync
-      # integration-tests-sync-real-port emits --cov=src/specify_cli/sync
-      # (extracted real-port residual of integration-tests-sync, WP06 T019) —
-      # a sonarcloud coverage-consumer sibling of integration-tests-sync (C-005).
-      - integration-tests-sync-real-port
       - integration-tests-merge
       - integration-tests-missions
       - integration-tests-post-merge
@@ -4247,8 +3943,6 @@ jobs:
       - diff-coverage
       - kernel-tests
       - fast-tests-doctrine
-      - fast-tests-sync
-      - fast-tests-sync-orphan-sweep
       - fast-tests-merge
       - fast-tests-missions
       - fast-tests-post-merge
@@ -4270,8 +3964,6 @@ jobs:
       - slow-tests
       - integration-tests-doctrine
       - integration-tests-charter
-      - integration-tests-sync
-      - integration-tests-sync-real-port
       - integration-tests-merge
       - integration-tests-missions
       - integration-tests-post-merge
@@ -4289,7 +3981,6 @@ jobs:
       - timing-nfr-serial
       - stress-tests-serial
       - e2e-cross-cutting
-      - restart-daemon-nfr-timing
       - regression-tests
       - build-wheel
       - clean-install-verification
@@ -4341,13 +4032,11 @@ jobs:
           JOB_GROUPS = {
               "kernel-tests": ["kernel"],
               "fast-tests-doctrine": ["doctrine"],
-              "fast-tests-sync": ["sync"],
-              "fast-tests-sync-orphan-sweep": ["sync"],
               "fast-tests-merge": ["merge"],
               "fast-tests-missions": ["missions"],
               "fast-tests-post-merge": ["post_merge"],
               "fast-tests-release": ["release"],
-              "fast-tests-status": ["status", "sync"],
+              "fast-tests-status": ["status"],
               "fast-tests-review": ["review", "status"],
               "fast-tests-next": ["next", "status"],
               "mission-loader-coverage": ["next", "core_misc", "platform"],
@@ -4362,13 +4051,11 @@ jobs:
               "fast-tests-agent": ["agent"],
               "integration-tests-doctrine": ["doctrine"],
               "integration-tests-charter": ["charter"],
-              "integration-tests-sync": ["sync"],
-              "integration-tests-sync-real-port": ["sync"],
               "integration-tests-merge": ["merge"],
               "integration-tests-missions": ["missions"],
               "integration-tests-post-merge": ["post_merge"],
               "integration-tests-release": ["release"],
-              "integration-tests-status": ["status", "sync"],
+              "integration-tests-status": ["status"],
               "integration-tests-review": ["review"],
               "integration-tests-next": ["next"],
               "integration-tests-lanes": ["lanes"],
@@ -4378,7 +4065,6 @@ jobs:
               "integration-tests-agent": ["agent"],
               "integration-tests-core-misc": ["core_misc", "execution_context", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
               "e2e-cross-cutting": ["e2e", "core_misc", "execution_context"],
-              "restart-daemon-nfr-timing": ["cli"],
               "consumer-compatibility": ["release"],
           }
 

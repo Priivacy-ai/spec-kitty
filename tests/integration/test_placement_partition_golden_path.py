@@ -256,7 +256,6 @@ def _run_setup_plan(repo: Path, mission_handle: str, *, target_branch: str = "ma
             patch.object(mission_module, "_show_branch_context", side_effect=_fake_show_branch_context),
             patch.object(mission_module, "get_current_branch", return_value=target_branch),
             patch.object(mission_module, "_resolve_feature_target_branch", return_value=target_branch),
-            patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
         ):
             result = runner.invoke(
                 mission_module.app,

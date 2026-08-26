@@ -248,16 +248,6 @@ class TestT024CoordFinalizePreservesBootstrapEvents:
                 "specify_cli.cli.commands.agent.mission.run_git_preflight",
                 return_value=type("P", (), {"passed": True})(),
             ),
-            patch(
-                "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-                return_value=False,
-            ),
-            patch(
-                "specify_cli.cli.commands.agent.mission.get_emitter",
-                return_value=type(
-                    "E", (), {"generate_causation_id": lambda self: "test-id"}
-                )(),
-            ),
         ):
             result = runner.invoke(
                 app,
@@ -438,20 +428,10 @@ class TestT026CoordReFinalizeEmptyChangeset:
                 "specify_cli.cli.commands.agent.mission.run_git_preflight",
                 return_value=type("P", (), {"passed": True})(),
             ),
-            patch(
-                "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-                return_value=False,
-            ),
-            patch(
-                "specify_cli.cli.commands.agent.mission.get_emitter",
-                return_value=type(
-                    "E", (), {"generate_causation_id": lambda self: "test-id"}
-                )(),
-            ),
         ]
 
         # Run finalize-tasks once so all non-status artifacts land on coord branch.
-        with _finalize_patches[0], _finalize_patches[1], _finalize_patches[2], _finalize_patches[3]:
+        with _finalize_patches[0], _finalize_patches[1]:
             first_result = runner.invoke(
                 app,
                 ["finalize-tasks", "--mission", mission_slug, "--json"],
@@ -504,7 +484,7 @@ class TestT026CoordReFinalizeEmptyChangeset:
         # Re-run finalize-tasks.  The coord staging helper skips the dirty status
         # file; the remaining non-status artifacts are already committed → no new
         # commit should be needed.
-        with _finalize_patches[0], _finalize_patches[1], _finalize_patches[2], _finalize_patches[3]:
+        with _finalize_patches[0], _finalize_patches[1]:
             second_result = runner.invoke(
                 app,
                 ["finalize-tasks", "--mission", mission_slug, "--json"],

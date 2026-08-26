@@ -47,11 +47,6 @@ _COMPLETION_LINE_ENV_VARS = (
 )
 
 
-def _saas_enabled(env: Mapping[str, str]) -> bool:
-    raw = env.get("SPEC_KITTY_ENABLE_SAAS_SYNC", "")
-    return raw.strip().casefold() in {"1", "true", "yes", "on"}
-
-
 def _completion_line_has_option(env: Mapping[str, str]) -> bool:
     """Return True if any token on the completion line looks like an option.
 
@@ -68,7 +63,7 @@ def _completion_line_has_option(env: Mapping[str, str]) -> bool:
     return False
 
 
-def _build_command_tree(manifest: dict[str, Any], *, saas_enabled: bool) -> Any:
+def _build_command_tree(manifest: dict[str, Any]) -> Any:
     """Build a throwaway Typer command tree from the manifest.
 
     The tree carries only the attributes shell completion reads (name, help,
@@ -93,12 +88,8 @@ def _build_command_tree(manifest: dict[str, Any], *, saas_enabled: bool) -> Any:
         return command
 
     root_children = dict(manifest.get("commands", {}))
-    if not saas_enabled:
-        root_children = {
-            name: node
-            for name, node in root_children.items()
-            if not node.get("saas_gated", False)
-        }
+    # (The saas_gated filter died with the sync transport, issue #5 — the last
+    # gated command, tracker, now registers unconditionally.)
     root = {**manifest, "commands": root_children}
     return build(root, PROG_NAME)
 
@@ -131,7 +122,7 @@ def run_completion(env: Mapping[str, str] | None = None) -> int:
     from typer.completion import shell_complete
 
     completion_init()
-    command = _build_command_tree(_load_manifest(), saas_enabled=_saas_enabled(active_env))
+    command = _build_command_tree(_load_manifest())
     return shell_complete(command, {}, PROG_NAME, COMPLETE_VAR, instruction)
 
 

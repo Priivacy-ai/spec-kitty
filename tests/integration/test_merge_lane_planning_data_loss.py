@@ -152,9 +152,6 @@ class TestMergeIncludesPlanningLane:
             patch("specify_cli.merge.executor.cleanup_merge_workspace"),
             patch("specify_cli.merge.executor.clear_state"),
             patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
-            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-            patch("specify_cli.merge.executor.emit_mission_closed"),
-            patch("specify_cli.merge.executor._emit_merge_diff_summary"),
             # WP10 (#2057): branch preflight + target asserts moved to seams;
             # appended last to keep positional mock indices stable.
             patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
@@ -345,9 +342,6 @@ def _real_merge_external_mocks(repo_root: Path):
         patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
         patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.merge.executor.run_check"),
         # Preflight / gates / policy / sparse-checkout — out of scope for
@@ -371,14 +365,14 @@ def _real_merge_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[10].return_value = gate_eval
+        ms[7].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[11].return_value = policy
+        ms[8].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[6].return_value = stale_report
-        ms[7].return_value = stale_report
+        ms[3].return_value = stale_report
+        ms[4].return_value = stale_report
         yield {
             "mark_done": ms[0],
             "assert_done": ms[1],
@@ -416,9 +410,6 @@ def _real_invariant_external_mocks(repo_root: Path):
         patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
         patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.merge.executor.run_check"),
         patch("specify_cli.merge.executor.require_no_sparse_checkout"),
@@ -436,14 +427,14 @@ def _real_invariant_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[10].return_value = gate_eval
+        ms[7].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[11].return_value = policy
+        ms[8].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[6].return_value = stale_report
-        ms[7].return_value = stale_report
+        ms[3].return_value = stale_report
+        ms[4].return_value = stale_report
         yield {
             "mark_done": ms[0],
             "assert_done": ms[1],
@@ -794,9 +785,6 @@ def _real_persistence_external_mocks(repo_root: Path):
     """
     patches = [
         patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.merge.executor.run_check"),
         patch("specify_cli.merge.executor.require_no_sparse_checkout"),
@@ -813,14 +801,14 @@ def _real_persistence_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[8].return_value = gate_eval
+        ms[5].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[9].return_value = policy
+        ms[6].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[4].return_value = stale_report
-        ms[5].return_value = stale_report
+        ms[1].return_value = stale_report
+        ms[2].return_value = stale_report
         yield {"safe_commit": ms[0]}
 
 
@@ -840,9 +828,6 @@ def _real_bookkeeping_commit_external_mocks(repo_root: Path):
     untracked paths the invariant would otherwise flag.
     """
     patches = [
-        patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
-        patch("specify_cli.merge.executor.emit_mission_closed"),
-        patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.merge.executor.run_check"),
         patch("specify_cli.merge.executor.require_no_sparse_checkout"),
@@ -861,14 +846,14 @@ def _real_bookkeeping_commit_external_mocks(repo_root: Path):
         gate_eval = MagicMock()
         gate_eval.overall_pass = True
         gate_eval.gates = []
-        ms[7].return_value = gate_eval
+        ms[4].return_value = gate_eval
         policy = MagicMock()
         policy.merge_gates = []
-        ms[8].return_value = policy
+        ms[5].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        ms[3].return_value = stale_report
-        ms[4].return_value = stale_report
+        ms[0].return_value = stale_report
+        ms[1].return_value = stale_report
         yield {}
 
 

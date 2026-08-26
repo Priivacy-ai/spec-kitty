@@ -16,7 +16,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-from specify_cli.saas.readiness import ReadinessResult, ReadinessState
+from specify_cli.tracker.saas_readiness import ReadinessResult, ReadinessState
 from specify_cli.tracker.service import TrackerServiceError
 
 pytestmark = pytest.mark.fast
@@ -350,45 +350,3 @@ def test_status_host_unreachable_message(monkeypatch, tmp_path) -> None:
     assert result.exit_code == 1
     assert "did not respond within 2 seconds" in result.output
     assert "Check network connectivity" in result.output
-
-
-@pytest.mark.no_readiness_stub
-def test_sync_pull_manual_mode_exits_zero_from_status_file(monkeypatch, tmp_path) -> None:
-    """sync pull exits 0 with manual-mode message when background_daemon=manual.
-
-    This test uses the status-file tracker test module to verify the manual-mode
-    behavior is consistent across tracker test files.
-    """
-    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
-    from specify_cli.cli.commands.tracker import _MANUAL_MODE_MESSAGE
-
-    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
-    from specify_cli.cli.commands import tracker as tracker_module
-
-    ready_result = ReadinessResult(
-        state=ReadinessState.READY,
-        message="",
-        next_action=None,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.evaluate_readiness",
-        lambda **_kwargs: ready_result,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.require_repo_root",
-        lambda: tmp_path,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
-        lambda _repo_root: None,
-    )
-    mock_cfg = MagicMock(spec=SyncConfig)
-    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.SyncConfig",
-        lambda: mock_cfg,
-    )
-
-    result = runner.invoke(tracker_module.app, ["sync", "pull"])
-    assert result.exit_code == 0, result.output
-    assert _MANUAL_MODE_MESSAGE in result.output

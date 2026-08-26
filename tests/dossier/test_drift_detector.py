@@ -29,7 +29,7 @@ from specify_cli.dossier.drift_detector import (
     capture_baseline,
 )
 from specify_cli.dossier.models import MissionDossierSnapshot
-from specify_cli.sync.project_identity import ProjectIdentity
+from specify_cli.identity.project import ProjectIdentity
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]

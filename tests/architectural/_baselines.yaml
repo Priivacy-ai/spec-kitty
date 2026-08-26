@@ -136,7 +136,15 @@ test_no_dead_modules:
   # the wiring landed — status/zeitgeist_bridge.py resolves credentials through
   # zeitgeist_client.resolution at the fan-out seam, so the module has a live
   # src/ caller and its Cat-7 entry is burned.
-  category_7_grandfathered_orphans: 3
+  #
+  # 3 -> 5 (issue-5-delete-sync-transport, 2026-08-25): net +2. -1 for
+  # sync.admission_operations, deleted outright with the sync transport (its
+  # #3262 WP11 wiring consumer died with it -- shrink). +3 for the collateral
+  # orphans whose ONLY src/ caller was the deleted transport
+  # (core.batch_partition, dossier.drift_detector,
+  # migration.envelope_seam); each registered as TODO(triage) wire-or-prune in
+  # the allowlist entry, per FR-303.
+  category_7_grandfathered_orphans: 5
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
@@ -312,7 +320,17 @@ test_egress_consent_boundary:
   # per the #3167 rule above: this ratchet is shrink-only (growth fails,
   # shrinkage merely warns), but the ceiling should not hold free files.
   # Growth here means a new file transmits: argue it in the diff.
-  egress_allowlist_files: 26
+  #
+  # 26 -> 14 (issue-5-delete-sync-transport, 2026-08-25): the sync transport's
+  # deletion removed twelve sink-bearing files outright — delivery/receivers.py,
+  # delivery/dispatcher.py, sync/body_transport.py, sync/runtime.py, sync/events.py,
+  # invocation/propagator.py's E6 row was RE-ANCHORED (not removed) on its
+  # surviving auth seam; sync/sharing_client.py, sync/history_import/upload.py,
+  # sync/client.py, cli/commands/sync.py, and the three loopback rows
+  # (sync/daemon.py, sync/daemon_protocol.py, sync/orphan_sweep.py). saas/readiness.py
+  # re-homed verbatim to tracker/saas_readiness.py (same E18 reason, new address).
+  # Recorded so the ceiling does not silently hold free files.
+  egress_allowlist_files: 14
   # justification: 0. The module asserts this set is EMPTY, so any entry is a
   # red build; pinning the baseline at 0 makes recording one cost a second
   # visible diff here as well. Growth is a NEW unconsented egress path — the
@@ -321,28 +339,3 @@ test_egress_consent_boundary:
   # (FR-028/029/030) and moved to egress_allowlist_files when they landed.
   known_ungated_files: 0
 
-# tests/architectural/test_unfiltered_journal_read_boundary.py
-# Issue #3030 (P0 confidentiality). The project-unfiltered journal read
-# (`read_identity_projection_for_report` / `SELECT_IDENTITY_PROJECTION_ALL_SQL`)
-# may only be named by a listed consumer. Keyed per-SYMBOL
-# (`<relpath>::<qualname>`), not per-file: the one legitimate consumer lives in
-# `delivery/status_report.py`, so a file- or package-keyed rule would have to
-# exempt the very package the pre-fix unfiltered drain read was written in.
-# Registered here for the same reason the egress allowlist is — the allowlist is
-# itself the surface an author would edit to silence the gate.
-test_unfiltered_journal_read_boundary:
-  # justification: 4 functions name the unfiltered-read symbol, and the module's
-  # own test_removing_any_entry_reds_exactly_its_own_key proves all 4 are live
-  # (0 inert). Since the #3262 per-project cutover the machine-global SQL
-  # constant is retired and the owning module holds no counted reference, so
-  # the owner entries are gone; the live consumers are 1 operator report
-  # (delivery/status_report.py::build_per_project_store_report, FR-015/SC-004),
-  # 1 operator selector (cli/commands/sync.py::_purge_resolve_project — the
-  # precedent that motivated the gate), and 2 purge measurement reads
-  # (cli/commands/sync.py::_purge_journal_census / _purge_journal_ids, WP10
-  # cutover tooling: verbatim identity census incl. FR-011 NULL rows,
-  # measurement-only, one explicit operator command).
-  # Growth here means a NEW consumer can reach the read that shipped 1,322
-  # never-opted-in events on 2026-07-27: argue it in the diff, or use
-  # `read_identity_projection(project_uuids=...)` instead.
-  unfiltered_read_allowlist_sites: 4

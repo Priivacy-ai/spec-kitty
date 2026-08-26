@@ -1,26 +1,24 @@
 """Integration tests for _propagate_one + projection policy (T036, T037).
 
 Verifies:
-1. Sync-disabled checkouts never call send_event (across all modes × events).
+1. With no transport registered, nothing is sent and nothing is logged
+   (across all modes × events).
 2. Policy correctly gates projection per (mode, event).
 3. Envelope fields respect include_request_text / include_evidence_ref.
-4. NFR-007 / SC-008: propagation-errors.jsonl stays empty under sync-disabled.
+4. NFR-007 / SC-008: propagation-errors.jsonl stays empty when nothing is sent.
 
-Updated for Leak #3 fix (WP01 integration-boundary mission): propagator now
-routes through ``resolve_egress_consent`` from the invocation adapter seam rather
-than importing ``resolve_checkout_sync_routing`` directly from the sync package.
-The resolver now returns ``bool | None`` (True=enabled, False=disabled, None=
-unregistered/safe-degrade); tests patch the seam directly.
+The former egress-consent gate that used to run first in ``_propagate_one``
+retired with the sync transport (issue #5), so these tests drive clients in
+through the ``_get_saas_client`` seam alone; production wiring (no factory
+registered) makes propagation a silent no-op.
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.invocation.adapters import EgressConsent
 from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH, _propagate_one
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 
@@ -78,28 +76,34 @@ def _make_mock_client() -> MagicMock:
 
 
 # ---------------------------------------------------------------------------
-# T036 — Sync-disabled never calls send_event
+# T036 — No transport registered: nothing is ever sent
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("mode", ["advisory", "task_execution", "mission_step", "query"])
 @pytest.mark.parametrize("event_name", ["started", "completed"])
-def test_sync_disabled_never_calls_send(tmp_path: Path, mode: str, event_name: str) -> None:
-    """Sync-disabled checkout never calls send_event regardless of (mode, event)."""
+def test_no_transport_registered_never_sends(tmp_path: Path, mode: str, event_name: str) -> None:
+    """With no factory registered, propagation is a silent no-op for every (mode, event).
+
+    Nothing reaches a transport and no error is logged — the production state since
+    issue #5 deleted the sync transport (the consent gate that used to stop this
+    lookup retired with it).
+    """
     if event_name == "started":
         record = _make_started_record(mode)
     else:
         record = _make_completed_record(mode)
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.NO_RECORD,  # the project has not consented
-    ):
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-        ) as mock_client_factory:
-            _propagate_one(record, tmp_path)
-            mock_client_factory.assert_not_called()
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=None,
+    ) as mock_client_factory:
+        _propagate_one(record, tmp_path)
+
+    mock_client_factory.assert_called_once_with(tmp_path)
+    assert not (tmp_path / PROPAGATION_ERRORS_PATH).exists(), (
+        "no error may be logged when there is no transport to send through"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -113,14 +117,10 @@ def test_task_execution_started_includes_request_text(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.GRANTED,  # the project consents
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=mock_client,
     ):
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1
     envelope = mock_client._captured[0]
@@ -136,14 +136,10 @@ def test_advisory_started_omits_request_text(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.GRANTED,  # the project consents
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=mock_client,
     ):
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1, "ADVISORY/started should produce one send_event call"
     envelope = mock_client._captured[0]
@@ -159,14 +155,10 @@ def test_query_started_does_not_project(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.GRANTED,  # the project consents
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=mock_client,
     ):
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 0, "QUERY/started should never call send_event"
 
@@ -177,14 +169,10 @@ def test_task_execution_completed_includes_evidence_ref(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.GRANTED,  # the project consents
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=mock_client,
     ):
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1
     envelope = mock_client._captured[0]
@@ -204,14 +192,10 @@ def test_completed_event_resolves_policy_without_mode(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.GRANTED,  # the project consents
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=mock_client,
     ):
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1
     envelope = mock_client._captured[0]
@@ -225,14 +209,10 @@ def test_mission_step_started_includes_request_text(tmp_path: Path) -> None:
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.GRANTED,  # the project consents
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=mock_client,
     ):
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=mock_client,
-        ):
-            _propagate_one(record, tmp_path)
+        _propagate_one(record, tmp_path)
 
     assert len(mock_client._captured) == 1
     envelope = mock_client._captured[0]
@@ -246,14 +226,10 @@ def test_null_mode_projects_like_task_execution(tmp_path: Path) -> None:
     mock_client_null = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.GRANTED,  # the project consents
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=mock_client_null,
     ):
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=mock_client_null,
-        ):
-            _propagate_one(record_null, tmp_path)
+        _propagate_one(record_null, tmp_path)
 
     # Should have exactly one send_event call (like task_execution)
     assert len(mock_client_null._captured) == 1
@@ -267,31 +243,29 @@ def test_null_mode_projects_like_task_execution(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("mode", ["advisory", "task_execution", "mission_step", "query"])
-def test_no_propagation_errors_under_sync_disabled(tmp_path: Path, mode: str) -> None:
-    """NFR-007 / SC-008 — propagation-errors.jsonl stays empty with sync disabled.
+def test_no_propagation_errors_without_a_transport(tmp_path: Path, mode: str) -> None:
+    """NFR-007 / SC-008 — propagation-errors.jsonl stays empty when nothing is sent.
 
-    Runs a full started + completed pair with sync disabled. Verifies that no
-    propagation-errors file is created (or is empty if pre-existing).
+    Runs a full started + completed pair with the transport seam answering ``None``
+    (production reality: nothing registers a factory since issue #5 deleted the
+    sync transport). Verifies that no propagation-errors file is created (or is
+    empty if pre-existing).
     """
     started = _make_started_record(mode)
     completed = _make_completed_record(mode)
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.NO_RECORD,  # the project has not consented
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=None,
     ):
-        # _get_saas_client must never be called; but even if it were, no errors should result.
-        with patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-        ):
-            _propagate_one(started, tmp_path)
-            _propagate_one(completed, tmp_path)
+        _propagate_one(started, tmp_path)
+        _propagate_one(completed, tmp_path)
 
     prop_errors_path = tmp_path / PROPAGATION_ERRORS_PATH
     if prop_errors_path.exists():
         content = prop_errors_path.read_text(encoding="utf-8").strip()
         assert not content, (
-            f"Expected empty propagation-errors.jsonl under sync-disabled, "
+            f"Expected empty propagation-errors.jsonl when there is no transport, "
             f"but got: {content!r}"
         )
 
@@ -326,15 +300,9 @@ def test_unrecognised_event_kind_is_not_projected(tmp_path: Path) -> None:
     )
     client = _make_mock_client()
 
-    with (
-        patch(
-            "specify_cli.invocation.propagator.resolve_egress_consent",
-            return_value=EgressConsent.GRANTED,
-        ),
-        patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=client,
-        ),
+    with patch(
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=client,
     ):
         _propagate_one(record, tmp_path)
 
@@ -364,15 +332,9 @@ def test_unrecognised_mode_of_work_is_not_projected(tmp_path: Path) -> None:
     )
     client = _make_mock_client()
 
-    with (
-        patch(
-            "specify_cli.invocation.propagator.resolve_egress_consent",
-            return_value=EgressConsent.GRANTED,
-        ),
-        patch(
-            "specify_cli.invocation.propagator._get_saas_client",
-            return_value=client,
-        ),
+    with patch(
+        "specify_cli.invocation.propagator._get_saas_client",
+        return_value=client,
     ):
         _propagate_one(record, tmp_path)
 

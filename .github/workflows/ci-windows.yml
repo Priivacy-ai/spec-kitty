@@ -39,8 +39,6 @@ jobs:
               - 'tests/review/test_baseline.py'
               - 'tests/runtime/test_home_unit.py'
               - 'tests/specify_cli/cli/commands/test_charter_generate_autotrack.py'
-              - 'tests/sync/test_daemon_windows_paths.py'
-              - 'tests/sync/test_issue_586_windows_import.py'
               - 'tests/tracker/test_credentials_windows_paths.py'
               # Full src tree (mission ci-suite-map-bind FR-007 / WS5 AC):
               # Windows-sensitive packages outside specify_cli/kernel (e.g.

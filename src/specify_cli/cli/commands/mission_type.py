@@ -254,7 +254,7 @@ def create_cmd(
     Example:
         spec-kitty mission create --from-ticket linear:PRI-42
     """
-    from specify_cli.sync.feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
+    from specify_cli.core.saas_sync_config import is_saas_sync_enabled, saas_sync_disabled_message
     from specify_cli.tracker.config import load_tracker_config, require_repo_root
     from specify_cli.tracker.saas_client import SaaSTrackerClientError
     from specify_cli.tracker.service import TrackerService, TrackerServiceError

@@ -134,7 +134,6 @@ _REQUIRED_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
         "test_no_inert_schema_slots",
         "test_reference_enum_ratchet",
         "test_egress_consent_boundary",
-        "test_unfiltered_journal_read_boundary",
     }
 )
 
@@ -423,17 +422,6 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
             "_KNOWN_UNGATED_FILES",
             data["test_egress_consent_boundary"]["known_ungated_files"],
         ),
-        # #3030 unfiltered-read boundary. Keyed `<relpath>::<qualname>` rather
-        # than by file, because the one legitimate consumer lives inside
-        # `delivery/`. Registered for the same reason as the egress allowlist:
-        # adding a consumer must cost a visible diff here, not a one-line module
-        # edit. Growth means a new function can reach the project-unfiltered read.
-        (
-            "test_unfiltered_journal_read_boundary",
-            "tests.architectural.test_unfiltered_journal_read_boundary",
-            "_UNFILTERED_READ_ALLOWLIST_SITES",
-            data["test_unfiltered_journal_read_boundary"]["unfiltered_read_allowlist_sites"],
-        ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:
         current = len(_import_module_attr(module_dotted, attr_name))
@@ -553,14 +541,6 @@ def test_growth_fails_shrinkage_warns(
             "tests.architectural.test_egress_consent_boundary",
             "_KNOWN_UNGATED_FILES",
             data["test_egress_consent_boundary"]["known_ungated_files"],
-        ),
-        # #3030 unfiltered-read boundary; see the growth list above. Shrinkage
-        # here is a consumer that stopped naming the read — lock it in.
-        (
-            "test_unfiltered_journal_read_boundary",
-            "tests.architectural.test_unfiltered_journal_read_boundary",
-            "_UNFILTERED_READ_ALLOWLIST_SITES",
-            data["test_unfiltered_journal_read_boundary"]["unfiltered_read_allowlist_sites"],
         ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:

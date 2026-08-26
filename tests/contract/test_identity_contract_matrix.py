@@ -26,39 +26,24 @@ Surfaces covered
    the per-feature ``lanes.json`` file carries ``mission_id`` alongside
    ``mission_slug``.
 
-5. **SaaS mission-lifecycle events** — ``EventEmitter.emit_mission_created``
-   (and siblings ``emit_mission_closed`` / ``emit_mission_origin_bound``):
-   when called with ``mission_id``, the emitted event's ``aggregate_id``
-   switches from slug to ULID and ``payload.mission_id`` is populated.
-   This is the single biggest contract surface for the SaaS-side migration
-   (tracked in spec-kitty-saas#47).
-
-6. **Dossier snapshot** — ``.kittify/dossiers/<slug>/snapshot-latest.json``:
-   the current dossier snapshot schema does NOT yet carry a top-level
-   ``mission_id`` field. Mission 083 deliberately left dossier snapshots
-   keyed by slug to avoid expanding scope beyond the immediate collision
-   problem. This surface is enumerated here with an explicit ``skip`` so a
-   future follow-up can re-enable it without re-discovering the contract.
-
 Design notes
 ------------
 - Each surface is exercised against **real production code**, not mocks,
   whenever possible.  The tests emit synthetic payloads through the real
   ``to_dict()`` paths.
-- The ``EventEmitter`` surface uses the shared ``emitter`` fixture defined
-  in ``tests/sync/conftest.py``.  We borrow it via direct fixture request.
+- The former surface 5 (the sync ``EventEmitter``'s mission-lifecycle
+  emissions) died with the sync transport (issue #5); when epic E3 wires a
+  new emitter at the ``runtime.next.event_emitter`` seam it must rejoin this
+  matrix.
 - Each parametrised case emits an assertion with a clear surface name so
   a regression immediately identifies the offending payload.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
-from uuid import uuid4
 
 import pytest
 
@@ -69,13 +54,6 @@ from specify_cli.status.models import (
     StatusEvent,
     StatusSnapshot,
 )
-from specify_cli.sync.clock import LamportClock
-from specify_cli.sync.config import SyncConfig
-from specify_cli.sync.emitter import EventEmitter
-from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
-from specify_cli.sync.project_identity import ProjectIdentity
-from specify_cli.sync.project_store import ProjectSyncStore
-from specify_cli.sync.queue import OfflineQueue
 
 pytestmark = [pytest.mark.fast]
 
@@ -285,152 +263,3 @@ def test_legacy_wp_status_event_without_mission_id_is_valid() -> None:
     assert payload["mission_slug"] == MISSION_SLUG
 
 
-# ---------------------------------------------------------------------------
-# SaaS emitter surface — exercised via a real EventEmitter built inline.
-#
-# We cannot borrow the ``emitter`` fixture from ``tests/sync/conftest.py``
-# because pytest conftest fixtures are scoped to their own package tree.
-# Instead we build a minimal but fully-wired EventEmitter directly so the
-# test still exercises production code end-to-end.
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture()
-def local_emitter(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Iterator[EventEmitter]:
-    """Construct a real EventEmitter wired to in-memory / tmp backing stores.
-
-    Mirrors the ``tests/sync/conftest.py::emitter`` fixture but standalone so
-    it works from the contract-tests package tree.
-    """
-    # Patch the auth lookup so the emitter thinks it is authenticated.
-    team = MagicMock()
-    team.id = "test-team"
-    team.slug = "test-team"
-    session = MagicMock()
-    session.default_team_id = "test-team"
-    session.teams = [team]
-    session.email = "tester@example.com"
-    tm = MagicMock()
-    tm.is_authenticated = True
-    tm.get_current_session.return_value = session
-    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
-
-    clock = LamportClock(value=0, node_id="test-node-id", _storage_path=tmp_path / "clock.json")
-    config = MagicMock(spec=SyncConfig)
-    config.get_server_url.return_value = "https://test.spec-kitty.dev"
-    identity = ProjectIdentity(
-        project_uuid=uuid4(),
-        project_slug="test-project",
-        node_id="test-node-123",
-        build_id="test-build-id-0000-0000-000000000001",
-    )
-    git_metadata = GitMetadata(
-        git_branch="test-branch",
-        head_commit_sha="a" * 40,
-        repo_slug="test-org/test-repo",
-    )
-    git_resolver = MagicMock(spec=GitMetadataResolver)
-    git_resolver.resolve.return_value = git_metadata
-
-    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "runtime"))
-    store = ProjectSyncStore(identity.project_uuid)
-    authority = store.layout_generation()
-    authority.begin_cutover("identity-contract-tests")
-    authority.publish_project_only("identity-contract-tests", verify_exact=lambda: True)
-    with store.unit_of_work() as unit:
-        yield EventEmitter(
-            clock=clock,
-            config=config,
-            queue=OfflineQueue(unit, authority, max_queue_size=1000),
-            ws_client=None,
-            _identity=identity,
-            _git_resolver=git_resolver,
-        )
-
-
-def test_saas_mission_created_emits_mission_id_as_aggregate(
-    local_emitter: EventEmitter,
-) -> None:
-    """Surface 5: EventEmitter.emit_mission_created switches aggregate_id to mission_id.
-
-    FR-024 / ADR 2026-04-09-1: mission-lifecycle events must use the ULID as
-    the machine-facing join key.  ``payload.mission_id`` is also populated.
-    """
-    event = local_emitter.emit_mission_created(
-        mission_slug=MISSION_SLUG,
-        mission_number=80,
-        target_branch="main",
-        wp_count=4,
-        mission_id=ULID_CANONICAL,
-    )
-    assert event is not None, "emit_mission_created returned None"
-    assert event["aggregate_id"] == ULID_CANONICAL, (
-        f"MissionCreated aggregate_id must be the ULID, got {event['aggregate_id']!r}"
-    )
-    assert event["payload"]["mission_id"] == ULID_CANONICAL, (
-        "MissionCreated payload.mission_id must equal the canonical ULID"
-    )
-    assert event["payload"]["mission_slug"] == MISSION_SLUG, (
-        "mission_slug must still be carried as a display field"
-    )
-
-
-def test_saas_mission_closed_emits_mission_id_as_aggregate(
-    local_emitter: EventEmitter,
-) -> None:
-    """Surface 5b: emit_mission_closed also switches aggregate_id to mission_id."""
-    event = local_emitter.emit_mission_closed(
-        mission_slug=MISSION_SLUG,
-        total_wps=4,
-        mission_id=ULID_CANONICAL,
-    )
-    assert event is not None
-    assert event["aggregate_id"] == ULID_CANONICAL
-    assert "mission_id" not in event["payload"]
-    assert event["payload"]["mission_number"] == 80
-    assert event["payload"]["mission_type"] == "software-dev"
-
-
-def test_saas_mission_origin_bound_emits_mission_id_as_aggregate(
-    local_emitter: EventEmitter,
-) -> None:
-    """Surface 5c: emit_mission_origin_bound also switches aggregate_id to mission_id."""
-    event = local_emitter.emit_mission_origin_bound(
-        mission_slug=MISSION_SLUG,
-        provider="linear",  # must match emitter._PAYLOAD_RULES validator
-        external_issue_id="123",
-        external_issue_key="LIN-123",
-        external_issue_url="https://linear.app/org/issue/LIN-123",
-        title="Test issue",
-        mission_id=ULID_CANONICAL,
-    )
-    assert event is not None
-    assert event["aggregate_id"] == ULID_CANONICAL
-    assert event["payload"]["mission_id"] == ULID_CANONICAL
-
-
-def test_saas_legacy_call_without_mission_id_falls_back_to_slug(
-    local_emitter: EventEmitter,
-) -> None:
-    """Backward-compat: omitting mission_id must leave aggregate_id = slug.
-
-    This protects the drift window where some call sites may still pass
-    ``mission_id=None`` before they are updated.  The emitter must never
-    synthesise a false ULID.
-    """
-    event = local_emitter.emit_mission_created(
-        mission_slug=MISSION_SLUG,
-        mission_number=80,
-        target_branch="main",
-        wp_count=4,
-        # No mission_id — legacy call site.
-    )
-    assert event is not None
-    assert event["aggregate_id"] == MISSION_SLUG, (
-        f"Legacy call must fall back to slug, got {event['aggregate_id']!r}"
-    )
-    assert "mission_id" not in event["payload"], (
-        "Legacy payload must not contain a false mission_id key"
-    )

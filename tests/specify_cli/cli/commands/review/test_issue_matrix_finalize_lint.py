@@ -143,12 +143,6 @@ def _common_patches(tmp_path: Path) -> dict[str, MagicMock]:
         # ``emit_mission_created_local`` -> registered observers. Patch the facade entry
         # so the finalize path stays hermetic (no network) regardless of whether it emits.
         "specify_cli.status.emit_mission_created_local": MagicMock(),
-        f"{MODULE}.emit_wp_created": MagicMock(),
-        f"{MODULE}.get_emitter": MagicMock(
-            return_value=MagicMock(
-                generate_causation_id=MagicMock(return_value="test-id")
-            ),
-        ),
         f"{MODULE}.validate_ownership": MagicMock(
             return_value=MagicMock(passed=True, warnings=[], errors=[]),
         ),

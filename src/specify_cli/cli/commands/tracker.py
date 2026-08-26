@@ -31,12 +31,11 @@ from specify_cli.tracker.config import (
     require_repo_root,
 )
 from specify_cli.identity.project import ensure_identity
+from specify_cli.core.saas_sync_config import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
+from specify_cli.tracker.saas_readiness import evaluate_readiness
 from specify_cli.tracker.egress_verdict import EgressDestination, tracker_egress_verdict
 from specify_cli.tracker.factory import normalize_provider
-from specify_cli.saas.readiness import evaluate_readiness
-from specify_cli.saas.rollout import is_saas_sync_enabled, saas_sync_disabled_message
-from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.tracker.saas_client import TRACKER_EGRESS_IDENTIFIER_KINDS, TrackerEgressRefusedError
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
 
@@ -56,16 +55,6 @@ app.add_typer(sync_app, name="sync")
 # ---------------------------------------------------------------------------
 # Stable wording constants (asserted byte-for-byte by tests)
 # ---------------------------------------------------------------------------
-
-_MANUAL_MODE_MESSAGE = (
-    'Background sync is in manual mode (`[sync].background_daemon = "manual"`).\n'
-    "Run `spec-kitty sync run` to perform a one-shot remote sync."
-)
-
-_MANUAL_MODE_SYNC_RUN_MESSAGE = (
-    "Background sync is in manual mode. Running a one-shot remote sync now."
-)
-
 
 def _print_json(payload: Any) -> None:
     typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
@@ -124,7 +113,7 @@ def _resolve_output_policy_for_tracker() -> str:
        deriving the policy from ``sys.argv`` via the coordinator's helper.
 
     Lazy-imports the coordinator to avoid an import cycle with
-    ``specify_cli.saas.readiness``.
+    ``specify_cli.tracker.saas_readiness``.
     """
     import click  # noqa: PLC0415 — keep coordinator import-time cheap
     from specify_cli.readiness.coordinator import (  # noqa: PLC0415
@@ -256,29 +245,6 @@ def _check_readiness(
         _render_readiness_failure(result)
 
 
-def _check_daemon_policy(*, is_sync_run: bool = False) -> None:
-    """Pre-flight: handle manual daemon policy for sync sub-commands.
-
-    For sync pull/push/publish: prints the manual-mode message and exits 0.
-    For sync run (is_sync_run=True): prints the one-shot message and returns
-    (does NOT exit — sync run proceeds as a foreground one-shot).
-
-    **Only applies to SaaS-backed bindings.**  Callers that may hit a local
-    provider should invoke :func:`_check_sync_readiness` or manually gate on
-    :func:`_is_local_binding` before calling this helper.  The background
-    daemon belongs to the SaaS sync path; local providers use direct
-    connectors and are unaffected by the policy.
-    """
-    cfg = SyncConfig()
-    if cfg.get_background_daemon() == BackgroundDaemonPolicy.MANUAL:
-        if is_sync_run:
-            typer.echo(_MANUAL_MODE_SYNC_RUN_MESSAGE)
-            # Do NOT exit — sync run is the explicit one-shot.
-        else:
-            typer.echo(_MANUAL_MODE_MESSAGE)
-            raise typer.Exit(0)
-
-
 def _is_local_binding() -> bool:
     """Return True iff the current repo has a bound *local* tracker provider.
 
@@ -295,7 +261,7 @@ def _is_local_binding() -> bool:
     return False
 
 
-def _check_sync_readiness(*, is_sync_run: bool = False, root: Path | None = None) -> None:
+def _check_sync_readiness(*, root: Path | None = None) -> None:
     """Provider-aware readiness gate for sync subcommands.
 
     Local providers (beads, fp) reach the sync command without going through
@@ -305,16 +271,13 @@ def _check_sync_readiness(*, is_sync_run: bool = False, root: Path | None = None
     no-op — the rollout gate is already enforced by :func:`tracker_callback`
     and the binding itself is the proof that setup is complete.
 
-    **This no longer means "without going through the SaaS surface at all"
-    (#3108).** ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run``
-    each consult ``tracker_egress_verdict`` as the first executable statement
-    of their body, and that verdict's Channel 1 reaches the same hosted-sync
-    consent chain (``specify_cli.sync.consent`` / ``specify_cli.sync.routing``)
-    used elsewhere -- independently of whatever this helper decides. So "no
-    auth token, no reachability probe, no background daemon" still holds
-    (nothing here calls the SaaS HTTP client), but a local binding is no
-    longer entirely insulated from hosted-sync consent state: it is consulted
-    as one half of a two-channel join, not skipped.
+    ``LocalTrackerService.sync_pull``/``sync_push``/``sync_run`` each
+    consult ``tracker_egress_verdict`` as the first executable statement of
+    their body (local subprocess spawns gate on the committed
+    ``tracker.egress`` key; hosted sends ride the authenticated session).
+    "No auth token, no reachability probe" still holds — nothing here calls
+    the SaaS HTTP client. (The former hosted-sync consent channel retired
+    with the sync transport, issue #5.)
 
     **HIGH-1 fix (2026-08-10):** for a SaaS-backed binding, the hosted egress
     verdict is now consulted *here*, before ``_check_readiness`` is ever
@@ -359,7 +322,6 @@ def _check_sync_readiness(*, is_sync_run: bool = False, root: Path | None = None
         raise typer.Exit(1) from exc
 
     _check_readiness(require_mission_binding=True, probe_reachability=True)
-    _check_daemon_policy(is_sync_run=is_sync_run)
 
 
 def _check_binding_readiness(*, probe_reachability: bool = False) -> None:
@@ -1246,7 +1208,7 @@ def sync_run_command(
     For local providers: runs pull then push using direct connectors.
     """
     root = require_repo_root()
-    _check_sync_readiness(is_sync_run=True, root=root)
+    _check_sync_readiness(root=root)
 
     def _run() -> None:
         payload = _service(root=root).sync_run(limit=limit)

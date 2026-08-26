@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.events.decision_log import DecisionGitLog
-from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+from runtime.next.event_emitter import RuntimeEventEmitter
 from runtime.next._internal_runtime.events import NullEmitter
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -129,7 +129,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
         coord_path = tmp_path / ".worktrees" / f"{base_slug}-{mid8}-coord"
         coord_path.mkdir(parents=True)
 
-        inner = MagicMock(spec=SyncRuntimeEventEmitter)
+        inner = MagicMock(spec=RuntimeEventEmitter)
 
         captured: dict[str, Any] = {}
 
@@ -203,7 +203,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
         from runtime.next.runtime_bridge import _wrap_with_decision_git_log
 
         slug = "my-feature-01KT3YBD"
-        inner = MagicMock(spec=SyncRuntimeEventEmitter)
+        inner = MagicMock(spec=RuntimeEventEmitter)
 
         captured: dict[str, Any] = {}
 
@@ -254,7 +254,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
             '"mission_id":"01KT3YBDABCDEFGHIJKLMNOP"}',
             encoding="utf-8",
         )
-        inner = MagicMock(spec=SyncRuntimeEventEmitter)
+        inner = MagicMock(spec=RuntimeEventEmitter)
         captured: dict[str, Any] = {}
 
         def _fake_resolve(repo_root_arg: Path, mission_slug: str, mid8: str) -> Path:
@@ -313,7 +313,7 @@ class TestWrapWithDecisionGitLogCoordRouting:
             '"mission_id":"01KT3YBDABCDEFGHIJKLMNOP"}',
             encoding="utf-8",
         )
-        inner = MagicMock(spec=SyncRuntimeEventEmitter)
+        inner = MagicMock(spec=RuntimeEventEmitter)
 
         with (
             patch(
@@ -360,7 +360,7 @@ class TestWorktreeRootPreservedThroughKindDrain:
         coord_root.mkdir(parents=True)
         assert coord_root != repo_root
 
-        inner = MagicMock(spec=SyncRuntimeEventEmitter)
+        inner = MagicMock(spec=RuntimeEventEmitter)
         captured: dict[str, Any] = {}
 
         def _fake_decision_git_log(
@@ -507,7 +507,7 @@ class TestNFR004FallbackNoRaise:
         mission_slug = "my-mission-ABCD1234"
         # Do NOT create the coord worktree — simulates pre-init or legacy mission
 
-        mock_emitter = MagicMock(spec=SyncRuntimeEventEmitter)
+        mock_emitter = MagicMock(spec=RuntimeEventEmitter)
 
         # Must not raise under any circumstance
         try:

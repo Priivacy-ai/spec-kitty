@@ -243,7 +243,7 @@ class TestWorkflowRuntimeTemplate:
         from runtime.next.decision import DecisionKind
 
         monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
+            runtime_bridge.RuntimeEventEmitter,
             "for_feature",
             staticmethod(lambda **_: runtime_bridge._BufferingRuntimeEmitter()),
         )
@@ -608,7 +608,7 @@ class TestAnswerDecisionViaRuntime:
         monkeypatch.setattr(runtime_bridge, "get_mission_type", lambda path: "software-dev")
         monkeypatch.setattr(runtime_bridge, "get_or_start_run", lambda mission_slug, repo_root, mission_type: fake_run_ref)
         monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
+            runtime_bridge.RuntimeEventEmitter,
             "for_feature",
             staticmethod(lambda **_: FakeEmitter()),
         )
@@ -877,7 +877,7 @@ class TestFullLoop:
                 return None
 
         monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
+            runtime_bridge.RuntimeEventEmitter,
             "for_feature",
             staticmethod(lambda **_: LocalOnlyEmitter()),
         )
@@ -2250,7 +2250,7 @@ class TestDecideNextViaRuntimeOwnedCheckout:
                 return None
 
         monkeypatch.setattr(
-            runtime_bridge.SyncRuntimeEventEmitter,
+            runtime_bridge.RuntimeEventEmitter,
             "for_feature",
             staticmethod(lambda **_: LocalOnlyEmitter()),
         )

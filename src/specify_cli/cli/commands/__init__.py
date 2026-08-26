@@ -159,34 +159,12 @@ def _is_next_fast_path(argv: list[str]) -> bool:
     return False
 
 
-def _is_doctor_restart_daemon_fast_path(argv: list[str]) -> bool:
-    """Return True for direct ``doctor restart-daemon`` invocations."""
-    if any(arg in {"--help", "-h"} for arg in argv[1:]):
-        return False
-    command_parts: list[str] = []
-    for arg in argv[1:]:
-        if arg.startswith("-"):
-            continue
-        command_parts.append(arg)
-        if len(command_parts) == 2:
-            return command_parts == ["doctor", "restart-daemon"]
-    return False
-
-
 def register_commands(app: typer.Typer) -> None:
     """Attach all extracted commands to the root Typer application."""
     if _is_next_fast_path(sys.argv):
         from . import next_cmd as next_cmd_module
 
         app.command(name="next")(next_cmd_module.next_step)
-        _apply_short_help_options(app)
-        return
-
-    if _is_doctor_restart_daemon_fast_path(sys.argv):
-        from . import doctor as doctor_module
-
-        app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
-        _enforce_top_level_empty_group_help(app)
         _apply_short_help_options(app)
         return
 
@@ -229,7 +207,6 @@ def register_commands(app: typer.Typer) -> None:
     from . import spec_commit_cmd as spec_commit_module
     from . import session_start as session_start_module
     from . import session_stop as session_stop_module
-    from . import sync as sync_module
     from . import upgrade as upgrade_module
     from . import validate_encoding as validate_encoding_module
     from . import validate_tasks as validate_tasks_module
@@ -237,12 +214,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import workflow as workflow_module
     from . import zeitgeist as zeitgeist_module
     from specify_cli import orchestrator_api as orchestrator_api_module
-    from specify_cli.saas.rollout import is_saas_sync_enabled
-
-    if is_saas_sync_enabled():
-        from . import tracker as tracker_module
-    else:  # pragma: no cover - deterministic environment gate
-        tracker_module = None
+    from . import tracker as tracker_module
 
     app.command()(accept_module.accept)
     app.add_typer(agent_module.app, name="agent")
@@ -304,10 +276,8 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="spec-commit")(spec_commit_module.spec_commit_command)
     app.command(name="session-start", help="Emit spec-kitty orientation for the Claude Code SessionStart hook.")(session_start_module.session_start)
     app.command(name="session-stop", help="Emit the open-Ops reminder for the Claude Code Stop hook.")(session_stop_module.session_stop)
-    app.add_typer(sync_module.app, name="sync", help="Synchronization commands")
-    if tracker_module is not None:
-        app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
-        app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
+    app.add_typer(tracker_module.app, name="tracker", help="Task tracker commands")
+    app.command(name="issue-search", help="Search tracker issues via the hosted read path")(tracker_module.issue_search_command)
     app.command()(upgrade_module.upgrade)
     app.command(name="validate-encoding")(validate_encoding_module.validate_encoding)
     app.command(name="validate-tasks")(validate_tasks_module.validate_tasks)

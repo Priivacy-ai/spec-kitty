@@ -6,6 +6,11 @@ Verifies:
 - Error logged to propagation-errors.jsonl on SaaS failure
 - invocation_id present in the event dict passed to client.send_event
 - _log_propagation_error swallows OSError (disk full)
+
+Every test drives a client in through the ``_get_saas_client`` seam directly:
+with nothing registered (production reality since issue #5 deleted the sync
+transport) propagation is a permanent no-op and none of the envelope behaviour
+below would execute at all.
 """
 
 from __future__ import annotations
@@ -17,9 +22,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from collections.abc import Iterator
-
-from specify_cli.invocation.adapters import EgressConsent
 from specify_cli.invocation.propagator import (
     InvocationSaaSPropagator,
     PROPAGATION_ERRORS_PATH,
@@ -38,24 +40,6 @@ from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
-@pytest.fixture(autouse=True)
-def _consent_granted() -> Iterator[None]:
-    """Every test here is about the envelope, not the gate — so grant consent.
-
-    These tests previously named no verdict at all and relied on the propagator
-    treating an unanswered gate as permission (#3030 FR-025). That made them
-    order-dependent on the process-global adapter registry as well as vacuous
-    about the gate: whether they exercised the envelope builders at all depended
-    on whether some earlier test had imported ``specify_cli.sync``. Stating the
-    grant explicitly makes the payload assertions mean what they say, and keeps
-    the refusal verdicts pinned in exactly one place
-    (``test_propagator_consent_gate_3030.py``).
-    """
-    with patch(
-        "specify_cli.invocation.propagator.resolve_egress_consent",
-        return_value=EgressConsent.GRANTED,
-    ):
-        yield
 def make_started_record() -> OpStartedEvent:
     return OpStartedEvent(
         invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",

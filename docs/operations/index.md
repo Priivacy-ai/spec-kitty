@@ -29,7 +29,7 @@ across missions (unlike the effort-scoped notes that live under
 ## Pages
 
 - [SSH deploy-key setup for CI/CD](ssh-deploy-keys.md) — one-time deploy-key provisioning runbook.
-- [Identity-boundary CI gate](identity-boundary-ci-gate.md) — the `drift-detector` required check and its cross-repo SHA-bump procedure.
+- [Identity-boundary CI gate](identity-boundary-ci-gate.md) — retired record of the former `drift-detector` required check, deleted with the sync transport.
 - [Recovery guides](recovery-index.md) — task-oriented recovery procedures, including [logged-out on a connected teamspace](logged-out-teamspace.md).
 - [Sync daemon orphan cleanup](sync-daemon-orphan-cleanup.md) — operator runbook for stale sync daemons.
 - [Internal hosted-readiness mode (pre-launch)](internal-hosted-readiness.md) — the hidden SaaS rollout-gate path for internal dogfooding, not for end users.

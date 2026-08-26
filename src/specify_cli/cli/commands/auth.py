@@ -101,17 +101,6 @@ def doctor(
     json_output: bool = typer.Option(
         False, "--json", help="Emit findings as JSON."
     ),
-    reset: bool = typer.Option(
-        False, "--reset", help="Sweep orphan sync daemons."
-    ),
-    force: bool = typer.Option(
-        False,
-        "--force",
-        help=(
-            "With --reset, also clean operator_required daemons. "
-            "No-op without --reset."
-        ),
-    ),
     unstick_lock: bool = typer.Option(
         False,
         "--unstick-lock",
@@ -130,14 +119,12 @@ def doctor(
         help="Check live server session status (makes outbound call).",
     ),
 ) -> None:
-    """Diagnose CLI auth and sync-daemon state. Default invocation is read-only."""
+    """Diagnose CLI auth state. Default invocation is read-only."""
     from specify_cli.cli.commands._auth_doctor import doctor_impl
 
     try:
         exit_code = doctor_impl(
             json_output=json_output,
-            reset=reset,
-            force=force,
             unstick_lock=unstick_lock,
             stuck_threshold=stuck_threshold,
             server=server,

@@ -198,7 +198,6 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     # standing positional-anchor ban). shard_2 was the lightest by file count
     # (32 vs 33/34) when this file landed, so it lands here.
     "tests/architectural/test_ratchet_positional_anchor_ban.py",
-    "tests/architectural/test_status_sync_boundary.py",
     "tests/architectural/test_tid251_enforcement.py",
     "tests/architectural/test_untrusted_path_containment.py",
     "tests/architectural/test_write_surface_placement_guard.py",
@@ -249,12 +248,6 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     "tests/architectural/test_auth_transport_singleton.py",
     "tests/architectural/test_builtin_override_policy.py",
     "tests/architectural/test_ci_quality_path_filters.py",
-    # Added post-data-model.md (new file — mission
-    # contract-ownership-boundary-01KWYRE5 WP03, #2441). Kept in shard_3
-    # alongside its WP02 driver sibling (test_retired_contracts_absent.py) so
-    # the content-anchoring parity family runs on one leg; the pick is
-    # auditable and the completeness guard verifies the partition stays total.
-    "tests/architectural/test_dossier_sync_boundary.py",
     "tests/architectural/test_events_tracker_public_imports.py",
     "tests/architectural/_gate_read_callshape.py",
     "tests/architectural/test_guard_capability_call_sites.py",
@@ -278,7 +271,6 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     # the driver near its content-anchoring siblings and the pick auditable.
     "tests/architectural/test_safety_registry_completeness.py",
     "tests/architectural/test_same_tier_uniqueness.py",
-    "tests/architectural/test_serial_port_preservation.py",
     "tests/architectural/test_shim_registry_schema.py",
     # Added post-data-model.md (new files, mission
     # test-suite-friction-remediation-01KXDKBX WP17, #2622/#2623 -- the

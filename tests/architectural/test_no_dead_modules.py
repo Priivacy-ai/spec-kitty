@@ -440,16 +440,31 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         #   governance-evidence seam (append-only policy-audit.jsonl);
         #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # - sync.admission_operations: WP05 (#3262) durable admission-operation
-        #   record library (per-project store rows in the admission_operations
-        #   table). Written red-first with a pinned contract
-        #   (tests/sync/test_admission_operations.py); the production wiring
-        #   belongs to the coordinated-acceptance milestone (WP11) which binds
-        #   the Core admission client to the SaaS candidate.
-        #   TODO(triage): wire from the admission client or fold into
-        #   saas_client.admission as part of #3262 WP11 — do not delete: the
-        #   schema row it owns is live in project_store.py.
-        "specify_cli.sync.admission_operations",
+        # sync.admission_operations: REMOVED (issue-5-delete-sync-transport,
+        # 2026-08-25). The module was deleted outright with the sync transport;
+        # its #3262 WP11 wiring consumer no longer exists, so there is nothing
+        # left to triage.
+        #
+        # ---- issue-5-delete-sync-transport collateral (2026-08-25): three
+        # surviving modules whose ONLY src/ caller was the deleted sync
+        # transport (cli/commands/sync.py + the sync/delivery packages). Each
+        # is a real, tested library that lost its consumer, not a candidate for
+        # silent deletion; registered here so the fact is visible, not hidden
+        # (same reviewed-candidate class as the four M2 entries above).
+        # TODO(triage): wire each from a new runtime caller or delete it at the
+        # source -- the stale-entry check below reds if the decision lands
+        # without burning the entry.
+        # - core.batch_partition: batch-400 poison-isolation bisection
+        #   (#2755); its sole caller was the deleted sync push fan-out.
+        "specify_cli.core.batch_partition",
+        # - dossier.drift_detector: dossier drift detection; its sole caller
+        #   was the deleted dossier push trigger chain.
+        "specify_cli.dossier.drift_detector",
+        # - migration.envelope_seam: the deliberate migration↔import envelope
+        #   surface (#2262); its sole callers were the deleted delivery.targets
+        #   and the deleted sync status-report writer. mission_state.py's own
+        #   envelope assembly is prose-referenced only.
+        "specify_cli.migration.envelope_seam",
         # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
         #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06 -- predates and is
         #   unrelated to the M2 canonical-integration entries below). The eventual-wiring
