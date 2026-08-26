@@ -971,14 +971,19 @@ def test_throttled_outcome_is_recorded_at_debug_without_a_second_warning(
     ``offer()`` in ``tests/zeitgeist_client/test_transport.py``), so this
     bridge records only the structured detail, at debug level, instead of
     logging the loss a second time (the other drop outcomes keep their
-    warning)."""
+    warning). The recorder throttles every offer it sees, so the moment's
+    unconditional presence frame (#186) is throttled too — same discipline,
+    same debug-only record, still no warning."""
     recorder = OfferRecorder(outcome="throttled").install(monkeypatch)
     caplog.set_level(logging.DEBUG, logger=bridge.__name__)
 
     _fire_transition()
 
-    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
     # Nothing at warning level or above — the loss was already noticed on
     # stderr by the client; only the structured debug record remains.
     assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
-    assert any("throttled" in r.getMessage() for r in caplog.records)
+    assert sum("throttled" in r.getMessage() for r in caplog.records) == 2
