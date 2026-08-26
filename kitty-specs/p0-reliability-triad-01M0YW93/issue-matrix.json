@@ -1,0 +1,137 @@
+{
+  "rows": {
+    "#1832": {
+      "evidence_ref": "landed single-resolution invariant; referenced only for C-006 reconciliation context in WP03",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#1833": {
+      "evidence_ref": "landed husk-workspace invariant; referenced only for C-006 reconciliation context in WP03",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#1915": {
+      "evidence_ref": "landed dependency-tip atomicity; referenced as the mirror pattern for WP03 FR-006",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#2570": {
+      "evidence_ref": "coordination-only (allocator serialization, epic #2017); WP03 coordinates, not a deliverable",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3281": {
+      "evidence_ref": "lane commit 6a9e0fc1fe + reviewer-renata approval; post-materialize ancestry gate + self-heal re-entry, both claim paths",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP03"
+    },
+    "#3282": {
+      "evidence_ref": "lane commit 378bc82020 + reviewer approval",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP01"
+    },
+    "#3371": {
+      "evidence_ref": "pre-existing lanes.json-routing concern hosting the integration test; not a deliverable of this mission. Follow-up: #3371 remains open on its own.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3432": {
+      "evidence_ref": "closed on main (PR #3713); WP03 lane-compute coordination ref only",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "verified-already-fixed",
+      "wp": null
+    },
+    "#3531": {
+      "evidence_ref": "WP02 cross-schema materialize edge; out of scope here. Follow-up: #3531 tracks it.",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    },
+    "#3579": {
+      "evidence_ref": "lane commit 085e040c29 + reviewer-renata approval; stale-lane remediation names status materialize",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": "spec.md",
+      "title": "<fill at WP-implementation time>",
+      "verdict": "fixed",
+      "wp": "WP02"
+    },
+    "#3702": {
+      "evidence_ref": "WP01 write/read authority consistency ref only. Follow-up: #3702 (separate 3.2.6 mission item).",
+      "fr": null,
+      "nfr": null,
+      "repo": null,
+      "sc": null,
+      "scope": null,
+      "source_file": null,
+      "title": null,
+      "verdict": "deferred-with-followup",
+      "wp": null
+    }
+  },
+  "schema_version": 1
+}

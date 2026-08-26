@@ -510,8 +510,8 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
     Fold for PR #3246 (mission ``resolution-activation-foundation-01KZ9FKG``,
     WP04): removing the config-absent implicit "all four built-ins" backfill
     made mission creation fail closed (``CharterPackConfigError``) whenever
-    ``.kittify/config.yaml`` lacks ``mission_type_activations``. Fresh
-    ``spec-kitty init`` got a provisioner
+    the project's activation authority lacks ``mission_type_activations``.
+    Fresh ``spec-kitty init`` got a provisioner
     (:func:`specify_cli.provisioning.default_charter.provision_default_mission_type_activations`)
     but ``upgrade`` had no equivalent — the only seeder was the version-pinned
     ``3.2.0rc35_activate_builtin_mission_types`` migration, and
@@ -521,11 +521,30 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
     ``mission create`` fails, even though the create-gate's own error message
     tells the operator to run ``spec-kitty upgrade``.
 
-    This reuses the init-time provisioner (not a second seeder) so fresh-init
-    and upgrade converge on one seed helper: additive-only (never overwrites
-    an authored list, including an authored empty ``[]``), idempotent (a
-    second call is a no-op), and fail-closed if the shipped
-    ``src/charter/packs/default.yaml`` is missing.
+    WP01 (#3282): the fix above wrote into ``.kittify/config.yaml``
+    unconditionally, but a pointer-based/migrated project (``config.yaml``
+    carries a ``charter:`` pointer) reads activations from the pointed-at
+    ``charter.yaml`` (``PackContext.from_config`` — INV-2). The write side
+    was pointer-blind, so the key it wrote was never read by anything. This
+    now seeds through :func:`charter.compiler.provision_mission_type_activations`
+    — the SAME pointer-aware writer ``spec-kitty charter generate``/``activate``
+    use, which resolves the write target via
+    :func:`charter.pack_manager.resolve_activation_write_target` (``charter.yaml``
+    for a migrated project, ``config.yaml`` for a legacy one — the identical
+    authority the read side already consults). This is an intentional
+    divergence from fresh ``init``, not a regression: ``init`` still seeds
+    through the pointer-blind ``provision_default_mission_type_activations``
+    (a freshly-initialised project has no pointer yet, so there is nothing to
+    resolve), while ``upgrade`` may be healing an already-migrated project and
+    must target whichever authority that project actually reads.
+
+    Both provisioners share the same seed-read
+    (:func:`charter.default_pack.load_default_mission_type_activations`) so
+    they can never seed a divergent activation set — only the write target
+    differs, additive-only (never overwrites an authored list, including an
+    authored empty ``[]``), idempotent (a second call is a no-op), and
+    fail-closed if the shipped ``src/charter/packs/default.yaml`` is missing
+    or the resolved ``charter:`` pointer is dangling/unreadable.
 
     Must run on every real ``upgrade`` invocation, mirroring
     ``_run_upgrade_surface_repair``'s "even when no migrations are pending"
@@ -539,27 +558,44 @@ def _provision_missing_mission_type_activations(project_path: Path, *, dry_run: 
     if dry_run:
         return []
 
-    from specify_cli.provisioning.default_charter import (
-        DefaultCharterPackMissingError,
-        provision_default_mission_type_activations,
-    )
+    from charter.compiler import provision_mission_type_activations
+    from charter.pack_context import CharterPackConfigError
 
     try:
-        provision_default_mission_type_activations(project_path)
-    except DefaultCharterPackMissingError as exc:
-        return [str(exc)]
+        provision_mission_type_activations(project_path)
+    except CharterPackConfigError as exc:
+        return [exc.body]
     return []
 
 
 def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
     """Return True when a real upgrade would seed ``mission_type_activations``.
 
-    Mirrors :func:`provision_default_mission_type_activations`'s additive
-    no-op rule (FR-009 preview parity): the seed writes only when the key is
-    *entirely absent*. An authored list — including an authored empty
-    ``mission_type_activations: []`` — is a deliberate state the real run leaves
-    untouched, so it is never reported as pending. A ``--dry-run`` skips the
-    real seed, so this predicate is how the preview stays honest about it.
+    Mirrors :func:`charter.compiler.provision_mission_type_activations`'s
+    additive no-op rule (FR-009 preview parity, C-WP01): the seed writes only
+    when the key is *entirely absent* from the resolved write target. A
+    ``--dry-run`` skips the real seed, so this predicate is how the preview
+    stays honest about it.
+
+    WP01 (#3282): keys on KEY-PRESENCE in the resolved write target itself —
+    the same ``(path, data, save)`` triple
+    :func:`charter.pack_manager.resolve_activation_write_target` hands the
+    real writer (``charter.yaml`` for a pointer/migrated project,
+    ``config.yaml`` for a legacy one) — NOT on
+    ``PackContext.from_config(...).activated_mission_types`` non-emptiness.
+    That distinction matters: an authored empty ``mission_type_activations: []``
+    resolves to an EMPTY ``activated_mission_types`` frozenset, which would
+    make a non-emptiness check falsely report ``pending=True`` even though a
+    real upgrade correctly leaves the deliberate empty list untouched —
+    breaking authored-empty preview parity for pointer projects.
+
+    A dangling/unreadable ``charter:`` pointer makes the resolver fail-loud
+    with ``CharterPackConfigError`` (INV-5) — the correct contract for the
+    REAL write (there is nowhere safe to seed). This PREVIEW predicate keeps
+    a defined, non-crashing contract instead: it reports ``True`` (pending)
+    rather than letting the exception propagate through the dry-run surface,
+    or silently returning ``False`` and hiding the broken pointer from the
+    operator.
 
     Args:
         project_path: Root of the project directory (``.kittify``'s parent).
@@ -567,18 +603,16 @@ def _mission_type_activation_provisioning_pending(project_path: Path) -> bool:
     Returns:
         True if the seed would create the key on a real run, else False.
     """
-    config_file = project_path / ".kittify" / "config.yaml"
-    if not config_file.exists():
-        return True
-    try:
-        from ruamel.yaml import YAML
+    from charter.pack_context import CharterPackConfigError
 
-        with config_file.open("r", encoding="utf-8") as fh:
-            data = YAML(typ="safe").load(fh)
-    except Exception:  # noqa: BLE001 — unreadable config: do not claim a pending seed
-        return False
-    if not isinstance(data, dict):
+    try:
+        from charter.pack_manager import resolve_activation_write_target
+
+        _target_path, data, _save = resolve_activation_write_target(project_path)
+    except CharterPackConfigError:
         return True
+    except Exception:  # noqa: BLE001 — unreadable/malformed config: do not claim a pending seed
+        return False
     return "mission_type_activations" not in data
 
 

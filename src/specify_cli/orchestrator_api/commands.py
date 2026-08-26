@@ -23,6 +23,10 @@ Error codes used:
   PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
   UNSUPPORTED_STRATEGY        -- merge strategy not implemented
+  ANCESTRY_NOT_ESTABLISHED    -- #3281/FR-007: the recorded planning commit or an
+                                 approved dependency lane's tip is not (yet) a git
+                                 ancestor of the claimed workspace's HEAD, even
+                                 after self-heal re-ran the reuse-path merges
 """
 
 from __future__ import annotations
@@ -253,6 +257,24 @@ def _fail(command: str, error_code: str, message: str, data: dict | None = None)
 def _fail_wp_not_found(cmd: str, wp: str, mission: str) -> NoReturn:
     """The ONE ``WP_NOT_FOUND`` emission (S1192 5×; locks error-surface parity)."""
     _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+
+
+def _parse_policy_or_fail(cmd: str, policy: str) -> dict:
+    """Parse+validate a ``--policy`` JSON string, or ``_fail`` (NoReturn) on invalid JSON.
+
+    The ONE ``POLICY_VALIDATION_FAILED`` emission (WP03/#3281 campsite): before
+    this extraction, ``start_implementation``'s required-policy parse and
+    ``transition``'s two (required + optional) policy-parse blocks each
+    duplicated the identical try/``parse_and_validate_policy``/except/``_fail``
+    shape. Folding them into one call keeps ``transition`` at its pre-WP03
+    complexity (14) after this WP adds the post-materialize ancestry gate,
+    rather than pushing it over the Sonar S3776/Ruff C901 ceiling of 15.
+    """
+    try:
+        policy_obj = parse_and_validate_policy(policy)
+    except ValueError as exc:
+        _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
+    return policy_to_dict(policy_obj)
 
 
 def _get_main_repo_root() -> Path:
@@ -852,6 +874,49 @@ def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
     return resolve_lane_base_ref(main_repo_root, mission, manifest)
 
 
+def _enforce_claim_ancestry(
+    cmd: str,
+    main_repo_root: Path,
+    mission: str,
+    mission_dir: Path,
+    wp: str,
+    workspace_path: Path,
+) -> None:
+    """POST-materialize claim-ancestry gate (C-WP03/FR-007/C-005) -- the ONE
+    call site shared by both of THIS module's claim paths
+    (``start_implementation``'s composite and ``transition``'s raw
+    ``--to claimed``), boundary-leak fix: the allocator's reuse-path self-heal
+    already reached ``orchestrator_api`` via ``_resolve_start_workspace``
+    (always calls ``allocate_lane_worktree``), but the ancestry GATE did not.
+
+    Delegates the predicate + self-heal-retry contract to
+    :func:`specify_cli.lanes.implement_support.resolve_claim_ancestry_gate` --
+    the same shared helper the CLI seam (``workflow.py``'s ``implement()``)
+    calls -- so this module and the CLI can never independently diverge on
+    the ancestry decision. Fails with the structured ``ANCESTRY_NOT_ESTABLISHED``
+    envelope (never a bare exception) so an external orchestrator gets the
+    same contract every other claim-time refusal here already provides.
+    """
+    from specify_cli.lanes.implement_support import resolve_claim_ancestry_gate
+
+    result = resolve_claim_ancestry_gate(main_repo_root, mission, mission_dir, wp, workspace_path)
+    if result.ok:
+        return
+    _fail(
+        cmd,
+        "ANCESTRY_NOT_ESTABLISHED",
+        (
+            f"cannot claim {wp}: ancestry could not be established after "
+            f"self-heal for: {', '.join(result.missing_refs)}"
+        ),
+        {
+            **_mission_identity_payload(mission_dir),
+            "wp_id": wp,
+            "missing_refs": list(result.missing_refs),
+        },
+    )
+
+
 def _lane_assignment_or_legacy(
     main_repo_root: Path, mission: str, wp: str
 ) -> tuple[LanesManifest, ExecutionLane] | _StartWorkspace:
@@ -1047,13 +1112,7 @@ def start_implementation(
         _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for start-implementation")
         return
 
-    try:
-        policy_obj = parse_and_validate_policy(policy)
-    except ValueError as exc:
-        _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
-        return
-
-    policy_dict = policy_to_dict(policy_obj)
+    policy_dict = _parse_policy_or_fail(cmd, policy)
 
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
@@ -1109,6 +1168,12 @@ def start_implementation(
     start_ws = _resolve_start_workspace(cmd, main_repo_root, mission, mission_dir, wp)
     workspace_path = start_ws.workspace_path
     prompt_path = str(wp_path)
+
+    # Seam C-005 (#3281/FR-007): POST-materialize, after allocation/self-heal
+    # above, BEFORE the claim transition below emits any status event. Never
+    # move this above ``_resolve_start_workspace`` -- see
+    # ``_enforce_claim_ancestry``'s docstring for the deadlock hazard.
+    _enforce_claim_ancestry(cmd, main_repo_root, mission, mission_dir, wp, Path(workspace_path))
 
     try:
         start_result = start_implementation_status(
@@ -1328,20 +1393,10 @@ def transition(
                 f"--policy is required when transitioning to '{to_lane}'",
             )
             return
-        try:
-            policy_obj = parse_and_validate_policy(policy)
-            policy_dict = policy_to_dict(policy_obj)
-        except ValueError as exc:
-            _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
-            return
+        policy_dict = _parse_policy_or_fail(cmd, policy)
     elif policy:
         # Optional policy for non-run-affecting lanes
-        try:
-            policy_obj = parse_and_validate_policy(policy)
-            policy_dict = policy_to_dict(policy_obj)
-        except ValueError as exc:
-            _fail(cmd, "POLICY_VALIDATION_FAILED", str(exc))
-            return
+        policy_dict = _parse_policy_or_fail(cmd, policy)
 
     evidence: dict | None = None
     if evidence_json is not None:
@@ -1373,6 +1428,16 @@ def transition(
 
     if to_lane == Lane.FOR_REVIEW:
         _enforce_for_review_commit_gate(cmd, main_repo_root, mission, mission_dir, wp, force)
+    elif to_lane == Lane.CLAIMED:
+        # Seam C-005 (#3281/FR-007): early-return-equivalent for every OTHER
+        # target lane -- this predicate only ever runs for a raw `--to
+        # claimed` transition. Allocates/self-heals the lane workspace
+        # (mirrors start_implementation's own `_resolve_start_workspace`
+        # call) and enforces ancestry BEFORE the `claimed` event below.
+        claim_ws = _resolve_start_workspace(cmd, main_repo_root, mission, mission_dir, wp)
+        _enforce_claim_ancestry(
+            cmd, main_repo_root, mission, mission_dir, wp, Path(claim_ws.workspace_path)
+        )
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionError
