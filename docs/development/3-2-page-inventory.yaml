@@ -1040,6 +1040,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-22-spec-review-is-primary-planning-evidence.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -2799,6 +2805,12 @@
   current_target: true
   notes: null
 - path: docs/guides/project-sync-consent.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/guides/spec-review.md
   tag: current
   divio_type: how-to
   owning_workstream: none

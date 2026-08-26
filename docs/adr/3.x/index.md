@@ -192,3 +192,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-08-21 | [Charter/runtime gates test the declared entity, not a coarse hardcoded set](2026-08-21-1-charter-gate-predicate-inversion.md) |
 | 2026-08-22 | [Statistical performance-test pipeline (pytest-benchmark), off the PR path, per-domain](2026-08-22-1-performance-test-pipeline.md) |
 | 2026-08-22 | [ADR 2026-08-22-1: Canonical mission-type reader; legacy `mission`-field resolution retired](2026-08-22-1-canonical-mission-type-reader-legacy-retirement.md) |
+| 2026-08-22 | [результаты ревью спецификации — PRIMARY planning evidence](2026-08-22-spec-review-is-primary-planning-evidence.md) |

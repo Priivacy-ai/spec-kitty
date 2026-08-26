@@ -2998,6 +2998,16 @@ pages:
     - {slug: "consequences", text: "Consequences", level: 2}
     - {slug: "alternatives-considered", text: "Alternatives considered", level: 2}
     - {slug: "references", text: "References", level: 2}
+  - path: "docs/adr/3.x/2026-08-22-spec-review-is-primary-planning-evidence.md"
+    title: "ADR: результаты ревью спецификации — PRIMARY planning evidence"
+    divio_type: "none"
+    abstract: "Закрепляет результаты внешнего ревью спецификации как PRIMARY planning evidence, не относя их к lifecycle work package и сохраняя canonical placement."
+    anchors:
+    - {slug: "section", text: "Контекст", level: 2}
+    - {slug: "section-2", text: "Решение", level: 2}
+    - {slug: "lifecycle-ownership", text: "Lifecycle и ownership", level: 2}
+    - {slug: "section-3", text: "Альтернативы", level: 2}
+    - {slug: "section-4", text: "Последствия", level: 2}
   - path: "docs/adr/3.x/README.md"
     title: "3.x ADRs"
     divio_type: "none"
@@ -3555,6 +3565,7 @@ pages:
     - {slug: "spec-kitty-session-start", text: "spec-kitty session-start", level: 2}
     - {slug: "spec-kitty-session-stop", text: "spec-kitty session-stop", level: 2}
     - {slug: "spec-kitty-spec-commit", text: "spec-kitty spec-commit", level: 2}
+    - {slug: "spec-kitty-spec-review", text: "spec-kitty spec-review", level: 2}
     - {slug: "spec-kitty-specify", text: "spec-kitty specify", level: 2}
     - {slug: "spec-kitty-sync", text: "spec-kitty sync", level: 2}
     - {slug: "spec-kitty-sync-archive", text: "spec-kitty sync archive", level: 2}
@@ -8447,6 +8458,17 @@ pages:
     - {slug: "migrating-legacy-shared-state-operators", text: "Migrating legacy shared state (operators)", level: 2}
     - {slug: "where-the-evidence-lives", text: "Where the evidence lives", level: 2}
     - {slug: "related-reading", text: "Related reading", level: 2}
+  - path: "docs/guides/spec-review.md"
+    title: "Review a Mission specification with an external model"
+    divio_type: "how-to"
+    abstract: "Preview, consent to, run, and interpret Spec Kitty's advisory OpenCode specification review without making it a workflow gate."
+    anchors:
+    - {slug: "prerequisites", text: "Prerequisites", level: 2}
+    - {slug: "preview-exactly-what-would-be-disclosed", text: "Preview exactly what would be disclosed", level: 2}
+    - {slug: "consent-to-one-run", text: "Consent to one run", level: 2}
+    - {slug: "interpret-the-result", text: "Interpret the result", level: 2}
+    - {slug: "status-exit-code-and-remediation", text: "Status, exit code, and remediation", level: 2}
+    - {slug: "privacy-and-trust-boundary", text: "Privacy and trust boundary", level: 2}
   - path: "docs/guides/tutorials/charter-governed-workflow.md"
     title: "Tutorial: Governed Charter Workflow End-to-End"
     divio_type: "tutorial"
