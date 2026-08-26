@@ -354,10 +354,16 @@ class StepContractExecutor:
         # ``packs/internal`` shape) is dropped on this dispatch path -- the
         # branch-named silent drop this WP closes.
         org_fragments = StepContractExecutor._load_org_fragments_degrading(repo_root)
+        # Typed locals absorb the ``charter._drg_helpers`` facade re-export (mypy
+        # sees ``load_validated_graph`` as ``Any`` when this module is checked
+        # alongside ``charter.drg``); the annotation restores the concrete
+        # return type without a suppression (matches the pattern in
+        # :meth:`_load_org_fragments_degrading`).
         if not org_roots:
-            return load_validated_graph(
+            no_root_graph: DRGGraph = load_validated_graph(
                 repo_root, org_roots=[], org_fragments=org_fragments
             )
+            return no_root_graph
 
         healthy_roots: list[Path] = []
         for root in org_roots:
@@ -368,36 +374,57 @@ class StepContractExecutor:
                 continue
             healthy_roots.append(root)
 
-        return load_validated_graph(
+        merged: DRGGraph = load_validated_graph(
             repo_root, org_roots=healthy_roots, org_fragments=org_fragments
         )
+        return merged
 
     @staticmethod
     def _load_org_fragments_degrading(repo_root: Path) -> list[OrgDRGFragment]:
-        """Load the org ``drg/fragment.yaml`` layer, degrading on a bad pack.
+        """Load the org ``drg/fragment.yaml`` layer, degrading PER-PACK on a bad pack.
 
-        Threads ``load_org_drg(repo_root, strict=False)`` -- the exact call the
-        four correct dual-callers use -- so a fragment-shaped org pack reaches
-        this composition-dispatch path. ``strict=False`` skips a pack that ships
-        no ``drg/fragment.yaml`` (its root ``*.graph.yaml``, if any, is folded by
-        the ``org_roots`` loop instead). A pack whose fragment is present but
-        malformed raises here; catch it and degrade to an empty fragment layer
-        so a broken optional org tier does not crash the whole dispatch. This is
-        DEBUG rather than WARNING because the same broken root also fails the
-        root-graph pre-probe below, whose per-root WARNING is the operator's
-        signal that the pack was dropped (see :meth:`_warn_dropped_org_root`).
+        Threads ``load_org_drg(repo_root, strict=False, degrade_malformed=True)``
+        so a fragment-shaped org pack reaches this composition-dispatch path.
+        ``strict=False`` skips a pack that ships no ``drg/fragment.yaml`` (its
+        root ``*.graph.yaml``, if any, is folded by the ``org_roots`` loop
+        instead).
+
+        ``degrade_malformed=True`` is the fix for the convergent LOW finding of
+        mission ``doctrine-drg-silent-drop-boundary``: a SINGLE malformed
+        optional fragment used to propagate out of ``load_org_drg`` and this
+        method dropped the ENTIRE fragment layer -- evicting every healthy
+        sibling's fragment too, with only a DEBUG note. That was itself a silent
+        drop, ironic for the mission that closes them. The degrade now lives
+        inside ``load_org_drg``'s per-pack loop, so a bad optional pack drops
+        ONLY its own fragment (with an operator-visible WARNING naming the pack)
+        while its healthy siblings still fold. Because the per-pack degrade
+        handles the parse/schema fault class, this method no longer catches it
+        here.
+
+        The only residual fault ``load_org_drg`` can still raise on this
+        non-strict path is a config-level ``NotImplementedError`` (a pack with
+        an unsupported ``source:``), which ``load_pack_registry`` raises BEFORE
+        the per-pack loop, so it cannot be degraded per-pack. Degrade it to an
+        empty fragment layer with a WARNING (never a silent DEBUG) so an
+        unsupported org tier does not hard-block every dispatch, but the
+        operator is still told. Env-var / subdir-escape config faults are
+        deliberately NOT caught -- they fail closed, matching
+        :meth:`_resolve_pack_context`.
         """
         try:
             # Typed local absorbs the ``charter.drg`` facade re-export (mypy sees
             # the facade symbol as ``Any``); the annotation restores the concrete
             # return type without a suppression.
-            fragments: list[OrgDRGFragment] = load_org_drg(repo_root, strict=False)
+            fragments: list[OrgDRGFragment] = load_org_drg(
+                repo_root, strict=False, degrade_malformed=True
+            )
             return fragments
-        except (OrgPackMissingError, OrgPackParseError, OrgPackSchemaError, NotImplementedError) as exc:
-            logger.debug(
-                "Org drg/fragment.yaml layer failed to load (%s: %s); composing "
-                "this step without the org-fragment contribution.",
-                type(exc).__name__,
+        except NotImplementedError as exc:
+            logger.warning(
+                "Org pack registry declares an unsupported source (%s); "
+                "composing this step without any org-fragment contribution. "
+                "Only local_path org packs are supported -- fix or remove the "
+                "entry in .kittify/config.yaml.",
                 exc,
             )
             return []

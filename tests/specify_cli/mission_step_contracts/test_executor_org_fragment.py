@@ -22,8 +22,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from charter.drg import resolve_existing_org_roots
+from charter.drg import load_org_drg, resolve_existing_org_roots
 from charter.mission_steps import MissionStepContract, MissionStepContractStep
+from doctrine.drg.org_pack_loader import OrgPackSchemaError
 from doctrine.drg.validator import DRGValidationError
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
@@ -33,6 +34,7 @@ from specify_cli.mission_step_contracts.executor import (
 pytestmark = pytest.mark.fast
 
 _EXECUTOR_LOGGER = "specify_cli.mission_step_contracts.executor"
+_CHARTER_DRG_LOGGER = "charter.drg"
 _TARGET_URN = "directive:OPERATOR_SIGNAL_CONTRACT"
 _DROP_WARNING = "without this org pack's contribution"
 
@@ -253,3 +255,205 @@ def test_org_governance_selection_fails_loud_on_executor_path(
             ),
             contract=contract,
         )
+
+
+# ---------------------------------------------------------------------------
+# Convergent LOW finding (mission doctrine-drg-silent-drop-boundary): a single
+# malformed optional fragment must not evict its HEALTHY siblings' fragments.
+# The pre-fix executor wrapped the whole ``load_org_drg`` call in one
+# try/except, so one bad pack dropped the ENTIRE fragment layer with only a
+# DEBUG note. The degrade is now per-pack inside ``load_org_drg``.
+# ---------------------------------------------------------------------------
+
+_HEALTHY_PACK_NAME = "healthy-org"
+_MALFORMED_PACK_NAME = "malformed-org"
+_HEALTHY_MARKER = "HEALTHY_SIBLING_MARKER"
+_HEALTHY_MARKER_URN = f"directive:{_HEALTHY_MARKER}"
+
+
+def _register_packs(
+    repo_root: Path, entries: list[tuple[str, Path]]
+) -> None:
+    """Register a MULTI-pack org chain in ``.kittify/config.yaml`` (order-preserving)."""
+    kit = repo_root / ".kittify"
+    kit.mkdir(parents=True, exist_ok=True)
+    (kit / "config.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "doctrine": {
+                    "org": {
+                        "packs": [
+                            {"name": name, "local_path": str(root)}
+                            for name, root in entries
+                        ]
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_healthy_fragment(root: Path, *, node_id: str, pack_name: str) -> Path:
+    (root / "drg").mkdir(parents=True, exist_ok=True)
+    (root / "drg" / "fragment.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "pack_name": pack_name,
+                "source_kind": "local_path",
+                "source_ref": str(root),
+                "layer_index": 1,
+                "provenance_marker": "org",
+                "nodes": [{"id": node_id, "kind": "directives", "title": node_id}],
+                "edges": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return root
+
+
+def _write_malformed_fragment(root: Path) -> Path:
+    """A present-but-malformed fragment: a node whose ``kind`` is not canonical.
+
+    ``load_org_pack`` raises :class:`OrgPackSchemaError` ("unknown kind") for it
+    -- the exact schema-fault-of-an-optional-fragment class that degrades.
+    """
+    (root / "drg").mkdir(parents=True, exist_ok=True)
+    (root / "drg" / "fragment.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "pack_name": _MALFORMED_PACK_NAME,
+                "source_kind": "local_path",
+                "source_ref": str(root),
+                "layer_index": 1,
+                "provenance_marker": "org",
+                "nodes": [
+                    {"id": "SHOULD_NEVER_MINT", "kind": "notarealkind", "title": "x"}
+                ],
+                "edges": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    return root
+
+
+def _two_pack_chain(tmp_path: Path) -> Path:
+    """Repo with a HEALTHY fragment pack #1 and a MALFORMED fragment pack #2."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    healthy = _write_healthy_fragment(
+        tmp_path / "healthy-pack", node_id=_HEALTHY_MARKER, pack_name=_HEALTHY_PACK_NAME
+    )
+    malformed = _write_malformed_fragment(tmp_path / "malformed-pack")
+    _register_packs(
+        repo, [(_HEALTHY_PACK_NAME, healthy), (_MALFORMED_PACK_NAME, malformed)]
+    )
+    return repo
+
+
+def test_malformed_sibling_does_not_evict_healthy_fragment(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Per-pack degrade: a malformed pack #2 drops ONLY itself; pack #1 folds.
+
+    Red-first against the pre-fix whole-chain drop: that code dropped BOTH
+    fragments (the healthy sibling included), so ``_HEALTHY_MARKER_URN`` would
+    be ABSENT from the merged graph. After the fix the healthy fragment is
+    delivered and the malformed pack is dropped with an operator-visible WARNING
+    naming it (not a silent DEBUG). ``org_roots=[]`` isolates the fragment layer.
+    """
+    repo = _two_pack_chain(tmp_path)
+
+    with caplog.at_level(logging.WARNING, logger=_CHARTER_DRG_LOGGER):
+        graph = StepContractExecutor._load_graph_degrading_malformed_org_pack(
+            repo, org_roots=[]
+        )
+
+    node_urns = {str(node.urn) for node in graph.nodes}
+    # Healthy sibling survives (the core of the finding).
+    assert _HEALTHY_MARKER_URN in node_urns
+    # Malformed pack's would-be node never minted.
+    assert "directive:SHOULD_NEVER_MINT" not in node_urns
+
+    # Operator-visible WARNING names the dropped pack and says why.
+    drop_warnings = [
+        r
+        for r in caplog.records
+        if r.levelno == logging.WARNING and _MALFORMED_PACK_NAME in r.getMessage()
+    ]
+    assert drop_warnings, [r.getMessage() for r in caplog.records]
+    assert "malformed drg/fragment.yaml" in drop_warnings[0].getMessage()
+    # The healthy pack is NOT reported as dropped.
+    assert not any(_HEALTHY_PACK_NAME in r.getMessage() for r in drop_warnings)
+
+
+def test_all_healthy_multipack_chain_folds_both_without_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No-regression: an all-healthy 2-pack chain folds BOTH with no drop WARNING."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    pack_a = _write_healthy_fragment(
+        tmp_path / "pack-a", node_id="ALPHA_MARKER", pack_name="pack-a"
+    )
+    pack_b = _write_healthy_fragment(
+        tmp_path / "pack-b", node_id="BETA_MARKER", pack_name="pack-b"
+    )
+    _register_packs(repo, [("pack-a", pack_a), ("pack-b", pack_b)])
+
+    with caplog.at_level(logging.WARNING, logger=_CHARTER_DRG_LOGGER):
+        graph = StepContractExecutor._load_graph_degrading_malformed_org_pack(
+            repo, org_roots=[]
+        )
+
+    node_urns = {str(node.urn) for node in graph.nodes}
+    assert "directive:ALPHA_MARKER" in node_urns
+    assert "directive:BETA_MARKER" in node_urns
+    assert not [
+        r for r in caplog.records if "malformed drg/fragment.yaml" in r.getMessage()
+    ]
+
+
+def test_single_healthy_pack_unchanged_no_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No-regression: a single healthy fragment pack folds with no drop WARNING."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    pack = _write_healthy_fragment(
+        tmp_path / "solo-pack", node_id="SOLO_MARKER", pack_name="solo"
+    )
+    _register_packs(repo, [("solo", pack)])
+
+    with caplog.at_level(logging.WARNING, logger=_CHARTER_DRG_LOGGER):
+        graph = StepContractExecutor._load_graph_degrading_malformed_org_pack(
+            repo, org_roots=[]
+        )
+
+    assert "directive:SOLO_MARKER" in {str(node.urn) for node in graph.nodes}
+    assert not [
+        r for r in caplog.records if "malformed drg/fragment.yaml" in r.getMessage()
+    ]
+
+
+def test_strict_load_still_raises_on_malformed_pack(tmp_path: Path) -> None:
+    """Fail-loud invariant: ``strict=True`` still raises on ANY malformed pack.
+
+    Also pins the fail-loud API default (``strict=False`` WITHOUT
+    ``degrade_malformed``) still raises, so the diagnostic / cascade callers are
+    unweakened -- only the executor's explicit ``degrade_malformed=True`` opt-in
+    tolerates a malformed sibling.
+    """
+    repo = _two_pack_chain(tmp_path)
+
+    with pytest.raises(OrgPackSchemaError, match=r"notarealkind"):
+        load_org_drg(repo, strict=True)
+
+    with pytest.raises(OrgPackSchemaError, match=r"notarealkind"):
+        load_org_drg(repo, strict=False)
+
+    # The explicit opt-in degrades per-pack: only the healthy fragment returns.
+    fragments = load_org_drg(repo, strict=False, degrade_malformed=True)
+    assert [f.pack_name for f in fragments] == [_HEALTHY_PACK_NAME]
