@@ -261,9 +261,7 @@ def store(
     if team is not None and not team:
         raise ValueError("team must be non-empty when provided")
     if _is_legacy_name_key(repo):
-        raise ValueError(
-            "repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name"
-        )
+        raise ValueError("repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name")
     lock = _locked()
     with lock:
         data = _read_all()
@@ -305,9 +303,7 @@ def store_negative(*, repo: str, reason: str = "", expires_at: str | None = None
     if not repo:
         raise ValueError("repo must be non-empty")
     if _is_legacy_name_key(repo):
-        raise ValueError(
-            "repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name"
-        )
+        raise ValueError("repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name")
     lock = _locked()
     with lock:
         data = _read_all()

@@ -202,9 +202,7 @@ def test_resolve_stream_builds_an_independent_stream_per_repo(state_root: Path, 
 # --- FIX-M2-15: threading the stored two-credential shape through ----------
 
 
-def test_resolve_stream_falls_back_to_token_for_both_fields_when_single_credential(
-    state_root: Path, managed_stream_double
-) -> None:
+def test_resolve_stream_falls_back_to_token_for_both_fields_when_single_credential(state_root: Path, managed_stream_double) -> None:
     """Every checkout stored before FIX-M2-15 (no ``capability_credential``
     at all) must still produce a ``TeamStreamConfig`` where BOTH fields
     read the same stored ``token`` — the exact single-credential shape
@@ -215,9 +213,7 @@ def test_resolve_stream_falls_back_to_token_for_both_fields_when_single_credenti
     assert stream._config.capability_credential == "only-one-value"
 
 
-def test_resolve_stream_splits_relay_token_and_capability_credential_when_both_stored(
-    state_root: Path, managed_stream_double
-) -> None:
+def test_resolve_stream_splits_relay_token_and_capability_credential_when_both_stored(state_root: Path, managed_stream_double) -> None:
     credentials.store(
         repo="github.com/acme/spec-kitty",
         relay_url=managed_stream_double.url,
@@ -255,7 +251,7 @@ def test_watch_yields_serialized_event_frames(state_root: Path, managed_stream_d
     managed_stream_double.push_frame(_frame(seq=9, frame={"type": "event", "event": _event_payload(attrs={"to_lane": "for_review"})}))
     managed_stream_double.close_stream()
 
-    frames = list(subscription.watch("spec-kitty", timeout_s=2.0))
+    frames = list(subscription.watch("github.com/acme/spec-kitty", timeout_s=2.0))
     assert [f["frame_type"] for f in frames] == ["event"]  # exactly the one moment, nothing else
     assert frames[0]["payload"]["attrs"] == {"to_lane": "for_review"}  # data channel stays lossless
 
@@ -310,14 +306,11 @@ def test_render_event_caps_attrs_count_and_says_so_inside_the_block() -> None:
     assert "5 omitted" in rendered  # the notice sits INSIDE the block
 
 
-
 def test_render_event_truncates_oversized_attr_values_and_keys() -> None:
     # The relay schema caps attr values at 240 and keys at 64 chars, but the
     # client's parser deliberately does not enforce schema bounds — so the
     # renderer clamps rather than trust the wire.
-    rendered = subscription.render_event(
-        _event_frame_dict(3, attrs={"k" * 500: "x" * 10_000, "ok": "y" * 400})
-    )
+    rendered = subscription.render_event(_event_frame_dict(3, attrs={"k" * 500: "x" * 10_000, "ok": "y" * 400}))
     assert "…" in rendered
     assert "x" * 250 not in rendered and "y" * 250 not in rendered
     assert "k" * 70 not in rendered
