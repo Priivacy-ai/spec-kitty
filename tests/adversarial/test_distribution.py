@@ -224,9 +224,18 @@ class TestUpgradeWithAllMissions:
         subprocess.run(["git", "add", "."], cwd=project_dir, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "init"], cwd=project_dir, check=True, capture_output=True)
 
-        # Run upgrade
+        # Run upgrade. ``--yes`` is required here: a freshly-init'd project can
+        # carry pending idempotent migrations (e.g. 3.2.8_provision_kitty_env,
+        # migrate_lifecycle_envelope) that upgrade confirms interactively before
+        # applying. Previously this subprocess had no stdin and no `--yes`, but
+        # the prompt was masked on a plain local checkout by an over-broad
+        # "connected teamspace" detector (routing-derived repo/project slug)
+        # that made ANY local project look teamspace-connected — the banner
+        # tripped this test's auth skip-guard before the prompt was ever
+        # reached. That detector was retired with the sync transport (issue
+        # #5), unmasking the real interactive-abort gap.
         upgrade_result = subprocess.run(
-            [str(spec_kitty), "upgrade"],
+            [str(spec_kitty), "upgrade", "--yes"],
             capture_output=True,
             text=True,
             env=env,

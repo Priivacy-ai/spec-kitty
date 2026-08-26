@@ -202,7 +202,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
-            patch.object(rb, "SyncRuntimeEventEmitter") as sync_cls,
+            patch.object(rb, "RuntimeEventEmitter") as sync_cls,
             patch.object(rb, "get_or_start_run", return_value=run_ref),
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
@@ -257,7 +257,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
-            patch.object(rb, "SyncRuntimeEventEmitter") as sync_cls,
+            patch.object(rb, "RuntimeEventEmitter") as sync_cls,
             patch.object(rb, "get_or_start_run", return_value=run_ref),
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
@@ -308,7 +308,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
-            patch.object(rb, "SyncRuntimeEventEmitter") as sync_cls,
+            patch.object(rb, "RuntimeEventEmitter") as sync_cls,
             patch.object(rb, "get_or_start_run", return_value=run_ref),
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["specify_guard_failure"]),
@@ -359,7 +359,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
 
         with (
             patch.object(rb, "get_mission_type", return_value="software-dev"),
-            patch.object(rb, "SyncRuntimeEventEmitter") as sync_cls,
+            patch.object(rb, "RuntimeEventEmitter") as sync_cls,
             patch.object(rb, "get_or_start_run", return_value=run_ref),
             patch.object(rb, "_compute_wp_progress", return_value=None),
             patch.object(rb, "_check_cli_guards", return_value=["exotic_guard_failure"]),

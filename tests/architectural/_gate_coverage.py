@@ -14,9 +14,9 @@ This module is the *enforcement substrate* for that gap. It does not re-tier or
 re-shard CI (that is the maintainer's migration, against this guardrail). It
 statically:
 
-1. Parses every ``pytest`` invocation across the six workflow files that run
+1. Parses every ``pytest`` invocation across the five workflow files that run
    the suite (``ci-quality`` / ``ci-windows`` / ``doctrine-charter-tests`` /
-   ``drift-detector`` / ``release`` / ``ui-e2e``), expanding the
+   ``release`` / ``ui-e2e``), expanding the
    ``integration-tests-core-misc`` shard matrix.
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
@@ -30,8 +30,9 @@ The companion end-to-end oracle
 (``test_ci_collection_completeness.py``) requires zero primary-push orphans.
 It runs in the PR operator path through ``arch-adversarial`` → ``quality-gate``
 and has an independent ``fast-tests-core-misc`` owner for route-affecting
-changes. GitHub branch protection currently requires only ``drift-detector``;
-this module does not misrepresent the operator gate as a required context.
+changes. GitHub branch protection wires no required context in this
+experimental programme (see repo ``CLAUDE.md``); this module does not
+misrepresent any workflow as a required check.
 
 Run directly to refresh/verify the topology census or the separate retained E3
 job-selection baselines::
@@ -82,9 +83,9 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
 # The five workflows that actually run the pytest suite (the others lint, build,
 # or sync and select no tests). ``ui-e2e.yml`` is the scoped Playwright
-# dashboard e2e gate (issue #1008): a standalone, drift-detector-shaped
-# workflow (own trigger, single job, no dorny filter, no quality-gate
-# aggregator) whose ``pytest tests/ui/`` invocation must be MODELED here so
+# dashboard e2e gate (issue #1008): a standalone, single-job, own-trigger
+# workflow (no dorny filter, no quality-gate aggregator) whose
+# ``pytest tests/ui/`` invocation must be MODELED here so
 # ``discover_pytest_workflows`` (FR-008 fail-closed) stays equal to this
 # allowlist and the ``tests/ui/`` e2e carrier is a covered — not orphan —
 # surface (so the ``e2e`` marker keeps its ROUTED-BY-PATH home).
@@ -96,11 +97,14 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 # same run). It is therefore deliberately absent from this allowlist and
 # excluded from ``discover_pytest_workflows`` (reusable-only workflows), which
 # keeps that fail-closed probe equal to this list without double-counting.
+# ``drift-detector.yml`` (issue #5): deleted along with the sync/ transport --
+# its sole job re-ran ``tests/sync/test_diagnose.py::
+# TestCanonicalRegistryRecognition``, which has no successor now that
+# ``specify_cli.sync.diagnose`` is gone.
 WORKFLOW_FILES: tuple[str, ...] = (
     "ci-quality.yml",
     "ci-windows.yml",
     "doctrine-charter-tests.yml",
-    "drift-detector.yml",
     "release.yml",
     "ui-e2e.yml",
 )

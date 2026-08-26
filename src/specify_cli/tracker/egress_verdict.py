@@ -18,6 +18,20 @@ operator's authenticated SaaS session; team-side admission is the capability min
 ``.kittify/config.yaml``: ``absent`` / ``refused`` / ``permitted`` / ``fault``. Decoded by
 :func:`_resolve_channel2` from :class:`~specify_cli.tracker.config.TrackerProjectConfig`.
 
+**Channel 1's own reporting classifier had already retired before issue #5, for the record.**
+Before Channel 1 itself was removed, its diagnostic re-derivation had already gone: the
+registry contract Channel 1's answer was funneled through, ``_egress_consent_resolver:
+Callable[[Path], bool] | None`` at **``invocation/adapters.py:81``**, manufactured an
+``EgressConsent`` member from a bare ``bool``, discarding *why* a project was refused. A
+now-deleted, privately-named classifier re-derived that "why" by reaching around the registry
+straight into the deleted ``specify_cli.sync.consent``/``specify_cli.sync.routing`` chain --
+a second, independent resolution of facts the enforcing resolver had already resolved once.
+Sibling Bundle B's open **Q3** gave that resolver contract a decision-carrying return value
+instead of a bare ``bool``, so there was nothing left for the classifier to re-derive: the
+egress-single-authority mission (WP03) **delete**d it, **not migrate**d it. Issue #5 then
+retired the channel that classifier used to describe in its entirety, so this paragraph is
+now purely historical -- there is no Channel 1 left for any classifier to report on.
+
 Polarity follows the destination, and this is deliberate, not a simplification
 -----------------------------------------------------------------------------
 
@@ -26,9 +40,12 @@ Polarity follows the destination, and this is deliberate, not a simplification
 key exists to gate: issue fields travel into an executable the operator configured
 machine-globally, so only an explicit committed grant (or explicit refusal) decides.
 
-``EgressDestination.HOSTED_SERVICE``: no local key is consulted at all. The request carries a
-bearer token minted by an authenticated operator action against the hosted control plane;
-there is nothing in ``.kittify/config.yaml`` that should second-guess it.
+``EgressDestination.HOSTED_SERVICE``: Channel 2 is **narrowing only** -- a committed
+``refused`` (or an illegal/unreadable value) still refuses, because that is the operator's own
+explicit instruction and this module must not silently override it; but ``permitted`` cannot
+*grant* hosted egress, and absence cannot either -- both fall through to permit, since the
+request rides the operator's authenticated SaaS session and there is no longer a Channel 1 to
+defer to. So this key can only ever narrow a hosted request, never widen one.
 """
 
 from __future__ import annotations
@@ -217,18 +234,38 @@ def tracker_egress_verdict(
     with the grant recorded as the remedy -- spawning a machine-global executable with mission
     data needs an explicit yes, and inability to determine consent is never consent.
 
-    ``HOSTED_SERVICE`` never consults the local config: the request rides the authenticated
-    session, and team admission is decided server-side.
+    At ``HOSTED_SERVICE`` the local config only narrows: a committed ``refused``, an illegal
+    value, or an unreadable config still refuses; ``permitted`` and absence both permit, since
+    the request otherwise rides the authenticated session and team admission is decided
+    server-side.
     """
     del identifiers  # required declaration only, since Channel 1 retired
 
     if destination is EgressDestination.HOSTED_SERVICE:
+        channel2_state, channel2_raw = (
+            _resolve_channel2(root) if root is not None else (CHANNEL2_ABSENT, EGRESS_ABSENT)
+        )
+        if channel2_state in (EGRESS_REFUSED, CHANNEL2_FAULT):
+            message = (
+                _fault_message(destination, channel2_raw)
+                if channel2_state == CHANNEL2_FAULT
+                else _refused_message(destination)
+            )
+            return TrackerEgressVerdict(
+                refused=True,
+                refusing_channels=frozenset({CHANNEL_2}),
+                destination=destination,
+                channel2_state=channel2_state,
+                channel2_raw=channel2_raw,
+                message=message,
+                remedies=(),
+            )
         return TrackerEgressVerdict(
             refused=False,
             refusing_channels=frozenset(),
             destination=destination,
-            channel2_state=CHANNEL2_ABSENT,
-            channel2_raw=EGRESS_ABSENT,
+            channel2_state=channel2_state,
+            channel2_raw=channel2_raw,
             message=(
                 f"tracker egress to {destination.value} rides the operator's authenticated "
                 "SaaS session; no local tracker.egress key applies"

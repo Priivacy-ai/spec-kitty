@@ -141,9 +141,6 @@ def _patch_context(
             "specify_cli.cli.commands.agent.mission.run_command",
             side_effect=_make_run_command(git_status_out),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-        ),
     )
 
 
@@ -208,7 +205,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -244,7 +240,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -275,7 +270,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -306,7 +300,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -348,7 +341,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -391,7 +383,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result_coord_split(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -437,7 +428,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -469,7 +459,6 @@ class TestFinalizeTasks:
                 return_value=_committed_router_result(),
             ),
             patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 

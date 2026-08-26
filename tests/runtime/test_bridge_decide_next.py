@@ -250,7 +250,7 @@ def test_bootstrap_returns_blocked_decision_when_run_start_fails(
         def for_feature(**_kw: Any) -> _FakeSyncEmitter:
             return _FakeSyncEmitter()
 
-    monkeypatch.setattr(rb, "SyncRuntimeEventEmitter", _FakeSyncEmitter)
+    monkeypatch.setattr(rb, "RuntimeEventEmitter", _FakeSyncEmitter)
 
     def _raise_start(*_a: Any, **_kw: Any) -> MissionRunRef:
         raise RuntimeError("cannot start run")
@@ -292,7 +292,7 @@ def test_bootstrap_builds_full_context_on_happy_path(
 
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
-    monkeypatch.setattr(rb, "SyncRuntimeEventEmitter", _FakeSyncEmitterClass)
+    monkeypatch.setattr(rb, "RuntimeEventEmitter", _FakeSyncEmitterClass)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: wrapped_sentinel)
     monkeypatch.setattr(
         rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter: run_ref
@@ -345,7 +345,7 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(
 
     monkeypatch.setattr(rb, "_resolve_runtime_feature_dir", lambda repo_root, slug: feature_dir)
     monkeypatch.setattr(rb, "get_mission_type", lambda fd: "software-dev")
-    monkeypatch.setattr(rb, "SyncRuntimeEventEmitter", _FakeSyncEmitter)
+    monkeypatch.setattr(rb, "RuntimeEventEmitter", _FakeSyncEmitter)
     monkeypatch.setattr(rb, "_wrap_with_decision_git_log", lambda emitter, slug, repo_root: emitter)
     monkeypatch.setattr(
         rb, "get_or_start_run", lambda slug, repo_root, mission_type, *, emitter: run_ref

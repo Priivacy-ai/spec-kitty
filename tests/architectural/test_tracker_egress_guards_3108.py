@@ -1589,12 +1589,19 @@ _LOCAL_SUBPROCESS_CASES: tuple[_ProjectRootCase, ...] = (
     ),
 )
 
-#: The single-channel polarity table G7 pins for the hosted destination, spelled out rather than
-#: derived: ``HOSTED_SERVICE`` never consults the local key, so every local case is a grant there --
-#: including the refusing ones. A destination added to the enum is picked up by the loop below and
-#: must be given an explicit row in this test or the guard reds on the unexpected answer:
-#: exhaustiveness by construction.
-_EXPECTED_HOSTED_SERVICE_REFUSED = False
+def _expected_hosted_service_refused(case: _ProjectRootCase) -> bool:
+    """The single-channel polarity table G7 pins for the hosted destination.
+
+    ``HOSTED_SERVICE`` is **narrowing only** (controller-qa MAJOR, egress_verdict.py:225): a
+    committed ``refused`` or an illegal/unreadable value (``fault``) still refuses -- the
+    operator's own explicit instruction is not silently overridden -- but ``permitted`` and
+    absence both fall through to permit, since the request otherwise rides the authenticated
+    session and there is no longer a Channel 1 to defer to. So only the two narrowing states
+    refuse here; a destination added to the enum is picked up by the loop below and must be
+    given an explicit row in this test or the guard reds on the unexpected answer:
+    exhaustiveness by construction.
+    """
+    return case.channel_state in ("refused", "fault")
 
 
 def _commit_project_root(tmp_path_factory: pytest.TempPathFactory, case: _ProjectRootCase) -> Path:
@@ -1635,13 +1642,16 @@ def test_g7_single_channel_polarity_table_is_exhaustive_and_fails_closed(tmp_pat
             verdict = tracker_egress_verdict(root, destination=dest, identifiers="issue fields as argv")
             cells_checked += 1
             if dest is EgressDestination.HOSTED_SERVICE:
-                assert verdict.refused == _EXPECTED_HOSTED_SERVICE_REFUSED, (
-                    f"G7: HOSTED_SERVICE x {case.label!r} returned refused={verdict.refused}; the hosted "
-                    f"destination never consults the local tracker.egress key, so every cell must grant."
+                expected_refused = _expected_hosted_service_refused(case)
+                assert verdict.refused == expected_refused, (
+                    f"G7: HOSTED_SERVICE x {case.label!r} returned refused={verdict.refused}, expected "
+                    f"{expected_refused}; the hosted destination narrows only -- a committed 'refused' or "
+                    f"an illegal value must still refuse, but absence and 'permitted' must grant."
                 )
-                assert verdict.refusing_channels == frozenset(), (
-                    f"G7: HOSTED_SERVICE x {case.label!r} named refusing channels {sorted(verdict.refusing_channels)} "
-                    f"-- no local channel may refuse a hosted request."
+                expected_channels = frozenset({CHANNEL_2}) if expected_refused else frozenset()
+                assert verdict.refusing_channels == expected_channels, (
+                    f"G7: HOSTED_SERVICE x {case.label!r} named refusing channels "
+                    f"{sorted(verdict.refusing_channels)}, expected {sorted(expected_channels)}."
                 )
                 continue
             assert verdict.refused == case.refused, (

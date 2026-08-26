@@ -448,14 +448,14 @@ def capture_side_effects(
     # sink" toggle the harness sets before invoking the entry.
     active_sink_holder = {"sync": capture.sync_emitter_calls, "coord": capture.coord_commit_calls}
 
-    real_for_feature = bridge_module.SyncRuntimeEventEmitter.for_feature
+    real_for_feature = bridge_module.RuntimeEventEmitter.for_feature
 
     def _for_feature_spy(**kwargs: Any) -> Any:
         emitter = real_for_feature(**kwargs)
         return _RecordingProxy(emitter, active_sink_holder["sync"])
 
     monkeypatch.setattr(
-        bridge_module.SyncRuntimeEventEmitter,
+        bridge_module.RuntimeEventEmitter,
         "for_feature",
         staticmethod(_for_feature_spy),
     )

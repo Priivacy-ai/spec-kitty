@@ -126,6 +126,31 @@ def test_normalize_repo_skips_missing_meta_with_warning(tmp_path: Path) -> None:
     assert "meta.json missing" in results[0].warnings[0]
 
 
+def test_normalize_repo_backfills_wp_mission_id_when_only_mission_id_was_missing(
+    tmp_path: Path,
+) -> None:
+    """Regression: a plain ``mission_id`` backfill (action == "wrote",
+    ``number_coerced`` False since ``mission_number`` is already an ``int``) must
+    still refresh ``meta`` from disk before ``_normalize_event_log`` reads it, or
+    the newly-minted ``mission_id`` never reaches ``backfill_wp_ids`` and WP
+    frontmatter is left without it.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "044-missing-id-only"
+    (tmp_path / ".kittify").mkdir()
+    _write_meta(feature_dir, mission_id=None, mission_number=44)
+    _write_task(feature_dir)
+
+    results = normalize_repo(tmp_path, dry_run=False)
+
+    assert results[0].status == "normalized"
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    mission_id = meta["mission_id"]
+    assert mission_id
+
+    wp_frontmatter = (feature_dir / "tasks" / "WP01-test.md").read_text(encoding="utf-8")
+    assert mission_id in wp_frontmatter
+
+
 def test_normalize_repo_reports_identity_errors_per_mission(tmp_path: Path) -> None:
     feature_dir = tmp_path / "kitty-specs" / "043-bad-number"
     (tmp_path / ".kittify").mkdir()

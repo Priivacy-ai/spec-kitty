@@ -230,16 +230,6 @@ def _run_finalize_validate_only(repo: Path, mission_slug: str) -> Result:
             "specify_cli.cli.commands.agent.mission.run_git_preflight",
             return_value=type("P", (), {"passed": True})(),
         ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.is_saas_sync_enabled",
-            return_value=False,
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.mission.get_emitter",
-            return_value=type(
-                "E", (), {"generate_causation_id": lambda self: "test-id"}
-            )(),
-        ),
     ):
         return CliRunner().invoke(
             app,
