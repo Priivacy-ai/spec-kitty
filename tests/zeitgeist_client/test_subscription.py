@@ -36,7 +36,7 @@ def _presence(session_ref: str = "a" * 12) -> dict[str, object]:
     return {"type": "presence", "presence": {"actor": {"session_ref": session_ref}, "observed_at": now_epoch(), "ttl_s": 30}}
 
 
-def _checkout(state_root: Path, double_url: str, *, repo: str = "spec-kitty", credential: str = "team-a-cred") -> None:
+def _checkout(state_root: Path, double_url: str, *, repo: str = "github.com/acme/spec-kitty", credential: str = "team-a-cred") -> None:
     del state_root  # env var already set by the fixture; kept for readability at call sites
     credentials.store(repo=repo, relay_url=double_url, token=credential, token_kind="shared_team")
 
@@ -71,12 +71,12 @@ def test_status_and_watch_require_an_explicit_repo_argument() -> None:
 
 def test_status_raises_not_checked_out_when_nothing_stored(state_root: Path) -> None:
     with pytest.raises(subscription.NotCheckedOut):
-        subscription.status("spec-kitty")
+        subscription.status("github.com/acme/spec-kitty")
 
 
 def test_watch_raises_not_checked_out_when_nothing_stored(state_root: Path) -> None:
     with pytest.raises(subscription.NotCheckedOut):
-        next(subscription.watch("spec-kitty"))
+        next(subscription.watch("github.com/acme/spec-kitty"))
 
 
 def test_module_never_calls_credentials_store_or_revoke(monkeypatch: pytest.MonkeyPatch, state_root: Path) -> None:
@@ -90,7 +90,7 @@ def test_module_never_calls_credentials_store_or_revoke(monkeypatch: pytest.Monk
     monkeypatch.setattr(credentials, "store", _forbidden)
     monkeypatch.setattr(credentials, "revoke", _forbidden)
     with pytest.raises(subscription.NotCheckedOut):
-        subscription.status("spec-kitty")
+        subscription.status("github.com/acme/spec-kitty")
 
 
 # --- bounded status()/watch() over a real loopback double --------------------
@@ -101,8 +101,8 @@ def test_status_reports_the_snapshot_observed_within_the_bounded_window(state_ro
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="a" * 12)))
     managed_stream_double.close_stream()  # ends watch() promptly instead of waiting out the idle timeout
 
-    result = subscription.status("spec-kitty", timeout_s=2.0)
-    assert result["repo"] == "spec-kitty"
+    result = subscription.status("github.com/acme/spec-kitty", timeout_s=2.0)
+    assert result["repo"] == "github.com/acme/spec-kitty"
     assert len(result["presence"]) == 1
     assert result["presence"][0]["session_ref"] == "a" * 12
 
@@ -111,7 +111,7 @@ def test_status_sends_only_the_stored_capability_credential(state_root: Path, ma
     _checkout(state_root, managed_stream_double.url, credential="team-a-cred")
     managed_stream_double.close_stream()
 
-    subscription.status("spec-kitty", timeout_s=2.0)
+    subscription.status("github.com/acme/spec-kitty", timeout_s=2.0)
     assert managed_stream_double.received_headers
     assert managed_stream_double.received_headers[0].get("X-Zeitgeist-Capability") == "team-a-cred"
 
@@ -121,7 +121,7 @@ def test_watch_yields_serialized_frames_then_stops(state_root: Path, managed_str
     managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
     managed_stream_double.close_stream()
 
-    frames = list(subscription.watch("spec-kitty", timeout_s=2.0))
+    frames = list(subscription.watch("github.com/acme/spec-kitty", timeout_s=2.0))
     assert len(frames) == 1
     assert frames[0]["frame_type"] == "presence"
     assert frames[0]["seq"] == 1
@@ -133,7 +133,7 @@ def test_watch_stops_at_max_frames_bound(state_root: Path, managed_stream_double
         managed_stream_double.push_frame(_frame(seq=n, frame=_presence(session_ref=f"{n:012d}")))
     managed_stream_double.close_stream()
 
-    frames = list(subscription.watch("spec-kitty", timeout_s=2.0, max_frames=3))
+    frames = list(subscription.watch("github.com/acme/spec-kitty", timeout_s=2.0, max_frames=3))
     assert len(frames) == 3
 
 
@@ -144,7 +144,7 @@ def test_status_timeout_is_clamped_to_max_timeout_s(state_root: Path, managed_st
     managed_stream_double.close_stream()
 
     start = time.monotonic()
-    subscription.status("spec-kitty", timeout_s=10_000.0)
+    subscription.status("github.com/acme/spec-kitty", timeout_s=10_000.0)
     elapsed = time.monotonic() - start
     # The double closes the stream immediately, so this exercises the
     # "closed stream ends promptly" path, not the timeout itself — the
@@ -180,20 +180,20 @@ def test_watch_rejects_non_positive_max_frames(state_root: Path, managed_stream_
     managed_stream_double.close_stream()
 
     with pytest.raises(ValueError):
-        next(subscription.watch("spec-kitty", timeout_s=2.0, max_frames=0))
+        next(subscription.watch("github.com/acme/spec-kitty", timeout_s=2.0, max_frames=0))
     with pytest.raises(ValueError):
-        next(subscription.watch("spec-kitty", timeout_s=2.0, max_frames=-1))
+        next(subscription.watch("github.com/acme/spec-kitty", timeout_s=2.0, max_frames=-1))
 
 
 # --- no multi-team aggregate: two repos never share resolved state ----------
 
 
 def test_resolve_stream_builds_an_independent_stream_per_repo(state_root: Path, managed_stream_double) -> None:
-    _checkout(state_root, managed_stream_double.url, repo="repo-a", credential="cred-a")
-    _checkout(state_root, managed_stream_double.url, repo="repo-b", credential="cred-b")
+    _checkout(state_root, managed_stream_double.url, repo="github.com/acme/repo-a", credential="cred-a")
+    _checkout(state_root, managed_stream_double.url, repo="github.com/acme/repo-b", credential="cred-b")
 
-    stream_a = subscription.resolve_stream("repo-a")
-    stream_b = subscription.resolve_stream("repo-b")
+    stream_a = subscription.resolve_stream("github.com/acme/repo-a")
+    stream_b = subscription.resolve_stream("github.com/acme/repo-b")
     assert stream_a is not stream_b
     assert stream_a._config.capability_credential == "cred-a"
     assert stream_b._config.capability_credential == "cred-b"
@@ -210,7 +210,7 @@ def test_resolve_stream_falls_back_to_token_for_both_fields_when_single_credenti
     read the same stored ``token`` — the exact single-credential shape
     ``watch()`` sent both headers from before this fix."""
     _checkout(state_root, managed_stream_double.url, credential="only-one-value")
-    stream = subscription.resolve_stream("spec-kitty")
+    stream = subscription.resolve_stream("github.com/acme/spec-kitty")
     assert stream._config.relay_token == "only-one-value"
     assert stream._config.capability_credential == "only-one-value"
 
@@ -219,13 +219,13 @@ def test_resolve_stream_splits_relay_token_and_capability_credential_when_both_s
     state_root: Path, managed_stream_double
 ) -> None:
     credentials.store(
-        repo="spec-kitty",
+        repo="github.com/acme/spec-kitty",
         relay_url=managed_stream_double.url,
         token="team-shared-token",
         token_kind="shared_team",
         capability_credential="actor-capability-jwt",
     )
-    stream = subscription.resolve_stream("spec-kitty")
+    stream = subscription.resolve_stream("github.com/acme/spec-kitty")
     assert stream._config.relay_token == "team-shared-token"
     assert stream._config.capability_credential == "actor-capability-jwt"
 

@@ -9,12 +9,21 @@ stream (Z7-C's own "share Z1 service" criterion). This module owns no
 network logic, no credential storage, and no snapshot/frame serialization
 of its own — it only formats what ``subscription.py`` returns.
 
-``repo`` is the one explicit, required, positional argument on both
-commands; neither takes a relay URL or a bearer/capability value — the
-credential is resolved solely from ``credentials.py``'s existing store
-(``subscription.resolve_stream``). A caller with no stored checkout for
-``repo`` gets :class:`subscription.NotCheckedOut`, reported here as a clean
-exit-1 message, never an auto-provisioned one — this module never calls
+``repo`` — the credential-store key — is the one team context every command
+below takes. Since spec-kitty#132 keys the store by ``resolution.store_key``'s
+``host/owner/repo`` (e.g. ``github.com/acme/widget``), that is the form this
+adapter accepts when a key is passed, and both commands also run with no key
+at all, deriving it from the current checkout's origin remote exactly as
+``status/zeitgeist_bridge.py`` does (:func:`resolution.store_key_for_checkout`)
+— so ``spec-kitty zeitgeist status`` inside a checkout reads that checkout's
+own auto-minted credential instead of failing on a user-typed name (#137).
+Neither form ever accepts a bare repo NAME: after #132 nothing is stored
+under one, and matching such an entry would serve a stale pre-#132 bearer.
+Neither command takes a relay URL or a bearer/capability value — the
+credential comes solely from ``credentials.py``'s existing store
+(``subscription.resolve_stream``). A caller whose key has no stored checkout
+gets :class:`subscription.NotCheckedOut`, reported here as a clean exit-1
+message, never an auto-provisioned one — this module never calls
 ``credentials.store``/``credentials.revoke`` (no administration).
 
 ``mcp-serve`` is registered ``hidden=True`` (not a public CLI surface a
@@ -60,6 +69,7 @@ import asyncio
 import dataclasses
 import getpass
 import urllib.error
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -73,10 +83,40 @@ app = typer.Typer(
 )
 
 _REPO_ARGUMENT = typer.Argument(
-    ...,
-    help="Canonical repo key this checkout's credential is stored under (the one explicit team context).",
+    None,
+    help=(
+        "Credential-store key this checkout's credential is stored under, as host/owner/repo "
+        "(e.g. github.com/acme/widget). Omit to derive it from the current checkout's origin remote."
+    ),
 )
 _JSON_OPTION = typer.Option(False, "--json", help="Emit plain JSON instead of a human-readable summary.")
+
+
+def _resolve_store_key(repo: str | None) -> str:
+    """The credential-store key the command reads: the caller-supplied
+    ``host/owner/repo``, or the one derived from the current checkout when
+    omitted (#137). A bare NAME exits 1 — after #132 nothing is stored
+    under one, so accepting it could only ever serve an abandoned pre-#132
+    bearer. The resolver import stays function-scoped like the bridge's own
+    lazy ``resolve_credentials`` import: resolution drags in the SaaS auth
+    context machinery, which a mere ``--help`` run must not."""
+    from specify_cli.zeitgeist_client.resolution import StoreKeyError, parse_store_key, store_key_for_checkout  # noqa: PLC0415
+
+    if repo is not None:
+        try:
+            return parse_store_key(repo)
+        except StoreKeyError as exc:
+            console.print(f"[red]Error:[/red] {exc}")
+            raise typer.Exit(1) from None
+    derived = store_key_for_checkout(Path.cwd())
+    if derived is None:
+        console.print(
+            "[red]Error:[/red] could not derive a Zeitgeist credential-store key from "
+            f"{Path.cwd()} — not a git checkout with a hosted origin remote. "
+            "Pass host/owner/repo (e.g. github.com/acme/widget) explicitly."
+        )
+        raise typer.Exit(1)
+    return derived
 
 
 def _report_not_checked_out(exc: subscription.NotCheckedOut) -> None:
@@ -118,8 +158,9 @@ def status(
     as_json: bool = _JSON_OPTION,
 ) -> None:
     """One bounded snapshot of ``repo``'s live presence/focus state."""
+    key = _resolve_store_key(repo)
     try:
-        result = subscription.status(repo, timeout_s=timeout)
+        result = subscription.status(key, timeout_s=timeout)
     except subscription.NotCheckedOut as exc:
         _report_not_checked_out(exc)
         return
@@ -152,8 +193,9 @@ def watch(
 ) -> None:
     """Print each live presence/focus frame for ``repo`` as it arrives,
     bounded by ``--timeout`` idleness and ``--max-frames`` count."""
+    key = _resolve_store_key(repo)
     try:
-        frame_iter = subscription.watch(repo, timeout_s=timeout, max_frames=max_frames)
+        frame_iter = subscription.watch(key, timeout_s=timeout, max_frames=max_frames)
         for frame in frame_iter:
             if as_json:
                 # One compact JSON object per line (JSON Lines), never the
@@ -309,7 +351,7 @@ app.add_typer(operability_app, name="operability")
 def _report_client(repo: str) -> transport.ZeitgeistClient | None:
     """Build a throwaway probe client from repo's already-stored checkout,
     if any — never a second credential source, never a --relay-url/--token
-    option on this command."""
+    option on this command. ``repo`` is the resolved credential-store key."""
     stored = credentials.load(repo=repo)
     if stored is None:
         return None
@@ -359,7 +401,8 @@ def operability_report(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION)
     single canary offer probe only if ``repo`` already has a stored
     checkout — otherwise reports honestly stale/inactive rather than
     fabricating a live reading."""
-    report = operability.collect_report(repo=repo, client=_report_client(repo))
+    key = _resolve_store_key(repo)
+    report = operability.collect_report(repo=key, client=_report_client(key))
     if as_json:
         console.emit_json(dataclasses.asdict(report))
         return
@@ -386,7 +429,7 @@ def operability_drill_timeout(as_json: bool = _JSON_OPTION) -> None:
 def operability_drill_rotation(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
     """Local "auth expiry" drill for ``repo``'s stored checkout — reads only
     the stored ``token_issued_at`` timestamp, never the token value."""
-    result = operability.rotation_drill(repo)
+    result = operability.rotation_drill(_resolve_store_key(repo))
     if as_json:
         console.emit_json(dataclasses.asdict(result))
         return
@@ -401,7 +444,7 @@ def operability_drill_rollback(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON
     """Local "rollback" drill: proves ``outbox_approval.revoke()`` fails
     closed on a never-approved item — never touches the controlling
     terminal, never requires a human."""
-    result = operability.rollback_drill(repo=repo)
+    result = operability.rollback_drill(repo=_resolve_store_key(repo))
     if as_json:
         console.emit_json(dataclasses.asdict(result))
         return

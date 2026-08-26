@@ -82,7 +82,7 @@ def _config(url: str, **overrides: object) -> transport.ClientConfig:
         "harness": "claude-code",
         "session_id": "sess-1",
         "agent_id": "agent-1",
-        "repo": "spec-kitty",
+        "repo": "github.com/acme/spec-kitty",
         "branch": "main",
     }
     base.update(overrides)
@@ -192,23 +192,23 @@ def test_lease_signal_inactive_after_focus_end(team_kitty_double):
 
 
 def test_revoke_signal_reports_zero_when_nothing_pending(state_root: Path):
-    signal = operability.revoke_signal("spec-kitty")
-    assert signal.repo == "spec-kitty"
+    signal = operability.revoke_signal("github.com/acme/spec-kitty")
+    assert signal.repo == "github.com/acme/spec-kitty"
     assert signal.revocable_count == 0
 
 
 def test_revoke_signal_model_reachable_is_always_false(state_root: Path):
-    signal = operability.revoke_signal("spec-kitty")
+    signal = operability.revoke_signal("github.com/acme/spec-kitty")
     assert signal.model_reachable is False
 
 
 def test_revoke_signal_counts_only_approved_items_as_revocable(state_root: Path, monkeypatch: pytest.MonkeyPatch):
-    approved = outbox_approval.submit(repo="spec-kitty", audience="team-a", content="approve me")
+    approved = outbox_approval.submit(repo="github.com/acme/spec-kitty", audience="team-a", content="approve me")
     monkeypatch.setattr(outbox_approval, "_controlling_tty", lambda: FakeTTY(approved.item_id[:8]))
     outbox_approval.approve(approved.item_id, actor="robert")
-    outbox_approval.submit(repo="spec-kitty", audience="team-a", content="still pending")
+    outbox_approval.submit(repo="github.com/acme/spec-kitty", audience="team-a", content="still pending")
 
-    signal = operability.revoke_signal("spec-kitty")
+    signal = operability.revoke_signal("github.com/acme/spec-kitty")
     assert signal.revocable_count == 1
 
 
@@ -252,8 +252,8 @@ def test_repair_signal_reports_reset_count_and_reason_from_a_snapshot():
 
 
 def test_collect_report_offline_reports_honest_staleness(state_root: Path):
-    report = operability.collect_report(repo="spec-kitty")
-    assert report.repo == "spec-kitty"
+    report = operability.collect_report(repo="github.com/acme/spec-kitty")
+    assert report.repo == "github.com/acme/spec-kitty"
     assert report.credential_checked_out is False
     assert report.offer is None
     assert report.drop is None
@@ -263,7 +263,7 @@ def test_collect_report_offline_reports_honest_staleness(state_root: Path):
 
 def test_collect_report_with_a_live_client_probes_offer(state_root: Path, team_kitty_double):
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    report = operability.collect_report(repo="spec-kitty", client=client)
+    report = operability.collect_report(repo="github.com/acme/spec-kitty", client=client)
     assert report.offer is not None
     assert report.offer.outcome == "sent"
     assert report.drop is not None
@@ -274,17 +274,17 @@ def test_collect_report_with_a_live_client_probes_offer(state_root: Path, team_k
 
 
 def test_collect_report_reflects_stored_checkout(state_root: Path):
-    credentials.store(repo="spec-kitty", relay_url="http://127.0.0.1:9", token="tok", token_kind="shared_team")
-    report = operability.collect_report(repo="spec-kitty")
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://127.0.0.1:9", token="tok", token_kind="shared_team")
+    report = operability.collect_report(repo="github.com/acme/spec-kitty")
     assert report.credential_checked_out is True
 
 
 def test_collect_report_never_carries_a_forbidden_sensitive_field(state_root: Path, team_kitty_double):
-    credentials.store(repo="spec-kitty", relay_url=team_kitty_double.url, token="secret-token", token_kind="shared_team")
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url=team_kitty_double.url, token="secret-token", token_kind="shared_team")
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     client.focus_start("mission-x")
     snapshot = TeamSnapshot(epoch="e1", presence=(), focus=(), reset_count=1, last_reset_reason="epoch")
-    report = operability.collect_report(repo="spec-kitty", client=client, snapshot=snapshot)
+    report = operability.collect_report(repo="github.com/acme/spec-kitty", client=client, snapshot=snapshot)
 
     payload = dataclasses.asdict(report)
     sanitizer.assert_clean(payload, forbidden=sanitizer.FORBIDDEN_CONTROL_KEYS)
@@ -312,7 +312,7 @@ def test_timeout_drill_default_target_is_unreachable():
 
 
 def test_rotation_drill_reports_not_checked_out_when_nothing_stored(state_root: Path):
-    result = operability.rotation_drill("spec-kitty")
+    result = operability.rotation_drill("github.com/acme/spec-kitty")
     assert result.outcome == "pass"
     assert result.checked_out is False
     assert result.age_s is None
@@ -321,15 +321,15 @@ def test_rotation_drill_reports_not_checked_out_when_nothing_stored(state_root: 
 
 
 def test_rotation_drill_reports_age_and_rotation_due_flag_honestly(state_root: Path, monkeypatch: pytest.MonkeyPatch):
-    credentials.store(repo="spec-kitty", relay_url="http://127.0.0.1:9", token="tok", token_kind="shared_team")
-    stale = credentials.load(repo="spec-kitty")
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://127.0.0.1:9", token="tok", token_kind="shared_team")
+    stale = credentials.load(repo="github.com/acme/spec-kitty")
     assert stale is not None
     stale_issued = dataclasses.replace(
         stale, token_issued_at=(now_utc() - timedelta(seconds=operability.ROTATION_WINDOW_S + 60)).isoformat()
     )
     monkeypatch.setattr(credentials, "load", lambda *, repo: stale_issued)
 
-    result = operability.rotation_drill("spec-kitty")
+    result = operability.rotation_drill("github.com/acme/spec-kitty")
     assert result.checked_out is True
     assert result.rotation_due is True
     assert result.age_s is not None
@@ -337,8 +337,8 @@ def test_rotation_drill_reports_age_and_rotation_due_flag_honestly(state_root: P
 
 
 def test_rotation_drill_reports_rotation_not_due_for_a_fresh_credential(state_root: Path):
-    credentials.store(repo="spec-kitty", relay_url="http://127.0.0.1:9", token="tok", token_kind="shared_team")
-    result = operability.rotation_drill("spec-kitty")
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://127.0.0.1:9", token="tok", token_kind="shared_team")
+    result = operability.rotation_drill("github.com/acme/spec-kitty")
     assert result.rotation_due is False
 
 
@@ -350,7 +350,7 @@ def test_rollback_drill_blocks_revoke_of_a_never_approved_item(state_root: Path,
         raise AssertionError("rollback_drill must never open the controlling terminal")
 
     monkeypatch.setattr(outbox_approval, "_controlling_tty", _boom)
-    result = operability.rollback_drill(repo="spec-kitty")
+    result = operability.rollback_drill(repo="github.com/acme/spec-kitty")
     assert result.outcome == "pass"
     assert result.blocked_reason == "not_yet_approved"
     assert outbox_approval.show(result.item_id).status == "pending"
@@ -358,10 +358,10 @@ def test_rollback_drill_blocks_revoke_of_a_never_approved_item(state_root: Path,
 
 def test_rollback_drill_is_content_addressed_and_idempotent(state_root: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(outbox_approval, "_controlling_tty", lambda: (_ for _ in ()).throw(AssertionError("no tty")))
-    first = operability.rollback_drill(repo="spec-kitty")
-    second = operability.rollback_drill(repo="spec-kitty")
+    first = operability.rollback_drill(repo="github.com/acme/spec-kitty")
+    second = operability.rollback_drill(repo="github.com/acme/spec-kitty")
     assert first.item_id == second.item_id
-    assert outbox_approval.status_counts(repo="spec-kitty")["pending"] == 1
+    assert outbox_approval.status_counts(repo="github.com/acme/spec-kitty")["pending"] == 1
 
 
 def test_rollback_drill_rerun_after_its_own_ttl_lapses_still_passes(state_root: Path, monkeypatch: pytest.MonkeyPatch):
@@ -379,7 +379,7 @@ def test_rollback_drill_rerun_after_its_own_ttl_lapses_still_passes(state_root: 
 
     monkeypatch.setattr(outbox_approval, "_controlling_tty", _boom)
 
-    first = operability.rollback_drill(repo="spec-kitty")
+    first = operability.rollback_drill(repo="github.com/acme/spec-kitty")
     assert first.outcome == "pass"
     assert first.blocked_reason == "not_yet_approved"
 
@@ -388,7 +388,7 @@ def test_rollback_drill_rerun_after_its_own_ttl_lapses_still_passes(state_root: 
     past_ttl = now_utc() + timedelta(seconds=operability._ROLLBACK_DRILL_TTL_S + 1)
     monkeypatch.setattr(outbox_approval, "_now", lambda: past_ttl)
 
-    second = operability.rollback_drill(repo="spec-kitty")
+    second = operability.rollback_drill(repo="github.com/acme/spec-kitty")
 
     assert second.item_id == first.item_id
     assert second.outcome == "pass"
