@@ -237,6 +237,38 @@ def test_n18_focus_ref_without_wp_id(team_kitty_double):
     assert starts[0].body["args"]["focus_ref"] == "mission-x"
 
 
+# --- empty claims are omitted, never sent as "" ------------------------------
+#
+# Both wire schemas (FocusArgs / PresencePublish) pattern repo/branch with a
+# >=1-char head, so an EMPTY-string claim present as a key is a guaranteed
+# 422 on every op. A detached HEAD (or a spent git budget) yields branch ""
+# from repo_identity.branch_name — since #186 wired presence/focus into the
+# status seam that shape is reachable in production, and the honest wire
+# form for "no branch to claim" is the key's absence.
+
+
+def test_empty_branch_is_omitted_from_claim_args_not_sent_as_empty(team_kitty_double):
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url, branch=""))
+    result = client.focus_start("mission-x", wp_id="WP03")
+
+    assert result.outcome == transport.OfferOutcome.SENT
+    start = [r for r in team_kitty_double.requests if r.body.get("op") == "focus.start"][-1]
+    assert "branch" not in start.body["args"]
+    assert start.body["args"]["repo"] == "spec-kitty"
+
+
+def test_empty_repo_and_branch_are_both_omitted_from_presence_args(team_kitty_double):
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url, repo="", branch=""))
+    result = client.presence("command")
+
+    assert result.outcome == transport.OfferOutcome.SENT
+    post = [r for r in team_kitty_double.requests if r.body.get("op") == "presence.publish"][-1]
+    assert "repo" not in post.body["args"]
+    assert "branch" not in post.body["args"]
+    assert post.body["args"]["kind"] == "command"
+    assert post.body["args"]["session_id"] == "sess-1"
+
+
 # --- R1: race — concurrent focus_heartbeat calls ----------------------------
 
 

@@ -87,6 +87,13 @@ logger = logging.getLogger(__name__)
 #: presence is the kind resolution defaults to; focus rides the same store.
 KIND_PRESENCE = "presence"
 
+#: The second grant a wired client needs (#186): zeitgeist grants the
+#: ``focus.start``/``.heartbeat``/``.pause``/``.end`` ops only to the
+#: ``focus`` kind, never to ``presence`` — and conversely a focus-kind token
+#: cannot publish moments. One checkout therefore holds two leases, stored
+#: side by side under one entry (:func:`credentials.store_focus_capability`).
+KIND_FOCUS = "focus"
+
 #: One attempt per endpoint, bounded well under the seam's own 750 ms offer
 #: budget so a slow Team Kitty eats the budget instead of blowing it.
 DEFAULT_TIMEOUT_S = 2.0
@@ -577,3 +584,98 @@ def resolve_credentials(
         kind=kind,
         force=force,
     )
+
+
+def resolve_focus_capability(
+    cwd: str | Path,
+    *,
+    gateway: SaasCapabilityGateway | None = None,
+    force: bool = False,
+    auth_repo_root: str | Path | None = None,
+) -> str | None:
+    """The checkout's ``focus``-kind capability JWT, or ``None`` when focus
+    frames must stay silent (#186).
+
+    The companion to :func:`resolve_credentials` for the second lease a
+    wired client needs: zeitgeist grants the ``focus.*`` ops only to the
+    ``focus`` kind (:data:`KIND_FOCUS`), never to the presence kind that
+    carries ``event.publish``, so focus emission mints — and
+    :func:`credentials.store_focus_capability` stores, merged into the same
+    entry — its own capability. The relay bearer is shared, so this only
+    ever runs against an entry :func:`resolve_credentials` already created;
+    no entry means nothing to mint against and ``None`` back.
+
+    Deliberately narrower than :func:`resolve_credentials` in one respect:
+    failure here NEVER writes a negative answer. A focus denial (or Team
+    Kitty being down at focus-mint time) says nothing about admission —
+    caching it under the shared key would silence the moment stream too.
+    Every failure resolves to ``None`` plus a debug log, like everywhere
+    else in this package.
+
+    Args:
+        cwd: The checkout to resolve for (same derivation as
+            :func:`resolve_credentials`).
+        gateway: Override the real Team Kitty transport. Built from the
+            standard auth context when omitted.
+        force: Re-mint even over a stored, unexpired lease.
+        auth_repo_root: Where the fallback ``.kittify/saas-auth.json`` is
+            read from; defaults to ``cwd``.
+    """
+    cwd_str = str(cwd)
+    try:
+        origin = repo_identity.origin_url(cwd_str, repo_identity.Deadline())
+    except repo_identity.RepoIdentityError as exc:
+        logger.debug("zeitgeist focus capability: no canonical identity for %s (%s)", cwd_str, exc)
+        return None
+    slug, host = repo_slug_and_host(origin)
+    if slug is None:
+        logger.debug("zeitgeist focus capability: %s has no hosted remote to ask about", cwd_str)
+        return None
+
+    key = store_key(host=host, repo_slug=slug)
+    stored = credentials.load(repo=key)
+    if stored is None:
+        logger.debug("zeitgeist focus capability: no main credential under %s", key)
+        return None
+    if not _same_scope(stored, repo_slug=slug, host=host):
+        # Same defense in depth as the main resolution: an entry whose
+        # recorded scope disagrees with the identity it sits under is a
+        # cache miss (a hostile same-name writer's lease must not serve this
+        # checkout), and nothing here may mint on top of it.
+        logger.debug("zeitgeist focus capability: stored credential is out of scope for %s", key)
+        return None
+    if not force and stored.focus_capability_credential and not _expired(stored.focus_expires_at):
+        return stored.focus_capability_credential
+
+    resolved_gateway = gateway
+    if resolved_gateway is None:
+        try:
+            resolved_gateway = _default_gateway(Path(auth_repo_root) if auth_repo_root is not None else Path(cwd))
+        except SaasAuthError as exc:
+            logger.debug("zeitgeist focus capability: nothing configured to authenticate with (%s)", exc)
+            return None
+
+    # Ask the team the entry was admitted by (#10), mirroring the main
+    # mint's team agreement rule.
+    try:
+        minted = resolved_gateway.mint_capability(
+            repo_slug=slug,
+            kind=KIND_FOCUS,
+            team_slug=stored.team,
+        )
+    except CapabilityDenied as exc:
+        logger.debug("zeitgeist focus capability: mint denied (HTTP %s); moments unaffected", exc.status_code)
+        return None
+    except GatewayError as exc:
+        logger.debug("zeitgeist focus capability: mint unavailable (%s)", exc)
+        return None
+    if not minted.capability_credential:
+        logger.debug("zeitgeist focus capability: mint returned no capability credential")
+        return None
+
+    credentials.store_focus_capability(
+        repo=key,
+        capability_credential=minted.capability_credential,
+        expires_at=minted.expires_at,
+    )
+    return minted.capability_credential

@@ -355,11 +355,19 @@ class ZeitgeistClient:
     # -- current-focus lifecycle (opt-in) ------------------------------
 
     def _claim_args(self, **extra: Any) -> dict[str, Any]:
-        args: dict[str, Any] = {
-            "session_id": self._config.session_id,
-            "repo": self._config.repo,
-            "branch": self._config.branch,
-        }
+        args: dict[str, Any] = {"session_id": self._config.session_id}
+        # Claims ride only when git actually answered them (#186 wiring made
+        # this path live): managed_control.schema.json's FocusArgs and
+        # managed_presence.schema.json's PresencePublish both pattern
+        # repo/branch with a >=1-char head, so an EMPTY-string claim present
+        # as a key is a guaranteed 422 on every op -- not an omission. A
+        # detached HEAD (or a spent git budget) yields branch "" from
+        # repo_identity.branch_name; the honest wire shape for "no branch to
+        # claim" is the key's absence.
+        if self._config.repo:
+            args["repo"] = self._config.repo
+        if self._config.branch:
+            args["branch"] = self._config.branch
         args.update(extra)
         return args
 

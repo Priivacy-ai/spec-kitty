@@ -2,9 +2,11 @@
 
 Pins the three contracts the issue names:
 
-1. **Handler registered → one offer.** Registering the moment handlers puts
-   exactly one handler in each fan-out slot, and one status moment produces
-   exactly one ``event.publish`` offer carrying the volatile attrs.
+1. **Handler registered → one moment + its liveness frames.** Registering the
+   moment handlers puts exactly one handler in each fan-out slot, and one
+   status moment produces one ``event.publish`` offer carrying the volatile
+   attrs plus (#186) the presence/focus frames that give the relay's live
+   panel its liveness state.
 2. **No credentials → no network call.** An unresolvable credential ends the
    broadcast before any client exists, let alone a socket.
 3. **Budget exceeded → dropped and logged.** A ``dropped_budget`` outcome is
@@ -14,7 +16,8 @@ Plus the drop paths around them: unencodable payloads cost zero attempts, and
 non-volatile lifecycle types are skipped outright. All tests drive the seam
 through the same boundaries production does — the ``adapters.fire_*`` functions,
 E3's ``resolve_credentials``, and the typed ``ZeitgeistClient`` — with only the
-network itself faked.
+network itself faked (and checkout identity pinned so no test ever shells out
+to git).
 """
 
 from __future__ import annotations
@@ -74,16 +77,29 @@ def _credential() -> StoredCredential:
 
 @dataclass
 class OfferRecorder:
-    """Stands in for ``ZeitgeistClient``, recording offers instead of POSTing."""
+    """Stands in for ``ZeitgeistClient``, recording offers instead of POSTing.
+
+    ``install`` also pins ``ClientConfig.for_repository`` to a fixed identity,
+    so the #186 liveness frames exercise the same code path as production
+    (a config built from "git truth") without any test ever shelling out to
+    git or depending on the host checkout's branch.
+    """
 
     outcome: str = "sent"
     offers: list[tuple[str, dict[str, Any]]] = field(default_factory=list)
     configs: list[Any] = field(default_factory=list)
     clients_built: int = 0
 
-    def summaries(self) -> list[tuple[str, str]]:
-        """(op, kind) per offer — the whole "one offer, the right one" contract."""
-        return [(op, args["kind"]) for op, args in self.offers]
+    def summaries(self) -> list[tuple[str, str | None]]:
+        """(op, event-kind) per offer — the whole "the right frames" contract.
+
+        Only the moment and presence frames carry a ``kind``; focus args name
+        their ref instead, so they report ``None``.
+        """
+        return [(op, args.get("kind")) for op, args in self.offers]
+
+    def moment_offers(self) -> list[tuple[str, dict[str, Any]]]:
+        return [(op, args) for op, args in self.offers if op == "event.publish"]
 
     def install(self, monkeypatch: pytest.MonkeyPatch) -> OfferRecorder:
         recorder = self
@@ -92,6 +108,7 @@ class OfferRecorder:
             def __init__(self, config: Any) -> None:
                 recorder.clients_built += 1
                 recorder.configs.append(config)
+                self._config = config
 
             def offer(self, op: str, args: Any) -> Any:
                 recorder.offers.append((op, dict(args)))
@@ -101,7 +118,46 @@ class OfferRecorder:
                     elapsed_s=0.01,
                 )
 
+            def presence(self, activity: str, path: str | None = None) -> Any:
+                config = self._config
+                args: dict[str, Any] = {"session_id": config.session_id}
+                if config.repo:
+                    args["repo"] = config.repo
+                if config.branch:
+                    args["branch"] = config.branch
+                args["kind"] = activity
+                if path is not None:
+                    args["path"] = path
+                return self.offer("presence.publish", args)
+
+            def focus_start(self, mission_slug: str, wp_id: str | None = None) -> Any:
+                config = self._config
+                focus_ref = mission_slug if wp_id is None else f"{mission_slug}.{wp_id}"
+                return self.offer(
+                    "focus.start",
+                    {
+                        "session_id": config.session_id,
+                        **({"repo": config.repo} if config.repo else {}),
+                        **({"branch": config.branch} if config.branch else {}),
+                        "focus_ref": focus_ref,
+                        "ttl_s": transport_module.FOCUS_TTL_S,
+                    },
+                )
+
+        def fake_for_repository(cls: type, cwd: str, **kwargs: Any) -> Any:
+            return transport_module.ClientConfig(
+                relay_url=kwargs["relay_url"],
+                token=kwargs["token"],
+                harness=kwargs["harness"],
+                session_id=kwargs["session_id"],
+                agent_id=kwargs.get("agent_id"),
+                repo="demo-repo",
+                branch="main",
+                capability_credential=kwargs.get("capability_credential"),
+            )
+
         monkeypatch.setattr(transport_module, "ZeitgeistClient", FakeZeitgeistClient)
+        monkeypatch.setattr(transport_module.ClientConfig, "for_repository", classmethod(fake_for_repository))
         return recorder
 
 
@@ -115,6 +171,32 @@ def resolved_credential(monkeypatch: pytest.MonkeyPatch) -> list[Path]:
         return _credential()
 
     monkeypatch.setattr(resolution_module, "resolve_credentials", fake_resolve)
+    return seen
+
+
+@pytest.fixture(autouse=True)
+def no_focus_capability(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Default every test to "no focus-kind lease available".
+
+    Focus emission is opt-in per test via :func:`focus_capability`: the
+    default here keeps each test's expected frame sequence to moment +
+    presence and guarantees no test ever touches the real resolution path
+    (which would read the ambient credential store).
+    """
+    monkeypatch.setattr(resolution_module, "resolve_focus_capability", lambda *a, **k: None)
+
+
+@pytest.fixture
+def focus_capability(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Resolve every focus-capability request to a minted ``focus`` JWT,
+    recording the cwd each request came from."""
+    seen: list[str] = []
+
+    def fake_resolve(cwd: Path, **kwargs: Any) -> str | None:
+        seen.append(str(cwd))
+        return "focus-jwt"
+
+    monkeypatch.setattr(resolution_module, "resolve_focus_capability", fake_resolve)
     return seen
 
 
@@ -165,15 +247,38 @@ def _assert_event_args(args: dict[str, Any]) -> None:
         assert len(value.encode()) <= 240, key
 
 
-def test_wire_envelope_satisfies_the_relay_schema(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
-    """Drive the REAL ZeitgeistClient with a stubbed HTTP layer and validate the
-    outgoing envelope against the relay's own EventArgs contract.
+def _pin_checkout_identity(monkeypatch: pytest.MonkeyPatch, *, capability: str) -> None:
+    """Pin ``for_repository`` so the real-client wire test never shells to git."""
+
+    def fake_for_repository(cls: type, cwd: str, **kwargs: Any) -> Any:
+        return transport_module.ClientConfig(
+            relay_url=kwargs["relay_url"],
+            token=kwargs["token"],
+            harness=kwargs["harness"],
+            session_id=kwargs["session_id"],
+            agent_id=kwargs.get("agent_id"),
+            repo="demo-repo",
+            branch="main",
+            capability_credential=capability,
+        )
+
+    monkeypatch.setattr(transport_module.ClientConfig, "for_repository", classmethod(fake_for_repository))
+
+
+def test_wire_envelopes_satisfy_the_relay_schema(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    focus_capability: list[str],
+) -> None:
+    """Drive the REAL ZeitgeistClient with a stubbed HTTP layer and validate every
+    outgoing envelope — moment, presence, focus — against the relay's own
+    schema contracts.
 
     The faked-client tests above prove orchestration; this one proves the wire.
     It fails if offer_args ever omits session_id again (the relay answers 422 to
-    an envelope missing it — every moment silently rejected).
+    an envelope missing it — every frame silently rejected).
     """
-    captured: dict[str, Any] = {}
+    captured: list[Any] = []
 
     class _FakeResponse:
         status = 202
@@ -188,25 +293,51 @@ def test_wire_envelope_satisfies_the_relay_schema(monkeypatch: pytest.MonkeyPatc
             return b"{}"
 
     def fake_open_bounded(req: Any, timeout: float) -> _FakeResponse:
-        captured["request"] = req
+        captured.append(req)
         return _FakeResponse()
 
     monkeypatch.setattr(transport_module.budget, "open_bounded", fake_open_bounded)
+    _pin_checkout_identity(monkeypatch, capability="capability-jwt")
 
     _fire_transition()
 
-    req = captured["request"]
-    body = json.loads(req.data.decode())
-    assert body["op"] == "event.publish"
+    # One transition → three envelopes: the moment first, then liveness.
+    assert [json.loads(req.data.decode())["op"] for req in captured] == [
+        "event.publish",
+        "presence.publish",
+        "focus.start",
+    ]
+
+    moment_req = captured[0]
+    body = json.loads(moment_req.data.decode())
     assert body["schema_version"] == "1.0.0"
     _assert_event_args(body["args"])
     args = body["args"]
     assert args["kind"] == "WPStatusChanged"
     assert args["ref"] == "demo-mission"
     assert args["attrs"]["wp_id"] == "WP01"
-    # Both credential gates get their own header, per FIX-M2-15 precedence.
-    assert req.get_header("Authorization") == "Bearer relay-token"
-    assert req.get_header("X-zeitgeist-capability") == "capability-jwt"
+    assert moment_req.get_header("Authorization") == "Bearer relay-token"
+    assert moment_req.get_header("X-zeitgeist-capability") == "capability-jwt"
+
+    # PresencePublish (managed_presence.schema.json): session_id required,
+    # additionalProperties false, kind in its closed enum. The presence frame
+    # rides the stored presence-kind credential, same as the moment.
+    presence_args = json.loads(captured[1].data.decode())["args"]
+    assert set(presence_args) <= {"session_id", "repo", "branch", "kind", "path", "host", "harness", "agent_id", "ts"}
+    assert presence_args["kind"] == "command"
+    assert presence_args["repo"] == "demo-repo"
+    assert presence_args["branch"] == "main"
+
+    # FocusArgs (managed_control.schema.json): required [session_id, repo,
+    # focus_ref, ttl_s], ident-grammar ref, ttl within the ≤90s bound — and
+    # the FOCUS lease on the capability gate, not the presence one.
+    focus_body = json.loads(captured[2].data.decode())
+    focus_args = focus_body["args"]
+    assert set(focus_args) == {"session_id", "repo", "branch", "focus_ref", "ttl_s"}
+    assert focus_args["focus_ref"] == "demo-mission.WP01"
+    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}", focus_args["focus_ref"])
+    assert focus_args["ttl_s"] == 90
+    assert captured[2].get_header("X-zeitgeist-capability") == "focus-jwt"
 
 
 def test_import_tail_honours_the_minimal_import_gate() -> None:
@@ -237,8 +368,11 @@ def test_review_only_done_transition_still_broadcasts(monkeypatch: pytest.Monkey
         metadata=_transition_metadata(evidence={"review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"}}),
     )
 
-    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
+    # The review-only done transition still broadcasts its moment (plus the
+    # #186 presence frame; focus stays off via the autouse fixture).
+    assert [op for op, _args in recorder.moment_offers()] == ["event.publish"]
     _op, args = recorder.offers[0]
+    assert args["kind"] == "WPStatusChanged"
     assert args["attrs"]["to_lane"] == "done"
     assert "evidence" not in args["attrs"]  # unbroadcast, whatever its shape
 
@@ -274,14 +408,19 @@ def _fire_transition(**overrides: Any) -> None:
     adapters.fire_saas_fanout(**kwargs)
 
 
-def test_one_offer_per_registered_transition(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+def test_transition_broadcasts_one_moment_plus_its_liveness_frames(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
     recorder = OfferRecorder().install(monkeypatch)
 
     _fire_transition()
 
-    # Exactly one offer, and it is the right one: op + kind named, not counted.
-    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
-    _op, args = recorder.offers[0]
+    # One moment, then its liveness frames (#186): presence always, focus for
+    # a WP-carrying broadcast — but only when the focus lease resolves (the
+    # autouse fixture keeps it off here).
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.moment_offers()[0]
     assert args["ref"] == "demo-mission"
     attrs = args["attrs"]
     assert attrs["event_id"] == _EVENT_ID
@@ -314,8 +453,8 @@ def test_forced_rollback_transition_broadcasts_force_true(monkeypatch: pytest.Mo
         metadata=_transition_metadata(force=True, reason="found a defect after approval"),
     )
 
-    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
-    _op, args = recorder.offers[0]
+    _op, args = recorder.moment_offers()[0]
+    assert args["kind"] == "WPStatusChanged"
     assert args["attrs"]["force"] == "true"
     assert "reason" not in args["attrs"]
 
@@ -343,8 +482,9 @@ def test_reason_and_evidence_never_reach_the_wire(monkeypatch: pytest.MonkeyPatc
         ),
     )
 
-    assert [op for op, _args in recorder.offers] == ["event.publish", "event.publish"]
-    for _op, args in recorder.offers:
+    moments = recorder.moment_offers()
+    assert [op for op, _args in moments] == ["event.publish", "event.publish"]
+    for _op, args in moments:
         leaked = sorted(key for key in args["attrs"] if key.split(".")[0] in {"reason", "evidence"})
         assert leaked == []
 
@@ -451,6 +591,182 @@ def test_resolved_binding_slot_is_wired_but_broadcasts_nothing_yet(monkeypatch: 
 
 
 # ---------------------------------------------------------------------------
+# Liveness frames (#186): presence beside every moment, focus beside a WP
+# ---------------------------------------------------------------------------
+
+
+def test_focus_frame_names_mission_dot_wp_when_the_lease_resolves(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    focus_capability: list[str],
+) -> None:
+    """E2E-MVP 1.2: a WP transition puts ``<mission>.<WP>`` on the live panel.
+
+    The focus frame is a separate offer on a separate lease: zeitgeist grants
+    the focus.* ops only to the ``focus`` credential kind, so its client
+    config must carry the focus JWT on the capability gate while the moment
+    and presence frames ride the stored presence-kind one.
+    """
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition()
+
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+        ("focus.start", None),
+    ]
+    _op, args = recorder.offers[2]
+    assert args["focus_ref"] == "demo-mission.WP01"
+    assert args["ttl_s"] == transport_module.FOCUS_TTL_S
+    assert focus_capability == [str(Path.cwd())]
+    # Lease split across the two capability gates.
+    assert [config.capability_credential for config in recorder.configs] == [
+        "capability-jwt",
+        "capability-jwt",
+        "focus-jwt",
+    ]
+
+
+def test_presence_rides_the_stored_presence_kind_lease(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+) -> None:
+    """``presence.publish`` needs no second mint: the presence kind grants it
+    alongside ``event.publish``, so the presence frame reuses the stored
+    credential exactly as the moment did."""
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition()
+
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.offers[1]
+    assert args["kind"] == "command"
+    assert args["repo"] == "demo-repo"
+    assert args["branch"] == "main"
+    assert recorder.configs[0].capability_credential == recorder.configs[1].capability_credential == "capability-jwt"
+
+
+def test_unresolvable_focus_lease_skips_only_focus(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A missing/denied focus mint costs the focus frame alone — never the
+    moment, never presence, and never a raised error into the fan-out."""
+    recorder = OfferRecorder().install(monkeypatch)
+    caplog.set_level(logging.DEBUG, logger=bridge.__name__)
+
+    _fire_transition()
+
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
+    assert "no focus-kind capability" in caplog.text
+
+
+def test_overlong_focus_ref_is_filtered_before_any_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """managed_control.schema.json caps focus_ref at 64 ident chars; a longer
+    ``<mission>.<WP>`` is a guaranteed 422, so it is filtered locally — the
+    resolver is never even asked, let alone the relay."""
+    recorder = OfferRecorder().install(monkeypatch)
+
+    def must_not_be_asked(cwd: Any, **kwargs: Any) -> str | None:
+        raise AssertionError("focus resolver consulted for a ref that cannot go out")
+
+    monkeypatch.setattr(resolution_module, "resolve_focus_capability", must_not_be_asked)
+    caplog.set_level(logging.DEBUG, logger=bridge.__name__)
+
+    _fire_transition(mission_slug="m" * 70)
+
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
+    assert "does not fit the relay's focus_ref grammar" in caplog.text
+
+
+def test_unidentifiable_checkout_drops_liveness_but_not_the_moment(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+) -> None:
+    """Presence/focus are bound to git truth (Z6-C); where git cannot answer,
+    liveness goes silent while the moment still goes out."""
+    from specify_cli.zeitgeist_client import repo_identity
+
+    def raising_for_repository(cls: type, cwd: str, **kwargs: Any) -> Any:
+        raise repo_identity.RepoIdentityError("no canonical identity")
+
+    recorder = OfferRecorder().install(monkeypatch)
+    monkeypatch.setattr(transport_module.ClientConfig, "for_repository", classmethod(raising_for_repository))
+
+    _fire_transition()
+
+    assert recorder.moment_offers() != []
+    assert [op for op, _args in recorder.offers if op != "event.publish"] == []
+
+
+def test_liveness_failure_never_raises_into_the_fanout(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """The fan-out slot stays non-raising whatever liveness does — canonical
+    persistence and the moment broadcast are unaffected."""
+
+    def exploding_identity(cls: type, cwd: str, **kwargs: Any) -> Any:
+        raise RuntimeError("boom")
+
+    recorder = OfferRecorder().install(monkeypatch)
+    monkeypatch.setattr(transport_module.ClientConfig, "for_repository", classmethod(exploding_identity))
+    caplog.set_level(logging.WARNING, logger=bridge.__name__)
+
+    _fire_transition()  # must not raise
+
+    assert recorder.moment_offers() != []
+    assert "presence/focus refresh failed" in caplog.text
+
+
+def test_mission_creation_publishes_no_focus_even_with_a_lease(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+    focus_capability: list[str],
+) -> None:
+    """Mission creation refreshes presence only: there is no WP to name, so
+    no focus frame exists even when a focus lease is in hand."""
+    recorder = OfferRecorder().install(monkeypatch)
+    feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+
+    emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id=_EVENT_ID,
+        mission_number=1,
+        mission_type="software-dev",
+        target_branch="main",
+        wp_count=2,
+        friendly_name="Demo",
+        purpose_tldr="tldr",
+        purpose_context="context",
+    )
+
+    assert recorder.summaries() == [
+        ("event.publish", "MissionCreated"),
+        ("presence.publish", "command"),
+    ]
+    assert focus_capability == []  # never consulted without a WP
+
+
+# ---------------------------------------------------------------------------
 # Budget / rejection outcomes: one attempt per moment, logged, no retry
 # ---------------------------------------------------------------------------
 
@@ -471,11 +787,19 @@ def test_non_sent_outcome_is_dropped_and_logged_once(
     _fire_transition()
     _fire_transition()
 
-    # One attempt per moment, neither retried nor queued; every drop names the
+    # One attempt per frame, neither retried nor queued; every drop names the
     # outcome and the no-retry contract, content-exact.
-    assert recorder.summaries() == [("event.publish", "WPStatusChanged")] * 2
-    expected_drop = f"Zeitgeist moment WPStatusChanged dropped ({outcome}) after 10 ms; no retry by design"
-    assert [m for m in caplog.messages if "dropped" in m] == [expected_drop, expected_drop]
+    assert (
+        recorder.summaries()
+        == [
+            ("event.publish", "WPStatusChanged"),
+            ("presence.publish", "command"),
+        ]
+        * 2
+    )
+    moment_drop = f"Zeitgeist moment WPStatusChanged dropped ({outcome}) after 10 ms; no retry by design"
+    presence_drop = f"Zeitgeist presence dropped ({outcome}) after 10 ms; no retry by design"
+    assert [m for m in caplog.messages if "dropped" in m] == [moment_drop, presence_drop] * 2
 
 
 def test_budget_drop_does_not_block_canonical_persistence(
@@ -500,7 +824,10 @@ def test_budget_drop_does_not_block_canonical_persistence(
     )
 
     assert event.to_lane is Lane.CLAIMED
-    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -548,8 +875,11 @@ def test_lane_transition_via_emit_status_transition_offers_once(
         )
     )
 
-    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
-    _op, args = recorder.offers[0]
+    assert recorder.summaries() == [
+        ("event.publish", "WPStatusChanged"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.moment_offers()[0]
     assert args["attrs"]["actor"] == "robert"
 
 
@@ -574,8 +904,11 @@ def test_mission_creation_via_local_emitter_offers_once(
         purpose_context="context",
     )
 
-    assert recorder.summaries() == [("event.publish", "MissionCreated")]
-    _op, args = recorder.offers[0]
+    assert recorder.summaries() == [
+        ("event.publish", "MissionCreated"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.moment_offers()[0]
     assert args["ref"] == "demo-mission"
     assert "friendly_name" not in args["attrs"]  # prose stays local
     assert args["attrs"]["mission_type"] == "software-dev"
@@ -608,8 +941,13 @@ def test_mission_created_moment_carries_the_payload_actor(
         actor="robert@example.com",
     )
 
-    assert recorder.summaries() == [("event.publish", "MissionCreated")]
-    _op, args = recorder.offers[0]
+    # Mission creation carries presence (E2E-MVP 1.1: "presence shows you on
+    # EXPERIMENTAL-demo-repo") but no focus — there is no WP to name.
+    assert recorder.summaries() == [
+        ("event.publish", "MissionCreated"),
+        ("presence.publish", "command"),
+    ]
+    _op, args = recorder.moment_offers()[0]
     assert args["attrs"]["actor"] == "robert@example.com"
 
 
