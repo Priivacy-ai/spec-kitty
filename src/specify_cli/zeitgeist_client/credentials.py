@@ -75,6 +75,13 @@ before this fix, same as ``expires_at``. And since spec-kitty#129,
 ``resolution.resolve_credentials`` derives its key from that same pair
 (:func:`resolution.store_key`, ``host/owner/repo``) instead of the bare
 name, so same-named repos no longer share an entry at all.
+
+EXPERIMENTAL-spec-kitty#10 adds one last optional aspect, ``team`` — the
+slug of the team whose admission pre-flight answered "admitted" just before
+this capability was minted (``resolution._resolve`` has it in hand and
+would otherwise drop it). ``spec-kitty routes`` displays it; nothing else
+reads it. Like every aspect above it round-trips as ``None`` for entries
+stored before it existed (a manual checkout never learns a team).
 """
 
 from __future__ import annotations
@@ -129,6 +136,11 @@ class StoredCredential:
     # backward-compatible reading `expires_at` already gets.
     host: str | None = None
     repo_slug: str | None = None
+    # #10: the admitting team's slug, recorded verbatim from the admission
+    # pre-flight that preceded this mint. `None` for every entry stored
+    # before this field existed, and for a manual checkout (no admission
+    # was ever asked).
+    team: str | None = None
 
 
 @dataclass(frozen=True)
@@ -207,6 +219,7 @@ def store(
     expires_at: str | None = None,
     host: str | None = None,
     repo_slug: str | None = None,
+    team: str | None = None,
 ) -> None:
     if not repo:
         raise ValueError("repo must be non-empty")
@@ -222,6 +235,8 @@ def store(
         raise ValueError("host must be non-empty when provided")
     if repo_slug is not None and not repo_slug:
         raise ValueError("repo_slug must be non-empty when provided")
+    if team is not None and not team:
+        raise ValueError("team must be non-empty when provided")
     lock = _locked()
     with lock:
         data = _read_all()
@@ -242,6 +257,8 @@ def store(
             entry["host"] = host
         if repo_slug is not None:
             entry["repo_slug"] = repo_slug
+        if team is not None:
+            entry["team"] = team
         data[repo] = entry
         _write_all(data)
 
@@ -293,6 +310,7 @@ def load(*, repo: str) -> StoredCredential | None:
             expires_at=entry.get("expires_at"),
             host=entry.get("host"),
             repo_slug=entry.get("repo_slug"),
+            team=entry.get("team"),
         )
     except KeyError:
         return None

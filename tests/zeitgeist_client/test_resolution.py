@@ -777,3 +777,23 @@ class TestDefaultGatewayConstruction:
         monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
         assert resolution.resolve_credentials(clone, auth_repo_root=clone) is None
         assert credentials.load(repo="github.com/acme/widget") is None
+
+
+# --- #10: the admitting team is recorded with the mint ----------------------
+
+
+class TestMintRecordsAdmittingTeam:
+    def test_fresh_mint_stores_the_admission_answered_team_slug(self, state_root: Path) -> None:
+        """The pre-flight is the one place the admitting team's slug is ever
+        in hand; dropping it would leave `spec-kitty routes` nothing to name."""
+        gateway = ScriptedGateway(admission={"admitted": True, "team_slug": "demo"})
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.team == "demo"
+        assert credentials.load(repo=KEY) == stored
+
+    def test_admission_without_a_team_slug_stores_team_none(self, state_root: Path) -> None:
+        gateway = ScriptedGateway(admission={"admitted": True})
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.team is None
