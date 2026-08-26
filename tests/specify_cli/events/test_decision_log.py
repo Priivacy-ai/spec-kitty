@@ -6,7 +6,6 @@ Covers:
   - Orphaned request: file written, no commit triggered
   - safe_commit() failure does not abort mission execution
   - No PII fields written to decisions.events.jsonl
-  - DecisionInputRequested/Answered excluded from OfflineQueue
   - Delegation of all other emit methods to inner emitter
 """
 
@@ -295,52 +294,6 @@ class TestSafeCommitFailureSwallowed:
         lines = _read_lines(_decisions_file(tmp_path))
         assert len(lines) == 1
         assert lines[0]["event_type"] == "DecisionInputAnswered"
-
-
-# ---------------------------------------------------------------------------
-# T011-F: Queue exclusion — DecisionInput events don't reach OfflineQueue
-# ---------------------------------------------------------------------------
-
-class TestQueueExclusion:
-    def test_decision_input_requested_excluded_from_queue(self) -> None:
-        from specify_cli.sync.queue import OfflineQueue
-
-        q = OfflineQueue.__new__(OfflineQueue)
-        result = q.queue_event(
-            # canonical-producer-exempt: #1198 -- queue exclusion guard needs a minimal raw event envelope.
-            {
-                "event_id": "e001",
-                "event_type": "DecisionInputRequested",
-                "payload": {},
-            }
-        )
-        # Should return True (skipped) without inserting into SQLite
-        assert result is True
-
-    def test_decision_input_answered_excluded_from_queue(self) -> None:
-        from specify_cli.sync.queue import OfflineQueue
-
-        q = OfflineQueue.__new__(OfflineQueue)
-        result = q.queue_event(
-            # canonical-producer-exempt: #1198 -- queue exclusion guard needs a minimal raw event envelope.
-            {
-                "event_id": "e002",
-                "event_type": "DecisionInputAnswered",
-                "payload": {},
-            }
-        )
-        assert result is True
-
-    def test_other_event_types_not_excluded(self, tmp_path: Path) -> None:
-        """Non-decision events should NOT be short-circuited."""
-        from specify_cli.sync.queue import OfflineQueue
-
-        # We only test that the guard does NOT fire; we don't run the SQLite
-        # insert (which requires a real DB).  We verify by patching _try_coalesce
-        # and _ensure_row_count to avoid touching the DB.
-        q = OfflineQueue.__new__(OfflineQueue)
-        assert hasattr(q, "_QUEUE_EXCLUDED_EVENT_TYPES")
-        assert "NextStepIssued" not in q._QUEUE_EXCLUDED_EVENT_TYPES
 
 
 # ---------------------------------------------------------------------------

@@ -97,24 +97,20 @@ def test_start_dashboard_foreground_reports_os_assigned_port(monkeypatch, tmp_pa
     assert served.get("called")
 
 
-def test_run_dashboard_server_never_touches_the_sync_daemon(monkeypatch, tmp_path):
-    """The dashboard serves local state only — it must not start or probe any daemon.
+def test_run_dashboard_server_serves_loopback_only(monkeypatch, tmp_path):
+    """The dashboard serves local state only, via the loopback server.
 
-    Guards the E4 re-homing (planning epic #4): run_dashboard_server used to
-    call ensure_sync_daemon_running(LOCAL_ONLY) on boot.
+    Formerly also guarded against probing the sync daemon on boot
+    (planning epic #4); that daemon and its module died with the sync
+    transport (issue #5), so there is nothing left to probe.
     """
     calls = {}
-
-    def boom(*args, **kwargs):
-        raise AssertionError("dashboard boot must not touch the sync daemon")
 
     def fake_serve_loopback_server(port, handler_class, **_kwargs):
         calls["served_port"] = port
         calls["handler_class"] = handler_class
 
     monkeypatch.setattr(server, "serve_loopback_server", fake_serve_loopback_server)
-    monkeypatch.setattr("specify_cli.sync.daemon.ensure_sync_daemon_running", boom)
-    monkeypatch.setattr("specify_cli.sync.daemon.get_sync_daemon_status", boom)
 
     server.run_dashboard_server(tmp_path, 12347, None)
 

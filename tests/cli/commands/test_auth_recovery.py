@@ -45,64 +45,6 @@ class TestDetector:
         )
         assert detect_logged_out_with_connected_teamspace() is None
 
-    def test_routing_repo_slug_wins(self, monkeypatch):
-        tm = MagicMock()
-        tm.is_authenticated = False
-        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
-        routing = SimpleNamespace(repo_slug="acme-eng", project_slug="acme")
-        monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
-            lambda start=None: routing,
-        )
-        assert detect_logged_out_with_connected_teamspace() == "acme-eng"
-
-    def test_routing_falls_back_to_project_slug(self, monkeypatch):
-        tm = MagicMock()
-        tm.is_authenticated = False
-        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
-        routing = SimpleNamespace(repo_slug=None, project_slug="acme")
-        monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
-            lambda start=None: routing,
-        )
-        assert detect_logged_out_with_connected_teamspace() == "acme"
-
-    def test_repo_root_is_forwarded_to_routing_resolution(self, monkeypatch, tmp_path):
-        tm = MagicMock()
-        tm.is_authenticated = False
-        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
-        seen: list[object] = []
-
-        def fake_resolve_checkout_sync_routing_readonly(*, start=None):
-            seen.append(start)
-            return SimpleNamespace(repo_slug="acme-eng", project_slug=None)
-
-        monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
-            fake_resolve_checkout_sync_routing_readonly,
-        )
-
-        assert detect_logged_out_with_connected_teamspace(tmp_path) == "acme-eng"
-        assert seen == [tmp_path]
-
-    def test_default_path_still_resolves_with_none_start(self, monkeypatch):
-        tm = MagicMock()
-        tm.is_authenticated = False
-        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
-        seen: list[object] = []
-
-        def fake_resolve_checkout_sync_routing_readonly(*, start=None):
-            seen.append(start)
-            return SimpleNamespace(repo_slug="acme-eng", project_slug=None)
-
-        monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
-            fake_resolve_checkout_sync_routing_readonly,
-        )
-
-        assert detect_logged_out_with_connected_teamspace() == "acme-eng"
-        assert seen == [None]
-
     def test_falls_back_to_stored_private_team_name(self, monkeypatch):
         team = SimpleNamespace(name="Engineering", is_private_teamspace=True)
         session = SimpleNamespace(teams=[team])
@@ -110,10 +52,6 @@ class TestDetector:
         tm.is_authenticated = False
         tm.get_current_session.return_value = session
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
-        monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
-            lambda start=None: None,
-        )
         assert detect_logged_out_with_connected_teamspace() == "Engineering"
 
     def test_nothing_known_returns_none(self, monkeypatch):
@@ -121,22 +59,6 @@ class TestDetector:
         tm.is_authenticated = False
         tm.get_current_session.return_value = None
         monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
-        monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
-            lambda start=None: None,
-        )
-        assert detect_logged_out_with_connected_teamspace() is None
-
-    def test_routing_slug_whitespace_only_is_ignored(self, monkeypatch):
-        tm = MagicMock()
-        tm.is_authenticated = False
-        tm.get_current_session.return_value = None
-        monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: tm)
-        routing = SimpleNamespace(repo_slug="   ", project_slug="")
-        monkeypatch.setattr(
-            "specify_cli.sync.routing.resolve_checkout_sync_routing_readonly",
-            lambda start=None: routing,
-        )
         assert detect_logged_out_with_connected_teamspace() is None
 
 

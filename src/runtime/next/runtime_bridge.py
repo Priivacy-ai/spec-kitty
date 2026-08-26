@@ -187,7 +187,7 @@ from runtime.next.decision import (
     _find_first_wp_by_lane,
     _state_to_action,
 )
-from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
+from runtime.next.event_emitter import RuntimeEventEmitter
 from mission_runtime import routes_through_coordination
 
 logger = logging.getLogger(__name__)
@@ -288,7 +288,7 @@ def _mission_routes_through_coordination(
 
 
 def _wrap_with_decision_git_log(
-    emitter: SyncRuntimeEventEmitter,
+    emitter: RuntimeEventEmitter,
     mission_slug: str,
     repo_root: Path,
     *,
@@ -1155,7 +1155,7 @@ def _advance_run_state_after_composition(
     timestamp: str,
     progress: dict[str, int | float] | None,
     origin: dict[str, Any],
-    sync_emitter: SyncRuntimeEventEmitter,
+    sync_emitter: RuntimeEventEmitter,
 ) -> Decision:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_engine.advance_run_state_after_composition`. See the
@@ -1397,7 +1397,7 @@ class DecideNextContext:
     feature_dir: Path
     now: str
     mission_type: str
-    sync_emitter: SyncRuntimeEventEmitter
+    sync_emitter: RuntimeEventEmitter
     emitter_for_engine: Any
     origin: dict[str, Any]
     progress: dict[str, int | float] | None
@@ -1475,7 +1475,7 @@ def _dn_bootstrap(
         if primary_metadata_dir is None
         else primary_metadata_dir
     )
-    sync_emitter = SyncRuntimeEventEmitter.for_feature(
+    sync_emitter = RuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,
@@ -2521,7 +2521,7 @@ def answer_decision_via_runtime(
         )
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
-    sync_emitter = SyncRuntimeEventEmitter.for_feature(
+    sync_emitter = RuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
         mission_type=mission_type,

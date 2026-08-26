@@ -130,7 +130,7 @@ def __getattr__(name: str) -> object:
     """PEP 562 lazy module attribute: resolve ``ACTIVATION_KEYS`` on access.
 
     Mirrors the codebase's established lazy-module-attribute idiom (e.g.
-    ``specify_cli.sync.__getattr__``) so ``from ...m_unify_charter_activation_finalize
+    a PEP 562 lazy module attribute) so ``from ...m_unify_charter_activation_finalize
     import ACTIVATION_KEYS`` and ``module.ACTIVATION_KEYS`` both keep working
     for existing callers/tests without a module-level import that would
     reintroduce the heavy-import cost :func:`_activation_keys` avoids.

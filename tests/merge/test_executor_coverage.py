@@ -73,50 +73,6 @@ def _make_run(
     return run
 
 
-# --- _emit_merge_diff_summary ----------------------------------------------
-
-
-def test_emit_diff_summary_returns_early_when_git_fails(tmp_path: Path) -> None:
-    with (
-        patch.object(ex, "run_command", return_value=(1, "", "err")),
-        patch.object(ex, "emit_diff_summary_recorded") as emit_mock,
-    ):
-        ex._emit_merge_diff_summary(
-            repo_root=tmp_path, mission_id="01ID", base_ref="abc"
-        )
-    emit_mock.assert_not_called()
-
-
-def test_emit_diff_summary_skips_when_zero_changes(tmp_path: Path) -> None:
-    # numstat with malformed/short lines only -> files_changed stays 0 -> no emit.
-    with (
-        patch.object(ex, "run_command", return_value=(0, "badline\n\n", "")),
-        patch.object(ex, "emit_diff_summary_recorded") as emit_mock,
-    ):
-        ex._emit_merge_diff_summary(
-            repo_root=tmp_path, mission_id="01ID", base_ref="abc"
-        )
-    emit_mock.assert_not_called()
-
-
-def test_emit_diff_summary_emits_parsed_numstat(tmp_path: Path) -> None:
-    numstat = "10\t2\tsrc/a.py\n-\t-\tbin\n5\t0\tsrc/b.py\n"
-    with (
-        patch.object(ex, "run_command", return_value=(0, numstat, "")),
-        patch.object(ex, "emit_diff_summary_recorded") as emit_mock,
-    ):
-        ex._emit_merge_diff_summary(
-            repo_root=tmp_path, mission_id="01ID", base_ref="abc"
-        )
-    emit_mock.assert_called_once()
-    kwargs = emit_mock.call_args.kwargs
-    # Three numstat rows -> 3 files; binary "-" rows are counted as files but
-    # contribute no line totals.
-    assert kwargs["files_changed"] == 3
-    assert kwargs["lines_added"] == 15
-    assert kwargs["lines_deleted"] == 2
-
-
 # --- _phase_gates_and_state -------------------------------------------------
 
 
@@ -590,10 +546,7 @@ def test_phase_commit_recovered_safe_commit_does_not_restore(tmp_path: Path) -> 
 
 def test_phase_dossier_and_stale_swallows_stale_failure(tmp_path: Path) -> None:
     run = _make_run(tmp_path)
-    with (
-        patch.object(ex, "trigger_feature_dossier_sync_if_enabled"),
-        patch.object(ex, "run_check", side_effect=RuntimeError("scan crashed")),
-    ):
+    with patch.object(ex, "run_check", side_effect=RuntimeError("scan crashed")):
         ex._phase_dossier_and_stale(run)
     assert run.stale_report is None
 
@@ -604,10 +557,7 @@ def test_phase_dossier_and_stale_records_report(tmp_path: Path) -> None:
         base_ref="a", head_ref="HEAD", repo_root=tmp_path, findings=[],
         elapsed_seconds=0.1, files_scanned=1, findings_per_100_loc=0.0,
     )
-    with (
-        patch.object(ex, "trigger_feature_dossier_sync_if_enabled"),
-        patch.object(ex, "run_check", return_value=report),
-    ):
+    with patch.object(ex, "run_check", return_value=report):
         ex._phase_dossier_and_stale(run)
     assert run.stale_report is report
 
@@ -741,14 +691,10 @@ def test_phase_finalize_and_summary_runs_all_steps(tmp_path: Path) -> None:
     with (
         patch.object(ex, "cleanup_merge_workspace") as cleanup_mock,
         patch.object(ex, "clear_state") as clear_mock,
-        patch.object(ex, "_emit_merge_diff_summary") as diff_mock,
-        patch.object(ex, "emit_mission_closed") as closed_mock,
     ):
         ex._phase_finalize_and_summary(run)
     cleanup_mock.assert_called_once()
     clear_mock.assert_called_once()
-    diff_mock.assert_called_once()
-    closed_mock.assert_called_once()
 
 
 # --- _render_stale_findings -------------------------------------------------

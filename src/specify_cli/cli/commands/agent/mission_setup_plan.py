@@ -30,7 +30,6 @@ from __future__ import annotations
 import contextlib
 from dataclasses import dataclass
 import logging
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -254,26 +253,6 @@ def _commit_to_branch(
 # ---------------------------------------------------------------------------
 # setup-plan phase helpers (WP06 / T022)
 # ---------------------------------------------------------------------------
-
-
-def _enforce_saas_sync_boundary_preflight(repo_root: Path) -> None:
-    """FR-002 / FR-009 read-only boundary preflight (WP04).
-
-    Guarded by ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` and run AFTER project-root
-    resolution and the FR-011 auth refusal (:func:`_enforce_saas_sync_auth_refusal`).
-    Exits 2 on any structural incoherence (owner mismatch, orphan record, legacy
-    rows in scope, missing hosted auth). No-op when SaaS sync is disabled.
-    """
-    if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
-        return
-
-    from specify_cli.sync.preflight import run_preflight
-
-    _boundary_result = run_preflight(repo_root=repo_root, require_auth=True)
-    if not _boundary_result.ok:
-        console.print(f"[red]Refusing `{SETUP_PLAN_COMMAND_NAME}`.[/red]")
-        _boundary_result.render(console)
-        raise typer.Exit(code=2)
 
 
 def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, json_output: bool) -> Path:
@@ -765,14 +744,6 @@ def _run_documentation_wiring(
     return gap_analysis_path, generators_detected
 
 
-def _trigger_dossier_sync(feature_dir: Path, mission_slug: str, repo_root: Path) -> None:
-    """Fire-and-forget dossier sync."""
-    with contextlib.suppress(Exception):
-        from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
-
-        trigger_feature_dossier_sync_if_enabled(feature_dir, mission_slug, repo_root)
-
-
 def _emit_setup_plan_result(
     *,
     plan_file: Path,
@@ -844,61 +815,9 @@ def setup_plan(
         spec-kitty agent mission setup-plan --mission 020-my-feature --json
 
     ------------------------------------------------------------------
-    WP04 / FR-011 + FR-012 audit (2026-05-17)
-    ------------------------------------------------------------------
-    This command's full call graph was audited to confirm every body
-    upload / queue write goes through ``default_queue_db_path()`` and
-    that no setup-plan path opens the legacy home-scoped queue database
-    directly. The audit covered:
-
-      * ``trigger_feature_dossier_sync_if_enabled()`` (this function
-        constructs ``OfflineBodyUploadQueue()`` which delegates to
-        ``default_queue_db_path()`` — FR-012 lock).
-      * ``OfflineBodyUploadQueue.__init__`` (``sync.body_queue``) —
-        falls back to ``default_queue_db_path()`` when ``db_path`` is
-        ``None``.
-      * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /
-        ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local
-        lifecycle JSONL only, no queue DB.
-      * ``commit_for_mission()`` / underlying safe-commit — local git only, no queue DB.
-
-    No direct ``_legacy_queue_db_path()`` call sites exist in the
-    setup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly
-    guard (now in :func:`_enforce_saas_sync_auth_refusal`) is the
-    load-bearing gate that ensures we never silently fall back to the
-    legacy queue when SaaS sync is enabled but the foreground is
-    unauthenticated.
-
-    ------------------------------------------------------------------
-    WP04 (mission ``mvp-cli-sync-boundary-completion-01KRX11M``)
-    boundary preflight integration — 2026-05-18
-    ------------------------------------------------------------------
-    Immediately after the FR-011 hosted-auth refusal above (and only
-    when ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, matching the existing FR-011
-    gate), setup-plan invokes
-    :func:`specify_cli.sync.preflight.run_preflight` with
-    ``require_auth=True`` to enforce FR-002 / FR-009 (now in
-    :func:`_enforce_saas_sync_boundary_preflight`). The boundary preflight
-    refuses (``typer.Exit(2)``) on:
-
-      * any of the six canonical daemon-owner / foreground mismatch
-        fields (D-3 canon);
-      * any orphan daemon owner record on disk;
-      * any legacy queue rows belonging to the active scope; or
-      * missing hosted auth when SaaS sync is required.
-
-    The preflight is read-only — no DB writes, no SaaS round-trip — so
-    placing it AFTER the FR-011 auth guard and BEFORE any
-    ``emit_artifact_phase`` / ``trigger_feature_dossier_sync`` /
-    ``emit_wp_created`` call ensures every SaaS-producing code path
-    downstream of this function has passed the gate. The same gate is
-    applied in ``sync now`` (WP03); the two surfaces share
-    :func:`specify_cli.sync.preflight.build_boundary_failure_set` as
-    their single source of truth.
-
-    Cross-reference: WP04 of mission
-    ``mvp-sync-boundary-cli-01KRVCQS``; regression tests in
-    ``tests/runtime/test_setup_plan_sync_evidence.py``.
+    The SaaS-sync boundary gates this command used to enforce (FR-011 auth
+    refusal, boundary preflight, dossier push) were removed with the sync
+    transport (issue #5); only local planning artifacts are produced here.
     ------------------------------------------------------------------
     """
     # Deferred import keeps this leaf free of an import cycle while honoring the
@@ -909,8 +828,6 @@ def setup_plan(
     from specify_cli.cli.commands.agent import mission as _mission
 
     try:
-        _enforce_saas_sync_auth_refusal(json_output=json_output)
-
         repo_root = _mission.locate_project_root()
         if repo_root is None:
             error_msg = PROJECT_ROOT_NOT_FOUND_MESSAGE
@@ -920,7 +837,6 @@ def setup_plan(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
-        _enforce_saas_sync_boundary_preflight(repo_root)
 
         _mission._enforce_git_preflight(
             repo_root,
@@ -948,7 +864,7 @@ def setup_plan(
         # (PRIMARY-partition kinds) to the primary dir for ALL topologies, so the
         # reads converge on the real artifact. Only the PLANNING reads move
         # (C-002): ``feature_dir`` stays the surface for STATUS/lifecycle emission
-        # (``emit_artifact_phase``) and dossier lookups below. Template context is
+        # (``emit_artifact_phase``). Template context is
         # itself planning configuration, so it must resolve from ``plan_read_dir``
         # where the canonical ``meta.json`` lives; a coord husk may legitimately
         # be meta-less and must not turn a typed mission into the typeless
@@ -996,8 +912,6 @@ def setup_plan(
             mission_slug, repo_root, target_branch=target_branch, json_output=json_output
         )
 
-        _trigger_dossier_sync(feature_dir, mission_slug, repo_root)
-
         _emit_setup_plan_result(
             plan_file=plan_file,
             spec_file=spec_file,
@@ -1040,41 +954,3 @@ def setup_plan(
         raise typer.Exit(1) from None
 
 
-def _enforce_saas_sync_auth_refusal(*, json_output: bool) -> None:
-    """FR-011 auth refusal that must run BEFORE project-root resolution.
-
-    The original ``setup_plan`` ran the FR-011 ``read_queue_scope`` refusal at
-    the very top (before ``locate_project_root``), so an unauthenticated
-    SaaS-enabled invocation refuses even outside a repo. This phase preserves
-    that ordering; the repo-scoped boundary preflight runs later in
-    :func:`_enforce_saas_sync_preflight`.
-    """
-    if os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC") != "1":
-        return
-    from specify_cli.sync.queue_scope import (
-        read_queue_scope_from_credentials,
-        read_queue_scope_from_session,
-    )
-
-    # ``_scope`` is consumed purely as a boolean **auth signal** ("is this host
-    # authenticated?") — it is never passed to ``scope_db_path`` or any store
-    # selector here. The credential parse (queue.read_queue_scope_from_credentials)
-    # is deliberately inert for physical-store selection (FR-009 / C-003); the
-    # authoritative queue DB is owned by ProjectSyncStore via ``_derive_queue_scope``.
-    _scope = read_queue_scope_from_session() or read_queue_scope_from_credentials()
-    if _scope:
-        return
-    error_msg = "SaaS sync cannot be guaranteed: no authenticated session/credentials found."
-    remediation = "Run `spec-kitty auth login` or unset SPEC_KITTY_ENABLE_SAAS_SYNC before running setup-plan."
-    if json_output:
-        _emit_json(
-            {
-                "error_code": "SAAS_SYNC_UNAUTHENTICATED",
-                "error": error_msg,
-                "remediation": [remediation],
-            }
-        )
-    else:
-        console.print(f"[red]Error[/red]: {error_msg}")
-        console.print(remediation)
-    raise typer.Exit(code=2)

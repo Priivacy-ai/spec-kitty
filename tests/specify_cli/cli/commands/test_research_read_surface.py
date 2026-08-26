@@ -139,9 +139,9 @@ def _run_research(repo_root: Path, mission_handle: str = SLUG_WITH_MID8):  # typ
     """Invoke the REAL ``research`` command (pre-existing entry point).
 
     ``find_repo_root`` / ``get_project_root_or_exit`` are patched to the fixture
-    root; the dossier sync is neutralized (it is fire-and-forget over the network).
-    The seam (``resolve_planning_read_dir``) runs for real against the on-disk
-    fixture — the production fix is exercised, not stubbed.
+    root. The seam (``resolve_planning_read_dir``) runs for real against the
+    on-disk fixture — the production fix is exercised, not stubbed. (The dossier
+    sync this harness used to neutralize retired with the sync transport.)
 
     ``mission_handle`` defaults to the canonical ``<slug>-<mid8>`` directory name;
     pass a bare ``MID8`` to exercise the #2122 handle→slug canonicalization path.
@@ -161,10 +161,6 @@ def _run_research(repo_root: Path, mission_handle: str = SLUG_WITH_MID8):  # typ
             patch.object(research_mod, "find_repo_root", return_value=repo_root),
             patch.object(
                 research_mod, "get_project_root_or_exit", return_value=repo_root
-            ),
-            patch(
-                "specify_cli.sync.dossier_pipeline."
-                "trigger_feature_dossier_sync_if_enabled"
             ),
         ):
             # A single-command typer app omits the command name from argv.

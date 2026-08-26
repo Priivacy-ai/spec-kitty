@@ -34,7 +34,7 @@ from specify_cli.auth.errors import (
 )
 from specify_cli.auth.session import require_private_team_id
 from specify_cli.core.contract_gate import validate_outbound_payload
-from specify_cli.sync.config import SyncConfig
+from specify_cli.auth.server_target import resolve_server_target
 from specify_cli.tracker.egress_verdict import (
     EgressDestination,
     TrackerEgressVerdict,
@@ -257,11 +257,6 @@ class SaaSTrackerClient:
 
     Parameters
     ----------
-    sync_config:
-        Provides the resolved runtime target URL (``SPEC_KITTY_SAAS_URL``
-        precedence folded in via ``resolve_runtime_target()``).  Falls back
-        to a default ``SyncConfig()`` when *None*.  The URL is resolved at
-        construction time and cached for the object lifetime.
     project_root:
         The checkout that **owns the data this client will send** — the mission's
         own repository, not the process's current working directory (#3030
@@ -285,20 +280,19 @@ class SaaSTrackerClient:
 
     def __init__(
         self,
-        sync_config: SyncConfig | None = None,
         *,
         project_root: Path | None = None,
         timeout: float = 30.0,
         monotonic_clock: Callable[[], float] | None = None,
         jitter_randbelow: Callable[[int], int] | None = None,
     ) -> None:
-        self._sync_config = sync_config or SyncConfig()
         self._project_root = Path(project_root) if project_root is not None else None
-        # Canonical runtime target authority (#2146): resolve the URL we will
-        # actually hit — folding in SPEC_KITTY_SAAS_URL precedence — instead of
-        # the raw config.toml accessor, which returns the hardcoded default and
-        # would silently ignore an env override.
-        self._base_url = _normalize_origin(self._sync_config.resolve_runtime_target().resolved_server_url)
+        # Canonical server-target authority (#2146, re-homed from the deleted
+        # sync config in issue #5): resolve the URL we will actually hit —
+        # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
+        # config.toml accessor, which returns the hardcoded default and would
+        # silently ignore an env override.
+        self._base_url = _normalize_origin(resolve_server_target().resolved_server_url)
         self._timeout = timeout
         # Instance-scoped seam (#3187): retry/poll delays call ``self._sleep``
         # rather than the bare ``time.sleep``. ``time.sleep`` is a single

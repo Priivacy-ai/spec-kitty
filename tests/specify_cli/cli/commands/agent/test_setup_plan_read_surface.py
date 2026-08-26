@@ -158,9 +158,6 @@ def _run_setup_plan(repo_root: Path, coord_husk_dir: Path) -> dict[str, object]:
             patch.object(
                 mission_mod, "_resolve_feature_target_branch", return_value="main"
             ),
-            patch(
-                "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"
-            ),
         ):
             result = runner.invoke(
                 mission_mod.app,

@@ -18,9 +18,9 @@ from tests.architectural import _gate_coverage as gc
 pytestmark = pytest.mark.architectural
 
 _WORKFLOW_PATH = gc.WORKFLOWS_DIR / "ci-quality.yml"
-_TIMEOUT_EXEMPT_JOBS = frozenset(
-    {"fast-tests-docs", "fast-tests-sync-orphan-sweep"}
-)
+# fast-tests-sync-orphan-sweep left this set at issue-5-delete-sync-transport:
+# its job (and every other sync-transport job) was deleted with the transport.
+_TIMEOUT_EXEMPT_JOBS = frozenset({"fast-tests-docs"})
 _EXEMPTION_MARKER = "WP12 --timeout exemption"
 _TIMEOUT_FLAG_RE = re.compile(r"--timeout=\d+")
 

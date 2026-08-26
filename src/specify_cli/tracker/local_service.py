@@ -50,11 +50,11 @@ if TYPE_CHECKING:
     from specify_cli.tracker.egress_verdict import TrackerEgressVerdict
 
 
-#: This transport's own identifier-set fragment, threaded through
-#: ``tracker_egress_verdict`` into Channel 1 and rendered by the shared refusal template
-#: in ``specify_cli/egress.py``. Bundle B made ``identifiers`` a **required** parameter of
-#: ``project_egress_refusal`` precisely so a transport that never declared what it can put
-#: on the wire cannot render a refusal that quietly names nothing.
+#: This transport's identifier-set declaration, threaded through
+#: ``tracker_egress_verdict``'s required ``identifiers`` parameter so a transport that never
+#: declared what it can put on the wire cannot quietly skip the declaration. (The former
+#: Channel-1 rendering of this fragment lived in the deleted ``specify_cli/egress.py``,
+#: issue #5.)
 #:
 #: What this path actually transmits: the connector invokes the operator's machine-global
 #: executable (``tracker/factory.py`` -- the ``command`` key, defaulting to ``bd``/``fp``)

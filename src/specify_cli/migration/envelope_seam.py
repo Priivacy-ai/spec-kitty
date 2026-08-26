@@ -11,10 +11,9 @@ Two src/ consumers now share that machinery:
 
 * :mod:`specify_cli.migration` itself — the ``doctor mission-state``
   teamspace dry-run (the original owner; it calls the underscore internals
-  in-module and is unaffected by this seam).
-* :mod:`specify_cli.sync.history_import` — the ``sync import-history``
-  pipeline (#2262), which replays the exact same envelope shapes for
-  historical import and reuses the same selection/audit gates.
+  in-module and is unaffected by this seam). (The second consumer, the
+  ``sync import-history`` pipeline, died with the sync transport,
+  issue #5.)
 
 This module is the ONE sanctioned exception to the demotion: it hoists
 exactly the shared subset under public names, so the cross-module surface is

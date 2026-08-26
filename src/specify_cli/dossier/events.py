@@ -231,9 +231,9 @@ def _coerce_namespace(
 ) -> LocalNamespaceTuple | None:
     """Coerce a caller-supplied namespace dict into ``LocalNamespaceTuple``.
 
-    Callers commonly pass the 5-field dict produced by
-    ``specify_cli.sync.namespace.NamespaceRef.to_dict()``. We tolerate either
-    that or a fully-constructed ``LocalNamespaceTuple``. Returns ``None`` when
+    Callers commonly pass a 5-field namespace dict (the shape the deleted
+    sync ``NamespaceRef.to_dict()`` produced). We tolerate either that or a
+    fully-constructed ``LocalNamespaceTuple``. Returns ``None`` when
     the namespace cannot be constructed (in which case the caller MUST refuse
     to emit — the server schema requires ``namespace``).
     """

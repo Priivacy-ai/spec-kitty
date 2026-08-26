@@ -29,29 +29,14 @@ from specify_cli.core.constants import (
 # through ``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)``, and
 # the relocated ``_ft_apply_writes`` (tasks_finalize.py) no longer proxies
 # through ``_tasks.<attr>`` for this symbol either (routed the same way).
-import contextlib
 import logging
 import subprocess
-import traceback
 from pathlib import Path
 
 import typer
 from kernel.clock import now_utc_stamp
 from specify_cli.cli.console import console
 from typing import Annotated
-
-# ``emit_error_logged`` keeps an explicit ``as`` re-export: its direct call
-# site relocated to ``tasks_move_task`` in WP05 (tasks-py-degod-wave2), but the
-# module binding is a live D7 patch seam routed back through ``_tasks.<attr>``.
-# ``emit_history_added`` likewise (WP08): ``add_history`` still calls it
-# directly here, AND the relocated ``_ms_emit_history`` (tasks_mark_status)
-# routes it back through ``_tasks.<attr>`` — a live patch seam
-# (``@patch("...agent.tasks.emit_history_added")``, ×10) that must stay an
-# explicit module export under ``mypy --strict`` no-implicit-reexport.
-from specify_cli.sync.events import (
-    emit_history_added as emit_history_added,
-    emit_error_logged as emit_error_logged,
-)
 
 # ``emit_status_transition_transactional`` keeps an explicit ``as`` re-export:
 # its direct adapter call site relocated to ``tasks_command_adapters`` in WP03
@@ -772,8 +757,7 @@ def move_task(
 # every patched seam symbol back through ``_tasks.<attr>`` (lazy in-function
 # import, research.md D1/D7), so ``@patch("...agent.tasks.<sym>")`` /
 # ``monkeypatch.setattr(tasks, ...)`` keep INTERCEPTING (incl. the heavy
-# ``feature_status_lock`` and ``emit_history_added`` seams,
-# ``_protected_branch_status_commit_error`` (C-001 REFUSE arm — no skip
+# ``feature_status_lock`` seam, ``_protected_branch_status_commit_error`` (C-001 REFUSE arm — no skip
 # pre-gate, harness label T005), ``_resolve_inline_subtasks`` (which stays
 # ``tasks.py``-resident below) and the port adapters constructed by the moved
 # ``_default_mark_status_ports``). The ``@app.command`` Typer wrapper below
@@ -787,8 +771,6 @@ from specify_cli.cli.commands.agent.tasks_mark_status import (
     _do_mark_status as _do_mark_status,
     _ms_apply_updates as _ms_apply_updates,
     _ms_commit as _ms_commit,
-    _ms_dossier_sync as _ms_dossier_sync,
-    _ms_emit_history as _ms_emit_history,
     _ms_emit_subtask_state as _ms_emit_subtask_state,
     _ms_output as _ms_output,
     _ms_report_none_resolved as _ms_report_none_resolved,
@@ -1018,17 +1000,6 @@ def add_history(
         updated_doc = build_document(wp.frontmatter, updated_body, wp.padding)
         wp.path.write_text(updated_doc, encoding="utf-8")
 
-        # Emit HistoryAdded event (T015 - FR-021)
-        try:
-            emit_history_added(
-                wp_id=task_id,
-                entry_type="note",
-                entry_content=note,
-                author=agent or "user",
-            )
-        except Exception as e:
-            console.print(f"[yellow]Warning:[/yellow] Event emission failed: {e}")
-
         result = {"result": "success", "task_id": task_id, "note": note}
 
         _output_result(json_output, result, f"[green]✓[/green] Added history entry to {task_id}")
@@ -1036,15 +1007,6 @@ def add_history(
     except typer.Exit:
         raise
     except Exception as e:
-        # Emit ErrorLogged event (T016)
-        with contextlib.suppress(Exception):
-            emit_error_logged(
-                error_type="runtime",
-                error_message=str(e),
-                wp_id=task_id if "task_id" in dir() else None,
-                stack_trace=traceback.format_exc(),
-                agent_id=agent if "agent" in dir() else None,
-            )
         _output_error(json_output, str(e))
         raise typer.Exit(1) from None
 
@@ -1274,14 +1236,6 @@ def validate_workflow(
     except typer.Exit:
         raise
     except Exception as e:
-        # Emit ErrorLogged event (T016)
-        with contextlib.suppress(Exception):
-            emit_error_logged(
-                error_type="validation",
-                error_message=str(e),
-                wp_id=task_id if "task_id" in dir() else None,
-                stack_trace=traceback.format_exc(),
-            )
         _output_error(json_output, str(e))
         raise typer.Exit(1) from None
 

@@ -64,13 +64,9 @@
 # `tests/doctrine/` and `tests/charter/*` selections above ALSO run inside
 # ci-quality.yml's own `fast-tests-doctrine` / `fast-tests-charter` jobs,
 # which are gated on the identical `src/doctrine/**` / `src/charter/**`
-# dorny filter groups. This mirrors the repo's existing precedent in
-# `drift-detector.yml`, which re-runs `tests/sync/test_diagnose.py::
-# TestCanonicalRegistryRecognition` even though that file's module-level
-# `pytestmark = pytest.mark.fast` already makes it part of ci-quality.yml's
-# `fast-tests-sync` job -- see that file's header. The value of the overlap
-# is a STABLE, DEDICATED required-check NAME pinned to this governance layer,
-# independent of ci-quality.yml's ~30-job graph; it is not a mistake.
+# dorny filter groups. The value of the overlap is a STABLE, DEDICATED
+# required-check NAME pinned to this governance layer, independent of
+# ci-quality.yml's ~30-job graph; it is not a mistake.
 #
 # The GAP THIS FILE ACTUALLY CLOSES is `src/specify_cli/invocation/**`:
 # ci-quality.yml has no dedicated fast/isolated job for that directory. It is
@@ -120,8 +116,7 @@
 # REQUIRED-CHECK WIRING (repo-admin UI step -- cannot be done from a PR)
 # ---------------------------------------------------------------------------
 # The job name below (`doctrine-charter-tests`) is the contract branch
-# protection should require, mirroring `drift-detector.yml` and
-# `ui-e2e.yml`'s precedent:
+# protection should require, mirroring `ui-e2e.yml`'s precedent:
 #   Settings -> Branches -> main (and 2.x, if protected) -> Require status
 #   checks to pass before merging -> add "doctrine-charter-tests".
 # GitHub's UI only offers a check in that picker after it has run at least

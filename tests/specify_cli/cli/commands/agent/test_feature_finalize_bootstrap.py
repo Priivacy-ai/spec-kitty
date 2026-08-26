@@ -133,10 +133,6 @@ def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature") -> d
         ),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
         "specify_cli.status.fire_dossier_sync": MagicMock(),
-        f"{MODULE}.emit_wp_created": MagicMock(),
-        f"{MODULE}.get_emitter": MagicMock(
-            return_value=MagicMock(generate_causation_id=MagicMock(return_value="test-id")),
-        ),
         f"{MODULE}.validate_ownership": MagicMock(
             return_value=MagicMock(passed=True, warnings=[], errors=[]),
         ),
@@ -910,9 +906,10 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         modified/uncommitted — exactly the drift that blocked
         ``git/ref_advance.py``'s merge-time dirty-worktree resync (#1826) on
         a mission's coordination worktree during ``spec-kitty merge``. The
-        snapshot write itself is still exercised below (via the same
-        ``trigger_feature_dossier_sync_if_enabled`` patch) to prove the fix is
-        "stop committing it", not "stop writing it".
+        snapshot write itself is still exercised below to prove the fix is
+        "stop committing it", not "stop writing it". (The sync-side trigger that
+        used to perform the write retired with the sync transport, so the harness
+        writes the snapshot directly.)
         """
         mission_slug = "060-test-feature"
         feature_dir = _setup_feature(tmp_path, mission_slug)
@@ -931,6 +928,7 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
             assert capability is GuardCapability.STANDARD
             (feature_path / "status.events.jsonl").write_text('{"event":"seeded"}\n', encoding="utf-8")
             (feature_path / "status.json").write_text("{}", encoding="utf-8")
+            _write_snapshot(feature_path)
             return _make_bootstrap_result()
 
         def _commit_for_mission_spy(**kwargs: object) -> CommitRouterResult:
@@ -943,11 +941,11 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
                 commit_hash="abc1234",
             )
 
-        def _write_snapshot(feature_path: Path, slug: str, repo_root: Path) -> None:
-            assert feature_path == feature_dir
-            assert slug == mission_slug
-            assert repo_root == tmp_path
-            snapshot_path = feature_path / ".kittify" / "dossiers" / slug / "snapshot-latest.json"
+
+        def _write_snapshot(feature_path: Path) -> None:
+            snapshot_path = (
+                feature_path / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json"
+            )
             snapshot_path.parent.mkdir(parents=True, exist_ok=True)
             snapshot_path.write_text("{}", encoding="utf-8")
 
@@ -959,13 +957,8 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
-        extra_patch = patch(
-            "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled",
-            side_effect=_write_snapshot,
-        )
         for p in ctx_patches.values():
             p.start()
-        extra_patch.start()
 
         try:
             finalize_tasks(
@@ -976,7 +969,6 @@ class TestFinalizeScaffoldsAcceptanceMatrix:
         except (typer.Exit, SystemExit):
             pass
         finally:
-            extra_patch.stop()
             for p in ctx_patches.values():
                 p.stop()
 

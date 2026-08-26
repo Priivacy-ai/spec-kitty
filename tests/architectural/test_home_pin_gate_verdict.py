@@ -69,16 +69,22 @@ END_SHA = "5d49d31ed6505627d98d8f95d8502c9bf6a2f5ac"
 #: an artefact that omits it is publishing a chosen window rather than every attempted one.
 VOID_START_SHA = "709a59534a1b8aac7e55a1cf6f5d2106a32c31ea"
 
-#: **The published non-zero floor for limb (g)** — over the keys that actually *recompute* live,
-#: never over mere file-presence. Originally 30, when all **40** end-SHA member files were
-#: byte-identical to END_SHA and all 40 keys recomputed. Re-pinned to **20** on 2026-08-16 for
-#: #3121 R1b (PR #3510): the provable-class convergence adjudicated **14** of the 40 members away
-#: (converged onto ``canonical_home``, recorded in the tombstone manifest), so their sites were
-#: removed from the tree on purpose and **26** members now recompute live. The floor sits below 26
-#: with headroom for further legitimate convergence, and its role sharpens under tombstoning: it is
-#: the count of *live-recomputed* keys, so mass-tombstoning to dodge the mismatch check erodes this
-#: number until the limb reds — the gate **cannot** be bought off by tombstoning the population away.
-KEYS_CHECKED_FLOOR = 20
+#: **The published floor for limb (g)** — over the keys that actually *recompute* live, never over
+#: mere file-presence. Originally 30, when all **40** end-SHA member files were byte-identical to
+#: END_SHA and all 40 keys recomputed. Re-pinned to **20** on 2026-08-16 for #3121 R1b (PR #3510):
+#: the provable-class convergence adjudicated **14** of the 40 members away (converged onto
+#: ``canonical_home``, recorded in the tombstone manifest), so their sites were removed from the
+#: tree on purpose and **26** members recomputed live.
+#:
+#: Re-pinned to **0** at issue-5-delete-sync-transport (2026-08-25): issue #5 deleted the whole
+#: sync transport, and with it every remaining member file -- all 40 anchor keys are now
+#: tombstoned (real removals, each recorded in the manifest with that cause) and zero recompute
+#: live. The floor's anti-buy-off role ("the gate cannot be tombstoned away") is discharged for as
+#: long as the population is empty: there is nothing left to excuse, and any NEW home pin in
+#: ``tests/`` reds t023's discovered-class equality directly, because a fresh key is not in the
+#: frozen anchor whatever the manifest says. If home pins are ever re-introduced, re-raise this
+#: floor with the regeneration that admits them.
+KEYS_CHECKED_FLOOR = 0
 
 _ADMISSIBLE_VERDICTS = frozenset({"proceed", "proceed-degraded"})
 

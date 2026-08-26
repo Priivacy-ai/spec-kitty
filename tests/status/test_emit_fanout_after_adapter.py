@@ -3,14 +3,17 @@
 After P1.3 the status package no longer imports from sync; SaaS fan-out
 and dossier-sync triggers are routed through registered adapters. This
 test guards against the failure mode where the registry pattern silently
-drops fan-out because registration never ran.
+drops fan-out.
 
 Cases covered:
-1. Sync pre-imported -> handlers registered -> emit_status_transition
-   fans out as expected.
-2. No sync import (and registry cleared) -> fan-out is a silent no-op.
-   This documents the bootstrap requirement.
-3. A failing handler does not block canonical persistence.
+1. A registered SaaS handler receives the fan-out from emit_status_transition.
+2. A registered dossier-sync handler likewise fires.
+3. An empty registry degrades to a logged no-op (handlers=0 breadcrumb).
+4. A failing handler does not block canonical persistence.
+
+(The former "importing specify_cli.sync registers the handlers" bootstrap
+case died with the sync transport, issue #5; production registrants return
+with epic E3.)
 """
 
 from __future__ import annotations
@@ -152,34 +155,3 @@ class TestFanOutPreservation:
             assert event is not None
         finally:
             adapters.reset_handlers()
-
-
-class TestSyncBootstrapRegisters:
-    """Importing specify_cli.sync registers the fan-out handlers."""
-
-    @pytest.fixture(autouse=True)
-    def _enable_full_sync_import(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Keep bootstrap assertions independent of a worker's prior import mode."""
-        monkeypatch.delenv("SPEC_KITTY_SYNC_MINIMAL_IMPORT", raising=False)
-
-    def test_repeated_sync_reloads_do_not_duplicate_handlers(self) -> None:
-        """Reloading sync N times must NOT produce N duplicate handlers.
-
-        register_dossier_sync_handler / register_saas_fanout_handler
-        are idempotent by qualified name. A reload re-executes the
-        registration block but creates fresh function objects with the
-        same __qualname__; the registry must replace rather than
-        append, otherwise reload-based test isolation produces
-        duplicate fan-out invocations on every status transition.
-        """
-        import importlib
-
-        import specify_cli.sync
-
-        adapters.reset_handlers()
-
-        for _ in range(3):
-            importlib.reload(specify_cli.sync)
-
-        assert len(adapters._saas_handlers) == 1, f"Expected exactly 1 SaaS handler after 3 reloads, got {len(adapters._saas_handlers)}"
-        assert len(adapters._dossier_handlers) == 1, f"Expected exactly 1 dossier-sync handler after 3 reloads, got {len(adapters._dossier_handlers)}"

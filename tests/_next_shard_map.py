@@ -98,7 +98,6 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_runtime_bridge_identity_git_repo.py",
     "tests/runtime/test_runtime_identity_seam_wiring.py",
     "tests/runtime/test_runtime_seam.py",
-    "tests/runtime/test_setup_plan_sync_evidence.py",
     "tests/runtime/test_template_source_consolidation.py",
     "tests/runtime/test_utils.py",
     "tests/runtime/test_workspace_context_unit.py",

@@ -974,62 +974,9 @@ _Mission lifecycle commands for AI agents_
      spec-kitty agent mission setup-plan --mission 020-my-feature --json
 
  ------------------------------------------------------------------
- WP04 / FR-011 + FR-012 audit (2026-05-17)
- ------------------------------------------------------------------
- This command's full call graph was audited to confirm every body
- upload / queue write goes through ``default_queue_db_path()`` and
- that no setup-plan path opens the legacy home-scoped queue database
- directly. The audit covered:
-
-   * ``trigger_feature_dossier_sync_if_enabled()`` (this function
-     constructs ``OfflineBodyUploadQueue()`` which delegates to
-     ``default_queue_db_path()`` — FR-012 lock).
-   * ``OfflineBodyUploadQueue.__init__`` (``sync.body_queue``) —
-     falls back to ``default_queue_db_path()`` when ``db_path`` is
-     ``None``.
-   * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /
-     ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local
-     lifecycle JSONL only, no queue DB.
-   * ``commit_for_mission()`` / underlying safe-commit — local git only, no
- queue DB.
-
- No direct ``_legacy_queue_db_path()`` call sites exist in the
- setup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly
- guard (now in :func:`_enforce_saas_sync_auth_refusal`) is the
- load-bearing gate that ensures we never silently fall back to the
- legacy queue when SaaS sync is enabled but the foreground is
- unauthenticated.
-
- ------------------------------------------------------------------
- WP04 (mission ``mvp-cli-sync-boundary-completion-01KRX11M``)
- boundary preflight integration — 2026-05-18
- ------------------------------------------------------------------
- Immediately after the FR-011 hosted-auth refusal above (and only
- when ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, matching the existing FR-011
- gate), setup-plan invokes
- :func:`specify_cli.sync.preflight.run_preflight` with
- ``require_auth=True`` to enforce FR-002 / FR-009 (now in
- :func:`_enforce_saas_sync_boundary_preflight`). The boundary preflight
- refuses (``typer.Exit(2)``) on:
-
-   * any of the six canonical daemon-owner / foreground mismatch
-     fields (D-3 canon);
-   * any orphan daemon owner record on disk;
-   * any legacy queue rows belonging to the active scope; or
-   * missing hosted auth when SaaS sync is required.
-
- The preflight is read-only — no DB writes, no SaaS round-trip — so
- placing it AFTER the FR-011 auth guard and BEFORE any
- ``emit_artifact_phase`` / ``trigger_feature_dossier_sync`` /
- ``emit_wp_created`` call ensures every SaaS-producing code path
- downstream of this function has passed the gate. The same gate is
- applied in ``sync now`` (WP03); the two surfaces share
- :func:`specify_cli.sync.preflight.build_boundary_failure_set` as
- their single source of truth.
-
- Cross-reference: WP04 of mission
- ``mvp-sync-boundary-cli-01KRVCQS``; regression tests in
- ``tests/runtime/test_setup_plan_sync_evidence.py``.
+ The SaaS-sync boundary gates this command used to enforce (FR-011 auth
+ refusal, boundary preflight, dossier push) were removed with the sync
+ transport (issue #5); only local planning artifacts are produced here.
  ------------------------------------------------------------------
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮

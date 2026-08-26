@@ -285,8 +285,6 @@ _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
     "_ms_commit",
     "_ms_apply_updates",
     "_ms_emit_subtask_state",
-    "_ms_emit_history",
-    "_ms_dossier_sync",
     "_ms_output",
     "_do_mark_status",
     "_resolve_inline_subtasks",
@@ -436,7 +434,7 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_163_symbol_surface() -> None:
+def test_guard_covers_full_161_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
     authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
@@ -527,5 +525,8 @@ def test_guard_covers_full_163_symbol_surface() -> None:
     ``_mr_detect_bare_prose_requirement_ids`` — the fail-loud bare-prose
     requirement-id detector wrapper ``_mr_plan`` calls — a native
     tasks_map_requirements seam def (tasks_map_requirements 15 -> 16):
-    162 -> 163."""
-    assert len(SYMBOL_TO_MODULE) == 163  # golden-count: cardinality-is-contract
+    162 -> 163. sync-transport deletion (issue #5) retired the two
+    mark-status helpers whose only job was the deleted HistoryAdded /
+    dossier-push emissions (_ms_emit_history, _ms_dossier_sync):
+    163 -> 161."""
+    assert len(SYMBOL_TO_MODULE) == 161  # golden-count: cardinality-is-contract

@@ -128,17 +128,11 @@ BASELINE_KEYS: frozenset[str] = frozenset(
 #: ``SK-12-also-pins-home``, which is a reason column in kebab case.
 OWED_TO_PATTERN = re.compile(r"^#[0-9]+$")
 
-#: The known-fragile row, pinned by **identity**, not by a count and not by the prose "the sole
-#: such case of the 40". Content-addressed: the token line has its string literals stripped, so
-#: this key survives every benign edit that moves the lines. Its ``monkeypatch`` parameter is
-#: declared by the keyed def and never referenced, and ``ruff``'s relaxed ``ARG`` for ``tests/**``
-#: will not defend it — a routine unused-argument cleanup drops the member from the class with
-#: nothing red, which is why the register is asserted rather than described.
-FRAGILE_ROW_KEY: scan.MemberKey = (
-    "sync/tracker/test_tracker_egress_refusal_3108.py",
-    "test_bind_counter_wrapper_changes_no_outcome_committed_red._run_once",
-    "mp . setenv ( , str ( tmp_path / ) )",
-)
+# FRAGILE_ROW_KEY (the :1165 row,
+# ``tests/sync/tracker/test_tracker_egress_refusal_3108.py::
+# test_bind_counter_wrapper_changes_no_outcome_committed_red._run_once``) was REMOVED at
+# issue-5-delete-sync-transport: its file died with the sync transport, the real-tree
+# fragility register measures empty, and t025 now asserts that emptiness directly.
 
 #: The two diagnoses a stale row gets. **Two messages, not one**, because when the known-fragile
 #: row goes stale the cheapest green for a confused contributor is a tombstone — recording an
@@ -325,9 +319,28 @@ def test_t022_the_census_header_and_row_columns_are_both_set_equalities() -> Non
     ``frozen_at_sha`` and ``owed_to`` absent from rows **by construction**, and what stops a
     ``reason`` relocating one level up into the header. A `frozen_at_sha` promoted to a row fails
     here.
+
+    Issue-5-delete-sync-transport: every non-exempt member's file was deleted with the transport,
+    so the real census holds ZERO rows and the row-column check is stated in universal form (every
+    row, if any, carries exactly ``CENSUS_ROW_COLUMNS``). The column set itself stays pinned by
+    equality against a rendered row from :func:`scan.render_census`, so a generator that grew or
+    shrank the row schema still reds here even with an empty population; byte-identity (t022's
+    first test) pins the checked-in artefact against all other drift.
     """
     assert frozenset(census_header()) == CENSUS_HEADER_KEYS
-    assert {frozenset(row) for row in verdict.census_rows(census_text())} == {CENSUS_ROW_COLUMNS}
+    rows = verdict.census_rows(census_text())
+    assert all(frozenset(row) == CENSUS_ROW_COLUMNS for row in rows)
+    synthetic_member = scan.Member(
+        key=("synthetic/test_member.py", "a_home_fixture", "monkeypatch . setenv ( , str ( home ) )"),
+        relpath="synthetic/test_member.py",
+        lineno=7,
+        kind="fixture",
+        home_partition="B1",
+        params=frozenset({"home"}),
+        resolved_value="str(home)",
+    )
+    rendered = verdict.census_rows(scan.render_census([synthetic_member], sha="0" * 40, owed_to="#3121", fragility=()))
+    assert {frozenset(row) for row in rendered} == {CENSUS_ROW_COLUMNS}
 
 
 def test_t022_owed_to_is_a_tracker_reference_and_not_prose() -> None:
@@ -404,25 +417,16 @@ def test_t023_the_census_equals_the_c011_anchor() -> None:
     assert repo_rooted(verdict.census_keys(census_text())) == anchor() - tombstoned_keys()
 
 
-def test_t023_a_tombstone_over_a_live_pin_still_reds_the_discovered_class() -> None:
-    """A tombstone **without a real removal still reds** t023 — the t023 mirror of t024's ``:477``.
-
-    ``anchor - tombstoned`` is only a legitimate target once the adjudicated member's pin is
-    actually GONE from the tree. Tombstone a member whose definition is still present and the
-    discovered-class equality must still red: the live pin keeps it in ``discover - E`` while the
-    anchor target shrank. This is the polarity that stops the shrink mechanism from being bought
-    off — exactly ``spec.md``'s *"a tombstone written to green a red"* refused by mechanism, lifted
-    from t024's hash limb to t023's set limb so the guard-evolution cannot be dulled.
-
-    Constructed over a synthetic baseline (the real one ships ``tombstones: []``); nothing on disk
-    is mutated, and the assertion is that the equality is FALSE, so the test itself is green.
-    """
-    live_victim = min(discovered_keys() - exempt_keys())  # a real, still-present member (walk-space)
-    synthetic_baseline = verdict.with_tombstones(baseline_text(), frozenset({live_victim}))
-    tombstoned = repo_rooted(verdict.tombstone_keys(synthetic_baseline))
-    assert tombstoned == repo_rooted(frozenset({live_victim}))  # the tombstone took
-    # The pin is still in the tree, so discover still holds the victim; anchor - tombstoned dropped it.
-    assert repo_rooted(discovered_keys()) - repo_rooted(exempt_keys()) != anchor() - tombstoned
+# test_t023_a_tombstone_over_a_live_pin_still_reds_the_discovered_class was REMOVED at
+# issue-5-delete-sync-transport: it needed one real, still-present non-exempt member to
+# tombstone synthetically (`min(discovered_keys() - exempt_keys())`), and the transport
+# deletion removed every such member -- the discovered class is now exactly E. The
+# polarity it demonstrated (a tombstone without a real removal cannot green t023) is held
+# by the discovered-class equality itself for any FUTURE pin (a new key is not in
+# `anchor`, so it lands in the equality's left side whatever the manifest says), and by
+# test_spec_kitty_home_pin_guard.py's synthetic proofs of the same arithmetic
+# (test_transition_5_a_removed_row_with_the_definition_still_present_reds,
+# test_e_co_edit_has_no_tombstone_escape).
 
 
 def non_anchor_tombstones(
@@ -581,42 +585,16 @@ def test_t024_both_hashes_are_recomputed_from_content_and_match_the_baseline() -
     assert result.ok, guard_report(TESTS_ROOT, result)
 
 
-def test_t024_a_real_row_removal_reds_even_with_a_tombstone_covering_the_hash() -> None:
-    """A census delta **plus a tombstone still reds** while the definition is in the tree.
-
-    WP04/T018 proves the tombstone arithmetic over materialised artefacts; this is the same rule
-    on the **real** tree, which is where the co-edit would actually be attempted. Two arms:
-
-    * remove a row → **exact accounting** fires (the member is discovered and the frozen class no
-      longer knows it, so it lands in ``unexpected``) **and** the hash limb fires, because the
-      census key set no longer reconstructs the pinned freeze-time hash;
-    * remove the row **and tombstone it** → the tombstone restores the hash, so ``census_hash_ok``
-      goes quiet — and the run **still reds**, because a tombstone records an adjudication and no
-      adjudication has happened: the definition is still there.
-
-    The second arm is the load-bearing one and it is the polarity worth stating precisely. FR-004
-    calls exact accounting the *primary* ratchet and gives the hash pin the narrower job of
-    catching the one thing accounting cannot see — a removal with no adjudication behind it. Here
-    the hash is the limb that can be bought off and accounting is the limb that cannot, which is
-    why *"a tombstone written to green a red"* is refused by mechanism and not only by review.
-    """
-    census = census_text()
-    victim = min(verdict.census_keys(census))
-    reduced = verdict.drop_row(census, victim)
-
-    plain = verdict.evaluate(TESTS_ROOT, reduced, baseline_text(), E)
-    assert plain.unexpected == frozenset({victim}), str(plain)
-    assert not plain.census_hash_ok and not plain.ok, str(plain)
-
-    # Merge with any tombstones R1b has already recorded (with_tombstones is a pure setter), so the
-    # union stays pinned to the frozen 40-key set and the hash-restore arm holds at any census size.
-    tombstoned = verdict.with_tombstones(
-        baseline_text(), verdict.tombstone_keys(baseline_text()) | frozenset({victim})
-    )
-    with_tombstone = verdict.evaluate(TESTS_ROOT, reduced, tombstoned, E)
-    assert with_tombstone.census_hash_ok, "the tombstone was supposed to restore the hash limb"
-    assert with_tombstone.unexpected == frozenset({victim}), str(with_tombstone)
-    assert not with_tombstone.ok, str(with_tombstone)
+# test_t024_a_real_row_removal_reds_even_with_a_tombstone_covering_the_hash was REMOVED at
+# issue-5-delete-sync-transport: its victim was `min(verdict.census_keys(census))`, and the
+# real census is empty since every non-exempt member's file was deleted with the transport.
+# The two arms it demonstrated live on over synthetic trees in
+# tests/architectural/test_spec_kitty_home_pin_guard.py:
+# test_hash_placement_a_row_removal_without_a_tombstone_reds (arm 1 -- accounting plus hash),
+# test_hash_placement_a_row_removal_with_a_matching_tombstone_passes and
+# test_e_co_edit_has_no_tombstone_escape (arm 2 -- the restored hash still does not green the
+# run while the definition remains). The real-tree exact-accounting limb itself survives in
+# test_t024_the_real_tree_is_set_equal_to_the_census_union_e above.
 
 
 def test_t024_sc005_mypy_strict_over_the_real_exempt_module() -> None:
@@ -772,14 +750,19 @@ def test_t025_the_stale_diagnosis_reaches_the_guard_report(tmp_path: Path) -> No
     assert SITE_PRESENT_MESSAGE in guard_report(root, result)
 
 
-def test_t025_the_fragility_register_is_a_set_equality_against_the_1165_key() -> None:
-    """The register is a **SET**, asserted equal to ``{the :1165 key}``.
+def test_t025_the_fragility_register_over_the_real_tree_is_empty_since_issue_5() -> None:
+    """The register is a **SET**, asserted equal to the measured real-tree register.
 
-    Not the phrase *"the sole such case of the 40"*, which is a count in words and goes silently
-    false the day a second one lands — while being the only thing that makes T026's *single*
-    known-fragile row true.
+    It used to pin ``{the :1165 key}`` -- ``tests/sync/tracker/
+    test_tracker_egress_refusal_3108.py``, whose ``_run_once`` helper held its ``monkeypatch``
+    without referencing it. Issue #5 deleted that file with the sync transport, so the real-tree
+    register measures EMPTY: no member is held in the class by an unused silhouette parameter
+    today. The detector itself stays proven by
+    :func:`test_t025_the_fragility_register_can_see_a_second_member` (synthetic second member)
+    and by ``test_home_pin_scan_limbs.py``'s fragile-tree bite; if a future edit reintroduces the
+    shape, this equality reds until the artefacts are regenerated with the row named.
     """
-    assert {row.key for row in scan.fragility_register(TESTS_ROOT)} == {FRAGILE_ROW_KEY}
+    assert {row.key for row in scan.fragility_register(TESTS_ROOT)} == set()
 
 
 def test_t025_the_fragility_register_can_see_a_second_member(tmp_path: Path) -> None:
@@ -907,12 +890,19 @@ def test_t026_the_comparator_sees_a_deliberately_mislabelled_row() -> None:
     the comparator must return **exactly** that key. This is the ``INERT_LIMBS`` discipline — an
     empty-set assertion without a run that returns a non-empty set is its own proof — applied to
     the one criterion in this package whose headline result is an emptiness.
+
+    Issue-5-delete-sync-transport drained the real census to zero rows (every non-exempt
+    member's file was deleted with the transport), so there is no real member left to flip a
+    label for. :func:`disagreeing_keys` is a pure comparator, so the control runs on one synthetic
+    member and demonstrates the same both-sided red it always did.
     """
-    join = anchor_join_keys()
-    labels = m4_labels()
-    partitions = _repo_rooted_partitions()
-    victim = min(key for key in partitions if join[key] in labels)
-    wrong = "B2" if partitions[victim] != "B2" else "A"
+    victim = scan.MemberKey(
+        ("synthetic/test_member.py", "a_home_fixture", "monkeypatch . setenv ( , str ( home ) )")
+    )
+    join = {victim: ("synthetic/test_member.py", "a_home_fixture")}
+    labels = {join[victim]: "A"}
+    partitions: dict[scan.MemberKey, str] = {victim: "A"}
+    wrong = "B2"
 
     assert disagreeing_keys({**partitions, victim: wrong}, labels, join) == frozenset({victim})
     assert disagreeing_keys(partitions, {**labels, join[victim]: wrong}, join) == frozenset({victim})
@@ -950,15 +940,22 @@ def test_t026_every_census_partition_is_recomputed_per_member() -> None:
     assert {key for key, label in census_label.items() if label == "other"} == set()
 
 
-def test_t026_the_census_header_names_the_fragile_row_and_its_repair() -> None:
+def test_t026_the_census_header_stays_in_step_with_the_fragility_register() -> None:
     """FR-003's rationale goes in the **header**, following ``census/verdict_seam_IC01.yaml``.
 
     It survives the reviewer test: it entitles the definition to **nothing** and changes no
     check's outcome — which is exactly why the mechanised claim beside it,
-    :func:`test_t025_the_fragility_register_is_a_set_equality_against_the_1165_key`, is what
-    actually holds the row. The note is **derived by the generator** from
+    :func:`test_t025_the_fragility_register_over_the_real_tree_is_empty_since_issue_5`, is what
+    actually holds the register. The note is **derived by the generator** from
     ``fragility_register(root)``, so it cannot fall out of step with the register: a hand-typed
     constant naming ``:1165`` would keep saying so after the row was gone.
+
+    Issue-5-delete-sync-transport drained the real-tree register to empty (the one fragile row's
+    file died with the transport), so the shipped header must carry the generator's EMPTY branch —
+    which deliberately makes **no claim** about the population rather than asserting "none" — and
+    the named-row branch is proven against synthetic rows over in
+    ``test_home_pin_scan_limbs.py::test_the_census_fragility_note_names_the_fragile_rows_via_the_
+    generator``.
 
     **Where the repair instruction lives, and a claim this docstring previously got wrong.**
     T026(1) asks that the census also instruct *"if this row goes stale with the site still
@@ -977,9 +974,10 @@ def test_t026_the_census_header_names_the_fragile_row_and_its_repair() -> None:
     place. Both halves are asserted here so the pair cannot drift apart.
     """
     note = census_header()["fragility_note"]
-    row = scan.fragility_register(TESTS_ROOT)[0]
-    assert f"{row.relpath}:{row.lineno}" in note
-    assert "held by unused monkeypatch" in note
+    assert scan.fragility_register(TESTS_ROOT) == ()
+    assert "KNOWN-FRAGILE ROWS: not supplied" in note
+    # The empty branch makes no population claim either way.
+    assert "none" not in note.lower()
     assert "NOT an adjudication" in SITE_PRESENT_MESSAGE
     assert "R1b adjudication" in SITE_PRESENT_MESSAGE
 

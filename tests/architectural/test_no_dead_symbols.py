@@ -117,14 +117,38 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         # it stays here per this gate's rules. TODO(triage): drop from __all__ if no direct consumer of
         # the raw string ever appears (follow-up bead).
         SymbolKey("DASHBOARD_CSP", "87a67e7d3a60f84c30f950054f8a23e897e4e6be2ab27089f7c1a8e9cbb968ac", source_module="specify_cli.dashboard.csp"),
-        # specify_cli.status.lifecycle_events::append_lifecycle_event -- M2 canonical integration 2026-08-22: F2-T1 journal append entry point exported for callers that land with the F1-strict cutover. TODO(triage): wire or drop from __all__ (follow-up bead).
-        SymbolKey("append_lifecycle_event", "6695d4df0c44533bb9ae576a365562e7c79745ec7e2b8b0fe4e7b3571fbc2c0e", source_module="specify_cli.status.lifecycle_events"),
-        # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired yet. TODO(triage): wire or drop from __all__ (follow-up bead).
-        SymbolKey("MigrationAction", "120fd17dcda7ba500409b2ee13ee0e7c4426cfaf5756927dc9de14965c4834fc", source_module="specify_cli.status.migrate_lifecycle_envelope"),
-        # specify_cli.status.migrate_lifecycle_envelope::MigrationManifest -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired yet. TODO(triage): wire or drop from __all__ (follow-up bead).
-        SymbolKey("MigrationManifest", "c39cc76b8426569d7c3bb6f9b0b70c621b99101f3f13fe97b79c15afbfe67594", source_module="specify_cli.status.migrate_lifecycle_envelope"),
-        # specify_cli.status.migrate_lifecycle_envelope::MigrationRowResult -- M2 canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired yet. TODO(triage): wire or drop from __all__ (follow-up bead).
-        SymbolKey("MigrationRowResult", "0c79465d23a8dfa43650ce146809dfff916378f55f3bfa0321fb8d8129ead618", source_module="specify_cli.status.migrate_lifecycle_envelope"),
+        # specify_cli.status.lifecycle_events::append_lifecycle_event -- M2
+        # canonical integration 2026-08-22: F2-T1 journal append entry point exported for callers
+        # that land with the F1-strict cutover. TODO(triage): wire or drop from __all__.
+        SymbolKey(
+            "append_lifecycle_event",
+            "6695d4df0c44533bb9ae576a365562e7c79745ec7e2b8b0fe4e7b3571fbc2c0e",
+            source_module="specify_cli.status.lifecycle_events",
+        ),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationAction -- M2
+        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+        # yet. TODO(triage): wire or drop from __all__.
+        SymbolKey(
+            "MigrationAction",
+            "120fd17dcda7ba500409b2ee13ee0e7c4426cfaf5756927dc9de14965c4834fc",
+            source_module="specify_cli.status.migrate_lifecycle_envelope",
+        ),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationManifest -- M2
+        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+        # yet. TODO(triage): wire or drop from __all__.
+        SymbolKey(
+            "MigrationManifest",
+            "c39cc76b8426569d7c3bb6f9b0b70c621b99101f3f13fe97b79c15afbfe67594",
+            source_module="specify_cli.status.migrate_lifecycle_envelope",
+        ),
+        # specify_cli.status.migrate_lifecycle_envelope::MigrationRowResult -- M2
+        # canonical integration 2026-08-22: F2-T1 one-shot migration result type; module not wired
+        # yet. TODO(triage): wire or drop from __all__.
+        SymbolKey(
+            "MigrationRowResult",
+            "0c79465d23a8dfa43650ce146809dfff916378f55f3bfa0321fb8d8129ead618",
+            source_module="specify_cli.status.migrate_lifecycle_envelope",
+        ),
         # specify_cli.status.migrate_lifecycle_envelope::migrate_lifecycle_envelope -- REMOVED
         # (WIRE-M2-03, 2026-08-22): now has a real src/ caller,
         # upgrade.migrations.m_3_2_9_migrate_lifecycle_envelope, which imports and calls
@@ -313,11 +337,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "RefreshResult", "8d26dc6c2df664824ed8c070ed4f488088b80dd83ab10a87f2f0cc962f60f141", source_module="specify_cli.auth.refresh_transaction"
         ),  # specify_cli.auth.refresh_transaction::RefreshResult
+        # specify_cli.cli.commands._auth_doctor::DaemonSummary -- PRUNED
+        # (issue-5-delete-sync-transport): the auth-doctor daemon section died with
+        # the sync transport; the dataclass is gone from _auth_doctor.
         SymbolKey(
-            "DaemonSummary", "17ddc7a066a9d721be767b753f6c5ecdc4dcdeca46754c67a49ef0322c1b82ab", source_module="specify_cli.cli.commands._auth_doctor"
-        ),  # specify_cli.cli.commands._auth_doctor::DaemonSummary
-        SymbolKey(
-            "DoctorReport", "3083b579d7782d2eaf3940307c5813b06ee421abfbe971d9f50355a7bd19158b", source_module="specify_cli.cli.commands._auth_doctor"
+            "DoctorReport", "f67b56299c5fe794033b42a7c5390519ce0f197bb7976a0aaa9b668d2993221a", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
         SymbolKey(
             "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
@@ -334,15 +358,15 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
         # instead of datetime.now(UTC), per the clock single-door migration)
         SymbolKey(
-            "assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "e051060c599e629ffa35ef3762389ec265873962c55c57cec3cb4611e860a19f", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
         SymbolKey(
-            "render_report", "719c4b8b25a0a7b9e613e559e60abacbdef6ad4ab04788e9b956b7d788ad13fb", source_module="specify_cli.cli.commands._auth_doctor"
+            "render_report", "5d7c9ef447c1b6bd181b91df73b6d5487371dfde2e82f9c531b9941e0226d0b8", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::render_report
         # specify_cli.cli.commands._auth_doctor::render_report_json
-        SymbolKey("render_report_json", "909a351e28d3aa72e41d2986c624b5ac2eb10476fa7010667fb4d1a76993cf8e", source_module="specify_cli.cli.commands._auth_doctor"),
+        SymbolKey("render_report_json", "93cff87dc4744c952bb1198e4dfbcdec80aaad7ea9607a572c7287722cd8ac63", source_module="specify_cli.cli.commands._auth_doctor"),
         # specify_cli.cli.commands._branch_strategy_gate::GateDecision
         SymbolKey(
             "GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899", source_module="specify_cli.cli.commands._branch_strategy_gate"
@@ -705,15 +729,9 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "find_wp_dependency_cycles", "5b6258f4436930d9c732a9afc04d5261c137cd98c5b976a780e137d482e97135", source_module="specify_cli.status.uninitialized_hint"
         ),
-        SymbolKey(
-            "SyncDiagnostic", "ea3c1a482cae9570db15cadcdf12eaefbe1ec3841d82c512dc67177c455f40b6", source_module="specify_cli.sync.diagnostics"
-        ),  # specify_cli.sync.diagnostics::SyncDiagnostic
-        SymbolKey(
-            "reset_emitted_codes", "52fe7de8627d0dc2f62a726e39459f8512f20d4ab8206445dd91dc23b8dd20fb", source_module="specify_cli.sync.diagnostics"
-        ),  # specify_cli.sync.diagnostics::reset_emitted_codes
-        SymbolKey(
-            "SweepReport", "7ea93e8eac2a372c62bf080a8b9af326064800e2c072fe7a8ef01111ba1c1c10", source_module="specify_cli.sync.orphan_sweep"
-        ),  # specify_cli.sync.orphan_sweep::SweepReport
+        # sync.diagnostics::{SyncDiagnostic,reset_emitted_codes} and
+        # sync.orphan_sweep::SweepReport -- PRUNED (issue-5-delete-sync-transport):
+        # both modules were deleted with the sync transport.
         # specify_cli.task_metadata_validation::TaskMetadataError
         SymbolKey("TaskMetadataError", "a5f4d63d6b2895e3143710b52553986e2c34ee1170b0a2c65909f19b8776aee7", source_module="specify_cli.task_metadata_validation"),
         # specify_cli.task_metadata_validation::detect_lane_mismatch
@@ -737,7 +755,7 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.tracker.origin::search_origin_candidates
         SymbolKey("search_origin_candidates", "5901b7aef2a3cf420da33994b0db298b2b96d9bf23b9da263eba3c1003305069", source_module="specify_cli.tracker.origin"),
         # specify_cli.tracker.origin::start_mission_from_ticket
-        SymbolKey("start_mission_from_ticket", "16f1e4cf5ba62e5e10c1d4622b62549922f9b149432897f11696e00e7e8cac8a", source_module="specify_cli.tracker.origin"),
+        SymbolKey("start_mission_from_ticket", "4ce21a98763e91956fb8666c6479e7e86f70f8870f5ea3a0d4b1227f8870071f", source_module="specify_cli.tracker.origin"),
         # specify_cli.upgrade.migrations.m_3_2_0rc35_unified_bundle::MIGRATION_ID
         SymbolKey(
             "MIGRATION_ID",
@@ -1238,233 +1256,35 @@ _CATEGORY_B_T001_UNBLINDED: frozenset[SymbolKey] = frozenset(
 
 # ---------- C. event-sync retention/delivery mission public surface ----------
 # Mission ``event-sync-retention-delivery-01KVYWRG`` (#2124) shipped two new
-# domains plus a ``sync.migrate_journal`` migration. The names below are the
-# remaining mission public surface: the locked per-WP test-contract plus the
-# C-008 OPT_OUT discard-safety machinery, whose LIVE runtime enforcement is
-# deferred to the legacy-queue retirement follow-up (mission-review-report
-# DRIFT-1/RISK-1). Tracked in
-# ``kitty-specs/event-sync-retention-delivery-01KVYWRG/issue-matrix.md``.
+# domains plus a ``sync.migrate_journal`` migration. Every symbol this category
+# used to grant (``specify_cli.delivery.*``, ``specify_cli.event_journal.*``,
+# ``specify_cli.sync.migrate_journal.*``) died with its module when issue #5
+# deleted the sync transport, so the category is fully drained and stays empty
+# as a tombstone -- re-admitting any of these names would require the module to
+# come back first.
 
-_CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "AuditSink", "1db149c15d93c2e917fb6c942a5dcd9a9fb1b8309af911d0ad060d962544bdf9", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::AuditSink
-        SymbolKey(
-            "Delivery", "b6ae32688201dfdb4daf70060f1071b62a7ddc2ea123c32b4d0c65de5440ecce", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::Delivery
-        SymbolKey(
-            "DiscardAuditRecord", "dab90db7f8fa5c751b0379858c0a9877fe88ff8caf0b658291736ffeaeba32d9", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::DiscardAuditRecord
-        SymbolKey(
-            "DiscardDecision", "e7aa1c068489ec6ce9075c33bfc025a5ed1b3546309995989b7f9d01080f2c93", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::DiscardDecision
-        SymbolKey(
-            "DiscardDecisionKind", "d205655876907c0b0d9765caebcf188ef255e41cba21bfad0d85c09560e9736c", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::DiscardDecisionKind
-        SymbolKey(
-            "FamilyClassification", "7dce11f428dfaca1671eedfe1649ecf07d0803d5cf9bb2046e5b4c40b99f2f40", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::FamilyClassification
-        SymbolKey(
-            "JsonlAuditSink", "c5348817f0566cb012cd9be73c5e243c7a19b4d2e76a7f77f78b8a6ae345914f", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::JsonlAuditSink
-        # specify_cli.delivery.config::MissingExternalEndpointError
-        SymbolKey("MissingExternalEndpointError", "b92bf3e32108adf605bb484a0427e057ed7f7318d1ba7554b5159a81603567e8", source_module="specify_cli.delivery.config"),
-        # specify_cli.delivery.config::PolicyResolutionError
-        SymbolKey("PolicyResolutionError", "937326d99123aab38978177224911a0de39b93c8143da4498727c870c23263f0", source_module="specify_cli.delivery.config"),
-        SymbolKey(
-            "ReceiverFactory", "8bffbd5ba44ccbea82402e5cfeb6915399fb1ea6336abfe5dea1fed5d953b850", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::ReceiverFactory
-        SymbolKey(
-            "ResolvedPolicy", "b9143d0f72c90606233e8e85d20950068b660049e318009aea6c83557707f6d8", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::ResolvedPolicy
-        SymbolKey(
-            "ResolvedTarget", "249eb5ca981d52ddbba5fc8f8468dacd27c5262d5dce4e51abc3f8e25003d258", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::ResolvedTarget
-        SymbolKey(
-            "Retention", "e4346975f8569d23e351047f7b4a892c1b73f40d8e5579ddf6748d06819f2367", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::Retention
-        SymbolKey(
-            "UnknownModeError", "5065dd65ecc8c46ce95b5c762c83b139fd66c21fa6c6d3125a761034ac0033eb", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::UnknownModeError
-        SymbolKey(
-            "discard_decision", "e0c5fd8606d658c33140576b9ddeaace7e88ab9ea9030b536047a9d8e9988c40", source_module="specify_cli.delivery.config"
-        ),  # specify_cli.delivery.config::discard_decision
-        SymbolKey(
-            "LEDGER_INDEX_NAME", "00ff2374543242c1a9bb343f02ce2a4119d806a11f317a6b569f631332aeebca", source_module="specify_cli.delivery.ledger"
-        ),  # specify_cli.delivery.ledger::LEDGER_INDEX_NAME
-        SymbolKey(
-            "LedgerRow", "8120a15f278fab95a5e1eda3af4bc646b746555a8f4ac31e9bcf44559b0da3e3", source_module="specify_cli.delivery.ledger"
-        ),  # specify_cli.delivery.ledger::LedgerRow
-        SymbolKey(
-            "TERMINAL_STATUSES", "39cfb0bb7ccf29fe7683659c8e5648022bc1fa98b30069fdee81822c103fe7bd", source_module="specify_cli.delivery.ledger"
-        ),  # specify_cli.delivery.ledger::TERMINAL_STATUSES
-        SymbolKey(
-            "BATCH_ENDPOINT_PATH", "ca95ace141f4fdf0e9b45beded0c05ad7eacbf89e4d6d3db6035fd7d17fcc644", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH
-        # BATCH_TIMEOUT_SECONDS left the allowlist: sync.history_import.upload now
-        # imports it (reusing the canonical delivery timeout, #2884).
-        # GateDecision left the allowlist: cli.commands.sync now imports it for the
-        # shared _resolve_gated_receiver seam (#2884 landing fold).
-        SymbolKey(
-            "GateKind", "5b6ccac48cf9723e99c997a1f70c7af1f481e819abb62e251d9b3814fd71d05e", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::GateKind
-        SymbolKey(
-            "HttpResponse", "424e7dd151b9e7abdea1693be40b486e5755f23c7a23fef775d06f3864217935", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::HttpResponse
-        SymbolKey(
-            "ReceiverGate", "222316c26a75df8f8d97c3423fa0d49fdbd2f6326362a53fd1cb8de155f30298", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::ReceiverGate
-        SymbolKey(
-            "STUB_ENDPOINT_URL", "bf67c1a0cecca5dd72e30cc6a6a0e2b3cef8c69dd363929c13f96bcd5129079d", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::STUB_ENDPOINT_URL
-        # Rehashed for #3030 FR-028: deliver() now takes a ConsentedBatch. The entry is
-        # content-addressed on the symbol body, so ANY edit to an allowlisted symbol
-        # invalidates its key — a red here is not necessarily a new death.
-        SymbolKey(
-            "StubReceiver", "0103ed4178fea0da9ecc959a707d248a0effacc5ea9a506ac8afad5285fa0c83", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::StubReceiver
-        SymbolKey(
-            "map_batch_response", "608a6a0ba7eb0439166cd843f95d8fcbb2a1cd61f13e7b081e6daa596f4730d2", source_module="specify_cli.delivery.receivers"
-        ),  # specify_cli.delivery.receivers::map_batch_response
-        # specify_cli.delivery.status_report::ADDITIVE_SECTION_KEYS
-        SymbolKey("ADDITIVE_SECTION_KEYS", "45f0e694af41633f3bf4de2228ba6e52905e1c41a5d9cdbb8c1e67f5b256472a", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::BODY_UPLOAD_COMPAT_KEY
-        SymbolKey("BODY_UPLOAD_COMPAT_KEY", "339aee253812a3490f03a4fc4e1e4e8492c0f62fc5813a55db35b3f22ca79a3e", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::DELIVERY_LEDGER_KEY
-        SymbolKey("DELIVERY_LEDGER_KEY", "d3df6fb989f2687421cd363713117eda8a903ca2b7482791740e12a296cde217", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::DELIVERY_TARGETS_KEY
-        SymbolKey("DELIVERY_TARGETS_KEY", "f44d437e6c09d172b81e68a322038fdf78712517331cbb0f9e4515be21d612c5", source_module="specify_cli.delivery.status_report"),
-        SymbolKey(
-            "EVENT_JOURNAL_KEY", "4e41a05ccac292750359c3be4216534255f1a19bc0c2e70afb07a3b0d8930321", source_module="specify_cli.delivery.status_report"
-        ),  # specify_cli.delivery.status_report::EVENT_JOURNAL_KEY
-        # specify_cli.delivery.status_report::GC_LARGE_JOURNAL_THRESHOLD_BYTES
-        SymbolKey(
-            "GC_LARGE_JOURNAL_THRESHOLD_BYTES",
-            "bae60652257ec6420577d1642eefcc61afc08fb6bec3facc14f60cc5ad4e5074",
-            source_module="specify_cli.delivery.status_report",
-        ),
-        # specify_cli.delivery.status_report::MIGRATION_CONFLICTS_KEY
-        SymbolKey(
-            "MIGRATION_CONFLICTS_KEY", "2b593112d73a14ba353d22c5408b3fbdf6d3672e1f0aeac6f948aee093ee7827", source_module="specify_cli.delivery.status_report"
-        ),
-        # specify_cli.delivery.status_report::TARGET_AUTHORITY_KEY
-        SymbolKey("TARGET_AUTHORITY_KEY", "e07abf140b944fdac04293e228c927c0e3d47e6e3668a0efb02f889d22202d8f", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::TERMINAL_FAILURES_KEY
-        SymbolKey("TERMINAL_FAILURES_KEY", "59fcb2d13859d17054c2b2ec3102d40e6e06a507128e071bca2079e3fa8a9640", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.delivery.status_report::evaluate_gc_suggestion
-        SymbolKey("evaluate_gc_suggestion", "ec86dd1fd2dac37f7f480eb7e3d7b6f5454ba1b5231f574c5d3232894751e64a", source_module="specify_cli.delivery.status_report"),
-        # specify_cli.event_journal.coalesce::DeliveredAnywhereQuery
-        SymbolKey("DeliveredAnywhereQuery", "006197fe8e8930ae3340613069f631fd0478c9aed0b95416e3c951db65c9c70b", source_module="specify_cli.event_journal.coalesce"),
-        SymbolKey(
-            "SupersedeMarker", "28103221c51dc7ad13004841818581069756ef63456a93fd398760b0e9934968", source_module="specify_cli.event_journal.coalesce"
-        ),  # specify_cli.event_journal.coalesce::SupersedeMarker
-        SymbolKey(
-            "install", "49e1cbe2531458103c6492184d179bc70a1707789487b439a4815b4e21ec58ef", source_module="specify_cli.event_journal.coalesce"
-        ),  # specify_cli.event_journal.coalesce::install
-        SymbolKey(
-            "JOURNAL_SUBDIR", "43ec497396ce60afcd8ef2916a2646172c1c3775c05813cb212642144d8e1d62", source_module="specify_cli.event_journal.journal"
-        ),  # specify_cli.event_journal.journal::JOURNAL_SUBDIR
-        # specify_cli.event_journal.models::ORDERED_COLUMNS — re-keyed AGAIN for
-        # #3030, which appended repo_slug after the T012 re-key below had already
-        # accounted for project_uuid/project_slug. The hash-bound content tier did
-        # exactly its job: appending a column re-opened the entry instead of letting
-        # the previous grant silently cover new content, which is why this gate went
-        # red on the mission branch. Re-adjudicated on the same unchanged grounds,
-        # NOT widened: the constant is consumed inside models.py by
-        # _COLUMN_LIST/_PLACEHOLDERS (so no cross-module import can ever exist), and
-        # it is exported because it is the journal's canonical column-order contract.
-        # It surfaced twice for one root cause: the stale key made the constant a
-        # fresh offender AND orphaned this entry, which is the double signal
-        # `_compute_dangling` documents and suppresses to a single fix.
-        SymbolKey(
-            "ORDERED_COLUMNS", "3054068a5131fb488635e1418800da7b405aed699671821becafd2573d9489c7", source_module="specify_cli.event_journal.models"
-        ),  # specify_cli.event_journal.models::ORDERED_COLUMNS
-        SymbolKey(
-            "KNOWN_PREFIX", "98ecae0739efcb4413e222ecc96031896d1c57e85b9bf934884cbbdb1b2bb838", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::KNOWN_PREFIX
-        SymbolKey(
-            "LEGACY_DIGEST", "170c1daeecd9635cf72713656060e38404f956d4305108275d591c11ecb86d29", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::LEGACY_DIGEST
-        SymbolKey(
-            "MIGRATION_NOTE", "5ed3a197746b627274ddde481632dffb952714f486217193e06475ec10ea466d", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::MIGRATION_NOTE
-        SymbolKey(
-            "MigrationConflict", "28bc71565ef0e26abdfd20e5a6ebb85e30bca5600c6ae1584371a75e2ebc62e9", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::MigrationConflict
-        SymbolKey(
-            "SourceDb", "359bad378deef3920559bea9d89645c9a7aa2d84ff0c14ae315047fb9e5a3e22", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::SourceDb
-        SymbolKey(
-            "SourceOutcome", "e5222067e3eba9771531b0a8364d898136c13fbfa5757cbd3b40a50cf8ce30a2", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::SourceOutcome
-        SymbolKey(
-            "UNKNOWN_PREFIX", "8f1aac4b29244ee6faa6b237b3fdbe471d1ea66cdd9afd0370727053535c2791", source_module="specify_cli.sync.migrate_journal"
-        ),  # specify_cli.sync.migrate_journal::UNKNOWN_PREFIX
-        # discover_source_dbs REMOVED (#3497 landing): now has a real external
-        # caller -- layout_generation.py's has_legacy_data()/_conservation_ok()
-        # import and call it directly (the "real reader", not a retired stub) --
-        # so the allowlist grant is stale and must be removed (reverse
-        # containment: a symbol with a caller cannot stay allowlisted).
-        # specify_cli.sync.migrate_journal::migration_target_token
-        SymbolKey("migration_target_token", "bce7a50af7aefac52a1f1b1319dba5f0ba128f8d67ac449c16e9cf1986cbf6a0", source_module="specify_cli.sync.migrate_journal"),
-    }
-)
+_CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[SymbolKey] = frozenset()
+
+
 
 
 # sync-daemon-orphan-cleanup-01KWC2A3 (#2261): the ``ResetResult`` per-entry
-# dataclasses are the public structured-reporting surface for
-# ``auth doctor --reset`` (FR-005), constructed/asserted directly by the
-# auth-doctor + orphan-sweep test suites but with no in-``src/`` importer
-# because production code consumes them only through ``ResetResult``.
+# dataclasses were the structured-reporting surface for the orphan sweep. The
+# sweep module (``specify_cli.sync.orphan_sweep``) was deleted with the sync
+# transport (issue #5), so this category is fully drained and stays empty as a
+# tombstone.
 
-_CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
-    {
-        SymbolKey(
-            "FailedEntry", "0e1aa316dd07e92dedc924494897d393b9e8410bb718b8884698933da58900e9", source_module="specify_cli.sync.orphan_sweep"
-        ),  # specify_cli.sync.orphan_sweep::FailedEntry
-        SymbolKey(
-            "SkippedEntry", "d55962bfd4eb368c36e7204231f5dd79c7c677768ca27db70fc0c0d21950547f", source_module="specify_cli.sync.orphan_sweep"
-        ),  # specify_cli.sync.orphan_sweep::SkippedEntry
-        SymbolKey(
-            "SweptEntry", "e74ae7b75e826cf7e213e08728c1ef15d7ba42dad631136512d9ed2527f1304f", source_module="specify_cli.sync.orphan_sweep"
-        ),  # specify_cli.sync.orphan_sweep::SweptEntry
-    }
-)
+_CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset()
 
 
 # ---------- C. legacy->journal capture cutover mission (#3425/#3497) ----------
-# ``layout_generation.py``'s machine layout-generation authority (WP01/WP03)
-# introduces this small public error/config surface for a genuinely-
-# unrecoverable resolution: ``NO_AUTO_CUTOVER_ENV`` names the operator
-# escape-hatch env var read internally by ``_auto_cutover_disabled()`` and
-# echoed into the refusal message; ``LayoutAutoCutoverRefusedError`` and
-# ``LayoutCutoverIncompleteError`` are raised by ``resolve_layout_for_write``.
-# Both errors propagate to ``emitter.py``'s ``_route_event`` catch-all
-# (deliberately generic per the "never silently swallow" contract -- see the
-# comment at ``emitter.py:_queue_event_locally``) rather than being caught by
-# name anywhere else in src/, so no other src/ file imports these symbols by
-# name. All three are exercised directly by
-# ``tests/sync/test_layout_cutover.py`` (T014 escape-hatch /
-# ``pytest.raises(LayoutAutoCutoverRefusedError)`` /
-# ``pytest.raises(LayoutCutoverIncompleteError)``) and
-# ``tests/sync/test_emitter_observability.py`` (Part B resolve-before-UoW).
-# Follow-up tracker: #3497.
+# ``specify_cli.sync.layout_generation``'s cutover error/config surface
+# (``NO_AUTO_CUTOVER_ENV``, ``LayoutAutoCutoverRefusedError``,
+# ``LayoutCutoverIncompleteError``) died with its module when issue #5 deleted
+# the sync transport, so this category is fully drained and stays empty as a
+# tombstone.
 
-_CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset(
-    {
-        # specify_cli.sync.layout_generation::NO_AUTO_CUTOVER_ENV
-        SymbolKey("NO_AUTO_CUTOVER_ENV", "42000b4d43af2be0fe49519580844ae591d5d1757bdd182da765aad0e1098434", source_module="specify_cli.sync.layout_generation"),
-        # specify_cli.sync.layout_generation::LayoutAutoCutoverRefusedError
-        SymbolKey(
-            "LayoutAutoCutoverRefusedError", "4e1aab01c345a9525ac411f202313dfdaa3f3f83711f0d87912e26ce7f235249", source_module="specify_cli.sync.layout_generation"
-        ),
-        # specify_cli.sync.layout_generation::LayoutCutoverIncompleteError
-        SymbolKey(
-            "LayoutCutoverIncompleteError", "b8ea000a40231fd78125c048552b171d12b7ef0d94ddfbcd1954beac76f20505", source_module="specify_cli.sync.layout_generation"
-        ),
-    }
-)
+_CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset()
 
 
 # ---------- C. runtime-bridge-degod-01KX8M1C (#2531) compat-surface entries ----------
@@ -1502,6 +1322,59 @@ _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE: frozenset[SymbolKey] = frozenset(
 # retired in #3285; the live regression test cited above remains the
 # authoritative proof for these three canonical entries. Tracker: #2531
 # (runtime-bridge-degod), #2559.
+
+# ---------- C. unwired since the sync-transport deletion (issue #5) ----------
+# Issue #5 deleted the whole sync transport (``specify_cli/sync/``,
+# ``delivery/``, ``event_journal/``, ``saas/``, ``cli/commands/sync.py``). Six
+# surviving public symbols lost their LAST cross-file ``src/`` consumer in that
+# deletion (all six were imported only by the deleted ``cli/commands/sync.py``
+# and the sync daemon surfaces), so this gate correctly flags them as
+# ``__all__``-declared-but-unimported. They are deliberate, curated public API
+# on modules that survive the deletion, so they are allowlisted-with-note here
+# rather than de-exported from ``src/`` by a test-side change; the follow-up is
+# either to wire a new runtime caller or to delete each symbol at the source.
+# Follow-up tracker: issue #5's landing fold (wire-or-prune adjudication).
+_CATEGORY_C_SYNC_TRANSPORT_COLLATERAL_UNWIRED: frozenset[SymbolKey] = frozenset(
+    {
+        # specify_cli.cli.commands._auth_recovery::EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE
+        SymbolKey(
+            "EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE",
+            "a01134dfe3519f061e03d04e825b721700b84074d2685e91abfac04405337fea",
+            source_module="specify_cli.cli.commands._auth_recovery",
+        ),
+        # specify_cli.cli.commands._auth_recovery::RecoveryOutcome
+        SymbolKey(
+            "RecoveryOutcome",
+            "70d49fc4404bbd4b717ddf5bf2a9b6f2e5349f78cf699986811998ebad2dc026",
+            source_module="specify_cli.cli.commands._auth_recovery",
+        ),
+        # specify_cli.cli.commands._auth_recovery::handle_unauthenticated_with_teamspace
+        SymbolKey(
+            "handle_unauthenticated_with_teamspace",
+            "0400f101c2a5046ef8251dad413d661834a3b4351340d7b339254e0091021c51",
+            source_module="specify_cli.cli.commands._auth_recovery",
+        ),
+        # specify_cli.core.loopback_http::build_loopback_base_url
+        SymbolKey(
+            "build_loopback_base_url",
+            "52154df5a173c6edffb5cc8c3678f8351e198bc5edef5d591bf1f7b66cbcbc89",
+            source_module="specify_cli.core.loopback_http",
+        ),
+        # specify_cli.core.loopback_http::build_loopback_url
+        SymbolKey(
+            "build_loopback_url",
+            "0d5d132ca9af0978557dba418e9147e30d04134e10b1cafae488ed36ebbd82c0",
+            source_module="specify_cli.core.loopback_http",
+        ),
+        # specify_cli.core.saas_sync_config::saas_sync_opt_in_recorded_message
+        SymbolKey(
+            "saas_sync_opt_in_recorded_message",
+            "f6a3dbb75efdf674dcdf64e4cccb82e907a3e5e58276e832b890d2c663f0366f",
+            source_module="specify_cli.core.saas_sync_config",
+        ),
+    }
+)
+
 
 _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset()
 
@@ -1934,6 +1807,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
     | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
     | _CATEGORY_C_LAYOUT_CUTOVER_AUTHORITY_SURFACE
+    | _CATEGORY_C_SYNC_TRANSPORT_COLLATERAL_UNWIRED
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
     | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
     | _CATEGORY_C_URN_RESOLUTION_LANE

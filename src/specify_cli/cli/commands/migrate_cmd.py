@@ -70,14 +70,6 @@ _LABEL_WOULD_SEED = "Would seed (verify pending)"
 _LABEL_SKIPPED = "Skipped (already migrated)"
 _LABEL_FAILED = "Failed"
 
-#: Header for the FR-010 boundary consumer of WP05's process-level capture-failure
-#: flag (``specify_cli.sync.emitter.captured_failures``). Surfaced at the cutover
-#: epilogue when the emitter swallowed an unrecoverable capture failure during the
-#: run — observable (report + non-zero), non-fatal to the command's own success
-#: computation (it never crashes the command or rewrites the cutover verdict).
-_CAPTURE_FAILURE_HEADER = "Unrecoverable capture failure(s) recorded during this run:"
-
-
 @app.callback(invoke_without_command=True)
 def migrate(  # noqa: C901
     ctx: typer.Context,
@@ -273,7 +265,6 @@ def backfill_identity(
     skipped = [r for r in results if r.action == "skip"]
     errored = [r for r in results if r.action == "error"]
     coerced = [r for r in results if r.number_coerced]
-    warned = [r for r in results if r.dossier_warning]
 
     if json_output:
         payload = {
@@ -284,7 +275,6 @@ def backfill_identity(
                 "skip": len(skipped),
                 "error": len(errored),
                 "number_coerced": len(coerced),
-                "dossier_warnings": len(warned),
             },
             "results": [
                 {
@@ -293,7 +283,6 @@ def backfill_identity(
                     "mission_id": r.mission_id,
                     "number_coerced": r.number_coerced,
                     "reason": r.reason,
-                    "dossier_warning": r.dossier_warning,
                 }
                 for r in results
             ],
@@ -307,8 +296,6 @@ def backfill_identity(
         console.print(f"  Skipped (already set)  : {len(skipped)}")
         console.print(f"  Errors                 : {len(errored)}")
         console.print(f"  Number coerced         : {len(coerced)}")
-        if warned:
-            console.print(f"  [yellow]Dossier warnings       : {len(warned)}[/yellow]")
 
         if errored:
             console.print("\n[red]Errors:[/red]")
@@ -860,13 +847,6 @@ def backfill_runtime_state_cmd(
         cutover_mission,
         cutover_repo,
     )
-    from specify_cli.sync.emitter import reset_captured_failures
-
-    # FR-010 boundary consumer (WP05): the capture-failure flag is process-level.
-    # Reset it at entry so what we surface at the epilogue is this invocation's own
-    # signal — never a leftover from a prior command in a long-lived process.
-    reset_captured_failures()
-
     repo_root = locate_project_root()
     if repo_root is None:
         _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
@@ -892,16 +872,7 @@ def backfill_runtime_state_cmd(
     # --dry-run is a non-mutating preview: an unseeded corpus verifies "not ok"
     # only because the seeds are not yet written, so a preview never fails the
     # command — the counts + any mismatch are reported for the operator.
-    cutover_failed = not dry_run and any(_cutover_failed(r, dry_run=dry_run) for r in results)
-
-    # FR-010 boundary consumer: surface any unrecoverable capture failure WP05's
-    # emitter recorded during this run. Independent of the cutover verdict and
-    # non-fatal to it (it only ever *adds* a non-zero reason; it never rewrites a
-    # cutover failure into success), so a genuinely-swallowed capture failure is
-    # observable at the boundary instead of silently lost (#3391 / NFR-001).
-    capture_failed = _surface_capture_failures()
-
-    if cutover_failed or capture_failed:
+    if not dry_run and any(_cutover_failed(r, dry_run=dry_run) for r in results):
         raise typer.Exit(1)
 
 
@@ -982,29 +953,6 @@ def rebaseline_dossier_hashes(
 def _error(message: str) -> None:
     """Print an error message to stderr via Rich console."""
     err_console.print(f"[red]Error:[/red] {message}")
-
-
-def _surface_capture_failures() -> bool:
-    """FR-010 boundary consumer: report WP05's recorded capture failures.
-
-    Queries the emitter's process-level capture-failure surface
-    (:func:`specify_cli.sync.emitter.captured_failures`). When one or more
-    unrecoverable failures were swallowed during the run, prints an actionable
-    report naming each ``site`` + ``summary`` and returns ``True`` so the caller
-    can add a non-zero exit reason. Returns ``False`` (silent) on a clean run —
-    the NFR-001 inverse: a healthy root never warning-storms. This never raises:
-    surfacing the flag must not crash the command it is diagnosing.
-    """
-    from specify_cli.sync.emitter import captured_failures
-
-    failures = captured_failures()
-    if not failures:
-        return False
-
-    err_console.print(f"\n[red]{_CAPTURE_FAILURE_HEADER}[/red]")
-    for failure in failures:
-        err_console.print(f"  [red]{failure.site}:[/red] {failure.summary}")
-    return True
 
 
 def _cutover_failed(result: Any, *, dry_run: bool) -> bool:
