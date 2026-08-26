@@ -52,9 +52,7 @@ def get_cli_version() -> str:
         )
 
         profile = resolve_distribution_profile()
-        resolved = resolve_installed_distribution_version(
-            profile.package_name, profile.package_aliases, default=""
-        )
+        resolved = resolve_installed_distribution_version(profile.package_name, profile.package_aliases, default="")
         if resolved:
             return resolved
     except Exception:
@@ -273,34 +271,6 @@ def should_check_version(command_name: str) -> bool:
     return command_name not in skip_commands
 
 
-def _hosted_saas_target_configured() -> bool:
-    """Return ``True`` when an explicit hosted Team Kitty target is configured.
-
-    Issue #178: the WP09 no-upgrade notices compare the running build against
-    **public PyPI**, which is not this programme's release channel — during the
-    programme nothing is published to PyPI; releases land as GitHub Releases on
-    ``spec-kitty/EXPERIMENTAL-spec-kitty`` (planning#94). For a CLI pointed at
-    a hosted deployment (any explicitly configured ``SPEC_KITTY_SAAS_URL`` or
-    ``config.toml [sync].server_url`` — an exe.dev team host, team.spec-kitty.ai,
-    a self-hosted instance) that comparison is meaningless noise ("build is
-    ahead of the latest PyPI release"), so the caller stays quiet. With nothing
-    configured, stock public-PyPI behaviour is unchanged.
-
-    Resolution goes through the canonical
-    :func:`specify_cli.auth.server_target.resolve_server_target` so this gate
-    follows the same precedence and normalisation as every other hosted
-    surface. Never raises: a resolver failure resolves to "not configured" and
-    the stock path proceeds.
-    """
-    from specify_cli.auth.server_target import resolve_server_target  # noqa: PLC0415
-
-    try:
-        target = resolve_server_target()
-    except Exception:  # noqa: BLE001 — the version gate must never block the CLI
-        return False
-    return target.env_server_url is not None or target.configured_server_url is not None
-
-
 def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
     """Reuse ``should_check_version`` to gate the WP09 no-upgrade notifier.
 
@@ -322,8 +292,8 @@ def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
           ``try/except`` for defence-in-depth.
         - Uses the existing ``should_check_version`` gate; does not introduce
           a parallel decision point.
-        - Stays silent when an explicit hosted Team Kitty target is configured
-          (issue #178): see :func:`_hosted_saas_target_configured`.
+        - Uses the current programme's GitHub Releases channel, not public
+          package indexes.
     """
     try:
         if not should_check_version(command_name):
@@ -332,12 +302,6 @@ def maybe_emit_no_upgrade_notice(command_name: str) -> bool:
         from specify_cli.distribution import resolve_distribution_profile
 
         if resolve_distribution_profile().disable_public_pypi_notifier:
-            return False
-
-        # Issue #178: an explicitly configured hosted target means the running
-        # build comes from this programme's channel, not public PyPI — the
-        # comparison is meaningless there, so stay quiet and skip the probe.
-        if _hosted_saas_target_configured():
             return False
 
         # Deferred import to keep this module light and to avoid pulling httpx

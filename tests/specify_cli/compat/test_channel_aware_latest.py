@@ -39,8 +39,8 @@ pytestmark = pytest.mark.fast
 _NOW = datetime(2026, 4, 27, 12, 0, 0, tzinfo=UTC)
 
 
-def _make_pypi_payload(latest: str, releases: list[str]) -> dict[str, Any]:
-    return {"info": {"version": latest}, "releases": {v: [] for v in releases}}
+def _make_release_payload(releases: list[str]) -> list[dict[str, object]]:
+    return [{"tag_name": f"v{version}", "draft": False} for version in releases]
 
 
 # ---------------------------------------------------------------------------
@@ -50,17 +50,15 @@ def _make_pypi_payload(latest: str, releases: list[str]) -> dict[str, Any]:
 
 class TestProbePypiChannelAware:
     @respx.mock
-    def test_default_off_ahead_of_pypi_unchanged(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Regression guard: the pre-WP05 AHEAD_OF_PYPI scenario is untouched.
+    def test_default_off_released_rc_ahead_of_stable_unchanged(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Regression guard: a released rc can still be ahead of stable.
 
-        Installed 3.2.0rc7 is newer than the stable 3.1.0, and NOT itself
-        published (releases only contains 3.0.0/3.1.0) — with the channel
-        unset this must still classify AHEAD_OF_PYPI, exactly as before T022.
+        Installed 3.2.0rc7 is newer than the stable 3.1.0 and is itself a
+        current-org release, so with the prerelease channel unset it is ahead
+        of the selected stable release.
         """
         monkeypatch.delenv("SPEC_KITTY_PRERELEASE", raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
 
         result = probe_pypi("3.2.0rc7")
 
@@ -70,14 +68,10 @@ class TestProbePypiChannelAware:
     @respx.mock
     def test_explicit_prerelease_false_matches_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("SPEC_KITTY_PRERELEASE", raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
         default_result = probe_pypi("3.2.0rc7")
 
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
         explicit_result = probe_pypi("3.2.0rc7", prerelease=False)
 
         assert default_result.channel == explicit_result.channel
@@ -88,11 +82,7 @@ class TestProbePypiChannelAware:
         """C-CHN-2: an installed rc that IS the newest published release
         reclassifies as ALREADY_CURRENT once its own channel is consulted.
         """
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(
-                200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0", "3.2.0rc7"])
-            )
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
 
         result = probe_pypi("3.2.0rc7", prerelease=True)
 
@@ -104,11 +94,7 @@ class TestProbePypiChannelAware:
     def test_prerelease_none_resolves_via_channel_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """``prerelease=None`` (the production default) reads core.channel."""
         monkeypatch.setenv("SPEC_KITTY_PRERELEASE", "1")
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(
-                200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0", "3.2.0rc7"])
-            )
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
 
         result = probe_pypi("3.2.0rc7")
 
@@ -130,9 +116,7 @@ class TestCacheVersionKey:
         assert rc_key != stable_key
 
     def test_prerelease_channel_key_is_deterministic(self) -> None:
-        assert _cache_version_key("2.0.11", prerelease=True) == _cache_version_key(
-            "2.0.11", prerelease=True
-        )
+        assert _cache_version_key("2.0.11", prerelease=True) == _cache_version_key("2.0.11", prerelease=True)
 
 
 # ---------------------------------------------------------------------------
@@ -258,9 +242,7 @@ class TestPlanChannelAwareEndToEnd:
 
         assert result.cli_status.latest_version == "2.0.0rc1"
 
-    def test_toggling_the_channel_forces_a_fresh_probe(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_toggling_the_channel_forces_a_fresh_probe(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """T023: switching SPEC_KITTY_PRERELEASE re-probes instead of trusting
         a cache record written under the other channel."""
         cache = NagCache(tmp_path / "upgrade-nag.json")

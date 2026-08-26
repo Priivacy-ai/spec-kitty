@@ -46,12 +46,13 @@ from specify_cli.core.upgrade_probe import (
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
-def _make_pypi_payload(latest: str, releases: list[str]) -> dict:
-    """Build a minimal PyPI JSON metadata payload."""
-    return {
-        "info": {"version": latest},
-        "releases": {v: [] for v in releases},
-    }
+
+def _make_release_payload(releases: list[str], *, draft: str | None = None) -> list[dict[str, object]]:
+    """Build a minimal GitHub Releases API payload."""
+    rows = [{"tag_name": f"v{version}", "draft": False} for version in releases]
+    if draft is not None:
+        rows.append({"tag_name": f"v{draft}", "draft": True})
+    return rows
 
 
 def _capture_console() -> tuple[Console, StringIO]:
@@ -71,9 +72,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_already_current_when_installed_equals_latest(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.1.0", "3.2.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.1.0", "3.2.0"])))
 
         result = probe_pypi("3.2.0")
 
@@ -82,10 +81,18 @@ class TestProbeChannelClassification:
         assert result.error is None
 
     @respx.mock
-    def test_ahead_of_pypi_when_installed_greater_than_latest(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0"]))
-        )
+    def test_rc_only_release_channel_still_classifies_current_release(self) -> None:
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.6rc2"])))
+
+        result = probe_pypi("3.2.6rc2")
+
+        assert result.channel == UpgradeChannel.ALREADY_CURRENT
+        assert result.latest_pypi_version == "3.2.6rc2"
+        assert result.error is None
+
+    @respx.mock
+    def test_ahead_of_release_when_installed_greater_than_latest_stable_release(self) -> None:
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
 
         result = probe_pypi("3.2.0rc7")
 
@@ -94,10 +101,8 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_no_upgrade_path_when_installed_not_in_releases(self) -> None:
-        # Installed version "0.0.0-dev" is NOT a published release.
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.1.0", "3.2.0"]))
-        )
+        # Installed version "0.0.1.dev0" is NOT a current-org release.
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.1.0", "3.2.0"])))
 
         result = probe_pypi("0.0.1.dev0")
 
@@ -106,9 +111,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_upgrade_available_when_installed_is_older_published_release(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.1", ["3.2.0", "3.2.1"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
 
         result = probe_pypi("3.2.0")
 
@@ -162,8 +165,8 @@ class TestProbeChannelClassification:
         assert result.channel == UpgradeChannel.UNKNOWN
 
     @respx.mock
-    def test_unknown_on_missing_info_version(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json={"info": {}, "releases": {}}))
+    def test_unknown_on_missing_release_tags(self) -> None:
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=[]))
 
         result = probe_pypi("3.2.0")
 
@@ -185,9 +188,7 @@ class TestProbeChannelClassification:
 
 
 class TestOptOut:
-    def test_opt_out_returns_false_and_emits_no_notice(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_opt_out_returns_false_and_emits_no_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.setenv(OPT_OUT_ENV_VAR, "1")
         cache_path = tmp_path / "upgrade-check.json"
         console, buf = _capture_console()
@@ -199,9 +200,7 @@ class TestOptOut:
         # Cache must not be touched when opt-out is set.
         assert not cache_path.exists()
 
-    def test_opt_out_truthy_values(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_opt_out_truthy_values(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         cache_path = tmp_path / "upgrade-check.json"
         for value in ("1", "true", "TRUE", "yes", "on"):
             monkeypatch.setenv(OPT_OUT_ENV_VAR, value)
@@ -209,9 +208,7 @@ class TestOptOut:
             assert maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=cache_path) is False
             assert buf.getvalue() == ""
 
-    def test_opt_out_falsy_values_do_not_disable(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_opt_out_falsy_values_do_not_disable(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """Empty/0/false values must NOT disable the check."""
         cache_path = tmp_path / "upgrade-check.json"
         monkeypatch.setenv(OPT_OUT_ENV_VAR, "0")
@@ -234,36 +231,24 @@ class TestOptOut:
 
 class TestNoticeContent:
     @respx.mock
-    def test_already_current_emits_latest_notice(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_already_current_emits_latest_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.2.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         console, buf = _capture_console()
 
-        emitted = maybe_emit_upgrade_notice(
-            "3.2.0", console=console, cache_path=tmp_path / "c.json"
-        )
+        emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=tmp_path / "c.json")
 
         assert emitted is True
         assert "3.2.0" in buf.getvalue()
         assert "latest supported" in buf.getvalue()
 
     @respx.mock
-    def test_ahead_of_pypi_emits_ahead_notice(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_ahead_of_release_emits_ahead_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.1.0", ["3.0.0", "3.1.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
         console, buf = _capture_console()
 
-        emitted = maybe_emit_upgrade_notice(
-            "3.2.0rc7", console=console, cache_path=tmp_path / "c.json"
-        )
+        emitted = maybe_emit_upgrade_notice("3.2.0rc7", console=console, cache_path=tmp_path / "c.json")
 
         assert emitted is True
         out = buf.getvalue()
@@ -272,51 +257,50 @@ class TestNoticeContent:
         assert "3.1.0" in out
 
     @respx.mock
-    def test_no_upgrade_path_emits_non_pypi_notice(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_no_upgrade_path_emits_private_release_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.2.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         console, buf = _capture_console()
 
-        emitted = maybe_emit_upgrade_notice(
-            "0.0.1.dev0", console=console, cache_path=tmp_path / "c.json"
-        )
+        emitted = maybe_emit_upgrade_notice("0.0.1.dev0", console=console, cache_path=tmp_path / "c.json")
 
         assert emitted is True
         out = buf.getvalue()
-        assert "non-PyPI" in out or "no PyPI upgrade path" in out.lower()
+        assert "spec-kitty/EXPERIMENTAL-spec-kitty GitHub Release" in out
+        assert "pinned private release" in out
 
     @respx.mock
-    def test_unknown_emits_no_notice(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_unreleased_ahead_build_reports_private_release_mismatch(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.6rc2"])))
+        console, buf = _capture_console()
+
+        emitted = maybe_emit_upgrade_notice("3.2.6rc3", console=console, cache_path=tmp_path / "c.json")
+
+        assert emitted is True
+        out = buf.getvalue()
+        assert "3.2.6rc3" in out
+        assert "not a current spec-kitty/EXPERIMENTAL-spec-kitty GitHub Release" in out
+        assert "ahead of the latest" not in out
+
+    @respx.mock
+    def test_unknown_emits_no_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
         respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(500))
         console, buf = _capture_console()
 
-        emitted = maybe_emit_upgrade_notice(
-            "3.2.0", console=console, cache_path=tmp_path / "c.json"
-        )
+        emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=tmp_path / "c.json")
 
         assert emitted is False
         assert buf.getvalue() == ""
 
     @respx.mock
-    def test_upgrade_available_emits_no_no_upgrade_notice(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_upgrade_available_emits_no_no_upgrade_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.1", ["3.2.0", "3.2.1"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
         console, buf = _capture_console()
 
-        emitted = maybe_emit_upgrade_notice(
-            "3.2.0", console=console, cache_path=tmp_path / "c.json"
-        )
+        emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=tmp_path / "c.json")
 
         assert emitted is False
         assert buf.getvalue() == ""
@@ -329,13 +313,9 @@ class TestNoticeContent:
 
 class TestCache:
     @respx.mock
-    def test_cache_is_persisted_after_successful_probe(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_cache_is_persisted_after_successful_probe(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.2.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
         console, _ = _capture_console()
 
@@ -350,9 +330,7 @@ class TestCache:
         assert data["ttl_seconds"] == TTL_SUCCESS_SECONDS
 
     @respx.mock
-    def test_unknown_uses_short_ttl_in_cache(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_unknown_uses_short_ttl_in_cache(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
         respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(500))
         cache_path = tmp_path / "c.json"
@@ -367,22 +345,16 @@ class TestCache:
         assert data["ttl_seconds"] == TTL_UNKNOWN_SECONDS
 
     @respx.mock
-    def test_cache_fresh_within_ttl_suppresses_repeat_notice_for_already_current(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_cache_fresh_within_ttl_suppresses_repeat_notice_for_already_current(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """AC #4: identical-channel-within-TTL suppression for ALREADY_CURRENT."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.2.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
         t0 = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
         # First call: emits the notice.
         console1, buf1 = _capture_console()
-        e1 = maybe_emit_upgrade_notice(
-            "3.2.0", console=console1, cache_path=cache_path, now=t0
-        )
+        e1 = maybe_emit_upgrade_notice("3.2.0", console=console1, cache_path=cache_path, now=t0)
         assert e1 is True
         assert "3.2.0" in buf1.getvalue()
 
@@ -390,21 +362,15 @@ class TestCache:
         # ALREADY_CURRENT → suppress.
         console2, buf2 = _capture_console()
         t1 = t0 + timedelta(hours=1)
-        e2 = maybe_emit_upgrade_notice(
-            "3.2.0", console=console2, cache_path=cache_path, now=t1
-        )
+        e2 = maybe_emit_upgrade_notice("3.2.0", console=console2, cache_path=cache_path, now=t1)
         assert e2 is False
         assert buf2.getvalue() == ""
 
     @respx.mock
-    def test_cache_stale_after_ttl_re_probes_and_re_emits(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_cache_stale_after_ttl_re_probes_and_re_emits(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """After TTL expires, the cache is stale → re-probe + re-emit."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.2.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
         t0 = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
@@ -417,34 +383,27 @@ class TestCache:
         # rule (which checks `cached_was_fresh`) does NOT apply → emit.
         t1 = t0 + timedelta(seconds=TTL_SUCCESS_SECONDS + 10)
         console2, buf2 = _capture_console()
-        e2 = maybe_emit_upgrade_notice(
-            "3.2.0", console=console2, cache_path=cache_path, now=t1
-        )
+        e2 = maybe_emit_upgrade_notice("3.2.0", console=console2, cache_path=cache_path, now=t1)
         assert e2 is True
         assert "3.2.0" in buf2.getvalue()
 
     @respx.mock
-    def test_cache_invalidated_when_installed_version_changes(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_cache_invalidated_when_installed_version_changes(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """If the user upgrades mid-cache-window, the cache is stale."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.1", ["3.2.0", "3.2.1"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
         cache_path = tmp_path / "c.json"
         t0 = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
         # First call as 3.2.0 (installed in releases but older than latest).
         # The no-upgrade notifier stays silent and caches the probe result;
         # the existing upgrade nag owns the actual upgrade-available message.
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.1", ["3.2.0", "3.2.1"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
         console1, _ = _capture_console()
         maybe_emit_upgrade_notice("3.2.0", console=console1, cache_path=cache_path, now=t0)
 
         import json
+
         cached_v1 = json.loads(cache_path.read_text())["installed_version"]
         assert cached_v1 == "3.2.0"
 
@@ -458,20 +417,14 @@ class TestCache:
         assert cached_v2 == "3.2.1"
 
     @respx.mock
-    def test_corrupt_cache_file_is_treated_as_miss(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_corrupt_cache_file_is_treated_as_miss(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.2.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
         cache_path.write_text("definitely-not-json{[")
         console, buf = _capture_console()
 
-        emitted = maybe_emit_upgrade_notice(
-            "3.2.0", console=console, cache_path=cache_path
-        )
+        emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=cache_path)
 
         # The corrupt cache is ignored; a fresh probe runs and emits.
         assert emitted is True
@@ -484,9 +437,7 @@ class TestCache:
 
 
 class TestFailureContainment:
-    def test_notifier_returns_cleanly_when_probe_explodes(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_notifier_returns_cleanly_when_probe_explodes(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """The notifier must never re-raise probe-layer exceptions."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
 
@@ -495,14 +446,10 @@ class TestFailureContainment:
         def boom(*args, **kwargs):
             raise RuntimeError("synthetic")
 
-        monkeypatch.setattr(
-            "specify_cli.core.upgrade_notifier.probe_pypi", boom
-        )
+        monkeypatch.setattr("specify_cli.core.upgrade_notifier.probe_pypi", boom)
 
         console, buf = _capture_console()
-        emitted = maybe_emit_upgrade_notice(
-            "3.2.0", console=console, cache_path=tmp_path / "c.json"
-        )
+        emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=tmp_path / "c.json")
 
         assert emitted is False
         assert buf.getvalue() == ""
@@ -527,9 +474,7 @@ class TestFailureContainment:
 
 
 class TestVersionCheckerIntegration:
-    def test_maybe_emit_no_upgrade_notice_skips_for_init(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_maybe_emit_no_upgrade_notice_skips_for_init(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """The helper must reuse should_check_version — init is skipped."""
         from specify_cli.core.version_checker import maybe_emit_no_upgrade_notice
 
@@ -545,9 +490,7 @@ class TestVersionCheckerIntegration:
         result = maybe_emit_no_upgrade_notice("init")
         assert result is False
 
-    def test_maybe_emit_no_upgrade_notice_swallows_exceptions(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_maybe_emit_no_upgrade_notice_swallows_exceptions(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """If the notifier raises somehow, the helper must still return False."""
         from specify_cli.core import version_checker
 
@@ -556,6 +499,7 @@ class TestVersionCheckerIntegration:
 
         # Patch the lazy-imported notifier function to explode.
         import specify_cli.core.upgrade_notifier as un
+
         monkeypatch.setattr(un, "maybe_emit_upgrade_notice", boom)
 
         result = version_checker.maybe_emit_no_upgrade_notice("some-real-command")
@@ -569,14 +513,10 @@ class TestVersionCheckerIntegration:
 
 class TestPerformance:
     @respx.mock
-    def test_cache_warm_path_under_100ms(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_cache_warm_path_under_100ms(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """NFR-004: cache-warm invocations must complete in <=100 ms (avg over 10)."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(
-            return_value=httpx.Response(200, json=_make_pypi_payload("3.2.0", ["3.2.0"]))
-        )
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
 
         # Warm the cache.
@@ -591,9 +531,7 @@ class TestPerformance:
             maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=cache_path)
         elapsed_per_call = (time.perf_counter() - start) / 10
 
-        assert elapsed_per_call < 0.1, (
-            f"cache-warm path took {elapsed_per_call * 1000:.1f}ms — should be <100ms"
-        )
+        assert elapsed_per_call < 0.1, f"cache-warm path took {elapsed_per_call * 1000:.1f}ms — should be <100ms"
 
 
 # ---------------------------------------------------------------------------
@@ -602,9 +540,7 @@ class TestPerformance:
 
 
 class TestCachePath:
-    def test_posix_path_honours_xdg_cache_home(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_posix_path_honours_xdg_cache_home(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         from specify_cli.core.upgrade_notifier import _default_cache_path
 
         if __import__("os").name == "nt":
@@ -614,9 +550,7 @@ class TestCachePath:
         path = _default_cache_path()
         assert path == tmp_path / "spec-kitty" / "upgrade-check.json"
 
-    def test_posix_path_falls_back_to_home(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_posix_path_falls_back_to_home(self, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.core.upgrade_notifier import _default_cache_path
 
         if __import__("os").name == "nt":
