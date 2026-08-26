@@ -31,6 +31,17 @@ from specify_cli.cli.console import console
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.session import StoredSession
+from specify_cli.auth.verdict import HealthVerdict, evaluate_auth_verdict
+
+
+# Banner colour + status glyph per verdict state. The banner text itself is the
+# verdict's derived headline, so it can never contradict the token-expiry detail
+# printed below it (#3723 rule 3).
+_VERDICT_STYLE: dict[str, tuple[str, str]] = {
+    "ok": ("green", "+"),
+    "unknown": ("yellow", "?"),
+    "fail": ("red", "X"),
+}
 
 
 # Mapping from the StorageBackend literal (see session.py) to a
@@ -58,21 +69,17 @@ def status_impl() -> None:
     tm = get_token_manager()
     session = tm.get_current_session()
 
-    if session is None:
-        console.print("[red]X Not authenticated[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to authenticate."
-        )
+    # ``auth status`` is offline (no server probe), so the verdict resolves
+    # ``unknown`` — never a false green — for an expired access token whose
+    # refresh chain cannot be proven offline (#3723).
+    verdict = evaluate_auth_verdict(session, now_utc())
+    _print_banner(verdict)
+
+    if session is None or verdict.state == "fail":
+        verb = "authenticate" if session is None else "re-authenticate"
+        console.print(f"  Run [bold]spec-kitty auth login[/bold] to {verb}.")
         return
 
-    if session.is_refresh_token_expired():
-        console.print("[red]X Session expired (refresh token expired)[/red]")
-        console.print(
-            "  Run [bold]spec-kitty auth login[/bold] to re-authenticate."
-        )
-        return
-
-    console.print("[green]+ Authenticated[/green]")
     console.print()
 
     _print_identity(session)
@@ -93,6 +100,13 @@ def status_impl() -> None:
 # ---------------------------------------------------------------------------
 # Section printers
 # ---------------------------------------------------------------------------
+
+
+def _print_banner(verdict: HealthVerdict) -> None:
+    """Print the status banner — headline derived from the verdict, plus its
+    evidence, so the summary can never contradict the detail (#3723)."""
+    color, glyph = _VERDICT_STYLE[verdict.state]
+    console.print(f"[{color}]{glyph} {verdict.headline}[/{color}] ({verdict.evidence})")
 
 
 def _print_identity(session: StoredSession) -> None:
