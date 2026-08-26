@@ -12,5 +12,7 @@
   "purpose_tldr": "Fix three confirmed 3.2.6 release-blocking reliability defects (upgrade charter activation, merge stale-lane recovery guidance, lane-allocation retry) as one mission of three independent work packages.",
   "slug": "p0-reliability-triad-01M0YW93",
   "target_branch": "fix/p0-reliability-triad",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-26T12:41:03.950843+00:00"
 }
