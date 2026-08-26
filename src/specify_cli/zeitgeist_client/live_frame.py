@@ -35,6 +35,11 @@ Reported-live honesty, not reconstruction:
 * ``signal.kind == "revoked"`` is scoped: only the named ``session_ref``'s
   presence/focus entries are removed, matching the relay's own
   ``session_revoke`` scoping (F3 N30).
+* An ``event`` frame (E1's status moment, EXPERIMENTAL-spec-kitty#10) is
+  accepted — before #10 it was silently dropped by the ``frame.type``
+  discriminator, so a watch could never show the moment the demo path turns
+  on — but it is the one frame type that leaves no trace in ``StreamState``
+  (see ``_apply_event``): it is delivered live to watchers, never retained.
 * A ``focus`` frame with ``state == "ended"`` is dropped immediately, never
   retained — "no durable queue for closed signals" is this module's own
   reading of that criterion: a closed signal is consumed and gone, not kept
@@ -125,9 +130,14 @@ from typing import Any, Literal, TypeGuard
 
 from . import grammar
 
-FrameType = Literal["presence", "focus", "signal"]
+FrameType = Literal["presence", "focus", "signal", "event"]
 
-_FRAME_TYPES: frozenset[str] = frozenset({"presence", "focus", "signal"})
+# "event" (EXPERIMENTAL-spec-kitty#10) is the E1 status-moment frame the
+# relay emits for one fire-and-forget ``event.publish`` — activity ABOUT a
+# session, never liveness OF one. Accepting it here is what lets
+# ``filtered_stream.watch()`` deliver it at all; see ``_apply_event`` for why
+# it is deliberately the one frame type that leaves no trace in state.
+_FRAME_TYPES: frozenset[str] = frozenset({"presence", "focus", "signal", "event"})
 _SIGNAL_KINDS: frozenset[str] = frozenset({"gap", "epoch", "revoked", "heartbeat"})
 _FOCUS_STATES: frozenset[str] = frozenset({"active", "paused", "ended"})
 
@@ -297,6 +307,8 @@ class StreamState:
             self._apply_signal(live_frame_obj)
         elif live_frame_obj.frame_type == "presence":
             self._apply_presence(live_frame_obj)
+        elif live_frame_obj.frame_type == "event":
+            self._apply_event(live_frame_obj)
         else:
             self._apply_focus(live_frame_obj)
 
@@ -339,6 +351,21 @@ class StreamState:
             "kind": _optional_str(payload.get("kind")),
             "expires_at": base_ts + _clamp_ttl(payload.get("ttl_s")),
         }
+
+    def _apply_event(self, live_frame_obj: LiveFrame) -> None:
+        """An ``event`` frame is deliberately the one frame type that changes
+        nothing here. The relay's own contract for ``event.publish``
+        (``zeitgeist/managed.py``) is "an event is activity ABOUT a session,
+        never liveness OF one — publishing one must not extend anything's
+        ttl", and it keeps nothing beyond its replay cache; this read side
+        holds to the same shape. A moment is delivered exactly once, live, to
+        whoever is watching (``filtered_stream.watch()`` yields every accepted
+        frame); a caller reading :meth:`snapshot` afterwards gets presence and
+        focus — what is true NOW — never a history that would silently grow
+        with every broadcast and outlive the 90s honesty ceiling everything
+        else in this module obeys. Z4-C's own criteria say the same thing from
+        the client side: no missed-event reconstruction, no payload persisted.
+        """
 
     def _apply_focus(self, live_frame_obj: LiveFrame) -> None:
         payload = live_frame_obj.payload
