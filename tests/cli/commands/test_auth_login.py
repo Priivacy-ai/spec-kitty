@@ -248,6 +248,41 @@ class TestAuthLoginConfigErrors:
         assert "No hosted server is configured" in result.stdout
 
 
+class TestAuthLoginSaasLineRendering:
+    def test_saas_line_renders_server_url_containing_bracket_markup(
+        self, monkeypatch, tmp_path
+    ):
+        """#202: ``_run_browser_flow`` interpolated the configured
+        ``server_url`` into a Rich ``[dim]`` line unescaped, so a value
+        containing a closing-tag-like substring (``https://x.test[/]``) raised
+        ``rich.markup.MarkupError`` out of ``console.print`` and crashed login
+        before the OAuth flow could start. The URL must render verbatim."""
+        bracketed = "https://x.test[/]"
+        runtime_root = tmp_path / "runtime-root"
+        runtime_root.mkdir(parents=True)
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(runtime_root))
+        monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+        (runtime_root / "config.toml").write_text(
+            f'[sync]\nserver_url = "{bracketed}"\n', encoding="utf-8"
+        )
+
+        async def _noop_login(*_args, **_kwargs):
+            return _make_session()
+
+        with patch(
+            "specify_cli.cli.commands._auth_login.get_token_manager"
+        ) as mock_factory, patch(
+            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
+        ) as mock_flow_cls:
+            mock_factory.return_value.is_authenticated = False
+            mock_flow_cls.return_value.login = AsyncMock(side_effect=_noop_login)
+            result = runner.invoke(app, ["login"])
+
+        assert result.exit_code == 0, result.stdout
+        # Rendered verbatim — no MarkupError, no swallowed markup tags.
+        assert f"SaaS: {bracketed}" in result.stdout
+
+
 # ---------------------------------------------------------------------------
 # Already-authenticated / --force behavior
 # ---------------------------------------------------------------------------
