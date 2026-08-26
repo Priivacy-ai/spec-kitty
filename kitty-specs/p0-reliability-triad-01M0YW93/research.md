@@ -30,3 +30,37 @@ No open [NEEDS CLARIFICATION] — the three fix directions were settled by a 4-a
 
 ## Supply-chain adversarial evidence
 N/A — no dependency decision in this mission.
+
+---
+
+# Post-plan adversarial squad — evidence & dispositions (2026-08-26)
+
+Three profile-loaded lenses (architecture-scout, QA/red-first, foldable-issue) reviewed the committed plan. Dispositions per `contracts/adversarial-evidence-contract.md` (accepted / changed / deferred_with_rationale). No contested finding dropped silently.
+
+## WP03 (#3281) — reshaped (highest-value findings)
+
+- **[HIGH] Ancestry gate at wrong seam → deadlocks approved same-mission deps** (arch + QA). `implement_check_dependency_gate` runs at `workflow.py:1263`, BEFORE `_ensure_workspace_materialized` (:1297) performs the merges that establish ancestry; and the exists-short-circuit collides with the landed #1832/#1833 single-resolution invariant (`test_implement_single_resolution.py` hard-asserts `_create` must not run when workspace exists). → **CHANGED**: ancestry assertion moves POST-materialize (between :1297 and claim emission); pre-materialize status-lane gate stays as fail-fast; exists-branch invokes a dedicated idempotent self-heal, not a break of the #1832/#1833 invariant (that test's semantics updated with rationale). New C-005/C-006.
+- **[MED] Ancestry must key on the merged tip + couple to self-heal** (arch). A live-tip predicate re-creates the moving-tip fragility #3281 fixes. → **CHANGED**: one shared predicate evaluated after self-heal re-runs dep-tip merges; on failure route back into self-heal; hard-refuse only if self-heal cannot establish ancestry. FR-007 revised; FR-005+FR-007 land together.
+- **[MED-HIGH] orchestrator-api claim path left ancestry-blind (boundary leak)** (arch). `orchestrator_api/commands.py` emits `claimed` via its own composite, never through `workflow_executor`. Self-heal + fresh-path atomicity reach it (owned `worktree_allocator.py`) but the ancestry gate would not. → **CHANGED**: ancestry belongs at a seam BOTH claim paths cross; promoted `orchestrator_api` from mirror-check to an explicit ancestry-parity task. New C-006.
+- **[MED] exists-branch decision tree under-specified** (arch). → **CHANGED**: tasks spell out ancestry-correct→no-op vs stale→self-heal (self-heal needs main-repo context, not worktree cwd); Acceptance Scenario 4 (no-op resume) preserved.
+- **[LOW] FR-006 fresh-path atomicity is a nicety, not load-bearing** (arch). Merge helpers already abort-and-clean; conflict leaves the worktree clean-but-registered, so reuse-path validation passes and re-entry (invariant 2) is what heals. → **ACCEPTED (scoped)**: targeted `git worktree remove` on the fresh-path raise + one focused test; do NOT build heavy rollback machinery.
+- **[MED] Coordinate #2570 friction #1** (foldable): WP03 reshapes the same fresh-path allocation surface. → **ACCEPTED**: added to the #3432 coordination note (C-003). Not a fold.
+
+## WP02 (#3579)
+
+- **[MED] SC-002 unverifiable vs minimal-fix scope** (QA): SC-002/US2-sc2 assert "merge completes," but the executable recovery is Out-of-Scope (minimal fix = remediation text). → **CHANGED**: SC-002 and US2 scenario 2 narrowed to "remediation names a reachable tool remedy," matching scope.
+- **[MED] Remediation text asserted in `test_merge.py` (outside owned set)** (QA): `test_merge.py:218-219` asserts the raw-git substrings via `consolidate_lane_into_mission`. → **CHANGED**: `tests/lanes/test_merge.py` added to WP02's lockstep-update set.
+- **[MED] Behavioral dependency on #3531** (foldable): the advertised `status materialize` remedy can emit all-zeros `status.json` on a schema-mismatch log. → **ACCEPTED (coordination note)**: reviewer confirms the remedy holds for the same-schema conflict WP02 targets; #3531 (cross-schema) is out of scope, flagged.
+- **[LOW] C-002 citation drift** (arch): `_NON_DIVERGENT_CANONICAL_ARTIFACTS` lives in `tests/architectural/test_merge_reconciliation_class_guard.py`, not `merge.py`. → **CHANGED**: C-002 citation corrected.
+
+## WP01 (#3282)
+
+- **[LOW→MED] pending-predicate must absorb fail-loud pointer contract** (arch): `resolve_activation_write_target` raises `CharterPackConfigError` on a dangling `charter:` pointer; the current predicate swallows and returns False. → **ACCEPTED**: keep a defined, non-crashing dry-run contract for the dangling-pointer preview (+ test).
+- **[LOW] authored-empty parity for the charter.yaml path** (QA): existing tests cover only the config.yaml empty-list case. → **ACCEPTED**: add a pointer + authored-empty test.
+- **[LOW] stale docstring divergence** (arch): after the fix, init stays pointer-blind while upgrade moves pointer-aware. → **ACCEPTED**: update the `_provision_missing_mission_type_activations` docstring so the intentional divergence isn't read as a regression.
+- **[LOW] #3702 write/read authority consistency** (foldable): both write `mission_type_activations`. → **ACCEPTED (reviewer note)**: confirm WP01's write authority matches #3702's read-path validation authority. Not a fold.
+- **CLEARED**: "no new migration" is SAFE (finalizer runs every upgrade, independent of the migration set).
+
+## Cross-cutting (reported, deferred with rationale)
+
+- **[MED] #3579 + #3281 share one root** — incomplete recovery for a partial reconciliation at the lane git boundary (derived `status.json` must be rematerialized; git state must be re-merged/rolled-back). A unified "lane-reconciliation contract" could host both. → **DEFERRED_WITH_RATIONALE**: folding two independent release-blocking P0s into one seam multiplies blast radius against C-001/C-003 and small-diff discipline under release pressure. Keep the three-point fix for 3.2.6; recorded as a follow-up tracking candidate (surface to operator; do not auto-file).
