@@ -17,6 +17,9 @@ pytestmark = [pytest.mark.integration]
 
 ACCEPTANCE_MODE_CHECKLIST = "checklist"
 runner = CliRunner()
+_ACCEPT_COMMAND_XDIST_QUARANTINE = pytest.mark.quarantine(
+    reason="spec-kitty#171: in-process accept CLI family fails under xdist -n auto; passes alone"
+)
 
 
 def _write_acceptance_meta(feature_repo: Path, mission_slug: str) -> None:
@@ -156,6 +159,7 @@ def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str
     assert payload["mode"] == ACCEPTANCE_MODE_CHECKLIST
 
 
+@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_command_reports_approved_wps_without_closing(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -210,6 +214,7 @@ def test_accept_command_reports_approved_wps_without_closing(
     assert summary.lanes["done"] == []
 
 
+@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_json_reports_missing_events_bootstrap_issue(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -241,6 +246,7 @@ def test_accept_diagnose_json_reports_missing_events_bootstrap_issue(
     assert "Traceback" not in result.output
 
 
+@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_no_commit_reports_merge_pending_without_mutation(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -285,6 +291,7 @@ def test_accept_no_commit_reports_merge_pending_without_mutation(
     assert summary.lanes["approved"] == ["WP01"]
 
 
+@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_json_reports_skipped_checks_without_mutation(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -324,6 +331,7 @@ def test_accept_diagnose_json_reports_skipped_checks_without_mutation(
     assert status.stdout == ""
 
 
+@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_json_blocks_corrupt_lanes_json(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -363,6 +371,7 @@ def test_accept_diagnose_json_blocks_corrupt_lanes_json(
     assert status.stdout == ""
 
 
+@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -426,6 +435,7 @@ def test_accept_diagnose_does_not_mutate_matrix_metadata_or_events(
     assert status.stdout == ""
 
 
+@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_diagnose_does_not_execute_custom_negative_invariants(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -485,6 +495,7 @@ def test_accept_diagnose_does_not_execute_custom_negative_invariants(
     assert status.stdout == ""
 
 
+@_ACCEPT_COMMAND_XDIST_QUARANTINE
 def test_accept_does_not_require_done_evidence_for_approved_wp(
     feature_repo: Path, mission_slug: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
