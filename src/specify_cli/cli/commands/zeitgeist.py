@@ -148,7 +148,7 @@ def _print_snapshot_summary(result: dict[str, Any]) -> None:
 
 @app.command()
 def status(
-    repo: str = _REPO_ARGUMENT,
+    repo: str | None = _REPO_ARGUMENT,
     timeout: float = typer.Option(
         subscription.DEFAULT_STATUS_TIMEOUT_S,
         "--timeout",
@@ -176,7 +176,7 @@ def status(
 
 @app.command()
 def watch(
-    repo: str = _REPO_ARGUMENT,
+    repo: str | None = _REPO_ARGUMENT,
     timeout: float = typer.Option(
         subscription.DEFAULT_WATCH_TIMEOUT_S,
         "--timeout",
@@ -396,7 +396,7 @@ def _print_operability_report(report: operability.OperabilityReport) -> None:
 
 
 @operability_app.command("report")
-def operability_report(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
+def operability_report(repo: str | None = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
     """One payload-free snapshot of ``repo``'s operability signals. Runs a
     single canary offer probe only if ``repo`` already has a stored
     checkout — otherwise reports honestly stale/inactive rather than
@@ -426,7 +426,7 @@ def operability_drill_timeout(as_json: bool = _JSON_OPTION) -> None:
 
 
 @operability_app.command("drill-rotation")
-def operability_drill_rotation(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
+def operability_drill_rotation(repo: str | None = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
     """Local "auth expiry" drill for ``repo``'s stored checkout — reads only
     the stored ``token_issued_at`` timestamp, never the token value."""
     result = operability.rotation_drill(_resolve_store_key(repo))
@@ -440,7 +440,7 @@ def operability_drill_rotation(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON
 
 
 @operability_app.command("drill-rollback")
-def operability_drill_rollback(repo: str = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
+def operability_drill_rollback(repo: str | None = _REPO_ARGUMENT, as_json: bool = _JSON_OPTION) -> None:
     """Local "rollback" drill: proves ``outbox_approval.revoke()`` fails
     closed on a never-approved item — never touches the controlling
     terminal, never requires a human."""

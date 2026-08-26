@@ -255,7 +255,7 @@ def test_watch_yields_serialized_event_frames(state_root: Path, managed_stream_d
     managed_stream_double.push_frame(_frame(seq=9, frame={"type": "event", "event": _event_payload(attrs={"to_lane": "for_review"})}))
     managed_stream_double.close_stream()
 
-    frames = list(subscription.watch("spec-kitty", timeout_s=2.0))
+    frames = list(subscription.watch("github.com/acme/spec-kitty", timeout_s=2.0))
     assert [f["frame_type"] for f in frames] == ["event"]  # exactly the one moment, nothing else
     assert frames[0]["payload"]["attrs"] == {"to_lane": "for_review"}  # data channel stays lossless
 

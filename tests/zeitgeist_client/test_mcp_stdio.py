@@ -149,7 +149,7 @@ async def test_watch_tool_delivers_event_attrs_only_inside_the_frame(state_root:
 
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:
-        result = await client.call_tool("zeitgeist_watch", {"repo": "spec-kitty", "timeout_s": 2.0})
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     assert not result.isError
     structured = result.structuredContent
     assert structured is not None
@@ -175,7 +175,7 @@ async def test_watch_tool_leaves_presence_frames_untouched(state_root: Path, man
 
     server = mcp_stdio.build_server()
     async with create_connected_server_and_client_session(server) as client:
-        result = await client.call_tool("zeitgeist_watch", {"repo": "spec-kitty", "timeout_s": 2.0})
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
     structured = result.structuredContent
     assert structured is not None and structured["frames"][0]["frame_type"] == "presence"
     assert "untrusted_text" not in structured["frames"][0]

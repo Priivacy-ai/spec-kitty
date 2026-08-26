@@ -331,16 +331,24 @@ def parse_store_key(value: str) -> str:
     Raises :class:`StoreKeyError` for anything else — most importantly a
     bare NAME, which after #132 can only ever match an abandoned pre-#132
     entry (a live-shaped bearer nothing prunes or expiry-checks), never a
-    real checkout's credential."""
-    segments = [segment.lower() for segment in value.strip().split("/") if segment]
+    real checkout's credential; or a pasted URL's ``scheme://`` prefix,
+    which would otherwise silently mis-parse into the host segment (e.g.
+    ``https://github.com/acme/widget`` → ``https:/github.com/acme/widget``)
+    instead of being rejected."""
+    cleaned = value.strip()
+    error = StoreKeyError(
+        f"{value!r} is not a Zeitgeist credential-store key: pass host/owner/repo (e.g. github.com/acme/widget), or run from inside the checkout with no key at all"
+    )
+    if urlparse(cleaned).scheme:
+        raise error
+    segments = [segment.lower() for segment in cleaned.split("/") if segment]
     if len(segments) < 3:
-        raise StoreKeyError(
-            f"{value!r} is not a Zeitgeist credential-store key: pass host/owner/repo "
-            "(e.g. github.com/acme/widget), or run from inside the checkout with no key at all"
-        )
+        raise error
     slug_segments = segments[1:]
     if slug_segments[-1].endswith(".git"):
         slug_segments[-1] = slug_segments[-1][: -len(".git")]
+        if not slug_segments[-1]:
+            raise error
     return store_key(host=segments[0], repo_slug="/".join(slug_segments))
 
 

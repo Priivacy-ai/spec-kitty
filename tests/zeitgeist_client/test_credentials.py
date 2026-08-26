@@ -334,9 +334,7 @@ def test_owner_only_mode_holds_across_every_write_path(state_root: Path):
 def test_store_without_team_round_trips_team_as_none(state_root: Path):
     """Entries written before #10 (and every manual checkout) have no
     recorded team; load() reports None, never KeyError."""
-    credentials.store(
-        repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team"
-    )
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
     loaded = credentials.load(repo="github.com/acme/spec-kitty")
     assert loaded is not None
     assert loaded.team is None
@@ -368,9 +366,7 @@ def test_empty_team_is_rejected_when_provided(state_root: Path):
 
 def test_stored_toml_omits_team_key_entirely_when_unset(state_root: Path):
     """Same backward-compat proof as every optional aspect before it."""
-    credentials.store(
-        repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team"
-    )
+    credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
     import tomllib
 
     with credentials.credentials_path().open("rb") as fh:

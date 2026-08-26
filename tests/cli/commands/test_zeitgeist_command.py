@@ -211,7 +211,7 @@ def test_watch_human_branch_frames_event_output(monkeypatch: pytest.MonkeyPatch)
         }
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
-    result = runner.invoke(app, ["watch", "spec-kitty"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty"])
     assert result.exit_code == 0
     assert "[zeitgeist moment " in result.stdout
     assert re.search(r"\[end of zeitgeist moment [0-9a-f]{8}\]", result.stdout)
@@ -229,7 +229,7 @@ def test_watch_json_keeps_the_raw_payload_for_event_frames(monkeypatch: pytest.M
         yield {"schema_version": "1.0.0", "epoch": "e", "seq": 4, "emitted_at": 1.0, "frame_type": "event", "payload": payload}
 
     monkeypatch.setattr(subscription, "watch", _fake_watch)
-    result = runner.invoke(app, ["watch", "spec-kitty", "--json"])
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--json"])
     assert result.exit_code == 0
     line = json_module.loads(result.stdout.strip())
     assert line["frame_type"] == "event"
