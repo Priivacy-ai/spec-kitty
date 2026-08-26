@@ -1,3 +1,10 @@
+---
+title: 'ADR: результаты ревью спецификации — PRIMARY planning evidence'
+description: 'Закрепляет результаты внешнего ревью спецификации как PRIMARY planning evidence, не относя их к lifecycle work package и сохраняя canonical placement.'
+status: Accepted
+date: '2026-08-22'
+---
+
 # ADR: результаты ревью спецификации — PRIMARY planning evidence
 
 **Статус:** принято для миссии `ox-alpha-spec-reviewer-01M0N82A`  

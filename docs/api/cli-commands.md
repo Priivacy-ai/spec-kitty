@@ -4420,6 +4420,30 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty spec-review
+
+```
+ Usage: spec-kitty spec-review [OPTIONS]
+
+ Запустить только явно подтверждённое консультативное ревью Mission-спеки.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission                 TEXT     Миссия для ревью спецификации.         │
+│                                       [required]                             │
+│    --model                   TEXT     Точный маршрут модели; в preview он    │
+│                                       никуда не передаётся.                  │
+│                                       [default: opencode/x-preview-f-free]   │
+│    --preview                          Показать состав раскрытия и            │
+│                                       завершиться без внешнего обращения.    │
+│    --confirm-digest          TEXT     Одноразовый digest согласия из         │
+│                                       текущего manifest.                     │
+│    --timeout                 INTEGER  Таймаут ответа OpenCode в секундах:    │
+│                                       10–600.                                │
+│                                       [default: 180]                         │
+│    --help            -h               Show this message and exit.            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty specify
 
 ```

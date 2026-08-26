@@ -1275,6 +1275,11 @@
    "hidden": false,
    "deprecated": false
   },
+  "spec-review": {
+   "help": "Запустить только явно подтверждённое консультативное ревью Mission-спеки.",
+   "hidden": false,
+   "deprecated": false
+  },
   "specify": {
    "help": "Create a feature scaffold in kitty-specs/.",
    "hidden": false,
