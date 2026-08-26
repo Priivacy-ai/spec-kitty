@@ -26,6 +26,20 @@ Three slots, one broadcast core:
   is wired anyway, so the moment spec-kitty-events ships a codec for it the
   relay carries binding changes with no further seam work.
 
+Beside every moment this bridge also refreshes the actor's ≤90 s live state
+(#186): one ``presence.publish`` frame per broadcast, plus one
+``focus.start`` naming ``<mission>.<WP>`` when the moment carries a WP.
+The moment stream alone cannot power the live panel — zeitgeist's own
+dispatch treats ``event.publish`` as "activity ABOUT a session, never
+liveness OF one", publishing one extends nothing's ttl — so without these
+frames Team Kitty's presence/focus sections stay empty and GOAL.md's MVP
+test ("presence shows the member on that repo/WP") fails. Presence rides
+the same stored ``presence``-kind credential the moment used (the kind
+grants ``presence.publish``); focus needs the separate ``focus``-kind lease
+(:func:`specify_cli.zeitgeist_client.resolution.resolve_focus_capability`)
+and stays silent when that mint is unavailable — a focus gap must never
+cost a moment.
+
 Who is on a mission-level moment: the relay attests the actor from the
 capability credential (the frame's ``actor.user``), and the payload's own
 optional ``actor`` rides alongside as an attr when the producer set one —
@@ -42,9 +56,11 @@ untouched regardless of relay, credential, or codec state.
 from __future__ import annotations
 
 import logging
+import re
 import uuid
+from dataclasses import replace
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 from collections.abc import Mapping
 
 from kernel.clock import datetime, now_utc, parse_iso
@@ -64,6 +80,7 @@ from .migrate_lifecycle_envelope import _generate_node_id  # noqa: PLC2701 -- sa
 
 if TYPE_CHECKING:
     from specify_cli.zeitgeist_client.credentials import StoredCredential
+    from specify_cli.zeitgeist_client.transport import OfferResult
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +92,27 @@ _HARNESS_ID = "spec-kitty-cli"
 #: ``presence.publish`` and ``event.publish`` (zeitgeist ``managed_auth.py``).
 _EVENT_PUBLISH_OP = "event.publish"
 
+#: The presence activity this bridge reports. A status transition IS a
+#: command (managed_presence.schema.json's enum: ``file_edit`` | ``command``
+#: | ``focus``); there is no file edit to name.
+_PRESENCE_ACTIVITY: Literal["file_edit", "command"] = "command"
+
+#: ``managed_control.schema.json`` FocusArgs.focus_ref, verbatim: ident-shaped
+#: (no ``/``), 64 chars max. A ``<mission>.<WP>`` ref outside this grammar —
+#: a long kebab-case mission slug is the realistic case — is a guaranteed
+#: 422, so it is filtered here before any attempt instead of being sent to be
+#: rejected. (transport.py's docstring cites a wider bound from zeitgeist#38;
+#: the canonical schema this programme deploys still enforces 64.)
+_FOCUS_REF_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}")
+
 # Per-process session identity for offered moments. The relay derives an opaque
 # ``session_ref`` from it (the raw id never reaches a rendered surface), and
 # moments carry no liveness semantics, so a fresh id per process groups this
 # process's moments without pretending to be a long-lived session.
+#
+# Since #186 the SAME id also backs this process's presence/focus frames: the
+# three frame types key off it relay-side, so one process is one actor on the
+# live panel rather than three unrelated ones.
 _SESSION_ID = str(uuid.uuid4())
 
 
@@ -157,7 +191,9 @@ def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
     # No checkout directory rides these kwargs (emit.py hands the fan-out its
     # event facts only), so credential resolution runs against the process
     # working directory — where every CLI invocation already sits.
-    _broadcast_moment(payload, envelope, cwd=Path.cwd())
+    wp_id = kwargs.get("wp_id")
+    focus_wp = (str(mission_slug), str(wp_id)) if mission_slug and wp_id else None
+    _broadcast_moment(payload, envelope, cwd=Path.cwd(), focus_wp=focus_wp)
 
 
 def _broadcast_lifecycle_envelope(kwargs: Mapping[str, Any]) -> None:
@@ -230,13 +266,21 @@ def _normalise_evidence(evidence: Any) -> Any:
     }
 
 
-def _broadcast_moment(payload: BaseModel, envelope: Event, *, cwd: Path) -> None:
+def _broadcast_moment(
+    payload: BaseModel,
+    envelope: Event,
+    *,
+    cwd: Path,
+    focus_wp: tuple[str, str] | None = None,
+) -> None:
     """Project one volatile payload onto bounded attrs and offer it exactly once.
 
     Order matters: the codec runs first and credential resolution second, so an
     over-bound payload or an unresolvable credential costs zero network
     attempts — the relay's request log stays empty unless a well-formed moment
-    has somewhere to go.
+    has somewhere to go. When the broadcast carries a WP identity, ``focus_wp``
+    is its ``(mission_slug, wp_id)`` pair, naming the focus frame that rides
+    along (:func:`_refresh_liveness`).
     """
     event_type = envelope.event_type
     try:
@@ -265,6 +309,34 @@ def _broadcast_moment(payload: BaseModel, envelope: Event, *, cwd: Path) -> None
         offer_args["ref"] = ref
     _offer_and_log(credential, event_type, offer_args)
 
+    # The moment is out; refresh this actor's live presence/focus state under
+    # the same credential (no-op when nothing was resolvable above).
+    _refresh_liveness(credential, cwd=cwd, focus_wp=focus_wp)
+
+
+def _log_offer_outcome(label: str, result: OfferResult) -> None:
+    """One line per offer attempt, sent or dropped.
+
+    THROTTLED (#180): the relay answered 429 on the single attempt. The
+    human-facing signal — the one-line "relay throttled; moment dropped"
+    stderr notice — has already been emitted by the client itself; logging
+    it again at warning level would print the loss twice, so this stays a
+    debug-level structured record.
+
+    rejected / dropped_budget / dropped_unreachable / refused_local: one
+    attempt was made (or refused before any socket) and there is no retry,
+    no queue — the frame is lost by design (design page, "How long anything
+    lives"), so say so once.
+    """
+    from specify_cli.zeitgeist_client.transport import OfferOutcome  # noqa: PLC0415
+
+    if result.outcome is OfferOutcome.SENT:
+        logger.debug("Zeitgeist %s offered (%s) in %.0f ms", label, result.request_id, result.elapsed_s * 1000)
+    elif result.outcome is OfferOutcome.THROTTLED:
+        logger.debug("Zeitgeist %s throttled (%s) in %.0f ms; dropped", label, result.request_id, result.elapsed_s * 1000)
+    else:
+        logger.warning("Zeitgeist %s dropped (%s) after %.0f ms; no retry by design", label, result.outcome.value, result.elapsed_s * 1000)
+
 
 def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Mapping[str, Any]) -> None:
     """One bounded offer through the typed client, with the outcome logged.
@@ -273,7 +345,7 @@ def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Ma
     httpx and the urllib machinery, none of which the status package should
     pay for at import time (every CLI start imports this package).
     """
-    from specify_cli.zeitgeist_client.transport import ClientConfig, OfferOutcome, ZeitgeistClient  # noqa: PLC0415
+    from specify_cli.zeitgeist_client.transport import ClientConfig, ZeitgeistClient  # noqa: PLC0415
 
     client = ZeitgeistClient(
         ClientConfig(
@@ -290,37 +362,93 @@ def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Ma
             capability_credential=credential.capability_credential,
         )
     )
-    result = client.offer(_EVENT_PUBLISH_OP, dict(offer_args))
-    if result.outcome is OfferOutcome.SENT:
+    _log_offer_outcome(f"moment {event_type}", client.offer(_EVENT_PUBLISH_OP, dict(offer_args)))
+
+
+def _refresh_liveness(credential: StoredCredential, *, cwd: Path, focus_wp: tuple[str, str] | None) -> None:
+    """Refresh the actor's ≤90 s live state beside a broadcast moment (#186).
+
+    The moment alone cannot power Team Kitty's live panel — zeitgeist treats
+    ``event.publish`` as activity *about* a session that extends nothing's
+    ttl — so GOAL.md's "presence shows the member on that repo/WP" needs this
+    bridge to also publish liveness frames under the same credential:
+
+    * always one ``presence.publish`` (kind ``command``, git-truth repo and
+      branch via ``ClientConfig.for_repository`` — the Z6-C sanctioned
+      constructor, so presence cannot be bound to a spoofed checkout);
+    * when the broadcast carries a WP identity, one ``focus.start`` naming
+      ``mission.wp``. Focus ops need the separate ``focus``-kind
+      capability lease (:func:`specify_cli.zeitgeist_client.resolution.
+      resolve_focus_capability`); when that mint is unavailable or denied the
+      frame is skipped at debug level — a focus gap must never cost a moment,
+      and neither failure may write a negative answer over the shared store
+      entry.
+
+    Same fire-and-forget discipline as the moment: drop-no-retry per frame,
+    every failure logged and swallowed here so the fan-out slot stays
+    non-raising regardless of git, relay, or credential state.
+    """
+    try:
+        _refresh_liveness_bounded(credential, cwd=cwd, focus_wp=focus_wp)
+    except Exception:
+        logger.warning("Zeitgeist presence/focus refresh failed; canonical status log unaffected", exc_info=True)
+
+
+def _refresh_liveness_bounded(credential: StoredCredential, *, cwd: Path, focus_wp: tuple[str, str] | None) -> None:
+    """The network half of :func:`_refresh_liveness` — imports + git + offers."""
+    from specify_cli.zeitgeist_client import repo_identity  # noqa: PLC0415
+    from specify_cli.zeitgeist_client.transport import ClientConfig, ZeitgeistClient  # noqa: PLC0415
+
+    try:
+        config = ClientConfig.for_repository(
+            str(cwd),
+            relay_url=credential.relay_url,
+            token=credential.token,
+            harness=_HARNESS_ID,
+            session_id=_SESSION_ID,
+            agent_id=None,
+            capability_credential=credential.capability_credential,
+        )
+    except repo_identity.RepoIdentityError as exc:
+        logger.debug("Zeitgeist presence not published: no canonical checkout identity (%s)", exc)
+        return
+
+    _log_offer_outcome("presence", ZeitgeistClient(config).presence(_PRESENCE_ACTIVITY))
+
+    if focus_wp is None:
+        return
+    mission_slug, wp_id = focus_wp
+    composed = f"{mission_slug}.{wp_id}"
+    if not _FOCUS_REF_RE.fullmatch(composed):
+        # Zero-attempt discipline, same as the sanitizer gate: a ref outside
+        # FocusArgs' grammar is a guaranteed 422; skipping beats sending a
+        # frame built to be rejected. Presence above already went out.
         logger.debug(
-            "Zeitgeist moment %s offered (%s) in %.0f ms",
-            event_type,
-            result.request_id,
-            result.elapsed_s * 1000,
+            "Zeitgeist focus ref %r does not fit the relay's focus_ref grammar; focus frame skipped", composed
         )
-    elif result.outcome is OfferOutcome.THROTTLED:
-        # The relay answered 429 on the single attempt (#180). The
-        # human-facing signal — the one-line "relay throttled; moment
-        # dropped" stderr notice — has already been emitted by the client
-        # itself; logging it again at warning level would print the loss
-        # twice, so this stays a debug-level structured record (which
-        # moment, which request id, how long).
-        logger.debug(
-            "Zeitgeist moment %s throttled (%s) in %.0f ms; dropped",
-            event_type,
-            result.request_id,
-            result.elapsed_s * 1000,
-        )
-    else:
-        # rejected / dropped_budget / dropped_unreachable / refused_local: one
-        # attempt was made (or refused before any socket) and there is no
-        # retry, no queue — the moment is lost by design, so say so once.
-        logger.warning(
-            "Zeitgeist moment %s dropped (%s) after %.0f ms; no retry by design",
-            event_type,
-            result.outcome.value,
-            result.elapsed_s * 1000,
-        )
+        return
+
+    capability = _resolve_focus_capability(cwd)
+    if capability is None:
+        logger.debug("Zeitgeist focus frame %s not published: no focus-kind capability", composed)
+        return
+
+    # The X-Zeitgeist-Capability header must carry the FOCUS lease; everything
+    # else about the config is unchanged.
+    focus_config = replace(config, capability_credential=capability)
+    _log_offer_outcome(f"focus.start {composed}", ZeitgeistClient(focus_config).focus_start(mission_slug, wp_id))
+
+
+def _resolve_focus_capability(cwd: Path) -> str | None:
+    """The checkout's ``focus``-kind capability JWT, or ``None`` to stay silent.
+
+    Imported here for the same reason as every other transport-chain import:
+    resolution pulls httpx, which the status package must not pay for at
+    import time.
+    """
+    from specify_cli.zeitgeist_client.resolution import resolve_focus_capability  # noqa: PLC0415
+
+    return resolve_focus_capability(cwd)
 
 
 def _resolve_credentials(cwd: Path) -> StoredCredential | None:

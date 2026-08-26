@@ -871,3 +871,159 @@ class TestMintRecordsAdmittingTeam:
         stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
         assert stored is not None
         assert stored.team is None
+
+
+# ---------------------------------------------------------------------------
+# resolve_focus_capability (#186): the second lease a wired client needs
+# ---------------------------------------------------------------------------
+
+
+def _pin_checkout_origin(monkeypatch: pytest.MonkeyPatch, url: str = "https://github.com/acme/widget.git") -> None:
+    """Serve the identity half of the public function without git."""
+    monkeypatch.setattr(resolution.repo_identity, "origin_url", lambda cwd, deadline=None: url)
+
+
+class TestResolveFocusCapability:
+    def test_cached_unexpired_lease_answers_without_touching_the_network(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _pin_checkout_origin(monkeypatch)
+        credentials.store(
+            repo=KEY,
+            relay_url="http://relay",
+            token="bearer",
+            token_kind=KIND_PRESENCE,
+            capability_credential="presence-jwt",
+            expires_at=_iso_in(3600),
+            team="demo",
+        )
+        credentials.store_focus_capability(repo=KEY, capability_credential="focus-jwt", expires_at=_iso_in(1200))
+        gateway = ScriptedGateway()
+
+        jwt = resolution.resolve_focus_capability("/checkout", gateway=gateway)
+
+        assert jwt == "focus-jwt"
+        assert gateway.mint_calls == [] and gateway.admission_calls == []
+
+    def test_miss_mints_the_focus_kind_against_the_stored_team(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _pin_checkout_origin(monkeypatch)
+        credentials.store(
+            repo=KEY,
+            relay_url="http://relay",
+            token="bearer",
+            token_kind=KIND_PRESENCE,
+            expires_at=_iso_in(3600),
+            team="demo",
+        )
+        gateway = ScriptedGateway(
+            mint=MintedCredential(
+                relay_url="http://relay",
+                relay_token="bearer",
+                capability_credential="focus-jwt",
+                expires_at=_iso_in(1800),
+            )
+        )
+
+        jwt = resolution.resolve_focus_capability("/checkout", gateway=gateway)
+
+        assert jwt == "focus-jwt"
+        assert gateway.mint_calls == [{"repo_slug": SLUG, "kind": resolution.KIND_FOCUS, "team_slug": "demo"}]
+        stored = credentials.load(repo=KEY)
+        assert stored is not None
+        # The merge keeps the main lease intact and adds the focus one.
+        assert stored.token == "bearer"
+        assert stored.capability_credential is None
+        assert stored.focus_capability_credential == "focus-jwt"
+
+    def test_expired_lease_remints(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _pin_checkout_origin(monkeypatch)
+        credentials.store(repo=KEY, relay_url="http://relay", token="bearer", token_kind=KIND_PRESENCE)
+        credentials.store_focus_capability(repo=KEY, capability_credential="stale-focus-jwt", expires_at=_iso_in(-60))
+        gateway = ScriptedGateway(
+            mint=MintedCredential(
+                relay_url="http://relay",
+                relay_token="bearer",
+                capability_credential="fresh-focus-jwt",
+                expires_at=_iso_in(1800),
+            )
+        )
+
+        jwt = resolution.resolve_focus_capability("/checkout", gateway=gateway)
+
+        assert jwt == "fresh-focus-jwt"
+
+    def test_force_skips_a_live_lease(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _pin_checkout_origin(monkeypatch)
+        credentials.store(repo=KEY, relay_url="http://relay", token="bearer", token_kind=KIND_PRESENCE)
+        credentials.store_focus_capability(repo=KEY, capability_credential="live-focus-jwt", expires_at=_iso_in(1200))
+        gateway = ScriptedGateway()  # scripted default mints capability "jwt"
+
+        jwt = resolution.resolve_focus_capability("/checkout", gateway=gateway, force=True)
+
+        assert len(gateway.mint_calls) == 1
+        assert jwt == "jwt"
+
+    def test_denial_returns_none_and_never_writes_a_negative(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A focus denial says nothing about admission — caching it under the
+        shared key would silence the moment stream for the whole negative TTL."""
+        _pin_checkout_origin(monkeypatch)
+        credentials.store(repo=KEY, relay_url="http://relay", token="bearer", token_kind=KIND_PRESENCE)
+        gateway = ScriptedGateway(mint=CapabilityDenied("denied", status_code=403))
+
+        assert resolution.resolve_focus_capability("/checkout", gateway=gateway) is None
+
+        stored = credentials.load(repo=KEY)
+        assert stored is not None  # main lease untouched
+        assert credentials.load_negative(repo=KEY) is None
+
+    def test_transient_gateway_failure_returns_none_and_caches_nothing(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _pin_checkout_origin(monkeypatch)
+        credentials.store(repo=KEY, relay_url="http://relay", token="bearer", token_kind=KIND_PRESENCE)
+        gateway = ScriptedGateway(mint=GatewayError("timeout"))
+
+        assert resolution.resolve_focus_capability("/checkout", gateway=gateway) is None
+        assert credentials.load(repo=KEY) is not None
+        stored = credentials.load(repo=KEY)
+        assert stored is not None and stored.focus_capability_credential is None
+
+    def test_mint_without_a_capability_credential_is_unusable(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _pin_checkout_origin(monkeypatch)
+        credentials.store(repo=KEY, relay_url="http://relay", token="bearer", token_kind=KIND_PRESENCE)
+        gateway = ScriptedGateway(mint=MintedCredential(relay_url="http://relay", relay_token="bearer", capability_credential=None, expires_at=_iso_in(600)))
+
+        assert resolution.resolve_focus_capability("/checkout", gateway=gateway) is None
+        stored = credentials.load(repo=KEY)
+        assert stored is not None and stored.focus_capability_credential is None
+
+    def test_no_main_credential_means_nothing_to_mint_against(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _pin_checkout_origin(monkeypatch)
+        gateway = ScriptedGateway()
+
+        assert resolution.resolve_focus_capability("/checkout", gateway=gateway) is None
+        assert gateway.mint_calls == [] and gateway.admission_calls == []
+
+    def test_local_only_remote_stays_silent(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        _pin_checkout_origin(monkeypatch, url="/srv/git/local.git")
+        gateway = ScriptedGateway()
+
+        assert resolution.resolve_focus_capability("/checkout", gateway=gateway) is None
+        assert gateway.mint_calls == []
+
+
+class TestResolveFocusCapabilityScopeRevalidation:
+    def test_out_of_scope_entry_is_a_miss_not_a_hit(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Defense in depth (#129's reading, mirrored from the main
+        resolution): an entry whose recorded (host, repo_slug) disagrees with
+        the identity it sits under serves neither its main lease nor a mint."""
+        _pin_checkout_origin(monkeypatch)
+        credentials.store(
+            repo=KEY,
+            relay_url="http://evil",
+            token="bearer",
+            token_kind=KIND_PRESENCE,
+            expires_at=_iso_in(3600),
+            host="github.com",
+            repo_slug="evil/widget",  # not the identity this key names
+        )
+        gateway = ScriptedGateway()
+
+        assert resolution.resolve_focus_capability("/checkout", gateway=gateway) is None
+        assert gateway.mint_calls == []

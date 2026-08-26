@@ -40,6 +40,14 @@ def state_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return tmp_path / "spec-kitty-home"
 
 
+def _iso_in(seconds: float) -> str:
+    """An ISO expiry stamp ``seconds`` from now — the same helper shape the
+    resolution tests use, local to this module for the same reason."""
+    from kernel.clock import now_utc, timedelta
+
+    return (now_utc() + timedelta(seconds=seconds)).isoformat()
+
+
 def test_store_then_load_round_trips(state_root: Path):
     credentials.store(
         repo="github.com/acme/spec-kitty",
@@ -447,3 +455,118 @@ def test_stored_toml_omits_team_key_entirely_when_unset(state_root: Path):
     with credentials.credentials_path().open("rb") as fh:
         raw = tomllib.load(fh)
     assert "team" not in raw["github.com/acme/spec-kitty"]
+
+
+# --- #186: the focus-kind lease rides the same entry ------------------------
+
+
+def _seed_main_credential(repo: str = "github.com/acme/widget") -> None:
+    credentials.store(
+        repo=repo,
+        relay_url="http://relay",
+        token="bearer",
+        token_kind="presence",
+        capability_credential="presence-jwt",
+        expires_at=_iso_in(3600),
+        host="github.com",
+        repo_slug="acme/widget",
+        team="demo",
+    )
+
+
+def test_focus_capability_merges_into_the_existing_entry(state_root: Path):
+    """The focus lease is minted later than (and independently of) the main
+    credential; storing it must leave every main-field value verbatim."""
+    _seed_main_credential()
+    focus_expires = _iso_in(1200)
+
+    credentials.store_focus_capability(
+        repo="github.com/acme/widget",
+        capability_credential="focus-jwt",
+        expires_at=focus_expires,
+    )
+
+    loaded = credentials.load(repo="github.com/acme/widget")
+    assert loaded is not None
+    assert loaded.relay_url == "http://relay"
+    assert loaded.token == "bearer"
+    assert loaded.token_kind == "presence"
+    assert loaded.capability_credential == "presence-jwt"
+    assert loaded.team == "demo"
+    assert loaded.focus_capability_credential == "focus-jwt"
+    assert loaded.focus_expires_at == focus_expires
+
+
+def test_focus_capability_without_expiry_leaves_no_stale_stamp(state_root: Path):
+    _seed_main_credential()
+    credentials.store_focus_capability(
+        repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(600)
+    )
+    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt-2")
+
+    loaded = credentials.load(repo="github.com/acme/widget")
+    assert loaded is not None
+    assert loaded.focus_capability_credential == "focus-jwt-2"
+    assert loaded.focus_expires_at is None
+
+
+def test_reminting_the_main_credential_preserves_a_live_focus_lease(state_root: Path):
+    """The two leases expire independently; a presence re-mint must not
+    silently drop a still-valid focus lease."""
+    _seed_main_credential()
+    credentials.store_focus_capability(
+        repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200)
+    )
+
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://relay",
+        token="bearer-2",
+        token_kind="presence",
+        capability_credential="presence-jwt-2",
+        expires_at=_iso_in(3600),
+        host="github.com",
+        repo_slug="acme/widget",
+        team="demo",
+    )
+
+    loaded = credentials.load(repo="github.com/acme/widget")
+    assert loaded is not None
+    assert loaded.capability_credential == "presence-jwt-2"
+    assert loaded.focus_capability_credential == "focus-jwt"
+
+
+def test_store_negative_drops_the_focus_lease_with_the_rest(state_root: Path):
+    """A not-admitted answer means no relay at all — keeping a focus lease
+    against it would be a live secret pointing nowhere."""
+    _seed_main_credential()
+    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt")
+
+    credentials.store_negative(repo="github.com/acme/widget", reason="no_match", expires_at=_iso_in(300))
+
+    assert credentials.load(repo="github.com/acme/widget") is None
+
+
+def test_focus_capability_requires_an_existing_positive_entry(state_root: Path):
+    with pytest.raises(ValueError, match="resolve_credentials first"):
+        credentials.store_focus_capability(repo="github.com/acme/nowhere", capability_credential="focus-jwt")
+
+
+def test_empty_focus_capability_is_rejected(state_root: Path):
+    _seed_main_credential()
+    with pytest.raises(ValueError):
+        credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="")
+
+
+def test_stored_toml_omits_focus_keys_entirely_when_unset(state_root: Path):
+    """Same backward-compat proof as every optional field before this one:
+    entries written earlier round-trip byte-compatibly."""
+    import tomllib
+
+    _seed_main_credential()
+
+    with credentials.credentials_path().open("rb") as fh:
+        raw = tomllib.load(fh)
+    entry = raw["github.com/acme/widget"]
+    assert "focus_capability_credential" not in entry
+    assert "focus_expires_at" not in entry

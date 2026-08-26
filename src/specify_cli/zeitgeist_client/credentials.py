@@ -157,6 +157,16 @@ class StoredCredential:
     # before this field existed, and for a manual checkout (no admission
     # was ever asked).
     team: str | None = None
+    # E3 presence/focus wiring (#186): the SECOND capability lease — the
+    # ``focus`` kind, which zeitgeist grants the focus.* ops but not
+    # ``event.publish`` (the inverse of the main entry's ``presence`` kind).
+    # Both leases ride one store entry because they bind the same
+    # (checkout, actor) pair and share its relay bearer; they expire
+    # independently, so each carries its own stamp. `None` for every entry
+    # written before this field existed — absent keys load as `None`, the
+    # same backward-compatible reading every optional field here gets.
+    focus_capability_credential: str | None = None
+    focus_expires_at: str | None = None
 
 
 @dataclass(frozen=True)
@@ -232,6 +242,57 @@ def _write_all(data: dict[str, dict[str, str]]) -> None:
     tmp_path.replace(path)  # atomic on POSIX and Windows (same volume)
 
 
+def _reject_empty(value: str | None, name: str) -> None:
+    """One optional-field guard, shared by every writer: ``None`` means
+    absent (fine), ``""`` means a caller bug."""
+    if value is not None and not value:
+        raise ValueError(f"{name} must be non-empty when provided")
+
+
+def _positive_entry(
+    *,
+    relay_url: str,
+    token: str,
+    token_kind: str,
+    capability_credential: str | None,
+    expires_at: str | None,
+    host: str | None,
+    repo_slug: str | None,
+    team: str | None,
+    previous: dict[str, str],
+) -> dict[str, str]:
+    """Build one positive store entry from its arguments.
+
+    Optional fields are omitted entirely (never written as ``""``) —
+    ``load()`` reads a missing key back as ``None``, TOML has no null
+    literal to round-trip instead. The focus lease (#186) is independent of
+    the main one: a re-mint of the presence-kind credential (same repo, same
+    actor) must not silently drop a still-valid focus lease, so whatever the
+    replaced entry held carries over. Only
+    :func:`store_focus_capability` replaces those two fields.
+    """
+    entry: dict[str, str] = {
+        "relay_url": relay_url,
+        "token": token,
+        "token_issued_at": now_utc_iso(),  # kernel.clock single door (M2 canonical integration)
+        "token_kind": token_kind,
+    }
+    if capability_credential is not None:
+        entry["capability_credential"] = capability_credential
+    if expires_at is not None:
+        entry["expires_at"] = expires_at
+    for field_name in ("focus_capability_credential", "focus_expires_at"):
+        if field_name not in entry and field_name in previous:
+            entry[field_name] = previous[field_name]
+    if host is not None:
+        entry["host"] = host
+    if repo_slug is not None:
+        entry["repo_slug"] = repo_slug
+    if team is not None:
+        entry["team"] = team
+    return entry
+
+
 def store(
     *,
     repo: str,
@@ -250,41 +311,65 @@ def store(
         raise ValueError("relay_url must be non-empty")
     if not token:
         raise ValueError("token must be non-empty")
-    if capability_credential is not None and not capability_credential:
-        raise ValueError("capability_credential must be non-empty when provided")
-    if expires_at is not None and not expires_at:
-        raise ValueError("expires_at must be non-empty when provided")
-    if host is not None and not host:
-        raise ValueError("host must be non-empty when provided")
-    if repo_slug is not None and not repo_slug:
-        raise ValueError("repo_slug must be non-empty when provided")
-    if team is not None and not team:
-        raise ValueError("team must be non-empty when provided")
+    _reject_empty(capability_credential, "capability_credential")
+    _reject_empty(expires_at, "expires_at")
+    _reject_empty(host, "host")
+    _reject_empty(repo_slug, "repo_slug")
+    _reject_empty(team, "team")
     if _is_legacy_name_key(repo):
         raise ValueError("repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name")
     lock = _locked()
     with lock:
         data = _read_all()
-        entry: dict[str, str] = {
-            "relay_url": relay_url,
-            "token": token,
-            "token_issued_at": now_utc_iso(),  # kernel.clock single door (M2 canonical integration)
-            "token_kind": token_kind,
-        }
-        # FIX-M2-15 / E3 resolution: omitted entirely (never written as "")
-        # when not provided -- `load()` reads a missing key back as `None`,
-        # TOML has no null literal to round-trip instead.
-        if capability_credential is not None:
-            entry["capability_credential"] = capability_credential
+        data[repo] = _positive_entry(
+            relay_url=relay_url,
+            token=token,
+            token_kind=token_kind,
+            capability_credential=capability_credential,
+            expires_at=expires_at,
+            host=host,
+            repo_slug=repo_slug,
+            team=team,
+            previous=data.get(repo) or {},
+        )
+        _write_all(data)
+
+
+def store_focus_capability(*, repo: str, capability_credential: str, expires_at: str | None = None) -> None:
+    """Record the ``focus``-kind capability lease alongside ``repo``'s main
+    credential (#186).
+
+    A MERGE into the existing entry, never a replacement: the focus lease is
+    minted independently of (and later than) the presence-kind credential the
+    entry was created with, and it must not disturb that entry's
+    ``relay_url``/``token``/``capability_credential``. Requires a positive
+    entry to already sit under ``repo``'s key — the caller resolves the main
+    credential first (the bridge's broadcast does exactly that), and a
+    half-written entry without a relay bearer would be unreadable by
+    :func:`load`. Replacing the whole entry via :func:`store_negative`
+    drops the focus lease with it, which is correct: a not-admitted answer
+    means there is no relay to hold a lease against.
+    """
+    if not repo:
+        raise ValueError("repo must be non-empty")
+    if not capability_credential:
+        raise ValueError("capability_credential must be non-empty")
+    _reject_empty(expires_at, "expires_at")
+    if _is_legacy_name_key(repo):
+        raise ValueError("repo must be a host/owner/repo credential-store key (resolution.store_key), not a bare repo name")
+    lock = _locked()
+    with lock:
+        data = _read_all()
+        previous = data.get(repo)
+        if previous is None or "relay_url" not in previous:
+            raise ValueError(f"no positive credential stored under {repo!r}; resolve_credentials first")
+        merged = dict(previous)
+        merged["focus_capability_credential"] = capability_credential
         if expires_at is not None:
-            entry["expires_at"] = expires_at
-        if host is not None:
-            entry["host"] = host
-        if repo_slug is not None:
-            entry["repo_slug"] = repo_slug
-        if team is not None:
-            entry["team"] = team
-        data[repo] = entry
+            merged["focus_expires_at"] = expires_at
+        elif "focus_expires_at" in merged:
+            del merged["focus_expires_at"]
+        data[repo] = merged
         _write_all(data)
 
 
@@ -340,6 +425,8 @@ def load(*, repo: str) -> StoredCredential | None:
             host=entry.get("host"),
             repo_slug=entry.get("repo_slug"),
             team=entry.get("team"),
+            focus_capability_credential=entry.get("focus_capability_credential"),
+            focus_expires_at=entry.get("focus_expires_at"),
         )
     except KeyError:
         return None

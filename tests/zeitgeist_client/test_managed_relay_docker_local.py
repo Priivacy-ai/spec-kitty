@@ -350,6 +350,35 @@ def test_watch_receives_a_real_frame_with_two_independent_secrets(relay: _RelayH
     assert frames[0].frame_type == "presence"
 
 
+# --- #186: presence and focus are separate grants on the real relay -------
+
+
+def test_presence_kind_grants_presence_but_not_focus(relay: _RelayHandle) -> None:
+    """The lease split #186 wires around, proven against the real relay:
+    zeitgeist grants ``presence.publish`` to the ``presence`` kind (which is
+    why the moment credential carries presence frames for free) and the
+    ``focus.*`` ops ONLY to the ``focus`` kind -- a presence-kind JWT offering
+    ``focus.start`` earns a real 403 ``op_not_granted``, which is exactly why
+    ``resolution.resolve_focus_capability`` mints a second lease instead of
+    reusing the first."""
+    presence_jwt = _mint(relay, sub="presence-kind-actor", kind="presence")
+    focus_jwt = _mint(relay, sub="focus-kind-actor", kind="focus")
+
+    presence_client = _client(relay, token=relay.shared_token, capability_credential=presence_jwt, session_id="kind-split-sess")
+    assert presence_client.presence("command").outcome == transport.OfferOutcome.SENT
+
+    focus_client = _client(relay, token=relay.shared_token, capability_credential=focus_jwt, session_id="kind-split-sess")
+    started = focus_client.focus_start("mvp-smoke-mission", wp_id="WP01")
+    assert started.outcome == transport.OfferOutcome.SENT
+
+    same_session_wrong_kind = _client(relay, token=relay.shared_token, capability_credential=presence_jwt, session_id="kind-split-sess")
+    # focus.start (not .heartbeat): a fresh client refuses a heartbeat
+    # locally -- REFUSED_LOCAL, no socket -- because it holds no focus
+    # lease of its own; only an attempted START reaches the relay's kind
+    # check at all.
+    assert same_session_wrong_kind.focus_start("other-mission", wp_id="WP02").outcome == (transport.OfferOutcome.REJECTED)
+
+
 # --- criterion 3, negative half: the pre-fix single-credential shape ------
 # --- fails closed against this SAME real, two-secret relay ----------------
 
