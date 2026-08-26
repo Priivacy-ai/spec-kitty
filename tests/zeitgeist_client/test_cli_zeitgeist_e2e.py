@@ -66,42 +66,6 @@ def test_watch_end_to_end_over_a_real_loopback_double(state_root: Path, managed_
     assert frame["payload"]["actor"]["session_ref"] == "b" * 12
 
 
-def _event(session_ref: str = "c" * 12) -> dict[str, object]:
-    return {
-        "type": "event",
-        "event": {
-            "observed_at": now_epoch(),
-            "kind": "mission.status.changed",
-            "actor": {"session_ref": session_ref, "user": "lynn"},
-            "ref": "034-demo/WP01",
-            "attrs": {"wp_id": "WP01", "to_lane": "for_review"},
-        },
-    }
-
-
-def test_watch_end_to_end_delivers_a_status_moment_event_frame(state_root: Path, managed_stream_double) -> None:
-    """The demo path's step 1: a teammate moves a WP, and `spec-kitty
-    zeitgeist watch` shows it within a second. Before #10 the client dropped
-    the relay's `event` frame unread, so the moment never reached Bob."""
-    credentials.store(
-        repo="github.com/acme/spec-kitty",
-        relay_url=managed_stream_double.url,
-        token="team-a-cred",
-        token_kind="shared_team",
-    )
-    managed_stream_double.push_frame(_frame(seq=1, frame=_event()))
-    managed_stream_double.close_stream()
-
-    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--timeout", "2.0", "--json"])
-    assert result.exit_code == 0
-    lines = [line for line in result.stdout.splitlines() if line.strip()]
-    assert len(lines) == 1  # golden-count: cardinality-is-contract (one pushed moment -> one delivered frame)
-    frame = json.loads(lines[0])
-    assert frame["frame_type"] == "event"
-    assert frame["payload"]["kind"] == "mission.status.changed"
-    assert frame["payload"]["attrs"] == {"wp_id": "WP01", "to_lane": "for_review"}
-
-
 # --- spec-kitty#137: no repo argument derives the key from the checkout -----
 
 
@@ -146,3 +110,39 @@ def test_status_with_no_repo_argument_reads_the_checkout_own_credential(
     assert payload["repo"] == "github.com/acme/widget"
     assert payload["presence"][0]["session_ref"] == "c" * 12
     assert managed_stream_double.received_headers[0].get("X-Zeitgeist-Capability") == "team-a-cred"
+
+
+def _event(session_ref: str = "c" * 12) -> dict[str, object]:
+    return {
+        "type": "event",
+        "event": {
+            "observed_at": now_epoch(),
+            "kind": "mission.status.changed",
+            "actor": {"session_ref": session_ref, "user": "lynn"},
+            "ref": "034-demo/WP01",
+            "attrs": {"wp_id": "WP01", "to_lane": "for_review"},
+        },
+    }
+
+
+def test_watch_end_to_end_delivers_a_status_moment_event_frame(state_root: Path, managed_stream_double) -> None:
+    """The demo path's step 1: a teammate moves a WP, and `spec-kitty
+    zeitgeist watch` shows it within a second. Before #10 the client dropped
+    the relay's `event` frame unread, so the moment never reached Bob."""
+    credentials.store(
+        repo="github.com/acme/spec-kitty",
+        relay_url=managed_stream_double.url,
+        token="team-a-cred",
+        token_kind="shared_team",
+    )
+    managed_stream_double.push_frame(_frame(seq=1, frame=_event()))
+    managed_stream_double.close_stream()
+
+    result = runner.invoke(app, ["watch", "github.com/acme/spec-kitty", "--timeout", "2.0", "--json"])
+    assert result.exit_code == 0
+    lines = [line for line in result.stdout.splitlines() if line.strip()]
+    assert len(lines) == 1  # golden-count: cardinality-is-contract (one pushed moment -> one delivered frame)
+    frame = json.loads(lines[0])
+    assert frame["frame_type"] == "event"
+    assert frame["payload"]["kind"] == "mission.status.changed"
+    assert frame["payload"]["attrs"] == {"wp_id": "WP01", "to_lane": "for_review"}

@@ -95,6 +95,7 @@ def test_status_bare_repo_name_is_rejected_with_the_accepted_form(monkeypatch: p
     one could only ever serve an abandoned pre-#132 bearer. The command
     names the accepted form instead of failing with a confusing
     not-checked-out."""
+
     def _boom(repo: str, *, timeout_s: float = 2.0) -> dict[str, object]:  # pragma: no cover - must never run
         raise AssertionError("subscription.status must never be reached with an unusable key")
 
@@ -129,9 +130,7 @@ def test_status_with_no_repo_argument_uses_the_checkout_derived_key(monkeypatch:
         return {"repo": repo, "epoch": "e1", "presence": [], "focus": [], "reset_count": 0, "last_reset_reason": None}
 
     monkeypatch.setattr(subscription, "status", _fake_status)
-    monkeypatch.setattr(
-        "specify_cli.zeitgeist_client.resolution.store_key_for_checkout", lambda cwd: "github.com/acme/widget"
-    )
+    monkeypatch.setattr("specify_cli.zeitgeist_client.resolution.store_key_for_checkout", lambda cwd: "github.com/acme/widget")
     result = runner.invoke(app, ["status", "--json"])
     assert result.exit_code == 0
     assert json.loads(result.stdout)["repo"] == "github.com/acme/widget"
@@ -139,9 +138,7 @@ def test_status_with_no_repo_argument_uses_the_checkout_derived_key(monkeypatch:
 
 
 def test_status_with_no_repo_argument_and_no_checkout_exits_nonzero(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "specify_cli.zeitgeist_client.resolution.store_key_for_checkout", lambda cwd: None
-    )
+    monkeypatch.setattr("specify_cli.zeitgeist_client.resolution.store_key_for_checkout", lambda cwd: None)
     result = runner.invoke(app, ["status"])
     assert result.exit_code == 1
     assert "host/owner/repo" in result.stdout
