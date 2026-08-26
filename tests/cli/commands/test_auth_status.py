@@ -109,11 +109,7 @@ def _make_session(
         refresh_exp = now + timedelta(days=refresh_remaining_days)
     else:
         refresh_exp = now + timedelta(days=refresh_remaining_days, seconds=30)
-    access_exp = (
-        now + timedelta(seconds=access_remaining_seconds + 30)
-        if access_remaining_seconds >= 0
-        else now + timedelta(seconds=access_remaining_seconds)
-    )
+    access_exp = now + timedelta(seconds=access_remaining_seconds + 30) if access_remaining_seconds >= 0 else now + timedelta(seconds=access_remaining_seconds)
     return StoredSession(
         user_id="u_alice",
         email=email,
@@ -526,9 +522,7 @@ class TestFormatSaasMismatchWarning:
         )
         assert warning is not None
         assert warning == (
-            "Session is for https://sk-teamkitty.exe.xyz; "
-            "SPEC_KITTY_SAAS_URL now points at https://team.spec-kitty.ai "
-            "— run spec-kitty auth login --force"
+            "Session is for https://sk-teamkitty.exe.xyz; SPEC_KITTY_SAAS_URL now points at https://team.spec-kitty.ai — run spec-kitty auth login --force"
         )
 
 
@@ -572,13 +566,13 @@ class TestAuthStatusSaasLine:
         user_at = result.stdout.index("User:")
         assert saas_at < user_at
 
-    def test_status_reports_not_configured_when_unconfigured(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path
-    ):
+    def test_status_reports_not_configured_when_unconfigured(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
         """No env var and no config.toml -> a not-configured line naming the remedy (#179).
 
         There is no default endpoint anymore: the resolver fails closed, and the
-        status block degrades to the remedy instead of naming a stale host.
+        status block degrades to the remedy instead of naming a stale configured
+        host. The stored session issuer remains visible so QA can tell which
+        SaaS the authenticated session belongs to (#213).
         """
         session = _make_session(issuer_url="https://saas.test")
         mock_storage = _mock_storage_returning(session, backend="file")
@@ -594,20 +588,39 @@ class TestAuthStatusSaasLine:
         assert result.exit_code == 0, result.stdout
         flat = _flat(result.stdout)
         assert "not configured" in flat
+        assert "Session SaaS:" in flat
+        assert "https://saas.test" in flat
+        assert "(authenticated session)" in flat
         assert "SPEC_KITTY_SAAS_URL" in flat
         assert "SaaS:" in flat
         # #182: unescaped, Rich markup parses "[sync]" as a style tag and
         # silently drops it from the remedy.
         assert "[sync].server_url" in flat
 
-    def test_status_reports_not_configured_when_config_server_url_is_blank(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path
-    ):
+    def test_status_prints_session_endpoint_when_env_points_elsewhere(self):
+        """The status output must name the server the token belongs to (#213)."""
+        session = _make_session(issuer_url="https://app.spec-kitty.ai")
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        assert "SaaS:" in flat
+        assert "https://saas.test" in flat
+        assert "(from SPEC_KITTY_SAAS_URL)" in flat
+        assert "Session SaaS:" in flat
+        assert "https://app.spec-kitty.ai" in flat
+        assert "Session is for https://app.spec-kitty.ai" in flat
+
+    def test_status_reports_not_configured_when_config_server_url_is_blank(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
         """#182 squad MAJOR: a blank ``[sync].server_url`` must render exactly
         like an absent one — never as a configured (but empty) endpoint."""
-        (tmp_path / "config.toml").write_text(
-            '[sync]\nserver_url = "  "\n', encoding="utf-8"
-        )
+        (tmp_path / "config.toml").write_text('[sync]\nserver_url = "  "\n', encoding="utf-8")
         session = _make_session(issuer_url="https://saas.test")
         mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
@@ -627,17 +640,13 @@ class TestAuthStatusSaasLine:
         # The blank value must never be rendered as a configured provenance.
         assert "(from config.toml [sync].server_url)" not in flat
 
-    def test_status_shows_config_toml_provenance_when_server_url_configured(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path
-    ):
+    def test_status_shows_config_toml_provenance_when_server_url_configured(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
         """#182 squad pass-2 MAJOR: a genuinely-configured ``[sync].server_url``
         must render its URL and provenance literally, not have the Rich
         markup parser eat the ``[sync]``/`` [/]`` bracket text (regressed by
         the pass-1 reset onto ``main``, which dropped the ``escape()`` calls
         the pre-reset head had)."""
-        (tmp_path / "config.toml").write_text(
-            '[sync]\nserver_url = "https://team.spec-kitty.ai"\n', encoding="utf-8"
-        )
+        (tmp_path / "config.toml").write_text('[sync]\nserver_url = "https://team.spec-kitty.ai"\n', encoding="utf-8")
         session = _make_session(issuer_url="https://team.spec-kitty.ai")
         mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
@@ -654,16 +663,12 @@ class TestAuthStatusSaasLine:
         assert "https://team.spec-kitty.ai" in flat
         assert "(from config.toml [sync].server_url)" in flat
 
-    def test_status_does_not_crash_when_server_url_contains_bracket_syntax(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path
-    ):
+    def test_status_does_not_crash_when_server_url_contains_bracket_syntax(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
         """#182 squad pass-2 MAJOR: a configured ``server_url`` containing a
         closing-tag-like substring (``[/]``) must not raise
         ``rich.markup.MarkupError`` out of ``console.print`` — this module's
         docstring (FR-015) promises ``auth status`` never fails a shell."""
-        (tmp_path / "config.toml").write_text(
-            '[sync]\nserver_url = "https://x.test[/]"\n', encoding="utf-8"
-        )
+        (tmp_path / "config.toml").write_text('[sync]\nserver_url = "https://x.test[/]"\n', encoding="utf-8")
         session = _make_session(issuer_url="https://x.test[/]")
         mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
@@ -692,10 +697,7 @@ class TestAuthStatusSaasLine:
 
         assert result.exit_code == 0, result.stdout
         flat = _flat(result.stdout)
-        assert (
-            "Session is for https://sk-teamkitty.exe.xyz; "
-            "SPEC_KITTY_SAAS_URL now points at https://saas.test" in flat
-        )
+        assert "Session is for https://sk-teamkitty.exe.xyz; SPEC_KITTY_SAAS_URL now points at https://saas.test" in flat
         assert "run spec-kitty auth login --force" in flat
 
     def test_no_mismatch_warning_when_issuer_matches(self):
