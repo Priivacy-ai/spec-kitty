@@ -283,10 +283,13 @@ def _retry_after_s(headers: Mapping[str, str]) -> float:
     (``str(retry_after)``); the RFC's HTTP-date alternative is not, and an
     absent, non-numeric, or negative value means "no wait", which is also
     exactly how a 429 without the header (the registry-capacity one) reads.
+    The lookup is case-insensitive — ``_post`` snapshots the response headers
+    into a plain dict, losing ``http.client``'s own case folding, and a proxy
+    that rewrote the header's casing must not cost the frame its backoff.
     Clamping to :data:`MAX_RETRY_AFTER_S` happens here so every caller gets
     the bound, not just the ones that remember it.
     """
-    raw = headers.get("Retry-After") if headers else None
+    raw = next((v for k, v in headers.items() if k.lower() == "retry-after"), None)
     if raw is None:
         return 0.0
     try:

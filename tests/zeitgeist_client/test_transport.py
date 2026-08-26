@@ -655,3 +655,17 @@ def test_throttle_backoff_sleeps_when_not_stubbed(team_kitty_double):
 
     assert result.outcome == transport.OfferOutcome.THROTTLED
     assert wall >= 0.9
+
+
+def test_retry_after_header_is_matched_case_insensitively(
+    team_kitty_double, stubbed_pause
+):
+    """`_post` snapshots the response headers into a plain dict, dropping
+    `http.client`'s case folding — a relay/proxy that sends (or rewrites to)
+    `retry-after:` must not cost the frame its honoured backoff."""
+    team_kitty_double.configure(status=429, headers={"retry-after": "1"})
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    result = client.offer("presence.publish", {"activity": "file_edit"})
+
+    assert result.outcome == transport.OfferOutcome.THROTTLED
+    assert stubbed_pause == [1.0]
