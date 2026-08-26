@@ -26,7 +26,8 @@ import pytest
 import typer
 
 from specify_cli.cli.commands.agent import mission_finalize as seam
-from specify_cli.status import WPMetadata
+from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.status import Lane, WPMetadata
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -89,6 +90,115 @@ def test_branch_strategy_text_embeds_target_branch() -> None:
     text = seam._branch_strategy_text("prog/x")
     assert "generated on prog/x" in text
     assert "merge back into prog/x" in text
+
+
+def test_apply_ownership_inference_rejects_code_change_empty_owned_files() -> None:
+    meta = WPMetadata(
+        work_package_id="WP01",
+        title="Code",
+        execution_mode="code_change",
+        owned_files=[],
+    )
+
+    changed, warnings, contradiction = seam._apply_ownership_inference(
+        meta.builder(),
+        meta,
+        "---\nowned_files: []\n---\n# WP01\n",
+        "001-mission",
+        {},
+    )
+
+    assert changed is False
+    assert warnings == []
+    assert contradiction is not None
+    assert "WP01" in contradiction
+
+
+def test_raise_ownership_contradictions_reports_all_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+    state = seam._BootstrapState(
+        ownership_contradictions=[
+            "WP01: code_change WP declares no owned files",
+            "WP03: code_change WP declares no owned files",
+        ]
+    )
+
+    with pytest.raises(typer.Exit):
+        seam._raise_ownership_contradictions_if_any(
+            state, ["WP01", "WP03"], json_output=True
+        )
+
+    assert emitted[0]["error_code"] == seam.OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES
+    assert emitted[0]["ownership_contradiction_wp_ids"] == ["WP01", "WP03"]
+
+
+def test_project_lane_inputs_excludes_canceled_wps() -> None:
+    manifests = {
+        "WP01": OwnershipManifest(ExecutionMode.CODE_CHANGE, ("src/a.py",), "src/"),
+        "WP02": OwnershipManifest(ExecutionMode.CODE_CHANGE, ("src/b.py",), "src/"),
+        "WP03": OwnershipManifest(ExecutionMode.CODE_CHANGE, ("src/c.py",), "src/"),
+    }
+    frontmatters = {
+        "WP01": WPMetadata(work_package_id="WP01", title="A", lane=Lane.PLANNED),
+        "WP02": WPMetadata(work_package_id="WP02", title="B", lane=Lane.CANCELED),
+        "WP03": WPMetadata(work_package_id="WP03", title="C", lane=Lane.PLANNED),
+    }
+
+    eligibility, lane_manifests, lane_dependencies, lane_bodies = seam._project_lane_inputs(
+        manifests,
+        {"WP01": [], "WP02": [], "WP03": ["WP01"]},
+        frontmatters,
+        {"WP01": "a", "WP02": "b", "WP03": "c"},
+    )
+
+    assert eligibility.canceled_wp_ids == ("WP02",)
+    assert set(lane_manifests) == {"WP01", "WP03"}
+    assert lane_dependencies == {"WP01": [], "WP03": ["WP01"]}
+    assert lane_bodies == {"WP01": "a", "WP03": "c"}
+
+
+def test_stale_canceled_dependencies_fail_loud_json(monkeypatch: pytest.MonkeyPatch) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+    frontmatters = {
+        "WP01": WPMetadata(work_package_id="WP01", title="A", lane=Lane.CANCELED),
+        "WP02": WPMetadata(work_package_id="WP02", title="B", lane=Lane.PLANNED),
+    }
+    eligibility, *_ = seam._project_lane_inputs({}, {"WP01": [], "WP02": ["WP01"]}, frontmatters, {})
+
+    with pytest.raises(typer.Exit):
+        seam._raise_stale_canceled_dependencies_if_any(eligibility, json_output=True)
+
+    assert emitted[0]["error_code"] == "STALE_CANCELED_DEPENDENCIES"
+    assert emitted[0]["stale_canceled_dependencies"] == [
+        {
+            "dependent_wp_id": "WP02",
+            "canceled_dependency_wp_id": "WP01",
+            "recovery": "Remove the dependency or repoint WP02 to a non-canceled prerequisite.",
+        }
+    ]
+
+
+def test_compute_and_write_lanes_empty_inputs_fail_loud(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    emitted: list[dict[str, object]] = []
+    monkeypatch.setattr(seam, "_emit_json", emitted.append)
+
+    with pytest.raises(typer.Exit):
+        seam._compute_and_write_lanes(
+            tmp_path,
+            tmp_path,
+            "001-mission",
+            {},
+            {},
+            {},
+            {},
+            None,
+            "main",
+            json_output=True,
+        )
+
+    assert emitted[0]["error_code"] == seam.LANE_COMPUTATION_ABORTED_EMPTY_INPUTS
 
 
 # ---------------------------------------------------------------------------
@@ -461,9 +571,47 @@ def test_apply_ownership_inference_skips_when_present() -> None:
         authoritative_surface="src/x.py",
     )
     bld = meta.builder()
-    changed, warnings = seam._apply_ownership_inference(bld, meta, "body", "001-m", {})
+    changed, warnings, contradiction = seam._apply_ownership_inference(bld, meta, "body", "001-m", {})
     assert changed is False
     assert warnings == []
+    assert contradiction is None
+
+
+def test_post_integration_acceptance_warning_is_code_wp_only() -> None:
+    code_wp = """---
+work_package_id: WP01
+title: t
+---
+# WP01
+## Acceptance Criteria
+- Check the dashboard once merged.
+"""
+    planning_wp = code_wp + "\nUpdate kitty-specs/001-m/plan.md only.\n"
+
+    warnings = seam.detect_post_integration_acceptance(code_wp, ["src/x.py"])
+
+    assert warnings
+    assert "once merged" in warnings[0]
+    assert seam.detect_post_integration_acceptance(planning_wp, ["kitty-specs/001-m/plan.md"]) == []
+
+
+def test_discarded_sc_refs_warning_names_dropped_token(tmp_path: Path) -> None:
+    tasks_dir = tmp_path / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP01.md").write_text(
+        "---\nwork_package_id: WP01\ntitle: t\nrequirement_refs: [FR-001, SC-008]\n---\nbody\n",
+        encoding="utf-8",
+    )
+
+    warnings = seam.find_discarded_sc_refs(tasks_dir)
+
+    assert warnings == [
+        "WP01 declares Success-Criteria token(s) (SC-008) in requirement_refs "
+        "that the FR/NFR/C ref graph does not admit -- they are DROPPED, not traced. "
+        "Success-Criteria ids are not first-class requirement refs; move the coverage "
+        "claim to the WP's success-criteria surface, or restate it as an FR/NFR/C "
+        "requirement if it must be traced."
+    ]
 
 
 # ---------------------------------------------------------------------------

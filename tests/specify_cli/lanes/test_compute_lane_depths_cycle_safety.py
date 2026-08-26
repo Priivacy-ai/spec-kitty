@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.lanes.compute import _compute_lane_depths, compute_lanes
+from specify_cli.lanes.compute import LaneComputationError, _compute_lane_depths, compute_lanes
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 
@@ -87,8 +87,8 @@ def test_independent_lanes_get_depth_zero():
     assert depths == {"lane-a": 0, "lane-b": 0, "lane-c": 0}
 
 
-def test_compute_lanes_cycle_does_not_recurse_when_no_collapses():
-    """A lane-level cycle with no collapse events must not hit RecursionError."""
+def test_compute_lanes_cycle_fails_loud_before_depth_assignment():
+    """A lane-level cycle with no collapse events must fail before depth assignment."""
     graph = {"WP01": ["WP02"], "WP02": ["WP01"]}
     manifests = {
         "WP01": OwnershipManifest(
@@ -103,8 +103,5 @@ def test_compute_lanes_cycle_does_not_recurse_when_no_collapses():
         ),
     }
 
-    result = compute_lanes(graph, manifests, "cycle-demo")
-
-    assert {lane.wp_ids[0] for lane in result.lanes} == {"WP01", "WP02"}
-    assert result.collapse_report is not None
-    assert result.collapse_report.independent_wps_collapsed == 0
+    with pytest.raises(LaneComputationError, match="Execution lane dependency graph contains a cycle"):
+        compute_lanes(graph, manifests, "cycle-demo")

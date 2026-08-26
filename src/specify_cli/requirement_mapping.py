@@ -14,6 +14,7 @@ from typing import Any, NamedTuple, TypedDict
 
 _REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
 _REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
+_SC_REF_FIND_PATTERN = re.compile(r"\bSC-\d+\b", re.IGNORECASE)
 
 # --- #3394: declared-requirement scoping -----------------------------------
 #
@@ -187,6 +188,29 @@ def find_undeclared_requirement_citations(spec_content: str) -> list[str]:
             warnings.append(
                 _undeclared_citation_warning(sorted(section_raw_tokens), scope=f"The {heading_text!r} section")
             )
+    return warnings
+
+
+def _discarded_sc_warning(wp_id: str, sc_tokens: list[str]) -> str:
+    joined = ", ".join(sc_tokens)
+    return (
+        f"{wp_id} declares Success-Criteria token(s) ({joined}) in requirement_refs "
+        "that the FR/NFR/C ref graph does not admit -- they are DROPPED, not traced. "
+        "Success-Criteria ids are not first-class requirement refs; move the coverage "
+        "claim to the WP's success-criteria surface, or restate it as an FR/NFR/C "
+        "requirement if it must be traced."
+    )
+
+
+def find_discarded_sc_refs(tasks_dir: Path) -> list[str]:
+    """Signal ``SC-###`` refs that are silently dropped from the ref graph."""
+    warnings: list[str] = []
+    for wp_id, raw_tokens in read_all_wp_raw_requirement_refs(tasks_dir).items():
+        sc_tokens = sorted(
+            {token.upper() for token in raw_tokens if _SC_REF_FIND_PATTERN.fullmatch(token)}
+        )
+        if sc_tokens:
+            warnings.append(_discarded_sc_warning(wp_id, sc_tokens))
     return warnings
 
 

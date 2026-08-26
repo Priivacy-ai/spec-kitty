@@ -16,6 +16,7 @@ __all__ = [
     "infer_authoritative_surface",
     "infer_ownership",
     "score_execution_mode_signals",
+    "detect_post_integration_acceptance",
     "SRC_FALLBACK_GLOB",
     "SRC_FALLBACK_WARNING",
 ]
@@ -88,6 +89,61 @@ def score_execution_mode_signals(wp_content: str, wp_files: list[str]) -> tuple[
     planning_score = sum(1 for p in _PLANNING_SIGNALS if re.search(p, combined))
     code_score = sum(1 for p in _CODE_SIGNALS if re.search(p, combined))
     return planning_score, code_score
+
+
+_POST_INTEGRATION_MARKERS: tuple[re.Pattern[str], ...] = tuple(
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in (
+        r"\bpost[-\s]?merge\b",
+        r"\bafter (?:the )?merge\b",
+        r"\bonce merged\b",
+        r"\bpost[-\s]?integration\b",
+        r"\bafter integration\b",
+        r"\bonce integrated\b",
+        r"\bafter (?:the )?deploy(?:ment)?\b",
+        r"\bonce deployed\b",
+    )
+)
+_ACCEPTANCE_HEADING = re.compile(r"(?i)(?:acceptance|success\s+crit|review\s+guidance)")
+_HEADING_LINE = re.compile(r"^#{1,6}\s")
+
+
+def _acceptance_criteria_scope(wp_body: str) -> str:
+    """Return text under acceptance/success-criteria headings."""
+    scoped: list[str] = []
+    capturing = False
+    for line in wp_body.splitlines():
+        if _HEADING_LINE.match(line):
+            capturing = bool(_ACCEPTANCE_HEADING.search(line))
+            continue
+        if capturing:
+            scoped.append(line)
+    return "\n".join(scoped)
+
+
+def detect_post_integration_acceptance(wp_content: str, wp_files: list[str]) -> list[str]:
+    """Warn when a code WP's acceptance criteria are post-integration only."""
+    if infer_execution_mode(wp_content, wp_files) is not ExecutionMode.CODE_CHANGE:
+        return []
+    scope = _acceptance_criteria_scope(wp_content)
+    if not scope:
+        return []
+    matched = sorted(
+        {
+            match.group(0).strip().lower()
+            for pattern in _POST_INTEGRATION_MARKERS
+            for match in pattern.finditer(scope)
+        }
+    )
+    if not matched:
+        return []
+    phrases = ", ".join(f"'{phrase}'" for phrase in matched)
+    return [
+        "acceptance criteria appear observable only post-integration "
+        f"({phrases}) -- an action, not a diff. The work package cannot be "
+        "honestly reviewed while its lane is open; re-home this observation at "
+        "planning time so the WP can terminate on a diff-inspectable criterion."
+    ]
 
 
 def infer_owned_files(wp_content: str, mission_slug: str) -> tuple[list[str], list[str]]:

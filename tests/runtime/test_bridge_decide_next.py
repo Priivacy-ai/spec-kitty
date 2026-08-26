@@ -18,6 +18,7 @@ stub-based pattern from WP07/WP08.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -81,6 +82,7 @@ def _make_ctx(
     real ``_BufferingRuntimeEmitter`` in its own tests below)."""
     feature_dir = tmp_path / "kitty-specs" / "042-mission"
     feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "software-dev"}), encoding="utf-8")
     resolved_run_dir = run_dir if run_dir is not None else (tmp_path / "run")
     resolved_run_dir.mkdir(parents=True, exist_ok=True)
     return rb.DecideNextContext(
