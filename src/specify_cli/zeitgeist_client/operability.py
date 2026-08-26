@@ -241,7 +241,10 @@ def mcp_signal() -> McpSignal:
     check here."""
     from . import mcp_stdio  # deferred: keeps the `mcp` SDK import optional at this module's own import time
 
-    server = mcp_stdio.build_server()
+    try:
+        server = mcp_stdio.build_server()
+    except mcp_stdio.moments.MomentsDisabled:
+        return McpSignal(reachable=False, tool_names=())
     tools = asyncio.run(server.list_tools())
     return McpSignal(reachable=True, tool_names=tuple(sorted(tool.name for tool in tools)))
 
@@ -345,7 +348,7 @@ class TimeoutDrillResult:
 
 
 def timeout_drill(relay_url: str = DEFAULT_UNREACHABLE_URL) -> TimeoutDrillResult:
-    """"Relay unreachable" drill: one real ``offer()`` against ``relay_url``
+    """Relay unreachable drill: one real ``offer()`` against ``relay_url``
     (a loopback address nothing listens on by default). Passes when the
     offer was dropped AND its elapsed time stayed within the 750ms
     denominator — proving the drop-no-retry contract holds under an
@@ -374,15 +377,13 @@ class RotationDrillResult:
 
 
 def rotation_drill(repo: str) -> RotationDrillResult:
-    """"Auth expiry" drill: reads ``repo``'s stored ``token_issued_at`` —
+    """Auth expiry drill: reads ``repo``'s stored ``token_issued_at`` —
     never the token value itself — and reports whether it has crossed
     :data:`ROTATION_WINDOW_S`. ``repo`` is the credential-store key the
     caller resolved (the CLI derives it from the checkout, #137)."""
     stored = credentials.load(repo=repo)
     if stored is None:
-        return RotationDrillResult(
-            outcome="pass", checked_out=False, age_s=None, rotation_window_s=ROTATION_WINDOW_S, rotation_due=False
-        )
+        return RotationDrillResult(outcome="pass", checked_out=False, age_s=None, rotation_window_s=ROTATION_WINDOW_S, rotation_due=False)
     issued_at = parse_iso(stored.token_issued_at)
     age_s = (now_utc() - issued_at).total_seconds()
     return RotationDrillResult(
@@ -407,7 +408,7 @@ class RollbackDrillResult:
 
 
 def rollback_drill(*, repo: str) -> RollbackDrillResult:
-    """"Rollback" drill: submits a throwaway pending outbox item for
+    """Rollback drill: submits a throwaway pending outbox item for
     ``repo``, then immediately calls ``revoke()`` on it. See the module
     docstring for why this proves the fail-closed guard (never a human
     gesture, never ``/dev/tty``) rather than a full approve-then-revoke

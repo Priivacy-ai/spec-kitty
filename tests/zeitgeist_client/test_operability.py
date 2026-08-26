@@ -221,6 +221,14 @@ def test_mcp_signal_reports_reachable_and_the_exact_tool_pair():
     assert signal.tool_names == ("zeitgeist_status", "zeitgeist_watch")
 
 
+def test_mcp_signal_reports_unreachable_when_agent_moments_are_off(moments_config: Path):
+    """PR #201 MAJOR: operability is an operator diagnostic, so a developer's
+    agent-moment off switch must not make the report command traceback."""
+    moments_config.write_text('[moments]\nagents = "off"\n')
+    signal = operability.mcp_signal()
+    assert signal == operability.McpSignal(reachable=False, tool_names=())
+
+
 def test_mcp_signal_never_names_an_outbox_tool():
     signal = operability.mcp_signal()
     for name in signal.tool_names:
@@ -324,9 +332,7 @@ def test_rotation_drill_reports_age_and_rotation_due_flag_honestly(state_root: P
     credentials.store(repo="github.com/acme/spec-kitty", relay_url="http://127.0.0.1:9", token="tok", token_kind="shared_team")
     stale = credentials.load(repo="github.com/acme/spec-kitty")
     assert stale is not None
-    stale_issued = dataclasses.replace(
-        stale, token_issued_at=(now_utc() - timedelta(seconds=operability.ROTATION_WINDOW_S + 60)).isoformat()
-    )
+    stale_issued = dataclasses.replace(stale, token_issued_at=(now_utc() - timedelta(seconds=operability.ROTATION_WINDOW_S + 60)).isoformat())
     monkeypatch.setattr(credentials, "load", lambda *, repo: stale_issued)
 
     result = operability.rotation_drill("github.com/acme/spec-kitty")

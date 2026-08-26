@@ -23,9 +23,12 @@ agent receives.
 ``~/.kittify/config.toml`` (:func:`kernel.paths.get_kittify_home`), a repo
 may override it in ``<repo>/.kittify/config.toml`` — the same two-file shape
 every other per-developer preference uses (global home + project ``.kittify``
-override). Per-key precedence is repo-over-global-over-default; there is no
-deeper merge (a repo override replaces a whole list, it does not union it),
-because "which moments do I want *here*" is one decision, not a diff.
+override). Filters and rate use per-key repo-over-global precedence. The
+``agents`` mode is narrow-only across the two files (``off < mine < team``):
+repo content may quiet a checkout, never widen a developer's explicit global
+unsubscribe. There is no deeper merge (a repo override replaces a whole list,
+it does not union it), because "which moments do I want *here*" is one
+decision, not a diff.
 
 The ``mine`` basis is deliberately cheap and honest about being a proxy:
 spec-kitty has no hosted assignment model to ask, so "the missions the
@@ -192,10 +195,8 @@ def _coerce_mode(raw: Any, source: str) -> tuple[MomentsMode, str]:
 
 def _string_list(raw: Any) -> tuple[str, ...]:
     """A stored list-of-strings filter as stripped, de-duplicated, order-
-    preserving strings. Any other shape (a bare string among them — half a
-    list is a typo, not an implicit singleton) reads as "no restriction",
-    because silently interpreting a malformed entry as an allowlist entry
-    could widen the stream instead of narrowing it."""
+    preserving strings. Validation lives in :func:`_malformed_filter_keys`;
+    callers only ask this helper for the usable values."""
     if not isinstance(raw, (list, tuple)):
         return ()
     seen: list[str] = []
@@ -213,12 +214,55 @@ _FILTER_KEYS = ("repos", "missions", "teammates", "kinds")
 
 
 def _malformed_filter_keys(merged: Mapping[str, Any]) -> frozenset[str]:
-    """Which of :data:`_FILTER_KEYS` are PRESENT in ``merged`` but not a
-    list/tuple — the shape :func:`_string_list` quietly empties to "unset".
-    A key that is simply absent is not malformed; a key that is present with
-    the wrong shape (a typo'd bare string in place of a one-item list) is,
-    and must fail its dimension closed rather than silently disappear."""
-    return frozenset(key for key in _FILTER_KEYS if key in merged and not isinstance(merged[key], (list, tuple)))
+    """Which allowlist keys are present but unusable.
+
+    A key that is absent means "no restriction". A present key with the wrong
+    container, an empty list, a blank string, or a non-string entry means the
+    developer attempted a restriction but typed it wrong; that dimension must
+    fail closed instead of collapsing to "no restriction" and widening the
+    stream.
+    """
+    malformed: set[str] = set()
+    for key in _FILTER_KEYS:
+        if key not in merged:
+            continue
+        raw = merged[key]
+        if not isinstance(raw, (list, tuple)):
+            malformed.add(key)
+            continue
+        if not raw:
+            malformed.add(key)
+            continue
+        for entry in raw:
+            if not isinstance(entry, str) or not entry.strip():
+                malformed.add(key)
+                break
+    return frozenset(malformed)
+
+
+_MODE_RANK = {
+    MomentsMode.OFF: 0,
+    MomentsMode.MINE: 1,
+    MomentsMode.TEAM: 2,
+}
+
+
+def _resolve_mode(global_section: Mapping[str, Any], repo_section: Mapping[str, Any], *, home: Path | None, project_root: Path | None) -> tuple[MomentsMode, str]:
+    """Resolve ``agents`` narrow-only across global and repo config.
+
+    Repo settings used to have unconditional precedence. For this per-developer
+    switch, that lets a committed repo file re-enable moments for someone who
+    globally opted out. Treat the two values as a lattice instead: choose the
+    narrower mode by ``off < mine < team`` and report the source that won.
+    """
+    candidates: list[tuple[MomentsMode, str]] = []
+    if "agents" in global_section:
+        candidates.append(_coerce_mode(global_section["agents"], str(global_config_path(home=home))))
+    if project_root is not None and "agents" in repo_section:
+        candidates.append(_coerce_mode(repo_section["agents"], str(repo_config_path(project_root))))
+    if not candidates:
+        return DEFAULT_AGENTS_MODE, "default"
+    return min(candidates, key=lambda candidate: _MODE_RANK[candidate[0]])
 
 
 def _coerce_rate(raw: Any) -> int:
@@ -251,20 +295,7 @@ def load_settings(
 
     merged: dict[str, Any] = {**global_section, **repo_section}
     invalid_filters = _malformed_filter_keys(merged)
-    if "agents" not in merged:
-        # Neither file says anything: the documented default, honestly labelled.
-        return MomentSettings(
-            repos=_string_list(merged.get("repos")),
-            missions=_string_list(merged.get("missions")),
-            teammates=_string_list(merged.get("teammates")),
-            kinds=_string_list(merged.get("kinds")),
-            rate_per_minute=_coerce_rate(merged.get("rate_per_minute")),
-            invalid_filters=invalid_filters,
-        )
-    # ``repo_section`` is empty whenever ``project_root`` is None, so an
-    # agent key found there guarantees the repo path below is real.
-    deciding_file = repo_config_path(project_root) if "agents" in repo_section else global_config_path(home=home)
-    mode, agents_source = _coerce_mode(merged["agents"], str(deciding_file))
+    mode, agents_source = _resolve_mode(global_section, repo_section, home=home, project_root=project_root)
     return MomentSettings(
         agents=mode,
         repos=_string_list(merged.get("repos")),

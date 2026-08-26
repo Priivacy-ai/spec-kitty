@@ -97,7 +97,21 @@ class TestLoadSettings:
         assert settings.agents is moments.MomentsMode.OFF
         assert settings.agents_source == str(moments_config)
 
-    def test_repo_override_beats_global(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_repo_override_may_narrow_global(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        root = tmp_path / "checkout"
+        (root / ".kittify").mkdir(parents=True)
+        (root / ".kittify" / "config.toml").write_text('[moments]\nagents = "off"\n')
+        global_path = tmp_path / "global-config.toml"
+        global_path.write_text('[moments]\nagents = "team"\n')
+        monkeypatch.setattr(moments, "global_config_path", lambda *, home=None: global_path)
+
+        settings = moments.load_settings(project_root=root)
+        assert settings.agents is moments.MomentsMode.OFF
+        assert settings.agents_source == str(root / ".kittify" / "config.toml")
+
+    def test_repo_override_cannot_widen_global_off(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """PR #201 MAJOR: a committed repo config must not re-enable moments for
+        a developer who globally opted out."""
         root = tmp_path / "checkout"
         (root / ".kittify").mkdir(parents=True)
         (root / ".kittify" / "config.toml").write_text('[moments]\nagents = "team"\n')
@@ -106,8 +120,9 @@ class TestLoadSettings:
         monkeypatch.setattr(moments, "global_config_path", lambda *, home=None: global_path)
 
         settings = moments.load_settings(project_root=root)
-        assert settings.agents is moments.MomentsMode.TEAM
-        assert settings.agents_source == str(root / ".kittify" / "config.toml")
+
+        assert settings.agents is moments.MomentsMode.OFF
+        assert settings.agents_source == str(global_path)
 
     def test_lists_merge_per_key_repo_wins_whole_list(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A repo override replaces a list wholesale — it never unions with
@@ -157,7 +172,7 @@ class TestLoadSettings:
 
     def test_filter_lists_are_stripped_deduped_and_shape_checked(self, moments_config: Path) -> None:
         moments_config.write_text(
-            '[moments]\nrepos = [" github.com/acme/w ", "", "github.com/acme/w", 42]\nmissions = "034-demo"\n'  # a bare string is a typo, not a singleton
+            '[moments]\nrepos = [" github.com/acme/w ", "github.com/acme/w"]\nmissions = "034-demo"\n'  # a bare string is a typo, not a singleton
         )
         settings = moments.load_settings(home=moments_config.parent)
         assert settings.repos == ("github.com/acme/w",)
@@ -166,6 +181,14 @@ class TestLoadSettings:
         # `missions` typo is — that distinction is what fails it closed
         # instead of letting it read as "no restriction" (PR #201 follow-up).
         assert settings.invalid_filters == frozenset({"missions"})
+
+    @pytest.mark.parametrize("raw", ["[]", '[""]', '["  "]', "[42]", '["lynn", 42]', '["lynn", ""]'])
+    def test_malformed_filter_entries_are_flagged(self, moments_config: Path, raw: str) -> None:
+        """Entry-level typos are still malformed filters, not partial allowlists
+        that accidentally drop back to no restriction."""
+        moments_config.write_text(f'[moments]\nagents = "team"\nteammates = {raw}\n')
+        settings = moments.load_settings(home=moments_config.parent)
+        assert settings.invalid_filters == frozenset({"teammates"})
 
     def test_malformed_teammates_fails_closed_not_open(self, moments_config: Path) -> None:
         """The exact squad repro (#201): `agents = "team"` plus a bare-string

@@ -90,6 +90,15 @@ def test_status_reports_a_malformed_filter_as_invalid_not_as_no_filter(kittify_h
     assert "no filter" not in result.stdout.split("teammates:")[1].split("\n")[0]
 
 
+def test_status_prints_config_values_as_literal_text(kittify_home: Path) -> None:
+    """PR #201 MAJOR: Rich markup in config must not crash status."""
+    (kittify_home / "config.toml").write_text('[moments]\nagents = "[/]"\nteammates = ["[/]"]\n')
+    result = runner.invoke(moments_app, ["status"])
+    assert result.exit_code == 0
+    assert "invalid value" in result.stdout
+    assert "teammates: [/]" in result.stdout
+
+
 def test_status_json_reports_invalid_filters_as_a_sorted_list(kittify_home: Path) -> None:
     (kittify_home / "config.toml").write_text('[moments]\nagents = "team"\nteammates = "lynn"\n')
     result = runner.invoke(moments_app, ["status", "--json"])
@@ -110,6 +119,17 @@ def test_status_reports_a_repo_override_over_the_global_value(kittify_home: Path
     assert "off" in result.stdout
     assert str(root / ".kittify" / "config.toml") in result.stdout
     assert "kinds: WPStatusChanged" in result.stdout  # unoverridden keys still come through
+
+
+def test_status_reports_global_off_not_widened_by_repo_team(kittify_home: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    (kittify_home / "config.toml").write_text('[moments]\nagents = "off"\n')
+    root = _checkout_with_kittify(tmp_path, monkeypatch)
+    (root / ".kittify" / "config.toml").write_text('[moments]\nagents = "team"\n')
+
+    result = runner.invoke(moments_app, ["status"])
+
+    assert result.exit_code == 0
+    assert result.stdout.splitlines()[0] == f"off  source={kittify_home / 'config.toml'}"
 
 
 # --- off / on ----------------------------------------------------------------

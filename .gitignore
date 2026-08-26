@@ -65,6 +65,7 @@ pyproject.local.toml
 .kittify/events/
 .kittify/dossiers/
 .kittify/workspaces/
+.kittify/config.toml
 .kittify/merge-state.json
 .kittify/sync-state.json
 .kittify/lint-report.json

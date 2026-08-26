@@ -56,7 +56,7 @@ def _resolve_scope(repo_scoped: bool) -> tuple[str, Path | None]:
 
 
 def _print_effective(settings: moments.MomentSettings) -> None:
-    console.print(f"effective: [bold]{settings.agents.value}[/bold] ({settings.agents_source})")
+    console.print(f"effective: {settings.agents.value} ({settings.agents_source})", markup=False)
 
 
 @moments_app.command()
@@ -65,7 +65,7 @@ def off(repo: bool = _REPO_SCOPE_OPTION) -> None:
     `spec-kitty zeitgeist mcp-serve` exits 0 with one line."""
     scope, project_root = _resolve_scope(repo)
     written = moments.write_agents_mode(moments.MomentsMode.OFF, scope=scope, project_root=project_root)
-    console.print(f"[bold]off[/bold] — written to {written}")
+    console.print(f"off — written to {written}", markup=False)
     _print_effective(moments.load_settings(project_root=project_root))
 
 
@@ -75,7 +75,7 @@ def on(repo: bool = _REPO_SCOPE_OPTION) -> None:
     missions this checkout is on)."""
     scope, project_root = _resolve_scope(repo)
     written = moments.write_agents_mode(moments.MomentsMode.MINE, scope=scope, project_root=project_root)
-    console.print(f"[bold]on[/bold] — {moments.MomentsMode.MINE.value} written to {written}")
+    console.print(f"on — {moments.MomentsMode.MINE.value} written to {written}", markup=False)
     _print_effective(moments.load_settings(project_root=project_root))
 
 
@@ -86,14 +86,14 @@ def status(as_json: bool = _JSON_OPTION) -> None:
     if as_json:
         console.emit_json(settings.as_dict())
         return
-    console.print(f"[bold]{settings.agents.value}[/bold]  source={settings.agents_source}")
+    console.print(f"{settings.agents.value}  source={settings.agents_source}", markup=False)
     for name in ("repos", "missions", "teammates", "kinds"):
         if name in settings.invalid_filters:
-            rendered = "[red]invalid value in config — failing closed (blocks everything on this filter)[/red]"
+            rendered = "invalid value in config — failing closed (blocks everything on this filter)"
         else:
             values = getattr(settings, name)
             rendered = ", ".join(values) if values else "(no filter)"
-        console.print(f"  {name}: {rendered}")
-    console.print(f"  rate_per_minute: {settings.rate_per_minute}")
+        console.print(f"  {name}: {rendered}", markup=False)
+    console.print(f"  rate_per_minute: {settings.rate_per_minute}", markup=False)
     if settings.agents is moments.MomentsMode.OFF:
         console.print("  `spec-kitty zeitgeist mcp-serve` refuses to start while agents = off.")
