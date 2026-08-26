@@ -33,7 +33,7 @@ from specify_cli.core.upgrade_notifier import (
     maybe_emit_upgrade_notice,
 )
 from specify_cli.core.upgrade_probe import (
-    PYPI_JSON_URL,
+    GITHUB_RELEASES_URL,
     UpgradeChannel,
     UpgradeProbeResult,
     probe_pypi,
@@ -71,9 +71,13 @@ def _capture_console() -> tuple[Console, StringIO]:
 class TestProbeChannelClassification:
     """The channel matrix from contracts/upgrade-probe-and-notifier.md."""
 
+    def test_probe_uses_github_releases_endpoint(self) -> None:
+        assert GITHUB_RELEASES_URL.startswith("https://api.github.com/repos/")
+        assert "pypi.org" not in GITHUB_RELEASES_URL
+
     @respx.mock
     def test_already_current_when_installed_equals_latest(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.1.0", "3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.1.0", "3.2.0"])))
 
         result = probe_pypi("3.2.0")
 
@@ -83,7 +87,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_rc_only_release_channel_still_classifies_current_release(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.6rc2"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.6rc2"])))
 
         result = probe_pypi("3.2.6rc2")
 
@@ -93,7 +97,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_ahead_of_release_when_installed_greater_than_latest_stable_release(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
 
         result = probe_pypi("3.2.0rc7")
 
@@ -103,7 +107,7 @@ class TestProbeChannelClassification:
     @respx.mock
     def test_no_upgrade_path_when_installed_not_in_releases(self) -> None:
         # Installed version "0.0.1.dev0" is NOT a current-org release.
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.1.0", "3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.1.0", "3.2.0"])))
 
         result = probe_pypi("0.0.1.dev0")
 
@@ -112,7 +116,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_upgrade_available_when_installed_is_older_published_release(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
 
         result = probe_pypi("3.2.0")
 
@@ -121,7 +125,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_unknown_on_http_500(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(500))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(500))
 
         result = probe_pypi("3.2.0")
 
@@ -130,8 +134,20 @@ class TestProbeChannelClassification:
         assert result.latest_pypi_version is None
 
     @respx.mock
-    def test_http_404_falls_back_to_bundled_release_identity(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(404))
+    def test_http_404_falls_back_to_stamped_bundled_release_identity(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.core import upgrade_probe
+
+        monkeypatch.setattr(
+            upgrade_probe,
+            "_bundled_release_identity",
+            lambda: upgrade_probe._ReleaseIdentity(
+                repository="spec-kitty/EXPERIMENTAL-spec-kitty",
+                version="3.2.6rc2",
+                release_tag="v3.2.6rc2",
+                release_commit_sha="985421f037ae36fccf06288eb18690b0d74451b4",
+            ),
+        )
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(404))
 
         result = probe_pypi("3.2.6rc2")
 
@@ -141,8 +157,32 @@ class TestProbeChannelClassification:
         assert result.releases == ("3.2.6rc2",)
 
     @respx.mock
-    def test_http_404_detects_off_pin_private_release_build(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(404))
+    def test_http_404_detects_unstamped_source_tree_identity_as_off_pin(self) -> None:
+        repo_root = Path(__file__).resolve().parents[2]
+        pyproject = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(404))
+
+        result = probe_pypi(pyproject["project"]["version"])
+
+        assert result.channel == UpgradeChannel.NO_UPGRADE_PATH
+        assert result.latest_pypi_version == "3.2.6rc2"
+        assert result.error is None
+
+    @respx.mock
+    def test_http_404_detects_off_pin_private_release_build(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        from specify_cli.core import upgrade_probe
+
+        monkeypatch.setattr(
+            upgrade_probe,
+            "_bundled_release_identity",
+            lambda: upgrade_probe._ReleaseIdentity(
+                repository="spec-kitty/EXPERIMENTAL-spec-kitty",
+                version="3.2.6rc2",
+                release_tag="v3.2.6rc2",
+                release_commit_sha="985421f037ae36fccf06288eb18690b0d74451b4",
+            ),
+        )
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(404))
 
         result = probe_pypi("3.2.6rc3")
 
@@ -152,7 +192,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_unknown_on_connection_error(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(side_effect=httpx.ConnectError("boom"))
+        respx.get(GITHUB_RELEASES_URL).mock(side_effect=httpx.ConnectError("boom"))
 
         result = probe_pypi("not-a-version")
 
@@ -160,7 +200,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_unknown_on_timeout(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(side_effect=httpx.TimeoutException("slow"))
+        respx.get(GITHUB_RELEASES_URL).mock(side_effect=httpx.TimeoutException("slow"))
 
         result = probe_pypi("not-a-version", timeout_s=0.1)
 
@@ -168,7 +208,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_unknown_on_malformed_json_payload(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, text="not-json"))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, text="not-json"))
 
         result = probe_pypi("3.2.0")
 
@@ -176,7 +216,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_unknown_on_missing_release_tags(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=[]))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=[]))
 
         result = probe_pypi("3.2.0")
 
@@ -184,7 +224,7 @@ class TestProbeChannelClassification:
 
     @respx.mock
     def test_probe_never_raises_on_unexpected_exception(self) -> None:
-        respx.get(PYPI_JSON_URL).mock(side_effect=RuntimeError("totally unexpected"))
+        respx.get(GITHUB_RELEASES_URL).mock(side_effect=RuntimeError("totally unexpected"))
 
         # Must not raise.
         result = probe_pypi("3.2.0")
@@ -243,7 +283,7 @@ class TestNoticeContent:
     @respx.mock
     def test_already_current_emits_latest_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         console, buf = _capture_console()
 
         emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=tmp_path / "c.json")
@@ -255,7 +295,7 @@ class TestNoticeContent:
     @respx.mock
     def test_ahead_of_release_emits_ahead_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.0.0", "3.1.0", "3.2.0rc7"])))
         console, buf = _capture_console()
 
         emitted = maybe_emit_upgrade_notice("3.2.0rc7", console=console, cache_path=tmp_path / "c.json")
@@ -269,7 +309,7 @@ class TestNoticeContent:
     @respx.mock
     def test_no_upgrade_path_emits_private_release_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         console, buf = _capture_console()
 
         emitted = maybe_emit_upgrade_notice("0.0.1.dev0", console=console, cache_path=tmp_path / "c.json")
@@ -282,7 +322,7 @@ class TestNoticeContent:
     @respx.mock
     def test_unreleased_ahead_build_reports_private_release_mismatch(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.6rc2"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.6rc2"])))
         console, buf = _capture_console()
 
         emitted = maybe_emit_upgrade_notice("3.2.6rc3", console=console, cache_path=tmp_path / "c.json")
@@ -296,7 +336,7 @@ class TestNoticeContent:
     @respx.mock
     def test_private_repo_404_still_emits_off_pin_release_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(404))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(404))
         console, buf = _capture_console()
 
         emitted = maybe_emit_upgrade_notice("3.2.6rc3", console=console, cache_path=tmp_path / "c.json")
@@ -309,7 +349,7 @@ class TestNoticeContent:
     @respx.mock
     def test_unknown_emits_no_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(500))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(500))
         console, buf = _capture_console()
 
         emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=tmp_path / "c.json")
@@ -320,7 +360,7 @@ class TestNoticeContent:
     @respx.mock
     def test_upgrade_available_emits_no_no_upgrade_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
         console, buf = _capture_console()
 
         emitted = maybe_emit_upgrade_notice("3.2.0", console=console, cache_path=tmp_path / "c.json")
@@ -338,7 +378,7 @@ class TestCache:
     @respx.mock
     def test_cache_is_persisted_after_successful_probe(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
         console, _ = _capture_console()
 
@@ -355,7 +395,7 @@ class TestCache:
     @respx.mock
     def test_unknown_uses_short_ttl_in_cache(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(500))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(500))
         cache_path = tmp_path / "c.json"
         console, _ = _capture_console()
 
@@ -371,7 +411,7 @@ class TestCache:
     def test_cache_fresh_within_ttl_suppresses_repeat_notice_for_already_current(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """AC #4: identical-channel-within-TTL suppression for ALREADY_CURRENT."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
         t0 = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
@@ -393,7 +433,7 @@ class TestCache:
     def test_cache_stale_after_ttl_re_probes_and_re_emits(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """After TTL expires, the cache is stale → re-probe + re-emit."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
         t0 = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
@@ -414,14 +454,14 @@ class TestCache:
     def test_cache_invalidated_when_installed_version_changes(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """If the user upgrades mid-cache-window, the cache is stale."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
         cache_path = tmp_path / "c.json"
         t0 = datetime(2026, 5, 14, 12, 0, 0, tzinfo=UTC)
 
         # First call as 3.2.0 (installed in releases but older than latest).
         # The no-upgrade notifier stays silent and caches the probe result;
         # the existing upgrade nag owns the actual upgrade-available message.
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0", "3.2.1"])))
         console1, _ = _capture_console()
         maybe_emit_upgrade_notice("3.2.0", console=console1, cache_path=cache_path, now=t0)
 
@@ -442,7 +482,7 @@ class TestCache:
     @respx.mock
     def test_corrupt_cache_file_is_treated_as_miss(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
         cache_path.write_text("definitely-not-json{[")
         console, buf = _capture_console()
@@ -539,7 +579,7 @@ class TestPerformance:
     def test_cache_warm_path_under_100ms(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         """NFR-004: cache-warm invocations must complete in <=100 ms (avg over 10)."""
         monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
-        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
+        respx.get(GITHUB_RELEASES_URL).mock(return_value=httpx.Response(200, json=_make_release_payload(["3.2.0"])))
         cache_path = tmp_path / "c.json"
 
         # Warm the cache.
@@ -633,3 +673,5 @@ class TestPackagedReleaseIdentity:
 
         assert identity["repository"] == "spec-kitty/EXPERIMENTAL-spec-kitty"
         assert identity["version"] == pyproject["project"]["version"]
+        assert identity["release_tag"] is None
+        assert identity["release_commit_sha"] is None

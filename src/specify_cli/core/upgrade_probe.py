@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import importlib.resources
 import json
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -43,11 +44,10 @@ GITHUB_RELEASES_URL = "https://api.github.com/repos/spec-kitty/EXPERIMENTAL-spec
 RELEASE_IDENTITY_RESOURCE = "release_identity.json"
 """Packaged private-release identity used when GitHub hides the private repo."""
 
-PYPI_JSON_URL = GITHUB_RELEASES_URL
-"""Deprecated compatibility alias for older tests/callers."""
-
 DEFAULT_TIMEOUT_S = 2.0
 """Hard ceiling on the probe wall-clock budget. Any timeout resolves to UNKNOWN."""
+
+_RELEASE_COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
 class UpgradeChannel(StrEnum):
@@ -109,6 +109,18 @@ class UpgradeProbeResult:
     Kept in the result so the notifier's cache layer can re-classify if the
     installed version changes mid-cache-window without re-probing.
     """
+
+
+@dataclass(frozen=True)
+class _ReleaseIdentity:
+    repository: str
+    version: str
+    release_tag: str | None
+    release_commit_sha: str | None
+
+    @property
+    def stamped(self) -> bool:
+        return self.release_tag == f"v{self.version}" and self.release_commit_sha is not None and _RELEASE_COMMIT_RE.fullmatch(self.release_commit_sha) is not None
 
 
 def probe_pypi(
@@ -194,9 +206,12 @@ def probe_pypi(
 
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code == 404:
-            fallback = _from_bundled_release_identity(cli_version, probed_at, prerelease=prerelease)
-            if fallback is not None:
-                return fallback
+            try:
+                fallback = _from_bundled_release_identity(cli_version, probed_at, prerelease=prerelease)
+                if fallback is not None:
+                    return fallback
+            except Exception as fallback_exc:  # noqa: BLE001 — the probe contract is never-raise
+                return _unknown(cli_version, probed_at, f"{type(fallback_exc).__name__}: {fallback_exc}")
         return _unknown(cli_version, probed_at, f"{type(exc).__name__}: {exc}")
     except Exception as exc:  # noqa: BLE001 — fail-safe-default per secure-design-checklist
         return _unknown(cli_version, probed_at, f"{type(exc).__name__}: {exc}")
@@ -246,22 +261,33 @@ def _highest_release(releases: tuple[str, ...], *, include_prerelease: bool) -> 
     return _highest_version(list(releases), include_prerelease=include_prerelease)
 
 
-def _bundled_release_versions() -> tuple[str, ...]:
+def _bundled_release_identity() -> _ReleaseIdentity | None:
     """Read the private-release identity shipped inside the installed wheel."""
     try:
         text = importlib.resources.files("specify_cli").joinpath(RELEASE_IDENTITY_RESOURCE).read_text(encoding="utf-8")
         payload = json.loads(text)
     except (OSError, json.JSONDecodeError, ModuleNotFoundError):
-        return ()
+        return None
 
     if not isinstance(payload, dict):
-        return ()
+        return None
     if payload.get("repository") != "spec-kitty/EXPERIMENTAL-spec-kitty":
-        return ()
+        return None
     version = payload.get("version")
     if not isinstance(version, str) or try_parse_version(version) is None:
-        return ()
-    return (version,)
+        return None
+    release_tag = payload.get("release_tag")
+    if release_tag is not None and not isinstance(release_tag, str):
+        return None
+    release_commit_sha = payload.get("release_commit_sha")
+    if release_commit_sha is not None and not isinstance(release_commit_sha, str):
+        return None
+    return _ReleaseIdentity(
+        repository=payload["repository"],
+        version=version,
+        release_tag=release_tag,
+        release_commit_sha=release_commit_sha,
+    )
 
 
 def _from_bundled_release_identity(
@@ -270,9 +296,20 @@ def _from_bundled_release_identity(
     *,
     prerelease: bool,
 ) -> UpgradeProbeResult | None:
-    releases = _bundled_release_versions()
-    if not releases:
+    identity = _bundled_release_identity()
+    if identity is None:
         return None
+    if not identity.stamped:
+        return UpgradeProbeResult(
+            installed_version=cli_version,
+            latest_pypi_version=identity.version,
+            channel=UpgradeChannel.NO_UPGRADE_PATH if try_parse_version(cli_version) is not None else UpgradeChannel.UNKNOWN,
+            probed_at=probed_at,
+            error=None,
+            releases=(),
+        )
+
+    releases = (identity.version,)
     release_latest = _highest_release(releases, include_prerelease=True)
     if release_latest is None:
         return None
