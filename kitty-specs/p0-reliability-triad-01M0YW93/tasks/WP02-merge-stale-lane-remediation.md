@@ -8,6 +8,9 @@ requirement_refs:
 planning_base_branch: fix/p0-reliability-triad
 merge_target_branch: fix/p0-reliability-triad
 branch_strategy: Planning artifacts for this mission were generated on fix/p0-reliability-triad. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into fix/p0-reliability-triad unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-p0-reliability-triad-01M0YW93
+base_commit: 980b4b81302641d4dd71170a5b0e5f96d8c6d35f
+created_at: '2026-08-26T13:17:09.215842+00:00'
 subtasks:
 - T005
 - T006
