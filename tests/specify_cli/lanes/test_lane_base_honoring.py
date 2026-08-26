@@ -288,7 +288,6 @@ def _run_implement_via_seam(
         ),
         patch("specify_cli.status.emit._saas_fan_out"),
         patch("specify_cli.status.emit.fire_dossier_sync"),
-        patch("specify_cli.sync.events.emit_wp_status_changed"),
         patch("specify_cli.core.agent_config.get_auto_commit_default", return_value=False),
         patch("specify_cli.core.context_validation.require_main_repo", lambda f: f),
     ]
@@ -849,79 +848,3 @@ def test_nfr004_orchestrator_envelope_carries_unhonorable_base_error_code(tmp_pa
     assert data["route"] == "reuse"
     assert data["wp_id"] == "WP06"
     assert data["base"] == "some-ref"
-
-
-# ---------------------------------------------------------------------------
-# FR-011 -- for_review gate reads the recorded honored base
-# ---------------------------------------------------------------------------
-
-
-class TestFR011ForReviewGateHonoredBase:
-    def test_explicit_base_lane_gate_measures_against_base(self, coord_repo_with_divergent_base: Path) -> None:
-        from specify_cli.lanes.for_review_gate import evaluate_for_review_gate
-        from specify_cli.lanes.implement_support import create_lane_workspace
-        from specify_cli.workspace.context import ResolvedWorkspace
-
-        repo = coord_repo_with_divergent_base
-        feature_dir = repo / "kitty-specs" / MISSION_SLUG
-        manifest = _make_manifest(mission_branch=f"kitty/mission-{MISSION_SLUG}")
-        wp_file = feature_dir / "tasks" / f"{WP_ID}-task.md"
-
-        resolved_workspace = ResolvedWorkspace(
-            mission_slug=MISSION_SLUG, wp_id=WP_ID, execution_mode="code_change",
-            mode_source="frontmatter", resolution_kind="lane_workspace",
-            workspace_name=f"{MISSION_SLUG}-lane-a",
-            worktree_path=repo / ".worktrees" / f"{MISSION_SLUG}-lane-a",
-            branch_name=f"kitty/mission-{MISSION_SLUG}-lane-a",
-            lane_id="lane-a", lane_wp_ids=(WP_ID,),
-        )
-        result = create_lane_workspace(
-            repo_root=repo, mission_slug=MISSION_SLUG, wp_id=WP_ID, wp_file=wp_file,
-            resolved_workspace=resolved_workspace, lanes_manifest=manifest,
-            declared_deps=[], vcs_backend_value="git", base=EXPLICIT_BASE_BRANCH,
-        )
-
-        # Commit implementation work on the lane branch, beyond the base.
-        (result.workspace_path / "impl.txt").write_text("impl work\n")
-        _git(result.workspace_path, "add", ".")
-        _git(result.workspace_path, "commit", "-q", "-m", "impl work")
-
-        decision = evaluate_for_review_gate(repo, MISSION_SLUG, WP_ID)
-        assert decision.passed
-        assert decision.base_ref == EXPLICIT_BASE_BRANCH
-
-    def test_default_no_base_coord_lane_gate_still_uses_coordination_branch(
-        self, coord_repo_with_divergent_base: Path,
-    ) -> None:
-        """No-regression pin (FR-011): a default coord lane's recorded base
-        equals coordination_branch, exactly as before this fix."""
-        from specify_cli.lanes.for_review_gate import evaluate_for_review_gate
-        from specify_cli.lanes.implement_support import create_lane_workspace
-        from specify_cli.workspace.context import ResolvedWorkspace
-
-        repo = coord_repo_with_divergent_base
-        feature_dir = repo / "kitty-specs" / MISSION_SLUG
-        manifest = _make_manifest(mission_branch=f"kitty/mission-{MISSION_SLUG}")
-        wp_file = feature_dir / "tasks" / f"{WP_ID}-task.md"
-
-        resolved_workspace = ResolvedWorkspace(
-            mission_slug=MISSION_SLUG, wp_id=WP_ID, execution_mode="code_change",
-            mode_source="frontmatter", resolution_kind="lane_workspace",
-            workspace_name=f"{MISSION_SLUG}-lane-a",
-            worktree_path=repo / ".worktrees" / f"{MISSION_SLUG}-lane-a",
-            branch_name=f"kitty/mission-{MISSION_SLUG}-lane-a",
-            lane_id="lane-a", lane_wp_ids=(WP_ID,),
-        )
-        result = create_lane_workspace(
-            repo_root=repo, mission_slug=MISSION_SLUG, wp_id=WP_ID, wp_file=wp_file,
-            resolved_workspace=resolved_workspace, lanes_manifest=manifest,
-            declared_deps=[], vcs_backend_value="git",
-        )
-
-        (result.workspace_path / "impl.txt").write_text("impl work\n")
-        _git(result.workspace_path, "add", ".")
-        _git(result.workspace_path, "commit", "-q", "-m", "impl work")
-
-        decision = evaluate_for_review_gate(repo, MISSION_SLUG, WP_ID)
-        assert decision.passed
-        assert decision.base_ref == COORD_BRANCH

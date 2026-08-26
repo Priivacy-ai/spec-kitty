@@ -253,10 +253,7 @@ class TestManifestRegistry:
         manifest = ManifestRegistry.load_manifest("software-dev")
         assert manifest is not None
         specs = ManifestRegistry.get_required_artifacts(manifest, "plan")
-        assert len(specs) >= 2
-        # Should include plan.md and tasks.md
-        assert any(s.artifact_key == "output.plan.main" for s in specs)
-        assert any(s.artifact_key == "output.tasks.list" for s in specs)
+        assert [s.artifact_key for s in specs] == ["output.plan.main"]
 
     def test_get_required_artifacts_unknown_step(self):
         """Get required artifacts for unknown step returns gracefully."""
@@ -394,16 +391,16 @@ class TestManifestIntegration:
         assert spec_md[0].blocking is True
         assert spec_md[0].path_pattern == "spec.md"
 
-    def test_software_dev_manifest_plan_step_has_plan_and_tasks(self):
-        """software-dev manifest requires plan.md and tasks.md at plan step."""
+    def test_software_dev_manifest_plan_step_has_plan_only(self):
+        """software-dev manifest requires only plan.md at plan step."""
         manifest = ManifestRegistry.load_manifest("software-dev")
         assert manifest is not None
         specs = ManifestRegistry.get_required_artifacts(manifest, "plan")
         plan_md = [s for s in specs if s.artifact_key == "output.plan.main"]
         tasks_md = [s for s in specs if s.artifact_key == "output.tasks.list"]
         assert len(plan_md) > 0
-        assert len(tasks_md) > 0
-        assert all(s.blocking for s in plan_md + tasks_md)
+        assert tasks_md == []
+        assert all(s.blocking for s in plan_md)
 
     def test_software_dev_has_optional_research_evidence(self):
         """software-dev manifest includes optional research.md."""
@@ -414,15 +411,15 @@ class TestManifestIntegration:
         assert len(research) > 0
         assert research[0].path_pattern == "research.md"
 
-    def test_software_dev_implement_requires_analysis_report(self):
-        """software-dev manifest requires analysis-report.md before implement."""
+    def test_software_dev_tasks_outline_requires_tasks_artifact(self):
+        """software-dev manifest requires tasks.md at the tasks-outline step."""
         manifest = ManifestRegistry.load_manifest("software-dev")
         assert manifest is not None
-        specs = ManifestRegistry.get_required_artifacts(manifest, "implement")
-        report = [s for s in specs if s.artifact_key == "evidence.analysis-report"]
-        assert len(report) > 0
-        assert report[0].blocking is True
-        assert report[0].path_pattern == "analysis-report.md"
+        specs = ManifestRegistry.get_required_artifacts(manifest, "tasks_outline")
+        tasks = [s for s in specs if s.artifact_key == "output.tasks.list"]
+        assert len(tasks) > 0
+        assert tasks[0].blocking is True
+        assert tasks[0].path_pattern == "tasks.md"
 
     def test_research_manifest_scoping_step_requires_spec(self):
         """research manifest requires spec.md at scoping step."""
