@@ -52,13 +52,10 @@ class _EgressAbsentType:
     ``dict.get(key, default)`` collapses two distinct situations into one: "the
     key is not there" and "the key is there and holds ``None``" (a present
     ``null``, which FR-006 treats as a *fault*, not as absence). This sentinel
-    is what tells them apart, with the **same semantics as
-    ``sync/consent.py``'s ``_MISSING`` sentinel** (`sync/consent.py:145`) and
-    the reasoning recorded there: a *missing* key must keep falling through to
-    Channel 1, while a key present with nothing after it is a recorded value.
-    The private ``_MISSING`` object itself is not imported here -- doing so
-    would give ``tracker/`` an import-time dependency on ``sync.consent`` and
-    risk an ``ImportError`` out of a gate NFR-003 says must never raise.
+    is what tells them apart: a *missing* key stays absent so the egress
+    resolver (`tracker/egress_verdict.py`) can apply its own no-key rule per
+    destination, while a key present with nothing after it is a recorded fault,
+    and a recorded fault refuses at every destination.
 
     Public and named ``EGRESS_ABSENT`` (module-level, no leading underscore)
     because WP03's ``tracker_egress_verdict`` resolver, in a different module,
@@ -74,8 +71,8 @@ class _EgressAbsentType:
 
     A singleton (``__new__`` always returns the same instance) with
     ``__copy__``/``__deepcopy__``/``__reduce__`` all returning that same
-    instance. Unlike ``sync/consent.py``'s ``_MISSING`` (a bare ``object()``
-    never stored on a dataclass field), this sentinel *is* stored on a
+    instance. Unlike a bare ``object()`` sentinel, which would never sit on a
+    dataclass field, this sentinel *is* stored on a
     ``TrackerProjectConfig`` field, which makes it reachable by
     ``copy.deepcopy``/``dataclasses.replace`` on a config instance -- without
     these overrides, a deep copy would mint a distinct object for which
