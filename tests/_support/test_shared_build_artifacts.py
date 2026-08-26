@@ -10,6 +10,8 @@ protocol directly with a fake builder, which keeps them off the real
 from __future__ import annotations
 
 import ast
+import filelock
+import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -17,9 +19,12 @@ import pytest
 
 from tests._support.shared_build_artifacts import (
     SharedBuildError,
+    default_source_snapshot_builder,
     default_wheel_sdist_builder,
+    ensure_run_stable_source_snapshot,
     ensure_shared_build_artifacts,
     published_build_artifacts,
+    published_source_snapshot,
     run_scoped_shared_root,
 )
 
@@ -28,6 +33,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _WHEEL_NAME = "spec_kitty_cli-3.2.0rc39-py3-none-any.whl"
 _SDIST_NAME = "spec_kitty_cli-3.2.0rc39.tar.gz"
 _SHARED_DIR_NAME = "shared-build-artifacts"
+_SNAPSHOT_DIR_NAME = "source-snapshot"
 
 
 def _fake_factory(base: Path) -> SimpleNamespace:
@@ -164,3 +170,211 @@ def test_default_builder_reports_stderr_and_cwd(monkeypatch: pytest.MonkeyPatch)
         default_wheel_sdist_builder(Path("unused-outdir"))
     assert "--wheel" in str(seen["command"]) and "--sdist" in str(seen["command"])
     assert seen["cwd"] == Path(__file__).resolve().parents[2]
+
+
+# ---------------------------------------------------------------------------
+# Run-stable source snapshot (#80's runner mechanism)
+# ---------------------------------------------------------------------------
+
+
+def _git(cwd: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+
+
+@pytest.fixture()
+def tiny_source_repo(tmp_path: Path) -> tuple[Path, str]:
+    """A real one-commit git repository: (path, HEAD sha)."""
+    source = tmp_path / "source"
+    source.mkdir()
+    _git(source, "init", "-q", "-b", "main")
+    _git(source, "config", "user.email", "wp80@example.invalid")
+    _git(source, "config", "user.name", "WP80")
+    (source / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    _git(source, "add", ".")
+    _git(source, "commit", "-qm", "only commit")
+    return source, _git(source, "rev-parse", "HEAD")
+
+
+def test_published_source_snapshot_requires_a_resolvable_repository(tmp_path: Path) -> None:
+    snapshot_dir = tmp_path / _SNAPSHOT_DIR_NAME
+    assert published_source_snapshot(snapshot_dir) is None
+
+    snapshot_dir.mkdir()
+    (snapshot_dir / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+    assert published_source_snapshot(snapshot_dir) is None  # no .git
+
+
+def test_snapshot_is_decoupled_from_the_source_store(tiny_source_repo: tuple[Path, str]) -> None:
+    """The #80 property: after the source's git state breaks, the snapshot reads on."""
+    source, sha = tiny_source_repo
+    run_root = source.parent
+    snapshot = ensure_run_stable_source_snapshot(run_root, source_root=source)
+
+    # The exact observable the runner's maintenance produced (#80): the live
+    # checkout's worktree HEAD left pointing at a ref that does not resolve,
+    # which killed every later `git rev-parse HEAD` against it with exit 128.
+    head = source / ".git" / "HEAD"
+    original_head = head.read_text(encoding="utf-8")
+    head.write_text("ref: refs/heads/sk-agent-repin-incomplete\n", encoding="utf-8")
+    try:
+        assert _git(source, "branch", "--show-current") == "sk-agent-repin-incomplete"  # discovery still works...
+        with pytest.raises(subprocess.CalledProcessError):
+            _git(source, "rev-parse", "HEAD")  # ...but provenance reads died here on the runner
+        assert _git(snapshot, "rev-parse", "HEAD") == sha  # the snapshot never noticed
+    finally:
+        head.write_text(original_head, encoding="utf-8")
+
+
+def test_ensure_reuses_a_published_snapshot_without_cloning(tiny_source_repo: tuple[Path, str]) -> None:
+    source, _ = tiny_source_repo
+    run_root = source.parent
+    published = run_root / _SNAPSHOT_DIR_NAME
+
+    def _clones(outdir: Path) -> None:
+        default_source_snapshot_builder(source, outdir)
+
+    first = ensure_run_stable_source_snapshot(run_root, source_root=source, build=_clones)
+    assert first == published
+    assert (published / "pyproject.toml").is_file()
+
+    clones: list[Path] = []
+
+    def _counting(outdir: Path) -> None:
+        clones.append(outdir)
+        default_source_snapshot_builder(source, outdir)
+
+    second = ensure_run_stable_source_snapshot(run_root, source_root=source, build=_counting)
+    assert second == first
+    assert clones == []  # golden-count: cardinality-is-contract — exactly one clone per run root
+
+
+def test_ensure_replaces_incomplete_snapshot_residue(tiny_source_repo: tuple[Path, str]) -> None:
+    source, _ = tiny_source_repo
+    run_root = source.parent
+    residue = run_root / _SNAPSHOT_DIR_NAME
+    residue.mkdir()
+    (residue / "pyproject.toml").write_text("[project]\n", encoding="utf-8")
+
+    snapshot = ensure_run_stable_source_snapshot(run_root, source_root=source)
+    assert _git(snapshot, "rev-parse", "HEAD") != ""
+
+
+def test_ensure_retries_a_transient_clone_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    tiny_source_repo: tuple[Path, str],
+) -> None:
+    source, sha = tiny_source_repo
+    run_root = source.parent
+    attempts: list[int] = []
+
+    def _flaky(outdir: Path) -> None:
+        attempts.append(len(attempts))
+        if len(attempts) == 1:
+            raise SharedBuildError("source snapshot clone failed: transient")
+        default_source_snapshot_builder(source, outdir)
+
+    sleeps: list[float] = []
+    monkeypatch.setattr("tests._support.shared_build_artifacts.time.sleep", sleeps.append)
+    snapshot = ensure_run_stable_source_snapshot(run_root, source_root=source, build=_flaky)
+    assert _git(snapshot, "rev-parse", "HEAD") == sha
+    assert len(attempts) == 2  # golden-count: cardinality-is-contract — one failure, one retry
+    assert sleeps == [2.0]
+    assert not list(run_root.glob(f"{_SNAPSHOT_DIR_NAME}.staging-*"))
+
+
+def test_ensure_surfaces_clone_failure_after_the_last_attempt(
+    monkeypatch: pytest.MonkeyPatch,
+    tiny_source_repo: tuple[Path, str],
+) -> None:
+    source, _ = tiny_source_repo
+    run_root = source.parent
+    attempts: list[int] = []
+
+    def _broken(outdir: Path) -> None:
+        attempts.append(len(attempts))
+        raise SharedBuildError("clone failed: boom")
+
+    monkeypatch.setattr("tests._support.shared_build_artifacts.time.sleep", lambda _s: None)
+    with pytest.raises(SharedBuildError, match="boom"):
+        ensure_run_stable_source_snapshot(run_root, source_root=source, build=_broken)
+    assert len(attempts) == 3  # golden-count: cardinality-is-contract — the snapshot's retry budget
+    assert not list(run_root.glob(f"{_SNAPSHOT_DIR_NAME}.staging-*"))
+
+    # The failed run must not poison a later claim on the same run root.
+    snapshot = ensure_run_stable_source_snapshot(run_root, source_root=source)
+    assert _git(snapshot, "rev-parse", "HEAD") != ""
+
+
+def test_builder_pins_a_linked_worktree_whose_head_dangles(tmp_path: Path) -> None:
+    """The exact production layout: a linked worktree whose gitdir HEAD broke."""
+    canon = tmp_path / "canon"
+    canon.mkdir()
+    _git(canon, "init", "-q", "-b", "main")
+    _git(canon, "config", "user.email", "wp80@example.invalid")
+    _git(canon, "config", "user.name", "WP80")
+    (canon / "pyproject.toml").write_text("[project]\nname = 'x'\n", encoding="utf-8")
+    _git(canon, "add", ".")
+    _git(canon, "commit", "-qm", "only commit")
+    sha = _git(canon, "rev-parse", "HEAD")
+
+    tree = tmp_path / "tree"
+    _git(canon, "worktree", "add", "-q", "--detach", str(tree), sha)
+    assert (tree / ".git").is_file()  # linked-worktree layout, like the CI tree
+
+    gitdir = Path((tree / ".git").read_text(encoding="utf-8").strip().removeprefix("gitdir: "))
+    original_head = (gitdir / "HEAD").read_text(encoding="utf-8")
+    (gitdir / "HEAD").write_text("ref: refs/heads/sk-agent-repin-incomplete\n", encoding="utf-8")
+    (gitdir / "ORIG_HEAD").write_text(f"{sha}\n", encoding="utf-8")
+    try:
+        with pytest.raises(subprocess.CalledProcessError):
+            _git(tree, "rev-parse", "HEAD")  # the live tree is in the broken state...
+        outdir = tmp_path / "snap"
+        default_source_snapshot_builder(tree, outdir)
+        assert _git(outdir, "rev-parse", "HEAD") == sha  # ...and the builder pinned through it
+    finally:
+        (gitdir / "HEAD").write_text(original_head, encoding="utf-8")
+
+
+def test_builder_refuses_when_no_commit_can_be_pinned(tiny_source_repo: tuple[Path, str]) -> None:
+    source, _ = tiny_source_repo
+    (source / ".git" / "HEAD").write_text("ref: refs/heads/sk-agent-repin-incomplete\n", encoding="utf-8")
+
+    with pytest.raises(SharedBuildError, match="cannot pin"):
+        default_source_snapshot_builder(source, source.parent / "snap")
+
+
+def test_a_lock_timeout_surfaces_as_a_build_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A timed-out wait must skip like any other build failure, not ERROR (#101 audit)."""
+
+    class _AlwaysTimesOut:
+        def __init__(self, lock_file: str, timeout: float) -> None:
+            assert lock_file.endswith(".lock")
+
+        def __enter__(self) -> object:
+            raise filelock.Timeout("")
+
+        def __exit__(self, *exc_info: object) -> None:
+            return None
+
+    monkeypatch.setattr("tests._support.shared_build_artifacts.FileLock", _AlwaysTimesOut)
+    with pytest.raises(SharedBuildError, match="timed out"):
+        ensure_shared_build_artifacts(tmp_path, _write_artifacts)
+
+
+def test_e2e_provenance_fixture_delegates_to_the_run_stable_snapshot() -> None:
+    """Pin the wiring itself: reverting the fixture to reading the live tree must red here."""
+    module = Path(__file__).resolve().parents[1] / "e2e" / "test_worktree_owned_root_concurrency.py"
+    tree = ast.parse(module.read_text(encoding="utf-8"))
+    fixture = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "immutable_spec_kitty"
+    )
+    referenced = {node.id for node in ast.walk(fixture) if isinstance(node, ast.Name)}
+    assert {"ensure_run_stable_source_snapshot", "run_scoped_shared_root"} <= referenced
