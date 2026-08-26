@@ -99,7 +99,12 @@ def _normalize_url(url: str) -> str:
 
 
 def _read_configured_server_url() -> str | None:
-    """Read the raw ``[sync].server_url`` key, ``None`` when absent or unreadable."""
+    """Read ``[sync].server_url``, normalizing absent/unreadable/blank to ``None``.
+
+    Blank gets the same treatment the env read gives a whitespace-only value
+    (#179): an empty string is no opinion, not a candidate target, so it must
+    not slip past the fail-closed guard or pose as a disagreeing config value.
+    """
     from specify_cli.paths import get_runtime_root
 
     config_file = get_runtime_root().base / "config.toml"
@@ -113,7 +118,9 @@ def _read_configured_server_url() -> str | None:
     if not isinstance(sync_table, dict):
         return None
     value = sync_table.get("server_url")
-    return None if value is None else str(value)
+    if value is None:
+        return None
+    return _normalize_url(str(value)) or None
 
 
 def _read_env_server_url() -> str | None:

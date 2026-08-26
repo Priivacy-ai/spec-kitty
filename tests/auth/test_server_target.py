@@ -109,6 +109,25 @@ def test_non_table_sync_key_with_no_env_fails_closed(target_root: Path) -> None:
         resolve_server_target()
 
 
+def test_blank_config_server_url_is_no_opinion_and_fails_closed(target_root: Path) -> None:
+    """A blank ``server_url`` is no opinion (#179): with no env value the
+    resolver fails closed instead of resolving to an empty target."""
+    (target_root / "config.toml").write_text('[sync]\nserver_url = "  "\n', encoding="utf-8")
+    with pytest.raises(ConfigurationError):
+        resolve_server_target()
+
+
+def test_blank_config_server_url_defers_to_env(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (target_root / "config.toml").write_text('[sync]\nserver_url = ""\n', encoding="utf-8")
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, ENV_URL)
+    target = resolve_server_target()
+    assert target.configured_server_url is None
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+    assert target.resolved_server_url == ENV_URL
+
+
 def test_non_table_sync_key_is_treated_as_no_configured_url(
     target_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
