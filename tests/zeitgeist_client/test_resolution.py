@@ -23,13 +23,17 @@ from __future__ import annotations
 import json as json_module
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
+from collections.abc import Iterator
 
 import httpx
 import pytest
 import respx
-
 from kernel.clock import now_utc, parse_iso, timedelta
 
+from specify_cli.auth import reset_token_manager
+from specify_cli.auth.session import StoredSession, Team
+from specify_cli.saas_client import auth as saas_auth_module
 from specify_cli.saas_client.errors import SaasAuthError
 from specify_cli.zeitgeist_client import credentials, resolution
 from specify_cli.zeitgeist_client.resolution import (
@@ -743,6 +747,98 @@ class TestResolveCredentialsEndToEnd:
 
 ACME_KEY = "github.com/acme/widget"
 EVIL_KEY = "github.com/evil/widget"
+
+
+class _ScriptedLoginSession:
+    """A stored ``auth login`` session + its manager, for bridging tests.
+
+    The session starts with an already-expired access token; ``refresh_if_needed``
+    rotates it the way the renewable-session flow leaves the manager's session,
+    and records that it ran."""
+
+    def __init__(self) -> None:
+        now = now_utc()
+        self.refresh_calls = 0
+        self.session = StoredSession(
+            user_id="user-1",
+            email="member@example.com",
+            name="Member",
+            teams=[Team(id="t1", name="Acme", role="member", is_private_teamspace=False)],
+            default_team_id="t1",
+            access_token="access-expired",
+            refresh_token="refresh-v1",
+            session_id="sess-1",
+            issued_at=now,
+            access_token_expires_at=now - timedelta(seconds=30),
+            refresh_token_expires_at=None,
+            scope="openid",
+            storage_backend="file",
+            last_used_at=now,
+            auth_method="authorization_code",
+        )
+
+    def get_current_session(self) -> StoredSession:
+        return self.session
+
+    async def refresh_if_needed(self) -> bool:
+        self.refresh_calls += 1
+        self.session.access_token = "access-refreshed"
+        self.session.access_token_expires_at = now_utc() + timedelta(seconds=900)
+        return True
+
+
+class TestOAuthSessionCarriesTheMint:
+    """spec-kitty#198: a member on the documented path has no service token —
+    env and ``.kittify/saas-auth.json`` are empty and all they ever ran is
+    ``spec-kitty auth login``. Resolution must still mint, off the stored
+    OAuth session, refreshing it first when its access token has expired.
+
+    These drive the REAL gateway (respx) through ``resolve_credentials``'s
+    own default-gateway construction, so what is asserted is the bearer that
+    actually reaches Team Kitty."""
+
+    @pytest.fixture(autouse=True)
+    def _fresh_token_manager(self) -> Iterator[None]:
+        # The bridge consults the process-wide TokenManager singleton, which
+        # caches whichever SPEC_KITTY_HOME was current when it was first
+        # built — reset so every test reads its own isolated store.
+        reset_token_manager()
+        yield
+        reset_token_manager()
+
+    @pytest.fixture()
+    def expired_login(self, monkeypatch: pytest.MonkeyPatch) -> _ScriptedLoginSession:
+        """No env auth anywhere; the bridge resolves to an expired session."""
+        for var in ("SPEC_KITTY_SAAS_TOKEN", "SPEC_KITTY_SAAS_URL", "SPEC_KITTY_TEAM_SLUG"):
+            monkeypatch.delenv(var, raising=False)
+        login = _ScriptedLoginSession()
+        target = SimpleNamespace(resolved_server_url=BASE)
+        monkeypatch.setattr(saas_auth_module, "_token_manager", lambda: login)
+        monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: target)
+        return login
+
+    def test_expired_session_is_refreshed_then_minted(self, state_root: Path, clone: Path, expired_login: _ScriptedLoginSession) -> None:
+        with respx.mock:
+            admission = respx.get(ADMISSION).respond(200, json={"admitted": True, "team": {"id": "T1", "slug": "acme", "name": "Acme"}})
+            mint = respx.post(MINT).respond(201, json=MINT_BODY)
+            stored = resolution.resolve_credentials(clone)
+
+        assert expired_login.refresh_calls == 1
+        # Both Team Kitty calls rode the REFRESHED bearer, not the expired one.
+        assert admission.calls[0].request.headers["Authorization"] == "Bearer access-refreshed"
+        assert mint.calls[0].request.headers["Authorization"] == "Bearer access-refreshed"
+        assert stored is not None
+        assert credentials.load(repo=KEY) == stored
+
+    def test_unadmitted_repo_through_the_bridge_stays_silent(self, state_root: Path, clone: Path, expired_login: _ScriptedLoginSession) -> None:
+        with respx.mock:
+            respx.get(ADMISSION).respond(200, json={"admitted": False, "reason": "no team admits acme/widget"})
+            mint = respx.post(MINT).respond(201, json=MINT_BODY)
+            stored = resolution.resolve_credentials(clone)
+
+        assert stored is None
+        assert not mint.called  # never asked for a capability it may not have
+        assert credentials.load_negative(repo=KEY) is not None
 
 
 class TestTwoCheckoutProbe:

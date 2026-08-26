@@ -417,9 +417,9 @@ def _expired(expires_at: str | None) -> bool:
 
 def _default_gateway(auth_repo_root: Path) -> SaasCapabilityGateway:
     """Build the real gateway from the same auth sources every other
-    CLI→SaaS transport uses (env vars, then ``<root>/.kittify/saas-auth.json``).
-    Raises :class:`SaasAuthError` when nothing is configured — logged by
-    the caller."""
+    CLI→SaaS transport uses (env vars, then ``<root>/.kittify/saas-auth.json``,
+    then the stored ``auth login`` session — #198). Raises
+    :class:`SaasAuthError` when nothing is configured — logged by the caller."""
     ctx: AuthContext = load_auth_context(repo_root=auth_repo_root)
     return SaasCapabilityGateway(
         ctx.saas_url,

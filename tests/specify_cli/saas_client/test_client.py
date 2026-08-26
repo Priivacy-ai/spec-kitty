@@ -9,11 +9,15 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock
 
 import httpx
 import pytest
+from kernel.clock import now_utc, timedelta
 
+from specify_cli.auth.errors import ConfigurationError, NetworkError, RefreshTokenExpiredError
+from specify_cli.auth.session import StoredSession, Team
 from specify_cli.saas_client import (
     AuthContext,
     SaasAuthError,
@@ -23,6 +27,7 @@ from specify_cli.saas_client import (
     SaasTimeoutError,
     load_auth_context,
 )
+from specify_cli.saas_client import auth as saas_auth_module
 
 
 # ---------------------------------------------------------------------------
@@ -175,10 +180,230 @@ def test_load_auth_context_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_load_auth_context_raises_when_no_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nothing configured anywhere — no env, no auth file, no stored OAuth
+    session — still refuses, and the refusal names all three ways in."""
     monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    monkeypatch.setattr(saas_auth_module, "_token_manager", _raise_unavailable)
     with pytest.raises(SaasAuthError, match="SPEC_KITTY_SAAS_TOKEN"):
         load_auth_context(repo_root=tmp_path)
+
+
+# ---------------------------------------------------------------------------
+# auth.load_auth_context step 3: the stored `auth login` session (#198)
+# ---------------------------------------------------------------------------
+
+
+class _ScriptedSessionManager:
+    """TokenManager double: holds one session and records refresh calls.
+
+    ``refresh_if_needed`` rotates the access token exactly once, the way
+    ``TokenRefreshFlow`` + the refresh transaction leave the manager's
+    session behind.
+    """
+
+    def __init__(self, session: StoredSession) -> None:
+        self._session = session
+        self.refresh_calls = 0
+        self.session_reads = 0
+
+    def get_current_session(self) -> StoredSession | None:
+        self.session_reads += 1
+        return self._session
+
+    async def refresh_if_needed(self) -> bool:
+        self.refresh_calls += 1
+        self._session.access_token = "access-refreshed"
+        self._session.access_token_expires_at = now_utc() + timedelta(seconds=900)
+        return True
+
+
+def _oauth_session(*, expires_in: int = 900, access_token: str = "access-v1") -> StoredSession:
+    now = now_utc()
+    return StoredSession(
+        user_id="user-1",
+        email="a@b.com",
+        name="A B",
+        teams=[Team(id="t1", name="T1", role="owner", is_private_teamspace=True)],
+        default_team_id="t1",
+        access_token=access_token,
+        refresh_token="refresh-v1",
+        session_id="sess-1",
+        issued_at=now,
+        access_token_expires_at=now + timedelta(seconds=expires_in),
+        refresh_token_expires_at=None,
+        scope="openid",
+        storage_backend="file",
+        last_used_at=now,
+        auth_method="authorization_code",
+    )
+
+
+def _bridge_env(monkeypatch: pytest.MonkeyPatch, manager: Any) -> None:
+    """Aim the bridge at a scripted manager and a fixed server target.
+
+    The bridge resolves both seams through this module's own lazy helpers,
+    so patching here reaches every caller of ``load_auth_context`` without
+    touching the real session store or ``specify_cli.auth`` globals.
+    ``manager=None`` stands in for an unusable session store."""
+    if manager is None:
+        monkeypatch.setattr(saas_auth_module, "_token_manager", _raise_unavailable)
+    else:
+        monkeypatch.setattr(saas_auth_module, "_token_manager", lambda: manager)
+
+    class _Target:
+        resolved_server_url = "https://team.example"
+
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: _Target())
+
+
+def _raise_unavailable() -> None:
+    raise RuntimeError("no session store here")
+
+
+@pytest.fixture()
+def _no_env_auth(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("SPEC_KITTY_SAAS_TOKEN", "SPEC_KITTY_SAAS_URL", "SPEC_KITTY_TEAM_SLUG"):
+        monkeypatch.delenv(var, raising=False)
+
+
+def test_stored_oauth_session_answers_when_nothing_else_is_configured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """The documented laptop path (#198): `auth login` once, then `routes`
+    and the capability mint work with no service token anywhere."""
+    manager = _ScriptedSessionManager(_oauth_session())
+    _bridge_env(monkeypatch, manager)
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "access-v1"
+    # The token is paired with the server target the login flow itself used.
+    assert ctx.saas_url == "https://team.example"
+    assert ctx.team_slug is None
+    # A live session costs no refresh round trip.
+    assert manager.refresh_calls == 0
+
+
+def test_expired_oauth_session_is_refreshed_before_use(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    manager = _ScriptedSessionManager(_oauth_session(expires_in=-30))
+    _bridge_env(monkeypatch, manager)
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert manager.refresh_calls == 1
+    assert ctx.token == "access-refreshed"
+
+
+def test_dead_oauth_session_refuses_with_a_login_hint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """Refresh rejected the refresh token: that is a refusal naming the way
+    out, not a silent fall-through to 'nothing configured'."""
+
+    class _DeadManager(_ScriptedSessionManager):
+        async def refresh_if_needed(self) -> bool:
+            self.refresh_calls += 1
+            raise RefreshTokenExpiredError("refresh token expired")
+
+    _bridge_env(monkeypatch, _DeadManager(_oauth_session(expires_in=-30)))
+
+    with pytest.raises(SaasAuthError, match="auth login"):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_transient_refresh_failure_keeps_the_held_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """Network down mid-refresh must not log the checkout out: the held
+    token goes to Team Kitty, which will answer for it."""
+
+    class _FlakyManager(_ScriptedSessionManager):
+        async def refresh_if_needed(self) -> bool:
+            self.refresh_calls += 1
+            raise NetworkError("connection refused")
+
+    manager = _FlakyManager(_oauth_session(expires_in=-30))
+    _bridge_env(monkeypatch, manager)
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert manager.refresh_calls == 1
+    assert ctx.token == "access-v1"
+
+
+def test_no_session_at_all_falls_through_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """A store that holds no session is not a bridge failure — the normal
+    refusal fires, with its login hint."""
+
+    class _EmptyManager:
+        def get_current_session(self) -> StoredSession | None:
+            return None
+
+        async def refresh_if_needed(self) -> bool:  # pragma: no cover - never reached
+            return False
+
+    manager = _EmptyManager()
+    _bridge_env(monkeypatch, manager)  # type: ignore[arg-type]
+    with pytest.raises(SaasAuthError, match="auth login"):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_explicit_url_pairs_with_the_session_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """SPEC_KITTY_SAAS_URL stays authoritative for the target when it is set;
+    the session only ever supplies the missing bearer."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env.example")
+    _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.saas_url == "https://env.example"
+    assert ctx.token == "access-v1"
+
+
+def test_server_target_that_cannot_resolve_falls_through_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """No SPEC_KITTY_SAAS_URL and no config.toml target: even a stored session
+    cannot name the server its token belongs to (D-5) — refuse rather than
+    guess a domain."""
+
+    def _no_target() -> Any:
+        raise ConfigurationError("no server target configured")
+
+    _bridge_env(monkeypatch, _ScriptedSessionManager(_oauth_session()))
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", _no_target)
+
+    with pytest.raises(SaasAuthError, match="auth login"):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_session_store_that_raises_degrades_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """A store that explodes on read is bridge trouble, not a crash: it
+    degrades to 'no session' and the ordinary refusal fires."""
+
+    class _ExplodingStore:
+        def get_current_session(self) -> StoredSession:
+            raise RuntimeError("storage backend exploded")
+
+        async def refresh_if_needed(self) -> bool:  # pragma: no cover - never reached
+            return False
+
+    _bridge_env(monkeypatch, _ExplodingStore())  # type: ignore[arg-type]
+    with pytest.raises(SaasAuthError, match="auth login"):
+        load_auth_context(repo_root=tmp_path)
+
+
+async def test_expired_session_inside_a_running_loop_keeps_the_held_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """When an event loop already owns this thread a blocking refresh cannot
+    run — the held (expired) token goes out instead of raising, so a
+    fire-and-forget fan-out stays silent rather than crashing its loop."""
+    manager = _ScriptedSessionManager(_oauth_session(expires_in=-30))
+    _bridge_env(monkeypatch, manager)
+
+    ctx = load_auth_context(repo_root=tmp_path)
+
+    assert manager.refresh_calls == 0  # asyncio.run would have raised in here
+    assert ctx.token == "access-v1"
+
+
+def test_env_token_wins_and_never_consults_the_session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "service-token")
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env.example")
+    manager = _ScriptedSessionManager(_oauth_session())
+    _bridge_env(monkeypatch, manager)
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "service-token"
+    assert manager.session_reads == 0
 
 
 # ---------------------------------------------------------------------------

@@ -15,11 +15,16 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
+from collections.abc import Iterator
 
 import pytest
 from typer.testing import CliRunner
+from kernel.clock import now_utc, timedelta
 
 from specify_cli import app
+from specify_cli.auth import reset_token_manager
+from specify_cli.auth.session import StoredSession, Team
 from specify_cli.zeitgeist_client import credentials, resolution
 from specify_cli.zeitgeist_client.resolution import GatewayError, MintedCredential
 
@@ -38,6 +43,70 @@ def state_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 def auth_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "http://saas.test")
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "tok")
+
+
+@pytest.fixture(autouse=True)
+def _fresh_token_manager() -> Iterator[None]:
+    """Reset the process-wide TokenManager around each test.
+
+    ``load_auth_context``'s OAuth-session fallback (#198) consults that
+    singleton, which caches whichever ``SPEC_KITTY_HOME`` was current when
+    it was first built — without the reset one test's empty store would leak
+    into the next test's expectation."""
+    reset_token_manager()
+    yield
+    reset_token_manager()
+
+
+class _StoredLoginSession:
+    """A stored ``auth login`` session behind a TokenManager-shaped double.
+
+    Starts with an already-expired access token; ``refresh_if_needed``
+    rotates it once and records that it ran."""
+
+    def __init__(self, *, expires_in: float = -30) -> None:
+        now = now_utc()
+        self.refresh_calls = 0
+        self.session = StoredSession(
+            user_id="user-1",
+            email="member@example.com",
+            name="Member",
+            teams=[Team(id="t1", name="Demo", role="member", is_private_teamspace=False)],
+            default_team_id="t1",
+            access_token="access-expired",
+            refresh_token="refresh-v1",
+            session_id="sess-1",
+            issued_at=now,
+            access_token_expires_at=now + timedelta(seconds=expires_in),
+            refresh_token_expires_at=None,
+            scope="openid",
+            storage_backend="file",
+            last_used_at=now,
+            auth_method="authorization_code",
+        )
+
+    def get_current_session(self) -> StoredSession:
+        return self.session
+
+    async def refresh_if_needed(self) -> bool:
+        self.refresh_calls += 1
+        self.session.access_token = "access-refreshed"
+        self.session.access_token_expires_at = now_utc() + timedelta(seconds=900)
+        return True
+
+
+def _login_only(monkeypatch: pytest.MonkeyPatch, session: _StoredLoginSession) -> None:
+    """The #198 laptop shape: SPEC_KITTY_SAAS_URL set, no service token
+    anywhere, the stored OAuth session as the only credential."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+
+    target = SimpleNamespace(resolved_server_url="http://saas.test")
+
+    from specify_cli.saas_client import auth as saas_auth_module
+
+    monkeypatch.setattr(saas_auth_module, "_token_manager", lambda: session)
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: target)
 
 
 def _iso_in(seconds: float) -> str:
@@ -213,6 +282,70 @@ def test_unauthenticated_checkout_exits_nonzero_with_a_login_hint(state_root: Pa
     result = runner.invoke(app, ["routes"])
     assert result.exit_code == 1
     assert "auth login" in result.stdout
+
+
+# --- the documented login path (#198) ----------------------------------------
+
+
+def test_oauth_session_alone_carries_routes(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """E2E-MVP §0.4 as a human runs it: SPEC_KITTY_SAAS_URL set, `auth login`
+    once, no service token anywhere — and `routes` still answers with the
+    team and the relay."""
+    session = _StoredLoginSession(expires_in=900)  # a live access token
+    gateway = ScriptedGateway(admission={"admitted": True, "team_slug": "demo"})
+    _script_gateway(monkeypatch, gateway)
+    _login_only(monkeypatch, session)
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 0
+    assert "team: demo · relay: http://relay" in result.stdout
+    assert session.refresh_calls == 0  # live token: no refresh round trip
+
+
+def test_expired_oauth_session_is_refreshed_then_carries_routes(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The laptop woke up with an expired access token: routes refreshes the
+    renewable session first and answers anyway."""
+    session = _StoredLoginSession()  # starts expired
+    gateway = ScriptedGateway(admission={"admitted": True, "team_slug": "demo"})
+    _script_gateway(monkeypatch, gateway)
+    _login_only(monkeypatch, session)
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 0
+    assert "team: demo · relay: http://relay" in result.stdout
+    assert session.refresh_calls == 1
+
+
+def test_expired_session_that_cannot_refresh_exits_with_the_login_hint(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Refresh rejected the stored refresh token: the refusal names the way
+    out instead of dressing up as 'nothing configured'."""
+
+    class _DeadSession(_StoredLoginSession):
+        async def refresh_if_needed(self) -> bool:
+            self.refresh_calls += 1
+            from specify_cli.auth.errors import RefreshTokenExpiredError
+
+            raise RefreshTokenExpiredError("refresh token expired")
+
+    gateway = ScriptedGateway(admission=AssertionError("must not be called"))
+    _script_gateway(monkeypatch, gateway)
+    _login_only(monkeypatch, _DeadSession())
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 1
+    assert "auth login" in result.stdout
+
+
+def test_unadmitted_repo_through_the_login_session_prints_the_verdict(state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Still no error for a repo nobody admits — even authenticated via the
+    OAuth session, "produces nothing anywhere" is exit zero."""
+    gateway = ScriptedGateway(admission={"admitted": False, "reason": "no team admits acme/widget"})
+    _script_gateway(monkeypatch, gateway)
+    _login_only(monkeypatch, _StoredLoginSession())
+
+    result = runner.invoke(app, ["routes"])
+    assert result.exit_code == 0
+    assert "not admitted to any team — no relay" in result.stdout
 
 
 def test_checkout_without_a_hosted_remote_has_nothing_to_ask(
