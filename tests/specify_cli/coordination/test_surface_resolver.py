@@ -236,6 +236,32 @@ def test_coord_branch_exists_treats_non_repo_as_present(tmp_path: Path) -> None:
     assert _coord_branch_exists(tmp_path, "kitty/mission-anything") is True
 
 
+def test_coord_branch_exists_treats_guest_of_enclosing_repo_as_present(
+    tmp_path: Path,
+) -> None:
+    """#154: an ad-hoc directory INSIDE some unrelated checkout is not a repo
+    context either.
+
+    ``git rev-parse`` answers for any directory under a repository, so when an
+    ambient ancestor checkout sits above the mission root (a dev host whose
+    basetemp lives inside one), the walk-up finds THAT repo. Its ref space says
+    nothing about this mission's declared branch, so firing R3 against it would
+    invent a data-loss verdict from a foreign repo — the same contract violation
+    the non-repo arm above forbids, one level removed."""
+    import subprocess as _sp
+
+    from specify_cli.coordination.surface_resolver import _coord_branch_exists
+
+    outer = tmp_path / "ambient-checkout"
+    outer.mkdir()
+    _sp.run(["git", "init", "-q", "-b", "main", str(outer)], check=True)
+    guest = outer / "ad-hoc" / "mission-root"
+    guest.mkdir(parents=True)
+
+    # The enclosing repo genuinely has no such ref — and that must not matter.
+    assert _coord_branch_exists(guest, "kitty/mission-anything") is True
+
+
 def test_coord_branch_exists_returns_true_when_git_oserror(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -372,15 +372,52 @@ def is_registered_coord_worktree(
     )
 
 
+def _roots_own_checkout(repo_root: Path) -> bool:
+    """Return whether *repo_root* is itself the root of the repository git finds.
+
+    ``git rev-parse`` answers for ANY directory inside a repository, so on a host
+    where an ancestor of *repo_root* happens to be some unrelated checkout
+    (#154), the walk-up finds THAT repo and a ref lookup below would judge this
+    mission's declared coordination branch against a stranger's ref space. A
+    linked worktree still roots its own checkout (``--show-toplevel`` names the
+    worktree); a bare repo roots its git dir AT ``repo_root``.
+    """
+    try:
+        top = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--show-toplevel"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        if top.returncode == 0:
+            return Path(top.stdout.strip()).resolve() == repo_root.resolve()
+        # No work tree here: either not a repository at all, or a bare repo.
+        gitdir = subprocess.run(
+            ["git", "-C", str(repo_root), "rev-parse", "--absolute-git-dir"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        return (
+            gitdir.returncode == 0
+            and Path(gitdir.stdout.strip()).resolve() == repo_root.resolve()
+        )
+    except OSError:
+        return False
+
+
 def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
     """Return whether *coord_branch* still exists in git (one rev-parse).
 
     Used to split #1889 row R2 (branch exists, worktree not yet materialized)
     from row R3 (branch DELETED). A registry read cannot tell these apart — only
     the ref existence does. Fails closed: when git is unreadable OR ``repo_root``
-    is not a git repository at all, the branch is treated as present (R2/R2′
-    path), because the materialization guard one level up still fail-closes; we
-    never *invent* a deleted-branch error from a non-repo context.
+    is not the root of its own git repository — including an ad-hoc directory
+    that merely sits INSIDE some enclosing checkout, where the enclosing repo's
+    refs say nothing about this mission's branch (#154) — the branch is treated
+    as present (R2/R2′ path), because the materialization guard one level up
+    still fail-closes; we never *invent* a deleted-branch error from a
+    non-repo / foreign-repo context.
     """
     try:
         inside = subprocess.run(
@@ -391,9 +428,10 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
         )
     except OSError:
         return True
-    if inside.returncode != 0:
-        # Not a git repository (e.g. an ad-hoc tmp dir): we cannot assert the
-        # branch was deleted, so do not fire R3. Treat as present.
+    if inside.returncode != 0 or not _roots_own_checkout(repo_root):
+        # Not a git repository (e.g. an ad-hoc tmp dir), or only a guest of an
+        # enclosing one: we cannot assert the branch was deleted from THIS
+        # mission's repo, so do not fire R3. Treat as present.
         return True
     try:
         result = subprocess.run(

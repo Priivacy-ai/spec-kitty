@@ -150,6 +150,18 @@ def _transaction_topology_available(identity: _TransactionIdentity, mission_slug
         # kitty-specs/<slug>-<mid8>/meta.json path can see that meta.
         return identity.transaction_meta_exists
 
+    if not identity.mid8:
+        # #154: resolve_transaction_mid8 returned "" -- its documented
+        # bare-slug surface for meta-less / legacy missions with no
+        # coordination topology in play ("there is no coord target to
+        # mis-route"). Composing the branch handle from that empty mid8 is
+        # exactly the malformed 'kitty/mission-<slug>-' ref the workspace seam
+        # refuses (#2091, M-1), so probing it here raised
+        # CoordinationWorkspaceIdentityUnresolved out of every read/write on
+        # any host where this feature dir sits inside a git work tree instead
+        # of taking the primary-checkout contract the clean-host run takes.
+        return False
+
     from specify_cli.coordination.workspace import CoordinationWorkspace  # noqa: PLC0415
 
     return _branch_exists(
