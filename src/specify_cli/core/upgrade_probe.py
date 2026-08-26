@@ -9,8 +9,9 @@ The probe applies the **secure-design-checklist** tactic
 (`packs/built-in/tactics/secure-design-checklist.tactic.yaml`) to the new
 external surface. Specifically:
 
-- **Least Privilege**: a single GET against a public endpoint, no auth, no PII.
+- **Least Privilege**: a single GET against release metadata, no secrets, no PII.
 - **Fail-Safe Defaults**: every exception is caught and resolves to
+  packaged private-release identity on the private-repo 404 path, otherwise
   ``UpgradeChannel.UNKNOWN`` with the error captured. No exception escapes
   into the CLI hot path.
 - **Complete Mediation**: the timeout is enforced via ``httpx.Client(timeout=...)``
@@ -24,6 +25,8 @@ The probe **never** raises. Callers can rely on the returned
 
 from __future__ import annotations
 
+import importlib.resources
+import json
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
@@ -36,6 +39,9 @@ from specify_cli.core.version_compare import is_version_newer, try_parse_version
 
 GITHUB_RELEASES_URL = "https://api.github.com/repos/spec-kitty/EXPERIMENTAL-spec-kitty/releases?per_page=100"
 """GitHub Releases endpoint for the programme's authoritative CLI release channel."""
+
+RELEASE_IDENTITY_RESOURCE = "release_identity.json"
+"""Packaged private-release identity used when GitHub hides the private repo."""
 
 PYPI_JSON_URL = GITHUB_RELEASES_URL
 """Deprecated compatibility alias for older tests/callers."""
@@ -186,6 +192,12 @@ def probe_pypi(
             releases=releases,
         )
 
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code == 404:
+            fallback = _from_bundled_release_identity(cli_version, probed_at, prerelease=prerelease)
+            if fallback is not None:
+                return fallback
+        return _unknown(cli_version, probed_at, f"{type(exc).__name__}: {exc}")
     except Exception as exc:  # noqa: BLE001 — fail-safe-default per secure-design-checklist
         return _unknown(cli_version, probed_at, f"{type(exc).__name__}: {exc}")
 
@@ -232,6 +244,48 @@ def _highest_release(releases: tuple[str, ...], *, include_prerelease: bool) -> 
     from specify_cli.distribution.simple_index import _highest_version
 
     return _highest_version(list(releases), include_prerelease=include_prerelease)
+
+
+def _bundled_release_versions() -> tuple[str, ...]:
+    """Read the private-release identity shipped inside the installed wheel."""
+    try:
+        text = importlib.resources.files("specify_cli").joinpath(RELEASE_IDENTITY_RESOURCE).read_text(encoding="utf-8")
+        payload = json.loads(text)
+    except (OSError, json.JSONDecodeError, ModuleNotFoundError):
+        return ()
+
+    if not isinstance(payload, dict):
+        return ()
+    if payload.get("repository") != "spec-kitty/EXPERIMENTAL-spec-kitty":
+        return ()
+    version = payload.get("version")
+    if not isinstance(version, str) or try_parse_version(version) is None:
+        return ()
+    return (version,)
+
+
+def _from_bundled_release_identity(
+    cli_version: str,
+    probed_at: datetime,
+    *,
+    prerelease: bool,
+) -> UpgradeProbeResult | None:
+    releases = _bundled_release_versions()
+    if not releases:
+        return None
+    release_latest = _highest_release(releases, include_prerelease=True)
+    if release_latest is None:
+        return None
+    stable_latest = _highest_release(releases, include_prerelease=False) or release_latest
+    channel_latest = _channel_latest(stable_latest, releases, prerelease=prerelease)
+    return UpgradeProbeResult(
+        installed_version=cli_version,
+        latest_pypi_version=channel_latest,
+        channel=_classify(cli_version, channel_latest, releases),
+        probed_at=probed_at,
+        error=None,
+        releases=releases,
+    )
 
 
 def _unknown(cli_version: str, probed_at: datetime, error: str) -> UpgradeProbeResult:

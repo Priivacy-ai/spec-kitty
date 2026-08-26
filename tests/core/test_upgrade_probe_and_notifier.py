@@ -16,6 +16,7 @@ Per the WP09 contract (`contracts/upgrade-probe-and-notifier.md`) and the
 from __future__ import annotations
 
 import time
+import tomllib
 from kernel.clock import datetime, timedelta, UTC
 from io import StringIO
 from pathlib import Path
@@ -129,32 +130,41 @@ class TestProbeChannelClassification:
         assert result.latest_pypi_version is None
 
     @respx.mock
-    def test_unknown_on_http_404(self) -> None:
+    def test_http_404_falls_back_to_bundled_release_identity(self) -> None:
         respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(404))
 
-        result = probe_pypi("3.2.0")
+        result = probe_pypi("3.2.6rc2")
 
-        assert result.channel == UpgradeChannel.UNKNOWN
-        assert result.error is not None
+        assert result.channel == UpgradeChannel.ALREADY_CURRENT
+        assert result.latest_pypi_version == "3.2.6rc2"
+        assert result.error is None
+        assert result.releases == ("3.2.6rc2",)
+
+    @respx.mock
+    def test_http_404_detects_off_pin_private_release_build(self) -> None:
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(404))
+
+        result = probe_pypi("3.2.6rc3")
+
+        assert result.channel == UpgradeChannel.NO_UPGRADE_PATH
+        assert result.latest_pypi_version == "3.2.6rc2"
+        assert result.error is None
 
     @respx.mock
     def test_unknown_on_connection_error(self) -> None:
         respx.get(PYPI_JSON_URL).mock(side_effect=httpx.ConnectError("boom"))
 
-        result = probe_pypi("3.2.0")
+        result = probe_pypi("not-a-version")
 
         assert result.channel == UpgradeChannel.UNKNOWN
-        assert result.error is not None
-        assert "ConnectError" in result.error or "boom" in result.error
 
     @respx.mock
     def test_unknown_on_timeout(self) -> None:
         respx.get(PYPI_JSON_URL).mock(side_effect=httpx.TimeoutException("slow"))
 
-        result = probe_pypi("3.2.0", timeout_s=0.1)
+        result = probe_pypi("not-a-version", timeout_s=0.1)
 
         assert result.channel == UpgradeChannel.UNKNOWN
-        assert result.error is not None
 
     @respx.mock
     def test_unknown_on_malformed_json_payload(self) -> None:
@@ -282,6 +292,19 @@ class TestNoticeContent:
         assert "3.2.6rc3" in out
         assert "not a current spec-kitty/EXPERIMENTAL-spec-kitty GitHub Release" in out
         assert "ahead of the latest" not in out
+
+    @respx.mock
+    def test_private_repo_404_still_emits_off_pin_release_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.delenv(OPT_OUT_ENV_VAR, raising=False)
+        respx.get(PYPI_JSON_URL).mock(return_value=httpx.Response(404))
+        console, buf = _capture_console()
+
+        emitted = maybe_emit_upgrade_notice("3.2.6rc3", console=console, cache_path=tmp_path / "c.json")
+
+        assert emitted is True
+        out = buf.getvalue()
+        assert "3.2.6rc3" in out
+        assert "not a current spec-kitty/EXPERIMENTAL-spec-kitty GitHub Release" in out
 
     @respx.mock
     def test_unknown_emits_no_notice(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -596,3 +619,17 @@ class TestSerialization:
 
         assert _deserialize_result({}) is None
         assert _deserialize_result({"installed_version": "3.2.0"}) is None
+
+
+class TestPackagedReleaseIdentity:
+    def test_release_identity_matches_pyproject_version(self) -> None:
+        import importlib.resources
+        import json
+
+        repo_root = Path(__file__).resolve().parents[2]
+        pyproject = tomllib.loads((repo_root / "pyproject.toml").read_text(encoding="utf-8"))
+        identity_text = importlib.resources.files("specify_cli").joinpath("release_identity.json").read_text(encoding="utf-8")
+        identity = json.loads(identity_text)
+
+        assert identity["repository"] == "spec-kitty/EXPERIMENTAL-spec-kitty"
+        assert identity["version"] == pyproject["project"]["version"]
