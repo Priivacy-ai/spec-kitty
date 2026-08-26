@@ -10,7 +10,20 @@ baseline ``/events`` Beacon route, which has no ``op`` dispatch at all and
 structurally cannot process a ``ControlEnvelope``), under a 750ms TOTAL
 wall-clock deadline (``budget.run_with_deadline``); (4) whatever happens —
 2xx, non-2xx, timeout, connection refused — ``offer()`` returns; it never
-retries and never queues.
+retries and never queues. This is binding, not incidental:
+``decisions/HIC-EPHEMERAL-TEAM-STATUS-2026-08-25.md`` (decision C) and
+``design/ephemeral-team-status.html`` both pin "no retry" / "≤750 ms" — "a
+relay outage or a 750 ms CLI timeout loses the moment by design."
+
+Refinement, not an exception (#180): a ``429`` from the relay is not an
+ordinary rejection — zeitgeist's managed-control rate limiter answers a
+throttled credential with ``429`` + ``Retry-After: <s>`` + a JSON detail
+(zeitgeist#44). ``offer()`` still makes exactly one attempt — no pause, no
+second POST — but classifies a 429 as :attr:`OfferOutcome.THROTTLED` instead
+of folding it into a bare ``REJECTED``, and prints the one-line stderr notice
+:data:`THROTTLE_NOTICE` — the signal a bare ``REJECTED`` never gave — so end
+to end a throttled moment is lost loudly, not silently, while still being
+lost on the first answer exactly like every other non-2xx status.
 
 FIX-M2-10: two gates a real relay enforces on this route, both of which
 ``offer()`` must satisfy — confirmed against the live ``zeitgeist`` source
@@ -120,6 +133,7 @@ from __future__ import annotations
 
 import json
 import socket
+import sys
 import threading
 import urllib.error
 import urllib.request
@@ -150,6 +164,16 @@ _MANAGED_CONTROL_PATH = "/managed/control"
 # lockstep with a real, coordinated envelope-shape change on zeitgeist's
 # side.
 _SCHEMA_VERSION = "1.0.0"
+
+# The status zeitgeist's managed-control rate limiter answers with (`429` +
+# `Retry-After: <s>` + JSON detail, zeitgeist#44). No retry is made on it —
+# decisions/HIC-EPHEMERAL-TEAM-STATUS-2026-08-25.md forbids one — it is only
+# classified distinctly from an ordinary REJECTED so the loss is loud.
+_THROTTLED_STATUS = 429
+
+# The one-line stderr notice emitted when the single attempt comes back
+# throttled (#180: "lost silently" → lost loudly).
+THROTTLE_NOTICE = "relay throttled; moment dropped"
 
 _FocusPauseReason = Literal["user", "dnd"]
 _FocusEndReason = Literal["user", "timeout"]
@@ -220,7 +244,8 @@ class ClientConfig:
 
 class OfferOutcome(StrEnum):
     SENT = "sent"  # relay accepted (2xx)
-    REJECTED = "rejected"  # relay returned 4xx/5xx
+    REJECTED = "rejected"  # relay returned a non-throttle 4xx/5xx
+    THROTTLED = "throttled"  # relay answered 429 on the one attempt (#180)
     DROPPED_BUDGET = "dropped_budget"  # 750ms elapsed before a response
     DROPPED_UNREACHABLE = "dropped_unreachable"  # connect/DNS failure
     REFUSED_LOCAL = "refused_local"  # sanitizer rejected before any socket call
@@ -291,36 +316,41 @@ class ZeitgeistClient:
         }
         url = self._config.relay_url.rstrip("/") + _MANAGED_CONTROL_PATH
 
-        def _post() -> tuple[int, bytes]:
+        def _post() -> int:
             req = urllib.request.Request(url, data=body, headers=headers, method="POST")
             try:
                 with budget.open_bounded(req, timeout=budget.OFFER_BUDGET_S) as resp:
-                    return resp.status, resp.read()
+                    # The body is never read — only the status carries a
+                    # decision. The detail JSON a 429 carries is deliberately
+                    # not kept: nothing here persists (#180).
+                    return int(resp.status)
             except urllib.error.HTTPError as exc:
-                return exc.code, exc.read()
+                return exc.code
 
-        deadline_outcome = budget.run_with_deadline(_post, deadline_s=budget.OFFER_BUDGET_S)
+        outcome = budget.run_with_deadline(_post, deadline_s=budget.OFFER_BUDGET_S)
+        elapsed_s = outcome.elapsed_s
+        if not outcome.completed:
+            drop: OfferOutcome | None = OfferOutcome.DROPPED_BUDGET
+            status = 0
+        elif outcome.error is not None:
+            drop = _classify_network_error(outcome.error)
+            status = 0
+        else:
+            assert outcome.result is not None  # completed without error ⇒ a result
+            drop = None
+            status = outcome.result
 
-        if not deadline_outcome.completed:
+        if drop is not None:
+            return OfferResult(outcome=drop, request_id=request_id, elapsed_s=elapsed_s)
+        if status == _THROTTLED_STATUS:
+            print(THROTTLE_NOTICE, file=sys.stderr)
             return OfferResult(
-                outcome=OfferOutcome.DROPPED_BUDGET,
-                request_id=request_id,
-                elapsed_s=deadline_outcome.elapsed_s,
+                outcome=OfferOutcome.THROTTLED, request_id=request_id, elapsed_s=elapsed_s
             )
-        if deadline_outcome.error is not None:
-            return OfferResult(
-                outcome=_classify_network_error(deadline_outcome.error),
-                request_id=request_id,
-                elapsed_s=deadline_outcome.elapsed_s,
-            )
-
-        status, _body = deadline_outcome.result  # type: ignore[misc]
         result_outcome = (
             OfferOutcome.SENT if 200 <= status < 300 else OfferOutcome.REJECTED
         )
-        return OfferResult(
-            outcome=result_outcome, request_id=request_id, elapsed_s=deadline_outcome.elapsed_s
-        )
+        return OfferResult(outcome=result_outcome, request_id=request_id, elapsed_s=elapsed_s)
 
     # -- current-focus lifecycle (opt-in) ------------------------------
 

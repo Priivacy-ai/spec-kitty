@@ -621,3 +621,26 @@ def test_status_event_occurrence_time_is_preserved_in_the_attrs(monkeypatch: pyt
 
     _op, args = recorder.offers[0]
     assert args["attrs"]["occurred_at"] == "2026-08-25T11:22:33+00:00"
+
+
+def test_throttled_outcome_is_recorded_at_debug_without_a_second_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved_credential: list[Path],
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """#180: a throttled moment is lost loudly, not silently — the client
+    prints the one-line stderr notice itself (proven against the real
+    ``offer()`` in ``tests/zeitgeist_client/test_transport.py``), so this
+    bridge records only the structured detail, at debug level, instead of
+    logging the loss a second time (the other drop outcomes keep their
+    warning)."""
+    recorder = OfferRecorder(outcome="throttled").install(monkeypatch)
+    caplog.set_level(logging.DEBUG, logger=bridge.__name__)
+
+    _fire_transition()
+
+    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
+    # Nothing at warning level or above — the loss was already noticed on
+    # stderr by the client; only the structured debug record remains.
+    assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
+    assert any("throttled" in r.getMessage() for r in caplog.records)

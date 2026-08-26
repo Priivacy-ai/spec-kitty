@@ -526,3 +526,51 @@ def test_offer_rejected_when_authorization_bearer_is_wrong(managed_control_doubl
     result = client.presence("file_edit")
     assert result.outcome == transport.OfferOutcome.REJECTED
     assert managed_control_double.applied_op_count("presence.publish") == 0
+
+
+# --- #180: 429 is a throttle, not a rejection -------------------------------
+#
+# zeitgeist#44's managed-control rate limiter answers a throttled credential
+# with 429 (+ Retry-After + a JSON detail this client never reads). offer()
+# still makes exactly one attempt — decisions/HIC-EPHEMERAL-TEAM-STATUS-
+# 2026-08-25.md (decision C) and design/ephemeral-team-status.html both pin
+# "no retry" / "≤750 ms" as binding, not incidental — but a 429 is now
+# reported as THROTTLED (with the one-line stderr notice) instead of being
+# folded into REJECTED where it vanished silently.
+
+
+def test_429_is_reported_as_throttled_with_no_second_attempt(team_kitty_double):
+    team_kitty_double.configure(status=429)
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    result = client.offer("presence.publish", {"activity": "file_edit"})
+
+    assert result.outcome == transport.OfferOutcome.THROTTLED
+    # Exactly one attempt — no retry, per the binding "no retry" decision.
+    assert len(team_kitty_double.requests) == 1
+
+
+def test_non_throttle_status_makes_no_second_attempt(team_kitty_double):
+    """Every status keeps the original one-attempt contract (N4's 503, here
+    401) — 429 is classified differently, not treated specially in attempt
+    count."""
+    team_kitty_double.configure(status=401)
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    result = client.offer("presence.publish", {"activity": "file_edit"})
+
+    assert result.outcome == transport.OfferOutcome.REJECTED
+    assert len(team_kitty_double.requests) == 1
+
+
+def test_throttled_notice_is_one_stderr_line(team_kitty_double, capsys):
+    team_kitty_double.configure(status=429)
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    client.offer("presence.publish", {"activity": "file_edit"})
+
+    err = capsys.readouterr().err
+    assert transport.THROTTLE_NOTICE in err
+    assert err.count(transport.THROTTLE_NOTICE) == 1
+
+    team_kitty_double.configure(status=200)
+    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
+    client.offer("presence.publish", {"activity": "file_edit"})
+    assert capsys.readouterr().err.count(transport.THROTTLE_NOTICE) == 0

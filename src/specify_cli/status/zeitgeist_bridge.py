@@ -298,6 +298,19 @@ def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Ma
             result.request_id,
             result.elapsed_s * 1000,
         )
+    elif result.outcome is OfferOutcome.THROTTLED:
+        # The relay answered 429 on the single attempt (#180). The
+        # human-facing signal — the one-line "relay throttled; moment
+        # dropped" stderr notice — has already been emitted by the client
+        # itself; logging it again at warning level would print the loss
+        # twice, so this stays a debug-level structured record (which
+        # moment, which request id, how long).
+        logger.debug(
+            "Zeitgeist moment %s throttled (%s) in %.0f ms; dropped",
+            event_type,
+            result.request_id,
+            result.elapsed_s * 1000,
+        )
     else:
         # rejected / dropped_budget / dropped_unreachable / refused_local: one
         # attempt was made (or refused before any socket) and there is no
