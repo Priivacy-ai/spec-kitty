@@ -221,7 +221,7 @@ that shell touches at the named instance.
 
 **Example**:
 ```bash
-export SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
+export SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
 spec-kitty auth login
 ```
 
@@ -295,7 +295,7 @@ surrounding quotes is stripped from the value:
 ```bash
 # .kittify/.kitty.env
 SPEC_KITTY_ENABLE_SAAS_SYNC=1
-SPEC_KITTY_SAAS_URL=https://spec-kitty-dev.fly.dev
+SPEC_KITTY_SAAS_URL=https://team.spec-kitty.ai
 # SPEC_KITTY_SAAS_TOKEN=       (secret-shaped vars are provisioned as commented templates —
 #                                fill in by hand; never auto-populated with a live value)
 ```
@@ -487,7 +487,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPEC_KITTY_NON_INTERACTIVE` | Disable prompts | `1` |
 | `SPEC_KITTY_WORKTREE_REMOVAL_DELAY` | Delay worktree cleanup | `10` |
 | `SPEC_KITTY_ENABLE_SAAS_SYNC` | Opt in to hosted sync/auth flows | `1` |
-| `SPEC_KITTY_SAAS_URL` | Override hosted base URL | `https://spec-kitty-dev.fly.dev` |
+| `SPEC_KITTY_SAAS_URL` | Override hosted base URL | `https://team.spec-kitty.ai` |
 | `SPEC_KITTY_PRERELEASE` | Opt in to the pre-release (rc) consumer channel | `1` |
 | `SPEC_KITTY_NO_NAG` | Disable upgrade notices | `1` |
 | `SPEC_KITTY_NAG_THROTTLE_SECONDS` | Override upgrade-check cadence | `86400` |

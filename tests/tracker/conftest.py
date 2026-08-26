@@ -32,6 +32,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from specify_cli.auth.server_target import SAAS_URL_ENV_VAR
 from specify_cli.tracker import saas_client as _saas_mod
 
 
@@ -81,6 +82,12 @@ def _patch_saas_token_bridges(monkeypatch, request):
     tmp_path = request.getfixturevalue("tmp_path")
     monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "home"))
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    # #179: the resolver (and so ``SaaSTrackerClient``) fails closed when no
+    # host is configured. These suites exercise auth/retry/routing/payload
+    # shape with ``httpx.Client`` mocked out, so they get a named stand-in
+    # target; the fail-closed construction path itself is pinned directly in
+    # ``test_server_target_fail_closed.py``, which deletes this env var.
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, "https://saas.example.com")
     try:
         fake_store = request.getfixturevalue("mock_credential_store")
     except Exception:

@@ -20,7 +20,7 @@ related:
 
 ### Accounts Required
 
-- [ ] Spec Kitty SaaS staging account (https://spec-kitty-dev.fly.dev)
+- [ ] Spec Kitty SaaS staging account (https://team.spec-kitty.ai)
 - [ ] Jira Cloud test project with API token
 - [ ] Linear test workspace with API key
 - [ ] GitHub test repository with configured webhook

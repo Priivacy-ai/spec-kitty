@@ -290,8 +290,8 @@ class SaaSTrackerClient:
         # Canonical server-target authority (#2146, re-homed from the deleted
         # sync config in issue #5): resolve the URL we will actually hit —
         # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
-        # config.toml accessor, which returns the hardcoded default and would
-        # silently ignore an env override.
+        # config.toml accessor, which would silently ignore an env override.
+        # Fails closed (#179) on an unconfigured machine: no target, no client.
         self._base_url = _normalize_origin(resolve_server_target().resolved_server_url)
         self._timeout = timeout
         # Instance-scoped seam (#3187): retry/poll delays call ``self._sleep``

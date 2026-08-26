@@ -12,10 +12,11 @@ module that WP05 will supply. Until WP05 lands, attempting to use
 This module never hardcodes a SaaS URL. It resolves the login target through the
 canonical resolver :func:`specify_cli.auth.server_target.resolve_server_target`,
 which folds ``SPEC_KITTY_SAAS_URL`` (env) over ``[sync].server_url`` in
-``config.toml`` over the documented default — the *same* precedence ``sync`` uses.
+``config.toml`` and fails closed (#179) when neither names a target — the same
+precedence every hosted surface uses.
 This is deliberate (#3406, FR-005): login previously read the env-only accessor
 ``get_saas_base_url`` and errored when the env var was unset, even when the user
-had already set a server via ``spec-kitty sync server``. That inconsistency meant
+had already set a server via ``config.toml``. That inconsistency meant
 a token could be obtained one way while sync targeted another; resolving both the
 same way removes it.
 """
@@ -35,6 +36,7 @@ from specify_cli.auth import (
     CallbackValidationError,
     get_token_manager,
 )
+from specify_cli.auth.errors import ConfigurationError
 from specify_cli.auth.server_target import resolve_server_target
 
 if TYPE_CHECKING:
@@ -60,20 +62,15 @@ async def login_impl(*, headless: bool, force: bool) -> None:
         ``enforce_teamspace_mission_state_ready`` themselves — those are
         the commands that actually depend on TeamSpace state.
     """
-    # Resolve the login target the same way sync does — env over config.toml
-    # over the documented default (#3406, FR-005). Login previously read the
-    # env-only accessor and errored when only `sync server` had been set, so a
-    # token could be minted against one server while sync targeted another.
-    # We still refuse when NEITHER an env override nor an explicit config
-    # server_url is set, rather than silently defaulting to the descriptive dev
-    # URL — preserving the "choose your server" intent while honouring config.
-    target = resolve_server_target()
-    if target.env_server_url is None and target.configured_server_url is None:
-        console.print(
-            "[red]X No hosted server is configured. Set SPEC_KITTY_SAAS_URL (or set "
-            "[sync].server_url in your config.toml), then try again.[/red]"
-        )
-        raise typer.Exit(1)
+    # Resolve the login target the same way every hosted surface does — env over
+    # config.toml (#3406, FR-005). The resolver fails closed (#179) when neither
+    # source names a server; surface its remedy verbatim instead of duplicating
+    # the message here so login and the resolver cannot drift apart again.
+    try:
+        target = resolve_server_target()
+    except ConfigurationError as exc:
+        console.print(f"[red]X {exc}[/red]")
+        raise typer.Exit(1) from None
     saas_url = target.resolved_server_url
 
     tm = get_token_manager()

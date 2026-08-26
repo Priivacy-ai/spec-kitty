@@ -3,10 +3,12 @@
 Re-homed from ``specify_cli.sync.target_authority`` when the sync transport was
 deleted (issue #5): auth login and the SaaS tracker client still need one
 answer to "which server are we hitting?", resolved with a single precedence —
-``SPEC_KITTY_SAAS_URL`` over ``config.toml [sync].server_url`` over
-:data:`DEFAULT_SERVER_URL` — and the same fail-closed split-brain guard
-(env and config disagreeing without a clean whole-process override), decided
-*before* any network call.
+``SPEC_KITTY_SAAS_URL`` over ``config.toml [sync].server_url`` — and two
+fail-closed guards, decided *before* any network call: an ambiguous split-brain
+(env and config disagreeing without a clean whole-process override) and a
+missing target entirely (#179 — the resolver never guesses a tenant; with no
+env value and no config value it raises :class:`ConfigurationError`, the same
+remedy ``auth login`` has always printed).
 
 The queue-scope half of the old resolver died with the sync transport; what
 remains is purely descriptive — no network, no config mutation.
@@ -25,13 +27,16 @@ from specify_cli.auth.errors import ConfigurationError
 
 _LOG = logging.getLogger(__name__)
 
-#: Documented default target when neither config nor env supplies one.
-DEFAULT_SERVER_URL = "https://spec-kitty-dev.fly.dev"
-
-#: Mirrors ``specify_cli.auth.config._ENV_VAR``; named here so the split-brain
-#: message and env read share one literal (Sonar S1192). Explicitly typed:
-#: consumers under ``follow_imports = "skip"`` would otherwise see ``Any``.
+#: Mirrors ``specify_cli.auth.config._ENV_VAR``; named here so the fail-closed
+#: and split-brain messages and the env read share one literal (Sonar S1192).
+#: Explicitly typed: consumers under ``follow_imports = "skip"`` would
+#: otherwise see ``Any``.
 SAAS_URL_ENV_VAR: str = "SPEC_KITTY_SAAS_URL"
+
+#: The fail-closed remedy printed when neither source names a target (#179).
+#: Same wording ``auth login`` has always shown, so every hosted surface gives
+#: one answer instead of silently resolving to a stale host.
+_NO_TARGET_MESSAGE = "No hosted server is configured. Set {env_var} (or set [sync].server_url in your config.toml), then try again."
 
 _SPLIT_BRAIN_MESSAGE = (
     "Server target split-brain detected before any network call: config.toml "
@@ -129,14 +134,19 @@ def _classify_override(
 ) -> tuple[OverrideMode, str]:
     """Decide ``(override_mode, resolved_server_url)`` — pure, no I/O.
 
-    Precedence: env first, then config, then :data:`DEFAULT_SERVER_URL`. A
-    missing config key compares against the default so env-equal-to-default is
-    *not* an override and env-differs-from-default *is*.
+    Precedence: env first, then config. At least one source must be present —
+    ``resolve_server_target`` fails closed before calling this. A missing
+    config key is *no opinion*, not a candidate target: an env-only machine
+    resolves cleanly (to the env URL) even in a setup-only context, because
+    with no configured value there is nothing for the env var to disagree with.
     """
-    effective_config = _normalize_url(configured_server_url or DEFAULT_SERVER_URL)
     if env_server_url is None:
-        return OverrideMode.NONE, effective_config
+        # Caller guarantees the config value is set on this path.
+        return OverrideMode.NONE, _normalize_url(str(configured_server_url))
     env_normalized = _normalize_url(env_server_url)
+    if configured_server_url is None:
+        return OverrideMode.PROCESS_OVERRIDE, env_normalized
+    effective_config = _normalize_url(configured_server_url)
     if env_normalized == effective_config:
         return OverrideMode.NONE, effective_config
     if process_wide_override:
@@ -163,11 +173,20 @@ def resolve_server_target(*, process_wide_override: bool = True) -> ResolvedServ
     """Resolve the single canonical hosted-server target.
 
     Reads ``[sync].server_url`` and ``SPEC_KITTY_SAAS_URL``, classifies the
-    :class:`OverrideMode`, and fails-closed on an ambiguous split-brain before
-    any network call. Purely descriptive: no network, no config mutation.
+    :class:`OverrideMode`, and fails-closed before any network call — both on an
+    ambiguous split-brain and (issue #179) on no target at all. Purely
+    descriptive: no network, no config mutation.
+
+    Raises:
+        ConfigurationError: When neither the env var nor ``config.toml`` names
+            a server. The CLI has no business guessing a tenant.
+        ServerTargetSplitBrainError: When env and config disagree without a
+            clean whole-process override.
     """
     configured_server_url = _read_configured_server_url()
     env_server_url = _read_env_server_url()
+    if env_server_url is None and configured_server_url is None:
+        raise ConfigurationError(_NO_TARGET_MESSAGE.format(env_var=SAAS_URL_ENV_VAR))
     override_mode, resolved_server_url = _classify_override(
         configured_server_url,
         env_server_url,
