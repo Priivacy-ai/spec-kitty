@@ -291,10 +291,31 @@ def test_one_offer_per_registered_transition(monkeypatch: pytest.MonkeyPatch, re
     assert attrs["from_lane"] == "planned"
     assert attrs["to_lane"] == "claimed"
     assert attrs["actor"] == "robert"
-    assert attrs["force"] == "false"
-    # Prose stays local (UNBROADCAST_FIELDS): identifiers ride, free text never
-    # lives on the team relay.
+    # HIC-EPHEMERAL-TEAM-STATUS "Wire content rule": force/rollback reasons
+    # never ride the relay, and prose stays local (UNBROADCAST_FIELDS):
+    # identifiers ride, free text and forced-transition metadata never do.
+    assert "force" not in attrs
     assert "reason" not in attrs
+
+
+def test_forced_rollback_transition_never_puts_force_on_the_wire(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """A forced backward transition is exactly the shape the design page's
+    wire content rule names ("Never: ... force/rollback reasons") — the
+    codec still projects `force` (spec-kitty-events' UNBROADCAST_FIELDS
+    only drops `reason`), so this must be stripped here or every forced
+    transition would leak it."""
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition(
+        from_lane="approved",
+        to_lane="planned",
+        metadata=_transition_metadata(force=True, reason="found a defect after approval"),
+    )
+
+    assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
+    _op, args = recorder.offers[0]
+    assert "force" not in args["attrs"]
+    assert "reason" not in args["attrs"]
 
 
 def test_structured_actor_rides_as_its_single_label(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:

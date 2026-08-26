@@ -395,6 +395,89 @@ class TestCacheShortCircuits:
         assert gateway.admission_calls == [] and gateway.mint_calls == []
 
 
+class TestScopeRevalidation:
+    """Squad finding on #123: the store key is the bare repo NAME, which two
+    differently-hosted repos can share -- a same-name checkout must not be
+    served a credential minted for a different (host, repo_slug)."""
+
+    def test_cache_hit_for_the_same_scope_is_trusted(self, state_root: Path) -> None:
+        credentials.store(
+            repo=KEY,
+            relay_url="http://cached",
+            token="tok",
+            token_kind="presence",
+            expires_at=_iso_in(3600),
+            host=HOST,
+            repo_slug=SLUG,
+        )
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.relay_url == "http://cached"
+        assert gateway.admission_calls == [] and gateway.mint_calls == []
+
+    def test_cache_hit_scoped_to_a_different_repo_slug_falls_through_to_a_fresh_check(self, state_root: Path) -> None:
+        """A hostile same-name checkout must not read someone else's cached
+        admitted credential -- a scope mismatch is a cache miss, not a hit."""
+        credentials.store(
+            repo=KEY,
+            relay_url="http://someone-elses-relay",
+            token="someone-elses-token",
+            token_kind="presence",
+            expires_at=_iso_in(3600),
+            host=HOST,
+            repo_slug="other-owner/widget",
+        )
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.relay_url == "http://relay"  # freshly minted, not the mismatched cache entry
+        assert len(gateway.admission_calls) == 1
+        assert len(gateway.mint_calls) == 1
+
+    def test_cache_hit_scoped_to_a_different_host_falls_through_to_a_fresh_check(self, state_root: Path) -> None:
+        credentials.store(
+            repo=KEY,
+            relay_url="http://someone-elses-relay",
+            token="someone-elses-token",
+            token_kind="presence",
+            expires_at=_iso_in(3600),
+            host="gitlab.com",
+            repo_slug=SLUG,
+        )
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.relay_url == "http://relay"
+        assert len(gateway.admission_calls) == 1
+
+    def test_legacy_entry_with_no_recorded_scope_is_still_trusted(self, state_root: Path) -> None:
+        """Every credential minted before this fix (and every manual
+        `zeitgeist checkout`) has no recorded scope -- it must keep being
+        served from cache exactly as before, or every existing checkout
+        would silently re-mint on its next transition."""
+        credentials.store(
+            repo=KEY,
+            relay_url="http://legacy",
+            token="legacy-tok",
+            token_kind="presence",
+            expires_at=_iso_in(3600),
+        )
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.relay_url == "http://legacy"
+        assert gateway.admission_calls == [] and gateway.mint_calls == []
+
+    def test_a_fresh_mint_records_its_own_scope(self, state_root: Path) -> None:
+        gateway = ScriptedGateway()
+        resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        stored = credentials.load(repo=KEY)
+        assert stored is not None
+        assert stored.repo_slug == SLUG
+        assert stored.host == HOST
+
+
 class TestNotAdmitted:
     def test_admission_miss_stores_a_short_ttl_negative(self, state_root: Path) -> None:
         gateway = ScriptedGateway(admission={"admitted": False, "reason": "no_match"})

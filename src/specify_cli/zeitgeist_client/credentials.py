@@ -63,6 +63,15 @@ both round-trip compatible with every entry already on disk:
   negative answer replaces any positive entry for that repo: a mint denial
   after a stored credential means the stored credential can no longer be
   valid.
+
+Squad finding on spec-kitty#123: the store key is the bare repo NAME, which
+two differently-hosted repos can share, so ``store()``/``load()`` also
+carry optional ``host``/``repo_slug`` — the full identity a credential was
+minted for. This module stores and returns them verbatim; revalidating a
+cache hit against the checkout it is about to be used for is
+``resolution.py``'s job (:func:`resolution._same_scope`), not this
+storage primitive's. Both round-trip as ``None`` for every entry stored
+before this fix, same as ``expires_at``.
 """
 
 from __future__ import annotations
@@ -105,6 +114,18 @@ class StoredCredential:
     # every entry whose issuer did not report one (all entries stored before
     # this field existed), which callers treat as "no recorded expiry".
     expires_at: str | None = None
+    # squad finding on #123: the store key is the bare repo NAME
+    # (`repo_identity.repo_name`), which two differently-hosted repos can
+    # share (a same-name hostile checkout would otherwise read a cached
+    # admitted credential minted for someone else's repo). `host`/
+    # `repo_slug` record the full identity `resolution.py` minted this
+    # credential for, so a caller can revalidate a cache hit against the
+    # checkout it is about to use it for. `None` for every entry stored
+    # before this field existed (a manual `zeitgeist checkout`, or any
+    # pre-fix mint) -- callers treat that as "no scope recorded", the same
+    # backward-compatible reading `expires_at` already gets.
+    host: str | None = None
+    repo_slug: str | None = None
 
 
 @dataclass(frozen=True)
@@ -181,6 +202,8 @@ def store(
     token_kind: str,
     capability_credential: str | None = None,
     expires_at: str | None = None,
+    host: str | None = None,
+    repo_slug: str | None = None,
 ) -> None:
     if not repo:
         raise ValueError("repo must be non-empty")
@@ -192,6 +215,10 @@ def store(
         raise ValueError("capability_credential must be non-empty when provided")
     if expires_at is not None and not expires_at:
         raise ValueError("expires_at must be non-empty when provided")
+    if host is not None and not host:
+        raise ValueError("host must be non-empty when provided")
+    if repo_slug is not None and not repo_slug:
+        raise ValueError("repo_slug must be non-empty when provided")
     lock = _locked()
     with lock:
         data = _read_all()
@@ -208,6 +235,10 @@ def store(
             entry["capability_credential"] = capability_credential
         if expires_at is not None:
             entry["expires_at"] = expires_at
+        if host is not None:
+            entry["host"] = host
+        if repo_slug is not None:
+            entry["repo_slug"] = repo_slug
         data[repo] = entry
         _write_all(data)
 
@@ -257,6 +288,8 @@ def load(*, repo: str) -> StoredCredential | None:
             token_kind=entry["token_kind"],
             capability_credential=entry.get("capability_credential"),
             expires_at=entry.get("expires_at"),
+            host=entry.get("host"),
+            repo_slug=entry.get("repo_slug"),
         )
     except KeyError:
         return None

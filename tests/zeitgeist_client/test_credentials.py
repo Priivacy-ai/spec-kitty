@@ -183,6 +183,57 @@ def test_empty_expires_at_is_rejected(state_root: Path):
         credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="presence", expires_at="")
 
 
+# --- squad finding on #123: the optional host/repo_slug scope fields -------
+
+
+def test_store_without_scope_round_trips_host_and_repo_slug_as_none(state_root: Path):
+    """Every entry written before this fix (and every manual checkout) has
+    no recorded scope; load() reports None for both, never KeyError."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    loaded = credentials.load(repo="spec-kitty")
+    assert loaded is not None
+    assert loaded.host is None
+    assert loaded.repo_slug is None
+
+
+def test_host_and_repo_slug_round_trip_verbatim(state_root: Path):
+    credentials.store(
+        repo="spec-kitty",
+        relay_url="http://a",
+        token="tok-a",
+        token_kind="shared_team",
+        host="github.int.exe.xyz",
+        repo_slug="spec-kitty/EXPERIMENTAL-spec-kitty",
+    )
+    loaded = credentials.load(repo="spec-kitty")
+    assert loaded is not None
+    assert loaded.host == "github.int.exe.xyz"
+    assert loaded.repo_slug == "spec-kitty/EXPERIMENTAL-spec-kitty"
+
+
+def test_empty_host_is_rejected_when_provided(state_root: Path):
+    with pytest.raises(ValueError):
+        credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team", host="")
+
+
+def test_empty_repo_slug_is_rejected_when_provided(state_root: Path):
+    with pytest.raises(ValueError):
+        credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team", repo_slug="")
+
+
+def test_stored_toml_omits_host_and_repo_slug_keys_entirely_when_unset(state_root: Path):
+    """Same backward-compat proof as capability_credential/expires_at: a
+    config written without a scope looks byte-for-byte like one written
+    before this fix -- no `host = ""` / `repo_slug = ""` key ever lands."""
+    credentials.store(repo="spec-kitty", relay_url="http://a", token="tok-a", token_kind="shared_team")
+    import tomllib
+
+    with credentials.credentials_path().open("rb") as fh:
+        raw = tomllib.load(fh)
+    assert "host" not in raw["spec-kitty"]
+    assert "repo_slug" not in raw["spec-kitty"]
+
+
 # --- E3 resolution: negative answers ---------------------------------------
 
 
