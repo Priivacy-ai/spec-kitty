@@ -1,25 +1,26 @@
 {
   "mission_slug": "p0-reliability-triad-01M0YW93",
-  "snapshot_id": "a37114d8-2d60-4572-85ff-2d1494adc46f",
-  "total_artifacts": 16,
+  "snapshot_id": "a3da746f-8807-4c72-8b2b-906623f82b9c",
+  "total_artifacts": 17,
   "required_artifacts": 3,
   "required_present": 3,
   "required_missing": 0,
-  "optional_artifacts": 13,
-  "optional_present": 13,
+  "optional_artifacts": 14,
+  "optional_present": 14,
   "completeness_status": "complete",
-  "parity_hash_sha256": "sha256:4647a8cc2ca2855d34f843d1053316d9d0f03acf9439937a802bde840bbf28e8",
+  "parity_hash_sha256": "sha256:882ffd25d8c4602b97906e52aabab24c3b4e9cd3d8782526daeb467464086f87",
   "parity_hash_components": [
     "055aba2bec1e561fa0c17ba6af2666f008bfda7aae56829015d1359b14f1eb94",
     "13f741bd867a861d5bef4f78af4e05e93d22600a317b72a9eff4d2a8f86d2655",
     "1bf567c0c398cfc687f613399e3f04b8730afcaa8c8a913fccdc35e75de5dbb7",
+    "222f471a7670802ed8dcc01ba98444a46715dbe8139b3da2f81ac5b1781d2506",
     "3c54e4074ae7faf050e18cd3d96a0eed7f52068f772c67331355223637b05665",
     "433c03acda3b28efa51f1d8c9591521e8339cbad840b5227621e1521e0f442e4",
     "4d9a4201b5639241d54c4e30cbcd232c35bbd569f780a1798f64df9eef068094",
     "569389d3d3e2dc4cdb15b4a74319ab4651449f876f4e738178f7b91562fbd51c",
+    "6be2199921b05feeb836167d248dc9f2eafdbca6e1d8e1dfb668cbcb890c0a2f",
     "709fbafa8b4e09351fddd618edb15b1da860e15b077522fecb8850d2d01beab9",
     "7c9899ce2952dc660593539f3af2098f8755b4927d1609884fbcde923234dda8",
-    "9ad3cae88fc0669084fcbac06f7f720227510cbd84894126612c5f9a5040aee5",
     "9e5cacf8cf8db9735145e99a8b878ac5a1980db4c40c65a0f3983a4e17979839",
     "a21db7fa6585e22a66f41334ecde4b5e6855e531bc2bdb04834c2200f509afb4",
     "a955d94d2a65550e28c2062d1ae23bb7447ed7590572af4596fba74711095d89",
@@ -28,6 +29,20 @@
     "e99bbd89b534ccebe1510f59850a987f994b6f588c96031c318d8158420b301b"
   ],
   "artifact_summaries": [
+    {
+      "artifact_key": "artifact.analysis-report",
+      "artifact_class": "evidence",
+      "relative_path": "analysis-report.md",
+      "content_hash_sha256": "222f471a7670802ed8dcc01ba98444a46715dbe8139b3da2f81ac5b1781d2506",
+      "size_bytes": 4439,
+      "wp_id": null,
+      "step_id": null,
+      "required_status": "optional",
+      "is_present": true,
+      "error_reason": null,
+      "indexed_at": "2026-08-26T12:37:40.598540+00:00",
+      "provenance": null
+    },
     {
       "artifact_key": "artifact.behavioral-contracts",
       "artifact_class": "output",
@@ -39,7 +54,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.516972+00:00",
+      "indexed_at": "2026-08-26T12:37:40.660955+00:00",
       "provenance": null
     },
     {
@@ -53,7 +68,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.456083+00:00",
+      "indexed_at": "2026-08-26T12:37:40.594450+00:00",
       "provenance": null
     },
     {
@@ -67,7 +82,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.451887+00:00",
+      "indexed_at": "2026-08-26T12:37:40.590330+00:00",
       "provenance": null
     },
     {
@@ -81,7 +96,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.493820+00:00",
+      "indexed_at": "2026-08-26T12:37:40.637293+00:00",
       "provenance": null
     },
     {
@@ -95,7 +110,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.489470+00:00",
+      "indexed_at": "2026-08-26T12:37:40.632948+00:00",
       "provenance": null
     },
     {
@@ -109,7 +124,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.481224+00:00",
+      "indexed_at": "2026-08-26T12:37:40.624005+00:00",
       "provenance": null
     },
     {
@@ -123,7 +138,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.460485+00:00",
+      "indexed_at": "2026-08-26T12:37:40.602724+00:00",
       "provenance": null
     },
     {
@@ -131,13 +146,13 @@
       "artifact_class": "output",
       "relative_path": "tasks/WP01-upgrade-pointer-charter-activation.md",
       "content_hash_sha256": "3c54e4074ae7faf050e18cd3d96a0eed7f52068f772c67331355223637b05665",
-      "size_bytes": 5433,
+      "size_bytes": 6088,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.500083+00:00",
+      "indexed_at": "2026-08-26T12:37:40.643715+00:00",
       "provenance": null
     },
     {
@@ -145,13 +160,13 @@
       "artifact_class": "output",
       "relative_path": "tasks/WP02-merge-stale-lane-remediation.md",
       "content_hash_sha256": "e99bbd89b534ccebe1510f59850a987f994b6f588c96031c318d8158420b301b",
-      "size_bytes": 4085,
+      "size_bytes": 4395,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.512689+00:00",
+      "indexed_at": "2026-08-26T12:37:40.656639+00:00",
       "provenance": null
     },
     {
@@ -159,13 +174,13 @@
       "artifact_class": "output",
       "relative_path": "tasks/WP03-lane-allocation-retry-ancestry.md",
       "content_hash_sha256": "1bf567c0c398cfc687f613399e3f04b8730afcaa8c8a913fccdc35e75de5dbb7",
-      "size_bytes": 7861,
+      "size_bytes": 9389,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.506611+00:00",
+      "indexed_at": "2026-08-26T12:37:40.650528+00:00",
       "provenance": null
     },
     {
@@ -179,7 +194,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.447404+00:00",
+      "indexed_at": "2026-08-26T12:37:40.585915+00:00",
       "provenance": null
     },
     {
@@ -193,21 +208,21 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.464651+00:00",
+      "indexed_at": "2026-08-26T12:37:40.607304+00:00",
       "provenance": null
     },
     {
       "artifact_key": "evidence.research",
       "artifact_class": "evidence",
       "relative_path": "research.md",
-      "content_hash_sha256": "9ad3cae88fc0669084fcbac06f7f720227510cbd84894126612c5f9a5040aee5",
-      "size_bytes": 9994,
+      "content_hash_sha256": "6be2199921b05feeb836167d248dc9f2eafdbca6e1d8e1dfb668cbcb890c0a2f",
+      "size_bytes": 11416,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.468861+00:00",
+      "indexed_at": "2026-08-26T12:37:40.611302+00:00",
       "provenance": null
     },
     {
@@ -221,7 +236,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.476959+00:00",
+      "indexed_at": "2026-08-26T12:37:40.619958+00:00",
       "provenance": null
     },
     {
@@ -235,7 +250,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.485284+00:00",
+      "indexed_at": "2026-08-26T12:37:40.628591+00:00",
       "provenance": null
     },
     {
@@ -249,9 +264,9 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-08-26T12:28:42.472883+00:00",
+      "indexed_at": "2026-08-26T12:37:40.615261+00:00",
       "provenance": null
     }
   ],
-  "computed_at": "2026-08-26 12:28:42.631239+00:00"
+  "computed_at": "2026-08-26 12:37:55.821864+00:00"
 }
