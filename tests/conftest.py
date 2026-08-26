@@ -27,18 +27,18 @@ from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group reg
 from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
 from tests._shard_registry import all_groups, shard_for
 from tests._support.fixture_pollution import scrub_repo_mission_overrides
-from tests._support.shared_build_artifacts import (
-    SharedBuildError,
-    default_wheel_sdist_builder,
-    ensure_shared_build_artifacts,
-    run_scoped_shared_root,
-)
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
     quarantine_opted_in,
     quarantine_skip_mark,
 )
 from tests._support.run_basetemp import install_run_basetemp
+from tests._support.shared_build_artifacts import (
+    SharedBuildError,
+    default_wheel_sdist_builder,
+    ensure_shared_build_artifacts,
+    run_scoped_shared_root,
+)
 from tests._support.wall_clock_assertions import (
     find_wall_clock_assertion_violations_cached,
     find_test_python_paths,
