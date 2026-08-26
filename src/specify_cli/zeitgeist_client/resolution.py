@@ -371,8 +371,8 @@ def parse_store_key(value: str) -> str:
     slug_segments = segments[1:]
     if slug_segments[-1].endswith(".git"):
         slug_segments[-1] = slug_segments[-1][: -len(".git")]
-        if not slug_segments[-1]:
-            raise error
+    if any(not segment for segment in slug_segments):
+        raise error
     return store_key(host=segments[0], repo_slug="/".join(slug_segments))
 
 

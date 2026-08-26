@@ -207,12 +207,20 @@ class TestParseStoreKey:
         with pytest.raises(resolution.StoreKeyError):
             resolution.parse_store_key(value)
 
-    def test_a_git_suffixed_owner_only_path_is_rejected_not_emptied(self) -> None:
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "github.com/acme/.git",
+            "github.com/acme/.GIT",
+            "github.com/acme/.git/",
+        ],
+    )
+    def test_a_git_suffixed_owner_only_path_is_rejected_not_emptied(self, value: str) -> None:
         """Stripping a trailing ``.git`` off ``github.com/acme/.git`` would
         otherwise leave an empty last segment -- a key `store_key` never
         writes, so it must be rejected rather than silently accepted."""
         with pytest.raises(resolution.StoreKeyError):
-            resolution.parse_store_key("github.com/acme/.git")
+            resolution.parse_store_key(value)
 
     def test_a_pasted_url_with_an_embedded_token_never_echoes_it(self) -> None:
         """spec-kitty#150 MAJOR: a pasted clone URL with an embedded PAT --
