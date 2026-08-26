@@ -9,8 +9,9 @@ shape change:
 * top-level ``procedures`` is a typed array whenever ≥1 procedure is delivered,
   and its entries carry the same progressive-disclosure decoration as the
   ``directives`` entries;
-* ``context_schema_version == "1.1.0"`` (bumped from ``1.0.0`` in the same
-  change — FR-010 / C-005);
+* ``context_schema_version`` reports the current ``CONTEXT_SCHEMA_VERSION`` and
+  bumps atomically with the shape change (FR-010 / C-005; procedures[] first
+  bumped it to ``1.1.0``, later shape changes bump it further);
 * ``"procedures"`` is recorded in ``CONTEXT_CONTRACT_TOP_LEVEL_KEYS``;
 * ``asset`` stays deliberately reference-only — there is **no** top-level
   ``assets`` array (FR-009 / D-003, #3037).
@@ -136,11 +137,17 @@ class TestProceduresTypedArray:
             "moving procedure into repos_by_kind must preserve reference completeness"
         )
 
-    def test_schema_version_bumped_to_1_1_0(self, tmp_path: Path) -> None:
-        """The versioned contract bumps atomically with the shape change (C-005)."""
-        assert CONTEXT_SCHEMA_VERSION == "1.1.0"
+    def test_schema_version_reported_in_payload(self, tmp_path: Path) -> None:
+        """The versioned contract bumps atomically with each shape change (C-005),
+        and the payload always reports the current ``CONTEXT_SCHEMA_VERSION``.
+
+        The exact value is intentionally not hard-pinned here — the canonical
+        version + top-level-key ledger guard is ``test_context_schema_version_ledger``;
+        this test asserts only the atomic-bump invariant (payload == constant), so a
+        legitimate future bump does not spuriously red an unrelated procedures test.
+        """
         payload = _implement_payload(tmp_path)
-        assert payload["context_schema_version"] == "1.1.0"
+        assert payload["context_schema_version"] == CONTEXT_SCHEMA_VERSION
 
     def test_procedures_recorded_in_top_level_ledger(self) -> None:
         """``procedures`` is declared in the top-level key ledger."""

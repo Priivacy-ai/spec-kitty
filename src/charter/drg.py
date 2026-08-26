@@ -48,6 +48,7 @@ contract YAML shape that the FR-140 round-trip gate enforces.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from charter.catalog import resolve_doctrine_root
@@ -107,6 +108,8 @@ from doctrine.drg.org_pack_loader import (
     load_org_pack,
 )
 from doctrine.drg.query import ResolvedContext, resolve_context
+
+logger = logging.getLogger(__name__)
 
 # Canonical three-layer merge now lives in ``doctrine.drg.merge`` (WP03,
 # mission ``org-doctrine-profile-integrity-activation-closure-01KT1TV1``). The
@@ -169,7 +172,12 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def load_org_drg(repo_root: Path, *, strict: bool = True) -> list[OrgDRGFragment]:
+def load_org_drg(
+    repo_root: Path,
+    *,
+    strict: bool = True,
+    degrade_malformed: bool = False,
+) -> list[OrgDRGFragment]:
     """Load all configured org packs from ``.kittify/config.yaml``.
 
     Returns one :class:`OrgDRGFragment` per pack in declaration order.
@@ -207,15 +215,42 @@ def load_org_drg(repo_root: Path, *, strict: bool = True) -> list[OrgDRGFragment
         chain (one root-graph pack + one fragment pack) yields the real
         fragment edges instead of raising on the first fragment-less pack
         (DRG read-path bridge, mission ``drg-read-path-bridge-01M0CHVZ``, D3).
+    degrade_malformed:
+        Only meaningful when ``strict=False``. When ``True``, a pack whose
+        ``drg/fragment.yaml`` is present but **malformed** (a parse or schema
+        fault — :class:`OrgPackParseError` / :class:`OrgPackSchemaError`) is
+        **skipped per-pack** with an operator-visible ``WARNING`` naming the
+        offending pack, and the remaining healthy packs' fragments are still
+        returned. The default ``False`` preserves the byte-identical fail-loud
+        contract every non-degrading caller relies on (the diagnostic APIs, and
+        the fail-loud composition path exercised by
+        ``tests/integration/test_org_pack_chain_delivery.py``): a single
+        malformed fragment still raises and aborts the whole load.
+
+        This is deliberately narrow (mission ``doctrine-drg-silent-drop-
+        boundary``, convergent LOW finding). ONLY the schema/parse fault of an
+        *optional* fragment degrades — exactly the class the mission-step
+        executor already tolerated, but per-pack instead of whole-chain, so a
+        single bad optional pack no longer evicts its healthy siblings'
+        fragments. Config faults (``NotImplementedError`` for an unsupported
+        ``source:``, env-var / subdir-escape errors) are raised before the
+        per-pack loop and still fail loud; endpoint / dangling-governance faults
+        are surfaced downstream by ``load_validated_graph`` and are unaffected.
+        ``strict=True`` NEVER degrades, whatever ``degrade_malformed`` is.
 
     Raises
     ------
     OrgPackMissingError:
         When ``strict=True`` and a configured pack ships no
         ``drg/fragment.yaml`` (FR-004).
+    OrgPackParseError / OrgPackSchemaError:
+        When a configured pack's ``drg/fragment.yaml`` is malformed — unless
+        ``strict=False`` and ``degrade_malformed=True``, in which case only that
+        pack is skipped (with a ``WARNING``) and its siblings still load.
     NotImplementedError:
         When a pack declares ``source: url`` or ``source: package`` —
-        only ``local_path`` is shipped in this mission (NEW-1).
+        only ``local_path`` is shipped in this mission (NEW-1). Raised before
+        the per-pack loop, so ``degrade_malformed`` never suppresses it.
     """
     registry = load_pack_registry(repo_root)
     fragments: list[OrgDRGFragment] = []
@@ -223,7 +258,22 @@ def load_org_drg(repo_root: Path, *, strict: bool = True) -> list[OrgDRGFragment
         pack_root = pack.effective_root(repo_root)
         if not strict and not (pack_root / "drg" / "fragment.yaml").exists():
             continue
-        fragments.append(load_org_pack(pack.name, pack_root, layer_index))
+        if strict or not degrade_malformed:
+            fragments.append(load_org_pack(pack.name, pack_root, layer_index))
+            continue
+        try:
+            fragments.append(load_org_pack(pack.name, pack_root, layer_index))
+        except (OrgPackParseError, OrgPackSchemaError) as exc:
+            logger.warning(
+                "Org pack %r at %s ships a malformed drg/fragment.yaml "
+                "(%s: %s); dropping ONLY this pack's fragment and composing "
+                "with the remaining org packs. Fix or remove this pack in "
+                ".kittify/config.yaml.",
+                pack.name,
+                pack_root,
+                type(exc).__name__,
+                exc,
+            )
     return fragments
 
 

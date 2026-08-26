@@ -2188,7 +2188,7 @@ def _preserve_or_capture_planning_commit_sha(
     if existing is not None and (
         execution_has_begun or has_current_cancellation
     ):
-        return cast(str | None, existing.planning_commit_sha)
+        return existing.planning_commit_sha
     if not execution_has_begun:
         return _capture_target_branch_tip(repo_root, target_branch)
 
