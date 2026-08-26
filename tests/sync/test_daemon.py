@@ -288,6 +288,10 @@ class TestHealthCheckRetryWindow:
             return FakeProc()
 
         monkeypatch.setattr(daemon.subprocess, "Popen", fake_popen)
+        # #3624: the spawn now probes interpreter capability before launching.
+        # Stub the probe so this timing test drives the health-retry loop, not
+        # the (faked) real-subprocess probe.
+        monkeypatch.setattr(daemon, "_interpreter_can_import_specify_cli", lambda *a, **k: True)
         monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9400)
         monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: False)
         # daemon.py's internal call sites use the promoted `is_process_alive`
@@ -329,6 +333,8 @@ class TestHealthCheckRetryWindow:
 
         killed: list[int] = []
         monkeypatch.setattr(daemon.subprocess, "Popen", lambda *a, **kw: FakeProc())
+        # #3624: stub the pre-spawn interpreter-capability probe.
+        monkeypatch.setattr(daemon, "_interpreter_can_import_specify_cli", lambda *a, **k: True)
         monkeypatch.setattr(daemon, "_kill_and_cleanup", lambda pid: killed.append(pid))
 
         with pytest.raises(RuntimeError, match="failed health check"):
@@ -377,6 +383,8 @@ class TestDaemonVersionCheck:
             pid = 88888
 
         monkeypatch.setattr(daemon.subprocess, "Popen", lambda *a, **kw: FakeProc())
+        # #3624: stub the pre-spawn interpreter-capability probe.
+        monkeypatch.setattr(daemon, "_interpreter_can_import_specify_cli", lambda *a, **k: True)
         monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9401)
         monkeypatch.setattr(daemon.time, "sleep", lambda x: None)
 
