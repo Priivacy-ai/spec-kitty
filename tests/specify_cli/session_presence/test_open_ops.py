@@ -131,10 +131,20 @@ class TestSessionStopCommand:
     def test_silent_outside_project(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        from specify_cli.cli.commands.session_stop import session_stop
+        from functools import partial
 
+        from specify_cli.cli.commands import session_stop as session_stop_module
+
+        # Bind the project-root walk to this test's own tree (#130): an
+        # unbounded walk reads shared territory above tmp_path (/tmp, /) where
+        # a stray .kittify/ from a sibling test would flip the verdict.
+        monkeypatch.setattr(
+            session_stop_module,
+            "_find_project_root",
+            partial(session_stop_module._find_project_root, stop=tmp_path),
+        )
         monkeypatch.chdir(tmp_path)
-        session_stop()  # must not raise
+        session_stop_module.session_stop()  # must not raise
         assert capsys.readouterr().out == ""
 
     def test_silent_with_zero_open_ops(
