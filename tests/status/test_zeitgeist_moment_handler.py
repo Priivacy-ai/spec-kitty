@@ -550,6 +550,38 @@ def test_mission_creation_via_local_emitter_offers_once(
     assert args["attrs"]["mission_type"] == "software-dev"
 
 
+def test_mission_created_moment_carries_the_payload_actor(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    resolved_credential: list[Path],
+) -> None:
+    """The WHO a mission-level moment renders with is the payload's ``actor``.
+
+    The local emitter resolves it (#75); the bridge must project it verbatim —
+    never fabricate one and never drop it.
+    """
+    recorder = OfferRecorder(outcome="sent").install(monkeypatch)
+    feature_dir = tmp_path / "kitty-specs" / "demo-mission"
+
+    emit_mission_created_local(
+        feature_dir,
+        mission_slug="demo-mission",
+        mission_id=_EVENT_ID,
+        mission_number=1,
+        mission_type="software-dev",
+        target_branch="main",
+        wp_count=2,
+        friendly_name="Demo",
+        purpose_tldr="tldr",
+        purpose_context="context",
+        actor="robert@example.com",
+    )
+
+    assert recorder.summaries() == [("event.publish", "MissionCreated")]
+    _op, args = recorder.offers[0]
+    assert args["attrs"]["actor"] == "robert@example.com"
+
+
 def test_status_event_occurrence_time_is_preserved_in_the_attrs(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
     """Rule R-T-01: the moment carries the transition's own time, not emission time."""
     recorder = OfferRecorder().install(monkeypatch)
