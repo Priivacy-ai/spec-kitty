@@ -80,7 +80,9 @@ def _resolve_checkout() -> tuple[str, str, str | None]:
 
 def _gateway_for(cwd: Path) -> resolution.SaasCapabilityGateway:
     """The real Team Kitty transport, built the same way the status fan-out
-    builds its own — env vars first, then ``<root>/.kittify/saas-auth.json``."""
+    builds its own — env vars first, then ``<root>/.kittify/saas-auth.json``,
+    then the OAuth session ``spec-kitty auth login`` wrote (#198), so the
+    documented login path needs no service token to see its own routes."""
     try:
         ctx = load_auth_context(repo_root=cwd)
     except SaasAuthError as exc:
