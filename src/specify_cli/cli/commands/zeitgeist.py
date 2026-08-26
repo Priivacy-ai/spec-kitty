@@ -226,7 +226,11 @@ def watch(
 def mcp_serve() -> None:
     """Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the
     client disconnects. Process entry point for an MCP client's launcher —
-    not meant for direct interactive use, hence hidden."""
+    not meant for direct interactive use, hence hidden.
+
+    #190: switched off (`spec-kitty moments off`), this prints one line to
+    stderr and exits 0 — stdout stays clean for the MCP framing protocol —
+    rather than starting a server that would only ever look broken."""
     from specify_cli.zeitgeist_client import mcp_stdio
 
     asyncio.run(mcp_stdio.run_stdio())

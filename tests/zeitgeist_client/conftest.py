@@ -34,6 +34,8 @@ from typing import Any
 
 import pytest
 
+from specify_cli.zeitgeist_client import moments
+
 
 @pytest.fixture()
 def instead_of_rewrite(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> str:
@@ -164,6 +166,32 @@ def team_kitty_double() -> Generator[TeamKittyDouble, None, None]:
         yield double
     finally:
         double.stop()
+
+
+# --- #190: pin the moment preferences these suites run under ----------------
+
+
+@pytest.fixture(autouse=True)
+def moments_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """The developer-global ``~/.kittify/config.toml`` every test in this
+    subsystem reads, redirected to a per-test file and pre-written with the
+    widest mode (``team``).
+
+    Two reasons this pin exists. Hermeticity: without it each test silently
+    reads whoever runs the suite's real ``config.toml``, so a developer who
+    ran ``spec-kitty moments off`` would red every MCP test here. And scope:
+    these suites exercise transport/surface *mechanics*, not #190's gating —
+    the synthetic event frames they push carry no real mission — so the
+    default ``mine`` mode would drop them for reasons no assertion here
+    states.
+
+    Tests that DO exercise #190's gating overwrite the yielded file (or pass
+    explicit settings) rather than fighting this one; tests that need the
+    path to start EMPTY override this fixture by name in their own module."""
+    config_path = tmp_path / "kittify-global-config.toml"
+    config_path.write_text('[moments]\nagents = "team"\n')
+    monkeypatch.setattr(moments, "global_config_path", lambda *, home=None: config_path)
+    return config_path
 
 
 def closed_port_url() -> str:

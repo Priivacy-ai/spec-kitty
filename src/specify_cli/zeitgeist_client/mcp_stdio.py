@@ -29,6 +29,21 @@ credential without being told the key. Given, it must parse as
 NAME gets a tool error naming the accepted form rather than a confusing
 not-checked-out.
 
+#190 — this is THE surface the moment preferences govern ("Moments in agent
+context"): an MCP client is exactly the agent whose context a chatty team's
+firehose would flood, so :func:`build_server` resolves
+``moments.load_settings()`` once per stdio session and refuses to start at
+all under ``[moments] agents = "off"`` (one stderr line, exit 0 — stderr,
+because stdout IS the MCP transport and must stay protocol-clean).
+Otherwise every ``zeitgeist_watch`` call carries the developer's
+``moments.frame_predicate`` into ``subscription.watch`` — the relay still
+sends everything; what changes is what THIS stream delivers — and passes the
+events that survive through one ``MomentRateGate`` per session, so at most N
+moments per minute reach agent context and the rest are summarised as
+"+k more" rather than silently lost. ``zeitgeist_status`` stays unfiltered:
+presence/focus is liveness, not moments, and the snapshot never carries
+broadcast prose.
+
 ``subscription.NotCheckedOut`` (and every other unusable-key fault,
 :class:`resolution.StoreKeyError` included) is deliberately left to
 propagate out of both tool functions uncaught: FastMCP turns an uncaught
@@ -51,13 +66,15 @@ what a teammate broadcast, but only inside markers it cannot forge or close.
 
 from __future__ import annotations
 
+import sys
+
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 from typing import Any
 
 from mcp.server.fastmcp import FastMCP
 
-from . import subscription
+from . import moments, subscription
 
 
 def _agent_frames(frames: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
@@ -120,11 +137,28 @@ def _resolve_store_key(repo: str | None) -> str:
     return derived
 
 
-def build_server() -> FastMCP:
+def build_server(settings: moments.MomentSettings | None = None) -> FastMCP:
     """A fresh :class:`FastMCP` instance exposing exactly the
     ``zeitgeist_status``/``zeitgeist_watch`` tool pair. Called once per
     stdio session by :func:`run_stdio` — no module-level singleton, so tests
-    can build independent servers without sharing state."""
+    can build independent servers without sharing state.
+
+    Raises :class:`moments.MomentsDisabled` when the resolved setting says
+    ``off`` (#190 item 3): the caller reports it as one line and exits 0,
+    because a switched-off surface starting up empty would look like a
+    working one that merely never hears anything.
+
+    The moment predicate and rate gate are built HERE, once per server, from
+    that one settings read — a mid-session config edit changes the next
+    session, not a live one, which is the honest reading of "the setting
+    this server started under".
+    """
+    resolved = settings if settings is not None else moments.load_settings()
+    if resolved.agents is moments.MomentsMode.OFF:
+        raise moments.MomentsDisabled(resolved)
+    predicate = moments.frame_predicate(resolved, local_missions=moments.local_missions(moments.locate_repo_root()))
+    rate_gate = moments.MomentRateGate(resolved.rate_per_minute)
+
     server: FastMCP = FastMCP(SERVER_NAME, instructions=_INSTRUCTIONS)
 
     @server.tool(
@@ -151,14 +185,51 @@ def build_server() -> FastMCP:
         max_frames: int = subscription.MAX_WATCH_FRAMES,
     ) -> dict[str, Any]:
         key = _resolve_store_key(repo)
-        frames = _agent_frames(subscription.watch(key, timeout_s=timeout_s, max_frames=max_frames))
-        return {"repo": key, "frames": frames}
+        if not moments.allows_repo(resolved, key):
+            # #190 item 2: a repos allowlist drops other repos' moments before
+            # this server opens any connection for them — said plainly, never
+            # dressed up as an ordinary empty stream.
+            return {"repo": key, "frames": [], "withheld_by": "repos_filter"}
+        frames = _agent_frames(
+            subscription.watch(key, timeout_s=timeout_s, max_frames=max_frames, frame_filter=predicate)
+        )
+        surfaced: list[dict[str, Any]] = []
+        for frame in frames:
+            # The cap counts EVENT frames only: presence/focus are liveness,
+            # not moments (#190 item 4 governs what floods agent context).
+            if frame.get("frame_type") != "event" or rate_gate.admit():
+                surfaced.append(frame)
+        result: dict[str, Any] = {"repo": key, "frames": surfaced}
+        summary = rate_gate.take_summary()
+        if summary is not None:
+            result["rate_note"] = summary
+        return result
 
     return server
+
+
+def _refusal_line(exc: moments.MomentsDisabled) -> str:
+    """The ONE stderr line a switched-off server prints (#190 item 3). A
+    module-level helper so the CLI adapter and tests assert the same wording
+    this module emits."""
+    return f"spec-kitty: {exc}"
 
 
 async def run_stdio() -> None:
     """Serve the two-tool surface over stdio until the client disconnects.
     The sole entry point ``cli/commands/zeitgeist.py``'s hidden ``mcp-serve``
-    command runs."""
-    await build_server().run_stdio_async()
+    command runs.
+
+    Switched off ([moments] agents = "off"), this prints one line to STDERR
+    and returns — process exit 0, no traceback, no served tools. STDERR
+    because stdout carries the MCP framing protocol: anything this function
+    wrote there ahead of the handshake would be read by the client as
+    protocol bytes. The human running the launcher sees why nothing started;
+    the client sees a clean end of stream.
+    """
+    try:
+        server = build_server()
+    except moments.MomentsDisabled as exc:
+        print(_refusal_line(exc), file=sys.stderr)
+        return
+    await server.run_stdio_async()

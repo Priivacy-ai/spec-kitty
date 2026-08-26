@@ -70,7 +70,7 @@ import json
 import threading
 import urllib.error
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 
 from . import budget
@@ -110,12 +110,29 @@ class FilteredStream:
 
     One instance is one team; state is never shared across instances (no
     module-level registry of any kind).
+
+    ``frame_filter`` (#190) is this class's one client-side membership rule:
+    a callable over an already-parsed :class:`LiveFrame`, applied before a
+    frame is either applied to state or yielded. The relay stays a per-team
+    firehose — filtering is the reader's business, so it happens exactly
+    here and nowhere upstream. A rejected frame leaves no trace at all (it
+    never reaches ``StreamState``, which is lossless for that anyway: only
+    presence/focus mutate it), so a caller holding a filtered stream sees an
+    honest "this subscription does not carry that" rather than a frame it
+    must remember to ignore itself. ``None`` (the default) admits every
+    shape-valid frame — today's behaviour, unchanged.
     """
 
-    def __init__(self, config: TeamStreamConfig) -> None:
+    def __init__(
+        self,
+        config: TeamStreamConfig,
+        *,
+        frame_filter: Callable[[LiveFrame], bool] | None = None,
+    ) -> None:
         self._config = config
         self._state = StreamState()
         self._lock = threading.Lock()
+        self._frame_filter = frame_filter
 
     def watch(self, *, idle_timeout_s: float | None = None) -> Iterator[LiveFrame]:
         """Yield each accepted ``LiveFrame`` as it arrives.
@@ -156,6 +173,8 @@ class FilteredStream:
                 live_frame_obj = self._accept_line(raw_line)
                 if live_frame_obj is None:
                     continue
+                if self._frame_filter is not None and not self._frame_filter(live_frame_obj):
+                    continue  # #190: this subscription does not carry that frame — no delivery, no state change
                 with self._lock:
                     self._state.apply(live_frame_obj)
                 yield live_frame_obj

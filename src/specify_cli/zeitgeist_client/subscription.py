@@ -84,7 +84,7 @@ from __future__ import annotations
 
 import secrets
 
-from collections.abc import Generator, Iterator, Mapping
+from collections.abc import Callable, Generator, Iterator, Mapping
 from typing import Any, cast
 
 from . import credentials, filtered_stream, grammar
@@ -140,14 +140,23 @@ def _require_positive_max_frames(max_frames: int) -> int:
     return max_frames
 
 
-def resolve_stream(repo: str) -> filtered_stream.FilteredStream:
+def resolve_stream(
+    repo: str,
+    *,
+    frame_filter: Callable[[LiveFrame], bool] | None = None,
+) -> filtered_stream.FilteredStream:
     """Build exactly one ``FilteredStream`` for ``repo``'s already-stored
     credential. Raises :class:`NotCheckedOut` rather than constructing a
     stream against nothing. ``repo`` is the credential-store key — since
     spec-kitty#132 the ``host/owner/repo`` shape
     :func:`resolution.store_key` writes (the CLI derives it from the
     checkout, #137), never a bare repo name: those keys hold nothing
-    readable any more."""
+    readable any more.
+
+    ``frame_filter`` (#190) threads an agent surface's moment preferences
+    into the subscription itself — the predicate drops frames inside
+    ``FilteredStream.watch()`` before they reach state or caller. It changes
+    what THIS stream carries, never what the relay sends."""
     stored = credentials.load(repo=repo)
     if stored is None:
         raise NotCheckedOut(repo)
@@ -156,7 +165,7 @@ def resolve_stream(repo: str) -> filtered_stream.FilteredStream:
         relay_token=stored.token,
         capability_credential=stored.capability_credential or stored.token,
     )
-    return filtered_stream.FilteredStream(config)
+    return filtered_stream.FilteredStream(config, frame_filter=frame_filter)
 
 
 def _serialize_snapshot(snapshot: TeamSnapshot) -> dict[str, Any]:
@@ -359,15 +368,25 @@ def status(repo: str, *, timeout_s: float = DEFAULT_STATUS_TIMEOUT_S) -> dict[st
     return result
 
 
-def watch(repo: str, *, timeout_s: float = DEFAULT_WATCH_TIMEOUT_S, max_frames: int = MAX_WATCH_FRAMES) -> Iterator[dict[str, Any]]:
+def watch(
+    repo: str,
+    *,
+    timeout_s: float = DEFAULT_WATCH_TIMEOUT_S,
+    max_frames: int = MAX_WATCH_FRAMES,
+    frame_filter: Callable[[LiveFrame], bool] | None = None,
+) -> Iterator[dict[str, Any]]:
     """Yield each accepted frame, serialized, until ``timeout_s`` (clamped
     to :data:`MAX_TIMEOUT_S`) of idleness, ``max_frames`` frames, or the
     relay closes the connection — whichever comes first. Bounded on both
     axes: never an unbounded stream from one call.
+
+    ``frame_filter`` (#190) narrows what this watch carries — see
+    :func:`resolve_stream`. Filtered-out frames never reach the counter, so
+    they consume none of ``max_frames``' budget.
     """
     timeout_s = _clamp_timeout(timeout_s)
     max_frames = _require_positive_max_frames(max_frames)
-    stream = resolve_stream(repo)
+    stream = resolve_stream(repo, frame_filter=frame_filter)
     gen = stream.watch(idle_timeout_s=timeout_s)
     count = 0
     try:

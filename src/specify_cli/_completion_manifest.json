@@ -1067,6 +1067,28 @@
     }
    }
   },
+  "moments": {
+   "help": "Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "off": {
+     "help": "Switch moments to agents OFF: nothing surfaces, and\n`spec-kitty zeitgeist mcp-serve` exits 0 with one line.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "on": {
+     "help": "Switch moments back ON at the documented default (`mine`: only\nmissions this checkout is on).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "status": {
+     "help": "Show the effective mode, which file decided it, and the active filters.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
   "next": {
    "help": "Decide and emit the next agent action for the current mission.\n\nAgents call this command repeatedly in a loop.  The system inspects the\nmission state machine, evaluates guards, and returns a deterministic\ndecision with an action and prompt file.\n\nExamples:\n    spec-kitty next --mission 034-my-feature --json                            # query mode\n    spec-kitty next --agent claude --mission 034-my-feature --result success --json\n    spec-kitty next --agent codex --mission 034-my-feature\n    spec-kitty next --agent gemini --mission 034-my-feature --result failed --json\n    spec-kitty next --agent claude --mission 034-my-feature --answer \"yes\" --result success --json\n    spec-kitty next --agent claude --mission 034-my-feature --answer \"approve\" --decision-id \"input:review\" --result success --json",
    "hidden": false,
@@ -1413,7 +1435,7 @@
      "deprecated": false
     },
     "mcp-serve": {
-     "help": "Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the\nclient disconnects. Process entry point for an MCP client's launcher —\nnot meant for direct interactive use, hence hidden.",
+     "help": "Serve the Z7-C stdio MCP adapter (``mcp_stdio.run_stdio``) until the\nclient disconnects. Process entry point for an MCP client's launcher —\nnot meant for direct interactive use, hence hidden.\n\n#190: switched off (`spec-kitty moments off`), this prints one line to\nstderr and exits 0 — stdout stays clean for the MCP framing protocol —\nrather than starting a server that would only ever look broken.",
      "hidden": true,
      "deprecated": false
     },

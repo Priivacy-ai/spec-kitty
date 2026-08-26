@@ -331,3 +331,59 @@ def test_render_event_never_raises_on_a_malformed_frame() -> None:
     for bad in ({}, {"payload": None}, {"payload": "not-a-dict"}, {"seq": 1}, {"payload": {"actor": "not-a-dict", "attrs": 7}}):
         rendered = subscription.render_event(bad)  # type: ignore[arg-type]
         assert "[zeitgeist moment" in rendered
+
+
+# --- #190: frame_filter threads the reader's preferences into the stream -----
+
+
+def _event(kind: str = "WPStatusChanged", user: str = "lynn") -> dict[str, object]:
+    return {
+        "type": "event",
+        "event": {"observed_at": now_epoch(), "kind": kind, "actor": {"session_ref": "c" * 12, "user": user}},
+    }
+
+
+def test_watch_frame_filter_drops_frames_before_they_are_yielded(state_root: Path, managed_stream_double) -> None:
+    """The predicate runs inside FilteredStream.watch(): a rejected frame
+    never reaches this surface, so it never becomes a yielded dict."""
+    _checkout(state_root, managed_stream_double.url)
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
+    managed_stream_double.push_frame(_frame(seq=2, frame=_event()))
+    managed_stream_double.close_stream()
+
+    frames = list(
+        subscription.watch(
+            "github.com/acme/spec-kitty",
+            timeout_s=2.0,
+            frame_filter=lambda frame: frame.frame_type != "event",
+        )
+    )
+    assert [f["frame_type"] for f in frames] == ["presence"]
+
+
+def test_watch_filtered_frames_consume_no_max_frames_budget(state_root: Path, managed_stream_double) -> None:
+    """``max_frames`` bounds what is DELIVERED, not what the relay sent —
+    otherwise a chatty firehose could starve an agent of its whole budget
+    before its own filters ever admitted anything."""
+    _checkout(state_root, managed_stream_double.url)
+    for n in range(1, 4):
+        managed_stream_double.push_frame(_frame(seq=n, frame=_event(user=f"user-{n}")))
+    managed_stream_double.close_stream()
+
+    frames = list(
+        subscription.watch(
+            "github.com/acme/spec-kitty",
+            timeout_s=2.0,
+            max_frames=1,
+            frame_filter=lambda frame: frame.payload.get("actor", {}).get("user") == "user-3",
+        )
+    )
+    assert [f["seq"] for f in frames] == [3]
+
+
+def test_resolve_stream_accepts_the_same_keyword(state_root: Path) -> None:
+    """The pass-through exists on both surfaces, so an adapter can hold the
+    stream itself rather than only borrow watch()'s loop."""
+    import inspect
+
+    assert "frame_filter" in inspect.signature(subscription.resolve_stream).parameters

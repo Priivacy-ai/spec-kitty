@@ -195,6 +195,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import migrate_cmd as migrate_module
     from . import mission as mission_module
     from . import mission_type as mission_type_module
+    from . import moments as moments_module
     from . import next_cmd as next_cmd_module
     from . import ops as ops_module
     from . import profiles_cmd as profiles_cmd_module
@@ -265,6 +266,11 @@ def register_commands(app: typer.Typer) -> None:
     app.add_typer(mission_module.app, name="mission")
     app.command(name="next")(next_cmd_module.next_step)
     app.add_typer(mission_type_module.app, name="mission-type")
+    app.add_typer(
+        moments_module.moments_app,
+        name="moments",
+        help="Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo.",
+    )
     app.add_typer(ops_module.app, name="ops")
     app.add_typer(plugin_module.plugin_app, name="plugin", help="Plugin bundle commands")
     app.add_typer(orchestrator_api_module.app, name="orchestrator-api")
