@@ -291,19 +291,21 @@ def test_one_offer_per_registered_transition(monkeypatch: pytest.MonkeyPatch, re
     assert attrs["from_lane"] == "planned"
     assert attrs["to_lane"] == "claimed"
     assert attrs["actor"] == "robert"
-    # HIC-EPHEMERAL-TEAM-STATUS "Wire content rule": force/rollback reasons
-    # never ride the relay, and prose stays local (UNBROADCAST_FIELDS):
-    # identifiers ride, free text and forced-transition metadata never do.
-    assert "force" not in attrs
+    # HIC amendment 2026-08-26 (planning decisions/HIC-EPHEMERAL-TEAM-STATUS):
+    # ``force`` is an enumeration about the transition, so it rides; the
+    # free-text ``reason`` stays local (UNBROADCAST_FIELDS). Identifiers and
+    # transition facts ride; prose never does.
+    assert attrs["force"] == "false"
     assert "reason" not in attrs
 
 
-def test_forced_rollback_transition_never_puts_force_on_the_wire(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
-    """A forced backward transition is exactly the shape the design page's
-    wire content rule names ("Never: ... force/rollback reasons") — the
-    codec still projects `force` (spec-kitty-events' UNBROADCAST_FIELDS
-    only drops `reason`), so this must be stripped here or every forced
-    transition would leak it."""
+def test_forced_rollback_transition_broadcasts_force_true(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """A forced backward transition carries ``force="true"`` on the wire.
+
+    The amendment moves ``force`` onto the relay with every other transition
+    fact — only its reason text stays local. Re-introducing a bridge-side
+    strip of ``force`` fails this test: the codec's attrs go out unfiltered.
+    """
     recorder = OfferRecorder().install(monkeypatch)
 
     _fire_transition(
@@ -314,8 +316,37 @@ def test_forced_rollback_transition_never_puts_force_on_the_wire(monkeypatch: py
 
     assert recorder.summaries() == [("event.publish", "WPStatusChanged")]
     _op, args = recorder.offers[0]
-    assert "force" not in args["attrs"]
+    assert args["attrs"]["force"] == "true"
     assert "reason" not in args["attrs"]
+
+
+def test_reason_and_evidence_never_reach_the_wire(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """The rule that survives the amendment: prose and evidence stay local.
+
+    Both fields are dropped by spec-kitty-events' ``UNBROADCAST_FIELDS``, which
+    is now the single owner of the wire vocabulary — this bridge adds no
+    filtering of its own, so removing either field there turns this red
+    immediately (the keys would reappear in the offered attrs).
+    """
+    recorder = OfferRecorder().install(monkeypatch)
+
+    _fire_transition(metadata=_transition_metadata(force=True, reason="found a defect after approval"))
+    _fire_transition(
+        to_lane="done",
+        metadata=_transition_metadata(
+            force=False,
+            reason="closing out",
+            evidence={
+                "repos": [{"repo": "demo", "branch": "main", "commit": "abc1234"}],
+                "review": {"reviewer": "rob", "verdict": "approved", "reference": "pr-1"},
+            },
+        ),
+    )
+
+    assert [op for op, _args in recorder.offers] == ["event.publish", "event.publish"]
+    for _op, args in recorder.offers:
+        leaked = sorted(key for key in args["attrs"] if key.split(".")[0] in {"reason", "evidence"})
+        assert leaked == []
 
 
 def test_structured_actor_rides_as_its_single_label(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:

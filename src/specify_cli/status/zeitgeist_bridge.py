@@ -81,32 +81,6 @@ _EVENT_PUBLISH_OP = "event.publish"
 # process's moments without pretending to be a long-lived session.
 _SESSION_ID = str(uuid.uuid4())
 
-# HIC-EPHEMERAL-TEAM-STATUS (2026-08-25) "Wire content rule" names
-# force/rollback reasons explicitly as never broadcast — the relay and the
-# 72 h feed are visible to the whole team; a forced/rollback transition's
-# WHY stays in the local journal. ``spec_kitty_events`` 8.0.0's
-# ``UNBROADCAST_FIELDS`` (pinned in ``pyproject.toml``) already drops
-# ``reason`` for ``WPStatusChanged`` but not ``force`` itself, which the
-# codec still projects onto attrs — this bridge is the last line of defense
-# before the wire until that pin moves. Not applied to other event types:
-# none of them carry a ``force``-shaped field today.
-_WIRE_FORBIDDEN_ATTRS: Mapping[str, frozenset[str]] = {
-    "WPStatusChanged": frozenset({"force"}),
-}
-
-
-def _strip_wire_forbidden_attrs(event_type: str, attrs: dict[str, str]) -> dict[str, str]:
-    """Drop any attr the design's wire content rule forbids outright.
-
-    A codec-level omission (upstream's ``UNBROADCAST_FIELDS`` gains a field
-    later) fixes this at the source; until then, no forbidden key reaches
-    :func:`_offer_and_log` regardless of what the codec projected.
-    """
-    forbidden = _WIRE_FORBIDDEN_ATTRS.get(event_type)
-    if not forbidden:
-        return attrs
-    return {key: value for key, value in attrs.items() if key not in forbidden}
-
 
 def saas_moment_handler(**kwargs: Any) -> None:
     """Broadcast one WP lane transition as a ``WPStatusChanged`` moment."""
@@ -266,12 +240,15 @@ def _broadcast_moment(payload: BaseModel, envelope: Event, *, cwd: Path) -> None
     """
     event_type = envelope.event_type
     try:
+        # The offer attrs are exactly what the codec returns: the wire
+        # vocabulary has a single owner (spec_kitty_events.zeitgeist_attrs),
+        # so what stays local — ``reason``/``evidence`` prose, unencodable
+        # shapes — is decided there and only there.
         attrs = to_zeitgeist_attrs(payload, envelope)
         ref = zeitgeist_ref_for(event_type, payload)
     except ZeitgeistAttrsError as exc:
         logger.warning("Zeitgeist moment %s not broadcast: %s", event_type, exc)
         return
-    attrs = _strip_wire_forbidden_attrs(event_type, attrs)
 
     credential = _resolve_credentials(cwd)
     if credential is None:
