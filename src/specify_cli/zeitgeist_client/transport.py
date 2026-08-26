@@ -76,11 +76,17 @@ themselves (Z1.md §3.2 item 8, F1's normative derivation clause):
 FIX-M2-10: the separator is ``.``, not the ``/`` F1's draft clause used —
 confirmed against the live source, ``managed_control.schema.json``'s
 ``FocusArgs.focus_ref`` (and ``managed_live.schema.json``'s egress copy) is
-ident-shaped (``[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}``, no ``/`` in the
-character class, ``re.fullmatch`` enforced by ``capabilities.py``'s
-hand-rolled validator — never a partial/substring match), not the ref-
-shaped (``/``-permitting) grammar this module's own docstring and
-``live_frame.py``'s read-side comment both assumed. A ``/``-joined
+ident-shaped in CHARACTER CLASS only (``[A-Za-z0-9][A-Za-z0-9._@+-]``: no
+``/``, ``re.fullmatch`` enforced by ``capabilities.py``'s hand-rolled
+validator — never a partial/substring match), not the ref-shaped
+(``/``-permitting) grammar this module's own docstring and
+``live_frame.py``'s read-side comment both assumed. The length bound is NOT
+the ident one: zeitgeist#38 widened it from 64 to 240 (pattern quantifier
+``{0,63}`` → ``{0,239}``, ``maxLength`` 64 → 240, class unchanged) once
+real ``mission_slug.WPxx`` refs outgrew the ident envelope — this module
+already sends the full ``f"{mission_slug}.{wp_id}"``, so nothing here
+clamps, and neither field may be re-tightened to 64 to agree with a
+pre-#38 comment. A ``/``-joined
 ``focus_ref`` therefore failed real schema validation (422) on every single
 ``focus.start``/``.heartbeat``/``.pause``/``.end`` call whenever a caller
 passed ``wp_id`` — invisible to this module's own test double (which never
