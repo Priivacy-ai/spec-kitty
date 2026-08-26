@@ -397,11 +397,9 @@ def test_rollback_drill_rerun_after_its_own_ttl_lapses_still_passes(state_root: 
 
 
 def test_drop_signal_true_for_throttled(team_kitty_double):
-    """#180: a still-429-after-its-retry frame is a lost frame — the drop
-    signal names it, while an ordinary REJECTED keeps reading as the relay's
-    answer rather than a loss."""
-    # No Retry-After on the 429: this file classifies the outcome; the
-    # bounded-wait mechanics have their own tests in test_transport.py.
+    """#180: a 429 on the single attempt is a lost frame — the drop signal
+    names it, while an ordinary REJECTED keeps reading as the relay's answer
+    rather than a loss."""
     team_kitty_double.configure(status=429)
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     result = client.offer("presence.publish", {"activity": "command"})

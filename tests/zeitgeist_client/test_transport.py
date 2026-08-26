@@ -528,144 +528,49 @@ def test_offer_rejected_when_authorization_bearer_is_wrong(managed_control_doubl
     assert managed_control_double.applied_op_count("presence.publish") == 0
 
 
-# --- #180: 429 + Retry-After is a throttle, not a rejection -----------------
+# --- #180: 429 is a throttle, not a rejection -------------------------------
 #
 # zeitgeist#44's managed-control rate limiter answers a throttled credential
-# with 429 + Retry-After: <s> (+ JSON detail). offer() honours that header
-# exactly once for the current frame — bounded pause, ONE more attempt, done —
-# then reports THROTTLED (with the one-line stderr notice) instead of folding
-# the frame into REJECTED where it vanished silently.
-
-@pytest.fixture()
-def stubbed_pause(monkeypatch: pytest.MonkeyPatch) -> list[float]:
-    """Record the pauses offer() asks for instead of sleeping them. The
-    unstubbed sleep path has its own dedicated test below."""
-    pauses: list[float] = []
-    monkeypatch.setattr(transport, "_pause", pauses.append)
-    return pauses
+# with 429 (+ Retry-After + a JSON detail this client never reads). offer()
+# still makes exactly one attempt — decisions/HIC-EPHEMERAL-TEAM-STATUS-
+# 2026-08-25.md (decision C) and design/ephemeral-team-status.html both pin
+# "no retry" / "≤750 ms" as binding, not incidental — but a 429 is now
+# reported as THROTTLED (with the one-line stderr notice) instead of being
+# folded into REJECTED where it vanished silently.
 
 
-def test_429_with_retry_after_retries_once_then_reports_throttled(
-    team_kitty_double, stubbed_pause
-):
-    team_kitty_double.configure(status=429, headers={"Retry-After": "1"})
-    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    result = client.offer("presence.publish", {"activity": "file_edit"})
-
-    assert result.outcome == transport.OfferOutcome.THROTTLED
-    # Exactly one honoured backoff, exactly one retry, then stop.
-    assert len(team_kitty_double.requests) == 2
-    assert stubbed_pause == [1.0]
-
-
-def test_throttle_retry_success_is_sent(team_kitty_double, stubbed_pause):
-    """The point of honouring Retry-After: the frame survives its throttle."""
-    team_kitty_double.configure(status_sequence=[429], headers={"Retry-After": "1"})
-    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    result = client.offer("presence.publish", {"activity": "file_edit"})
-
-    assert result.outcome == transport.OfferOutcome.SENT
-    assert len(team_kitty_double.requests) == 2
-
-
-def test_retry_after_is_bounded_at_max_retry_after_s(team_kitty_double, stubbed_pause):
-    team_kitty_double.configure(status=429, headers={"Retry-After": "30"})
-    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    result = client.offer("presence.publish", {"activity": "file_edit"})
-
-    assert result.outcome == transport.OfferOutcome.THROTTLED
-    assert stubbed_pause == [transport.MAX_RETRY_AFTER_S]
-    # The reported elapsed includes the bounded wait, not just the two posts.
-    assert result.elapsed_s >= transport.MAX_RETRY_AFTER_S
-
-
-def test_missing_retry_after_still_retries_once_without_pause(
-    team_kitty_double, stubbed_pause
-):
-    """The registry-capacity 429 (zeitgeist's ManagedOverload) carries no
-    Retry-After; it gets the same single retry with a zero-length wait."""
+def test_429_is_reported_as_throttled_with_no_second_attempt(team_kitty_double):
     team_kitty_double.configure(status=429)
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     result = client.offer("presence.publish", {"activity": "file_edit"})
 
     assert result.outcome == transport.OfferOutcome.THROTTLED
-    assert len(team_kitty_double.requests) == 2
-    # The one honour still happens — as a zero-length pause.
-    assert stubbed_pause == [0.0]
+    # Exactly one attempt — no retry, per the binding "no retry" decision.
+    assert len(team_kitty_double.requests) == 1
 
 
-def test_unparseable_retry_after_is_treated_as_absent(team_kitty_double, stubbed_pause):
-    team_kitty_double.configure(status=429, headers={"Retry-After": "soon"})
-    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    result = client.offer("presence.publish", {"activity": "file_edit"})
-
-    assert result.outcome == transport.OfferOutcome.THROTTLED
-    assert len(team_kitty_double.requests) == 2
-    assert stubbed_pause == [0.0]
-
-
-def test_throttle_then_server_error_is_rejected(team_kitty_double, stubbed_pause):
-    """The retry's own answer decides the outcome — a 503 after the backoff is
-    an ordinary REJECTED, not a THROTTLED."""
-    team_kitty_double.configure(status_sequence=[429, 503], headers={"Retry-After": "1"})
-    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    result = client.offer("presence.publish", {"activity": "file_edit"})
-
-    assert result.outcome == transport.OfferOutcome.REJECTED
-    assert len(team_kitty_double.requests) == 2
-
-
-def test_non_throttle_status_makes_no_second_attempt(team_kitty_double, stubbed_pause):
-    """The throttle honour is scoped to 429; every other status keeps the
-    original one-attempt contract (N4's 503, here 401)."""
+def test_non_throttle_status_makes_no_second_attempt(team_kitty_double):
+    """Every status keeps the original one-attempt contract (N4's 503, here
+    401) — 429 is classified differently, not treated specially in attempt
+    count."""
     team_kitty_double.configure(status=401)
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     result = client.offer("presence.publish", {"activity": "file_edit"})
 
     assert result.outcome == transport.OfferOutcome.REJECTED
     assert len(team_kitty_double.requests) == 1
-    assert stubbed_pause == []
 
 
-def test_still_throttled_notice_is_one_stderr_line(team_kitty_double, stubbed_pause, capsys):
-    team_kitty_double.configure(status=429, headers={"Retry-After": "1"})
+def test_throttled_notice_is_one_stderr_line(team_kitty_double, capsys):
+    team_kitty_double.configure(status=429)
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     client.offer("presence.publish", {"activity": "file_edit"})
 
     err = capsys.readouterr().err
     assert transport.THROTTLE_NOTICE in err
-    # One notice for one lost frame — and nothing when the retry succeeded.
     assert err.count(transport.THROTTLE_NOTICE) == 1
 
-    team_kitty_double.configure(status=200, status_sequence=[429])
+    team_kitty_double.configure(status=200)
     client = transport.ZeitgeistClient(_config(team_kitty_double.url))
     client.offer("presence.publish", {"activity": "file_edit"})
     assert capsys.readouterr().err.count(transport.THROTTLE_NOTICE) == 0
-
-
-def test_throttle_backoff_sleeps_when_not_stubbed(team_kitty_double):
-    """The unstubbed `_pause`: with Retry-After: 1 the offer really waits out
-    the parsed interval (wall-clock lower bound only — a slow box can only
-    make it longer)."""
-    team_kitty_double.configure(status=429, headers={"Retry-After": "1"})
-    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    start = time.monotonic()
-    result = client.offer("presence.publish", {"activity": "file_edit"})
-    wall = time.monotonic() - start
-
-    assert result.outcome == transport.OfferOutcome.THROTTLED
-    assert wall >= 0.9
-
-
-def test_retry_after_header_is_matched_case_insensitively(
-    team_kitty_double, stubbed_pause
-):
-    """`_post` snapshots the response headers into a plain dict, dropping
-    `http.client`'s case folding — a relay/proxy that sends (or rewrites to)
-    `retry-after:` must not cost the frame its honoured backoff."""
-    team_kitty_double.configure(status=429, headers={"retry-after": "1"})
-    client = transport.ZeitgeistClient(_config(team_kitty_double.url))
-    result = client.offer("presence.publish", {"activity": "file_edit"})
-
-    assert result.outcome == transport.OfferOutcome.THROTTLED
-    assert stubbed_pause == [1.0]

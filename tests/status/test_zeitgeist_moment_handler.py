@@ -628,8 +628,8 @@ def test_throttled_outcome_is_recorded_at_debug_without_a_second_warning(
     resolved_credential: list[Path],
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """#180: a still-throttled moment is lost loudly, not silently — the
-    client prints the one-line stderr notice itself (proven against the real
+    """#180: a throttled moment is lost loudly, not silently — the client
+    prints the one-line stderr notice itself (proven against the real
     ``offer()`` in ``tests/zeitgeist_client/test_transport.py``), so this
     bridge records only the structured detail, at debug level, instead of
     logging the loss a second time (the other drop outcomes keep their
@@ -643,4 +643,4 @@ def test_throttled_outcome_is_recorded_at_debug_without_a_second_warning(
     # Nothing at warning level or above — the loss was already noticed on
     # stderr by the client; only the structured debug record remains.
     assert [r for r in caplog.records if r.levelno >= logging.WARNING] == []
-    assert any("throttled after its retry" in r.getMessage() for r in caplog.records)
+    assert any("throttled" in r.getMessage() for r in caplog.records)
