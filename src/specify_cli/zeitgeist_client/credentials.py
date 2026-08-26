@@ -71,7 +71,10 @@ minted for. This module stores and returns them verbatim; revalidating a
 cache hit against the checkout it is about to be used for is
 ``resolution.py``'s job (:func:`resolution._same_scope`), not this
 storage primitive's. Both round-trip as ``None`` for every entry stored
-before this fix, same as ``expires_at``.
+before this fix, same as ``expires_at``. And since spec-kitty#129,
+``resolution.resolve_credentials`` derives its key from that same pair
+(:func:`resolution.store_key`, ``host/owner/repo``) instead of the bare
+name, so same-named repos no longer share an entry at all.
 """
 
 from __future__ import annotations
