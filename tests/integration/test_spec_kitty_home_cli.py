@@ -28,7 +28,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.auth.server_target import DEFAULT_SERVER_URL, resolve_server_target
+from specify_cli.auth.errors import ConfigurationError
+from specify_cli.auth.server_target import resolve_server_target
 
 pytestmark = pytest.mark.integration
 
@@ -104,13 +105,13 @@ def test_unset_spec_kitty_home_preserves_posix_default(
     sys.platform.startswith("win"),
     reason="POSIX-only default-home fallback (~/.spec-kitty) assertions.",
 )
-def test_absent_config_falls_back_to_default_server_url(
+def test_absent_config_fails_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """No ``config.toml`` anywhere ⇒ resolution falls through to the default.
+    """No ``config.toml`` anywhere and no env value ⇒ resolution fails closed.
 
-    Guards the SC-002 corollary: an unconfigured machine neither reads the
-    default home nor invents a target beyond ``DEFAULT_SERVER_URL``.
+    Guards the SC-002 corollary (#179): an unconfigured machine neither reads
+    the default home nor invents a target — there is no fallback host.
     """
     default_home = tmp_path / "empty-home"
     isolated_root = tmp_path / "empty-root"
@@ -119,11 +120,10 @@ def test_absent_config_falls_back_to_default_server_url(
 
     monkeypatch.setenv("HOME", str(default_home))
     monkeypatch.setenv("SPEC_KITTY_HOME", str(isolated_root))
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
 
     assert not (default_home / ".spec-kitty" / "config.toml").exists()
     assert not (isolated_root / "config.toml").exists()
 
-    resolved = resolve_server_target()
-
-    assert resolved.configured_server_url is None
-    assert resolved.resolved_server_url == DEFAULT_SERVER_URL
+    with pytest.raises(ConfigurationError):
+        resolve_server_target()

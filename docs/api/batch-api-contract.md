@@ -129,7 +129,7 @@ username = "user@example.com"
 team_slug = "my-team"
 
 [server]
-url = "https://spec-kitty-dev.fly.dev"
+url = "https://team.spec-kitty.ai"
 ```
 
 A file lock (`~/.spec-kitty/credentials.lock`) prevents concurrent access.

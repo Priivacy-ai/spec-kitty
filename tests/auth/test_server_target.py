@@ -3,8 +3,9 @@
 Re-homed and slimmed down from the deleted ``tests/sync/test_target_authority.py``
 (``specify_cli.sync.target_authority``) to match the surviving surface at
 ``specify_cli.auth.server_target``: no queue scope, no user/team identity, no
-network. What remains is the precedence contract (env over config over
-:data:`DEFAULT_SERVER_URL`) and the fail-closed split-brain guard.
+network. What remains is the precedence contract (env over config), the
+fail-closed guard when *neither* source names a target (#179 — the resolver
+never guesses a tenant), and the fail-closed split-brain guard.
 """
 
 from __future__ import annotations
@@ -14,8 +15,8 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.auth.errors import ConfigurationError
 from specify_cli.auth.server_target import (
-    DEFAULT_SERVER_URL,
     SAAS_URL_ENV_VAR,
     OverrideMode,
     ResolvedServerTarget,
@@ -76,27 +77,65 @@ def test_to_diagnostics_dict_is_json_safe_with_all_keys(target_root: Path) -> No
     json.dumps(diag)  # must round-trip through JSON
 
 
-def test_neither_config_nor_env_falls_back_to_default(target_root: Path) -> None:
-    target = resolve_server_target()
+def test_neither_config_nor_env_fails_closed(target_root: Path) -> None:
+    """#179: no env value and no config value is an error, not a stale default."""
+    with pytest.raises(ConfigurationError) as excinfo:
+        resolve_server_target()
 
-    assert target.configured_server_url is None
-    assert target.env_server_url is None
-    assert target.override_mode is OverrideMode.NONE
-    assert target.resolved_server_url == DEFAULT_SERVER_URL
+    message = str(excinfo.value)
+    assert SAAS_URL_ENV_VAR in message
+    assert "[sync].server_url" in message
 
 
-def test_corrupt_config_toml_is_treated_as_no_configured_url(target_root: Path) -> None:
+def test_corrupt_config_toml_with_no_env_fails_closed(target_root: Path) -> None:
     (target_root / "config.toml").write_text("this is = = not valid toml", encoding="utf-8")
+    with pytest.raises(ConfigurationError):
+        resolve_server_target()
+
+
+def test_corrupt_config_toml_is_treated_as_no_configured_url(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (target_root / "config.toml").write_text("this is = = not valid toml", encoding="utf-8")
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, ENV_URL)
     target = resolve_server_target()
     assert target.configured_server_url is None
-    assert target.resolved_server_url == DEFAULT_SERVER_URL
+    assert target.resolved_server_url == ENV_URL
 
 
-def test_non_table_sync_key_is_treated_as_no_configured_url(target_root: Path) -> None:
+def test_non_table_sync_key_with_no_env_fails_closed(target_root: Path) -> None:
     (target_root / "config.toml").write_text('sync = "oops"\n', encoding="utf-8")
+    with pytest.raises(ConfigurationError):
+        resolve_server_target()
+
+
+def test_blank_config_server_url_is_no_opinion_and_fails_closed(target_root: Path) -> None:
+    """A blank ``server_url`` is no opinion (#179): with no env value the
+    resolver fails closed instead of resolving to an empty target."""
+    (target_root / "config.toml").write_text('[sync]\nserver_url = "  "\n', encoding="utf-8")
+    with pytest.raises(ConfigurationError):
+        resolve_server_target()
+
+
+def test_blank_config_server_url_defers_to_env(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (target_root / "config.toml").write_text('[sync]\nserver_url = ""\n', encoding="utf-8")
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, ENV_URL)
     target = resolve_server_target()
     assert target.configured_server_url is None
-    assert target.resolved_server_url == DEFAULT_SERVER_URL
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+    assert target.resolved_server_url == ENV_URL
+
+
+def test_non_table_sync_key_is_treated_as_no_configured_url(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (target_root / "config.toml").write_text('sync = "oops"\n', encoding="utf-8")
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, ENV_URL)
+    target = resolve_server_target()
+    assert target.configured_server_url is None
+    assert target.resolved_server_url == ENV_URL
 
 
 def test_resolved_target_is_immutable(target_root: Path) -> None:
@@ -121,14 +160,15 @@ def test_env_equals_config_is_not_an_override(
     assert target.resolved_server_url == CONFIG_URL
 
 
-def test_missing_config_with_matching_env_is_not_override(
+def test_missing_config_with_env_resolves_to_normalized_env_url(
     target_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv(SAAS_URL_ENV_VAR, DEFAULT_SERVER_URL)
+    """A missing config key is no opinion, not a candidate target (#179)."""
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, ENV_URL + "/")
     target = resolve_server_target()
     assert target.configured_server_url is None
-    assert target.override_mode is OverrideMode.NONE
-    assert target.resolved_server_url == DEFAULT_SERVER_URL
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+    assert target.resolved_server_url == ENV_URL
 
 
 def test_missing_config_with_differing_env_is_process_override(
@@ -189,3 +229,15 @@ def test_no_env_never_raises_even_with_process_wide_override_false(target_root: 
     target = resolve_server_target(process_wide_override=False)
     assert target.override_mode is OverrideMode.NONE
     assert target.resolved_server_url == CONFIG_URL
+
+
+def test_env_only_machine_resolves_cleanly_even_setup_only(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#179 follow-on: with no configured value there is nothing to disagree
+    with, so an env-only machine is not a split brain in a setup context."""
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, ENV_URL)
+    target = resolve_server_target(process_wide_override=False)
+    assert target.configured_server_url is None
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+    assert target.resolved_server_url == ENV_URL

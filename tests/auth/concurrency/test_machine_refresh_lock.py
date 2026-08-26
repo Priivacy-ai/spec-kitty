@@ -197,7 +197,7 @@ async def test_concurrent_refresh_one_network_call(
     in-memory copy and is non-expired, and adopts it without a
     network call.
     """
-    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://spec-kitty-dev.fly.dev")
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://team.spec-kitty.ai")
 
     # Seed the encrypted store with an expired session.
     storage = FileFallbackStorage(base_dir=auth_store_root)

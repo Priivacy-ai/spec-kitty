@@ -34,7 +34,6 @@ from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
 from specify_cli.auth.server_target import (
-    DEFAULT_SERVER_URL,
     OverrideMode,
     ResolvedServerTarget,
 )
@@ -443,7 +442,10 @@ def _target(
     env_server_url: str | None,
     configured_server_url: str | None,
 ) -> ResolvedServerTarget:
-    resolved = env_server_url or configured_server_url or DEFAULT_SERVER_URL
+    # Hand-built target for the pure formatters. Since #179 real resolution
+    # cannot produce both-None, so the placeholder only matters to tests that
+    # exercise those defensive branches directly.
+    resolved = env_server_url or configured_server_url or "https://handbuilt.test"
     return ResolvedServerTarget(
         configured_server_url=configured_server_url,
         env_server_url=env_server_url,
@@ -570,10 +572,14 @@ class TestAuthStatusSaasLine:
         user_at = result.stdout.index("User:")
         assert saas_at < user_at
 
-    def test_status_prints_default_provenance_when_unconfigured(
+    def test_status_reports_not_configured_when_unconfigured(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path
     ):
-        """No env var and no config.toml -> the documented default + ``(default)``."""
+        """No env var and no config.toml -> a not-configured line naming the remedy (#179).
+
+        There is no default endpoint anymore: the resolver fails closed, and the
+        status block degrades to the remedy instead of naming a stale host.
+        """
         session = _make_session(issuer_url="https://saas.test")
         mock_storage = _mock_storage_returning(session, backend="file")
         with patch(
@@ -586,8 +592,13 @@ class TestAuthStatusSaasLine:
             result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 0, result.stdout
-        assert DEFAULT_SERVER_URL in _flat(result.stdout)
-        assert "(default)" in _flat(result.stdout)
+        flat = _flat(result.stdout)
+        assert "not configured" in flat
+        assert "SPEC_KITTY_SAAS_URL" in flat
+        assert "SaaS:" in flat
+        # #182: unescaped, Rich markup parses "[sync]" as a style tag and
+        # silently drops it from the remedy.
+        assert "[sync].server_url" in flat
 
     def test_mismatch_warning_fires_when_issuer_differs(self):
         """Hostname moved: stored session is for the old host, env points elsewhere."""

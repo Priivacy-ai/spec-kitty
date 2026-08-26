@@ -31,10 +31,12 @@ as a failure to shells / scripts.
 from __future__ import annotations
 
 from kernel.clock import UTC, datetime, now_utc
+from rich.markup import escape
 
 from specify_cli.cli.console import console
 
 from specify_cli.auth import get_token_manager
+from specify_cli.auth.errors import ConfigurationError
 from specify_cli.auth.server_target import (
     SAAS_URL_ENV_VAR,
     ResolvedServerTarget,
@@ -112,9 +114,21 @@ def _print_saas_target(session: StoredSession) -> None:
 
     The URL is the *same* resolved target ``auth login`` prints
     (:func:`specify_cli.auth.server_target.resolve_server_target`), so the two
-    commands can never name different endpoints.
+    commands can never name different endpoints. Since #179 that resolver
+    fails closed when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml``
+    names a server — there is no default endpoint to fall back to — so this
+    reports "not configured" (with the remedy) instead of a URL.
     """
-    target = resolve_server_target()
+    try:
+        target = resolve_server_target()
+    except ConfigurationError:
+        # escape(): the remedy names `[sync].server_url` — unescaped, Rich
+        # markup parses "[sync]" as a style tag and silently drops it (#182).
+        remedy = escape(
+            f"— set {SAAS_URL_ENV_VAR} (or [sync].server_url in config.toml)"
+        )
+        console.print(f"  SaaS:           not configured [dim]{remedy}[/dim]")
+        return
     console.print(
         f"  SaaS:           {target.resolved_server_url} "
         f"[dim]{format_saas_provenance(target)}[/dim]"

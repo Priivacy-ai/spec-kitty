@@ -195,6 +195,9 @@ class TestAuthLoginConfigErrors:
         assert result.exit_code != 0
         assert "No hosted server is configured" in result.stdout
         assert "SPEC_KITTY_SAAS_URL" in result.stdout
+        # #182: unescaped, Rich markup parses "[sync]" as a style tag and
+        # silently drops it from the remedy.
+        assert "[sync].server_url" in result.stdout
 
     def test_missing_env_uses_configured_sync_server_url(self, monkeypatch, tmp_path):
         # #3406 FR-005: the actual bug. When the env var is unset but the user

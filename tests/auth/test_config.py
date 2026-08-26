@@ -31,7 +31,8 @@ def test_get_saas_base_url_raises_when_unset(monkeypatch):
         get_saas_base_url()
     message = str(excinfo.value)
     assert "SPEC_KITTY_SAAS_URL" in message
-    assert "https://app.spec-kitty.ai) and try again." in message
+    # #179: the example names a host that actually exists (Team Kitty).
+    assert "https://team.spec-kitty.ai) and try again." in message
 
 
 def test_get_saas_base_url_raises_when_empty(monkeypatch):
