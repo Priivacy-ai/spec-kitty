@@ -71,8 +71,14 @@ def _session() -> StoredSession:
         email="robert@example.com",
         name="Robert",
         teams=[
-            Team(id="private-team", name="Robert Private Teamspace", role="owner", is_private_teamspace=True),
-            Team(id="product-team", name="Product Team", role="member"),
+            Team(
+                id="private-team",
+                name="Robert Private Teamspace",
+                role="owner",
+                is_private_teamspace=True,
+                slug="private-team",
+            ),
+            Team(id="product-team", name="Product Team", role="member", slug="product-team"),
         ],
         default_team_id="private-team",
         access_token="access",
@@ -176,6 +182,108 @@ def test_share_command_retries_after_materializing_private_source(monkeypatch: p
     mock_materialize.assert_called_once_with()
     assert "Share request recorded" in result.stdout
     assert "Waiting for a team admin" in result.stdout
+
+
+def _share_routing() -> object:
+    return type(
+        "Routing",
+        (),
+        {
+            "repo_root": None,
+            "repo_slug": "acme/spec-kitty",
+            "project_uuid": "11111111-1111-1111-1111-111111111111",
+            "project_slug": "spec-kitty-local",
+            "build_id": "build-123",
+            "effective_sync_enabled": True,
+        },
+    )()
+
+
+def test_share_command_accepts_team_name_and_resolves_slug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3731: a user may pass the team *name* the CLI displays; it resolves to the slug."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing(),
+    )
+
+    captured: dict[str, object] = {}
+
+    def _request_share(**kwargs: object) -> dict[str, object]:
+        captured.update(kwargs)
+        return {"share": {"state": "shared"}, "auto_approved": False}
+
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.request_repository_share_sync",
+        _request_share,
+    )
+
+    result = runner.invoke(sync_module.app, ["share", "Product Team"])
+
+    assert result.exit_code == 0, result.stdout
+    # The display name resolved to the canonical slug before the server call.
+    assert captured["destination_team_slug"] == "product-team"
+    assert "product-team" in result.stdout
+
+
+def test_share_command_unresolved_name_lists_shareable_and_exits(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3731: an unknown handle fails closed, listing shareable teams, without calling the server."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing(),
+    )
+
+    request_share = Mock()
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.request_repository_share_sync",
+        request_share,
+    )
+
+    result = runner.invoke(sync_module.app, ["share", "no-such-team"])
+
+    assert result.exit_code == 1
+    request_share.assert_not_called()
+    assert "Unknown team 'no-such-team'" in result.stdout
+    # The shareable team's slug is offered as recovery; the private one is not.
+    assert "product-team" in result.stdout
+    assert "private-team" not in result.stdout
+
+
+def test_share_command_private_teamspace_is_not_shareable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#3731: targeting the Private Teamspace fails closed locally, not at the server."""
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: _share_routing(),
+    )
+
+    request_share = Mock()
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.request_repository_share_sync",
+        request_share,
+    )
+
+    result = runner.invoke(sync_module.app, ["share", "private-team"])
+
+    assert result.exit_code == 1
+    request_share.assert_not_called()
+    assert "private teamspace" in result.stdout
 
 
 def test_share_command_requires_persisted_project_uuid(monkeypatch: pytest.MonkeyPatch) -> None:

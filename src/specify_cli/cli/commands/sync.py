@@ -53,6 +53,10 @@ from specify_cli.core.vcs import (
 from specify_cli.sync.queue import QueueStats
 from specify_cli.sync.http_status import GATEWAY_STATUSES
 from specify_cli.auth.config import EXAMPLE_HOSTED_SAAS_URL
+from specify_cli.auth.session import (
+    TeamSlugResolutionError,
+    resolve_team_slug,
+)
 from specify_cli.core.saas_sync_config import saas_sync_opt_in_recorded_message
 from kernel.clock import now_utc_iso
 from specify_cli.sync.feature_flags import (
@@ -1084,9 +1088,41 @@ def routes() -> None:
     console.print()
 
 
+def _report_team_resolution_error(exc: TeamSlugResolutionError) -> None:
+    """Print an actionable recovery message for an unresolved ``sync share`` team.
+
+    Fail-closed rendering for :class:`TeamSlugResolutionError`: the user is told
+    why the handle did not resolve and shown the exact slugs they can share into
+    (``spec-kitty auth status`` displays the same slugs).
+    """
+    if exc.reason == "not_shareable":
+        console.print(
+            f"[red]Error:[/red] Team '{exc.token}' is a private teamspace and "
+            "cannot be a share destination."
+        )
+    elif exc.reason == "ambiguous":
+        console.print(
+            f"[red]Error:[/red] Team name '{exc.token}' is ambiguous. "
+            "Pass the team slug instead."
+        )
+    else:
+        console.print(f"[red]Error:[/red] Unknown team '{exc.token}'.")
+
+    if exc.shareable:
+        console.print("  Shareable teams:")
+        for team in exc.shareable:
+            console.print(f"    - {team.name} [dim]slug: {team.slug}[/dim]")
+    else:
+        console.print("  No shareable teams are available for this account.")
+
+
 @app.command()
 def share(
-    team_slug: str = typer.Argument(..., help="Team slug to share this repository into."),
+    team_slug: str = typer.Argument(
+        ...,
+        help="Team name or slug to share this repository into "
+        "(see `spec-kitty auth status`).",
+    ),
 ) -> None:
     """Share the current repository from Private Teamspace into a team."""
     from specify_cli.sync.sharing_client import RepositorySharingClientError
@@ -1103,7 +1139,13 @@ def share(
     )
 
     routing = _require_active_checkout()
-    _require_authenticated_session(command_name="sync share")
+    session = _require_authenticated_session(command_name="sync share")
+
+    try:
+        destination_slug = resolve_team_slug(session.teams, team_slug)
+    except TeamSlugResolutionError as exc:
+        _report_team_resolution_error(exc)
+        raise typer.Exit(1) from exc
 
     if routing.project_uuid is None:
         console.print("[red]Error:[/red] Current checkout has no project UUID. Run `spec-kitty init` first.")
@@ -1120,7 +1162,7 @@ def share(
         try:
             response = request_repository_share(
                 source_project_uuid=routing.project_uuid,
-                destination_team_slug=team_slug,
+                destination_team_slug=destination_slug,
             )
         except RepositorySharingClientError as exc:
             if exc.status_code == 404:
@@ -1135,7 +1177,7 @@ def share(
                 try:
                     response = request_repository_share(
                         source_project_uuid=routing.project_uuid,
-                        destination_team_slug=team_slug,
+                        destination_team_slug=destination_slug,
                     )
                 except RepositorySharingClientError as retry_exc:
                     console.print(
@@ -1149,10 +1191,11 @@ def share(
 
         share_data = response.get("share") or {}
         share_state = share_data.get("state", "unknown")
+        repo_label = routing.repo_slug or routing.project_slug or routing.project_uuid
         if share_state == "shared":
-            console.print(f"[green]✓[/green] Shared [cyan]{routing.repo_slug or routing.project_slug or routing.project_uuid}[/cyan] to [cyan]{team_slug}[/cyan].")
+            console.print(f"[green]✓[/green] Shared [cyan]{repo_label}[/cyan] to [cyan]{destination_slug}[/cyan].")
         else:
-            console.print(f"[yellow]✓[/yellow] Share request recorded for [cyan]{team_slug}[/cyan].")
+            console.print(f"[yellow]✓[/yellow] Share request recorded for [cyan]{destination_slug}[/cyan].")
 
         if response.get("auto_approved"):
             console.print("[dim]Team policy auto-approved the repository share.[/dim]")

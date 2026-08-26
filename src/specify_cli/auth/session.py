@@ -36,23 +36,57 @@ class Team:
     """A team/tenant the authenticated user belongs to.
 
     Populated from the SaaS ``/api/v1/me`` response's ``teams`` array.
+
+    ``slug`` is the canonical handle ``spec-kitty sync share`` requires. The
+    server publishes it required in ``CliAuthTeamMembership`` (saas#986); ``id``
+    has always carried the same value and remains a compatibility alias, so
+    ``from_dict`` falls back to ``id`` when ``slug`` is absent (legacy cached
+    sessions written before the field was surfaced). The default keeps the
+    frozen dataclass constructible without ``slug`` at existing call sites.
     """
 
     id: str
     name: str
     role: str  # "admin" | "member" | "owner" | ...
     is_private_teamspace: bool = False
+    slug: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> Team:
+        # Fall back to ``id`` only when ``slug`` is genuinely absent (a legacy
+        # session stored before the field existed). A present value — including
+        # an explicit empty string round-tripped from ``to_dict`` — is kept as
+        # is, so ``Team.from_dict(t.to_dict()) == t`` holds for every ``Team``.
+        slug_raw = data.get("slug")
         return cls(
             id=data["id"],
             name=data["name"],
             role=data["role"],
             is_private_teamspace=bool(data.get("is_private_teamspace", False)),
+            slug=str(slug_raw) if slug_raw is not None else str(data["id"]),
+        )
+
+
+class TeamSlugResolutionError(Exception):
+    """A user-supplied team name-or-slug could not be resolved to one shareable slug.
+
+    Fail-closed: :func:`resolve_team_slug` never silently picks a team. The
+    ``reason`` distinguishes an unknown handle, an ambiguous name matching more
+    than one team, and a handle that resolves to a non-shareable destination
+    (the Private Teamspace, which the server refuses). ``shareable`` carries the
+    teams a repository *can* be shared into so the command layer can render an
+    actionable recovery list without re-deriving it.
+    """
+
+    def __init__(self, token: str, reason: str, shareable: list[Team]) -> None:
+        self.token = token
+        self.reason = reason  # "unknown" | "ambiguous" | "not_shareable"
+        self.shareable = shareable
+        super().__init__(
+            f"Could not resolve team '{token}' to a shareable slug ({reason})."
         )
 
 
@@ -96,6 +130,58 @@ def require_private_team_id(session: StoredSession) -> str | None:
     a session whose ``teams`` list is stale.
     """
     return get_private_team_id(session.teams)
+
+
+def shareable_teams(teams: list[Team]) -> list[Team]:
+    """Return the teams a repository can be shared into.
+
+    The Private Teamspace is excluded: the server refuses it as a sharing
+    destination (``apps/sync/sharing.py``), so the CLI pre-filters it here to
+    give the user a local, actionable list rather than a server 4xx.
+    """
+    return [team for team in teams if not team.is_private_teamspace]
+
+
+def resolve_team_slug(teams: list[Team], name_or_slug: str) -> str:
+    """Resolve a user-supplied team name-or-slug to its canonical shareable slug.
+
+    Matching order (all against shareable teams only): exact slug, then exact
+    name, then case-insensitive name. Fail-closed — raises
+    :class:`TeamSlugResolutionError` rather than silently picking a team when:
+
+    - the handle matches nothing (``reason="unknown"``);
+    - a name matches more than one distinct shareable team (``"ambiguous"``);
+    - the handle matches a non-shareable team, e.g. the Private Teamspace
+      (``"not_shareable"``).
+
+    This mirrors the no-silent-fallback discipline of ``require_private_team_id``:
+    a wrong-team share is worse than a clear error.
+    """
+    token = name_or_slug.strip()
+    candidates = shareable_teams(teams)
+
+    for team in candidates:
+        if team.slug == token:
+            return team.slug
+
+    exact_name = [team for team in candidates if team.name == token]
+    ci_name = [
+        team for team in candidates if team.name.casefold() == token.casefold()
+    ]
+    matched = exact_name or ci_name
+    distinct_slugs = {team.slug for team in matched}
+    if len(distinct_slugs) == 1:
+        return matched[0].slug
+    if len(distinct_slugs) > 1:
+        raise TeamSlugResolutionError(token, "ambiguous", candidates)
+
+    for team in teams:
+        if team.is_private_teamspace and (
+            team.slug == token or team.name.casefold() == token.casefold()
+        ):
+            raise TeamSlugResolutionError(token, "not_shareable", candidates)
+
+    raise TeamSlugResolutionError(token, "unknown", candidates)
 
 
 @dataclass

@@ -336,6 +336,40 @@ class TestAuthStatusCommand:
         assert "at_xyz_ignore" not in result.stdout
         assert "rt_xyz_ignore" not in result.stdout
 
+    def test_authenticated_path_shows_slug_and_marks_private_not_shareable(self):
+        """#3731: each team prints its slug; the private teamspace is not shareable."""
+        session = _make_session(
+            teams=[
+                Team(
+                    id="tm_acme",
+                    name="Acme Corp",
+                    role="admin",
+                    is_private_teamspace=True,
+                    slug="acme-private",
+                ),
+                Team(
+                    id="tm_widgets",
+                    name="Widgets Inc",
+                    role="member",
+                    slug="widgets-inc",
+                ),
+            ],
+        )
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        # The slug the user must feed to `sync share` is now visible.
+        assert "slug: acme-private" in result.stdout
+        assert "slug: widgets-inc" in result.stdout
+        # The private teamspace is flagged as an invalid share destination.
+        assert "not shareable" in result.stdout
+
     def test_authenticated_path_minutes_branch(self):
         """Access token with 600s remaining must render minutes, not hours."""
         session = _make_session(
