@@ -434,9 +434,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "DEFAULT_TIMEOUT_S", "06ad6f73f97f6fa8fb8842f61fea9ff0bc7e8c5a6aa3cd65369ee5f09f605e76", source_module="specify_cli.core.upgrade_probe"
         ),  # specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S
         SymbolKey(
-            "PYPI_JSON_URL", "34521508629be2d77f48e49b4908e2e7e8baedeb8eab95ac9005b0b66ace1b36", source_module="specify_cli.core.upgrade_probe"
-        ),  # specify_cli.core.upgrade_probe::PYPI_JSON_URL
-        SymbolKey(
             "FeatureTopology", "7eb983a309007bf528c914ade5ecf049191c487a1de7457dcc663f0b6fbad30e", source_module="specify_cli.core.worktree_topology"
         ),  # specify_cli.core.worktree_topology::FeatureTopology
         SymbolKey(
