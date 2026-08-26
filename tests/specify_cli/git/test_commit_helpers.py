@@ -172,9 +172,12 @@ def test_safe_commit_protected_branch(tmp_path: Path) -> None:
     assert err.worktree_root == repo
     assert err.commit_message == "WP01: add alpha"
     message = str(err)
+    # safe_commit has no MissionArtifactKind to branch on, so it states the
+    # decision rule (tasks/ exists vs not) instead of a single command --
+    # both remedies must be copy-pasteable (#255 fix-round-2).
     assert "spec-kitty agent mission finalize-tasks --mission <mission_slug> --target-branch <feature-branch>" in message
+    assert "spec-kitty agent mission create <mission_slug> --start-branch <feature-branch>" in message
     assert "spec-kitty mission create --start-branch" not in message
-    assert "agent mission create" not in message
 
 
 def test_safe_commit_allows_op_record_on_protected_branch_with_capability(tmp_path: Path) -> None:
