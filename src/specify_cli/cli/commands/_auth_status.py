@@ -31,6 +31,7 @@ as a failure to shells / scripts.
 from __future__ import annotations
 
 from kernel.clock import UTC, datetime, now_utc
+from rich.markup import escape
 
 from specify_cli.cli.console import console
 
@@ -121,10 +122,12 @@ def _print_saas_target(session: StoredSession) -> None:
     try:
         target = resolve_server_target()
     except ConfigurationError:
-        console.print(
-            f"  SaaS:           not configured [dim]— set {SAAS_URL_ENV_VAR} "
-            "(or [sync].server_url in config.toml)[/dim]"
+        # escape(): the remedy names `[sync].server_url` — unescaped, Rich
+        # markup parses "[sync]" as a style tag and silently drops it (#182).
+        remedy = escape(
+            f"— set {SAAS_URL_ENV_VAR} (or [sync].server_url in config.toml)"
         )
+        console.print(f"  SaaS:           not configured [dim]{remedy}[/dim]")
         return
     console.print(
         f"  SaaS:           {target.resolved_server_url} "

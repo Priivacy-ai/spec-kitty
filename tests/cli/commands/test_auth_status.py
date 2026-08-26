@@ -596,6 +596,9 @@ class TestAuthStatusSaasLine:
         assert "not configured" in flat
         assert "SPEC_KITTY_SAAS_URL" in flat
         assert "SaaS:" in flat
+        # #182: unescaped, Rich markup parses "[sync]" as a style tag and
+        # silently drops it from the remedy.
+        assert "[sync].server_url" in flat
 
     def test_mismatch_warning_fires_when_issuer_differs(self):
         """Hostname moved: stored session is for the old host, env points elsewhere."""

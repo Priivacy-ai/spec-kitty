@@ -27,6 +27,7 @@ import logging
 from typing import TYPE_CHECKING, cast
 
 import typer
+from rich.markup import escape
 from specify_cli.cli.console import console
 
 from specify_cli.auth import (
@@ -69,7 +70,9 @@ async def login_impl(*, headless: bool, force: bool) -> None:
     try:
         target = resolve_server_target()
     except ConfigurationError as exc:
-        console.print(f"[red]X {exc}[/red]")
+        # escape(): the remedy names `[sync].server_url` — unescaped, Rich
+        # markup parses "[sync]" as a style tag and silently drops it (#182).
+        console.print(f"[red]X {escape(str(exc))}[/red]")
         raise typer.Exit(1) from None
     saas_url = target.resolved_server_url
 
