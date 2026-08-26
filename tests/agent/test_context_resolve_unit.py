@@ -220,3 +220,55 @@ def test_context_resolve_rejects_invalid_action(tmp_path: Path, monkeypatch) -> 
     payload = json.loads(result.stdout)
     assert payload["success"] is False
     assert payload["error_code"] == "INVALID_ACTION"
+
+
+def test_context_resolve_json_envelope_on_unresolvable_mission(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """An unresolvable ``--mission`` handle must still emit the ``--json``
+    envelope on stdout with empty stderr (FR-003/FR-004, #160): the failure
+    flows through ``resolve_context``'s own ``ActionContextError`` handler,
+    not ``resolve_mission_handle``'s stderr + ``sys.exit(2)``."""
+    repo_root = tmp_path
+    (repo_root / ".kittify").mkdir()
+    _make_feature(repo_root, "021-context-test")
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    result = CliRunner().invoke(
+        context.app,
+        ["--action", "tasks", "--mission", "nonexistent-mission", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["success"] is False
+    assert payload["error_code"] == "mission_not_found"
+
+
+def test_context_resolve_json_envelope_on_ambiguous_mission(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """An ambiguous ``--mission`` handle (matching more than one mission by
+    human slug) must also emit the ``--json`` envelope on stdout with empty
+    stderr, not ``resolve_mission_handle``'s stderr + ``sys.exit(2)``."""
+    repo_root = tmp_path
+    (repo_root / ".kittify").mkdir()
+    _make_feature(repo_root, "020-charter")
+    _make_feature(repo_root, "030-charter")
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
+    monkeypatch.chdir(repo_root)
+
+    result = CliRunner().invoke(
+        context.app,
+        ["--action", "tasks", "--mission", "charter", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["success"] is False
+    assert payload["error_code"] == "ambiguous_mission_handle"
