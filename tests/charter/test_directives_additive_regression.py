@@ -7,9 +7,11 @@ one local declaration. ``_resolve_directives_selection`` must instead **union**
 project-local declarations onto the resolved base set, announce the merge with a
 diagnostic, and carry ``"…+project_local"`` provenance.
 
-RED-FIRST: against the pre-fix replace behaviour these assertions fail because
-``result.directives == ["LOCAL_QA_PROBE"]`` and ``directives_source ==
-"catalog_fallback"`` (no additive union, no merge diagnostic).
+The defect is fixed (this PR). These assertions were red-first against the
+pre-fix replace behaviour — ``result.directives == ["LOCAL_QA_PROBE"]`` and
+``directives_source == "catalog_fallback"`` (no additive union, no merge
+diagnostic) — and now stand as a permanent guard against the silent-replace
+regression recurring. The #3728 reference is retained as history.
 """
 
 from pathlib import Path
@@ -20,7 +22,7 @@ import pytest
 from charter.resolver import resolve_project_governance
 from tests.charter.test_resolver import _write_charter_files
 
-pytestmark = pytest.mark.regression
+pytestmark = [pytest.mark.fast, pytest.mark.unit]
 
 _CATALOG = SimpleNamespace(
     paradigms=frozenset(),
