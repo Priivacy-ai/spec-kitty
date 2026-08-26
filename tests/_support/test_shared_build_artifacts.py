@@ -283,7 +283,7 @@ def test_ensure_retries_a_transient_clone_failure(
     monkeypatch.setattr("tests._support.shared_build_artifacts.time.sleep", sleeps.append)
     snapshot = ensure_run_stable_source_snapshot(run_root, source_root=source, build=_flaky)
     assert _git(snapshot, "rev-parse", "HEAD") == sha
-    assert len(attempts) == 2
+    assert len(attempts) == 2  # golden-count: cardinality-is-contract — one failure, one retry
     assert sleeps == [2.0]
     assert not list(run_root.glob(f"{_SNAPSHOT_DIR_NAME}.staging-*"))
 
@@ -303,7 +303,7 @@ def test_ensure_surfaces_clone_failure_after_the_last_attempt(
     monkeypatch.setattr("tests._support.shared_build_artifacts.time.sleep", lambda _s: None)
     with pytest.raises(SharedBuildError, match="boom"):
         ensure_run_stable_source_snapshot(run_root, source_root=source, build=_broken)
-    assert len(attempts) == 3  # the snapshot's retry budget
+    assert len(attempts) == 3  # golden-count: cardinality-is-contract — the snapshot's retry budget
     assert not list(run_root.glob(f"{_SNAPSHOT_DIR_NAME}.staging-*"))
 
     # The failed run must not poison a later claim on the same run root.
