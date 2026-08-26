@@ -72,15 +72,25 @@ Reported-live honesty, not reconstruction:
   construction from ``f"{mission_slug}/{wp_id}"`` to
   ``f"{mission_slug}.{wp_id}"`` to match — this read side needs no change of
   its own, since REF_RE is a strict superset of what an ident-shaped value
-  needs) route through the SAME grammar, whose ref-kind bound #138 widened
-  to the relay's own (``managed_live.schema.json`` ``EventSample.ref``:
-  240 chars; ``MAX_SEGMENTS["ref"]`` measured at 9) because this program's
-  real mission slugs ride these fields and 48 of kitty-specs/' 395 were
-  being rendered as ``unknown-<digest>``. Recorded consequence, not hidden:
-  the canonical prose fixture fits inside that real-slug envelope, so the
-  shape defense no longer binds at ref positions — they enforce charset +
-  length (+ grammar's ≥10-segment prose floor) only. This does not reopen
-  the ``branch`` decision below (post-widening, full ref-kind routing would
+  needs) route through the SAME grammar as #135's ``EventSample.ref``
+  reader. #138 widened that grammar's ref-kind bound to 240 chars /
+  ``MAX_SEGMENTS["ref"]`` 10 — but 240 is ``EventSample.ref``'s own bound
+  (``managed_live.schema.json``), not ``repo``'s (``FocusSample.repo``, 120)
+  or ``focus_ref``'s (``FocusSample.focus_ref``, 64): those narrower bounds
+  are the relay's own, enforced at write time (a POST that violates them
+  422s before the value is ever broadcast, ``transport.py``), so nothing
+  wider than 64/120 chars actually reaches this read side for those two
+  fields today — sharing one grammar across all three is a convenience,
+  not a claim that 240/10 is what ``repo``/``focus_ref`` themselves permit
+  (controller-qa, #138 fix round). The two real mission slugs that are
+  over 64 chars still cannot ride ``focus_ref`` at all once a ``.WP<nn>``
+  suffix is appended — that is the relay's own cap, not something this
+  client controls, and is filed as zeitgeist#38, not fixed here. Recorded
+  consequence of sharing the grammar, not hidden: the canonical prose
+  fixture fits inside the real-slug envelope, so the shape defense no
+  longer binds at ref positions — they enforce charset + length (+
+  grammar's ≥11-segment prose floor) only. This does not reopen the
+  ``branch`` decision below (post-widening, full ref-kind routing would
   pass the same fixture anyway); callers treat the rendered form as
   untrusted display text exactly like ``branch``/``path``, while the dict
   keys here stay charset-gated.

@@ -58,9 +58,13 @@ def test_ref_re_pattern_diverges_from_zeitgeist_editor_to_the_relay_bound():
 
 def test_max_segments_ident_matches_zeitgeist_editor_and_ref_is_measured():
     # "ident": zeitgeist/editor.py:170 _MAX_SEGMENTS (still byte parity).
-    # "ref": deliberately not upstream's 6 — 9 is the measured maximum
-    # segment count across kitty-specs/' 395 slugs (#138).
-    assert grammar.MAX_SEGMENTS == {"ident": 4, "ref": 9}
+    # "ref": deliberately not upstream's 6 — 9 is the measured maximum bare-
+    # slug segment count across kitty-specs/' 395 slugs (#138), but the
+    # bound is 10: transport.py's focus_ref = f"{mission_slug}.{wp_id}"
+    # appends a tenth segment, and that composed value is what actually
+    # crosses this grammar at focus_ref positions (controller-qa, #138 fix
+    # round).
+    assert grammar.MAX_SEGMENTS == {"ident": 4, "ref": 10}
 
 
 def test_ident_accepts_well_formed_identifier():
@@ -127,12 +131,22 @@ def test_ref_rejects_beyond_the_relay_schema_max_length():
     assert len(result) == len("unknown-") + 8
 
 
+def test_ref_accepts_a_composed_focus_ref_with_ten_segments():
+    """MAX_SEGMENTS["ref"] is 10, not the bare slug's measured 9:
+    transport.py builds focus_ref = f"{mission_slug}.{wp_id}", and the one
+    9-segment real slug (NINE_SEGMENT_REAL_SLUG) plus a WP id is a real,
+    ten-segment value that must still pass (controller-qa, #138 fix
+    round)."""
+    composed = f"{NINE_SEGMENT_REAL_SLUG}.WP01"
+    assert grammar.ident(composed, pattern=grammar.REF_RE) == composed
+
+
 def test_ref_still_rejects_prose_over_the_measured_segment_bound():
     """The widened bound keeps a prose floor: under the length cap and
-    charset-clean, but 10 segments is over MAX_SEGMENTS["ref"], 9."""
-    ten_segments = "-".join(["word"] * 10)
-    assert len(ten_segments) < 240
-    assert grammar.ident(ten_segments, pattern=grammar.REF_RE).startswith("unknown-")
+    charset-clean, but 11 segments is over MAX_SEGMENTS["ref"], 10."""
+    eleven_segments = "-".join(["word"] * 11)
+    assert len(eleven_segments) < 240
+    assert grammar.ident(eleven_segments, pattern=grammar.REF_RE).startswith("unknown-")
 
 
 def test_ref_kind_deliberately_passes_the_canonical_prose_fixture():
