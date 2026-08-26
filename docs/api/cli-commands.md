@@ -2632,6 +2632,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ backfill-identity          Write a ULID mission_id into any meta.json that   │
 │                            lacks one.                                        │
+│ backfill-mission-type      Backfill profile-resolving mission_type values    │
+│                            into legacy meta.json files.                      │
 │ backfill-topology          Persist each legacy mission's MissionTopology     │
 │                            into its meta.json.                               │
 │ charter-encoding           Scan charter content for non-UTF-8 encodings;     │
@@ -2646,6 +2648,26 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                            fail-closed, and flip status_phase.               │
 │ rebaseline-dossier-hashes  One-time re-baseline of recorded dossier snapshot │
 │                            hashes (FR-009, WP05).                            │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate backfill-mission-type
+
+```
+ Usage: spec-kitty migrate backfill-mission-type [OPTIONS]
+
+ Backfill profile-resolving mission_type values into legacy meta.json files.
+
+ Scans ``kitty-specs`` for missions that still carry only the deprecated
+ ``mission`` key and writes the canonical ``mission_type`` when a governance
+ profile resolves for that type. Existing ``mission_type`` values are never
+ overwritten.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --dry-run          Report what would change without writing files.           │
+│ --mission  TEXT    Scope to a single mission slug.                           │
+│ --json             Emit structured JSON results.                             │
+│ --help     -h      Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

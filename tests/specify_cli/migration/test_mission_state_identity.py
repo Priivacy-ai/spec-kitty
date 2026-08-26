@@ -34,12 +34,13 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.core.checkout_identity import FailClosedRefusal
 from specify_cli.migration.canonicalization import MigrationContext
 from specify_cli.migration.mission_state import (
     CheckoutDisagreement,
+    FailClosedRefusal,
     MissionStateWriteRefused,
     _rule_normalize_lanes,
+    _rule_strip_legacy_keys,
     audit_invocation_disagreement,
     enforce_primary_write_ownership,
     repair_repo,
@@ -187,29 +188,30 @@ def _normalized_row_with_extra_field() -> dict[str, object]:
         "force": False,
         "execution_mode": "worktree",
         # A field the closed allowlist drops — the manifest must say so.
-        "legacy_dropped_field": "value-that-gets-removed",
+        "legacy_aggregate_id": "value-that-gets-removed",
     }
 
 
 def test_manifest_enumerates_removed_field(tmp_path) -> None:
-    """A repair that drops a field lists it as ``removed_field:<key>`` (FR-009)."""
-    result = _rule_normalize_lanes(_normalized_row_with_extra_field(), _ctx())
+    """A repair that drops a field lists it as ``removed_key:<key>`` (FR-009)."""
+    result = _rule_strip_legacy_keys(_normalized_row_with_extra_field(), _ctx())
 
     assert result.error is None
-    assert "removed_field:legacy_dropped_field" in result.actions
+    assert "removed_key:legacy_aggregate_id" in result.actions
     # The dropped field is genuinely gone from the canonical row.
-    assert "legacy_dropped_field" not in result.state
+    assert result.state is not None
+    assert "legacy_aggregate_id" not in result.state
 
 
 def test_manifest_reports_no_removal_when_nothing_dropped(tmp_path) -> None:
-    """A row with only allowlisted fields records no phantom ``removed_field``."""
+    """A row with only allowlisted fields records no phantom ``removed_key``."""
     row = _normalized_row_with_extra_field()
-    del row["legacy_dropped_field"]
+    del row["legacy_aggregate_id"]
 
-    result = _rule_normalize_lanes(row, _ctx())
+    result = _rule_strip_legacy_keys(row, _ctx())
 
     assert result.error is None
-    assert not any(a.startswith("removed_field:") for a in result.actions)
+    assert not any(a.startswith("removed_key:") for a in result.actions)
 
 
 # --- repair_repo self-protection (#3567 landing-pass coherence fold) ---------

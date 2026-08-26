@@ -40,7 +40,6 @@ from charter.mission_type_key import canonical_mission_type_key
 from charter.mission_type_profile_repository import MissionTypeProfileRepository
 from specify_cli.core.paths import MissionMetaReadError, load_meta_fail_closed
 from specify_cli.mission import MissionNotFoundError
-from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +53,16 @@ _REASON_ALREADY_PRESENT = "mission_type already present"
 _REASON_NO_LEGACY_VALUE = "no legacy mission value"
 
 MissionTypeBackfillAction = Literal["wrote", "skip", "needs_manual_resolution", "error"]
+
+
+def trigger_feature_dossier_sync_if_enabled(
+    *,
+    feature_dir: Path,  # noqa: ARG001
+    mission_slug: str,  # noqa: ARG001
+    repo_root: Path,  # noqa: ARG001
+) -> None:
+    """Retired sync-transport hook kept as a patch seam for backfill tests."""
+    return None
 
 
 @dataclass

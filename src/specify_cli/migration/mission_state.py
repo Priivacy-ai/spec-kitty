@@ -535,6 +535,130 @@ def _anchor_repair_root(repo_root: Path, *, scan_root: Path | None) -> Path:
     return canonical
 
 
+@dataclass(frozen=True)
+class FailClosedRefusal:
+    """Minimal fail-closed refusal value for mission-state primary writes."""
+
+    refusal_path: Path
+    invoking_path: Path
+
+    def message(self) -> str:
+        return (
+            "Refusing mission-state repair from a foreign lane worktree; "
+            f"primary checkout is {self.refusal_path}, invoked from {self.invoking_path}."
+        )
+
+
+class MissionStateWriteRefused(MissionStateRepairError):
+    """Fail-closed refusal of a foreign-lane ``--fix`` canonicalization."""
+
+    def __init__(self, refusal: FailClosedRefusal) -> None:
+        super().__init__(refusal.message())
+        self.refusal = refusal
+
+
+def _linked_worktree_primary(cwd: Path) -> Path | None:
+    git_file = cwd / ".git"
+    if not git_file.is_file():
+        return None
+    try:
+        content = git_file.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    prefix = "gitdir:"
+    if not content.startswith(prefix):
+        return None
+    gitdir = Path(content[len(prefix) :].strip())
+    parts = gitdir.parts
+    try:
+        git_index = parts.index(".git")
+        worktrees_index = git_index + 1
+        if parts[worktrees_index] != "worktrees":
+            return None
+    except (ValueError, IndexError):
+        return None
+    return Path(*parts[:git_index]).resolve()
+
+
+def enforce_primary_write_ownership(cwd: Path, resolved_root: Path) -> None:
+    """Fail closed when a foreign lane would silently canonicalize the primary."""
+    primary = _linked_worktree_primary(cwd.resolve())
+    if primary is None:
+        return
+    if primary == resolved_root.resolve():
+        raise MissionStateWriteRefused(
+            FailClosedRefusal(refusal_path=primary, invoking_path=cwd.resolve())
+        )
+
+
+@dataclass(frozen=True)
+class CheckoutDisagreement:
+    """One invoking-checkout-vs-primary mission-state mismatch."""
+
+    mission_slug: str
+    artifact: str
+    invoking_sha256: str | None
+    primary_sha256: str | None
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "mission_slug": self.mission_slug,
+            "artifact": self.artifact,
+            "invoking_sha256": self.invoking_sha256,
+            "primary_sha256": self.primary_sha256,
+        }
+
+
+_DISAGREEMENT_ARTIFACTS: tuple[str, ...] = (STATUS_FILENAME, EVENTS_FILENAME)
+
+
+def _artifact_sha256(path: Path) -> str | None:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()  # noqa: TID251
+    except OSError:
+        return None
+
+
+def _compare_checkout_mission_state(
+    invoking_root: Path, primary_root: Path, *, mission: str | None
+) -> list[CheckoutDisagreement]:
+    invoking_specs = invoking_root / "kitty-specs"
+    primary_specs = primary_root / "kitty-specs"
+    slugs: set[str] = set()
+    for specs_root in (invoking_specs, primary_specs):
+        if specs_root.is_dir():
+            slugs.update(path.name for path in specs_root.iterdir() if path.is_dir())
+    if mission is not None:
+        slugs &= {mission}
+
+    disagreements: list[CheckoutDisagreement] = []
+    for slug in sorted(slugs):
+        for artifact in _DISAGREEMENT_ARTIFACTS:
+            invoking_sha = _artifact_sha256(invoking_specs / slug / artifact)
+            primary_sha = _artifact_sha256(primary_specs / slug / artifact)
+            if invoking_sha != primary_sha:
+                disagreements.append(
+                    CheckoutDisagreement(
+                        mission_slug=slug,
+                        artifact=artifact,
+                        invoking_sha256=invoking_sha,
+                        primary_sha256=primary_sha,
+                    )
+                )
+    return disagreements
+
+
+def audit_invocation_disagreement(
+    cwd: Path, resolved_root: Path, *, mission: str | None = None
+) -> list[CheckoutDisagreement]:
+    """Report invoking-checkout-vs-primary disagreement for ``--audit``."""
+    invoking_root = cwd.resolve()
+    primary = _linked_worktree_primary(invoking_root)
+    if primary is None or primary != resolved_root.resolve():
+        return []
+    return _compare_checkout_mission_state(invoking_root, primary, mission=mission)
+
+
 def repair_repo(
     repo_root: Path,
     *,
@@ -2337,9 +2461,14 @@ __all__ = [
     # selection/audit seams) under public names for the import-history
     # pipeline. Any new cross-module consumer must go through that seam, not
     # import these internals directly.
+    "CheckoutDisagreement",
+    "FailClosedRefusal",
     "MissionStateDryRunError",
     "MissionStateRepairError",
+    "MissionStateWriteRefused",
     "TeamspaceDryRunReport",
+    "audit_invocation_disagreement",
+    "enforce_primary_write_ownership",
     "rebuild_mission_event_log",
     "repair_duplicate_key_artifacts",
     "repair_repo",
