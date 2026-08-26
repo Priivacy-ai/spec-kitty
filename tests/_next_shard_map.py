@@ -91,6 +91,7 @@ _RUNTIME_SHARD_1_FILES: tuple[str, ...] = (
     "tests/runtime/test_agent_skills.py",
     "tests/runtime/test_bridge_cores.py",
     "tests/runtime/test_bridge_decide_next.py",
+    "tests/runtime/test_cli_guard_family.py",
     "tests/runtime/test_config.py",
     "tests/runtime/test_global_runtime_convergence_unit.py",
     "tests/runtime/test_paths_unit.py",

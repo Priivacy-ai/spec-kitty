@@ -18,6 +18,8 @@ stub-based pattern from WP07/WP08.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -81,6 +83,7 @@ def _make_ctx(
     real ``_BufferingRuntimeEmitter`` in its own tests below)."""
     feature_dir = tmp_path / "kitty-specs" / "042-mission"
     feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_type": "software-dev"}), encoding="utf-8")
     resolved_run_dir = run_dir if run_dir is not None else (tmp_path / "run")
     resolved_run_dir.mkdir(parents=True, exist_ok=True)
     return rb.DecideNextContext(
@@ -430,7 +433,7 @@ def test_dependency_gate_stays_in_step_with_guard_failures_on_advance(
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
     monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd: True)
-    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd: ["missing artifact"])
+    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["missing artifact"])
 
     sentinel = _sentinel_decision("guard-blocked")
     captured: dict[str, Any] = {}
@@ -453,7 +456,7 @@ def test_dependency_gate_falls_through_when_wp_step_advances_cleanly(
     ctx = _make_ctx(tmp_path, current_step_id="implement")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: True)
     monkeypatch.setattr(rb, "_should_advance_wp_step", lambda step, fd: True)
-    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd: [])
+    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: [])
 
     assert rb._dn_dependency_gate(ctx) is None
 
@@ -463,7 +466,7 @@ def test_dependency_gate_returns_step_decision_for_non_wp_guard_failure(
 ) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="specify")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
-    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd: ["spec incomplete"])
+    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["spec incomplete"])
     monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission: ("specify", None, None))
     prompt_path = tmp_path / "prompt.md"
     prompt_path.write_text("hello")
@@ -481,12 +484,36 @@ def test_dependency_gate_returns_step_decision_for_non_wp_guard_failure(
     assert decision.prompt_file == str(prompt_path)
 
 
+def test_dependency_gate_uses_ctx_mission_type_when_feature_dir_has_no_meta(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    feature_dir = tmp_path / "coord-status" / "042-mission"
+    feature_dir.mkdir(parents=True)
+    ctx = dataclasses.replace(_make_ctx(tmp_path, current_step_id="specify"), feature_dir=feature_dir)
+    assert rb.get_mission_type(ctx.feature_dir) == ""
+    monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
+    monkeypatch.setattr(rb, "_state_to_action", lambda step, slug, fd, root, mission: ("specify", None, None))
+    prompt_path = tmp_path / "prompt.md"
+    prompt_path.write_text("hello", encoding="utf-8")
+    monkeypatch.setattr(
+        rb,
+        "_build_prompt_or_error",
+        lambda action, fd, slug, wp_id, agent, root, mission: (str(prompt_path), None),
+    )
+
+    decision = rb._dn_dependency_gate(ctx)
+
+    assert decision is not None
+    assert decision.kind == DecisionKind.step
+    assert "Required artifact missing: spec.md" in decision.guard_failures
+
+
 def test_dependency_gate_falls_back_to_blocked_when_no_action_mapped(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="mystery_step")
     monkeypatch.setattr(rb, "_is_wp_iteration_step", lambda step: False)
-    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd: ["blocked"])
+    monkeypatch.setattr(rb, "_check_cli_guards", lambda step, fd, **kw: ["blocked"])
     monkeypatch.setattr(rb, "_state_to_action", lambda *a: (None, None, None))
     monkeypatch.setattr(rb, "_build_prompt_or_error", _raising)
 

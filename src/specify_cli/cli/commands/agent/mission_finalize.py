@@ -51,6 +51,7 @@ from specify_cli.missions._resolve_planning_branch import PlanningBranchResoluti
 from specify_cli.lanes.models import LanesManifest
 from specify_cli.ownership import infer_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
+from specify_cli.ownership.inference import detect_post_integration_acceptance
 from specify_cli.ownership.frontmatter_source import (
     FinalizeFrontmatterSource,
     resolve_wp_manifests,
@@ -59,9 +60,11 @@ from specify_cli.ownership.models import OwnershipManifest
 from specify_cli.ownership.validation import (
     GlobValidationResult,
     ValidationResult,
+    build_wp_manifests,
     validate_glob_matches,
 )
-from specify_cli.status import BootstrapResult, WPMetadata, _Builder
+from specify_cli.status import BootstrapResult, Lane, WPMetadata, _Builder
+from specify_cli.requirement_mapping import find_discarded_sc_refs
 from specify_cli.core.wps_manifest import (
     WpsManifest,
     check_concern_refs_coverage,
@@ -76,6 +79,11 @@ from specify_cli.cli.commands.agent.mission_check_prerequisites import (
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _build_setup_plan_detection_error,
     _resolve_mission_dir_name_primary_anchored,
+)
+from specify_cli.cli.commands.agent.finalization_eligibility import (
+    FinalizationEligibility,
+    filter_by_wp_ids,
+    project_finalization_eligibility,
 )
 from specify_cli.cli.commands.agent.mission_parsing import (
     _extract_wp_ids_from_task_files,
@@ -96,6 +104,10 @@ META_JSON_FILENAME = "meta.json"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
+OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES = (
+    "OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES"
+)
+LANE_COMPUTATION_ABORTED_EMPTY_INPUTS = "LANE_COMPUTATION_ABORTED_EMPTY_INPUTS"
 
 # SK3466-REV-001: the ONLY meta.json field finalize-tasks itself ever writes
 # (via ``_persist_target_branch_override`` -> ``mission_metadata.
@@ -1171,11 +1183,13 @@ class _BootstrapState:
     inmemory_bodies: dict[str, str] = field(default_factory=dict)
     pending_writes: list[tuple[Path, WPMetadata, str]] = field(default_factory=list)
     ownership_warnings: list[str] = field(default_factory=list)
+    ownership_contradictions: list[str] = field(default_factory=list)
     #: #3394 review F1 -- non-blocking signal, kept distinct from
     #: ``ownership_warnings`` so the JSON payload names the concern precisely
     #: (raw requirement tokens that matched no declared shape) rather than
     #: folding it into an unrelated bucket.
     requirement_extraction_warnings: list[str] = field(default_factory=list)
+    post_integration_acceptance_warnings: list[str] = field(default_factory=list)
 
 
 def _branch_strategy_text(target_branch: str) -> str:
@@ -1235,16 +1249,23 @@ def _apply_ownership_inference(
     wp_raw_content: str,
     mission_slug: str,
     changed_fields: dict[str, object],
-) -> tuple[bool, list[str]]:
-    """Apply inferred ownership fields, returning (changed, infer_warnings).
+) -> tuple[bool, list[str], str | None]:
+    """Apply inferred ownership fields, returning changed, warnings, and contradiction.
 
     Respects an explicit ``owned_files: []`` (planning-artifact WPs).
     """
     owned_files_explicitly_empty = _owned_files_yaml_is_explicit_empty_list(wp_raw_content)
+    if wp_meta.execution_mode == "code_change" and owned_files_explicitly_empty:
+        contradiction = (
+            f"{wp_meta.work_package_id}: code_change WP declares no owned files "
+            "(execution_mode: code_change with an explicit owned_files: [] is an authoring contradiction)"
+        )
+        return False, [], contradiction
+
     need_execution_mode = not wp_meta.execution_mode
     need_owned_files = not wp_meta.owned_files and not owned_files_explicitly_empty
     if not (need_execution_mode or need_owned_files):
-        return False, []
+        return False, [], None
 
     ownership, infer_warnings = infer_ownership(wp_raw_content, mission_slug)
     changed = False
@@ -1260,7 +1281,7 @@ def _apply_ownership_inference(
         changed_fields["authoritative_surface"] = ownership.authoritative_surface
         bld.set(authoritative_surface=ownership.authoritative_surface)
         changed = True
-    return changed, infer_warnings
+    return changed, infer_warnings, None
 
 
 def _run_bootstrap_loop(
@@ -1288,6 +1309,7 @@ def _run_bootstrap_loop(
     )
     wp_dependencies = dep_resolution.wp_dependencies
     wp_requirement_refs = dep_resolution.wp_requirement_refs
+    contradicting_wp_ids: list[str] = []
 
     for wp_file in wp_files:
         wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
@@ -1330,15 +1352,22 @@ def _run_bootstrap_loop(
             has_requirement_refs_line=has_requirement_refs_line,
             target_branch=target_branch,
         )
-        own_changed, infer_warnings = _apply_ownership_inference(
+        own_changed, infer_warnings, ownership_contradiction = _apply_ownership_inference(
             bld, wp_meta, wp_file.read_text(encoding="utf-8"), mission_slug, changed_fields
         )
+        if ownership_contradiction is not None:
+            state.ownership_contradictions.append(ownership_contradiction)
+            contradicting_wp_ids.append(wp_id)
+            continue
         state.ownership_warnings.extend(infer_warnings)
         frontmatter_changed = frontmatter_changed or own_changed
 
         updated_meta = bld.build() if frontmatter_changed else wp_meta
         state.inmemory_frontmatter[wp_id] = updated_meta
         state.inmemory_bodies[wp_id] = body
+
+        for warning in detect_post_integration_acceptance(raw_content, list(updated_meta.owned_files)):
+            state.post_integration_acceptance_warnings.append(f"{wp_id}: {warning}")
 
         if frontmatter_changed:
             if not validate_only:
@@ -1350,7 +1379,45 @@ def _run_bootstrap_loop(
                 state.modified_wps.append(wp_id)
         elif wp_id not in state.preserved_wps:
             state.unchanged_wps.append(wp_id)
+    _raise_ownership_contradictions_if_any(state, contradicting_wp_ids, json_output=json_output)
     return state
+
+
+def _surface_post_integration_acceptance_warnings(
+    state: _BootstrapState, *, json_output: bool
+) -> None:
+    """Mirror post-integration acceptance warnings to human output."""
+    if state.post_integration_acceptance_warnings and not json_output:
+        for warning in state.post_integration_acceptance_warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
+
+
+def _raise_ownership_contradictions_if_any(
+    state: _BootstrapState, contradicting_wp_ids: list[str], *, json_output: bool
+) -> None:
+    """Raise once after the bootstrap scan when ownership contradictions exist."""
+    if not state.ownership_contradictions:
+        return
+    error_msg = (
+        "Ownership contradiction detected for WP(s) "
+        + ", ".join(contradicting_wp_ids)
+        + ": "
+        + "; ".join(state.ownership_contradictions)
+    )
+    if json_output:
+        _emit_json(
+            {
+                "error": error_msg,
+                "error_code": OWNERSHIP_CONTRADICTION_CODE_CHANGE_EMPTY_OWNED_FILES,
+                "ownership_contradiction_wp_ids": contradicting_wp_ids,
+                "ownership_contradictions": list(state.ownership_contradictions),
+            }
+        )
+    else:
+        console.print(f"[red]Error:[/red] {error_msg}")
+        for msg in state.ownership_contradictions:
+            console.print(f"  - {msg}")
+    raise typer.Exit(1) from None
 
 
 def _assert_no_write_in_validate_only(state: _BootstrapState, *, validate_only: bool) -> None:
@@ -1425,12 +1492,13 @@ def _validate_ownership_manifests(
     json_output: bool,
 ) -> None:
     """Phase: ownership overlap + glob-match + audit-coverage validation."""
-    if not wp_manifests:
+    validation_manifests = _resolve_wp_manifests_for_validation(wp_manifests, wp_frontmatters)
+    if not validation_manifests:
         return
     wp_dependencies = {
         wp_id: list(fm.dependencies) for wp_id, fm in wp_frontmatters.items() if getattr(fm, "dependencies", None)
     }
-    ownership_result = _validate_ownership_via_mission(wp_manifests, wp_dependencies)
+    ownership_result = _validate_ownership_via_mission(validation_manifests, wp_dependencies)
     for warning in ownership_result.warnings:
         if not json_output:
             console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
@@ -1445,7 +1513,7 @@ def _validate_ownership_manifests(
         raise typer.Exit(1) from None
 
     create_intent = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
-    glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=create_intent)
+    glob_result = validate_glob_matches(validation_manifests, repo_root, create_intent=create_intent)
     _record_ownership_glob_diagnostics(glob_result, state, json_output=json_output)
     if not glob_result.passed:
         error_msg = "Ownership validation failed: literal-path owned_files entries match zero files. Fix the paths or add them to 'create_intent'."
@@ -1455,12 +1523,127 @@ def _validate_ownership_manifests(
             console.print(f"[red]Error:[/red] {error_msg}")
         raise typer.Exit(1) from None
 
-    codebase_wide = [list(m.owned_files) for m in wp_manifests.values() if m.is_codebase_wide]
+    codebase_wide = [list(m.owned_files) for m in validation_manifests.values() if m.is_codebase_wide]
     audit_warnings = validate_audit_coverage(codebase_wide, repo_root)
     state.ownership_warnings.extend(audit_warnings)
     if not json_output:
         for warning in audit_warnings:
             console.print(f"[yellow]Audit coverage warning:[/yellow] {warning}")
+
+
+def _resolve_wp_manifests_for_validation(
+    wp_manifests: dict[str, OwnershipManifest],
+    wp_frontmatters: dict[str, WPMetadata],
+) -> dict[str, OwnershipManifest]:
+    """Return the complete ownership-manifest view used by validation."""
+    if not wp_frontmatters:
+        return dict(wp_manifests)
+    derived = build_wp_manifests(wp_frontmatters)
+    return {**derived, **wp_manifests}
+
+
+def _project_lane_inputs(
+    wp_manifests: dict[str, OwnershipManifest],
+    wp_dependencies: dict[str, list[str]],
+    wp_frontmatters: dict[str, WPMetadata],
+    wp_bodies: dict[str, str],
+) -> tuple[FinalizationEligibility, dict[str, OwnershipManifest], dict[str, list[str]], dict[str, str]]:
+    """Exclude canceled WPs from lane computation inputs."""
+    lifecycle_lanes = {
+        wp_id: (fm.lane if fm.lane is not None else Lane.PLANNED)
+        for wp_id, fm in wp_frontmatters.items()
+    }
+    eligibility = project_finalization_eligibility(
+        wp_frontmatters.keys(), wp_dependencies, lifecycle_lanes
+    )
+    eligible_wp_ids = eligibility.eligible_wp_ids
+    eligible_dependencies = {
+        wp_id: list(dependencies)
+        for wp_id, dependencies in eligibility.eligible_dependencies.items()
+    }
+    return (
+        eligibility,
+        filter_by_wp_ids(wp_manifests, eligible_wp_ids),
+        eligible_dependencies,
+        filter_by_wp_ids(wp_bodies, eligible_wp_ids),
+    )
+
+
+def _raise_stale_canceled_dependencies_if_any(
+    eligibility: FinalizationEligibility, *, json_output: bool
+) -> None:
+    """Reject executable WPs that still depend on canceled prerequisites."""
+    if not eligibility.stale_dependencies:
+        return
+    records = [stale.to_dict() for stale in eligibility.stale_dependencies]
+    error_msg = "Cannot finalize execution lanes: eligible work depends on canceled work packages."
+    if json_output:
+        _emit_json(
+            {
+                "error": error_msg,
+                "error_code": "STALE_CANCELED_DEPENDENCIES",
+                "stale_canceled_dependencies": records,
+            }
+        )
+    else:
+        console.print(f"[red]Error:[/red] {error_msg}")
+        for record in records:
+            console.print(
+                "  - "
+                f"{record['dependent_wp_id']} depends on canceled "
+                f"{record['canceled_dependency_wp_id']}: {record['recovery']}"
+            )
+    raise typer.Exit(1) from None
+
+
+def _lane_computation_empty_input_error(
+    wp_manifests: dict[str, OwnershipManifest],
+    wp_dependencies: dict[str, list[str]],
+    wp_frontmatters: dict[str, WPMetadata],
+    *,
+    all_canceled: bool,
+) -> str | None:
+    """Return an error for live code-change WPs with missing lane inputs."""
+    if all_canceled or (wp_manifests and wp_dependencies):
+        return None
+    code_change_wp_ids = sorted(
+        wp_id
+        for wp_id, fm in wp_frontmatters.items()
+        if (fm.execution_mode or "code_change") == "code_change"
+        and (fm.lane if fm.lane is not None else Lane.PLANNED) is not Lane.CANCELED
+    )
+    if not code_change_wp_ids:
+        return None
+    missing = []
+    if not wp_manifests:
+        missing.append("ownership manifests")
+    if not wp_dependencies:
+        missing.append("WP dependencies")
+    return (
+        "Lane computation aborted: missing "
+        + " and ".join(missing)
+        + ". finalize-tasks cannot write lanes.json without complete tasks and ownership metadata."
+    )
+
+
+def _raise_lane_computation_empty_input_if_needed(
+    wp_manifests: dict[str, OwnershipManifest],
+    wp_dependencies: dict[str, list[str]],
+    wp_frontmatters: dict[str, WPMetadata],
+    *,
+    all_canceled: bool,
+    json_output: bool,
+) -> None:
+    error_msg = _lane_computation_empty_input_error(
+        wp_manifests, wp_dependencies, wp_frontmatters, all_canceled=all_canceled
+    )
+    if error_msg is None:
+        return
+    if json_output:
+        _emit_json({"error": error_msg, "error_code": LANE_COMPUTATION_ABORTED_EMPTY_INPUTS})
+    else:
+        console.print(f"[red]Error:[/red] {error_msg}")
+    raise typer.Exit(1) from None
 
 
 def _record_ownership_glob_diagnostics(
@@ -1493,6 +1676,7 @@ def _emit_validate_only_report(
     wp_bodies: dict[str, str],
     target_branch: str,
     *,
+    all_canceled: bool = False,
     json_output: bool,
 ) -> None:
     """Phase: emit the --validate-only report (INV-6: zero mutation).
@@ -1507,7 +1691,14 @@ def _emit_validate_only_report(
     }
 
     lanes_stats: dict[str, object] = {"computed": False}
-    if wp_manifests and wp_dependencies:
+    _raise_lane_computation_empty_input_if_needed(
+        wp_manifests,
+        wp_dependencies,
+        state.inmemory_frontmatter,
+        all_canceled=all_canceled,
+        json_output=json_output,
+    )
+    if (wp_manifests and wp_dependencies) or all_canceled:
         from specify_cli.lanes.compute import compute_lanes as _compute_lanes_validate
 
         raw_mission_id = meta.get("mission_id") if meta else None
@@ -1542,6 +1733,7 @@ def _emit_validate_only_report(
                 "updated_wp_count": state.updated_count,
                 "ownership_warnings": state.ownership_warnings,
                 "requirement_extraction_warnings": state.requirement_extraction_warnings,
+                "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
                 "validation": {"bootstrap_preview": bootstrap_stats, "lanes_preview": lanes_stats},
                 "message": "All validations passed. Run without --validate-only to commit.",
             }
@@ -1771,11 +1963,17 @@ def _compute_and_write_lanes(
     meta: dict[str, object] | None,
     target_branch: str,
     *,
+    all_canceled: bool = False,
     json_output: bool,
 ) -> tuple[Path | None, LanesManifest | None]:
     """Phase: compute execution lanes + write lanes.json + risk report."""
-    if not (wp_manifests and wp_dependencies):
-        return None, None
+    _raise_lane_computation_empty_input_if_needed(
+        wp_manifests,
+        wp_dependencies,
+        wp_frontmatters,
+        all_canceled=all_canceled,
+        json_output=json_output,
+    )
     from specify_cli.lanes.compute import compute_lanes
     from specify_cli.lanes.persistence import write_lanes_json
 
@@ -2134,6 +2332,7 @@ def _emit_success_report(
             },
             "ownership_warnings": state.ownership_warnings,
             "requirement_extraction_warnings": state.requirement_extraction_warnings,
+            "post_integration_acceptance_warnings": state.post_integration_acceptance_warnings,
             "target_branch_override": {
                 "requested": target_branch_override,
                 "persisted": persist.persisted,
@@ -2206,6 +2405,8 @@ def _run_commit_pipeline(
     target_branch_override: str | None = None,
     target_branch_persist: TargetBranchPersistOutcome | None = None,
     meta_commit_progress: _MetaBranchOverrideProgress | None = None,
+    lane_wp_dependencies: dict[str, list[str]] | None = None,
+    all_canceled: bool = False,
 ) -> None:
     """Phase: the post-validate-only commit pipeline.
 
@@ -2259,11 +2460,12 @@ def _run_commit_pipeline(
         repo_root,
         mission_slug,
         wp_manifests,
-        dep_resolution.wp_dependencies,
+        lane_wp_dependencies if lane_wp_dependencies is not None else dep_resolution.wp_dependencies,
         wp_frontmatters,
         wp_bodies,
         meta,
         target_branch,
+        all_canceled=all_canceled,
         json_output=json_output,
     )
 
@@ -2585,6 +2787,10 @@ def finalize_tasks(
             requirement_extraction_warnings,
             spec_content,
         ) = _read_spec_requirement_ids(planning_dir, json_output=json_output)
+        requirement_extraction_warnings = [
+            *requirement_extraction_warnings,
+            *find_discarded_sc_refs(tasks_dir),
+        ]
 
         # Snapshot pre-existing primary-side files BEFORE any finalize writer runs
         # (WP02 / FR-006 / A-r1 — residue cleanup scoping, research R6).
@@ -2643,6 +2849,7 @@ def finalize_tasks(
             json_output=json_output,
         )
         _assert_no_write_in_validate_only(state, validate_only=validate_only)
+        _surface_post_integration_acceptance_warnings(state, json_output=json_output)
 
         _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
         _flush_frontmatter_writes(state, validate_only=validate_only)
@@ -2662,6 +2869,18 @@ def finalize_tasks(
         _validate_ownership_manifests(
             wp_manifests, wp_frontmatters, repo_root, state, json_output=json_output
         )
+        (
+            eligibility,
+            lane_wp_manifests,
+            lane_wp_dependencies,
+            lane_wp_bodies,
+        ) = _project_lane_inputs(
+            wp_manifests,
+            dep_resolution.wp_dependencies,
+            wp_frontmatters,
+            wp_bodies,
+        )
+        _raise_stale_canceled_dependencies_if_any(eligibility, json_output=json_output)
 
         mission_slug = planning_dir.name
         meta = _read_meta_for_emission(planning_dir)
@@ -2674,10 +2893,11 @@ def finalize_tasks(
                 mission_slug,
                 meta,
                 state,
-                wp_manifests,
-                dep_resolution.wp_dependencies,
-                wp_bodies,
+                lane_wp_manifests,
+                lane_wp_dependencies,
+                lane_wp_bodies,
                 target_branch,
+                all_canceled=eligibility.all_canceled,
                 json_output=json_output,
             )
             return
@@ -2690,12 +2910,14 @@ def finalize_tasks(
             target_branch,
             state,
             dep_resolution,
-            wp_manifests,
+            lane_wp_manifests,
             wp_frontmatters,
-            wp_bodies,
+            lane_wp_bodies,
             meta,
             functional_spec_requirement_ids,
             preexisting_primary_files,
+            lane_wp_dependencies=lane_wp_dependencies,
+            all_canceled=eligibility.all_canceled,
             validate_only=validate_only,
             json_output=json_output,
             target_branch_override=target_branch_override,

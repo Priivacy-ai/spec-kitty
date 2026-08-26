@@ -174,6 +174,7 @@ from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 # at each call site below; the seam ``_rb.<name>`` round-trips were repointed to
 # the owning seam in the same change.
 
+from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
@@ -782,7 +783,7 @@ TASKS_ARTIFACT = "tasks.md"
 STATE_FILE = "state.json"
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
+def _check_cli_guards(step_id: str, feature_dir: Path, *, mission_family: str | None = None) -> list[str]:
     """Thin compat delegate — forwards to
     :func:`runtime_bridge_cores.evaluate_guards` over a
     :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
@@ -791,10 +792,15 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
     unmoved :func:`_should_advance_wp_step` I/O read — and its own WP02
     compat reach — stay exactly where they were.
 
+    ``mission_family`` is supplied by runtime paths that already resolved the
+    primary-anchored mission type. Direct callers may omit it to preserve the
+    legacy feature-dir lookup behavior.
+
     Returns list of failure descriptions; empty list means all guards pass.
     """
+    mission_family = mission_family if mission_family is not None else get_mission_type(feature_dir)
     snapshot = _io_seam.gather_artifact_presence(
-        feature_dir, mission_family="software-dev", step_id=step_id
+        feature_dir, mission_family=mission_family, step_id=step_id
     )
     if step_id in ("implement", "review"):
         snapshot = dataclasses.replace(
@@ -1637,8 +1643,11 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 origin,
                 run_ref,
             )
-        # All WPs done for this step — check guards before advancing
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+        # All WPs done for this step — check guards before advancing.
+        try:
+            guard_failures = _check_cli_guards(current_step_id, feature_dir, mission_family=mission_type)
+        except _cores.UnregisteredMissionFamilyError:
+            guard_failures = []
         if guard_failures:
             return _build_wp_iteration_decision(
                 current_step_id,
@@ -1654,9 +1663,14 @@ def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
                 guard_failures=guard_failures,
             )
 
-    # Check guards for non-WP steps before advancing
-    if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id):
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+    # Check guards for non-WP software-dev steps before advancing.
+    if (
+        ctx.result == "success"
+        and current_step_id
+        and not _is_wp_iteration_step(current_step_id)
+        and mission_type == MISSION_TYPE_SOFTWARE_DEV
+    ):
+        guard_failures = _check_cli_guards(current_step_id, feature_dir, mission_family=mission_type)
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
                 current_step_id,
