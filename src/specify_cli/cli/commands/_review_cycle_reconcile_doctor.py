@@ -112,7 +112,9 @@ _ShapeFn = Callable[[Path, str, str], "list[Path]"]
 
 
 def _shape_artifact_dirs_for_wp(
-    primary_feature_dir: Path, wp_id: str, _wp_slug: str,
+    primary_feature_dir: Path,
+    wp_id: str,
+    _wp_slug: str,
 ) -> list[Path]:
     """Replicates ``post_merge/review_artifact_consistency.py::_artifact_dirs_for_wp``
     (retired under FR-007, WP13 consumer-unification).
@@ -129,18 +131,14 @@ def _shape_artifact_dirs_for_wp(
         return []
     exact = tasks_dir / wp_id
     candidates: list[Path] = [exact] if exact.is_dir() else []
-    candidates.extend(
-        sorted(
-            p
-            for p in tasks_dir.iterdir()
-            if p.is_dir() and p.name.startswith(f"{wp_id}-") and p not in candidates
-        )
-    )
+    candidates.extend(sorted(p for p in tasks_dir.iterdir() if p.is_dir() and p.name.startswith(f"{wp_id}-") and p not in candidates))
     return candidates
 
 
 def _shape_review_cycle_wp_dir(
-    primary_feature_dir: Path, _wp_id: str, wp_slug: str,
+    primary_feature_dir: Path,
+    _wp_id: str,
+    wp_slug: str,
 ) -> list[Path]:
     """Replicates ``review/cycle.py::_review_cycle_wp_dir`` (retired under
     FR-003, WP10's writer-atomicity rework -- ground truth: WP04's
@@ -157,7 +155,9 @@ def _shape_review_cycle_wp_dir(
 
 
 def _shape_arbiter_bare_wp_id_dir(
-    primary_feature_dir: Path, wp_id: str, _wp_slug: str,
+    primary_feature_dir: Path,
+    wp_id: str,
+    _wp_slug: str,
 ) -> list[Path]:
     """Replicates ``review/arbiter.py``'s three bare
     ``feature_dir / "tasks" / wp_id`` joins (``_find_review_cycle_artifact``,
@@ -251,14 +251,14 @@ def _primary_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     :func:`_resolve_canonical_review_cycle_dir` uses for ``REVIEW_CYCLE``,
     not a second, ad-hoc ``KITTY_SPECS_DIR`` join.
     """
-    primary_dir: Path = placement_seam(repo_root, mission_slug).read_dir(
-        MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    primary_dir: Path = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.WORK_PACKAGE_TASK)
     return primary_dir
 
 
 def _resolve_canonical_review_cycle_dir(
-    repo_root: Path, mission_slug: str, primary_feature_dir: Path,
+    repo_root: Path,
+    mission_slug: str,
+    primary_feature_dir: Path,
 ) -> tuple[Path, str | None]:
     """T035's ONE owner function: resolve ``REVIEW_CYCLE``'s canonical read
     dir, absorbing ``CoordinationBranchDeleted`` / ``StatusReadPathNotFound``
@@ -276,9 +276,7 @@ def _resolve_canonical_review_cycle_dir(
     from specify_cli.missions._read_path_resolver import StatusReadPathNotFound
 
     try:
-        resolved = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.REVIEW_CYCLE
-        )
+        resolved = placement_seam(repo_root, mission_slug).read_dir(MissionArtifactKind.REVIEW_CYCLE)
     except (CoordinationBranchDeleted, StatusReadPathNotFound):
         return primary_feature_dir, _DELETED_COORD_BRANCH_CLASS
 
@@ -347,7 +345,8 @@ def _findings_for_wp(
 
 
 def _report_for_mission(
-    repo_root: Path, mission_dir: Path,
+    repo_root: Path,
+    mission_dir: Path,
 ) -> MissionReconciliationReport | None:
     """Return this mission's report, or ``None`` when it has nothing to
     reconcile (unreadable ``meta.json``, or canonical resolution already
@@ -359,7 +358,9 @@ def _report_for_mission(
 
     primary_feature_dir = _primary_feature_dir(repo_root, mission_slug)
     resolved_dir, stranded_class = _resolve_canonical_review_cycle_dir(
-        repo_root, mission_slug, primary_feature_dir,
+        repo_root,
+        mission_slug,
+        primary_feature_dir,
     )
     if stranded_class is None:
         return None
@@ -377,18 +378,25 @@ def _report_for_mission(
             )
         )
     return MissionReconciliationReport(
-        mission_slug=mission_slug, stranded_class=stranded_class, findings=findings,
+        mission_slug=mission_slug,
+        stranded_class=stranded_class,
+        findings=findings,
     )
 
 
-def _mission_dirs_for(repo_root: Path, mission: str | None) -> list[Path]:
+def _mission_dirs_for(
+    repo_root: Path,
+    mission: str | None,
+    *,
+    json_mode: bool = False,
+) -> list[Path]:
     if mission is not None:
         # Function-local (H2/I-6 precedent): resolves --mission via the
         # canonical handle resolver (mission_id / mid8 / slug), matching
         # every other doctor/migrate subcommand's --mission behaviour.
         from specify_cli.cli.selector_resolution import resolve_mission_handle
 
-        resolved: ResolvedMission = resolve_mission_handle(mission, repo_root, json_mode=False)
+        resolved: ResolvedMission = resolve_mission_handle(mission, repo_root, json_mode=json_mode)
         return [resolved.feature_dir]
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
@@ -397,28 +405,22 @@ def _mission_dirs_for(repo_root: Path, mission: str | None) -> list[Path]:
 
 
 def _collect_reports(
-    repo_root: Path, mission: str | None,
+    repo_root: Path,
+    mission: str | None,
+    *,
+    json_mode: bool = False,
 ) -> list[MissionReconciliationReport]:
-    reports = (
-        _report_for_mission(repo_root, mission_dir)
-        for mission_dir in _mission_dirs_for(repo_root, mission)
-    )
+    reports = (_report_for_mission(repo_root, mission_dir) for mission_dir in _mission_dirs_for(repo_root, mission, json_mode=json_mode))
     return [report for report in reports if report is not None]
 
 
 def _emit_human(reports: list[MissionReconciliationReport]) -> None:
     if not reports:
-        console.print(
-            "[green]ok[/green]: no coordination-topology review-cycle mission "
-            "needs reconciliation."
-        )
+        console.print("[green]ok[/green]: no coordination-topology review-cycle mission needs reconciliation.")
         return
     for report in reports:
         if report.clean:
-            console.print(
-                f"[green]ok[/green]: {report.mission_slug} "
-                f"({report.stranded_class}) -- no stranded records found."
-            )
+            console.print(f"[green]ok[/green]: {report.mission_slug} ({report.stranded_class}) -- no stranded records found.")
             continue
         for finding in report.findings:
             console.print(
@@ -457,7 +459,10 @@ def _emit_json(reports: list[MissionReconciliationReport]) -> None:
 
 
 def run_review_cycle_reconciliation(
-    repo_root: Path, *, json_output: bool, mission: str | None = None,
+    repo_root: Path,
+    *,
+    json_output: bool,
+    mission: str | None = None,
 ) -> None:
     """Entry point for ``doctor review-cycle-reconcile`` (FR-008, T035-T039).
 
@@ -475,7 +480,7 @@ def run_review_cycle_reconciliation(
     legitimately have a divergent sibling, and picking a winner is not this
     WP's call to make automatically).
     """
-    reports = _collect_reports(repo_root, mission)
+    reports = _collect_reports(repo_root, mission, json_mode=json_output)
     if json_output:
         _emit_json(reports)
     else:

@@ -5,9 +5,12 @@ import json
 from pathlib import Path
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import app as agent_app
+from specify_cli.cli.commands.doctor import app as doctor_app
+from specify_cli.cli.commands.implement import implement as implement_command
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast, pytest.mark.agent]
@@ -111,3 +114,57 @@ def test_agent_issue_verdict_json_ambiguous_mission_uses_stdout_envelope(
     assert payload["success"] is False
     assert payload["error_code"] == "ambiguous_mission_handle"
     assert len(payload["candidates"]) == 2  # golden-count: cardinality-is-contract
+
+
+def test_implement_json_ambiguous_mission_uses_stdout_envelope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repo(tmp_path)
+    _make_mission(tmp_path, "020-charter")
+    _make_mission(tmp_path, "030-charter")
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+
+    from specify_cli.charter_runtime.preflight import hook as preflight_hook
+
+    monkeypatch.setattr(preflight_hook, "run_preflight_or_abort", lambda *_args, **_kwargs: None)
+
+    app = typer.Typer()
+    app.command()(implement_command)
+    result = CliRunner().invoke(
+        app,
+        ["WP01", "--mission", "charter", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["success"] is False
+    assert payload["error_code"] == "ambiguous_mission_handle"
+    assert len(payload["candidates"]) == 2  # golden-count: cardinality-is-contract
+
+
+def test_doctor_review_cycle_reconcile_json_bad_mission_uses_stdout_envelope(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _make_repo(tmp_path)
+    _make_mission(tmp_path, "021-context-test")
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.doctor.locate_project_root",
+        lambda: tmp_path,
+    )
+
+    result = CliRunner().invoke(
+        doctor_app,
+        ["review-cycle-reconcile", "--mission", "missing-mission", "--json"],
+    )
+
+    assert result.exit_code == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["success"] is False
+    assert payload["error_code"] == "mission_not_found"
