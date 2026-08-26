@@ -1,0 +1,96 @@
+"""``spec-kitty moments`` — the one-line switch for what reaches agent
+context (EXPERIMENTAL-spec-kitty#190, "Moments in agent context").
+
+Three subcommands, each one line of output, over
+``zeitgeist_client.moments``' settings — never a second config reader or a
+second writer:
+
+* ``off``   — write ``[moments] agents = "off"``; the MCP server then refuses
+  to start (exit 0, one line) and every other agent surface goes quiet.
+* ``on``    — write the documented default back (``mine``), undoing an off.
+* ``status``— say which mode is effective, WHICH file decided it, and what
+  else filters the stream.
+
+The write target defaults to the developer-global ``~/.kittify/config.toml``
+because this is a per-developer preference; ``--repo`` writes the per-repo
+``<root>/.kittify/config.toml`` override instead for "quiet in THIS checkout
+only". Precedence (repo beats global beats default) lives in
+:func:`zeitgeist_client.moments.load_settings` — after any write this module
+re-reads and prints the *effective* mode, because with both files in play
+the file just written is not always the one that decides.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import typer
+
+from specify_cli.cli.console import console
+from specify_cli.zeitgeist_client import moments
+
+moments_app = typer.Typer(
+    name="moments",
+    help="Control which Zeitgeist status moments reach agent context (off / mine / team), per developer and per repo.",
+)
+
+_JSON_OPTION = typer.Option(False, "--json", help="Emit plain JSON instead of a human-readable summary.")
+_REPO_SCOPE_OPTION = typer.Option(
+    False,
+    "--repo",
+    help="Write the per-repo override (<repo>/.kittify/config.toml) instead of the global ~/.kittify config.",
+)
+
+
+def _resolve_scope(repo_scoped: bool) -> tuple[str, Path | None]:
+    """``(scope label, project root when repo-scoped)`` for a write. Repo
+    scope needs a Spec Kitty checkout to write into — there is no such thing
+    as a repo override outside one."""
+    if not repo_scoped:
+        return "global", None
+    project_root = moments.locate_repo_root()
+    if project_root is None:
+        console.print("[red]Error:[/red] --repo needs a Spec Kitty checkout (.kittify/) — run this from inside one.")
+        raise typer.Exit(1)
+    return "repo", project_root
+
+
+def _print_effective(settings: moments.MomentSettings) -> None:
+    console.print(f"effective: [bold]{settings.agents.value}[/bold] ({settings.agents_source})")
+
+
+@moments_app.command()
+def off(repo: bool = _REPO_SCOPE_OPTION) -> None:
+    """Switch moments to agents OFF: nothing surfaces, and
+    `spec-kitty zeitgeist mcp-serve` exits 0 with one line."""
+    scope, project_root = _resolve_scope(repo)
+    written = moments.write_agents_mode(moments.MomentsMode.OFF, scope=scope, project_root=project_root)
+    console.print(f"[bold]off[/bold] — written to {written}")
+    _print_effective(moments.load_settings(project_root=project_root))
+
+
+@moments_app.command()
+def on(repo: bool = _REPO_SCOPE_OPTION) -> None:
+    """Switch moments back ON at the documented default (`mine`: only
+    missions this checkout is on)."""
+    scope, project_root = _resolve_scope(repo)
+    written = moments.write_agents_mode(moments.MomentsMode.MINE, scope=scope, project_root=project_root)
+    console.print(f"[bold]on[/bold] — {moments.MomentsMode.MINE.value} written to {written}")
+    _print_effective(moments.load_settings(project_root=project_root))
+
+
+@moments_app.command()
+def status(as_json: bool = _JSON_OPTION) -> None:
+    """Show the effective mode, which file decided it, and the active filters."""
+    settings = moments.load_settings()
+    if as_json:
+        console.emit_json(settings.as_dict())
+        return
+    console.print(f"[bold]{settings.agents.value}[/bold]  source={settings.agents_source}")
+    for name in ("repos", "missions", "teammates", "kinds"):
+        values = getattr(settings, name)
+        rendered = ", ".join(values) if values else "(no filter)"
+        console.print(f"  {name}: {rendered}")
+    console.print(f"  rate_per_minute: {settings.rate_per_minute}")
+    if settings.agents is moments.MomentsMode.OFF:
+        console.print("  `spec-kitty zeitgeist mcp-serve` refuses to start while agents = off.")

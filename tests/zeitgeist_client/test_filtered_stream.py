@@ -612,3 +612,74 @@ def test_watch_yields_event_frames_and_state_stays_clean(managed_stream_double) 
     assert [pr.session_ref for pr in snap.presence] == ["a" * 12]  # the broadcast touched nothing else
     assert snap.focus == ()
     assert snap.reset_count == 0
+
+
+# --- #190: frame_filter, the one client-side membership rule -----------------
+
+
+def test_frame_filter_drops_rejected_frames_before_delivery_and_state(managed_stream_double) -> None:
+    """A rejected frame leaves no trace at all: it is never yielded and never
+    reaches StreamState — "this subscription does not carry that", not a
+    frame the caller must remember to ignore."""
+    stream = filtered_stream.FilteredStream(
+        _config(managed_stream_double.url),
+        frame_filter=lambda frame: frame.frame_type != "focus",
+    )
+    gen = stream.watch()
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence()))
+    managed_stream_double.push_frame(_frame(seq=2, frame=_focus(focus_ref="mission-z")))
+    managed_stream_double.close_stream()
+
+    frames = _drain(gen, 1)
+    assert [f.frame_type for f in frames if f is not None] == ["presence"]  # type: ignore[attr-defined]
+
+    snap = stream.check()
+    assert [pr.session_ref for pr in snap.presence] == ["a" * 12]
+    assert snap.focus == ()  # the filtered focus frame never mutated state
+
+
+def test_frame_filter_receives_each_parsed_live_frame(managed_stream_double) -> None:
+    """The predicate sees the same shape-valid object delivery would: a
+    :class:`LiveFrame`, not raw wire bytes."""
+    seen: list[filtered_stream.LiveFrame] = []
+
+    def record(frame: filtered_stream.LiveFrame) -> bool:
+        seen.append(frame)
+        return True  # admit everything; this test only inspects what arrived
+
+    stream = filtered_stream.FilteredStream(
+        _config(managed_stream_double.url),
+        frame_filter=record,
+    )
+    managed_stream_double.push_frame(_frame(seq=1, frame=_event(attrs={"to_lane": "doing"})))
+    managed_stream_double.close_stream()
+    _drain(stream.watch(idle_timeout_s=2.0), 1)
+
+    assert len(seen) == 1
+    assert isinstance(seen[0], filtered_stream.LiveFrame)
+    assert seen[0].frame_type == "event"
+    assert seen[0].payload["kind"] == "mission.status.changed"
+
+
+def test_no_frame_filter_admits_every_shape_valid_frame(managed_stream_double) -> None:
+    """``frame_filter=None`` (every subscription built before #190) keeps
+    today's behaviour exactly: nothing is dropped client-side."""
+    stream = filtered_stream.FilteredStream(_config(managed_stream_double.url))
+    gen = stream.watch()
+    for seq, payload in ((1, _presence()), (2, _focus()), (3, _event())):
+        managed_stream_double.push_frame(_frame(seq=seq, frame=payload))
+    managed_stream_double.close_stream()
+
+    frames = _drain(gen, 3)
+    assert [f.frame_type for f in frames if f is not None] == ["presence", "focus", "event"]  # type: ignore[attr-defined]
+    gen.close()
+
+
+def test_frame_filter_is_keyword_only_and_defaults_to_none() -> None:
+    """Every constructor call site that predates #190 keeps compiling
+    unchanged — the filter is an opt-in keyword, never a positional arg a
+    caller could accidentally shift into."""
+    sig = inspect.signature(filtered_stream.FilteredStream.__init__)
+    param = sig.parameters["frame_filter"]
+    assert param.kind is inspect.Parameter.KEYWORD_ONLY
+    assert param.default is None

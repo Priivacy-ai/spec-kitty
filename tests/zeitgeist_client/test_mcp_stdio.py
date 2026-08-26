@@ -17,13 +17,14 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from kernel.clock import now_epoch
 
 import pytest
 from mcp.shared.memory import create_connected_server_and_client_session
 
-from specify_cli.zeitgeist_client import credentials, mcp_stdio
+from specify_cli.zeitgeist_client import credentials, mcp_stdio, moments
 
 
 def _checkout_with_origin(bare: Path, dest: Path, origin: str) -> Path:
@@ -322,3 +323,159 @@ async def test_watch_tool_leaves_presence_frames_untouched(state_root: Path, man
     structured = result.structuredContent
     assert structured is not None and structured["frames"][0]["frame_type"] == "presence"
     assert "untrusted_text" not in structured["frames"][0]
+
+
+# --- #190: the moment gate on the agent surface ------------------------------
+#
+# An MCP client IS the agent whose context #190 protects: an opted-out
+# developer's server refuses to start at all, a default-mode developer's
+# server surfaces only their own missions, a repo allowlist drops other
+# repos' moments before any connection is opened, and the per-session rate
+# cap summarises what it withheld as "+k more". The settings/predicate unit
+# matrix lives in test_moments.py; these cover what a real client observes.
+
+
+def _settings(**overrides: Any) -> moments.MomentSettings:
+    """Explicit settings for one build_server() call — the typed twin of
+    test_moments.py's builder, pinned so these tests never depend on what a
+    developer's real config file happens to say."""
+    values: dict[str, Any] = {
+        "agents": moments.MomentsMode.TEAM,
+        "repos": (),
+        "missions": (),
+        "teammates": (),
+        "kinds": (),
+        "rate_per_minute": moments.DEFAULT_RATE_PER_MINUTE,
+    }
+    values.update(overrides)
+    return moments.MomentSettings(**values)
+
+
+def _status_moment(seq: int, *, kind: str = "WPStatusChanged", user: str = "lynn", mission: str = "034-demo") -> dict[str, object]:
+    """One WP-move moment exactly as the relay emits it after the CLI's
+    ``event.publish``: identity-shaped fields plus bounded string attrs."""
+    return _frame(
+        seq=seq,
+        frame={
+            "type": "event",
+            "event": {
+                "observed_at": now_epoch(),
+                "kind": kind,
+                "actor": {"session_ref": "c" * 12, "user": user},
+                "ref": mission,
+                "attrs": {"mission_slug": mission, "to_lane": "doing"},
+            },
+        },
+    )
+
+
+def _local_checkout_missions(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *slugs: str) -> None:
+    """Pin ``mine``'s basis: a synthetic checkout whose kitty-specs knows
+    exactly ``slugs`` — never whatever checkout the pytest process runs in."""
+    specs = tmp_path / "synthetic-checkout" / "kitty-specs"
+    specs.mkdir(parents=True)
+    for slug in slugs:
+        (specs / slug).mkdir()
+    monkeypatch.setattr(moments, "locate_repo_root", lambda cwd=None: specs.parent)
+
+
+async def test_build_server_refuses_to_start_when_switched_off(state_root: Path) -> None:
+    with pytest.raises(moments.MomentsDisabled) as excinfo:
+        mcp_stdio.build_server(_settings(agents=moments.MomentsMode.OFF))
+    assert 'agents = "off"' in str(excinfo.value)
+
+
+async def test_run_stdio_when_off_is_one_stderr_line_and_a_clean_exit(
+    state_root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exit 0, one line — on STDERR, because stdout carries the MCP framing
+    protocol and anything written ahead of the handshake would corrupt it."""
+    off_settings = _settings(agents=moments.MomentsMode.OFF)
+    monkeypatch.setattr(moments, "load_settings", lambda **_: off_settings)
+
+    await mcp_stdio.run_stdio()
+
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    lines = [line for line in captured.err.splitlines() if line.strip()]
+    assert len(lines) == 1
+    assert "`spec-kitty moments on`" in lines[0]
+
+
+async def test_teammates_agent_receives_the_wp_move_an_opted_out_agents_receives_nothing(
+    state_root: Path, managed_stream_double
+) -> None:
+    """The acceptance pair from #190, on the wire: the same broadcast moment,
+    two developers — the teammate's default-configured server delivers the WP
+    move, the opted-out developer's server starts at all."""
+    _checkout(managed_stream_double.url)
+    managed_stream_double.push_frame(_status_moment(1))
+    managed_stream_double.close_stream()
+
+    teammate = mcp_stdio.build_server(_settings())
+    async with create_connected_server_and_client_session(teammate) as client:
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
+    structured = result.structuredContent
+    assert structured is not None
+    moments_seen = [
+        frame["payload"]["kind"]
+        for frame in structured["frames"]
+        if frame["frame_type"] == "event"
+    ]
+    assert moments_seen == ["WPStatusChanged"]
+
+    with pytest.raises(moments.MomentsDisabled):
+        mcp_stdio.build_server(_settings(agents=moments.MomentsMode.OFF))
+
+
+async def test_mine_mode_surfaces_own_missions_and_drops_foreign_ones(
+    state_root: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, managed_stream_double
+) -> None:
+    _local_checkout_missions(tmp_path, monkeypatch, "034-demo")
+    _checkout(managed_stream_double.url)
+    managed_stream_double.push_frame(_status_moment(seq=1))                       # own mission
+    managed_stream_double.push_frame(_status_moment(seq=2, mission="999-theirs"))  # someone else's
+    managed_stream_double.close_stream()
+
+    server = mcp_stdio.build_server(_settings(agents=moments.MomentsMode.MINE))
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
+    structured = result.structuredContent
+    assert structured is not None
+    slugs = [frame["payload"]["ref"] for frame in structured["frames"] if frame["frame_type"] == "event"]
+    assert slugs == ["034-demo"]  # the moment arrived with its own mission named
+
+
+async def test_repo_filter_drops_other_repos_moments_without_opening_a_connection(
+    state_root: Path, managed_stream_double
+) -> None:
+    _checkout(managed_stream_double.url, repo="github.com/acme/widget")
+    server = mcp_stdio.build_server(_settings(repos=("github.com/acme/widget",)))
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/other", "timeout_s": 2.0})
+    structured = result.structuredContent
+    assert structured is not None
+    assert structured["frames"] == []
+    assert structured["withheld_by"] == "repos_filter"
+    assert managed_stream_double.received_headers == [], "a filtered repo must never be dialled"
+
+
+async def test_rate_cap_surfaces_one_moment_and_summarises_the_rest(state_root: Path, managed_stream_double) -> None:
+    """#190 item 4: at most N per minute, the rest summarised as "+k more" —
+    counted honestly, never silently lost. Presence is liveness, not a
+    moment, so it passes untouched beside them."""
+    _checkout(managed_stream_double.url)
+    managed_stream_double.push_frame(_frame(seq=1, frame=_presence(session_ref="d" * 12)))
+    for seq in (2, 3, 4):
+        managed_stream_double.push_frame(_status_moment(seq))
+    managed_stream_double.close_stream()
+
+    server = mcp_stdio.build_server(_settings(rate_per_minute=1))
+    async with create_connected_server_and_client_session(server) as client:
+        result = await client.call_tool("zeitgeist_watch", {"repo": "github.com/acme/spec-kitty", "timeout_s": 2.0})
+    structured = result.structuredContent
+    assert structured is not None
+    types = [frame["frame_type"] for frame in structured["frames"]]
+    assert types.count("presence") == 1
+    assert types.count("event") == 1
+    assert structured["rate_note"] == "+2 more moments withheld (agent rate cap: 1/min)"
