@@ -295,8 +295,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "DaemonSummary", "17ddc7a066a9d721be767b753f6c5ecdc4dcdeca46754c67a49ef0322c1b82ab", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DaemonSummary
+        # hash refreshed (#3723): DoctorReport gained the ``auth_verdict:
+        # HealthVerdict`` field so the honest auth verdict rides the report.
         SymbolKey(
-            "DoctorReport", "3083b579d7782d2eaf3940307c5813b06ee421abfbe971d9f50355a7bd19158b", source_module="specify_cli.cli.commands._auth_doctor"
+            "DoctorReport", "bcb87616333b6591b924b2fcb4f8c77d3d169d8ebcf1f30268ed2ee517428617", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::DoctorReport
         SymbolKey(
             "Finding", "d47a46e21c6dc7c48f4654c3c1e88ca76cc25ae2b81b9efaaaea90649e8b2065", source_module="specify_cli.cli.commands._auth_doctor"
@@ -310,15 +312,17 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
             "SessionSummary", "465b7c32684be07566e692b5ef249e2585ccb568f9b2ffe36fd88ba4ed872e74", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::SessionSummary
         # specify_cli.cli.commands._auth_doctor::assemble_report (hash refreshed
-        # kernel-clock-single-door PR #3305: body now calls kernel.clock.now_utc()
-        # instead of datetime.now(UTC), per the clock single-door migration)
+        # #3723: body now computes the auth verdict + accepts a server_probe so
+        # an expired-access session reads unknown/fail rather than a false green)
         SymbolKey(
-            "assemble_report", "4632c1fdf5f64e3614e930f1210c9784552a50eda1d201189c089020986e19fa", source_module="specify_cli.cli.commands._auth_doctor"
+            "assemble_report", "06ff9c93db5232f2212eddb7497dc48b803c03cdce3c5a11b41c709c68063797", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::assemble_report
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
+        # hash refreshed (#3723): "No problems detected." is now gated on a
+        # confirmed ``auth_verdict.state == 'ok'`` (never on finding-emptiness alone)
         SymbolKey(
-            "render_report", "719c4b8b25a0a7b9e613e559e60abacbdef6ad4ab04788e9b956b7d788ad13fb", source_module="specify_cli.cli.commands._auth_doctor"
+            "render_report", "19e9dbc747149473867462a519c6d739f51697c20ea65d5c581666e074d10dd8", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::render_report
         # specify_cli.cli.commands._auth_doctor::render_report_json
         SymbolKey("render_report_json", "909a351e28d3aa72e41d2986c624b5ac2eb10476fa7010667fb4d1a76993cf8e", source_module="specify_cli.cli.commands._auth_doctor"),

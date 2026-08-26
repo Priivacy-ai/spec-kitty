@@ -3295,6 +3295,7 @@ def _gather_status_facts(check_connection: bool) -> StatusFacts:
     ``sync.<name>`` monkeypatch still intercepts (INV-4).
     """
     from specify_cli.auth import get_token_manager
+    from specify_cli.auth.verdict import evaluate_auth_verdict
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.daemon import get_sync_daemon_status, scan_sync_daemons
     from specify_cli.sync.owner import (
@@ -3320,6 +3321,11 @@ def _gather_status_facts(check_connection: bool) -> StatusFacts:
         _LOG.debug("project-store status unavailable: %s", exc)
 
     tm = get_token_manager()
+    # ``sync status`` is offline (no server probe), so the verdict is derived from
+    # the local session + clock: it resolves ``unknown`` — never a false green —
+    # when the access token is expired and the refresh chain cannot be proven
+    # offline (#3723).
+    auth_verdict = evaluate_auth_verdict(tm.get_current_session(), now_utc())
     daemon_status = get_sync_daemon_status()
 
     queue_size = 0 if local_report is None else int(local_report["event_journal"]["retained_event_count"])
@@ -3353,7 +3359,7 @@ def _gather_status_facts(check_connection: bool) -> StatusFacts:
         config_file=str(config.config_file),
         queue_size=queue_size,
         body_queue_count=body_queue_count,
-        auth_ok=tm.is_authenticated,
+        auth_verdict=auth_verdict,
         daemon_status=daemon_status,
         connection_status=connection_status,
         connection_note=connection_note,

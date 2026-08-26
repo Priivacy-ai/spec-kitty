@@ -33,6 +33,7 @@ from typing import Any
 
 from rich.markup import escape as _escape_markup
 
+from specify_cli.auth.verdict import auth_verdict_from_flags
 from specify_cli.sync.sync_store_report_core import (
     _per_project_store_issues,
     channel1_state_wording,
@@ -208,14 +209,27 @@ def _queue_issues(facts: DoctorFacts) -> list[str]:
 
 
 def _auth_issues(facts: DoctorFacts) -> list[str]:
-    """Token-expiry warnings mirroring the pre-restructure auth block."""
+    """Token-expiry warnings, derived from the shared honest auth verdict.
+
+    The tri-state decision is owned by ``auth.verdict`` (#3723; sync -> auth is
+    the legal direction). This core is I/O-free, so it feeds the pre-gathered
+    ``(access_ok, refresh_ok)`` flags to :func:`auth_verdict_from_flags` and maps
+    the resulting *state* onto its byte-stable issue vocabulary: ``ok`` -> no
+    issue; ``unknown`` (access expired, refresh unproven offline) ->
+    ``_ACCESS_EXPIRED_ISSUE``; ``fail`` -> the missing / both-expired issue.
+    """
+    verdict = auth_verdict_from_flags(
+        session_present=facts.session_present,
+        access_ok=facts.access_token_ok,
+        refresh_ok=facts.refresh_token_ok,
+    )
+    if verdict.state == "ok":
+        return []
     if not facts.session_present:
         return [_NOT_AUTHENTICATED_ISSUE]
-    if not facts.access_token_ok and not facts.refresh_token_ok:
+    if not facts.refresh_token_ok:
         return [_BOTH_TOKENS_EXPIRED_ISSUE]
-    if not facts.access_token_ok and facts.refresh_token_ok:
-        return [_ACCESS_EXPIRED_ISSUE]
-    return []
+    return [_ACCESS_EXPIRED_ISSUE]
 
 
 def _server_issues(facts: DoctorFacts) -> list[str]:

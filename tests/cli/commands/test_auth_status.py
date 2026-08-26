@@ -390,8 +390,9 @@ class TestAuthStatusCommand:
         assert "89 days" in result.stdout
         assert "Encrypted session file" in result.stdout
 
-    def test_refresh_token_expired_early_return(self):
-        """A session with an expired refresh token takes the early-return branch."""
+    def test_refresh_token_expired_is_not_authenticated(self):
+        """An expired refresh token yields the honest ``Not authenticated``
+        verdict banner (derived from state), not a hand-rolled claim (#3723)."""
         session = _make_session(
             access_remaining_seconds=-100,
             refresh_remaining_days=-1,  # refresh already expired
@@ -405,8 +406,36 @@ class TestAuthStatusCommand:
             result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 0, result.stdout
-        assert "Session expired" in result.stdout
+        assert "Not authenticated" in result.stdout
+        # The banner names its evidence (rule 1) and is never a bare green claim.
+        assert "expired" in result.stdout
+        assert "+ Authenticated" not in result.stdout
         assert "spec-kitty auth login" in result.stdout
+
+    def test_expired_access_valid_refresh_headline_is_not_green(self):
+        """#3723-c: valid refresh + EXPIRED access must NOT print ``+ Authenticated``.
+
+        Offline (no server probe) the refresh chain is unproven, so the honest
+        headline is ``Cannot verify`` — and it never sits above a contradicting
+        ``Access token: expired`` detail as a green claim.
+        """
+        session = _make_session(
+            access_remaining_seconds=-100,  # access expired
+            refresh_remaining_days=30,  # refresh still valid
+        )
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        assert "+ Authenticated" not in result.stdout
+        assert "Cannot verify" in result.stdout
+        # The access-token detail still renders expired — headline agrees with it.
+        assert "expired" in result.stdout
 
     def test_authenticated_path_device_code_auth_method(self):
         """Device-code sessions render the Headless label."""
