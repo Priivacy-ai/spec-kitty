@@ -493,15 +493,11 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         # All four M2-canonical-integration entries are closed; none remain open.
         #
         # E3 #9 credential resolution (2026-08-25): zeitgeist_client.resolution
-        # is the seam library the #8 zeitgeist handler calls at fan-out -- it is
-        # written library-first with its contract pinned by respx/store tests
-        # (tests/zeitgeist_client/test_resolution.py), and its only intended
-        # src/ caller does not exist yet. Same reviewed-candidate class as the
-        # four M2 entries above; registered so the fact is visible, not hidden.
-        # TODO(triage): remove this entry when EXPERIMENTAL-spec-kitty#8 wires
-        # resolve_credentials() into the transition fan-out -- the stale-entry
-        # check below reds if the wiring lands without burning the entry.
-        "specify_cli.zeitgeist_client.resolution",
+        # was registered here as the seam library awaiting the #8 zeitgeist
+        # handler as its caller. BURNED (E3 #8, 2026-08-25):
+        # status/zeitgeist_bridge.py resolves credentials at the fan-out seam,
+        # so the module has a live src/ caller and is no longer an orphan.
+        # Shrink 4 -> 3 (baseline updated in _baselines.yaml).
     }
 )
 
@@ -640,11 +636,7 @@ def _iter_src_python_files() -> list[Path]:
     Excludes doctrine ``asset`` blobs (shipped, loaded by path — see
     :func:`_is_asset_blob`).
     """
-    return sorted(
-        p
-        for p in _SRC_ROOT.rglob("*.py")
-        if "__pycache__" not in p.parts and not _is_asset_blob(p)
-    )
+    return sorted(p for p in _SRC_ROOT.rglob("*.py") if "__pycache__" not in p.parts and not _is_asset_blob(p))
 
 
 def _has_caller(
@@ -750,9 +742,7 @@ def test_no_new_dead_modules_under_src() -> None:
     # Build the import index over ALL src files (including __init__/__main__,
     # since they perform package-level imports that legitimately wire
     # submodules) but excluding files we can't parse.
-    file_imports: list[
-        tuple[Path, list[tuple[str, str, tuple[str, ...] | None]]]
-    ] = []
+    file_imports: list[tuple[Path, list[tuple[str, str, tuple[str, ...] | None]]]] = []
     for path in _iter_src_python_files():
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))

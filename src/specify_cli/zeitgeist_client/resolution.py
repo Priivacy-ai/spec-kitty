@@ -47,6 +47,14 @@ Like the rest of this subpackage, expiry stamps are stored verbatim and
 mint path, an expired negative one asks Team Kitty again. An entry with no
 stamp never expires — every entry written before stamps existed keeps
 working exactly as before.
+
+The store key is the bare repo NAME, not the full ``(host, owner/repo)``
+identity — two differently-hosted repos can share one name, so a cache hit
+is revalidated against the current ``(host, repo_slug)`` before being
+trusted (:func:`_same_scope`); a scope mismatch is treated as a cache miss
+and resolution falls through to a fresh admission check. An entry with no
+recorded scope (minted before this check existed, or via the manual
+``zeitgeist checkout`` path) is trusted as before.
 """
 
 from __future__ import annotations
@@ -331,7 +339,7 @@ def _resolve(
     core, so every branch above is testable without a checkout."""
     if not force:
         stored = credentials.load(repo=key)
-        if stored is not None and not _expired(stored.expires_at):
+        if stored is not None and not _expired(stored.expires_at) and _same_scope(stored, repo_slug=repo_slug, host=host):
             return stored
         negative = credentials.load_negative(repo=key)
         if negative is not None and not _expired(negative.expires_at):
@@ -386,8 +394,26 @@ def _resolve(
         token_kind=kind,
         capability_credential=minted.capability_credential,
         expires_at=minted.expires_at,
+        host=host,
+        repo_slug=repo_slug,
     )
     return credentials.load(repo=key)
+
+
+def _same_scope(stored: StoredCredential, *, repo_slug: str, host: str | None) -> bool:
+    """Whether a cached credential was minted for the identity we hold now.
+
+    The store key is the bare repo NAME (``repo_identity.repo_name``), which
+    two differently-hosted repos can share — a same-name hostile checkout
+    would otherwise get served a cached credential minted for someone
+    else's admitted repo. An entry with no recorded scope (minted before
+    this check existed, or via the manual ``zeitgeist checkout`` path) is
+    trusted as before: the same backward-compatible reading ``expires_at``
+    already gets when it is absent.
+    """
+    if stored.repo_slug is None and stored.host is None:
+        return True
+    return stored.repo_slug == repo_slug and stored.host == host
 
 
 def resolve_credentials(
