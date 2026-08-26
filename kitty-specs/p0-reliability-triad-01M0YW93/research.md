@@ -64,3 +64,14 @@ Three profile-loaded lenses (architecture-scout, QA/red-first, foldable-issue) r
 ## Cross-cutting (reported, deferred with rationale)
 
 - **[MED] #3579 + #3281 share one root** — incomplete recovery for a partial reconciliation at the lane git boundary (derived `status.json` must be rematerialized; git state must be re-merged/rolled-back). A unified "lane-reconciliation contract" could host both. → **DEFERRED_WITH_RATIONALE**: folding two independent release-blocking P0s into one seam multiplies blast radius against C-001/C-003 and small-diff discipline under release pressure. Keep the three-point fix for 3.2.6; recorded as a follow-up tracking candidate (surface to operator; do not auto-file).
+
+---
+
+# Post-tasks squad — evidence & dispositions (2026-08-26)
+
+Two lenses (WP-prompt anti-laziness, Sonar/campsite census) reviewed the committed WP prompts. Verdict: prompts strong, all post-plan corrections faithfully carried, red-first genuine, owned sets complete (no forced out-of-map edits), sizing OK.
+
+- **[MED] WP01 predicate-basis hazard** — CHANGED: T003 must key the dry-run predicate on KEY-PRESENCE in the resolved write target, NOT `activated_mission_types` non-emptiness (which would falsely report pending for an authored-empty `[]` pointer project). Added a dry-run "not pending" assertion for the authored-empty pointer fixture to T001.
+- **[LOW] WP02 `--mission <id>` scope** — CHANGED (note): `_stale_remediation` has no slug in scope; use a literal `<id>` placeholder or thread from `check_lane_staleness` (both in-map); don't parse the branch name.
+- **[HIGH→campsite] WP03 `transition` at complexity 14** — CHANGED: added a campsite block — extract `_parse_policy_or_fail`; one shared ancestry-predicate helper (in `implement_support.py`) called from all three claim sites with early-return for non-claim lanes; extract the stale self-heal helper; add `_remove_lane_worktree` sibling. Keeps every touched function ≤15 and enforces the boundary-correct single-predicate design.
+- **CLEARED**: WP03 owned set is complete; red-first is real for all three; no unrelated-concern mixing.
