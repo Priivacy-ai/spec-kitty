@@ -221,6 +221,7 @@ class TestPlanningArtifactLane:
     def test_planning_artifacts_get_lane_planning(self):
         """Planning-artifact WPs are assigned to the canonical lane-planning lane."""
         from specify_cli.lanes.compute import PLANNING_LANE_ID
+
         graph = {"WP01": [], "WP02": [], "WP03": []}
         manifests = {
             "WP01": _manifest(["src/core/**"]),
@@ -255,6 +256,7 @@ class TestPlanningArtifactLane:
     def test_all_planning_artifacts_single_planning_lane(self):
         """All WPs are planning artifacts → only lane-planning lane exists."""
         from specify_cli.lanes.compute import PLANNING_LANE_ID
+
         graph = {"WP01": [], "WP02": []}
         manifests = {
             "WP01": _manifest(["kitty-specs/**"], mode="planning_artifact"),
@@ -339,6 +341,26 @@ class TestLaneLevelDependencies:
         assert result.lanes[0].wp_ids == ("WP02",)
         assert result.lanes[1].wp_ids == ("WP01",)
         assert result.lanes[1].depends_on_lanes == (result.lanes[0].lane_id,)
+
+    def test_lane_cycle_after_overlap_collapse_fails_loudly(self):
+        """An acyclic WP graph can still become a cyclic lane graph after collapse."""
+        graph = {
+            "WP01": ["WP02"],
+            "WP02": [],
+            "WP03": ["WP04"],
+            "WP04": [],
+        }
+        manifests = {
+            # WP01 and WP04 collapse into lane-a.
+            "WP01": _manifest(["src/a/**"]),
+            "WP04": _manifest(["src/a/sub/**"]),
+            # WP02 and WP03 collapse into lane-b.
+            "WP02": _manifest(["src/b/**"]),
+            "WP03": _manifest(["src/b/sub/**"]),
+        }
+
+        with pytest.raises(LaneComputationError, match="Execution lane dependency graph contains a cycle"):
+            compute_lanes(graph, manifests, "test-feat")
 
 
 # ---------------------------------------------------------------------------
@@ -498,6 +520,7 @@ class TestPlanningArtifactDiagnostic:
     def test_planning_artifact_in_lane_planning_and_diagnostic(self):
         """Planning WPs are in lane-planning lane and listed in planning_artifact_wps."""
         from specify_cli.lanes.compute import PLANNING_LANE_ID
+
         graph = {"WP01": [], "WP02": [], "WP03": []}
         manifests = {
             "WP01": _manifest(["src/core/**"]),
@@ -531,6 +554,7 @@ class TestPlanningArtifactDiagnostic:
     def test_all_planning_artifacts_planning_lane_only(self):
         """When all WPs are planning artifacts, only lane-planning lane exists."""
         from specify_cli.lanes.compute import PLANNING_LANE_ID
+
         graph = {"WP01": [], "WP02": []}
         manifests = {
             "WP01": _manifest(["kitty-specs/**"], mode="planning_artifact"),
