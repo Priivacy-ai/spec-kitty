@@ -338,6 +338,9 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         MissionArtifactKind.LANE_STATE,
         MissionArtifactKind.PRIMARY_METADATA,
         MissionArtifactKind.RETROSPECTIVE,
+        # Advisory spec-review artifacts are stored on the PRIMARY mission
+        # surface and must participate in the exhaustive partition guard.
+        MissionArtifactKind.SPEC_REVIEW,
         # FR-003 (coord-commit-integrity): ANALYSIS_REPORT re-homed COORD→PRIMARY.
         MissionArtifactKind.ANALYSIS_REPORT,
     }
