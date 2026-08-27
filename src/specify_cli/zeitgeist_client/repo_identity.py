@@ -519,8 +519,8 @@ def repo_name(cwd: str, deadline: Deadline | None = None) -> str:
 
 def origin_url(cwd: str, deadline: Deadline | None = None) -> str:
     """The checkout's ``origin`` URL, verbatim, from the same sources and in
-    the same order :func:`repo_name` mints the canonical name from: the live
-    git probe, then ``.git/config``, then the quarantine record. ``""`` when
+    the same order :func:`repo_name` mints the canonical name from — see
+    :func:`_origin_candidates` for the full four-source chain. ``""`` when
     none of them has one.
 
     Callers that need more than the bare name — E3 credential resolution
