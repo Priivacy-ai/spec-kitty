@@ -348,6 +348,61 @@ class TestPush:
         assert first_key != second_key
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_push_idempotency_key_stable_within_resend_window(self, mock_cls: MagicMock, client: SaaSTrackerClient, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Two attempts landing in the same resend-window bucket collide,
+        even when the wall clock advances between them (a crash-and-resend
+        seconds later must still dedupe, per #61)."""
+        from kernel.clock import now_utc, timedelta
+
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"pushed": 1})
+
+        base = now_utc()
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: base)
+        client.push("jira", "proj-1", [{"title": "Bug"}])
+        _, kwargs = mock_http.request.call_args
+        first_key = kwargs["headers"]["Idempotency-Key"]
+
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: base + timedelta(seconds=5))
+        client.push("jira", "proj-1", [{"title": "Bug"}])
+        _, kwargs = mock_http.request.call_args
+        second_key = kwargs["headers"]["Idempotency-Key"]
+
+        assert first_key == second_key
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_push_idempotency_key_changes_after_resend_window_elapses(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A repeat of an unchanged write, once the resend window has fully
+        elapsed, must mint a new key — otherwise a logically-static write
+        (e.g. `run`) could only ever execute once per checkout, and a stale
+        `retryable: True` failure receipt would wedge every future resend
+        forever (#61 squad pass 2 MAJOR)."""
+        from kernel.clock import now_utc
+
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+        mock_http.request.return_value = _make_response(200, {"pushed": 1})
+
+        base = now_utc()
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: base)
+        client.push("jira", "proj-1", [{"title": "Bug"}])
+        _, kwargs = mock_http.request.call_args
+        first_key = kwargs["headers"]["Idempotency-Key"]
+
+        later = base + client._IDEMPOTENCY_RESEND_WINDOW * 2
+        monkeypatch.setattr("specify_cli.tracker.saas_client.now_utc", lambda: later)
+        client.push("jira", "proj-1", [{"title": "Bug"}])
+        _, kwargs = mock_http.request.call_args
+        second_key = kwargs["headers"]["Idempotency-Key"]
+
+        assert first_key != second_key
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_push_custom_idempotency_key(self, mock_cls: MagicMock, client: SaaSTrackerClient) -> None:
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)

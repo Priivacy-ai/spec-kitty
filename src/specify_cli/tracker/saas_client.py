@@ -327,6 +327,15 @@ class SaaSTrackerClient:
     _BIND_RESOLVE_PATH = "/api/v1/tracker/bind-resolve/"
     _BIND_CONFIRM_PATH = "/api/v1/tracker/bind-confirm/"
     _BIND_VALIDATE_PATH = "/api/v1/tracker/bind-validate/"
+    # Bounds how long an unchanged write's minted key stays fixed (#61
+    # squad pass 2). Without this, a content-addressed key never changes for
+    # a logically-static write (e.g. `run`'s payload is a config constant),
+    # so the server's receipt store — which has no TTL/reaper — would let
+    # the write execute exactly once per checkout forever, and would let one
+    # transient "retryable: True" failure wedge every future resend
+    # permanently. Matches the deleted durable allocator's own bound
+    # (`sync/transport_attempts.py`'s `_LOGICAL_OPERATION_MAX_LIFETIME`).
+    _IDEMPOTENCY_RESEND_WINDOW = timedelta(hours=1)
 
     # ----- routing helpers -----
 
@@ -650,14 +659,20 @@ class SaaSTrackerClient:
 
         Nothing is persisted locally between calls, but for writes the minted
         idempotency key is a deterministic digest of (project identity, write
-        kind, payload) — see ``_content_digest`` — unless the caller supplies
-        its own key. Because the digest is deterministic, a byte-identical
-        resend from a *new* process after the original died mid-flight mints
-        the same key, so the server's receipt store dedupes it exactly as it
-        would a same-process physical retry; the property survives process
-        death, not just this invocation's retries. A resend with different
-        payload content mints a different key and is never mistaken for the
-        earlier attempt.
+        kind, payload, coarse resend-window bucket) — see ``_content_digest``
+        — unless the caller supplies its own key. Because the digest is
+        deterministic, a byte-identical resend from a *new* process after the
+        original died mid-flight mints the same key within the same
+        ``_IDEMPOTENCY_RESEND_WINDOW`` bucket, so the server's receipt store
+        dedupes it exactly as it would a same-process physical retry; the
+        property survives process death, not just this invocation's retries.
+        A resend with different payload content mints a different key and is
+        never mistaken for the earlier attempt. The resend-window bucket
+        bounds how long an unchanged write's key stays fixed, so a
+        logically-static write is not stuck executing only once per checkout
+        forever, and a stale ``retryable: True`` failure receipt does not
+        wedge every future resend permanently — only resends within the same
+        window.
         """
         verdict = self._current_tracker_egress_verdict()
         if verdict.refused:
@@ -685,9 +700,15 @@ class SaaSTrackerClient:
         # server's receipt store (unique on (team, direction, operation_name,
         # idempotency_key)) dedupes it, rather than a random key reapplying
         # the write (#61). Digest locally resolvable project identity + write
-        # kind + payload — no store needed, and it keeps the wire shape the
-        # deleted durable allocator used (``logical-operation:write:`` + 64
-        # hex) that the server's non-emptiness check accepts.
+        # kind + payload, bounded by a coarse resend-window bucket — no store
+        # needed, and it keeps the wire shape the deleted durable allocator
+        # used (``logical-operation:write:`` + 64 hex) that the server's
+        # non-emptiness check accepts. The bucket is required, not cosmetic:
+        # without it a logically-static write (e.g. `run`'s config-derived
+        # payload) mints the same key forever, so the server's receipt store
+        # (no TTL, no reaper) lets it execute exactly once per checkout, and
+        # lets one transient "retryable: True" failure wedge every future
+        # resend permanently (squad pass 2, #61 fix round).
         native_identity = caller_key.strip() if caller_key is not None else f"logical-operation:write:{self._content_digest(path, json)}"
         physical_headers = dict(headers or {})
         if is_write:
@@ -719,19 +740,29 @@ class SaaSTrackerClient:
         return response
 
     def _content_digest(self, path: str, payload: dict[str, Any] | None) -> str:
-        """Deterministic 64-hex digest of (project identity, write kind, payload).
+        """Deterministic 64-hex digest of (project identity, write kind, payload, resend window).
 
         A byte-identical repeat of the same logical write — including one
         replayed from a fresh process after the original died mid-flight —
-        hashes to the same digest, so the server dedupes it. A write with
-        different content (a later push with new items, a different provider)
-        hashes differently and is never mistaken for the earlier one.
+        hashes to the same digest as long as both attempts fall in the same
+        ``_IDEMPOTENCY_RESEND_WINDOW`` bucket, so the server dedupes it. A
+        write with different content (a later push with new items, a
+        different provider) hashes differently and is never mistaken for the
+        earlier one. Once the current bucket elapses, an otherwise-unchanged
+        write mints a new digest: a logically-static write (e.g. ``run``'s
+        config-derived payload) can still execute again after the window,
+        and a resend of a write whose only prior receipt is a stale
+        ``retryable: True`` failure is not wedged forever — it is wedged for
+        at most one window.
         """
+        window_seconds = self._IDEMPOTENCY_RESEND_WINDOW.total_seconds()
+        resend_bucket = int(now_utc().timestamp() // window_seconds)
         canonical = json_module.dumps(
             {
                 "project_root": str(self._project_root) if self._project_root is not None else "",
                 "write_kind": path,
                 "payload": payload or {},
+                "resend_bucket": resend_bucket,
             },
             sort_keys=True,
             default=str,
