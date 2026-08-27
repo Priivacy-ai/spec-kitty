@@ -26,7 +26,6 @@ from urllib.error import URLError
 import json
 
 from tests.test_isolation_helpers import get_venv_python
-import contextlib
 
 pytestmark = pytest.mark.git_repo
 
@@ -134,21 +133,6 @@ def kill_dashboard_process(port: int):
                 except Exception:
                     pass
             wait_for_port_state(port, occupied=False, timeout=1.5)
-    except Exception:
-        pass
-
-
-def kill_all_spec_kitty_dashboards():
-    """Kill all spec-kitty dashboard processes (test cleanup)."""
-    try:
-        # Find all Python processes running run_dashboard_server
-        result = subprocess.run(["pgrep", "-f", "run_dashboard_server"], capture_output=True, text=True, check=False)
-        if result.stdout.strip():
-            pids = result.stdout.strip().split("\n")
-            for pid in pids:
-                with contextlib.suppress(BaseException):
-                    os.kill(int(pid), signal.SIGKILL)
-            time.sleep(1)  # Give processes time to die
     except Exception:
         pass
 
@@ -599,19 +583,6 @@ class TestDashboardCleanup:
                 )
 
 
-# Module-level cleanup: Kill ALL orphaned dashboards before and after entire test module
-@pytest.fixture(autouse=True, scope="module")
-def cleanup_all_dashboards_module():
-    """Cleanup all spec-kitty dashboard processes before and after test module."""
-    # Before all tests: kill any existing orphaned dashboards
-    kill_all_spec_kitty_dashboards()
-
-    yield
-
-    # After all tests: kill any remaining dashboards
-    kill_all_spec_kitty_dashboards()
-
-
 # Per-test cleanup: Kill dashboards on specific test ports
 @pytest.fixture(autouse=True, scope="function")
 def cleanup_test_dashboards():
@@ -622,6 +593,26 @@ def cleanup_test_dashboards():
     for port in sorted(_reserved_test_ports):
         kill_dashboard_process(port)
     _reserved_test_ports.clear()
+
+
+_PROCESS_NAME_WIDE_KILL_TOOL = "".join(["pg", "rep"])
+
+
+def test_no_process_name_wide_dashboard_kill():
+    """Guard against reintroducing a process-name-wide dashboard sweep (#70).
+
+    A process-name pattern match against every PID on the machine (e.g.
+    matching on `run_dashboard_server`) catches sibling pytest-xdist workers'
+    live dashboards under `--dist loadfile` too, so a module-scoped fixture
+    using it can kill another worker's test mid-run with no local repro.
+    Cleanup must stay scoped to the ports this worker itself reserved
+    (`_reserved_test_ports` / `cleanup_test_dashboards`).
+    """
+    source = Path(__file__).read_text()
+    assert _PROCESS_NAME_WIDE_KILL_TOOL not in source, (
+        "This module must not use a process-name-wide process sweep for dashboard "
+        "cleanup — scope cleanup to _reserved_test_ports instead (see #70)."
+    )
 
 
 def test_dashboard_with_symlinked_kitty_specs():
