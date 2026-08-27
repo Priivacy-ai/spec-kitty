@@ -284,7 +284,7 @@ Treat these as code-shaping constraints, not post-hoc cleanup:
 
 ## PyPI Release
 
-No releases happen inside this programme: the GitHub Actions release workflow this section described is not wired to this repo, and tagging would require pushing to `main` (prohibited above). If the Human-in-Control explicitly requests a release, treat that as its own decision. Historical mechanics: [CONTRIBUTING.md](CONTRIBUTING.md#release-process).
+No releases happen inside this programme. `.github/workflows/release.yml` still exists with live triggers (`push: tags: ['v*.*.*']` plus `workflow_dispatch`) — Actions are inert here (0 runs ever, including across merges to `main`), but the workflow itself remains wired: if Actions are ever re-enabled, a pushed tag fires it. Pushing a tag (`git push origin vX.Y.Z`) is a tag-ref push, not a push to `main`, so the "never push to `main`" rule above does not cover it — **do not push tags either.** If the Human-in-Control explicitly requests a release, treat that as its own decision. Historical mechanics: [CONTRIBUTING.md](CONTRIBUTING.md#release-process).
 
 ---
 
