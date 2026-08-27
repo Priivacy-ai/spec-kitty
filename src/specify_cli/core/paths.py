@@ -179,7 +179,7 @@ def _read_worktree_gitdir(git_marker: Path) -> Path | None:
     return gitdir
 
 
-def locate_project_root(start: Path | None = None) -> Path | None:
+def locate_project_root(start: Path | None = None, *, stop: Path | None = None) -> Path | None:
     """
     Locate the MAIN spec-kitty project root directory, even from within worktrees.
 
@@ -201,6 +201,14 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 
     Args:
         start: Starting directory for search (defaults to current working directory)
+        stop: Last directory examined by the walk-up (Tier 2/3). Production
+            callers keep the unbounded default (``None``), which walks all the
+            way to the filesystem root. Tests pass an explicit *stop* because
+            nothing above a test's own temp tree is under test control — on a
+            shared machine or under parallel test workers, a sibling test can
+            leave a stray ``.git``/``.kittify`` in a shared ancestor, which
+            would otherwise flip this walk's verdict non-deterministically
+            (same class of bug as #130/#139's ``_find_project_root``).
 
     Returns:
         Path to MAIN project root (not worktree), or None if not found
@@ -229,6 +237,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 
     # Tier 2: Walk up directory tree, handling worktree .git files
     current = (start or Path.cwd()).resolve()
+    boundary = stop.resolve() if stop is not None else None
 
     for candidate in [current, *current.parents]:
         git_path = candidate / ".git"
@@ -258,11 +267,12 @@ def locate_project_root(start: Path | None = None) -> Path | None:
 
         # Also check for .kittify marker (fallback for non-git scenarios)
         kittify_path = candidate / KITTIFY_DIR
-        if kittify_path.is_symlink() and not kittify_path.exists():
-            # Broken symlink - skip this candidate
-            continue
-        if kittify_path.is_dir():
+        broken_symlink = kittify_path.is_symlink() and not kittify_path.exists()
+        if not broken_symlink and kittify_path.is_dir():
             return candidate
+
+        if boundary is not None and candidate == boundary:
+            break
 
     return None
 

@@ -11,12 +11,15 @@ Covers:
 from __future__ import annotations
 
 import json
+from functools import partial
 from pathlib import Path
 
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.charter_runtime.preflight import cli as charter_preflight_cli_module
 from specify_cli.cli.commands.charter import app as charter_app
+from specify_cli.task_utils import find_repo_root
 
 from ._fixtures import (
     init_git_repo,
@@ -78,9 +81,22 @@ def test_strict_blocked_exits_one(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 
 
 def test_hard_error_exits_two(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """No repo root found → exit 2 (no JSON payload)."""
+    """No repo root found → exit 2 (no JSON payload).
+
+    ``find_repo_root()`` walks unboundedly in production. Bound the walk to
+    this test's own tmp tree (issue #128): nothing above ``tmp_path`` is under
+    test control, and under a full parallel run a sibling test's shared
+    ancestor can transiently gain a ``.git``/``.kittify``, which would flip
+    this "nothing found" verdict non-deterministically (same class of bug as
+    #130/#139's ``_find_project_root``).
+    """
     # tmp_path is not a git repo and has no .kittify ancestor -> find_repo_root raises.
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(
+        charter_preflight_cli_module,
+        "find_repo_root",
+        partial(find_repo_root, stop=tmp_path),
+    )
     result = _runner.invoke(charter_app, ["preflight", "--json"])
     assert result.exit_code == 2, result.stdout
 
