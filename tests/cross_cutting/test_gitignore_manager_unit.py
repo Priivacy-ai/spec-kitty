@@ -450,6 +450,26 @@ class TestGitignoreSymlinkSafety:
         mode = manager.gitignore_path.stat().st_mode & 0o777
         assert mode == 0o640
 
+    def test_new_file_respects_umask_not_mkstemp_default(self, manager):
+        """A brand-new .gitignore must land at the umask-respecting mode.
+
+        `tempfile.mkstemp()` always creates its tempfile at 0600 regardless
+        of the process umask. For a pre-existing `.gitignore` the atomic
+        write replicates its mode, but for a brand-new one (the common
+        `spec-kitty init` path) there is no existing mode to replicate, so
+        without an explicit chmod the file would keep mkstemp's 0600 instead
+        of the 0644-under-umask-022 that `write_text()` used to produce.
+        """
+        assert not manager.gitignore_path.exists()
+        old_umask = os.umask(0o022)
+        try:
+            manager.ensure_entries([".claude/"])
+        finally:
+            os.umask(old_umask)
+
+        mode = manager.gitignore_path.stat().st_mode & 0o777
+        assert mode == 0o644
+
     def test_permission_denied_still_raised_on_readonly_file(self, manager):
         """os.replace() ignores the target's mode bits; the manager must not.
 

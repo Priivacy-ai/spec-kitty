@@ -25,6 +25,17 @@ class GitignorePathError(Exception):
     """
 
 
+def _get_umask() -> int:
+    """Return the process umask without permanently changing it.
+
+    `os.umask()` is the only way to read the current umask, and it's a
+    process-global set-and-return-previous call, so restore it immediately.
+    """
+    current = os.umask(0)
+    os.umask(current)
+    return current
+
+
 @dataclass
 class AgentDirectory:
     """Represents a single agent's directory that needs protection."""
@@ -208,8 +219,12 @@ class GitignoreManager:
             suffix=".tmp",
         )
         try:
-            if existing_mode is not None:
-                os.chmod(tmp_path, existing_mode)
+            # mkstemp() always creates the tempfile at mode 0600, regardless
+            # of umask. For an existing .gitignore, replicate its own mode.
+            # For a brand-new one, replicate what open()/write_text() would
+            # have produced: 0666 narrowed by the process umask.
+            target_mode = existing_mode if existing_mode is not None else (0o666 & ~_get_umask())
+            os.chmod(tmp_path, target_mode)
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 f.write(content)
             os.replace(tmp_path, self.gitignore_path)
