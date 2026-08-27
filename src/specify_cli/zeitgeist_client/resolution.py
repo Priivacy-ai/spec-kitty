@@ -407,10 +407,10 @@ def _expired(expires_at: str | None) -> bool:
     against the aware clock as-is — ``aware >= naive`` raises
     ``TypeError``. Rather than treat that as unparseable and let the
     credential (or a negative "stay silent" answer) never expire, a
-    successfully-parsed naive stamp is assumed UTC and compared normally;
-    the ``TypeError`` guard stays only for text that fails to compare even
-    after that coercion (i.e. would have to be raised by something other
-    than a naive/aware mismatch, since parsing already failed above)."""
+    successfully-parsed naive stamp is assumed UTC and compared normally: by
+    the time the comparison below runs, ``parsed`` is always aware (coerced
+    just above if it wasn't already), and comparing two aware ``datetime``
+    values never raises ``TypeError`` regardless of differing ``tzinfo``."""
     if not expires_at:
         return False
     try:
@@ -420,10 +420,7 @@ def _expired(expires_at: str | None) -> bool:
     if parsed.tzinfo is None:
         logger.debug("naive expires_at stamp %r coerced to UTC", expires_at)
         parsed = parsed.replace(tzinfo=UTC)
-    try:
-        return now_utc() >= parsed
-    except TypeError:
-        return False
+    return now_utc() >= parsed
 
 
 def _default_gateway(auth_repo_root: Path) -> SaasCapabilityGateway:
