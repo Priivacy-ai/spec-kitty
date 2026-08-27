@@ -151,9 +151,45 @@ class TestLoadSettings:
         assert settings.agents is moments.MomentsMode.OFF
         assert "(invalid" in settings.agents_source
 
-    def test_corrupt_global_file_reads_as_unset(self, moments_config: Path) -> None:
+    def test_corrupt_global_file_fails_closed_to_off(self, moments_config: Path) -> None:
+        """#211: a TOML syntax error anywhere in the file — even one that
+        would have discarded an explicit `agents = "off"` and every filter —
+        must never read as "this file said nothing" and widen to the `mine`
+        default. It fails the mode closed instead, and says which file and
+        why."""
         moments_config.write_text("[moments\nnot toml ===")
-        assert moments.load_settings(home=moments_config.parent).agents is moments.MomentsMode.MINE
+        settings = moments.load_settings(home=moments_config.parent)
+        assert settings.agents is moments.MomentsMode.OFF
+        assert str(moments_config) in settings.agents_source
+        assert "unparseable" in settings.agents_source
+
+    def test_corrupt_global_file_cannot_be_widened_by_a_valid_repo_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """An unparseable global file might have said `agents = "off"`; a
+        repo file that validly sets `team` must not win over that
+        uncertainty — the scope with the parse error still fails closed."""
+        root = tmp_path / "checkout"
+        (root / ".kittify").mkdir(parents=True)
+        (root / ".kittify" / "config.toml").write_text('[moments]\nagents = "team"\n')
+        global_path = tmp_path / "global-config.toml"
+        global_path.write_text("[moments\nnot toml ===")
+        monkeypatch.setattr(moments, "global_config_path", lambda *, home=None: global_path)
+
+        settings = moments.load_settings(project_root=root)
+        assert settings.agents is moments.MomentsMode.OFF
+        assert str(global_path) in settings.agents_source
+
+    def test_corrupt_repo_file_fails_closed_even_with_no_global_file(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        root = tmp_path / "checkout"
+        (root / ".kittify").mkdir(parents=True)
+        (root / ".kittify" / "config.toml").write_text("[moments\nnot toml ===")
+        global_path = tmp_path / "global-config.toml"
+        monkeypatch.setattr(moments, "global_config_path", lambda *, home=None: global_path)
+
+        settings = moments.load_settings(project_root=root)
+        assert settings.agents is moments.MomentsMode.OFF
+        assert str(root / ".kittify" / "config.toml") in settings.agents_source
 
     @pytest.mark.parametrize(
         ("line", "expected"),

@@ -166,19 +166,30 @@ def locate_repo_root(cwd: Path | None = None) -> Path | None:
     return locate_project_root(cwd if cwd is not None else Path.cwd())
 
 
-def _read_section(path: Path) -> dict[str, Any]:
-    """The ``[moments]`` table of one config file, or ``{}`` when there is
-    no file, no table, or an unreadable one. Read failures read as unset —
-    the same tolerance ``credentials._read_all`` applies to its store —
-    because a broken config must never crash a surface that only wanted to
-    know what to surface."""
+def _read_section(path: Path) -> tuple[dict[str, Any], str | None]:
+    """The ``[moments]`` table of one config file, plus a parse-error message
+    when the file exists but ``tomllib`` could not read it.
+
+    Returns ``({}, None)`` when there is no file, no table, or the file is
+    unreadable for reasons unrelated to its content (missing, a directory,
+    permission-denied) — those read as unset, the same tolerance
+    ``credentials._read_all`` applies to its store.
+
+    Returns ``({}, message)`` when the file exists but is not valid TOML: a
+    syntax error ANYWHERE in the file — even outside ``[moments]`` — must not
+    read as "this file said nothing", because that silently discards an
+    explicit ``agents = "off"`` and every filter the file set, widening the
+    effective mode to the ``mine`` default (EXPERIMENTAL-spec-kitty#211). The
+    caller fails that scope's mode closed instead."""
     try:
         with path.open("rb") as fh:
             document = tomllib.load(fh)
-    except (FileNotFoundError, IsADirectoryError, PermissionError, tomllib.TOMLDecodeError, OSError):
-        return {}
+    except (FileNotFoundError, IsADirectoryError, PermissionError, OSError):
+        return {}, None
+    except tomllib.TOMLDecodeError as exc:
+        return {}, str(exc)
     section = document.get(CONFIG_SECTION)
-    return dict(section) if isinstance(section, Mapping) else {}
+    return (dict(section) if isinstance(section, Mapping) else {}), None
 
 
 def _coerce_mode(raw: Any, source: str) -> tuple[MomentsMode, str]:
@@ -247,19 +258,45 @@ _MODE_RANK = {
 }
 
 
-def _resolve_mode(global_section: Mapping[str, Any], repo_section: Mapping[str, Any], *, home: Path | None, project_root: Path | None) -> tuple[MomentsMode, str]:
+def _parse_error_candidate(path: Path, message: str) -> tuple[MomentsMode, str]:
+    """A config file that exists but failed to parse contributes a forced
+    ``off`` candidate to :func:`_resolve_mode` — the file might have said
+    ``agents = "off"`` or set a filter, and an unparseable file cannot be
+    trusted to have said anything narrower, so the scope fails closed
+    instead of being treated as absent (#211)."""
+    return MomentsMode.OFF, f"{path} (unparseable: {message}; failing closed to off)"
+
+
+def _resolve_mode(
+    global_section: Mapping[str, Any],
+    repo_section: Mapping[str, Any],
+    *,
+    global_error: str | None,
+    repo_error: str | None,
+    home: Path | None,
+    project_root: Path | None,
+) -> tuple[MomentsMode, str]:
     """Resolve ``agents`` narrow-only across global and repo config.
 
     Repo settings used to have unconditional precedence. For this per-developer
     switch, that lets a committed repo file re-enable moments for someone who
     globally opted out. Treat the two values as a lattice instead: choose the
     narrower mode by ``off < mine < team`` and report the source that won.
+
+    A file that failed to parse (``global_error``/``repo_error`` set) always
+    contributes ``off`` regardless of whatever ``agents`` value the other
+    scope's file holds — see :func:`_parse_error_candidate`.
     """
     candidates: list[tuple[MomentsMode, str]] = []
-    if "agents" in global_section:
+    if global_error is not None:
+        candidates.append(_parse_error_candidate(global_config_path(home=home), global_error))
+    elif "agents" in global_section:
         candidates.append(_coerce_mode(global_section["agents"], str(global_config_path(home=home))))
-    if project_root is not None and "agents" in repo_section:
-        candidates.append(_coerce_mode(repo_section["agents"], str(repo_config_path(project_root))))
+    if project_root is not None:
+        if repo_error is not None:
+            candidates.append(_parse_error_candidate(repo_config_path(project_root), repo_error))
+        elif "agents" in repo_section:
+            candidates.append(_coerce_mode(repo_section["agents"], str(repo_config_path(project_root))))
     if not candidates:
         return DEFAULT_AGENTS_MODE, "default"
     return min(candidates, key=lambda candidate: _MODE_RANK[candidate[0]])
@@ -290,12 +327,19 @@ def load_settings(
     """
     if project_root is None:
         project_root = locate_repo_root()
-    global_section = _read_section(global_config_path(home=home))
-    repo_section = _read_section(repo_config_path(project_root)) if project_root is not None else {}
+    global_section, global_error = _read_section(global_config_path(home=home))
+    repo_section, repo_error = _read_section(repo_config_path(project_root)) if project_root is not None else ({}, None)
 
     merged: dict[str, Any] = {**global_section, **repo_section}
     invalid_filters = _malformed_filter_keys(merged)
-    mode, agents_source = _resolve_mode(global_section, repo_section, home=home, project_root=project_root)
+    mode, agents_source = _resolve_mode(
+        global_section,
+        repo_section,
+        global_error=global_error,
+        repo_error=repo_error,
+        home=home,
+        project_root=project_root,
+    )
     return MomentSettings(
         agents=mode,
         repos=_string_list(merged.get("repos")),
