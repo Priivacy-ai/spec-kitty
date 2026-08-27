@@ -218,11 +218,22 @@ def _broadcast_lifecycle_envelope(kwargs: Mapping[str, Any]) -> None:
         )
         return
 
-    model = PAYLOAD_MODEL_BY_EVENT_TYPE[event_type]
-    try:
-        payload = model.model_validate(dict(envelope_dict.get("payload") or {}))
-    except ValidationError as exc:
-        logger.warning("Zeitgeist moment %s not broadcast: %s", event_type, exc)
+    # A discriminated-union event type (DecisionPointOpened, DecisionPointResolved)
+    # maps to a tuple of variant models rather than one class -- mirrors
+    # zeitgeist_attrs._payload_types()'s own normalisation, since that helper
+    # is private to the codec module and not exported for reuse here.
+    models = PAYLOAD_MODEL_BY_EVENT_TYPE[event_type]
+    candidates = models if isinstance(models, tuple) else (models,)
+    payload: BaseModel | None = None
+    last_exc: ValidationError | None = None
+    for candidate in candidates:
+        try:
+            payload = candidate.model_validate(dict(envelope_dict.get("payload") or {}))
+            break
+        except ValidationError as exc:
+            last_exc = exc
+    if payload is None:
+        logger.warning("Zeitgeist moment %s not broadcast: %s", event_type, last_exc)
         return
 
     event_id = str(envelope_dict.get("event_id") or uuid.uuid4())
