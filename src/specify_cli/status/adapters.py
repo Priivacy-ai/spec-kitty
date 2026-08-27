@@ -3,10 +3,10 @@
 Provides a decoupled callback boundary so that status/emit.py does not
 need to depend on any transport. Handlers are registered into the slots
 below by whichever subsystem owns a transport. The default wiring (this
-module's import tail) installs the Zeitgeist moment handler (#8); until
-#5/#114 deletes the sync package, that package's handlers coexist in the
-same registries, and this tail honours the same
-SPEC_KITTY_SYNC_MINIMAL_IMPORT gate sync's registration does.
+module's import tail) installs the Zeitgeist moment handler (#8), the
+sole occupant of these registries since the sync package was deleted
+(#5/#114); this tail honours the SPEC_KITTY_SYNC_MINIMAL_IMPORT gate
+that package's registration used to observe.
 
 All fire_* functions are non-raising: exceptions from individual
 handlers are caught and logged, never re-raised to the caller. An empty
@@ -185,10 +185,10 @@ def register_lifecycle_saas_fanout_handler(cb: LifecycleSaasFanOutHandler) -> No
 def register_resolved_binding_fanout_handler(cb: ResolvedBindingFanOutHandler) -> None:
     """Register a ``WPResolvedBindingChanged`` fan-out callback (idempotent by name).
 
-    Mirrors :func:`register_saas_fanout_handler`. The sync package registers the
-    handler that builds the concrete ``spec_kitty_events.WPResolvedBindingChanged``
-    payload once the events package ships it; until then the status layer's
-    version gate skips the fan-out (see ``emit._resolved_binding_fan_out``).
+    Mirrors :func:`register_saas_fanout_handler`. The Zeitgeist moment handler
+    builds the concrete ``spec_kitty_events.WPResolvedBindingChanged`` payload
+    once the events package ships it; until then the status layer's version
+    gate skips the fan-out (see ``emit._resolved_binding_fan_out``).
     """
     key = _handler_key(cb)
     for idx, existing in enumerate(_resolved_binding_handlers):
@@ -203,12 +203,11 @@ def ensure_zeitgeist_moment_handlers() -> None:
 
     Idempotent: the ``register_*`` functions de-duplicate by qualified name,
     so calling this repeatedly is safe. This is the E3 (#8) default wiring of
-    these slots — alongside ``sync``'s own handlers until #5/#114 deletes that
-    package, sole default occupant afterwards — and, per the egress-consent
-    precedent, it lives where the answer is needed rather than in some other
-    package's init. The import tail calls it once; tests that wipe the
-    registry via :func:`reset_handlers` call it again to restore production
-    wiring.
+    these slots — the sole default occupant since the sync package was
+    deleted (#5/#114) — and, per the egress-consent precedent, it lives where
+    the answer is needed rather than in some other package's init. The
+    import tail calls it once; tests that wipe the registry via
+    :func:`reset_handlers` call it again to restore production wiring.
     """
     register_saas_fanout_handler(saas_moment_handler)
     register_lifecycle_saas_fanout_handler(lifecycle_moment_handler)
@@ -356,11 +355,11 @@ def fire_lifecycle_saas_fanout(**kwargs: Any) -> None:
 
 
 # Default wiring: every process that imports this seam carries the Zeitgeist
-# moment handler, under the same gate the sync package's own import tail obeys —
-# SPEC_KITTY_SYNC_MINIMAL_IMPORT means "register no transport at import time"
-# (the doctor restart-daemon fast path sets it), and this tail is bound by it.
-# Until #5/#114 deletes the sync package, both wirings coexist; afterwards this
-# is the only default registration. A caller needing an empty registry (tests)
-# calls reset_handlers() and restores with ensure_zeitgeist_moment_handlers().
+# moment handler, under the same SPEC_KITTY_SYNC_MINIMAL_IMPORT gate the now-
+# deleted sync package's own import tail used to obey (#5/#114) —
+# SPEC_KITTY_SYNC_MINIMAL_IMPORT means "register no transport at import time."
+# This is the only default registration into these slots. A caller needing an
+# empty registry (tests) calls reset_handlers() and restores with
+# ensure_zeitgeist_moment_handlers().
 if not is_truthy(os.environ.get("SPEC_KITTY_SYNC_MINIMAL_IMPORT")):
     ensure_zeitgeist_moment_handlers()

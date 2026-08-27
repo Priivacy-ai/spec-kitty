@@ -147,7 +147,9 @@ class TrackerProjectConfig:
         """Derived fault flag for Channel 2 (#3108 FR-006, C-020).
 
         ``False`` when ``egress`` is ``EGRESS_ABSENT`` (the key was missing --
-        absence is not a fault, it defers to Channel 1) or holds one of the
+        absence is not a fault; Channel 1 is retired, so for
+        ``EgressDestination.HOSTED_SERVICE`` this now falls through to permit
+        directly, with no Channel 1 to defer to) or holds one of the
         exactly two legal strings. ``True`` for anything else present at the
         key -- a present ``null``, the wrong type, or a near-miss string such
         as ``Refused`` or ``refuse`` -- and a fault refuses at both

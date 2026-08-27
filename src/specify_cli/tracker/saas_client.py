@@ -399,7 +399,7 @@ class SaaSTrackerClient:
         which is the ``saas_client/`` package's gate; the two are adjacent here by
         accident of numbering): this module remains on the legacy
         ``httpx.Client(...)`` instantiation pattern because 130+
-        downstream tests (under ``tests/sync/tracker/``) patch
+        downstream tests (under ``tests/tracker/``) patch
         ``specify_cli.tracker.saas_client.httpx.Client`` directly. The
         architectural test in
         ``tests/architectural/test_auth_transport_singleton.py``

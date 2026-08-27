@@ -609,8 +609,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.TOML,
         authority=AuthorityClass.AUTHORITATIVE,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/config",
-        creation_trigger="spec-kitty sync configure",
+        owner_module="auth/server_target",
+        creation_trigger="operator-authored; no command writes this file",
     ),
     StateSurface(
         name="sync_credentials",
@@ -619,8 +619,8 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.TOML,
         authority=AuthorityClass.SECRET,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/auth + tracker/credentials",
-        creation_trigger="spec-kitty sync login",
+        owner_module="tracker/credentials",
+        creation_trigger="spec-kitty tracker bind",
     ),
     StateSurface(
         name="credential_lock",
@@ -629,7 +629,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         format=StateFormat.LOCKFILE,
         authority=AuthorityClass.LOCAL_RUNTIME,
         git_class=GitClass.OUTSIDE_REPO,
-        owner_module="sync/auth",
+        owner_module="tracker/credentials",
         creation_trigger="credential write serialization",
     ),
     # -----------------------------------------------------------------------
