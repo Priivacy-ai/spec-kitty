@@ -363,10 +363,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         # specify_cli.cli.commands._auth_doctor::compute_exit_code
         SymbolKey("compute_exit_code", "060144b6c7b405770cc41179f7c74273e8618e6271027c42794a87f567516179", source_module="specify_cli.cli.commands._auth_doctor"),
         SymbolKey(
-            "render_report", "5d7c9ef447c1b6bd181b91df73b6d5487371dfde2e82f9c531b9941e0226d0b8", source_module="specify_cli.cli.commands._auth_doctor"
+            "render_report", "ec6786950128c6bc191c43a4fad6872e136435c58997e91b42ebc965188a7f4d", source_module="specify_cli.cli.commands._auth_doctor"
         ),  # specify_cli.cli.commands._auth_doctor::render_report
         # specify_cli.cli.commands._auth_doctor::render_report_json
-        SymbolKey("render_report_json", "93cff87dc4744c952bb1198e4dfbcdec80aaad7ea9607a572c7287722cd8ac63", source_module="specify_cli.cli.commands._auth_doctor"),
+        SymbolKey("render_report_json", "cb3cc8a08c8d040f7d13cf3126e3864e67f310b3e7308514fdc84680927f4b08", source_module="specify_cli.cli.commands._auth_doctor"),
         # specify_cli.cli.commands._branch_strategy_gate::GateDecision
         SymbolKey(
             "GateDecision", "e771518baeeaa1f5ff82b36c70e2f06dea0792f9d43cd16a4361f72a3aaf5899", source_module="specify_cli.cli.commands._branch_strategy_gate"
