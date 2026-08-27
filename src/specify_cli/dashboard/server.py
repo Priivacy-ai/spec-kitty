@@ -124,6 +124,19 @@ def _background_script(
     )
 
 
+def _background_port_report_error(proc: subprocess.Popen[bytes], raw_report: bytes) -> RuntimeError:
+    exit_code = proc.poll()
+    if exit_code is None:
+        try:
+            exit_code = proc.wait(timeout=0.1)
+        except subprocess.TimeoutExpired:
+            exit_code = None
+
+    process_state = f"child exited with status {exit_code}" if exit_code is not None else "child is still running but closed the reporting pipe"
+    detail = f"invalid port report {raw_report!r}" if raw_report else "no port report"
+    return RuntimeError(f"Detached dashboard process failed to report its bound port for port=0 ({detail}; {process_state}).")
+
+
 def start_dashboard(
     project_dir: Path,
     port: int | None = None,
@@ -162,23 +175,36 @@ def start_dashboard(
         port_fd = pipe[1] if pipe is not None else None
 
         script = _background_script(project_dir_abs, port, project_token, port_fd)
-        proc = subprocess.Popen(
-            [sys.executable, '-c', script],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            stdin=subprocess.DEVNULL,
-            start_new_session=True,
-            pass_fds=(port_fd,) if port_fd is not None else (),
-        )
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, '-c', script],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                stdin=subprocess.DEVNULL,
+                start_new_session=True,
+                pass_fds=(port_fd,) if port_fd is not None else (),
+            )
+        except Exception:
+            if pipe is not None:
+                os.close(pipe[0])
+                os.close(pipe[1])
+            raise
 
         if pipe is not None:
             read_fd, write_fd = pipe
             os.close(write_fd)  # our copy; the child's own copy keeps the pipe open until it reports back
             chunks = []
-            while chunk := os.read(read_fd, 32):
-                chunks.append(chunk)
-            os.close(read_fd)
-            port = int(b"".join(chunks).decode())
+            try:
+                while chunk := os.read(read_fd, 32):
+                    chunks.append(chunk)
+            finally:
+                os.close(read_fd)
+
+            raw_report = b"".join(chunks)
+            try:
+                port = int(raw_report.decode())
+            except (UnicodeDecodeError, ValueError) as exc:
+                raise _background_port_report_error(proc, raw_report) from exc
 
         return port, proc.pid
 
