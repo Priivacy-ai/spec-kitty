@@ -223,10 +223,11 @@ def _guard_session_issuer(session: Any, target: Any) -> None:
 def _normalize_endpoint(url: str) -> str:
     """Normalize a URL for endpoint comparison.
 
-    Same semantics as ``server_target._normalize_url`` /
-    ``_auth_status._normalize_endpoint`` (strip surrounding whitespace, drop
-    one trailing slash); kept local so the comparison does not reach into
-    another module's private helper.
+    Same semantics as ``server_target._normalize_url`` (strip surrounding
+    whitespace, drop one trailing slash); kept local so the comparison does
+    not reach into another module's private helper. Other modules keep their
+    own local copy with the same semantics rather than being named here, so
+    this reference doesn't go stale as those copies move (#423).
     """
     return url.strip().rstrip("/")
 
