@@ -249,6 +249,13 @@ line-length = 164
 # Formatter-debt ratchet for issue #473. These files were not formatted under
 # the live Ruff config on origin/main; remove entries as files are reformatted.
 # This is formatter-only so `ruff check .` still lints these files.
+# Shrink-only ratchet enforced by tests/architectural/test_ruff_format_exclude_ratchet.py
+# (issue #559): the entry count may not exceed the pinned baseline, every entry
+# must exist on disk, and every entry must still genuinely reformat under the
+# live config. The three `kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/`
+# entries this baseline used to carry were removed here (#559) as dead weight:
+# `ruff.toml`'s `extend-exclude = ["kitty-specs/*/research/**"]` already drops
+# that whole tree from lint/format collection independently.
 exclude = [
     ".kittify/overrides/missions/primitives.py",
     ".kittify/overrides/missions/repository.py",
@@ -257,9 +264,6 @@ exclude = [
     "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/audit.py",
     "docs/reports/test-sanitation/assertive-test-suite-sanitation-01KZME3P/raw/wp02-bootstrap-pre-fix-probe.py",
     "kitty-specs/010-workspace-per-work-package-for-parallel-development/tests/integration/test_planning_workflow.py",
-    "kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/spec_kitty_home_pin_evidence/clf.py",
-    "kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/spec_kitty_home_pin_evidence/step3.py",
-    "kitty-specs/isolated-home-pin-guard-r1a-01KZNMA3/research/spec_kitty_home_pin_evidence/verify.py",
     "kitty-specs/phase-3-charter-synthesizer-pipeline-01KPE222/contracts/adapter.py",
     "kitty-specs/refactor-stable-gate-substrate-01KWK3FY/doctrine_content_check.py",
     "kitty-specs/refactor-stable-gate-substrate-01KWK3FY/freeze_converter.py",
