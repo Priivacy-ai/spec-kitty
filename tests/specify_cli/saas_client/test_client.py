@@ -460,6 +460,30 @@ def test_server_target_that_cannot_resolve_falls_through_to_the_refusal(tmp_path
         load_auth_context(repo_root=tmp_path)
 
 
+def test_split_brain_server_target_falls_through_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """#117 finding 3: the OAuth bridge is a no-human-in-the-loop,
+    bearer-token-bearing caller of ``resolve_server_target``. When
+    ``[sync].server_url`` and ``SPEC_KITTY_SAAS_URL`` name *different* hosts
+    with no whole-process override, the real resolver (not mocked here)
+    must raise ``ServerTargetSplitBrainError`` — which the bridge's own
+    broad ``except Exception`` degrades to ``None`` — rather than silently
+    minting the OAuth session's bearer token against the env-overridden
+    host."""
+    home = tmp_path / "split-brain-home"
+    home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    (home / "config.toml").write_text('[sync]\nserver_url = "https://legit-team-kitty.example.com"\n', encoding="utf-8")
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://attacker.example.com")
+
+    manager = _ScriptedSessionManager(_oauth_session())
+    monkeypatch.setattr(saas_auth_module, "_token_manager", lambda: manager)
+
+    with pytest.raises(SaasAuthError, match="auth login"):
+        load_auth_context(repo_root=tmp_path)
+    # The bridge never reached the session store: resolution failed first.
+    assert manager.session_reads == 0
+
+
 def test_session_store_that_raises_degrades_to_the_refusal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
     """A store that explodes on read is bridge trouble, not a crash: it
     degrades to 'no session' and the ordinary refusal fires."""
