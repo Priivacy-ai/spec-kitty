@@ -36,8 +36,14 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     """Load SaaS auth context.
 
     Resolution order:
-    1. ``SPEC_KITTY_SAAS_TOKEN`` / ``SPEC_KITTY_SAAS_URL`` env vars.
-    2. ``.kittify/saas-auth.json`` relative to *repo_root* (if provided).
+    1. ``SPEC_KITTY_SAAS_TOKEN`` env var. Its URL comes from
+       ``SPEC_KITTY_SAAS_URL`` if set, else the canonical server target
+       (:func:`specify_cli.auth.server_target.resolve_server_target`) —
+       never from ``.kittify/saas-auth.json``, which a checkout controls
+       (#237: a repo-local URL must not redirect an env-supplied token).
+    2. ``.kittify/saas-auth.json`` relative to *repo_root* (if provided) —
+       its ``token`` paired with its own ``saas_url`` (falling back to
+       ``SPEC_KITTY_SAAS_URL`` only when the file omits ``saas_url``).
     3. The stored OAuth session written by ``spec-kitty auth login``
        (#198): its access token as the bearer, paired with the canonical
        server target (:func:`specify_cli.auth.server_target.resolve_server_target`)
@@ -57,20 +63,37 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
             supplied by env var, auth file, or the stored session's server
             target (D-5: no hardcoded SaaS domain fallback).
     """
-    url = os.environ.get("SPEC_KITTY_SAAS_URL", "").strip()
-    token = os.environ.get("SPEC_KITTY_SAAS_TOKEN", "").strip()
+    env_url = os.environ.get("SPEC_KITTY_SAAS_URL", "").strip()
+    env_token = os.environ.get("SPEC_KITTY_SAAS_TOKEN", "").strip()
     team_slug = os.environ.get("SPEC_KITTY_TEAM_SLUG", "").strip() or None
 
-    if (not token or not url) and repo_root is not None:
+    file_url = ""
+    file_token = ""
+    if repo_root is not None:
         auth_file = repo_root / ".kittify" / "saas-auth.json"
         if auth_file.exists():
             try:
                 data = json.loads(auth_file.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError) as exc:
                 raise SaasAuthError(f"Failed to read .kittify/saas-auth.json: {exc}") from exc
-            token = token or data.get("token", "").strip()
-            url = url or data.get("saas_url", "").strip()
+            file_token = data.get("token", "").strip()
+            file_url = data.get("saas_url", "").strip()
             team_slug = team_slug or data.get("team_slug") or None
+
+    # Trust boundary (#237): the URL and the bearer must come from the same
+    # source. A checkout-controlled .kittify/saas-auth.json may name a
+    # saas_url, but only alongside its own token — never paired with the
+    # env-supplied service token, which is typically longer-lived and more
+    # broadly scoped than what a checkout should be able to redirect.
+    if env_token:
+        token = env_token
+        url = env_url or _server_target_url()
+    elif file_token:
+        token = file_token
+        url = file_url or env_url
+    else:
+        token = ""
+        url = env_url or file_url
 
     if not token:
         bridged = _oauth_session_context()
@@ -156,6 +179,23 @@ def _resolved_server_target() -> Any:
     from specify_cli.auth.server_target import resolve_server_target  # noqa: PLC0415
 
     return resolve_server_target()
+
+
+def _server_target_url() -> str:
+    """Best-effort canonical server target URL, for pairing with an
+    env-supplied token when ``SPEC_KITTY_SAAS_URL`` itself is unset (#237).
+
+    This is a trusted source (env or ``config.toml``, never a checkout), unlike
+    ``.kittify/saas-auth.json``'s ``saas_url``, which must not be honoured
+    alongside an env token. Any resolution trouble (nothing configured,
+    split-brain) degrades to ``""`` — the caller's own "SaaS URL not
+    configured" refusal already says what to do.
+    """
+    try:
+        return _resolved_server_target().resolved_server_url
+    except Exception as exc:  # noqa: BLE001 — any resolution trouble means "no url from this source"
+        logger.debug("Server target resolution unavailable for env-token pairing (%s)", exc)
+        return ""
 
 
 def _dead_session_errors() -> tuple[type[Exception], ...]:

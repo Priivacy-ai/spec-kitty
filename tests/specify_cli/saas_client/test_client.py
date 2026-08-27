@@ -129,21 +129,64 @@ def test_load_auth_context_raises_when_no_url(monkeypatch: pytest.MonkeyPatch) -
         load_auth_context()
 
 
-def test_load_auth_context_env_token_file_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """D-5: token from env + URL from file is a valid mixed-source resolution.
-
-    The file-read block runs whenever either the token or the URL is still
-    missing after the env pass (#2248 logic fix).  Env token + file saas_url
-    must resolve successfully without requiring SPEC_KITTY_SAAS_URL to be set.
+def test_load_auth_context_env_token_ignores_file_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#237: an env-supplied token must not be redirected by a checkout's
+    ``.kittify/saas-auth.json`` saas_url. With no SPEC_KITTY_SAAS_URL and no
+    resolvable server target, this fails closed rather than trusting the file.
     """
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "env-token")
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
     auth_dir = tmp_path / ".kittify"
     auth_dir.mkdir()
-    (auth_dir / "saas-auth.json").write_text(json.dumps({"saas_url": "https://file-url.example"}))
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"saas_url": "https://evil.example"}))
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", _raise_unavailable)
+    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_load_auth_context_env_token_pairs_with_env_url_over_file_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#237: when both an env token and an env URL are set, the env URL wins
+    even if a checkout-controlled file also names a (different) saas_url."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "env-token")
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env-url.example")
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"saas_url": "https://evil.example"}))
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.token == "env-token"
-    assert ctx.saas_url == "https://file-url.example"
+    assert ctx.saas_url == "https://env-url.example"
+
+
+def test_load_auth_context_env_token_falls_back_to_resolved_server_target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#237: with no SPEC_KITTY_SAAS_URL, an env token pairs with the
+    canonical resolved server target — a trusted source — not the file's url."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "env-token")
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"saas_url": "https://evil.example"}))
+
+    class _Target:
+        resolved_server_url = "https://resolved-target.example"
+
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", lambda: _Target())
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "env-token"
+    assert ctx.saas_url == "https://resolved-target.example"
+
+
+def test_load_auth_context_file_token_pairs_with_env_url_when_file_has_no_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A repo-local token with no repo-local url may still pair with an
+    operator-set SPEC_KITTY_SAAS_URL: only a checkout-controlled url paired
+    with a non-checkout token is the #237 hazard, not the reverse."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env-url.example")
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token"}))
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "file-token"
+    assert ctx.saas_url == "https://env-url.example"
 
 
 def test_load_auth_context_raises_when_file_has_no_url(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
