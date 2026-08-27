@@ -81,7 +81,11 @@ def test_glossary_subresources_are_same_origin_or_data_uris() -> None:
 
 
 _BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
-_JS_LINE_COMMENT_RE = re.compile(r"//.*")
+# Negative lookbehind for ':' so `://` inside a URL literal (http://, https://)
+# is not mistaken for a `//` line-comment start — a bare `//.*` truncated the
+# rest of the source line, silently hiding any markup sharing that line with a
+# same-origin URL literal. See test_strip_js_comments_preserves_markup_after_url_literal.
+_JS_LINE_COMMENT_RE = re.compile(r"(?<!:)//.*")
 
 
 def _strip_css_comments(css: str) -> str:
@@ -96,6 +100,16 @@ def _strip_js_comments(js: str) -> str:
     without stripping comments those doc strings would trip these guards on
     their own prose, not on actual code."""
     return _JS_LINE_COMMENT_RE.sub("", _BLOCK_COMMENT_RE.sub("", js))
+
+
+def test_strip_js_comments_preserves_markup_after_url_literal() -> None:
+    """A same-origin URL literal sharing a line with markup must not have the
+    markup after it silently swallowed as if `://` started a line comment
+    (squad finding on PR #361, issue #96 fix round)."""
+    js = 'main.innerHTML = `<a href="https://good.example/a">x</a><div style="color:red"></div>`;'
+    stripped = _strip_js_comments(js)
+    assert 'style="color:red"' in stripped
+    assert _STYLE_ATTRIBUTE_RE.search(stripped) is not None
 
 
 def test_glossary_static_assets_have_no_inline_style_attribute() -> None:
