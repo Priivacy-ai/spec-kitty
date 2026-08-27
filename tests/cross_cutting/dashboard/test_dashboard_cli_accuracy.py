@@ -13,20 +13,21 @@ Problem:
 These tests validate that CLI status reporting matches actual dashboard state.
 """
 
-import pytest
+import ast
+import json
+import os
+import signal
+import socket
 import subprocess
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import signal
-import os
-import socket
-from urllib.request import urlopen
 from urllib.error import URLError
-import json
+from urllib.request import urlopen
+
+import pytest
 
 from tests.test_isolation_helpers import get_venv_python
-import contextlib
 
 pytestmark = pytest.mark.git_repo
 
@@ -138,21 +139,6 @@ def kill_dashboard_process(port: int):
         pass
 
 
-def kill_all_spec_kitty_dashboards():
-    """Kill all spec-kitty dashboard processes (test cleanup)."""
-    try:
-        # Find all Python processes running run_dashboard_server
-        result = subprocess.run(["pgrep", "-f", "run_dashboard_server"], capture_output=True, text=True, check=False)
-        if result.stdout.strip():
-            pids = result.stdout.strip().split("\n")
-            for pid in pids:
-                with contextlib.suppress(BaseException):
-                    os.kill(int(pid), signal.SIGKILL)
-            time.sleep(1)  # Give processes time to die
-    except Exception:
-        pass
-
-
 class TestDashboardCLIStatusReporting:
     """Test CLI command accurately reports dashboard status."""
 
@@ -209,16 +195,12 @@ class TestDashboardCLIStatusReporting:
                     # Should show success message
                     output = result.stdout + result.stderr
                     assert "✅" in output or "success" in output.lower() or "running" in output.lower(), (
-                        f"CLI should show success message when dashboard starts.\n"
-                        f"Dashboard IS accessible on port {test_port}.\n"
-                        f"Got: {output}"
+                        f"CLI should show success message when dashboard starts.\nDashboard IS accessible on port {test_port}.\nGot: {output}"
                     )
 
                     # Should NOT show error message
                     assert "❌" not in output and "Unable to start" not in output, (
-                        f"CLI should NOT show error when dashboard is running.\n"
-                        f"Dashboard IS accessible on port {test_port}.\n"
-                        f"Got: {output}"
+                        f"CLI should NOT show error when dashboard is running.\nDashboard IS accessible on port {test_port}.\nGot: {output}"
                     )
                 else:
                     # Dashboard not running - CLI should report error
@@ -248,9 +230,7 @@ class TestDashboardCLIStatusReporting:
             output = result.stdout + result.stderr
 
             # Should show error message
-            assert "❌" in output or "error" in output.lower() or "Unable" in output, (
-                f"CLI should show error message when dashboard fails. Got: {output}"
-            )
+            assert "❌" in output or "error" in output.lower() or "Unable" in output, f"CLI should show error message when dashboard fails. Got: {output}"
 
     def test_dashboard_accessibility_matches_cli_status(self):
         """Verify CLI status matches whether dashboard is actually accessible."""
@@ -367,15 +347,11 @@ class TestDashboardProcessLifecycle:
 
                 # Should not be accessible anymore
                 stopped = wait_for_dashboard_state(test_port, accessible=False, timeout=2.0)
-                assert stopped, (
-                    f"Dashboard should be stopped after --kill, but still accessible on {test_port}"
-                )
+                assert stopped, f"Dashboard should be stopped after --kill, but still accessible on {test_port}"
 
                 # Kill command should report success
                 output = kill_result.stdout + kill_result.stderr
-                assert "✅" in output or "stopped" in output.lower() or "killed" in output.lower(), (
-                    f"--kill should report success. Got: {output}"
-                )
+                assert "✅" in output or "stopped" in output.lower() or "killed" in output.lower(), f"--kill should report success. Got: {output}"
 
 
 class TestDashboardErrorMessages:
@@ -404,9 +380,7 @@ class TestDashboardErrorMessages:
             )
 
             # Should mention project or worktree
-            assert "project" in output.lower() or "worktree" in output.lower(), (
-                f"Error should mention project or worktree. Got: {output}"
-            )
+            assert "project" in output.lower() or "worktree" in output.lower(), f"Error should mention project or worktree. Got: {output}"
 
 
 class TestDashboardAPIVerification:
@@ -589,27 +563,10 @@ class TestDashboardCleanup:
                 # Check process is gone
                 ps_after = subprocess.run(["lsof", "-ti", f":{test_port}"], capture_output=True, text=True)
 
-                assert not ps_after.stdout.strip(), (
-                    f"Dashboard process should be terminated after --kill.\nProcess still running: {ps_after.stdout}"
-                )
+                assert not ps_after.stdout.strip(), f"Dashboard process should be terminated after --kill.\nProcess still running: {ps_after.stdout}"
 
                 # Verify not accessible
-                assert not is_dashboard_accessible(test_port, timeout=1.0), (
-                    "Dashboard should not be accessible after --kill"
-                )
-
-
-# Module-level cleanup: Kill ALL orphaned dashboards before and after entire test module
-@pytest.fixture(autouse=True, scope="module")
-def cleanup_all_dashboards_module():
-    """Cleanup all spec-kitty dashboard processes before and after test module."""
-    # Before all tests: kill any existing orphaned dashboards
-    kill_all_spec_kitty_dashboards()
-
-    yield
-
-    # After all tests: kill any remaining dashboards
-    kill_all_spec_kitty_dashboards()
+                assert not is_dashboard_accessible(test_port, timeout=1.0), "Dashboard should not be accessible after --kill"
 
 
 # Per-test cleanup: Kill dashboards on specific test ports
@@ -622,6 +579,66 @@ def cleanup_test_dashboards():
     for port in sorted(_reserved_test_ports):
         kill_dashboard_process(port)
     _reserved_test_ports.clear()
+
+
+def _walk_without_process_sweep_guard(tree: ast.Module) -> list[ast.AST]:
+    ignored_function_names = {
+        "_subprocess_run_argv_strings",
+        "_walk_without_process_sweep_guard",
+        "test_no_process_name_wide_dashboard_kill",
+    }
+    nodes: list[ast.AST] = []
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef) and node.name in ignored_function_names:
+            continue
+        nodes.extend(ast.walk(node))
+    return nodes
+
+
+def _subprocess_run_argv_strings(call: ast.Call) -> list[str]:
+    if not isinstance(call.func, ast.Attribute) or call.func.attr != "run":
+        return []
+    if not isinstance(call.func.value, ast.Name) or call.func.value.id != "subprocess":
+        return []
+    if not call.args:
+        return []
+
+    argv = call.args[0]
+    if not isinstance(argv, ast.List | ast.Tuple):
+        return []
+
+    strings: list[str] = []
+    for element in argv.elts:
+        if isinstance(element, ast.Constant) and isinstance(element.value, str):
+            strings.append(element.value)
+    return strings
+
+
+def test_no_process_name_wide_dashboard_kill():
+    """Guard against reintroducing a process-name-wide dashboard sweep (#70).
+
+    A process-name pattern match against every PID on the machine catches
+    sibling pytest-xdist workers' live dashboards under `--dist loadfile` too,
+    so cleanup must stay scoped to the ports this worker itself reserved.
+    """
+    source = Path(__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+
+    violations: list[str] = []
+    for node in _walk_without_process_sweep_guard(tree):
+        if isinstance(node, ast.Attribute) and node.attr == "process_iter" and isinstance(node.value, ast.Name) and node.value.id == "psutil":
+            violations.append(f"{node.lineno}: psutil process iteration")
+
+        if isinstance(node, ast.Call):
+            argv_strings = _subprocess_run_argv_strings(node)
+            if argv_strings and argv_strings[0] in {"pgrep", "killall"}:
+                violations.append(f"{node.lineno}: broad process kill tool {argv_strings[0]}")
+            if "run_dashboard_server" in argv_strings:
+                violations.append(f"{node.lineno}: dashboard process-name subprocess sweep")
+
+    assert not violations, (
+        f"This module must not use a process-name-wide dashboard cleanup sweep; scope cleanup to _reserved_test_ports instead (see #70): {violations}"
+    )
 
 
 def test_dashboard_with_symlinked_kitty_specs():
@@ -640,9 +657,7 @@ def test_dashboard_with_symlinked_kitty_specs():
 
         # Initialize git repo (required by dashboard)
         subprocess.run(["git", "init"], cwd=test_project, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "config", "user.email", "test@example.com"], cwd=test_project, check=True, capture_output=True
-        )
+        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=test_project, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=test_project, check=True, capture_output=True)
 
         # Create a worktree structure
@@ -683,10 +698,7 @@ def test_dashboard_with_symlinked_kitty_specs():
             # Dashboard should start successfully
             if wait_for_dashboard_state(test_port, accessible=True, timeout=3.0):
                 assert result.returncode == 0, (
-                    f"CLI should report success when dashboard accessible.\n"
-                    f"Exit code: {result.returncode}\n"
-                    f"Stdout: {result.stdout}\n"
-                    f"Stderr: {result.stderr}"
+                    f"CLI should report success when dashboard accessible.\nExit code: {result.returncode}\nStdout: {result.stdout}\nStderr: {result.stderr}"
                 )
 
                 assert "✅" in result.stdout or "started" in result.stdout.lower(), (
