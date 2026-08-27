@@ -21,7 +21,7 @@ does not.
    "the first non-empty output line" are unaffected by anything below.
 2. **The `SaaS:` line** — the same endpoint `auth login`/`auth status` use,
    from `_print_saas_target` (`src/specify_cli/cli/commands/_auth_status.py`):
-   - `  SaaS:           <resolved-url> (from SPEC_KITTY_SAAS_URL | from config.toml [sync].server_url | default)`, or
+   - `  SaaS:           <resolved-url> (from SPEC_KITTY_SAAS_URL | from config.toml [sync].server_url)`, or
    - `  SaaS:           not configured — set SPEC_KITTY_SAAS_URL (or [sync].server_url in config.toml)` when nothing resolves.
 3. **`Session SaaS:`** — only when the stored session recorded an issuer URL:
    `  Session SaaS:   <issuer-url> (authenticated session)`.
