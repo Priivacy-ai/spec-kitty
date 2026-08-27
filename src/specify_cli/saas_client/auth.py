@@ -145,6 +145,16 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     # back to a baked-in domain silently points the client at the wrong server
     # (#2248 / #2146 canonical target authority). Fail closed instead.
     if not url:
+        if env_token:
+            # #290: an env-supplied token never pairs with .kittify/saas-auth.json's
+            # saas_url (#237) — naming that file here would send an operator to set
+            # a key that this exact path refuses to honour.
+            raise SaasAuthError(
+                "SaaS URL not configured: set SPEC_KITTY_SAAS_URL or config.toml's "
+                "[sync].server_url (an env-supplied SPEC_KITTY_SAAS_TOKEN is never "
+                "paired with .kittify/saas-auth.json's saas_url — #237; D-5: no "
+                "hardcoded SaaS domain)."
+            )
         raise SaasAuthError('SaaS URL not configured: set SPEC_KITTY_SAAS_URL or provide "saas_url" in .kittify/saas-auth.json (D-5: no hardcoded SaaS domain).')
 
     return AuthContext(saas_url=url, token=token, team_slug=team_slug)
