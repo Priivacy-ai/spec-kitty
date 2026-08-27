@@ -3123,6 +3123,154 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
 
 
 # ---------------------------------------------------------------------------
+# #470 mutation-proofing — the widening's own rescue/detection mechanism has
+# to be able to fail. Found by squad review of #470 (spec-kitty#638):
+# `_used_within_own_module` mutated to an unconditional `return True`, or
+# `_extract_public_module_level_names` mutated to an unconditional
+# `return frozenset()`, left every test in this file passing. Each helper
+# below gets a synthetic-fixture unit test, plus a sibling to
+# `test_no_public_symbol_in_all_is_unimported` that proves the widened scan
+# actually finds and flags a synthetic zero-caller widened-in name.
+# ---------------------------------------------------------------------------
+
+
+def test_extract_public_module_level_names_scoping() -> None:
+    """Unit test for `_extract_public_module_level_names` (#470 mutation-proofing).
+
+    Module-level public `def`/`class`/`Assign`/`AnnAssign` `Name` targets are
+    collected; underscore-prefixed names, names nested inside a function or
+    class body, and non-`Name` assignment targets (tuple/attribute) are all
+    excluded.
+    """
+    source = (
+        "def public_func():\n"
+        "    def _nested_helper():\n"
+        "        pass\n"
+        "    inner_var = 1\n"
+        "    return inner_var\n"
+        "\n"
+        "\n"
+        "class PublicClass:\n"
+        "    def method(self):\n"
+        "        pass\n"
+        "\n"
+        "\n"
+        "def _private_func():\n"
+        "    pass\n"
+        "\n"
+        "\n"
+        "PUBLIC_CONST = 1\n"
+        "_PRIVATE_CONST = 2\n"
+        "PUBLIC_ANN: int = 3\n"
+        "a, b = (1, 2)\n"
+        "obj.attr = 4\n"
+    )
+    tree = ast.parse(source)
+    names = _extract_public_module_level_names(tree)
+    assert names == frozenset({"public_func", "PublicClass", "PUBLIC_CONST", "PUBLIC_ANN"}), f"got {sorted(names)!r}"
+
+    # The mutation the squad demonstrated: collapsing the whole widening to
+    # an unconditional empty set. A real implementation must never do this.
+    assert _extract_public_module_level_names(ast.parse("")) == frozenset()
+    assert names != frozenset(), "the widening must surface at least one public module-level name from a non-empty module"
+
+
+def test_used_within_own_module() -> None:
+    """Unit test for `_used_within_own_module` (#470 mutation-proofing).
+
+    True iff *name* is referenced as an ``ast.Name`` Load anywhere in the
+    tree. A Store-only reference (the name's own definition, with no later
+    use) or no reference at all must return False -- the mutation the squad
+    demonstrated (an unconditional `return True`) would rescue every
+    widened-in offender regardless of real intra-module use.
+    """
+    referenced_tree = ast.parse("logger = get_logger()\ndef use():\n    return logger\n")
+    unreferenced_tree = ast.parse("logger = get_logger()\n")
+    assert _used_within_own_module(referenced_tree, "logger") is True
+    assert _used_within_own_module(unreferenced_tree, "logger") is False
+    assert _used_within_own_module(unreferenced_tree, "nonexistent_name") is False
+
+
+def test_apply_widened_scope_exemptions() -> None:
+    """Unit test for `_apply_widened_scope_exemptions` (#470 mutation-proofing).
+
+    Covers all rescue paths plus the "still caught" controls: an ``__all__``
+    member stays caught even when only referenced within its own module
+    (unchanged pre-#470 semantics); a non-``__all__`` name referenced within
+    its own module is rescued; a real ``_WIDENED_SCOPE_GRANDFATHERED_470``
+    entry is rescued when its module is absent from ``corpus`` (so the
+    intra-module check cannot mask which rescue actually fired); and a
+    non-``__all__`` name with neither rescue stays caught.
+    """
+    all_member_source = "__all__ = ['AllMember']\nAllMember = 1\ndef use():\n    return AllMember\n"
+    all_member_tree = ast.parse(all_member_source)
+    all_member_module = CorpusModule(tree=all_member_tree, source=all_member_source, containing_pkg="synthetic")
+
+    intra_used_source = "helper = 1\ndef use():\n    return helper\n"
+    intra_used_tree = ast.parse(intra_used_source)
+    intra_used_module = CorpusModule(tree=intra_used_tree, source=intra_used_source, containing_pkg="synthetic")
+
+    truly_dead_source = "truly_dead = 1\n"
+    truly_dead_tree = ast.parse(truly_dead_source)
+    truly_dead_module = CorpusModule(tree=truly_dead_tree, source=truly_dead_source, containing_pkg="synthetic")
+
+    corpus = {
+        "synthetic.all_mod": all_member_module,
+        "synthetic.intra_mod": intra_used_module,
+        "synthetic.dead_mod": truly_dead_module,
+        # deliberately no entry for the grandfathered module -- the rescue
+        # must fire from the flat name set alone, never the intra-module path.
+    }
+    all_literal_decls = {"synthetic.all_mod": frozenset({"AllMember"})}
+
+    grandfathered_qualified = next(iter(_WIDENED_SCOPE_GRANDFATHERED_470))
+    offenders = [
+        "synthetic.all_mod::AllMember",
+        "synthetic.intra_mod::helper",
+        grandfathered_qualified,
+        "synthetic.dead_mod::truly_dead",
+    ]
+    kept = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
+    assert kept == ["synthetic.all_mod::AllMember", "synthetic.dead_mod::truly_dead"], f"got {kept!r}"
+
+
+def test_widened_scope_flags_synthetic_zero_caller_symbol() -> None:
+    """Sibling to `test_no_public_symbol_in_all_is_unimported` (#470 mutation-proofing).
+
+    Drives a synthetic module through the exact `_extract_public_module_level_names`
+    -> widened-``decls`` -> `_compute_offenders` -> `_apply_widened_scope_exemptions`
+    pipeline the production gate uses on ``_walk_modules``'s output, with a
+    public module-level name that has no ``__all__`` entry, no caller, and no
+    intra-module reference -- and asserts the widened scan actually finds and
+    flags it. `test_no_public_symbol_in_all_is_unimported` alone only fails on
+    *new* live-tree offenders; it has no assertion that the widened scan finds
+    anything at all, which is exactly how the squad's two mutations (collapsing
+    `_extract_public_module_level_names` to `frozenset()`, or
+    `_used_within_own_module` to unconditional `True`) passed every test here.
+    """
+    source = "def orphan_widened_helper():\n    return 1\n"
+    tree = ast.parse(source)
+    module = CorpusModule(tree=tree, source=source, containing_pkg="synthetic")
+    corpus = {"synthetic.widened_mod": module}
+    collision_index = classify_collisions(corpus)
+
+    all_literal = _extract_all_literal(tree) or frozenset()
+    widened = all_literal | _extract_public_module_level_names(tree)
+    assert "orphan_widened_helper" in widened, "sanity: the widening must surface the synthetic public name"
+
+    decls = {"synthetic.widened_mod": widened}
+    all_literal_decls: dict[str, frozenset[str]] = {}
+    widened_only_decls = {mod: leftover for mod, names in decls.items() if (leftover := names - all_literal_decls.get(mod, frozenset()))}
+
+    offenders = _compute_offenders(widened_only_decls, {}, set(), frozenset(), corpus, collision_index)
+    offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
+
+    assert offenders == ["synthetic.widened_mod::orphan_widened_helper"], (
+        f"the widened scan must flag a zero-caller, unreferenced, non-grandfathered widened-in name; got {offenders!r}"
+    )
+
+
+# ---------------------------------------------------------------------------
 # T001 regression — _extract_all_literal parser bug fix
 # ---------------------------------------------------------------------------
 
