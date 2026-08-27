@@ -387,7 +387,7 @@ class SaaSTrackerClient:
         filesystem or credential-store access.
 
         **The per-project consent gate lives here** (#3030 FR-029), at the one
-        chokepoint all ten endpoints and the operation poller pass through, so a
+        chokepoint all endpoint methods and the operation poller pass through, so a
         new endpoint method cannot be added without inheriting it. It runs
         *before* the token is fetched: a refusal must not depend on auth state,
         must not mint a token for a project that may not transmit, and must be
