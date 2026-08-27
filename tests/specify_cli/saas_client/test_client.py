@@ -16,8 +16,10 @@ import httpx
 import pytest
 from kernel.clock import now_utc, timedelta
 
+from specify_cli.auth import reset_token_manager
 from specify_cli.auth.errors import ConfigurationError, NetworkError, RefreshTokenExpiredError
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.auth.token_manager import TokenManager
 from specify_cli.saas_client import (
     AuthContext,
     SaasAuthError,
@@ -589,6 +591,36 @@ def test_env_token_wins_and_never_consults_the_session(tmp_path: Path, monkeypat
     ctx = load_auth_context(repo_root=tmp_path)
     assert ctx.token == "service-token"
     assert manager.session_reads == 0
+
+
+def test_bridge_seams_are_real_and_unpatched(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#236: every test above patches ``_token_manager`` and
+    ``_resolved_server_target`` before exercising the bridge, so the lazy
+    imports those two helpers wrap (``from specify_cli.auth import
+    get_token_manager``, ``from specify_cli.auth.server_target import
+    resolve_server_target``) never actually run in this suite — and
+    ``_oauth_session_context``'s bare ``except Exception`` would swallow a
+    broken import into a silent ``None``, reinstating #198's P0 with the
+    whole suite green. This test calls the three seams unpatched, against an
+    isolated empty ``SPEC_KITTY_HOME``."""
+    home = tmp_path / "empty-home"
+    home.mkdir()
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://team.example")
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    reset_token_manager()
+    try:
+        manager = saas_auth_module._token_manager()
+        assert isinstance(manager, TokenManager)
+        assert manager.get_current_session() is None  # empty store, no crash
+
+        target = saas_auth_module._resolved_server_target()
+        assert target.resolved_server_url == "https://team.example"
+
+        # No stored session anywhere: the bridge degrades to None, not a raise.
+        assert saas_auth_module._oauth_session_context() is None
+    finally:
+        reset_token_manager()
 
 
 # ---------------------------------------------------------------------------
