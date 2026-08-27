@@ -417,15 +417,16 @@ def test_missing_or_garbled_stamps_never_expire() -> None:
     assert resolution._expired("not-a-stamp") is False
 
 
-def test_naive_stamp_never_raises_and_never_expires() -> None:
-    """[controller-qa] MAJOR regression: ``expires_at`` is stored verbatim
-    from the mint, and a stamp with no UTC offset parses fine but cannot be
-    compared against the aware clock — ``aware >= naive`` raises
-    ``TypeError``, which used to escape ``_expired`` (it caught only
-    ``ValueError``) and then ``resolve_credentials`` itself, straight into
-    the fire-and-forget seam. A naive stamp is treated like any other
-    unparseable one: never expired, never raised."""
-    assert resolution._expired("2026-08-25T12:00:00") is False  # naive, in the past
+def test_naive_stamp_never_raises_and_is_coerced_to_utc() -> None:
+    """[squad] #14 MINOR (#36): ``expires_at`` is stored verbatim from the
+    mint, and a stamp with no UTC offset (a self-hosted Team Kitty running
+    ``USE_TZ=False``) parses fine but cannot be compared against the aware
+    clock — ``aware >= naive`` raises ``TypeError``. Rather than treat that
+    as unparseable and pin the entry to "never expires" forever, the naive
+    stamp is assumed UTC and compared normally: never raises, and expires
+    exactly when an equivalent aware stamp would."""
+    assert resolution._expired("2026-08-25T12:00:00") is True  # naive, in the past
+    assert resolution._expired("2999-01-01T00:00:00") is False  # naive, in the future
 
 
 # ---------------------------------------------------------------------------
@@ -474,15 +475,16 @@ class TestCacheShortCircuits:
         assert credentials.load_negative(repo=KEY) is not None
 
     def test_naive_stamp_on_a_stored_credential_answers_from_cache(self, state_root: Path) -> None:
-        """[controller-qa] MAJOR regression, end to end through the cache
-        path: a stored entry whose verbatim stamp has no UTC offset must
-        answer from the store — never raise out of resolution."""
+        """End to end through the cache path: a stored entry whose verbatim
+        stamp has no UTC offset must answer from the store — never raise
+        out of resolution — for as long as the coerced-to-UTC stamp says
+        it is still valid."""
         credentials.store(
             repo=KEY,
             relay_url="http://naive",
             token="tok",
             token_kind="presence",
-            expires_at="2026-08-25T12:00:00",
+            expires_at="2999-01-01T00:00:00",  # naive, far in the future
         )
         gateway = ScriptedGateway()
         stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
@@ -493,11 +495,39 @@ class TestCacheShortCircuits:
 
     def test_naive_stamp_on_a_negative_answer_stays_silent_without_raising(self, state_root: Path) -> None:
         """And on the negative path: an unparseable-at-comparison stamp must
-        not turn "stay silent" into "raise"."""
-        credentials.store_negative(repo=KEY, reason="no_match", expires_at="2026-08-25T12:00:00")
+        not turn "stay silent" into "raise" — for as long as the coerced
+        stamp says the negative TTL has not lapsed."""
+        credentials.store_negative(repo=KEY, reason="no_match", expires_at="2999-01-01T00:00:00")
         gateway = ScriptedGateway()
         assert resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False) is None
         assert gateway.admission_calls == [] and gateway.mint_calls == []
+
+    def test_expired_naive_stamp_on_a_stored_credential_falls_through_to_the_mint(self, state_root: Path) -> None:
+        """[squad] #14 MINOR (#36): a naive stamp in the past must not pin
+        the credential as immortal — it falls through to the mint exactly
+        like an equivalent aware expired stamp would."""
+        credentials.store(
+            repo=KEY,
+            relay_url="http://stale-naive",
+            token="tok",
+            token_kind="presence",
+            expires_at="2026-08-25T12:00:00",  # naive, in the past
+        )
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None
+        assert stored.relay_url == "http://relay"  # the freshly minted one, not the stale cache
+        assert len(gateway.admission_calls) == 1 and len(gateway.mint_calls) == 1
+
+    def test_expired_naive_stamp_on_a_negative_answer_asks_again(self, state_root: Path) -> None:
+        """[squad] #14 MINOR (#36): a naive stamp in the past on a negative
+        entry must not pin "stay silent" forever — it retries the network
+        exactly like an equivalent aware expired negative stamp would."""
+        credentials.store_negative(repo=KEY, reason="no_match", expires_at="2026-08-25T12:00:00")
+        gateway = ScriptedGateway()
+        stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
+        assert stored is not None  # this time admitted, per ScriptedGateway()'s default script
+        assert len(gateway.admission_calls) == 1
 
 
 class TestScopeRevalidation:
