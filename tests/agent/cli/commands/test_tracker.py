@@ -178,9 +178,7 @@ def test_bind_no_project_slug_flag(monkeypatch) -> None:
     """--project-slug is not accepted by bind command."""
     app = _make_app(monkeypatch)
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--project-slug", "my-proj"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--project-slug", "my-proj"])
     # typer rejects unknown options with exit code 2
     assert result.exit_code == 2
     assert "project-slug" in result.output.lower() or "no such option" in result.output.lower()
@@ -220,9 +218,7 @@ def test_bind_azure_devops_hard_fail(monkeypatch) -> None:
     """Azure DevOps bind must hard-fail with 'no longer supported' message."""
     app = _make_app(monkeypatch)
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "azure_devops", "--workspace", "w"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "azure_devops", "--workspace", "w"])
     assert result.exit_code == 1
     assert "no longer supported" in result.output
 
@@ -236,7 +232,10 @@ def test_bind_azure_devops_hard_fail(monkeypatch) -> None:
 @patch("specify_cli.cli.commands.tracker.ensure_identity")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 def test_bind_auto_bind(
-    mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """SaaS bind with exact match auto-binds and shows success."""
     app = _make_app(monkeypatch)
@@ -263,7 +262,11 @@ def test_bind_auto_bind(
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 @patch("builtins.input")
 def test_bind_candidates_interactive(
-    mock_input, mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_input,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """SaaS bind with candidates prompts user and binds selection."""
     app = _make_app(monkeypatch)
@@ -300,16 +303,17 @@ def test_bind_candidates_interactive(
 @patch("specify_cli.cli.commands.tracker.ensure_identity")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 def test_bind_no_candidates(
-    mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """SaaS bind with no match raises error with exit 1."""
     app = _make_app(monkeypatch)
     mock_ensure_id.return_value = _mock_identity()
     mock_load_cfg.return_value = TrackerProjectConfig()
     mock_svc = MagicMock()
-    mock_svc.bind.side_effect = TrackerServiceError(
-        "No bindable resources found for provider 'linear'."
-    )
+    mock_svc.bind.side_effect = TrackerServiceError("No bindable resources found for provider 'linear'.")
     mock_service_fn.return_value = mock_svc
 
     result = runner.invoke(app, ["bind", "--provider", "linear"])
@@ -332,9 +336,7 @@ def test_bind_ref_valid(mock_ensure_id, mock_service_fn, monkeypatch) -> None:
     mock_svc.bind.return_value = _make_tracker_config(binding_ref="br_known_ref")
     mock_service_fn.return_value = mock_svc
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--bind-ref", "br_known_ref"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--bind-ref", "br_known_ref"])
     assert result.exit_code == 0, result.output
     assert "Tracker binding saved" in result.output
     assert "br_known_ref" in result.output
@@ -356,14 +358,10 @@ def test_bind_ref_invalid(mock_ensure_id, mock_service_fn, monkeypatch) -> None:
     app = _make_app(monkeypatch)
     mock_ensure_id.return_value = _mock_identity()
     mock_svc = MagicMock()
-    mock_svc.bind.side_effect = TrackerServiceError(
-        "Binding ref 'br_bad' is not valid: deleted on host."
-    )
+    mock_svc.bind.side_effect = TrackerServiceError("Binding ref 'br_bad' is not valid: deleted on host.")
     mock_service_fn.return_value = mock_svc
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--bind-ref", "br_bad"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--bind-ref", "br_bad"])
     assert result.exit_code == 1
     assert "not valid" in result.output
 
@@ -377,7 +375,10 @@ def test_bind_ref_invalid(mock_ensure_id, mock_service_fn, monkeypatch) -> None:
 @patch("specify_cli.cli.commands.tracker.ensure_identity")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 def test_bind_select_n(
-    mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """--select 1 auto-selects candidate without prompts."""
     app = _make_app(monkeypatch)
@@ -387,9 +388,7 @@ def test_bind_select_n(
     mock_svc.bind.return_value = _make_bind_result(display_label="Team Alpha")
     mock_service_fn.return_value = mock_svc
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--select", "1"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--select", "1"])
     assert result.exit_code == 0, result.output
     assert "Tracker binding saved" in result.output
     assert "Team Alpha" in result.output
@@ -408,21 +407,20 @@ def test_bind_select_n(
 @patch("specify_cli.cli.commands.tracker.ensure_identity")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 def test_bind_select_out_of_range(
-    mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """--select 99 with out-of-range selection shows error and exits 1."""
     app = _make_app(monkeypatch)
     mock_ensure_id.return_value = _mock_identity()
     mock_load_cfg.return_value = TrackerProjectConfig()
     mock_svc = MagicMock()
-    mock_svc.bind.side_effect = TrackerServiceError(
-        "Selection 99 is out of range. Valid range: 1-2."
-    )
+    mock_svc.bind.side_effect = TrackerServiceError("Selection 99 is out of range. Valid range: 1-2.")
     mock_service_fn.return_value = mock_svc
 
-    result = runner.invoke(
-        app, ["bind", "--provider", "linear", "--select", "99"]
-    )
+    result = runner.invoke(app, ["bind", "--provider", "linear", "--select", "99"])
     assert result.exit_code == 1
     assert "out of range" in result.output
 
@@ -437,7 +435,11 @@ def test_bind_select_out_of_range(
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 @patch("builtins.input")
 def test_bind_rebind_confirmed(
-    mock_input, mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_input,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """Re-bind with existing binding: user confirms 'y' -> proceeds."""
     app = _make_app(monkeypatch)
@@ -468,7 +470,11 @@ def test_bind_rebind_confirmed(
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 @patch("builtins.input")
 def test_bind_rebind_cancelled(
-    mock_input, mock_load_cfg, mock_ensure_id, mock_service_fn, monkeypatch,
+    mock_input,
+    mock_load_cfg,
+    mock_ensure_id,
+    mock_service_fn,
+    monkeypatch,
 ) -> None:
     """Re-bind with existing binding: user declines -> exit 0, no bind."""
     app = _make_app(monkeypatch)
@@ -1081,10 +1087,7 @@ def test_tracker_keeps_readiness_imports_at_module_level() -> None:
     from specify_cli.cli.commands import tracker as tracker_module
     from specify_cli.tracker import saas_readiness as readiness_module
 
-    assert hasattr(tracker_module, "evaluate_readiness"), (
-        "tracker.py must import evaluate_readiness at module level so tests "
-        "can monkeypatch the consumer binding."
-    )
+    assert hasattr(tracker_module, "evaluate_readiness"), "tracker.py must import evaluate_readiness at module level so tests can monkeypatch the consumer binding."
     assert tracker_module.evaluate_readiness is readiness_module.evaluate_readiness
 
 
@@ -1279,9 +1282,7 @@ def test_sync_pull_pre_flight_gate_and_transport_share_one_resolved_root(monkeyp
         seen["gate_root"] = root
         return SimpleNamespace(refused=False)
 
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.tracker.tracker_egress_verdict", _record_verdict
-    )
+    monkeypatch.setattr("specify_cli.cli.commands.tracker.tracker_egress_verdict", _record_verdict)
 
     def _fake_service(*, allow_unbound: bool = False, root=None):
         # Mirror the real _service resolution so an unthreaded call (root=None)
@@ -1297,6 +1298,5 @@ def test_sync_pull_pre_flight_gate_and_transport_share_one_resolved_root(monkeyp
     result = runner.invoke(tracker_module.app, ["sync", "pull"])
     assert result.exit_code == 0, result.output
     assert seen["gate_root"] == seen["transport_root"], (
-        f"pre-flight gate judged {seen['gate_root']} but the transport used "
-        f"{seen['transport_root']} — the two hosted gates answered for different projects"
+        f"pre-flight gate judged {seen['gate_root']} but the transport used {seen['transport_root']} — the two hosted gates answered for different projects"
     )
