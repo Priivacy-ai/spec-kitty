@@ -172,6 +172,22 @@ def test_load_auth_context_fully_env_configured_ignores_malformed_file(tmp_path:
     assert ctx.saas_url == "https://env-url.example"
 
 
+def test_load_auth_context_env_token_only_ignores_malformed_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#291: with only SPEC_KITTY_SAAS_TOKEN set (no SPEC_KITTY_SAAS_URL), the
+    file's every field is still dead per the #237 trust boundary, so a
+    malformed ``.kittify/saas-auth.json`` must not be read at all — the
+    caller gets the clearer "SaaS URL not configured" refusal, not a JSON
+    parse error about a file it never needed."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "env-token")
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text("{not valid json")
+    monkeypatch.setattr(saas_auth_module, "_resolved_server_target", _raise_unavailable)
+    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
+        load_auth_context(repo_root=tmp_path)
+
+
 def test_load_auth_context_fully_env_configured_ignores_file_team_slug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#264 fix round: a checkout-controlled ``.kittify/saas-auth.json`` must
     not be able to override the team scope of an already-fully-resolved
