@@ -12,10 +12,11 @@
     },
     {
       "package": "spec-kitty-tracker",
-      "source_repo": "Priivacy-ai/spec-kitty-tracker",
-      "cli_range": ">=0.4,<0.5",
-      "locked_version": "0.4.3",
-      "contract_surface": "tracker discovery and sync SDK"
+      "source_repo": "spec-kitty/EXPERIMENTAL-spec-kitty-tracker",
+      "cli_range": "",
+      "locked_version": "0.5.2",
+      "contract_surface": "tracker discovery and sync SDK",
+      "resolution_note": "For the programme, the CLI pins this package via a PEP 508 direct git reference on github.com at a full-SHA rev instead of a version range (PROGRAM.md §2; EXPERIMENTAL-spec-kitty-planning#31). An empty cli_range matches the direct reference's empty specifier."
     }
   ],
   "retired_packages": [
