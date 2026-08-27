@@ -373,6 +373,13 @@ REGISTRY: dict[str, RegisteredSite] = {
     # dossier/drift_detector.py's persisted `BaselineSnapshot.captured_at`
     # (`.kittify/dossiers/<slug>/parity-baseline.json`). Prior:
     # `datetime.now(UTC)` -> `now_utc()`.
+    #
+    # HISTORICAL (#273): drift_detector.py itself was removed by #116's
+    # orphaned-collateral adjudication (no viable low-risk wiring target,
+    # landed in #274). This key is kept as the kernel.clock migration's
+    # byte-identity record for that now-deleted call site -- the producer
+    # below reproduces the prior expression directly and never imports the
+    # module, so the entry stays valid whether or not the module exists.
     "specify_cli.dossier.drift_detector.capture_baseline#captured_at": RegisteredSite(
         producer=lambda: now_utc().isoformat(),
         prior_signature=lambda instant: instant.isoformat(),
