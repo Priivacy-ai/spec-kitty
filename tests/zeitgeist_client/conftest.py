@@ -447,6 +447,7 @@ class ManagedControlState:
     dedup: dict[tuple, dict] = field(default_factory=dict)
     focus_started: set = field(default_factory=set)
     last_headers: dict[str, str] = field(default_factory=dict)
+    last_status: int | None = None
 
     def authorized(self, header_value: str | None) -> bool:
         if not header_value:
@@ -598,6 +599,19 @@ class ManagedControlDouble:
         with self._state.lock:
             return dict(self._state.last_headers)
 
+    def last_response_status(self) -> int | None:
+        """The raw HTTP status of the most recently answered request.
+
+        ``offer()``/``OfferResult`` collapse every non-2xx into
+        ``OfferOutcome.REJECTED`` (#352), so a test that must distinguish
+        *why* a request was rejected (e.g. 422 unknown-op vs. 403
+        kind-does-not-grant-op) needs to look past the client's outcome
+        enum at what the double actually answered.
+        """
+        assert self._state is not None
+        with self._state.lock:
+            return self._state.last_status
+
     def set_shared_token(self, value: str) -> None:
         """Reconfigure the ``Authorization: Bearer`` secret the running
         double checks, after ``start()`` — lets one test build several
@@ -634,6 +648,8 @@ class ManagedControlDouble:
                 length = int(self.headers.get("Content-Length", "0") or "0")
                 raw = self.rfile.read(length) if length else b"{}"
                 status, payload = _dispatch_managed_control(state, self.headers, raw)
+                with state.lock:
+                    state.last_status = status
                 self._send_json(status, payload)
 
         return _Handler
