@@ -148,6 +148,32 @@ class TestWalker:
         foo = next(e for e in entries if e.path == ("foo",))
         assert foo.help_summary == "Run the foo command"
 
+    def test_walk_records_full_callback_docstring_when_help_is_inferred(self) -> None:
+        app = typer.Typer()
+
+        @app.command("body-only")
+        def body_only() -> None:
+            """Summary stays stable.
+
+            This second paragraph is part of the full help body.
+            """
+
+        entry = next(e for e in walk(app) if e.path == ("body-only",))
+
+        assert entry.help_summary == ""
+        assert entry.help_body == (
+            "Summary stays stable.\n\n"
+            "This second paragraph is part of the full help body."
+        )
+
+    def test_walk_normalizes_inferred_command_name_like_typer(self) -> None:
+        app = typer.Typer()
+
+        @app.command()
+        def inferred_name() -> None: ...
+
+        assert [entry.path for entry in walk(app)] == [("inferred-name",)]
+
     def test_walk_records_source_metadata(self, synthetic_app: typer.Typer) -> None:
         entries = walk(synthetic_app)
         foo = next(e for e in entries if e.path == ("foo",))
