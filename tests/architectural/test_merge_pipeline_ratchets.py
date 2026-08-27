@@ -9,7 +9,9 @@ Recurrence guards for mission ``coordination-merge-stabilization-01KTXRVR``:
 * **AC-F1** — every subprocess call site in ``lanes/merge.py`` routes its
   environment through ``_make_merge_env()`` (FR-008b): no bare ``os.environ``
   copies outside the helper, and no subprocess call without an ``env=``
-  keyword.
+  keyword. Widened repo-wide for ``rebase``/``cherry-pick`` argv sites by
+  #266, since #106 and #87 both slipped through the file-scoped version of
+  this ratchet.
 * **AC-F3** — the GENESIS fallback in
   ``coordination/status_transition.py`` catches exactly the two documented
   expected failures (``ValueError``, ``FileNotFoundError``); anything else
@@ -158,6 +160,56 @@ def _argv_includes_git_merge(node: ast.Call) -> bool:
         return False
     return any(
         isinstance(elt, ast.Constant) and elt.value == "merge" for elt in argv.elts
+    )
+
+
+_REBASE_CHERRY_PICK_ARGV = frozenset({"rebase", "cherry-pick"})
+
+
+def _argv_includes_rebase_or_cherry_pick(node: ast.Call) -> bool:
+    """True when the call's first positional arg is a list literal whose
+    elements include the bare ``"rebase"`` or ``"cherry-pick"`` argv
+    constant (a subprocess invocation that replays commits through git's
+    three-way merge machinery, and so honors the registered merge drivers)."""
+    if not node.args:
+        return False
+    argv = node.args[0]
+    if not isinstance(argv, ast.List):
+        return False
+    return any(
+        isinstance(elt, ast.Constant) and elt.value in _REBASE_CHERRY_PICK_ARGV
+        for elt in argv.elts
+    )
+
+
+def test_rebase_and_cherry_pick_calls_route_env_through_helper_repo_wide() -> None:
+    """#266 (follow-up from #106 / #87): every ``subprocess.run`` anywhere in
+    ``src/specify_cli`` whose argv contains ``"rebase"`` or ``"cherry-pick"``
+    carries an explicit ``env=`` keyword.
+
+    #106's AC-F1 ratchets above only scanned ``lanes/merge.py``, so a bare
+    rebase/cherry-pick call anywhere else in the package could (and did,
+    twice: #106 in ``core/vcs/git.py``, #87 in
+    ``lanes/worktree_allocator.py``) resolve ``spec-kitty`` through the
+    ambient PATH instead of the routed merge-driver env, and fail whenever
+    the CLI is not on that PATH. This widens the guard repo-wide so the
+    defect class stays closed file-by-file no longer.
+    """
+    offenders: list[str] = []
+    for source in _python_sources():
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and _is_subprocess_run_call(node)
+                and _argv_includes_rebase_or_cherry_pick(node)
+                and not any(kw.arg == "env" for kw in node.keywords)
+            ):
+                offenders.append(f"{source.relative_to(SRC_ROOT)}:{node.lineno}")
+    assert not offenders, (
+        "subprocess.run call(s) with 'rebase'/'cherry-pick' in argv without "
+        "an env= keyword (must route through _make_merge_env so the "
+        f"registered merge drivers resolve the running CLI, #266): {offenders}"
     )
 
 
