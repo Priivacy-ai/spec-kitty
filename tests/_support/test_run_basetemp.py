@@ -20,6 +20,7 @@ from tests._support.run_basetemp import (
     RUN_TMP_ROOT_NAME,
     STALE_RUN_MAX_AGE_S,
     install_run_basetemp,
+    mark_session_outcome,
     remove_run_dirs,
     run_basetemp_dir,
     run_tmp_root,
@@ -186,6 +187,10 @@ def test_install_registers_an_atexit_reaper_for_this_run_only(
     install_run_basetemp(config, now=10**9)
     assert len(handlers) == 1  # golden-count: cardinality-is-contract — exactly one reaper, never two
 
+    # Simulate a successful session — pytest_sessionfinish marks this BEFORE
+    # atexit callbacks run (#76: reap only follows a recorded success).
+    mark_session_outcome(config, succeeded=True)
+
     # Simulate interpreter exit with residue left under the run dir.
     residue = Path(config.option.basetemp) / "popen-gw0"
     residue.mkdir(parents=True)
@@ -193,6 +198,39 @@ def test_install_registers_an_atexit_reaper_for_this_run_only(
     handlers[0]()
     assert not Path(config.option.basetemp).exists()
     assert (tmp_path / RUN_TMP_ROOT_NAME).is_dir(), "the shared root itself stays"
+
+
+def test_install_retains_the_run_dir_when_the_session_did_not_succeed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#76: a failed/errored/interrupted session keeps its tmp tree — the
+    reap is gated on a recorded success, never unconditional."""
+    monkeypatch.setenv("PYTEST_DEBUG_TEMPROOT", str(tmp_path))
+    handlers: list = []
+    monkeypatch.setattr(atexit, "register", handlers.append)
+
+    config = _fake_config()
+    install_run_basetemp(config, now=10**9)
+
+    basetemp = Path(config.option.basetemp)
+    basetemp.mkdir(parents=True)
+    forensic_evidence = basetemp / "leftover.txt"
+    forensic_evidence.write_text("post-mortem state")
+
+    # No mark_session_outcome(succeeded=True) call — the default is "not
+    # succeeded", matching a run that crashed before sessionfinish too.
+    handlers[0]()
+
+    assert basetemp.is_dir()
+    assert forensic_evidence.read_text() == "post-mortem state"
+
+
+def test_mark_session_outcome_is_a_noop_without_an_installed_reaper() -> None:
+    """A config install_run_basetemp never ran against (xdist worker, or an
+    explicit --basetemp) has nothing for mark_session_outcome to update."""
+    config = _fake_config()
+    mark_session_outcome(config, succeeded=True)  # must not raise
 
 
 # ---------------------------------------------------------------------------
@@ -248,3 +286,66 @@ def test_subprocess_run_uses_the_private_root_and_reaps_it(
     private_root = scratch / RUN_TMP_ROOT_NAME
     assert private_root.is_dir(), f"the run never created its private root:\n{output}"
     assert not any(private_root.iterdir()), "the run's own dir survived its own exit"
+
+
+_PROBE_FAIL_ENV = "SPEC_KITTY_RUN_BASETEMP_PROBE_FAIL"
+
+
+@pytest.mark.fast
+def test_probe_failure_leaves_a_marker_under_tmp_path(tmp_path: Path) -> None:
+    """Runs only as the inner probe spawned by
+    ``test_subprocess_failed_run_retains_the_private_root``; deliberately
+    fails after writing a marker so the outer test can check it survives."""
+    if not os.environ.get(_PROBE_FAIL_ENV):
+        pytest.skip("inner probe of test_subprocess_failed_run_retains_the_private_root")
+    (tmp_path / "marker.txt").write_text("post-mortem evidence")
+    pytest.fail("intentional failure to exercise outcome-gated retention (#76)")
+
+
+@pytest.mark.integration
+def test_subprocess_failed_run_retains_the_private_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#76 end-to-end: a session with a failing test keeps its private root.
+
+    Exercises the real ``pytest_sessionfinish`` wiring in ``tests/conftest.py``
+    (:func:`mark_session_outcome` called there), not just the isolated
+    unit-level calls in the ``install_run_basetemp`` tests above.
+    """
+    if os.environ.get(_PROBE_ENV) or os.environ.get(_PROBE_FAIL_ENV):
+        pytest.skip("the inner probe must not recurse")
+    scratch = tmp_path / "temproot"
+    scratch.mkdir()
+    monkeypatch.setenv("PYTEST_DEBUG_TEMPROOT", str(scratch))
+    monkeypatch.setenv(_PROBE_FAIL_ENV, "1")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            str(Path(__file__).resolve()),
+            "-k",
+            "probe_failure_leaves_a_marker",
+            "-p",
+            "no:cacheprovider",
+            "--tb=short",
+            "-q",
+        ],
+        cwd=REPO_ROOT,
+        env=dict(os.environ),
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode != 0, f"the inner probe was supposed to fail:\n{output}"
+
+    private_root = scratch / RUN_TMP_ROOT_NAME
+    run_dirs = list(private_root.iterdir())
+    assert len(run_dirs) == 1, f"expected exactly the retained run dir:\n{output}"
+    markers = list(run_dirs[0].rglob("marker.txt"))
+    assert markers, f"forensic marker did not survive the failed session:\n{output}"
+    assert markers[0].read_text() == "post-mortem evidence"
