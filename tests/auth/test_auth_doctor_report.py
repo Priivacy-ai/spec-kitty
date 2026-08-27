@@ -390,7 +390,9 @@ async def test_check_server_session_active(monkeypatch: pytest.MonkeyPatch) -> N
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
-        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch.object(
+            _auth_doctor, "resolve_server_target", lambda: _fake_target("https://saas.example.com")
+        ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = await _check_server_session()
@@ -417,7 +419,9 @@ async def test_check_server_session_401(monkeypatch: pytest.MonkeyPatch) -> None
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
-        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch.object(
+            _auth_doctor, "resolve_server_target", lambda: _fake_target("https://saas.example.com")
+        ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = await _check_server_session()
@@ -444,7 +448,9 @@ async def test_check_server_session_network_error(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(_auth_module, "get_token_manager", lambda: mock_tm)
 
     with (
-        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://saas.example.com"),
+        patch.object(
+            _auth_doctor, "resolve_server_target", lambda: _fake_target("https://saas.example.com")
+        ),
         patch("httpx.AsyncClient", return_value=mock_client),
     ):
         result = await _check_server_session()

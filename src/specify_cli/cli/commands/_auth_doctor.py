@@ -423,7 +423,6 @@ async def _check_server_session() -> ServerSessionStatus:
     short-circuits before any refresh is attempted (issue #253).
     """
     from specify_cli.auth import get_token_manager  # noqa: PLC0415 (avoid circular at module level)
-    from specify_cli.auth.config import get_saas_base_url  # noqa: PLC0415
     import httpx  # noqa: PLC0415
 
     from specify_cli.auth.errors import (  # noqa: PLC0415
@@ -459,8 +458,12 @@ async def _check_server_session() -> ServerSessionStatus:
         return ServerSessionStatus(active=False, error="Could not obtain access token.")
 
     try:
-        saas_url = get_saas_base_url()
-    except Exception:  # noqa: BLE001 - SaaS config failure is reported as inactive server status
+        # Route through the canonical resolver (#307) rather than the raw env
+        # var, so this bearer-token-bearing send is covered by the same
+        # split-brain guard and process-override warning as every other
+        # hosted surface (see #117, #297).
+        saas_url = resolve_server_target().resolved_server_url
+    except Exception:  # noqa: BLE001 - SaaS config/resolution failure is reported as inactive server status
         return ServerSessionStatus(active=False, error="SaaS URL not configured")
 
     url = f"{saas_url}/api/v1/session-status"
