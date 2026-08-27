@@ -1179,6 +1179,7 @@ class TestSaasFanOut:
                 occurred_at=event.at,
             ),
             "ensure_daemon": True,
+            "repo_root": None,
         }
 
     def test_planned_to_claimed_now_emits(self):

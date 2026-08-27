@@ -1286,7 +1286,7 @@ def emit_resolved_binding(
 def _saas_fan_out(
     event: StatusEvent,
     mission_slug: str,
-    _repo_root: Path | None,
+    repo_root: Path | None,
     *,
     policy_metadata: dict[str, Any] | None = None,
     ensure_sync_daemon: bool = True,
@@ -1342,4 +1342,7 @@ def _saas_fan_out(
         # sync-emission clock (Rule R-T-01 in spec-kitty-events).
         metadata=WPStatusChangeMetadata.from_status_event(event, policy_metadata=policy_metadata),
         ensure_daemon=ensure_sync_daemon,
+        # The emitting checkout root, so the Zeitgeist bridge resolves relay
+        # credentials from it instead of the process cwd (#125).
+        repo_root=repo_root,
     )
