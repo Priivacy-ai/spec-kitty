@@ -232,7 +232,7 @@ def _saas_source_name(target: Any) -> str:
     from specify_cli.auth.server_target import SAAS_URL_ENV_VAR  # noqa: PLC0415
 
     if target.env_server_url is not None:
-        return SAAS_URL_ENV_VAR
+        return str(SAAS_URL_ENV_VAR)
     if target.configured_server_url is not None:
         return "config.toml [sync].server_url"
     return "the default endpoint"
