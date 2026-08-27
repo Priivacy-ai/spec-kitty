@@ -22,6 +22,7 @@ PLAN_CONTENT = "# My Plan\n\nDo the thing.\n"
 def test_intake_file_writes_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """intake <file> exits 0 and creates both .kittify/ artefacts."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
     plan_file = tmp_path / "PLAN.md"
     plan_file.write_text(PLAN_CONTENT)
 
@@ -35,6 +36,7 @@ def test_intake_file_writes_artifacts(tmp_path: Path, monkeypatch: pytest.Monkey
 def test_intake_file_content_in_brief(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Original content is present in mission-brief.md after intake."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
     plan_file = tmp_path / "PLAN.md"
     plan_file.write_text(PLAN_CONTENT)
 
@@ -47,6 +49,7 @@ def test_intake_file_content_in_brief(tmp_path: Path, monkeypatch: pytest.Monkey
 def test_intake_stdin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """intake - reads from stdin and records source_file as 'stdin'."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
 
     result = runner.invoke(
         app,
@@ -69,6 +72,7 @@ def test_intake_stdin(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_intake_force_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """--force allows overwriting an existing brief."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
     plan_file = tmp_path / "PLAN.md"
     plan_file.write_text(PLAN_CONTENT)
 
@@ -87,6 +91,7 @@ def test_intake_force_overwrites(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 def test_intake_no_force_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Second intake without --force exits 1; original file is unchanged."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
     plan_file = tmp_path / "PLAN.md"
     plan_file.write_text(PLAN_CONTENT)
 
@@ -106,6 +111,7 @@ def test_intake_no_force_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 def test_intake_show_prints_brief(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """--show prints the provenance info and brief content; exits 0."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
     plan_file = tmp_path / "PLAN.md"
     plan_file.write_text(PLAN_CONTENT)
 
@@ -119,6 +125,7 @@ def test_intake_show_prints_brief(tmp_path: Path, monkeypatch: pytest.MonkeyPatc
 def test_intake_show_prints_full_brief_hash(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """--show prints the full stored SHA-256 hash for integrity checks."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
     plan_file = tmp_path / "PLAN.md"
     plan_file.write_text(PLAN_CONTENT)
 
@@ -140,6 +147,7 @@ def test_intake_show_prints_full_brief_hash(tmp_path: Path, monkeypatch: pytest.
 def test_intake_show_no_brief_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """--show exits 1 when no brief has been written."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
 
     result = runner.invoke(app, ["intake", "--show"], catch_exceptions=False)
     assert result.exit_code == 1
@@ -148,6 +156,7 @@ def test_intake_show_no_brief_exits_1(tmp_path: Path, monkeypatch: pytest.Monkey
 def test_intake_missing_file_exits_1(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """intake with a non-existent file exits 1 and writes no artefacts."""
     monkeypatch.chdir(tmp_path)
+    (tmp_path / ".kittify").mkdir()
 
     result = runner.invoke(app, ["intake", "nonexistent.md"], catch_exceptions=False)
     assert result.exit_code == 1
