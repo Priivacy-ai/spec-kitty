@@ -298,6 +298,9 @@ class TestAuthStatusCommand:
         assert result.exit_code == 0, result.stdout
         assert "Not authenticated" in result.stdout
         assert "spec-kitty auth login" in result.stdout
+        # #189: the endpoint line prints even with no session to compare against.
+        assert "SaaS:" in result.stdout
+        assert "https://saas.test" in result.stdout
 
     def test_authenticated_path_happy(self):
         """Authenticated session prints identity, teams, expiry, backend."""
@@ -378,6 +381,10 @@ class TestAuthStatusCommand:
         assert result.exit_code == 0, result.stdout
         assert "Session expired" in result.stdout
         assert "spec-kitty auth login" in result.stdout
+        # #189: the endpoint line — this is the exact diagnostic surface a
+        # post-hostname-move expired session needs.
+        assert "SaaS:" in result.stdout
+        assert "https://saas.test" in result.stdout
 
     def test_authenticated_path_device_code_auth_method(self):
         """Device-code sessions render the Headless label."""
@@ -728,3 +735,50 @@ class TestAuthStatusSaasLine:
         assert result.exit_code == 0, result.stdout
         assert "Session is for" not in _flat(result.stdout)
         assert "https://saas.test" in _flat(result.stdout)  # endpoint still shown
+
+    def test_not_configured_shown_in_not_authenticated_branch(self, monkeypatch: pytest.MonkeyPatch, tmp_path):
+        """#189: the not-configured notice must reach the no-session branch too,
+        not just the authenticated one — there is no session to compare
+        against, so this is the whole endpoint line."""
+        mock_storage = _mock_storage_returning(None, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+            monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path))
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        assert "Not authenticated" in flat
+        assert "not configured" in flat
+        assert "SPEC_KITTY_SAAS_URL" in flat
+        assert "Session SaaS:" not in flat  # no session -> nothing to name
+
+    def test_endpoint_and_mismatch_shown_in_expired_branch(self):
+        """#189: the expired-session early return is exactly the
+        post-hostname-move symptom #176 exists to diagnose, so it must show
+        the endpoint, the session issuer, and the mismatch warning."""
+        session = _make_session(
+            access_remaining_seconds=-100,
+            refresh_remaining_days=-1,  # refresh already expired
+            issuer_url="https://sk-teamkitty.exe.xyz",
+        )
+        mock_storage = _mock_storage_returning(session, backend="file")
+        with patch(
+            "specify_cli.auth.secure_storage.SecureStorage.from_environment",
+            return_value=mock_storage,
+        ):
+            reset_token_manager()
+            result = runner.invoke(app, ["status"])
+
+        assert result.exit_code == 0, result.stdout
+        flat = _flat(result.stdout)
+        assert "Session expired" in flat
+        assert "SaaS:" in flat
+        assert "https://saas.test" in flat
+        assert "Session SaaS:" in flat
+        assert "https://sk-teamkitty.exe.xyz" in flat
+        assert "Session is for https://sk-teamkitty.exe.xyz; SPEC_KITTY_SAAS_URL now points at https://saas.test" in flat
