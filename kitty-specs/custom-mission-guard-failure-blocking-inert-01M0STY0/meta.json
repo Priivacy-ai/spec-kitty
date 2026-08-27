@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-08-24T12:11:42.063666+00:00",
+  "flattened": false,
+  "friendly_name": "A custom mission family can never report a guard failure, and its blocking: manifest is never read",
+  "mission_id": "01M0STY03DZZJFMXHVQ5FJX6VS",
+  "mission_number": null,
+  "mission_slug": "custom-mission-guard-failure-blocking-inert-01M0STY0",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances A custom mission family can never report a guard failure, and its blocking: manifest is never read on fix/custom-mission-guard-3704 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "A custom mission family can never report a guard failure, and its blocking: manifest is never read",
+  "slug": "custom-mission-guard-failure-blocking-inert-01M0STY0",
+  "status_phase": "1",
+  "target_branch": "fix/custom-mission-guard-3704",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-08-24T15:48:49.827418+00:00"
+}
