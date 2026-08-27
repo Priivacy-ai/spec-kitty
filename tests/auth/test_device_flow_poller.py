@@ -273,6 +273,138 @@ class TestDeviceFlowPoller:
         # capped (10). Both must be <= 10.
         assert sleep_durations == [6, 10]
 
+    async def test_slow_down_honors_retry_after_hint(self) -> None:
+        """A ``retry_after`` hint on a ``slow_down`` response overrides the flat 5s bump."""
+        state = DeviceFlowState.from_oauth_response(
+            {
+                "device_code": "dc",
+                "user_code": "ABCD",
+                "verification_uri": "https://saas.test/device",
+                "expires_in": 900,
+                "interval": 1,
+            }
+        )
+        poller = DeviceFlowPoller(state)
+
+        sleep_durations: list[float] = []
+        orig_sleep = asyncio.sleep
+
+        async def tracking_sleep(duration: float) -> None:
+            sleep_durations.append(duration)
+            await orig_sleep(0)
+
+        call_count = 0
+
+        async def mock_request(device_code: str) -> dict:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return {"error": "slow_down", "retry_after": 3}
+            return {
+                "access_token": "at",
+                "refresh_token": "rt",
+                "expires_in": 3600,
+                "scope": "",
+                "session_id": "s",
+            }
+
+        with unittest.mock.patch(
+            "specify_cli.auth.device_flow.poller.asyncio.sleep",
+            side_effect=tracking_sleep,
+        ):
+            await poller.poll(mock_request)
+
+        # 1 + retry_after(3) = 4, not the flat 1 + 5 = 6 default bump.
+        assert sleep_durations == [1, 4]
+
+    async def test_slow_down_retry_after_still_capped_at_10(self) -> None:
+        """FR-018 wins even when a ``retry_after`` hint asks for more (HTTP 429 case)."""
+        state = DeviceFlowState.from_oauth_response(
+            {
+                "device_code": "dc",
+                "user_code": "ABCD",
+                "verification_uri": "https://saas.test/device",
+                "expires_in": 900,
+                "interval": 1,
+            }
+        )
+        poller = DeviceFlowPoller(state)
+
+        sleep_durations: list[float] = []
+        orig_sleep = asyncio.sleep
+
+        async def tracking_sleep(duration: float) -> None:
+            sleep_durations.append(duration)
+            await orig_sleep(0)
+
+        call_count = 0
+
+        async def mock_request(device_code: str) -> dict:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                # Server asks for a 60s delay -- FR-018 still caps at 10.
+                return {"error": "slow_down", "retry_after": 60}
+            return {
+                "access_token": "at",
+                "refresh_token": "rt",
+                "expires_in": 3600,
+                "scope": "",
+                "session_id": "s",
+            }
+
+        with unittest.mock.patch(
+            "specify_cli.auth.device_flow.poller.asyncio.sleep",
+            side_effect=tracking_sleep,
+        ):
+            await poller.poll(mock_request)
+
+        assert sleep_durations == [1, 10]
+
+    async def test_slow_down_ignores_non_positive_retry_after(self) -> None:
+        """A zero/negative/non-int ``retry_after`` falls back to the flat 5s bump."""
+        state = DeviceFlowState.from_oauth_response(
+            {
+                "device_code": "dc",
+                "user_code": "ABCD",
+                "verification_uri": "https://saas.test/device",
+                "expires_in": 900,
+                "interval": 1,
+            }
+        )
+        poller = DeviceFlowPoller(state)
+
+        sleep_durations: list[float] = []
+        orig_sleep = asyncio.sleep
+
+        async def tracking_sleep(duration: float) -> None:
+            sleep_durations.append(duration)
+            await orig_sleep(0)
+
+        call_count = 0
+
+        async def mock_request(device_code: str) -> dict:
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return {"error": "slow_down", "retry_after": 0}
+            return {
+                "access_token": "at",
+                "refresh_token": "rt",
+                "expires_in": 3600,
+                "scope": "",
+                "session_id": "s",
+            }
+
+        with unittest.mock.patch(
+            "specify_cli.auth.device_flow.poller.asyncio.sleep",
+            side_effect=tracking_sleep,
+        ):
+            await poller.poll(mock_request)
+
+        # retry_after=0 is not positive, so the flat 1 + 5 = 6 bump applies.
+        assert sleep_durations == [1, 6]
+
     async def test_network_error_retries(self) -> None:
         """A :class:`NetworkError` is caught and the loop continues."""
         from specify_cli.auth.errors import NetworkError

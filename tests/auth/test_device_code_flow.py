@@ -348,6 +348,53 @@ class TestPollTokenRequest:
         assert body == {"error": "authorization_pending"}
 
     @pytest.mark.asyncio
+    async def test_429_returns_slow_down_dict(self):
+        """A rate-limit HTTP 429 is routed to the poller's slow_down handling.
+
+        Regression for the CLI aborting the device flow on HTTP 429 instead
+        of letting the poller's existing RFC 8628 backoff handle it.
+        """
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            response = _mock_httpx_response(429, text="rate limited")
+            response.headers = {"Retry-After": "7"}
+            mock_client.post.return_value = response
+
+            body = await flow._poll_token_request("dc_xyz")
+
+        assert body == {"error": "slow_down", "retry_after": 7}
+
+    @pytest.mark.asyncio
+    async def test_429_without_retry_after_header(self):
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            response = _mock_httpx_response(429, text="rate limited")
+            response.headers = {}
+            mock_client.post.return_value = response
+
+            body = await flow._poll_token_request("dc_xyz")
+
+        assert body == {"error": "slow_down", "retry_after": None}
+
+    @pytest.mark.asyncio
+    async def test_429_with_unparseable_retry_after(self):
+        flow = DeviceCodeFlow(saas_base_url=_SAAS)
+        with patch("httpx.AsyncClient") as mock_client_class:
+            mock_client = AsyncMock()
+            mock_client_class.return_value.__aenter__.return_value = mock_client
+            response = _mock_httpx_response(429, text="rate limited")
+            response.headers = {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}
+            mock_client.post.return_value = response
+
+            body = await flow._poll_token_request("dc_xyz")
+
+        assert body == {"error": "slow_down", "retry_after": None}
+
+    @pytest.mark.asyncio
     async def test_unexpected_status_raises(self):
         flow = DeviceCodeFlow(saas_base_url=_SAAS)
         with patch("httpx.AsyncClient") as mock_client_class:
