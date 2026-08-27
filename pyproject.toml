@@ -79,13 +79,20 @@ dependencies = [
     # spec_kitty_events.strict.validate_strict_envelope. 8.0.0 adds the
     # canonical `genesis` lane contract that src/specify_cli/status/emit.py's
     # capability gate (_EVENTS_SUPPORTS_GENESIS) already degrades gracefully
-    # without. For the programme, both shared packages resolve from exact git
+    # without.
+    # Pinned past 8.0.0 to events#77 (DecisionPointOpened/Resolved join
+    # VOLATILE_EVENT_TYPES; bounded moment summaries for
+    # SUMMARY_SOURCE_EVENT_TYPES) plus #81/#82 (zeitgeist_attrs rejects
+    # non-printable control characters), the exact commit this pin lands on
+    # (spec-kitty#324) — a strict superset of the SHA #324 itself named, and
+    # still an exact commit per PROGRAM.md §2, never a branch.
+    # For the programme, both shared packages resolve from exact git
     # SHAs, never PyPI (PROGRAM.md §2; planning#31). The CLI installs as a wheel
     # in a clean environment, so each pin lives in the dependency itself:
     # [tool.uv.sources] does not travel into the wheel's Requires-Dist
     # (controller-qa on #58). The host is always github.com, never the exe.dev
     # github.int.exe.xyz forge proxy, which laptops cannot resolve.
-    "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
+    "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events@c93dbfbf5243330349452a31d05bca2ece26ceea",
     "spec-kitty-tracker @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-tracker@67a6ecc91f4b4a5fa82492a80ced4f49ce98851e",
     "toml>=0.10.2",  # Config file parsing
     "tomli-w>=1.0.0",  # TOML write serialiser (stdlib tomllib is read-only)
