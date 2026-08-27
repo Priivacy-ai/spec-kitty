@@ -413,6 +413,45 @@ async def test_expired_session_inside_a_running_loop_keeps_the_held_token(tmp_pa
     assert ctx.token == "access-v1"
 
 
+def test_session_issuer_mismatch_is_refused_not_paired(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """#234: a session minted for one server must not be paired with another.
+
+    ``_bridge_env`` resolves the target to ``https://team.example``; a
+    session recorded with a different ``issuer_url`` must raise instead of
+    silently sending its bearer to the resolved target.
+    """
+    session = _oauth_session()
+    session.issuer_url = "https://other.example"
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session))
+
+    with pytest.raises(SaasAuthError, match="auth login --force"):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_session_issuer_matching_target_is_paired(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """A session recorded against the same server the target resolves to
+    (modulo a trailing slash) is paired normally — no false-positive refusal."""
+    session = _oauth_session()
+    session.issuer_url = "https://team.example/"
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session))
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.saas_url == "https://team.example"
+    assert ctx.token == "access-v1"
+
+
+def test_session_with_no_issuer_url_keeps_working(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
+    """Sessions minted before #176 carry ``issuer_url=None`` — nothing was
+    recorded to compare, so the bridge pairs them exactly as before."""
+    session = _oauth_session()
+    assert session.issuer_url is None
+    _bridge_env(monkeypatch, _ScriptedSessionManager(session))
+
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.saas_url == "https://team.example"
+    assert ctx.token == "access-v1"
+
+
 def test_env_token_wins_and_never_consults_the_session(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, _no_env_auth: None) -> None:
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "service-token")
     monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env.example")

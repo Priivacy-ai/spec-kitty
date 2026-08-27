@@ -108,17 +108,20 @@ def _oauth_session_context() -> AuthContext | None:
 
     The session's token is paired with :func:`resolve_server_target`'s
     answer — the same env-over-config-over-default resolution ``auth login``
-    itself used to pick the server it authenticated against (#3406), so the
-    pair names the server the token belongs to even when nothing is set in
-    the current environment. ``resolve_server_target`` still fails closed on
-    an ambiguous split-brain; that refusal surfaces here as ``None`` and the
-    caller's own error message names what is missing.
+    itself used to pick the server it authenticated against (#3406) — but
+    only when that answer matches the session's own ``issuer_url``; a
+    session recorded against one server is refused, not paired, when the
+    resolved target now names a different one (#234).
+    ``resolve_server_target`` still fails closed on an ambiguous split-brain;
+    that refusal surfaces here as ``None`` and the caller's own error message
+    names what is missing.
 
-    Every failure inside the bridge degrades to ``None`` plus a debug log:
-    for the fire-and-forget status fan-out an unusable session means "stay
-    silent", and for interactive callers the surrounding ``SaasAuthError``
-    already says what to do. The token is only ever read from the store,
-    never written anywhere.
+    Every *bridge-unavailable* failure degrades to ``None`` plus a debug
+    log: for the fire-and-forget status fan-out an unusable session means
+    "stay silent". A dead session or an issuer mismatch is different — both
+    are refusals that must reach interactive callers as a ``SaasAuthError``
+    naming the remedy, not silence. The token is only ever read from the
+    store, never written anywhere.
     """
     try:
         manager = _token_manager()
@@ -131,12 +134,47 @@ def _oauth_session_context() -> AuthContext | None:
     if session is None:
         return None
 
-    # Deliberately outside the guard above: a dead stored session is a refusal
-    # that must reach interactive callers, not a silent "not available".
+    # Deliberately outside the guard above: a dead stored session, or one
+    # minted for a server other than the one resolved_server_url now names,
+    # is a refusal that must reach interactive callers, not a silent "not
+    # available" (#234).
+    _guard_session_issuer(session, target)
+
     return AuthContext(
         saas_url=target.resolved_server_url,
         token=_usable_access_token(manager, session),
     )
+
+
+def _guard_session_issuer(session: Any, target: Any) -> None:
+    """Refuse to pair *session* with a server it was not minted for (#234).
+
+    ``spec-kitty auth status`` has warned about this exact mismatch since
+    #176 (``format_saas_mismatch_warning``) — the OAuth bridge must refuse
+    the same way instead of silently sending a personal bearer to a server
+    it never authenticated against. Sessions minted before #176 carry
+    ``issuer_url=None``: nothing was recorded to compare, so they keep
+    working unchanged.
+    """
+    issuer_url: str | None = session.issuer_url
+    if issuer_url is None:
+        return
+    if _normalize_endpoint(issuer_url) == _normalize_endpoint(target.resolved_server_url):
+        return
+    raise SaasAuthError(
+        f"Session is for {_normalize_endpoint(issuer_url)}; the resolved server now points at {target.resolved_server_url} — run `spec-kitty auth login --force`"
+    )
+
+
+def _normalize_endpoint(url: str) -> str:
+    """Normalize a URL for endpoint comparison.
+
+    Same semantics as ``server_target._normalize_url`` /
+    ``_auth_status._normalize_endpoint`` (strip surrounding whitespace, drop
+    one trailing slash); kept local so the comparison does not reach into
+    another module's private helper.
+    """
+    return url.strip().rstrip("/")
 
 
 def _token_manager() -> Any:
