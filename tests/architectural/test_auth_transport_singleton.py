@@ -52,7 +52,7 @@ _WALKED_SUBSYSTEMS: tuple[Path, ...] = (
 #
 # The two auth transport modules are the canonical owners (WP06 T032).
 # ``tracker/saas_client.py`` is a *temporary* legacy entry: 130+
-# downstream tests under ``tests/sync/tracker/`` patch
+# downstream tests under ``tests/tracker/`` patch
 # ``specify_cli.tracker.saas_client.httpx.Client`` directly, and
 # migrating those mocks to the centralized client is out of scope for
 # WP06. The intent is documented inside ``saas_client._request``'s

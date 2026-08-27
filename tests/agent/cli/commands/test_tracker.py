@@ -43,7 +43,7 @@ def _stub_check_readiness(request, monkeypatch):
     # recorded consent, so the real gate would refuse. Stub it to permit for
     # *every* test in this file — including `no_readiness_stub` ones, which
     # drive `_check_sync_readiness` directly — because egress consent is out of
-    # scope here (it has its own suite under `tests/sync/tracker/`); this file
+    # scope here (it has its own suite under `tests/tracker/`); this file
     # asserts command dispatch/rendering only.
     monkeypatch.setattr(
         "specify_cli.cli.commands.tracker.tracker_egress_verdict",
@@ -1303,4 +1303,3 @@ def test_sync_pull_pre_flight_gate_and_transport_share_one_resolved_root(monkeyp
         f"pre-flight gate judged {seen['gate_root']} but the transport used "
         f"{seen['transport_root']} — the two hosted gates answered for different projects"
     )
-
