@@ -581,37 +581,78 @@ def cleanup_test_dashboards():
     _reserved_test_ports.clear()
 
 
-def _walk_without_process_sweep_guard(tree: ast.Module) -> list[ast.AST]:
-    ignored_function_names = {
-        "_subprocess_run_argv_strings",
-        "_walk_without_process_sweep_guard",
-        "test_no_process_name_wide_dashboard_kill",
-    }
-    nodes: list[ast.AST] = []
-    for node in tree.body:
-        if isinstance(node, ast.FunctionDef) and node.name in ignored_function_names:
-            continue
-        nodes.extend(ast.walk(node))
-    return nodes
+def _simple_name_bindings(tree: ast.Module) -> dict[str, ast.AST]:
+    bindings: dict[str, ast.AST] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    bindings[target.id] = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name) and node.value is not None:
+            bindings[node.target.id] = node.value
+    return bindings
 
 
-def _subprocess_run_argv_strings(call: ast.Call) -> list[str]:
-    if not isinstance(call.func, ast.Attribute) or call.func.attr != "run":
+def _literal_strings(node: ast.AST, bindings: dict[str, ast.AST], resolving: frozenset[str] = frozenset()) -> list[str]:
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    if isinstance(node, ast.Name) and node.id in bindings and node.id not in resolving:
+        return _literal_strings(bindings[node.id], bindings, resolving | {node.id})
+
+    strings: list[str] = []
+    for child in ast.iter_child_nodes(node):
+        strings.extend(_literal_strings(child, bindings, resolving))
+    return strings
+
+
+def _subprocess_command_strings(call: ast.Call, bindings: dict[str, ast.AST]) -> list[str]:
+    if not isinstance(call.func, ast.Attribute) or call.func.attr not in {
+        "Popen",
+        "call",
+        "check_call",
+        "check_output",
+        "run",
+    }:
         return []
     if not isinstance(call.func.value, ast.Name) or call.func.value.id != "subprocess":
         return []
     if not call.args:
         return []
 
-    argv = call.args[0]
-    if not isinstance(argv, ast.List | ast.Tuple):
-        return []
+    return _literal_strings(call.args[0], bindings)
 
-    strings: list[str] = []
-    for element in argv.elts:
-        if isinstance(element, ast.Constant) and isinstance(element.value, str):
-            strings.append(element.value)
-    return strings
+
+def _process_sweep_violations(tree: ast.Module) -> list[str]:
+    bindings = _simple_name_bindings(tree)
+    violations: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import) and any(alias.name == "psutil" for alias in node.names):
+            violations.append(f"{node.lineno}: psutil import permits machine-wide process iteration")
+        if isinstance(node, ast.ImportFrom) and node.module == "psutil":
+            violations.append(f"{node.lineno}: psutil import permits machine-wide process iteration")
+        if isinstance(node, ast.Attribute) and node.attr == "process_iter":
+            violations.append(f"{node.lineno}: psutil process iteration")
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "process_iter":
+            violations.append(f"{node.lineno}: psutil process iteration")
+
+        if not isinstance(node, ast.Call):
+            continue
+
+        command_strings = _subprocess_command_strings(node, bindings)
+        if not command_strings:
+            continue
+
+        command_text = " ".join(command_strings)
+        command_words = command_text.split()
+        broad_tools = {word.rsplit("/", 1)[-1] for word in command_words} & {"pgrep", "killall"}
+        for tool in sorted(broad_tools):
+            violations.append(f"{node.lineno}: broad process kill tool {tool}")
+        if any(command == "ps" and option in {"aux", "-A", "-e", "-ef"} for command, option in zip(command_words, command_words[1:], strict=False)):
+            violations.append(f"{node.lineno}: broad process enumeration")
+        if "run_dashboard_server" in command_text:
+            violations.append(f"{node.lineno}: dashboard process-name subprocess sweep")
+
+    return violations
 
 
 def test_no_process_name_wide_dashboard_kill():
@@ -624,21 +665,44 @@ def test_no_process_name_wide_dashboard_kill():
     source = Path(__file__).read_text(encoding="utf-8")
     tree = ast.parse(source)
 
-    violations: list[str] = []
-    for node in _walk_without_process_sweep_guard(tree):
-        if isinstance(node, ast.Attribute) and node.attr == "process_iter" and isinstance(node.value, ast.Name) and node.value.id == "psutil":
-            violations.append(f"{node.lineno}: psutil process iteration")
-
-        if isinstance(node, ast.Call):
-            argv_strings = _subprocess_run_argv_strings(node)
-            if argv_strings and argv_strings[0] in {"pgrep", "killall"}:
-                violations.append(f"{node.lineno}: broad process kill tool {argv_strings[0]}")
-            if "run_dashboard_server" in argv_strings:
-                violations.append(f"{node.lineno}: dashboard process-name subprocess sweep")
+    violations = _process_sweep_violations(tree)
 
     assert not violations, (
         f"This module must not use a process-name-wide dashboard cleanup sweep; scope cleanup to _reserved_test_ports instead (see #70): {violations}"
     )
+
+
+@pytest.mark.parametrize(
+    ("source", "expected_violation"),
+    [
+        ("import psutil\npsutil.process_iter()", "psutil import"),
+        ("import psutil as ps\nps.process_iter()", "psutil import"),
+        ("from psutil import process_iter\nprocess_iter()", "psutil import"),
+        ('import subprocess\nsubprocess.run(["pgrep", "-f", "run_dashboard_server"])', "broad process kill tool pgrep"),
+        (
+            'import subprocess\ncommand = ["pgrep", "-f", "run_dashboard_server"]\nsubprocess.run(command)',
+            "broad process kill tool pgrep",
+        ),
+        ('import subprocess\nsubprocess.run(["sh", "-c", "pgrep -f run_dashboard_server"])', "broad process kill tool pgrep"),
+        ('import subprocess\nsubprocess.run(["killall", "-f", "run_dashboard_server"])', "broad process kill tool killall"),
+        ('import subprocess\nsubprocess.run("ps aux | grep run_dashboard_server", shell=True)', "broad process enumeration"),
+        ('import subprocess\nsubprocess.run(["sh", "-c", "ps aux | grep run_dashboard_server"])', "broad process enumeration"),
+        (
+            'import subprocess\nresult = subprocess.run(["ps", "aux"])\n"run_dashboard_server" in result.stdout',
+            "broad process enumeration",
+        ),
+    ],
+)
+def test_process_sweep_guard_catches_known_mutation(source: str, expected_violation: str):
+    """Prove the guard fails for each process-wide cleanup mechanism from #365."""
+    violations = _process_sweep_violations(ast.parse(source))
+    assert any(expected_violation in violation for violation in violations)
+
+
+def test_process_sweep_guard_allows_port_scoped_cleanup():
+    """Keep the intended lsof-by-reserved-port cleanup outside the blocklist."""
+    source = 'import subprocess\nsubprocess.run(["lsof", "-ti", f":{port}"])'
+    assert not _process_sweep_violations(ast.parse(source))
 
 
 def test_dashboard_with_symlinked_kitty_specs():
