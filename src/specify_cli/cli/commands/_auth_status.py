@@ -11,7 +11,9 @@ Output layout (spec 080 §2.4, FR-015):
 - SaaS endpoint the CLI is pointed at, with its provenance, plus a plain
   warning when the stored session was minted against a *different*
   endpoint (#176 — after a hostname move this is the line that explains
-  why every call suddenly 401s)
+  why every call suddenly 401s); or, when ``SPEC_KITTY_SAAS_URL`` and
+  ``config.toml [sync].server_url`` genuinely disagree, a split-brain line
+  naming both values instead of silently picking the env one (#193)
 - SaaS endpoint the stored session was minted against, when known
 - email / name / user_id
 - Team list with the default team marked
@@ -41,6 +43,7 @@ from specify_cli.auth.errors import ConfigurationError
 from specify_cli.auth.server_target import (
     SAAS_URL_ENV_VAR,
     ResolvedServerTarget,
+    ServerTargetSplitBrainError,
     resolve_server_target,
 )
 from specify_cli.auth.session import StoredSession
@@ -115,9 +118,25 @@ def _print_saas_target(session: StoredSession) -> None:
     fails closed when neither ``SPEC_KITTY_SAAS_URL`` nor ``config.toml``
     names a server — there is no default endpoint to fall back to — so this
     reports "not configured" (with the remedy) instead of a URL.
+
+    Resolved with ``process_wide_override=False`` (#193): this call is purely
+    descriptive (no network, no config mutation), so it should show a
+    genuine env/config disagreement instead of the whole-process override
+    silently picking the env value — otherwise a split-brain machine looks
+    identical to a clean one here, with no hint that ``config.toml`` says
+    something else. ``ServerTargetSplitBrainError`` is caught and rendered as
+    a friendly line naming both values, never a traceback.
     """
     try:
-        target = resolve_server_target()
+        target = resolve_server_target(process_wide_override=False)
+    except ServerTargetSplitBrainError as exc:
+        # escape(): the message embeds the raw config/env URLs, which are
+        # attacker- or fat-finger-controlled and can contain
+        # `[sync]`/`[/]`-shaped substrings (#182's rationale applies here too).
+        console.print("  SaaS:           [red]split-brain[/red] [dim](env and config.toml disagree)[/dim]")
+        console.print(f"  [yellow]{escape(str(exc))}[/yellow]")
+        _print_session_issuer(session.issuer_url)
+        return
     except ConfigurationError:
         # escape(): the remedy names `[sync].server_url` — unescaped, Rich
         # markup parses "[sync]" as a style tag and silently drops it (#182).
