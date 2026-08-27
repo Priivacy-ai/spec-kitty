@@ -380,13 +380,13 @@ def _run_or_exit(fn):  # type: ignore[no-untyped-def]
 
 @app.callback()
 def tracker_callback() -> None:
-    """Defense-in-depth rollout gate for tracker commands.
+    """Rollout gate for tracker commands.
 
-    The conditional registration in cli/commands/__init__.py already hides
-    this group entirely when the flag is off.  This callback is a
-    defense-in-depth check in case the env-var state drifts between import
-    time and invocation time.  Per-command readiness checks handle all
-    prerequisite validation beyond the rollout gate.
+    Registration in cli/commands/__init__.py is unconditional, so this
+    callback is the sole gate: it checks env-var state at invocation time
+    and blocks every tracker command when the rollout flag is off.
+    Per-command readiness checks handle all prerequisite validation beyond
+    the rollout gate.
     """
     if not is_saas_sync_enabled():
         typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
