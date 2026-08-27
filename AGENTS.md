@@ -57,7 +57,7 @@ This repo is part of the `EXPERIMENTAL-spec-kitty-*` programme. **`main` IS the 
 - `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
 - On exe.dev VMs `gh issue` / `gh pr` fail behind the integration proxy — use `gh api repos/<owner>/<repo>/...` (see `bin/GH-API.md` in the planning repo).
 
-**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and run `tests/architectural/` in full. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that.
+**Test policy (§6):** run every test you write or change plus your blast radius, and record commands + counts in the PR. Baseline is `make test-fast`; add the test files of every module your diff touches, and the full test directory of each owning subsystem. Run `tests/architectural/` in full only for cross-cutting changes (pytest.ini, pyproject.toml, conftest, markers, packaging) — see "Test policy — what you must run for a change" below for the calibrated blast-radius rule. Do **not** run `make test-full` or any whole-repo suite — the CI agent owns that.
 
 ---
 
