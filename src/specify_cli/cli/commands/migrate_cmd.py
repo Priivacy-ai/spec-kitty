@@ -1230,7 +1230,6 @@ def _mission_type_payload(results: list[Any], *, dry_run: bool) -> dict[str, Any
                 "mission_type": r.mission_type,
                 "legacy_value": r.legacy_value,
                 "reason": r.reason,
-                "dossier_warning": r.dossier_warning,
             }
             for r in results
         ],
