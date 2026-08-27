@@ -1,27 +1,67 @@
 """Symbol-level dead-code gate (Slice F WP02 / FR-120).
 
 Where ``test_no_dead_modules`` ensures every module has at least one
-non-test caller, this gate ensures every NAME in a module's ``__all__``
-declaration has at least one non-test caller too. A public class
-declared in ``__all__`` with zero callers -- the failure mode that bit
-Mission B WP08 cycle 1 -- fails here.
+non-test caller, this gate ensures every public module-level NAME has
+at least one non-test caller too. A public class declared in
+``__all__`` with zero callers -- the failure mode that bit Mission B
+WP08 cycle 1 -- fails here.
 
 ATDD anchor: AC-8 (covers: FR-120, FR-122).
+
+Scope (#470): widened beyond ``__all__``
+-----------------------------------------
+
+The gate originally scanned ONLY names listed in a module's ``__all__``
+literal. That left every public (non-underscore) module-level name NOT
+in ``__all__`` invisible to the gate -- exactly the blind spot that let
+``audit_invocation_disagreement`` sit dead (imported only by its own
+unit test, never wired to any ``src/`` caller) while nothing red-ed.
+``decls`` (below) is now the UNION of a module's ``__all__`` members and
+every public (non-underscore) module-level ``def``/``class``/assignment
+target. Two consequences of widening past ``__all__``'s explicit
+"exported for other modules" declaration:
+
+* A non-``__all__`` name that is merely referenced somewhere else in its
+  OWN defining module (a ``logger = logging.getLogger(__name__)``-style
+  module-private helper that never intended cross-module use) is not
+  dead -- see ``_used_within_own_module``. This intra-module signal is
+  deliberately NOT extended to ``__all__`` members: being in ``__all__``
+  is itself a claim of cross-module export, so an ``__all__`` member
+  used only within its own module stays caught, unchanged from the
+  original gate.
+* A Typer ``@app.command(...)``/``@app.callback(...)``-decorated
+  function is dispatched only through the CLI framework, never via a
+  direct ``from module import name`` -- see
+  ``_is_typer_command_definition`` (T013 structural auto-exempt,
+  alongside the pre-existing migration-class / Typer-sub-app / re-export
+  checks).
+
+The initial widening pass's residual offenders (real functions/classes/
+constants with zero callers under either signal above, once the two
+structural rescues above are applied) are far too many to hand-triage in
+one PR -- exactly the "unpredictable blast radius...expect a batch of
+small follow-up fixes" the issue anticipated. They are grandfathered in
+``_WIDENED_SCOPE_GRANDFATHERED_470`` (a plain qualified-name set, kept
+deliberately separate from ``_SYMBOL_ALLOWLIST``'s ``SymbolKey``
+machinery -- see that set's own docstring for why) pending follow-up
+triage in #633.
 
 Mechanics
 ---------
 
-* Walk every ``*.py`` file under ``src/`` and collect the modules that
-  declare an ``__all__`` literal at module scope (``ast.Assign`` whose
-  target is ``Name(id="__all__")`` with a list / tuple of string
-  literals as value).
+* Walk every ``*.py`` file under ``src/`` and collect, per module, the
+  UNION of its ``__all__`` literal (``ast.Assign`` whose target is
+  ``Name(id="__all__")`` with a list / tuple of string literals as
+  value) and its public module-level ``def``/``class``/assignment names.
 * Walk every ``*.py`` file under ``src/`` again and collect every
   ``from <module> import <name>`` site, resolving relative imports
   against the importer's containing package (same logic as
   ``test_no_dead_modules``).
-* For each ``(module, name)`` in some ``__all__``, fail if no caller in
+* For each ``(module, name)`` in ``decls``, fail if no caller in
   ``src/`` (other than the declaring module itself) imports that name
-  from that module OR re-exports it from its parent package.
+  from that module OR re-exports it from its parent package -- UNLESS
+  *name* is not an ``__all__`` member and is used within its own
+  defining module (see above).
 
 Tests under ``tests/`` are deliberately NOT counted as callers -- a
 symbol exercised only by its own unit tests is functionally dead in the
@@ -1524,11 +1564,15 @@ _CATEGORY_C_SCOPE_SOURCE_FACTORY_CONSTRUCTED: frozenset[SymbolKey] = frozenset(
 #   documented caller (docs/guides/accept-and-merge.md
 #   #deferred-invariants-and-the-post-consolidation-gate) that is never a
 #   static ``src/`` import by design.
-# * ``cli/commands/archive.py`` (``create`` / ``list_archives``) are Typer
-#   command callbacks registered by the ``@app.command(...)`` decorator; the
-#   real runtime caller is Typer's own dispatch against ``archive_module.app``
-#   (wired in ``cli/commands/__init__.py``), never a ``from ... import create``
-#   site.
+# * ``cli/commands/archive.py`` (``create`` / ``list_archives``) were
+#   formerly hand-allowlisted here as Typer command callbacks registered by
+#   the ``@app.command(...)`` decorator; the real runtime caller is Typer's
+#   own dispatch against ``archive_module.app`` (wired in
+#   ``cli/commands/__init__.py``), never a ``from ... import create`` site.
+#   Removed (#470): now covered by the ``_is_typer_command_definition`` T013
+#   structural auto-exemption, per the disjointness invariant
+#   (auto_exempt ∩ hand_allowlist = ∅ -- see
+#   ``test_auto_exempt_disjoint_from_hand_allowlist``).
 _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozenset(
     {
         # specify_cli.acceptance.execution_context::CannotEvaluateReason
@@ -1559,12 +1603,6 @@ _CATEGORY_C_LIFECYCLE_GATE_EXECUTION_CONTEXT_2841: frozenset[SymbolKey] = frozen
             "e1c30bf407aa9a48fe5dfe0870f00f47cb0fb61367f2ad8f292f608ca2661c9d",
             source_module="specify_cli.acceptance.post_consolidation",
         ),
-        SymbolKey(
-            "create", "758e16e495dc35a5a9338583a8a906a46d7e6b9ffcddc04b9d0b49f7f39227ba", source_module="specify_cli.cli.commands.archive"
-        ),  # specify_cli.cli.commands.archive::create
-        SymbolKey(
-            "list_archives", "1d7216238f988bfdd9f3a29fd315d89a48d0092b8b22c9ebdaf5c23c2308a886", source_module="specify_cli.cli.commands.archive"
-        ),  # specify_cli.cli.commands.archive::list_archives
     }
 )
 
@@ -1874,7 +1912,7 @@ def test_every_content_tier_source_module_is_live_and_declares_symbol() -> None:
     tree = ast.parse(_THIS_SOURCE.read_text())
     calls = _content_tier_symbolkey_calls(tree)
     assert calls, "no content-tier allowlist entries discovered -- parser regression"
-    _decls, _path_to_dotted, _path_to_tree, corpus = _walk_modules()
+    _decls, _all_literal_decls, _path_to_dotted, _path_to_tree, corpus = _walk_modules()
     collision_index = classify_collisions(corpus)
 
     violations: list[str] = []
@@ -2157,15 +2195,57 @@ def _record_facade_edges(
                 per_symbol.setdefault(resolved, set()).add(attr_name)
 
 
+def _extract_public_module_level_names(tree: ast.Module) -> frozenset[str]:
+    """Every public (non-underscore) module-level ``def``/``class``/assignment name (#470).
+
+    Scoped to module-scope statements only (``tree.body``, never nested
+    scopes) -- a public-looking name inside a function/class body is not a
+    module-level declaration. An ``ast.Assign``/``ast.AnnAssign`` contributes
+    only ``ast.Name`` targets (a tuple/attribute/subscript target is not a
+    simple module-level symbol binding).
+    """
+    names: set[str] = set()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if not node.name.startswith("_"):
+                names.add(node.name)
+            continue
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                if isinstance(target, ast.Name) and not target.id.startswith("_"):
+                    names.add(target.id)
+    return frozenset(names)
+
+
+def _used_within_own_module(tree: ast.Module, name: str) -> bool:
+    """True if *name* is referenced (``ast.Name`` load) anywhere in *tree* (#470).
+
+    Used ONLY to rescue a widened (non-``__all__``) symbol: intra-module use
+    is real evidence a module-private-by-convention name is not dead, but is
+    deliberately never consulted for an ``__all__`` member -- ``__all__``
+    membership is itself a claim of cross-module export, so a same-module-only
+    ``__all__`` symbol must stay caught (unchanged from the original gate).
+    """
+    return any(isinstance(node, ast.Name) and node.id == name and isinstance(node.ctx, ast.Load) for node in ast.walk(tree))
+
+
 def _walk_modules() -> tuple[
+    dict[str, frozenset[str]],
     dict[str, frozenset[str]],
     dict[Path, str],
     dict[Path, ast.Module],
     dict[str, CorpusModule],
 ]:
-    """Walk src/, return (decls, path_to_dotted, path_to_tree, corpus).
+    """Walk src/, return (decls, all_literal_decls, path_to_dotted, path_to_tree, corpus).
 
-    * ``decls`` maps module dotted name to the static ``__all__`` set.
+    * ``decls`` maps module dotted name to the UNION of its static
+      ``__all__`` set and its public module-level names (#470 -- widened
+      past ``__all__``, see the module docstring).
+    * ``all_literal_decls`` maps module dotted name to ONLY its static
+      ``__all__`` set (the pre-#470 scope) -- callers use this to tell an
+      original ``__all__`` member from a widened-in name, since the two are
+      rescued by different caller-detection rules.
     * ``path_to_dotted`` maps each ``*.py`` path to its dotted name.
     * ``path_to_tree`` caches parsed ASTs so the import walk does not
       re-read every file.
@@ -2178,6 +2258,7 @@ def _walk_modules() -> tuple[
       safe to extend.
     """
     decls: dict[str, frozenset[str]] = {}
+    all_literal_decls: dict[str, frozenset[str]] = {}
     path_to_dotted: dict[Path, str] = {}
     path_to_tree: dict[Path, ast.Module] = {}
     corpus: dict[str, CorpusModule] = {}
@@ -2191,10 +2272,13 @@ def _walk_modules() -> tuple[
         path_to_dotted[path] = dotted
         path_to_tree[path] = tree
         corpus[dotted] = CorpusModule(tree=tree, source=source, containing_pkg=_package_of(path))
-        names = _extract_all_literal(tree)
-        if names is not None:
-            decls[dotted] = names
-    return decls, path_to_dotted, path_to_tree, corpus
+        all_literal = _extract_all_literal(tree) or frozenset()
+        if all_literal:
+            all_literal_decls[dotted] = all_literal
+        widened = all_literal | _extract_public_module_level_names(tree)
+        if widened:
+            decls[dotted] = widened
+    return decls, all_literal_decls, path_to_dotted, path_to_tree, corpus
 
 
 def _imports_by_target(
@@ -2405,6 +2489,28 @@ def _is_typer_subapp_definition(name: str, tree: ast.Module) -> bool:
     return False
 
 
+def _is_typer_command_definition(name: str, tree: ast.Module) -> bool:
+    """T013 auto-exempt (#470): a function decorated with ``@X.command(...)``
+    or ``@X.callback(...)``.
+
+    A Typer command/callback function is dispatched only through the Typer
+    CLI framework's decorator-driven registration, never via a direct
+    ``from module import Name`` -- the same reasoning as
+    :func:`_is_typer_subapp_definition`, extended to the command function
+    itself. Introduced because the #470 widened walk now includes every
+    public module-level ``def``, not only ``__all__`` members, and CLI
+    command functions are overwhelmingly public-but-`__all__`-absent.
+    """
+    for node in tree.body:
+        if not (isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == name):
+            continue
+        for dec in node.decorator_list:
+            target = dec.func if isinstance(dec, ast.Call) else dec
+            if isinstance(target, ast.Attribute) and target.attr in ("command", "callback"):
+                return True
+    return False
+
+
 def _reexport_origin(tree: ast.Module, containing_pkg: str, name: str) -> tuple[str, str] | None:
     """Return ``(origin_module, origin_name)`` for a single-alias ``ImportFrom``
     binding *name*, or ``None`` if *name* is not a simple re-export.
@@ -2478,9 +2584,10 @@ def _is_auto_exempt(
 ) -> bool:
     """T013 -- symbol-granular auto-derived exemptions (never per-module).
 
-    Three structural categories (FR-010), checked in order: a registered
-    ``@MigrationRegistry.register`` class, a Typer sub-app definition, or a
-    re-export shim whose underlying symbol is proven live elsewhere. See
+    Four structural categories (FR-010; the fourth added by #470), checked
+    in order: a registered ``@MigrationRegistry.register`` class, a Typer
+    sub-app definition, a Typer ``@X.command``/``@X.callback`` function, or
+    a re-export shim whose underlying symbol is proven live elsewhere. See
     ``test_auto_exempt_disjoint_from_hand_allowlist`` for the disjointness
     proof against ``_SYMBOL_ALLOWLIST`` (auto_exempt ∩ hand_allowlist = ∅).
     """
@@ -2490,6 +2597,8 @@ def _is_auto_exempt(
     if _is_registered_migration_class(mod_dotted, name, tree):
         return True
     if _is_typer_subapp_definition(name, tree):
+        return True
+    if _is_typer_command_definition(name, tree):
         return True
     return _is_reexport_shim_symbol(mod_dotted, name, module, final_key, per_symbol, submodule_index)
 
@@ -2640,23 +2749,327 @@ def _compute_dangling(
     return dangling
 
 
-def test_no_public_symbol_in_all_is_unimported() -> None:
-    """Every name in every ``__all__`` must have at least one caller in src/.
+# _WIDENED_SCOPE_GRANDFATHERED_470 (#470): pre-existing debt the widened walk
+# surfaced, one plain "module.dotted.path::Name" string per entry. Deliberately
+# NOT unioned into _SYMBOL_ALLOWLIST above: that allowlist's dangling/stale
+# ratchet is SymbolKey-based and its collision classification
+# (classify_collisions, via extract_static_all) only ever indexes __all__
+# members, so a non-__all__ entry keyed the same way would always resolve
+# content-tier and immediately misfire as dangling (zero live __all__
+# locations, by construction). Kept as a flat name set instead, reviewed by
+# hand at widening time -- each entry is either wired into __all__ plus a
+# real caller, or deleted, in follow-up triage issue #633; this set only
+# exists to keep the widened gate from failing this same PR on debt it did
+# not create. Notably includes specify_cli.migration.mission_state's
+# audit_invocation_disagreement chain (CheckoutDisagreement,
+# _DISAGREEMENT_ARTIFACTS, _artifact_sha256, _compare_checkout_mission_state,
+# audit_invocation_disagreement itself) -- traced to a half-built "--audit"
+# honest-disagreement feature whose CLI dispatch path
+# (_mission_state_doctor.py::_run_audit_mode) calls a DIFFERENT audit engine
+# (specify_cli.audit.run_audit) entirely, so it has zero non-test callers.
+# Whether to wire it into the real dispatch or deprecate it is a product
+# decision outside this widening's mandate -- flagged in #633.
+_WIDENED_SCOPE_GRANDFATHERED_470: frozenset[str] = frozenset(
+    {
+        "charter._io::load_charter_bytes",
+        "charter.bundle::DIRECTIVES_YAML",
+        "charter.bundle::GOVERNANCE_YAML",
+        "charter.bundle::METADATA_YAML",
+        "charter.catalog::DEFAULT_TEMPLATE_SET",
+        "charter.context::NONE_LABEL",
+        "charter.context_contract::CONTEXT_CONTRACT_TOP_LEVEL_KEYS",
+        "charter.evidence.code_reader::LANGUAGE_EXTENSIONS",
+        "charter.synthesizer.adapter::BatchCapableSynthesisAdapter",
+        "charter.synthesizer.synthesize_pipeline::run",
+        "doctrine.agent_profiles.schema_models::AgentProfileSchema",
+        "doctrine.agent_profiles.validation::is_agent_profile_file",
+        "doctrine.directives.validation::validate_directive",
+        "doctrine.drg.migration.hand_authored_overlay::hand_authored_edge_keys",
+        "doctrine.drg.migration.hand_authored_overlay::hand_authored_node_urns",
+        "doctrine.drg.models::RELATION_DESCRIPTIONS",
+        "doctrine.hatch_build::DoctrinePacksSiblingBuildHook",
+        "doctrine.import_candidates.models::CurationImportCandidate",
+        "doctrine.import_candidates.models::LegacyImportCandidate",
+        "doctrine.missions.repository::MissionRepository",
+        "doctrine.paradigms.validation::validate_paradigm",
+        "doctrine.styleguides.validation::validate_styleguide",
+        "doctrine.tactics.validation::validate_tactic",
+        "doctrine.toolguides.validation::validate_toolguide",
+        "glossary.drg_builder::build_glossary_drg_layer",
+        "glossary.extraction::score_confidence",
+        "glossary.middleware::MockContext",
+        "glossary.models::term_sense_to_dict",
+        "glossary.scope::activate_scope",
+        "glossary.scope::get_scope_precedence",
+        "glossary.scope::should_use_scope",
+        "glossary.scope::validate_seed_file",
+        "glossary.semantic_events::is_high_severity",
+        "kernel.glossary_runner::clear_registry",
+        "runtime.next._internal_runtime.discovery::diagnose_shadowing",
+        "runtime.next._internal_runtime.engine::TransitionGate",
+        "runtime.next._internal_runtime.engine::notify_decision_timeout",
+        "runtime.next._internal_runtime.planner::resolve_next_workflow_action",
+        "runtime.next._internal_runtime.planner::serialize_decision",
+        "runtime.next._internal_runtime.schema::CommitContext",
+        "runtime.next.decision::derive_mission_state",
+        "runtime.next.decision::evaluate_guards",
+        "runtime.next.runtime_bridge::KITTIFY_DIR",
+        "runtime.next.runtime_bridge_cores::evaluate_guards",
+        "specify_cli.acceptance::logger",
+        "specify_cli.agent_tasks_ports::default_ports",
+        "specify_cli.ast_analysis.imports::extract_static_all",
+        "specify_cli.ast_analysis.imports::module_of_import_from",
+        "specify_cli.audit.detectors::detect_corrupt_jsonl",
+        "specify_cli.audit.identity_adapter::duplicate_ids_to_findings",
+        "specify_cli.audit.identity_adapter::prefix_groups_to_findings",
+        "specify_cli.audit.identity_adapter::selector_groups_to_findings",
+        "specify_cli.auth.transport::reset_user_facing_dedup",
+        "specify_cli.bulk_edit.occurrence_map::logger",
+        "specify_cli.charter_runtime.lint._drg::get_nodes_by_kind",
+        "specify_cli.cli.commands._auth_login::log",
+        "specify_cli.cli.commands._auth_logout::log",
+        "specify_cli.cli.commands.agent.mission::FINALIZE_TASKS_COMMAND_NAME",
+        "specify_cli.cli.commands.agent.mission::INVALID_WP_OWNED_FILES_KITTY_SPECS",
+        "specify_cli.cli.commands.agent.mission::PROJECT_ROOT_NOT_FOUND_MESSAGE",
+        "specify_cli.cli.commands.agent.mission::SETUP_PLAN_COMMAND_NAME",
+        "specify_cli.cli.commands.agent.mission::TASKS_MD_FILENAME",
+        "specify_cli.cli.commands.agent.mission::logger",
+        "specify_cli.cli.commands.agent.mission_setup_plan::TASKS_MD_FILENAME",
+        "specify_cli.cli.commands.agent.tasks::logger",
+        "specify_cli.cli.commands.doctor::logger",
+        "specify_cli.cli.commands.intake::MAX_BRIEF_FILE_SIZE_BYTES",
+        "specify_cli.cli.commands.invocations_cmd::append_to_index",
+        "specify_cli.cli.helpers::check_version_compatibility",
+        "specify_cli.context.mission_resolver::FakeMissionResolver",
+        "specify_cli.contracts.anchoring::composite_key_from_file",
+        "specify_cli.contracts.anchoring::has_diagnostic_locator_marker",
+        "specify_cli.coordination.status_service::append_event_log",
+        "specify_cli.core.subtask_rows::count_subtask_rows",
+        "specify_cli.core.subtask_rows::count_wp_section_subtask_rows",
+        "specify_cli.core.subtask_rows::uncheck_wp_section_subtask_rows",
+        "specify_cli.core.vcs.git::git_stash",
+        "specify_cli.core.vcs.git::git_stash_pop",
+        "specify_cli.core.worktree::create_feature_worktree",
+        "specify_cli.core.worktree::create_wp_workspace",
+        "specify_cli.doc_analysis.doc_generators::check_tool_available",
+        "specify_cli.doc_analysis.doc_state::ensure_documentation_state",
+        "specify_cli.doc_analysis.doc_state::get_state_version",
+        "specify_cli.doc_analysis.doc_state::initialize_documentation_state",
+        "specify_cli.doc_analysis.doc_state::set_divio_types_selected",
+        "specify_cli.doc_analysis.doc_state::set_iteration_mode",
+        "specify_cli.doc_analysis.doc_state::update_documentation_state",
+        "specify_cli.doc_analysis.gap_analysis::detect_version_mismatch",
+        "specify_cli.doc_analysis.gap_analysis::run_gap_analysis_for_feature",
+        "specify_cli.doctrine.org_charter::org_charter_to_json_block",
+        "specify_cli.doctrine.pack_descriptor::PackDescriptor",
+        "specify_cli.dossier.hasher::WP_DESCRIPTIVE_PROJECTION_FIELDS",
+        "specify_cli.dossier.hasher::WP_RUNTIME_PROJECTION_FIELDS",
+        "specify_cli.git.commit_helpers::logger",
+        "specify_cli.git.commit_helpers::protected_branches",
+        "specify_cli.git.protection_policy::logger",
+        "specify_cli.identity.project::generate_build_id",
+        "specify_cli.invocation.executor::ActionRouterPlugin",
+        "specify_cli.invocation.task_class_map::known_verbs",
+        "specify_cli.lanes.branch_naming::is_legacy_branch",
+        "specify_cli.lanes.branch_naming::is_mission_branch",
+        "specify_cli.lanes.compute::SURFACE_TAXONOMY",
+        "specify_cli.migration.backfill_runtime_state::assert_zero_readers",
+        "specify_cli.migration.backfill_runtime_state::backfill_runtime_state_repo",
+        "specify_cli.migration.backfill_runtime_state::run_backfill_and_verify",
+        "specify_cli.migration.mission_state::audit_invocation_disagreement",
+        "specify_cli.migration.strip_frontmatter::RETIRED_FIELDS",
+        "specify_cli.migration.strip_frontmatter::STATIC_FIELDS",
+        "specify_cli.mission::discover_missions",
+        "specify_cli.mission::get_active_mission",
+        "specify_cli.mission::validate_deliverables_path",
+        "specify_cli.mission_metadata::clear_coordination_metadata",
+        "specify_cli.mission_metadata::get_change_mode",
+        "specify_cli.mission_metadata::load_meta_strict",
+        "specify_cli.mission_metadata::set_change_mode",
+        "specify_cli.mission_metadata::set_purpose_summary",
+        "specify_cli.mission_v1.schema::strip_v1_keys",
+        "specify_cli.missions._archive::is_mission_archived",
+        "specify_cli.missions._read_path_resolver::resolve_feature_dir_for_slug",
+        "specify_cli.ownership.frontmatter_source::InMemoryFrontmatterSource",
+        "specify_cli.policy.audit::append_audit_event",
+        "specify_cli.policy.audit::create_audit_event",
+        "specify_cli.policy.audit::read_audit_events",
+        "specify_cli.proof.events::PROOF_EVENT_REQUIRED_FIELDS",
+        "specify_cli.proof.events::ProofEventType",
+        "specify_cli.retrospective.deprecation::reset_emitted_for_testing",
+        "specify_cli.retrospective.events::ProposalGeneratedPayload",
+        "specify_cli.retrospective.gate::ModeResolutionError",
+        "specify_cli.retrospective.lifecycle_events::RetroLifecycleEvent",
+        "specify_cli.retrospective.summary::logger",
+        "specify_cli.review.arbiter::prompt_arbiter_checklist",
+        "specify_cli.review.baseline::load_baseline",
+        "specify_cli.review.gate_bindings::load_gate_bindings",
+        "specify_cli.runtime.resolver::required_artifacts_for",
+        "specify_cli.saas_client.client::logger",
+        "specify_cli.saas_client.endpoints::AdmissionMetadata",
+        "specify_cli.session_presence.upgrade_check::refresh_cache_once",
+        "specify_cli.shims.registry::get_all_skills",
+        "specify_cli.shims.registry::get_consumer_skills",
+        "specify_cli.shims.registry::is_consumer_skill",
+        "specify_cli.skills.command_installer::prune_stale",
+        "specify_cli.skills.command_installer::remove",
+        "specify_cli.skills.command_installer::verify",
+        "specify_cli.state.doctor::logger",
+        "specify_cli.status.adapters::reset_handlers",
+        "specify_cli.status.cutover_eligibility::assert_birth_invariant_holds",
+        "specify_cli.status.emit::append_event_jsonl",
+        "specify_cli.status.migrate_lifecycle_envelope::logger",
+        "specify_cli.status.preflight::filter_dossier_snapshots",
+        "specify_cli.status.verdict_vocab::ArtifactVerdict",
+        "specify_cli.status.verdict_vocab::EmissionArtifactVerdict",
+        "specify_cli.tool_surface.bundles.claude_wrapper::wrapper_bash_content",
+        "specify_cli.tool_surface.bundles.claude_wrapper::wrapper_cmd_content",
+        "specify_cli.tool_surface.docs::format_findings",
+        "specify_cli.tool_surface.enums::CommandSurfaceCapability",
+        "specify_cli.tool_surface.enums::MutabilityPolicy",
+        "specify_cli.tool_surface.findings::DOCS_REF_STALE",
+        "specify_cli.tool_surface.findings::MANAGED_FILE_MODIFIED",
+        "specify_cli.tool_surface.findings::NATIVE_CONFIG_DRIFT",
+        "specify_cli.tool_surface.profiles.projection::LAYER_ORG",
+        "specify_cli.tool_surface.profiles.projection::LAYER_PROJECT",
+        "specify_cli.tool_surface.providers.managed_skills::doctrine_skill_entries",
+        "specify_cli.tool_surface.service::lint_docs_directory",
+        "specify_cli.tracker.origin::logger",
+        "specify_cli.upgrade.autocommit::commit_touched_checkout",
+        "specify_cli.upgrade.migrations.m_2_0_11_install_skills::logger",
+        "specify_cli.upgrade.migrations.m_2_1_1_repair_skill_pack::logger",
+        "specify_cli.upgrade.migrations.m_3_0_2_restore_prompt_commands::logger",
+        "specify_cli.upgrade.migrations.m_3_1_1_direct_canonical_commands::logger",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::MIGRATION_ID",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::TARGET_VERSION",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff::logger",
+        "specify_cli.upgrade.migrations.m_3_2_0rc35_pi_letta_backfill::logger",
+        "specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env::NEVER_SEED_VARS",
+        "specify_cli.upgrade.skill_update::apply_text_replacements",
+        "specify_cli.upgrade.skill_update::exclude_paths",
+        "specify_cli.upgrade.skill_update::replace_skill_file",
+        "specify_cli.widen.state::validate_entry_schema",
+        "specify_cli.zeitgeist_client.budget::OFFER_BUDGET_S",
+        "specify_cli.zeitgeist_client.budget::bound_stdout",
+        "specify_cli.zeitgeist_client.budget::disarm",
+        "specify_cli.zeitgeist_client.budget::open_bounded",
+        "specify_cli.zeitgeist_client.budget::run_with_deadline",
+        "specify_cli.zeitgeist_client.credentials::load",
+        "specify_cli.zeitgeist_client.credentials::load_negative",
+        "specify_cli.zeitgeist_client.credentials::revoke",
+        "specify_cli.zeitgeist_client.credentials::store",
+        "specify_cli.zeitgeist_client.credentials::store_focus_capability",
+        "specify_cli.zeitgeist_client.credentials::store_negative",
+        "specify_cli.zeitgeist_client.filtered_stream::FilteredStream",
+        "specify_cli.zeitgeist_client.grammar::ident",
+        "specify_cli.zeitgeist_client.mcp_stdio::run_stdio",
+        "specify_cli.zeitgeist_client.moments::MomentRateGate",
+        "specify_cli.zeitgeist_client.moments::MomentsDisabled",
+        "specify_cli.zeitgeist_client.moments::allows_repo",
+        "specify_cli.zeitgeist_client.moments::frame_predicate",
+        "specify_cli.zeitgeist_client.moments::load_settings",
+        "specify_cli.zeitgeist_client.moments::write_agents_mode",
+        "specify_cli.zeitgeist_client.operability::collect_report",
+        "specify_cli.zeitgeist_client.operability::rollback_drill",
+        "specify_cli.zeitgeist_client.operability::rotation_drill",
+        "specify_cli.zeitgeist_client.operability::timeout_drill",
+        "specify_cli.zeitgeist_client.outbox_approval::approve",
+        "specify_cli.zeitgeist_client.outbox_approval::get_receipt",
+        "specify_cli.zeitgeist_client.outbox_approval::list_pending",
+        "specify_cli.zeitgeist_client.outbox_approval::redacted_preview",
+        "specify_cli.zeitgeist_client.outbox_approval::reject",
+        "specify_cli.zeitgeist_client.outbox_approval::revoke",
+        "specify_cli.zeitgeist_client.outbox_approval::show",
+        "specify_cli.zeitgeist_client.outbox_approval::status_counts",
+        "specify_cli.zeitgeist_client.outbox_approval::submit",
+        "specify_cli.zeitgeist_client.repo_identity::identity",
+        "specify_cli.zeitgeist_client.repo_identity::origin_url",
+        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_CONTROL_KEYS_VERSION",
+        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_OBSERVATION_KEYS",
+        "specify_cli.zeitgeist_client.sanitizer::FORBIDDEN_OBSERVATION_KEYS_VERSION",
+        "specify_cli.zeitgeist_client.sanitizer::assert_clean",
+        "specify_cli.zeitgeist_client.subscription::render_event",
+        "specify_cli.zeitgeist_client.subscription::status",
+        "specify_cli.zeitgeist_client.subscription::watch",
+    }
+)
 
-    Failure means a public symbol is declared (``__all__``) but no
-    other ``src/`` file imports it. That's the WP08 cycle-1
-    "library written but never wired" failure mode at symbol level.
+
+def _apply_widened_scope_exemptions(
+    offenders: list[str],
+    all_literal_decls: dict[str, frozenset[str]],
+    corpus: Mapping[str, CorpusModule],
+) -> list[str]:
+    """Drop rescued widened-in (non-``__all__``) offenders (#470).
+
+    An ``__all__`` member is passed through unchanged -- membership in
+    ``__all__`` is itself a claim of a cross-module export contract, so the
+    original strict caller-only semantics stay exactly as they were before
+    #470. A non-``__all__`` offender (only reachable here because the walk
+    now covers every public module-level name) is dropped iff it is either
+    (a) referenced anywhere within its own module (:func:`_used_within_own_module`
+    -- module-private-by-convention names, e.g. a module ``logger``, are not
+    "dead", just never exported), or (b) listed in
+    :data:`_WIDENED_SCOPE_GRANDFATHERED_470`, the pre-existing debt this
+    widening surfaced pending individual follow-up triage.
     """
-    decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    kept: list[str] = []
+    for qualified in offenders:
+        mod_dotted, _, name = qualified.partition("::")
+        if name in all_literal_decls.get(mod_dotted, frozenset()):
+            kept.append(qualified)
+            continue
+        module = corpus.get(mod_dotted)
+        if module is not None and _used_within_own_module(module.tree, name):
+            continue
+        if qualified in _WIDENED_SCOPE_GRANDFATHERED_470:
+            continue
+        kept.append(qualified)
+    return kept
+
+
+def test_no_public_symbol_in_all_is_unimported() -> None:
+    """Every public module-level name must have at least one caller in src/
+    (#470: widened beyond ``__all__`` -- see the module docstring's "Scope"
+    section).
+
+    Failure means a public symbol is declared but no other ``src/`` file
+    imports it, and it is not rescued by an intra-module reference, a T013
+    structural auto-exemption, or the #470 widened-scope grandfather list.
+    That's the WP08 cycle-1 "library written but never wired" failure mode
+    at symbol level.
+    """
+    decls, all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
     per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
     collision_index = classify_collisions(corpus)
 
-    offenders = _compute_offenders(decls, per_symbol, star_targets, _SYMBOL_ALLOWLIST, corpus, collision_index)
+    # #470: the widened (non-`__all__`) names are deliberately never checked
+    # against `_SYMBOL_ALLOWLIST`'s content-tier keys. `classify_collisions`
+    # only indexes `__all__` members (see the module docstring's "Scope"
+    # section), so a widened name is invisible to its collision/escalation
+    # machinery -- its body-hash (which drops string-literal content, see
+    # `_hash_text`/`code_tokens_by_line`) could otherwise coincidentally
+    # match an unrelated hand-allowlisted symbol's key (e.g. two distinct
+    # `NAME = "<some string>"` assignments in different modules normalize
+    # identically) and be silently, wrongly rescued through the wrong
+    # channel. So `_compute_offenders` is run twice: once over the true
+    # `__all__` decls against the real allowlist (byte-for-byte the pre-#470
+    # behaviour), and once over the widened-only names against an EMPTY
+    # allowlist (so they can only be rescued by a T013 auto-exemption or a
+    # real caller -- never an accidental allowlist collision). The two
+    # offender lists are merged before the #470 rescue filter runs.
+    widened_only_decls = {mod: leftover for mod, names in decls.items() if (leftover := names - all_literal_decls.get(mod, frozenset()))}
+    offenders = _compute_offenders(all_literal_decls, per_symbol, star_targets, _SYMBOL_ALLOWLIST, corpus, collision_index)
+    offenders += _compute_offenders(widened_only_decls, per_symbol, star_targets, frozenset(), corpus, collision_index)
+    offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
 
     # Ratchet direction 1 (pre-existing): the symbol gained a caller --
-    # remove it from the allowlist (good news).
-    stale = _compute_stale(decls, star_targets, corpus, collision_index, _SYMBOL_ALLOWLIST, per_symbol, submodule_index)
+    # remove it from the allowlist (good news). `_SYMBOL_ALLOWLIST` is
+    # entirely `__all__`-scoped, so this (and `dangling` below) is checked
+    # against `all_literal_decls`, never the #470-widened `decls` -- same
+    # coincidental-collision reason as above.
+    stale = _compute_stale(all_literal_decls, star_targets, corpus, collision_index, _SYMBOL_ALLOWLIST, per_symbol, submodule_index)
 
     # Ratchet direction 3 (relocation-hardened-dead-code-scanners-01KX958P
     # WP03/T015/FR-008): the allow-list entry's key no longer resolves to
@@ -2664,24 +3077,29 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
     # orphaned it. Reconciled with body-sensitivity (T016) so a dead-symbol
     # body edit surfaces as exactly ONE signal via `offenders` above, never
     # an ambiguous offender+prune double-flag -- see `_compute_dangling`.
-    dangling = _compute_dangling(_SYMBOL_ALLOWLIST, decls, collision_index, offenders)
+    dangling = _compute_dangling(_SYMBOL_ALLOWLIST, all_literal_decls, collision_index, offenders)
 
     messages: list[str] = []
     if offenders:
         bullets = "\n  - ".join(sorted(offenders))
         messages.append(
-            "Symbol-level dead-code gate FAILED. The following public "
-            "symbols are declared in __all__ but no other src/ file "
-            "imports them:\n  - " + bullets + "\n\nFix options (in order of preference):\n"
+            "Symbol-level dead-code gate FAILED (#470: scope is __all__ UNION "
+            "every public module-level name). The following public symbols "
+            "have no other src/ caller, no intra-module reference, and no "
+            "T013 structural auto-exemption:\n  - " + bullets + "\n\nFix options (in order of preference):\n"
             "  1) Wire the symbol from a runtime caller.\n"
-            "  2) Remove the symbol from __all__ (it stays in the "
-            "module as an unexported internal).\n"
+            "  2) If declared in __all__, remove it from __all__ (it stays "
+            "in the module as an unexported internal) -- otherwise, if it "
+            "is a widened-in (non-__all__) name, mark it underscore-private.\n"
             "  3) Delete the symbol entirely if it is truly dead.\n"
-            "  4) Add a `SymbolKey(...)` entry (resolve it via "
-            "`resolve_symbol_key`/`key_tier` in `_symbol_key.py`) to the "
-            "appropriate category frozenset in `_SYMBOL_ALLOWLIST`, "
-            "commented with the qualified `module::Name`, plus a rationale "
-            "and a follow-up tracker ticket (FR-303).\n"
+            "  4) If declared in __all__, add a `SymbolKey(...)` entry "
+            "(resolve it via `resolve_symbol_key`/`key_tier` in "
+            "`_symbol_key.py`) to the appropriate category frozenset in "
+            "`_SYMBOL_ALLOWLIST`. If it is a widened-in (non-__all__) name, "
+            "add its qualified `module::Name` string to "
+            "`_WIDENED_SCOPE_GRANDFATHERED_470` instead. Either way, "
+            "comment with a rationale and a follow-up tracker ticket "
+            "(FR-303).\n"
         )
     if stale:
         bullets = "\n  - ".join(sorted(stale))
@@ -2926,7 +3344,7 @@ def test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist() 
     sees them via the now-wired :func:`_imports_by_target` -- driven
     through the REAL live ``src/`` corpus, not a fixture.
     """
-    decls, path_to_dotted, path_to_tree, _corpus = _walk_modules()
+    decls, _all_literal_decls, path_to_dotted, path_to_tree, _corpus = _walk_modules()
     per_symbol, _star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
 
@@ -3001,7 +3419,7 @@ def test_auto_exempt_disjoint_from_hand_allowlist() -> None:
     the two silently falling out of sync. Walks the LIVE ``src/`` corpus
     (not a fixture) so this is a real, current-state proof.
     """
-    decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    decls, _all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
     per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
     collision_index = classify_collisions(corpus)
@@ -3158,7 +3576,7 @@ def test_bite_k_full_keyability_hand_and_auto_exempt() -> None:
     for key in _SYMBOL_ALLOWLIST:
         assert key.bare_name and key.body_hash, f"malformed hand-allowlist key: {key!r}"
 
-    decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
+    decls, _all_literal_decls, path_to_dotted, path_to_tree, corpus = _walk_modules()
     per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
     collision_index = classify_collisions(corpus)
