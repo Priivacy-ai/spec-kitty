@@ -753,6 +753,73 @@ class TestResolveCredentialsEndToEnd:
         assert gateway.admission_calls == []
 
 
+class TestResolveCredentialsHonorsASharedDeadline:
+    """#203: a caller broadcasting one status transition shares ONE Git
+    deadline across credential resolution, presence identity, and the focus
+    capability lookup — each independently minting its own fresh
+    ``repo_identity.Deadline()`` stacks three 2.0s budgets under the
+    fan-out seam's 10s bound. These assert the shared object is actually
+    threaded through to ``origin_url``, not silently re-minted."""
+
+    def test_resolve_credentials_passes_the_given_deadline_to_origin_url(
+        self, state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        shared = resolution.repo_identity.Deadline()
+        seen: list[object] = []
+        real_origin_url = resolution.repo_identity.origin_url
+
+        def _spy(cwd: str, deadline=None):
+            seen.append(deadline)
+            return real_origin_url(cwd, deadline)
+
+        monkeypatch.setattr(resolution.repo_identity, "origin_url", _spy)
+        gateway = ScriptedGateway()
+        resolution.resolve_credentials(clone, gateway=gateway, deadline=shared)  # type: ignore[arg-type]
+
+        assert seen == [shared], "resolve_credentials must forward the caller's Deadline, not mint its own"
+
+    def test_resolve_credentials_mints_its_own_deadline_when_none_is_given(
+        self, state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: list[object] = []
+        real_origin_url = resolution.repo_identity.origin_url
+
+        def _spy(cwd: str, deadline=None):
+            seen.append(deadline)
+            return real_origin_url(cwd, deadline)
+
+        monkeypatch.setattr(resolution.repo_identity, "origin_url", _spy)
+        gateway = ScriptedGateway()
+        resolution.resolve_credentials(clone, gateway=gateway)  # type: ignore[arg-type]
+
+        assert len(seen) == 1  # golden-count: cardinality-is-contract -- one origin_url call, not a named set
+        assert isinstance(seen[0], resolution.repo_identity.Deadline)
+
+    def test_resolve_focus_capability_passes_the_given_deadline_to_origin_url(
+        self, state_root: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        credentials.store(repo=KEY, relay_url="http://relay", token="bearer", token_kind=KIND_PRESENCE)
+        shared = resolution.repo_identity.Deadline()
+        seen: list[object] = []
+
+        def _spy(cwd: str, deadline=None):
+            seen.append(deadline)
+            return "https://github.com/acme/widget.git"
+
+        monkeypatch.setattr(resolution.repo_identity, "origin_url", _spy)
+        gateway = ScriptedGateway(
+            mint=MintedCredential(
+                relay_url="http://relay",
+                relay_token="bearer",
+                capability_credential="focus-jwt",
+                expires_at=_iso_in(1800),
+            )
+        )
+        resolution.resolve_focus_capability("/checkout", gateway=gateway, deadline=shared)
+
+        assert seen == [shared], "resolve_focus_capability must forward the caller's Deadline, not mint its own"
+
+
 ACME_KEY = "github.com/acme/widget"
 EVIL_KEY = "github.com/evil/widget"
 

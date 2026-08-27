@@ -532,6 +532,7 @@ def resolve_credentials(
     force: bool = False,
     gateway: SaasCapabilityGateway | None = None,
     auth_repo_root: str | Path | None = None,
+    deadline: repo_identity.Deadline | None = None,
 ) -> StoredCredential | None:
     """Credentials binding this checkout to its team's relay, or ``None``
     when this checkout must stay silent (no resolvable identity, no hosted
@@ -550,6 +551,10 @@ def resolve_credentials(
         auth_repo_root: Where the fallback ``.kittify/saas-auth.json`` is
             read from when env vars are unset — the checkout root the
             caller already knows. Defaults to ``cwd``.
+        deadline: Share a caller's already-open Git budget (e.g. the same
+            one a presence/focus resolution in the same handler invocation
+            is using) instead of allocating a fresh ``repo_identity.Deadline()``
+            here (EXPERIMENTAL-spec-kitty#203).
     """
     cwd_str = str(cwd)
     try:
@@ -557,7 +562,7 @@ def resolve_credentials(
         # key's (host, owner/repo) scope and Team Kitty's admission question
         # come from. It used to also feed repo_name()'s bare-name key
         # (spec-kitty#129) — a name two differently-hosted repos share.
-        deadline = repo_identity.Deadline()
+        deadline = deadline or repo_identity.Deadline()
         origin = repo_identity.origin_url(cwd_str, deadline)
     except repo_identity.RepoIdentityError as exc:
         logger.debug("zeitgeist credentials: no canonical identity for %s (%s)", cwd_str, exc)
@@ -592,6 +597,7 @@ def resolve_focus_capability(
     gateway: SaasCapabilityGateway | None = None,
     force: bool = False,
     auth_repo_root: str | Path | None = None,
+    deadline: repo_identity.Deadline | None = None,
 ) -> str | None:
     """The checkout's ``focus``-kind capability JWT, or ``None`` when focus
     frames must stay silent (#186).
@@ -620,10 +626,16 @@ def resolve_focus_capability(
         force: Re-mint even over a stored, unexpired lease.
         auth_repo_root: Where the fallback ``.kittify/saas-auth.json`` is
             read from; defaults to ``cwd``.
+        deadline: Share a caller's already-open Git budget (e.g. the same
+            one credential/presence resolution in the same handler
+            invocation is using) instead of allocating a fresh
+            ``repo_identity.Deadline()`` here — previously this always
+            opened its own, stacking a third independent budget onto one
+            broadcast (EXPERIMENTAL-spec-kitty#203).
     """
     cwd_str = str(cwd)
     try:
-        origin = repo_identity.origin_url(cwd_str, repo_identity.Deadline())
+        origin = repo_identity.origin_url(cwd_str, deadline or repo_identity.Deadline())
     except repo_identity.RepoIdentityError as exc:
         logger.debug("zeitgeist focus capability: no canonical identity for %s (%s)", cwd_str, exc)
         return None

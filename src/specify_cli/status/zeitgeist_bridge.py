@@ -80,6 +80,7 @@ from .migrate_lifecycle_envelope import _generate_node_id  # noqa: PLC2701 -- sa
 
 if TYPE_CHECKING:
     from specify_cli.zeitgeist_client.credentials import StoredCredential
+    from specify_cli.zeitgeist_client.repo_identity import Deadline
     from specify_cli.zeitgeist_client.transport import OfferResult
 
 logger = logging.getLogger(__name__)
@@ -294,7 +295,19 @@ def _broadcast_moment(
         logger.warning("Zeitgeist moment %s not broadcast: %s", event_type, exc)
         return
 
-    credential = _resolve_credentials(cwd)
+    # One Git deadline for this whole broadcast: credential resolution,
+    # presence's canonical identity, and the focus capability lookup below
+    # each used to open their OWN fresh 2.0s `repo_identity.Deadline`,
+    # stacking three independent budgets under the fan-out seam's 10s bound
+    # (EXPERIMENTAL-spec-kitty#203). Sharing one here bounds all of this
+    # broadcast's Git work to one budget, the same reasoning
+    # `repo_identity.identity()`'s own docstring gives for not deriving
+    # repo/branch/commit separately.
+    from specify_cli.zeitgeist_client import repo_identity  # noqa: PLC0415
+
+    deadline = repo_identity.Deadline()
+
+    credential = _resolve_credentials(cwd, deadline=deadline)
     if credential is None:
         # Not admitted anywhere / nothing configured / Team Kitty unreachable:
         # the MVP's "a repo no team admitted produces nothing anywhere".
@@ -310,8 +323,9 @@ def _broadcast_moment(
     _offer_and_log(credential, event_type, offer_args)
 
     # The moment is out; refresh this actor's live presence/focus state under
-    # the same credential (no-op when nothing was resolvable above).
-    _refresh_liveness(credential, cwd=cwd, focus_wp=focus_wp)
+    # the same credential (no-op when nothing was resolvable above), sharing
+    # the same Git deadline this broadcast already opened.
+    _refresh_liveness(credential, cwd=cwd, focus_wp=focus_wp, deadline=deadline)
 
 
 def _log_offer_outcome(label: str, result: OfferResult) -> None:
@@ -365,7 +379,13 @@ def _offer_and_log(credential: StoredCredential, event_type: str, offer_args: Ma
     _log_offer_outcome(f"moment {event_type}", client.offer(_EVENT_PUBLISH_OP, dict(offer_args)))
 
 
-def _refresh_liveness(credential: StoredCredential, *, cwd: Path, focus_wp: tuple[str, str] | None) -> None:
+def _refresh_liveness(
+    credential: StoredCredential,
+    *,
+    cwd: Path,
+    focus_wp: tuple[str, str] | None,
+    deadline: Deadline,
+) -> None:
     """Refresh the actor's ≤90 s live state beside a broadcast moment (#186).
 
     The moment alone cannot power Team Kitty's live panel — zeitgeist treats
@@ -384,17 +404,28 @@ def _refresh_liveness(credential: StoredCredential, *, cwd: Path, focus_wp: tupl
       and neither failure may write a negative answer over the shared store
       entry.
 
+    ``deadline`` is the ``repo_identity.Deadline`` this broadcast already
+    opened for credential resolution — threaded through here and into the
+    focus lookup below so this whole broadcast shares one Git budget
+    (EXPERIMENTAL-spec-kitty#203) rather than each stage opening its own.
+
     Same fire-and-forget discipline as the moment: drop-no-retry per frame,
     every failure logged and swallowed here so the fan-out slot stays
     non-raising regardless of git, relay, or credential state.
     """
     try:
-        _refresh_liveness_bounded(credential, cwd=cwd, focus_wp=focus_wp)
+        _refresh_liveness_bounded(credential, cwd=cwd, focus_wp=focus_wp, deadline=deadline)
     except Exception:
         logger.warning("Zeitgeist presence/focus refresh failed; canonical status log unaffected", exc_info=True)
 
 
-def _refresh_liveness_bounded(credential: StoredCredential, *, cwd: Path, focus_wp: tuple[str, str] | None) -> None:
+def _refresh_liveness_bounded(
+    credential: StoredCredential,
+    *,
+    cwd: Path,
+    focus_wp: tuple[str, str] | None,
+    deadline: Deadline,
+) -> None:
     """The network half of :func:`_refresh_liveness` — imports + git + offers."""
     from specify_cli.zeitgeist_client import repo_identity  # noqa: PLC0415
     from specify_cli.zeitgeist_client.transport import ClientConfig, ZeitgeistClient  # noqa: PLC0415
@@ -408,6 +439,7 @@ def _refresh_liveness_bounded(credential: StoredCredential, *, cwd: Path, focus_
             session_id=_SESSION_ID,
             agent_id=None,
             capability_credential=credential.capability_credential,
+            deadline=deadline,
         )
     except repo_identity.RepoIdentityError as exc:
         logger.debug("Zeitgeist presence not published: no canonical checkout identity (%s)", exc)
@@ -428,7 +460,7 @@ def _refresh_liveness_bounded(credential: StoredCredential, *, cwd: Path, focus_
         )
         return
 
-    capability = _resolve_focus_capability(cwd)
+    capability = _resolve_focus_capability(cwd, deadline=deadline)
     if capability is None:
         logger.debug("Zeitgeist focus frame %s not published: no focus-kind capability", composed)
         return
@@ -439,29 +471,33 @@ def _refresh_liveness_bounded(credential: StoredCredential, *, cwd: Path, focus_
     _log_offer_outcome(f"focus.start {composed}", ZeitgeistClient(focus_config).focus_start(mission_slug, wp_id))
 
 
-def _resolve_focus_capability(cwd: Path) -> str | None:
+def _resolve_focus_capability(cwd: Path, *, deadline: Deadline) -> str | None:
     """The checkout's ``focus``-kind capability JWT, or ``None`` to stay silent.
 
-    Imported here for the same reason as every other transport-chain import:
-    resolution pulls httpx, which the status package must not pay for at
-    import time.
+    ``deadline`` shares this broadcast's one Git budget
+    (EXPERIMENTAL-spec-kitty#203) instead of letting this lookup open its
+    own fresh one. Imported here for the same reason as every other
+    transport-chain import: resolution pulls httpx, which the status package
+    must not pay for at import time.
     """
     from specify_cli.zeitgeist_client.resolution import resolve_focus_capability  # noqa: PLC0415
 
-    return resolve_focus_capability(cwd)
+    return resolve_focus_capability(cwd, deadline=deadline)
 
 
-def _resolve_credentials(cwd: Path) -> StoredCredential | None:
+def _resolve_credentials(cwd: Path, *, deadline: Deadline) -> StoredCredential | None:
     """Credentials for this checkout's team relay, or ``None`` to stay silent.
 
     Delegates entirely to E3's resolver (#9): cached store answer, else one
     admission pre-flight + capability mint against Team Kitty, else a stored
     negative answer. Every way it can fail resolves to ``None`` plus its own
-    debug log — none of them raise here.
+    debug log — none of them raise here. ``deadline`` shares this
+    broadcast's one Git budget (EXPERIMENTAL-spec-kitty#203) rather than
+    opening a fresh one here.
     """
     from specify_cli.zeitgeist_client.resolution import resolve_credentials  # noqa: PLC0415
 
-    return resolve_credentials(cwd)
+    return resolve_credentials(cwd, deadline=deadline)
 
 
 def _parse_stamp(raw: Any) -> datetime:
