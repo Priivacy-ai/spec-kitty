@@ -27,7 +27,11 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.auth import reset_token_manager
-from specify_cli.auth.errors import AuthenticationError
+from specify_cli.auth.errors import (
+    AuthenticationError,
+    BrowserLaunchError,
+    CallbackValidationError,
+)
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands.auth import app
 
@@ -291,8 +295,44 @@ class TestAuthLoginErrorMessageEscaping:
     ``rich.errors.MarkupError`` out of ``console.print`` instead of a clean
     non-zero exit with a readable diagnostic."""
 
-    def test_authentication_error_with_markup_like_body_does_not_crash(
-        self, monkeypatch, tmp_path
+    @pytest.mark.parametrize(
+        ("headless", "flow_class", "error_type", "expected_prefix"),
+        [
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                CallbackValidationError,
+                "Callback validation failed",
+            ),
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                BrowserLaunchError,
+                "Could not launch browser",
+            ),
+            (
+                False,
+                "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow",
+                AuthenticationError,
+                "Authentication failed",
+            ),
+            (
+                True,
+                "specify_cli.auth.flows.device_code.DeviceCodeFlow",
+                AuthenticationError,
+                "Device flow failed",
+            ),
+        ],
+        ids=("callback-validation", "browser-launch", "browser-auth", "device-auth"),
+    )
+    def test_markup_like_exception_text_does_not_crash(
+        self,
+        monkeypatch,
+        tmp_path,
+        headless,
+        flow_class,
+        error_type,
+        expected_prefix,
     ):
         runtime_root = tmp_path / "runtime-root"
         runtime_root.mkdir(parents=True)
@@ -302,22 +342,22 @@ class TestAuthLoginErrorMessageEscaping:
         hostile_body = "Token exchange failed: HTTP 400 - bad [/] token"
 
         async def _raise_auth_error(*_args, **_kwargs):
-            raise AuthenticationError(hostile_body)
+            raise error_type(hostile_body)
 
         with patch(
             "specify_cli.cli.commands._auth_login.get_token_manager"
-        ) as mock_factory, patch(
-            "specify_cli.auth.flows.authorization_code.AuthorizationCodeFlow"
-        ) as mock_flow_cls:
+        ) as mock_factory, patch(flow_class) as mock_flow_cls:
             mock_factory.return_value.is_authenticated = False
             mock_flow_cls.return_value.login = AsyncMock(
                 side_effect=_raise_auth_error
             )
-            result = runner.invoke(app, ["login"])
+            args = ["login", "--headless"] if headless else ["login"]
+            result = runner.invoke(app, args)
 
         # A clean non-zero exit, not an unhandled MarkupError traceback.
         assert result.exit_code == 1, result.stdout
         assert "MarkupError" not in result.stdout
+        assert expected_prefix in result.stdout
         assert hostile_body in result.stdout
 
 
