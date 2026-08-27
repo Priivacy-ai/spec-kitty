@@ -910,10 +910,8 @@ def test_providers_ignores_hosted_readiness(monkeypatch) -> None:
 
     It must run successfully even when hosted readiness would otherwise
     fail (e.g. no auth token, no SaaS host config).  The rollout gate is
-    still enforced by the conditional registration in
-    ``cli/commands/__init__.py`` and by the defense-in-depth check in
-    ``tracker_callback()``, but the per-command readiness chain is
-    deliberately NOT consulted for this command.
+    enforced solely by ``tracker_callback()``, while the per-command readiness
+    chain is deliberately NOT consulted for this command.
     """
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
     from specify_cli.cli.commands import tracker as tracker_module
@@ -944,12 +942,11 @@ def test_providers_ignores_hosted_readiness(monkeypatch) -> None:
 def test_providers_still_blocked_when_rollout_disabled(monkeypatch) -> None:
     """When the rollout gate is off, `tracker providers` is unreachable.
 
-    The command group is hidden at registration time in
-    ``cli/commands/__init__.py``; this test exercises the defense-in-depth
-    guard in ``tracker_callback`` by invoking the tracker app object
-    directly with the env var unset.  This verifies that removing the
-    per-command readiness call did not accidentally open a hole in the
-    rollout gate itself.
+    Registration in ``cli/commands/__init__.py`` is unconditional.  This test
+    invokes the tracker app object directly with the env var unset to exercise
+    the sole rollout gate in ``tracker_callback``.  It verifies that removing
+    the per-command readiness call did not accidentally open a hole in that
+    gate.
     """
     monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
     from specify_cli.cli.commands import tracker as tracker_module
@@ -1303,4 +1300,3 @@ def test_sync_pull_pre_flight_gate_and_transport_share_one_resolved_root(monkeyp
         f"pre-flight gate judged {seen['gate_root']} but the transport used "
         f"{seen['transport_root']} — the two hosted gates answered for different projects"
     )
-
