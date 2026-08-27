@@ -6,4 +6,5 @@ This package contains individual command modules registered under the
 Modules:
     charter_encoding    --  ``spec-kitty migrate charter-encoding``
     backfill_provenance --  ``spec-kitty migrate backfill-provenance``
+    repin_hooks         --  ``spec-kitty migrate repin-hooks``
 """

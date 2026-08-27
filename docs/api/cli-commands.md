@@ -2648,6 +2648,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                            fail-closed, and flip status_phase.               │
 │ rebaseline-dossier-hashes  One-time re-baseline of recorded dossier snapshot │
 │                            hashes (FR-009, WP05).                            │
+│ repin-hooks                Re-pin this repository's pre-commit hook to the   │
+│                            current interpreter (#254).                       │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2990,6 +2992,43 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │ --dry-run            Preview which recorded snapshot hashes would be         │
 │                      re-baselined, without writing                           │
 │ --help     -h        Show this message and exit.                             │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate repin-hooks
+
+```
+ Usage: spec-kitty migrate repin-hooks [OPTIONS]
+
+ Re-pin this repository's pre-commit hook to the current interpreter (#254).
+
+ ``policy/hook_installer.py`` pins the absolute Python interpreter path into
+ the pre-commit hook at install time. An install-method migration (e.g. pipx
+ -> uv) moves that interpreter, and the OLD hook keeps pointing at a path
+ that no longer exists. This command re-runs the same install the
+ ``implement`` lane calls internally, but without requiring a mission or
+ workspace — the repair does not depend on the very thing it is repairing
+ (the ability to commit).
+
+ Idempotent: safe to re-run; a hook already pinned to the current
+ interpreter is re-written to the same effective hook (only the
+ ``# Installed:`` timestamp comment differs).
+
+ Exit codes:
+
+ - ``0`` — the hook was (re-)installed
+ - ``1`` — project root could not be located, or the current
+   ``sys.executable`` does not refer to an existing file
+
+ Examples:
+
+     spec-kitty migrate repin-hooks
+
+     spec-kitty migrate repin-hooks --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json            Emit a JSON-stable summary report on stdout.               │
+│ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 

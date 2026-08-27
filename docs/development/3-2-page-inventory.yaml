@@ -1016,6 +1016,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-08-27-1-precommit-hook-stable-entrypoint-and-repin-migration.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -4605,6 +4611,12 @@
   current_target: true
   notes: null
 - path: docs/plans/user_journey/init-doctrine-flow.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/zeitgeist-client-wp01-remaining.md
   tag: current
   divio_type: none
   owning_workstream: none

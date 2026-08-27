@@ -17,6 +17,10 @@ Subcommands:
   ``mission_type`` into any legacy ``meta.json`` whose only type signal is
   the deprecated ``mission`` field. Idempotent; never overwrites an existing
   ``mission_type``. Implements FR-006, FR-007, FR-008.
+- ``spec-kitty migrate repin-hooks`` — Re-pin this repo's pre-commit hook to
+  the CURRENT interpreter. One-time repair for issue #254: an install-method
+  migration (e.g. pipx -> uv) moves the interpreter the hook pinned at its
+  original install time. Idempotent.
 
 Usage examples::
 
@@ -28,6 +32,7 @@ Usage examples::
     spec-kitty migrate backfill-provenance --dry-run --json
     spec-kitty migrate rewrite-opposed-by --pack ./org-packs/acme --dry-run
     spec-kitty migrate backfill-mission-type --dry-run --json
+    spec-kitty migrate repin-hooks --json
 """
 
 from __future__ import annotations
@@ -1070,6 +1075,68 @@ def rebaseline_dossier_hashes(
         )
         for o in errored:
             err_console.print(f"[yellow]skip[/yellow] {o.mission_slug}: {o.error}")
+
+
+@app.command(name="repin-hooks")
+def repin_hooks(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit a JSON-stable summary report on stdout."),
+    ] = False,
+) -> None:
+    """Re-pin this repository's pre-commit hook to the current interpreter (#254).
+
+    ``policy/hook_installer.py`` pins the absolute Python interpreter path
+    into the pre-commit hook at install time. An install-method migration
+    (e.g. pipx -> uv) moves that interpreter, and the OLD hook keeps pointing
+    at a path that no longer exists. This command re-runs the same install
+    the ``implement`` lane calls internally, but without requiring a mission
+    or workspace — the repair does not depend on the very thing it is
+    repairing (the ability to commit).
+
+    Idempotent: safe to re-run; a hook already pinned to the current
+    interpreter is re-written to the same effective hook (only the
+    ``# Installed:`` timestamp comment differs).
+
+    Exit codes:
+
+    - ``0`` — the hook was (re-)installed
+    - ``1`` — project root could not be located, or the current
+      ``sys.executable`` does not refer to an existing file
+
+    Examples:
+
+        spec-kitty migrate repin-hooks
+
+        spec-kitty migrate repin-hooks --json
+    """
+    from specify_cli.cli.commands.migrate.repin_hooks import run_repin_hooks_migration
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error(_NO_PROJECT_ROOT)
+        raise typer.Exit(1)
+
+    try:
+        result = run_repin_hooks_migration(repo_root)
+    except RuntimeError as exc:
+        _error(str(exc))
+        raise typer.Exit(1) from exc
+
+    if json_output:
+        payload = {
+            "result": "repinned",
+            "hook_path": str(result.hook_path),
+            "interpreter": str(result.interpreter),
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        console.print("\n[bold]repin-hooks summary[/bold]")
+        console.print(f"  Hook        : {result.hook_path}")
+        console.print(f"  Interpreter : {result.interpreter}")
+        console.print(
+            "\n[green]Done.[/green] Pre-commit hook re-pinned to the current interpreter."
+        )
 
 
 # ---------------------------------------------------------------------------
