@@ -359,7 +359,7 @@ class TestPollTokenRequest:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             response = _mock_httpx_response(429, text="rate limited")
-            response.headers = {"Retry-After": "7"}
+            response.headers = httpx.Headers({"Retry-After": "7"})
             mock_client.post.return_value = response
 
             body = await flow._poll_token_request("dc_xyz")
@@ -373,7 +373,7 @@ class TestPollTokenRequest:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             response = _mock_httpx_response(429, text="rate limited")
-            response.headers = {}
+            response.headers = httpx.Headers({})
             mock_client.post.return_value = response
 
             body = await flow._poll_token_request("dc_xyz")
@@ -387,7 +387,9 @@ class TestPollTokenRequest:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
             response = _mock_httpx_response(429, text="rate limited")
-            response.headers = {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}
+            response.headers = httpx.Headers(
+                {"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"}
+            )
             mock_client.post.return_value = response
 
             body = await flow._poll_token_request("dc_xyz")
