@@ -909,6 +909,25 @@ def test_lifecycle_slot_resolves_credentials_from_the_log_path(monkeypatch: pyte
     assert resolved_credential == [feature_dir]
 
 
+def test_transition_slot_resolves_credentials_from_repo_root_when_given(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, resolved_credential: list[Path]) -> None:
+    """Mirrors the lifecycle slot: a caller-supplied checkout root wins over cwd (#125)."""
+    OfferRecorder().install(monkeypatch)
+    repo_root = tmp_path / "some-other-checkout"
+
+    _fire_transition(repo_root=repo_root)
+
+    assert resolved_credential == [repo_root]
+
+
+def test_transition_slot_falls_back_to_cwd_when_no_repo_root_given(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
+    """A caller that omits ``repo_root`` (older wiring, direct calls) keeps the old behaviour."""
+    OfferRecorder().install(monkeypatch)
+
+    _fire_transition()
+
+    assert resolved_credential == [Path.cwd()]
+
+
 # ---------------------------------------------------------------------------
 # End-to-end through the producers (real emit path, faked network only)
 # ---------------------------------------------------------------------------

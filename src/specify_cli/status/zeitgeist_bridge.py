@@ -189,12 +189,15 @@ def _broadcast_status_transition(kwargs: Mapping[str, Any]) -> None:
         timestamp=_parse_stamp(getattr(metadata, "occurred_at", None)),
         **_envelope_bookkeeping(mission_key=mission_slug or kwargs.get("wp_id"), event_id=event_id),
     )
-    # No checkout directory rides these kwargs (emit.py hands the fan-out its
-    # event facts only), so credential resolution runs against the process
-    # working directory — where every CLI invocation already sits.
+    # Both fan-out call sites (emit.py, coordination/outbound.py) already hold
+    # the emitting checkout root and now pass it through; a caller that omits
+    # it (older wiring, direct test calls) falls back to the process working
+    # directory, mirroring the lifecycle slot below.
     wp_id = kwargs.get("wp_id")
     focus_wp = (str(mission_slug), str(wp_id)) if mission_slug and wp_id else None
-    _broadcast_moment(payload, envelope, cwd=Path.cwd(), focus_wp=focus_wp)
+    repo_root = kwargs.get("repo_root")
+    cwd = repo_root if isinstance(repo_root, Path) else Path.cwd()
+    _broadcast_moment(payload, envelope, cwd=cwd, focus_wp=focus_wp)
 
 
 def _broadcast_lifecycle_envelope(kwargs: Mapping[str, Any]) -> None:

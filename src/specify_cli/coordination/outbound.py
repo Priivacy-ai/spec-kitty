@@ -106,7 +106,6 @@ def _send_to_saas(
     from specify_cli.status import fire_saas_fanout  # noqa: PLC0415
     from specify_cli.status import WPStatusChangeMetadata  # noqa: PLC0415
 
-    _ = repo_root
     fire_saas_fanout(
         wp_id=event.wp_id,
         from_lane=str(event.from_lane),
@@ -118,4 +117,7 @@ def _send_to_saas(
             event, policy_metadata=event.policy_metadata
         ),
         ensure_daemon=ensure_sync_daemon,
+        # The emitting checkout root, so the Zeitgeist bridge resolves relay
+        # credentials from it instead of the process cwd (#125).
+        repo_root=repo_root,
     )
