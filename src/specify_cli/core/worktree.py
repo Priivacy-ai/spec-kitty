@@ -605,9 +605,9 @@ spec-kitty agent tasks move-task WP01 --to doing
             if template.exists():
                 shutil.copy2(template, spec_file)
                 break
-        else:
-            # No template found, create empty spec.md
-            spec_file.touch()
+        # No template found: leave spec.md absent rather than creating a
+        # zero-byte stray file that would vacuously satisfy the per-type
+        # artifact presence gate (#228; #223 residue).
 
 
 # Structural directories that anchor a mission's layout regardless of the
