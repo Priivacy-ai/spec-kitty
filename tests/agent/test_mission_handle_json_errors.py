@@ -57,7 +57,7 @@ def test_resolve_mission_handle_json_error_uses_stdout_exit_1(
     assert captured.err == ""
     payload = json.loads(captured.out)
     assert payload["success"] is False
-    assert payload["error_code"] == "mission_not_found"
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
     assert payload["handle"] == "missing-mission"
 
 
@@ -79,7 +79,7 @@ def test_agent_tasks_status_json_bad_mission_uses_stdout_envelope(
     assert result.stderr == ""
     payload = json.loads(result.stdout)
     assert payload["success"] is False
-    assert payload["error_code"] == "mission_not_found"
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
 
 
 def test_agent_issue_verdict_json_ambiguous_mission_uses_stdout_envelope(
@@ -112,7 +112,7 @@ def test_agent_issue_verdict_json_ambiguous_mission_uses_stdout_envelope(
     assert result.stderr == ""
     payload = json.loads(result.stdout)
     assert payload["success"] is False
-    assert payload["error_code"] == "ambiguous_mission_handle"
+    assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
     assert len(payload["candidates"]) == 2  # golden-count: cardinality-is-contract
 
 
@@ -141,7 +141,7 @@ def test_implement_json_ambiguous_mission_uses_stdout_envelope(
     assert result.stderr == ""
     payload = json.loads(result.stdout)
     assert payload["success"] is False
-    assert payload["error_code"] == "ambiguous_mission_handle"
+    assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"
     assert len(payload["candidates"]) == 2  # golden-count: cardinality-is-contract
 
 
@@ -167,4 +167,4 @@ def test_doctor_review_cycle_reconcile_json_bad_mission_uses_stdout_envelope(
     assert result.stderr == ""
     payload = json.loads(result.stdout)
     assert payload["success"] is False
-    assert payload["error_code"] == "mission_not_found"
+    assert payload["error_code"] == "MISSION_NOT_FOUND"

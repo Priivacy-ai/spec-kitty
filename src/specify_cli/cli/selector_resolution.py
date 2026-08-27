@@ -247,7 +247,7 @@ def resolve_mission_handle(
     except MissionNotFoundError as exc:
         if json_mode:
             _emit_json_error(
-                error_code="mission_not_found",
+                error_code="MISSION_NOT_FOUND",
                 message=str(exc),
                 data={"handle": exc.handle},
             )

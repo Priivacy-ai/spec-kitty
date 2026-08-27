@@ -245,7 +245,7 @@ def test_context_resolve_json_envelope_on_unresolvable_mission(
     assert result.stderr == ""
     payload = json.loads(result.stdout)
     assert payload["success"] is False
-    assert payload["error_code"] == "mission_not_found"
+    assert payload["error_code"] == "MISSION_NOT_FOUND"
 
 
 def test_context_resolve_json_envelope_on_ambiguous_mission(
@@ -271,4 +271,4 @@ def test_context_resolve_json_envelope_on_ambiguous_mission(
     assert result.stderr == ""
     payload = json.loads(result.stdout)
     assert payload["success"] is False
-    assert payload["error_code"] == "ambiguous_mission_handle"
+    assert payload["error_code"] == "MISSION_AMBIGUOUS_SELECTOR"

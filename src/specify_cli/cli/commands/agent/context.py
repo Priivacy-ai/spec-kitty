@@ -135,9 +135,9 @@ def resolve_context(
         try:
             mission_resolved = resolve_mission(raw_handle, repo_root)
         except AmbiguousHandleError as exc:
-            raise ActionContextError("ambiguous_mission_handle", str(exc)) from exc
+            raise ActionContextError("MISSION_AMBIGUOUS_SELECTOR", str(exc)) from exc
         except MissionNotFoundError as exc:
-            raise ActionContextError("mission_not_found", str(exc)) from exc
+            raise ActionContextError("MISSION_NOT_FOUND", str(exc)) from exc
         mission_slug = mission_resolved.mission_slug
 
         context = resolve_action_context(
