@@ -174,6 +174,7 @@ def register_commands(app: typer.Typer) -> None:
     from . import auth as auth_module
     from . import plugin as plugin_module
     from . import charter as charter_module
+    from . import commit_guard_hook_cmd as commit_guard_hook_cmd_module
     from . import config_cmd as config_cmd_module
     from . import context as context_module
     from . import cutover_guard as cutover_guard_module
@@ -250,6 +251,9 @@ def register_commands(app: typer.Typer) -> None:
         help="Regenerate the committed generated agent-command + skill fixtures from source (#3447).",
     )(regen_module.regen)
     app.command()(merge_module.merge)
+    app.command(name="commit-guard-hook", hidden=True)(
+        commit_guard_hook_cmd_module.commit_guard_hook_cli
+    )
     app.command(name="merge-driver-event-log", hidden=True)(merge_driver_module.merge_driver_event_log)
     app.command(name="merge-driver-meta", hidden=True)(merge_driver_module.merge_driver_meta)
     app.command(name="merge-driver-traces", hidden=True)(merge_driver_module.merge_driver_traces)

@@ -329,13 +329,13 @@ _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
 )
 
 # ---------- 3. External CLI / hook entry points ----------
-# Invoked as `python -m specify_cli.policy.commit_guard_hook`
-# from the git pre-commit hook script installed by
-# src/specify_cli/policy/hook_installer.py. The module path
-# appears only as the string literal MODULE in hook_installer.
 _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
     {
-        "specify_cli.policy.commit_guard_hook",
+        # specify_cli.policy.commit_guard_hook removed (#254): the pre-commit
+        # hook's PATH fallback now reaches it through a real src/ caller,
+        # commit_guard_hook_cmd.commit_guard_hook_cli(), so it is no longer
+        # genuinely dead -- it no longer belongs in this build-script-only
+        # allowlist.
         # doctrine.hatch_build: a hatchling custom build-hook module, loaded
         # by hatchling itself via the `path = "hatch_build.py"` declaration
         # in src/doctrine/pyproject.toml's [tool.hatch.build.hooks.custom]
