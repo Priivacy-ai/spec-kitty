@@ -339,8 +339,26 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
     real_cli = bridge_module._check_cli_guards
     real_composed = bridge_module._check_composed_action_guard
 
-    def _cli_spy(step_id: str, feature_dir: Path) -> list[str]:
-        result: list[str] = list(real_cli(step_id, feature_dir))
+    def _cli_spy(step_id: str, feature_dir: Path, repo_root: Path | None = None) -> list[str]:
+        # ``repo_root`` (#3704 WP03) is a pure pass-through here -- this is
+        # a call-through spy (never a stub); the real guard logic decides
+        # everything. Not recorded on ``GuardCall`` -- no existing consumer
+        # of this oracle asserts on it, and AC-8's repo_root-threading claim
+        # is pinned directly in tests/runtime/next/test_cli_guard_family.py
+        # instead, closer to the call sites it's about.
+        #
+        # WP03-F1 (#3704 WP04 fold-in, severity 3): the default value on this
+        # parameter (and on ``_composed_spy``'s below) means this oracle
+        # cannot detect a regressed/omitted ``repo_root`` at any of the three
+        # call sites it wraps -- a caller that silently stopped threading
+        # ``repo_root`` through would still satisfy this spy's signature.
+        # That coverage lives ENTIRELY in
+        # ``TestAC8RepoRootThreadedThroughDnDependencyGate``
+        # (tests/runtime/next/test_cli_guard_family.py) -- this oracle does
+        # NOT backstop it. If that test class is ever modified or deleted,
+        # repo_root-threading regression coverage silently disappears with
+        # it; whoever touches it should know that is what they are removing.
+        result: list[str] = list(real_cli(step_id, feature_dir, repo_root=repo_root))
         calls.append(GuardCall("cli", step_id, None, None, list(result)))
         return result
 
@@ -350,9 +368,16 @@ def capture_guard_calls(monkeypatch: pytest.MonkeyPatch, bridge_module: Any) -> 
         *,
         mission: str = "software-dev",
         legacy_step_id: str | None = None,
+        repo_root: Path | None = None,
     ) -> list[str]:
         result: list[str] = list(
-            real_composed(action, feature_dir, mission=mission, legacy_step_id=legacy_step_id)
+            real_composed(
+                action,
+                feature_dir,
+                mission=mission,
+                legacy_step_id=legacy_step_id,
+                repo_root=repo_root,
+            )
         )
         calls.append(GuardCall("composed", action, mission, legacy_step_id, list(result)))
         return result
