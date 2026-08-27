@@ -648,10 +648,16 @@ class SaaSTrackerClient:
         its 401-refresh and 429-backoff retries. A write answered ``202`` polls
         its operations endpoint to a terminal outcome before returning.
 
-        Nothing is persisted between calls. The idempotency key below is reused
-        across every physical retry of *this* invocation so the server can
-        dedupe a resend after an ambiguous failure, but an attempt lost to a
-        process death stays lost — a moment, not a record.
+        Nothing is persisted locally between calls, but for writes the minted
+        idempotency key is a deterministic digest of (project identity, write
+        kind, payload) — see ``_content_digest`` — unless the caller supplies
+        its own key. Because the digest is deterministic, a byte-identical
+        resend from a *new* process after the original died mid-flight mints
+        the same key, so the server's receipt store dedupes it exactly as it
+        would a same-process physical retry; the property survives process
+        death, not just this invocation's retries. A resend with different
+        payload content mints a different key and is never mistaken for the
+        earlier attempt.
         """
         verdict = self._current_tracker_egress_verdict()
         if verdict.refused:
