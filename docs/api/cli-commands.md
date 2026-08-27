@@ -4364,11 +4364,6 @@ _Cross-mission retrospective summary._
 │                                 release-gate contract). Auto-detected from   │
 │                                 meta.json.baseline_merge_commit when         │
 │                                 omitted.                                     │
-│ --check-residual                Run the CI residual (unit or contract)       │
-│                                 marker selection locally over tests/, then   │
-│                                 exit -- skips the mission-scoped review      │
-│                                 gates. The -m expression is read live from   │
-│                                 the CI workflow, never hand-copied.          │
 │ --help            -h            Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```

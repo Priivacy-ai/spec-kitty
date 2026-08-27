@@ -6803,7 +6803,6 @@ pages:
     - {slug: "what-uv-sync-frozen-does", text: "What `uv sync --frozen` does", level: 3}
     - {slug: "when-to-run-it", text: "When to run it", level: 3}
     - {slug: "typer-click-version-skew-spec-kitty-review-preflight", text: "Typer/click version skew (`spec-kitty review` preflight)", level: 2}
-    - {slug: "running-the-ci-residual-selection-locally", text: "Running the CI residual selection locally", level: 2}
     - {slug: "pre-review-regression-gate-move-task-to-for-review", text: "Pre-review regression gate (`move-task --to for_review`)", level: 2}
     - {slug: "review-cycle-artifacts-and-the-merge-gate", text: "Review-cycle artifacts and the merge gate", level: 2}
     - {slug: "issue-matrix-discovery-and-issue-verdict-actor", text: "Issue-matrix discovery and `issue-verdict --actor`", level: 2}
