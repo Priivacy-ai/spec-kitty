@@ -181,7 +181,6 @@ extend = "pyproject.toml"
 "tests/doctrine_synthesizer/test_conflict_failclosed.py" = ["F401"]
 "tests/dossier/test_api.py" = ["F401"]
 "tests/dossier/test_determinism.py" = ["B007", "E731", "F401", "F841", "UP035", "UP045"]
-"tests/dossier/test_drift_detector.py" = ["F401"]
 "tests/dossier/test_hasher.py" = ["B007", "F401"]
 "tests/dossier/test_http_runtime.py" = ["F401"]
 "tests/dossier/test_indexer.py" = ["F401", "SIM117"]

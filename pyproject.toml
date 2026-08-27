@@ -377,7 +377,6 @@ module = [
     "specify_cli.dashboard.lifecycle",
     "specify_cli.dashboard.scanner",
     "specify_cli.dossier.api",
-    "specify_cli.dossier.drift_detector",
     "specify_cli.dossier.indexer",
     "specify_cli.dossier.manifest",
     "specify_cli.dossier.models",
