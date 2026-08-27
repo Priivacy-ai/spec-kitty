@@ -1101,8 +1101,28 @@ def _branch_resolvable(repo_root: Path, branch: str) -> bool:
     return False
 
 
-def _emit_selector_error(exc: Exception) -> None:
-    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero."""
+def _emit_selector_error(exc: Exception, *, json_output: bool = False) -> None:
+    """Render a structured ``MISSION_AMBIGUOUS_SELECTOR`` error and exit non-zero.
+
+    With ``json_output`` set, emits the shared ``{"success": False,
+    "error_code": ..., "error": ..., "handle": ..., "candidates": [...]}``
+    envelope (#230/#429) instead of falling through to Rich text on stdout
+    (#477: ``reopen``/``follow-up`` were the last two ``--json`` callers of
+    this helper still emitting non-JSON on an ambiguous handle).
+    """
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "success": False,
+                    "error_code": getattr(exc, "error_code", "MISSION_AMBIGUOUS_SELECTOR"),
+                    "error": str(exc),
+                    "handle": getattr(exc, "handle", None),
+                    "candidates": getattr(exc, "candidates", []),
+                }
+            )
+        )
+        return
     console.print(f"[red]MISSION_AMBIGUOUS_SELECTOR[/red]\n{exc}")
 
 
@@ -1146,7 +1166,7 @@ def reopen_cmd(
     try:
         resolved = _resolve_mission_handle(repo_root, handle)
     except MissionSelectorAmbiguous as exc:
-        _emit_selector_error(exc)
+        _emit_selector_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
 
     # Fail-closed predicate (a): meta.json absent / corrupt (no resolvable mission_id).
@@ -1278,7 +1298,7 @@ def follow_up_cmd(
     try:
         resolved = _resolve_mission_handle(repo_root, handle)
     except MissionSelectorAmbiguous as exc:
-        _emit_selector_error(exc)
+        _emit_selector_error(exc, json_output=json_output)
         raise typer.Exit(1) from exc
 
     if not resolved.mission_id:
