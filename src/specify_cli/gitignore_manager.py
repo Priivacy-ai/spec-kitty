@@ -6,11 +6,23 @@ to protect AI agent directories from being accidentally committed to git.
 It replaces the fragmented approach where only .codex/ was protected.
 """
 
+import contextlib
 import os
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from specify_cli.state.contract import get_runtime_gitignore_entries
+
+
+class GitignorePathError(Exception):
+    """Raised when `.gitignore` is a symlink instead of a regular file.
+
+    `Path.read_text()` / `Path.write_text()` both follow symlinks, so a
+    `.gitignore` replaced with a symlink (e.g. by a malicious repo checkout)
+    would let this module read or clobber whatever path it points to. Fail
+    closed instead of following it.
+    """
 
 
 @dataclass
@@ -122,6 +134,8 @@ class GitignoreManager:
         if not entries:
             return False
 
+        self._reject_symlink()
+
         # Read existing content or start with empty list
         if self.gitignore_path.exists():
             content = self.gitignore_path.read_text(encoding="utf-8-sig")
@@ -161,9 +175,48 @@ class GitignoreManager:
 
             # Join with detected line ending
             content = self._line_ending.join(lines)
-            self.gitignore_path.write_text(content, encoding="utf-8")
+            self._atomic_write(content)
 
         return changed
+
+    def _reject_symlink(self) -> None:
+        """Raise GitignorePathError if `.gitignore` is a symlink."""
+        if self.gitignore_path.is_symlink():
+            target = os.readlink(self.gitignore_path)
+            raise GitignorePathError(f".gitignore is a symlink to {target!r}; refusing to read or write through it: {self.gitignore_path}")
+
+    def _atomic_write(self, content: str) -> None:
+        """Write `.gitignore` atomically without following a symlink.
+
+        Writes to a same-directory tempfile, then `os.replace()`s it into
+        place. `os.replace()` (POSIX `rename()`) replaces the destination
+        directory entry itself rather than following it, so even a
+        `.gitignore` swapped for a symlink between the guard above and this
+        call cannot redirect the write to an arbitrary target.
+        """
+        self._reject_symlink()
+        existing_mode = self.gitignore_path.stat().st_mode & 0o777 if self.gitignore_path.exists() else None
+        if existing_mode is not None:
+            # os.replace() (rename) only requires write access to the parent
+            # directory, not to the file it replaces, so it would otherwise
+            # silently clobber a read-only .gitignore. Probe with a real
+            # open() to preserve the PermissionError a direct write raises.
+            os.close(os.open(self.gitignore_path, os.O_WRONLY))
+        fd, tmp_path = tempfile.mkstemp(
+            dir=self.gitignore_path.parent,
+            prefix=".gitignore.",
+            suffix=".tmp",
+        )
+        try:
+            if existing_mode is not None:
+                os.chmod(tmp_path, existing_mode)
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                f.write(content)
+            os.replace(tmp_path, self.gitignore_path)
+        except BaseException:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp_path)
+            raise
 
     def _detect_line_ending(self, content: str) -> str:
         """
@@ -206,6 +259,7 @@ class GitignoreManager:
 
         try:
             # Snapshot existing entries before modification
+            self._reject_symlink()
             existing_before: set[str] = set()
             if self.gitignore_path.exists():
                 content = self.gitignore_path.read_text(encoding="utf-8-sig")

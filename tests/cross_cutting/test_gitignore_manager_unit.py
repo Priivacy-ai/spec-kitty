@@ -23,6 +23,7 @@ from specify_cli.gitignore_manager import (  # noqa: E402
     RUNTIME_PROTECTED_ENTRIES,
     AgentDirectory,
     GitignoreManager,
+    GitignorePathError,
     ProtectionResult,
 )
 
@@ -374,3 +375,94 @@ class TestGitignoreManager:
         assert isinstance(result.entries_skipped, list)
         assert isinstance(result.errors, list)
         assert isinstance(result.warnings, list)
+
+
+class TestGitignoreSymlinkSafety:
+    """Regression coverage for issue #582: gitignore_manager must not read or
+    write through a `.gitignore` that is a symlink."""
+
+    @pytest.fixture
+    def temp_dir(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            yield Path(tmpdir)
+
+    @pytest.fixture
+    def manager(self, temp_dir):
+        return GitignoreManager(temp_dir)
+
+    def _make_symlinked_gitignore(self, manager, temp_dir) -> Path:
+        """Point .gitignore at an outside-the-project target via a symlink."""
+        outside_target = temp_dir.parent / f"outside-target-{os.getpid()}.txt"
+        outside_target.write_text("do-not-touch\n")
+        manager.gitignore_path.symlink_to(outside_target)
+        return outside_target
+
+    def test_ensure_entries_rejects_symlink(self, manager, temp_dir):
+        """ensure_entries() must refuse to write through a symlinked .gitignore."""
+        outside_target = self._make_symlinked_gitignore(manager, temp_dir)
+        try:
+            with pytest.raises(GitignorePathError):
+                manager.ensure_entries([".claude/"])
+            # The symlink's target must be untouched.
+            assert outside_target.read_text() == "do-not-touch\n"
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_protect_all_agents_reports_symlink_as_error(self, manager, temp_dir):
+        """The ProtectionResult contract still holds: no exception escapes."""
+        outside_target = self._make_symlinked_gitignore(manager, temp_dir)
+        try:
+            result = manager.protect_all_agents()
+            assert not result.success
+            assert any("symlink" in e.lower() for e in result.errors)
+            assert outside_target.read_text() == "do-not-touch\n"
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_dangling_symlink_is_also_rejected(self, manager, temp_dir):
+        """A symlink to a target that doesn't exist must still be rejected.
+
+        `Path.exists()` follows symlinks and returns False for a dangling one,
+        so the guard must trigger on `is_symlink()` directly, not `exists()`.
+        """
+        missing_target = temp_dir.parent / f"missing-target-{os.getpid()}.txt"
+        manager.gitignore_path.symlink_to(missing_target)
+        try:
+            with pytest.raises(GitignorePathError):
+                manager.ensure_entries([".claude/"])
+        finally:
+            manager.gitignore_path.unlink(missing_ok=True)
+
+    def test_normal_file_write_survives_symlink_guard(self, manager):
+        """Sanity check: a regular (non-symlink) .gitignore still works."""
+        result = manager.ensure_entries([".claude/"])
+        assert result
+        assert ".claude/" in manager.gitignore_path.read_text()
+        assert not manager.gitignore_path.is_symlink()
+
+    def test_write_preserves_existing_file_mode(self, manager):
+        """The atomic replace should not narrow an existing .gitignore's mode."""
+        manager.gitignore_path.write_text("existing\n")
+        os.chmod(manager.gitignore_path, 0o640)
+
+        manager.ensure_entries([".claude/"])
+
+        mode = manager.gitignore_path.stat().st_mode & 0o777
+        assert mode == 0o640
+
+    def test_permission_denied_still_raised_on_readonly_file(self, manager):
+        """os.replace() ignores the target's mode bits; the manager must not.
+
+        A read-only `.gitignore` must still surface PermissionError so
+        `_protect_entries` reports it, exactly as the pre-fix direct
+        `write_text()` did — an `os.replace()`-only implementation would
+        silently clobber it instead, since rename() only checks the parent
+        directory's permissions.
+        """
+        manager.gitignore_path.touch()
+        os.chmod(manager.gitignore_path, 0o444)
+        try:
+            with pytest.raises(PermissionError):
+                manager.ensure_entries([".claude/"])
+        finally:
+            os.chmod(manager.gitignore_path, 0o644)
