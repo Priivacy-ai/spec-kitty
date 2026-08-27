@@ -81,9 +81,9 @@ the cheapest point in the lifecycle.
    improvise or copy an older mission; chase unification, not parity; a missing
    command is a gap to file upstream; guard the terminology canon. → `DIRECTIVE_044`,
    `canonical-source-unification`, `terminology-guard`.
-7. **Git & workflow discipline.** PRs only, the operator merges; read intent before
-   any high-risk op; isolate PR-touching agents in a worktree; no version numbers
-   in scope. → `DIRECTIVE_045`, `pr-agent-worktree-isolation`.
+7. **Git & workflow discipline.** PRs only, the programme merge agent merges;
+   read intent before any high-risk op; isolate PR-touching agents in a worktree;
+   no version numbers in scope. → `DIRECTIVE_045`, `pr-agent-worktree-isolation`.
 8. **Mission hygiene.** Reviewer and implementer are distinct roles; every addressed
    issue gets an issue-matrix row + claim + tracker comment naming the mission;
    give implementers ownership-map leeway (no-overlap is the real guard); apply
@@ -168,14 +168,12 @@ How missions are executed between the operator (human-in-command) and the agent 
   mission's tickets (assign the operator + a comment naming the mission), **plans**
   (spec → plan → tasks, with an adversarial squad at each planning point-cut), and
   **runs** the implement→review loop to completion.
-- **Draft PR first.** Completed mission work is opened as a DRAFT pull request to the
-  protected branch, with history compressed (admin bunched, code by slice).
-- **Ready-for-review only when green.** The agent marks the PR ready-for-review **only
-  after** self-review (an adversarial review pass, findings folded) AND CI pass — i.e.
-  it prepares the PR merge-ready (green, un-drafted, issues linked) and hands off.
-- **The operator merges.** Agents never merge to protected main; the human-in-command
-  performs the merge. → git/workflow discipline (`DIRECTIVE_045`), Agent Operating
-  Discipline above.
+- **Issue branch first.** Completed mission work is opened from an
+  `issue-<n>-<slug>` branch as a pull request targeting `main`, with compact history.
+- **Ready for squad only when complete.** The implementer runs the required tests and
+  self-review, then labels the PR `ready-for-squad`; fleet agents own CI and review.
+- **The merge agent merges.** Implementers never merge. → git/workflow discipline
+  (`DIRECTIVE_045`), Agent Operating Discipline above.
 
 ## Governance by Workflow Action
 
@@ -192,8 +190,9 @@ context for the detail).
 - **Review** — reviewer ≠ implementer; run the FULL compliance suite (not a subset);
   verify no duplicate authority, no dead code, and live evidence; apply tiered rigour;
   grant ownership-map leeway (no-overlap is the real guard).
-- **Merge** — PRs only, the operator merges; isolated PR-review agents; post-merge full
-  arch-gate sweep with a cross-base pre-existing check; issue-matrix + tracker hygiene.
+- **Merge** — PRs only, the programme merge agent merges; isolated PR-review
+  agents; post-merge full arch-gate sweep with a cross-base pre-existing check;
+  issue-matrix + tracker hygiene.
 
 ## Writing, Communication & Diagramming Doctrine
 
@@ -343,11 +342,14 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 - The `spec-kitty agent mission branch-context --json` command resolves the deterministic branch contract for any feature
 - Do not hardcode branch names in templates or scaffolding; use the resolved branch context
 
-### CI and Branch Protection
+### Programme PR Workflow
 
 **All changes must land on `main` through a pull request. Direct pushes to `main` are never allowed — not for mission merges, hotfixes, doc updates, or any other reason.**
 
-`main` has a **Protect Main Branch** GitHub Actions workflow that enforces this. A "Protect Main Branch: failure" on CI is a real failure, not an expected artifact. It means code bypassed the PR requirement and must be addressed.
+Nothing on GitHub enforces this workflow: there is no branch protection or required
+review, and the leftover workflow files are inert. The binding process is
+[`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md)
+§5–§9.
 
 ### Agent Push Authorization (binding)
 
@@ -355,19 +357,19 @@ Agents are **not allowed** to push directly to `origin/main` under any circumsta
 
 **Required workflow for mission merges:**
 1. Run `spec-kitty merge` locally — this merges lane branches into local `main`.
-2. Immediately create a PR branch: `git checkout -b pr/<mission-slug>`
-3. Push the PR branch: `git push origin pr/<mission-slug>`
+2. Create the ticket branch: `git checkout -b issue-<n>-<slug>`
+3. Push it: `git push origin issue-<n>-<slug>`
 4. Open a PR targeting `main`: `gh pr create --title "..." --body "..."`
-5. Do **not** run `spec-kitty merge --push` or `git push origin main`.
+5. Do **not** merge it; the programme merge agent owns that step.
 
 **Required workflow for all other changes (hotfixes, docs, config):**
 1. Start work on a named branch, never on `main` directly.
 2. Push the branch and open a PR.
 3. Never push `main` directly.
 
-**When `safe_commit` refuses on a protected branch, agents must:**
+**When `safe_commit` refuses on a locally guarded branch, agents must:**
 1. Use the mission lane branch/worktree as intended by the workflow.
-2. If planning artifacts need to land on `main`, create a PR branch instead of bypassing the guard.
+2. If planning artifacts need to land on `main`, create an `issue-<n>-<slug>` branch instead of bypassing the guard.
 3. Never silently work around the guard with raw git commands or `SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS=1`.
 
 ### Historical Context
@@ -380,9 +382,9 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 
 ### Pull Request Requirements
 
-- **1 approval required** (self-merge allowed for maintainer)
-- **CI checks must pass** (tests, type checking, linting)
-- **Pre-commit hooks** must pass (UTF-8 encoding validation)
+- Use the exact PR body sections from programme `PROGRAM.md` §5.
+- Run the implementer tests from §6 and label complete work `ready-for-squad`.
+- Implementers never merge; the fleet owns CI, squad review, and merge.
 
 **Readable and consistent PRs are binding** (directive `046-readable-consistent-prs`, active). Every mission branch / PR an agent hands the operator must be:
 
@@ -464,7 +466,7 @@ When work in this program touches the SaaS repository, all contributors and agen
 - Primary commands: `make docker-app-up`, `make docker-auth-check`, `make docker-app-down`
 
 Mandatory gate:
-- A `prod-like` authenticated preflight must pass before Fly promotion and before considering SaaS integration work complete.
+- A `prod-like` authenticated preflight must pass before considering SaaS integration work complete.
 
 Operational reference:
 - `spec-kitty-saas/docs/docker-development-modes.md` (sibling SaaS repo checkout)

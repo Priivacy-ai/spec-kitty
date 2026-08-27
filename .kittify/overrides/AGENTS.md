@@ -204,14 +204,14 @@ When work touches `/spec-kitty-saas`, use two explicit Docker modes:
   - `make docker-app-up-live`
   - `make docker-auth-check-live` (optional during active implementation)
   - `make docker-app-down-live`
-- `prod-like` for pre-merge and pre-deploy gates:
+- `prod-like` for the pre-merge gate:
   - `make docker-app-up`
-  - `make docker-auth-check` (required before Fly promotion)
+  - `make docker-auth-check` (required before merge)
   - `make docker-app-down`
 
 Rules:
 - Default to `dev-live` while editing Python, templates, or assets.
-- Before merge or Fly promotion, always run and pass the `prod-like` auth preflight.
+- Before merge, always run and pass the `prod-like` auth preflight.
 - If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
 - Use skill `$spec-kitty-docker-modes` for Docker mode operations and auth preflight workflows.
 - Runbook source of truth: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS repo checkout.
