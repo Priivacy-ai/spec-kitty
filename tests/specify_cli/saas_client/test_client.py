@@ -255,6 +255,34 @@ def test_load_auth_context_from_file(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert ctx.saas_url == "https://file-url.example"
 
 
+def test_load_auth_context_cannot_distinguish_repo_tier_kitty_env_from_real_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#289: ``load_auth_context`` reads ``os.environ`` after
+    ``bootstrap.env_file.load_operator_env_file`` has already merged the
+    repo-tier ``.kittify/.kitty.env`` into it (that loader runs as the first
+    statements of ``specify_cli/__init__.py``, before this module is ever
+    imported). By the time this function runs, a value seeded from a cloned
+    repo's committed ``.kitty.env`` is indistinguishable from one the
+    operator exported themselves — this module's #237 trust boundary is
+    strictly narrower: it governs ``.kittify/saas-auth.json`` vs. an env
+    token, not the provenance of ``os.environ`` itself. See
+    ``docs/api/environment-variables.md``'s ``.kitty.env`` section and this
+    module's docstring for the documented scope of that boundary.
+    """
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "ci-service-token")
+    # Simulates a value that arrived via the repo-tier .kitty.env tier rather
+    # than a genuine shell export -- from this function's point of view the
+    # two are the same os.environ entry.
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://repo-tier.example")
+    monkeypatch.setenv("SPEC_KITTY_TEAM_SLUG", "repo-tier-team")
+
+    ctx = load_auth_context()
+
+    assert ctx.saas_url == "https://repo-tier.example"
+    assert ctx.team_slug == "repo-tier-team"
+
+
 def test_load_auth_context_raises_when_no_token(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Nothing configured anywhere — no env, no auth file, no stored OAuth
     session — still refuses, and the refusal names all three ways in."""
