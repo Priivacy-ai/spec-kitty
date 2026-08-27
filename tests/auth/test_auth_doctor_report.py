@@ -12,6 +12,11 @@ Also covers the ``--server`` flag (WP04 / T019):
 - doctor_impl server=False makes no outbound calls
 - doctor_impl server=True renders active/re-authenticate output
 
+And the issuer/server mismatch guard (issue #253): ``--server`` must never
+attempt a refresh — and thereby clear the session — when the stored
+session's ``issuer_url`` names a server other than the one currently
+resolved.
+
 All tests use ``monkeypatch`` to inject deterministic state for
 ``assemble_report``'s upstream dependencies — no SaaS, no network.
 """
@@ -28,12 +33,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from rich.console import Console
 
+from specify_cli.auth.server_target import OverrideMode, ResolvedServerTarget
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import _auth_doctor
 from specify_cli.cli.commands._auth_doctor import (
     DoctorReport,
     ServerSessionStatus,
     _check_server_session,
+    _server_issuer_mismatch_error,
     assemble_report,
     compute_exit_code,
     doctor_impl,
@@ -530,6 +537,191 @@ async def test_check_server_session_generic_access_token_failure_no_class_name(
     assert result.active is False
     assert result.error == "Could not obtain access token."
     assert "RuntimeError" not in result.error
+
+
+# ---------------------------------------------------------------------------
+# Issue #253: --server must not refresh (and thereby clear) a session minted
+# by a different server than the one currently resolved.
+# ---------------------------------------------------------------------------
+
+
+class _FakeTokenManagerWithSession:
+    """Test double exposing only the two methods ``_check_server_session`` uses."""
+
+    def __init__(self, session: StoredSession | None) -> None:
+        self._session = session
+
+    def get_current_session(self) -> StoredSession | None:
+        return self._session
+
+    async def get_access_token(self) -> str:  # pragma: no cover - guarded against by tests
+        raise AssertionError(
+            "get_access_token() must not be called on a known issuer/server "
+            "mismatch (#253) — that path refreshes and can clear the session."
+        )
+
+
+def _fake_target(resolved: str) -> ResolvedServerTarget:
+    return ResolvedServerTarget(
+        configured_server_url=None,
+        env_server_url=resolved,
+        override_mode=OverrideMode.PROCESS_OVERRIDE,
+        resolved_server_url=resolved,
+    )
+
+
+async def test_check_server_session_issuer_mismatch_skips_refresh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A known issuer/server mismatch short-circuits before any refresh (#253)."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    session.issuer_url = "https://old.example.com"
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(
+        _auth_module, "get_token_manager", lambda: _FakeTokenManagerWithSession(session)
+    )
+    monkeypatch.setattr(
+        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+    )
+
+    result = await _check_server_session()
+
+    assert result.active is False
+    assert result.error is not None
+    assert "old.example.com" in result.error
+    assert "team.spec-kitty.ai" in result.error
+    assert "auth login --force" in result.error
+
+
+async def test_check_server_session_issuer_matches_proceeds_normally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A matching issuer_url does not block the refresh + server check."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    session.issuer_url = "https://team.spec-kitty.ai"
+
+    class _TmMatchingIssuer(_FakeTokenManagerWithSession):
+        async def get_access_token(self) -> str:
+            return "tok"
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(
+        _auth_module, "get_token_manager", lambda: _TmMatchingIssuer(session)
+    )
+    monkeypatch.setattr(
+        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+    )
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"session_id": "abc"}
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(return_value=mock_response)
+
+    with (
+        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://team.spec-kitty.ai"),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await _check_server_session()
+
+    assert result.active is True
+    assert result.session_id == "abc"
+
+
+async def test_check_server_session_no_issuer_proceeds_normally(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A legacy session with no recorded issuer_url is not treated as a mismatch."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    assert session.issuer_url is None
+
+    class _TmNoIssuer(_FakeTokenManagerWithSession):
+        async def get_access_token(self) -> str:
+            return "tok"
+
+    import specify_cli.auth as _auth_module
+    monkeypatch.setattr(_auth_module, "get_token_manager", lambda: _TmNoIssuer(session))
+    monkeypatch.setattr(
+        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+    )
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"session_id": "abc"}
+    mock_client = AsyncMock()
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=None)
+    mock_client.get = AsyncMock(return_value=mock_response)
+
+    with (
+        patch("specify_cli.auth.config.get_saas_base_url", return_value="https://team.spec-kitty.ai"),
+        patch("httpx.AsyncClient", return_value=mock_client),
+    ):
+        result = await _check_server_session()
+
+    assert result.active is True
+
+
+def test_server_issuer_mismatch_error_none_when_session_missing() -> None:
+    """No session at all ⇒ no mismatch to report (the ordinary NotAuthenticatedError path decides)."""
+    tm = _FakeTokenManagerWithSession(None)
+    assert _server_issuer_mismatch_error(tm) is None
+
+
+def test_server_issuer_mismatch_error_none_on_bare_async_mock(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bare ``AsyncMock`` test double (unconfigured ``get_current_session``) is treated as unknown, not a mismatch."""
+    tm = AsyncMock()
+    monkeypatch.setattr(
+        _auth_doctor, "resolve_server_target", lambda: _fake_target("https://team.spec-kitty.ai")
+    )
+    assert _server_issuer_mismatch_error(tm) is None
+
+
+def test_server_issuer_mismatch_error_none_when_target_resolution_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A server-target resolution failure (e.g. split-brain) falls through, not blocks."""
+    session = _make_session(refresh_token_expires_at=now_utc() + timedelta(days=30))
+    session.issuer_url = "https://old.example.com"
+    tm = _FakeTokenManagerWithSession(session)
+
+    def _raise() -> ResolvedServerTarget:
+        raise RuntimeError("split-brain")
+
+    monkeypatch.setattr(_auth_doctor, "resolve_server_target", _raise)
+
+    assert _server_issuer_mismatch_error(tm) is None
+
+
+def test_render_server_status_escapes_bracketed_mismatch_reason() -> None:
+    """A mismatch reason naming ``config.toml [sync].server_url`` must not corrupt Rich markup (#182)."""
+    status = ServerSessionStatus(
+        active=False,
+        error=(
+            "Session is for https://old.example.com; config.toml "
+            "[sync].server_url now points at https://team.spec-kitty.ai — "
+            "run spec-kitty auth login --force"
+        ),
+    )
+    buf = io.StringIO()
+    con = Console(file=buf, width=200, record=False, force_terminal=False)
+    import specify_cli.cli.commands._auth_doctor as doctor_module
+
+    original_console = doctor_module.console
+    doctor_module.console = con
+    try:
+        doctor_module._render_server_status(status)
+    finally:
+        doctor_module.console = original_console
+    output = buf.getvalue()
+
+    assert "[sync].server_url" in output
+    assert "run spec-kitty auth login --force" in output
 
 
 # ---------------------------------------------------------------------------
