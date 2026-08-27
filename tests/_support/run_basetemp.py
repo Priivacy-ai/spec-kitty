@@ -66,12 +66,14 @@ import atexit
 import contextlib
 import os
 import shutil
+import stat
 import tempfile
 from collections.abc import Iterable
 from functools import partial
 from pathlib import Path
 
 import pytest
+from _pytest.compat import get_user_id
 
 #: Sibling of WP04's ``spec-kitty-test-homes`` under the resolved temproot —
 #: a namespace this repo owns entirely, never shared with pytest's default
@@ -189,6 +191,33 @@ def remove_run_dirs(dirs: Iterable[Path]) -> list[Path]:
     return removed
 
 
+def _validate_existing_root(root: Path) -> None:
+    """Apply the same owner/mode/symlink hardening pytest's own
+    ``TempPathFactory.getbasetemp`` applies to its ``pytest-of-<user>``
+    rootdir (:mod:`_pytest.tmpdir`) — ``root.mkdir(..., exist_ok=True)``
+    accepts a pre-existing directory unchanged, so a predictable, shared
+    temproot means whatever is already there (wrong owner, world-writable,
+    or a symlink) would otherwise be trusted as-is (#77).
+
+    Raises :class:`OSError` on a symlinked or wrong-owner root, matching
+    pytest's fail-closed behavior. A world/group-readable root is repaired
+    in place (chmod), matching pytest's own historical-permissiveness
+    fixup rather than rejecting it outright.
+    """
+    uid = get_user_id()
+    if uid is None:
+        return  # platform can't tell us an owner (Windows) — nothing to check
+    stat_follow_symlinks = os.stat not in os.supports_follow_symlinks
+    root_stat = root.stat(follow_symlinks=stat_follow_symlinks)
+    if stat.S_ISLNK(root_stat.st_mode):
+        raise OSError(f"The temporary directory {root} is a symbolic link. Fix this and try again.")
+    if root_stat.st_uid != uid:
+        raise OSError(f"The temporary directory {root} is not owned by the current user. Fix this and try again.")
+    if (root_stat.st_mode & 0o077) != 0:
+        chmod_follow_symlinks = os.chmod not in os.supports_follow_symlinks
+        root.chmod(root_stat.st_mode & ~0o077, follow_symlinks=chmod_follow_symlinks)
+
+
 def install_run_basetemp(config: pytest.Config, now: float) -> None:
     """Point *config* at this run's private basetemp unless the user already did.
 
@@ -208,6 +237,7 @@ def install_run_basetemp(config: pytest.Config, now: float) -> None:
     # pytest creates the given basetemp with a bare mkdir (no parents), so the
     # intermediate root must exist before the factory first resolves it.
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
+    _validate_existing_root(root)
     remove_run_dirs(stale_run_dirs(root, now=now))
 
     basetemp = run_basetemp_dir()
