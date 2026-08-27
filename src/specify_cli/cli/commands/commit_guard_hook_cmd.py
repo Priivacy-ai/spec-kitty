@@ -16,10 +16,17 @@ fallback branch) with zero arguments, exactly like the primary
 
 from __future__ import annotations
 
+from typing import Annotated
+
 import typer
 
 
-def commit_guard_hook_cli() -> None:
+def commit_guard_hook_cli(
+    _args: Annotated[
+        list[str] | None,
+        typer.Argument(hidden=True, help="Ignored; accepted for parity with the primary hook path."),
+    ] = None,
+) -> None:
     """Run the commit guard and exit with its result code."""
     from specify_cli.policy.commit_guard_hook import main
 
