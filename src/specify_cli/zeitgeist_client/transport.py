@@ -186,7 +186,7 @@ _VALID_PRESENCE_ACTIVITIES = frozenset({"file_edit", "command"})
 
 @dataclass(frozen=True)
 class ClientConfig:
-    relay_url: str  # local/Docker-hosted only; never written by anything but checkout()
+    relay_url: str  # local/Docker-hosted only; written only by the checkout() canary-offer flow and E3 credential resolution (mint)
     token: str
     harness: str
     session_id: str
