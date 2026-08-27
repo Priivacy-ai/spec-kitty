@@ -17,6 +17,7 @@ from __future__ import annotations
 import os
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -60,8 +61,8 @@ def no_git_ancestry_inside_tmp_path(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     fixtures) is unaffected.
     """
     boundary = os.path.abspath(str(tmp_path))
-    real_git_dir_from_filesystem = repo_identity._git_dir_from_filesystem
-    real_deadline_run = repo_identity.Deadline.run
+    real_git_dir_from_filesystem: Callable[[str], str] = repo_identity._git_dir_from_filesystem
+    real_deadline_run: Callable[[repo_identity.Deadline, list[str], str], str] = repo_identity.Deadline.run
 
     def _inside_boundary(path: str) -> bool:
         candidate = os.path.abspath(path)
