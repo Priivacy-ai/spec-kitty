@@ -36,11 +36,18 @@ someone clears them by hand. Giving each invocation its own
 * **Wiped per run** — an explicit ``--basetemp`` is removed and recreated by
   pytest itself at first use (``TempPathFactory.getbasetemp``), so no state ever
   crosses runs even when a PID is recycled.
-* **Reaped per run** — the controller registers an ``atexit`` handler removing
-  the run's dir, so a healthy run leaves nothing behind.
+* **Reaped on success, retained on failure** — the controller registers an
+  ``atexit`` handler that removes the run's dir only when the session finished
+  with ``ExitCode.OK``; a session with failures, errors, or an interruption
+  keeps its ``tmp_path`` tree for post-mortem inspection (#76 — retention is
+  gated on outcome, not dropped outright: a bare reap-everything policy would
+  lose exactly the forensics a failed run needs, and the private-per-run tree
+  is what fixed #63, not the reap).
 * **Swept for crash leftovers** — dirs older than :data:`STALE_RUN_MAX_AGE_S`
-  (only a SIGKILL'd run can leave one; no live suite runs that long) are removed
-  at controller startup, so hard-killed runs do not accumulate.
+  (a SIGKILL'd run leaves one with no ``pytest_sessionfinish`` ever firing, so
+  the atexit gate above never ran for it; no live suite runs this long) are
+  removed at controller startup, so hard-killed runs — and retained
+  failure-run trees past their forensic window — do not accumulate forever.
 
 xdist needs no separate handling: the controller's factory resolves this
 basetemp during worker setup and hands each worker ``<basetemp>/popen-gwN``
@@ -49,10 +56,8 @@ basetemp during worker setup and hands each worker ``<basetemp>/popen-gwN``
 untouched — whoever passes one owns its lifecycle, including its persistence
 (default retention does not apply to explicit basetemps).
 
-The trade-off is deliberate: because the reaper removes the run dir at exit, a
-run's ``tmp_path`` contents are NOT retained for post-mortem inspection the way
-pytest's default 3-session retention retains them. Pass an explicit
-``--basetemp`` to opt out of both the private root and the reap.
+Pass an explicit ``--basetemp`` to opt out of both the private root and the
+outcome-gated reap.
 """
 
 from __future__ import annotations
@@ -77,6 +82,35 @@ RUN_TMP_ROOT_NAME = "spec-kitty-pytest-tmp"
 #: (CI's whole four-pass target is bounded well under an hour), so sweeping it
 #: cannot race a concurrent healthy run.
 STALE_RUN_MAX_AGE_S = 24 * 60 * 60
+
+#: ``config`` attribute holding this run's :class:`_SessionOutcome`. Set only
+#: on the controller config that :func:`install_run_basetemp` actually
+#: installed a private basetemp against — absent for xdist workers and for an
+#: explicit ``--basetemp`` (whoever passes one owns its own lifecycle), so
+#: :func:`mark_session_outcome` is a safe no-op in both cases.
+_OUTCOME_CONFIG_ATTR = "_spec_kitty_run_basetemp_outcome"
+
+
+class _SessionOutcome:
+    """Mutable box the atexit reaper reads at exit and ``pytest_sessionfinish``
+    writes: sessionfinish always runs before atexit callbacks, so by the time
+    the reaper fires this already holds the final verdict."""
+
+    def __init__(self) -> None:
+        self.succeeded = False
+
+
+def mark_session_outcome(config: pytest.Config, *, succeeded: bool) -> None:
+    """Tell this run's atexit reaper whether to keep or remove its tmp tree.
+
+    Call from ``pytest_sessionfinish`` with ``succeeded=exitstatus ==
+    pytest.ExitCode.OK``. A no-op if :func:`install_run_basetemp` never
+    installed a reaper against *config* (xdist worker, or an explicit
+    ``--basetemp``) — there is nothing to tell.
+    """
+    outcome = getattr(config, _OUTCOME_CONFIG_ATTR, None)
+    if outcome is not None:
+        outcome.succeeded = succeeded
 
 
 def temproot() -> Path:
@@ -178,8 +212,25 @@ def install_run_basetemp(config: pytest.Config, now: float) -> None:
 
     basetemp = run_basetemp_dir()
     config.option.basetemp = str(basetemp)
-    # Reap after the session regardless of outcome. Registered during configure
-    # — i.e. BEFORE the sessionstart handlers and any service shutdown callbacks
-    # registered later — so LIFO ordering runs it last, after everything that
-    # might still hold a file open under tmp_path.
-    atexit.register(partial(shutil.rmtree, basetemp, ignore_errors=True))
+
+    outcome = _SessionOutcome()
+    setattr(config, _OUTCOME_CONFIG_ATTR, outcome)
+    # Reap only if pytest_sessionfinish later marks the session as succeeded
+    # (mark_session_outcome) — a failed/errored/interrupted session, or one
+    # that crashes before sessionfinish ever runs, leaves `outcome.succeeded`
+    # at its False default and keeps its tmp tree for post-mortem inspection.
+    # Registered during configure — i.e. BEFORE the sessionstart handlers and
+    # any service shutdown callbacks registered later — so LIFO ordering runs
+    # it last, after everything that might still hold a file open under
+    # tmp_path.
+    atexit.register(partial(_reap_if_succeeded, basetemp, outcome))
+
+
+def _reap_if_succeeded(basetemp: Path, outcome: _SessionOutcome) -> None:
+    """The atexit callback :func:`install_run_basetemp` registers.
+
+    Removes *basetemp* only when *outcome* was marked succeeded; otherwise
+    leaves it for the forensic window bounded by :data:`STALE_RUN_MAX_AGE_S`.
+    """
+    if outcome.succeeded:
+        shutil.rmtree(basetemp, ignore_errors=True)

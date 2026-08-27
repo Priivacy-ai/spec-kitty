@@ -446,7 +446,7 @@ def test_sessionfinish_finalizes_atexit_targets_with_xdist_testrunuid(
 
     # By sessionfinish the NodeManager (testrunuid) is available.
     pm.activate()
-    root_conftest.pytest_sessionfinish(cast(pytest.Session, session))
+    root_conftest.pytest_sessionfinish(cast(pytest.Session, session), pytest.ExitCode.OK)
 
     # Both homes are now in the atexit removal set the callback closed over.
     assert controller_home in holder
@@ -505,7 +505,7 @@ def test_controller_gate_worker_never_snapshots_or_reaps(
 
     leak = _seed_mission_dir(temp_repo, "test-feature-worker-leak", commit=False)
 
-    root_conftest.pytest_sessionfinish(cast(pytest.Session, worker_session))
+    root_conftest.pytest_sessionfinish(cast(pytest.Session, worker_session), pytest.ExitCode.OK)
 
     # Nothing reaped, no exit-status flip: the worker never touched anything.
     assert leak.exists()
@@ -520,7 +520,7 @@ def test_pytest_sessionfinish_reds_and_selfheals_on_leak(
 
     root_conftest.pytest_sessionstart(cast(pytest.Session, session))
     _seed_mission_dir(temp_repo, "test-feature-leak", commit=False)
-    root_conftest.pytest_sessionfinish(cast(pytest.Session, session))
+    root_conftest.pytest_sessionfinish(cast(pytest.Session, session), pytest.ExitCode.OK)
 
     # Self-healed (the checkout is not left dirty)...
     assert not (temp_repo / "kitty-specs" / "test-feature-leak").exists()
@@ -535,6 +535,6 @@ def test_pytest_sessionfinish_stays_green_without_leak(
     session = _controller_session()
 
     root_conftest.pytest_sessionstart(cast(pytest.Session, session))
-    root_conftest.pytest_sessionfinish(cast(pytest.Session, session))
+    root_conftest.pytest_sessionfinish(cast(pytest.Session, session), pytest.ExitCode.OK)
 
     assert session.exitstatus == 0

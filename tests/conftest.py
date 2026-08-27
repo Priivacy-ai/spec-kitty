@@ -32,7 +32,7 @@ from tests._support.quarantine import (
     quarantine_opted_in,
     quarantine_skip_mark,
 )
-from tests._support.run_basetemp import install_run_basetemp
+from tests._support.run_basetemp import install_run_basetemp, mark_session_outcome
 from tests._support.shared_build_artifacts import (
     SharedBuildError,
     default_wheel_sdist_builder,
@@ -2157,8 +2157,16 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     _register_test_home_atexit_reaper(config)
 
 
-def pytest_sessionfinish(session: pytest.Session) -> None:
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     """T007-T009: controller-gated REPO_ROOT reap-then-assert + prompt sweep.
+
+    Also records this session's outcome for run_basetemp.py's (#76)
+    outcome-gated tmp-tree reaper: ``mark_session_outcome`` is called with the
+    incoming *exitstatus* first, then again with ``succeeded=False`` if the
+    leaked-residue check below forces a failure — so a run that looked green
+    until this hook caught residue still retains its tmp tree. A no-op if
+    ``install_run_basetemp`` never installed a reaper against this config
+    (xdist worker, or an explicit ``--basetemp``).
 
     The N1 test-HOME removal is intentionally NOT done here — it runs from the
     ``atexit`` handler registered at ``pytest_sessionstart`` so it fires after
@@ -2172,6 +2180,8 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
     config = session.config
     if not _is_reaper_controller(config):
         return  # NFR-001: a worker must never reap the shared REPO_ROOT
+
+    mark_session_outcome(config, succeeded=exitstatus == pytest.ExitCode.OK)
 
     baseline = getattr(config, _REAPER_SNAPSHOT_ATTR, None)
     if baseline is None:
@@ -2190,3 +2200,4 @@ def pytest_sessionfinish(session: pytest.Session) -> None:
         if reporter is not None:
             reporter.write_line(str(exc), red=True, bold=True)
         session.exitstatus = 1
+        mark_session_outcome(config, succeeded=False)
