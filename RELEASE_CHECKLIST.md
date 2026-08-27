@@ -155,8 +155,9 @@ gh pr create --base main --title "Release X.Y.Z" --fill
   issue links.
 - [ ] `Check Shared Package Drift` passes against the current SaaS consumer
   pins.
-- [ ] The PR satisfies the active repository policy; do not rely on inert
-  GitHub workflow enforcement.
+- [ ] The PR satisfies the active repository policy; do not rely on GitHub
+  workflow enforcement — the workflow files run and post check results, but
+  nothing requires them to pass before merge.
 - [ ] Maintainer approval is recorded.
 - [ ] Any release-note or install-doc feedback is resolved.
 

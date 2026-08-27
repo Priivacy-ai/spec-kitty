@@ -347,7 +347,8 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 **All changes must land on `main` through a pull request. Direct pushes to `main` are never allowed — not for mission merges, hotfixes, doc updates, or any other reason.**
 
 Nothing on GitHub enforces this workflow: there is no branch protection or required
-review, and the leftover workflow files are inert. The binding process is
+review. The leftover workflow files still run and post check results, but nothing
+requires them to pass — a failing run has no power to block a PR. The binding process is
 [`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md)
 §5–§9.
 
