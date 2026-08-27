@@ -286,12 +286,7 @@ def _focus_lease_scope_unchanged(
     lease was minted for a relay/team this entry no longer points at, so it
     must not be carried forward.
     """
-    return (
-        previous.get("relay_url") == relay_url
-        and previous.get("host") == host
-        and previous.get("repo_slug") == repo_slug
-        and previous.get("team") == team
-    )
+    return previous.get("relay_url") == relay_url and previous.get("host") == host and previous.get("repo_slug") == repo_slug and previous.get("team") == team
 
 
 def _positive_entry(

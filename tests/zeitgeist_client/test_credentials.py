@@ -599,9 +599,7 @@ def test_reminting_with_a_new_relay_url_drops_the_stale_focus_lease(state_root: 
     the main credential's rewrite points at a different relay -- serving it
     would get every focus frame rejected until the stale lease expires."""
     _seed_main_credential()
-    credentials.store_focus_capability(
-        repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200)
-    )
+    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200))
 
     credentials.store(
         repo="github.com/acme/widget",
@@ -644,19 +642,32 @@ def test_reminting_under_a_new_team_drops_the_stale_focus_lease(state_root: Path
     assert loaded.focus_capability_credential is None
 
 
-def test_different_scope_remint_without_team_does_not_preserve_previous_team(state_root: Path):
+@pytest.mark.parametrize(
+    ("relay_url", "host", "repo_slug"),
+    [
+        ("http://other-relay", "github.com", "acme/widget"),
+        ("http://relay", "gitlab.com", "acme/widget"),
+        ("http://relay", "github.com", "acme/other-widget"),
+    ],
+)
+def test_different_scope_remint_without_team_does_not_preserve_previous_team(
+    state_root: Path,
+    relay_url: str,
+    host: str,
+    repo_slug: str,
+):
     _seed_main_credential()
     credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt")
 
     credentials.store(
         repo="github.com/acme/widget",
-        relay_url="http://other-relay",
+        relay_url=relay_url,
         token="bearer-2",
         token_kind="presence",
         capability_credential="presence-jwt-2",
         expires_at=_iso_in(3600),
-        host="github.com",
-        repo_slug="acme/widget",
+        host=host,
+        repo_slug=repo_slug,
         team=None,
     )
 
