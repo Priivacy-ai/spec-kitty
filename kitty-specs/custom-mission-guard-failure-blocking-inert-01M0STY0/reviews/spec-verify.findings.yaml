@@ -1,0 +1,135 @@
+schema: review-findings/v1
+complete: true
+phase: spec
+lens_group: verify
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: SPEC-VERIFY-001
+    lens: mission-derived (NFR-004 coverage-floor claim falsifiability)
+    severity: 4
+    title: >
+      NFR-004 misattributes the mechanism that keeps test_coverage_floor_is_met's
+      guard-branch floor at 18 to FR-005, when the test's own docstring credits a
+      different, unrelated family-scoping fix
+    evidence:
+      - artifact: "spec.md § NFR-004 (line 339)"
+      - artifact: "spec.md § FR-005 (lines 280-287)"
+      - code: "tests/runtime/test_bridge_parity.py:1170-1195 (comment block directly above `_GUARD_BRANCH_FLOOR = 18` at line 1196)"
+      - code: "tests/runtime/test_bridge_parity.py:1245-1263 (`test_non_software_dev_missing_artifact_owned_by_composed_guard` docstring)"
+      - code: "src/runtime/next/runtime_bridge.py:1626-1642 (`_check_cli_guards` scoped to `MISSION_TYPE_SOFTWARE_DEV` only, #3407/M3 comment)"
+      - code: "src/runtime/next/runtime_bridge_io.py:851-873 (`_presence_filenames_for` docstring — the actual FR-005 mechanism)"
+    claim: >
+      NFR-004 states: "FR-005's family-scoping preservation is the specific
+      mechanism that keeps [the guard-branch floor at 18] from regressing (see
+      the docstring rationale on `_GUARD_BRANCH_FLOOR`)." This is checked
+      against the actual test file and is factually wrong. The comment block
+      immediately preceding `_GUARD_BRANCH_FLOOR = 18` (test_bridge_parity.py
+      lines 1170-1195) explains the floor's 18-vs-16 history entirely in terms
+      of a DIFFERENT, unrelated regression: an earlier WP06 revision that made
+      the CLI pre-check (`_check_cli_guards`, called from `runtime_bridge.py`'s
+      non-WP pre-check at ~line 1642) "unconditional" instead of scoped to the
+      software-dev family, which wrongly routed research's "scoping" and
+      documentation's "discover" guards through the CLI pre-check instead of
+      the composed guard and dropped the floor from 18 to 16 (#3407/M3). The
+      test's `test_non_software_dev_missing_artifact_owned_by_composed_guard`
+      exists specifically to pin that this CLI-pre-check family-scoping stays
+      correct.
+      FR-005 is about an entirely separate code path and an entirely separate
+      historical incident: `_presence_filenames_for`'s family-scoped (not
+      step-scoped) artifact-name gathering in `runtime_bridge_io.py`, whose own
+      docstring (lines 851-873) documents a different reverted attempt (a
+      step-scoped redesign that spuriously blocked software-dev's composed
+      `tasks` guard and `plan`'s `specify`/`plan` guards). Nothing in that
+      docstring, or anywhere in test_bridge_parity.py, ties FR-005's mechanism
+      to the guard-branch floor's 18-vs-16 count. The two "family-scoped" fixes
+      share vocabulary but are unrelated code paths (`runtime_bridge_io.py`
+      presence-gathering vs. `runtime_bridge.py` CLI-pre-check dispatch
+      scoping), and NFR-004 conflates them.
+      This is not a cosmetic error: this mission's own FR-003 requires
+      converging all three guard-dispatch call sites — including the exact
+      `runtime_bridge.py` CLI-pre-check block whose software-dev-only scoping
+      is the real floor-preserving mechanism. NFR-004, as written, points
+      implementers/reviewers at FR-005 preservation as the regression-risk
+      signal for `test_coverage_floor_is_met`, when the actual risk this
+      mission is likely to reintroduce (given FR-003 touches guard dispatch at
+      exactly this call site) is a repeat of the WP06/#3407 regression the test
+      file documents — not anything to do with FR-005's `_presence_filenames_for`
+      change.
+    remediation: >
+      Correct NFR-004's rationale to cite the actual mechanism: the
+      family-scoping of `_check_cli_guards`/the non-WP CLI pre-check to the
+      `software-dev` mission family (`runtime_bridge.py`, ~line 1642,
+      #3407/M3), verified by
+      `test_non_software_dev_missing_artifact_owned_by_composed_guard`, which
+      must continue to hold after FR-003's call-site convergence. Either drop
+      the FR-005 attribution entirely, or explicitly note that FR-005 and this
+      NFR-004 risk are two distinct family-scoping mechanisms in two different
+      modules that must independently be preserved. Add an explicit
+      cross-reference from FR-003's implementation guidance to
+      `test_non_software_dev_missing_artifact_owned_by_composed_guard` as the
+      regression guard for the call-site-convergence work specifically.
+
+  - id: SPEC-VERIFY-002
+    lens: baseline honesty
+    severity: 3
+    title: >
+      spec.md never acknowledges the accepted-baseline known-red tests (issue
+      #3284) despite NFR-003 mandating red-first/green verification on a
+      stacked, unmerged base branch
+    evidence:
+      - artifact: "spec.md § NFR-003 (line 338)"
+      - artifact: "spec.md § Clarifications (lines 42-46)"
+      - code: "CLAUDE.md § Test-run baseline-red gotcha (repo root)"
+    claim: >
+      `main` carries ~23 known-red tests and 2 errors (issue #3284) as
+      accepted baseline, and CLAUDE.md documents a three-way classification
+      protocol (pre-existing known-P0 reds, CI-environment failures,
+      stale-install false reds) any agent must apply before attributing a red
+      test to its own diff. spec.md's NFR-003 says "green is verified on the
+      WP's final commit" but nowhere in the spec — not in NFR-003, not in the
+      Clarifications stacking note, not in Edge Cases — does it acknowledge
+      that a broad test run on this mission's actual base
+      (`fix/org-tier-expected-artifacts-3703`, itself built on `main`) will
+      surface pre-existing red/error noise unrelated to this mission's own
+      changes. Given the mission is explicitly stacked on an unmerged branch
+      (a deliberate, unusual setup called out at length in Clarifications),
+      omitting any baseline-red guidance here is a gap: a WP implementer or
+      reviewer verifying NFR-003's "green" bar has no spec-level signal to
+      distinguish genuine regressions introduced by this mission from
+      baseline noise already present on the stacked branch, and no
+      acknowledgment that the ~23/2 baseline count from #3284 may differ once
+      #3703's own changes are included.
+    remediation: >
+      Add a sentence to NFR-003 (or a new Edge Case) stating the accepted
+      baseline explicitly for this mission's actual base branch: point WPs at
+      re-running the narrow test files this mission touches on
+      `fix/org-tier-expected-artifacts-3703` (not `main`) before implementation
+      to establish the mission's own true-red baseline, and reference
+      CLAUDE.md's baseline-red classification protocol so "green is verified"
+      in NFR-003 is unambiguous about what counts as green.
+
+  - id: SPEC-VERIFY-003
+    lens: mission-derived (code-citation accuracy, falsifiability of FR-001)
+    severity: 2
+    title: >
+      FR-001's line citation for `_GUARD_TABLES.get(snapshot.mission_family)`
+      points at the dict's declaration, not the `.get()` call site
+    evidence:
+      - artifact: "spec.md § FR-001 (lines 239-245)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:676-681 (the `_GUARD_TABLES` dict literal)"
+      - code: "src/runtime/next/runtime_bridge_cores.py:693 (the actual `_GUARD_TABLES.get(snapshot.mission_family)` call, inside `evaluate_guards_strict`)"
+    claim: >
+      FR-001 cites `_GUARD_TABLES.get(snapshot.mission_family)` at
+      `runtime_bridge_cores.py:676-681`. That range is the `_GUARD_TABLES`
+      dict's literal definition (the 4-key table: research/documentation/
+      software-dev/plan) — it contains no `.get()` call. The actual
+      `_GUARD_TABLES.get(snapshot.mission_family)` expression is one function
+      down, at line 693, inside `evaluate_guards_strict`. Low-impact (the
+      surrounding FR-001 prose correctly describes the semantics, and the
+      dict itself is real and at the cited lines), but it is the one
+      code-citation slip found across an otherwise fully-verified set of
+      ~12 code citations checked in this spec.
+    remediation: >
+      Update the FR-001 citation to `runtime_bridge_cores.py:676-681,693`
+      (or just `:693`) to point at the actual `.get()` dispatch call, keeping
+      `:676-681` only if explicitly labeled as the table declaration.

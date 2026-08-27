@@ -1,0 +1,183 @@
+schema: review-findings/v1
+complete: true
+phase: plan
+mission: custom-mission-guard-failure-blocking-inert-01M0STY0
+findings:
+  - id: PLAN-GOV-001
+    lens: campsite-scope
+    severity: 3
+    title: "WP00 campsite-clean commit is stated to precede WP02's functional commit, but the plan's own dead-symbols reasoning requires the caller (added by the functional commit) to exist first"
+    evidence:
+      - artifact: "plan.md § Campsite-clean scope (charter Standing Order #2), \"Sequencing\" paragraph (lines 388-393)"
+      - artifact: "plan.md § ATDD-first per WP, WP00 row (lines 404)"
+      - code: "src/specify_cli/runtime/resolver.py:58-66 (stale comment: \"adding either to __all__ before that caller exists reds tests/architectural/test_no_dead_symbols.py\")"
+    claim: >
+      The "Sequencing" paragraph states the campsite-clean commit (restoring
+      `required_artifacts_for` to `__all__` + fixing the stale comment) is "a distinct commit
+      preceding that WP's functional implementation commit." But the WP00 row of the ATDD-first
+      table, and the stale comment itself (quoted in the Campsite-clean scope section), both
+      establish that adding `required_artifacts_for` to `__all__` is only valid (keeps
+      `tests/architectural/test_no_dead_symbols.py` green) once a real caller exists — and the
+      real caller is added by the functional implementation commit the campsite-clean commit is
+      said to precede. Taken literally, following "precedes" would mean the campsite-clean commit
+      lands with `required_artifacts_for` in `__all__` and zero callers, redding
+      `test_no_dead_symbols.py` at that commit — the exact failure mode the plan's own quoted
+      comment warns about. The plan states both "precedes" and "the comment only becomes stale
+      once the caller exists" in the same paragraph without resolving the contradiction.
+    remediation: >
+      Fix the ordering statement in the "Sequencing" paragraph: the campsite-clean commit
+      (stale-comment removal + `__all__` restoration) must land AFTER (or as part of the same
+      commit as) the functional commit that wires `required_artifacts_for` into
+      `gather_artifact_presence` — not before it — since the comment is only false, and the
+      `__all__` addition only non-vacuous, once that caller exists. Either merge the two into one
+      WP02 commit, or explicitly reorder so the caller-adding commit lands first and the
+      campsite-clean commit immediately follows it, and update the WP00 ATDD-first row's wording
+      to match so a WP-implementing agent does not attempt the literal "precedes" order and hit
+      the dead-symbols gate.
+
+  - id: PLAN-GOV-002
+    lens: ledger
+    severity: 2
+    title: "tracer-tooling-friction.md attributes the plan.md-authoring session's event-journal-lock warnings only to a vague \"#3283 shared-lock-timeout class\" pointer, not the specific matching ledger entries (SK-63/SK-65/SK-70) that document this exact command and warning signature"
+    evidence:
+      - artifact: "tracer-tooling-friction.md, first entry (2026-08-24, `.venv/bin/spec-kitty plan --mission ... --json`)"
+      - artifact: "SPEC-KITTY-LEDGER.md § SK-70 (\"spec-kitty plan --mission <slug> --json hangs forever after writing partial state\"), lines 461-505"
+      - artifact: "SPEC-KITTY-LEDGER.md § SK-63/SK-65 (same warning-signature family), lines 4812-4920"
+    claim: >
+      This mission's own tracer-tooling-friction.md entry logs the exact warning signature
+      (`event journal capture failed: project sync store is locked`, `Explicit-context event
+      capture failed: machine layout cutover did not publish within the bounded wait`) that
+      SPEC-KITTY-LEDGER.md's SK-70 documents for the identical command
+      (`spec-kitty plan --mission <slug> --json`), reproduced twice already including a
+      corroboration dated 2026-08-24 (the same day as this plan). SK-70's own text distinguishes
+      "hangs forever, no JSON" (its own symptom) from "warned but completed with
+      `result: success`" (the milder SK-63/F1-shaped symptom this mission actually hit) — so this
+      occurrence is the milder variant, but it is squarely inside the SK-63/SK-65/SK-70 family the
+      ledger already tracks by name. The tracer entry instead attributes it only to "the shared
+      test-venv/event-store contention issue already tracked elsewhere (adjacent to issue #3283's
+      shared-lock-timeout class)" — a generic GitHub issue pointer, never citing the specific
+      SK-ID(s) that already document this precise command and warning text, even though the
+      mission's own review instructions direct checking the ledger for exactly this kind of
+      planning-phase tooling entry.
+    remediation: >
+      Update tracer-tooling-friction.md's first entry to cite SK-63/SK-65/SK-70 by ledger ID
+      (in addition to or instead of #3283), noting this occurrence completed with a JSON payload
+      (the milder, non-hanging variant) rather than reproducing SK-70's full hang — so a future
+      reader correlating tracer friction against the ledger does not have to re-discover the match
+      independently.
+
+  - id: PLAN-ARCH-001
+    lens: blast-radius
+    severity: 3
+    title: "NFR-002's mandatory operator-visible-behavior-change documentation has no WP owner, and the plan's blast-radius analysis stops at the internal dataclass instead of the actual JSON boundary the behavior change crosses"
+    evidence:
+      - artifact: "spec.md § NFR-002 (Non-Functional Requirements table + row text)"
+      - artifact: "plan.md § Upgrade/migration chain (only place NFR-002 is referenced; cites it solely to argue no *data* migration is needed)"
+      - artifact: "plan.md § Phasing / work-package shape (WP00-WP04 list — no WP names a documentation/changelog/operator-communication deliverable)"
+      - artifact: "plan.md § Contract-moves check (scopes the boundary analysis to whether ArtifactPresenceSnapshot/blocking_artifact_names itself is serialized — correctly concludes it is not — but does not follow the causal chain to the field its evaluation populates)"
+      - code: "src/runtime/next/decision.py:94 — Decision.guard_failures: list[str] (the field evaluate_guards_strict's new branch populates for custom families for the first time)"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:899-905 — _print_decision(): `d = decision.to_dict()`; `print(json.dumps(d, indent=2))` under `--json`, i.e. `spec-kitty next --json`'s literal external output"
+      - code: "src/specify_cli/cli/commands/next_cmd.py:1056-1057 — human-readable path also prints `decision.guard_failures` directly"
+    claim: >
+      I independently verified the plan's own Contract-moves-check claim (ArtifactPresenceSnapshot /
+      blocking_artifact_names never crosses a process boundary) and it is correct — grep confirms both
+      types are referenced only inside runtime_bridge_io.py/runtime_bridge_cores.py and their own test
+      files (tests/runtime/test_bridge_cores.py, tests/runtime/test_bridge_composition.py,
+      tests/architectural/test_bridge_cores_import_boundary.py), never by orchestrator_api/commands.py
+      (which uses an unrelated `GateDecision` type) or by any spec_kitty_events-adjacent code. So no
+      finding on that narrow claim. But the plan stops the analysis one hop too early. The *consumer*
+      of blocking_artifact_names — evaluate_guards_strict's new branch — writes into
+      Decision.guard_failures, which IS an existing, already-serialized field: `next_cmd.py`'s
+      `_print_decision()` calls `decision.to_dict()` and dumps it as `spec-kitty next --json`'s literal
+      stdout contract, which downstream automation (CI pipelines, the orchestrator-api-operator
+      integration pattern, and any downstream workspace such as team-kitty-missions/muster-missions
+      running a custom mission family like the spec's own `qa` example) can parse. Before this mission,
+      `guard_failures` for any family outside `_GUARD_TABLES` was unconditionally `[]` — silently
+      "always passing" from an external caller's point of view. After this mission, a custom family
+      with a declared manifest will, for the first time, emit real failure strings and a `blocked`
+      Decision kind at exactly the steps NFR-002 describes. Spec's own NFR-002 anticipates this
+      ("previously advancing silently... may, on its next evaluation, correctly BLOCK — this is the
+      intended fix, and must be documented as an operator-visible behavior change... not silently
+      absorbed"), but the plan never assigns that documentation obligation to a WP, and its own
+      "Blast radius to downstream workspaces" thread — which the mission brief explicitly asked this
+      plan to carry — is answered only implicitly (Generated Artifacts § "no agent command template is
+      touched" / Contract-moves-check's internal-dataclass framing), never as an explicit statement
+      that the externally-visible `guard_failures`/`Decision.kind` output for custom families is about
+      to change shape-of-content (not shape-of-schema) for any downstream consumer parsing
+      `spec-kitty next --json`.
+    remediation: >
+      Add an explicit "Blast radius to downstream workspaces" subsection to plan.md (or fold into the
+      existing Contract-moves-check / Upgrade-migration-chain sections) that: (1) states plainly that
+      while ArtifactPresenceSnapshot/blocking_artifact_names never itself crosses a process boundary,
+      Decision.guard_failures — the field it feeds — is already part of `spec-kitty next --json`'s
+      external contract, and this mission changes its *content* for any custom mission family with a
+      declared manifest; (2) names the concrete downstream risk (a workspace that treats
+      `guard_failures == []` as "this custom family always passes" will start seeing real blocks); and
+      (3) assigns NFR-002's documentation obligation to a specific WP deliverable — e.g. a CHANGELOG.md
+      entry (per the charter's Code Review Checklist: "Breaking changes documented in CHANGELOG.md")
+      and/or a short operator-facing note in the mission's own tracer-design-decisions.md, produced no
+      later than WP04 (the full regression/NFR sweep WP), rather than leaving NFR-002's "not silently
+      absorbed" clause with no work-package owner.
+
+  - id: PLAN-VERIFY-001
+    lens: coverage-floor-claim-verification
+    severity: 4
+    title: "Gate set section's coverage-floor exemption claim is wrong: a third, unlisted 90% diff-coverage floor (diff-coverage job, critical_paths includes src/runtime/next/*) DOES gate this mission's own changed files"
+    evidence:
+      - artifact: "plan.md § Gate set for this mission, 'Coverage-floored shards' bullet (lines 268-294)"
+      - code: ".github/workflows/ci-quality.yml:3283 (job `diff-coverage`, `if: ... github.event_name == 'pull_request' ...` — runs on every PR unless labeled pr:deferred/pr:skip-ci)"
+      - code: ".github/workflows/ci-quality.yml:3333 (step \"diff-coverage (critical-path, enforced)\")"
+      - code: ".github/workflows/ci-quality.yml:3345-3367 (`critical_paths=( ... 'src/runtime/next/*' ... )` shell array — line 3366 is the literal `'src/runtime/next/*'` entry)"
+      - code: ".github/workflows/ci-quality.yml:3391-3395 (`uv run diff-cover ... --compare-branch=origin/${{ github.base_ref }} --fail-under=90 --include \"${critical_paths[@]}\"`)"
+      - code: "tests/architectural/_gate_coverage.py:409-410,574-575,717 (`_CRITICAL_PATHS_RE`, `_diff_cover_critical_paths()`, `diff_cover_critical_paths` field — the repo's own architectural model explicitly tracks this job's critical-path array as a first-class CI gate, confirming it is not an obscure/incidental job)"
+    claim: >
+      Plan.md's "Gate set for this mission" section states, as its single most
+      consequential factual claim, that "NEITHER the kernel 90% floor NOR the
+      mission-loader 90% floor applies to this mission's changed files" and that
+      "[the two jobs that cover this mission's files] neither ... carr[y] a
+      --cov-fail-under flag" — grepped only for the literal pytest-cov flag
+      string "cov-fail-under" (found only at ci-quality.yml:1456 [90,
+      mission-loader], :2297 [55, charter], :2344 [10, agent], and
+      module-kernel.yml's separate Python enforcement script [90, kernel]).
+      That grep methodology is too narrow: it misses the semantically
+      equivalent `diff-cover` tool's `--fail-under` flag (no "cov-" prefix),
+      used by the `diff-coverage` job's "diff-coverage (critical-path,
+      enforced)" step. That step runs `diff-cover ... --fail-under=90
+      --include "${critical_paths[@]}"` where `critical_paths` literally
+      includes `'src/runtime/next/*'` — i.e. it directly, and by name,
+      diff-coverage-gates 4 of the 5 files in this mission's blast radius
+      (`runtime_bridge_cores.py`, `runtime_bridge_io.py`, `runtime_bridge.py`,
+      `runtime_bridge_composition.py`, all under `src/runtime/next/`) at a
+      90% floor on the mission's own new/changed lines, on every PR. Only
+      `src/specify_cli/runtime/resolver.py` (not under `src/runtime/next/`
+      and not matching any other `critical_paths` entry) escapes this
+      specific gate, falling back to the "full-diff, advisory" step (`||
+      true`, non-blocking). So the plan's blanket claim that "no coverage
+      floor gates this mission's own files" is FALSE for 4 of 5 touched
+      files — a real, enforced, 90% *diff*-coverage floor (distinct in
+      mechanism from the kernel/mission-loader *total*-coverage floors the
+      plan correctly ruled out, but equivalent in effect: it can fail the PR)
+      applies to `src/runtime/next/*`. This directly misinforms every
+      downstream phase (tasks, implement) about what actually gates the PR,
+      which is the exact harm this lens was dispatched to catch.
+    remediation: >
+      Rewrite the "Coverage-floored shards" bullet in plan.md's Gate set
+      section to add a new sub-bullet: "diff-coverage (critical-path,
+      enforced)" (`ci-quality.yml:3283`, step at `:3333`) DOES apply to this
+      mission's `src/runtime/next/*` changes (`runtime_bridge_cores.py`,
+      `runtime_bridge_io.py`, `runtime_bridge.py`,
+      `runtime_bridge_composition.py`) at a 90% *diff*-coverage floor
+      (`--fail-under=90 --include 'src/runtime/next/*' ...`,
+      `ci-quality.yml:3393`) — every new/changed line in those 4 files needs
+      ≥90% line coverage from the union of uploaded coverage XMLs (primarily
+      `fast-tests-next`'s `--cov=src/runtime/next`) or the PR's
+      `diff-coverage` job fails. `src/specify_cli/runtime/resolver.py` is
+      NOT in the `critical_paths` array, so it remains ungated by this
+      specific job (falls to the advisory full-diff step only) — the plan's
+      exemption claim is correct for that one file but not for the other
+      four. Move this from "Coverage-floored shards: neither applies" to an
+      explicit third ENFORCED gate entry, and flag it to the tasks/implement
+      phases so each WP touching `src/runtime/next/*` budgets test coverage
+      for its new branches (e.g. WP01's new `is None` branch in
+      `evaluate_guards_strict`, WP03's `repo_root`-threading call sites)
+      accordingly.
