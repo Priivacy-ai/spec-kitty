@@ -148,7 +148,7 @@ def _print_saas_endpoint() -> ResolvedServerTarget | None:
         # escape(): the message embeds the raw config/env URLs, which are
         # attacker- or fat-finger-controlled and can contain
         # `[sync]`/`[/]`-shaped substrings (#182's rationale applies here too).
-        console.print("  SaaS:           [red]split-brain[/red] [dim](env and config.toml disagree)[/dim]")
+        console.print(f"{_SAAS_STATUS_LABEL}[red]split-brain[/red] [dim](env and config.toml disagree)[/dim]")
         console.print(f"  [yellow]{escape(str(exc))}[/yellow]")
         return
     except ConfigurationError:
