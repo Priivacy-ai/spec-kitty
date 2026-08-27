@@ -1,6 +1,6 @@
 ---
 title: 'Install-agnostic pre-commit hook fallback + spec-kitty migrate repin-hooks'
-description: 'The pre-commit hook pins an absolute interpreter path at install time; an install-method migration (pipx -> uv) can move it. The hook now falls back to a PATH-resolved spec-kitty entrypoint, and a repair command re-pins already-broken repos.'
+description: 'Pre-commit hook falls back to a PATH-resolved spec-kitty entrypoint when its pinned interpreter is gone, and a repair command re-pins already-broken repos.'
 status: Accepted
 date: '2026-08-27'
 ---

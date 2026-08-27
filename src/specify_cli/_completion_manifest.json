@@ -519,6 +519,11 @@
     }
    }
   },
+  "commit-guard-hook": {
+   "help": "Run the commit guard and exit with its result code.",
+   "hidden": true,
+   "deprecated": false
+  },
   "config": {
    "help": "Display project configuration and asset resolution information.",
    "hidden": false,
@@ -953,6 +958,11 @@
     },
     "rebaseline-dossier-hashes": {
      "help": "One-time re-baseline of recorded dossier snapshot hashes (FR-009, WP05).\n\nRecomputes every recorded ``.kittify/dossiers/<slug>/snapshot-latest.json``\nhash under the canonical definition (WP01/WP02) so content that did not\nchange is not flagged divergent after the cutover. Idempotent (snapshots\nalready in canonical ``sha256:`` form are skipped) and read-only over source\nartifacts — only the recorded snapshot cache files are written (#2263).\n\nExit codes:\n\n- ``0`` — completed (some snapshots may be reported as errors and skipped)\n- ``1`` — project root could not be located",
+     "hidden": false,
+     "deprecated": false
+    },
+    "repin-hooks": {
+     "help": "Re-pin this repository's pre-commit hook to the current interpreter (#254).\n\n``policy/hook_installer.py`` pins the absolute Python interpreter path\ninto the pre-commit hook at install time. An install-method migration\n(e.g. pipx -> uv) moves that interpreter, and the OLD hook keeps pointing\nat a path that no longer exists. This command re-runs the same install\nthe ``implement`` lane calls internally, but without requiring a mission\nor workspace — the repair does not depend on the very thing it is\nrepairing (the ability to commit).\n\nIdempotent: safe to re-run; a hook already pinned to the current\ninterpreter is simply re-written with the same content.\n\nExit codes:\n\n- ``0`` — the hook was (re-)installed\n- ``1`` — project root could not be located, or the current\n  ``sys.executable`` does not refer to an existing file\n\nExamples:\n\n    spec-kitty migrate repin-hooks\n\n    spec-kitty migrate repin-hooks --json",
      "hidden": false,
      "deprecated": false
     }
