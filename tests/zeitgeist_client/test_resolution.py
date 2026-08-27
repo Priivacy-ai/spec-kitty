@@ -761,9 +761,7 @@ class TestResolveCredentialsHonorsASharedDeadline:
     fan-out seam's 10s bound. These assert the shared object is actually
     threaded through to ``origin_url``, not silently re-minted."""
 
-    def test_resolve_credentials_passes_the_given_deadline_to_origin_url(
-        self, state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_resolve_credentials_passes_the_given_deadline_to_origin_url(self, state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         shared = resolution.repo_identity.Deadline()
         seen: list[object] = []
         real_origin_url = resolution.repo_identity.origin_url
@@ -778,9 +776,7 @@ class TestResolveCredentialsHonorsASharedDeadline:
 
         assert seen == [shared], "resolve_credentials must forward the caller's Deadline, not mint its own"
 
-    def test_resolve_credentials_mints_its_own_deadline_when_none_is_given(
-        self, state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_resolve_credentials_mints_its_own_deadline_when_none_is_given(self, state_root: Path, clone: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         seen: list[object] = []
         real_origin_url = resolution.repo_identity.origin_url
 
@@ -795,9 +791,7 @@ class TestResolveCredentialsHonorsASharedDeadline:
         assert len(seen) == 1  # golden-count: cardinality-is-contract -- one origin_url call, not a named set
         assert isinstance(seen[0], resolution.repo_identity.Deadline)
 
-    def test_resolve_focus_capability_passes_the_given_deadline_to_origin_url(
-        self, state_root: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_resolve_focus_capability_passes_the_given_deadline_to_origin_url(self, state_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         credentials.store(repo=KEY, relay_url="http://relay", token="bearer", token_kind=KIND_PRESENCE)
         shared = resolution.repo_identity.Deadline()
         seen: list[object] = []
