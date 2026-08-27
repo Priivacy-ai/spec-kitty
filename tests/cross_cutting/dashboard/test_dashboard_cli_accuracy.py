@@ -26,6 +26,7 @@ from urllib.request import urlopen
 from urllib.error import URLError
 import json
 
+from kernel.clock import now_epoch
 from tests.test_isolation_helpers import get_venv_python
 
 pytestmark = pytest.mark.git_repo
@@ -219,7 +220,7 @@ def _record_dashboard_candidate(
 ) -> None:
     path = manifest_path or _dashboard_test_manifest_path()
     entries = _load_dashboard_test_manifest(path)
-    started_at = time.time()
+    started_at = now_epoch()
     updated = []
     for entry in entries:
         if entry.get("port") == port:
@@ -244,7 +245,7 @@ def _cleanup_stale_dashboard_manifest_entries(
 ) -> int:
     """Reap only stale dashboard test ports recorded by this module."""
     path = manifest_path or _dashboard_test_manifest_path()
-    now = time.time()
+    now = now_epoch()
     retained = []
     killed = 0
 
