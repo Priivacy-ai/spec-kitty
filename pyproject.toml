@@ -63,12 +63,11 @@ dependencies = [
     "pydantic>=2.0",
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
-    # spec-kitty-events / spec-kitty-tracker: external PyPI dependencies.
-    # Compatibility ranges follow the upstream public-surface contracts pinned
-    # in tests/contract/spec_kitty_events_consumer/ and
-    # tests/contract/spec_kitty_tracker_consumer/. Exact pinned versions live
-    # in uv.lock, not here. spec-kitty-runtime is intentionally absent: the
-    # CLI's runtime surface is internalized under
+    # spec-kitty-events / spec-kitty-tracker: internal programme dependencies.
+    # Their public-surface contracts are pinned in
+    # tests/contract/spec_kitty_events_consumer/ and
+    # tests/contract/spec_kitty_tracker_consumer/. spec-kitty-runtime is
+    # intentionally absent: the CLI's runtime surface is internalized under
     # src/runtime/next/ (see WP01 of mission
     # shared-package-boundary-cutover-01KQ22DS), and absence is enforced by
     # tests/architectural/test_pyproject_shape.py.
@@ -80,20 +79,14 @@ dependencies = [
     # spec_kitty_events.strict.validate_strict_envelope. 8.0.0 adds the
     # canonical `genesis` lane contract that src/specify_cli/status/emit.py's
     # capability gate (_EVENTS_SUPPORTS_GENESIS) already degrades gracefully
-    # without. No installable 8.0.0 exists on any index (Actions are off
-    # programme-wide; EXPERIMENTAL-spec-kitty-planning#31 is the standing
-    # publish decision), so until it is published this is a PEP 508 direct
-    # git reference, not a version range: PROGRAM.md §2's wheel-installability
-    # exception (spec-kitty-cli installs as a wheel into a clean environment,
-    # e.g. `uv tool install … @ git+…`) requires the pin to live in the
-    # dependency itself — [tool.uv.sources] does not travel into the wheel's
-    # Requires-Dist (controller-qa on #58). The host is always github.com,
-    # never the exe.dev github.int.exe.xyz forge proxy: laptops installing the
-    # CLI cannot resolve that proxy. A direct reference and a version range
-    # cannot coexist for one name, so there is no range here — move back to a
-    # plain compatible range the moment 8.0.0 is published.
+    # without. For the programme, both shared packages resolve from exact git
+    # SHAs, never PyPI (PROGRAM.md §2; planning#31). The CLI installs as a wheel
+    # in a clean environment, so each pin lives in the dependency itself:
+    # [tool.uv.sources] does not travel into the wheel's Requires-Dist
+    # (controller-qa on #58). The host is always github.com, never the exe.dev
+    # github.int.exe.xyz forge proxy, which laptops cannot resolve.
     "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
-    "spec-kitty-tracker>=0.4,<0.5",
+    "spec-kitty-tracker @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-tracker@f9dbd014410a137d70dab230007d415652d9bff8",
     "toml>=0.10.2",  # Config file parsing
     "tomli-w>=1.0.0",  # TOML write serialiser (stdlib tomllib is read-only)
     "filelock>=3.13.0",  # Credential storage locking

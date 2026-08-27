@@ -60,7 +60,7 @@ Gates are ordered alphabetically within each axis group.
 - **`test_compat_shims.py`** — Confirms every compat shim under `src/specify_cli/` is registered, follows the naming convention, and has a target removal version declared.
 - **`test_events_tracker_public_imports.py`** — Confirms `spec-kitty-events` and `spec-kitty-tracker` are consumed only via their public `spec_kitty_events.*` / `spec_kitty_tracker.*` import surfaces. No private-module access.
 - **`test_no_runtime_pypi_dep.py`** — Confirms the CLI does not depend on `spec-kitty-runtime` at runtime. The standalone runtime package is retired.
-- **`test_pyproject_shape.py`** — Confirms `pyproject.toml` does not contain path/editable/branch overrides in `[tool.uv.sources]` (dev-only overrides must stay out of committed config).
+- **`test_pyproject_shape.py`** — Confirms shared-package dependencies and `uv.lock` use exact public git-SHA references and reject path/editable/branch overrides.
 - **`test_shared_package_boundary.py`** — Confirms `spec_kitty_events` and `spec_kitty_tracker` are not vendored into `src/specify_cli/`. Boundary enforcement for external contract packages.
 - **`test_unregistered_shim_scanner.py`** — Scans for shim-shaped files not registered in the shim registry. Catches unregistered shims that bypass the compat audit.
 - **`test_uv_lock_pin_drift.py`** — Detects drift between `pyproject.toml` declared ranges and the `uv.lock` pinned versions; fails if any pinned package falls outside the declared range.
