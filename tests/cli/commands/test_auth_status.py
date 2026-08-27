@@ -438,9 +438,7 @@ def _target(
     env_server_url: str | None,
     configured_server_url: str | None,
 ) -> ResolvedServerTarget:
-    # Hand-built target for the pure formatters. Since #179 real resolution
-    # cannot produce both-None, so the placeholder only matters to tests that
-    # exercise those defensive branches directly.
+    # Hand-built target for the pure formatters.
     resolved = env_server_url or configured_server_url or "https://handbuilt.test"
     return ResolvedServerTarget(
         configured_server_url=configured_server_url,
@@ -466,10 +464,6 @@ class TestSaasSourceName:
         target = _target(env_server_url=None, configured_server_url="https://config.test")
         assert saas_source_name(target) == "config.toml [sync].server_url"
 
-    def test_default_when_neither(self):
-        target = _target(env_server_url=None, configured_server_url=None)
-        assert saas_source_name(target) == "the default endpoint"
-
 
 class TestFormatSaasProvenance:
     """The dim suffix shown next to the ``SaaS:`` line."""
@@ -481,10 +475,6 @@ class TestFormatSaasProvenance:
     def test_from_config_toml(self):
         target = _target(env_server_url=None, configured_server_url="https://config.test")
         assert format_saas_provenance(target) == "(from config.toml [sync].server_url)"
-
-    def test_default(self):
-        target = _target(env_server_url=None, configured_server_url=None)
-        assert format_saas_provenance(target) == "(default)"
 
 
 class TestFormatSaasMismatchWarning:

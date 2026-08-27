@@ -255,25 +255,22 @@ def saas_source_name(target: ResolvedServerTarget) -> str:
 
     Mirrors the precedence inside
     :func:`specify_cli.auth.server_target.resolve_server_target`: env first,
-    then ``config.toml [sync].server_url``, then the documented default. Used
-    in the mismatch warning so the sentence names the thing the user must
-    change. Note ``.kittify/saas-auth.json`` is deliberately absent — it feeds
-    the tracker/zeitgeist transport chain, not the OAuth login target.
+    then ``config.toml [sync].server_url`` — the only two sources it can
+    resolve from, since #179 that resolver fails closed when neither is set.
+    Used in the mismatch warning so the sentence names the thing the user
+    must change. Note ``.kittify/saas-auth.json`` is deliberately absent — it
+    feeds the tracker/zeitgeist transport chain, not the OAuth login target.
     """
     if target.env_server_url is not None:
         return SAAS_URL_ENV_VAR
-    if target.configured_server_url is not None:
-        return "config.toml [sync].server_url"
-    return "the default endpoint"
+    return "config.toml [sync].server_url"
 
 
 def format_saas_provenance(target: ResolvedServerTarget) -> str:
     """Return the dim provenance suffix shown next to the ``SaaS:`` line."""
     if target.env_server_url is not None:
         return f"(from {SAAS_URL_ENV_VAR})"
-    if target.configured_server_url is not None:
-        return "(from config.toml [sync].server_url)"
-    return "(default)"
+    return "(from config.toml [sync].server_url)"
 
 
 def format_saas_mismatch_warning(
