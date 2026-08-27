@@ -26,7 +26,8 @@ from urllib.request import urlopen
 from urllib.error import URLError
 import json
 
-from kernel.clock import now_epoch
+import kernel.clock as clock_module
+from kernel.clock import FrozenClock, now_epoch
 from tests.test_isolation_helpers import get_venv_python
 
 pytestmark = pytest.mark.git_repo
@@ -221,10 +222,23 @@ def _record_dashboard_candidate(
     path = manifest_path or _dashboard_test_manifest_path()
     entries = _load_dashboard_test_manifest(path)
     started_at = now_epoch()
+    current_listener_pids = set(_process_ids_for_port(port))
     updated = []
     for entry in entries:
         if entry.get("port") == port:
-            started_at = float(entry.get("started_at", started_at))
+            previous_pids = set()
+            for raw_pid in entry.get("pids", []):
+                try:
+                    previous_pids.add(int(raw_pid))
+                except (TypeError, ValueError):
+                    continue
+            # Only the same process still listening on this port proves this
+            # is a continuation rather than a fresh launch on a recycled
+            # port -- carry the original started_at forward in that one
+            # case; otherwise this is a new launch and gets a fresh clock
+            # reading so the stale-age gate cannot fire on it prematurely.
+            if previous_pids and previous_pids & current_listener_pids:
+                started_at = float(entry.get("started_at", started_at))
             continue
         updated.append(entry)
     updated.append(
@@ -744,6 +758,53 @@ def test_no_process_name_wide_dashboard_kill():
     source = Path(__file__).read_text(encoding="utf-8")
     assert ("pg" + "rep") not in source
     assert ("run_dashboard_" + "server") not in source
+
+
+def test_record_dashboard_candidate_gives_new_launch_on_recycled_port_a_fresh_started_at(monkeypatch, tmp_path):
+    """A fresh launch on a recycled port must not inherit the old occupant's started_at.
+
+    Regression for the squad pass-2 MAJOR on PR#523: recording port 61999 at
+    an old instant, then re-recording the same port later for a live,
+    unrelated process, must not leave the old ``started_at`` in place --
+    that is exactly what disarmed the stale-age gate.
+    """
+    manifest = tmp_path / "manifest.json"
+    port = 61999
+    old_instant = clock_module.datetime.fromtimestamp(1_000_000.0, tz=clock_module.UTC)
+    new_instant = clock_module.datetime.fromtimestamp(1_001_200.0, tz=clock_module.UTC)
+    module = sys.modules[__name__]
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=old_instant))
+    monkeypatch.setattr(module, "_process_ids_for_port", lambda _port: [1111])
+    _record_dashboard_candidate(port, tmp_path / "old-project", pids=[1111], manifest_path=manifest)
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=new_instant))
+    monkeypatch.setattr(module, "_process_ids_for_port", lambda _port: [4242])
+    _record_dashboard_candidate(port, tmp_path / "new-project", pids=[4242], manifest_path=manifest)
+
+    [entry] = _load_dashboard_test_manifest(manifest)
+    assert entry["started_at"] == 1_001_200.0
+    assert entry["pids"] == [4242]
+
+
+def test_record_dashboard_candidate_keeps_started_at_when_same_process_still_listens(monkeypatch, tmp_path):
+    """Re-recording a port whose listener is unchanged must keep the original started_at."""
+    manifest = tmp_path / "manifest.json"
+    port = 61999
+    original_instant = clock_module.datetime.fromtimestamp(1_000_000.0, tz=clock_module.UTC)
+    later_instant = clock_module.datetime.fromtimestamp(1_000_030.0, tz=clock_module.UTC)
+    module = sys.modules[__name__]
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=original_instant))
+    monkeypatch.setattr(module, "_process_ids_for_port", lambda _port: [5555])
+    _record_dashboard_candidate(port, tmp_path / "project", pids=[5555], manifest_path=manifest)
+
+    monkeypatch.setattr(clock_module, "DEFAULT_CLOCK", FrozenClock(instant=later_instant))
+    _record_dashboard_candidate(port, tmp_path / "project", pids=[5555], manifest_path=manifest)
+
+    [entry] = _load_dashboard_test_manifest(manifest)
+    assert entry["started_at"] == 1_000_000.0
+    assert entry["pids"] == [5555]
 
 
 def test_stale_manifest_reaper_kills_only_old_recorded_dashboard(monkeypatch, tmp_path):
