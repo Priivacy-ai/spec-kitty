@@ -202,10 +202,19 @@ class DeviceCodeFlow:
         (400) responses are JSON bodies; the poller distinguishes them via
         the presence of the ``error`` key.
 
+        An HTTP 429 is the server asking the client to slow down expressed
+        at the HTTP layer rather than in an OAuth error body (there is no
+        RFC 8628 status for this). It is translated to the same
+        ``{"error": "slow_down"}`` shape the poller already handles, so a
+        rate limit feeds the poller's existing backoff instead of aborting
+        the flow. A ``Retry-After`` header, if present, is passed through as
+        a hint; the poller still enforces its own interval ceiling (FR-018).
+
         Raises:
             NetworkError: On httpx transport errors, so the poller can log
                 and retry on the next tick.
-            AuthenticationError: On unexpected HTTP status codes (not 200/400).
+            AuthenticationError: On unexpected HTTP status codes (not
+                200/400/429).
         """
         url = f"{self._saas_base_url}/oauth/token"
         data = {
@@ -231,6 +240,12 @@ class DeviceCodeFlow:
                 raise AuthenticationError(
                     f"Token poll response was not JSON: {exc}"
                 ) from exc
+
+        if response.status_code == 429:
+            return {
+                "error": "slow_down",
+                "retry_after": _parse_retry_after(response.headers),
+            }
 
         raise AuthenticationError(
             f"Unexpected response from /oauth/token: HTTP {response.status_code}"
@@ -351,6 +366,23 @@ class DeviceCodeFlow:
                     "refresh_token_expires_in was not an int: %r", relative
                 )
                 return None
+        return None
+
+
+def _parse_retry_after(headers: httpx.Headers) -> int | None:
+    """Parse a ``Retry-After`` header as whole seconds, if present and valid.
+
+    RFC 7231 §7.1.3 also allows an HTTP-date form; we only support the
+    delay-seconds form here since that is what a rate limiter on a
+    short-lived polling endpoint would send. An unparseable or missing
+    header yields ``None`` and the poller falls back to its flat backoff.
+    """
+    value = headers.get("Retry-After")
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except ValueError:
         return None
 
 
