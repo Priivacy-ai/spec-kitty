@@ -6,6 +6,19 @@ Reads ``SPEC_KITTY_SAAS_URL``, ``SPEC_KITTY_SAAS_TOKEN``, and optional
 OAuth session ``spec-kitty auth login`` persists (spec-kitty#198).  Raises
 ``SaasAuthError`` if no token — or no SaaS URL — can be resolved. Per
 decision D-5 there is no hardcoded SaaS domain fallback.
+
+Scope of the #237 trust boundary (#289): this module only ever pairs
+``.kittify/saas-auth.json``'s ``saas_url`` with its own token, never with an
+env-supplied one — that is what #237 fixed and what the docstrings below
+describe. That boundary does not, and cannot, extend to ``os.environ``
+itself: the per-repo ``.kittify/.kitty.env`` tier
+(:mod:`specify_cli.bootstrap.env_file`) seeds ``SPEC_KITTY_SAAS_URL`` (and
+other governed vars) into ``os.environ`` from committed, checkout-controlled
+content, before this module ever runs. That is documented, intended
+behaviour (``docs/api/environment-variables.md``, "The ``.kitty.env``
+file"), not a bug in this module — #289 is the tracking issue for the
+resulting residual: a value this module treats as "the environment" may
+itself trace back to a cloned repository.
 """
 
 from __future__ import annotations
@@ -203,11 +216,15 @@ def _server_target_url() -> str:
     """Best-effort canonical server target URL, for pairing with an
     env-supplied token when ``SPEC_KITTY_SAAS_URL`` itself is unset (#237).
 
-    This is a trusted source (env or ``config.toml``, never a checkout), unlike
-    ``.kittify/saas-auth.json``'s ``saas_url``, which must not be honoured
-    alongside an env token. Any resolution trouble (nothing configured,
-    split-brain) degrades to ``""`` — the caller's own "SaaS URL not
-    configured" refusal already says what to do.
+    Resolved via :func:`resolve_server_target` (env or ``config.toml``), which
+    this function treats as trusted *relative to
+    ``.kittify/saas-auth.json``* — a checkout-controlled file this module
+    reads directly and refuses to pair with an env token (#237). It is not a
+    claim that ``os.environ`` is itself checkout-free: the module docstring
+    above (#289) names the separate, documented trust surface the per-repo
+    ``.kitty.env`` tier introduces. Any resolution trouble (nothing
+    configured, split-brain) degrades to ``""`` — the caller's own "SaaS URL
+    not configured" refusal already says what to do.
     """
     try:
         return _resolved_server_target().resolved_server_url

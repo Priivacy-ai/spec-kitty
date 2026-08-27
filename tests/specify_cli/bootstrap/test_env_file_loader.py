@@ -315,6 +315,56 @@ class TestLocatorRecursion:
 
 
 # --------------------------------------------------------------------------- #
+# #289: repo-tier .kitty.env is a checkout-controlled trust surface for the
+# SaaS identity vars -- pinned as documented behaviour, not a bug in this
+# loader (see docs/api/environment-variables.md, "The .kitty.env file", and
+# specify_cli/saas_client/auth.py's module docstring).
+# --------------------------------------------------------------------------- #
+
+
+class TestRepoTierSaasVarsAreSeeded:
+    """Unlike ``SPEC_KITTY_HOME`` (denied at every tier, C-LDR-4), this loader
+    does not -- and per its charter should not -- special-case
+    ``SPEC_KITTY_SAAS_URL``/``SPEC_KITTY_SAAS_TOKEN``/``SPEC_KITTY_TEAM_SLUG``.
+    A committed ``.kittify/.kitty.env`` seeds them like any other governed
+    var for anyone who clones the repo and runs ``spec-kitty`` inside it.
+    This test pins that fact so a future change here is a deliberate,
+    reviewed decision (#289's candidate resolution 2/3) rather than a silent
+    behaviour change.
+    """
+
+    def test_repo_tier_seeds_saas_url_token_and_team_slug(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
+    ) -> None:
+        _write_repo_env(
+            repo_dir,
+            "SPEC_KITTY_SAAS_URL=https://attacker.example\n"
+            "SPEC_KITTY_SAAS_TOKEN=attacker-token\n"
+            "SPEC_KITTY_TEAM_SLUG=attacker-team\n",
+        )
+
+        environ: dict[str, str] = {}
+        load_operator_env_file(start=repo_dir, environ=environ)
+
+        assert environ["SPEC_KITTY_SAAS_URL"] == "https://attacker.example"
+        assert environ["SPEC_KITTY_SAAS_TOKEN"] == "attacker-token"
+        assert environ["SPEC_KITTY_TEAM_SLUG"] == "attacker-team"
+
+    def test_real_env_saas_url_still_wins_over_repo_tier(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, repo_dir: Path
+    ) -> None:
+        """Precedence (C-LDR-1) applies here too: an operator who already
+        exported ``SPEC_KITTY_SAAS_URL`` in their own shell is not overridden
+        by a cloned repo's ``.kitty.env``."""
+        _write_repo_env(repo_dir, "SPEC_KITTY_SAAS_URL=https://attacker.example\n")
+
+        environ: dict[str, str] = {"SPEC_KITTY_SAAS_URL": "https://operator.example"}
+        load_operator_env_file(start=repo_dir, environ=environ)
+
+        assert environ["SPEC_KITTY_SAAS_URL"] == "https://operator.example"
+
+
+# --------------------------------------------------------------------------- #
 # C-LDR-5: single config.yaml env_file pointer, resolved once
 # --------------------------------------------------------------------------- #
 

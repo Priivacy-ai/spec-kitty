@@ -306,6 +306,18 @@ gates authentication. A malformed line is skipped with a debug log, never aborts
 `SPEC_KITTY_HOME` — the variable that *locates* the home-tier file — cannot be set from
 inside the file it locates; a line defining it there is dropped with a warning.
 
+**The repo tier is checkout-controlled — treat it like a shell export from that repo, not
+like a scoped secret.** A committed `<repo>/.kittify/.kitty.env` is read and seeded into
+`os.environ` for anyone who clones the repo and runs `spec-kitty` inside it, on the same
+trust footing as a variable they exported themselves — including `SPEC_KITTY_SAAS_URL` and
+`SPEC_KITTY_TEAM_SLUG`. This is different from `.kittify/saas-auth.json`, which
+`load_auth_context` (`specify_cli/saas_client/auth.py`) explicitly refuses to pair with an
+already-set env token (#237/#264): the repo-tier `.kitty.env` carries no such refusal, because
+by the time `load_auth_context` runs its values are indistinguishable from the real shell
+environment. Do not run `spec-kitty` commands that touch a `SPEC_KITTY_SAAS_TOKEN` inside a
+freshly cloned, unreviewed repository without checking `.kittify/.kitty.env` first (`spec-kitty
+doctor env-file` shows what each tier supplies). Tracked as #289.
+
 **Provisioning**: `spec-kitty upgrade` runs an idempotent migration that creates the
 per-repo scaffold, registers the `env_file` pointer, and adds `.kitty.env` to both
 `.gitignore` and `.claudeignore` — it never seeds `SPEC_KITTY_PACKS_ROOT` (see that
