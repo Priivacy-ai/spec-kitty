@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
+import hashlib
 import json as json_module
 import secrets
 import time
@@ -672,9 +673,16 @@ class SaaSTrackerClient:
             self._PUSH_PATH,
             self._RUN_PATH,
         }
-        # Minted keys keep the wire shape the durable allocator used
-        # (``logical-operation:write:`` + 64 hex) so the server sees one format.
-        native_identity = caller_key.strip() if caller_key is not None else f"logical-operation:write:{secrets.token_hex(32)}"
+        # A minted key must be deterministic across process death, not just
+        # across physical retries of one invocation: a crash-and-resend of an
+        # unchanged write should collide with the earlier attempt's key so the
+        # server's receipt store (unique on (team, direction, operation_name,
+        # idempotency_key)) dedupes it, rather than a random key reapplying
+        # the write (#61). Digest locally resolvable project identity + write
+        # kind + payload — no store needed, and it keeps the wire shape the
+        # deleted durable allocator used (``logical-operation:write:`` + 64
+        # hex) that the server's non-emptiness check accepts.
+        native_identity = caller_key.strip() if caller_key is not None else f"logical-operation:write:{self._content_digest(path, json)}"
         physical_headers = dict(headers or {})
         if is_write:
             physical_headers.setdefault("Idempotency-Key", native_identity)
@@ -703,6 +711,26 @@ class SaaSTrackerClient:
                 monotonic_deadline=monotonic_deadline,
             )
         return response
+
+    def _content_digest(self, path: str, payload: dict[str, Any] | None) -> str:
+        """Deterministic 64-hex digest of (project identity, write kind, payload).
+
+        A byte-identical repeat of the same logical write — including one
+        replayed from a fresh process after the original died mid-flight —
+        hashes to the same digest, so the server dedupes it. A write with
+        different content (a later push with new items, a different provider)
+        hashes differently and is never mistaken for the earlier one.
+        """
+        canonical = json_module.dumps(
+            {
+                "project_root": str(self._project_root) if self._project_root is not None else "",
+                "write_kind": path,
+                "payload": payload or {},
+            },
+            sort_keys=True,
+            default=str,
+        )
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251 - idempotency-key body checksum, not charter content
 
     def _current_tracker_egress_verdict(self) -> TrackerEgressVerdict:
         """Evaluate Channel 2 without duplicating the policy call-site seam."""
