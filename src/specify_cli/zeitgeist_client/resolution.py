@@ -72,7 +72,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from kernel.clock import now_utc, parse_iso, timedelta
+from kernel.clock import UTC, now_utc, parse_iso, timedelta
 
 from specify_cli.saas_client.auth import AuthContext, load_auth_context
 from specify_cli.saas_client.errors import SaasAuthError
@@ -398,20 +398,31 @@ def store_key_for_checkout(cwd: str | Path) -> str | None:
 
 def _expired(expires_at: str | None) -> bool:
     """Whether a verbatim ISO stamp has passed. Unstamped (every entry
-    written before stamps existed) and unparseable entries never expire —
-    a corrupt stamp must not lock a working credential out of its store.
+    written before stamps existed) and genuinely unparseable entries never
+    expire — a corrupt stamp must not lock a working credential out of its
+    store.
 
-    A stamp without an offset is unparseable *at comparison time*, not at
-    ``fromisoformat`` time: parsing succeeds, but comparing the resulting
-    naive datetime against the aware clock raises ``TypeError`` — so
-    ``TypeError`` is caught here alongside ``ValueError``, or a naive mint
-    stamp would escape this module straight into the fire-and-forget seam.
-    """
+    A stamp without an offset (a self-hosted Team Kitty running
+    ``USE_TZ=False`` mints naive stamps) parses fine but cannot be compared
+    against the aware clock as-is — ``aware >= naive`` raises
+    ``TypeError``. Rather than treat that as unparseable and let the
+    credential (or a negative "stay silent" answer) never expire, a
+    successfully-parsed naive stamp is assumed UTC and compared normally;
+    the ``TypeError`` guard stays only for text that fails to compare even
+    after that coercion (i.e. would have to be raised by something other
+    than a naive/aware mismatch, since parsing already failed above)."""
     if not expires_at:
         return False
     try:
-        return now_utc() >= parse_iso(expires_at)
-    except (ValueError, TypeError):
+        parsed = parse_iso(expires_at)
+    except ValueError:
+        return False
+    if parsed.tzinfo is None:
+        logger.debug("naive expires_at stamp %r coerced to UTC", expires_at)
+        parsed = parsed.replace(tzinfo=UTC)
+    try:
+        return now_utc() >= parsed
+    except TypeError:
         return False
 
 
