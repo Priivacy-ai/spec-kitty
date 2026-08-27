@@ -140,16 +140,16 @@ class StoredCredential:
     # every entry whose issuer did not report one (all entries stored before
     # this field existed), which callers treat as "no recorded expiry".
     expires_at: str | None = None
-    # squad finding on #123: the store key is the bare repo NAME
-    # (`repo_identity.repo_name`), which two differently-hosted repos can
+    # squad finding on #123: the store key was the bare repo NAME
+    # (`repo_identity.repo_name`), which two differently-hosted repos could
     # share (a same-name hostile checkout would otherwise read a cached
-    # admitted credential minted for someone else's repo). `host`/
-    # `repo_slug` record the full identity `resolution.py` minted this
-    # credential for, so a caller can revalidate a cache hit against the
-    # checkout it is about to use it for. `None` for every entry stored
-    # before this field existed (a manual `zeitgeist checkout`, or any
-    # pre-fix mint) -- callers treat that as "no scope recorded", the same
-    # backward-compatible reading `expires_at` already gets.
+    # admitted credential minted for someone else's repo). #132 moved the
+    # key to `resolution.store_key`'s `host/owner/repo`; `host`/
+    # `repo_slug` remain the recorded scope a caller revalidates a cache
+    # hit against before using it for a checkout. `None` for every entry
+    # stored before this field existed (a manual `zeitgeist checkout`, or
+    # any pre-fix mint) -- callers treat that as "no scope recorded", the
+    # same backward-compatible reading `expires_at` already gets.
     host: str | None = None
     repo_slug: str | None = None
     # #10: the admitting team's slug, recorded verbatim from the admission
