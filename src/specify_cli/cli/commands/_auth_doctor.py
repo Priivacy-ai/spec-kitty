@@ -19,6 +19,15 @@ Default invocation contract (FR-015, C-007):
 The ``--server`` flag (FR-011 through FR-015, FR-017) is an explicit opt-in
 network path. It refreshes the access token if needed, then calls
 ``GET /api/v1/session-status``. C-007 still holds for the default path.
+Before refreshing, it compares the stored session's ``issuer_url`` against
+the resolved server target (the same comparison ``auth status`` renders):
+a known mismatch — the session was minted by a server other than the one
+currently configured — is reported directly, without attempting the
+refresh. A refresh attempt in that state sends the previous server's
+refresh token to a server that never issued it; the rejection is
+indistinguishable from a truly revoked token and clears the local session
+(issue #253), which is wrong for a read-adjacent diagnostic to do on a
+migration path every user hits.
 
 Public API (consumed by ``cli.commands.auth.doctor`` and tests):
 
@@ -46,15 +55,20 @@ from pathlib import Path
 from typing import Any, Literal
 
 from rich.console import Console
+from rich.markup import escape
 from specify_cli.cli.console import console
 
 from kernel.clock import datetime, now_utc
 
 from specify_cli.auth import get_token_manager
+from specify_cli.auth.server_target import resolve_server_target
+from specify_cli.auth.session import StoredSession
 from specify_cli.auth.token_manager import _refresh_lock_path
 from specify_cli.cli.commands._auth_status import (
     format_duration,
+    format_saas_mismatch_warning,
     format_storage_backend,
+    saas_source_name,
 )
 from specify_cli.core.file_lock import (
     LockRecord,
@@ -364,11 +378,49 @@ def compute_exit_code(findings: list[Finding]) -> int:
 # ---------------------------------------------------------------------------
 
 
+def _server_issuer_mismatch_error(tm: Any) -> str | None:
+    """Return a mismatch message when the stored session predates the resolved server.
+
+    Best-effort and side-effect-free: this never touches the token manager's
+    persisted state, and any failure to read the current session or resolve
+    the server target is treated as "cannot determine" rather than blocking
+    the caller — the normal ``get_access_token`` path decides in that case.
+    ``asyncio.iscoroutine`` guards a test double built from a bare
+    ``AsyncMock`` (its unconfigured attributes return coroutines, unlike the
+    real synchronous ``TokenManager.get_current_session``); closing it avoids
+    an "never awaited" warning without treating the double as a mismatch.
+    """
+    try:
+        session = tm.get_current_session()
+    except Exception:  # noqa: BLE001 - best-effort pre-check, never blocks the real check
+        return None
+    if asyncio.iscoroutine(session):
+        session.close()
+        return None
+    if not isinstance(session, StoredSession) or session.issuer_url is None:
+        return None
+    try:
+        target = resolve_server_target()
+    except Exception:  # noqa: BLE001 - unresolved server target: fall through to the normal check
+        return None
+    # Explicit annotation: `specify_cli.*` is checked with follow_imports = "skip"
+    # (pyproject.toml), so mypy sees format_saas_mismatch_warning's return as Any.
+    warning: str | None = format_saas_mismatch_warning(
+        session.issuer_url,
+        source_name=saas_source_name(target),
+        resolved_server_url=target.resolved_server_url,
+    )
+    return warning
+
+
 async def _check_server_session() -> ServerSessionStatus:
     """Refresh token if needed, then GET /api/v1/session-status.
 
     Returns ServerSessionStatus. Never raises — all errors map to
     active=False with a brief, non-sensitive error description.
+
+    A known issuer/server mismatch (see :func:`_server_issuer_mismatch_error`)
+    short-circuits before any refresh is attempted (issue #253).
     """
     from specify_cli.auth import get_token_manager  # noqa: PLC0415 (avoid circular at module level)
     from specify_cli.auth.config import get_saas_base_url  # noqa: PLC0415
@@ -383,6 +435,11 @@ async def _check_server_session() -> ServerSessionStatus:
     from specify_cli.auth.refresh_transaction import RefreshLockTimeoutError  # noqa: PLC0415
 
     tm = get_token_manager()
+
+    mismatch = _server_issuer_mismatch_error(tm)
+    if mismatch is not None:
+        return ServerSessionStatus(active=False, error=mismatch)
+
     try:
         access_token = await tm.get_access_token()
     except (NotAuthenticatedError, RefreshTokenExpiredError, SessionInvalidError):
@@ -674,7 +731,11 @@ def _render_server_status(status: ServerSessionStatus) -> None:
                 "Run [bold]spec-kitty auth login[/bold] to re-authenticate."
             )
         else:
-            console.print(f"  Status:  [yellow]check failed[/yellow] — {reason}")
+            # escape(): `reason` can be the issuer-mismatch message, which
+            # names the resolved-config source and may contain a literal
+            # `[sync]`-shaped substring (#182) — unescaped, Rich markup
+            # either drops the bracketed text or raises MarkupError.
+            console.print(f"  Status:  [yellow]check failed[/yellow] — {escape(reason)}")
     console.print()
 
 
