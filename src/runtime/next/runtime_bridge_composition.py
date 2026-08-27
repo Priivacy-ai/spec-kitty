@@ -432,6 +432,7 @@ def _check_composed_action_guard(
     *,
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
+    repo_root: Path | None = None,
 ) -> list[str]:
     """Evaluate the post-composition guard for a composed action.
 
@@ -473,11 +474,21 @@ def _check_composed_action_guard(
       whole composed action; the guard demands the **union** of all three
       legacy substep checks (no weakening).
 
+    ``repo_root`` (#3704 WP03, FR-003) is forwarded to
+    :func:`runtime_bridge_io.gather_artifact_presence` for org-tier
+    ``expected-artifacts.yaml`` resolution (#3704 WP02, FR-008); defaults to
+    ``None`` (built-in tree only — today's exact behavior for every existing
+    caller that does not yet pass a real ``repo_root``).
+
     Returns a list of failure descriptions; an empty list means all guards
     pass.
     """
     snapshot = _io_seam.gather_artifact_presence(
-        feature_dir, mission_family=mission, step_id=action, legacy_step_id=legacy_step_id
+        feature_dir,
+        mission_family=mission,
+        step_id=action,
+        legacy_step_id=legacy_step_id,
+        repo_root=repo_root,
     )
     if mission == "software-dev" and action in ("implement", "review"):
         # _should_advance_wp_step stays defined in the residual (untouched by
@@ -624,7 +635,7 @@ def _dispatch_via_composition(
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
 
     failures = _rb._check_composed_action_guard(
-        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id, repo_root=repo_root
     )
     if failures:
         return failures
