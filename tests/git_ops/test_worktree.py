@@ -261,8 +261,9 @@ class TestSetupFeatureDirectory:
         assert spec_file.exists()
         assert spec_file.read_text() == "# Feature Specification Template"
 
-    def test_creates_empty_spec_when_no_template(self, tmp_path: Path) -> None:
-        """Should create empty spec.md when no template exists."""
+    def test_no_spec_file_when_no_template(self, tmp_path: Path) -> None:
+        """Should not create spec.md when no template exists (#228: a stray
+        empty spec.md vacuously satisfies the per-type artifact presence gate)."""
         # Setup
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         worktree_path = tmp_path
@@ -273,8 +274,7 @@ class TestSetupFeatureDirectory:
 
         # Verify
         spec_file = feature_dir / "spec.md"
-        assert spec_file.exists()
-        assert spec_file.read_text() == ""
+        assert not spec_file.exists()
 
     def test_copies_memory_directory_when_symlinks_disabled(self, tmp_path: Path) -> None:
         """Should copy memory/ directory when create_symlinks=False."""
