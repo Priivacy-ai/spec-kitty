@@ -659,6 +659,25 @@ def test_live_real_tree_is_zero_violation_post_move() -> None:
     assert report.checked > 0
 
 
+def test_live_real_tree_is_zero_violation_under_extended_run() -> None:
+    """The terminal-verification runner (``run_extended``) is also clean.
+
+    ``run()`` (the standing per-PR gate) does not wire in
+    ``check_sanctioned_section_membership`` / ``check_one_index_per_dir`` — so
+    a new top-level ``docs/`` section can be invisible to every PR gate while
+    still breaking terminal verification (planning#583, first tripped by
+    ``docs/convergence/``). This asserts the extended runner independently.
+    """
+    config = load_config(STYLEGUIDE_PATH)
+    docs_root = _REPO_ROOT / "docs"
+
+    report = run_extended(docs_root=docs_root, repo_root=_REPO_ROOT, config=config)
+
+    assert report.violations == [], "\n".join(
+        f"{v.rule_id} {v.path}: {v.message}" for v in report.violations
+    )
+
+
 def test_lint_completes_within_five_seconds_on_real_tree() -> None:
     """NFR-003 timing: a full run over the real tree completes in < 5s.
 

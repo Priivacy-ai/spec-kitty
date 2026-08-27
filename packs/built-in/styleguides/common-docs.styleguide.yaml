@@ -245,6 +245,9 @@ structural_lint_config:
     - changelog
     - development
     - reports
+    # Convergence analyses (epic #399): curated documentation pages, not
+    # scaffolding — belongs here, not in non_content_dirs (planning#583).
+    - convergence
   # Sanctioned NON-content directories under docs/ — nav/scaffolding zones that
   # are exempt from sanctioned-section membership (they hold assets/templates,
   # not curated documentation pages).
