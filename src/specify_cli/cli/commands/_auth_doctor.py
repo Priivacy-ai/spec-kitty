@@ -64,11 +64,13 @@ from specify_cli.auth import get_token_manager
 from specify_cli.auth.server_target import resolve_server_target
 from specify_cli.auth.session import StoredSession
 from specify_cli.auth.token_manager import _refresh_lock_path
+from specify_cli.cli.commands._auth_saas_target import (
+    format_saas_mismatch_warning,
+    saas_source_name,
+)
 from specify_cli.cli.commands._auth_status import (
     format_duration,
-    format_saas_mismatch_warning,
     format_storage_backend,
-    saas_source_name,
 )
 from specify_cli.core.file_lock import (
     LockRecord,
