@@ -643,6 +643,38 @@ def test_reminting_under_a_new_team_drops_the_stale_focus_lease(state_root: Path
 
 
 @pytest.mark.parametrize(
+    ("host", "repo_slug"),
+    [
+        ("gitlab.com", "acme/widget"),
+        ("github.com", "acme/other-widget"),
+    ],
+)
+def test_same_team_remint_in_new_repo_scope_drops_the_stale_focus_lease(
+    state_root: Path,
+    host: str,
+    repo_slug: str,
+):
+    _seed_main_credential()
+    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt")
+
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://relay",
+        token="bearer-2",
+        token_kind="presence",
+        capability_credential="presence-jwt-2",
+        host=host,
+        repo_slug=repo_slug,
+        team="demo",
+    )
+
+    loaded = credentials.load(repo="github.com/acme/widget")
+    assert loaded is not None
+    assert loaded.team == "demo"
+    assert loaded.focus_capability_credential is None
+
+
+@pytest.mark.parametrize(
     ("relay_url", "host", "repo_slug"),
     [
         ("http://other-relay", "github.com", "acme/widget"),
