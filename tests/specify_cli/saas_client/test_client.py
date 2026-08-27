@@ -710,6 +710,31 @@ def test_404_maps_to_saas_not_found_error() -> None:
     assert exc_info.value.status_code == 404
 
 
+def test_request_error_maps_to_saas_client_error() -> None:
+    """A non-timeout transport failure (e.g. connection refused) maps to SaasClientError."""
+    mock_http = MagicMock(spec=httpx.Client)
+    mock_http.get.side_effect = httpx.ConnectError("boom")
+    client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
+    with pytest.raises(SaasClientError, match="failed") as exc_info:
+        client.get_audience_default("m-1")
+    assert not isinstance(exc_info.value, SaasTimeoutError)
+
+
+def test_500_maps_to_generic_saas_client_error() -> None:
+    """A non-401/403/404 error status falls through to the generic SaasClientError branch."""
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 500
+    mock_resp.is_success = False
+    mock_resp.text = "Internal Server Error"
+    mock_http = MagicMock(spec=httpx.Client)
+    mock_http.get.return_value = mock_resp
+    client = SaasClient("http://test", "tok", team_slug="my-team", _http=mock_http)
+    with pytest.raises(SaasClientError) as exc_info:
+        client.get_audience_default("m-1")
+    assert not isinstance(exc_info.value, (SaasAuthError, SaasNotFoundError, SaasTimeoutError))
+    assert exc_info.value.status_code == 500
+
+
 # ---------------------------------------------------------------------------
 # Consent-refusal exchange paths (issue #3 fix round: these are the surviving
 # refusal branches in ``SaasClient._exchange`` — token-authority absent,
