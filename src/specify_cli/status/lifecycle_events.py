@@ -610,8 +610,17 @@ def _resolve_local_actor() -> str:
     credential — is the WHO a mission-level moment renders with once set.
     Never raises: an unresolvable identity degrades to ``"cli"``, matching the
     emit path's never-raises contract.
+
+    A resolved email that would not fit the codec's per-value byte bound
+    (:data:`spec_kitty_events.zeitgeist_attrs.ZEITGEIST_ATTRS_MAX_BYTES`) also
+    degrades to ``"cli"``: ``MissionCreatedPayload.actor`` has no
+    ``max_length``, so an oversized value would otherwise pass producer-time
+    validation and only fail downstream at broadcast, silently dropping the
+    whole moment instead of just its WHO (#74).
     """
     import subprocess
+
+    from spec_kitty_events.zeitgeist_attrs import ZEITGEIST_ATTRS_MAX_BYTES
 
     try:
         result = subprocess.run(
@@ -621,7 +630,7 @@ def _resolve_local_actor() -> str:
             timeout=5,
         )
         email = result.stdout.strip()
-        if email:
+        if email and len(email.encode("utf-8")) <= ZEITGEIST_ATTRS_MAX_BYTES:
             return email
     except Exception:  # noqa: BLE001 — git may be absent or misconfigured; fall back to "cli" identity
         pass
