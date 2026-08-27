@@ -14,8 +14,8 @@ works again, without requiring an ``implement`` lane (the only other caller
 of :func:`install`) — recovery would otherwise be circular, since running an
 implement lane itself requires committing.
 
-Idempotent: re-running against an already-current hook simply re-writes the
-same content.
+Idempotent: re-running against an already-current hook re-writes the same
+effective hook (only the ``# Installed:`` timestamp comment differs).
 """
 
 from __future__ import annotations

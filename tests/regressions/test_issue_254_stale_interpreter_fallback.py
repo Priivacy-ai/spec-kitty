@@ -172,6 +172,18 @@ def test_run_repin_hooks_migration_repins_to_current_interpreter(
     assert "doomed-interpreter" not in hook_body
 
 
+def _without_installed_at_line(hook_body: str) -> str:
+    """Drop the ``# Installed: <timestamp>`` line.
+
+    That line is *expected* to change on every run (it records wall-clock
+    install time), so the idempotency guarantee is about the rest of the
+    hook — same interpreter, same fallback wiring — not byte-identical files.
+    """
+    return "\n".join(
+        line for line in hook_body.splitlines() if not line.startswith("# Installed:")
+    )
+
+
 def test_run_repin_hooks_migration_is_idempotent(tmp_path: Path) -> None:
     from specify_cli.cli.commands.migrate.repin_hooks import run_repin_hooks_migration
 
@@ -180,9 +192,13 @@ def test_run_repin_hooks_migration_is_idempotent(tmp_path: Path) -> None:
     _init_git(repo)
 
     first = run_repin_hooks_migration(repo)
+    first_body = first.hook_path.read_text(encoding="utf-8")
+
     second = run_repin_hooks_migration(repo)
+    second_body = second.hook_path.read_text(encoding="utf-8")
 
     assert first.interpreter == second.interpreter
-    assert first.hook_path.read_text(encoding="utf-8") == second.hook_path.read_text(
-        encoding="utf-8"
+    assert _without_installed_at_line(first_body) == _without_installed_at_line(second_body), (
+        "Re-running against an already-current hook must produce the same effective "
+        "hook (only the '# Installed:' timestamp comment may legitimately differ)."
     )

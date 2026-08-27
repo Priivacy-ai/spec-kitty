@@ -3011,7 +3011,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  (the ability to commit).
 
  Idempotent: safe to re-run; a hook already pinned to the current
- interpreter is simply re-written with the same content.
+ interpreter is re-written to the same effective hook (only the
+ ``# Installed:`` timestamp comment differs).
 
  Exit codes:
 
