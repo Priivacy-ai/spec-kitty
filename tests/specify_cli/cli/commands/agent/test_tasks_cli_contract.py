@@ -327,12 +327,18 @@ def _build_demo_mission(tmp_path: Path) -> str:
     ],
 )
 def test_error_envelope_shape(case: str) -> None:
-    """CONTRACT-3 + CONTRACT-4: mission-not-found envelope keys and exit code."""
+    """CONTRACT-3 + CONTRACT-4: mission-not-found envelope keys, exit code, and stream."""
     spec = _envelopes()[case]
     result = runner.invoke(app, spec["argv"])
     assert result.exit_code == spec["exit_code"]
     out, err = _result_streams(result)
-    blob = err if err.strip() else out
+    streams = {"stdout": out, "stderr": err}
+    blob = streams[spec["stream"]]
+    other_stream = "stderr" if spec["stream"] == "stdout" else "stdout"
+    assert streams[other_stream].strip() == "", (
+        f"expected the envelope only on {spec['stream']!r}, "
+        f"but {other_stream!r} was not empty: {streams[other_stream]!r}"
+    )
     payload = json.loads(blob)
     assert _shape(payload) == spec["json_shape"]
 
