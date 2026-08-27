@@ -92,8 +92,7 @@ pytest -m slow
 pytest tests/merge/
 
 # Full suite
-pytest tests/ -n auto --dist loadfile --ignore=tests/sync/test_orphan_sweep.py
-pytest tests/sync/test_orphan_sweep.py -q  # serial process-safety owner
+pytest tests/ -n auto --dist loadfile
 
 # Single file
 pytest tests/lanes/test_compute.py -v
