@@ -196,8 +196,21 @@ def _locked() -> FileLock:
     ``_write_all``'s later ``mkdir``. Creating the root here first, at
     0o700, is what actually makes the directory holding the tokens
     owner-only.
+
+    ``mkdir``'s ``mode`` only applies at creation — ``exist_ok=True`` leaves
+    an already-existing directory's mode untouched. A directory (or file)
+    left loose by a pre-E3 write (the old ``tmp_path.open("wb")`` path, no
+    explicit chmod, landing at the ambient umask) would otherwise stay
+    group/other-readable forever, since only :func:`_write_all` asserted a
+    mode and this door is also every *read*'s entry point. Re-asserting both
+    modes here, on every acquire, closes that gap (squad finding,
+    EXPERIMENTAL-spec-kitty#37) — cheap and idempotent once already tight.
     """
-    credentials_path().parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path = credentials_path()
+    path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    path.parent.chmod(0o700)
+    if path.is_file():
+        path.chmod(0o600)
     return FileLock(str(_lock_path()))
 
 
