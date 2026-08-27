@@ -432,10 +432,9 @@ def providers_command(
     Local providers use direct connectors with locally stored credentials.
 
     This command is purely informational and prints the hard-coded provider
-    categories.  It does **not** consult hosted readiness — the rollout gate
-    itself is enforced by ``tracker_callback`` (and by the conditional
-    registration in ``cli/commands/__init__.py``), which is all the gating
-    this static output needs.
+    categories.  It does **not** consult hosted readiness — ``tracker_callback``
+    is the sole rollout gate for the tracker Typer app, which is all the
+    gating this static output needs.
     """
 
     def _run() -> None:
