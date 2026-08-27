@@ -31,7 +31,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import jsonschema
 import pytest
@@ -254,7 +254,7 @@ def _load_control_envelope_schema() -> dict[str, Any]:
         f"(got {digest}) -- re-vendor deliberately from a pinned "
         "EXPERIMENTAL-zeitgeist commit and update _ZEITGEIST_SCHEMA_DIGEST"
     )
-    return json.loads(raw)
+    return cast(dict[str, Any], json.loads(raw))
 
 
 def _assert_event_args(args: dict[str, Any]) -> None:
