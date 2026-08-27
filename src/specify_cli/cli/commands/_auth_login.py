@@ -103,7 +103,9 @@ async def _run_browser_flow(tm: TokenManager, saas_url: str) -> None:
     from specify_cli.auth.flows.authorization_code import AuthorizationCodeFlow
 
     console.print("Opening browser for OAuth authentication...")
-    console.print(f"[dim]SaaS: {saas_url}[/dim]")
+    # escape(): saas_url is operator-controlled (env or config.toml); unescaped,
+    # a value like `https://x.test[/]` raises MarkupError out of login (#202).
+    console.print(f"[dim]SaaS: {escape(saas_url)}[/dim]")
 
     flow = AuthorizationCodeFlow(
         saas_base_url=saas_url,
