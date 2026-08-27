@@ -929,6 +929,8 @@ _The 3.2.6rc2 candidate cycle is open (rc1 shipped 2026-08-12). Entries land her
 
 ### 💥 Breaking Changes
 
+- **A `SPEC_KITTY_SAAS_TOKEN` (env-supplied) session no longer picks up a SaaS URL from a repo-local `.kittify/saas-auth.json` — export `SPEC_KITTY_SAAS_URL` (or set `[sync].server_url` in `config.toml`) alongside the token, or the CLI now fails closed with `SaaS URL not configured` (EXPERIMENTAL-spec-kitty#237, EXPERIMENTAL-spec-kitty#264).** Before, a token from the environment paired with a URL supplied only by the checkout-controlled auth file silently resolved — letting a repo redirect a longer-lived, more broadly-scoped service token to a host of the checkout's choosing. `.kittify/saas-auth.json`'s `saas_url` is now honoured only alongside its own `token`, never paired with an env-resolved one.
+
 - **`pack validate` (and `doctrine org validate`) now fails (exit code `1`) for
   three previously-passing org-pack shapes (mission
   `org-pack-authoring-diagnostics-01KZY463`; `#3387`).** All three close a
