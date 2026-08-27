@@ -6,6 +6,7 @@ updated: '2026-06-26'
 related:
 - docs/api/bulk-edit-gate.md
 - docs/api/finalize-tasks-internals.md
+- docs/api/auth-whoami-output.md
 ---
 # CLI Command Reference
 
@@ -34,6 +35,7 @@ Terminology note:
 For non-obvious runtime behaviour an operator may encounter:
 
 - [`finalize-tasks` internals](finalize-tasks-internals.md) — explicit empty `owned_files` semantics and lane-depth cycle safety.
+- [`auth whoami` output](auth-whoami-output.md) — the full stdout shape, including the SaaS diagnostic lines the generated `--help` section below doesn't mention.
 
 ## Schema references
 
