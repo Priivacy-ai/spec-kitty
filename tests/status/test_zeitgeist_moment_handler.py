@@ -22,6 +22,7 @@ to git).
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -32,6 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 import pytest
 
 from specify_cli.status import adapters
@@ -227,24 +229,46 @@ def test_session_id_matches_the_relay_schema_pattern() -> None:
 # The wire contract: what the real client would put on the socket
 # ---------------------------------------------------------------------------
 
-# Pinned from EXPERIMENTAL-zeitgeist's managed_control.schema.json
-# $defs/EventArgs: required [session_id, kind, attrs], additionalProperties
-# false, the patterns and bounds below. If zeitgeist widens or narrows this,
-# this pin is what forces a deliberate re-check.
-_EVENT_ARGS_REQUIRED = {"session_id", "kind", "attrs"}
-_EVENT_ARGS_ALLOWED = {"session_id", "kind", "ref", "attrs"}
+# Vendored verbatim from EXPERIMENTAL-zeitgeist's managed_control.schema.json
+# at commit 644628c2f00a4fd35612a6001b00fe5f758b1045 (#312: a hand-rolled
+# mirror of this file can drift from the relay's real contract without the
+# test noticing — see the class of bug in zeitgeist#83). The digest below
+# forces a deliberate re-check whenever the vendored copy is refreshed: if
+# someone edits or re-vendors the fixture without updating
+# _ZEITGEIST_SCHEMA_DIGEST, this test fails loudly instead of silently
+# validating against a stale or hand-edited document.
+_ZEITGEIST_SCHEMA_FIXTURE = Path(__file__).parent / "fixtures" / "zeitgeist" / "managed_control.schema.json"
+_ZEITGEIST_SCHEMA_DIGEST = "5c5cb2e5b4d0ad1a16b7d91aa654f045b47b1b4293a672bc3d9a6855b656b612"
+
+
+def _load_control_envelope_schema() -> dict[str, Any]:
+    raw = _ZEITGEIST_SCHEMA_FIXTURE.read_bytes()
+    digest = hashlib.sha256(raw).hexdigest()  # noqa: TID251 -- file-integrity check, not a charter hash
+    assert digest == _ZEITGEIST_SCHEMA_DIGEST, (
+        f"{_ZEITGEIST_SCHEMA_FIXTURE} does not match the pinned digest "
+        f"(got {digest}) -- re-vendor deliberately from a pinned "
+        "EXPERIMENTAL-zeitgeist commit and update _ZEITGEIST_SCHEMA_DIGEST"
+    )
+    return json.loads(raw)
 
 
 def _assert_event_args(args: dict[str, Any]) -> None:
-    assert set(args) <= _EVENT_ARGS_ALLOWED, f"keys outside EventArgs: {sorted(args)}"
-    assert set(args) >= _EVENT_ARGS_REQUIRED, f"missing required: {sorted(_EVENT_ARGS_REQUIRED - set(args))}"
-    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,127}", args["session_id"])
-    assert re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._@+-]{0,63}", args["kind"])
-    assert len(args.get("ref", "").encode()) <= 240
-    assert len(args["attrs"]) <= 16
-    for key, value in args["attrs"].items():
-        assert len(key.encode()) <= 64, key
-        assert len(value.encode()) <= 240, key
+    """Validate *args* against the REAL ``EventArgs`` contract, loaded from the
+    vendored relay schema -- not a hand-rolled mirror of it (#312)."""
+    event_args_schema = _load_control_envelope_schema()["$defs"]["EventArgs"]
+    jsonschema.validate(instance=args, schema=event_args_schema, cls=jsonschema.Draft202012Validator)
+
+    # `maxUtf8Bytes` is a zeitgeist-specific bound (`capabilities._check_bounds`)
+    # that the standard JSON Schema vocabulary does not know how to enforce, so
+    # jsonschema.validate() above silently skips it. Apply it here, reading the
+    # bound itself from the vendored schema rather than restating the number.
+    ref_bound = event_args_schema["properties"]["ref"].get("maxUtf8Bytes")
+    if ref_bound is not None and "ref" in args:
+        assert len(args["ref"].encode()) <= ref_bound
+    attrs_value_bound = event_args_schema["properties"]["attrs"]["additionalProperties"].get("maxUtf8Bytes")
+    if attrs_value_bound is not None:
+        for key, value in args["attrs"].items():
+            assert len(value.encode()) <= attrs_value_bound, key
 
 
 def _pin_checkout_identity(monkeypatch: pytest.MonkeyPatch, *, capability: str) -> None:
