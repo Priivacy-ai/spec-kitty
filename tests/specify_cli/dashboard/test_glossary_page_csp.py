@@ -12,6 +12,12 @@ These tests are structural: they fail if the template regresses to any inline
 style/script source, or references a non-same-origin subresource. The render
 proof that the extracted assets actually work in a browser lives in
 ``tests/ui/test_glossary_page_render.py``.
+
+The page's behaviour and styling now live in the extracted
+``glossary.js``/``glossary.css`` assets, not just ``glossary.html`` — the
+regex scans below cover those files too (issue #96), so re-homed code can't
+quietly reintroduce an inline style/script construct or a foreign
+subresource reference that the template-only scan would miss.
 """
 
 from __future__ import annotations
@@ -72,6 +78,75 @@ def test_glossary_subresources_are_same_origin_or_data_uris() -> None:
     assert subresources, "glossary template should reference at least one asset"
     foreign = [url for url in subresources if not (url.startswith("/") or url.startswith("data:"))]
     assert foreign == [], f"non-same-origin subresources blocked by the CSP: {foreign}"
+
+
+_BLOCK_COMMENT_RE = re.compile(r"/\*.*?\*/", re.DOTALL)
+_JS_LINE_COMMENT_RE = re.compile(r"//.*")
+
+
+def _strip_css_comments(css: str) -> str:
+    return _BLOCK_COMMENT_RE.sub("", css)
+
+
+def _strip_js_comments(js: str) -> str:
+    """Drop ``/* … */`` and ``// …`` JS comments before scanning.
+
+    Both extracted-asset headers document, in prose, the exact inline
+    ``<script>``/``style=`` constructs they replace (see the file headers) —
+    without stripping comments those doc strings would trip these guards on
+    their own prose, not on actual code."""
+    return _JS_LINE_COMMENT_RE.sub("", _BLOCK_COMMENT_RE.sub("", js))
+
+
+def test_glossary_static_assets_have_no_inline_style_attribute() -> None:
+    """The same style= scan that guards the template also guards the
+    extracted assets: a future edit that builds an HTML string with a
+    ``style="…"`` attribute inside glossary.js (e.g. an innerHTML template
+    literal), or that smuggles one into glossary.css as a literal string,
+    should still trip this guard."""
+    css = _strip_css_comments(GLOSSARY_CSS.read_text(encoding="utf-8"))
+    js = _strip_js_comments(GLOSSARY_JS.read_text(encoding="utf-8"))
+    for label, text in (("glossary.css", css), ("glossary.js", js)):
+        match = _STYLE_ATTRIBUTE_RE.search(text)
+        assert match is None, f"inline style= attribute at offset {match.start():d} in {label}"
+
+
+def test_glossary_javascript_does_not_construct_inline_markup() -> None:
+    """glossary.js builds DOM markup via ``innerHTML`` template literals
+    (see ``render()``); none of those literals may embed an inline
+    ``<style>`` block or an inline (non-``src``) ``<script>`` tag, since the
+    CSP would block either just as it would in the template itself."""
+    js = _strip_js_comments(GLOSSARY_JS.read_text(encoding="utf-8"))
+    assert "<style" not in js.lower()
+    match = _INLINE_SCRIPT_RE.search(js)
+    assert match is None, f"inline <script> construct at offset {match.start():d} in glossary.js"
+
+
+_JS_URL_LITERAL_RE = re.compile(r"""\bfetch\(\s*['"]([^'"]+)['"]|\.(?:src|href)\s*=\s*['"]([^'"]+)['"]""")
+
+
+def test_glossary_javascript_subresources_are_same_origin() -> None:
+    """Every ``fetch(...)`` call and ``.src``/``.href`` assignment literal in
+    glossary.js must be same-origin: a CDN URL there would be blocked by the
+    CSP exactly like a foreign ``<script src>`` in the template."""
+    js = GLOSSARY_JS.read_text(encoding="utf-8")
+    urls = [first or second for first, second in _JS_URL_LITERAL_RE.findall(js)]
+    assert urls, "glossary.js should reference at least one URL literal"
+    foreign = [url for url in urls if not (url.startswith("/") or url.startswith("data:"))]
+    assert foreign == [], f"non-same-origin URL literal(s) blocked by the CSP: {foreign}"
+
+
+_CSS_URL_RE = re.compile(r"""url\(\s*['"]?([^'")]+)['"]?\s*\)""")
+
+
+def test_glossary_css_has_no_foreign_url_reference() -> None:
+    """glossary.css carries no ``url(...)`` references today; this guards
+    against one being added later that points off-origin (e.g. a CDN font
+    or background image), which the CSP would block at load time."""
+    css = GLOSSARY_CSS.read_text(encoding="utf-8")
+    urls = _CSS_URL_RE.findall(css)
+    foreign = [url for url in urls if not (url.startswith("/") or url.startswith("data:"))]
+    assert foreign == [], f"non-same-origin url() reference(s) blocked by the CSP: {foreign}"
 
 
 def test_glossary_static_assets_exist_and_are_non_empty() -> None:
