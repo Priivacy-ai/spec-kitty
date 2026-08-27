@@ -155,22 +155,15 @@ gh pr create --base main --title "Release X.Y.Z" --fill
   issue links.
 - [ ] `Check Shared Package Drift` passes against the current SaaS consumer
   pins.
-- [ ] `Protect Main Branch` is expected to pass for the eventual merge or
-  tagged release commit path.
+- [ ] The PR satisfies the active repository policy; do not rely on inert
+  GitHub workflow enforcement.
 - [ ] Maintainer approval is recorded.
 - [ ] Any release-note or install-doc feedback is resolved.
 
-### 5. Merge the Release PR
+### 5. Hand Off the Release PR
 
-- [ ] Use a merge strategy that leaves a PR marker in the main-branch commit
-      message so the `Protect Main Branch` workflow can verify provenance.
-      Today that means squash-merge for release PRs; do not use `--rebase`
-      unless the protection workflow has been updated to recognize rebased PR
-      commits.
-
-```bash
-gh pr merge --squash --delete-branch
-```
+- [ ] Do not merge it manually. The programme merge agent merges with a merge
+      commit after the `PROGRAM.md` §5–§9 gates pass.
 
 ### 6. Tag the Release from `main`
 
