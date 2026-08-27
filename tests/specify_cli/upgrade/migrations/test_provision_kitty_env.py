@@ -8,6 +8,7 @@ instance against a synthetic project, never through the upgrade pipeline.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -15,6 +16,7 @@ from ruamel.yaml import YAML
 
 from kernel.paths import get_package_asset_root
 from specify_cli.upgrade.migrations.m_3_2_8_provision_kitty_env import (
+    ClaudeignorePathError,
     GOVERNED_SECRET_VARS,
     MIGRATION_ID,
     NEVER_SEED_VARS,
@@ -311,6 +313,86 @@ class TestIgnoreCoverage:
         assert "node_modules/" in lines
         assert "*.log" in lines
         assert ".kittify/.kitty.env" in lines
+
+
+# ---------------------------------------------------------------------------
+# .claudeignore symlink safety (issue #627, sibling of #582/#618's fix for
+# the same class of bug in GitignoreManager's .gitignore handling)
+# ---------------------------------------------------------------------------
+
+
+class TestClaudeignoreSymlinkSafety:
+    def _make_symlinked_claudeignore(self, tmp_path: Path) -> Path:
+        """Point .claudeignore at an outside-the-project target via a symlink."""
+        outside_target = tmp_path.parent / f"outside-claudeignore-target-{os.getpid()}.txt"
+        outside_target.write_text("do-not-touch\n", encoding="utf-8")
+        (tmp_path / ".claudeignore").symlink_to(outside_target)
+        return outside_target
+
+    def test_apply_rejects_symlinked_claudeignore(self, tmp_path: Path) -> None:
+        """apply() must refuse to write through a symlinked .claudeignore."""
+        outside_target = self._make_symlinked_claudeignore(tmp_path)
+        try:
+            migration = ProvisionKittyEnvMigration()
+            with pytest.raises(ClaudeignorePathError):
+                migration.apply(tmp_path, dry_run=False)
+            # The symlink's target must be untouched.
+            assert outside_target.read_text(encoding="utf-8") == "do-not-touch\n"
+        finally:
+            outside_target.unlink(missing_ok=True)
+
+    def test_dangling_symlink_is_also_rejected(self, tmp_path: Path) -> None:
+        """A symlink to a target that doesn't exist must still be rejected.
+
+        `Path.exists()` follows symlinks and returns False for a dangling
+        one, so the guard must trigger on `is_symlink()` directly, not
+        `exists()`.
+        """
+        missing_target = tmp_path.parent / f"missing-claudeignore-target-{os.getpid()}.txt"
+        (tmp_path / ".claudeignore").symlink_to(missing_target)
+
+        migration = ProvisionKittyEnvMigration()
+        with pytest.raises(ClaudeignorePathError):
+            migration.apply(tmp_path, dry_run=False)
+
+    def test_normal_claudeignore_write_survives_symlink_guard(self, tmp_path: Path) -> None:
+        """Sanity check: a regular (non-symlink) .claudeignore still works."""
+        migration = ProvisionKittyEnvMigration()
+        migration.apply(tmp_path, dry_run=False)
+
+        claudeignore = tmp_path / ".claudeignore"
+        assert not claudeignore.is_symlink()
+        assert ".kittify/.kitty.env" in claudeignore.read_text(encoding="utf-8").splitlines()
+
+    def test_write_preserves_existing_claudeignore_mode(self, tmp_path: Path) -> None:
+        """The atomic replace should not narrow an existing .claudeignore's mode."""
+        claudeignore = tmp_path / ".claudeignore"
+        claudeignore.write_text("existing\n", encoding="utf-8")
+        os.chmod(claudeignore, 0o640)
+
+        migration = ProvisionKittyEnvMigration()
+        migration.apply(tmp_path, dry_run=False)
+
+        mode = claudeignore.stat().st_mode & 0o777
+        assert mode == 0o640
+
+    def test_permission_denied_still_raised_on_readonly_claudeignore(self, tmp_path: Path) -> None:
+        """os.replace() ignores the target's mode bits; the migration must not.
+
+        A read-only `.claudeignore` must still surface `PermissionError` --
+        an `os.replace()`-only implementation would silently clobber it
+        instead, since rename() only checks the parent directory's
+        permissions.
+        """
+        claudeignore = tmp_path / ".claudeignore"
+        claudeignore.touch()
+        os.chmod(claudeignore, 0o444)
+        try:
+            migration = ProvisionKittyEnvMigration()
+            with pytest.raises(PermissionError):
+                migration.apply(tmp_path, dry_run=False)
+        finally:
+            os.chmod(claudeignore, 0o644)
 
 
 # ---------------------------------------------------------------------------

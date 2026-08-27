@@ -89,7 +89,9 @@ from ``.kitty.env``/``config.yaml``'s ``env_file`` key/the two ignore files.
 
 from __future__ import annotations
 
+import contextlib
 import os
+import tempfile
 from pathlib import Path
 
 from ruamel.yaml import YAML
@@ -97,7 +99,7 @@ from ruamel.yaml import YAML
 from specify_cli.gitignore_manager import GitignoreManager
 
 from ..registry import MigrationRegistry
-from .base import BaseMigration, MigrationResult
+from .base import BaseMigration, ClaudeignorePathError, MigrationResult
 
 MIGRATION_ID = "3.2.8_provision_kitty_env"
 TARGET_VERSION = "3.2.6rc2"
@@ -263,15 +265,65 @@ def _claudeignore_missing_entry(project_path: Path) -> bool:
     return _ENV_FILE_IGNORE_ENTRY not in _ignore_file_entries(project_path / _CLAUDEIGNORE_FILENAME)
 
 
+def _reject_claudeignore_symlink(path: Path) -> None:
+    """Raise ``ClaudeignorePathError`` if *path* is a symlink.
+
+    Checks ``is_symlink()``, not ``exists()`` -- ``exists()`` follows
+    symlinks and returns ``False`` for a dangling one, which would
+    otherwise let a dangling-symlink ``.claudeignore`` slip past an
+    ``exists()``-gated check.
+    """
+    if path.is_symlink():
+        target = os.readlink(path)
+        raise ClaudeignorePathError(
+            f".claudeignore is a symlink to {target!r}; refusing to read or write through it: {path}"
+        )
+
+
+def _atomic_write_claudeignore(path: Path, content: str) -> None:
+    """Write ``.claudeignore`` atomically without following a symlink.
+
+    Writes to a same-directory tempfile, then ``os.replace()``s it into
+    place -- ``os.replace()`` (POSIX ``rename()``) replaces the destination
+    directory entry itself rather than following it, so even a
+    ``.claudeignore`` swapped for a symlink between the guard above and this
+    call cannot redirect the write to an arbitrary target.
+    """
+    _reject_claudeignore_symlink(path)
+    existing_mode = path.stat().st_mode & 0o777 if path.exists() else None
+    if existing_mode is not None:
+        # os.replace() (rename) only requires write access to the parent
+        # directory, not to the file it replaces, so it would otherwise
+        # silently clobber a read-only .claudeignore. Probe with a real
+        # open() to preserve the PermissionError a direct write raises.
+        os.close(os.open(path, os.O_WRONLY))
+    fd, tmp_path = tempfile.mkstemp(
+        dir=path.parent,
+        prefix=".claudeignore.",
+        suffix=".tmp",
+    )
+    try:
+        if existing_mode is not None:
+            os.chmod(tmp_path, existing_mode)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.replace(tmp_path, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_path)
+        raise
+
+
 def _append_claudeignore_entry(project_path: Path) -> None:
     path = project_path / _CLAUDEIGNORE_FILENAME
+    _reject_claudeignore_symlink(path)
     existing = path.read_text(encoding="utf-8-sig") if path.exists() else ""
     lines = existing.splitlines()
     if lines and lines[-1].strip():
         lines.append("")
     lines.append(_ENV_FILE_IGNORE_ENTRY)
     lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
+    _atomic_write_claudeignore(path, "\n".join(lines))
 
 
 # ---------------------------------------------------------------------------
