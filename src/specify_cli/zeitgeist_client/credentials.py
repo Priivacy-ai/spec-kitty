@@ -301,9 +301,36 @@ def _positive_entry(
         entry["host"] = host
     if repo_slug is not None:
         entry["repo_slug"] = repo_slug
+    if team is None:
+        team = _previous_team_if_unambiguous(
+            previous=previous,
+            relay_url=relay_url,
+            host=host,
+            repo_slug=repo_slug,
+        )
     if team is not None:
         entry["team"] = team
     return entry
+
+
+def _previous_team_if_unambiguous(
+    *,
+    previous: dict[str, str],
+    relay_url: str,
+    host: str | None,
+    repo_slug: str | None,
+) -> str | None:
+    """Return the previous team when a same-scope remint has no new signal."""
+    previous_team = previous.get("team")
+    if previous_team is None:
+        return None
+    if previous.get("relay_url") != relay_url:
+        return None
+    if previous.get("host") != host:
+        return None
+    if previous.get("repo_slug") != repo_slug:
+        return None
+    return previous_team
 
 
 def store(

@@ -533,9 +533,7 @@ def test_focus_capability_merges_into_the_existing_entry(state_root: Path):
 
 def test_focus_capability_without_expiry_leaves_no_stale_stamp(state_root: Path):
     _seed_main_credential()
-    credentials.store_focus_capability(
-        repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(600)
-    )
+    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(600))
     credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt-2")
 
     loaded = credentials.load(repo="github.com/acme/widget")
@@ -548,9 +546,7 @@ def test_reminting_the_main_credential_preserves_a_live_focus_lease(state_root: 
     """The two leases expire independently; a presence re-mint must not
     silently drop a still-valid focus lease."""
     _seed_main_credential()
-    credentials.store_focus_capability(
-        repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200)
-    )
+    credentials.store_focus_capability(repo="github.com/acme/widget", capability_credential="focus-jwt", expires_at=_iso_in(1200))
 
     credentials.store(
         repo="github.com/acme/widget",
@@ -568,6 +564,48 @@ def test_reminting_the_main_credential_preserves_a_live_focus_lease(state_root: 
     assert loaded is not None
     assert loaded.capability_credential == "presence-jwt-2"
     assert loaded.focus_capability_credential == "focus-jwt"
+
+
+def test_same_scope_remint_without_team_preserves_the_previous_team(state_root: Path):
+    """A malformed admission response has no new team signal; it must not
+    erase the admitting team already proven for this relay/repo scope."""
+    _seed_main_credential()
+
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://relay",
+        token="bearer-2",
+        token_kind="presence",
+        capability_credential="presence-jwt-2",
+        expires_at=_iso_in(3600),
+        host="github.com",
+        repo_slug="acme/widget",
+        team=None,
+    )
+
+    loaded = credentials.load(repo="github.com/acme/widget")
+    assert loaded is not None
+    assert loaded.team == "demo"
+
+
+def test_different_scope_remint_without_team_does_not_preserve_previous_team(state_root: Path):
+    _seed_main_credential()
+
+    credentials.store(
+        repo="github.com/acme/widget",
+        relay_url="http://other-relay",
+        token="bearer-2",
+        token_kind="presence",
+        capability_credential="presence-jwt-2",
+        expires_at=_iso_in(3600),
+        host="github.com",
+        repo_slug="acme/widget",
+        team=None,
+    )
+
+    loaded = credentials.load(repo="github.com/acme/widget")
+    assert loaded is not None
+    assert loaded.team is None
 
 
 def test_store_negative_drops_the_focus_lease_with_the_rest(state_root: Path):
