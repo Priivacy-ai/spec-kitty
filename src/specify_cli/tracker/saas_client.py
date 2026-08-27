@@ -386,9 +386,11 @@ class SaaSTrackerClient:
         via the sync bridge helpers at the top of this module. No direct
         filesystem or credential-store access.
 
-        **The per-project consent gate lives here** (#3030 FR-029), at the one
-        chokepoint all endpoint methods and the operation poller pass through, so a
-        new endpoint method cannot be added without inheriting it. It runs
+        **The per-project consent gate** (#3030 FR-029) is enforced by
+        :meth:`_enforce_tracker_egress_consent`, called both here and at
+        ``_request_with_retry``'s own entry — the two reachable entry points
+        all ten endpoints and the operation poller pass through, so a new
+        endpoint method cannot be added without inheriting it. It runs
         *before* the token is fetched: a refusal must not depend on auth state,
         must not mint a token for a project that may not transmit, and must be
         reported as a consent decision rather than as an authentication failure.
@@ -406,9 +408,7 @@ class SaaSTrackerClient:
         target for the next migration wave (sync, websocket, and
         widen-mode SaaS).
         """
-        verdict = self._current_tracker_egress_verdict()
-        if verdict.refused:
-            raise TrackerEgressRefusedError(verdict.message)
+        self._enforce_tracker_egress_consent()
 
         access_token = _fetch_access_token_sync()
         if access_token is None:
@@ -674,9 +674,7 @@ class SaaSTrackerClient:
         wedge every future resend permanently — only resends within the same
         window.
         """
-        verdict = self._current_tracker_egress_verdict()
-        if verdict.refused:
-            raise TrackerEgressRefusedError(verdict.message)
+        self._enforce_tracker_egress_consent()
         access_token = _fetch_access_token_sync()
         if access_token is None:
             raise _unauthenticated_error("No valid access token. Run `spec-kitty auth login` to authenticate.")
@@ -777,6 +775,21 @@ class SaaSTrackerClient:
             destination=EgressDestination.HOSTED_SERVICE,
             identifiers=TRACKER_EGRESS_IDENTIFIER_KINDS,
         )
+
+    def _enforce_tracker_egress_consent(self) -> None:
+        """Raise :class:`TrackerEgressRefusedError` when Channel 2 refuses.
+
+        The single implementation of the per-project consent gate (#3030
+        FR-029). Called from both ``_request`` and ``_request_with_retry`` —
+        each is an entry point a caller can reach directly, and each must
+        refuse *before* fetching/minting a token for a project that may not
+        transmit (#458: previously each call site duplicated the
+        ``verdict``/``raise`` pair textually instead of sharing one
+        implementation).
+        """
+        verdict = self._current_tracker_egress_verdict()
+        if verdict.refused:
+            raise TrackerEgressRefusedError(verdict.message)
 
     @staticmethod
     def _required_operation_id(response: httpx.Response) -> str:
