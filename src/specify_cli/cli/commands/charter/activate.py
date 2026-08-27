@@ -210,6 +210,15 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
         emit_step_removal_warnings(step_warnings, console)
 
 
+def _validate_mission_type_activatable(kind: str, artifact_id: str, repo_root: Path) -> None:
+    """FR-001 preflight: refuse activation of an empty-action-sequence mission type."""
+    if kind != "mission-type":
+        return
+    from charter.mission_type_profiles import validate_activatable_mission_type  # noqa: PLC0415
+
+    validate_activatable_mission_type(artifact_id, repo_root=repo_root)
+
+
 def _activate_cascade_target(
     manager: CharterPackManager,
     ctx_project: ProjectContext,
@@ -551,6 +560,12 @@ def activate_cmd(
     # import, no second error-handling style.
     try:
         _emit_step_removal_warnings(kind, artifact_id, repo_root)
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    try:
+        _validate_mission_type_activatable(kind, artifact_id, repo_root)
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
