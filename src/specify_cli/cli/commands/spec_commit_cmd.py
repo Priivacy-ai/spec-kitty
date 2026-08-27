@@ -7,10 +7,10 @@ command (which is mission-blind), this command derives the mission slug from a
 boundary, and routes the commit through
 :func:`~specify_cli.coordination.commit_router.commit_for_mission`.
 
-On a protected primary the coordination worktree is materialised on demand
-(the same canonical ``CoordinationWorkspace.resolve()`` path used by the
-planning loop), so the spec commit lands on the coordination branch instead of
-tripping the guard (materialize-then-retry).
+A protected primary refuses the commit outright: SPEC is a primary-partition
+kind, so it always targets the mission's primary ``target_branch`` and never
+transits the coordination worktree (FR-003 / C-005). The operator must move
+the mission onto a non-protected feature branch before retrying.
 
 Design basis: WP02 / IC-02 / ADR ``2026-06-21-1``.
 
@@ -126,9 +126,9 @@ def spec_commit_command(
 ) -> None:
     """Commit spec artifacts to the mission's resolved placement.
 
-    On a protected primary the coordination worktree is materialised on demand
-    so the commit lands on the coordination branch (materialize-then-retry).
-    On an unprotected or flattened primary the commit is direct.
+    On a protected primary the commit is refused: the mission's target_branch
+    must be a non-protected feature branch before a retry can succeed. On an
+    unprotected or flattened primary the commit is direct.
     """
     try:
         repo_root = _current_repo_root()
@@ -190,17 +190,11 @@ def spec_commit_command(
                 console.print("[dim]Spec artifact(s) unchanged, no commit needed[/dim]")
 
         elif result.status == "no_op_wrong_surface":
-            # T008: actionable refusal — tell the operator what happened and how to recover.
-            recovery_cmd = (
-                f"spec-kitty spec-commit --mission {mission_slug} "
-                f"-m '{message}' <files>"
-            )
-            diag = result.diagnostic or "Artifact absent at resolved placement."
-            actionable = (
-                f"{diag}\n"
-                f"To retry after materialising the coordination worktree, run:\n"
-                f"  {recovery_cmd}"
-            )
+            # T008: actionable refusal — the router's own diagnostic already
+            # names the concrete remedy (e.g. move the mission onto a
+            # non-protected feature branch); no coordination-worktree retry
+            # hint is added here since that transit no longer exists.
+            actionable = result.diagnostic or "Artifact absent at resolved placement."
             payload = _payload(
                 success=False,
                 error=actionable,

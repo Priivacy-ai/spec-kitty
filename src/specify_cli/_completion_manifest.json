@@ -1287,7 +1287,7 @@
    "deprecated": false
   },
   "spec-commit": {
-   "help": "Commit spec artifacts to the mission's resolved placement.\n\nOn a protected primary the coordination worktree is materialised on demand\nso the commit lands on the coordination branch (materialize-then-retry).\nOn an unprotected or flattened primary the commit is direct.",
+   "help": "Commit spec artifacts to the mission's resolved placement.\n\nOn a protected primary the commit is refused: the mission's target_branch\nmust be a non-protected feature branch before a retry can succeed. On an\nunprotected or flattened primary the commit is direct.",
    "hidden": false,
    "deprecated": false
   },
