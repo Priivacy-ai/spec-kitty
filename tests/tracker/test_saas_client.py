@@ -55,7 +55,6 @@ def _expected_idempotency_key(
             "resend_bucket": resend_bucket,
         },
         sort_keys=True,
-        default=str,
     )
     return "logical-operation:write:" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()  # noqa: TID251 - idempotency-key body checksum, not charter content
 
