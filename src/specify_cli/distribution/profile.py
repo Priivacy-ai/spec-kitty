@@ -53,8 +53,8 @@ class DistributionProfile:
         index_url: Primary simple/PyPI-compatible index for remediation argv.
         extra_index_url: Secondary index for remediation argv.
         data_freshness_seconds: Optional TTL override for re-query decisions.
-        disable_public_pypi_notifier: When ``True``, suppress the stock
-            public-PyPI “no upgrade” notice.
+        disable_no_upgrade_notifier: When ``True``, suppress the stock
+            "no upgrade available" notice.
         version_label: Optional ``--version`` banner label; ``None`` means use
             ``package_name``.
     """
@@ -65,7 +65,7 @@ class DistributionProfile:
     index_url: str | None = None
     extra_index_url: str | None = None
     data_freshness_seconds: int | None = None
-    disable_public_pypi_notifier: bool = False
+    disable_no_upgrade_notifier: bool = False
     version_label: str | None = None
 
 
@@ -84,7 +84,7 @@ def stock_distribution_profile() -> DistributionProfile:
         index_url=None,
         extra_index_url=None,
         data_freshness_seconds=None,
-        disable_public_pypi_notifier=False,
+        disable_no_upgrade_notifier=False,
         version_label=None,
     )
 

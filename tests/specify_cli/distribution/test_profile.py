@@ -50,7 +50,7 @@ def test_stock_profile_defaults() -> None:
     assert profile.package_name == DEFAULT_CLI_PACKAGE_NAME
     assert profile.package_aliases == ()
     assert isinstance(profile.upgrade_provider, PyPIProvider)
-    assert profile.disable_public_pypi_notifier is False
+    assert profile.disable_no_upgrade_notifier is False
     assert profile.index_url is None
     assert profile.extra_index_url is None
     assert profile.version_label is None
@@ -72,7 +72,7 @@ def test_entry_point_profile(monkeypatch: pytest.MonkeyPatch) -> None:
         package_aliases=("spec-kitty-cli",),
         upgrade_provider=FakeLatestVersionProvider(version="1.0.0"),
         index_url="https://example.invalid/simple/",
-        disable_public_pypi_notifier=True,
+        disable_no_upgrade_notifier=True,
         version_label="acme-cli",
     )
     monkeypatch.setattr(
@@ -83,7 +83,7 @@ def test_entry_point_profile(monkeypatch: pytest.MonkeyPatch) -> None:
     assert profile.package_name == "acme-spec-kitty-cli"
     assert profile.package_aliases == ("spec-kitty-cli",)
     assert profile.index_url == "https://example.invalid/simple/"
-    assert profile.disable_public_pypi_notifier is True
+    assert profile.disable_no_upgrade_notifier is True
     assert profile.version_label == "acme-cli"
 
 
