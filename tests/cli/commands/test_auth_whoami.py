@@ -22,6 +22,7 @@ from tests.cli.commands.test_auth_status import (
     _flat,
     _make_session,
     _mock_storage_returning,
+    _saas_line,
 )
 
 
@@ -64,6 +65,7 @@ class TestAuthWhoamiCommand:
         flat = _flat(result.stdout)
         assert "https://saas.test" in flat
         assert "(from SPEC_KITTY_SAAS_URL)" in flat
+        assert _saas_line(result.stdout) == "  SaaS:           https://saas.test (from SPEC_KITTY_SAAS_URL)"
 
     def test_mismatch_warning_follows_identity(self):
         result = _invoke_with(_make_session(issuer_url="https://old.example.com"))
@@ -96,6 +98,7 @@ class TestAuthWhoamiCommand:
         first_line = next(line for line in result.stdout.splitlines() if line.strip())
         assert first_line.strip() == "alice@example.com"
         flat = _flat(result.stdout)
+        assert _saas_line(result.stdout) == "  SaaS:           split-brain (env and config.toml disagree)"
         assert "split-brain" in flat
         assert "https://config.test" in flat
         assert "https://saas.test" in flat

@@ -534,6 +534,11 @@ def _flat(text: str) -> str:
     return " ".join(text.split())
 
 
+def _saas_line(text: str) -> str:
+    """Return the rendered SaaS label line without collapsing alignment."""
+    return next(line for line in text.splitlines() if line.startswith("  SaaS:"))
+
+
 class TestSaasSourceName:
     """Provenance naming mirrors resolve_server_target's precedence."""
 
@@ -620,6 +625,7 @@ class TestAuthStatusSaasLine:
         # Same value `auth login` prints (the fixture sets it to https://saas.test).
         assert "https://saas.test" in flat
         assert "(from SPEC_KITTY_SAAS_URL)" in flat
+        assert _saas_line(result.stdout) == "  SaaS:           https://saas.test (from SPEC_KITTY_SAAS_URL)"
 
     def test_status_prints_endpoint_before_identity(self):
         """The SaaS line is the first line of the block after the banner."""
@@ -664,6 +670,7 @@ class TestAuthStatusSaasLine:
         assert "(authenticated session)" in flat
         assert "SPEC_KITTY_SAAS_URL" in flat
         assert "SaaS:" in flat
+        assert _saas_line(result.stdout).startswith("  SaaS:           not configured ")
         # #182: unescaped, Rich markup parses "[sync]" as a style tag and
         # silently drops it from the remedy.
         assert "[sync].server_url" in flat
@@ -768,6 +775,7 @@ class TestAuthStatusSaasLine:
 
         assert result.exit_code == 0, result.stdout
         flat = _flat(result.stdout)
+        assert _saas_line(result.stdout) == "  SaaS:           https://saas.test (from SPEC_KITTY_SAAS_URL)"
         assert "Session is for https://sk-teamkitty.exe.xyz; SPEC_KITTY_SAAS_URL now points at https://saas.test" in flat
         assert "run spec-kitty auth login --force" in flat
 
@@ -810,6 +818,7 @@ class TestAuthStatusSaasLine:
         assert result.exit_code == 0, result.stdout
         assert "Traceback" not in result.stdout
         flat = _flat(result.stdout)
+        assert _saas_line(result.stdout) == "  SaaS:           split-brain (env and config.toml disagree)"
         assert "split-brain" in flat
         assert "https://config.test" in flat
         assert "https://saas.test" in flat
