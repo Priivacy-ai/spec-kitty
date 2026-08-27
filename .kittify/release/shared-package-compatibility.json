@@ -4,11 +4,11 @@
   "packages": [
     {
       "package": "spec-kitty-events",
-      "source_repo": "spec-kitty/EXPERIMENTAL-spec-kitty-events",
+      "source_repo": "Priivacy-ai/spec-kitty-events",
       "cli_range": "",
       "locked_version": "8.0.0",
       "contract_surface": "volatile mission/WP families + zeitgeist attrs codecs; sync/legacy/cutover deleted",
-      "resolution_note": "For the programme, the CLI pins this package via a PEP 508 direct git reference on github.com at a full-SHA rev instead of a version range (PROGRAM.md §2; EXPERIMENTAL-spec-kitty-planning#31). An empty cli_range matches the direct reference's empty specifier."
+      "resolution_note": "8.0.0 is not yet published to an index (EXPERIMENTAL-spec-kitty-planning#31); the CLI pins it via a PEP 508 direct git reference on github.com at a full-SHA rev instead of a version range (PROGRAM.md §2 wheel-installability exception). An empty cli_range matches the direct reference's empty specifier; move back to a bounded range once 8.0.0 is published."
     },
     {
       "package": "spec-kitty-tracker",
