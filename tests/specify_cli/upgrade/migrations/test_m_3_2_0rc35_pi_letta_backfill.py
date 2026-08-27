@@ -7,11 +7,13 @@ the migration logic can be verified without a live package dependency.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.gitignore_manager import IgnoreFilePathError
 from specify_cli.skills import command_installer, manifest_store
 from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 from specify_cli.upgrade.migrations.m_3_2_0rc35_pi_letta_backfill import (
@@ -108,6 +110,21 @@ def test_skips_gitignore_if_already_present(tmp_path: Path) -> None:
     assert gitignore_text.count(".pi/") == 1
     # No gitignore change reported
     assert not any(".pi/" in change and "Added" in change for change in result.changes_made)
+
+
+def test_detect_rejects_symlinked_gitignore(tmp_path: Path) -> None:
+    """detect() must not follow a .gitignore that is a symlink (issue #626)."""
+    project = _make_project(tmp_path, agents=["pi"], install_skills=True)
+    outside_target = tmp_path.parent / f"outside-target-{os.getpid()}.txt"
+    outside_target.write_text("do-not-touch\n")
+    (project / ".gitignore").symlink_to(outside_target)
+
+    migration = PiLettaBackfillMigration()
+    try:
+        with pytest.raises(IgnoreFilePathError):
+            migration.detect(project)
+    finally:
+        outside_target.unlink(missing_ok=True)
 
 
 def test_skips_unconfigured_agent(tmp_path: Path) -> None:

@@ -13,6 +13,43 @@ from pathlib import Path
 from specify_cli.state.contract import get_runtime_gitignore_entries
 
 
+class IgnoreFilePathError(Exception):
+    """Raised when an ignore file (`.gitignore`, `.claudeignore`) is a symlink.
+
+    `Path.read_text()` / `Path.exists()` both follow symlinks, so an ignore
+    file swapped for a symlink (e.g. by a malicious repo checkout) would let
+    a caller's presence/content check follow it to an arbitrary path. Fail
+    closed instead of following it.
+    """
+
+
+def read_ignore_file_text(path: Path, encoding: str = "utf-8-sig") -> str:
+    """Read an ignore file's text content, refusing to follow a symlink.
+
+    Used for presence/content checks against `.gitignore`/`.claudeignore`
+    (e.g. migration `detect()` logic) that must not be redirected by a
+    symlink the way a bare `Path.read_text()`/`.exists()` pair would be.
+
+    Args:
+        path: Path to the ignore file (e.g. `.gitignore` or `.claudeignore`).
+        encoding: Text encoding to decode with.
+
+    Returns:
+        The file's text content, or `""` if it does not exist.
+
+    Raises:
+        IgnoreFilePathError: If `path` is a symlink.
+    """
+    if path.is_symlink():
+        target = os.readlink(path)
+        raise IgnoreFilePathError(
+            f"{path} is a symlink to {target!r}; refusing to read through it"
+        )
+    if not path.exists():
+        return ""
+    return path.read_text(encoding=encoding)
+
+
 @dataclass
 class AgentDirectory:
     """Represents a single agent's directory that needs protection."""

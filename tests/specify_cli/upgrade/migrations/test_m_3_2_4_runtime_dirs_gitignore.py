@@ -8,12 +8,14 @@ untracked and fail ``spec-kitty accept``'s ``git_dirty`` check.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from kernel.clock import now_utc
 from pathlib import Path
 
 import pytest
 
+from specify_cli.gitignore_manager import IgnoreFilePathError
 from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.migrations.m_3_2_4_runtime_dirs_gitignore_backfill import (
@@ -69,6 +71,20 @@ def test_detect_false_when_both_present(tmp_path: Path) -> None:
     _write_gitignore(tmp_path, *_RUNTIME_DIR_ENTRIES)
 
     assert RuntimeDirsGitignoreBackfillMigration().detect(tmp_path) is False
+
+
+def test_detect_rejects_symlinked_gitignore(tmp_path: Path) -> None:
+    """detect() must not follow a .gitignore that is a symlink (issue #626)."""
+    _init_git_repo(tmp_path)
+    outside_target = tmp_path.parent / f"outside-target-{os.getpid()}.txt"
+    outside_target.write_text("do-not-touch\n")
+    (tmp_path / ".gitignore").symlink_to(outside_target)
+
+    try:
+        with pytest.raises(IgnoreFilePathError):
+            RuntimeDirsGitignoreBackfillMigration().detect(tmp_path)
+    finally:
+        outside_target.unlink(missing_ok=True)
 
 
 def test_trailing_slash_variant_counts_as_present(tmp_path: Path) -> None:
