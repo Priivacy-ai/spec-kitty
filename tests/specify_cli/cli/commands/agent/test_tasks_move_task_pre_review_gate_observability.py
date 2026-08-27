@@ -61,10 +61,9 @@ _META_JSON = json.dumps(
 @dataclass(frozen=True)
 class _FakeScopeSource:
     """WP09 migration seam: an activation-selected ``ScopeSource`` whose per-file
-    scoping yields a fixed target WITHOUT the live ``_gate_coverage`` census
-    authority (absent in these hermetic fixture repos). The hook builds the real
-    ``GateCoverageScopeSource`` in production; tests patch ``_mt_resolve_scope_source``
-    to return this so the bound handler reaches the mocked
+    scoping yields a fixed target WITHOUT the retired ``_gate_coverage`` census
+    authority (absent in these hermetic fixture repos). Tests patch
+    ``_mt_resolve_scope_source`` to return this so the bound handler reaches the mocked
     ``evaluate_with_scope`` / ``run_scoped_tests_at_head`` instead of degrading to
     a ``GateAuthoritiesUnavailable`` warn."""
 
@@ -826,11 +825,10 @@ def test_gate_created_path_is_committed_on_pass(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 # WP09 / T046 — #2534 closure, proven STRUCTURALLY (not config-dependent).
 #
-# The pre-review facet of #2534 is closed by construction: the internal
-# ``tests.architectural._gate_coverage`` authority is reachable ONLY through the
-# activation-selected ``GateCoverageScopeSource``, and even then its import is
-# refused for any repo that is not the Spec-Kitty source tree. These two arms
-# prove the closure does NOT depend on activation being correctly configured.
+# The pre-review facet of #2534 is closed by construction: the production
+# resolver no longer imports the internal ``tests.architectural._gate_coverage``
+# authority. These arms prove the closure does NOT depend on activation being
+# correctly configured.
 # --------------------------------------------------------------------------- #
 
 _GATE_COVERAGE_MODULE = "tests.architectural._gate_coverage"
@@ -839,9 +837,7 @@ _GATE_COVERAGE_MODULE = "tests.architectural._gate_coverage"
 def _for_review_state(gate_repo_root: Path) -> Any:
     """A minimal ``_MoveTaskState``-shaped stand-in for the collect helper."""
     del gate_repo_root
-    return SimpleNamespace(
-        json_output=True, force=False, wp=None, old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW
-    )
+    return SimpleNamespace(json_output=True, force=False, wp=None, old_lane=Lane.IN_PROGRESS, target_lane=Lane.FOR_REVIEW)
 
 
 def test_2534_no_binding_arm_never_touches_internal_gate_coverage(tmp_path: Path) -> None:
@@ -853,12 +849,9 @@ def test_2534_no_binding_arm_never_touches_internal_gate_coverage(tmp_path: Path
     warn carrying the resolver's no-binding reason.
     """
     from specify_cli.cli.commands.agent import tasks_move_task as tmt
-    from specify_cli.review import scope_source as ss
     from specify_cli.review.gate_bindings import GateBindingResolution, GateCoverage
 
-    inputs = tmt._TransitionGateInputs(
-        worktree_path=None, changed_files=("src/example.py",), gate_repo_root=tmp_path
-    )
+    inputs = tmt._TransitionGateInputs(worktree_path=None, changed_files=("src/example.py",), gate_repo_root=tmp_path)
     not_activated = GateBindingResolution(
         coverage=GateCoverage.NOT_ACTIVATED,
         edge_key="in_progress->for_review",
@@ -866,13 +859,9 @@ def test_2534_no_binding_arm_never_touches_internal_gate_coverage(tmp_path: Path
         reason="gate binding present for edge in_progress->for_review but owning contract is not activated",
     )
     tasks_stub = SimpleNamespace(console=SimpleNamespace(print=lambda *_a, **_k: None))
-    with (
-        patch.object(tmt, "_mt_resolve_active_gate_bindings", return_value=not_activated),
-        patch.object(ss, "_load_gate_coverage_module", side_effect=AssertionError("internal authority must be unreachable")) as loader_spy,
-    ):
+    with patch.object(tmt, "_mt_resolve_active_gate_bindings", return_value=not_activated):
         verdicts = tmt._mt_collect_transition_gate_verdicts(_for_review_state(tmp_path), inputs, tasks_stub)
 
-    loader_spy.assert_not_called()
     assert len(verdicts) == 1  # golden-count: cardinality-is-contract
     assert verdicts[0].outcome is pre_review_gate.GateOutcome.NO_COVERAGE
     assert "not activated" in (verdicts[0].reason or "")
@@ -891,11 +880,11 @@ def test_2534_erroneous_activation_degrades_without_importing_gate_coverage(tmp_
     """
     from specify_cli.cli.commands.agent import tasks_move_task as tmt
     from specify_cli.review.gate_registry import TransitionGateContext, get_gate_handler
-    from specify_cli.review.scope_source import GateCoverageScopeSource
+    from specify_cli.review.scope_source import DeclaredCommandScopeSource
 
     ctx = TransitionGateContext(
         changed_files=("src/example.py",),
-        scope_source=GateCoverageScopeSource(repo_root=tmp_path),
+        scope_source=DeclaredCommandScopeSource(repo_root=tmp_path),
         baseline=None,
         repo_root=tmp_path,
         force=False,
@@ -918,9 +907,9 @@ def test_2534_erroneous_activation_degrades_without_importing_gate_coverage(tmp_
         verdict = tmt._mt_dispatch_one_gate(binding, ctx, get_gate_handler)
     after = {key for key in sys.modules if "_gate_coverage" in key}
 
-    # Fail-open: the erroneous activation degrades to a visible unverified warn.
+    # Fail-open: the erroneous activation degrades to a visible no-config warn.
     assert verdict.outcome is pre_review_gate.GateOutcome.NO_COVERAGE
-    assert "unverified" in (verdict.reason or "").lower()
+    assert "no test command configured" in (verdict.reason or "").lower()
     # Structural closure: the consumer's internal authority never entered the
     # module table via this dispatch (the import was refused, not swallowed).
     assert after == before
@@ -1018,9 +1007,7 @@ def _invoke_for_review(tmp_path: Path, ports: TasksPorts, *seams: Any) -> Any:
         )
         stack.enter_context(patch.object(tasks_move_task, "_default_move_task_ports", return_value=ports))
         stack.enter_context(patch.object(tasks_move_task, "_mt_resolve_pre_review_workspace", return_value=tmp_path))
-        stack.enter_context(
-            patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",))
-        )
+        stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_changed_files", return_value=("src/example.py",)))
         stack.enter_context(patch.object(tasks_move_task, "_mt_pre_review_dirty_paths", return_value=()))
         for seam in seams:
             stack.enter_context(seam)
@@ -1115,9 +1102,7 @@ def test_deprecation_warn_under_filterwarnings_error_folds_into_envelope(tmp_pat
     to an exception degrades to a single NO_COVERAGE warn and the move proceeds.
     """
     (tmp_path / ".kittify").mkdir()
-    (tmp_path / ".kittify" / "config.yaml").write_text(
-        "review:\n  pre_review_test_command: pytest tests/legacy\n", encoding="utf-8"
-    )
+    (tmp_path / ".kittify" / "config.yaml").write_text("review:\n  pre_review_test_command: pytest tests/legacy\n", encoding="utf-8")
     st: Any = SimpleNamespace(
         main_repo_root=tmp_path,
         json_output=True,
@@ -1130,9 +1115,7 @@ def test_deprecation_warn_under_filterwarnings_error_folds_into_envelope(tmp_pat
     tasks_move_task._pre_review_test_command_deprecation_emitted = False
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        inputs, dirty_before, verdicts = tasks_move_task._mt_resolve_transition_gate_verdicts(
-            st, tasks_stub
-        )
+        inputs, dirty_before, verdicts = tasks_move_task._mt_resolve_transition_gate_verdicts(st, tasks_stub)
     assert inputs is None
     assert dirty_before == ()
     assert len(verdicts) == 1  # golden-count: cardinality-is-contract

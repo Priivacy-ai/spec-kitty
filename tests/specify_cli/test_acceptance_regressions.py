@@ -24,7 +24,6 @@ from typer.testing import CliRunner
 from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceSummary,
-    _changed_workflow_files,
     acceptance_lane_derivations,
     collect_feature_summary,
     perform_acceptance,
@@ -86,9 +85,7 @@ def test_acceptance_summary_all_done_rejects_non_accepted_ready_lanes(tmp_path: 
         ("canceled", "reopen or replace it"),
     ],
 )
-def test_acceptance_summary_reports_actionable_lane_blockers(
-    tmp_path: Path, lane: str, expected_action: str
-) -> None:
+def test_acceptance_summary_reports_actionable_lane_blockers(tmp_path: Path, lane: str, expected_action: str) -> None:
     summary = _summary_with_lanes(tmp_path, {"approved": ["WP01"], lane: ["WP02"]})
 
     outstanding = summary.outstanding()
@@ -310,13 +307,7 @@ def test_collect_feature_summary_reads_planning_artifacts_from_primary(tmp_path:
     """
     repo_root, feature_dir = _create_test_feature(tmp_path)
     mid8 = "01ABCDEF"
-    coord_feature_dir = (
-        repo_root
-        / ".worktrees"
-        / f"{_FEATURE_SLUG}-{mid8}-coord"
-        / "kitty-specs"
-        / f"{_FEATURE_SLUG}-{mid8}"
-    )
+    coord_feature_dir = repo_root / ".worktrees" / f"{_FEATURE_SLUG}-{mid8}-coord" / "kitty-specs" / f"{_FEATURE_SLUG}-{mid8}"
     coord_feature_dir.mkdir(parents=True)
 
     for path in feature_dir.rglob("*"):
@@ -375,9 +366,7 @@ _MISSION_ID = "01ABCDEF0123456789ABCDEFGH"
     [_MISSION_ID[:8], _MISSION_ID, _FEATURE_SLUG.split("-", 1)[0]],
     ids=["mid8", "ulid", "numeric"],
 )
-def test_collect_feature_summary_anchors_primary_across_handle_tiers(
-    tmp_path: Path, handle: str
-) -> None:
+def test_collect_feature_summary_anchors_primary_across_handle_tiers(tmp_path: Path, handle: str) -> None:
     """A mid8 / ULID / numeric handle must resolve the accept gate's PRIMARY-partition
     reads to the primary mission dir (#2126), while STATUS reads stay coord-aware.
 
@@ -387,13 +376,7 @@ def test_collect_feature_summary_anchors_primary_across_handle_tiers(
     missing because it would compose a nonexistent ``kitty-specs/<handle>`` dir)."""
     repo_root, feature_dir = _create_test_feature(tmp_path)
     mid8 = _MISSION_ID[:8]
-    coord_feature_dir = (
-        repo_root
-        / ".worktrees"
-        / f"{_FEATURE_SLUG}-{mid8}-coord"
-        / "kitty-specs"
-        / f"{_FEATURE_SLUG}-{mid8}"
-    )
+    coord_feature_dir = repo_root / ".worktrees" / f"{_FEATURE_SLUG}-{mid8}-coord" / "kitty-specs" / f"{_FEATURE_SLUG}-{mid8}"
     coord_feature_dir.mkdir(parents=True)
 
     for path in feature_dir.rglob("*"):
@@ -428,158 +411,6 @@ def test_collect_feature_summary_anchors_primary_across_handle_tiers(
     assert summary.lanes["done"] == ["WP01"]
     # `_planning_read_dir` leg (spec/plan/tasks) resolved off the primary surface.
     assert summary.missing_artifacts == []
-
-
-def test_collect_feature_summary_blocks_workflow_changes_without_runner_evidence(tmp_path: Path) -> None:
-    repo_root, _feature_dir = _create_test_feature(tmp_path)
-    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo_root), "checkout", "-b", "kitty/mission-workflow-lane-a"], check=True, capture_output=True)
-
-    workflow_path = repo_root / ".github" / "workflows" / "ci.yml"
-    workflow_path.parent.mkdir(parents=True)
-    workflow_path.write_text("name: CI\non: [pull_request]\njobs: {}\n")
-    subprocess.run(["git", "-C", str(repo_root), "add", ".github/workflows/ci.yml"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add workflow"], check=True, capture_output=True)
-
-    summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
-    assert any("Workflow run evidence required" in issue for issue in summary.activity_issues)
-
-
-def test_collect_feature_summary_allows_workflow_changes_with_runner_evidence(tmp_path: Path) -> None:
-    repo_root, feature_dir = _create_test_feature(tmp_path)
-    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo_root), "checkout", "-b", "kitty/mission-workflow-lane-a"], check=True, capture_output=True)
-
-    workflow_path = repo_root / ".github" / "workflows" / "ci.yml"
-    workflow_path.parent.mkdir(parents=True)
-    workflow_path.write_text("name: CI\non: [pull_request]\njobs: {}\n")
-    (feature_dir / "workflow-evidence.md").write_text("Successful run: https://github.com/acme/demo/actions/runs/123\n")
-    subprocess.run(
-        ["git", "-C", str(repo_root), "add", ".github/workflows/ci.yml", f"kitty-specs/{_FEATURE_SLUG}/workflow-evidence.md"],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add workflow with evidence"], check=True, capture_output=True)
-
-    summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
-    assert not any("Workflow run evidence required" in issue for issue in summary.activity_issues)
-
-
-def test_changed_workflow_files_three_dot_two_arg_equivalence(tmp_path: Path) -> None:
-    """FR-008 / mission merge-base-diff-ssot-01KX44SD (acceptance 5th copy).
-
-    ``_changed_workflow_files`` now delegates to
-    ``merge_base_changed_files(..., pathspec=".github/workflows",
-    diff_filter="AMR")``, which runs the TWO-ARG
-    ``git diff --name-only --diff-filter=AMR <mb> HEAD -- .github/workflows``
-    form; the pre-repoint code used the THREE-DOT ``<mb>...HEAD`` form.
-
-    What this actually pins (honest scope): that the delegation threads the
-    pathspec + ``--diff-filter=AMR`` correctly and returns the expected
-    workflow-file set on a real repo. It does NOT — and cannot — exercise a
-    three-dot-vs-two-dot *divergence*: none is constructible here because
-    ``mb`` is by construction the merge-base of HEAD and ``base_ref`` (an
-    ancestor of HEAD), so ``mb...HEAD`` ≡ ``mb..HEAD`` ≡ ``mb HEAD`` for
-    ``--name-only``. That equivalence is a git invariant, not something a test
-    can falsify at this call site. The real negative control against the
-    dangerous mis-wire (using the HEAD-relative convenience where a non-HEAD
-    target is required) lives in ``test_non_head_branch_target_fences_f1``.
-    """
-    repo_root, feature_dir = _create_test_feature(tmp_path)
-    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo_root), "checkout", "-b", "kitty/mission-workflow-lane-a"], check=True, capture_output=True)
-
-    workflow_path = repo_root / ".github" / "workflows" / "ci.yml"
-    workflow_path.parent.mkdir(parents=True)
-    workflow_path.write_text("name: CI\non: [pull_request]\njobs: {}\n")
-    (repo_root / "src" / "unrelated.py").write_text("x = 1\n")
-    subprocess.run(
-        ["git", "-C", str(repo_root), "add", ".github/workflows/ci.yml", "src/unrelated.py"],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "-C", str(repo_root), "commit", "-m", "Add workflow + unrelated"],
-        check=True,
-        capture_output=True,
-    )
-
-    merge_base = subprocess.run(
-        ["git", "-C", str(repo_root), "merge-base", "HEAD", "main"],
-        check=True,
-        capture_output=True,
-        text=True,
-    ).stdout.strip()
-    assert merge_base, "merge-base must resolve for the equivalence to be meaningful"
-
-    raw_three_dot = subprocess.run(
-        [
-            "git", "-C", str(repo_root), "diff", "--name-only", "--diff-filter=AMR",
-            f"{merge_base}...HEAD", "--", ".github/workflows",
-        ],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    expected = sorted({line.strip() for line in raw_three_dot.stdout.splitlines() if line.strip()})
-    assert expected == [".github/workflows/ci.yml"]
-
-    result = _changed_workflow_files(repo_root, feature_dir, "kitty/mission-workflow-lane-a")
-
-    assert result == expected
-
-
-@pytest.mark.parametrize(
-    ("evidence", "expected"),
-    [
-        ("run: 12345\n", True),
-        ("Successful GitHub Actions Run ID - 12345\n", True),
-        ("github actions run # 67890\n", True),
-        ("run id: abc123\n", False),
-        ("run\n", False),
-    ],
-)
-def test_collect_feature_summary_parses_plain_workflow_run_ids(
-    tmp_path: Path, evidence: str, expected: bool
-) -> None:
-    repo_root, feature_dir = _create_test_feature(tmp_path)
-    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo_root), "checkout", "-b", "kitty/mission-workflow-lane-a"], check=True, capture_output=True)
-
-    workflow_path = repo_root / ".github" / "workflows" / "ci.yml"
-    workflow_path.parent.mkdir(parents=True)
-    workflow_path.write_text("name: CI\non: [pull_request]\njobs: {}\n")
-    (feature_dir / "workflow-evidence.md").write_text(evidence)
-    subprocess.run(
-        ["git", "-C", str(repo_root), "add", ".github/workflows/ci.yml", f"kitty-specs/{_FEATURE_SLUG}/workflow-evidence.md"],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add workflow evidence variant"], check=True, capture_output=True)
-
-    summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
-    has_issue = any("Workflow run evidence required" in issue for issue in summary.activity_issues)
-    assert has_issue is not expected
-
-
-def test_collect_feature_summary_rejects_placeholder_workflow_evidence(tmp_path: Path) -> None:
-    repo_root, feature_dir = _create_test_feature(tmp_path)
-    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
-    subprocess.run(["git", "-C", str(repo_root), "checkout", "-b", "kitty/mission-workflow-lane-a"], check=True, capture_output=True)
-
-    workflow_path = repo_root / ".github" / "workflows" / "ci.yml"
-    workflow_path.parent.mkdir(parents=True)
-    workflow_path.write_text("name: CI\non: [pull_request]\njobs: {}\n")
-    (feature_dir / "workflow-evidence.md").write_text("n/a\n")
-    subprocess.run(
-        ["git", "-C", str(repo_root), "add", ".github/workflows/ci.yml", f"kitty-specs/{_FEATURE_SLUG}/workflow-evidence.md"],
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(["git", "-C", str(repo_root), "commit", "-m", "Add workflow with placeholder evidence"], check=True, capture_output=True)
-
-    summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
-    assert any("Workflow run evidence required" in issue for issue in summary.activity_issues)
 
 
 # ---------------------------------------------------------------------------
@@ -623,9 +454,7 @@ def test_perform_acceptance_persists_accept_commit(tmp_path: Path) -> None:
     )
 
     # AcceptanceResult.accept_commit must also match
-    assert result.accept_commit == accept_commit, (
-        f"Result.accept_commit mismatch: {result.accept_commit!r} != {accept_commit!r}"
-    )
+    assert result.accept_commit == accept_commit, f"Result.accept_commit mismatch: {result.accept_commit!r} != {accept_commit!r}"
 
     status = subprocess.run(
         ["git", "-C", str(repo_root), "status", "--short"],
@@ -715,11 +544,7 @@ def test_collect_feature_summary_allows_planning_artifact_research_without_matri
     assert not any("Acceptance matrix" in issue for issue in summary.activity_issues)
     assert not any(item.check == "acceptance_matrix" for item in summary.blocked_checks)
     assert not summary.path_violations
-    assert any(
-        item.check == "acceptance_matrix_presence"
-        and "planning_artifact-only" in item.detail
-        for item in summary.skipped_checks
-    )
+    assert any(item.check == "acceptance_matrix_presence" and "planning_artifact-only" in item.detail for item in summary.skipped_checks)
 
 
 def test_accept_cli_no_commit_json_allows_planning_artifact_research_without_matrix(
@@ -778,14 +603,9 @@ def test_accept_cli_no_commit_json_allows_planning_artifact_research_without_mat
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["summary"]["ok"] is True
-    assert not any(
-        item.get("check") == "acceptance_matrix"
-        for item in payload["summary"]["blocked_checks"]
-    )
+    assert not any(item.get("check") == "acceptance_matrix" for item in payload["summary"]["blocked_checks"])
     assert any(
-        item.get("check") == "acceptance_matrix_presence"
-        and "planning_artifact-only" in item.get("detail", "")
-        for item in payload["summary"]["skipped_checks"]
+        item.get("check") == "acceptance_matrix_presence" and "planning_artifact-only" in item.get("detail", "") for item in payload["summary"]["skipped_checks"]
     )
     assert not payload["summary"]["path_violations"]
 
@@ -1037,9 +857,7 @@ class TestIntegrationBranchGuard:
     branch (e.g. main, 2.x).
     """
 
-    def _make_summary_on_branch(
-        self, tmp_path: Path, branch: str, *, target_branch: str = "main"
-    ) -> AcceptanceSummary:
+    def _make_summary_on_branch(self, tmp_path: Path, branch: str, *, target_branch: str = "main") -> AcceptanceSummary:
         """Create a minimal AcceptanceSummary as if on *branch*."""
         repo_root, feature_dir = _create_test_feature(tmp_path)
         # Patch meta.json with the desired target_branch and recommit
@@ -1050,7 +868,8 @@ class TestIntegrationBranchGuard:
         meta_path.write_text(json.dumps(meta, indent=2) + "\n")
         subprocess.run(
             ["git", "-C", str(repo_root), "add", "-A"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         # Commit only if there are staged changes (target_branch may already
         # match the value written by _create_test_feature).
@@ -1061,7 +880,8 @@ class TestIntegrationBranchGuard:
         if diff.returncode != 0:
             subprocess.run(
                 ["git", "-C", str(repo_root), "commit", "-m", "patch target_branch"],
-                check=True, capture_output=True,
+                check=True,
+                capture_output=True,
             )
 
         summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)
@@ -1075,12 +895,8 @@ class TestIntegrationBranchGuard:
         result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions + result.cleanup_instructions)
-        assert "git merge main" not in merged, (
-            f"Should not suggest merging integration branch. instructions={result.instructions}"
-        )
-        assert "git branch -d main" not in merged, (
-            f"Should not suggest deleting integration branch. cleanup={result.cleanup_instructions}"
-        )
+        assert "git merge main" not in merged, f"Should not suggest merging integration branch. instructions={result.instructions}"
+        assert "git branch -d main" not in merged, f"Should not suggest deleting integration branch. cleanup={result.cleanup_instructions}"
 
     def test_branch_2x_no_merge_guidance(self, tmp_path: Path) -> None:
         """branch='2.x' with target_branch='2.x' must NOT produce 'git merge 2.x'."""
@@ -1097,24 +913,16 @@ class TestIntegrationBranchGuard:
         result = perform_acceptance(summary, mode="pr", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions)
-        assert "Push your branch" not in merged, (
-            f"Should not suggest pushing integration branch as feature. instructions={result.instructions}"
-        )
+        assert "Push your branch" not in merged, f"Should not suggest pushing integration branch as feature. instructions={result.instructions}"
 
     def test_feature_branch_still_gets_merge_guidance(self, tmp_path: Path) -> None:
         """A real feature branch must still get spec-kitty merge + cleanup guidance."""
-        summary = self._make_summary_on_branch(
-            tmp_path, "kitty/mission-054-my-feature-lane-a", target_branch="main"
-        )
+        summary = self._make_summary_on_branch(tmp_path, "kitty/mission-054-my-feature-lane-a", target_branch="main")
         result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions + result.cleanup_instructions)
-        assert "spec-kitty merge --mission" in merged, (
-            f"Feature branch should get merge guidance. instructions={result.instructions}"
-        )
-        assert "git branch -d kitty/mission-054-my-feature-lane-a" in merged, (
-            f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
-        )
+        assert "spec-kitty merge --mission" in merged, f"Feature branch should get merge guidance. instructions={result.instructions}"
+        assert "git branch -d kitty/mission-054-my-feature-lane-a" in merged, f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
 
     def test_well_known_branch_without_meta_target(self, tmp_path: Path) -> None:
         """When meta.json has no target_branch, well-known names are guarded."""
@@ -1126,11 +934,13 @@ class TestIntegrationBranchGuard:
         meta_path.write_text(json.dumps(meta, indent=2) + "\n")
         subprocess.run(
             ["git", "-C", str(repo_root), "add", "-A"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
         subprocess.run(
             ["git", "-C", str(repo_root), "commit", "-m", "remove target_branch"],
-            check=True, capture_output=True,
+            check=True,
+            capture_output=True,
         )
 
         summary = collect_feature_summary(tmp_path, _FEATURE_SLUG)

@@ -34,23 +34,16 @@ from specify_cli.task_utils.support import TaskCliError
 from specify_cli.runtime.resolver import resolve_configured_artifact_name
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
 
-# WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
-# checks live in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
+# WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate checks live
+# in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
 # in ``summary_core`` (T021). Bare re-export shims, NOT added to ``__all__`` (T025) —
 # ``accept.py`` and the WP01 characterization suite keep importing these names
 # straight off ``specify_cli.acceptance``; only ``collect_feature_summary`` /
 # ``perform_acceptance`` (the executor) and the already-public ``WorkPackageState``
 # are load-bearing package exports.
-# ``_changed_workflow_files`` has no in-module caller after the T022 extraction
-# (it is called via ``_check_workflow_run_evidence``, which now lives in
-# ``gates_core`` too) — it is re-exported solely because
-# ``tests/specify_cli/test_acceptance_regressions.py`` imports it directly
-# off ``specify_cli.acceptance``. Not a dead symbol; noqa is narrowly scoped.
 from .gates_core import (
     AcceptanceCheckDiagnostic,
-    _changed_workflow_files,  # noqa: F401 -- re-export consumed by test_acceptance_regressions.py
     _check_lane_gates,
-    _check_workflow_run_evidence,
     _find_unchecked_tasks,
     _normalized_unchecked_tasks,
 )
@@ -277,8 +270,7 @@ def _accept_dirty_gate(
     git_dirty = [
         line
         for line in git_dirty_raw
-        if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature)
-        and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
+        if not _is_accept_pipeline_own_write(_porcelain_dirty_path(line), mission_slug=feature) and not is_self_bookkeeping_churn(_porcelain_dirty_path(line))
     ]
     return _filter_coordination_residue(git_dirty, repo_root=repo_root, feature=feature)
 
@@ -1079,8 +1071,6 @@ def collect_feature_summary(
         blocked_checks,
         mutate_matrix=mutate_matrix,
     )
-    _check_workflow_run_evidence(repo_root, read_feature_dir, branch, activity_issues)
-
     normalized_unchecked_tasks = _normalized_unchecked_tasks(unchecked_tasks, lanes)
     recommended_fix_order = _build_recommended_fix_order(
         lanes=lanes,

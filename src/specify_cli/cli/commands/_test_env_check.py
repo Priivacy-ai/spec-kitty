@@ -4,7 +4,7 @@ See: src/specify_cli/cli/commands/review/ERROR_CODES.md for the
 MISSION_REVIEW_TEST_EXTRA_MISSING and MISSION_REVIEW_ENV_SKEW diagnostic
 bodies.
 
-Three preflight concerns live here:
+Two preflight concerns live here:
 
 * ``assert_pytest_available`` -- pytest must be importable from the active
   interpreter (pre-existing).
@@ -15,16 +15,11 @@ Three preflight concerns live here:
   ``typer`` release that vendors ``click`` internally and stops re-exporting
   it (see the TID251 Gap-5 ban in pyproject.toml), so local CLI-shard runs
   can silently diverge from CI without this check.
-* The local CI-residual selection runner (FR-002) -- single-sources the
-  ``-m`` marker expression from the live ``unit-contract-residual`` CI job
-  (``.github/workflows/ci-quality.yml``) rather than a hand-copied string,
-  so a contributor can run the same selection locally before pushing.
 """
 
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 import sys
 import tomllib
@@ -32,8 +27,6 @@ from dataclasses import dataclass
 from importlib import metadata as importlib_metadata
 from pathlib import Path
 from typing import Any, cast
-
-import yaml
 
 from specify_cli.core.env import is_truthy
 
@@ -94,9 +87,7 @@ class PackageSkew:
     installed: str | None
 
 
-def _read_uv_lock_versions(
-    uv_lock_path: Path, packages: tuple[str, ...] = GUARDED_LOCK_PACKAGES
-) -> dict[str, str]:
+def _read_uv_lock_versions(uv_lock_path: Path, packages: tuple[str, ...] = GUARDED_LOCK_PACKAGES) -> dict[str, str]:
     """Parse ``uv.lock`` (TOML) and return ``{package: locked_version}``.
 
     Reads the lockfile LIVE via :mod:`tomllib` -- the single source of truth
@@ -123,9 +114,7 @@ def _installed_version(package: str) -> str | None:
         return None
 
 
-def check_typer_click_lock_parity(
-    project_root: Path, *, packages: tuple[str, ...] = GUARDED_LOCK_PACKAGES
-) -> list[PackageSkew]:
+def check_typer_click_lock_parity(project_root: Path, *, packages: tuple[str, ...] = GUARDED_LOCK_PACKAGES) -> list[PackageSkew]:
     """Compare uv.lock-pinned typer/click versions to the installed ones.
 
     Returns the list of mismatches (empty if none, or if ``uv.lock`` is
@@ -152,21 +141,11 @@ def check_typer_click_lock_parity(
 
 def format_env_skew_message(mismatches: list[PackageSkew]) -> str:
     """Render a human-readable, diagnostic-coded skew report for ``mismatches``."""
-    rows = "\n".join(
-        f"  - {m.package}: locked={m.locked}, "
-        f"installed={m.installed if m.installed is not None else '<not installed>'}"
-        for m in mismatches
-    )
-    return (
-        f"{ENV_SKEW_DIAGNOSTIC_CODE}: local typer/click versions diverge from "
-        f"uv.lock:\n{rows}\n"
-        f"Run `{ENV_SKEW_REMEDIATION}` to restore parity with CI."
-    )
+    rows = "\n".join(f"  - {m.package}: locked={m.locked}, installed={m.installed if m.installed is not None else '<not installed>'}" for m in mismatches)
+    return f"{ENV_SKEW_DIAGNOSTIC_CODE}: local typer/click versions diverge from uv.lock:\n{rows}\nRun `{ENV_SKEW_REMEDIATION}` to restore parity with CI."
 
 
-def assert_typer_click_lock_parity(
-    project_root: Path, *, fail_closed: bool | None = None
-) -> list[PackageSkew]:
+def assert_typer_click_lock_parity(project_root: Path, *, fail_closed: bool | None = None) -> list[PackageSkew]:
     """Preflight: warn (default) or raise ``EnvSkew`` (opt-in) on lock drift.
 
     ``fail_closed`` defaults to the truthiness of
@@ -183,99 +162,3 @@ def assert_typer_click_lock_parity(
     if mismatches and fail_closed:
         raise EnvSkew(ENV_SKEW_DIAGNOSTIC_CODE, format_env_skew_message(mismatches))
     return mismatches
-
-
-# ---------------------------------------------------------------------------
-# T002 -- local CI-residual selection runner (FR-002)
-# ---------------------------------------------------------------------------
-
-CI_RESIDUAL_WORKFLOW_RELATIVE_PATH = Path(".github/workflows/ci-quality.yml")
-CI_RESIDUAL_JOB_NAME = "unit-contract-residual"
-
-# Matches the double-quoted `-m "<expr>"` argument of a pytest invocation --
-# the same shape the CI job's `run:` script uses.
-_MARKER_EXPR_RE = re.compile(r'-m\s+"(?P<expr>[^"]*)"')
-
-
-class ResidualSelectorNotFound(Exception):
-    """Raised when the CI residual job or its ``-m`` expression can't be found."""
-
-    __test__ = False
-
-
-def read_ci_residual_marker_expr(
-    workflow_path: Path, *, job_name: str = CI_RESIDUAL_JOB_NAME
-) -> str:
-    """Extract the pytest ``-m`` marker expression from the CI residual job.
-
-    Reads *workflow_path* LIVE and parses it with ``yaml.safe_load`` -- this
-    is the single source for the residual selection (NFR-002): the
-    expression can never silently diverge from CI because it is never
-    hand-copied into this module.
-    """
-    if not workflow_path.is_file():
-        raise ResidualSelectorNotFound(f"CI workflow not found at {workflow_path}")
-    raw = workflow_path.read_text(encoding="utf-8")
-    data = cast("dict[str, Any]", yaml.safe_load(raw) or {})
-    jobs = cast("dict[str, Any]", data.get("jobs") or {})
-    job = jobs.get(job_name)
-    if not isinstance(job, dict):
-        raise ResidualSelectorNotFound(
-            f"job {job_name!r} not found in {workflow_path}"
-        )
-    steps = cast("list[Any]", job.get("steps") or [])
-    for step in steps:
-        if not isinstance(step, dict):
-            continue
-        run_script = step.get("run")
-        if not isinstance(run_script, str) or "pytest" not in run_script:
-            continue
-        match = _MARKER_EXPR_RE.search(run_script)
-        if match is not None:
-            expr: str = match.group("expr")
-            return expr
-    raise ResidualSelectorNotFound(
-        f"no pytest -m expression found in job {job_name!r} of {workflow_path}"
-    )
-
-
-def build_local_residual_command(
-    project_root: Path, *, workflow_path: Path | None = None
-) -> list[str]:
-    """Build the local pytest argv mirroring the CI residual selection.
-
-    The ``-m`` expression is single-sourced from the live CI workflow via
-    :func:`read_ci_residual_marker_expr` -- never a hardcoded duplicate
-    (NFR-002), so a later change to the CI selector is picked up on the next
-    call without any edit here.
-    """
-    resolved_workflow = workflow_path or (
-        project_root / CI_RESIDUAL_WORKFLOW_RELATIVE_PATH
-    )
-    marker_expr = read_ci_residual_marker_expr(resolved_workflow)
-    tests_root = project_root / "tests"
-    return [
-        sys.executable,
-        "-m",
-        "pytest",
-        str(tests_root),
-        "-m",
-        marker_expr,
-        "-q",
-    ]
-
-
-def run_local_residual_selection(
-    project_root: Path,
-    *,
-    workflow_path: Path | None = None,
-    extra_args: tuple[str, ...] = (),
-) -> subprocess.CompletedProcess[bytes]:
-    """Run the CI residual ``(unit or contract)`` selection locally over tests/.
-
-    Surfaces the unit/contract failures locally that today only reach CI
-    (FR-002 / SC-002). Raises ``ResidualSelectorNotFound`` if the ``-m``
-    expression cannot be read live from the CI workflow.
-    """
-    command = build_local_residual_command(project_root, workflow_path=workflow_path)
-    return subprocess.run([*command, *extra_args], cwd=project_root)

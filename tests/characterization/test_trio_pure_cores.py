@@ -97,9 +97,7 @@ class TestBuildRecommendedFixOrder:
 
         result = acceptance_module._build_recommended_fix_order(**kwargs)
 
-        assert result == [
-            "Switch to the mission branch or configured target branch named in the branch failure."
-        ]
+        assert result == ["Switch to the mission branch or configured target branch named in the branch failure."]
 
     def test_missing_artifacts_recommends_restore(self) -> None:
         kwargs = _base_fix_order_kwargs()
@@ -179,9 +177,7 @@ class TestBuildRecommendedFixOrder:
 
         result = acceptance_module._build_recommended_fix_order(**kwargs)
 
-        assert result == [
-            "Resolve pending or failing acceptance matrix criteria and negative invariants."
-        ]
+        assert result == ["Resolve pending or failing acceptance matrix criteria and negative invariants."]
 
     def test_workflow_evidence_activity_issue_recommends_run_evidence(self) -> None:
         kwargs = _base_fix_order_kwargs()
@@ -407,9 +403,7 @@ class TestCheckLaneGates:
         # with their own monkeypatch call afterwards (setattr is last-wins).
         monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, _m: None)
 
-    def test_negative_invariants_enforced_and_matrix_written_when_mutate_true(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_negative_invariants_enforced_and_matrix_written_when_mutate_true(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         matrix = _matrix(negative_invariants=[SimpleNamespace(name="no-secrets")])
         self._patch_matrix_reads(monkeypatch, matrix)
         enforce_calls: list[Any] = []
@@ -427,16 +421,12 @@ class TestCheckLaneGates:
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
 
-        acceptance_module._check_lane_gates(
-            tmp_path, tmp_path, "kitty/mission-x", activity_issues, skipped, [], mutate_matrix=True
-        )
+        acceptance_module._check_lane_gates(tmp_path, tmp_path, "kitty/mission-x", activity_issues, skipped, [], mutate_matrix=True)
 
         assert enforce_calls and write_calls
         assert not any(item.check == "negative_invariants" for item in skipped)
 
-    def test_negative_invariants_skipped_when_mutate_false_diagnose_mode(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_negative_invariants_skipped_when_mutate_false_diagnose_mode(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         matrix = _matrix(negative_invariants=[SimpleNamespace(name="no-secrets")])
         self._patch_matrix_reads(monkeypatch, matrix)
 
@@ -447,14 +437,9 @@ class TestCheckLaneGates:
         monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", _fail_if_called)
         skipped: list[AcceptanceCheckDiagnostic] = []
 
-        acceptance_module._check_lane_gates(
-            tmp_path, tmp_path, "kitty/mission-x", [], skipped, [], mutate_matrix=False
-        )
+        acceptance_module._check_lane_gates(tmp_path, tmp_path, "kitty/mission-x", [], skipped, [], mutate_matrix=False)
 
-        assert any(
-            item.check == "negative_invariants" and "diagnose mode is read-only" in item.detail
-            for item in skipped
-        )
+        assert any(item.check == "negative_invariants" and "diagnose mode is read-only" in item.detail for item in skipped)
 
     def test_evidence_errors_become_activity_issues(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         matrix = _matrix()
@@ -605,9 +590,7 @@ class TestResolveReviewContext:
         assert ctx["branch_name"] == "unknown"
         assert ctx["commit_count"] == 0
 
-    def test_repo_root_kind_rev_list_failure_defaults_commit_count_to_one(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_repo_root_kind_rev_list_failure_defaults_commit_count_to_one(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _repo_root_workspace(wp_id="WP01"))
@@ -625,9 +608,7 @@ class TestResolveReviewContext:
 
         assert ctx["commit_count"] == 1
 
-    def test_lane_workspace_current_branch_missing_returns_default(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_lane_workspace_current_branch_missing_returns_default(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
@@ -640,9 +621,7 @@ class TestResolveReviewContext:
         assert ctx["branch_name"] == "unknown"
         assert ctx["mission_branch"] == "unknown"
 
-    def test_base_ref_resolved_from_lanes_manifest_mission_branch(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_base_ref_resolved_from_lanes_manifest_mission_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
@@ -661,9 +640,7 @@ class TestResolveReviewContext:
         assert ctx["base_ref"] == "kitty/mission-x"
         assert ctx["commit_count"] == 5
 
-    def test_base_ref_resolved_from_workspace_context_base_branch(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_base_ref_resolved_from_workspace_context_base_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         wctx = WorkspaceContext(
@@ -693,9 +670,7 @@ class TestResolveReviewContext:
         assert ctx["base_branch"] == "main"
         assert ctx["commit_count"] == 2
 
-    def test_unknown_base_ref_discovers_candidate_via_dependency(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unknown_base_ref_discovers_candidate_via_dependency(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         current = _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-b")
@@ -721,16 +696,12 @@ class TestResolveReviewContext:
 
         monkeypatch.setattr(workflow_module.subprocess, "run", _fake_run)
 
-        ctx = _resolve_review_context(
-            workspace_path, tmp_path, "trio-mission", "WP02", 'dependencies: ["WP01"]'
-        )
+        ctx = _resolve_review_context(workspace_path, tmp_path, "trio-mission", "WP02", 'dependencies: ["WP01"]')
 
         assert ctx["base_branch"] == "kitty/mission-x-lane-a"
         assert ctx["commit_count"] == 1
 
-    def test_unknown_base_ref_falls_back_to_well_known_branch(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unknown_base_ref_falls_back_to_well_known_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
@@ -752,9 +723,7 @@ class TestResolveReviewContext:
         assert ctx["base_branch"] == "main"
         assert ctx["commit_count"] == 7
 
-    def test_unknown_base_ref_no_candidate_survives_stays_unknown(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_unknown_base_ref_no_candidate_survives_stays_unknown(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
         monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
@@ -772,14 +741,10 @@ class TestResolveReviewContext:
         # full reset to the all-unknown default.
         assert ctx["branch_name"] == "kitty/mission-x-lane-a"
 
-    def test_known_base_ref_rev_list_failure_yields_zero_commit_count(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_known_base_ref_rev_list_failure_yields_zero_commit_count(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         workspace_path = tmp_path / "workspace"
         workspace_path.mkdir()
-        monkeypatch.setattr(
-            workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a")
-        )
+        monkeypatch.setattr(workflow_module, "resolve_workspace_for_wp", lambda *_a, **_k: _lane_workspace(wp_id="WP02", branch_name="kitty/mission-x-lane-a"))
         monkeypatch.setattr(workflow_module, "_workflow_placement_seam", lambda *_a, **_k: _seam_stub(tmp_path / "kitty-specs" / "trio-mission"))
         monkeypatch.setattr(
             "specify_cli.lanes.persistence.read_lanes_json",
@@ -826,9 +791,7 @@ def _seed_rejected_review_cycle(repo_root: Path, *, wp_id: str, wp_slug: str) ->
     return pointer
 
 
-def _event(
-    *, wp_id: str, from_lane: Lane, to_lane: Lane, review_ref: str | None = None, event_id: str
-) -> StatusEvent:
+def _event(*, wp_id: str, from_lane: Lane, to_lane: Lane, review_ref: str | None = None, event_id: str) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
         mission_slug="trio-mission",
@@ -1003,12 +966,9 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "_missing_artifacts", lambda _fd: ([], []))
         monkeypatch.setattr(acceptance_module, "get_mission_for_feature", lambda _fd: (_ for _ in ()).throw(acceptance_module.MissionError("no mission.yaml")))
         monkeypatch.setattr(acceptance_module, "_check_lane_gates", lambda *_a, **_k: None)
-        monkeypatch.setattr(acceptance_module, "_check_workflow_run_evidence", lambda *_a, **_k: None)
         return feature_dir, {}
 
-    def test_strict_metadata_true_flags_missing_agent_and_assignee(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_strict_metadata_true_flags_missing_agent_and_assignee(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         feature_dir, _ = self._wire_common(
             monkeypatch,
             tmp_path,
@@ -1025,9 +985,7 @@ class TestCollectFeatureSummaryWiring:
         assert "WP01: missing assignee in canonical runtime state" in summary.metadata_issues
         assert "WP01: missing shell_pid in canonical runtime state" in summary.metadata_issues
 
-    def test_strict_metadata_false_suppresses_metadata_issues(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_strict_metadata_false_suppresses_metadata_issues(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         feature_dir, _ = self._wire_common(
             monkeypatch,
             tmp_path,
@@ -1042,9 +1000,7 @@ class TestCollectFeatureSummaryWiring:
 
         assert summary.metadata_issues == []
 
-    def test_terminal_lane_wp_is_exempt_from_active_metadata_gate(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_terminal_lane_wp_is_exempt_from_active_metadata_gate(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """A done/approved WP has no live shell -- the assignee/shell_pid gate
         must not fire for it even under strict_metadata (issue #2369)."""
         feature_dir, _ = self._wire_common(
@@ -1069,9 +1025,7 @@ class TestCollectFeatureSummaryWiring:
         with pytest.raises(acceptance_module.AcceptanceError, match="Mission directory not found"):
             collect_feature_summary(tmp_path, "ghost-mission")
 
-    def test_recommended_fix_order_receives_the_assembled_issue_lists(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_recommended_fix_order_receives_the_assembled_issue_lists(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Pin the wiring: every accumulated issue bucket flows into
         ``_build_recommended_fix_order`` by name, and the summary's
         ``recommended_fix_order`` is exactly what that call returned."""
@@ -1106,12 +1060,10 @@ class TestCollectFeatureSummaryWiring:
             "blocked_checks",
         }
 
-    def test_lane_gates_and_workflow_evidence_read_from_coord_dir_not_primary(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        """T028 / WP04-#2107: the lane-gate + workflow-evidence checks must
-        read from the coord-resolved ``read_feature_dir``, NOT the primary
-        ``feature_dir`` -- these differ under coord topology."""
+    def test_lane_gates_read_from_coord_dir_not_primary(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """T028 / WP04-#2107: the lane-gate check must read from the
+        coord-resolved ``read_feature_dir``, NOT the primary ``feature_dir`` --
+        these differ under coord topology."""
         coord_dir = tmp_path / "coord-worktree" / "kitty-specs" / "trio-mission"
         coord_dir.mkdir(parents=True)
         primary_dir = tmp_path / "kitty-specs" / "trio-mission"
@@ -1133,18 +1085,11 @@ class TestCollectFeatureSummaryWiring:
         monkeypatch.setattr(acceptance_module, "get_mission_for_feature", lambda _fd: (_ for _ in ()).throw(acceptance_module.MissionError("no mission.yaml")))
 
         lane_gate_calls: list[Path] = []
-        evidence_calls: list[Path] = []
-        monkeypatch.setattr(
-            acceptance_module, "_check_lane_gates", lambda _repo, fd, *_a, **_k: lane_gate_calls.append(fd)
-        )
-        monkeypatch.setattr(
-            acceptance_module, "_check_workflow_run_evidence", lambda _repo, fd, *_a, **_k: evidence_calls.append(fd)
-        )
+        monkeypatch.setattr(acceptance_module, "_check_lane_gates", lambda _repo, fd, *_a, **_k: lane_gate_calls.append(fd))
 
         collect_feature_summary(tmp_path, "trio-mission", strict_metadata=False, mutate_matrix=False)
 
         assert lane_gate_calls == [coord_dir]
-        assert evidence_calls == [coord_dir]
 
 
 # ===========================================================================
@@ -1159,16 +1104,12 @@ class TestNormalizedUncheckedTasksHelper:
         assert result == []
 
     def test_all_terminal_work_packages_drops_unchecked_items(self) -> None:
-        result = acceptance_module._normalized_unchecked_tasks(
-            ["- [ ] leftover"], {"approved": ["WP01"], "done": ["WP02"]}
-        )
+        result = acceptance_module._normalized_unchecked_tasks(["- [ ] leftover"], {"approved": ["WP01"], "done": ["WP02"]})
 
         assert result == []
 
     def test_non_terminal_work_package_keeps_unchecked_items(self) -> None:
-        result = acceptance_module._normalized_unchecked_tasks(
-            ["- [ ] leftover"], {"approved": [], "in_review": ["WP01"]}
-        )
+        result = acceptance_module._normalized_unchecked_tasks(["- [ ] leftover"], {"approved": [], "in_review": ["WP01"]})
 
         assert result == ["- [ ] leftover"]
 

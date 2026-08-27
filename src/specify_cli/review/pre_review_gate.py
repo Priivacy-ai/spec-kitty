@@ -33,6 +33,7 @@ the fix (the CLI hook + config/override wiring lives in ``tasks_move_task.py``):
    ``SOURCE_MISMATCH``, also a warn, never a hard block (FR-009/FR-011,
    mission ``scopesource-gate-followup-01KY6S9P`` WP04).
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -59,7 +60,6 @@ from specify_cli.review.baseline import (
     diff_baseline,
 )
 from specify_cli.review.scope_source import (
-    _JUNIT_ARTIFACT_FILENAME,
     UNKNOWN_SOURCE_IDENTITY,
     RawRunResult,
     ScopeBreakdownSource,
@@ -70,12 +70,9 @@ from specify_cli.review.scope_source import (
 )
 
 # ---------------------------------------------------------------------------
-# Composite-route shape (still referenced by the kept seam
-# ``tasks_move_task._pre_review_gate_composite_routing`` and the KEPT
-# ``_CompositeRoute`` type alias, C-002) — the census DERIVATION that used to
-# live here (FR-001, mission scopesource-gate-followup-01KY6S9P WP04) is
-# retired; the LIVE derivation now lives exclusively in
-# ``scope_source.GateCoverageScopeSource`` (its own private copy).
+# Composite-route shape kept for the resolver's compatibility arguments and
+# narrowing-source test doubles. The production GitHub Actions census source
+# was retired by issue #380.
 # ---------------------------------------------------------------------------
 
 # Mirrors _gate_coverage._CompositeRoute: (target_group, target_shard, cone_roots).
@@ -84,6 +81,7 @@ _CompositeRoute = tuple[str | None, str | None, tuple[str, ...]]
 _DEFAULT_HEAD_RUN_TIMEOUT = CAPTURE_BASELINE_TIMEOUT_SECONDS  # shared with baseline.py's capture_baseline.
 _HEAD_RUN_HEARTBEAT_INTERVAL = 30.0
 _HEAD_RUN_TERMINATE_GRACE = 5.0
+_JUNIT_ARTIFACT_FILENAME = "pre-review-junit.xml"
 
 # How many trailing stderr chars a run-error message carries (bounded tail).
 _STDERR_TAIL_CHARS = 500
@@ -118,33 +116,12 @@ def _cancelled_error(stderr: str) -> str:
 
 
 class GateAuthoritiesUnavailable(RuntimeError):
-    """The live CI-topology authorities module could not be loaded for a repo.
+    """Compatibility signal for callers that still handle authority failures.
 
-    Raised by :class:`~specify_cli.review.scope_source.GateCoverageScopeSource`
-    (the SOLE reachable importer of ``tests/architectural/_gate_coverage.py``
-    as of mission ``doctrine-controlled-transition-gates-01KY51Z7`` WP03,
-    FR-009) when that module is missing, fails to import, or resolves to a
-    module living outside the requested ``repo_root`` (a stale cross-repo
-    ``sys.modules`` cache hit). Callers treat this as an "unverified scope"
-    signal (folded into a ``no_coverage`` warn by the caller), never as a hard
-    failure — an inability to compute coverage must be surfaced, not silently
-    swallowed or escalated to a crash.
-
-    ``is_consumer_repo`` (#2534) distinguishes WHY the authority is missing:
-    ``True`` when ``repo_root`` itself never carried
-    ``tests/architectural/_gate_coverage.py`` (a legitimate ``spec-kitty
-    init`` consumer checkout — this is the expected, common case), ``False``
-    when the module SHOULD exist there (inside the spec-kitty source repo)
-    but genuinely failed to load — a real signal worth the detailed,
-    internal-audience message. Callers (the ``move-task --to for_review``
-    CLI hook) use this flag to pick a calm consumer-facing message instead of
-    naming this internal module to an operator who has never heard of it.
-
-    This class stays here (not relocated to ``scope_source.py``) because
-    WP09's ``tasks_move_task.py`` reader still depends on the
-    ``is_consumer_repo`` field until that WP's hook-inversion lands — the
-    field's cross-file retirement is a tracked fast-follow, not this WP's
-    concern (post-task squad finding B3).
+    The production resolver no longer imports the retired GitHub Actions
+    coverage authority. The exception remains importable so older injection
+    tests and callers can keep treating authority loss as a visible
+    ``no_coverage`` warning instead of a hard crash.
     """
 
     def __init__(self, message: str, *, is_consumer_repo: bool) -> None:
@@ -157,14 +134,9 @@ class GateAuthoritiesUnavailable(RuntimeError):
 #
 # The census-narrowing DERIVATION that used to live here (``derive_test_scope``
 # + its glob/path helpers) is retired (FR-001, mission
-# scopesource-gate-followup-01KY6S9P WP04): the LIVE derivation now lives
-# exclusively as a private copy inside
-# :class:`~specify_cli.review.scope_source.GateCoverageScopeSource`
-# (``scope_source.py``'s own ``_glob_matches_file`` / ``_glob_to_pytest_target``
-# / ``_src_dir_segment`` / ``_resolve_excluded_catchall_groups``). This module
-# only builds/consumes :class:`ScopeResult` from an injected
-# :class:`~specify_cli.review.scope_source.ScopeSource` now (see
-# :func:`_scope_result_from_source`, below).
+# scopesource-gate-followup-01KY6S9P WP04). This module only builds/consumes
+# :class:`ScopeResult` from an injected
+# :class:`~specify_cli.review.scope_source.ScopeSource` now.
 # ---------------------------------------------------------------------------
 
 
@@ -193,10 +165,7 @@ class ScopeResult:
         if self.empty_cone_composite_dirs:
             dirs = ", ".join(self.empty_cone_composite_dirs)
             return f"unmapped composite dir(s) with no test cone_roots — unverified (SC-007): {dirs}"
-        return (
-            "excluded scope — unverified: every changed file landed only in a catch-all "
-            "group (core_misc/e2e/any_src) or matched no dorny group at all"
-        )
+        return "excluded scope — unverified: every changed file landed only in a catch-all group (core_misc/e2e/any_src) or matched no dorny group at all"
 
     @classmethod
     def from_override(cls, targets: tuple[str, ...]) -> ScopeResult:
@@ -339,9 +308,7 @@ def _signal_owned_process_tree(
     *,
     force: bool,
     platform: str | None = None,
-    windows_tree_kill: Callable[[Sequence[str]], subprocess.CompletedProcess[str]] = (
-        _run_windows_taskkill
-    ),
+    windows_tree_kill: Callable[[Sequence[str]], subprocess.CompletedProcess[str]] = (_run_windows_taskkill),
 ) -> None:
     """Signal only the process group created for this runner-owned child."""
     platform = platform or os.name
@@ -535,10 +502,7 @@ def run_scoped_tests_at_head(
             return HeadRunResult(
                 ran=False,
                 returncode=process.returncode,
-                error=(
-                    f"no JUnit XML produced by the scoped run (exit={process.returncode}); "
-                    f"stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"
-                ),
+                error=(f"no JUnit XML produced by the scoped run (exit={process.returncode}); stderr tail: {stderr[-_STDERR_TAIL_CHARS:]}"),
                 state=HeadRunState.INCOMPLETE_OUTPUT,
                 stdout=stdout,
                 stderr=stderr,
@@ -707,7 +671,7 @@ def _evaluate_via_scope_source(
 
     Empty-scope handling is impl-shape-dependent (NFR-001):
 
-    - A census-*narrowing* source (``GateCoverageScopeSource``, satisfying
+    - A narrowing source (satisfying
       :class:`~specify_cli.review.scope_source.ScopeBreakdownSource`) treats an
       empty derived scope as a coverage gap — a ``no_coverage`` warn carrying the
       incumbent :meth:`ScopeResult.describe_empty_reason` wording — exactly as
@@ -762,18 +726,11 @@ def _evaluate_via_scope_source(
 
     failures = scope_source.parse_results(raw)
     head_identity = scope_source_identity(scope_source, raw)
-    if (
-        baseline is not None
-        and baseline.source_identity != UNKNOWN_SOURCE_IDENTITY
-        and baseline.source_identity != head_identity
-    ):
+    if baseline is not None and baseline.source_identity != UNKNOWN_SOURCE_IDENTITY and baseline.source_identity != head_identity:
         return GateVerdict(
             outcome=GateOutcome.SOURCE_MISMATCH,
             scope=scope,
-            reason=(
-                f"baseline captured under {baseline.source_identity}; head ran under "
-                f"{head_identity} — failure identities are not comparable"
-            ),
+            reason=(f"baseline captured under {baseline.source_identity}; head ran under {head_identity} — failure identities are not comparable"),
         )
     return _classify_current_failures(failures, scope=scope, baseline=baseline)
 
@@ -873,7 +830,7 @@ def evaluate_with_scope(
 def _scope_result_from_source(scope_source: ScopeSource, changed_files: Sequence[str]) -> ScopeResult:
     """Build a :class:`ScopeResult` from the injected port's per-file scoping.
 
-    A census-*narrowing* source (``GateCoverageScopeSource``, which satisfies the
+    A narrowing source (satisfying the
     :class:`~specify_cli.review.scope_source.ScopeBreakdownSource` refinement)
     reconstructs the FULL breakdown — ``matched_shard_groups`` /
     ``matched_composite_dirs`` / ``empty_cone_composite_dirs`` /
@@ -898,9 +855,7 @@ def _scope_result_from_source(scope_source: ScopeSource, changed_files: Sequence
     )
 
 
-def _scope_result_from_breakdown(
-    scope_source: ScopeBreakdownSource, changed_files: Sequence[str]
-) -> ScopeResult:
+def _scope_result_from_breakdown(scope_source: ScopeBreakdownSource, changed_files: Sequence[str]) -> ScopeResult:
     """Aggregate a narrowing source's per-file
     :class:`~specify_cli.review.scope_source.FileScopeBreakdown` contributions
     into a full :class:`ScopeResult`.

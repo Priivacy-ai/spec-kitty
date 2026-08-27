@@ -6,7 +6,7 @@ fixture and verify:
 - Exit 1 + verdict: fail when any WP is not in done
 - The lightweight missing/null-baseline hard failures
 - The ``uv tool`` remediation guidance for a missing pytest
-- The ``--check-residual`` and env-skew preflight seams
+- The env-skew preflight seam
 
 Scope of *this* module: the ``fast`` half. Nothing here spawns a process — the
 CLI runs in-process through ``typer.testing.CliRunner`` and every fixture is
@@ -79,11 +79,7 @@ def _make_uv_runtime(
 
     resolved_tool_dir = tool_dir if tool_dir is not None else Path("/home/user/.local/share/uv/tools")
     resolved_platform: Literal["posix", "windows"] = "windows" if platform == "windows" else "posix"
-    resolved_reqs: tuple[object, ...] = (
-        requirements
-        if requirements is not None
-        else (UvRequirement(name="spec-kitty-cli"),)
-    )
+    resolved_reqs: tuple[object, ...] = requirements if requirements is not None else (UvRequirement(name="spec-kitty-cli"),)
 
     return InstalledCliRuntime(
         install_method=InstallMethod.UV_TOOL,
@@ -278,13 +274,7 @@ def test_review_lightweight_modern_null_baseline_exits_nonzero(
     assert "verdict: fail" in report_text
     assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in result.output
     assert "LIGHTWEIGHT_REVIEW_MISSING_BASELINE" in report_text
-    assert (
-        "  - id: gate_2\n"
-        "    name: dead_code_scan\n"
-        "    command: spec-kitty review (internal gate 2)\n"
-        "    exit_code: 1\n"
-        "    result: fail"
-    ) in report_text
+    assert ("  - id: gate_2\n    name: dead_code_scan\n    command: spec-kitty review (internal gate 2)\n    exit_code: 1\n    result: fail") in report_text
 
 
 def test_dead_code_baseline_missing_is_hard_failure(tmp_path: Path) -> None:
@@ -539,10 +529,7 @@ def test_uv_tool_remediation_preserves_custom_bin_dir(
     )
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert result == (
-        "UV_TOOL_DIR=/opt/uv-t UV_TOOL_BIN_DIR=/opt/bin uv tool install --force "
-        "--with pytest spec-kitty-cli"
-    )
+    assert result == ("UV_TOOL_DIR=/opt/uv-t UV_TOOL_BIN_DIR=/opt/bin uv tool install --force --with pytest spec-kitty-cli")
 
 
 def test_uv_tool_remediation_preserves_receipt_python(
@@ -558,14 +545,11 @@ def test_uv_tool_remediation_preserves_receipt_python(
     tool_dir = Path("/opt/uv")
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
-        lambda: _make_uv_runtime(
-            tool_dir=tool_dir, is_default_tool_dir=False, python="3.13"
-        ),
+        lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False, python="3.13"),
     )
 
     assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
-        f"UV_TOOL_DIR={tool_dir!s} uv tool install --force --python 3.13 "
-        "--with pytest spec-kitty-cli"
+        f"UV_TOOL_DIR={tool_dir!s} uv tool install --force --python 3.13 --with pytest spec-kitty-cli"
     )
 
 
@@ -581,9 +565,7 @@ def test_uv_tool_remediation_uses_powershell_env_prefix_on_windows(
     tool_dir = tmp_path / "tool dir"  # has a space
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
-        lambda: _make_uv_runtime(
-            tool_dir=tool_dir, is_default_tool_dir=False, platform="windows"
-        ),
+        lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False, platform="windows"),
     )
 
     # render("windows") raises ValueError (CHK028) → note fallback carrying the
@@ -629,9 +611,7 @@ def test_uv_tool_remediation_quotes_specifier_receipt(
     )
 
     remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert remediation == (
-        "UV_TOOL_DIR=/opt/uv-t uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
-    )
+    assert remediation == ("UV_TOOL_DIR=/opt/uv-t uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25")
 
 
 def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
@@ -649,66 +629,6 @@ def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
     assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
         "uv tool install --force --with pytest spec-kitty-cli"
     )
-
-
-# ---------------------------------------------------------------------------
-# --check-residual / _check_env_skew CLI-seam coverage (#2283 Phase 3
-# pre-merge findings): these behaviors previously had zero test coverage,
-# which is how the tuple-repr bug in the fail-closed branch shipped.
-# ---------------------------------------------------------------------------
-
-
-def test_review_check_residual_runs_selection_and_propagates_exit_code(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """--check-residual runs the CI residual selection and exits with its
-    returncode, skipping the mission-scoped gates entirely -- and does not
-    require --mission (FR-002).
-    """
-    import subprocess
-
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-
-    monkeypatch.chdir(repo_root)
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.find_repo_root",
-        lambda: repo_root,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.assert_pytest_available",
-        lambda _: None,
-    )
-
-    def _fake_run_local_residual_selection(
-        project_root: Path,
-    ) -> subprocess.CompletedProcess[bytes]:
-        assert project_root == repo_root
-        return subprocess.CompletedProcess(args=["pytest"], returncode=7)
-
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.run_local_residual_selection",
-        _fake_run_local_residual_selection,
-    )
-
-    def _unexpected_resolve(handle: str, repo_root: Path) -> object:
-        raise AssertionError(
-            "resolve_mission_handle must not be called for --check-residual "
-            "-- --mission is not required for this flag"
-        )
-
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.review.resolve_mission_handle",
-        _unexpected_resolve,
-    )
-
-    app = _build_cli_app()
-    runner = CliRunner()
-    # No --mission passed at all -- proves the flag doesn't require it.
-    result = runner.invoke(app, ["--check-residual"])
-
-    assert result.exit_code == 7, result.output
 
 
 def test_check_env_skew_fail_closed_emits_clean_message_not_tuple_repr(
@@ -762,9 +682,7 @@ def test_check_env_skew_fail_closed_emits_clean_message_not_tuple_repr(
 
     assert result.exit_code == 1, result.output
 
-    diagnostic_line = next(
-        line for line in result.output.splitlines() if line.startswith("{")
-    )
+    diagnostic_line = next(line for line in result.output.splitlines() if line.startswith("{"))
     diagnostic = json.loads(diagnostic_line)
 
     assert diagnostic["message"] == expected_message
