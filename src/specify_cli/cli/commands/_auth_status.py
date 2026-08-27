@@ -69,6 +69,8 @@ _AUTH_METHOD_LABELS: dict[str, str] = {
     "device_code": "Headless (Device Authorization Grant)",
 }
 
+_SAAS_STATUS_LABEL = "  SaaS:           "
+
 
 def status_impl() -> None:
     """Print the current authentication status.
@@ -148,20 +150,19 @@ def _print_saas_endpoint() -> ResolvedServerTarget | None:
         # `[sync]`/`[/]`-shaped substrings (#182's rationale applies here too).
         console.print("  SaaS:           [red]split-brain[/red] [dim](env and config.toml disagree)[/dim]")
         console.print(f"  [yellow]{escape(str(exc))}[/yellow]")
-        _print_session_issuer(session.issuer_url)
         return
     except ConfigurationError:
         # escape(): the remedy names `[sync].server_url` — unescaped, Rich
         # markup parses "[sync]" as a style tag and silently drops it (#182).
         remedy = escape(f"— set {SAAS_URL_ENV_VAR} (or [sync].server_url in config.toml)")
-        console.print(f"  SaaS:           not configured [dim]{remedy}[/dim]")
+        console.print(f"{_SAAS_STATUS_LABEL}not configured [dim]{remedy}[/dim]")
         return None
     # escape(): both the resolved URL and the provenance suffix can contain
     # `[sync]`/`[/]`-shaped substrings (a config.toml server_url is
     # attacker- or fat-finger-controlled) — unescaped, Rich markup either
     # drops the bracketed text or raises MarkupError out of console.print,
     # which would violate this module's own never-fail invariant (#182).
-    console.print(f"  SaaS:           {escape(target.resolved_server_url)} [dim]{escape(format_saas_provenance(target))}[/dim]")
+    console.print(f"{_SAAS_STATUS_LABEL}{escape(target.resolved_server_url)} [dim]{escape(format_saas_provenance(target))}[/dim]")
     return target
 
 
