@@ -23,7 +23,7 @@ import logging
 import sys
 import warnings
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 # Single source of truth for the resolution enum / result dataclass.
 # Re-exported via the charter.resolution facade (which itself re-exports
@@ -48,6 +48,7 @@ __all__ = [
     "ResolutionTier",
     "TemplateConfigurationError",
     "TemplateURNError",
+    "required_artifacts_for",
     "resolve_command",
     "resolve_configured_artifact_name",
     "resolve_configured_template",
@@ -55,15 +56,16 @@ __all__ = [
     "resolve_template",
     "resolve_template_by_urn",
 ]
-# NOTE: ``ArtifactNameConfigurationError`` and ``required_artifacts_for``
-# (FR-009) are deliberately NOT in __all__ yet. Neither has a runtime caller
-# under src/ outside this module until WP04b wires ``required_artifacts_for``
-# into the live per-type presence gate (``gather_artifact_presence``, plan.md
-# WP04b item 4) and a caller starts catching the error type -- adding either
-# to __all__ before that caller exists reds
-# ``tests/architectural/test_no_dead_symbols.py``. Both are still directly
-# importable and unit-tested (tests/specify_cli/runtime/test_configured_artifact_name.py);
-# re-add them here in WP04b alongside their first real cross-module caller.
+# NOTE: ``required_artifacts_for`` (FR-009) is back in __all__ (WP02, #3704
+# Part 2) now that ``runtime.next.runtime_bridge_io.gather_artifact_presence``
+# is its first real cross-module caller under ``src/`` -- see that
+# function's ``blocking_artifact_names`` resolution. ``ArtifactNameConfigurationError``
+# is still deliberately NOT in __all__: no caller under ``src/`` catches that
+# error type yet -- adding it before one exists would red
+# ``tests/architectural/test_no_dead_symbols.py``. It stays directly
+# importable and unit-tested
+# (tests/specify_cli/runtime/test_configured_artifact_name.py); re-add it
+# here alongside its own first real cross-module caller, whenever that lands.
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
@@ -552,28 +554,128 @@ def resolve_configured_template(
         ) from exc
 
 
-def _load_expected_artifact_manifest(mission_type: str) -> ExpectedArtifactManifest | None:
+def _load_expected_artifact_manifest(
+    mission_type: str, repo_root: Path | None = None
+) -> ExpectedArtifactManifest | None:
     """Load and validate *mission_type*'s expected-artifacts manifest (read-only).
 
     Consumes :meth:`charter.missions.MissionTemplateRepository.get_expected_artifacts`
     -- the single per-type filename authority (FR-009) -- without modifying
-    ``doctrine/missions/repository.py``. Built-in/project tier only (no org
-    lookup; matches :meth:`~specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s
-    default, repo-root-less behavior), which is sufficient for the four
-    built-in mission types this seam guarantees byte-compatible output for
-    (NFR-003). Returns ``None`` when the doctrine tree has no manifest for
-    *mission_type* (unregistered/custom type -- degrades gracefully, mirrors
-    ``ManifestRegistry.load_manifest``).
+    ``doctrine/missions/repository.py``. Returns ``None`` when neither tier has
+    a manifest for *mission_type* (unregistered/custom type -- degrades
+    gracefully, mirrors ``ManifestRegistry.load_manifest``).
+
+    FR-008 (WP02): when *repo_root* is given and resolves to 1+ existing
+    configured org roots, an org-pack
+    ``<org_root>/missions/<mission_type>/expected-artifacts.yaml`` (see
+    :func:`charter.org_expected_artifacts.resolve_org_expected_artifacts`,
+    contract C-4) takes precedence over the built-in file, whole-file --
+    never field-merged with it -- mirroring
+    :meth:`~specify_cli.dossier.manifest.ManifestRegistry.load_manifest`'s own
+    FR-008/WP05 precedence. *repo_root* is optional and defaults to ``None``
+    (today's exact behavior: no org lookup, built-in tree only), so every
+    existing caller with no root in scope is unaffected by this signature
+    change.
+
+    Raises:
+        ManifestSchemaError: A *found*, syntactically-valid manifest that
+            fails schema validation (``extra="forbid"``) raises this instead
+            of a bare ``pydantic.ValidationError`` (FR-010,
+            ANALYZE-ARCH-001 fix round) -- for BOTH tiers. Carries a
+            branch-specific ``origin``: the built-in branch's real
+            ``ConfigResult.origin``, or a synthesized org-tier label (no
+            single source file path is available there), mirroring
+            ``ManifestRegistry.load_manifest``'s own two origin expressions
+            (``specify_cli/dossier/manifest.py:274-340``).
     """
     from charter.missions import (  # noqa: PLC0415
         ExpectedArtifactManifest,
         MissionTemplateRepository,
     )
+    from pydantic import ValidationError  # noqa: PLC0415
+
+    from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
+
+    if TYPE_CHECKING:
+        # The `ExpectedArtifactManifest` name bound above (via the
+        # `charter.missions` runtime import, needed to call
+        # `.model_validate()`) is `follow_imports = "skip"`-erased to `Any`
+        # by [tool.mypy] (pyproject.toml) -- and it shadows the module-level
+        # TYPE_CHECKING import of the same name for the rest of this
+        # function body, so a `cast("ExpectedArtifactManifest", ...)` below
+        # would resolve against the shadowed (`Any`) name instead of the
+        # real, fully-typed class. Bind the doctrine-sourced class under a
+        # distinct name, type-checking-only (mirrors the top-of-file
+        # TYPE_CHECKING import; runtime still reaches doctrine only via the
+        # charter facade), so the cast has a real type to point at.
+        from doctrine.missions import (
+            ExpectedArtifactManifest as _TypedExpectedArtifactManifest,
+        )
+
+    org_roots = _resolve_existing_org_roots_for_manifest(repo_root)
+    if org_roots:
+        from charter.org_expected_artifacts import (  # noqa: PLC0415
+            resolve_org_expected_artifacts,
+        )
+
+        org_parsed = resolve_org_expected_artifacts(org_roots, mission_type)
+        if org_parsed is not None:
+            try:
+                # `charter.*` is intentionally `follow_imports = "skip"` in
+                # [tool.mypy] (pyproject.toml) so this module's mypy run
+                # doesn't walk unrelated pre-existing strict debt elsewhere
+                # in the charter package; that also erases the imported
+                # `ExpectedArtifactManifest`'s real (pydantic `Self`) return
+                # type down to `Any`. The cast documents the type
+                # `model_validate` actually returns at runtime (or raises
+                # `ValidationError`, handled below) -- mypy is not wrong
+                # about the code, only blind to it through this boundary.
+                return cast(
+                    "_TypedExpectedArtifactManifest",
+                    ExpectedArtifactManifest.model_validate(org_parsed),
+                )
+            except ValidationError as exc:
+                # Org-tier branch: no `ConfigResult` of type `config` is in
+                # scope here, so `.origin` cannot be read off one (that would
+                # raise `AttributeError`, not `ManifestSchemaError` --
+                # ANALYZE-FRESH-001). Synthesize a descriptive origin naming
+                # the org tier + mission type + the roots checked instead.
+                origin = (
+                    f"org-tier expected-artifacts.yaml for mission type {mission_type!r} "
+                    f"(no single source file path available; checked org roots: "
+                    f"{', '.join(str(root) for root in org_roots)})"
+                )
+                raise ManifestSchemaError(mission_type, origin) from exc
 
     config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)
     if config is None:
         return None
-    return ExpectedArtifactManifest.model_validate(config.parsed)
+    try:
+        return ExpectedArtifactManifest.model_validate(config.parsed)
+    except ValidationError as exc:
+        # Built-in branch: `config.origin` is a real, reachable attribute.
+        raise ManifestSchemaError(mission_type, config.origin) from exc
+
+
+def _resolve_existing_org_roots_for_manifest(repo_root: Path | None) -> list[Path]:
+    """Return existing configured org doctrine roots for *repo_root*, or ``[]``.
+
+    Lazy import mirrors :func:`_load_expected_artifact_manifest`'s other
+    lazy imports and ``specify_cli.dossier.manifest._resolve_existing_org_roots``
+    -- reaches ``doctrine`` only through the ``charter.drg`` proxy (runtime
+    must reach doctrine through charter -- never directly). ``repo_root=None``
+    (the default, no-org-lookup call shape) short-circuits without importing
+    anything.
+    """
+    if repo_root is None:
+        return []
+    from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
+
+    # See the cast rationale in `_load_expected_artifact_manifest` above:
+    # `charter.*` is `follow_imports = "skip"` in [tool.mypy], which erases
+    # `resolve_existing_org_roots`'s real `list[Path]` return type to `Any`
+    # at this call boundary only.
+    return cast("list[Path]", resolve_existing_org_roots(repo_root))
 
 
 def resolve_configured_artifact_name(
@@ -631,7 +733,9 @@ def resolve_configured_artifact_name(
     return mapped_filename
 
 
-def required_artifacts_for(step: str, mission_type: str = "software-dev") -> list[str]:
+def required_artifacts_for(
+    step: str, mission_type: str = "software-dev", repo_root: Path | None = None
+) -> list[str]:
     """Return the blocking artifact filenames required at *step* (FR-009).
 
     Combines ``required_always`` with ``required_by_step[step]`` (mirroring
@@ -642,12 +746,18 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
     Args:
         step: Mission step id (e.g. ``"specify"``, ``"plan"``).
         mission_type: Mission-type id (default ``"software-dev"``).
+        repo_root: Project root to resolve org-pack overrides for (FR-008),
+            or ``None`` (default) for built-in-tree-only resolution --
+            forwarded to :func:`_load_expected_artifact_manifest` unchanged.
 
     Returns:
         Blocking filenames for *step*, or an empty list when *mission_type*
         has no expected-artifacts manifest (unregistered/custom type).
+
+    Raises:
+        ManifestSchemaError: See :func:`_load_expected_artifact_manifest`.
     """
-    manifest = _load_expected_artifact_manifest(mission_type)
+    manifest = _load_expected_artifact_manifest(mission_type, repo_root=repo_root)
     if manifest is None:
         return []
     specs = [*manifest.required_always, *manifest.required_by_step.get(step, [])]
