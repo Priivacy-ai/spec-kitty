@@ -542,16 +542,34 @@ def _load_expected_artifact_manifest(mission_type: str) -> ExpectedArtifactManif
     (NFR-003). Returns ``None`` when the doctrine tree has no manifest for
     *mission_type* (unregistered/custom type -- degrades gracefully, mirrors
     ``ManifestRegistry.load_manifest``).
+
+    Raises:
+        ManifestSchemaError: If a manifest exists for *mission_type* but
+            fails schema validation -- names the origin file and chains the
+            underlying :class:`pydantic.ValidationError` as ``__cause__``,
+            the same domain-error shape ``ManifestRegistry.load_manifest``
+            raises for its own manifest-load boundary.
     """
+    from pydantic import ValidationError  # noqa: PLC0415
+
     from charter.missions import (  # noqa: PLC0415
         ExpectedArtifactManifest,
         MissionTemplateRepository,
     )
+    from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
 
     config = MissionTemplateRepository.default().get_expected_artifacts(mission_type)
     if config is None:
         return None
-    return ExpectedArtifactManifest.model_validate(config.parsed)
+    try:
+        return ExpectedArtifactManifest.model_validate(config.parsed)
+    except ValidationError as exc:
+        # Same domain-error boundary as `ManifestRegistry.load_manifest`
+        # (specify_cli.dossier.manifest) -- a schema-invalid
+        # expected-artifacts.yaml must fail loud with the origin file and
+        # cause attached, never leak the raw pydantic exception type across
+        # this module's boundary (squad finding on #233, planning#249).
+        raise ManifestSchemaError(mission_type, config.origin) from exc
 
 
 def resolve_configured_artifact_name(
@@ -578,6 +596,9 @@ def resolve_configured_artifact_name(
         ArtifactNameConfigurationError: If *mission_type* is an unsafe path
             segment, has no expected-artifacts manifest, or has no mapping
             for *artifact_key*.
+        ManifestSchemaError: If *mission_type* has an expected-artifacts
+            manifest but it fails schema validation -- see
+            :func:`_load_expected_artifact_manifest`.
     """
     try:
         assert_safe_path_segment(mission_type)
@@ -624,6 +645,11 @@ def required_artifacts_for(step: str, mission_type: str = "software-dev") -> lis
     Returns:
         Blocking filenames for *step*, or an empty list when *mission_type*
         has no expected-artifacts manifest (unregistered/custom type).
+
+    Raises:
+        ManifestSchemaError: If *mission_type* has an expected-artifacts
+            manifest but it fails schema validation -- see
+            :func:`_load_expected_artifact_manifest`.
     """
     manifest = _load_expected_artifact_manifest(mission_type)
     if manifest is None:
