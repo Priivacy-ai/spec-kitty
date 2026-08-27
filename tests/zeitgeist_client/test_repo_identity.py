@@ -392,7 +392,26 @@ def test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise(
     repository here" for `isolated_no_git` itself is pinned directly,
     leaving every other lookup (in particular the syntactic walk-up from
     `link` that must still independently find `repo_a`) running the real,
-    unmocked git-discovery code."""
+    unmocked git-discovery code.
+
+    That same ambient-ancestor boundary applies just as much to the two LIVE
+    ``git`` probes `_origin_candidates` tries first (`git config --get
+    remote.origin.url`, `git remote get-url origin`): they run with
+    ``cwd=str(link)``, and the OS resolves the symlink for a subprocess's
+    ``cwd`` exactly like `os.path.realpath` does, so real git's own
+    repository discovery starts at `isolated_real` and — unpinned — would
+    walk up into the same unrelated ancestor checkout and report ITS
+    `origin`, before the (already-pinned) filesystem fallback is ever
+    consulted. Pinning only `_git_dir_from_filesystem` leaves that path
+    open (planning#158 squad finding on PR #386: turns a raise into
+    asserting the wrong repo name instead of eliminating the
+    environment-dependence). So `Deadline.run` is pinned the same way, for
+    the same single boundary — calls whose `cwd` resolves to
+    `isolated_real` return `""` (a failed-closed probe, indistinguishable
+    from a real one that found nothing), while every other call (in
+    particular the two live probes as they walk from `repo_a` itself, once
+    the syntactic fallback path is taken) runs the real, unmocked
+    subprocess."""
     repo_a = _clone(origin, tmp_path / "repo-a")
     isolated_no_git = tmp_path / "isolated-no-git"
     isolated_no_git.mkdir()
@@ -408,6 +427,15 @@ def test_symlink_inside_a_checkout_to_a_non_repo_location_does_not_raise(
         return original_lookup(cwd)
 
     monkeypatch.setattr(repo_identity, "_git_dir_from_filesystem", _lookup_with_isolated_boundary)
+
+    original_run = repo_identity.Deadline.run
+
+    def _run_with_isolated_boundary(self, args: list[str], cwd: str) -> str:
+        if os.path.realpath(cwd) == isolated_real:
+            return ""
+        return original_run(self, args, cwd)
+
+    monkeypatch.setattr(repo_identity.Deadline, "run", _run_with_isolated_boundary)
 
     assert repo_identity.repo_name(str(link)) == "acme-widgets"
 
