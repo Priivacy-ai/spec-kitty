@@ -74,10 +74,14 @@ current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B f
 
 ### 2.3 The single-workspace rebase (why it does NOT cover Gap 2)
 
-- `GitVCS.sync_workspace()` — `src/specify_cli/core/vcs/git.py:362` (CLI `sync.py:1745`).
-  Fetches, resolves the workspace's own tracking/upstream branch (L398-401), and rebases
-  **that workspace's own commits** onto it. No sibling-branch / coord-vs-target awareness.
-  It is a per-workspace freshness tool, not a cross-branch content reconciler.
+- `GitVCS.sync_workspace()` — `src/specify_cli/core/vcs/git.py:363`. Fetches, resolves the
+  workspace's own tracking/upstream branch (L398-401), and rebases **that workspace's own
+  commits** onto it. No sibling-branch / coord-vs-target awareness. It is a per-workspace
+  freshness tool, not a cross-branch content reconciler. **No live production caller as of
+  2026-08-27** — the CLI `sync.py` path this note used to cite was removed by commit
+  `66038e2a5` ("refactor(sync): remove sync transport surfaces from CLI registration and
+  agent commands") ahead of the Ephemeral Team Status redesign (`PROGRAM.md` §1); only test
+  callers remain (issue #272).
 
 ### 2.4 Symptom B — diff-compliance gate blocks on the mission's own runtime state
 
