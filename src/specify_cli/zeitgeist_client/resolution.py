@@ -289,6 +289,12 @@ def repo_slug_and_host(origin_url: str) -> tuple[str | None, str | None]:
         if not match:
             return None, None
         host = match.group("host") or None
+        # A single-character "host" immediately before the ":" is a Windows
+        # drive letter (``C:/Users/dev/repo``), not an SCP-like remote — the
+        # grammar is ambiguous between the two and a drive letter is never a
+        # real git host (spec-kitty#45).
+        if host is not None and len(host) == 1:
+            return None, None
         path = match.group("path")
 
     normalized = (path or "").strip().lstrip("/").rstrip("/")
