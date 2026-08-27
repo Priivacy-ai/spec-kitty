@@ -486,3 +486,62 @@ class TestGitignoreSymlinkSafety:
                 manager.ensure_entries([".claude/"])
         finally:
             os.chmod(manager.gitignore_path, 0o644)
+
+    def test_read_does_not_follow_symlink_planted_after_the_guard(self, manager, temp_dir, monkeypatch):
+        """The read must be no-follow, not just guarded by an earlier lstat.
+
+        `_reject_symlink()` is a check-then-use `lstat`: a `.gitignore` that
+        is a regular file when the guard runs but becomes a symlink to an
+        outside secret before the actual read would previously still be
+        followed by `Path.read_text()`, copying the secret's bytes into
+        `.gitignore`. Simulate that exact race by neutering the guard and
+        planting the symlink immediately before `ensure_entries()` reads —
+        the read itself must refuse to follow it.
+        """
+        manager.gitignore_path.write_text("existing\n")
+        secret = temp_dir.parent / f"secret-{os.getpid()}.txt"
+        secret.write_text("do-not-leak\n")
+
+        monkeypatch.setattr(manager, "_reject_symlink", lambda: None)
+        try:
+            manager.gitignore_path.unlink()
+            manager.gitignore_path.symlink_to(secret)
+
+            with pytest.raises(GitignorePathError):
+                manager.ensure_entries([".claude/"])
+
+            # The secret must never have been read into .gitignore, and
+            # .gitignore must still be the symlink (untouched), not a
+            # regular file carrying the secret's content.
+            assert manager.gitignore_path.is_symlink()
+            assert secret.read_text() == "do-not-leak\n"
+        finally:
+            manager.gitignore_path.unlink(missing_ok=True)
+            secret.unlink(missing_ok=True)
+
+    def test_write_probe_does_not_follow_symlink_planted_after_the_guard(self, manager, temp_dir, monkeypatch):
+        """The pre-replace permission probe must also be no-follow.
+
+        Same race as above, but for `_atomic_write()`'s `O_WRONLY` probe: a
+        `.gitignore` that becomes a symlink between the guard and the probe
+        must not have the probe silently succeed against the symlink's
+        target.
+        """
+        manager.gitignore_path.write_text("existing\n")
+        os.chmod(manager.gitignore_path, 0o640)
+        secret = temp_dir.parent / f"secret-write-{os.getpid()}.txt"
+        secret.write_text("do-not-leak\n")
+
+        monkeypatch.setattr(manager, "_reject_symlink", lambda: None)
+        try:
+            manager.gitignore_path.unlink()
+            manager.gitignore_path.symlink_to(secret)
+
+            with pytest.raises(GitignorePathError):
+                manager._atomic_write("new content\n")
+
+            assert manager.gitignore_path.is_symlink()
+            assert secret.read_text() == "do-not-leak\n"
+        finally:
+            manager.gitignore_path.unlink(missing_ok=True)
+            secret.unlink(missing_ok=True)

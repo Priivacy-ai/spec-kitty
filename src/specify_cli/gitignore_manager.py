@@ -7,6 +7,7 @@ It replaces the fragmented approach where only .codex/ was protected.
 """
 
 import contextlib
+import errno
 import os
 import tempfile
 from dataclasses import dataclass, field
@@ -149,7 +150,7 @@ class GitignoreManager:
 
         # Read existing content or start with empty list
         if self.gitignore_path.exists():
-            content = self.gitignore_path.read_text(encoding="utf-8-sig")
+            content = self._read_text_no_follow()
             # Detect and store line ending style
             self._line_ending = self._detect_line_ending(content)
             lines = content.splitlines()
@@ -196,6 +197,32 @@ class GitignoreManager:
             target = os.readlink(self.gitignore_path)
             raise GitignorePathError(f".gitignore is a symlink to {target!r}; refusing to read or write through it: {self.gitignore_path}")
 
+    def _open_no_follow(self, flags: int) -> int:
+        """Open `.gitignore` refusing to follow a symlink at the kernel level.
+
+        `_reject_symlink()` is an `lstat` check-then-use: a symlink swapped in
+        between that check and a subsequent `Path.read_text()` or `os.open()`
+        would still be followed. Adding `O_NOFOLLOW` (where the platform
+        supports it) makes the open itself fail with `ELOOP` if the path is a
+        symlink, closing that race instead of merely detecting it earlier.
+        """
+        if hasattr(os, "O_NOFOLLOW"):
+            flags |= os.O_NOFOLLOW
+        try:
+            return os.open(self.gitignore_path, flags)
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                raise GitignorePathError(
+                    f".gitignore is a symlink; refusing to read or write through it: {self.gitignore_path}"
+                ) from exc
+            raise
+
+    def _read_text_no_follow(self) -> str:
+        """Read `.gitignore` through a no-follow descriptor (see `_open_no_follow`)."""
+        fd = self._open_no_follow(os.O_RDONLY)
+        with os.fdopen(fd, encoding="utf-8-sig") as f:
+            return f.read()
+
     def _atomic_write(self, content: str) -> None:
         """Write `.gitignore` atomically without following a symlink.
 
@@ -212,7 +239,7 @@ class GitignoreManager:
             # directory, not to the file it replaces, so it would otherwise
             # silently clobber a read-only .gitignore. Probe with a real
             # open() to preserve the PermissionError a direct write raises.
-            os.close(os.open(self.gitignore_path, os.O_WRONLY))
+            os.close(self._open_no_follow(os.O_WRONLY))
         fd, tmp_path = tempfile.mkstemp(
             dir=self.gitignore_path.parent,
             prefix=".gitignore.",
@@ -277,7 +304,7 @@ class GitignoreManager:
             self._reject_symlink()
             existing_before: set[str] = set()
             if self.gitignore_path.exists():
-                content = self.gitignore_path.read_text(encoding="utf-8-sig")
+                content = self._read_text_no_follow()
                 existing_before = set(content.splitlines())
 
             # Attempt to add entries
