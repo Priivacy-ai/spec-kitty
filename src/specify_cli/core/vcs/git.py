@@ -468,6 +468,19 @@ class GitVCS:
             pre_rebase_head = pre_rebase_result.stdout.strip() if pre_rebase_result.returncode == 0 else None
 
             # 5. Try rebase
+            # Issue #106: a rebase replays commits through git's three-way
+            # merge machinery, which honors custom merge drivers registered
+            # in .gitattributes/gitconfig (e.g. the event-log union driver on
+            # kitty-specs/**/status.events.jsonl). Those drivers resolve bare
+            # ``spec-kitty ...`` by name, so route through the merge
+            # pipeline's single env authority (AC-F1) instead of the ambient
+            # PATH — same defect class #87 fixed in worktree_allocator.py.
+            # Function-local import: a module-top ``from
+            # specify_cli.lanes.merge import _make_merge_env`` would create
+            # the cycle lanes.merge -> lanes.stale_check -> core.vcs.git.
+            from specify_cli.lanes.merge import _make_merge_env
+
+            merge_env = _make_merge_env()
             rebase_result = subprocess.run(
                 ["git", "-C", str(workspace_path), "rebase", base_branch],
                 capture_output=True,
@@ -475,6 +488,7 @@ class GitVCS:
                 encoding="utf-8",
                 errors="replace",
                 timeout=300,
+                env=merge_env,
             )
 
             if rebase_result.returncode != 0:
@@ -496,6 +510,7 @@ class GitVCS:
                         ["git", "-C", str(workspace_path), "rebase", "--abort"],
                         capture_output=True,
                         timeout=30,
+                        env=merge_env,
                     )
                     return SyncResult(
                         status=SyncStatus.FAILED,
