@@ -58,6 +58,32 @@ def test_the_guard_catches_a_planted_violation(tmp_path: Path) -> None:
     ], f"control returned {hits!r} — a control returning [] proves nothing"
 
 
+def test_the_guard_catches_a_planted_keyword_argument_violation(tmp_path: Path) -> None:
+    """Positive control: the defect is identical when tmp_path is passed by keyword."""
+    planted = tmp_path / "test_planted_keyword_violation.py"
+    planted.write_text(
+        textwrap.dedent(
+            """\
+            import pytest
+
+            @pytest.mark.parametrize("limb_id", ["a", "b"])
+            def test_something(tmp_path, limb_id):
+                scan_graph_monolith_paths(root=tmp_path)
+            """
+        ),
+        encoding="utf-8",
+    )
+    hits = guard.scan_tree(tmp_path)
+    assert hits == [
+        guard.Hit(
+            relpath="test_planted_keyword_violation.py",
+            lineno=5,
+            test_name="test_something",
+            callee="scan_graph_monolith_paths",
+        )
+    ], f"keyword-argument control returned {hits!r} — keyword tmp_path must be guarded too"
+
+
 def test_a_subroot_built_from_tmp_path_is_not_flagged(tmp_path: Path) -> None:
     """Negative control: folding the parametrize key into a subroot (#72's fix) is the escape."""
     planted = tmp_path / "test_correctly_folded.py"
