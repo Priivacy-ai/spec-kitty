@@ -553,17 +553,25 @@ def commit_oid(cwd: str, deadline: Deadline | None = None) -> str:
     return (deadline or Deadline()).run(["rev-parse", "HEAD"], cwd)
 
 
-def identity(cwd: str, budget: float = GIT_BUDGET_S) -> RepoIdentity:
+def identity(cwd: str, budget: float = GIT_BUDGET_S, *, deadline: Deadline | None = None) -> RepoIdentity:
     """``RepoIdentity(repo, branch, commit)`` for ``cwd``, under ONE
     aggregate Git deadline — the sanctioned entry point for a caller binding
     client presence to canonical identity (Z6-C). Deriving the three
     separately would let independent timeouts stack past a hook's harness
     bound, exactly the bug zeitgeist's own WP01 fixed for repo+branch.
 
+    Pass ``deadline`` to fold this call into a *caller's* broader Git
+    budget — e.g. one status transition resolving credentials, presence
+    identity, and a focus capability in the same handler invocation — so the
+    three don't each stack their own ``budget`` on top of the others past a
+    fan-out's own bound (EXPERIMENTAL-spec-kitty#203). Omit it to allocate a
+    fresh ``Deadline(budget)``, correct when this is the call's only Git
+    consumer.
+
     Raises ``AmbiguousRepositoryIdentity``/``UnverifiedRepositoryIdentity``
     (both ``RepoIdentityError``) instead of returning a guessed ``repo``.
     """
-    deadline = Deadline(budget)
+    deadline = deadline or Deadline(budget)
     repo = repo_name(cwd, deadline)
     branch = branch_name(cwd, deadline)
     commit = commit_oid(cwd, deadline)

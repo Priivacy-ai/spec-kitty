@@ -213,6 +213,7 @@ class ClientConfig:
         agent_id: str | None = None,
         capability_credential: str | None = None,
         budget_s: float = repo_identity.GIT_BUDGET_S,
+        deadline: repo_identity.Deadline | None = None,
     ) -> ClientConfig:
         """The sanctioned, non-spoofable constructor (Z6-C): ``repo``/
         ``branch`` come from ``repo_identity.identity(cwd)`` — the checkout's
@@ -228,8 +229,14 @@ class ClientConfig:
         an additive, stricter alternative for a caller (the not-yet-built CLI
         adapter) that needs presence bound to the checkout's canonical
         identity rather than a claim it merely trusts.
+
+        Pass ``deadline`` to share a caller's already-open Git budget (e.g.
+        the same one credential resolution and a focus-capability lookup are
+        using in the same handler invocation) instead of allocating a fresh
+        ``budget_s`` here — see ``repo_identity.identity``'s own ``deadline``
+        parameter (EXPERIMENTAL-spec-kitty#203).
         """
-        ident = repo_identity.identity(cwd, budget=budget_s)
+        ident = repo_identity.identity(cwd, budget=budget_s, deadline=deadline)
         return cls(
             relay_url=relay_url,
             token=token,

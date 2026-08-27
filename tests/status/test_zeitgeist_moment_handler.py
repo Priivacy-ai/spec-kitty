@@ -438,6 +438,65 @@ def test_transition_broadcasts_one_moment_plus_its_liveness_frames(monkeypatch: 
     assert "reason" not in attrs
 
 
+def test_one_broadcast_shares_one_git_deadline_across_credentials_presence_and_focus(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """EXPERIMENTAL-spec-kitty#203: credential resolution, presence identity
+    (via ``ClientConfig.for_repository``), and the focus capability lookup
+    each used to open their OWN fresh ``repo_identity.Deadline`` — three
+    independent 2.0s budgets stacking under the fan-out seam's 10s bound.
+    One status-transition broadcast must thread exactly ONE ``Deadline``
+    through all three calls."""
+    seen_deadlines: list[Any] = []
+
+    def fake_resolve_credentials(cwd: Path, **kwargs: Any) -> StoredCredential:
+        seen_deadlines.append(kwargs.get("deadline"))
+        return _credential()
+
+    def fake_for_repository(cls: type, cwd: str, **kwargs: Any) -> Any:
+        seen_deadlines.append(kwargs.get("deadline"))
+        return transport_module.ClientConfig(
+            relay_url=kwargs["relay_url"],
+            token=kwargs["token"],
+            harness=kwargs["harness"],
+            session_id=kwargs["session_id"],
+            agent_id=kwargs.get("agent_id"),
+            repo="demo-repo",
+            branch="main",
+            capability_credential=kwargs.get("capability_credential"),
+        )
+
+    def fake_resolve_focus_capability(cwd: Path, **kwargs: Any) -> str | None:
+        seen_deadlines.append(kwargs.get("deadline"))
+        return "focus-jwt"
+
+    class _FakeZeitgeistClient:
+        def __init__(self, config: Any) -> None:
+            self._config = config
+
+        def offer(self, op: str, args: Any) -> Any:
+            return transport_module.OfferResult(outcome=transport_module.OfferOutcome("sent"), request_id="req-1", elapsed_s=0.0)
+
+        def presence(self, activity: str, path: str | None = None) -> Any:
+            return self.offer("presence.publish", {})
+
+        def focus_start(self, mission_slug: str, wp_id: str | None = None) -> Any:
+            return self.offer("focus.start", {})
+
+    monkeypatch.setattr(resolution_module, "resolve_credentials", fake_resolve_credentials)
+    monkeypatch.setattr(resolution_module, "resolve_focus_capability", fake_resolve_focus_capability)
+    monkeypatch.setattr(transport_module.ClientConfig, "for_repository", classmethod(fake_for_repository))
+    monkeypatch.setattr(transport_module, "ZeitgeistClient", _FakeZeitgeistClient)
+
+    _fire_transition()
+
+    assert len(seen_deadlines) == 3, "expected one deadline observed at each of the three call sites"
+    assert all(d is not None for d in seen_deadlines), "every call must receive a deadline, not fall back to None"
+    assert seen_deadlines[0] is seen_deadlines[1] is seen_deadlines[2], (
+        "resolve_credentials, for_repository, and resolve_focus_capability each got their own Deadline instead of sharing the one this broadcast opened"
+    )
+
+
 def test_forced_rollback_transition_broadcasts_force_true(monkeypatch: pytest.MonkeyPatch, resolved_credential: list[Path]) -> None:
     """A forced backward transition carries ``force="true"`` on the wire.
 

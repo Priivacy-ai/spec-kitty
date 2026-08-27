@@ -561,6 +561,30 @@ def test_identity_propagates_unverified_repository_identity(tmp_path):
         repo_identity.identity(str(plain))
 
 
+def test_identity_honors_a_caller_supplied_deadline_instead_of_minting_its_own(tmp_path, origin, monkeypatch):
+    """A caller folding this call into its OWN broader Git budget (e.g. one
+    status-transition broadcast resolving credentials, presence identity,
+    and a focus capability) must have that ONE deadline threaded to every
+    probe — not have identity() silently mint a fresh GIT_BUDGET_S on top
+    of it (EXPERIMENTAL-spec-kitty#203)."""
+    clone = _clone(origin, tmp_path / "clone")
+    shared = repo_identity.Deadline(60.0)
+    seen: list[object] = []
+
+    real_repo_name = repo_identity.repo_name
+    real_branch_name = repo_identity.branch_name
+    real_commit_oid = repo_identity.commit_oid
+    monkeypatch.setattr(repo_identity, "repo_name", lambda cwd, deadline=None: (seen.append(deadline), real_repo_name(cwd, deadline))[1])
+    monkeypatch.setattr(repo_identity, "branch_name", lambda cwd, deadline=None: (seen.append(deadline), real_branch_name(cwd, deadline))[1])
+    monkeypatch.setattr(repo_identity, "commit_oid", lambda cwd, deadline=None: (seen.append(deadline), real_commit_oid(cwd, deadline))[1])
+
+    repo_identity.identity(str(clone), deadline=shared)
+
+    assert seen == [shared, shared, shared], (
+        "identity() must thread the SAME caller-supplied Deadline into repo_name/branch_name/commit_oid, not mint a fresh one per probe or per call"
+    )
+
+
 # --- NFR-001-style aggregate deadline, ported discipline -------------------
 
 
@@ -688,6 +712,35 @@ def test_for_repository_derives_repo_and_branch_from_git_truth_not_a_claim(tmp_p
     assert config.harness == "claude-code"
     assert config.session_id == "sess-1"
     assert config.agent_id is None
+
+
+def test_for_repository_passes_the_given_deadline_to_identity(tmp_path, origin, monkeypatch):
+    """The transport-config half of #203: ``for_repository`` must forward a
+    caller's shared Deadline into ``repo_identity.identity`` rather than
+    letting it default to a fresh ``GIT_BUDGET_S`` budget of its own."""
+    clone = _clone(origin, tmp_path / "work" / "clone")
+    shared = repo_identity.Deadline(60.0)
+    seen: list[object] = []
+    real_identity = repo_identity.identity
+    monkeypatch.setattr(
+        repo_identity,
+        "identity",
+        lambda cwd, budget=repo_identity.GIT_BUDGET_S, *, deadline=None: (
+            seen.append(deadline),
+            real_identity(cwd, budget, deadline=deadline),
+        )[1],
+    )
+
+    transport.ClientConfig.for_repository(
+        str(clone),
+        relay_url="http://127.0.0.1:9",
+        token="tok",
+        harness="claude-code",
+        session_id="sess-1",
+        deadline=shared,
+    )
+
+    assert seen == [shared], "for_repository must forward the caller's Deadline, not mint its own"
 
 
 def test_for_repository_raises_instead_of_constructing_an_unverified_client_config(tmp_path):
