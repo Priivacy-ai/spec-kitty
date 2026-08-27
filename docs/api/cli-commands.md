@@ -2632,10 +2632,10 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ backfill-identity          Write a ULID mission_id into any meta.json that   │
 │                            lacks one.                                        │
-│ backfill-mission-type      Backfill profile-resolving mission_type values    │
-│                            into legacy meta.json files.                      │
 │ backfill-topology          Persist each legacy mission's MissionTopology     │
 │                            into its meta.json.                               │
+│ backfill-mission-type      Mint a profile-resolving ``mission_type`` into    │
+│                            legacy ``meta.json`` (rc3 M0).                    │
 │ charter-encoding           Scan charter content for non-UTF-8 encodings;     │
 │                            normalize-or-fail-loud.                           │
 │ backfill-provenance        FR-014: backfill provenance onto legacy           │
@@ -2648,26 +2648,6 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                            fail-closed, and flip status_phase.               │
 │ rebaseline-dossier-hashes  One-time re-baseline of recorded dossier snapshot │
 │                            hashes (FR-009, WP05).                            │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
-## spec-kitty migrate backfill-mission-type
-
-```
- Usage: spec-kitty migrate backfill-mission-type [OPTIONS]
-
- Backfill profile-resolving mission_type values into legacy meta.json files.
-
- Scans ``kitty-specs`` for missions that still carry only the deprecated
- ``mission`` key and writes the canonical ``mission_type`` when a governance
- profile resolves for that type. Existing ``mission_type`` values are never
- overwritten.
-
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --dry-run          Report what would change without writing files.           │
-│ --mission  TEXT    Scope to a single mission slug.                           │
-│ --json             Emit structured JSON results.                             │
-│ --help     -h      Show this message and exit.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -2712,6 +2692,59 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 │                          The JSON shape is identical to a live run.          │
 │ --mission          SLUG  Scope to a single mission slug (e.g. 083-foo-bar).  │
 │                          Omit to process all.                                │
+│ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty migrate backfill-mission-type
+
+```
+ Usage: spec-kitty migrate backfill-mission-type [OPTIONS]
+
+ Mint a profile-resolving ``mission_type`` into legacy ``meta.json`` (rc3 M0).
+
+ Legacy missions store their type only in the deprecated ``mission`` field.
+ This command writes a canonical ``mission_type`` for every candidate whose
+ legacy value resolves a governance profile at *any* layer (built-in / org
+ / project) — activation-independent, per the M3 tolerance authority.  A
+ mission that already has a ``mission_type`` key is always skipped and
+ left byte-for-byte unchanged.
+
+ This command is **idempotent** — running it twice reports ``wrote=0`` on
+ the second pass.
+
+ A candidate whose legacy value resolves **no** governance profile is
+ never written; it is reported ``needs_manual_resolution`` instead. This
+ does **not** by itself fail the command — see the exit codes below — but
+ a distinct, actionable diagnostic is printed naming the affected
+ mission(s): the fix is to assign a valid mission type whose governance
+ profile resolves at some layer, or to author/activate that type. It is
+ not necessarily a typo.
+
+ Exit codes:
+
+ - ``0`` — ``--dry-run`` (always, regardless of findings), or a live run
+   with zero ``error`` results (``needs_manual_resolution`` alone does not
+   fail the command)
+ - ``1`` — a live run with one or more ``error`` results (corrupt /
+   unreadable ``meta.json``), or ``--mission`` naming a slug that has no
+   matching directory under ``kitty-specs/``
+
+ Examples:
+
+     spec-kitty migrate backfill-mission-type --dry-run --json
+
+     spec-kitty migrate backfill-mission-type --mission 083-foo-bar
+
+     spec-kitty migrate backfill-mission-type
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json                   Emit the per-mission backfill result list as        │
+│                          structured JSON.                                    │
+│ --dry-run                Report what would change without writing any files. │
+│                          The JSON shape is identical to a live run.          │
+│ --mission          SLUG  Scope to a single mission slug (e.g. 083-foo). Omit │
+│                          to process all missions.                            │
 │ --help     -h            Show this message and exit.                         │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -3580,7 +3613,7 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
-│                   instead of the global ~/.kittify config.                   │
+│                   instead of the global home .kittify config.                │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -3595,7 +3628,7 @@ _Control which Zeitgeist status moments reach agent context (off / mine / team),
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --repo            Write the per-repo override (<repo>/.kittify/config.toml)  │
-│                   instead of the global ~/.kittify config.                   │
+│                   instead of the global home .kittify config.                │
 │ --help  -h        Show this message and exit.                                │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -4379,9 +4412,9 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 
  Commit spec artifacts to the mission's resolved placement.
 
- On a protected primary the coordination worktree is materialised on demand
- so the commit lands on the coordination branch (materialize-then-retry).
- On an unprotected or flattened primary the commit is direct.
+ On a protected primary the commit is refused: the mission's target_branch
+ must be a non-protected feature branch before a retry can succeed. On an
+ unprotected or flattened primary the commit is direct.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    files      FILES...  Spec artifacts to commit (absolute or relative     │
@@ -4886,10 +4919,22 @@ _Tracker synchronization commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty verify_setup
+## spec-kitty verify-setup
 
 ```
+ Usage: spec-kitty verify-setup [OPTIONS]
 
+ Verify that the current environment matches Spec Kitty expectations.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission              TEXT  Mission slug to verify                          │
+│ --json                       Output in JSON format for AI agents             │
+│ --check-files                Check mission file integrity [default: True]    │
+│ --check-tools                Check for installed development tools           │
+│                              [default: True]                                 │
+│ --diagnostics                Show detailed diagnostics with dashboard health │
+│ --help         -h            Show this message and exit.                     │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
 ## spec-kitty workflow
