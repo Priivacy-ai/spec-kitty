@@ -271,17 +271,24 @@ class DeclaredCommandScopeSource:
     repo_root: Path
 
     def test_command(self) -> list[str] | None:
-        """``shlex.split(review.test_command)``, or ``None`` when unset (FR-012).
+        """``shlex.split(review.test_command)``, or ``None`` when unset (FR-012)
+        or malformed (unbalanced quoting).
 
         Reads the same config surface ``baseline._get_test_command`` reads
-        (FR-011) — no new config key is invented.
+        (FR-011) — no new config key is invented. Per the ``ScopeSource``
+        port's own contract, this never raises for an environmental
+        problem — a bad config value degrades to the same ``None`` no-config
+        signal rather than propagating ``shlex``'s ``ValueError``.
         """
         from specify_cli.review.baseline import _get_test_command
 
         command_template, _output_format = _get_test_command(self.repo_root)
         if not command_template:
             return None
-        return shlex.split(command_template)
+        try:
+            return shlex.split(command_template)
+        except ValueError:
+            return None
 
     def file_to_scope(self, _path: str) -> tuple[str, ...]:
         """Always ``()`` — no per-file narrowing (deliberately not #2330).

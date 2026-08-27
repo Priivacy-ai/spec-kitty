@@ -65,6 +65,13 @@ def test_declared_command_returns_none_when_unconfigured(tmp_path: Path) -> None
     assert DeclaredCommandScopeSource(repo_root=tmp_path).test_command() is None
 
 
+def test_declared_command_malformed_quoting_yields_none_instead_of_raising(tmp_path: Path) -> None:
+    """The ``ScopeSource`` port contract degrades environmental errors."""
+    _write_config(tmp_path, test_command='pytest "unterminated')
+
+    assert DeclaredCommandScopeSource(repo_root=tmp_path).test_command() is None
+
+
 def test_declared_command_file_to_scope_never_narrows(tmp_path: Path) -> None:
     assert DeclaredCommandScopeSource(repo_root=tmp_path).file_to_scope("src/pkg/foo.py") == ()
 
