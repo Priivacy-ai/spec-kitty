@@ -127,6 +127,38 @@ def test_synthesize_from_phase1_when_no_profile_ep(monkeypatch: pytest.MonkeyPat
     assert profile.upgrade_provider is provider
 
 
+def test_incompatible_factory_signature_logs_actionable_error(monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
+    """A fork still passing a retired field name (e.g. disable_public_pypi_notifier)
+    raises TypeError inside the factory call; this must be logged loudly (not
+    swallowed at debug) so the incompatibility is actionable, while still
+    falling back to the stock/synthesized profile per the "never raises"
+    contract."""
+
+    def broken_factory() -> DistributionProfile:
+        return DistributionProfile(disable_public_pypi_notifier=True)  # type: ignore[call-arg]
+
+    monkeypatch.setattr(
+        "specify_cli.distribution.profile.entry_points",
+        lambda group: [_FakeEntryPoint("legacy-fork", broken_factory)],
+    )
+    monkeypatch.setattr(
+        "specify_cli.distribution.profile.resolve_cli_package_name",
+        lambda: "fallback-cli",
+    )
+    monkeypatch.setattr(
+        "specify_cli.distribution.profile.resolve_upgrade_provider",
+        lambda: FakeLatestVersionProvider(version="0.1.0"),
+    )
+
+    import logging as _logging
+
+    with caplog.at_level(_logging.ERROR, logger="specify_cli.distribution.profile"):
+        profile = resolve_distribution_profile()
+
+    assert profile.package_name == "fallback-cli"
+    assert any(record.levelno == _logging.ERROR and "legacy-fork" in record.message for record in caplog.records)
+
+
 def test_load_failure_falls_back_to_synthesize(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "specify_cli.distribution.profile.entry_points",

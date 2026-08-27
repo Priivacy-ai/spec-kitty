@@ -660,6 +660,77 @@ class TestSerialization:
         assert _deserialize_result({}) is None
         assert _deserialize_result({"installed_version": "3.2.0"}) is None
 
+    @pytest.mark.parametrize(
+        "channel",
+        [
+            UpgradeChannel.ALREADY_CURRENT,
+            UpgradeChannel.NO_UPGRADE_PATH,
+            UpgradeChannel.UPGRADE_AVAILABLE,
+            UpgradeChannel.UNKNOWN,
+        ],
+    )
+    def test_legacy_cache_key_round_trips_on_unchanged_channels(self, channel: UpgradeChannel) -> None:
+        """A cache written by a pre-rename build carries ``latest_pypi_version``,
+        not ``latest_release_version``, and the enum values for these four
+        channels never changed — so the legacy key must still round-trip
+        instead of forcing an immediate re-probe."""
+        from specify_cli.core.upgrade_notifier import _deserialize_result
+
+        legacy_cache_entry = {
+            "installed_version": "3.2.0",
+            "latest_pypi_version": "3.3.0",
+            "channel": channel.value,
+            "probed_at": "2026-05-14T12:00:00+00:00",
+            "error": None,
+            "releases": ["3.1.0", "3.2.0", "3.3.0"],
+        }
+
+        restored = _deserialize_result(legacy_cache_entry)
+
+        assert restored is not None
+        assert restored.installed_version == "3.2.0"
+        assert restored.latest_release_version == "3.3.0"
+        assert restored.channel == channel
+        assert restored.releases == ("3.1.0", "3.2.0", "3.3.0")
+
+    def test_legacy_cache_new_key_takes_precedence_over_legacy_key(self) -> None:
+        """If a cache entry somehow carries both keys, the new key wins."""
+        from specify_cli.core.upgrade_notifier import _deserialize_result
+
+        legacy_cache_entry = {
+            "installed_version": "3.2.0",
+            "latest_pypi_version": "3.3.0",
+            "latest_release_version": "3.4.0",
+            "channel": UpgradeChannel.UPGRADE_AVAILABLE.value,
+            "probed_at": "2026-05-14T12:00:00+00:00",
+            "error": None,
+            "releases": ["3.4.0"],
+        }
+
+        restored = _deserialize_result(legacy_cache_entry)
+
+        assert restored is not None
+        assert restored.latest_release_version == "3.4.0"
+
+    def test_legacy_ahead_of_pypi_channel_is_cache_miss_not_crash(self) -> None:
+        """The renamed channel value has no compatibility shim: a cache entry
+        from a pre-rename build with the old ``ahead_of_pypi`` channel value
+        no longer matches any ``UpgradeChannel`` member. This must degrade to
+        a cache miss (``None``, triggering a safe re-probe) rather than
+        raising."""
+        from specify_cli.core.upgrade_notifier import _deserialize_result
+
+        legacy_cache_entry = {
+            "installed_version": "3.3.0",
+            "latest_pypi_version": "3.2.0",
+            "channel": "ahead_of_pypi",
+            "probed_at": "2026-05-14T12:00:00+00:00",
+            "error": None,
+            "releases": ["3.1.0", "3.2.0"],
+        }
+
+        assert _deserialize_result(legacy_cache_entry) is None
+
 
 class TestPackagedReleaseIdentity:
     def test_release_identity_matches_pyproject_version(self) -> None:
