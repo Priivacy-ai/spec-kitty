@@ -570,6 +570,11 @@ def test_same_scope_remint_without_team_preserves_the_previous_team(state_root: 
     """A malformed admission response has no new team signal; it must not
     erase the admitting team already proven for this relay/repo scope."""
     _seed_main_credential()
+    credentials.store_focus_capability(
+        repo="github.com/acme/widget",
+        capability_credential="focus-jwt",
+        expires_at=_iso_in(1200),
+    )
 
     credentials.store(
         repo="github.com/acme/widget",
@@ -586,6 +591,7 @@ def test_same_scope_remint_without_team_preserves_the_previous_team(state_root: 
     loaded = credentials.load(repo="github.com/acme/widget")
     assert loaded is not None
     assert loaded.team == "demo"
+    assert loaded.focus_capability_credential == "focus-jwt"
 
 
 def test_different_scope_remint_without_team_does_not_preserve_previous_team(state_root: Path):

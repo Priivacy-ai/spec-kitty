@@ -301,13 +301,6 @@ def _positive_entry(
         entry["host"] = host
     if repo_slug is not None:
         entry["repo_slug"] = repo_slug
-    if team is None:
-        team = _previous_team_if_unambiguous(
-            previous=previous,
-            relay_url=relay_url,
-            host=host,
-            repo_slug=repo_slug,
-        )
     if team is not None:
         entry["team"] = team
     return entry
@@ -361,6 +354,14 @@ def store(
     lock = _locked()
     with lock:
         data = _read_all()
+        previous = data.get(repo) or {}
+        if team is None:
+            team = _previous_team_if_unambiguous(
+                previous=previous,
+                relay_url=relay_url,
+                host=host,
+                repo_slug=repo_slug,
+            )
         data[repo] = _positive_entry(
             relay_url=relay_url,
             token=token,
@@ -370,7 +371,7 @@ def store(
             host=host,
             repo_slug=repo_slug,
             team=team,
-            previous=data.get(repo) or {},
+            previous=previous,
         )
         _write_all(data)
 

@@ -1078,12 +1078,18 @@ class TestMintRecordsAdmittingTeam:
             repo_slug=SLUG,
             team="demo",
         )
+        credentials.store_focus_capability(
+            repo=KEY,
+            capability_credential="focus-jwt",
+            expires_at=_iso_in(1200),
+        )
         gateway = ScriptedGateway(admission={"admitted": True})
 
         stored = resolution._resolve(key=KEY, repo_slug=SLUG, host=HOST, gateway=gateway, kind=KIND_PRESENCE, force=False)
 
         assert stored is not None
         assert stored.team == "demo"
+        assert stored.focus_capability_credential == "focus-jwt"
         assert gateway.mint_calls == [{"repo_slug": SLUG, "kind": KIND_PRESENCE, "team_slug": None}]
 
 
