@@ -10,10 +10,12 @@ principle. After the trim (commit ``02ef48fc3``) only the canonical
 
 This test guards against a future re-introduction of any of the seven
 re-exports, and equally guards against an over-trim that accidentally
-removes one of the four ``emit_*`` re-exports that legitimate callers
-(``sync/dossier_pipeline.py``, ``dossier/drift_detector.py``) still depend
-on via ``specify_cli.dossier`` -- an over-trim there would silently break
-WP02's widened dossier guard with no other test catching it.
+removes one of the four ``emit_*`` re-exports -- an over-trim there would
+silently break WP02's widened dossier guard with no other test catching it.
+(The original callers, ``sync/dossier_pipeline.py`` and
+``dossier/drift_detector.py``, were themselves deleted as sync-transport
+collateral -- issues #5 and #116 respectively -- but the re-export contract
+remains load-bearing per C-002 regardless of who currently calls it.)
 """
 
 from __future__ import annotations

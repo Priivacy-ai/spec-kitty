@@ -144,7 +144,13 @@ test_no_dead_modules:
   # (core.batch_partition, dossier.drift_detector,
   # migration.envelope_seam); each registered as TODO(triage) wire-or-prune in
   # the allowlist entry, per FR-303.
-  category_7_grandfathered_orphans: 5
+  #
+  # 5 -> 2 (issue-116-wire-or-prune-orphaned-collateral, 2026-08-27): the
+  # three sync-transport collateral orphans (core.batch_partition,
+  # dossier.drift_detector, migration.envelope_seam) were each adjudicated
+  # PRUNE and deleted outright -- none had a viable low-risk wiring target
+  # after the sync transport's removal (issue #5). TODO(triage) notes burned.
+  category_7_grandfathered_orphans: 2
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
