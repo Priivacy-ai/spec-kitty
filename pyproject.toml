@@ -86,7 +86,7 @@ dependencies = [
     # (controller-qa on #58). The host is always github.com, never the exe.dev
     # github.int.exe.xyz forge proxy, which laptops cannot resolve.
     "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645",
-    "spec-kitty-tracker @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-tracker@f9dbd014410a137d70dab230007d415652d9bff8",
+    "spec-kitty-tracker @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-tracker@67a6ecc91f4b4a5fa82492a80ced4f49ce98851e",
     "toml>=0.10.2",  # Config file parsing
     "tomli-w>=1.0.0",  # TOML write serialiser (stdlib tomllib is read-only)
     "filelock>=3.13.0",  # Credential storage locking

@@ -392,7 +392,7 @@ _SANCTIONED_GIT_DEPS = {
     ),
     "spec-kitty-tracker": (
         "spec-kitty-tracker @ git+https://github.com/spec-kitty/"
-        "EXPERIMENTAL-spec-kitty-tracker@f9dbd014410a137d70dab230007d415652d9bff8"
+        "EXPERIMENTAL-spec-kitty-tracker@67a6ecc91f4b4a5fa82492a80ced4f49ce98851e"
     ),
 }
 
