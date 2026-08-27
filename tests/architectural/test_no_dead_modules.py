@@ -426,6 +426,12 @@ _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
 # this list from 10 -> 7 by deleting three modules outright
 # (doctrine.templates.repository, glossary.prompts,
 # glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
+#
+# issue-116-wire-or-prune-orphaned-collateral (2026-08-27): shrinks this list
+# 5 -> 2 by deleting the three sync-transport collateral orphans
+# (core.batch_partition, dossier.drift_detector, migration.envelope_seam)
+# outright -- none had a viable low-risk wiring target after the sync
+# transport's removal (issue #5). See the inline note below for detail.
 _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
     {
         # unshim-wave1-01KWKVHB (#2292) drained this set 6 -> 2 by deleting
@@ -445,26 +451,23 @@ _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
         # its #3262 WP11 wiring consumer no longer exists, so there is nothing
         # left to triage.
         #
-        # ---- issue-5-delete-sync-transport collateral (2026-08-25): three
-        # surviving modules whose ONLY src/ caller was the deleted sync
-        # transport (cli/commands/sync.py + the sync/delivery packages). Each
-        # is a real, tested library that lost its consumer, not a candidate for
-        # silent deletion; registered here so the fact is visible, not hidden
-        # (same reviewed-candidate class as the four M2 entries above).
-        # TODO(triage): wire each from a new runtime caller or delete it at the
-        # source -- the stale-entry check below reds if the decision lands
-        # without burning the entry.
-        # - core.batch_partition: batch-400 poison-isolation bisection
-        #   (#2755); its sole caller was the deleted sync push fan-out.
-        "specify_cli.core.batch_partition",
-        # - dossier.drift_detector: dossier drift detection; its sole caller
-        #   was the deleted dossier push trigger chain.
-        "specify_cli.dossier.drift_detector",
-        # - migration.envelope_seam: the deliberate migration↔import envelope
-        #   surface (#2262); its sole callers were the deleted delivery.targets
-        #   and the deleted sync status-report writer. mission_state.py's own
-        #   envelope assembly is prose-referenced only.
-        "specify_cli.migration.envelope_seam",
+        # ---- issue-5-delete-sync-transport collateral, adjudicated (issue #116,
+        # 2026-08-27): three modules whose ONLY src/ caller was the deleted sync
+        # transport (cli/commands/sync.py + the sync/delivery packages) were
+        # registered here pending wire-or-prune triage. Each was investigated for
+        # a viable low-risk wiring target and found to have none -- their sole
+        # reason to exist died with the sync transport (issue #5) -- so all three
+        # were PRUNED (deleted outright) rather than wired or kept allowlisted:
+        # - core.batch_partition: batch-400 poison-isolation bisection (#2755);
+        #   its sole caller was the deleted sync push fan-out. Deleted.
+        # - dossier.drift_detector: dossier drift detection; its sole caller was
+        #   the deleted dossier push trigger chain (dossier/snapshot.py's own
+        #   save path lost its trigger in the same deletion). Deleted.
+        # - migration.envelope_seam: the deliberate migration<->import envelope
+        #   re-export surface (#2262); its sole callers were the deleted
+        #   delivery.targets and the deleted sync status-report writer.
+        #   mission_state.py's own envelope assembly is prose-referenced only.
+        #   Deleted.
         # migration.verdict_provenance_backfill: REMOVED (verdict-seam-write-
         #   unification-01KZ9Q35 pre-merge remediation, 2026-08-06 -- predates and is
         #   unrelated to the M2 canonical-integration entries below). The eventual-wiring

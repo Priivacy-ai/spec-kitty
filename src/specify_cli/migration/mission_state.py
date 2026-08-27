@@ -492,10 +492,12 @@ def deterministic_ulid(seed: bytes | str) -> str:
 def envelope_sha256(envelope: Mapping[str, Any]) -> str:
     """Canonical-JSON SHA-256 of a TeamSpace envelope (single recipe owner).
 
-    Both the migration dry-run's ``TeamspaceDryRunRowMapping.envelope_sha256``
-    and the import-history provenance manifest (#2262, via
-    :mod:`specify_cli.migration.envelope_seam`) hash envelopes with this exact
-    shape; hoisted here so the two recipes cannot drift (#2884).
+    The migration dry-run's ``TeamspaceDryRunRowMapping.envelope_sha256`` hashes
+    envelopes with this exact shape; hoisted here so callers cannot drift
+    (#2884). (The import-history provenance manifest's own use of this recipe,
+    #2262, was removed with the sync transport -- issue #5 -- and its
+    re-export seam, ``migration.envelope_seam``, was pruned as dead collateral
+    -- issue #116.)
     """
     canonical = json.dumps(envelope, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(canonical).hexdigest()  # noqa: TID251 - production raw SHA-256 owner (canonical envelope body checksum)
@@ -1145,13 +1147,14 @@ def _load_events_contract() -> tuple[type[Any], Any, str]:
 class _TeamspaceEnvelope(BaseModel):
     """The SINGLE TeamSpace replay-envelope shape (#2891, CP001/CP002 #2884).
 
-    The migration ``WPStatusChanged`` builder and the history-import
-    creation-prefix builder (``sync.history_import.synthesize._envelope``, via
-    the ``envelope_seam`` re-export) both assemble the identical 15-key envelope.
-    This model is their one owner, so a new envelope-level field cannot be added
-    to one producer and silently forgotten in the other -- ``extra="forbid"``
-    turns a mismatched key set into a construction-time error instead of a
-    silent drift. Callers compute the field VALUES (``build_id`` /
+    The migration ``WPStatusChanged`` builder assembles the 15-key envelope
+    this model owns, so a new envelope-level field cannot be added and silently
+    forgotten elsewhere -- ``extra="forbid"`` turns a mismatched key set into a
+    construction-time error instead of a silent drift. (The history-import
+    creation-prefix builder that formerly shared this recipe via the
+    ``envelope_seam`` re-export was removed with the sync transport -- issue
+    #5 -- and the seam itself was pruned as dead collateral -- issue #116.)
+    Callers compute the field VALUES (``build_id`` /
     ``correlation_id`` / ... differ per producer); the KEY SET and
     ``schema_version`` live here.
 
@@ -2455,12 +2458,14 @@ __all__ = [
     # MissionEventRebuildResult, RepairReport, TeamspaceDryRunRowMapping,
     # deterministic_ulid: demoted — migration-internal; no cross-module
     # src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
-    # The ONE sanctioned cross-module surface is migration/envelope_seam.py
-    # (#2262/#2884), which re-exports the shared subset (envelope constants,
+    # The former sanctioned cross-module surface, migration/envelope_seam.py
+    # (#2262/#2884), re-exported the shared subset (envelope constants,
     # deterministic_ulid, envelope_sha256, the status-envelope builder, and the
     # selection/audit seams) under public names for the import-history
-    # pipeline. Any new cross-module consumer must go through that seam, not
-    # import these internals directly.
+    # pipeline. That pipeline was deleted with the sync transport (issue #5)
+    # and the seam itself was pruned as dead collateral (issue #116); any new
+    # cross-module consumer of these internals would need a fresh seam, not a
+    # direct import.
     "MissionStateDryRunError",
     "MissionStateRepairError",
     "TeamspaceDryRunReport",
