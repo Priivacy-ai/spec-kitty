@@ -914,7 +914,7 @@ def _presence_filenames_for(
 
     from specify_cli.dossier.manifest import ManifestSchemaError  # noqa: PLC0415
 
-    org_parsed = _resolve_org_manifest_mapping(mission_family, repo_root)
+    org_parsed, org_roots = _resolve_org_manifest_mapping(mission_family, repo_root)
     if org_parsed is not None:
         try:
             manifest = ExpectedArtifactManifest.model_validate(org_parsed)
@@ -922,12 +922,16 @@ def _presence_filenames_for(
             # Org-tier branch: no `ConfigResult` of type `config` is in
             # scope here, so `.origin` cannot be read off one (that would
             # raise `AttributeError`, not `ManifestSchemaError`). Synthesize
-            # a descriptive origin naming the org tier + mission family,
-            # mirroring resolver.py::_load_expected_artifact_manifest's own
-            # org-tier `ManifestSchemaError` construction.
+            # a descriptive origin naming the org tier + mission family + the
+            # roots checked, byte-for-byte matching
+            # resolver.py::_load_expected_artifact_manifest's own org-tier
+            # `ManifestSchemaError` construction (kept identical so an operator
+            # gets the same actionable message whichever entry point surfaces
+            # the broken manifest).
             origin = (
                 f"org-tier expected-artifacts.yaml for mission type {mission_family!r} "
-                "(no single source file path available)"
+                f"(no single source file path available; checked org roots: "
+                f"{', '.join(str(root) for root in org_roots)})"
             )
             raise ManifestSchemaError(mission_family, origin) from exc
     else:
@@ -946,17 +950,24 @@ def _presence_filenames_for(
 
 def _resolve_org_manifest_mapping(
     mission_family: str, repo_root: Path | None
-) -> Mapping[str, Any] | None:
-    """Return the resolved org-tier ``expected-artifacts.yaml`` mapping for
-    *mission_family*, or ``None`` when *repo_root* is ``None``, resolves no
-    existing org roots, or no org root has a matching file.
+) -> tuple[Mapping[str, Any] | None, list[Path]]:
+    """Return ``(mapping, org_roots)`` for *mission_family*'s org-tier
+    ``expected-artifacts.yaml``: the resolved mapping (or ``None`` when
+    *repo_root* is ``None``, resolves no existing org roots, or no org root has
+    a matching file), paired with the list of existing org roots that were
+    checked (``[]`` whenever the mapping is ``None``).
+
+    The ``org_roots`` are returned alongside the mapping so a caller that must
+    raise ``ManifestSchemaError`` can name the roots it checked in the origin
+    string, identically to resolver.py's org-tier construction, instead of
+    re-deriving them.
 
     Shared by :func:`_presence_filenames_for` and
     :func:`_expected_artifacts_manifest_resolves` so both consult the exact
     same org-tier precedence (FR-008) rather than each re-deriving it.
     """
     if repo_root is None:
-        return None
+        return None, []
     from charter.drg import resolve_existing_org_roots  # noqa: PLC0415
     from charter.activation.org_expected_artifacts import (  # noqa: PLC0415
         resolve_org_expected_artifacts,
@@ -964,14 +975,15 @@ def _resolve_org_manifest_mapping(
 
     org_roots = resolve_existing_org_roots(repo_root)
     if not org_roots:
-        return None
+        return None, []
     # `charter.*` is `follow_imports = "skip"` in [tool.mypy] (pyproject.toml)
     # so unrelated pre-existing strict debt elsewhere in the charter package
     # isn't walked by every importer's mypy run; that also erases
     # `resolve_org_expected_artifacts`'s real `Mapping[str, Any] | None`
     # return type to plain `Any` at this call boundary. The cast documents
     # the type this function actually returns at runtime.
-    return cast("Mapping[str, Any] | None", resolve_org_expected_artifacts(org_roots, mission_family))
+    mapping = cast("Mapping[str, Any] | None", resolve_org_expected_artifacts(org_roots, mission_family))
+    return mapping, cast("list[Path]", org_roots)
 
 
 def _expected_artifacts_manifest_resolves(mission_family: str, repo_root: Path | None) -> bool:
@@ -985,7 +997,8 @@ def _expected_artifacts_manifest_resolves(mission_family: str, repo_root: Path |
     factored out via :func:`_resolve_org_manifest_mapping` so the two
     functions share one source of truth.
     """
-    if _resolve_org_manifest_mapping(mission_family, repo_root) is not None:
+    org_mapping, _ = _resolve_org_manifest_mapping(mission_family, repo_root)
+    if org_mapping is not None:
         return True
 
     from charter.offering.missions import MissionTemplateRepository  # noqa: PLC0415
