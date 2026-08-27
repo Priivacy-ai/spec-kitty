@@ -385,37 +385,44 @@ def test_shared_package_drift_fails_when_lock_does_not_match_manifest(
     assert "spec-kitty-events uv.lock version 4.0.0 does not match release authority 4.0.1" in result.stdout
 
 
-_SANCTIONED_EVENTS_GIT_DEP = (
-    "spec-kitty-events @ git+https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-events"
-    "@9fe707345469aaaf5d232247724a0e6a08925645"
-)
+_SANCTIONED_GIT_DEPS = {
+    "spec-kitty-events": (
+        "spec-kitty-events @ git+https://github.com/spec-kitty/"
+        "EXPERIMENTAL-spec-kitty-events@9fe707345469aaaf5d232247724a0e6a08925645"
+    ),
+    "spec-kitty-tracker": (
+        "spec-kitty-tracker @ git+https://github.com/spec-kitty/"
+        "EXPERIMENTAL-spec-kitty-tracker@f9dbd014410a137d70dab230007d415652d9bff8"
+    ),
+}
 
 
-def test_shared_package_drift_passes_with_sanctioned_events_git_reference(tmp_path: Path) -> None:
-    """The wheel-installability exception (PROGRAM.md §2): a pinned-rev git
-    reference on spec-kitty-events, while 8.0.0 awaits an index, is not a
-    drift violation as long as the manifest's cli_range is the matching
-    empty specifier."""
+def test_shared_package_drift_passes_with_sanctioned_shared_git_references(
+    tmp_path: Path,
+) -> None:
+    """PROGRAM.md §2 permits full-SHA github.com refs for CLI dependencies."""
     cli = tmp_path / "pyproject.toml"
     lockfile = tmp_path / "uv.lock"
     write_manifest(
         tmp_path / ".kittify" / "release" / "shared-package-compatibility.json",
         events_range="",
         events_version="8.0.0",
+        tracker_range="",
+        tracker_version="0.5.2",
     )
 
     write_pyproject(
         cli,
         dependencies=[
-            _SANCTIONED_EVENTS_GIT_DEP,
-            "spec-kitty-tracker>=0.4,<0.5",
+            _SANCTIONED_GIT_DEPS["spec-kitty-events"],
+            _SANCTIONED_GIT_DEPS["spec-kitty-tracker"],
         ],
     )
     write_lockfile(
         lockfile,
         versions={
             "spec-kitty-events": "8.0.0",
-            "spec-kitty-tracker": "0.4.2",
+            "spec-kitty-tracker": "0.5.2",
         },
     )
 
@@ -486,7 +493,7 @@ def test_shared_package_drift_fails_when_saas_uses_events_direct_reference(tmp_p
     write_pyproject(
         cli,
         dependencies=[
-            _SANCTIONED_EVENTS_GIT_DEP,
+            _SANCTIONED_GIT_DEPS["spec-kitty-events"],
             "spec-kitty-tracker>=0.4,<0.5",
         ],
     )
@@ -500,7 +507,7 @@ def test_shared_package_drift_fails_when_saas_uses_events_direct_reference(tmp_p
     write_pyproject(
         saas,
         dependencies=[
-            _SANCTIONED_EVENTS_GIT_DEP,
+            _SANCTIONED_GIT_DEPS["spec-kitty-events"],
             "spec-kitty-tracker==0.4.2",
         ],
     )
