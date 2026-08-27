@@ -292,7 +292,12 @@ class SaaSTrackerClient:
         # folding in SPEC_KITTY_SAAS_URL precedence — instead of the raw
         # config.toml accessor, which would silently ignore an env override.
         # Fails closed (#179) on an unconfigured machine: no target, no client.
-        self._base_url = _normalize_origin(resolve_server_target().resolved_server_url)
+        # process_wide_override=False (#117): this client sends a bearer token
+        # with no human confirming the target at call time, so an ambiguous
+        # env/config disagreement must fail closed here rather than silently
+        # letting the env value win, the way the interactive `auth login`
+        # command's whole-process override is allowed to.
+        self._base_url = _normalize_origin(resolve_server_target(process_wide_override=False).resolved_server_url)
         self._timeout = timeout
         # Instance-scoped seam (#3187): retry/poll delays call ``self._sleep``
         # rather than the bare ``time.sleep``. ``time.sleep`` is a single

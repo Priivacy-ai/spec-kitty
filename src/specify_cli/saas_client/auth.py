@@ -206,10 +206,21 @@ def _token_manager() -> Any:
 
 
 def _resolved_server_target() -> Any:
-    """The canonical hosted-server target (env over config over default)."""
+    """The canonical hosted-server target (env over config over default).
+
+    ``process_wide_override=False`` (#117): every caller of this helper —
+    :func:`_oauth_session_context` (bridged into the fire-and-forget
+    status-moment credential mint) and :func:`_server_target_url` (paired
+    with an env-supplied bearer token) — sends a bearer token with no human
+    confirming the target at call time. An ambiguous env/config disagreement
+    must fail closed here (as ``ServerTargetSplitBrainError``) rather than
+    silently letting the env value win, the way the interactive `auth login`
+    command's whole-process override is allowed to. Both callers already
+    degrade any exception from this function to ``None``/``""``.
+    """
     from specify_cli.auth.server_target import resolve_server_target  # noqa: PLC0415
 
-    return resolve_server_target()
+    return resolve_server_target(process_wide_override=False)
 
 
 def _server_target_url() -> str:
