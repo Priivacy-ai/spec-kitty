@@ -44,6 +44,7 @@ with ``cli/commands/sync.py`` and gained none since (issue #116).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 __all__ = [
@@ -77,7 +78,17 @@ def serve_loopback_server(
     handler_class: type[BaseHTTPRequestHandler],
     *,
     server_factory: type[HTTPServer] = HTTPServer,
+    on_bound: Callable[[int], None] | None = None,
 ) -> None:
-    """Create, bind, and serve a loopback-only HTTP server forever."""
+    """Create, bind, and serve a loopback-only HTTP server forever.
+
+    ``on_bound``, when given, is invoked with the actually-bound port right
+    after bind and before this blocks in ``serve_forever`` — the seam a
+    detached child process uses to report an OS-assigned port (``port=0``)
+    back to whatever spawned it, since the caller-supplied ``port`` is no
+    longer accurate once the OS picks one.
+    """
     server = create_loopback_server(port, handler_class, server_factory=server_factory)
+    if on_bound is not None:
+        on_bound(server.server_address[1])
     server.serve_forever()
