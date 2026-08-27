@@ -41,9 +41,14 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
        (:func:`specify_cli.auth.server_target.resolve_server_target`) —
        never from ``.kittify/saas-auth.json``, which a checkout controls
        (#237: a repo-local URL must not redirect an env-supplied token).
+       Its ``team_slug`` comes only from ``SPEC_KITTY_TEAM_SLUG``, for the
+       same reason: the file must not override the scope of an env-resolved
+       token. ``.kittify/saas-auth.json`` is not read at all when both
+       ``SPEC_KITTY_SAAS_TOKEN`` and ``SPEC_KITTY_SAAS_URL`` are already set.
     2. ``.kittify/saas-auth.json`` relative to *repo_root* (if provided) —
-       its ``token`` paired with its own ``saas_url`` (falling back to
-       ``SPEC_KITTY_SAAS_URL`` only when the file omits ``saas_url``).
+       its ``token`` paired with its own ``saas_url`` and ``team_slug``
+       (falling back to ``SPEC_KITTY_SAAS_URL`` / ``SPEC_KITTY_TEAM_SLUG``
+       only when the file omits them).
     3. The stored OAuth session written by ``spec-kitty auth login``
        (#198): its access token as the bearer, paired with the canonical
        server target (:func:`specify_cli.auth.server_target.resolve_server_target`)
@@ -65,11 +70,19 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     """
     env_url = os.environ.get("SPEC_KITTY_SAAS_URL", "").strip()
     env_token = os.environ.get("SPEC_KITTY_SAAS_TOKEN", "").strip()
-    team_slug = os.environ.get("SPEC_KITTY_TEAM_SLUG", "").strip() or None
+    env_team_slug = os.environ.get("SPEC_KITTY_TEAM_SLUG", "").strip() or None
+    team_slug = env_team_slug
 
     file_url = ""
     file_token = ""
-    if repo_root is not None:
+    file_team_slug: str | None = None
+    # Only touch the file when env hasn't already fully resolved token+url —
+    # a fully-env-configured caller never needed the file before #237 either
+    # (main:66-72), and reading it anyway both risks the same
+    # checkout-controls-a-trusted-session hazard for team_slug below and
+    # turns a merely-present malformed file into a hard failure for a caller
+    # who never needed it.
+    if repo_root is not None and not (env_token and env_url):
         auth_file = repo_root / ".kittify" / "saas-auth.json"
         if auth_file.exists():
             try:
@@ -78,22 +91,27 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
                 raise SaasAuthError(f"Failed to read .kittify/saas-auth.json: {exc}") from exc
             file_token = data.get("token", "").strip()
             file_url = data.get("saas_url", "").strip()
-            team_slug = team_slug or data.get("team_slug") or None
+            file_team_slug = data.get("team_slug") or None
 
     # Trust boundary (#237): the URL and the bearer must come from the same
     # source. A checkout-controlled .kittify/saas-auth.json may name a
     # saas_url, but only alongside its own token — never paired with the
     # env-supplied service token, which is typically longer-lived and more
-    # broadly scoped than what a checkout should be able to redirect.
+    # broadly scoped than what a checkout should be able to redirect. The
+    # same invariant applies to team_slug: it is a per-request scope selector
+    # (zeitgeist_client/resolution.py), so the file may only supply it
+    # alongside its own token, never as an override of an env-resolved token.
     if env_token:
         token = env_token
         url = env_url or _server_target_url()
     elif file_token:
         token = file_token
         url = file_url or env_url
+        team_slug = team_slug or file_team_slug
     else:
         token = ""
         url = env_url or file_url
+        team_slug = team_slug or file_team_slug
 
     if not token:
         bridged = _oauth_session_context()

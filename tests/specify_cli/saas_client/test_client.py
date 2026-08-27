@@ -157,6 +157,39 @@ def test_load_auth_context_env_token_pairs_with_env_url_over_file_url(tmp_path: 
     assert ctx.saas_url == "https://env-url.example"
 
 
+def test_load_auth_context_fully_env_configured_ignores_malformed_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#264 fix round: when both SPEC_KITTY_SAAS_TOKEN and SPEC_KITTY_SAAS_URL
+    are set, a stray/malformed ``.kittify/saas-auth.json`` must not be read at
+    all — an already-fully-resolved env identity cannot be broken by a
+    checkout it never needed to consult."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "env-token")
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env-url.example")
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text("{not valid json")
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "env-token"
+    assert ctx.saas_url == "https://env-url.example"
+
+
+def test_load_auth_context_fully_env_configured_ignores_file_team_slug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """#264 fix round: a checkout-controlled ``.kittify/saas-auth.json`` must
+    not be able to override the team scope of an already-fully-resolved
+    env token+url identity — the same same-source invariant #237 established
+    for saas_url applies to team_slug (zeitgeist_client/resolution.py uses it
+    as a per-request scope selector)."""
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "env-token")
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "https://env-url.example")
+    monkeypatch.delenv("SPEC_KITTY_TEAM_SLUG", raising=False)
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"team_slug": "attacker-controlled-team"}))
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "env-token"
+    assert ctx.saas_url == "https://env-url.example"
+    assert ctx.team_slug is None
+
+
 def test_load_auth_context_env_token_falls_back_to_resolved_server_target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """#237: with no SPEC_KITTY_SAAS_URL, an env token pairs with the
     canonical resolved server target — a trusted source — not the file's url."""
