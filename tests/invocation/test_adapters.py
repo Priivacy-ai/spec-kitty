@@ -59,7 +59,7 @@ def test_get_saas_client_calls_registered_factory() -> None:
     """After registration the factory is called with the path and result is returned."""
     fake_client = MagicMock()
     mock_factory = MagicMock(return_value=fake_client)
-    register_saas_client_factory(mock_factory)
+    register_saas_client_factory(mock_factory, confirms_request_text_admission_gate=True)
 
     result = get_saas_client(_DUMMY_PATH)
 
@@ -87,8 +87,8 @@ def test_register_saas_client_factory_idempotent_by_qualname() -> None:
     _factory_v2.__qualname__ = _factory_v1.__qualname__
     _factory_v2.__module__ = _factory_v1.__module__
 
-    register_saas_client_factory(_factory_v1)
-    register_saas_client_factory(_factory_v2)
+    register_saas_client_factory(_factory_v1, confirms_request_text_admission_gate=True)
+    register_saas_client_factory(_factory_v2, confirms_request_text_admission_gate=True)
 
     get_saas_client(_DUMMY_PATH)
 
@@ -106,11 +106,41 @@ def test_get_saas_client_returns_none_on_factory_exception() -> None:
     def _exploding_factory(_path: Path) -> object:
         raise RuntimeError("boom")
 
-    register_saas_client_factory(_exploding_factory)
+    register_saas_client_factory(_exploding_factory, confirms_request_text_admission_gate=True)
 
     result = get_saas_client(_DUMMY_PATH)
 
     assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Registration-time assertion (issue #117) — a future registrant cannot ship
+# ``request_text`` off-machine by merely calling the function; it must
+# affirmatively assert the admission gate it owns.
+# ---------------------------------------------------------------------------
+
+
+def test_register_saas_client_factory_requires_explicit_gate_confirmation() -> None:
+    """Omitting the mandatory kwarg is a ``TypeError`` — no silent default."""
+
+    def _factory(_path: Path) -> object:
+        return object()
+
+    with pytest.raises(TypeError):
+        register_saas_client_factory(_factory)  # type: ignore[call-arg]
+
+
+def test_register_saas_client_factory_rejects_false_confirmation() -> None:
+    """Passing ``False`` (or anything but ``True``) is refused, not silently accepted."""
+
+    def _factory(_path: Path) -> object:
+        return object()
+
+    with pytest.raises(ValueError, match="confirms_request_text_admission_gate"):
+        register_saas_client_factory(_factory, confirms_request_text_admission_gate=False)
+
+    # The registry must remain empty — the rejected call must not have landed.
+    assert get_saas_client(_DUMMY_PATH) is None
 
 
 # ---------------------------------------------------------------------------

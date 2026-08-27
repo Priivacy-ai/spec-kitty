@@ -48,6 +48,8 @@ def _callable_key(fn: Callable[..., Any]) -> str:
 
 def register_saas_client_factory(
     fn: Callable[[Path], Any | None],
+    *,
+    confirms_request_text_admission_gate: bool,
 ) -> None:
     """Register the SaaS-client factory (idempotent by qualified name).
 
@@ -71,7 +73,34 @@ def register_saas_client_factory(
     the sibling registrar above, and removing it from both is a behaviour-preserving
     simplification outside this mission's scope. Filed rather than folded — see the
     mission's follow-up record.
+
+    Args:
+        fn: The factory. Called with the repo root; returns a connected client
+            or ``None``.
+        confirms_request_text_admission_gate: Mandatory, no default. Registering
+            a factory here is what opens the propagator's egress path carrying
+            ``request_text`` — the verbatim agent prompt — off-machine (see
+            :func:`propagator._get_saas_client`). Passing anything but ``True``
+            raises: the caller must affirmatively assert that *fn* (or whatever
+            constructs the client it returns) enforces the auth/admission gate
+            before ``request_text`` can leave the machine. This does not, by
+            itself, prove the gate exists — it makes registering a factory that
+            skips that proof a deliberate, reviewable act instead of a default
+            no one had to opt into (issue #117).
+
+    Raises:
+        ValueError: If ``confirms_request_text_admission_gate`` is not ``True``.
     """
+    if confirms_request_text_admission_gate is not True:
+        raise ValueError(
+            "register_saas_client_factory requires "
+            "confirms_request_text_admission_gate=True: registering a factory "
+            "here opens the invocation propagator's egress path, which carries "
+            "request_text (the verbatim agent prompt) off-machine. Pass True "
+            "only once the registrant owns and enforces the auth/admission gate "
+            "ahead of that send — see specify_cli.invocation.propagator."
+            "_get_saas_client for what that gate must cover."
+        )
     global _saas_client_factory  # noqa: PLW0603
     new_key = _callable_key(fn)
     if _saas_client_factory is not None:

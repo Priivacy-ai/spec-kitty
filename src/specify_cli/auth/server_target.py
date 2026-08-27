@@ -176,6 +176,32 @@ def _guard_split_brain(
         )
 
 
+def _warn_process_override(
+    override_mode: OverrideMode,
+    configured_server_url: str | None,
+    resolved_server_url: str,
+) -> None:
+    """Log when a whole-process override silently redirects a *configured* target.
+
+    Only fires when ``configured_server_url`` names an actual, different target
+    that ``{env_var}`` is overriding — an env-only machine has no configured
+    opinion to override, so it is not a redirection and stays quiet (#117:
+    editing ``[sync].server_url`` or ``{env_var}`` used to be cross-checked
+    against a durable per-project admission binding before that binding was
+    deleted with the sync transport; this is the visible signal that survives
+    without resurrecting that store).
+    """
+    if override_mode is OverrideMode.PROCESS_OVERRIDE and configured_server_url is not None:
+        _LOG.warning(
+            "%s=%r overrides configured [sync].server_url=%r for this process; "
+            "bearer-token-bearing traffic now targets %r instead of the configured host.",
+            SAAS_URL_ENV_VAR,
+            resolved_server_url,
+            configured_server_url,
+            resolved_server_url,
+        )
+
+
 def resolve_server_target(*, process_wide_override: bool = True) -> ResolvedServerTarget:
     """Resolve the single canonical hosted-server target.
 
@@ -200,6 +226,7 @@ def resolve_server_target(*, process_wide_override: bool = True) -> ResolvedServ
         process_wide_override=process_wide_override,
     )
     _guard_split_brain(override_mode, configured_server_url, env_server_url)
+    _warn_process_override(override_mode, configured_server_url, resolved_server_url)
     return ResolvedServerTarget(
         configured_server_url=configured_server_url,
         env_server_url=env_server_url,

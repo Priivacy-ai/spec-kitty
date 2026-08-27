@@ -241,3 +241,52 @@ def test_env_only_machine_resolves_cleanly_even_setup_only(
     assert target.configured_server_url is None
     assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
     assert target.resolved_server_url == ENV_URL
+
+
+# ---------------------------------------------------------------------------
+# Process-override warning (#117): a whole-process override that redirects a
+# *configured* target logs a warning; an env-only machine has no configured
+# opinion to redirect, so it stays quiet.
+# ---------------------------------------------------------------------------
+
+
+def test_process_override_of_configured_target_logs_warning(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    _write_config(target_root, CONFIG_URL)
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, ENV_URL)  # disagrees with config
+
+    with caplog.at_level("WARNING", logger="specify_cli.auth.server_target"):
+        target = resolve_server_target(process_wide_override=True)
+
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+    [record] = caplog.records
+    assert CONFIG_URL in record.getMessage()
+    assert ENV_URL in record.getMessage()
+
+
+def test_env_only_machine_does_not_log_warning(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """No configured value ⇒ nothing is being redirected ⇒ no warning."""
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, ENV_URL)
+
+    with caplog.at_level("WARNING", logger="specify_cli.auth.server_target"):
+        target = resolve_server_target(process_wide_override=True)
+
+    assert target.override_mode is OverrideMode.PROCESS_OVERRIDE
+    assert caplog.records == []
+
+
+def test_env_equals_config_does_not_log_warning(
+    target_root: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Agreement is not a redirection, even with a whole-process override enabled."""
+    _write_config(target_root, CONFIG_URL)
+    monkeypatch.setenv(SAAS_URL_ENV_VAR, CONFIG_URL)
+
+    with caplog.at_level("WARNING", logger="specify_cli.auth.server_target"):
+        target = resolve_server_target(process_wide_override=True)
+
+    assert target.override_mode is OverrideMode.NONE
+    assert caplog.records == []

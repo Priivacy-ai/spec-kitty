@@ -189,7 +189,11 @@ def _probe_host_config() -> str | None:
         # (follow_imports=skip); coerce ``resolved_server_url`` (a ``str``).
         from specify_cli.auth.server_target import resolve_server_target
 
-        return str(resolve_server_target().resolved_server_url)
+        # process_wide_override=False (#117): readiness is a no-human-in-the-loop
+        # probe, so an ambiguous env/config disagreement must fail closed (caught
+        # below, same as any other resolution failure) rather than silently
+        # reporting the env-overridden URL as ready.
+        return str(resolve_server_target(process_wide_override=False).resolved_server_url)
     except Exception:
         return None
 
