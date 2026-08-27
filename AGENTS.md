@@ -51,7 +51,7 @@ packs/built-in/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURC
 
 ## ⚠️ CRITICAL: Git Workflow — Branches, PRs, and Merges
 
-This repo is part of the `EXPERIMENTAL-spec-kitty-*` programme. **`main` IS the integration branch**: every PR targets `main`, nothing deploys on merge, and nothing on GitHub enforces anything — no branch protection, no required reviews (the leftover `.github/workflows/` YAML is pre-programme and inert). The binding process is the programme constitution — [`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) §5–§9:
+This repo is part of the `EXPERIMENTAL-spec-kitty-*` programme. **`main` IS the integration branch**: every PR targets `main`, nothing deploys on merge, and nothing on GitHub enforces anything — no branch protection, no required reviews (the pre-programme `.github/workflows/` YAML has been deleted; see PROGRAM.md §2 and planning#57). The binding process is the programme constitution — [`EXPERIMENTAL-spec-kitty-planning/PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) §5–§9:
 
 - **Never push to `main`.** One issue → one branch (`issue-<n>-<slug>`, cut from `main`) → one PR targeting `main` (§5). Implementers never merge; the merge agent does (§9).
 - `spec-kitty merge` consolidates lanes into your **local** `main` only; it never publishes to the remote. Qualify local vs origin when naming the branch (see the `primary`/`merge` footgun note under Terminology Canon).
@@ -154,10 +154,9 @@ for agent_root, subdir in agent_dirs:
 1. **Add to `AI_CHOICES`** in `src/specify_cli/__init__.py` and `agent_folder_map`.
 2. **Update CLI help text** — `--ai` param description, docstrings, error messages.
 3. **Update `README.md`** Supported AI Agents section.
-4. **Update release script** `.github/workflows/scripts/create-release-packages.sh` — add to `ALL_AGENTS` array and case statement.
-5. **Update GitHub release script** `.github/workflows/scripts/create-github-release.sh` — add agent packages.
-6. **Add to `AGENT_DIRS`** in `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`.
-7. **CLI tool check** (only for agents with required CLI tools, not IDE-based ones):
+4. **No release-script update needed.** The pre-programme `.github/workflows/scripts/create-release-packages.sh` and `create-github-release.sh` (which used to need a new-agent entry here) were deleted with the rest of `.github/workflows/` — see PROGRAM.md §2 and planning#57; this programme has no GitHub Actions release automation to update (see *PyPI Release* below).
+5. **Add to `AGENT_DIRS`** in `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py`.
+6. **CLI tool check** (only for agents with required CLI tools, not IDE-based ones):
    ```python
    tracker.add("windsurf", "Windsurf IDE (optional)")
    check_tool_for_tracker("windsurf", "https://windsurf.com/", tracker)
@@ -519,7 +518,7 @@ edges:
 
 ## Branches and CI
 
-Nothing on GitHub enforces the workflow in this programme's repos — no branch protection, no required reviews, and no deploy wired to a merge (the leftover `.github/workflows/` YAML is pre-programme and inert); [`PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) §5–§9 does (see *Git Workflow* above). `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via an `issue-<n>-<slug>` branch and a PR targeting `main`, and let the merge agent merge.
+Nothing on GitHub enforces the workflow in this programme's repos — no branch protection, no required reviews, and no deploy wired to a merge (the pre-programme `.github/workflows/` YAML has been deleted; see PROGRAM.md §2 and planning#57); [`PROGRAM.md`](https://github.com/spec-kitty/EXPERIMENTAL-spec-kitty-planning/blob/main/PROGRAM.md) §5–§9 does (see *Git Workflow* above). `spec-kitty merge` still consolidates into **local** `main` only — do NOT use `spec-kitty merge --push` or `git push origin main`; publish via an `issue-<n>-<slug>` branch and a PR targeting `main`, and let the merge agent merge.
 
 ---
 
@@ -576,7 +575,7 @@ unset GITHUB_TOKEN && gh issue comment <issue> --body "..."
 
 ## Other Notes
 
-Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`; this has cost mission `sync-sleep-count-3136` four venv rebuilds), runs headless in CI via [`.github/workflows/ui-e2e.yml`](.github/workflows/ui-e2e.yml), and is copy-template documented in [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) — extend that suite instead of asserting UI behavior from API responses alone.
+Never claim frontend works without Playwright proof. API responses don't guarantee UI works; frontend can fail silently (404 caught, shows fallback). This is enforced, not aspirational: the runnable regression guard lives at [`tests/ui/test_dashboard_wp_modal.py`](tests/ui/test_dashboard_wp_modal.py) (`PWHEADLESS=1 .venv/bin/python -m pytest tests/ui/ -q` — **not** a bare `uv run`, which re-syncs the environment and destroys a hand-built `.venv`; this has cost mission `sync-sleep-count-3136` four venv rebuilds), used to run headless in CI via the now-deleted `.github/workflows/ui-e2e.yml` (pre-programme GitHub Actions cruft removed per PROGRAM.md §2 and planning#57 — run the local command above instead), and is copy-template documented in [`docs/development/testing/ui-e2e.md`](docs/development/testing/ui-e2e.md) — extend that suite instead of asserting UI behavior from API responses alone.
 
 ---
 
