@@ -473,13 +473,6 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
 
     _print_acceptance_warnings(summary)
 
-    if summary.optional_missing:
-        console.print(
-            "\n[yellow]Optional artifacts missing:[/yellow] "
-            + ", ".join(summary.optional_missing)
-        )
-        console.print()
-
 
 def _print_acceptance_result(result: AcceptanceResult) -> None:
     console.print(

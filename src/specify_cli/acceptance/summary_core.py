@@ -23,7 +23,7 @@ from typing import Any
 from specify_cli.mission import get_deliverables_path
 from specify_cli.status_lanes import has_operator_provenance, is_acceptable_ending
 from specify_cli.task_utils import WorkPackage
-from specify_cli.validators.paths import validate_mission_paths
+from specify_cli.validators.paths import _normalize_path_token, artifact_tokens_for_mission, validate_mission_paths
 
 from .gates_core import AcceptanceCheckDiagnostic
 
@@ -149,6 +149,7 @@ def evaluate_path_conventions(
     planning_read_dir: Path,
     *,
     strict_metadata: bool,
+    optional_missing_to_dedup: list[str] | None = None,
 ) -> tuple[list[str], str | None]:
     """Evaluate mission path conventions; returns (path_violations, warning).
 
@@ -161,6 +162,11 @@ def evaluate_path_conventions(
     invoked non-strict here so the caller owns the blocking decision rather
     than catching a raise. When ``mission`` has no path conventions this is a
     no-op: ``([], None)``.
+
+    When ``optional_missing_to_dedup`` is provided, entries in that list whose
+    normalized token also appears in the resolved ``missing_paths`` are
+    removed from the list IN PLACE before this function's own 2-tuple return
+    runs — this is a documented side effect, not a pass-through parameter.
     """
     if not (mission and mission.config.paths):
         return [], None
@@ -179,6 +185,24 @@ def evaluate_path_conventions(
     if not path_result.missing_paths:
         return [], None
     if strict_metadata:
+        if optional_missing_to_dedup is not None:
+            # FR-002: ``contracts/`` (and any other token declared under BOTH
+            # ``artifacts.optional`` and ``paths.deliverables``) must not be
+            # reported through both a non-blocking ``optional_missing`` warning
+            # AND a blocking ``path_violations`` entry — the blocking side
+            # wins. Structurally exclude non-artifact (placeholder) entries
+            # first via WP01's ``artifact_tokens_for_mission`` membership
+            # check, rather than relying on the placeholder values happening
+            # not to collide with a real artifact token.
+            artifact_tokens = artifact_tokens_for_mission(mission)
+            dedup_tokens = {
+                _normalize_path_token(token)
+                for token in path_result.missing_paths_feature_relative
+                if _normalize_path_token(token) in artifact_tokens
+            }
+            optional_missing_to_dedup[:] = [
+                entry for entry in optional_missing_to_dedup if _normalize_path_token(entry) not in dedup_tokens
+            ]
         return [path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED], None
     return [], path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED
 
