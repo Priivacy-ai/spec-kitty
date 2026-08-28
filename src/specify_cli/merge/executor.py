@@ -78,6 +78,7 @@ from specify_cli.merge.done_bookkeeping import (
     _assert_merged_wps_done_on_target,
     _record_merged_wps_done_for_merge,
     _resolve_merge_actor,
+    acceptably_canceled_wp_ids,
 )
 from specify_cli.merge.git_probes import (
     _branch_trees_equal,
@@ -257,6 +258,12 @@ class _MergeRunState:
     state: MergeState
     is_resume: bool
     any_lane_had_unintegrated_code: bool = False
+    # FR-004 / FR-009: WP IDs at an acceptable *canceled* ending (operator
+    # provenance) on the coord surface — resolved ONCE at lock entry via
+    # ``acceptably_canceled_wp_ids`` and threaded to the lane-merge phase so a
+    # fully-canceled lane (whose branch may not exist) is skipped without a
+    # second coord read. ``all_wp_ids`` already has these filtered out.
+    excluded_canceled_wp_ids: frozenset[str] = frozenset()
     target_baseline_sha: str = "HEAD~1"
     baseline_mission_id: str | None = None
     done_marked_before_target: bool = False
@@ -372,6 +379,20 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         if run.planning_artifact_only and is_planning_lane(lane):
             console.print(
                 f"  [green]✓[/green] {lane.lane_id} already on {lanes_manifest.target_branch}"
+            )
+            continue
+
+        # FR-004 / FR-009: skip branch integration ONLY when EVERY WP in the lane
+        # is a canceled-with-provenance acceptable ending (its lane branch may
+        # never have been created — the #2945 shape). A mixed lane (survivors +
+        # canceled) still integrates its survivors, so this guard requires ALL
+        # WPs excluded, never merely any.
+        if lane.wp_ids and all(
+            wp in run.excluded_canceled_wp_ids for wp in lane.wp_ids
+        ):
+            console.print(
+                f"  [dim]Skipping {lane.lane_id} (all WPs canceled with "
+                "provenance — acceptable ending, no branch to integrate)[/dim]"
             )
             continue
 
@@ -1584,7 +1605,22 @@ def _run_lane_based_merge_locked(
     target_feature_dir = placement_seam(main_repo, mission_slug).read_dir(
         MissionArtifactKind.PRIMARY_METADATA
     )
-    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
+    # FR-004 / FR-009: exclude canceled-with-provenance WPs from the per-WP
+    # done/review derivations. ``all_wp_ids`` feeds the review-artifact
+    # consistency gate (:1671), the evidence/canonical-history guards
+    # (``_phase_gates_and_state``), ``wp_order`` (:1681), and the final
+    # ``_assert_merged_wps_reached_done`` — a canceled WP has no review artifact
+    # and never reaches ``done``, so leaving it in would break the merge on an
+    # acceptable ending. Resolved once here and threaded to the lane-merge phase.
+    excluded_canceled_wp_ids = frozenset(
+        acceptably_canceled_wp_ids(main_repo, mission_slug)
+    )
+    all_wp_ids = [
+        wp
+        for lane in lanes_manifest.lanes
+        for wp in lane.wp_ids
+        if wp not in excluded_canceled_wp_ids
+    ]
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 
     # INV (ordering preserved from the pre-refactor monolith): the review-artifact
@@ -1618,6 +1654,7 @@ def _run_lane_based_merge_locked(
         target_feature_dir=target_feature_dir,
         lanes_manifest=lanes_manifest,
         all_wp_ids=all_wp_ids,
+        excluded_canceled_wp_ids=excluded_canceled_wp_ids,
         push=push,
         delete_branch=delete_branch,
         remove_worktree=remove_worktree,
