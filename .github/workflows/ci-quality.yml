@@ -1988,6 +1988,15 @@ jobs:
             ignore_args: ''
             marker_extra: ''
           - shard: misc
+            # tests/glossary added 2026-08-28 (mission charter-authority-flip-01M14RB3
+            # landing pass, #3664): WP02 gave tests/glossary/test_canonical_promotion.py
+            # its first pytest.mark.architectural-marked tests. Before this,
+            # tests/glossary was collected by NO integration-tier shard here (unlike
+            # the fast tier's whole-tree-minus-ignore `core-misc` shard in
+            # fast-tests-core-misc, this job's shards are all explicit path lists), so
+            # an architectural/integration/git_repo-marked test under tests/glossary
+            # had no live replacement route for the retired #3284 catch-all — closes
+            # that gap the same way every other small directory in this list does.
             paths: >-
               tests/_factories
               tests/_support
@@ -2002,6 +2011,7 @@ jobs:
               tests/cross_branch
               tests/doctor
               tests/dossier
+              tests/glossary
               tests/init
               tests/migration
               tests/mission_runtime
