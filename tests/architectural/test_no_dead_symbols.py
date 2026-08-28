@@ -956,8 +956,17 @@ _CATEGORY_C_ORG_DOCTRINE_CLOSEOUT: frozenset[SymbolKey] = frozenset(
         SymbolKey(
             "ActivationPlan", "49697a5e9d4ea41ac9531c0b4bb6605a8aa71bf116e0dfbf1af2eee33a935a53", source_module="charter.activation_engine"
         ),  # charter.activation_engine::ActivationPlan
+        # Re-pinned 2026-08-24 (#3705): WP04 added the ``not_cascaded_kind_filtered``
+        # field to this dataclass so ``charter deactivate --cascade`` can report the
+        # kind-filtered nodes it previously dropped in silence (C-002 symmetry). The
+        # allowlist is content-hash keyed, so a legitimate body change drifts the pin
+        # and the gate reports the symbol as un-allowlisted. Category C is re-derived
+        # each cycle by design, so this is a re-pin, not a new exemption: the symbol's
+        # status is unchanged (still no src/ importer -- it is the public return type
+        # of ``deactivation_plan()``, consumed by the CLI layer and tests).
+        # Prior hash: 527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43
         SymbolKey(
-            "DeactivationPlan", "527c491b7df6c1369bc3f4c7491626817a5a3a2ede574ffe4527168fde17bf43", source_module="charter.cascade"
+            "DeactivationPlan", "ea81133908c5385ae013a8057ac7f863386247ba90b64e212b54be895d7e1615", source_module="charter.cascade"
         ),  # charter.cascade::DeactivationPlan
         SymbolKey(
             "REFERENCE_RELATIONS", "95fca0816d6568e68a953c321ec3ca6c5a45a7903f064fdbcb4d87bc1558632b", source_module="charter.cascade"
