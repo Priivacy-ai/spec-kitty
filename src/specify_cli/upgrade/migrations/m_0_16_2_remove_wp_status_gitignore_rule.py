@@ -17,6 +17,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from specify_cli.gitignore_manager import IgnoreFilePathError, read_ignore_file_text
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -47,11 +49,14 @@ def find_wp_status_entries(gitignore_path: Path) -> list[tuple[int, str]]:
 
     Returns:
         List of (1-based line number, stripped line content).
+
+    Raises:
+        IgnoreFilePathError: If `gitignore_path` is a symlink.
     """
-    if not gitignore_path.exists():
+    content = read_ignore_file_text(gitignore_path, errors="ignore")
+    if not content:
         return []
 
-    content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
     matches: list[tuple[int, str]] = []
     for line_no, line in enumerate(content.splitlines(), start=1):
         if is_wp_status_ignore_pattern(line):
@@ -73,8 +78,8 @@ def remove_wp_status_entries(gitignore_path: Path, dry_run: bool = False) -> tup
         return changes, errors
 
     try:
-        content = gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
-    except OSError as exc:
+        content = read_ignore_file_text(gitignore_path, errors="ignore")
+    except (OSError, IgnoreFilePathError) as exc:
         errors.append(f"Failed to read .gitignore: {exc}")
         return changes, errors
 
@@ -119,7 +124,14 @@ class RemoveWpStatusGitignoreRuleMigration(BaseMigration):
     def detect(self, project_path: Path) -> bool:
         """Return True when stale WP status entries exist."""
         gitignore_path = project_path / ".gitignore"
-        return len(find_wp_status_entries(gitignore_path)) > 0
+        try:
+            entries = find_wp_status_entries(gitignore_path)
+        except IgnoreFilePathError:
+            # Fail closed: report as needing the migration rather than
+            # silently skipping. can_apply() below re-checks the same
+            # symlink and blocks apply(), so this never follows it.
+            return True
+        return len(entries) > 0
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check readability/writability preconditions for .gitignore."""
@@ -128,9 +140,9 @@ class RemoveWpStatusGitignoreRuleMigration(BaseMigration):
             return True, ""
 
         try:
-            gitignore_path.read_text(encoding="utf-8-sig", errors="ignore")
+            read_ignore_file_text(gitignore_path, errors="ignore")
             return True, ""
-        except OSError as exc:
+        except (OSError, IgnoreFilePathError) as exc:
             return False, f".gitignore is not readable: {exc}"
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
