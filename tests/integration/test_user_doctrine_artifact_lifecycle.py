@@ -469,10 +469,10 @@ def test_case_1_selected_styleguides_field_round_trips(
     # DoctrineSelectionConfig.selected_styleguides (the field's existence and
     # round-trip is the real invariant this test always pinned).
     governance = load_governance_config(repo_root)
-    assert "caveman-comments" in governance.doctrine.selected_styleguides, (
-        "`load_governance_config(...).doctrine.selected_styleguides` MUST "
+    assert "caveman-comments" in governance.charter.selected_styleguides, (
+        "`load_governance_config(...).charter.selected_styleguides` MUST "
         "round-trip the charter.yaml declaration. Observed: "
-        f"{governance.doctrine.selected_styleguides!r}"
+        f"{governance.charter.selected_styleguides!r}"
     )
 
 

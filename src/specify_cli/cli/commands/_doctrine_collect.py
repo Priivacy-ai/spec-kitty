@@ -863,7 +863,13 @@ def _read_project_selections(repo_root: Path) -> dict[str, list[str]]:
 
         data = load_charter_yaml(charter_yaml)
         governance_block = (data or {}).get("governance") or {}
-        doctrine_block = governance_block.get("doctrine") or {}
+        # CR-01 (charter-authority-flip-01M14RB3 WP03): the selection block's
+        # key was renamed doctrine -> charter. This diagnostic reads the raw
+        # dict directly (see the docstring above) rather than through
+        # charter.sync.load_governance_config's warn-once compat shim, so it
+        # carries its own narrow read of both keys, preferring the canonical
+        # one.
+        doctrine_block = governance_block.get("charter") or governance_block.get("doctrine") or {}
         for kind in _SELECTION_KIND_PLURALS:
             value = doctrine_block.get(f"selected_{kind}")
             if isinstance(value, list):
