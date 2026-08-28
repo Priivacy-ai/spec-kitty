@@ -29,6 +29,7 @@ from specify_cli.review.artifacts import (
     AffectedFile,
     ReviewCycleArtifact,
 )
+from specify_cli.review.verdict_commit_queue import DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
 from specify_cli.status import (
     ReviewResult,
     emission_event_verdict,
@@ -832,7 +833,9 @@ def _allocate_and_write_review_cycle_locked(
     observe the orphan mid-cleanup and mistake it for a legitimate prior
     cycle.
     """
-    with feature_status_lock(main_repo_root, mission_slug):
+    with feature_status_lock(
+        main_repo_root, mission_slug, timeout=DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+    ):
         return _allocate_and_write_review_cycle_while_locked(
             mission_slug=mission_slug,
             wp_id=wp_id,
@@ -863,7 +866,9 @@ def _adopt_or_allocate_review_cycle_locked(
     destination_ref = placement_seam(main_repo_root, mission_slug).write_target(
         MissionArtifactKind.REVIEW_CYCLE
     ).ref
-    with feature_status_lock(main_repo_root, mission_slug):
+    with feature_status_lock(
+        main_repo_root, mission_slug, timeout=DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+    ):
         candidates = _local_matching_retained_review_cycles(
             mission_slug=mission_slug,
             wp_id=wp_id,
@@ -910,7 +915,9 @@ def _adopt_or_allocate_review_cycle_locked(
         else None
     )
 
-    with feature_status_lock(main_repo_root, mission_slug):
+    with feature_status_lock(
+        main_repo_root, mission_slug, timeout=DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+    ):
         refreshed = _local_matching_retained_review_cycles(
             mission_slug=mission_slug,
             wp_id=wp_id,
