@@ -29,10 +29,11 @@ on:
       - '.github/workflows/ci-quality.yml'
       # The other suite-running workflows (mission ci-suite-map-bind FR-012):
       # an edit to any of them must re-run the architectural guard suite,
-      # which asserts the parsed gate model over all four workflow files.
+      # which asserts the complete parsed gate model.
       - '.github/workflows/ci-windows.yml'
       - '.github/workflows/drift-detector.yml'
       - '.github/workflows/release.yml'
+      - '.github/workflows/review-verdict-durability.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
       # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): the
@@ -78,6 +79,7 @@ on:
       - '.github/workflows/ci-windows.yml'
       - '.github/workflows/drift-detector.yml'
       - '.github/workflows/release.yml'
+      - '.github/workflows/review-verdict-durability.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
       # corpus (#3008 Gate 0, mission ci-scoping-gate-reliability): mirrors
@@ -326,6 +328,7 @@ jobs:
               - '.github/workflows/ci-windows.yml'
               - '.github/workflows/drift-detector.yml'
               - '.github/workflows/release.yml'
+              - '.github/workflows/review-verdict-durability.yml'
               - 'src/kernel/**'
               - 'src/doctrine/**'
               # PAIRED with the 'src/specify_cli/egress.py' entry in the `sync`
@@ -3331,7 +3334,7 @@ jobs:
         continue-on-error: true
 
       # Critical-path modules: kernel, doctrine, charter, status, mission detection,
-      # dashboard, merge, next.
+      # dashboard, merge, next, and review-verdict durability.
       # Coverage effort is proportional to risk — keep critical-path changes
       # on the established 90% floor and use the full-diff step as advisory.
       - name: "diff-coverage (critical-path, enforced)"
@@ -3369,6 +3372,12 @@ jobs:
             'src/specify_cli/merge/*'
             'src/runtime/next/*'
             'src/mission_runtime/*'
+            # Review verdict durability issue 3235 critical write path
+            'src/specify_cli/review/verdict_commit_queue.py'
+            'src/specify_cli/review/artifacts.py'
+            'src/specify_cli/review/cycle.py'
+            'src/specify_cli/cli/commands/agent/tasks_move_task.py'
+            'src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py'
           )
 
           coverage_reports=()

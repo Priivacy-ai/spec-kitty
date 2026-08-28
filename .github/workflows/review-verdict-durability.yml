@@ -1,0 +1,83 @@
+name: Review verdict durability
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+    paths:
+      - '.github/workflows/review-verdict-durability.yml'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'src/specify_cli/cli/commands/agent/tasks_move_task.py'
+      - 'src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py'
+      - 'src/specify_cli/review/cycle.py'
+      - 'src/specify_cli/review/verdict_commit_queue.py'
+      - 'src/specify_cli/status/**'
+      - 'tests/integration/test_review_durability_matrix.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/review-verdict-durability.yml'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'src/specify_cli/cli/commands/agent/tasks_move_task.py'
+      - 'src/specify_cli/cli/commands/agent/tasks_verdict_persistence.py'
+      - 'src/specify_cli/review/cycle.py'
+      - 'src/specify_cli/review/verdict_commit_queue.py'
+      - 'src/specify_cli/status/**'
+      - 'tests/integration/test_review_durability_matrix.py'
+  workflow_dispatch:
+
+concurrency:
+  group: review-verdict-durability-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  native-durability:
+    name: Review verdict durability (${{ matrix.os }}, Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ['3.11']
+    env:
+      PYTHONUTF8: '1'
+      SPEC_KITTY_ENABLE_SAAS_SYNC: '0'
+    steps:
+      - name: Check out repository with full history
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install frozen test environment
+        run: uv sync --frozen --all-extras
+
+      - name: Prepare portable report directory
+        run: uv run python -c "from pathlib import Path; Path('out/reports/xunit-reports').mkdir(parents=True, exist_ok=True)"
+
+      - name: Collect the exact SC-004 production and mutation nodes
+        run: uv run python -m pytest tests/integration/test_review_durability_matrix.py::test_sc004_two_concurrent_processes_never_clobber_a_verdict_over_50_iterations tests/integration/test_review_durability_matrix.py::test_sc004_event_serialization_mutant_reports_missing_authoritative_event tests/integration/test_review_durability_matrix.py::test_sc004_evidence_commit_mutant_reports_missing_committed_evidence -n0 --collect-only -q
+
+      - name: Run the exact SC-004 production and mutation nodes
+        run: uv run python -m pytest tests/integration/test_review_durability_matrix.py::test_sc004_two_concurrent_processes_never_clobber_a_verdict_over_50_iterations tests/integration/test_review_durability_matrix.py::test_sc004_event_serialization_mutant_reports_missing_authoritative_event tests/integration/test_review_durability_matrix.py::test_sc004_evidence_commit_mutant_reports_missing_committed_evidence -n0 -q --tb=short --junitxml=out/reports/xunit-reports/review-verdict-durability-${{ runner.os }}-${{ github.run_id }}.xml
+
+      - name: Upload native durability diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: review-verdict-durability-${{ runner.os }}-py${{ matrix.python-version }}
+          path: out/reports/xunit-reports/
+          retention-days: 30
+          if-no-files-found: warn

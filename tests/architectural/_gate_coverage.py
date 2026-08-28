@@ -14,10 +14,9 @@ This module is the *enforcement substrate* for that gap. It does not re-tier or
 re-shard CI (that is the maintainer's migration, against this guardrail). It
 statically:
 
-1. Parses every ``pytest`` invocation across the six workflow files that run
-   the suite (``ci-quality`` / ``ci-windows`` / ``doctrine-charter-tests`` /
-   ``drift-detector`` / ``release`` / ``ui-e2e``), expanding the
-   ``integration-tests-core-misc`` shard matrix.
+1. Parses every ``pytest`` invocation across the workflow files that run the
+   suite, including the native review-verdict durability matrix, and expands
+   the ``integration-tests-core-misc`` shard matrix.
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
    marker-expression evaluator, to count how many gates select it.
@@ -95,6 +94,10 @@ WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 # ``performance`` marker (the retired on-PR ``timing-nfr-serial`` gate is not
 # replaced by a gating equivalent; see ci-quality.yml's `unit-contract-residual`
 # job comment for the companion residual-negation update).
+# ``review-verdict-durability.yml`` is the bounded, blocking P0 reproduction
+# matrix for issue #3235. It runs the same three production-path SC-004 nodes
+# natively on Linux, macOS, and Windows, so it is an independent suite runner
+# and must remain in this fail-closed model.
 # ``module-kernel.yml`` (mission #3447) is a reusable ``on: workflow_call``
 # workflow that ci-quality invokes for the ``kernel-tests`` job. It is NOT an
 # independent suite runner: :func:`_splice_local_uses` inlines its steps into
@@ -110,6 +113,7 @@ WORKFLOW_FILES: tuple[str, ...] = (
     "drift-detector.yml",
     "performance.yml",
     "release.yml",
+    "review-verdict-durability.yml",
     "ui-e2e.yml",
 )
 
