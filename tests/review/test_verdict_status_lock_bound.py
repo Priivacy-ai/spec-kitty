@@ -260,3 +260,17 @@ def test_in_queue_status_lock_timeout_is_bounded_only_when_queue_held(
 
     monkeypatch.setattr(cycle, "verdict_save_queue_is_held", lambda _repo: False)
     assert cycle._in_queue_status_lock_timeout(tmp_path) == -1.0
+
+
+    # A non-git path cannot own the checkout-wide queue: the probe raises
+    # GitTopologyError there (not False), and the allocator must degrade to the
+    # historical unbounded wait rather than crash. (Regression: PR #3712 landing
+    # -- the scoping probe crashed every local-only create_rejected_review_cycle
+    # run outside a git repo with NotAGitRepositoryError.)
+    from kernel.git_topology import NotAGitRepositoryError
+
+    def _raise_not_a_repo(_repo: Path) -> bool:
+        raise NotAGitRepositoryError(_repo)
+
+    monkeypatch.setattr(cycle, "verdict_save_queue_is_held", _raise_not_a_repo)
+    assert cycle._in_queue_status_lock_timeout(tmp_path) == -1.0

@@ -9,6 +9,7 @@ ReviewResult derivation.
 from __future__ import annotations
 
 from kernel.clock import UTC_SECOND_TIMESTAMP_FORMAT, now_utc
+from kernel.git_topology import GitTopologyError
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
@@ -805,10 +806,18 @@ def _in_queue_status_lock_timeout(main_repo_root: Path) -> float:
     that translation does not apply, so bounding there would only turn a rare
     contention into an envelope-less error; those paths keep the historical
     unbounded (``-1``) wait instead.
+
+    A ``main_repo_root`` that does not resolve to a Git checkout (the local-only
+    feedback path can run outside one) cannot own the checkout-wide queue at all
+    -- ``verdict_save_queue_is_held`` raises ``GitTopologyError`` there rather
+    than returning ``False`` -- so it is treated identically to "not held": the
+    historical unbounded wait, never a crash inside the allocator.
     """
-    if verdict_save_queue_is_held(main_repo_root):
-        return DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
-    return -1.0
+    try:
+        queue_held = verdict_save_queue_is_held(main_repo_root)
+    except GitTopologyError:
+        return -1.0
+    return DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS if queue_held else -1.0
 
 
 def _allocate_and_write_review_cycle_locked(
