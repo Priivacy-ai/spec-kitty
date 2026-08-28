@@ -1,8 +1,8 @@
 ---
-title: 'Context: Doctrine'
-description: 'Glossary context for the Doctrine domain model and artifact taxonomy: how reusable governance knowledge is structured into composable behavior and constraints.'
+title: 'Context: Charter'
+description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy: how reusable governance knowledge is structured into composable behavior and constraints.'
 doc_status: active
-updated: '2026-07-21'
+updated: '2026-08-28'
 related:
 - docs/context/configuration-project-structure.md
 - docs/context/execution.md
@@ -10,9 +10,28 @@ related:
 - docs/context/identity.md
 - docs/context/orchestration.md
 ---
-## Context: Doctrine
+## Context: Charter
 
-Terms describing the Doctrine domain model and doctrine artifact taxonomy.
+The canonical Terminology-Canon entry for the governing `charter` term (glossary
+authority 3 — see `.kittify/glossaries/spec_kitty_core.yaml` and
+`packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml` for
+authorities 1/2), followed by terms describing the Doctrine domain model and
+doctrine artifact taxonomy (kept domain vocabulary — the `src/doctrine/`
+package, artifact kinds, and the DRG are unaffected by the governing-term
+flip; see mission `retire-doctrine-term-01M0JMK9`).
+
+### charter
+
+| | |
+|---|---|
+| **Definition** | The governance document synthesizing a project's purpose, constraints, team norms, and the body of project-specific governance artifacts (directives, tactics, and styleguides) into a durable reference artifact, produced by the charter interview workflow. This is the canonical governing term (glossary authority 1/2/3: `.kittify/glossaries/spec_kitty_core.yaml`, the built-in glossary pack, this entry). |
+| **Context** | Doctrine |
+| **Status** | canonical |
+| **Applicable to** | `2.x`, `3.x` |
+| **Do NOT use when** | The concept is the `.kittify/charter/` directory tree and its constituent files (activation state, DRG cache, synthesis manifest) as a unit — use **Charter Bundle**. The concept is a distributable, versioned collection of charter-activatable artifacts installed into a project — use **Charter Pack** (see [Doctrine Pack](#doctrine-pack) for the sibling doctrine-side concept). The concept is the `src/charter/` Python package (facades, resolver, synthesis, activation engine) — use **the `src/charter/` package**. The concept is the `spec-kitty charter ...` CLI command group (`interview`, `generate`, `sync`, `context`, `activate`, `deactivate`) — use **the `spec-kitty charter` CLI group**. The concept is a single charter-activatable artifact's own per-project state (active vs. inactive) — use **Active-Inactive Charter artefact**. The concept is the shipped default charter template set applied before any project-level customization — use **Pack Default Charter**. Never use bare "doctrine" for any of these senses; the governing term retired to `charter` (mission `retire-doctrine-term-01M0JMK9`, M1). |
+| **Related terms** | [Charter Selection](#charter-selection), [Charter-Mediated Selection](#charter-mediated-selection), [Doctrine Pack](#doctrine-pack), [Charter Facade](#charter-facade) |
+
+---
 
 ### Doctrine Domain
 

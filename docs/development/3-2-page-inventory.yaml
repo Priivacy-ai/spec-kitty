@@ -1934,6 +1934,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/context/charter.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/context/configuration-project-structure.md
   tag: current
   divio_type: none
@@ -1943,12 +1949,6 @@
 - path: docs/context/contextive-glossaries.md
   tag: current
   divio_type: how-to
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/context/doctrine.md
-  tag: current
-  divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
