@@ -34,7 +34,16 @@ class PathValidationResult:
     required_paths: dict[str, str]
     existing_paths: list[str] = field(default_factory=list)
     missing_paths: list[str] = field(default_factory=list)
-    missing_paths_feature_relative: list[str] = field(default_factory=list)
+    #: Normalized artifact tokens (via ``_normalize_path_token``) for every
+    #: missing path that is ALSO a declared mission artifact (resolved on the
+    #: mission's primary surface, see ``is_artifact_tagged`` below) — the FR-002
+    #: dedup input consumed by ``summary_core.evaluate_path_conventions``. A
+    #: missing build/repo-root path is never an artifact, so it is never added
+    #: here: the sole consumer filters by ``artifact_tokens`` membership, and a
+    #: non-artifact token could never survive that filter, so populating one
+    #: for it would be dead weight the field name (``*_feature_relative``) also
+    #: mis-described (it never held a feature-relative *path*, only a token).
+    missing_artifact_tokens: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
 
@@ -70,17 +79,21 @@ class PathValidationResult:
             lines.append(f"  - {warning}")
 
         lines.append("")
-        lines.append(
-            "Run `accept --lenient` to treat these as warnings instead of blocking "
-            "errors for this mission run - or, if you want to adopt the convention, "
-            "see the commands below:"
-        )
-
         if self.suggestions:
+            lines.append(
+                "Run `accept --lenient` to treat these as warnings instead of blocking "
+                "errors for this mission run - or, if you want to adopt the convention, "
+                "see the commands below:"
+            )
             lines.append("")
             lines.append("Required Actions:")
             for suggestion in self.suggestions:
                 lines.append(f"  - {suggestion}")
+        else:
+            lines.append(
+                "Run `accept --lenient` to treat these as warnings instead of blocking "
+                "errors for this mission run."
+            )
 
         return "\n".join(lines)
 
@@ -233,12 +246,11 @@ def validate_mission_paths(
         if is_artifact_tagged:
             # Real feature_dir-relative token, straight from the declared path —
             # `resolved` above is project_root-relative and can't recover this.
-            result.missing_paths_feature_relative.append(_normalize_path_token(relative_path))
-        else:
-            # Placeholder: not feature_dir-relative (build/repo-root or
-            # absolute branch). WP2 excludes these via an artifact_tokens
-            # membership check rather than relying on non-collision.
-            result.missing_paths_feature_relative.append(_normalize_path_token(resolved))
+            # A build/repo-root path is never appended here: it can never be a
+            # declared mission artifact, so the sole consumer's artifact_tokens
+            # membership filter could never let it through (see the field's
+            # docstring above).
+            result.missing_artifact_tokens.append(_normalize_path_token(relative_path))
 
     if result.missing_paths:
         result.suggestions = suggest_directory_creation(result.missing_paths)

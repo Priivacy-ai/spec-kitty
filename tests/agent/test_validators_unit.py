@@ -288,7 +288,7 @@ def test_missing_artifact_tagged_path_reports_resolved_feature_relative_location
     """Case A (WP01 T003): a missing, mission-artifact-tagged path (``contracts/``)
     must be reported — in ``missing_paths``, ``suggestions``, AND ``warnings`` — as
     the resolved ``feature_dir``-relative location that was actually tested, not the
-    bare declared token (#3085a). ``missing_paths_feature_relative`` must carry the
+    bare declared token (#3085a). ``missing_artifact_tokens`` must carry the
     real feature_dir-relative token for this branch.
     """
     project_root = tmp_path / "repo"
@@ -324,8 +324,8 @@ def test_missing_artifact_tagged_path_reports_resolved_feature_relative_location
     assert any(resolved in warning for warning in result.warnings)
     assert not any(bare_token in warning and resolved not in warning for warning in result.warnings)
 
-    # T002: the new field carries the real feature_dir-relative token (stripped).
-    assert result.missing_paths_feature_relative == ["contracts"]
+    # T002: the field carries the real feature_dir-relative token (stripped).
+    assert result.missing_artifact_tokens == ["contracts"]
 
 
 def test_missing_build_path_stays_project_root_relative_unchanged(
@@ -353,8 +353,11 @@ def test_missing_build_path_stays_project_root_relative_unchanged(
     assert result.missing_paths == [expected]
     assert any(expected in warning for warning in result.warnings)
 
-    # T002: build/repo-root branch gets the placeholder value (== resolved).
-    assert result.missing_paths_feature_relative == ["tests"]
+    # A non-artifact build/repo-root path is never a declared mission
+    # artifact, so it can never survive the sole consumer's artifact_tokens
+    # membership filter (summary_core.evaluate_path_conventions) — the
+    # build/repo-root branch stays out of missing_artifact_tokens entirely.
+    assert result.missing_artifact_tokens == []
 
 
 def test_suggest_directory_creation_handles_files_and_dirs() -> None:
