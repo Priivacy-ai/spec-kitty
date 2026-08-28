@@ -907,6 +907,10 @@ def _prepare_event(
             force=request.force,
             execution_mode=request.execution_mode,
             reason=request.reason,
+            # Provenance discriminator (FR-001): threaded from the request so the
+            # canonical move-task command's cancel event carries operator/synthetic
+            # onto the persisted StatusEvent (the transactional emit path).
+            reason_source=request.reason_source,
             review_ref=request.review_ref,
             evidence=done_evidence,
             review_result=request.review_result,
