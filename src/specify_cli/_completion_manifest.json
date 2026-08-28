@@ -176,6 +176,11 @@
        "help": "Find all WPs that depend on a given WP (downstream dependents).\n\nThis answers \"who depends on me?\" - useful when reviewing a WP to understand\nthe impact of requested changes on downstream work packages.\n\nAlso shows what the WP itself depends on (upstream dependencies).\n\nExamples:\n    spec-kitty agent tasks list-dependents WP13\n    spec-kitty agent tasks list-dependents WP01 --mission 001-my-feature --json",
        "hidden": false,
        "deprecated": false
+      },
+      "check-terminability": {
+       "help": "Advisory scan for work packages that can only be terminated post-integration.\n\nWarns when a WP's acceptance criteria contain a post-integration trigger\nphrase (the #3590 trap) — content that cannot be verified in the WP's own\ndiff. This is **advisory only**: it never refuses or fails authoring\n(FR-008) — it exits 0 even when warnings fire. It does not touch the\nfinalize / lane-compute path (C-005).\n\nExamples:\n    spec-kitty agent tasks check-terminability --mission my-mission --json",
+       "hidden": false,
+       "deprecated": false
       }
      }
     },

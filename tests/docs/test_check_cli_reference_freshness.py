@@ -622,11 +622,11 @@ class TestCli:
 def test_real_typer_app_visible_count_within_tolerance() -> None:
     """The walker against the live ``specify_cli.app`` should match audit.
 
-    Baseline re-pinned 2026-08-16 at 250 visible, measured against the live app
-    after the operator-config-ergonomics mission (#3493) landed three new
-    ``doctor`` subcommands — ``provenance`` (#3494), ``env-file`` (#3495), and
-    ``channel`` (#3496) — on top of the prior 2026-07-31 baseline of 247.
-    Tolerance: ±10% on the visible count (225..275) to allow natural growth.
+    Baseline re-pinned 2026-08-27 at 251 visible, measured against the live app
+    after mission #3590 (WP05) added the ``agent tasks check-terminability``
+    advisory authoring-warning scan, on top of the 2026-08-16 baseline of 250
+    (247 + three ``doctor`` subcommands provenance/env-file/channel from #3493).
+    Tolerance: ±10% on the visible count (226..276) to allow natural growth.
     """
     os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
     os.environ["SPEC_KITTY_NO_UPGRADE_CHECK"] = "1"
@@ -648,9 +648,9 @@ def test_real_typer_app_visible_count_within_tolerance() -> None:
     entries = walk(app)
     visible = [e for e in entries if not e.hidden]
     deprecated = [e for e in entries if e.deprecated]
-    assert 225 <= len(visible) <= 275, (
+    assert 226 <= len(visible) <= 276, (
         f"visible count {len(visible)} is outside the ±10% tolerance band "
-        "around the 2026-08-16 audit baseline of 250 (247 + 3 doctor subcommands "
-        "provenance/env-file/channel from mission #3493)"
+        "around the 2026-08-27 audit baseline of 251 (250 + agent tasks "
+        "check-terminability from mission #3590)"
     )
     assert len(deprecated) >= 1
