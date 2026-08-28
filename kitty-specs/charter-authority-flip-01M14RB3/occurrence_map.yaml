@@ -1,0 +1,100 @@
+# Occurrence map — Charter Authority Flip (M1), Wave 1 of retire-doctrine-term-01M0JMK9.
+#
+# Bulk edit shape: SCOPED GOVERNING-TERM rename. The retiring token "doctrine" is
+# POLYSEMOUS (brownfield squad finding C-COR-2). M1 flips ONLY the *authority /
+# governing-term* sense across the glossary authority quartet + the governance
+# selection key + the single doc-path rename (OC-40). Every OTHER sense — the
+# `src/doctrine/**` package + import + CLI surfaces, the domain concepts `drg` /
+# "doctrine reference graph" / "doctrine artifact" / "doctrine pack", the value
+# class `DoctrineSelectionConfig`, and historical proper-noun slugs — is KEPT
+# here and owned by later waves (M2–M6) or is permanent vocabulary.
+#
+# M1-owned occurrence rows: OC-01 (221) + OC-02 (80) + OC-40 (1) = 302
+# (kitty-specs/retire-doctrine-term-01M0JMK9/inventory.md). The 43 path referrers
+# of docs/context/doctrine.md are a DISJOINT edit set (owned as surfaces, not
+# occurrence rows) — re-pointed for link closure, path token only.
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+
+target:
+  term: doctrine
+  replacement: charter
+  operation: rename
+  sense: governing-term        # authority sense only; not the package/DRG/pack senses
+
+categories:
+  # PRIMARY M1 categories — the authority graph.
+  user_facing_strings: { action: rename }        # glossary definitions/prose (auth 1/2/3) + the new `### charter` Terminology-Canon entry (governing-term sense)
+  serialized_keys:     { action: rename }        # governance.doctrine -> governance.charter (charter.yaml); glossary term `surface` keys carrying the governing sense
+  filesystem_paths:    { action: rename }        # ONLY docs/context/doctrine.md -> charter.md (OC-40); every src/doctrine/** path is an exception below (M2)
+  code_symbols:        { action: rename }         # GovernanceConfig field key .doctrine -> .charter ONLY; value class DoctrineSelectionConfig is an exception (M2)
+  tests_fixtures:      { action: rename }         # M1's own new ATDD tests/fixtures naming the governing term
+
+  # NOT M1's — later waves own these senses.
+  import_paths:        { action: do_not_change }  # `import doctrine` / `src.doctrine.*` — M2 topology
+  cli_commands:        { action: do_not_change }  # `spec-kitty doctrine ...` group — M2
+  logs_telemetry:      { action: do_not_change }  # runtime log/telemetry strings — later waves; M1 only ADDS the CR-01 deprecation warning (new string, not a rename)
+
+# Polysemy keeps + wave-boundary carve-outs. These occurrences match "doctrine"
+# but MUST NOT be renamed by M1 (either a different sense, or a later wave owns them).
+exceptions:
+  - path: "src/doctrine/**"
+    action: do_not_change
+    reason: "The doctrine PACKAGE/path sense (offer-side catalogue). Renamed to src/charter/offering/ in M2, not M1."
+  # NARROWED per post-tasks squad B1: the keep is ONLY the domain-concept surfaces,
+  # NOT a blanket terms[].surface keep. The `surface: doctrine` term (line 154, "the
+  # body of governance artifacts") IS the retiring governing sense and is RENAMED/
+  # reconciled (see reconcile note below), not kept.
+  - path: ".kittify/glossaries/spec_kitty_core.yaml"
+    field_path: "terms[surface in {drg, doctrine reference graph, doctrine artifact, doctrine pack}]"
+    action: do_not_change
+    reason: "ONLY the domain-concept surfaces are permanent/M2 vocabulary. `surface: doctrine` (governing body) is RENAMED and reconciled against the pre-existing `surface: charter` term (B2)."
+  - path: "packs/built-in/glossary_packs/spec-kitty-core.glossary-pack.yaml"
+    field_path: "terms[surface in {drg, doctrine reference graph, doctrine artifact, doctrine pack}]"
+    action: do_not_change
+    reason: "Same narrowed keep as the seed; pack mirrors seed by parity (24 hits include the extra gate-family + wrapped-line splits)."
+# B2 RECONCILE (governing-term collision): `.kittify/glossaries/spec_kitty_core.yaml:154`
+# + pack:165 `surface: doctrine` ("the body of project-specific governance artifacts")
+# renames to `charter`, which ALREADY exists (seed:90, pack:100, "a governance document
+# ... synthesizing ... and doctrine into a durable reference artifact"). extra="forbid" +
+# surface-is-term-ID => a duplicate surface. Reconciliation (WP01/T005a): retire the
+# `doctrine` surface, fold its "body of governance artifacts" meaning into the single
+# canonical `charter` term, and drop the "and doctrine" self-reference in charter's
+# definition. `test_glossary_authority_parity` pins EXACTLY ONE `charter` surface.
+  - path: "src/charter/schemas.py"
+    action: do_not_change
+    field_path: "DoctrineSelectionConfig"
+    reason: "Value CLASS name stays (renamed in M2). Only the FIELD key GovernanceConfig.doctrine -> .charter flips (code_symbols rename applies to the field, this exception protects the class)."
+  - path: ".kittify/charter/interview/answers.yaml"
+    field_path: "comments:doctrine-catfooding-2196"
+    action: do_not_change
+    reason: "Proper-noun historical mission slug in a comment — NOT the governing term. The migration must scope frozen-byte replacement to the selection key only."
+  # SPLIT SEMANTICS per squad M1: for referrer files the term CONTENT is do_not_change
+  # (later-wave-owned) but the docs/context/doctrine.md -> charter.md PATH TOKEN is
+  # renamed for link closure. WP02/T007 asserts each referrer diff is EXACTLY the path
+  # token (positive diff-shape check), touching no other doctrine-bearing line.
+  - path: "tests/architectural/test_no_dead_doctrine_paths.py"
+    action: rename
+    field_path: "path-token:context/doctrine.md"
+    reason: "Re-point the path token ONLY (link closure). Test-content occurrence class is M2-owned — do_not_change the rest."
+  - path: "tests/glossary/test_canonical_promotion.py"
+    action: rename
+    field_path: "path-token:context/doctrine.md"
+    reason: "Path token only; content class M2-owned."
+  - path: "docs/api/agent_profiles/**"
+    action: rename
+    field_path: "path-token:context/doctrine.md"
+    reason: "18 `related:` authored-remainder referrers — hand-edit the path token only (link closure); OC-11 content class is M4-owned."
+  - path: "docs/development/3-2-*.yaml"
+    action: rename
+    field_path: "regenerate"
+    reason: "2 generated lockfiles (3-2-page-inventory.yaml + 3-2-docs-retrieval-index.yaml) — REGENERATED (not hand-edited) to pick up the path move; OC-26 content class is M5-owned."
+  - path: "docs/reports/test-sanitation/**/raw/*.json"
+    action: do_not_change
+    reason: "M2 squad finding: base-census.json / head-census.json / dispositions.yaml are FROZEN immutable proof snapshots — accept the archived path token; do NOT mutate census evidence."
+
+# Structural file relocation (OC-40): the one M1-owned path rename.
+moves:
+  - from: "docs/context/doctrine.md"
+    to: "docs/context/charter.md"
+    reason: "Authority-3 (Markdown context glossary) rename; all 43 referrers re-pointed (18 profile related: hand-edit, 2 lockfiles regen, ~23 source hand-edit)."
