@@ -102,6 +102,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
 from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
     VerdictDurabilitySignal,
     VerdictPersistenceFailure,
+    VerdictRevertCompoundFailure,
     _persist_approved_review_cycle,
     persist_arbiter_override_decision,
     persist_rejected_review_cycle_for_rollback,
@@ -2623,7 +2624,10 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
     see :class:`tasks_verdict_persistence.VerdictRevertError`'s rationale;
     the bare original exception (unchanged type/traceback) is re-raised on a
     successful revert, and only a revert FAILURE escalates to a new,
-    explicitly compounded error.
+    explicitly compounded error (:class:`tasks_verdict_persistence.
+    VerdictRevertCompoundFailure`, #3773 item 2 -- carries the durability
+    signal so the ``--json`` envelope's ``verdict_durably_persisted`` field
+    stays populated on this compound path too, not just prose).
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     ports = ports or _default_move_task_ports()
@@ -2670,11 +2674,17 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
                 try:
                     revert_committed_verdict_write(st, st.pending_verdict_write)
                 except Exception as revert_error:
-                    raise RuntimeError(
+                    # #3773 item 2: carry the structured durability signal on
+                    # this compound-failure path (not just prose) -- see
+                    # ``VerdictRevertCompoundFailure``'s docstring for why
+                    # ``st.pending_verdict_write`` is always durably-persisted
+                    # here.
+                    raise VerdictRevertCompoundFailure(
                         f"Transition emit failed for {st.task_id} ({execute_error}); "
                         f"the FR-002 revert-compensator ALSO failed to undo the "
                         f"already-committed verdict write ({revert_error}). Operator "
-                        f"attention required -- a committed verdict may still exist."
+                        f"attention required -- a committed verdict may still exist.",
+                        signal=st.pending_verdict_write,
                     ) from execute_error
             raise
         _mt_output(st)
@@ -2693,6 +2703,25 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         if isinstance(e, VerdictPersistenceFailure):
             outcome = e.signal.outcome
             diagnostic: dict[str, object] | None = {
+                "result": "error",
+                "error": str(e),
+                "verdict_durably_persisted": outcome.verdict_durably_persisted,
+                "durability_classification": outcome.classification,
+                "durability_reason": outcome.reason,
+                "evidence_ref": outcome.evidence_ref,
+                "destination_ref": outcome.destination_ref,
+            }
+        elif isinstance(e, VerdictRevertCompoundFailure):
+            # #3773 item 2: same envelope shape as the ``VerdictPersistenceFailure``
+            # branch above -- every field read off the SAME ``VerdictDurabilitySignal
+            # .outcome`` shape, so a machine consumer parses one shape for both. This
+            # is the revert-compensator-also-failed compound path (VerdictRevertError,
+            # including the ``VerdictSaveBusy`` queue-busy case): the verdict write
+            # itself was already durably committed (``VerdictRevertCompoundFailure``'s
+            # docstring), so ``outcome.verdict_durably_persisted`` reads ``True`` here
+            # -- never a guess, never a hand-written literal.
+            outcome = e.signal.outcome
+            diagnostic = {
                 "result": "error",
                 "error": str(e),
                 "verdict_durably_persisted": outcome.verdict_durably_persisted,
