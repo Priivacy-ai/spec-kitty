@@ -77,11 +77,21 @@ current, and mine?"* — Gap 1 for freshness, Gap 2 for correctness, Symptom B f
 - `GitVCS.sync_workspace()` — `src/specify_cli/core/vcs/git.py:363`. Fetches, resolves the
   workspace's own tracking/upstream branch (L398-401), and rebases **that workspace's own
   commits** onto it. No sibling-branch / coord-vs-target awareness. It is a per-workspace
-  freshness tool, not a cross-branch content reconciler. **No live production caller as of
-  2026-08-27** — the CLI `sync.py` path this note used to cite was removed by commit
-  `66038e2a5` ("refactor(sync): remove sync transport surfaces from CLI registration and
-  agent commands") ahead of the Ephemeral Team Status redesign (`PROGRAM.md` §1); only test
-  callers remain (issue #272).
+  freshness tool, not a cross-branch content reconciler. **No in-repository non-test call
+  site as of 2026-08-27** — the CLI `sync.py` path this note used to cite was removed by
+  commit `66038e2a5` ("refactor(sync): remove sync transport surfaces from CLI registration
+  and agent commands") ahead of the Ephemeral Team Status redesign (`PROGRAM.md` §1); only
+  test callers remain in this repo (issue #272). That is narrower than "no live caller":
+  `VCSProtocol.sync_workspace` (`core/vcs/protocol.py`) is still publicly exported from
+  `specify_cli.core.vcs.__all__`, and the active guides `docs/guides/how-to/collaboration/
+  sync-workspaces.md` and `docs/guides/how-to/missions/handle-dependencies.md` still document
+  a `spec-kitty sync workspace` CLI command that no longer exists on the installed head (no
+  `sync` command is registered anywhere in `src/specify_cli/cli/`) — those docs are themselves
+  now stale and need their own correction or removal. §5.D5 below (line ~207) still assigns
+  lane-branch freshness to "`sync workspace`'s domain"; that reference is to this same
+  unreachable command, not a still-live surface, and should be read as historical framing, not
+  a current routing claim. The public export and the two stale guides are additional surviving
+  contract that #424's delete-or-keep decision must inventory before any deletion.
 
 ### 2.4 Symptom B — diff-compliance gate blocks on the mission's own runtime state
 
@@ -204,7 +214,14 @@ prints the suggested `doctor coordination --check-staleness`/`--fix` recovery co
 - #2841's Gap 1 field report also cites a **lane** branch missing a CLI flag added to main.
 - (a) this mission covers coord only; (b) coord + lane branches.
 - **Recommendation: (a).** Coord is the trust anchor and the shared `--fix` seam. Lane-branch
-  freshness is `sync workspace`'s domain — file a scoped follow-up rather than widen blast radius.
+  freshness is `sync workspace`'s domain — file a scoped follow-up rather than widen blast
+  radius. **Historical framing, not a current routing claim (2026-08-28):** the `spec-kitty
+  sync workspace` CLI command this recommendation names was removed by `66038e2a5`, after this
+  brief was written and before this correction; a scoped follow-up today has no live `sync
+  workspace` command to land in. It would target `GitVCS.sync_workspace()` directly (still
+  present, no in-repository non-test caller — see §2.3 above) or whatever surface #424's
+  delete-or-keep decision leaves in place; it cannot cite the deleted command as a landing spot
+  until that decision resolves.
 
 ---
 
