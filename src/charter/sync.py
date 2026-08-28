@@ -38,6 +38,7 @@ from charter.schemas import (
 __all__ = [
     "LegacyGovernanceKeyWarning",
     "SyncResult",
+    "apply_legacy_governance_selection_key_compat",
     "ensure_charter_bundle_fresh",
     "load_directives_config",
     "load_governance_config",
@@ -274,7 +275,7 @@ def _warn_legacy_governance_key_once() -> None:
     )
 
 
-def _apply_legacy_governance_selection_key_compat(
+def apply_legacy_governance_selection_key_compat(
     governance_data: dict[str, Any],
 ) -> dict[str, Any]:
     """Dict-level CR-01 compat: map legacy ``doctrine`` -> canonical ``charter``.
@@ -288,6 +289,17 @@ def _apply_legacy_governance_selection_key_compat(
     value is discarded WITHOUT a warning: an operator who has already
     migrated should not be nagged about stale legacy data they no longer
     read.
+
+    Public (promoted from ``_apply_legacy_governance_selection_key_compat``,
+    mission ``charter-authority-flip-01M14RB3`` WP03 remediation): the
+    ``consolidate_charter_bundle_fold`` migration
+    (``src/specify_cli/upgrade/migrations/
+    m_unify_charter_activation_finalize.py``) needs this same dict-level
+    remap when composing a fresh ``charter.yaml`` from a legacy standalone
+    ``governance.yaml`` -- reaching across the package boundary for a
+    private, underscore-prefixed name was a layering violation. The
+    underscore-prefixed name is kept as a thin deprecated alias below for
+    any other caller that imported the old private name directly.
     """
     if _LEGACY_GOVERNANCE_SELECTION_KEY not in governance_data:
         return governance_data
@@ -298,6 +310,12 @@ def _apply_legacy_governance_selection_key_compat(
     _warn_legacy_governance_key_once()
     result[_CANONICAL_GOVERNANCE_SELECTION_KEY] = legacy_value
     return result
+
+
+#: Deprecated private alias retained for any caller still importing the old
+#: underscore-prefixed name directly. New callers should use
+#: :func:`apply_legacy_governance_selection_key_compat`.
+_apply_legacy_governance_selection_key_compat = apply_legacy_governance_selection_key_compat
 
 
 def load_governance_config(repo_root: Path) -> GovernanceConfig:
@@ -331,7 +349,7 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
         logger.info("charter.yaml governance section not found. Using empty governance config.")
         return GovernanceConfig()
     if isinstance(governance_data, dict):
-        governance_data = _apply_legacy_governance_selection_key_compat(governance_data)
+        governance_data = apply_legacy_governance_selection_key_compat(governance_data)
     return GovernanceConfig.model_validate(governance_data)
 
 

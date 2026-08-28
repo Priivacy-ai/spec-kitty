@@ -230,7 +230,7 @@ def _compose_charter_yaml_document(
         GovernanceConfig,
     )
     from charter.sync import (  # noqa: PLC0415 -- lazy charter import (C-002)
-        _apply_legacy_governance_selection_key_compat,
+        apply_legacy_governance_selection_key_compat,
     )
 
     charter_dir = _charter_dir(project_path)
@@ -246,7 +246,7 @@ def _compose_charter_yaml_document(
     # default extra="ignore" would silently drop the whole selection block
     # instead of failing loud, defeating this function's own "schema drift
     # fails loud here" contract.
-    governance_data = _apply_legacy_governance_selection_key_compat(governance_data)
+    governance_data = apply_legacy_governance_selection_key_compat(governance_data)
     governance = GovernanceConfig.model_validate(governance_data)
     directives = DirectivesConfig.model_validate(directives_data)
     catalog = CharterCatalog(
