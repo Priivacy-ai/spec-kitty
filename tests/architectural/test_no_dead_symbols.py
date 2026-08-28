@@ -3061,7 +3061,26 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
     # offender lists are merged before the #470 rescue filter runs.
     widened_only_decls = {mod: leftover for mod, names in decls.items() if (leftover := names - all_literal_decls.get(mod, frozenset()))}
     offenders = _compute_offenders(all_literal_decls, per_symbol, star_targets, _SYMBOL_ALLOWLIST, corpus, collision_index)
-    offenders += _compute_offenders(widened_only_decls, per_symbol, star_targets, frozenset(), corpus, collision_index)
+    pre_rescue_widened_offenders = _compute_offenders(widened_only_decls, per_symbol, star_targets, frozenset(), corpus, collision_index)
+    # #470 mutation-proofing (squad pass 2, sk-squad-spec-kitty-638): this is
+    # the LIVE widened-only offender pass, not a hand-built copy of it -- the
+    # assertion below proves this exact call is load-bearing. Deleting the
+    # `pre_rescue_widened_offenders` call above (restoring
+    # `offenders += _compute_offenders(...)` to a no-op) leaves every other
+    # test in this file passing, because the live tree happens to have no
+    # *new* offenders either way. A known `_WIDENED_SCOPE_GRANDFATHERED_470`
+    # entry is dead-with-no-caller by construction (that's why it needed
+    # grandfathering), so it must show up here, pre-rescue -- if it stops
+    # showing up, either this pass was unwired or the entry gained a real
+    # caller and should be pruned (#633 triage).
+    assert any(o in _WIDENED_SCOPE_GRANDFATHERED_470 for o in pre_rescue_widened_offenders), (
+        "the widened-only _compute_offenders pass found none of the known "
+        "_WIDENED_SCOPE_GRANDFATHERED_470 entries as pre-rescue offenders -- "
+        "either that pass has been unwired from the live gate, or every "
+        "grandfathered entry has since gained a real caller and should be "
+        "pruned (#633)"
+    )
+    offenders += pre_rescue_widened_offenders
     offenders = _apply_widened_scope_exemptions(offenders, all_literal_decls, corpus)
 
     # Ratchet direction 1 (pre-existing): the symbol gained a caller --
@@ -3267,6 +3286,28 @@ def test_widened_scope_flags_synthetic_zero_caller_symbol() -> None:
 
     assert offenders == ["synthetic.widened_mod::orphan_widened_helper"], (
         f"the widened scan must flag a zero-caller, unreferenced, non-grandfathered widened-in name; got {offenders!r}"
+    )
+
+
+def test_walk_modules_widening_contributes_on_live_tree() -> None:
+    """`_walk_modules()`'s LIVE wiring must actually widen `decls` past
+    `all_literal_decls` (#470 mutation-proofing, squad pass 2 on
+    sk-squad-spec-kitty-638).
+
+    `test_widened_scope_flags_synthetic_zero_caller_symbol` above proves the
+    helpers are individually correct, but only through a hand-built pipeline
+    that reimplements line 2278's union itself (``widened = all_literal |
+    _extract_public_module_level_names(tree)``) rather than calling
+    `_walk_modules()`. A mutation to that live line (dropping the union down
+    to `widened = all_literal`) leaves every other test in this file
+    passing. This calls the real `_walk_modules()` and asserts the widening
+    contributes at least one non-`__all__` public name somewhere on the
+    actual `src/` tree.
+    """
+    decls, all_literal_decls, _path_to_dotted, _path_to_tree, _corpus = _walk_modules()
+    widened_contribution = sum(len(decls[mod] - all_literal_decls.get(mod, frozenset())) for mod in decls)
+    assert widened_contribution > 0, (
+        "_walk_modules()'s live decls contained zero names beyond __all__ -- the #470 widening at line 2278 may have been unwired from the real gate"
     )
 
 
