@@ -1,0 +1,89 @@
+# review-refute/v1
+schema: review-refute/v1
+complete: true
+phase: plan
+mission: cascade-asset-silent-drop-01M0RME0
+batch: 1
+verdicts:
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reasoning: >
+      Checked plan.md §8 (lines 508-524) live: it states "_render_cascade_activation,
+      _render_no_cascade_warning, _render_cascade_deactivation are similarly clean — no dead
+      branches, no suppressed warnings, no TODO markers." Read all three functions live in the
+      current checkout at the exact cited lines: activate.py:297 (inside
+      _render_cascade_activation, the `from charter._drg_helpers import load_validated_graph`
+      line), activate.py:395 (inside _render_no_cascade_warning, same import line), and
+      deactivate.py:153 (inside _render_cascade_deactivation, same import line) — all three
+      carry `# noqa: PLC0415` verbatim, confirmed by direct `sed -n` extraction of those exact
+      line numbers. This is a real, unambiguous lint suppression the plan's "no suppressed
+      warnings" claim misses. The finding correctly notes this doesn't overturn the "no
+      campsite-clean commit" decision (the suppression is a pre-existing repo-wide lazy-import
+      convention, orthogonal to this mission's kind-filtered-reporting change) — it only flags
+      that the specific evidentiary sentence in §8 is factually wrong as written. Evidence
+      matches the claim exactly; verdict stands.
+
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reasoning: >
+      Read `_referenced_artifacts` live (cascade.py:266-295): it returns
+      `list[ReferencedArtifact]` today, appending via `refs.append(...)` and filtering
+      non-activatable kinds with a bare `continue` — matches the plan's own description.
+      Read all three call sites live: `cascade_activation_targets` (cascade.py:373 area,
+      `for ref in _referenced_artifacts(graph, source_urn): bucket = activated if
+      scope.selects(ref.kind) else skipped`), `referenced_but_not_cascaded` (cascade.py:439-441,
+      `for ref in _referenced_artifacts(graph, source_urn): skipped.setdefault(ref.kind.value,
+      ...)`), and `deactivation_plan` (cascade.py:531-533, `for ref in
+      _referenced_artifacts(graph, target_urn): if scope.selects(ref.kind): ...`). All three
+      use the identical unqualified-iteration pattern accessing `.kind` on each yielded item —
+      confirmed live, not just cited.
+
+      Read plan.md §2 "C-002 symmetry" (lines 178-182) in full: it explicitly states
+      `_referenced_artifacts` "changes its return type from `list[ReferencedArtifact]` to
+      `tuple[list[ReferencedArtifact], list[ReferencedArtifact]]`" — a literal signature change
+      to the one shared function body, not a new sibling function or backward-compatible
+      wrapper. §2 goes on to say "Each of these three call sites unpacks BOTH partitions from
+      the single updated call" — describing the correct FINAL state where all three callers are
+      migrated together.
+
+      Read plan.md §12 in full (lines 587-666), not just the excerpt. WP-A's bullet (lines
+      611-622) says only: "Change `_referenced_artifacts`'s return shape; thread the new
+      `not_cascaded_kind_filtered` field through `CascadeActivationResult` via
+      `cascade_activation_targets`... Does NOT touch `NoCascadeReport` or `DeactivationPlan`
+      yet — that is WP-C/WP-D's job." Nothing in WP-A's bullet, or anywhere else in §12,
+      mentions a mechanical/passthrough fix to `referenced_but_not_cascaded`'s or
+      `deactivation_plan`'s call sites to keep them compiling against the new tuple return
+      while deferring only the *new field*. The §12 "Sequencing rationale" paragraph (lines
+      592-606) asserts "there is no shared mutable state or partially-applied migration that
+      would leave an inconsistent half-state mid-sequence" and cites, as support, that the
+      three consumers "already independently call `_referenced_artifacts` today" — but this
+      is circular/backwards: because all three call the SAME shared function body (verified
+      live above — one function, not three), changing its return type breaks every caller
+      simultaneously regardless of each caller's independent field conventions. §12 nowhere
+      resolves this; no alternate mechanism (deprecation wrapper, dual-mode return, overload)
+      is described anywhere in the plan.
+
+      Traced the literal runtime consequence: if `_referenced_artifacts` returns
+      `(activatable_list, kind_filtered_list)` while `referenced_but_not_cascaded` and
+      `deactivation_plan` remain textually unchanged, `for ref in _referenced_artifacts(...)`
+      iterates the 2-tuple, binding `ref` first to `activatable_list` (a `list`, not a
+      `ReferencedArtifact`) and then to `kind_filtered_list`. The very next line in both
+      unmigrated callers accesses `ref.kind` (`referenced_but_not_cascaded`) or `ref.kind` /
+      `ref.urn` (`deactivation_plan`) — `list` has no `.kind` attribute, so this raises
+      `AttributeError` on first access, a real crash, not a behavioral nuance.
+
+      Verified this isn't hypothetical: `tests/charter/test_cascade.py` has
+      `test_referenced_but_not_cascaded_lists_skipped_kinds` (line 283) and
+      `test_referenced_but_not_cascaded_empty_when_no_refs` (line 296) calling
+      `referenced_but_not_cascaded` directly, plus multiple deactivation tests (lines 308-395,
+      e.g. `test_deactivation_removes_exclusive_skips_shared_diamond`,
+      `test_deactivation_respects_scope`) and `test_cascade_never_proposes_template_or_asset`
+      (line 603) calling both `cascade_activation_targets` and `referenced_but_not_cascaded` —
+      all currently green, all would hit the AttributeError the instant WP-A's described
+      changes land without also touching the other two call sites.
+
+      This is a genuine internal contradiction between plan.md §2 (which correctly describes
+      all three callers needing simultaneous migration) and plan.md §12 (which explicitly
+      scopes WP-A to touch only one of the three, deferring the other two to later WPs) — not
+      a misreading of a plan that already handles this some other way. The finding's evidence
+      concretely supports its claim; verdict stands.
