@@ -72,7 +72,7 @@ import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NoReturn
 
 from specify_cli.agent_tasks_ports import TasksPorts
 from specify_cli.cli.commands.agent.tasks_materialization import (
@@ -92,7 +92,11 @@ from specify_cli.review.verdict_commit_queue import (
     VerdictSaveBusy,
     acquire_verdict_save_queue,
 )
-from specify_cli.status import event_sourced_review_result, to_artifact_verdict
+from specify_cli.status import (
+    FeatureStatusLockTimeoutError,
+    event_sourced_review_result,
+    to_artifact_verdict,
+)
 
 if TYPE_CHECKING:
     from specify_cli.agent_tasks_ports import CoordCommitRouter
@@ -106,6 +110,23 @@ if TYPE_CHECKING:
 # each string is referenced from two sites (the resolver + its tests).
 _DURABILITY_REASON_NO_AUTO_COMMIT = "no_auto_commit"
 _DURABILITY_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
+
+# #3773 item 1: a THIRD, structurally distinct busy/timeout reason. The
+# checkout-wide verdict-save queue (``acquire_verdict_save_queue``) already
+# bounds its own acquisition at ``DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS`` and
+# raises ``VerdictSaveBusy`` on timeout. But the queue-holder still calls
+# straight into ``create_rejected_review_cycle``, which acquires the
+# per-mission ``feature_status_lock`` (``review/cycle.py``'s
+# ``_allocate_and_write_review_cycle_locked`` /
+# ``_adopt_or_allocate_review_cycle_locked``) -- a SEPARATE, independently
+# wedgeable lock. Bounding that lock's own acquisition (to the SAME
+# ``DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS`` budget -- see ``review/cycle.py``)
+# closes half the gap; this reason is the other half: translating the
+# resulting ``FeatureStatusLockTimeoutError`` into the identical truthful,
+# non-durable failure shape ``VerdictSaveBusy`` already produces, so a
+# wedged (not crashed) status-lock holder can never make the caller hang
+# indefinitely OR silently report success.
+_DURABILITY_REASON_FEATURE_STATUS_LOCK_BUSY = "feature_status_lock_busy"
 
 # WP05 (verdict-seam-write-unification-01KZ9Q35, T023) bugfix: the bare-id
 # a WP task file's stem carries, up to (not including) its FIRST accepted
@@ -420,6 +441,32 @@ def _build_durability_signal(
     )
 
 
+def _raise_verdict_busy_failure(*, reason: str, cause: BaseException) -> NoReturn:
+    """Raise the ONE shared busy/timeout failure shape for both wedge causes.
+
+    #3773 item 1: ``VerdictSaveBusy`` (the checkout-wide queue's own bounded
+    acquisition) and ``FeatureStatusLockTimeoutError`` (the per-mission status
+    lock the queue-holder calls into) are two DIFFERENT lock primitives that
+    can each time out -- but from the caller's point of view they must be the
+    SAME truthful, non-durable outcome: never a hang, never a false success.
+    Sharing this constructor (rather than duplicating the
+    ``VerdictPersistenceFailure(VerdictDurabilitySignal(...))`` literal at
+    both call sites) is what keeps that shape identical by construction.
+    """
+    raise VerdictPersistenceFailure(
+        VerdictDurabilitySignal(
+            outcome=VerdictPersistenceOutcome(
+                classification="busy",
+                verdict_durably_persisted=False,
+                evidence_ref=None,
+                destination_ref=None,
+                reason=reason,
+                message=str(cause),
+            )
+        )
+    ) from cause
+
+
 def _persist_review_cycle_with_queue(
     st: _MoveTaskState,
     ports: TasksPorts,
@@ -459,18 +506,18 @@ def _persist_review_cycle_with_queue(
             with acquire_verdict_save_queue(st.main_repo_root):
                 review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
     except VerdictSaveBusy as exc:
-        raise VerdictPersistenceFailure(
-            VerdictDurabilitySignal(
-                outcome=VerdictPersistenceOutcome(
-                    classification="busy",
-                    verdict_durably_persisted=False,
-                    evidence_ref=None,
-                    destination_ref=None,
-                    reason="verdict_save_busy",
-                    message=str(exc),
-                )
-            )
-        ) from exc
+        _raise_verdict_busy_failure(reason="verdict_save_busy", cause=exc)
+    except FeatureStatusLockTimeoutError as exc:
+        # #3773 item 1: the queue was acquired, but ``create(...)`` reached
+        # into ``create_rejected_review_cycle``'s own bounded
+        # ``feature_status_lock`` acquisition (``review/cycle.py``) and THAT
+        # wedged instead. Without this clause, this exception propagated
+        # uncaught past the queue's own ``VerdictSaveBusy`` handling above --
+        # an unhandled crash, not the truthful non-durable failure every
+        # OTHER busy path here produces.
+        _raise_verdict_busy_failure(
+            reason=_DURABILITY_REASON_FEATURE_STATUS_LOCK_BUSY, cause=exc
+        )
 
     if st.skip_target_branch_commit:
         local = review_cycle.persistence
