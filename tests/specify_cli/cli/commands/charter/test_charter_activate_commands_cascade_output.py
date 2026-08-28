@@ -354,6 +354,52 @@ class TestKindFilteredNodeRendering:
             "is what keeps this pure scope-narrowing case from wrongly printing the message"
         )
 
+    def test_mixed_scope_narrowed_and_kind_filtered_does_not_claim_all_kind_filtered(
+        self, project_root: Path
+    ) -> None:
+        """M1 regression (PR #3711 landing review): in the MIXED case -- a
+        source with one activatable-kind ref excluded by a narrow
+        `--cascade <scope>` AND one kind-filtered ref -- the FR-004 summary
+        must NOT fire. `result.activated` is empty, so the original guard
+        `not result.activated and bool(result.not_cascaded_kind_filtered)`
+        wrongly printed "every referenced node was kind-filtered", directly
+        contradicted by the `Skipped (out of scope)` line above it. The guard
+        must also require `not result.skipped_by_scope` (SC-007's intent, which
+        the inline comment already claimed but the condition did not enforce).
+        """
+        pack_root = project_root / "org-packs" / "mixed-pack"
+        _write_artifact(pack_root, "directives", "directive", "mixed-source", "DIRECTIVE_MIX_SRC")
+        _write_artifact(pack_root, "directives", "directive", "mixed-target", "DIRECTIVE_MIX_TGT")
+        _write_artifact(pack_root, "assets", "asset", "mixed-asset", "ASSET_MIX_ONE")
+        _write_graph_fragment(
+            pack_root,
+            "fixture.graph.yaml",
+            nodes=[
+                ("directive:DIRECTIVE_MIX_SRC", "directive"),
+                ("directive:DIRECTIVE_MIX_TGT", "directive"),
+                ("asset:ASSET_MIX_ONE", "asset"),
+            ],
+            edges=[
+                ("directive:DIRECTIVE_MIX_SRC", "directive:DIRECTIVE_MIX_TGT", "suggests"),
+                ("directive:DIRECTIVE_MIX_SRC", "asset:ASSET_MIX_ONE", "suggests"),
+            ],
+        )
+        _write_org_pack_config(project_root, [("mixed-pack", "org-packs/mixed-pack")])
+
+        result = _activate_kind_filtered_fixture(
+            project_root, "--cascade", "tactic", "directive", "mixed-source"
+        )
+        assert result.exit_code == 0, result.output
+        # Both facts are reported per-node...
+        assert "Skipped (out of scope): directive/mixed-target" in result.output
+        assert (
+            "Not cascaded: asset/mixed-asset (kind not charter-activatable)"
+            in result.output
+        )
+        # ...but the summary that claims EVERY referenced node was kind-filtered
+        # must NOT fire, because a scope-skipped activatable-kind node exists.
+        assert "resolved zero activatable targets" not in result.output
+
     def test_cascade_kind_filtered_line_renders_resolved_config_stem_not_raw_bare_id(
         self, project_root: Path
     ) -> None:
