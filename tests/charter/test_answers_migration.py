@@ -201,6 +201,50 @@ def test_migration_does_not_touch_slug_when_no_legacy_key_present(tmp_path: Path
     assert path.read_bytes() == preimage
 
 
+def test_migration_skips_rename_when_both_legacy_and_canonical_keys_present(
+    tmp_path: Path,
+) -> None:
+    """A file carrying BOTH top-level ``doctrine:`` and ``charter:`` keys must
+    not be renamed: blindly renaming ``doctrine:`` -> ``charter:`` would
+    produce two top-level ``charter:`` mapping keys, which the safe YAML
+    loader rejects as a duplicate key. The migration mirrors
+    ``charter.sync.apply_legacy_governance_selection_key_compat``'s
+    prefer-canonical behavior by leaving the file untouched instead."""
+    content = (
+        "mission: software-dev\n"
+        "profile: minimal\n"
+        "\n"
+        "doctrine:\n"
+        "  template_set: legacy-set\n"
+        "\n"
+        "charter:\n"
+        "  template_set: canonical-set\n"
+    )
+    path = _write_fixture(tmp_path, content)
+    preimage = path.read_bytes()
+
+    renamed = migrate_answers_file(path)
+
+    assert renamed == 0
+    assert path.read_bytes() == preimage
+
+    # The file remains valid, parseable YAML with both keys intact -- no
+    # duplicate-key collision was introduced.
+    reloaded = YAML(typ="safe").load(path.read_text(encoding="utf-8"))
+    assert reloaded["doctrine"]["template_set"] == "legacy-set"
+    assert reloaded["charter"]["template_set"] == "canonical-set"
+
+
+def test_migration_raises_typed_error_for_missing_path(tmp_path: Path) -> None:
+    """Direct callers of ``migrate_answers_file`` (unlike ``main``, which
+    pre-checks ``path.exists()``) get the typed ``AnswersMigrationError`` for
+    a missing file, not a raw ``FileNotFoundError``."""
+    missing_path = tmp_path / "does-not-exist" / "answers.yaml"
+
+    with pytest.raises(AnswersMigrationError):
+        migrate_answers_file(missing_path)
+
+
 # ---------------------------------------------------------------------------
 # Interview serializer hardening
 # ---------------------------------------------------------------------------
