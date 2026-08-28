@@ -298,7 +298,7 @@ def test_boundary_escaping_link_would_false_red_without_its_discriminator(tmp_pa
     root = tmp_path / "doctrine_root"
     root.mkdir()
     (root / "page.md").write_text(
-        "See [glossary](../../docs/context/doctrine.md#term).\n",
+        "See [glossary](../../docs/context/charter.md#term).\n",
         encoding="utf-8",
     )
     scan = scan_doctrine_cross_links(root)
@@ -307,7 +307,7 @@ def test_boundary_escaping_link_would_false_red_without_its_discriminator(tmp_pa
         "case no longer applies (delete C3) or the pattern stopped matching it."
     )
     assert [site.text for site in scan.boundary_escapes] == [
-        "../../docs/context/doctrine.md#term"
+        "../../docs/context/charter.md#term"
     ], f"C3's effect set moved -- widening it needs a reason: {_render(scan.boundary_escapes)}"
     assert not scan.unresolved, "A legitimately escaping link must not become a false unresolved-link red."
 
@@ -321,13 +321,13 @@ def test_gate_c_boundary_discriminator_does_not_swallow_an_in_boundary_violation
     (root / "sibling.md").write_text("ok\n", encoding="utf-8")
     planted = root / "page.md"
     planted.write_text(
-        "See [outside](../../docs/context/doctrine.md#term).\n"
+        "See [outside](../../docs/context/charter.md#term).\n"
         "See [gone](./missing.md).\n"
         "See [here](./sibling.md).\n",
         encoding="utf-8",
     )
     scan = scan_doctrine_cross_links(root)
-    assert [site.text for site in scan.boundary_escapes] == ["../../docs/context/doctrine.md#term"]
+    assert [site.text for site in scan.boundary_escapes] == ["../../docs/context/charter.md#term"]
     assert [site.text for site in scan.unresolved] == ["./missing.md"]
 
 
