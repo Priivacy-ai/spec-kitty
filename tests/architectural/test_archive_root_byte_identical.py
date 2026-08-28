@@ -56,6 +56,10 @@ _ARCHIVE_ROOTS: tuple[str, ...] = (
 # new move line is this file's designed use, not the "editing an archived
 # artifact to fix a stale line" that NFR-002 forbids, so it is exempt from the
 # byte-freeze while every other pre-existing archived file stays frozen.
+# NOTE: the exemption is a whole-path carve-out (any mutation of this one file
+# passes, not strictly an append) -- its content integrity is independently
+# policed by the build job's rename-reconcile gate, so a destructive rewrite
+# here would red there, not slip through silently.
 _APPEND_ONLY_SPINE_EXCEPTIONS: frozenset[str] = frozenset(
     {"kitty-specs/common-docs-convergence-01KZMTR9/occurrence_map.yaml"}
 )
