@@ -221,7 +221,7 @@ def test_wedged_status_lock_yields_bounded_busy_failure_not_a_hang(tmp_path: Pat
         )
         assert elapsed < _JOIN_CEILING_SECONDS
 
-        assert len(outcome) == 1
+        assert len(outcome) == 1  # golden-count: cardinality-is-contract
         [captured] = outcome
         assert isinstance(captured, VerdictPersistenceFailure), (
             f"expected a typed VerdictPersistenceFailure, got: {captured!r}"
