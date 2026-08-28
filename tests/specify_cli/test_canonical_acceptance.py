@@ -941,3 +941,167 @@ class TestStrictShellPidGate:
             summary = collect_feature_summary(tmp_path, "099-test-feature", strict_metadata=True)
 
         assert any("shell_pid" in m for m in summary.metadata_issues), summary.metadata_issues
+
+
+# ---------------------------------------------------------------------------
+# WP06 / T023 — canceled-terminal acceptability at command level + NFR-002 parity.
+#
+# ``collect_feature_summary`` is exercised through the same mocked-git surface as
+# the rest of this module. The parity guard pins that a canceled-FREE mission
+# reduces to the pre-change golden shape — measured against the NFR-001 baseline
+# commit ``a59460ec15`` (research.md R7) — so this mission's canceled projection
+# is proven to relax nothing beyond the canceled case (NFR-002 / SC-004). Parity
+# is expressed IN-DIFF (the golden shape is asserted here directly), never via a
+# live ``git checkout a59460ec15`` — an out-of-diff dependency (the #3590 trap).
+# ---------------------------------------------------------------------------
+
+
+def _append_cancellation_event(
+    feature_dir: Path,
+    wp_id: str,
+    *,
+    operator: bool,
+) -> None:
+    """Append a ``planned -> canceled`` event (+ ``agent`` annotation) for one WP.
+
+    ``operator=True`` stamps ``reason_source="operator"`` so the reducer projects
+    operator-authored provenance (FR-001); ``operator=False`` leaves a synthetic
+    cancellation (FR-003 blocker).
+    """
+    from kernel.clock import now_utc_iso
+    from ulid import ULID
+
+    from specify_cli.status.models import InnerStateChanged, WPInnerStateDelta
+    from specify_cli.status.store import append_annotations_atomic_verified
+
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=str(ULID()),
+            mission_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.CANCELED,
+            at="2026-03-18T20:00:00+00:00",
+            actor="maintainer" if operator else "test-agent",
+            force=True,
+            execution_mode="worktree",
+            reason="Descoped after re-homing the work." if operator else None,
+            reason_source="operator" if operator else None,
+        ),
+    )
+    append_annotations_atomic_verified(
+        feature_dir,
+        [
+            InnerStateChanged(
+                event_id=str(ULID()),
+                wp_id=wp_id,
+                at=now_utc_iso(),
+                actor="test-agent",
+                delta=WPInnerStateDelta(agent="test-agent"),
+            )
+        ],
+    )
+
+
+def test_approved_plus_operator_cancellation_is_eligible(tmp_path: Path) -> None:
+    """Command level (T023): approved + operator-canceled -> acceptance eligible.
+
+    The surviving ``approved`` WP delivers the mission; the operator cancellation
+    is an acceptable ending reported under ``canceled_wps`` and is NOT a blocker.
+    """
+    feature_dir = _setup_feature(
+        tmp_path, wp_ids=["WP01"], wp_lanes={"WP01": "approved"}
+    )
+    _write_wp_file(feature_dir / "tasks", "WP02", lane="canceled")
+    _append_cancellation_event(feature_dir, "WP02", operator=True)
+
+    with patch("specify_cli.acceptance.run_git") as mock_git, patch(
+        "specify_cli.acceptance.git_status_lines", return_value=[]
+    ):
+        mock_git.return_value.stdout = "main\n"
+        summary = collect_feature_summary(
+            tmp_path, "099-test-feature", strict_metadata=False
+        )
+
+    assert summary.all_done is True
+    assert [entry["wp_id"] for entry in summary.canceled_wps] == ["WP02"]
+    assert summary.canceled_wps[0]["reason"] == "Descoped after re-homing the work."
+    assert not any(
+        "WP02" in blocker
+        for blocker in summary.outstanding().get("lane_blockers", [])
+    )
+
+
+def test_synthetic_cancellation_is_a_blocker_at_command_level(tmp_path: Path) -> None:
+    """Command level (T023): a synthetic cancellation stays a blocker (FR-003).
+
+    The provenance-free cancellation is refused with the operator-provenance
+    diagnostic and is never reported as an accept-eligible cancellation.
+    """
+    feature_dir = _setup_feature(
+        tmp_path, wp_ids=["WP01"], wp_lanes={"WP01": "approved"}
+    )
+    _write_wp_file(feature_dir / "tasks", "WP02", lane="canceled")
+    _append_cancellation_event(feature_dir, "WP02", operator=False)
+
+    with patch("specify_cli.acceptance.run_git") as mock_git, patch(
+        "specify_cli.acceptance.git_status_lines", return_value=[]
+    ):
+        mock_git.return_value.stdout = "main\n"
+        summary = collect_feature_summary(
+            tmp_path, "099-test-feature", strict_metadata=False
+        )
+
+    assert summary.all_done is False
+    assert summary.canceled_wps == []
+    assert any(
+        "WP02" in blocker
+        and "operator-authored cancellation provenance required" in blocker
+        for blocker in summary.outstanding().get("lane_blockers", [])
+    )
+
+
+def test_canceled_free_mission_reduces_to_unchanged_golden(tmp_path: Path) -> None:
+    """NFR-002 parity (T023): a canceled-free mission's reduced golden is
+    byte-unchanged by this mission's canceled projection.
+
+    Measured against the NFR-001 baseline commit ``a59460ec15`` (research.md R7):
+    the WP01→WP04 change only ever projects ``reason_source`` /
+    ``cancellation_reason`` onto a ``canceled`` snapshot, so a mission with NO
+    cancellations reduces identically to pre-change. This is asserted IN-DIFF —
+    the golden lane shape is pinned right here — NEVER via a live
+    ``git checkout a59460ec15`` (an out-of-diff dependency, the #3590 anti-trap).
+    """
+    from specify_cli.status.reducer import materialize as raw_materialize
+
+    feature_dir = _setup_feature(
+        tmp_path, wp_ids=["WP01", "WP02"], wp_lanes={"WP01": "done", "WP02": "done"}
+    )
+
+    snapshot = raw_materialize(feature_dir)
+
+    # Golden shape: both WPs done, and — critically — the canceled-only
+    # projection slots are ABSENT from every snapshot (byte-for-byte parity with
+    # the pre-change reducer, which never wrote them for a canceled-free log).
+    assert {wp_id: state["lane"] for wp_id, state in snapshot.work_packages.items()} == {
+        "WP01": "done",
+        "WP02": "done",
+    }
+    for wp_id, state in snapshot.work_packages.items():
+        assert "reason_source" not in state, f"{wp_id}: canceled projection leaked"
+        assert "cancellation_reason" not in state, f"{wp_id}: canceled projection leaked"
+
+    # And the acceptance view is unchanged: a canceled-free all-done mission is
+    # complete with an empty ``canceled_wps`` report.
+    with patch("specify_cli.acceptance.run_git") as mock_git, patch(
+        "specify_cli.acceptance.git_status_lines", return_value=[]
+    ):
+        mock_git.return_value.stdout = "main\n"
+        summary = collect_feature_summary(
+            tmp_path, "099-test-feature", strict_metadata=False
+        )
+
+    assert summary.all_done is True
+    assert summary.canceled_wps == []
+    assert summary.outstanding() == {}
