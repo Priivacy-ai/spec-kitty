@@ -1,6 +1,6 @@
 ---
 title: 'Context: Charter'
-description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy: how reusable governance knowledge is structured into composable behavior and constraints.'
+description: 'Glossary context for the canonical Charter governing term (glossary authority 3) plus the Doctrine domain model and artifact taxonomy for governance behavior and constraints.'
 doc_status: active
 updated: '2026-08-28'
 related:
