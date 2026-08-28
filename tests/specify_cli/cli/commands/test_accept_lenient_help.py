@@ -33,7 +33,10 @@ def test_accept_help_mentions_path_conventions_for_lenient_flag() -> None:
     assert result.exit_code == 0, f"help invocation failed: {result.output}"
     normalized_help = " ".join(result.output.lower().split())
     assert "--lenient" in normalized_help
-    assert "path" in normalized_help, (
+    # Scoped to "path-convention" (not bare "path"): an unscoped substring
+    # check could be satisfied by an unrelated, future "--path"-ish option's
+    # help text and silently mask a --lenient regression.
+    assert "path-convention" in normalized_help, (
         "The --lenient help string must mention path-convention enforcement "
         "so --help is an independent discovery path to the same information "
         "as the strict-mode failure text; current output:\n" + result.output
