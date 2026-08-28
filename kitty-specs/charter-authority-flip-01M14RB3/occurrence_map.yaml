@@ -25,7 +25,7 @@ target:
 categories:
   # PRIMARY M1 categories — the authority graph.
   user_facing_strings: { action: rename }        # glossary definitions/prose (auth 1/2/3) + the new `### charter` Terminology-Canon entry (governing-term sense)
-  serialized_keys:     { action: rename }        # governance.doctrine -> governance.charter (charter.yaml); glossary term `surface` keys carrying the governing sense
+  serialized_keys:     { action: rename }        # governance.doctrine -> governance.charter (charter.yaml + doc-block `governance:\n  doctrine:` selection-key examples in SKILL/charter-overview/governance-files/setup-governance, folded post-review); glossary term `surface` keys carrying the governing sense
   filesystem_paths:    { action: rename }        # ONLY docs/context/doctrine.md -> charter.md (OC-40); every src/doctrine/** path is an exception below (M2)
   code_symbols:        { action: rename }         # GovernanceConfig field key .doctrine -> .charter ONLY; value class DoctrineSelectionConfig is an exception (M2)
   tests_fixtures:      { action: rename }         # M1's own new ATDD tests/fixtures naming the governing term
