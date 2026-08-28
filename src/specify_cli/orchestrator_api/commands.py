@@ -824,7 +824,11 @@ def list_ready(
         if state.progress_bucket() != "not_started":
             continue
 
-        readiness = dependency_readiness_for_wp(wp_id, deps, wp_lanes)
+        # Advisory display parity (FR-009): a canceled-with-operator-provenance
+        # dependency is a documented removal, so surface its dependent as ready
+        # rather than blocked. `wp_states` is the reduced snapshot already read
+        # above, so this reuses the authoritative provenance with no extra I/O.
+        readiness = dependency_readiness_for_wp(wp_id, deps, wp_lanes, provenance=wp_states)
 
         ready_wps.append(
             {
@@ -1163,9 +1167,13 @@ def start_implementation(
     from specify_cli.status import reduce
     from specify_cli.status import read_events
 
+    # Reduce once off the same (coord-aware) status surface the lane map already
+    # reads, so the provenance map threaded into the gate is consistent with the
+    # lanes it decides against.
+    _snapshot = reduce(read_events(mission_dir))
     wp_lanes = {
         wp_id: state.get("lane", Lane.PLANNED)
-        for wp_id, state in reduce(read_events(mission_dir)).work_packages.items()
+        for wp_id, state in _snapshot.work_packages.items()
     }
     # Only gate the not-yet-started claim transition. Re-invoking start-implementation
     # on a WP that is already in_progress/for_review/.../approved is a no-op resume
@@ -1173,10 +1181,16 @@ def start_implementation(
     # regressed out of approved/done.
     _self_lane = wp_state_for(wp_lanes.get(wp, Lane.PLANNED)).lane
     if _self_lane in (Lane.PLANNED, Lane.CLAIMED):
+        # Thread per-dependency provenance (FR-009): start-implementation is the
+        # external-API CLAIM gate (mutating planned→claimed→in_progress), the
+        # equivalent of implement.py's `_ensure_wp_claim_preconditions`. Without
+        # this a dependent of a canceled-with-operator-provenance WP reproduces
+        # the #2945 strand on the orchestrator-api claim path.
         dependency_readiness = dependency_readiness_for_wp(
             wp,
             parse_wp_dependencies(wp_path),
             wp_lanes,
+            provenance=_snapshot.work_packages,
         )
         if not dependency_readiness.satisfied:
             blocked = ", ".join(dependency_readiness.unsatisfied)
