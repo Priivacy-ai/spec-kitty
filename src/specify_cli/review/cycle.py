@@ -29,7 +29,10 @@ from specify_cli.review.artifacts import (
     AffectedFile,
     ReviewCycleArtifact,
 )
-from specify_cli.review.verdict_commit_queue import DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+from specify_cli.review.verdict_commit_queue import (
+    DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS,
+    verdict_save_queue_is_held,
+)
 from specify_cli.status import (
     ReviewResult,
     emission_event_verdict,
@@ -788,6 +791,26 @@ def _allocate_and_write_review_cycle_while_locked(
     return artifact, artifact_path, filename
 
 
+def _in_queue_status_lock_timeout(main_repo_root: Path) -> float:
+    """Bound the status-lock wait only when the verdict-save queue is held.
+
+    The unbounded-hang hazard the bound closes (#3773 item 1) exists solely on
+    the queue-held path: while a caller owns the checkout-wide verdict queue, an
+    indefinitely-blocked ``feature_status_lock`` acquisition would wedge every
+    other verdict save in the checkout. There, a ``FeatureStatusLockTimeoutError``
+    is caught and translated into the truthful ``verdict_durably_persisted: false``
+    busy envelope by ``_persist_review_cycle_with_queue``.
+
+    Off the queue (the ``--no-auto-commit`` and ``local_only`` feedback paths)
+    that translation does not apply, so bounding there would only turn a rare
+    contention into an envelope-less error; those paths keep the historical
+    unbounded (``-1``) wait instead.
+    """
+    if verdict_save_queue_is_held(main_repo_root):
+        return DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+    return -1.0
+
+
 def _allocate_and_write_review_cycle_locked(
     *,
     main_repo_root: Path,
@@ -834,7 +857,9 @@ def _allocate_and_write_review_cycle_locked(
     cycle.
     """
     with feature_status_lock(
-        main_repo_root, mission_slug, timeout=DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+        main_repo_root,
+        mission_slug,
+        timeout=_in_queue_status_lock_timeout(main_repo_root),
     ):
         return _allocate_and_write_review_cycle_while_locked(
             mission_slug=mission_slug,
@@ -867,7 +892,9 @@ def _adopt_or_allocate_review_cycle_locked(
         MissionArtifactKind.REVIEW_CYCLE
     ).ref
     with feature_status_lock(
-        main_repo_root, mission_slug, timeout=DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+        main_repo_root,
+        mission_slug,
+        timeout=_in_queue_status_lock_timeout(main_repo_root),
     ):
         candidates = _local_matching_retained_review_cycles(
             mission_slug=mission_slug,
@@ -916,7 +943,9 @@ def _adopt_or_allocate_review_cycle_locked(
     )
 
     with feature_status_lock(
-        main_repo_root, mission_slug, timeout=DEFAULT_VERDICT_SAVE_TIMEOUT_SECONDS
+        main_repo_root,
+        mission_slug,
+        timeout=_in_queue_status_lock_timeout(main_repo_root),
     ):
         refreshed = _local_matching_retained_review_cycles(
             mission_slug=mission_slug,
