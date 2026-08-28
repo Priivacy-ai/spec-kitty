@@ -101,6 +101,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
 )
 from specify_cli.cli.commands.agent.tasks_verdict_persistence import (
     VerdictDurabilitySignal,
+    VerdictPersistenceFailure,
     _persist_approved_review_cycle,
     persist_arbiter_override_decision,
     persist_rejected_review_cycle_for_rollback,
@@ -146,6 +147,7 @@ from specify_cli.status import (
     ReviewResult,
     ResolvedBinding,
     StatusEvent,
+    TransitionError,
     TransitionRequest,
     WPInnerStateDelta,
     emission_event_verdict,
@@ -260,6 +262,10 @@ class _MoveTaskState:
     # whether T048's revert-compensator has anything to undo after a later
     # ``_mt_execute`` failure.
     pending_verdict_write: VerdictDurabilitySignal | None = None
+    # Authoritative from-lane resolved inside the status lock immediately
+    # before the current transition attempt.  ``old_lane`` predates verdict
+    # queue waiting and can be stale when a concurrent reviewer moves first.
+    authoritative_lane_at_emit: Lane | None = None
     # #3578: the operator signal for the otherwise-silent rollback-to-``planned``
     # delta (subtask reset + claim release + review-override clear), including the
     # FR-003 work-state split. Set by ``_build_claim_review_override`` whenever the
@@ -1931,6 +1937,23 @@ def _mt_finalize_plan(st: _MoveTaskState, ports: TasksPorts) -> None:
             st.agent = declared_agent
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
         st.pending_verdict_write = _persist_approved_review_cycle(st, ports)
+        durability_signal = st.pending_verdict_write
+        if (
+            durability_signal is not None
+            and durability_signal.durably_persisted
+            and durability_signal.review_cycle is not None
+            and st.evidence_dict is not None
+        ):
+            # DoneEvidence and ReviewResult share one approval identity. Once
+            # Git verification succeeds, replace the earlier caller token with
+            # the canonical review-cycle pointer; the token remains preserved
+            # in the committed artifact body without becoming event authority.
+            canonical_result = durability_signal.review_cycle.review_result
+            st.evidence_dict["review"] = {
+                "reviewer": canonical_result.reviewer,
+                "verdict": canonical_result.verdict,
+                "reference": canonical_result.reference,
+            }
     if decision.done_override_note and not st.json_output:
         _tasks.console.print(
             "[yellow]⚠️  Proceeding with done override; reason recorded in "
@@ -1989,6 +2012,10 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
     A rejection to ``planned`` already minted a structured result via the review
     cycle (:attr:`rejected_review_result`); reuse it so its ``reference`` matches
     the emitted ``review_ref`` (the ``_check_review_result_consistency`` guard).
+    Likewise, an automatic approval that durably verified a review-cycle artifact
+    reuses that cycle's canonical result so the event references the exact evidence
+    bytes. Local-only and no-cycle approval paths retain their historical caller
+    reference because they have no verified durable evidence identity to claim.
     """
     if st.old_lane != Lane.IN_REVIEW:
         return None
@@ -1996,6 +2023,13 @@ def _mt_plan_review_result(st: _MoveTaskState) -> ReviewResult | None:
         return st.rejected_review_result
     reviewer = _mt_resolve_reviewer_identity(st)
     if st.target_lane in (Lane.APPROVED, Lane.DONE):
+        durability_signal = st.pending_verdict_write
+        if (
+            durability_signal is not None
+            and durability_signal.durably_persisted
+            and durability_signal.review_cycle is not None
+        ):
+            return durability_signal.review_cycle.review_result
         # FR-005: route through the canonical bridge instead of hardcoding
         # the event-vocabulary literal -- this hop is an approval outcome
         # (the emission-scoped "approved" artifact verdict), so its event
@@ -2046,13 +2080,39 @@ def _mt_hop_review_result(
     target: str,
     hop_actor: str,
 ) -> ReviewResult | None:
-    """Auto-construct a ``ReviewResult`` when a hop leaves ``in_review``."""
+    """Select the authoritative ``ReviewResult`` when a hop leaves review."""
     rejected = st.rejected_review_result
     in_review = (event is not None and event.to_lane == Lane.IN_REVIEW) or (
         event is None and current_event_lane == Lane.IN_REVIEW
     )
-    if in_review and target == Lane.PLANNED and rejected is not None:
-        return rejected
+    durability_signal = st.pending_verdict_write
+    if target == Lane.PLANNED and rejected is not None:
+        if in_review:
+            return rejected
+        if (
+            durability_signal is not None
+            and durability_signal.durably_persisted
+            and durability_signal.review_cycle is not None
+        ):
+            # A queued rejection may have resolved its plan from ``in_review``
+            # before the preceding writer emits.  By the time this writer owns
+            # the status transaction, the canonical lane is then ``planned``
+            # and its serialized hop is ``planned -> planned``.  The durable
+            # cycle created by *this* invocation remains the verdict authority:
+            # preserve that exact verified result on the self-transition rather
+            # than dropping it merely because another writer moved the lane.
+            return durability_signal.review_cycle.review_result
+    if (
+        in_review
+        and st.plan_review_result is not None
+        and durability_signal is not None
+        and durability_signal.durably_persisted
+        and durability_signal.review_cycle is not None
+    ):
+        # A verified review-cycle is the evidence identity for this approval.
+        # Prefer the canonical plan result over the older DoneEvidence approval
+        # token; local-only and no-cycle paths continue through the legacy arm.
+        return st.plan_review_result
     if in_review and st.evidence_dict is not None:
         review_section = st.evidence_dict.get("review", {})
         return ReviewResult(
@@ -2156,6 +2216,11 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
     event: StatusEvent | None = None
     final_hop_actor = st.actor
     for target in emit_plan.transition_targets:
+        st.authoritative_lane_at_emit = (
+            event.to_lane
+            if event is not None
+            else Lane(resolve_lane_alias(current_event_lane))
+        )
         hop_actor = _mt_hop_actor(st, event, current_event_lane, target)
         hop_review_result = _mt_hop_review_result(
             st, event, current_event_lane, target, hop_actor
@@ -2590,9 +2655,19 @@ def _mt_output(st: _MoveTaskState) -> None:
     # ``--no-auto-commit`` case from the protected-primary-coord case (T050) —
     # present only when non-durable, since a durable write has no "reason".
     if st.pending_verdict_write is not None:
-        result["verdict_durably_persisted"] = st.pending_verdict_write.durably_persisted
-        if st.pending_verdict_write.skip_reason is not None:
-            result["verdict_durability_skip_reason"] = st.pending_verdict_write.skip_reason
+        outcome = st.pending_verdict_write.outcome
+        if (
+            "review_feedback" not in result
+            and st.pending_verdict_write.review_cycle is not None
+        ):
+            result["review_feedback"] = st.pending_verdict_write.review_cycle.pointer
+        result["verdict_durably_persisted"] = outcome.verdict_durably_persisted
+        result["durability_classification"] = outcome.classification
+        result["durability_reason"] = outcome.reason
+        result["evidence_ref"] = outcome.evidence_ref
+        result["destination_ref"] = outcome.destination_ref
+        if outcome.reason is not None:
+            result["verdict_durability_skip_reason"] = outcome.reason
     message = f"[green]✓[/green] Moved {st.task_id} from {st.old_lane} to {st.target_lane}"
     # #3578: surface the rollback-to-``planned`` deltas that were previously
     # silent — the subtask reset count (+ work-state split, FR-003) and the two
@@ -2778,8 +2853,39 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
                 stack_trace=traceback.format_exc(),
                 agent_id=args.agent,
             )
-        diagnostic = e.to_diagnostic() if isinstance(e, EventPersistenceError) else None
-        if diagnostic is not None and st.canonical_lane is not None:
+        if isinstance(e, VerdictPersistenceFailure):
+            outcome = e.signal.outcome
+            diagnostic: dict[str, object] | None = {
+                "result": "error",
+                "error": str(e),
+                "verdict_durably_persisted": outcome.verdict_durably_persisted,
+                "durability_classification": outcome.classification,
+                "durability_reason": outcome.reason,
+                "evidence_ref": outcome.evidence_ref,
+                "destination_ref": outcome.destination_ref,
+            }
+        elif isinstance(e, TransitionError):
+            current_lane = st.authoritative_lane_at_emit or st.old_lane
+            diagnostic = {
+                "result": "error",
+                "code": "invalid_transition",
+                "error": str(e),
+                "current_lane": current_lane.value,
+                "requested_lane": (
+                    st.canonical_lane
+                    or resolve_lane_alias(str(st.target_lane))
+                ),
+                "verdict_durably_persisted": False,
+                "evidence_ref": None,
+                "destination_ref": None,
+            }
+        else:
+            diagnostic = e.to_diagnostic() if isinstance(e, EventPersistenceError) else None
+        if (
+            diagnostic is not None
+            and st.canonical_lane is not None
+            and not isinstance(e, TransitionError)
+        ):
             diagnostic["failed_event_to_lane"] = diagnostic.get("to_lane")
             diagnostic["to_lane"] = st.canonical_lane
             diagnostic["requested_lane"] = st.canonical_lane
