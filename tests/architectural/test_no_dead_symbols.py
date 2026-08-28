@@ -744,8 +744,14 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[SymbolKey] = frozenset(
         SymbolKey("MigrationDiscoveryError", "541864310809d0a9f476f2963151b6468ced74b86082c66d0e0e3e420cbd133f", source_module="specify_cli.upgrade.migrations"),
         # specify_cli.validators.csv_schema::CSVSchemaValidation
         SymbolKey("CSVSchemaValidation", "9492562d2a8ff78e95fe51a2eb532a7046b2c26e8a04281d800551d07ccb8b9c", source_module="specify_cli.validators.csv_schema"),
+        # re-pinned 2026-08-28 (landing #3783): PathValidationResult gained the
+        # missing_paths_feature_relative field, which changed its content-tier
+        # body_hash; still a public result type returned by
+        # validate_mission_paths with no src/ importer-by-name, so the
+        # allowlist decision is unchanged — hash-only re-pin, no new FR-303
+        # ticket needed for an already-allowlisted symbol.
         SymbolKey(
-            "PathValidationResult", "0c06a5f97dbf0bd590850ce8c7bb5067852f3edfbcbf7dc58dcec264b37e55da", source_module="specify_cli.validators.paths"
+            "PathValidationResult", "22696fb65eb6e21382dd89aed94d8cbbbfb999724471461926f9241c7168fb5d", source_module="specify_cli.validators.paths"
         ),  # specify_cli.validators.paths::PathValidationResult
         # specify_cli.validators.paths::suggest_directory_creation
         SymbolKey("suggest_directory_creation", "43ab52fd99963aff65a61cac707bfa4e7460fb71e515f636c9e79960290f90f7", source_module="specify_cli.validators.paths"),
