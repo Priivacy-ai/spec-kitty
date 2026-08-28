@@ -18,8 +18,10 @@ TASKS-FRESH3-001 provenance of test (d)):
 
 * Test (a) -- dedup + pass/fail boundary, via the real ``collect_feature_summary``
   entry point on a genuine software-dev-shaped fixture (so WP01's
-  ``missing_artifact_tokens`` population is exercised for real, not hand-set
-  on a mock).
+  ``missing_artifact_tokens`` population is exercised for real, not
+  hand-set on a mock); also pins that a sibling optional-only artifact
+  (declared under ``artifacts.optional`` but never in ``paths.*``) is NOT
+  over-suppressed by the dedup.
 * Test (b) -- the duplicate "Optional artifacts missing" console print is
   gone; the line appears at most once.
 * Test (c) -- lenient mode (``strict_metadata=False``) emits no dedup tokens.
@@ -134,6 +136,11 @@ def test_contracts_surfaces_through_exactly_one_channel_and_ok_stays_false(
     )
     assert in_violations, "the blocking path_violations side must be the one that wins"
     assert summary.ok is False
+    # Sibling optional-only artifact (declared under artifacts.optional but
+    # NEVER in paths.* -- unlike contracts/, which is dual-declared): the
+    # dedup must not over-suppress it just because contracts/ triggered a
+    # path-convention violation.
+    assert "data-model.md" in summary.optional_missing
 
 
 # ---------------------------------------------------------------------------
