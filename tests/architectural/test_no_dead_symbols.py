@@ -1910,6 +1910,41 @@ _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR: frozenset[SymbolKey] = frozense
 )
 
 
+# ---------- C. charter-authority-flip (01M14RB3) forward public API (#3664) ----------
+# Two intentional public symbols landed by the doctrine->charter governing-term
+# flip that have no cross-file `src/` caller yet, both content-tier (unique
+# bare_name, no live collision):
+#
+# * ``charter.interview::InterviewAnswersRegressionError`` -- raised by
+#   ``write_interview_answers(..., fail_closed_on_regression=True)``; the only
+#   caller that opts into the stricter flag is the answers-migration tooling
+#   (``scripts/migrate_charter_interview_answers.py``, outside `src/`), and
+#   ``tests/charter/test_answers_migration.py`` asserts on it directly. Public
+#   by design so that external/future migration callers can catch it.
+# * ``charter.sync::LegacyGovernanceKeyWarning`` -- the ``UserWarning`` subclass
+#   ``_warn_legacy_governance_key_once()`` raises internally (same module, so
+#   invisible to the cross-file caller graph); ``tests/charter/
+#   test_governance_key_compat.py`` asserts on it via ``pytest.warns(...)``.
+#   Public by design so any consumer can filter/assert on the specific
+#   warning class rather than a bare ``UserWarning``.
+_CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.interview::InterviewAnswersRegressionError
+        SymbolKey(
+            "InterviewAnswersRegressionError",
+            "af534399168d1c78dd7722884aeffc6366eb378779c8dfe91a2545843e1518c2",
+            source_module="charter.interview",
+        ),
+        # charter.sync::LegacyGovernanceKeyWarning
+        SymbolKey(
+            "LegacyGovernanceKeyWarning",
+            "3558fe165f51db3ae52de1abf6c15ce0ececf072f8ac8871cb98c3bbd8d9a1e6",
+            source_module="charter.sync",
+        ),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -1946,6 +1981,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_DELIVERY_RAIL_FORWARD_API
     | _CATEGORY_C_DOCTRINE_API_SURFACE_BRIDGE_3179
     | _CATEGORY_C_CHARTER_FACADE_FORWARD_API_01KZPDSR
+    | _CATEGORY_C_CHARTER_AUTHORITY_FLIP_FORWARD_API
 )
 
 
