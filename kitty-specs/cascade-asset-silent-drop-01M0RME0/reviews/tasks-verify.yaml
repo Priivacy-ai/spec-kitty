@@ -1,0 +1,36 @@
+schema: review-verify/v1
+complete: true
+phase: tasks
+results:
+  - id: TASKS-FRESH2-001
+    status: resolved
+    reason: >
+      WP03 T015 step 1 now reads "org_roots and doctrine_root ... computed at
+      activate.py:397 and 406 respectively", matching live source where line
+      397 is `org_roots = resolve_org_root_chain(repo_root)` and line 406 is
+      `doctrine_root = resolve_doctrine_root()`.
+  - id: TASKS-FRESH2-002
+    status: resolved
+    reason: >
+      WP02 T010's Validation now reads "T008's four tests now pass (GREEN)",
+      matching T008's four RED-first steps/test functions confirmed by reading
+      T008 directly; WP03 T015's Validation now reads "T012's first and third
+      tests now pass (GREEN) (the second depends on T014's guard fix, as
+      before)", matching T012's three steps where step 1 is the new-line test
+      and step 3 is the ID-resolution test.
+  - id: TASKS-FRESH2-003
+    status: resolved
+    reason: >
+      All three WP files (WP02 T008 step 4, WP03 T012 step 3, WP04 T017 step 3)
+      now cite `activate.py:123-152`; live source confirms line 123 is
+      `def _drg_id_to_config_id(` and line 152 is the function's closing
+      `return drg_id` statement, a sensible exact function-body range.
+  - id: TASKS-FRESH2-004
+    status: resolved
+    reason: >
+      All three WP files' Definition of Done sections now append the clarifying
+      sentence "(This is the resolved ID when resolution succeeds; the
+      documented raw-ID fallback for kinds with no on-disk artifact file, e.g.
+      `template`, is unaffected — see `_drg_id_to_config_id`'s docstring.)",
+      converting the prior unconditional guarantee into an accurate,
+      falsifiable one.

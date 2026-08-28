@@ -1,0 +1,99 @@
+{
+  "mission_slug": "cascade-asset-silent-drop-01M0RME0",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_cascade.py::test_cascade_activation_collects_kind_filtered_nodes \u2014 proves _referenced_artifacts partitions kind-filtered nodes into CascadeActivationResult.not_cascaded_kind_filtered instead of dropping them (2 tests total, incl. test_cascade_activation_kind_filtered_node_stays_out_of_activated_and_skipped).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:01.079094+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/charter/test_cascade.py::test_cascade_activation_collects_kind_filtered_nodes \u2014 asserts CascadeActivationResult gained not_cascaded_kind_filtered field populated from cascade_activation_targets.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:06.013543+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestKindFilteredNodeRendering::test_cascade_all_renders_kind_filtered_asset_alongside_activated_tactic \u2014 asserts _render_cascade_activation prints a distinct 'Not cascaded: ...' line per kind-filtered node alongside the unchanged Cascade-activated line.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:08.109193+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestKindFilteredNodeRendering::test_cascade_all_asset_only_source_states_zero_activatable_targets \u2014 asserts explicit zero-activatable-targets message fires only when activated is empty AND a kind-filtered node was reached (non-vacuity proven by test_narrow_scope_guard_scenario_is_not_vacuous).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:10.335194+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestNoCascadeKindFilteredRendering::test_no_cascade_renders_kind_filtered_asset_alongside_existing_warning \u2014 asserts NoCascadeReport.not_cascaded_kind_filtered renders a kind-filtered line that never repeats the --cascade recovery hint (incl. FR-005a: test_no_cascade_kind_filtered_only_source_still_renders_despite_empty_skipped).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:12.518451+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "manual_qa",
+      "evidence": "PR #3711 BLUF explicitly cites ADR 2026-08-20-1 and states 'This is a visibility fix, not a policy change' \u2014 process gate per C-011, no red-first test manufactured (as required).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:14.732761+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_deactivate_commands.py::TestDeactivateKindFilteredNodeRendering::test_deactivate_cascade_reports_same_kind_filtered_line_as_activate_with_resolved_id \u2014 asserts charter activate --cascade all and charter deactivate --cascade all on the same source render the identical kind-filtered line (also covers NFR-003; engine side: tests/charter/test_cascade.py::test_deactivation_plan_collects_kind_filtered_node_and_it_never_leaks).",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:17.426497+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_activate_commands_cascade_output.py::TestKindFilteredNodeRendering::test_cascade_narrow_scope_does_not_trigger_zero_activatable_message \u2014 asserts 'Skipped (out of scope)' renders for a scope-excluded activatable kind while 'Not cascaded' is absent, proving the two labels stay distinct and non-overlapping.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:19.057171+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/charter/test_charter_deactivate_commands.py::TestDeactivateKindFilteredNodeRendering::test_deactivate_cascade_reports_same_kind_filtered_line_as_activate_with_resolved_id \u2014 activate and deactivate render the byte-identical 'Not cascaded: ...' string, proving the single shared KIND_FILTERED_LABEL/_render_kind_filtered_line helper (src/specify_cli/cli/commands/charter/activate.py) is used by all three call sites, not re-coined.",
+      "pass_fail": "pass",
+      "verified_by": "claude",
+      "verified_at": "2026-08-24T08:21:21.326855+00:00",
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
