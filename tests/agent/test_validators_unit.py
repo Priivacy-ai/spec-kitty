@@ -21,6 +21,7 @@ from specify_cli.validators.research import (
 from specify_cli.validators.paths import (
     PathValidationError,
     PathValidationResult,
+    artifact_tokens_for_mission,
     suggest_directory_creation,
     validate_mission_paths,
 )
@@ -260,6 +261,18 @@ def test_mission_artifact_path_without_feature_dir_misses_at_repo_root(
     result = validate_mission_paths(mission, repo_root, strict=False)
 
     assert result.missing_paths == ["contracts/"]
+
+
+def test_artifact_tokens_for_mission_defensive_fallback_when_artifacts_missing() -> None:
+    """``artifact_tokens_for_mission`` is explicitly defensive (see its own
+    docstring): a real ``MissionConfig`` always carries ``artifacts``, but a
+    partial mock/config that omits it entirely must fall back to "no artifact
+    paths" (empty set) via the ``getattr`` chain, not raise ``AttributeError`` —
+    the same fallback ``validate_mission_paths`` already applies elsewhere.
+    """
+    mission = SimpleNamespace(config=SimpleNamespace())  # no `artifacts` attribute at all
+
+    assert artifact_tokens_for_mission(mission) == set()
 
 
 def test_non_artifact_path_stays_repo_root_even_with_feature_dir(tmp_path: Path) -> None:
