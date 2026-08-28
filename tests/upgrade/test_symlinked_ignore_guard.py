@@ -111,15 +111,16 @@ class TestMainProjectMigrationGuard:
     """`MigrationRunner._apply_migration` (runner.py) -- the direct call site
     the squad's traceback named at ``runner.py:264``."""
 
-    def test_detect_raising_is_skipped_not_crashed(self, migration_project: Path, registry_restore: Any) -> None:
+    def test_detect_raising_is_a_failure_not_a_crash(self, migration_project: Path, registry_restore: Any) -> None:
         _register(_DetectRaisesMigration)
         runner = MigrationRunner(migration_project)
 
         result = runner.upgrade("0.0.1", include_worktrees=False, force=True)
 
-        assert result.success
-        assert "0.0.1_detect_raises" in result.migrations_skipped
-        assert any("skipped" in w.lower() for w in result.warnings)
+        assert not result.success
+        assert any("0.0.1_detect_raises" in e for e in result.errors)
+        assert "0.0.1_detect_raises" not in result.migrations_skipped
+        assert "0.0.1_detect_raises" not in result.migrations_applied
 
     def test_apply_raising_is_a_failure_not_a_crash(self, migration_project: Path, registry_restore: Any) -> None:
         _register(_ApplyRaisesMigration)
@@ -142,15 +143,19 @@ class TestWorktreeMigrationGuard:
         (worktree / ".kittify").mkdir(parents=True)
         return worktree
 
-    def test_worktree_detect_raising_is_skipped_not_crashed(self, migration_project: Path, registry_restore: Any) -> None:
-        self._make_worktree(migration_project)
+    def test_worktree_detect_raising_is_recorded_as_failure_not_crashed(self, migration_project: Path, registry_restore: Any) -> None:
+        worktree = self._make_worktree(migration_project)
         _register(_DetectRaisesMigration)
         runner = MigrationRunner(migration_project)
 
         result = runner._upgrade_worktrees("0.0.1", [_DetectRaisesMigration()], dry_run=False)
 
-        assert not result["errors"]
-        assert any("skipped" in w.lower() for w in result["warnings"])
+        assert any("0.0.1_detect_raises" in e for e in result["errors"])
+        wt_metadata = ProjectMetadata.load(worktree / ".kittify")
+        assert wt_metadata is not None
+        assert not wt_metadata.has_migration("0.0.1_detect_raises")
+        record = next(m for m in wt_metadata.applied_migrations if m.id == "0.0.1_detect_raises")
+        assert record.result == "failed"
 
     def test_worktree_apply_raising_is_recorded_as_error_not_crashed(self, migration_project: Path, registry_restore: Any) -> None:
         self._make_worktree(migration_project)
@@ -205,13 +210,34 @@ class TestRealMigrationEndToEnd:
         (project / ".gitignore").symlink_to(outside_target)
 
         runner = MigrationRunner(project)
-        result = runner.upgrade("2.0.9", include_worktrees=False, force=True)
+        # A multi-version jump past the migration's own target_version --
+        # squad pass 2's exact repro (target == from_v masks the strand on a
+        # same-version re-run per MigrationRegistry.get_applicable; a jump
+        # past it is the common upgrade case).
+        result = runner.upgrade("3.0.0", include_worktrees=False, force=True)
 
-        assert result.success
-        assert "2.0.9_state_gitignore" in result.migrations_skipped
-        assert any("symlink" in w.lower() for w in result.warnings)
+        assert not result.success
+        assert any("2.0.9_state_gitignore" in e for e in result.errors)
         # The guard must not have followed the symlink.
         assert outside_target.read_text() == "do-not-touch\n"
+
+        reloaded = ProjectMetadata.load(kittify_dir)
+        assert reloaded is not None
+        # A migration the runner could not safely evaluate must NOT strand
+        # the project at the target version -- metadata.version stays put so
+        # the next `spec-kitty upgrade` re-attempts it once the symlink is
+        # gone, instead of it becoming permanently unreachable.
+        assert reloaded.version == "2.0.8"
+
+        # Replace the symlink with a real file and retry: the migration must
+        # still be selected (never permanently stranded) and now applies.
+        (project / ".gitignore").unlink()
+        (project / ".gitignore").write_text("# real file\n")
+
+        result2 = runner.upgrade("3.0.0", include_worktrees=False, force=True)
+
+        assert result2.success
+        assert "2.0.9_state_gitignore" in result2.migrations_applied
 
 
 _test_app = typer.Typer(add_completion=False)
@@ -235,9 +261,20 @@ class TestCliVerboseDisplayGuard:
     ``to_version``, so ``MigrationRegistry.get_applicable`` includes it
     unconditionally (the ``from_v < target <= to_v`` branch never calls
     ``detect()``) -- only the CLI's own verbose loop calls ``detect()``
-    directly, which is the path this test exercises."""
+    directly, which is the path this test exercises.
 
-    def test_verbose_detect_raising_reports_skipped_not_crashed(self, tmp_path: Path) -> None:
+    That display loop is purely informational (it shows what a migration's
+    ``detect()`` reports, independent of the runner), so it still labels the
+    migration "skipped" in the plan table -- unrelated to and unaffected by
+    the runner's success/failure semantics fixed in squad pass 2. But the
+    same ``--dry-run`` invocation also calls ``MigrationRunner.upgrade()``,
+    whose ``detect()`` call for this same migration now fails closed
+    (squad pass 2 MAJOR: a symlinked ignore file must not be silently
+    reported as a successful upgrade), so the command now honestly exits
+    non-zero instead of claiming success for a plan it could not evaluate.
+    """
+
+    def test_verbose_detect_raising_does_not_crash_and_fails_honestly(self, tmp_path: Path) -> None:
         MigrationRegistry.clear()
         try:
             MigrationRegistry.register(_DetectRaisesMigration)
@@ -263,9 +300,12 @@ class TestCliVerboseDisplayGuard:
                 cwd=project,
             )
 
-            assert result.exit_code == 0, result.output
+            # The CLI must not crash (no unhandled traceback) -- it exits
+            # cleanly with a failure code, not exit_code 0.
+            assert result.exit_code == 1, result.output
             assert "0.0.1_detect_raises: " in result.output
             assert "skipped" in result.output.lower()
             assert "symlink" in result.output.lower()
+            assert "cannot safely detect" in result.output.lower()
         finally:
             MigrationRegistry.clear()

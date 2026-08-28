@@ -280,8 +280,14 @@ class MigrationRunner:
         # Check if migration is needed via detection. A symlinked
         # `.gitignore`/`.claudeignore` makes detect() fail closed with
         # IgnoreFilePathError (gitignore_manager.py) rather than follow the
-        # symlink; treat that as "cannot safely determine, skip" instead of
-        # crashing the whole upgrade for a benign symlink setup.
+        # symlink. Treat that as a migration FAILURE, not a skip: a "skip"
+        # here would report the upgrade as successful and let
+        # _finalize_main_metadata bump metadata.version/schema_version past
+        # this migration, permanently stranding it (it would never be
+        # re-considered even after the symlink is replaced with a real file,
+        # per MigrationRegistry.get_applicable's from_v/to_v window). Failing
+        # closed instead leaves the pre-run schema/version untouched so the
+        # next `spec-kitty upgrade` retries once the symlink is gone.
         try:
             migration_needed = migration.detect(self.project_path)
         except IgnoreFilePathError as exc:
@@ -290,15 +296,15 @@ class MigrationRunner:
                     metadata,
                     self.kittify_dir,
                     migration.migration_id,
-                    "skipped",
+                    "failed",
                     f"Cannot safely detect: {exc}",
                 )
             return (
                 MigrationResult(
-                    success=True,
-                    warnings=[f"Migration {migration.migration_id} skipped: {exc}"],
+                    success=False,
+                    errors=[f"Cannot safely detect {migration.migration_id}: {exc}"],
                 ),
-                "skipped",
+                "failed",
             )
 
         if not migration_needed:
@@ -436,19 +442,21 @@ class MigrationRunner:
 
                 # Same fail-closed handling as the main checkout in
                 # _apply_migration: a symlinked ignore file makes detect()
-                # raise IgnoreFilePathError rather than follow it, so treat
-                # that as "cannot safely determine, skip" for this worktree.
+                # raise IgnoreFilePathError rather than follow it. Record it
+                # as a failure, not a skip -- a "skip" record would be
+                # indistinguishable from "not applicable" and could read as
+                # settled, when the migration was never actually evaluated.
                 try:
                     migration_needed = migration.detect(worktree)
                 except IgnoreFilePathError as exc:
-                    result["warnings"].append(
-                        f"Worktree {worktree.name}: {migration.migration_id} skipped: {exc}"
+                    result["errors"].append(
+                        f"Worktree {worktree.name}: Cannot safely detect {migration.migration_id}: {exc}"
                     )
                     if not dry_run and self._record_migration_result(
                         wt_metadata,
                         wt_kittify,
                         migration.migration_id,
-                        "skipped",
+                        "failed",
                         f"Cannot safely detect: {exc}",
                     ):
                         worktree_metadata_dirty = True
