@@ -1,0 +1,21 @@
+# review-refute/v1 — canonical format for refuter-batch verdicts.
+schema: review-refute/v1
+complete: true             # flip to true ONLY at the very end, after the yaml self-check passes
+phase: plan
+batch: 1
+verdicts:                   # one entry for EVERY finding in your batch — no omissions
+  - id: PLAN-GOV-001
+    verdict: confirmed
+    reason: "Live code shows evaluate_path_conventions spans summary_core.py:110-148 (~39 lines) and _print_acceptance_summary spans accept.py:453-481 (~29 lines), both roughly double plan.md's stated ~20 and ~15 lines respectively."
+  - id: PLAN-GOV-002
+    verdict: confirmed
+    reason: "plan.md:410 cites accept.py:474-480 for the optional_missing print block, but the actual `if summary.optional_missing:` block runs lines 476-481 (line 474 is the preceding _print_acceptance_warnings call) — off by 2 at the start and 1 at the end."
+  - id: PLAN-ARCH-001
+    verdict: confirmed
+    reason: "acceptance/__init__.py (explicitly listed as one of the four touched files in plan.md:82-83) imports kernel.clock.now_utc_stamp (line 10, used at :1367) and kernel.paths.to_posix (line 14, used at :205), directly contradicting plan.md's unconditional 'None of the four files import from src/kernel/' (lines 87-93) and the Summary's 'zero kernel or doctrine coupling' (lines 19-22)."
+  - id: PLAN-ARCH-002
+    verdict: confirmed
+    reason: "grep confirms NFR-003/terminology never appears in plan.md's 675 lines, while FR-001 through FR-008 and NFR-001/NFR-002 all appear in Covers lists or supporting prose, matching the finding's claimed asymmetry exactly."
+  - id: PLAN-ARCH-003
+    verdict: confirmed
+    reason: "grep -rn '\\.format_errors(' src/ returns exactly two call sites (validators/paths.py:24 inside PathValidationError, reachable only via strict=True; summary_core.py:147 inside the strict_metadata branch), so the plan's proposed boolean mode-signal parameter would indeed be a compile-time constant at every call site."
