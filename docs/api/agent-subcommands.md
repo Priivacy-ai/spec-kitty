@@ -1507,6 +1507,29 @@ _Task workflow commands for AI agents_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty agent tasks check-terminability
+
+```
+ Usage: spec-kitty agent tasks check-terminability [OPTIONS]
+
+ Advisory scan for work packages that can only be terminated post-integration.
+
+ Warns when a WP's acceptance criteria contain a post-integration trigger
+ phrase (the #3590 trap) — content that cannot be verified in the WP's own
+ diff. This is **advisory only**: it never refuses or fails authoring
+ (FR-008) — it exits 0 even when warnings fire. It does not touch the
+ finalize / lane-compute path (C-005).
+
+ Examples:
+     spec-kitty agent tasks check-terminability --mission my-mission --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --mission          TEXT  Mission slug                                        │
+│ --json                   Output JSON format                                  │
+│ --help     -h            Show this message and exit.                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty agent tasks map-requirements
 
 ```

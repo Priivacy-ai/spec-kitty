@@ -260,7 +260,7 @@ class _MergeRunState:
     any_lane_had_unintegrated_code: bool = False
     # FR-004 / FR-009: WP IDs at an acceptable *canceled* ending (operator
     # provenance) on the coord surface — resolved ONCE at lock entry via
-    # ``acceptably_canceled_wp_ids`` and threaded to the lane-merge phase so a
+    # ``acceptably_canceled_wp_ids`` and threaded to the lane-consolidation phase so a
     # fully-canceled lane (whose branch may not exist) is skipped without a
     # second coord read. ``all_wp_ids`` already has these filtered out.
     excluded_canceled_wp_ids: frozenset[str] = frozenset()
@@ -1611,7 +1611,7 @@ def _run_lane_based_merge_locked(
     # (``_phase_gates_and_state``), ``wp_order`` (:1681), and the final
     # ``_assert_merged_wps_reached_done`` — a canceled WP has no review artifact
     # and never reaches ``done``, so leaving it in would break the merge on an
-    # acceptable ending. Resolved once here and threaded to the lane-merge phase.
+    # acceptable ending. Resolved once here and threaded to the lane-consolidation phase.
     excluded_canceled_wp_ids = frozenset(
         acceptably_canceled_wp_ids(main_repo, mission_slug)
     )
