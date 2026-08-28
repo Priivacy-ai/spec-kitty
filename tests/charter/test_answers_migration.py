@@ -172,6 +172,27 @@ def test_answers_migration_failure_restores_preimage(
     assert path.read_bytes() == preimage
 
 
+def test_answers_migration_restore_failure_raises_typed_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If the pre-image restore itself fails (e.g. disk full mid-restore), the
+    caller gets a typed AnswersMigrationError naming the partial-write risk --
+    not a raw OSError leaking past the migration seam."""
+    path = _write_fixture(tmp_path)
+
+    def _boom_write(_path: Path, _data: bytes) -> None:
+        raise OSError("simulated disk failure during forward migration write")
+
+    def _boom_restore(_path: Path, _preimage: bytes) -> None:
+        raise OSError("simulated disk failure during pre-image restore")
+
+    monkeypatch.setattr(migrate_module, "_write_bytes", _boom_write)
+    monkeypatch.setattr(migrate_module, "_restore_bytes", _boom_restore)
+
+    with pytest.raises(AnswersMigrationError, match="partially-migrated state"):
+        migrate_module.migrate_answers_file(path)
+
+
 def test_migration_leaves_canonical_only_file_byte_identical(tmp_path: Path) -> None:
     """A file already on the canonical key (no legacy occurrence) is a no-op."""
     content = _LEGACY_NESTED_FIXTURE.replace("doctrine:\n", "charter:\n", 1)
