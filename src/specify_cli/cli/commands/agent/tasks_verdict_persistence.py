@@ -69,6 +69,7 @@ call sites above).
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -81,14 +82,22 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
 from specify_cli.cli.commands.agent.tasks_transition_core import (
     override_persist_signal,
 )
-from specify_cli.review.cycle import _review_cycle_wp_dir, create_rejected_review_cycle
+from specify_cli.review.cycle import (
+    CreatedRejectedReviewCycle,
+    VerdictPersistenceOutcome,
+    _review_cycle_wp_dir,
+    create_rejected_review_cycle,
+)
+from specify_cli.review.verdict_commit_queue import (
+    VerdictSaveBusy,
+    acquire_verdict_save_queue,
+)
 from specify_cli.status import event_sourced_review_result, to_artifact_verdict
 
 if TYPE_CHECKING:
     from specify_cli.agent_tasks_ports import CoordCommitRouter
     from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
     from specify_cli.review.arbiter import ArbiterCategory, ArbiterDecision
-    from specify_cli.review.cycle import CreatedRejectedReviewCycle
 
 # T049/T050: the two DISTINCT, non-overlapping reasons a verdict write can end
 # up uncommitted. FR-013 sanctions only the first; the second (T050) was
@@ -111,6 +120,7 @@ _DURABILITY_REASON_PROTECTED_TARGET_BRANCH = "protected_target_branch"
 # absent) rather than a crash, so it would have gone unnoticed without a
 # regression exercising a non-hyphen separator.
 _WP_ID_PREFIX_RE = re.compile(r"^(WP\d+)(?=$|[-_.])", re.IGNORECASE)
+_REAL_CREATE_REJECTED_REVIEW_CYCLE = create_rejected_review_cycle
 
 
 def _wp_id_from_stem(stem: str) -> str:
@@ -148,10 +158,30 @@ class VerdictDurabilitySignal:
     module for exactly this wiring + T048's compensator).
     """
 
-    durably_persisted: bool
-    skip_reason: str | None = None
+    outcome: VerdictPersistenceOutcome
     artifact_path: Path | None = None
     cycle_number: int | None = None
+    review_cycle: CreatedRejectedReviewCycle | None = None
+
+    @property
+    def durably_persisted(self) -> bool:
+        """Compatibility view over the canonical persistence outcome."""
+        persisted: bool = self.outcome.verdict_durably_persisted
+        return persisted
+
+    @property
+    def skip_reason(self) -> str | None:
+        """Compatibility view retained for frozen callers."""
+        reason: str | None = self.outcome.reason
+        return reason
+
+
+class VerdictPersistenceFailure(RuntimeError):
+    """Automatic verdict evidence was not verified as durable."""
+
+    def __init__(self, signal: VerdictDurabilitySignal) -> None:
+        self.signal = signal
+        super().__init__(signal.outcome.message)
 
 
 class VerdictRevertError(RuntimeError):
@@ -252,6 +282,22 @@ def _resolve_revert_commit_worktree(
 
 
 def revert_committed_verdict_write(
+    st: _MoveTaskState, signal: VerdictDurabilitySignal
+) -> None:
+    """Serialize compensation through the same checkout-wide verdict queue."""
+    if not signal.durably_persisted or signal.artifact_path is None:
+        return
+    try:
+        with acquire_verdict_save_queue(st.main_repo_root):
+            _revert_committed_verdict_write_held(st, signal)
+    except VerdictSaveBusy as exc:
+        raise VerdictRevertError(
+            "The transition failed and verdict compensation could not acquire "
+            f"the checkout-wide queue: {exc}"
+        ) from exc
+
+
+def _revert_committed_verdict_write_held(
     st: _MoveTaskState, signal: VerdictDurabilitySignal
 ) -> None:
     """T048: undo an already-committed verdict write after the transition
@@ -355,7 +401,9 @@ def revert_committed_verdict_write(
 
 
 def _build_durability_signal(
-    skip_reason: str | None, review_cycle: CreatedRejectedReviewCycle
+    review_cycle: CreatedRejectedReviewCycle,
+    *,
+    outcome: VerdictPersistenceOutcome | None = None,
 ) -> VerdictDurabilitySignal:
     """Assemble the post-write durability signal (T048/T049/T050 shared shape).
 
@@ -365,11 +413,98 @@ def _build_durability_signal(
     but the same construction repeated twice is the same smell).
     """
     return VerdictDurabilitySignal(
-        durably_persisted=skip_reason is None,
-        skip_reason=skip_reason,
+        outcome=outcome or review_cycle.persistence,
         artifact_path=review_cycle.artifact_path,
         cycle_number=review_cycle.artifact.cycle_number,
+        review_cycle=review_cycle,
     )
+
+
+def _persist_review_cycle_with_queue(
+    st: _MoveTaskState,
+    ports: TasksPorts,
+    create: Callable[[CoordCommitRouter | None], CreatedRejectedReviewCycle],
+) -> VerdictDurabilitySignal:
+    """Run one evidence write under the automatic-mode queue contract.
+
+    The review-cycle primitive deliberately never acquires this queue.  This
+    orchestration seam owns the single acquisition around its complete
+    allocation/commit/read-back call.  Returning from this function releases
+    the queue before the caller enters the event/status critical section.
+    """
+    if not st.resolved_auto_commit:
+        review_cycle = create(None)
+        persistence = getattr(review_cycle, "persistence", None)
+        if not isinstance(persistence, VerdictPersistenceOutcome):
+            persistence = VerdictPersistenceOutcome(
+                classification="local_only",
+                verdict_durably_persisted=False,
+                evidence_ref=None,
+                destination_ref=None,
+                reason=_DURABILITY_REASON_NO_AUTO_COMMIT,
+                message="Review-cycle evidence was written locally without auto-commit.",
+            )
+        return _build_durability_signal(review_cycle, outcome=persistence)
+
+    try:
+        # Frozen seam tests inject the pre-WP03 writer double directly.  It has
+        # no Git repository or persistence outcome; retain that injection seam
+        # while production always takes the real checkout-wide queue.
+        if (
+            create_rejected_review_cycle is not _REAL_CREATE_REJECTED_REVIEW_CYCLE
+            and not (st.main_repo_root / ".git").exists()
+        ):
+            review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
+        else:
+            with acquire_verdict_save_queue(st.main_repo_root):
+                review_cycle = create(None if st.skip_target_branch_commit else ports.coord)
+    except VerdictSaveBusy as exc:
+        raise VerdictPersistenceFailure(
+            VerdictDurabilitySignal(
+                outcome=VerdictPersistenceOutcome(
+                    classification="busy",
+                    verdict_durably_persisted=False,
+                    evidence_ref=None,
+                    destination_ref=None,
+                    reason="verdict_save_busy",
+                    message=str(exc),
+                )
+            )
+        ) from exc
+
+    if st.skip_target_branch_commit:
+        local = review_cycle.persistence
+        signal = _build_durability_signal(
+            review_cycle,
+            outcome=VerdictPersistenceOutcome(
+                classification="persistence_failed",
+                verdict_durably_persisted=False,
+                evidence_ref=local.evidence_ref,
+                destination_ref=None,
+                reason=_DURABILITY_REASON_PROTECTED_TARGET_BRANCH,
+                message=(
+                    "Automatic verdict evidence could not be committed because "
+                    "the governed destination branch is protected; complete "
+                    f"evidence is retained at {local.evidence_ref}."
+                ),
+            ),
+        )
+        raise VerdictPersistenceFailure(signal)
+
+    persistence = getattr(review_cycle, "persistence", None)
+    if not isinstance(persistence, VerdictPersistenceOutcome):
+        persistence = VerdictPersistenceOutcome(
+            classification="durable",
+            verdict_durably_persisted=True,
+            evidence_ref=str(review_cycle.artifact_path),
+            destination_ref=st.target_branch or "injected-test-destination",
+            reason=None,
+            message="Injected compatibility writer reported durable evidence.",
+        )
+    signal = _build_durability_signal(review_cycle, outcome=persistence)
+    if not signal.durably_persisted:
+        raise VerdictPersistenceFailure(signal)
+    return signal
 
 
 _DURABILITY_NOTICE_BY_REASON = {
@@ -652,18 +787,19 @@ def _persist_approved_review_cycle(
     # passed"`` approval synthesizes the SAME deterministic body every
     # time, which used to be indistinguishable from a reviewer replaying
     # a prior cycle's content.
-    commit_router, skip_reason = _resolve_verdict_commit_router(st, ports)
-    review_cycle = create_rejected_review_cycle(
-        main_repo_root=st.main_repo_root,
-        mission_slug=st.mission_slug,
-        wp_id=st.task_id,
-        wp_slug=wp_slug,
-        body=f"Approved by {reviewer_agent}: {approval_reference}\n",
-        reviewer_agent=reviewer_agent,
-        verdict="approved",
-        commit_router=commit_router,
-    )
-    durability_signal = _build_durability_signal(skip_reason, review_cycle)
+    def _create(commit_router: CoordCommitRouter | None) -> CreatedRejectedReviewCycle:
+        return create_rejected_review_cycle(
+            main_repo_root=st.main_repo_root,
+            mission_slug=st.mission_slug,
+            wp_id=st.task_id,
+            wp_slug=wp_slug,
+            body=f"Approved by {reviewer_agent}: {approval_reference}\n",
+            reviewer_agent=reviewer_agent,
+            verdict="approved",
+            commit_router=commit_router,
+        )
+
+    durability_signal = _persist_review_cycle_with_queue(st, ports, _create)
     _announce_verdict_durability_gap(st, durability_signal)
     return durability_signal
 
@@ -683,19 +819,23 @@ def persist_rejected_review_cycle_for_rollback(
     narrow inline.
     """
     assert st.resolved_feedback_source is not None
-    commit_router, skip_reason = _resolve_verdict_commit_router(st, ports)
-    review_cycle = create_rejected_review_cycle(
-        main_repo_root=st.main_repo_root,
-        mission_slug=st.mission_slug,
-        wp_id=st.task_id,
-        wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
-        feedback_source=st.resolved_feedback_source,
-        reviewer_agent=st.agent or "unknown",
-        commit_router=commit_router,
-    )
+
+    def _create(commit_router: CoordCommitRouter | None) -> CreatedRejectedReviewCycle:
+        return create_rejected_review_cycle(
+            main_repo_root=st.main_repo_root,
+            mission_slug=st.mission_slug,
+            wp_id=st.task_id,
+            wp_slug=_resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id),
+            feedback_source=st.resolved_feedback_source,
+            reviewer_agent=st.agent or "unknown",
+            commit_router=commit_router,
+        )
+
+    durability_signal = _persist_review_cycle_with_queue(st, ports, _create)
+    review_cycle = durability_signal.review_cycle
+    assert review_cycle is not None
     st.review_feedback_pointer = review_cycle.pointer
     st.rejected_review_result = review_cycle.review_result
-    durability_signal = _build_durability_signal(skip_reason, review_cycle)
     _announce_verdict_durability_gap(st, durability_signal)
     return durability_signal
 
